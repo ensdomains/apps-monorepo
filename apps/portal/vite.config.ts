@@ -9,4 +9,9 @@ export default defineConfig({
     TanStackRouterVite({ target: "react", autoCodeSplitting: true }),
     react(),
   ],
+  resolve: {
+    alias: {
+      "@": import.meta.resolve("./src"),
+    },
+  },
 });
