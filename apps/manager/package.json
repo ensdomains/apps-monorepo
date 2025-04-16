@@ -23,6 +23,7 @@
     "vinxi": "0.5.3"
   },
   "devDependencies": {
+    "@cloudflare/unenv-preset": "^2.3.1",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
