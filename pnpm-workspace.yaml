@@ -9,5 +9,20 @@ catalog:
   "@types/react": ^19.0.8
   "@types/react-dom": ^19.0.3
   "@types/node": ^22.5.0
-  "typescript": ^5.7.2
+  typescript: ^5.7.2
   "@ensdomains/ensjs": ^4.0.2
+  "@ensdomains/thorin": 1.0.0-beta.26
+  "@rainbow-me/rainbowkit": ^2.2.4
+  "@vitejs/plugin-react-swc": ^3.9.0
+  "@testing-library/dom": ^10.4.0
+  "@testing-library/react": ^16.2.0
+  happy-dom: ^17.4.4
+  vite: ^6.1.0
+  vitest: ^3.1.1
+  web-vitals: ^4.2.4
+  "@tanstack/react-router": ^1.114.3
+  "@tanstack/react-router-devtools": ^1.114.3
+  "@tanstack/router-plugin": ^1.114.3
+  viem: ^2.9.2
+  wagmi: ^2.9.0
+  "@tanstack/react-query": ^5.74.3

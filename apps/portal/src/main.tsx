@@ -6,6 +6,7 @@ import ReactDOM from 'react-dom/client'
 import { routeTree } from './routeTree.gen'
 
 import reportWebVitals from './reportWebVitals.ts'
+import '@ensdomains/thorin/dist/thorin.css'
 
 // Create a new router instance
 const router = createRouter({
