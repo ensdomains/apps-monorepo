@@ -1,12 +1,11 @@
-import { modeVars } from "@ensdomains/thorin";
-import { globalStyle } from "@vanilla-extract/css";
+import { modeVars } from '@ensdomains/thorin'
+import { globalStyle } from '@vanilla-extract/css'
+
+import { globalFontFace } from '@vanilla-extract/css'
 
 globalStyle('body', {
   backgroundColor: modeVars.color.background,
 })
-
-
-import { globalFontFace } from '@vanilla-extract/css'
 
 globalFontFace('Satoshi', [
   {
@@ -26,4 +25,3 @@ globalFontFace('Satoshi', [
     fontWeight: 900,
   },
 ])
-
