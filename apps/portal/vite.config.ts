@@ -1,3 +1,5 @@
+/// <reference types="vitest" />
+
 import { resolve } from 'node:path'
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin'
