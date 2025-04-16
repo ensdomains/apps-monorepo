@@ -1,5 +1,5 @@
 import { queryClient, wagmiConfig } from '@/lib/wagmi'
-import { type Mode, ThemeProvider, cssVars, modeVars } from '@ensdomains/thorin'
+import { type Mode, ThemeProvider, cssVars } from '@ensdomains/thorin'
 import {
   RainbowKitProvider,
   type Theme,
