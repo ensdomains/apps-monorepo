@@ -8,6 +8,7 @@ import { routeTree } from './routeTree.gen'
 import reportWebVitals from './reportWebVitals.ts'
 import '@ensdomains/thorin/dist/thorin.css'
 import '@rainbow-me/rainbowkit/styles.css'
+import '@/styles/global.css.ts'
 
 // Create a new router instance
 const router = createRouter({

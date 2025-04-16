@@ -1,4 +1,4 @@
-import { Button } from '@ensdomains/thorin'
+import { Box, ThemeToggle } from '@ensdomains/thorin'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { createFileRoute } from '@tanstack/react-router'
 
@@ -10,7 +10,9 @@ function App() {
   return (
     <>
       <ConnectButton />
-      <Button width="max">this is thorin</Button>
+      <Box width="40">
+        <ThemeToggle />
+      </Box>
     </>
   )
 }
