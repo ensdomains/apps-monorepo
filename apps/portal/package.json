@@ -27,6 +27,7 @@
     "@types/react-dom": "catalog:",
     "@vanilla-extract/vite-plugin": "catalog:",
     "@vitejs/plugin-react-swc": "catalog:",
+    "blumen": "^0.14.4",
     "happy-dom": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
