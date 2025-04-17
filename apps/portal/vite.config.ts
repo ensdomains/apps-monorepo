@@ -1,6 +1,5 @@
 /// <reference types="vitest" />
 
-import { resolve } from 'node:path'
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin'
 import viteReact from '@vitejs/plugin-react-swc'
@@ -19,7 +18,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': resolve(import.meta.dirname, './src'),
+      '@': import.meta.resolve('./src'),
     },
   },
 })
