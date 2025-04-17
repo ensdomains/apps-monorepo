@@ -1,21 +1,20 @@
-import { queryClient, wagmiConfig } from '@/lib/wagmi'
-import { type Mode, ThemeProvider, cssVars } from '@ensdomains/thorin'
-import {
-  RainbowKitProvider,
-  type Theme,
-  darkTheme,
-  lightTheme,
-} from '@rainbow-me/rainbowkit'
-import { QueryClientProvider } from '@tanstack/react-query'
-import { Outlet, createRootRoute } from '@tanstack/react-router'
-import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
-import { WagmiProvider } from 'wagmi'
-
+import { cssVars, type Mode, ThemeProvider } from '@ensdomains/thorin'
 import {
   darkTheme as thorinDarkTheme,
   lightTheme as thorinLightTheme,
 } from '@ensdomains/thorin'
+import {
+  darkTheme,
+  lightTheme,
+  RainbowKitProvider,
+  type Theme,
+} from '@rainbow-me/rainbowkit'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { createRootRoute, Outlet } from '@tanstack/react-router'
+import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { useState } from 'react'
+import { WagmiProvider } from 'wagmi'
+import { queryClient, wagmiConfig } from '@/lib/wagmi'
 
 declare global {
   interface Window {

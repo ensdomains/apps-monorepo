@@ -6,7 +6,7 @@ import {
   metaMaskWallet,
 } from '@rainbow-me/rainbowkit/wallets'
 import { QueryClient } from '@tanstack/react-query'
-import { http, type HttpTransport, createClient } from 'viem'
+import { createClient, type HttpTransport, http } from 'viem'
 import { mainnet } from 'viem/chains'
 import { createConfig } from 'wagmi'
 
