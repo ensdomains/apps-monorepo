@@ -23,10 +23,13 @@
     "wagmi": "catalog:"
   },
   "devDependencies": {
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vanilla-extract/vite-plugin": "catalog:",
     "@vitejs/plugin-react-swc": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
     "blumen": "^0.14.4",
     "happy-dom": "catalog:",
     "typescript": "catalog:",
