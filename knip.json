@@ -1,0 +1,4 @@
+{
+  "ignore": ["apps/portal/src/utils/themeSetup.js"],
+  "ignoreDependencies": ["blumen", "@vitest/coverage-v8"]
+}

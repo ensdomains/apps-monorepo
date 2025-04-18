@@ -30,4 +30,4 @@ jobs:
       - name: Run tests
         run: pnpm test:all:cov
       - name: Run knip
-        run: pnpm knip --dependencies --files
+        run: pnpm knip --include files,dependencies
