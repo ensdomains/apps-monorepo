@@ -11,23 +11,24 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Setup Node.js with pnpm
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-          cache: 'pnpm'
 
       - name: Install pnpm
         uses: pnpm/action-setup@v2
 
+      - name: Setup Node.js with pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+
       - name: Install dependencies
         run: pnpm install
-      
+
       - name: Build the Portal app
         run: cd apps/portal && pnpm build
       - name: Deploy to IPFS
         run: |
-          output=$(pnpm blumen deploy --ens ${{ vars.PORTAL_ENS }} --safe ${{ vars.PORTAL_SAFE }}) 
+          output=$(pnpm blumen deploy --ens ${{ vars.PORTAL_ENS }} --safe ${{ vars.PORTAL_SAFE }})
           echo "$output"
           cid=$(echo "$output" | grep -oP 'Root CID: \K\S+')
           echo "CID=$cid" >> $GITHUB_OUTPUT
