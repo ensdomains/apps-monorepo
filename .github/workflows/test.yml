@@ -28,6 +28,6 @@ jobs:
       - name: Run biome check
         run: pnpm check
       - name: Run tests
-        run: pnpm -r test
+        run: pnpm test:all:cov
       - name: Run knip
         run: pnpm knip
