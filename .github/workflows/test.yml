@@ -29,3 +29,5 @@ jobs:
         run: pnpm check
       - name: Run tests
         run: pnpm -r test
+      - name: Run knip
+        run: pnpm knip
