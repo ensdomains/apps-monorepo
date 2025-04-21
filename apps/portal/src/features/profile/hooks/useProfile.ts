@@ -2,7 +2,6 @@ import { getRecords, type GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { getSubgraphRecords } from '@ensdomains/ensjs/subgraph'
 import type { ClientWithEns } from '@ensdomains/ensjs/contracts'
 import { queryOptions, useQuery } from '@tanstack/react-query'
-import { usePublicClient } from 'wagmi'
 import { wagmiConfig } from '@/lib/wagmi'
 
 export const getProfile = async (client: ClientWithEns, name: string) => {

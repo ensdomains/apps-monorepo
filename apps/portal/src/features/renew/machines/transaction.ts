@@ -6,7 +6,7 @@ import type {
   TransactionReceipt,
 } from 'viem'
 import { sendTransaction, waitForTransactionReceipt } from 'viem/actions'
-import { assign, fromPromise, log, setup, StateMachine } from 'xstate'
+import { assign, fromPromise, log, setup } from 'xstate'
 import { getConnectorClient } from '@wagmi/core'
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -134,36 +134,3 @@ export const transactionMachine = setup({
   // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   output: ({ event }) => event.output as any,
 })
-
-type TypeYeet = typeof transactionMachine extends StateMachine<
-  infer TContext,
-  infer TEvent,
-  infer TChildren,
-  infer TActor,
-  infer TAction,
-  infer TGuard,
-  infer TDelay,
-  infer TStateValue,
-  infer TTag,
-  infer TInput,
-  infer TOutput,
-  infer TEmitted,
-  infer TMeta,
-  infer TConfig
->
-  ? {
-      context: TContext
-      event: TEvent
-      children: TChildren
-      actor: TActor
-      action: TAction
-      guard: TGuard
-      delay: TDelay
-      state: TStateValue
-      tag: TTag
-      input: TInput
-      output: TOutput
-      emitted: TEmitted
-      meta: TMeta
-    }
-  : never
