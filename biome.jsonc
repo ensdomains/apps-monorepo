@@ -10,7 +10,7 @@
     "includes": [
       "**",
       "!**/node_modules",
-      "!**/package.json",
+      // "!**/package.json",
       "!**/dist",
       "!**/out",
       "!**/*.gen.ts"

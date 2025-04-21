@@ -9,7 +9,10 @@ import { defineConfig } from 'vite'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    TanStackRouterVite({ autoCodeSplitting: true }),
+    TanStackRouterVite({
+      autoCodeSplitting: true,
+      routeFileIgnorePattern: '.((css|const).ts)',
+    }),
     viteReact(),
     vanillaExtractPlugin(),
   ],
@@ -23,7 +26,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': path.resolve('./src'),
+      '@': new URL('./src', import.meta.url).pathname,
     },
   },
 })

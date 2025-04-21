@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "vite --port 3000",
+    "dev": "vite --port 3000",
     "build": "vite build && tsc",
     "serve": "vite preview",
     "test": "vitest run",
@@ -18,12 +19,16 @@
     "@tanstack/react-router-devtools": "catalog:",
     "@tanstack/router-plugin": "catalog:",
     "@vanilla-extract/css": "catalog:",
+    "@xstate/react": "^5.0.3",
     "react": "catalog:",
     "react-dom": "catalog:",
     "viem": "catalog:",
-    "wagmi": "catalog:"
+    "wagmi": "catalog:",
+    "@wagmi/core": "^2.16.7",
+    "xstate": "^5.19.2"
   },
   "devDependencies": {
+    "@statelyai/inspect": "^0.4.0",
     "@testing-library/dom": "catalog:",
     "@testing-library/jest-dom": "catalog:",
     "@testing-library/react": "catalog:",
