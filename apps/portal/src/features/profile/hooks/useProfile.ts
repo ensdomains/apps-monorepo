@@ -1,34 +1,36 @@
-import { getRecords, type GetRecordsReturnType } from '@ensdomains/ensjs/public'
+import { getRecords } from '@ensdomains/ensjs/public'
 import { getSubgraphRecords } from '@ensdomains/ensjs/subgraph'
-import type { ClientWithEns } from '@ensdomains/ensjs/contracts'
-import { queryOptions, useQuery } from '@tanstack/react-query'
-import { wagmiConfig } from '@/lib/wagmi'
+import { createQueryKey } from '@/utils/effect/tanstackQuery'
+import { Effect } from 'effect'
+import { WagmiClient } from '@/services/wagmi'
+import { effectQueryOptions } from '@/utils/tanstack-query/queryOptions'
 
-export const getProfile = async (client: ClientWithEns, name: string) => {
-  if (!name) {
-    return null
-  }
+export const getProfile = Effect.fn(function* (name: string) {
+  const client = yield* WagmiClient.client
 
-  const subgraphRecords = await getSubgraphRecords(client, { name })
-  const records = (await getRecords(client, {
-    name,
-    ...subgraphRecords,
-  })) as GetRecordsReturnType
+  const subgraphRecords = yield* Effect.tryPromise(() =>
+    getSubgraphRecords(client, { name }),
+  )
+
+  const records = yield* Effect.tryPromise(() =>
+    getRecords(client, { name, ...subgraphRecords }),
+  )
 
   return {
     records,
     subgraphRecords,
   }
-}
+})
 
-export const profileQueryOptions = (client: ClientWithEns, name: string) =>
-  queryOptions({
-    queryKey: ['profile', name],
-    queryFn: () => getProfile(client, name),
+export const profileQueryKey = createQueryKey<
+  'profile',
+  {
+    name: string
+  }
+>('profile')
+
+export const getProfileQueryOptions = (name: string) =>
+  effectQueryOptions({
+    queryKey: profileQueryKey({ name }),
+    queryFn: ({ queryKey: [, { name }] }) => getProfile(name),
   })
-
-export const useProfile = (name: string, client?: ClientWithEns) => {
-  const _client = client ?? wagmiConfig.getClient()
-
-  return useQuery(profileQueryOptions(_client, name))
-}

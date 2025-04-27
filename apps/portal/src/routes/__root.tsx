@@ -14,7 +14,8 @@ import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { useState } from 'react'
 import { WagmiProvider } from 'wagmi'
-import { queryClient, wagmiConfig } from '@/lib/wagmi'
+import { wagmiConfig } from '@/lib/wagmi'
+import { queryClient } from '@/utils/queryClient'
 
 declare global {
   interface Window {

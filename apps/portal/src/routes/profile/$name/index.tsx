@@ -1,8 +1,5 @@
-import {
-  profileQueryOptions,
-  useProfile,
-} from '@/features/profile/hooks/useProfile'
-import { queryClient, wagmiConfig } from '@/lib/wagmi'
+import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import { wagmiConfig } from '@/lib/wagmi'
 import { createFileRoute } from '@tanstack/react-router'
 import {
   container,
@@ -10,20 +7,22 @@ import {
   nameStyle,
   recordsList,
   recordItem,
+  buttonStyle,
 } from './index.css'
-import { useAccount, useClient } from 'wagmi'
+import { useAccount } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { useActorRef, useMachine, useSelector } from '@xstate/react'
-import { renewMachine } from '@/features/renew/machines/renew'
+import { useMachine, useSelector } from '@xstate/react'
 import { createBrowserInspector } from '@statelyai/inspect'
 import type { ActorRefFrom } from 'xstate'
-import type { transactionMachine } from '@/features/renew/machines/transaction'
+
+import { renewMachine } from '@/features/renew/machines/renew'
+import type { transactionMachine } from '@/machines/transaction'
+import { queryClient } from '@/utils/queryClient'
+import { useQuery } from '@tanstack/react-query'
 
 export const Route = createFileRoute('/profile/$name/')({
   loader: ({ params }) => {
-    const client = wagmiConfig.getClient()
-
-    return queryClient.ensureQueryData(profileQueryOptions(client, params.name))
+    return queryClient.ensureQueryData(getProfileQueryOptions(params.name))
   },
   component: RouteComponent,
 })
@@ -54,6 +53,7 @@ const RenewName = ({ name }: { name: string }) => {
     <div>
       <button
         type="button"
+        className={buttonStyle}
         onClick={() => {
           send({
             type: 'renew',
@@ -64,6 +64,16 @@ const RenewName = ({ name }: { name: string }) => {
       >
         Renew Name
       </button>
+
+      {state.value === 'Failure' && (
+        <button
+          type="button"
+          className={buttonStyle}
+          onClick={() => send({ type: 'reset' })}
+        >
+          Reset
+        </button>
+      )}
 
       <div>Renew Status: {state.value}</div>
 
@@ -78,7 +88,7 @@ const RenewName = ({ name }: { name: string }) => {
 
 function RouteComponent() {
   const { name } = Route.useParams()
-  const { data, isLoading, isError } = useProfile(name)
+  const { data, isLoading, isError } = useQuery(getProfileQueryOptions(name))
 
   if (isLoading) return <div>Loading profile...</div>
   if (isError || !data) return <div>Profile not found</div>

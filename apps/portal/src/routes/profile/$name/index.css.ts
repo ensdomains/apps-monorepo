@@ -38,3 +38,12 @@ export const recordItem = style({
   padding: '0.5rem 1rem',
   borderBottom: `1px solid ${modeVars.color.border}`,
 })
+
+export const buttonStyle = style({
+  backgroundColor: modeVars.color.accentLight,
+  color: modeVars.color.text,
+  border: 'none',
+  padding: '0.5rem 1rem',
+  borderRadius: '4px',
+  display: 'block',
+})
