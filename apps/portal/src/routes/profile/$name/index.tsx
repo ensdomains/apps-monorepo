@@ -1,28 +1,26 @@
-import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
-import { wagmiConfig } from '@/lib/wagmi'
-import { createFileRoute } from '@tanstack/react-router'
-import {
-  container,
-  avatar,
-  nameStyle,
-  recordsList,
-  recordItem,
-  buttonStyle,
-} from './index.css'
-import { useAccount } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { useMachine, useSelector } from '@xstate/react'
 import { createBrowserInspector } from '@statelyai/inspect'
-import type { ActorRefFrom } from 'xstate'
-
+import { useQuery } from '@tanstack/react-query'
+import { createFileRoute } from '@tanstack/react-router'
+import { useMachine, useSelector } from '@xstate/react'
+import { useAccount } from 'wagmi'
+import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { renewMachine } from '@/features/renew/machines/renew'
 import type { transactionMachine } from '@/machines/transaction'
 import { queryClient } from '@/utils/queryClient'
-import { useQuery } from '@tanstack/react-query'
+import type { ActorRefFrom } from 'node_modules/xstate'
+import {
+  avatar,
+  buttonStyle,
+  container,
+  nameStyle,
+  recordItem,
+  recordsList,
+} from './index.css'
 
 export const Route = createFileRoute('/profile/$name/')({
   loader: ({ params }) => {
-    return queryClient.ensureQueryData(getProfileQueryOptions(params.name))
+    return queryClient.prefetchQuery(getProfileQueryOptions(params.name))
   },
   component: RouteComponent,
 })
@@ -44,6 +42,7 @@ const RenewName = ({ name }: { name: string }) => {
   const account = useAccount()
 
   const [state, send] = useMachine(renewMachine, {
+    id: `renew-${name}`,
     inspect: inspector.inspect,
   })
 
@@ -88,7 +87,9 @@ const RenewName = ({ name }: { name: string }) => {
 
 function RouteComponent() {
   const { name } = Route.useParams()
-  const { data, isLoading, isError } = useQuery(getProfileQueryOptions(name))
+  const query = useQuery(getProfileQueryOptions(name))
+
+  const { data, isLoading, isError } = query
 
   if (isLoading) return <div>Loading profile...</div>
   if (isError || !data) return <div>Profile not found</div>
@@ -124,6 +125,7 @@ function RouteComponent() {
         </ul>
       </div>
 
+      <RenewName name={name} />
       <RenewName name={name} />
     </div>
   )

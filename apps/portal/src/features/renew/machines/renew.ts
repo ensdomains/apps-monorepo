@@ -1,21 +1,23 @@
-import { renewNames } from '@ensdomains/ensjs/wallet'
-import { assign, log, setup } from 'xstate'
-import { TransactionError, transactionMachine } from '@/machines/transaction'
-import { wagmiConfig } from '@/lib/wagmi'
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import { getPrice } from '@ensdomains/ensjs/public'
+import { renewNames } from '@ensdomains/ensjs/wallet'
+import { fromPromise, ok } from 'neverthrow'
 import type { TransactionReceipt } from 'viem'
-import { Cause, Data, Effect, Exit } from 'effect'
-import { asFailure, asSuccess, fromEffect } from '@/utils/effect/xstate'
-import { WagmiClient } from '@/services/wagmi'
+import { assign, log, setup } from 'xstate'
+import { wagmiConfig } from '@/lib/wagmi'
+import { safeGetClient, WagmiClientError } from '@/lib/wagmi/helpers'
+import {
+  type TransactionMachineError,
+  transactionMachine,
+} from '@/machines/transaction'
 
 // 102% of price as buffer for fluctuations
 const CURRENCY_FLUCTUATION_BUFFER_PERCENTAGE = 102n
 const calculateValueWithBuffer = (value: bigint) =>
-  Effect.sync(() => (value * CURRENCY_FLUCTUATION_BUFFER_PERCENTAGE) / 100n)
+  (value * CURRENCY_FLUCTUATION_BUFFER_PERCENTAGE) / 100n
 
-export class PriceResolutionError extends Data.TaggedError(
-  'PriceResolutionError',
-)<{
+export class PriceResolutionError extends TaggedError('PriceResolutionError')<{
   cause: unknown
 }> {}
 
@@ -26,7 +28,7 @@ export const renewMachine = setup({
       name?: string
       duration?: number
       receipt?: TransactionReceipt
-      error?: Cause.Cause<TransactionError | PriceResolutionError>
+      error?: TransactionMachineError | PriceResolutionError | WagmiClientError
     },
     children: {} as {
       transactionMgr: 'transactionManager'
@@ -37,39 +39,27 @@ export const renewMachine = setup({
   },
 
   actors: {
-    getPrice: fromEffect(
-      Effect.fn(function* ({
+    getPrice: fromResultAsync(
+      ResultFn(async function* ({
         name,
         duration,
       }: {
         name: string
         duration: number
       }) {
-        const client = yield* WagmiClient.client
-        const price = yield* Effect.tryPromise({
-          try: () =>
-            getPrice(client, {
-              nameOrNames: name,
-              duration,
-            }),
-          catch: (error) => new PriceResolutionError({ cause: error }),
-        })
+        const client = yield* safeGetClient()
+        const price = yield* await fromPromise(
+          getPrice(client, {
+            nameOrNames: name,
+            duration,
+          }),
+          (error) => new PriceResolutionError({ cause: error }),
+        )
 
-        return yield* calculateValueWithBuffer(price.base)
+        return ok(calculateValueWithBuffer(price.base))
       }),
     ),
     transactionManager: transactionMachine,
-  },
-
-  guards: {
-    isSuccess: ({ event }) =>
-      Exit.isSuccess(
-        (event as unknown as { output: Exit.Exit<unknown, unknown> }).output,
-      ),
-    isFailure: ({ event }) =>
-      Exit.isFailure(
-        (event as unknown as { output: Exit.Exit<unknown, unknown> }).output,
-      ),
   },
 }).createMachine({
   context: {},
@@ -95,29 +85,22 @@ export const renewMachine = setup({
           name: context.name!,
           duration: context.duration!,
         }),
-        onDone: [
-          {
-            target: 'Pending',
-            guard: 'isSuccess',
-            actions: [
-              assign({
-                price: ({ event }) => asSuccess(event.output),
-              }),
-              log(({ context }) => `Price loaded: ${context.price}`),
-            ],
-          },
-          {
-            target: 'Failure',
-            guard: 'isFailure',
-            actions: [
-              assign({ error: ({ event }) => asFailure(event.output) }),
-              log(
-                ({ event }) =>
-                  `Price resolution failed: ${asFailure(event.output)}`,
-              ),
-            ],
-          },
-        ],
+        onDone: {
+          target: 'Pending',
+          actions: [
+            assign({
+              price: ({ event }) => event.output,
+            }),
+            log(({ context }) => `Price loaded: ${context.price}`),
+          ],
+        },
+        onError: {
+          target: 'Failure',
+          actions: [
+            assign({ error: ({ event }) => event.error }),
+            log(({ event }) => `Price resolution failed: ${event.error}`),
+          ],
+        },
       },
     },
     Pending: {
@@ -137,14 +120,14 @@ export const renewMachine = setup({
         onDone: [
           {
             target: 'Success',
-            guard: ({ event }) => Exit.isSuccess(event.output),
+            guard: ({ event }) => event.output.isOk(),
             actions: [
               assign({
-                receipt: ({ event }) => asSuccess(event.output),
+                receipt: ({ event }) => event.output._unsafeUnwrap(),
               }),
               log(
                 ({ event }) =>
-                  `Transaction receipt: ${asSuccess(event.output)}`,
+                  `Transaction receipt: ${event.output._unsafeUnwrap()}`,
               ),
             ],
           },
@@ -152,7 +135,7 @@ export const renewMachine = setup({
             target: 'Failure',
             actions: [
               assign({
-                error: ({ event }) => asFailure(event.output),
+                error: ({ event }) => event.output._unsafeUnwrapErr(),
               }),
               log(
                 ({ event, context }) =>

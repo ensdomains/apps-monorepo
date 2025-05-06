@@ -1,15 +1,23 @@
-import { wagmiConfig, type ChainType } from '@/lib/wagmi'
+import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
+import { err, ok, type Result } from 'neverthrow'
 import type { Hex, SendTransactionRequest, TransactionReceipt } from 'viem'
-import { sendTransaction, waitForTransactionReceipt } from 'viem/actions'
 import { assign, log, setup } from 'xstate'
-import { getConnectorClient } from '@wagmi/core'
-import { Cause, Data, Effect, Exit } from 'effect'
-import { asFailure, asSuccess, fromEffect } from '@/utils/effect/xstate'
-import { WagmiClient, WagmiConfig } from '@/services/wagmi'
+import { type ChainType, wagmiConfig } from '@/lib/wagmi'
+import {
+  safeSendTransaction,
+  safeWaitForTransactionReceipt,
+  WagmiSendTransactionError,
+  WagmiWaitForTransactionReceiptError,
+} from '@/lib/wagmi/helpers'
 
-export class TransactionError extends Data.TaggedError('TransactionError')<{
-  cause: unknown
-}> {}
+export type TransactionMachineError =
+  | WagmiSendTransactionError
+  | WagmiWaitForTransactionReceiptError
+
+export type TransactionMachineResult = Result<
+  TransactionReceipt,
+  TransactionMachineError
+>
 
 export const transactionMachine = setup({
   types: {
@@ -17,42 +25,24 @@ export const transactionMachine = setup({
       transactionRequest: SendTransactionRequest<ChainType>
       transactionHash?: Hex
       receipt?: TransactionReceipt
-      error?: Cause.Cause<TransactionError>
+      error?: TransactionMachineError
     },
     input: {} as {
       transactionRequest: SendTransactionRequest<ChainType>
     },
-    output: {} as Exit.Exit<TransactionReceipt, TransactionError>,
+    output: {} as TransactionMachineResult,
   },
   actors: {
-    sendTransaction: fromEffect(
-      Effect.fn(function* ({
-        transactionRequest,
+    sendTransaction: fromResultAsync(
+      ({
+        tranactionRequest,
       }: {
-        transactionRequest: SendTransactionRequest<ChainType>
-      }) {
-        const config = yield* WagmiConfig.config
-        console.log('Conifg', config, wagmiConfig)
-        const client = yield* Effect.promise(() => getConnectorClient(config))
-
-        yield* Effect.sleep(3000)
-
-        return yield* Effect.tryPromise({
-          try: () => sendTransaction(client, transactionRequest),
-          catch: (error) => new TransactionError({ cause: error }),
-        })
-      }),
+        tranactionRequest: SendTransactionRequest<ChainType>
+      }) => safeSendTransaction(wagmiConfig, tranactionRequest),
     ),
-    waitForReceipt: fromEffect(
-      Effect.fn(function* ({ transactionHash }: { transactionHash: Hex }) {
-        const client = yield* WagmiClient.client
-
-        return yield* Effect.tryPromise({
-          try: () =>
-            waitForTransactionReceipt(client, { hash: transactionHash }),
-          catch: (error) => new TransactionError({ cause: error }),
-        })
-      }),
+    waitForReceipt: fromResultAsync(
+      ({ transactionHash }: { transactionHash: Hex }) =>
+        safeWaitForTransactionReceipt(wagmiConfig, { hash: transactionHash }),
     ),
   },
 }).createMachine({
@@ -65,35 +55,26 @@ export const transactionMachine = setup({
     Submitting: {
       invoke: {
         input: ({ context }) => ({
-          transactionRequest: context.transactionRequest,
+          tranactionRequest: context.transactionRequest,
         }),
         src: 'sendTransaction',
         id: 'sendTransaction',
-        onDone: [
-          {
-            target: 'Pending',
-            guard: ({ event }) => Exit.isSuccess(event.output),
-            actions: [
-              assign({
-                transactionHash: ({ event }) => asSuccess(event.output),
-              }),
-              log(
-                ({ event }) => `Transaction sent: ${asSuccess(event.output)}`,
-              ),
-            ],
-          },
-          {
-            target: 'Error',
-            guard: ({ event }) => Exit.isFailure(event.output),
-            actions: [
-              assign({ error: ({ event }) => asFailure(event.output) }),
-              log(
-                ({ event }) =>
-                  `Transaction failed to send: ${asFailure(event.output)}`,
-              ),
-            ],
-          },
-        ],
+        onDone: {
+          target: 'Pending',
+          actions: [
+            assign({
+              transactionHash: ({ event }) => event.output,
+            }),
+            log(({ event }) => `Transaction sent: ${event.output}`),
+          ],
+        },
+        onError: {
+          target: 'Error',
+          actions: [
+            assign({ error: ({ event }) => event.error }),
+            log(({ event }) => `Transaction failed to send: ${event.error}`),
+          ],
+        },
       },
     },
     Pending: {
@@ -102,43 +83,24 @@ export const transactionMachine = setup({
         input: ({ context }) => ({
           transactionHash: context.transactionHash!,
         }),
-        onDone: [
-          {
-            target: 'Success',
-            guard: ({ event }) => Exit.isSuccess(event.output),
-            actions: [
-              assign({
-                receipt: ({ event }) => asSuccess(event.output),
-              }),
-              log(
-                ({ event }) =>
-                  `Transaction receipt: ${asSuccess(event.output)}`,
-              ),
-            ],
-          },
-          {
-            target: 'Error',
-            guard: ({ event }) => Exit.isFailure(event.output),
-            actions: [
-              assign({ error: ({ event }) => asFailure(event.output) }),
-              log(
-                ({ event }) =>
-                  `Transaction failed to verify: ${asFailure(event.output)}`,
-              ),
-            ],
-          },
-        ],
+        onDone: {
+          target: 'Success',
+          actions: [assign({ receipt: ({ event }) => event.output })],
+        },
+        onError: {
+          target: 'Error',
+          actions: [assign({ error: ({ event }) => event.error })],
+        },
       },
     },
     Success: {
       type: 'final',
-      output: ({ context }) => Exit.succeed(context.receipt!),
+      output: ({ context }) => ok(context.receipt!),
     },
     Error: {
       type: 'final',
-      output: ({ context }) => Exit.failCause(context.error!),
+      output: ({ context }) => err(context.error!),
     },
   },
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-  output: ({ event }) => event.output as any,
+  output: ({ event }) => event.output as TransactionMachineResult,
 })

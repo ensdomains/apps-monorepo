@@ -1,25 +1,37 @@
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getRecords } from '@ensdomains/ensjs/public'
 import { getSubgraphRecords } from '@ensdomains/ensjs/subgraph'
-import { createQueryKey } from '@/utils/effect/tanstackQuery'
-import { Effect } from 'effect'
-import { WagmiClient } from '@/services/wagmi'
-import { effectQueryOptions } from '@/utils/tanstack-query/queryOptions'
+import { fromPromise, ok } from 'neverthrow'
+import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export const getProfile = Effect.fn(function* (name: string) {
-  const client = yield* WagmiClient.client
+class SubgraphError extends TaggedError('SubgraphError')<{
+  cause: unknown
+}> {}
 
-  const subgraphRecords = yield* Effect.tryPromise(() =>
+class RecordsError extends TaggedError('RecordsError')<{
+  cause: unknown
+}> {}
+
+export const getProfile = ResultFn(async function* (name: string) {
+  // const client = yield* fromSync(() => getClient(wagmiConfig), ClientError.from)
+  const client = yield* safeGetClient()
+
+  const subgraphRecords = yield* await fromPromise(
     getSubgraphRecords(client, { name }),
+    (e) => new SubgraphError({ cause: e }),
   )
 
-  const records = yield* Effect.tryPromise(() =>
+  const records = yield* await fromPromise(
     getRecords(client, { name, ...subgraphRecords }),
+    (e) => new RecordsError({ cause: e }),
   )
 
-  return {
+  return ok({
     records,
     subgraphRecords,
-  }
+  })
 })
 
 export const profileQueryKey = createQueryKey<
@@ -30,7 +42,7 @@ export const profileQueryKey = createQueryKey<
 >('profile')
 
 export const getProfileQueryOptions = (name: string) =>
-  effectQueryOptions({
+  resultQueryOptions({
     queryKey: profileQueryKey({ name }),
     queryFn: ({ queryKey: [, { name }] }) => getProfile(name),
   })

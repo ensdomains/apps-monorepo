@@ -1,0 +1,23 @@
+{
+  "name": "@ens-apps/utils",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "private": true,
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  },
+  "keywords": [],
+  "dependencies": {
+    "@tanstack/react-query": "catalog:",
+    "neverthrow": "catalog:",
+    "xstate": "catalog:"
+  }
+}
