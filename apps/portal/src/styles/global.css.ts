@@ -3,6 +3,18 @@ import { globalStyle } from '@vanilla-extract/css'
 
 import { globalFontFace } from '@vanilla-extract/css'
 
+globalStyle(':root[data-theme="light"]', {
+  vars: {
+    '--theme-filter': 'invert(0)',
+  },
+})
+
+globalStyle(':root[data-theme="dark"]', {
+  vars: {
+    '--theme-filter': 'invert(1)',
+  },
+})
+
 globalStyle('body', {
   backgroundColor: modeVars.color.background,
 })
