@@ -1,17 +1,21 @@
 import { useState } from 'react'
-import { useMachine } from '@xstate/react'
+import { useQuery } from '@tanstack/react-query'
 import { Box, Input, Typography } from '@ensdomains/thorin'
-import { isNameAvailabilityError, searchMachine } from '@/features/searchNameMachine/machines/searchNameMachine'
+import { getSearchNameQueryOptions, NameAvailabilityError } from '@/features/searchName/searchNameService'
 
 export const SearchNameInput = () => {
-  const [state, send] = useMachine(searchMachine)
   const [inputValue, setInputValue] = useState('')
+  const [searchTerm, setSearchTerm] = useState<string | null>(null)
+
+  const { data, isLoading, error, isError } = useQuery({
+    ...getSearchNameQueryOptions(searchTerm || ''),
+    enabled: !!searchTerm,
+  })
 
   const handleSearch = () => {
     const name = inputValue.trim().toLowerCase()
     if (name) {
-      const nameWithEth = name.endsWith('.eth') ? name : `${name}.eth`
-      send({ type: 'search', name: nameWithEth })
+      setSearchTerm(name)
     }
   }
 
@@ -22,15 +26,16 @@ export const SearchNameInput = () => {
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    send({ type: 'reset' })
     setInputValue(e.target.value)
+    setSearchTerm(null)
   }
 
-  const getErrorMessage = (error: unknown) => {
-    if (isNameAvailabilityError(error)) {
-      return error.cause
+  const getErrorMessage = (error: unknown): string => {
+    if (error instanceof NameAvailabilityError) {
+      debugger;
+      return String(error.cause)
     }
-    return error
+    return String(error)
   }
 
   return (
@@ -59,30 +64,30 @@ export const SearchNameInput = () => {
         </Box>
       </Box>
 
-      {state.value === 'Searching' && (
+      {isLoading && (
         <Typography color="textSecondary">Checking availability...</Typography>
       )}
 
-      {state.value === 'Result' && state.context.isAvailable && (
+      {!isLoading && data?.isAvailable && searchTerm && (
         <Box backgroundColor="green" padding="3" borderRadius="medium">
           <Typography color="white">
-            {state.context.name} is available!
+            {searchTerm} is available!
           </Typography>
         </Box>
       )}
 
-      {state.value === 'Result' && !state.context.isAvailable && (
+      {!isLoading && data && !data.isAvailable && searchTerm && (
         <Box backgroundColor="red" padding="3" borderRadius="medium">
           <Typography color="white">
-            {state.context.name} is not available
+            {searchTerm} is not available
           </Typography>
         </Box>
       )}
 
-      {state.value === 'Error' && (
+      {isError && (
         <Box backgroundColor="red" padding="3" borderRadius="medium">
           <Typography color="white">
-            {String(getErrorMessage(state.context.error))}
+            {getErrorMessage(error)}
           </Typography>
         </Box>
       )}
