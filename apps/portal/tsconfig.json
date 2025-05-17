@@ -22,7 +22,9 @@
     "noUncheckedSideEffectImports": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@ens-apps/hooks": ["../../packages/hooks/src"],
+      "@ens-apps/utils": ["../../packages/utils/src"]
     }
   }
 }

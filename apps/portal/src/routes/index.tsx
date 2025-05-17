@@ -1,4 +1,4 @@
-import { SearchNameInput } from '@/components/SearchNameInput'
+import { Registration } from '@/features/searchName/RegistrationName'
 import {
   Box,
   Heading,
@@ -84,7 +84,7 @@ function App() {
         </Typography>
 
 
-        <SearchNameInput />
+        <Registration />
       </Box>
     </>
   )

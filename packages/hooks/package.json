@@ -1,0 +1,30 @@
+{
+  "name": "@ens-apps/hooks",
+  "version": "1.0.0",
+  "description": "Reusable React hooks",
+  "main": "index.js",
+  "type": "module",
+  "private": true,
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@testing-library/react": "catalog:",
+    "@types/react": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "catalog:",
+    "react": "catalog:",
+    "neverthrow": "catalog:",
+    "wagmi": "catalog:"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0"
+  }
+}

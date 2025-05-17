@@ -1,28 +1,38 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import { fromPromise, ok } from 'neverthrow'
-import { assign, log, setup } from 'xstate'
+import { assign, createActor, log, setup } from 'xstate'
 import { safeGetClient, WagmiClientError } from '@/lib/wagmi/helpers'
 import { getAvailable } from '@ensdomains/ensjs/public'
-
-export const isNameAvailabilityError = (error: unknown): error is NameAvailabilityError => {
-  return error instanceof NameAvailabilityError
-}
 
 export class NameAvailabilityError extends TaggedError('NameAvailabilityError')<{
   cause: unknown
 }> { }
 
+export enum RegistrationStep {
+  CHECK_AVAILABILITY = 'checkAvailability',
+  PRICING = 'pricing',
+}
+
+export type SearchMachineContext = {
+  name?: string;
+  isAvailable?: boolean;
+  error?: NameAvailabilityError | WagmiClientError;
+  step: RegistrationStep;
+  duration: number;
+  currencyType: 'ETH' | 'USD';
+}
+
 export const searchMachine = setup({
   types: {
-    context: {} as {
-      name?: string
-      isAvailable?: boolean
-      error?: NameAvailabilityError | WagmiClientError
-    },
+    context: {} as SearchMachineContext,
     events: {} as
       | { type: 'search'; name: string }
-      | { type: 'reset' },
+      | { type: 'reset' }
+      | { type: 'next' }
+      | { type: 'back' }
+      | { type: 'setDuration'; duration: number }
+      | { type: 'setCurrency'; currencyType: 'ETH' | 'USD' },
   },
 
   actors: {
@@ -41,7 +51,11 @@ export const searchMachine = setup({
     ),
   },
 }).createMachine({
-  context: {},
+  context: {
+    step: RegistrationStep.CHECK_AVAILABILITY,
+    duration: 1,
+    currencyType: 'ETH',
+  },
   initial: 'Idle',
   states: {
     Idle: {
@@ -103,6 +117,16 @@ export const searchMachine = setup({
               name: (_) => undefined,
               isAvailable: (_) => undefined,
               error: (_) => undefined,
+              step: RegistrationStep.CHECK_AVAILABILITY,
+            }),
+          ],
+        },
+        next: {
+          target: 'Pricing',
+          guard: ({ context }: { context: SearchMachineContext }) => Boolean(context.isAvailable),
+          actions: [
+            assign({
+              step: (_) => RegistrationStep.PRICING,
             }),
           ],
         },
@@ -125,10 +149,52 @@ export const searchMachine = setup({
               name: (_) => undefined,
               isAvailable: (_) => undefined,
               error: (_) => undefined,
+              step: RegistrationStep.CHECK_AVAILABILITY,
+            }),
+          ],
+        },
+      },
+    },
+    Pricing: {
+      on: {
+        setDuration: {
+          actions: [
+            assign({
+              duration: ({ event }) => event.duration,
+            }),
+          ],
+        },
+        setCurrency: {
+          actions: [
+            assign({
+              currencyType: ({ event }) => event.currencyType,
+            }),
+          ],
+        },
+        back: {
+          target: 'Result',
+          actions: [
+            assign({
+              step: (_) => RegistrationStep.CHECK_AVAILABILITY,
+            }),
+          ],
+        },
+        reset: {
+          target: 'Idle',
+          actions: [
+            assign({
+              name: (_) => undefined,
+              isAvailable: (_) => undefined,
+              error: (_) => undefined,
+              step: RegistrationStep.CHECK_AVAILABILITY,
             }),
           ],
         },
       },
     },
   },
-}) 
+})
+
+export const actor = createActor(searchMachine)
+
+

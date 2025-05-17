@@ -28,7 +28,8 @@
     "viem": "catalog:",
     "wagmi": "catalog:",
     "xstate": "catalog:",
-    "@ens-apps/utils": "workspace:*"
+    "@ens-apps/utils": "workspace:*",
+    "@ens-apps/hooks": "workspace:*"
   },
   "devDependencies": {
     "@statelyai/inspect": "^0.4.0",
