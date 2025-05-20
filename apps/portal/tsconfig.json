@@ -2,7 +2,7 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    "src/utils/themeSetup.js",
+    "src/utils/themeSetup.ts",
     "./module.d.ts"
   ],
   "compilerOptions": {
