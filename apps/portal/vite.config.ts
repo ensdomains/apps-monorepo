@@ -13,7 +13,7 @@ export default defineConfig({
     TanStackRouterVite({ autoCodeSplitting: true }),
     viteReact(),
     vanillaExtractPlugin(),
-    i18nextLoader({ paths: ['./locales'] })
+    i18nextLoader({ paths: ['./locales'] }),
   ],
   test: {
     globals: true,
