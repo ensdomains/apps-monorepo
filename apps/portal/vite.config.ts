@@ -1,6 +1,7 @@
 /// <reference types="vitest" />
 
 import path from 'node:path'
+import i18nextLoader from '@ensdomains/vite-plugin-i18next-loader'
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin'
 import viteReact from '@vitejs/plugin-react-swc'
@@ -12,6 +13,7 @@ export default defineConfig({
     TanStackRouterVite({ autoCodeSplitting: true }),
     viteReact(),
     vanillaExtractPlugin(),
+    i18nextLoader({ paths: ['./locales'] })
   ],
   test: {
     globals: true,

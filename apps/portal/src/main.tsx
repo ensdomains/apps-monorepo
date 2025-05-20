@@ -8,6 +8,23 @@ import '@ensdomains/thorin/dist/thorin.css'
 import '@rainbow-me/rainbowkit/styles.css'
 import '@/styles/global.css.ts'
 
+import resources from 'virtual:i18next-loader'
+import i18n from 'i18next'
+import LanguageDetector from 'i18next-browser-languagedetector';
+
+import { initReactI18next } from "react-i18next";
+
+i18n
+  .use(LanguageDetector)
+  .use(initReactI18next)
+  .init({
+    supportedLngs: ['de', 'en', 'fr'],
+    resources,
+    interpolation: {
+      escapeValue: false,
+    }
+  })
+
 // Create a new router instance
 const router = createRouter({
   routeTree,

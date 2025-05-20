@@ -14,6 +14,8 @@ import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { useState } from 'react'
 import { WagmiProvider } from 'wagmi'
+
+import '../utils/themeSetup.js'
 import { queryClient, wagmiConfig } from '@/lib/wagmi'
 
 declare global {
@@ -60,6 +62,7 @@ export const Route = createRootRoute({
           <QueryClientProvider client={queryClient}>
             <RainbowKitProvider theme={rainbowkitThemeBase(theme ?? 'light')}>
               <ThemeProvider
+                defaultMode={window.__theme}
                 onThemeChange={(mode) => window.__setPreferredTheme(mode)}
               >
                 <Outlet />
