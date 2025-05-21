@@ -1,11 +1,11 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
-import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getAvailable } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class NameAvailabilityError extends TaggedError('NameAvailabilityError')<{
+export class NameAvailabilityError extends TaggedError(
+  'NameAvailabilityError',
+)<{
   cause: unknown
 }> { }
 
@@ -24,17 +24,3 @@ export const checkNameAvailability = ResultFn(async function* (name: string) {
   })
 })
 
-
-
-export const searchNameQueryKey = createQueryKey<
-  'searchName',
-  {
-    name: string
-  }
->('searchName')
-
-export const getSearchNameQueryOptions = (name: string) =>
-  resultQueryOptions({
-    queryKey: searchNameQueryKey({ name }),
-    queryFn: ({ queryKey: [, { name }] }) => checkNameAvailability(name),
-  })

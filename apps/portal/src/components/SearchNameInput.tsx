@@ -1,7 +1,17 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import {
+  checkNameAvailability,
+  NameAvailabilityError,
+} from '@/features/searchName/searchNameService'
 import { Box, Input, Typography } from '@ensdomains/thorin'
-import { getSearchNameQueryOptions, NameAvailabilityError } from '@/features/searchName/searchNameService'
+
+export const getSearchNameQueryOptions = (name: string) =>
+  resultQueryOptions({
+    queryKey: ['searchName', { name }],
+    queryFn: ({ queryKey: [, { name }] }) => checkNameAvailability(name),
+  })
 
 export const SearchNameInput = () => {
   const [inputValue, setInputValue] = useState('')
@@ -32,7 +42,6 @@ export const SearchNameInput = () => {
 
   const getErrorMessage = (error: unknown): string => {
     if (error instanceof NameAvailabilityError) {
-      debugger;
       return String(error.cause)
     }
     return String(error)
