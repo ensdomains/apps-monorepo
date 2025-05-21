@@ -1,5 +1,10 @@
 {
-  "include": ["**/*.ts", "**/*.tsx", "src/utils/themeSetup.js"],
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "src/utils/themeSetup.ts",
+    "./module.d.ts"
+  ],
   "compilerOptions": {
     "target": "ES2022",
     "jsx": "react-jsx",

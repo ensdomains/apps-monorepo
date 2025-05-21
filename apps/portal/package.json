@@ -18,12 +18,16 @@
     "@tanstack/react-router-devtools": "catalog:",
     "@tanstack/router-plugin": "catalog:",
     "@vanilla-extract/css": "catalog:",
+    "i18next": "^25.2.0",
+    "i18next-browser-languagedetector": "^8.1.0",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "react-i18next": "^15.5.1",
     "viem": "catalog:",
     "wagmi": "catalog:"
   },
   "devDependencies": {
+    "@ensdomains/vite-plugin-i18next-loader": "^4.0.3",
     "@testing-library/dom": "catalog:",
     "@testing-library/jest-dom": "catalog:",
     "@testing-library/react": "catalog:",
