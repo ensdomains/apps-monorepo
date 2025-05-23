@@ -1,14 +1,14 @@
-import { Box, Button, Typography } from '@ensdomains/thorin'
 import { useEstimateFullRegistration } from '@ens-apps/hooks'
+import { Box, Button, Typography } from '@ensdomains/thorin'
 
 type PricingProps = {
-  name?: string;
-  duration: number;
-  currency: 'ETH' | 'USD';
-  onChangeDuration: (duration: number) => void;
-  onChangeCurrency: (currency: 'ETH' | 'USD') => void;
-  onBack: () => void;
-  onContinue: () => void;
+  name?: string
+  duration: number
+  currency: 'ETH' | 'USD'
+  onChangeDuration: (duration: number) => void
+  onChangeCurrency: (currency: 'ETH' | 'USD') => void
+  onBack: () => void
+  onContinue: () => void
 }
 
 export const Pricing = ({
@@ -22,26 +22,29 @@ export const Pricing = ({
 }: PricingProps) => {
   const handleDecreaseDuration = () => {
     if (duration > 1) {
-      onChangeDuration(duration - 1);
+      onChangeDuration(duration - 1)
     }
   }
 
   const handleIncreaseDuration = () => {
-    onChangeDuration(duration + 1);
+    onChangeDuration(duration + 1)
   }
 
-  const { estimatedGasFee, totalDurationBasedFee, } = useEstimateFullRegistration({
-    registrationData: { seconds: duration * 31536000 },
-    name: name?.split('.')[0] || '',
-  })
+  const { estimatedGasFee, totalDurationBasedFee } =
+    useEstimateFullRegistration({
+      registrationData: { seconds: duration * 31536000 },
+      name: name?.split('.')[0] || '',
+    })
 
   // dummy values for testing
-  const registrationFee = Number(totalDurationBasedFee) / 1e18 * (currency === 'USD' ? 2500 : 1);
-  const networkFee = Number(estimatedGasFee) / 1e18 * (currency === 'USD' ? 2500 : 1);
-  const total = registrationFee + networkFee;
+  const registrationFee =
+    (Number(totalDurationBasedFee) / 1e18) * (currency === 'USD' ? 2500 : 1)
+  const networkFee =
+    (Number(estimatedGasFee) / 1e18) * (currency === 'USD' ? 2500 : 1)
+  const total = registrationFee + networkFee
 
   return (
-    <Box width="full" display="flex" flexDirection="column" gap="6" >
+    <Box width="full" display="flex" flexDirection="column" gap="6">
       <Typography fontWeight="bold" fontSize="headingTwo">
         Register {name}
       </Typography>
@@ -54,10 +57,7 @@ export const Pricing = ({
         borderRadius="extraLarge"
         padding="1"
       >
-        <Button
-          onClick={handleDecreaseDuration}
-          disabled={duration <= 1}
-        >
+        <Button onClick={handleDecreaseDuration} disabled={duration <= 1}>
           -
         </Button>
         <Box
@@ -71,11 +71,7 @@ export const Pricing = ({
             {duration} year{duration > 1 ? 's' : ''}
           </Typography>
         </Box>
-        <Button
-          onClick={handleIncreaseDuration}
-        >
-          +
-        </Button>
+        <Button onClick={handleIncreaseDuration}>+</Button>
       </Box>
 
       <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -92,7 +88,9 @@ export const Pricing = ({
           >
             <Box
               as="button"
-              backgroundColor={currency === 'ETH' ? 'background' : 'transparent'}
+              backgroundColor={
+                currency === 'ETH' ? 'background' : 'transparent'
+              }
               padding="2"
               borderRadius="full"
               onClick={() => onChangeCurrency('ETH')}
@@ -101,7 +99,9 @@ export const Pricing = ({
             </Box>
             <Box
               as="button"
-              backgroundColor={currency === 'USD' ? 'background' : 'transparent'}
+              backgroundColor={
+                currency === 'USD' ? 'background' : 'transparent'
+              }
               padding="2"
               borderRadius="full"
               onClick={() => onChangeCurrency('USD')}
@@ -112,40 +112,38 @@ export const Pricing = ({
         </Box>
       </Box>
 
-      <Box
-        backgroundColor="grey"
-        padding="6"
-        borderRadius="large"
-      >
+      <Box backgroundColor="grey" padding="6" borderRadius="large">
         <Box display="flex" justifyContent="space-between" marginBottom="3">
           <Typography>{duration} year registration</Typography>
-          <Typography>{currency === 'ETH' ? '⟠' : '$'}{registrationFee.toFixed(2)}</Typography>
+          <Typography>
+            {currency === 'ETH' ? '⟠' : '$'}
+            {registrationFee.toFixed(2)}
+          </Typography>
         </Box>
         <Box display="flex" justifyContent="space-between" marginBottom="3">
           <Typography>Est. network fee</Typography>
-          <Typography>{currency === 'ETH' ? '⟠' : '$'}{networkFee.toFixed(2)}</Typography>
+          <Typography>
+            {currency === 'ETH' ? '⟠' : '$'}
+            {networkFee.toFixed(2)}
+          </Typography>
         </Box>
         <Box display="flex" justifyContent="space-between">
           <Typography fontWeight="bold">Estimated total</Typography>
-          <Typography fontWeight="bold">{currency === 'ETH' ? '⟠' : '$'}{total.toFixed(2)}</Typography>
+          <Typography fontWeight="bold">
+            {currency === 'ETH' ? '⟠' : '$'}
+            {total.toFixed(2)}
+          </Typography>
         </Box>
       </Box>
 
       <Box display="flex" justifyContent="space-between" gap="4" marginTop="4">
-        <Button
-          onClick={onBack}
-          colorStyle="accentSecondary"
-          width="1/2"
-        >
+        <Button onClick={onBack} colorStyle="accentSecondary" width="1/2">
           Back
         </Button>
-        <Button
-          onClick={onContinue}
-          width="1/2"
-        >
+        <Button onClick={onContinue} width="1/2">
           Continue
         </Button>
       </Box>
-    </Box >
+    </Box>
   )
 }

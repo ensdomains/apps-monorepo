@@ -1,12 +1,12 @@
-import { useState } from 'react'
-import { useMachine } from '@xstate/react'
 import { Box, Typography } from '@ensdomains/thorin'
+import { useMachine } from '@xstate/react'
+import { useState } from 'react'
 import { CheckAvailability } from '@/features/searchName/CheckAvailability'
-import { Pricing } from '@/features/searchName/Pricing'
 import {
   RegistrationStep,
-  searchMachine
+  searchMachine,
 } from '@/features/searchName/machines/searchNameMachine'
+import { Pricing } from '@/features/searchName/Pricing'
 
 export const Registration = () => {
   const [state, send] = useMachine(searchMachine)
@@ -54,9 +54,20 @@ export const Registration = () => {
   const name = state.context.name
 
   return (
-    <Box width="full" display="flex" flexDirection="column" alignItems="center" padding="6">
+    <Box
+      width="full"
+      display="flex"
+      flexDirection="column"
+      alignItems="center"
+      padding="6"
+    >
       <Box width={{ xs: 'full', md: '2/3', lg: '1/2' }}>
-        <Typography fontWeight="bold" fontSize="headingOne" marginBottom="6" textAlign="center">
+        <Typography
+          fontWeight="bold"
+          fontSize="headingOne"
+          marginBottom="6"
+          textAlign="center"
+        >
           ENS Domain Registration
         </Typography>
 

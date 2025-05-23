@@ -1,16 +1,16 @@
 import { Box, Input, Typography } from '@ensdomains/thorin'
-import { getErrorMessage } from './utils';
+import { getErrorMessage } from './utils'
 
 type CheckAvailabilityProps = {
-  inputValue: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onSearch: () => void;
-  onKeyPress: (e: React.KeyboardEvent) => void;
-  isSearching: boolean;
-  isAvailable?: boolean;
-  isError: boolean;
-  error?: unknown;
-  name?: string;
+  inputValue: string
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onSearch: () => void
+  onKeyPress: (e: React.KeyboardEvent) => void
+  isSearching: boolean
+  isAvailable?: boolean
+  isError: boolean
+  error?: unknown
+  name?: string
 }
 
 export const CheckAvailability = ({
@@ -24,7 +24,6 @@ export const CheckAvailability = ({
   error,
   name,
 }: CheckAvailabilityProps) => {
-
   return (
     <Box width="full" display="flex" flexDirection="column" gap="4">
       <Box display="flex" alignItems="center" gap="2">
@@ -57,17 +56,13 @@ export const CheckAvailability = ({
 
       {!isSearching && isAvailable && name && (
         <Box backgroundColor="green" padding="3" borderRadius="medium">
-          <Typography color="white">
-            {name} is available!
-          </Typography>
+          <Typography color="white">{name} is available!</Typography>
         </Box>
       )}
 
       {!isSearching && isAvailable === false && name && (
         <Box backgroundColor="red" padding="3" borderRadius="medium">
-          <Typography color="white">
-            {name} is not available
-          </Typography>
+          <Typography color="white">{name} is not available</Typography>
         </Box>
       )}
 
