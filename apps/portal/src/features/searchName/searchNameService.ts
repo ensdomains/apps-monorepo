@@ -5,9 +5,11 @@ import { getAvailable } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class NameAvailabilityError extends TaggedError('NameAvailabilityError')<{
+export class NameAvailabilityError extends TaggedError(
+  'NameAvailabilityError',
+)<{
   cause: unknown
-}> { }
+}> {}
 
 export const checkNameAvailability = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
@@ -23,8 +25,6 @@ export const checkNameAvailability = ResultFn(async function* (name: string) {
     name: nameWithEth,
   })
 })
-
-
 
 export const searchNameQueryKey = createQueryKey<
   'searchName',

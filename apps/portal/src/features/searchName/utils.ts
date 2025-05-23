@@ -1,6 +1,8 @@
-import { NameAvailabilityError } from "./machines/searchNameMachine";
+import { NameAvailabilityError } from './machines/searchNameMachine'
 
-export const isNameAvailabilityError = (error: unknown): error is NameAvailabilityError => {
+export const isNameAvailabilityError = (
+  error: unknown,
+): error is NameAvailabilityError => {
   return error instanceof NameAvailabilityError
 }
 export const getErrorMessage = (error: unknown) => {

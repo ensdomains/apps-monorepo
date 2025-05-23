@@ -13,9 +13,10 @@ type UseEstimateFullRegistrationParameters = {
 export const useEstimateFullRegistration = ({
   registrationData,
 }: UseEstimateFullRegistrationParameters) => {
-
   const baseYearlyFee = 5000000000000000n
-  const yearMultiplier = BigInt(Math.max(1, Math.floor(registrationData.seconds / 31536000)))
+  const yearMultiplier = BigInt(
+    Math.max(1, Math.floor(registrationData.seconds / 31536000)),
+  )
   // taking as example from ens-app-v3
   return {
     estimatedGasFee: 2000000000000000n,

@@ -1,13 +1,15 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
+import { getAvailable } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import { assign, createActor, log, setup } from 'xstate'
 import { safeGetClient, WagmiClientError } from '@/lib/wagmi/helpers'
-import { getAvailable } from '@ensdomains/ensjs/public'
 
-export class NameAvailabilityError extends TaggedError('NameAvailabilityError')<{
+export class NameAvailabilityError extends TaggedError(
+  'NameAvailabilityError',
+)<{
   cause: unknown
-}> { }
+}> {}
 
 export enum RegistrationStep {
   CHECK_AVAILABILITY = 'checkAvailability',
@@ -15,12 +17,12 @@ export enum RegistrationStep {
 }
 
 export type SearchMachineContext = {
-  name?: string;
-  isAvailable?: boolean;
-  error?: NameAvailabilityError | WagmiClientError;
-  step: RegistrationStep;
-  duration: number;
-  currencyType: 'ETH' | 'USD';
+  name?: string
+  isAvailable?: boolean
+  error?: NameAvailabilityError | WagmiClientError
+  step: RegistrationStep
+  duration: number
+  currencyType: 'ETH' | 'USD'
 }
 
 export const searchMachine = setup({
@@ -123,7 +125,8 @@ export const searchMachine = setup({
         },
         next: {
           target: 'Pricing',
-          guard: ({ context }: { context: SearchMachineContext }) => Boolean(context.isAvailable),
+          guard: ({ context }: { context: SearchMachineContext }) =>
+            Boolean(context.isAvailable),
           actions: [
             assign({
               step: (_) => RegistrationStep.PRICING,
@@ -196,5 +199,3 @@ export const searchMachine = setup({
 })
 
 export const actor = createActor(searchMachine)
-
-
