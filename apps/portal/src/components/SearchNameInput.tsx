@@ -1,5 +1,6 @@
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
-import { Box, Input, Typography } from '@ensdomains/thorin'
+import { Box, Input, Typography } from
+  '@ensdomains/thorin'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import {
