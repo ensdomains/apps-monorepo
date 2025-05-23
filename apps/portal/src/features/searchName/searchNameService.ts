@@ -7,7 +7,7 @@ export class NameAvailabilityError extends TaggedError(
   'NameAvailabilityError',
 )<{
   cause: unknown
-}> { }
+}> {}
 
 export const checkNameAvailability = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
@@ -23,4 +23,3 @@ export const checkNameAvailability = ResultFn(async function* (name: string) {
     name: nameWithEth,
   })
 })
-

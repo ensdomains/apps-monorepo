@@ -1,11 +1,11 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { Box, Input, Typography } from '@ensdomains/thorin'
+import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import {
   checkNameAvailability,
   NameAvailabilityError,
 } from '@/features/searchName/searchNameService'
-import { Box, Input, Typography } from '@ensdomains/thorin'
 
 export const getSearchNameQueryOptions = (name: string) =>
   resultQueryOptions({
@@ -79,25 +79,19 @@ export const SearchNameInput = () => {
 
       {!isLoading && data?.isAvailable && searchTerm && (
         <Box backgroundColor="green" padding="3" borderRadius="medium">
-          <Typography color="white">
-            {searchTerm} is available!
-          </Typography>
+          <Typography color="white">{searchTerm} is available!</Typography>
         </Box>
       )}
 
       {!isLoading && data && !data.isAvailable && searchTerm && (
         <Box backgroundColor="red" padding="3" borderRadius="medium">
-          <Typography color="white">
-            {searchTerm} is not available
-          </Typography>
+          <Typography color="white">{searchTerm} is not available</Typography>
         </Box>
       )}
 
       {isError && (
         <Box backgroundColor="red" padding="3" borderRadius="medium">
-          <Typography color="white">
-            {getErrorMessage(error)}
-          </Typography>
+          <Typography color="white">{getErrorMessage(error)}</Typography>
         </Box>
       )}
     </Box>

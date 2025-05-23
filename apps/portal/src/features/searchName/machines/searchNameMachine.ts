@@ -1,17 +1,21 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
+import { getAvailable } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import { assign, log, setup } from 'xstate'
 import { safeGetClient, WagmiClientError } from '@/lib/wagmi/helpers'
-import { getAvailable } from '@ensdomains/ensjs/public'
 
-export const isNameAvailabilityError = (error: unknown): error is NameAvailabilityError => {
+export const isNameAvailabilityError = (
+  error: unknown,
+): error is NameAvailabilityError => {
   return error instanceof NameAvailabilityError
 }
 
-export class NameAvailabilityError extends TaggedError('NameAvailabilityError')<{
+export class NameAvailabilityError extends TaggedError(
+  'NameAvailabilityError',
+)<{
   cause: unknown
-}> { }
+}> {}
 
 export const searchMachine = setup({
   types: {
@@ -20,9 +24,7 @@ export const searchMachine = setup({
       isAvailable?: boolean
       error?: NameAvailabilityError | WagmiClientError
     },
-    events: {} as
-      | { type: 'search'; name: string }
-      | { type: 'reset' },
+    events: {} as { type: 'search'; name: string } | { type: 'reset' },
   },
 
   actors: {
@@ -131,4 +133,4 @@ export const searchMachine = setup({
       },
     },
   },
-}) 
+})
