@@ -18,5 +18,5 @@
     "source.organizeImports.biome": "explicit",
     "quickfix.biome": "explicit"
   },
-  "i18n-ally.localesPaths": ["apps/portal/locales"]
+  "i18n-ally.localesPaths": ["packages/locales/locales"]
 }
