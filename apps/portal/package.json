@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@ensdomains/ensjs": "catalog:",
+    "@ensdomains/locales": "workspace:^",
     "@ensdomains/thorin": "catalog:",
     "@rainbow-me/rainbowkit": "catalog:",
     "@tanstack/react-query": "catalog:",
