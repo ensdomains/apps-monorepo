@@ -1,15 +1,14 @@
-import { SearchNameInput } from '@/components/SearchNameInput'
 import {
   Box,
-  Heading,
-  Typography,
-  ThemeToggle,
-  Dropdown,
   Button,
+  Dropdown,
+  Heading,
+  ThemeToggle,
+  Typography,
 } from '@ensdomains/thorin'
-
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { createFileRoute } from '@tanstack/react-router'
+import { Registration } from '@/features/searchName/RegistrationName'
 
 export const Route = createFileRoute('/')({
   component: App,
@@ -24,7 +23,6 @@ function App() {
         justifyContent="space-between"
         alignItems="center"
         paddingX="6"
-
         backgroundColor="background"
       >
         <Box display="flex" alignItems="center" gap="3" paddingY="2">
@@ -39,15 +37,13 @@ function App() {
         </Box>
 
         <Box display="flex" alignItems="center" gap="3">
-
-          <Dropdown
-            items={[
-              <ThemeToggle />
-            ]}
-            label="Theme"
-            align="right"
-          >
-            <Button backgroundColor="transparent" size="small" width="fit" borderColor="accent">
+          <Dropdown items={[<ThemeToggle />]} label="Theme" align="right">
+            <Button
+              backgroundColor="transparent"
+              size="small"
+              width="fit"
+              borderColor="accent"
+            >
               <Box
                 as="img"
                 src="/icons/theme.svg"
@@ -56,7 +52,7 @@ function App() {
                 height="5"
                 style={{
                   filter: 'var(--theme-filter)',
-                  opacity: 0.8
+                  opacity: 0.8,
                 }}
               />
             </Button>
@@ -76,15 +72,18 @@ function App() {
         </Heading>
         <Typography
           color="textSecondary"
-          style={{ marginBottom: '40px', textAlign: 'center', maxWidth: '500px' }}
+          style={{
+            marginBottom: '40px',
+            textAlign: 'center',
+            maxWidth: '500px',
+          }}
         >
           Your identity across web3, one name for all your crypto addresses,{' '}
           <br />
           and your decentralised website.
         </Typography>
 
-
-        <SearchNameInput />
+        <Registration />
       </Box>
     </>
   )
