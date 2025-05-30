@@ -27,8 +27,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': new URL('./src', import.meta.url).pathname,
-      '@ens-apps/hooks': new URL('../../packages/hooks/src', import.meta.url)
-        .pathname,
       '@ens-apps/utils': new URL('../../packages/utils/src', import.meta.url)
         .pathname,
     },

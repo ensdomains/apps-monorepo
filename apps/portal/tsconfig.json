@@ -23,7 +23,6 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@ens-apps/hooks": ["../../packages/hooks/src"],
       "@ens-apps/utils": ["../../packages/utils/src"]
     }
   }

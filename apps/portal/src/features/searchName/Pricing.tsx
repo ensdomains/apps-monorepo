@@ -1,5 +1,6 @@
-import { useEstimateFullRegistration } from '@ens-apps/hooks'
 import { Box, Button, Typography } from '@ensdomains/thorin'
+import { useQuery } from '@tanstack/react-query'
+import { getEstimationFullRegistrationQueryOptions } from './services/estimationFullRegistrationService'
 
 type PricingProps = {
   name?: string
@@ -30,17 +31,21 @@ export const Pricing = ({
     onChangeDuration(duration + 1)
   }
 
-  const { estimatedGasFee, totalDurationBasedFee } =
-    useEstimateFullRegistration({
-      registrationData: { seconds: duration * 31536000 },
-      name: name?.split('.')[0] || '',
-    })
+  const { data: estimation } = useQuery({
+    ...getEstimationFullRegistrationQueryOptions(
+      name?.split('.')[0] || '',
+      duration * 31536000,
+    ),
+    enabled: !!name,
+  })
 
   // dummy values for testing
   const registrationFee =
-    (Number(totalDurationBasedFee) / 1e18) * (currency === 'USD' ? 2500 : 1)
+    (Number(estimation?.totalDurationBasedFee || 0) / 1e18) *
+    (currency === 'USD' ? 2500 : 1)
   const networkFee =
-    (Number(estimatedGasFee) / 1e18) * (currency === 'USD' ? 2500 : 1)
+    (Number(estimation?.estimatedGasFee || 0) / 1e18) *
+    (currency === 'USD' ? 2500 : 1)
   const total = registrationFee + networkFee
 
   return (
