@@ -13,10 +13,7 @@ const locales = dirname(fileURLToPath(import.meta.resolve('@ensdomains/locales')
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    TanStackRouterVite({
-      autoCodeSplitting: true,
-      routeFileIgnorePattern: '.((css|const).ts)',
-    }),
+    TanStackRouterVite({ autoCodeSplitting: true }),
     viteReact(),
     vanillaExtractPlugin(),
     i18nextLoader({ paths: [locales] }),
@@ -31,9 +28,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': new URL('./src', import.meta.url).pathname,
-      '@ens-apps/utils': new URL('../../packages/utils/src', import.meta.url)
-        .pathname,
+      '@': path.resolve('./src'),
     },
   },
 })

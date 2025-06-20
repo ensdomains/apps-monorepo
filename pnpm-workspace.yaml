@@ -23,7 +23,7 @@ catalog:
 
   # ENS
   "@ensdomains/ensjs": ^4.0.2
-  "@ensdomains/thorin": 1.0.0-beta.26
+  "@ensdomains/thorin": 1.0.0-beta.28
 
   # Blockchain
   "@rainbow-me/rainbowkit": ^2.2.4

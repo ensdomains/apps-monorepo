@@ -1,7 +1,5 @@
+import { cssVars, type Mode, ThemeProvider } from '@ensdomains/thorin'
 import {
-  cssVars,
-  type Mode,
-  ThemeProvider,
   darkTheme as thorinDarkTheme,
   lightTheme as thorinLightTheme,
 } from '@ensdomains/thorin'
@@ -16,8 +14,9 @@ import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { useState } from 'react'
 import { WagmiProvider } from 'wagmi'
-import { wagmiConfig } from '@/lib/wagmi'
-import { queryClient } from '@/utils/queryClient'
+
+import '../utils/themeSetup.js'
+import { queryClient, wagmiConfig } from '@/lib/wagmi'
 
 declare global {
   interface Window {

@@ -27,8 +27,7 @@
     "noUncheckedSideEffectImports": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@ens-apps/utils": ["../../packages/utils/src"]
+      "@/*": ["./src/*"]
     }
   }
 }
