@@ -4,10 +4,12 @@
   "type": "module",
   "scripts": {
     "start": "vite --port 3000",
+    "dev": "vite --port 3000",
     "build": "vite build && tsc",
     "serve": "vite preview",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ensdomains/ensjs": "catalog:",
@@ -19,15 +21,21 @@
     "@tanstack/react-router-devtools": "catalog:",
     "@tanstack/router-plugin": "catalog:",
     "@vanilla-extract/css": "catalog:",
+    "@wagmi/core": "^2.16.7",
+    "@xstate/react": "^5.0.3",
+    "neverthrow": "catalog:",
     "i18next": "^25.2.0",
     "i18next-browser-languagedetector": "^8.1.0",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-i18next": "^15.5.1",
     "viem": "catalog:",
-    "wagmi": "catalog:"
+    "wagmi": "catalog:",
+    "xstate": "catalog:",
+    "@ens-apps/utils": "workspace:*"
   },
   "devDependencies": {
+    "@statelyai/inspect": "^0.4.0",
     "@ensdomains/vite-plugin-i18next-loader": "^4.0.3",
     "@testing-library/dom": "catalog:",
     "@testing-library/jest-dom": "catalog:",

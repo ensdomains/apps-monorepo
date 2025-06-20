@@ -1,0 +1,50 @@
+{
+  "name": "ens-app-v4",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "vite --port 3000",
+    "dev": "vite --port 3000",
+    "build": "vite build && tsc",
+    "serve": "vite preview",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ensdomains/ensjs": "catalog:",
+    "@ensdomains/thorin": "catalog:",
+    "@rainbow-me/rainbowkit": "catalog:",
+    "@tanstack/react-query": "catalog:",
+    "@tanstack/react-router": "catalog:",
+    "@tanstack/react-router-devtools": "catalog:",
+    "@tanstack/router-plugin": "catalog:",
+    "@vanilla-extract/css": "catalog:",
+    "@wagmi/core": "^2.16.7",
+    "@xstate/react": "^5.0.3",
+    "neverthrow": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "viem": "catalog:",
+    "wagmi": "catalog:",
+    "xstate": "catalog:",
+    "@ens-apps/utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@statelyai/inspect": "^0.4.0",
+    "@testing-library/dom": "catalog:",
+    "@testing-library/jest-dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vanilla-extract/vite-plugin": "catalog:",
+    "@vitejs/plugin-react-swc": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "blumen": "^0.14.4",
+    "happy-dom": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:",
+    "web-vitals": "catalog:"
+  }
+}

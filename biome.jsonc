@@ -8,12 +8,11 @@
   "files": {
     "ignoreUnknown": false,
     "includes": [
-      "**",
-      "!**/node_modules",
-      "!**/package.json",
-      "!**/dist",
-      "!**/out",
-      "!**/*.gen.ts"
+      "apps/**",
+      "packages/**",
+      "!**/*.gen.ts",
+      "!**/node_modules/**",
+      "!**/dist/**"
     ]
   },
   "formatter": {

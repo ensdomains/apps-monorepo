@@ -8,7 +8,9 @@ import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin'
 import viteReact from '@vitejs/plugin-react-swc'
 import { defineConfig } from 'vite'
 
-const locales = dirname(fileURLToPath(import.meta.resolve('@ensdomains/locales')))
+const locales = dirname(
+  fileURLToPath(import.meta.resolve('@ensdomains/locales')),
+)
 
 // https://vitejs.dev/config/
 export default defineConfig({

@@ -8,12 +8,17 @@ import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin'
 import viteReact from '@vitejs/plugin-react-swc'
 import { defineConfig } from 'vite'
 
-const locales = dirname(fileURLToPath(import.meta.resolve('@ensdomains/locales')))
+const locales = dirname(
+  fileURLToPath(import.meta.resolve('@ensdomains/locales')),
+)
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    TanStackRouterVite({ autoCodeSplitting: true }),
+    TanStackRouterVite({
+      autoCodeSplitting: true,
+      routeFileIgnorePattern: '.((css|const).ts)',
+    }),
     viteReact(),
     vanillaExtractPlugin(),
     i18nextLoader({ paths: [locales] }),
@@ -28,7 +33,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': path.resolve('./src'),
+      '@': new URL('./src', import.meta.url).pathname,
+      '@ens-apps/utils': new URL('../../packages/utils/src', import.meta.url)
+        .pathname,
     },
   },
 })

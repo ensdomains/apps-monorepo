@@ -29,12 +29,17 @@ catalog:
   "@rainbow-me/rainbowkit": ^2.2.4
   viem: ^2.9.2
   wagmi: ^2.9.0
+  "@wagmi/core": ^2.16.0
 
   # TanStack
   "@tanstack/react-router": ^1.114.3
   "@tanstack/react-router-devtools": ^1.114.3
   "@tanstack/router-plugin": ^1.114.3
   "@tanstack/react-query": ^5.74.3
+
+  # Utils
+  neverthrow: ^8.2.0
+  xstate: ^5.19.2
 
   # Testing
   "@testing-library/dom": ^10.4.0
