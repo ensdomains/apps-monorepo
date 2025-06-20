@@ -1,9 +1,9 @@
 import type { ResultAsync } from 'neverthrow'
 import {
-  fromPromise,
   type ActorRefFromLogic,
   type ActorSystem,
   type EventObject,
+  fromPromise,
   type NonReducibleUnknown,
   type PromiseActorLogic,
 } from 'xstate'

@@ -3,12 +3,12 @@ import { createBrowserInspector } from '@statelyai/inspect'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMachine, useSelector } from '@xstate/react'
+import type { ActorRefFrom } from 'node_modules/xstate'
 import { useAccount } from 'wagmi'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { renewMachine } from '@/features/renew/machines/renew'
 import type { transactionMachine } from '@/machines/transaction'
 import { queryClient } from '@/utils/queryClient'
-import type { ActorRefFrom } from 'node_modules/xstate'
 import {
   avatar,
   buttonStyle,

@@ -1,5 +1,7 @@
-import { cssVars, type Mode, ThemeProvider } from '@ensdomains/thorin'
 import {
+  cssVars,
+  type Mode,
+  ThemeProvider,
   darkTheme as thorinDarkTheme,
   lightTheme as thorinLightTheme,
 } from '@ensdomains/thorin'

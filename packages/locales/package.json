@@ -1,10 +1,10 @@
 {
-    "name": "@ensdomains/locales",
-    "version": "0.0.1",
-    "private": true,
-    "type": "module",
-    "files": [
-        "locales",
-        "index.js"
-    ]
+  "name": "@ensdomains/locales",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "files": [
+    "locales",
+    "index.js"
+  ]
 }
