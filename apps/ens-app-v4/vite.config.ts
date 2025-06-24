@@ -1,10 +1,9 @@
 /// <reference types="vitest" />
 
-import path from 'node:path'
+import tailwindcss from '@tailwindcss/vite'
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
-import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin'
 import viteReact from '@vitejs/plugin-react-swc'
-import { defineConfig } from 'vite'
+import { defineConfig, type PluginOption } from 'vite'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -14,7 +13,7 @@ export default defineConfig({
       routeFileIgnorePattern: '.((css|const).ts)',
     }),
     viteReact(),
-    vanillaExtractPlugin(),
+    tailwindcss() as PluginOption,
   ],
   test: {
     globals: true,
