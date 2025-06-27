@@ -1,28 +1,55 @@
+import type { Meta, StoryObj } from '@storybook/react-vite'
 import { DomainResultCard } from './DomainResultCard'
 
-export default {
-  Available: (
-    <DomainResultCard
-      domainName="example.eth"
-      status="available"
-      price={45.2}
-      onAction={() => alert('Registering example.eth')}
-    />
-  ),
+const meta = {
+  title: 'Molecules/DomainResultCard',
+  component: DomainResultCard,
+  parameters: {
+    layout: 'centered',
+  },
+  tags: ['autodocs'],
+  argTypes: {
+    status: {
+      control: 'select',
+      options: ['available', 'premium', 'unavailable'],
+    },
+    price: {
+      control: 'number',
+    },
+  },
+} satisfies Meta<typeof DomainResultCard>
 
-  Premium: (
-    <DomainResultCard
-      domainName="premium.eth"
-      status="premium"
-      price={245000}
-      onAction={() => alert('Registering premium.eth')}
-    />
-  ),
+export default meta
+type Story = StoryObj<typeof meta>
 
-  Unavailable: <DomainResultCard domainName="taken.eth" status="unavailable" />,
+export const Available: Story = {
+  args: {
+    domainName: 'example.eth',
+    status: 'available',
+    price: 45.2,
+    onAction: () => alert('Registering example.eth'),
+  },
+}
 
-  MultipleCards: (
-    <div className="flex flex-col gap-4 max-w-md">
+export const Premium: Story = {
+  args: {
+    domainName: 'premium.eth',
+    status: 'premium',
+    price: 245000,
+    onAction: () => alert('Registering premium.eth'),
+  },
+}
+
+export const Unavailable: Story = {
+  args: {
+    domainName: 'taken.eth',
+    status: 'unavailable',
+  },
+}
+
+export const MultipleCards: Story = {
+  render: () => (
+    <div className="flex flex-col gap-4 max-w-xl">
       <DomainResultCard
         domainName="awesome.eth"
         status="available"
@@ -44,9 +71,11 @@ export default {
       />
     </div>
   ),
+}
 
-  DifferentLengths: (
-    <div className="flex flex-col gap-4 max-w-md">
+export const DifferentLengths: Story = {
+  render: () => (
+    <div className="flex flex-col gap-4 max-w-xl">
       <DomainResultCard
         domainName="a.eth"
         status="premium"
@@ -79,9 +108,11 @@ export default {
       />
     </div>
   ),
+}
 
-  PricingVariations: (
-    <div className="flex flex-col gap-4 max-w-md">
+export const PricingVariations: Story = {
+  render: () => (
+    <div className="flex flex-col gap-4 max-w-xl">
       <DomainResultCard
         domainName="cheap.eth"
         status="available"
@@ -102,9 +133,11 @@ export default {
       />
     </div>
   ),
+}
 
-  WithoutPricing: (
-    <div className="flex flex-col gap-4 max-w-md">
+export const WithoutPricing: Story = {
+  render: () => (
+    <div className="flex flex-col gap-4 max-w-xl">
       <DomainResultCard
         domainName="noprice.eth"
         status="available"
@@ -117,9 +150,11 @@ export default {
       />
     </div>
   ),
+}
 
-  CustomLabels: (
-    <div className="flex flex-col gap-4 max-w-md">
+export const CustomLabels: Story = {
+  render: () => (
+    <div className="flex flex-col gap-4 max-w-xl">
       <DomainResultCard
         domainName="custom.eth"
         status="available"
@@ -138,9 +173,11 @@ export default {
       />
     </div>
   ),
+}
 
-  InteractiveExample: (
-    <div className="max-w-md">
+export const InteractiveExample: Story = {
+  render: () => (
+    <div className="max-w-xl">
       <h3 className="text-lg font-semibold mb-4">Domain Search Results</h3>
       <div className="space-y-3">
         <DomainResultCard

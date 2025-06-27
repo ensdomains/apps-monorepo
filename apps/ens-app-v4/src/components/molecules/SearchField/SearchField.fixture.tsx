@@ -3,72 +3,35 @@ import { SearchField } from './SearchField'
 export default {
   Default: (
     <SearchField
-      placeholder="Search for domains..."
+      placeholder="Search domains..."
       onSearch={(query) => console.log('Searching for:', query)}
     />
   ),
 
   WithValue: (
     <SearchField
-      placeholder="Search for domains..."
-      defaultValue="example"
+      defaultValue="erni"
+      placeholder="Search domains..."
       onSearch={(query) => console.log('Searching for:', query)}
     />
   ),
 
-  WithoutIcon: (
-    <SearchField
-      placeholder="Search for domains..."
-      showSearchIcon={false}
-      onSearch={(query) => console.log('Searching for:', query)}
-    />
-  ),
-
-  CustomSearchIcon: (
-    <SearchField
-      placeholder="Search for domains..."
-      searchIconElement={<span>🔍</span>}
-      onSearch={(query) => console.log('Searching for:', query)}
-    />
+  LikeImage: (
+    <div className="max-w-lg">
+      <SearchField
+        defaultValue="erni"
+        onSearch={(query) => console.log('Searching for:', query)}
+        onChange={(e) => console.log('Input changed:', e.target.value)}
+      />
+    </div>
   ),
 
   Disabled: (
     <SearchField
-      placeholder="Search for domains..."
+      placeholder="Search disabled..."
       disabled={true}
       onSearch={(query) => console.log('Searching for:', query)}
     />
-  ),
-
-  CustomButton: (
-    <SearchField
-      placeholder="Search for domains..."
-      buttonText="Find"
-      buttonProps={{ variant: 'secondary' }}
-      onSearch={(query) => console.log('Finding:', query)}
-    />
-  ),
-
-  Different_Sizes: (
-    <div className="flex flex-col gap-4">
-      <SearchField
-        placeholder="Small search field..."
-        size="sm"
-        buttonProps={{ size: 'sm' }}
-        onSearch={(query) => console.log('Small search:', query)}
-      />
-      <SearchField
-        placeholder="Default search field..."
-        size="default"
-        onSearch={(query) => console.log('Default search:', query)}
-      />
-      <SearchField
-        placeholder="Large search field..."
-        size="lg"
-        buttonProps={{ size: 'lg' }}
-        onSearch={(query) => console.log('Large search:', query)}
-      />
-    </div>
   ),
 
   Interactive: (
@@ -84,51 +47,84 @@ export default {
     </div>
   ),
 
-  FormIntegration: (
-    <div className="max-w-lg space-y-4">
-      <h3 className="text-lg font-semibold">ENS Domain Search</h3>
+  MobileLayout: (
+    <div className="max-w-sm mx-auto p-4 bg-white">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold mb-2">Find your digital identity</h1>
+        <p className="text-gray-600 text-sm mb-4">
+          Register a .eth domain name to secure your web3 username, store your
+          crypto addresses, and more.
+        </p>
+      </div>
+
       <SearchField
-        placeholder="Search for available domains..."
-        buttonText="Check Availability"
-        buttonProps={{ variant: 'default' }}
+        defaultValue="erni"
+        onSearch={(query) => alert(`Searching for: ${query}`)}
+        onChange={(e) => console.log('Typing:', e.target.value)}
+      />
+    </div>
+  ),
+
+  FullWidth: (
+    <div className="w-full max-w-2xl">
+      <SearchField
+        placeholder="Search for the perfect domain name..."
+        onSearch={(query) => console.log('Full width search:', query)}
+      />
+    </div>
+  ),
+
+  WithHandlers: (
+    <div className="max-w-lg space-y-4">
+      <h3 className="text-lg font-semibold">Search with All Handlers</h3>
+      <SearchField
+        placeholder="Type and press Enter or click search..."
         onSearch={(query) => {
-          console.log('Searching for domains:', query)
-          // Simulate API call
-          setTimeout(() => {
-            console.log('Search results for:', query)
-          }, 1000)
+          console.log('Search triggered:', query)
+          alert(`Search: ${query}`)
+        }}
+        onChange={(e) => {
+          console.log('Input changed:', e.target.value)
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            const target = e.target as HTMLInputElement
+            target.value = ''
+            console.log('Cleared input')
+          }
         }}
       />
       <p className="text-sm text-gray-600">
-        Search for .eth domains to check availability and pricing
+        Try typing, pressing Enter, clicking the mic (logs to console), or
+        clicking search
       </p>
     </div>
   ),
 
-  WithValidation: (
-    <SearchField
-      placeholder="Enter domain name..."
-      helperText="Enter a valid domain name (e.g., example.eth)"
-      onSearch={(query) => {
-        if (query.length < 3) {
-          alert('Domain name must be at least 3 characters')
-          return
-        }
-        console.log('Valid search:', query)
-      }}
-    />
-  ),
+  RealWorldExample: (
+    <div className="w-full max-w-4xl mx-auto py-8">
+      <div className="text-center mb-8">
+        <h1 className="text-4xl font-bold mb-4">
+          Your Web3 Identity Starts Here
+        </h1>
+        <p className="text-xl text-muted-foreground mb-8">
+          Search for the perfect .eth domain name
+        </p>
+      </div>
 
-  CustomStyling: (
-    <SearchField
-      placeholder="Custom styled search..."
-      className="max-w-xl"
-      buttonText="GO"
-      buttonProps={{
-        variant: 'destructive',
-        className: 'px-8',
-      }}
-      onSearch={(query) => console.log('Custom search:', query)}
-    />
+      <SearchField
+        placeholder="Enter your dream domain name"
+        onSearch={(query) => {
+          console.log('Real world search:', query)
+          // In a real app, this would trigger domain availability checking
+        }}
+      />
+
+      <div className="text-center mt-6">
+        <p className="text-sm text-muted-foreground">
+          Popular searches: • blockchain.eth • nft.eth • dao.eth
+        </p>
+      </div>
+    </div>
   ),
 }

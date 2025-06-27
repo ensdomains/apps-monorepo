@@ -1,93 +1,103 @@
+import { Mic, Search } from 'lucide-react'
 import { forwardRef } from 'react'
 import { cn } from '@/lib/utils'
-import { Button, type ButtonProps } from '../../atoms/Button'
-import { Input, type InputProps } from '../../atoms/Input'
 
-export interface SearchFieldProps extends Omit<InputProps, 'endIcon'> {
-  buttonText?: string
-  buttonProps?: Partial<ButtonProps>
+export interface SearchFieldProps {
+  placeholder?: string
+  value?: string
+  defaultValue?: string
   onSearch?: (value: string) => void
-  showSearchIcon?: boolean
-  searchIconElement?: React.ReactNode
+  onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void
+  onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void
+  className?: string
+  disabled?: boolean
 }
 
 export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
   (
     {
-      buttonText = 'Search',
-      buttonProps,
+      placeholder = 'Search domains...',
+      value,
+      defaultValue,
       onSearch,
-      showSearchIcon = true,
-      searchIconElement,
+      onChange,
+      onKeyDown,
       className,
-      ...inputProps
+      disabled = false,
     },
     ref,
   ) => {
-    const handleSearch = () => {
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === 'Enter' && onSearch) {
+        const target = event.target as HTMLInputElement
+        onSearch(target.value)
+      }
+      onKeyDown?.(event)
+    }
+
+    const handleSearchClick = () => {
       if (onSearch && ref && 'current' in ref && ref.current) {
         onSearch(ref.current.value)
       }
     }
 
-    const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === 'Enter') {
-        handleSearch()
-      }
-      inputProps.onKeyDown?.(event)
-    }
-
-    const defaultSearchIcon = (
-      <svg
-        width="20"
-        height="20"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-        aria-label="Search"
-      >
-        <title>Search</title>
-        <path
-          fillRule="evenodd"
-          d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
-          clipRule="evenodd"
-        />
-      </svg>
-    )
-
-    const searchIconDisplay = searchIconElement || defaultSearchIcon
-
-    if (showSearchIcon) {
-      return (
-        <div className={cn('flex gap-2', className)}>
-          <div className="relative flex-1">
-            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
-              {searchIconDisplay}
-            </div>
-            <Input
-              ref={ref}
-              className="pl-10"
-              onKeyDown={handleKeyDown}
-              {...inputProps}
-            />
-          </div>
-          <Button onClick={handleSearch} {...buttonProps}>
-            {buttonText}
-          </Button>
-        </div>
-      )
+    const handleMicClick = () => {
+      // Mic functionality placeholder - does nothing for now
+      console.log('Mic clicked - functionality not implemented yet')
     }
 
     return (
-      <div className={cn('flex gap-2', className)}>
-        <Input
+      <div className={cn('relative w-full', className)}>
+        <input
           ref={ref}
-          className="flex-1"
+          type="text"
+          placeholder={placeholder}
+          value={value}
+          defaultValue={defaultValue}
+          onChange={onChange}
           onKeyDown={handleKeyDown}
-          {...inputProps}
+          disabled={disabled}
+          className={cn(
+            'w-full px-4 py-4 pr-20 text-base border border-gray-300 rounded-lg',
+            'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+            'placeholder:text-gray-400',
+            disabled && 'bg-gray-100 cursor-not-allowed',
+            'transition-all duration-200',
+          )}
         />
-        <Button onClick={handleSearch} {...buttonProps}>
-          {buttonText}
-        </Button>
+
+        {/* Right side icons container */}
+        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+          {/* Microphone icon */}
+          <button
+            type="button"
+            onClick={handleMicClick}
+            disabled={disabled}
+            className={cn(
+              'p-2 rounded-full hover:bg-gray-100 transition-colors',
+              'text-gray-400 hover:text-gray-600',
+              disabled && 'cursor-not-allowed opacity-50',
+            )}
+            aria-label="Voice search"
+          >
+            <Mic className="h-5 w-5" />
+          </button>
+
+          {/* Search icon */}
+          <button
+            type="button"
+            onClick={handleSearchClick}
+            disabled={disabled}
+            className={cn(
+              'p-2 rounded-full hover:bg-gray-100 transition-colors',
+              'text-gray-400 hover:text-gray-600',
+              disabled && 'cursor-not-allowed opacity-50',
+            )}
+            aria-label="Search"
+          >
+            <Search className="h-5 w-5" />
+          </button>
+        </div>
       </div>
     )
   },

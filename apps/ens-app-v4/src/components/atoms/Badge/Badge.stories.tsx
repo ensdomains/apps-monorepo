@@ -1,9 +1,44 @@
+import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Badge } from './Badge'
 
-export default {
-  Default: <Badge>Default Badge</Badge>,
+const meta = {
+  title: 'Atoms/Badge',
+  component: Badge,
+  parameters: {
+    layout: 'centered',
+  },
+  tags: ['autodocs'],
+  argTypes: {
+    variant: {
+      control: 'select',
+      options: [
+        'default',
+        'secondary',
+        'outline',
+        'destructive',
+        'available',
+        'unavailable',
+        'premium',
+      ],
+    },
+    size: {
+      control: 'select',
+      options: ['sm', 'default', 'lg'],
+    },
+  },
+} satisfies Meta<typeof Badge>
 
-  Variants: (
+export default meta
+type Story = StoryObj<typeof meta>
+
+export const Default: Story = {
+  args: {
+    children: 'Default Badge',
+  },
+}
+
+export const Variants: Story = {
+  render: () => (
     <div className="flex flex-wrap gap-2">
       <Badge variant="default">Default</Badge>
       <Badge variant="secondary">Secondary</Badge>
@@ -11,24 +46,30 @@ export default {
       <Badge variant="destructive">Destructive</Badge>
     </div>
   ),
+}
 
-  CustomVariants: (
+export const CustomVariants: Story = {
+  render: () => (
     <div className="flex flex-wrap gap-2">
       <Badge variant="available">Available</Badge>
       <Badge variant="unavailable">Unavailable</Badge>
       <Badge variant="premium">Premium</Badge>
     </div>
   ),
+}
 
-  Sizes: (
+export const Sizes: Story = {
+  render: () => (
     <div className="flex flex-wrap items-center gap-2">
       <Badge size="sm">Small</Badge>
       <Badge size="default">Default</Badge>
       <Badge size="lg">Large</Badge>
     </div>
   ),
+}
 
-  DomainStatuses: (
+export const DomainStatuses: Story = {
+  render: () => (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
         <span>example.eth</span>
@@ -44,8 +85,10 @@ export default {
       </div>
     </div>
   ),
+}
 
-  WithNumbers: (
+export const WithNumbers: Story = {
+  render: () => (
     <div className="flex flex-wrap gap-2">
       <Badge variant="default">99+</Badge>
       <Badge variant="destructive">Error</Badge>
@@ -53,8 +96,10 @@ export default {
       <Badge variant="secondary">v2.1.0</Badge>
     </div>
   ),
+}
 
-  AllCombinations: (
+export const AllCombinations: Story = {
+  render: () => (
     <div className="grid grid-cols-3 gap-4">
       <div>
         <h4 className="text-sm font-semibold mb-2">Small</h4>

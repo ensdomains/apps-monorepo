@@ -1,35 +1,57 @@
+import type { Meta, StoryObj } from '@storybook/react-vite'
 import { SearchForm } from './SearchForm'
 
-export default {
-  Default: (
-    <SearchForm onSearch={(query) => console.log('Searching for:', query)} />
-  ),
+const meta = {
+  title: 'Organisms/SearchForm',
+  component: SearchForm,
+  parameters: {
+    layout: 'centered',
+  },
+  tags: ['autodocs'],
+  argTypes: {
+    loading: {
+      control: 'boolean',
+    },
+    showRecentSearches: {
+      control: 'boolean',
+    },
+  },
+} satisfies Meta<typeof SearchForm>
 
-  WithPlaceholder: (
-    <SearchForm
-      placeholder="Search for ENS domains..."
-      onSearch={(query) => console.log('Searching for:', query)}
-    />
-  ),
+export default meta
+type Story = StoryObj<typeof meta>
 
-  Loading: (
-    <SearchForm
-      loading={true}
-      onSearch={(query) => console.log('Searching for:', query)}
-    />
-  ),
+export const Default: Story = {
+  args: {
+    onSearch: (query) => console.log('Searching for:', query),
+  },
+}
 
-  WithRecentSearches: (
-    <SearchForm
-      recentSearches={['example.eth', 'test.eth', 'myname.eth']}
-      onSearch={(query) => console.log('Searching for:', query)}
-      onRecentSearchSelect={(query: string) =>
-        console.log('Selected recent search:', query)
-      }
-    />
-  ),
+export const WithPlaceholder: Story = {
+  args: {
+    placeholder: 'Search for ENS domains...',
+    onSearch: (query) => console.log('Searching for:', query),
+  },
+}
 
-  Interactive: (
+export const Loading: Story = {
+  args: {
+    loading: true,
+    onSearch: (query) => console.log('Searching for:', query),
+  },
+}
+
+export const WithRecentSearches: Story = {
+  args: {
+    recentSearches: ['example.eth', 'test.eth', 'myname.eth'],
+    onSearch: (query) => console.log('Searching for:', query),
+    onRecentSearchSelect: (query: string) =>
+      console.log('Selected recent search:', query),
+  },
+}
+
+export const Interactive: Story = {
+  render: () => (
     <div className="max-w-2xl">
       <h2 className="text-2xl font-bold mb-6">Find Your Perfect Domain</h2>
       <SearchForm
@@ -44,8 +66,10 @@ export default {
       </p>
     </div>
   ),
+}
 
-  FullFeatured: (
+export const FullFeatured: Story = {
+  render: () => (
     <div className="max-w-2xl">
       <SearchForm
         placeholder="Search domains..."
@@ -53,7 +77,6 @@ export default {
         loading={false}
         onSearch={(query) => {
           console.log('Full search for:', query)
-          // Simulate loading state
           setTimeout(() => {
             console.log('Search completed for:', query)
           }, 2000)
@@ -64,8 +87,10 @@ export default {
       />
     </div>
   ),
+}
 
-  MobileView: (
+export const MobileView: Story = {
+  render: () => (
     <div className="max-w-sm">
       <SearchForm
         placeholder="Search..."
@@ -73,16 +98,18 @@ export default {
       />
     </div>
   ),
+}
 
-  WithoutRecentSearches: (
-    <SearchForm
-      placeholder="Find domains..."
-      showRecentSearches={false}
-      onSearch={(query) => console.log('No recent searches:', query)}
-    />
-  ),
+export const WithoutRecentSearches: Story = {
+  args: {
+    placeholder: 'Find domains...',
+    showRecentSearches: false,
+    onSearch: (query) => console.log('No recent searches:', query),
+  },
+}
 
-  RealWorldExample: (
+export const RealWorldExample: Story = {
+  render: () => (
     <div className="w-full max-w-4xl mx-auto py-12">
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold mb-4">
@@ -98,7 +125,6 @@ export default {
         recentSearches={['vitalik.eth', 'ethereum.eth', 'defi.eth']}
         onSearch={(query) => {
           console.log('Real world search:', query)
-          // In a real app, this would trigger domain availability checking
         }}
         onRecentSearchSelect={(query: string) => {
           console.log('Recent search selected:', query)

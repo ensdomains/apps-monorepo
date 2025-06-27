@@ -1,43 +1,73 @@
+import type { Meta, StoryObj } from '@storybook/react-vite'
 import { FormField } from './FormField'
 
-export default {
-  Default: (
-    <FormField
-      label="Email Address"
-      name="email"
-      placeholder="Enter your email"
-    />
-  ),
+const meta = {
+  title: 'Molecules/FormField',
+  component: FormField,
+  parameters: {
+    layout: 'centered',
+  },
+  tags: ['autodocs'],
+  argTypes: {
+    type: {
+      control: 'select',
+      options: ['text', 'email', 'password', 'tel', 'url', 'number', 'search'],
+    },
+    variant: {
+      control: 'select',
+      options: ['default', 'error', 'success'],
+    },
+    required: {
+      control: 'boolean',
+    },
+    disabled: {
+      control: 'boolean',
+    },
+  },
+} satisfies Meta<typeof FormField>
 
-  Required: (
-    <FormField
-      label="Full Name"
-      name="fullName"
-      placeholder="Enter your full name"
-      required
-    />
-  ),
+export default meta
+type Story = StoryObj<typeof meta>
 
-  WithHelperText: (
-    <FormField
-      label="Username"
-      name="username"
-      placeholder="Choose a username"
-      helperText="Must be at least 3 characters long and contain only letters and numbers"
-    />
-  ),
+export const Default: Story = {
+  args: {
+    label: 'Email Address',
+    name: 'email',
+    placeholder: 'Enter your email',
+  },
+}
 
-  WithError: (
-    <FormField
-      label="Password"
-      name="password"
-      type="password"
-      placeholder="Enter password"
-      errorText="Password must be at least 8 characters long"
-    />
-  ),
+export const Required: Story = {
+  args: {
+    label: 'Full Name',
+    name: 'fullName',
+    placeholder: 'Enter your full name',
+    required: true,
+  },
+}
 
-  DifferentTypes: (
+export const WithHelperText: Story = {
+  args: {
+    label: 'Username',
+    name: 'username',
+    placeholder: 'Choose a username',
+    helperText:
+      'Must be at least 3 characters long and contain only letters and numbers',
+  },
+}
+
+export const WithError: Story = {
+  args: {
+    label: 'Password',
+    name: 'password',
+    type: 'password',
+    placeholder: 'Enter password',
+    errorText: 'Password must be at least 8 characters long',
+  },
+}
+
+export const DifferentTypes: Story = {
+  render: () => (
     <div className="flex flex-col gap-4">
       <FormField
         label="Email"
@@ -66,8 +96,10 @@ export default {
       />
     </div>
   ),
+}
 
-  WithIcons: (
+export const WithIcons: Story = {
+  render: () => (
     <div className="flex flex-col gap-4">
       <FormField
         label="Search Domain"
@@ -84,8 +116,10 @@ export default {
       />
     </div>
   ),
+}
 
-  FormExample: (
+export const FormExample: Story = {
+  render: () => (
     <div className="max-w-md space-y-4">
       <h3 className="text-lg font-semibold">Registration Form</h3>
       <FormField
@@ -120,8 +154,10 @@ export default {
       />
     </div>
   ),
+}
 
-  ValidationStates: (
+export const ValidationStates: Story = {
+  render: () => (
     <div className="flex flex-col gap-4">
       <FormField
         label="Valid Field"
@@ -143,8 +179,10 @@ export default {
       />
     </div>
   ),
+}
 
-  Disabled: (
+export const Disabled: Story = {
+  render: () => (
     <div className="flex flex-col gap-4">
       <FormField
         label="Disabled Field"

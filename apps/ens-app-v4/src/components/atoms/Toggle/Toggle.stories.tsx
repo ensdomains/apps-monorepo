@@ -1,3 +1,4 @@
+import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { Toggle } from './Toggle'
 
@@ -6,19 +7,45 @@ const ControlledToggle = ({ initialValue = false, ...props }) => {
   return <Toggle checked={checked} onCheckedChange={setChecked} {...props} />
 }
 
-export default {
-  Default: <Toggle />,
+const meta = {
+  title: 'Atoms/Toggle',
+  component: Toggle,
+  parameters: {
+    layout: 'centered',
+  },
+  tags: ['autodocs'],
+  argTypes: {
+    disabled: {
+      control: 'boolean',
+    },
+    defaultChecked: {
+      control: 'boolean',
+    },
+  },
+} satisfies Meta<typeof Toggle>
 
-  WithLabel: <Toggle label="Enable notifications" />,
+export default meta
+type Story = StoryObj<typeof meta>
 
-  WithDescription: (
-    <Toggle
-      label="Marketing emails"
-      description="Receive emails about new products and features"
-    />
-  ),
+export const Default: Story = {
+  args: {},
+}
 
-  States: (
+export const WithLabel: Story = {
+  args: {
+    label: 'Enable notifications',
+  },
+}
+
+export const WithDescription: Story = {
+  args: {
+    label: 'Marketing emails',
+    description: 'Receive emails about new products and features',
+  },
+}
+
+export const States: Story = {
+  render: () => (
     <div className="flex flex-col gap-4">
       <Toggle label="Default state" />
       <Toggle label="Checked state" defaultChecked />
@@ -26,15 +53,19 @@ export default {
       <Toggle label="Disabled checked" disabled defaultChecked />
     </div>
   ),
+}
 
-  Controlled: (
+export const Controlled: Story = {
+  render: () => (
     <div className="flex flex-col gap-4">
       <ControlledToggle label="Controlled toggle" />
       <ControlledToggle label="Initially checked" initialValue={true} />
     </div>
   ),
+}
 
-  ComplexExamples: (
+export const ComplexExamples: Story = {
+  render: () => (
     <div className="flex flex-col gap-6 max-w-md">
       <Toggle
         label="Email notifications"
@@ -55,8 +86,10 @@ export default {
       />
     </div>
   ),
+}
 
-  SettingsPanel: (
+export const SettingsPanel: Story = {
+  render: () => (
     <div className="p-6 border rounded-lg max-w-md">
       <h3 className="text-lg font-semibold mb-4">Notification Settings</h3>
       <div className="space-y-4">
@@ -81,8 +114,10 @@ export default {
       </div>
     </div>
   ),
+}
 
-  Interactive: (
+export const Interactive: Story = {
+  render: () => (
     <Toggle
       label="Click me!"
       description="This toggle logs to console when changed"

@@ -1,17 +1,13 @@
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '../../atoms/Badge'
-import { Button, type ButtonProps } from '../../atoms/Button'
-import { Text } from '../../atoms/Text'
+import { Check, CircleArrowRight, CircleCheck, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export interface DomainResultCardProps {
   domainName: string
   status: 'available' | 'unavailable' | 'premium'
   price?: number
   priceLabel?: string
-  actionText?: string
-  actionProps?: Partial<ButtonProps>
   onAction?: (domainName: string) => void
-  showCheckmark?: boolean
+  className?: string
 }
 
 export const DomainResultCard = ({
@@ -19,93 +15,109 @@ export const DomainResultCard = ({
   status,
   price,
   priceLabel = 'USD/year',
-  actionText,
-  actionProps,
   onAction,
-  showCheckmark = true,
+  className,
 }: DomainResultCardProps) => {
   const handleAction = () => {
-    onAction?.(domainName)
+    if (status !== 'unavailable' && onAction) {
+      onAction(domainName)
+    }
   }
 
-  const getStatusBadge = () => {
+  const getStatusIcon = () => {
     switch (status) {
       case 'available':
-        return <Badge variant="available">available</Badge>
-      case 'unavailable':
-        return <Badge variant="unavailable">unavailable</Badge>
+        return (
+          <div className="flex items-center justify-center h-6 w-6 rounded-full bg-gray-100">
+            <Check className="h-3 w-3 text-gray-400" />
+          </div>
+        )
       case 'premium':
-        return <Badge variant="premium">premium</Badge>
+        return (
+          <div className="flex items-center justify-center h-6 w-6 rounded-full bg-gray-100">
+            <Check className="h-3 w-3 text-gray-400" />
+          </div>
+        )
+      case 'unavailable':
+        return (
+          <div className="flex items-center justify-center h-6 w-6 rounded-full bg-gray-100">
+            <X className="h-3 w-3 text-gray-400" />
+          </div>
+        )
       default:
         return null
     }
   }
 
-  const getActionButton = () => {
-    if (status === 'unavailable') return null
-
-    const buttonText =
-      actionText || (status === 'premium' ? 'View Details' : 'Register')
-    const buttonVariant = status === 'premium' ? 'secondary' : 'default'
-
-    return (
-      <Button
-        variant={buttonVariant}
-        size="sm"
-        onClick={handleAction}
-        {...actionProps}
-      >
-        {buttonText}
-      </Button>
-    )
+  const getStatusText = () => {
+    switch (status) {
+      case 'available':
+        return 'available'
+      case 'premium':
+        return 'premium'
+      case 'unavailable':
+        return 'unavailable'
+      default:
+        return null
+    }
   }
 
+  const isClickable = status !== 'unavailable'
+
   return (
-    <Card className="p-4">
-      <CardContent className="flex items-center justify-between p-0">
-        <div className="flex items-center gap-3">
-          {showCheckmark && status === 'available' && (
-            <div className="text-green-600">
-              <CheckIcon />
-            </div>
-          )}
+    <div
+      className={cn(
+        'flex items-center justify-between w-full gap-16 py-4 px-4 bg-white transition-colors',
+        isClickable && 'hover:bg-gray-100 cursor-pointer',
+        !isClickable && 'opacity-60',
+        className,
+      )}
+      onClick={handleAction}
+      role={isClickable ? 'button' : 'presentation'}
+      tabIndex={isClickable ? 0 : -1}
+      onKeyDown={(e) => {
+        if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault()
+          handleAction()
+        }
+      }}
+    >
+      {/* Left side: Status icon and domain info */}
+      <div className="flex items-start gap-3">
+        {/* Status icon */}
+        <div className="flex-shrink-0">{getStatusIcon()}</div>
 
-          <div className="flex flex-col gap-1">
-            <Text weight="bold" className="text-lg">
+        {/* Domain info */}
+        <div className="flex flex-col gap-1">
+          {/* Domain name in badge style with less rounded corners */}
+          <div className="inline-flex items-center">
+            <span className="bg-black text-white px-1 py-1 rounded-md text-sm font-bold">
               {domainName}
-            </Text>
-            <div>{getStatusBadge()}</div>
+            </span>
           </div>
-        </div>
 
-        <div className="flex items-center gap-4">
-          {price && (
-            <div className="text-right">
-              <Text weight="bold" className="text-lg">
-                {price} USD
-              </Text>
-              <Text variant="caption" color="secondary">
-                {priceLabel}
-              </Text>
+          {/* Status text in light gray */}
+          <span className="text-sm text-gray-400 px-1">{getStatusText()}</span>
+        </div>
+      </div>
+
+      {/* Right side: Price and arrow */}
+      <div className="flex items-center gap-8">
+        {/* Price */}
+        {price && status !== 'unavailable' && (
+          <div className="text-right">
+            <div className="text-sm font-medium text-gray-400">Price</div>
+            <div className="text-sm text-black">
+              {price} {priceLabel}
             </div>
-          )}
+          </div>
+        )}
 
-          {getActionButton()}
-        </div>
-      </CardContent>
-    </Card>
+        {/* Arrow for available/premium domains */}
+        {isClickable && <CircleArrowRight className="h-8 w-8 text-black" />}
+      </div>
+    </div>
   )
 }
-
-const CheckIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-    <title>Available</title>
-    <path
-      fillRule="evenodd"
-      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-      clipRule="evenodd"
-    />
-  </svg>
-)
 
 DomainResultCard.displayName = 'DomainResultCard'

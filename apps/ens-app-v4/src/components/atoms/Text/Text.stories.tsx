@@ -1,9 +1,66 @@
+import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Text } from './Text'
 
-export default {
-  Default: <Text>Default text content</Text>,
+const meta = {
+  title: 'Atoms/Text',
+  component: Text,
+  parameters: {
+    layout: 'centered',
+  },
+  tags: ['autodocs'],
+  argTypes: {
+    variant: {
+      control: 'select',
+      options: [
+        'h1',
+        'h2',
+        'h3',
+        'h4',
+        'h5',
+        'h6',
+        'body',
+        'bodySmall',
+        'caption',
+        'overline',
+      ],
+    },
+    color: {
+      control: 'select',
+      options: [
+        'primary',
+        'secondary',
+        'accent',
+        'error',
+        'success',
+        'warning',
+      ],
+    },
+    weight: {
+      control: 'select',
+      options: ['regular', 'medium', 'bold', 'black'],
+    },
+    align: {
+      control: 'select',
+      options: ['left', 'center', 'right'],
+    },
+    as: {
+      control: 'select',
+      options: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span', 'div'],
+    },
+  },
+} satisfies Meta<typeof Text>
 
-  Headings: (
+export default meta
+type Story = StoryObj<typeof meta>
+
+export const Default: Story = {
+  args: {
+    children: 'Default text content',
+  },
+}
+
+export const Headings: Story = {
+  render: () => (
     <div className="flex flex-col gap-4">
       <Text variant="h1">Heading 1</Text>
       <Text variant="h2">Heading 2</Text>
@@ -13,8 +70,10 @@ export default {
       <Text variant="h6">Heading 6</Text>
     </div>
   ),
+}
 
-  BodyText: (
+export const BodyText: Story = {
+  render: () => (
     <div className="flex flex-col gap-4">
       <Text variant="body">Regular body text for content</Text>
       <Text variant="bodySmall">Small body text for secondary content</Text>
@@ -22,8 +81,10 @@ export default {
       <Text variant="overline">OVERLINE TEXT FOR CATEGORIES</Text>
     </div>
   ),
+}
 
-  Colors: (
+export const Colors: Story = {
+  render: () => (
     <div className="flex flex-col gap-2">
       <Text color="primary">Primary text color</Text>
       <Text color="secondary">Secondary text color</Text>
@@ -33,8 +94,10 @@ export default {
       <Text color="warning">Warning text color</Text>
     </div>
   ),
+}
 
-  Weights: (
+export const Weights: Story = {
+  render: () => (
     <div className="flex flex-col gap-2">
       <Text weight="regular">Regular weight text</Text>
       <Text weight="medium">Medium weight text</Text>
@@ -42,16 +105,20 @@ export default {
       <Text weight="black">Black weight text</Text>
     </div>
   ),
+}
 
-  Alignment: (
+export const Alignment: Story = {
+  render: () => (
     <div className="flex flex-col gap-4 w-full">
       <Text align="left">Left aligned text</Text>
       <Text align="center">Center aligned text</Text>
       <Text align="right">Right aligned text</Text>
     </div>
   ),
+}
 
-  SemanticElements: (
+export const SemanticElements: Story = {
+  render: () => (
     <div className="flex flex-col gap-4">
       <Text as="h1" variant="h1">
         H1 element with h1 styling
@@ -67,8 +134,10 @@ export default {
       </Text>
     </div>
   ),
+}
 
-  ContentExample: (
+export const ContentExample: Story = {
+  render: () => (
     <div className="max-w-2xl space-y-4">
       <Text variant="h2" color="primary">
         Welcome to our platform

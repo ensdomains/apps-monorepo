@@ -1,53 +1,88 @@
+import type { Meta, StoryObj } from '@storybook/react-vite'
 import { RegistrationOption } from './RegistrationOption'
 
-export default {
-  OneYear: (
-    <RegistrationOption
-      years={1}
-      pricePerYear={45.2}
-      selected={false}
-      onSelect={(years) => console.log('Selected', years, 'year(s)')}
-    />
-  ),
+const meta = {
+  title: 'Molecules/RegistrationOption',
+  component: RegistrationOption,
+  parameters: {
+    layout: 'centered',
+  },
+  tags: ['autodocs'],
+  argTypes: {
+    years: {
+      control: 'number',
+      min: 1,
+      max: 10,
+    },
+    pricePerYear: {
+      control: 'number',
+      min: 0,
+    },
+    selected: {
+      control: 'boolean',
+    },
+    disabled: {
+      control: 'boolean',
+    },
+    discount: {
+      control: 'number',
+      min: 0,
+      max: 100,
+    },
+  },
+} satisfies Meta<typeof RegistrationOption>
 
-  TwoYears: (
-    <RegistrationOption
-      years={2}
-      pricePerYear={42.7}
-      selected={false}
-      onSelect={(years) => console.log('Selected', years, 'year(s)')}
-    />
-  ),
+export default meta
+type Story = StoryObj<typeof meta>
 
-  FiveYears: (
-    <RegistrationOption
-      years={5}
-      pricePerYear={40.0}
-      selected={false}
-      onSelect={(years) => console.log('Selected', years, 'year(s)')}
-    />
-  ),
+export const OneYear: Story = {
+  args: {
+    years: 1,
+    pricePerYear: 45.2,
+    selected: false,
+    onSelect: (years) => console.log('Selected', years, 'year(s)'),
+  },
+}
 
-  Selected: (
-    <RegistrationOption
-      years={3}
-      pricePerYear={41.87}
-      selected={true}
-      onSelect={(years) => console.log('Selected', years, 'year(s)')}
-    />
-  ),
+export const TwoYears: Story = {
+  args: {
+    years: 2,
+    pricePerYear: 42.7,
+    selected: false,
+    onSelect: (years) => console.log('Selected', years, 'year(s)'),
+  },
+}
 
-  Disabled: (
-    <RegistrationOption
-      years={10}
-      pricePerYear={40.0}
-      selected={false}
-      disabled={true}
-      onSelect={(years) => console.log('Selected', years, 'year(s)')}
-    />
-  ),
+export const FiveYears: Story = {
+  args: {
+    years: 5,
+    pricePerYear: 40.0,
+    selected: false,
+    onSelect: (years) => console.log('Selected', years, 'year(s)'),
+  },
+}
 
-  MultipleOptions: (
+export const Selected: Story = {
+  args: {
+    years: 3,
+    pricePerYear: 41.87,
+    selected: true,
+    onSelect: (years) => console.log('Selected', years, 'year(s)'),
+  },
+}
+
+export const Disabled: Story = {
+  args: {
+    years: 10,
+    pricePerYear: 40.0,
+    selected: false,
+    disabled: true,
+    onSelect: (years) => console.log('Selected', years, 'year(s)'),
+  },
+}
+
+export const MultipleOptions: Story = {
+  render: () => (
     <div className="flex flex-col gap-3 max-w-md">
       <RegistrationOption
         years={1}
@@ -69,8 +104,10 @@ export default {
       />
     </div>
   ),
+}
 
-  WithDiscounts: (
+export const WithDiscounts: Story = {
+  render: () => (
     <div className="space-y-4 max-w-md">
       <h3 className="text-lg font-semibold">Choose Registration Period</h3>
       <div className="space-y-2">
@@ -100,8 +137,10 @@ export default {
       </p>
     </div>
   ),
+}
 
-  Interactive: (
+export const Interactive: Story = {
+  render: () => (
     <div className="max-w-md">
       <h3 className="text-lg font-semibold mb-4">Registration Duration</h3>
       <div className="space-y-3">
@@ -126,8 +165,10 @@ export default {
       </div>
     </div>
   ),
+}
 
-  CustomPricing: (
+export const CustomPricing: Story = {
+  render: () => (
     <div className="flex flex-col gap-3 max-w-md">
       <RegistrationOption
         years={1}
@@ -149,8 +190,10 @@ export default {
       />
     </div>
   ),
+}
 
-  HighValue: (
+export const HighValue: Story = {
+  render: () => (
     <div className="flex flex-col gap-3 max-w-md">
       <RegistrationOption
         years={1}

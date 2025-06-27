@@ -1,11 +1,33 @@
+import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Alert } from './Alert'
 
-export default {
-  Default: (
-    <Alert title="Information" description="This is a default alert message." />
-  ),
+const meta = {
+  title: 'Molecules/Alert',
+  component: Alert,
+  parameters: {
+    layout: 'centered',
+  },
+  tags: ['autodocs'],
+  argTypes: {
+    variant: {
+      control: 'select',
+      options: ['default', 'success', 'warning', 'destructive'],
+    },
+  },
+} satisfies Meta<typeof Alert>
 
-  Variants: (
+export default meta
+type Story = StoryObj<typeof meta>
+
+export const Default: Story = {
+  args: {
+    title: 'Information',
+    description: 'This is a default alert message.',
+  },
+}
+
+export const Variants: Story = {
+  render: () => (
     <div className="flex flex-col gap-4">
       <Alert
         variant="default"
@@ -29,8 +51,10 @@ export default {
       />
     </div>
   ),
+}
 
-  TitleOnly: (
+export const TitleOnly: Story = {
+  render: () => (
     <div className="flex flex-col gap-4">
       <Alert variant="default" title="Just a title" />
       <Alert variant="success" title="Success!" />
@@ -38,8 +62,10 @@ export default {
       <Alert variant="destructive" title="Error!" />
     </div>
   ),
+}
 
-  DescriptionOnly: (
+export const DescriptionOnly: Story = {
+  render: () => (
     <div className="flex flex-col gap-4">
       <Alert
         variant="default"
@@ -53,8 +79,10 @@ export default {
       <Alert variant="destructive" description="Failed to save changes." />
     </div>
   ),
+}
 
-  CustomIcons: (
+export const CustomIcons: Story = {
+  render: () => (
     <div className="flex flex-col gap-4">
       <Alert
         variant="default"
@@ -70,8 +98,10 @@ export default {
       />
     </div>
   ),
+}
 
-  WithChildren: (
+export const WithChildren: Story = {
+  render: () => (
     <Alert variant="warning" title="Action Required">
       <p>Your subscription expires in 3 days.</p>
       <button
@@ -82,8 +112,10 @@ export default {
       </button>
     </Alert>
   ),
+}
 
-  RealWorldExamples: (
+export const RealWorldExamples: Story = {
+  render: () => (
     <div className="flex flex-col gap-4 max-w-2xl">
       <Alert
         variant="success"
@@ -110,8 +142,10 @@ export default {
       />
     </div>
   ),
+}
 
-  SystemMessages: (
+export const SystemMessages: Story = {
+  render: () => (
     <div className="space-y-4">
       <Alert variant="default">
         <div>
