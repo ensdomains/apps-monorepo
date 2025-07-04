@@ -58,10 +58,10 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
           onKeyDown={handleKeyDown}
           disabled={disabled}
           className={cn(
-            'w-full px-4 py-4 pr-20 text-base border border-gray-300 rounded-lg',
-            'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-            'placeholder:text-gray-400',
-            disabled && 'bg-gray-100 cursor-not-allowed',
+            'w-full px-4 py-4 pr-20 text-base border border-border rounded-lg',
+            'focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent',
+            'placeholder:text-muted-foreground bg-background text-foreground',
+            disabled && 'bg-muted cursor-not-allowed',
             'transition-all duration-200',
           )}
         />
@@ -74,8 +74,8 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
             onClick={handleMicClick}
             disabled={disabled}
             className={cn(
-              'p-2 rounded-full hover:bg-gray-100 transition-colors',
-              'text-gray-400 hover:text-gray-600',
+              'p-2 rounded-full hover:bg-muted transition-colors',
+              'text-muted-foreground hover:text-foreground',
               disabled && 'cursor-not-allowed opacity-50',
             )}
             aria-label="Voice search"
@@ -89,8 +89,8 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
             onClick={handleSearchClick}
             disabled={disabled}
             className={cn(
-              'p-2 rounded-full hover:bg-gray-100 transition-colors',
-              'text-gray-400 hover:text-gray-600',
+              'p-2 rounded-full hover:bg-muted transition-colors',
+              'text-muted-foreground hover:text-foreground',
               disabled && 'cursor-not-allowed opacity-50',
             )}
             aria-label="Search"

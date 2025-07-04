@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react'
-import { Input, type InputProps } from '../../atoms/Input'
-import { Text } from '../../atoms/Text'
+import { Input, type InputProps } from '@/components/ui/input'
+import { Text } from '@/components/ui/text'
 
 export interface FormFieldProps extends InputProps {
   name: string

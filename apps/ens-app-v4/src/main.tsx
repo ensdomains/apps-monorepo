@@ -4,9 +4,8 @@ import ReactDOM from 'react-dom/client'
 import reportWebVitals from './reportWebVitals.ts'
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
-import '@ensdomains/thorin/dist/thorin.css'
 import '@rainbow-me/rainbowkit/styles.css'
-import '@/styles/global.css'
+import './styles/global.css'
 
 // Create a new router instance
 const router = createRouter({

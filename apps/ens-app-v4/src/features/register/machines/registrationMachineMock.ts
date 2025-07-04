@@ -1,9 +1,7 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
-import { getAvailable } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import { assign, createActor, log, setup } from 'xstate'
-import { safeGetClient, WagmiClientError } from '@/lib/wagmi/helpers'
 
 export class NameAvailabilityError extends TaggedError(
   'NameAvailabilityError',
@@ -19,10 +17,52 @@ export enum RegistrationStep {
 export type SearchMachineContext = {
   name?: string
   isAvailable?: boolean
-  error?: NameAvailabilityError | WagmiClientError
+  error?: NameAvailabilityError
   step: RegistrationStep
   duration: number
   currencyType: 'ETH' | 'USD'
+}
+
+// Mock unavailable names
+const UNAVAILABLE_NAMES = [
+  'ucles.eth',
+  'test.eth',
+  'vitalik.eth',
+  'ethereum.eth',
+  'ens.eth',
+  'wallet.eth',
+  'crypto.eth',
+  'bitcoin.eth',
+  'web3.eth',
+  'defi.eth',
+  'nft.eth',
+  'dao.eth',
+  'metaverse.eth',
+  'blockchain.eth',
+  'smart.eth',
+  'contract.eth',
+  'dapp.eth',
+  'token.eth',
+  'coin.eth',
+  'money.eth',
+]
+
+// Mock function to check availability
+const mockCheckAvailability = async (name: string): Promise<boolean> => {
+  // Simulate network delay
+  await new Promise((resolve) =>
+    setTimeout(resolve, 1000 + Math.random() * 1000),
+  )
+
+  // Simulate random errors for some names (5% chance)
+  if (Math.random() < 0.05) {
+    throw new Error('Network error occurred')
+  }
+
+  // Check if name is in unavailable list
+  const isUnavailable = UNAVAILABLE_NAMES.includes(name.toLowerCase())
+
+  return !isUnavailable
 }
 
 export const searchMachine = setup({
@@ -40,25 +80,23 @@ export const searchMachine = setup({
   actors: {
     checkAvailability: fromResultAsync(
       ResultFn(async function* ({ name }: { name: string }) {
-        const client = yield* safeGetClient()
         const availability = yield* await fromPromise(
-          getAvailable(client, { name }),
+          mockCheckAvailability(name),
           (error) => {
             return new NameAvailabilityError({ cause: error })
           },
         )
-
         return ok(availability)
       }),
     ),
   },
 }).createMachine({
   context: {
-    step: RegistrationStep.CHECK_AVAILABILITY,
+    step: RegistrationStep.PRICING,
     duration: 1,
     currencyType: 'ETH',
   },
-  initial: 'Idle',
+  initial: 'Pricing',
   states: {
     Idle: {
       on: {
@@ -94,7 +132,7 @@ export const searchMachine = setup({
           target: 'Error',
           actions: [
             assign({
-              error: ({ event }) => event.error,
+              error: ({ event }) => event.error as NameAvailabilityError,
               isAvailable: (_) => undefined,
             }),
             log(({ event }) => `Availability check failed: ${event.error}`),
@@ -160,6 +198,15 @@ export const searchMachine = setup({
     },
     Pricing: {
       on: {
+        search: {
+          actions: [
+            assign({
+              name: ({ event }) => event.name,
+              isAvailable: (_) => true,
+              error: (_) => undefined,
+            }),
+          ],
+        },
         setDuration: {
           actions: [
             assign({

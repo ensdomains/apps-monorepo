@@ -1,6 +1,5 @@
 import { useState } from 'react'
-
-import { Text } from '../../atoms/Text'
+import { Text } from '@/components/ui/text'
 import { SearchField } from '../../molecules/SearchField'
 
 export interface SearchFormProps {

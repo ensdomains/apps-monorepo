@@ -3,7 +3,7 @@
 import tailwindcss from '@tailwindcss/vite'
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import viteReact from '@vitejs/plugin-react-swc'
-import { defineConfig, type PluginOption } from 'vite'
+import { defineConfig } from 'vite'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -13,7 +13,7 @@ export default defineConfig({
       routeFileIgnorePattern: '.((css|const).ts)',
     }),
     viteReact(),
-    tailwindcss() as PluginOption,
+    tailwindcss(),
   ],
   test: {
     globals: true,

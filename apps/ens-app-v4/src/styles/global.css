@@ -1,43 +1,9 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/* Custom Tailwind font utility classes */
+/* @layer utilities {
 
-:root[data-theme="light"] {
-  --theme-filter: invert(0);
-}
-
-:root[data-theme="dark"] {
-  --theme-filter: invert(1);
-}
-
-@font-face {
-  font-family: "Satoshi";
-  src: url("/fonts/sans/Satoshi-Regular.woff2") format("woff2");
-  font-weight: 400;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Satoshi";
-  src: url("/fonts/sans/Satoshi-Medium.woff2") format("woff2");
-  font-weight: 500;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Satoshi";
-  src: url("/fonts/sans/Satoshi-Bold.woff2") format("woff2");
-  font-weight: 700;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Satoshi";
-  src: url("/fonts/sans/Satoshi-Black.woff2") format("woff2");
-  font-weight: 900;
-  font-display: swap;
-}
+} */
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);

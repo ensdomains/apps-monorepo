@@ -28,20 +28,20 @@ export const DomainResultCard = ({
     switch (status) {
       case 'available':
         return (
-          <div className="flex items-center justify-center h-6 w-6 rounded-full bg-gray-100">
-            <Check className="h-3 w-3 text-gray-400" />
+          <div className="flex items-center justify-center h-6 w-6 rounded-full bg-muted">
+            <Check className="h-3 w-3 text-muted-foreground" />
           </div>
         )
       case 'premium':
         return (
-          <div className="flex items-center justify-center h-6 w-6 rounded-full bg-gray-100">
-            <Check className="h-3 w-3 text-gray-400" />
+          <div className="flex items-center justify-center h-6 w-6 rounded-full bg-muted">
+            <Check className="h-3 w-3 text-muted-foreground" />
           </div>
         )
       case 'unavailable':
         return (
-          <div className="flex items-center justify-center h-6 w-6 rounded-full bg-gray-100">
-            <X className="h-3 w-3 text-gray-400" />
+          <div className="flex items-center justify-center h-6 w-6 rounded-full bg-muted">
+            <X className="h-3 w-3 text-muted-foreground" />
           </div>
         )
       default:
@@ -67,8 +67,8 @@ export const DomainResultCard = ({
   return (
     <div
       className={cn(
-        'flex items-center justify-between w-full gap-16 py-4 px-4 bg-white transition-colors',
-        isClickable && 'hover:bg-gray-100 cursor-pointer',
+        'flex items-center justify-between w-full gap-16 py-4 px-4 bg-background transition-colors border border-border rounded-lg',
+        isClickable && 'hover:bg-muted cursor-pointer',
         !isClickable && 'opacity-60',
         className,
       )}
@@ -91,13 +91,15 @@ export const DomainResultCard = ({
         <div className="flex flex-col gap-1">
           {/* Domain name in badge style with less rounded corners */}
           <div className="inline-flex items-center">
-            <span className="bg-black text-white px-1 py-1 rounded-md text-sm font-bold">
+            <span className="bg-primary text-primary-foreground px-1 py-1 rounded-sm text-sm font-bold">
               {domainName}
             </span>
           </div>
 
           {/* Status text in light gray */}
-          <span className="text-sm text-gray-400 px-1">{getStatusText()}</span>
+          <span className="text-sm text-muted-foreground px-1">
+            {getStatusText()}
+          </span>
         </div>
       </div>
 
@@ -106,15 +108,19 @@ export const DomainResultCard = ({
         {/* Price */}
         {price && status !== 'unavailable' && (
           <div className="text-right">
-            <div className="text-sm font-medium text-gray-400">Price</div>
-            <div className="text-sm text-black">
+            <div className="text-sm font-medium text-muted-foreground">
+              Price
+            </div>
+            <div className="text-sm text-foreground">
               {price} {priceLabel}
             </div>
           </div>
         )}
 
         {/* Arrow for available/premium domains */}
-        {isClickable && <CircleArrowRight className="h-8 w-8 text-black" />}
+        {isClickable && (
+          <CircleArrowRight className="h-8 w-8 text-foreground" />
+        )}
       </div>
     </div>
   )
