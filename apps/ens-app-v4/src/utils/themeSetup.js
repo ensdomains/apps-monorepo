@@ -16,7 +16,7 @@ window.__onThemeChange = () => {}
 window.__setPreferredTheme = (newTheme) => {
   setTheme(newTheme)
   try {
-    localStorage.setItem('theme', JSON.stringify(window.__theme))
+    localStorage.setItem('theme', newTheme)
   } catch {}
 }
 
@@ -31,7 +31,7 @@ darkQuery.addEventListener('change', (event) => {
  */
 let preferredTheme
 try {
-  preferredTheme = JSON.parse(localStorage.getItem('theme'))
+  preferredTheme = localStorage.getItem('theme')
 } catch {}
 
 setTheme(preferredTheme || (darkQuery.matches ? 'dark' : 'light'))
