@@ -12,7 +12,7 @@ export const useTheme = () => {
 
     // Handle both quoted and unquoted values from localStorage
     let cleanTheme = savedTheme
-    if (savedTheme && savedTheme.startsWith('"') && savedTheme.endsWith('"')) {
+    if (savedTheme?.startsWith('"') && savedTheme.endsWith('"')) {
       cleanTheme = savedTheme.slice(1, -1) // Remove quotes
     }
 
