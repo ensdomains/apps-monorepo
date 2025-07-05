@@ -1,5 +1,8 @@
 import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
-import { type RenderOptions, render } from '@testing-library/react'
+import {
+  render as baseRender,
+  type RenderOptions,
+} from '@testing-library/react'
 import { createConfig, mock, WagmiProvider } from 'wagmi'
 import '@testing-library/jest-dom'
 import { addEnsContracts } from '@ensdomains/ensjs'
@@ -50,20 +53,13 @@ const queryClient = new QueryClient({
 
 beforeEach(() => queryClient.clear())
 
-const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <WagmiProvider config={wagmiConfig}>
-      <RainbowKitProvider>
-        <QueryClientProvider client={queryClient}>
-          {children}
-        </QueryClientProvider>
-      </RainbowKitProvider>
-    </WagmiProvider>
-  )
-}
+const AllTheProviders = ({ children }: { children: React.ReactNode }) => (
+  <WagmiProvider config={wagmiConfig}>
+    <QueryClientProvider client={queryClient}>
+      <RainbowKitProvider>{children}</RainbowKitProvider>
+    </QueryClientProvider>
+  </WagmiProvider>
+)
 
-const customRender = (ui: React.ReactNode, options?: RenderOptions) =>
-  render(ui, { wrapper: AllTheProviders, ...options })
-
-export * from '@testing-library/react'
-export { customRender as render }
+export const render = (ui: React.ReactNode, options?: RenderOptions) =>
+  baseRender(ui, { wrapper: AllTheProviders, ...options })
