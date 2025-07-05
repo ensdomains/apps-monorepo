@@ -11,10 +11,22 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as TestImport } from './routes/test'
 import { Route as RegisterImport } from './routes/register'
 import { Route as IndexImport } from './routes/index'
+import { Route as NotificationsIndexImport } from './routes/notifications/index'
+import { Route as AutoRenewalIndexImport } from './routes/auto-renewal/index'
+import { Route as PaymentAddImport } from './routes/payment/add'
+import { Route as NotificationsSettingsImport } from './routes/notifications/settings'
+import { Route as NotificationsAllImport } from './routes/notifications/all'
 
 // Create/Update Routes
+
+const TestRoute = TestImport.update({
+  id: '/test',
+  path: '/test',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const RegisterRoute = RegisterImport.update({
   id: '/register',
@@ -25,6 +37,36 @@ const RegisterRoute = RegisterImport.update({
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const NotificationsIndexRoute = NotificationsIndexImport.update({
+  id: '/notifications/',
+  path: '/notifications/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const AutoRenewalIndexRoute = AutoRenewalIndexImport.update({
+  id: '/auto-renewal/',
+  path: '/auto-renewal/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const PaymentAddRoute = PaymentAddImport.update({
+  id: '/payment/add',
+  path: '/payment/add',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const NotificationsSettingsRoute = NotificationsSettingsImport.update({
+  id: '/notifications/settings',
+  path: '/notifications/settings',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const NotificationsAllRoute = NotificationsAllImport.update({
+  id: '/notifications/all',
+  path: '/notifications/all',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -46,6 +88,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegisterImport
       parentRoute: typeof rootRoute
     }
+    '/test': {
+      id: '/test'
+      path: '/test'
+      fullPath: '/test'
+      preLoaderRoute: typeof TestImport
+      parentRoute: typeof rootRoute
+    }
+    '/notifications/all': {
+      id: '/notifications/all'
+      path: '/notifications/all'
+      fullPath: '/notifications/all'
+      preLoaderRoute: typeof NotificationsAllImport
+      parentRoute: typeof rootRoute
+    }
+    '/notifications/settings': {
+      id: '/notifications/settings'
+      path: '/notifications/settings'
+      fullPath: '/notifications/settings'
+      preLoaderRoute: typeof NotificationsSettingsImport
+      parentRoute: typeof rootRoute
+    }
+    '/payment/add': {
+      id: '/payment/add'
+      path: '/payment/add'
+      fullPath: '/payment/add'
+      preLoaderRoute: typeof PaymentAddImport
+      parentRoute: typeof rootRoute
+    }
+    '/auto-renewal/': {
+      id: '/auto-renewal/'
+      path: '/auto-renewal'
+      fullPath: '/auto-renewal'
+      preLoaderRoute: typeof AutoRenewalIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/notifications/': {
+      id: '/notifications/'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsIndexImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -54,36 +138,91 @@ declare module '@tanstack/react-router' {
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/register': typeof RegisterRoute
+  '/test': typeof TestRoute
+  '/notifications/all': typeof NotificationsAllRoute
+  '/notifications/settings': typeof NotificationsSettingsRoute
+  '/payment/add': typeof PaymentAddRoute
+  '/auto-renewal': typeof AutoRenewalIndexRoute
+  '/notifications': typeof NotificationsIndexRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/register': typeof RegisterRoute
+  '/test': typeof TestRoute
+  '/notifications/all': typeof NotificationsAllRoute
+  '/notifications/settings': typeof NotificationsSettingsRoute
+  '/payment/add': typeof PaymentAddRoute
+  '/auto-renewal': typeof AutoRenewalIndexRoute
+  '/notifications': typeof NotificationsIndexRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
   '/register': typeof RegisterRoute
+  '/test': typeof TestRoute
+  '/notifications/all': typeof NotificationsAllRoute
+  '/notifications/settings': typeof NotificationsSettingsRoute
+  '/payment/add': typeof PaymentAddRoute
+  '/auto-renewal/': typeof AutoRenewalIndexRoute
+  '/notifications/': typeof NotificationsIndexRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/register'
+  fullPaths:
+    | '/'
+    | '/register'
+    | '/test'
+    | '/notifications/all'
+    | '/notifications/settings'
+    | '/payment/add'
+    | '/auto-renewal'
+    | '/notifications'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/register'
-  id: '__root__' | '/' | '/register'
+  to:
+    | '/'
+    | '/register'
+    | '/test'
+    | '/notifications/all'
+    | '/notifications/settings'
+    | '/payment/add'
+    | '/auto-renewal'
+    | '/notifications'
+  id:
+    | '__root__'
+    | '/'
+    | '/register'
+    | '/test'
+    | '/notifications/all'
+    | '/notifications/settings'
+    | '/payment/add'
+    | '/auto-renewal/'
+    | '/notifications/'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   RegisterRoute: typeof RegisterRoute
+  TestRoute: typeof TestRoute
+  NotificationsAllRoute: typeof NotificationsAllRoute
+  NotificationsSettingsRoute: typeof NotificationsSettingsRoute
+  PaymentAddRoute: typeof PaymentAddRoute
+  AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
+  NotificationsIndexRoute: typeof NotificationsIndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   RegisterRoute: RegisterRoute,
+  TestRoute: TestRoute,
+  NotificationsAllRoute: NotificationsAllRoute,
+  NotificationsSettingsRoute: NotificationsSettingsRoute,
+  PaymentAddRoute: PaymentAddRoute,
+  AutoRenewalIndexRoute: AutoRenewalIndexRoute,
+  NotificationsIndexRoute: NotificationsIndexRoute,
 }
 
 export const routeTree = rootRoute
@@ -97,7 +236,13 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
-        "/register"
+        "/register",
+        "/test",
+        "/notifications/all",
+        "/notifications/settings",
+        "/payment/add",
+        "/auto-renewal/",
+        "/notifications/"
       ]
     },
     "/": {
@@ -105,6 +250,24 @@ export const routeTree = rootRoute
     },
     "/register": {
       "filePath": "register.tsx"
+    },
+    "/test": {
+      "filePath": "test.tsx"
+    },
+    "/notifications/all": {
+      "filePath": "notifications/all.tsx"
+    },
+    "/notifications/settings": {
+      "filePath": "notifications/settings.tsx"
+    },
+    "/payment/add": {
+      "filePath": "payment/add.tsx"
+    },
+    "/auto-renewal/": {
+      "filePath": "auto-renewal/index.tsx"
+    },
+    "/notifications/": {
+      "filePath": "notifications/index.tsx"
     }
   }
 }
