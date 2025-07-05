@@ -1,5 +1,5 @@
-import { PaymentMethodAddScreen } from '@/features/payment/components'
 import { createFileRoute } from '@tanstack/react-router'
+import { PaymentMethodAddScreen } from '@/features/payment/components'
 
 export const Route = createFileRoute('/payment/add')({
   component: RouteComponent,
@@ -7,7 +7,7 @@ export const Route = createFileRoute('/payment/add')({
 
 function RouteComponent() {
   return (
-    <div className="max-w-sm mx-auto">
+    <div className="max-w-sm my-5 mx-auto">
       <PaymentMethodAddScreen />
     </div>
   )

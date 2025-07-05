@@ -25,6 +25,7 @@ import {
 import { NotificationsDropdown } from '@/features/notifications/components'
 import { MOCK_NOTIFICATIONS } from '@/features/notifications/MOCK'
 import { useTheme } from '@/hooks/use-theme'
+import { useState } from 'react'
 
 const ConnectedContent = () => {
   const { address } = useAccount()
@@ -37,6 +38,9 @@ const ConnectedContent = () => {
       ipfs: 'https://ipfs.euc.li',
     },
   })
+
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+
   return (
     <div className="flex items-center gap-4 mr-6">
       <DropdownMenu>
@@ -80,14 +84,17 @@ const ConnectedContent = () => {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <Popover>
+      <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
         <PopoverTrigger asChild>
           <Button variant="ghost" size="icon">
             <Bell className="size-5" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-sm" collisionPadding={16} sideOffset={16}>
-          <NotificationsDropdown notifications={MOCK_NOTIFICATIONS} />
+          <NotificationsDropdown
+            notifications={MOCK_NOTIFICATIONS}
+            onAction={() => setNotificationsOpen(false)}
+          />
         </PopoverContent>
       </Popover>
     </div>

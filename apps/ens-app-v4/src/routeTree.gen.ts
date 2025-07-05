@@ -11,7 +11,6 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
-import { Route as TestImport } from './routes/test'
 import { Route as RegisterImport } from './routes/register'
 import { Route as IndexImport } from './routes/index'
 import { Route as NotificationsIndexImport } from './routes/notifications/index'
@@ -21,12 +20,6 @@ import { Route as NotificationsSettingsImport } from './routes/notifications/set
 import { Route as NotificationsAllImport } from './routes/notifications/all'
 
 // Create/Update Routes
-
-const TestRoute = TestImport.update({
-  id: '/test',
-  path: '/test',
-  getParentRoute: () => rootRoute,
-} as any)
 
 const RegisterRoute = RegisterImport.update({
   id: '/register',
@@ -88,13 +81,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegisterImport
       parentRoute: typeof rootRoute
     }
-    '/test': {
-      id: '/test'
-      path: '/test'
-      fullPath: '/test'
-      preLoaderRoute: typeof TestImport
-      parentRoute: typeof rootRoute
-    }
     '/notifications/all': {
       id: '/notifications/all'
       path: '/notifications/all'
@@ -138,7 +124,6 @@ declare module '@tanstack/react-router' {
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/register': typeof RegisterRoute
-  '/test': typeof TestRoute
   '/notifications/all': typeof NotificationsAllRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
   '/payment/add': typeof PaymentAddRoute
@@ -149,7 +134,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/register': typeof RegisterRoute
-  '/test': typeof TestRoute
   '/notifications/all': typeof NotificationsAllRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
   '/payment/add': typeof PaymentAddRoute
@@ -161,7 +145,6 @@ export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
   '/register': typeof RegisterRoute
-  '/test': typeof TestRoute
   '/notifications/all': typeof NotificationsAllRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
   '/payment/add': typeof PaymentAddRoute
@@ -174,7 +157,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/register'
-    | '/test'
     | '/notifications/all'
     | '/notifications/settings'
     | '/payment/add'
@@ -184,7 +166,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/register'
-    | '/test'
     | '/notifications/all'
     | '/notifications/settings'
     | '/payment/add'
@@ -194,7 +175,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/register'
-    | '/test'
     | '/notifications/all'
     | '/notifications/settings'
     | '/payment/add'
@@ -206,7 +186,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   RegisterRoute: typeof RegisterRoute
-  TestRoute: typeof TestRoute
   NotificationsAllRoute: typeof NotificationsAllRoute
   NotificationsSettingsRoute: typeof NotificationsSettingsRoute
   PaymentAddRoute: typeof PaymentAddRoute
@@ -217,7 +196,6 @@ export interface RootRouteChildren {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   RegisterRoute: RegisterRoute,
-  TestRoute: TestRoute,
   NotificationsAllRoute: NotificationsAllRoute,
   NotificationsSettingsRoute: NotificationsSettingsRoute,
   PaymentAddRoute: PaymentAddRoute,
@@ -237,7 +215,6 @@ export const routeTree = rootRoute
       "children": [
         "/",
         "/register",
-        "/test",
         "/notifications/all",
         "/notifications/settings",
         "/payment/add",
@@ -250,9 +227,6 @@ export const routeTree = rootRoute
     },
     "/register": {
       "filePath": "register.tsx"
-    },
-    "/test": {
-      "filePath": "test.tsx"
     },
     "/notifications/all": {
       "filePath": "notifications/all.tsx"

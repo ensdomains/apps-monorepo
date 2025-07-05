@@ -7,7 +7,7 @@ export const Route = createFileRoute('/notifications/settings')({
 
 function RouteComponent() {
   return (
-    <div className="max-w-sm m-5">
+    <div className="max-w-sm my-5 mx-auto">
       <NotificationSettings />
     </div>
   )

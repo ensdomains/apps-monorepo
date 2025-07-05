@@ -50,8 +50,10 @@ const TimestampOnly = ({ timestamp }: { timestamp: number }) => (
 // Notification type components
 const NameTransferredNotificationComponent = ({
   notification,
+  onAction,
 }: {
   notification: NameTransferredNotification
+  onAction?: () => void
 }) => (
   <NotificationWrapper>
     <NotificationHeader
@@ -74,8 +76,10 @@ const NameTransferredNotificationComponent = ({
 
 const NameExpiryNotificationComponent = ({
   notification,
+  onAction,
 }: {
   notification: NameExpiryNotification
+  onAction?: () => void
 }) => {
   const { text: expiryText, isExpired } = formatExpiryTime(
     notification.expiryDate,
@@ -89,7 +93,7 @@ const NameExpiryNotificationComponent = ({
       />
       <NameDisplay name={notification.name} />
       <ActionRow>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" onClick={onAction}>
           {isExpired ? 'View' : 'Extend'}
         </Button>
       </ActionRow>
@@ -99,8 +103,10 @@ const NameExpiryNotificationComponent = ({
 
 const BlogPostNotificationComponent = ({
   notification,
+  onAction,
 }: {
   notification: BlogPostNotification
+  onAction?: () => void
 }) => (
   <NotificationWrapper>
     <TimestampOnly timestamp={notification.timestamp} />
@@ -120,6 +126,7 @@ const BlogPostNotificationComponent = ({
           href={notification.url}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={onAction}
           className="text-blue-600 hover:text-blue-800 text-sm underline"
         >
           Go to post
@@ -129,16 +136,35 @@ const BlogPostNotificationComponent = ({
   </NotificationWrapper>
 )
 
-const NotificationItem = ({ notification }: { notification: Notification }) => {
+const NotificationItem = ({
+  notification,
+  onAction,
+}: {
+  notification: Notification
+  onAction?: () => void
+}) => {
   switch (notification.type) {
     case 'name-transferred':
       return (
-        <NameTransferredNotificationComponent notification={notification} />
+        <NameTransferredNotificationComponent
+          notification={notification}
+          onAction={onAction}
+        />
       )
     case 'name-expiry':
-      return <NameExpiryNotificationComponent notification={notification} />
+      return (
+        <NameExpiryNotificationComponent
+          notification={notification}
+          onAction={onAction}
+        />
+      )
     case 'blog-post':
-      return <BlogPostNotificationComponent notification={notification} />
+      return (
+        <BlogPostNotificationComponent
+          notification={notification}
+          onAction={onAction}
+        />
+      )
     default:
       return null
   }
@@ -146,8 +172,10 @@ const NotificationItem = ({ notification }: { notification: Notification }) => {
 
 export const NotificationsDropdown = ({
   notifications,
+  onAction,
 }: {
   notifications: Notification[]
+  onAction?: () => void
 }) => {
   const displayedNotifications = notifications.slice(0, 3)
 
@@ -165,12 +193,13 @@ export const NotificationsDropdown = ({
           <NotificationItem
             key={`${notification.type}-${notification.timestamp}`}
             notification={notification}
+            onAction={onAction}
           />
         ))}
       </div>
 
       <div className="flex justify-center">
-        <LinkButton to="/notifications/all" variant="link">
+        <LinkButton to="/notifications/all" variant="link" onClick={onAction}>
           View all notifications
         </LinkButton>
       </div>

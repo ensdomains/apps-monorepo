@@ -8,7 +8,7 @@ export const Route = createFileRoute('/notifications/all')({
 
 function RouteComponent() {
   return (
-    <div className="max-w-sm">
+    <div className="max-w-sm my-5 mx-auto">
       <AllNotifications notifications={MOCK_NOTIFICATIONS} />
     </div>
   )
