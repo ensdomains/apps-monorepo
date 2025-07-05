@@ -7,13 +7,13 @@ export const ThemeToggle = () => {
     <button
       type="button"
       onClick={toggleTheme}
-      className="relative inline-flex items-center justify-center p-2 rounded-md bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all duration-200 ease-in-out"
+      className="relative inline-flex items-center justify-center rounded-md bg-secondary p-2 text-secondary-foreground transition-all duration-200 ease-in-out hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
       aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
     >
-      <div className="relative w-6 h-6">
+      <div className="relative h-6 w-6">
         {/* Sun Icon */}
         <svg
-          className={`absolute inset-0 w-6 h-6 transition-all duration-300 ${
+          className={`absolute inset-0 h-6 w-6 transition-all duration-300 ${
             theme === 'light' ? 'rotate-0 scale-100' : 'rotate-90 scale-0'
           }`}
           fill="none"
@@ -32,7 +32,7 @@ export const ThemeToggle = () => {
 
         {/* Moon Icon */}
         <svg
-          className={`absolute inset-0 w-6 h-6 transition-all duration-300 ${
+          className={`absolute inset-0 h-6 w-6 transition-all duration-300 ${
             theme === 'dark' ? 'rotate-0 scale-100' : '-rotate-90 scale-0'
           }`}
           fill="none"

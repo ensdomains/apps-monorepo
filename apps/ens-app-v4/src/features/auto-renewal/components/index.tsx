@@ -43,7 +43,7 @@ export const AutoRenewalItem = ({
   const status = getExpiryStatus(autoRenewal.expires)
 
   return (
-    <div className="space-y-2 px-3 py-6 border border-gray-200 rounded-md">
+    <div className="space-y-2 rounded-md border border-gray-200 px-3 py-6">
       <div className="flex justify-between">
         <Highlight>{autoRenewal.name}</Highlight>
         <Badge variant={statusText[status].variant}>
@@ -52,24 +52,24 @@ export const AutoRenewalItem = ({
       </div>
       <div className="flex items-center gap-1">
         <Calendar className="size-3 text-gray-500" />
-        <span className="text-sm text-gray-500">Expires:</span>
+        <span className="text-gray-500 text-sm">Expires:</span>
         <span className="text-sm">
           {new Date(autoRenewal.expires).toLocaleDateString()}
         </span>
       </div>
       {autoRenewal.expires - Date.now() < TIME_UNITS.DAY * 16 && (
-        <div className="text-sm text-red-600">
+        <div className="text-red-600 text-sm">
           {Math.floor((autoRenewal.expires - Date.now()) / TIME_UNITS.DAY)} days
           remaining
         </div>
       )}
       <div className="flex justify-end">
-        <span className="text-sm text-gray-500">
+        <span className="text-gray-500 text-sm">
           {autoRenewal.price} USD/year
         </span>
       </div>
-      <div className="flex justify-end items-center gap-1">
-        <span className="text-sm text-gray-500">Autorenews on</span>
+      <div className="flex items-center justify-end gap-1">
+        <span className="text-gray-500 text-sm">Autorenews on</span>
         <span className="text-sm">
           {new Date(autoRenewal.expires - TIME_UNITS.DAY).toLocaleDateString()}
         </span>
@@ -86,13 +86,13 @@ export const NonAutoRenewalWarning = ({
 }) => {
   if (nonAutoRenewals.length === 0) return null
   return (
-    <div className="bg-gray-200 rounded-md p-4 flex gap-4">
+    <div className="flex gap-4 rounded-md bg-gray-200 p-4">
       <CircleAlert className="size-8" />
       <div className="text-gray-500">
         <div className="font-medium">
           {nonAutoRenewals.length} ENS names are expiring without auto-renewal
         </div>
-        <div className="text-sm text-gray-500">
+        <div className="text-gray-500 text-sm">
           {/* "erni.eth expires on July 10, 2025. Enable autorenewal or renew manually to avoid expiration." if only one name */}
           {nonAutoRenewals.length === 1 ? (
             <>

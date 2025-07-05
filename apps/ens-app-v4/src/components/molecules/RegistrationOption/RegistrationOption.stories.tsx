@@ -83,7 +83,7 @@ export const Disabled: Story = {
 
 export const MultipleOptions: Story = {
   render: () => (
-    <div className="flex flex-col gap-3 max-w-md">
+    <div className="flex max-w-md flex-col gap-3">
       <RegistrationOption
         years={1}
         pricePerYear={45.2}
@@ -108,8 +108,8 @@ export const MultipleOptions: Story = {
 
 export const WithDiscounts: Story = {
   render: () => (
-    <div className="space-y-4 max-w-md">
-      <h3 className="text-lg font-semibold">Choose Registration Period</h3>
+    <div className="max-w-md space-y-4">
+      <h3 className="font-semibold text-lg">Choose Registration Period</h3>
       <div className="space-y-2">
         <RegistrationOption
           years={1}
@@ -132,7 +132,7 @@ export const WithDiscounts: Story = {
           onSelect={(years) => console.log('Selected', years, 'year(s)')}
         />
       </div>
-      <p className="text-sm text-gray-600">
+      <p className="text-gray-600 text-sm">
         Longer registrations offer better value and protection
       </p>
     </div>
@@ -142,7 +142,7 @@ export const WithDiscounts: Story = {
 export const Interactive: Story = {
   render: () => (
     <div className="max-w-md">
-      <h3 className="text-lg font-semibold mb-4">Registration Duration</h3>
+      <h3 className="mb-4 font-semibold text-lg">Registration Duration</h3>
       <div className="space-y-3">
         <RegistrationOption
           years={1}
@@ -169,7 +169,7 @@ export const Interactive: Story = {
 
 export const CustomPricing: Story = {
   render: () => (
-    <div className="flex flex-col gap-3 max-w-md">
+    <div className="flex max-w-md flex-col gap-3">
       <RegistrationOption
         years={1}
         pricePerYear={12.99}
@@ -194,7 +194,7 @@ export const CustomPricing: Story = {
 
 export const HighValue: Story = {
   render: () => (
-    <div className="flex flex-col gap-3 max-w-md">
+    <div className="flex max-w-md flex-col gap-3">
       <RegistrationOption
         years={1}
         pricePerYear={1000.0}

@@ -100,7 +100,7 @@ export const DifferentSizes: Story = {
 export const Interactive: Story = {
   render: () => (
     <div className="max-w-md">
-      <h3 className="text-lg font-semibold mb-4">Domain Search</h3>
+      <h3 className="mb-4 font-semibold text-lg">Domain Search</h3>
       <SearchField
         placeholder="Enter domain name..."
         onSearch={(query) => {
@@ -115,7 +115,7 @@ export const Interactive: Story = {
 export const FormIntegration: Story = {
   render: () => (
     <div className="max-w-lg space-y-4">
-      <h3 className="text-lg font-semibold">ENS Domain Search</h3>
+      <h3 className="font-semibold text-lg">ENS Domain Search</h3>
       <SearchField
         placeholder="Search for available domains..."
         buttonText="Check Availability"
@@ -127,7 +127,7 @@ export const FormIntegration: Story = {
           }, 1000)
         }}
       />
-      <p className="text-sm text-gray-600">
+      <p className="text-gray-600 text-sm">
         Search for .eth domains to check availability and pricing
       </p>
     </div>

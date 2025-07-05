@@ -11,7 +11,7 @@ import { groupNotificationsByTime } from '../utils'
 
 // Shared UI components
 const NotificationWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="border-b border-gray-200 py-6 space-y-2 px-4">{children}</div>
+  <div className="space-y-2 border-gray-200 border-b px-4 py-6">{children}</div>
 )
 
 const NotificationHeader = ({
@@ -23,14 +23,14 @@ const NotificationHeader = ({
 }) => (
   <div className="flex items-center justify-between">
     {badge}
-    <span className="text-sm text-gray-500">
+    <span className="text-gray-500 text-sm">
       {formatRelativeTime(timestamp)}
     </span>
   </div>
 )
 
 const NameDisplay = ({ name }: { name: string }) => (
-  <div className="bg-gray-800 text-white p-1.5 leading-ens-none rounded-md font-mono text-sm w-fit max-w-3/4 wrap-anywhere">
+  <div className="wrap-anywhere w-fit max-w-3/4 rounded-md bg-gray-800 p-1.5 font-mono text-sm text-white leading-ens-none">
     {name}
   </div>
 )
@@ -41,7 +41,7 @@ const ActionRow = ({ children }: { children: React.ReactNode }) => (
 
 const TimestampOnly = ({ timestamp }: { timestamp: number }) => (
   <div className="flex justify-end">
-    <span className="text-sm text-gray-500">
+    <span className="text-gray-500 text-sm">
       {formatRelativeTime(timestamp)}
     </span>
   </div>
@@ -66,7 +66,7 @@ const NameTransferredNotificationComponent = ({
         href={`https://etherscan.io/tx/${notification.txHash}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-blue-600 hover:text-blue-800 text-sm underline"
+        className="text-blue-600 text-sm underline hover:text-blue-800"
       >
         View on Etherscan
       </a>
@@ -111,15 +111,15 @@ const BlogPostNotificationComponent = ({
   <NotificationWrapper>
     <TimestampOnly timestamp={notification.timestamp} />
     <div className="flex gap-3">
-      <div className="w-16 h-16 flex-shrink-0">
+      <div className="h-16 w-16 flex-shrink-0">
         <img
           src={notification.imageUrl}
           alt={notification.title}
-          className="w-full h-full object-cover rounded"
+          className="h-full w-full rounded object-cover"
         />
       </div>
       <div className="flex flex-col justify-center space-y-1">
-        <h3 className="font-medium text-gray-900 line-clamp-2">
+        <h3 className="line-clamp-2 font-medium text-gray-900">
           {notification.title}
         </h3>
         <a
@@ -127,7 +127,7 @@ const BlogPostNotificationComponent = ({
           target="_blank"
           rel="noopener noreferrer"
           onClick={onAction}
-          className="text-blue-600 hover:text-blue-800 text-sm underline"
+          className="text-blue-600 text-sm underline hover:text-blue-800"
         >
           Go to post
         </a>
@@ -182,7 +182,7 @@ export const NotificationsDropdown = ({
   return (
     <div className="">
       <div className="flex items-center justify-between pl-4">
-        <h1 className="text-2xl font-normal">Notifications</h1>
+        <h1 className="font-normal text-2xl">Notifications</h1>
         <Button variant="ghost" className="font-normal">
           Mark all as read
         </Button>
@@ -218,7 +218,7 @@ const NotificationGroup = ({
 
   return (
     <div className="">
-      <h2 className="text-lg font-medium text-gray-900 mb-2 px-4">{title}</h2>
+      <h2 className="mb-2 px-4 font-medium text-gray-900 text-lg">{title}</h2>
       <div>
         {notifications.map((notification) => (
           <NotificationItem
@@ -239,9 +239,9 @@ export const AllNotifications = ({
   const { groups } = groupNotificationsByTime(notifications)
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <h1 className="text-2xl font-normal">All Notifications</h1>
+    <div className="mx-auto max-w-2xl">
+      <div className="flex items-center justify-between border-gray-200 border-b p-4">
+        <h1 className="font-normal text-2xl">All Notifications</h1>
         <LinkButton to="/notifications/settings" variant="link">
           Notification Settings
         </LinkButton>
@@ -257,7 +257,7 @@ export const AllNotifications = ({
         ))}
 
         {notifications.length === 0 && (
-          <div className="text-center py-12">
+          <div className="py-12 text-center">
             <p className="text-gray-500">No notifications yet</p>
           </div>
         )}

@@ -10,7 +10,7 @@ export const Highlight = ({
   return (
     <span
       className={cn(
-        'bg-gray-800 text-white p-1.5 leading-ens-none rounded-md font-mono text-sm w-fit max-w-3/4 wrap-anywhere',
+        'wrap-anywhere w-fit max-w-3/4 rounded-md bg-gray-800 p-1.5 font-mono text-sm text-white leading-ens-none',
         className,
       )}
     >

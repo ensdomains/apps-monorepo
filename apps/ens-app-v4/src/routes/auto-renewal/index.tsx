@@ -17,9 +17,9 @@ export const Route = createFileRoute('/auto-renewal/')({
 
 function RouteComponent() {
   return (
-    <div className="space-y-4 max-w-sm mx-auto my-5">
+    <div className="mx-auto my-5 max-w-sm space-y-4">
       <NonAutoRenewalWarning nonAutoRenewals={NON_AUTO_RENEWALS} />
-      <h1 className="text-2xl font-bold">Manage Renewals</h1>
+      <h1 className="font-bold text-2xl">Manage Renewals</h1>
       <div className="space-y-4">
         {RENEWALS.map((renewal) => (
           <AutoRenewalItem key={renewal.name} autoRenewal={renewal} />

@@ -121,7 +121,7 @@ export const WithIcons: Story = {
 export const FormExample: Story = {
   render: () => (
     <div className="max-w-md space-y-4">
-      <h3 className="text-lg font-semibold">Registration Form</h3>
+      <h3 className="font-semibold text-lg">Registration Form</h3>
       <FormField
         label="First Name"
         name="firstName"

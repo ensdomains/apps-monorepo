@@ -18,10 +18,10 @@ const PaymentMethodItem = ({
   paymentMethod: PaymentMethod
 }) => {
   return (
-    <div className="p-4 border border-gray-200 rounded-md flex items-center gap-3.5">
+    <div className="flex items-center gap-3.5 rounded-md border border-gray-200 p-4">
       <div
         className={clsx(
-          'h-7 w-11 rounded-md flex items-center justify-center',
+          'flex h-7 w-11 items-center justify-center rounded-md',
           paymentMethod.type === 'card' && 'bg-gray-200',
           paymentMethod.type === 'google-pay' && 'bg-yellow-500',
           paymentMethod.type === 'apple-pay' && 'bg-gray-500',
@@ -30,8 +30,8 @@ const PaymentMethodItem = ({
       >
         <CreditCard className="size-4" />
       </div>
-      <div className="flex flex-col gap-1 flex-1">
-        <div className="text-sm font-medium space-x-2">
+      <div className="flex flex-1 flex-col gap-1">
+        <div className="space-x-2 font-medium text-sm">
           <span>{paymentMethod.name}</span>
           {paymentMethod.default && (
             <Badge variant="gray">
@@ -39,7 +39,7 @@ const PaymentMethodItem = ({
             </Badge>
           )}
         </div>
-        <div className="text-sm text-gray-500">
+        <div className="text-gray-500 text-sm">
           Expires {paymentMethod.expires}
         </div>
       </div>
@@ -58,10 +58,10 @@ export const PaymentMethodList = ({
   paymentMethods: PaymentMethod[]
 }) => {
   return (
-    <div className="space-y-3.5 p-5 border border-gray-200 rounded-md">
+    <div className="space-y-3.5 rounded-md border border-gray-200 p-5">
       <div>
-        <h2 className="text-lg font-medium">Payment Method</h2>
-        <div className="text-sm text-gray-500 mb-4">
+        <h2 className="font-medium text-lg">Payment Method</h2>
+        <div className="mb-4 text-gray-500 text-sm">
           This card will be charged for your subscription.
         </div>
       </div>
@@ -69,12 +69,12 @@ export const PaymentMethodList = ({
         key={paymentMethods[0].name}
         paymentMethod={paymentMethods[0]}
       />
-      <div className="border-t border-gray-200" />
+      <div className="border-gray-200 border-t" />
 
       {/* Backup card */}
       <div>
-        <h3 className="text-sm font-medium">Backup Card</h3>
-        <div className="text-sm text-gray-500">
+        <h3 className="font-medium text-sm">Backup Card</h3>
+        <div className="text-gray-500 text-sm">
           If your primary card is declined, we will use this card to charge you.
         </div>
       </div>
@@ -94,10 +94,10 @@ export const PaymentMethodList = ({
 
 export const PaymentMethodAdd = () => {
   return (
-    <div className="space-y-3.5 p-5 border border-gray-200 rounded-md">
+    <div className="space-y-3.5 rounded-md border border-gray-200 p-5">
       <div>
-        <h2 className="text-lg font-medium">Payment Methods</h2>
-        <div className="text-sm text-gray-500 mb-4">
+        <h2 className="font-medium text-lg">Payment Methods</h2>
+        <div className="mb-4 text-gray-500 text-sm">
           This card will be charged for your subscription.
         </div>
       </div>
@@ -111,8 +111,8 @@ export const PaymentMethodAdd = () => {
 
 const PaymentMethodAddScreenCardDetails = () => {
   return (
-    <div className="space-y-4 flex gap-2 flex-col">
-      <h2 className="text-lg font-medium">Add a credit card</h2>
+    <div className="flex flex-col gap-2 space-y-4">
+      <h2 className="font-medium text-lg">Add a credit card</h2>
       <Input placeholder="Card number" />
       <div className="flex gap-2">
         <Input placeholder="MM/YY" />
@@ -132,8 +132,8 @@ export const PaymentMethodAddScreen = () => {
   return (
     <div className="space-y-4 px-4">
       <div>
-        <h2 className="text-lg font-medium">Payment Methods</h2>
-        <div className="text-sm text-gray-500 mb-4">
+        <h2 className="font-medium text-lg">Payment Methods</h2>
+        <div className="mb-4 text-gray-500 text-sm">
           Choose how you'd like to pay for your subscription.
         </div>
       </div>
@@ -141,8 +141,8 @@ export const PaymentMethodAddScreen = () => {
       <div className="space-y-3">
         <Button variant="secondary" className="w-full justify-start">
           <div className="flex items-center gap-3">
-            <div className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center">
-              <span className="text-white text-xs font-bold">G</span>
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-blue-500">
+              <span className="font-bold text-white text-xs">G</span>
             </div>
             Pay with Google
           </div>
@@ -150,8 +150,8 @@ export const PaymentMethodAddScreen = () => {
 
         <Button variant="secondary" className="w-full justify-start">
           <div className="flex items-center gap-3">
-            <div className="w-6 h-6 bg-black rounded flex items-center justify-center">
-              <span className="text-white text-xs font-bold">A</span>
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-black">
+              <span className="font-bold text-white text-xs">A</span>
             </div>
             Pay with Apple
           </div>
@@ -159,18 +159,18 @@ export const PaymentMethodAddScreen = () => {
 
         <Button variant="secondary" className="w-full justify-start">
           <div className="flex items-center gap-3">
-            <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
-              <span className="text-white text-xs font-bold">P</span>
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-blue-600">
+              <span className="font-bold text-white text-xs">P</span>
             </div>
             Pay with PayPal
           </div>
         </Button>
       </div>
 
-      <div className="flex items-center gap-2 justify-center">
-        <div className="w-full border-t border-gray-300" />
+      <div className="flex items-center justify-center gap-2">
+        <div className="w-full border-gray-300 border-t" />
         <span className="px-2 text-gray-500">or</span>
-        <div className="w-full border-t border-gray-300" />
+        <div className="w-full border-gray-300 border-t" />
       </div>
 
       <Button
@@ -182,7 +182,7 @@ export const PaymentMethodAddScreen = () => {
         Add a credit card
       </Button>
 
-      <div className="flex flex-col gap-2 items-center justify-center text-center leading-ens-tight">
+      <div className="flex flex-col items-center justify-center gap-2 text-center leading-ens-tight">
         <div className="font-medium">Add a Backup Payment Method</div>
         <div className="text-gray-500">
           The backup payment method will be charged if the default payment

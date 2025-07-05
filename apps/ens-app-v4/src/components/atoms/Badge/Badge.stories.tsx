@@ -102,7 +102,7 @@ export const AllCombinations: Story = {
   render: () => (
     <div className="grid grid-cols-3 gap-4">
       <div>
-        <h4 className="text-sm font-semibold mb-2">Small</h4>
+        <h4 className="mb-2 font-semibold text-sm">Small</h4>
         <div className="flex flex-col gap-1">
           <Badge size="sm" variant="default">
             Default
@@ -116,7 +116,7 @@ export const AllCombinations: Story = {
         </div>
       </div>
       <div>
-        <h4 className="text-sm font-semibold mb-2">Default</h4>
+        <h4 className="mb-2 font-semibold text-sm">Default</h4>
         <div className="flex flex-col gap-1">
           <Badge size="default" variant="default">
             Default
@@ -130,7 +130,7 @@ export const AllCombinations: Story = {
         </div>
       </div>
       <div>
-        <h4 className="text-sm font-semibold mb-2">Large</h4>
+        <h4 className="mb-2 font-semibold text-sm">Large</h4>
         <div className="flex flex-col gap-1">
           <Badge size="lg" variant="default">
             Default

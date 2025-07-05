@@ -8,7 +8,7 @@ export const Route = createFileRoute('/notifications/')({
 
 function RouteComponent() {
   return (
-    <div className="max-w-sm m-5 border border-gray-400 rounded-md">
+    <div className="m-5 max-w-sm rounded-md border border-gray-400">
       <NotificationsDropdown notifications={MOCK_NOTIFICATIONS} />
     </div>
   )

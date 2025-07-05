@@ -53,7 +53,7 @@ export const WithRecentSearches: Story = {
 export const Interactive: Story = {
   render: () => (
     <div className="max-w-2xl">
-      <h2 className="text-2xl font-bold mb-6">Find Your Perfect Domain</h2>
+      <h2 className="mb-6 font-bold text-2xl">Find Your Perfect Domain</h2>
       <SearchForm
         placeholder="Enter your desired domain name"
         onSearch={(query) => {
@@ -61,7 +61,7 @@ export const Interactive: Story = {
           alert(`Starting search for: ${query}`)
         }}
       />
-      <p className="text-sm text-muted-foreground mt-4">
+      <p className="mt-4 text-muted-foreground text-sm">
         Search for .eth domains to check availability and pricing
       </p>
     </div>
@@ -110,12 +110,12 @@ export const WithoutRecentSearches: Story = {
 
 export const RealWorldExample: Story = {
   render: () => (
-    <div className="w-full max-w-4xl mx-auto py-12">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold mb-4">
+    <div className="mx-auto w-full max-w-4xl py-12">
+      <div className="mb-8 text-center">
+        <h1 className="mb-4 font-bold text-4xl">
           Your Web3 Identity Starts Here
         </h1>
-        <p className="text-xl text-muted-foreground mb-8">
+        <p className="mb-8 text-muted-foreground text-xl">
           Search for the perfect .eth domain name
         </p>
       </div>
@@ -131,8 +131,8 @@ export const RealWorldExample: Story = {
         }}
       />
 
-      <div className="text-center mt-6">
-        <p className="text-sm text-muted-foreground">
+      <div className="mt-6 text-center">
+        <p className="text-muted-foreground text-sm">
           Popular searches: • blockchain.eth • nft.eth • dao.eth
         </p>
       </div>

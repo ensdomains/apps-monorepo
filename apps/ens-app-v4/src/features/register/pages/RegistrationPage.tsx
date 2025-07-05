@@ -33,7 +33,7 @@ export function Registration({ initialName }: RegistrationProps) {
   return (
     <>
       {currentStep === RegistrationStep.PRICING && name && (
-        <div className="max-w-md mx-auto px-4 py-6">
+        <div className="mx-auto max-w-md px-4 py-6">
           <Pricing
             domainName={name}
             duration={state.context.duration}

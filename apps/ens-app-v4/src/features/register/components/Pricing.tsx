@@ -120,17 +120,17 @@ export const Pricing = ({
         <Button
           variant="ghost"
           onClick={() => navigate({ to: '/' })}
-          className="p-2 h-auto"
+          className="h-auto p-2"
         >
           ← Back
         </Button>
       </div>
 
-      <div className="inline-flex items-center bg-foreground text-background px-2 py-1 rounded text-lg font-bold">
+      <div className="inline-flex items-center rounded bg-foreground px-2 py-1 font-bold text-background text-lg">
         {domainName}
       </div>
 
-      <h2 className="text-xl font-bold text-foreground">
+      <h2 className="font-bold text-foreground text-xl">
         Choose registration length
       </h2>
 
@@ -145,7 +145,7 @@ export const Pricing = ({
 
         <TabsContent value="years" className="space-y-4">
           <div className="mb-4">
-            <h3 className="text-sm font-medium text-foreground mb-3">
+            <h3 className="mb-3 font-medium text-foreground text-sm">
               Quick select
             </h3>
             <div className="grid grid-cols-2 gap-3">
@@ -154,22 +154,22 @@ export const Pricing = ({
                   key={yearOption.years}
                   type="button"
                   onClick={() => onChangeDuration(yearOption.years)}
-                  className={`p-4 border rounded-lg text-left transition-colors relative ${
+                  className={`relative rounded-lg border p-4 text-left transition-colors ${
                     duration === yearOption.years
                       ? 'border-primary bg-primary/5 text-primary'
-                      : 'border-border hover:border-muted-foreground bg-card'
+                      : 'border-border bg-card hover:border-muted-foreground'
                   }`}
                 >
                   <div className="font-medium">
                     {yearOption.years} year{yearOption.years > 1 ? 's' : ''}
                   </div>
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-muted-foreground text-sm">
                     {yearOption.discount > 0
                       ? `${yearOption.discount}% off`
                       : ''}
                   </div>
                   {yearOption.years === 5 && (
-                    <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded">
+                    <div className="-top-2 -right-2 absolute rounded bg-primary px-2 py-1 text-primary-foreground text-xs">
                       Best value
                     </div>
                   )}
@@ -181,11 +181,11 @@ export const Pricing = ({
           <div>
             <label
               htmlFor="custom-years"
-              className="block text-sm font-medium text-foreground mb-2"
+              className="mb-2 block font-medium text-foreground text-sm"
             >
               Or enter custom duration
             </label>
-            <div className="flex items-center w-full space-x-2">
+            <div className="flex w-full items-center space-x-2">
               <Input
                 id="custom-years"
                 type="number"
@@ -209,10 +209,10 @@ export const Pricing = ({
 
         <TabsContent value="date" className="space-y-4">
           <div>
-            <h3 className="text-sm font-medium text-foreground mb-3">
+            <h3 className="mb-3 font-medium text-foreground text-sm">
               Select registration end date
             </h3>
-            <div className="border border-border rounded-lg p-4">
+            <div className="rounded-lg border border-border p-4">
               <Calendar
                 mode="single"
                 selected={selectedDate}
@@ -222,8 +222,8 @@ export const Pricing = ({
               />
             </div>
             {selectedDate && (
-              <div className="mt-3 p-3 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">
+              <div className="mt-3 rounded-lg bg-muted p-3">
+                <p className="text-muted-foreground text-sm">
                   Registration will end on:{' '}
                   <span className="font-medium text-foreground">
                     {formatDate(selectedDate)}
@@ -237,14 +237,14 @@ export const Pricing = ({
 
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-foreground">
+          <h3 className="font-semibold text-foreground text-lg">
             Order Summary
           </h3>
-          <div className="flex items-center border border-border rounded-md">
+          <div className="flex items-center rounded-md border border-border">
             <button
               type="button"
               onClick={() => onChangeCurrency('USD')}
-              className={`px-3 py-1 text-sm font-medium transition-colors ${
+              className={`px-3 py-1 font-medium text-sm transition-colors ${
                 currency === 'USD'
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:text-foreground'
@@ -255,7 +255,7 @@ export const Pricing = ({
             <button
               type="button"
               onClick={() => onChangeCurrency('ETH')}
-              className={`px-3 py-1 text-sm font-medium transition-colors ${
+              className={`px-3 py-1 font-medium text-sm transition-colors ${
                 currency === 'ETH'
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:text-foreground'
@@ -266,13 +266,13 @@ export const Pricing = ({
           </div>
         </div>
 
-        <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+        <div className="space-y-3 rounded-lg border border-border bg-card p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <div className="bg-foreground text-background px-2 py-1 rounded text-sm font-bold">
+              <div className="rounded bg-foreground px-2 py-1 font-bold text-background text-sm">
                 {domainName}
               </div>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-muted-foreground text-sm">
                 •{' '}
                 {duration === Math.floor(duration)
                   ? duration
@@ -281,13 +281,13 @@ export const Pricing = ({
               </span>
             </div>
             <div className="flex items-center space-x-2">
-              <span className="text-lg font-bold text-foreground">Total</span>
-              <span className="text-primary font-bold">●</span>
+              <span className="font-bold text-foreground text-lg">Total</span>
+              <span className="font-bold text-primary">●</span>
             </div>
           </div>
 
           <div className="text-right">
-            <div className="text-2xl font-bold text-foreground">
+            <div className="font-bold text-2xl text-foreground">
               {currency === 'ETH' ? '⟠' : '$'}
               {total.toFixed(2)} {currency}
             </div>
@@ -297,9 +297,9 @@ export const Pricing = ({
             <CollapsibleTrigger asChild>
               <Button
                 variant="ghost"
-                className="w-full flex items-center justify-between p-0 h-auto hover:bg-transparent"
+                className="flex h-auto w-full items-center justify-between p-0 hover:bg-transparent"
               >
-                <span className="text-sm text-muted-foreground">
+                <span className="text-muted-foreground text-sm">
                   Price breakdown
                 </span>
                 <ChevronDownIcon
@@ -316,7 +316,7 @@ export const Pricing = ({
                   {currency === 'ETH' ? '⟠' : '$'}
                   {pricePerYear.toFixed(2)} {currency}/year)
                   {pricingDuration !== duration && (
-                    <span className="block text-xs text-muted-foreground/70">
+                    <span className="block text-muted-foreground/70 text-xs">
                       (Rounded up from {duration.toFixed(2)} years)
                     </span>
                   )}
@@ -344,8 +344,8 @@ export const Pricing = ({
                   {networkFee.toFixed(4)}
                 </span>
               </div>
-              <div className="border-t border-border pt-2">
-                <div className="flex justify-between text-sm font-medium">
+              <div className="border-border border-t pt-2">
+                <div className="flex justify-between font-medium text-sm">
                   <span className="text-foreground">Total</span>
                   <span className="text-foreground">
                     {currency === 'ETH' ? '⟠' : '$'}
@@ -362,7 +362,7 @@ export const Pricing = ({
           duration={duration}
           priceUSD={currency === 'USD' ? total : total * 2500}
         >
-          <Button className="w-full h-12 text-base font-semibold">
+          <Button className="h-12 w-full font-semibold text-base">
             Register
           </Button>
         </RegisterDrawer>

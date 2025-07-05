@@ -41,22 +41,22 @@ const NOTIFICATION_OPTIONS: {
 export const NotificationSettings = () => {
   return (
     <div className="">
-      <h1 className="text-2xl font-normal">Notification Settings</h1>
+      <h1 className="font-normal text-2xl">Notification Settings</h1>
       <p>
         Manage your notification preferences for your name(s) and ENS-related
         updates.
       </p>
 
-      <div className="p-5 bg-gray-200 rounded-md mt-4">
+      <div className="mt-4 rounded-md bg-gray-200 p-5">
         <div className="mb-5">
-          <h2 className="text-lg font-medium text-gray-900 mb-2 flex items-center gap-2">
+          <h2 className="mb-2 flex items-center gap-2 font-medium text-gray-900 text-lg">
             <MailIcon className="size-5" />
             Email Notifications
           </h2>
           <p>Receive notifications via email for important domain events</p>
         </div>
 
-        <div className="space-y-4  mb-8">
+        <div className="mb-8 space-y-4">
           <div className="font-medium">Notification Email Address</div>
           <div className="flex gap-2">
             <Input />
@@ -69,7 +69,7 @@ export const NotificationSettings = () => {
             <div
               key={option.label}
               // bottom border if isn't last
-              className="space-y-3 not-last:border-b border-gray-300 not-last:pb-4"
+              className="space-y-3 border-gray-300 not-last:border-b not-last:pb-4"
             >
               <div className="flex items-center gap-2">
                 {option.icon && <option.icon className="size-4" />}
@@ -78,8 +78,8 @@ export const NotificationSettings = () => {
                   <Badge variant="secondary">Recommended</Badge>
                 )}
               </div>
-              <div className="flex items-center justify-between gap-2 text-neutral-500 font-normal">
-                <Label className="text-sm font-normal">
+              <div className="flex items-center justify-between gap-2 font-normal text-neutral-500">
+                <Label className="font-normal text-sm">
                   {option.description}
                 </Label>
                 <Switch />

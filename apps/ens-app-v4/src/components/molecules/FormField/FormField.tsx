@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { Input, type InputProps } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
 

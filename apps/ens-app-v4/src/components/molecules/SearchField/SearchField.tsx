@@ -58,23 +58,23 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
           onKeyDown={handleKeyDown}
           disabled={disabled}
           className={cn(
-            'w-full px-4 py-4 pr-20 text-base border border-border rounded-lg',
-            'focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent',
-            'placeholder:text-muted-foreground bg-background text-foreground',
-            disabled && 'bg-muted cursor-not-allowed',
+            'w-full rounded-lg border border-border px-4 py-4 pr-20 text-base',
+            'focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ring',
+            'bg-background text-foreground placeholder:text-muted-foreground',
+            disabled && 'cursor-not-allowed bg-muted',
             'transition-all duration-200',
           )}
         />
 
         {/* Right side icons container */}
-        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+        <div className="-translate-y-1/2 absolute top-1/2 right-3 flex transform items-center gap-2">
           {/* Microphone icon */}
           <button
             type="button"
             onClick={handleMicClick}
             disabled={disabled}
             className={cn(
-              'p-2 rounded-full hover:bg-muted transition-colors',
+              'rounded-full p-2 transition-colors hover:bg-muted',
               'text-muted-foreground hover:text-foreground',
               disabled && 'cursor-not-allowed opacity-50',
             )}
@@ -89,7 +89,7 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
             onClick={handleSearchClick}
             disabled={disabled}
             className={cn(
-              'p-2 rounded-full hover:bg-muted transition-colors',
+              'rounded-full p-2 transition-colors hover:bg-muted',
               'text-muted-foreground hover:text-foreground',
               disabled && 'cursor-not-allowed opacity-50',
             )}

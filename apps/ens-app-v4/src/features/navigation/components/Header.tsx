@@ -8,6 +8,7 @@ import {
   RefreshCcw,
   Unlink,
 } from 'lucide-react'
+import { useState } from 'react'
 import { useAccount, useDisconnect, useEnsAvatar, useEnsName } from 'wagmi'
 import ensLogo from '@/assets/icons/ens.svg'
 import { Button } from '@/components/ui/button'
@@ -25,7 +26,6 @@ import {
 import { NotificationsDropdown } from '@/features/notifications/components'
 import { MOCK_NOTIFICATIONS } from '@/features/notifications/MOCK'
 import { useTheme } from '@/hooks/use-theme'
-import { useState } from 'react'
 
 const ConnectedContent = () => {
   const { address } = useAccount()
@@ -42,7 +42,7 @@ const ConnectedContent = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false)
 
   return (
-    <div className="flex items-center gap-4 mr-6">
+    <div className="mr-6 flex items-center gap-4">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button type="button" className="flex items-center gap-2">
@@ -103,7 +103,7 @@ const ConnectedContent = () => {
 
 const DisconnectedContent = () => {
   return (
-    <div className="flex items-center gap-4 mr-6">
+    <div className="mr-6 flex items-center gap-4">
       <ConnectButton />
     </div>
   )
@@ -131,7 +131,7 @@ const Menu = () => {
 export const Header = () => {
   const { isConnected } = useAccount()
   return (
-    <nav className="sticky bg-gray-50 top-0 z-10 flex items-center justify-end p-8">
+    <nav className="sticky top-0 z-10 flex items-center justify-end bg-gray-50 p-8">
       <Link to="/" className="mr-auto">
         <img src={ensLogo} alt="ENS Logo" className="h-8" />
       </Link>
