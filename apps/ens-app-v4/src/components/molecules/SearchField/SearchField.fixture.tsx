@@ -36,7 +36,7 @@ export default {
 
   Interactive: (
     <div className="max-w-md">
-      <h3 className="text-lg font-semibold mb-4">Domain Search</h3>
+      <h3 className="mb-4 font-semibold text-lg">Domain Search</h3>
       <SearchField
         placeholder="Enter domain name..."
         onSearch={(query) => {
@@ -48,10 +48,10 @@ export default {
   ),
 
   MobileLayout: (
-    <div className="max-w-sm mx-auto p-4 bg-white">
+    <div className="mx-auto max-w-sm bg-white p-4">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">Find your digital identity</h1>
-        <p className="text-gray-600 text-sm mb-4">
+        <h1 className="mb-2 font-bold text-2xl">Find your digital identity</h1>
+        <p className="mb-4 text-gray-600 text-sm">
           Register a .eth domain name to secure your web3 username, store your
           crypto addresses, and more.
         </p>
@@ -76,7 +76,7 @@ export default {
 
   WithHandlers: (
     <div className="max-w-lg space-y-4">
-      <h3 className="text-lg font-semibold">Search with All Handlers</h3>
+      <h3 className="font-semibold text-lg">Search with All Handlers</h3>
       <SearchField
         placeholder="Type and press Enter or click search..."
         onSearch={(query) => {
@@ -94,7 +94,7 @@ export default {
           }
         }}
       />
-      <p className="text-sm text-gray-600">
+      <p className="text-gray-600 text-sm">
         Try typing, pressing Enter, clicking the mic (logs to console), or
         clicking search
       </p>
@@ -102,12 +102,12 @@ export default {
   ),
 
   RealWorldExample: (
-    <div className="w-full max-w-4xl mx-auto py-8">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold mb-4">
+    <div className="mx-auto w-full max-w-4xl py-8">
+      <div className="mb-8 text-center">
+        <h1 className="mb-4 font-bold text-4xl">
           Your Web3 Identity Starts Here
         </h1>
-        <p className="text-xl text-muted-foreground mb-8">
+        <p className="mb-8 text-muted-foreground text-xl">
           Search for the perfect .eth domain name
         </p>
       </div>
@@ -120,8 +120,8 @@ export default {
         }}
       />
 
-      <div className="text-center mt-6">
-        <p className="text-sm text-muted-foreground">
+      <div className="mt-6 text-center">
+        <p className="text-muted-foreground text-sm">
           Popular searches: • blockchain.eth • nft.eth • dao.eth
         </p>
       </div>

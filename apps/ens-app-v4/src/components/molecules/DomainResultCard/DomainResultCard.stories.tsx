@@ -49,7 +49,7 @@ export const Unavailable: Story = {
 
 export const MultipleCards: Story = {
   render: () => (
-    <div className="flex flex-col gap-4 max-w-xl">
+    <div className="flex max-w-xl flex-col gap-4">
       <DomainResultCard
         domainName="awesome.eth"
         status="available"
@@ -75,7 +75,7 @@ export const MultipleCards: Story = {
 
 export const DifferentLengths: Story = {
   render: () => (
-    <div className="flex flex-col gap-4 max-w-xl">
+    <div className="flex max-w-xl flex-col gap-4">
       <DomainResultCard
         domainName="a.eth"
         status="premium"
@@ -112,7 +112,7 @@ export const DifferentLengths: Story = {
 
 export const PricingVariations: Story = {
   render: () => (
-    <div className="flex flex-col gap-4 max-w-xl">
+    <div className="flex max-w-xl flex-col gap-4">
       <DomainResultCard
         domainName="cheap.eth"
         status="available"
@@ -137,7 +137,7 @@ export const PricingVariations: Story = {
 
 export const WithoutPricing: Story = {
   render: () => (
-    <div className="flex flex-col gap-4 max-w-xl">
+    <div className="flex max-w-xl flex-col gap-4">
       <DomainResultCard
         domainName="noprice.eth"
         status="available"
@@ -154,7 +154,7 @@ export const WithoutPricing: Story = {
 
 export const CustomLabels: Story = {
   render: () => (
-    <div className="flex flex-col gap-4 max-w-xl">
+    <div className="flex max-w-xl flex-col gap-4">
       <DomainResultCard
         domainName="custom.eth"
         status="available"
@@ -178,7 +178,7 @@ export const CustomLabels: Story = {
 export const InteractiveExample: Story = {
   render: () => (
     <div className="max-w-xl">
-      <h3 className="text-lg font-semibold mb-4">Domain Search Results</h3>
+      <h3 className="mb-4 font-semibold text-lg">Domain Search Results</h3>
       <div className="space-y-3">
         <DomainResultCard
           domainName="myproject.eth"

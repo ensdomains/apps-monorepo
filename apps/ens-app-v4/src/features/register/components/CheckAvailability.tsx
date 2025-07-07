@@ -36,7 +36,7 @@ export const CheckAvailability = ({
         className="w-full"
       />
 
-      <p className="text-sm text-muted-foreground text-center">
+      <p className="text-center text-muted-foreground text-sm">
         Enter a name to check availability and register your .eth domain
       </p>
 
@@ -61,7 +61,7 @@ export const CheckAvailability = ({
 
       {/* Error State */}
       {isError && (
-        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+        <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4">
           <p className="text-destructive text-sm">
             {String(getErrorMessage(error))}
           </p>

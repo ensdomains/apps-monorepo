@@ -52,11 +52,11 @@ export function CheckNamePage() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 bg-background">
-      <h1 className="text-4xl font-bold text-primary mb-4">
+    <div className="flex min-h-[60vh] flex-col items-center justify-center bg-background px-4">
+      <h1 className="mb-4 font-bold text-4xl text-primary">
         Your web3 username
       </h1>
-      <p className="text-muted-foreground mb-10 text-center max-w-[500px]">
+      <p className="mb-10 max-w-[500px] text-center text-muted-foreground">
         Your identity across web3, one name for all your crypto addresses,{' '}
         <br />
         and your decentralised website.

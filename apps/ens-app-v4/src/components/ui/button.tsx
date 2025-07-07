@@ -1,7 +1,7 @@
 import { Slot } from '@radix-ui/react-slot'
+import { createLink } from '@tanstack/react-router'
 import { cva, type VariantProps } from 'class-variance-authority'
 import * as React from 'react'
-
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
@@ -56,4 +56,19 @@ function Button({
   )
 }
 
-export { Button, buttonVariants }
+const BaseLinkButton = React.forwardRef<
+  HTMLAnchorElement,
+  React.ComponentProps<'a'> & VariantProps<typeof buttonVariants>
+>(({ className, variant, size, ...props }, ref) => {
+  return (
+    <a
+      ref={ref}
+      {...props}
+      className={cn(buttonVariants({ variant, size, className }))}
+    />
+  )
+})
+
+const LinkButton = createLink(BaseLinkButton)
+
+export { Button, LinkButton, buttonVariants }

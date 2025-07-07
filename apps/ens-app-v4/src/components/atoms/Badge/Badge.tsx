@@ -1,4 +1,4 @@
-import { type HTMLAttributes, type ReactNode } from 'react'
+import type { HTMLAttributes, ReactNode } from 'react'
 import { Badge as ShadcnBadge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 

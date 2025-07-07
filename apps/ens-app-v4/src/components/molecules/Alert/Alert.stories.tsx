@@ -106,7 +106,7 @@ export const WithChildren: Story = {
       <p>Your subscription expires in 3 days.</p>
       <button
         type="button"
-        className="mt-2 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+        className="mt-2 rounded bg-yellow-600 px-4 py-2 text-white hover:bg-yellow-700"
       >
         Renew Subscription
       </button>
@@ -116,7 +116,7 @@ export const WithChildren: Story = {
 
 export const RealWorldExamples: Story = {
   render: () => (
-    <div className="flex flex-col gap-4 max-w-2xl">
+    <div className="flex max-w-2xl flex-col gap-4">
       <Alert
         variant="success"
         title="Domain registered successfully!"
@@ -154,7 +154,7 @@ export const SystemMessages: Story = {
             Our services will be temporarily unavailable on March 15th from 2:00
             AM to 4:00 AM UTC for scheduled maintenance.
           </p>
-          <ul className="mt-2 list-disc list-inside text-sm">
+          <ul className="mt-2 list-inside list-disc text-sm">
             <li>Domain registration will be disabled</li>
             <li>Existing domains will continue to resolve</li>
             <li>Dashboard access may be limited</li>

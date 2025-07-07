@@ -66,8 +66,8 @@ export const SearchForm = ({
       />
 
       {showRecent && recentSearches.length > 0 && (
-        <div className="absolute top-full left-0 right-0 bg-background border border-border rounded-lg mt-1 z-10 max-h-48 overflow-y-auto shadow-lg">
-          <div className="px-4 py-3 border-b border-border">
+        <div className="absolute top-full right-0 left-0 z-10 mt-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-background shadow-lg">
+          <div className="border-border border-b px-4 py-3">
             <Text variant="caption" color="secondary" weight="medium">
               Recent Searches
             </Text>
@@ -77,7 +77,7 @@ export const SearchForm = ({
               key={recentQuery}
               type="button"
               onClick={() => handleRecentSearchClick(recentQuery)}
-              className="w-full px-4 py-3 text-left hover:bg-secondary transition-colors duration-200 text-base text-foreground"
+              className="w-full px-4 py-3 text-left text-base text-foreground transition-colors duration-200 hover:bg-secondary"
             >
               {recentQuery}
             </button>

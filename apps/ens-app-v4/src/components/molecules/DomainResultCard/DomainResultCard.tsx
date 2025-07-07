@@ -28,19 +28,19 @@ export const DomainResultCard = ({
     switch (status) {
       case 'available':
         return (
-          <div className="flex items-center justify-center h-6 w-6 rounded-full bg-muted">
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted">
             <Check className="h-3 w-3 text-muted-foreground" />
           </div>
         )
       case 'premium':
         return (
-          <div className="flex items-center justify-center h-6 w-6 rounded-full bg-muted">
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted">
             <Check className="h-3 w-3 text-muted-foreground" />
           </div>
         )
       case 'unavailable':
         return (
-          <div className="flex items-center justify-center h-6 w-6 rounded-full bg-muted">
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted">
             <X className="h-3 w-3 text-muted-foreground" />
           </div>
         )
@@ -65,16 +65,16 @@ export const DomainResultCard = ({
   const isClickable = status !== 'unavailable'
 
   return (
-    <div
+    <button
       className={cn(
-        'flex items-center justify-between w-full gap-16 py-4 px-4 bg-background transition-colors border border-border rounded-lg',
-        isClickable && 'hover:bg-muted cursor-pointer',
+        'flex w-full items-center justify-between gap-16 rounded-lg border border-border bg-background px-4 py-4 transition-colors',
+        isClickable && 'cursor-pointer hover:bg-muted',
         !isClickable && 'opacity-60',
         className,
       )}
+      type="button"
       onClick={handleAction}
-      role={isClickable ? 'button' : 'presentation'}
-      tabIndex={isClickable ? 0 : -1}
+      disabled={!isClickable}
       onKeyDown={(e) => {
         if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault()
@@ -91,13 +91,13 @@ export const DomainResultCard = ({
         <div className="flex flex-col gap-1">
           {/* Domain name in badge style with less rounded corners */}
           <div className="inline-flex items-center">
-            <span className="bg-primary text-primary-foreground px-1 py-1 rounded-sm text-sm font-bold">
+            <span className="rounded-sm bg-primary px-1 py-1 font-bold text-primary-foreground text-sm">
               {domainName}
             </span>
           </div>
 
           {/* Status text in light gray */}
-          <span className="text-sm text-muted-foreground px-1">
+          <span className="px-1 text-muted-foreground text-sm">
             {getStatusText()}
           </span>
         </div>
@@ -108,10 +108,10 @@ export const DomainResultCard = ({
         {/* Price */}
         {price && status !== 'unavailable' && (
           <div className="text-right">
-            <div className="text-sm font-medium text-muted-foreground">
+            <div className="font-medium text-muted-foreground text-sm">
               Price
             </div>
-            <div className="text-sm text-foreground">
+            <div className="text-foreground text-sm">
               {price} {priceLabel}
             </div>
           </div>
@@ -122,7 +122,7 @@ export const DomainResultCard = ({
           <CircleArrowRight className="h-8 w-8 text-foreground" />
         )}
       </div>
-    </div>
+    </button>
   )
 }
 

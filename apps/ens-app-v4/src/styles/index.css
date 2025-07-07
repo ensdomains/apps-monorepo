@@ -1,0 +1,22 @@
+/* ===============================
+ * Imports
+ * ===============================
+ */
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "./fonts.css";
+@import "./theme.css";
+
+/* ===============================
+ * Global
+ * ===============================
+ */
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
