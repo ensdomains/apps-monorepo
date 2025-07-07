@@ -59,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/notifications/all': typeof NotificationsAllRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
   '/payment/add': typeof PaymentAddRoute
+  '/payment/list': typeof PaymentListRoute
   '/auto-renewal': typeof AutoRenewalIndexRoute
   '/notifications': typeof NotificationsIndexRoute
 }
@@ -68,6 +69,7 @@ export interface FileRoutesByTo {
   '/notifications/all': typeof NotificationsAllRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
   '/payment/add': typeof PaymentAddRoute
+  '/payment/list': typeof PaymentListRoute
   '/auto-renewal': typeof AutoRenewalIndexRoute
   '/notifications': typeof NotificationsIndexRoute
 }
@@ -78,6 +80,7 @@ export interface FileRoutesById {
   '/notifications/all': typeof NotificationsAllRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
   '/payment/add': typeof PaymentAddRoute
+  '/payment/list': typeof PaymentListRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/notifications/': typeof NotificationsIndexRoute
 }
@@ -89,6 +92,7 @@ export interface FileRouteTypes {
     | '/notifications/all'
     | '/notifications/settings'
     | '/payment/add'
+    | '/payment/list'
     | '/auto-renewal'
     | '/notifications'
   fileRoutesByTo: FileRoutesByTo
@@ -98,6 +102,7 @@ export interface FileRouteTypes {
     | '/notifications/all'
     | '/notifications/settings'
     | '/payment/add'
+    | '/payment/list'
     | '/auto-renewal'
     | '/notifications'
   id:
@@ -107,6 +112,7 @@ export interface FileRouteTypes {
     | '/notifications/all'
     | '/notifications/settings'
     | '/payment/add'
+    | '/payment/list'
     | '/auto-renewal/'
     | '/notifications/'
   fileRoutesById: FileRoutesById
@@ -117,6 +123,7 @@ export interface RootRouteChildren {
   NotificationsAllRoute: typeof NotificationsAllRoute
   NotificationsSettingsRoute: typeof NotificationsSettingsRoute
   PaymentAddRoute: typeof PaymentAddRoute
+  PaymentListRoute: typeof PaymentListRoute
   AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
   NotificationsIndexRoute: typeof NotificationsIndexRoute
 }
@@ -181,6 +188,7 @@ const rootRouteChildren: RootRouteChildren = {
   NotificationsAllRoute: NotificationsAllRoute,
   NotificationsSettingsRoute: NotificationsSettingsRoute,
   PaymentAddRoute: PaymentAddRoute,
+  PaymentListRoute: PaymentListRoute,
   AutoRenewalIndexRoute: AutoRenewalIndexRoute,
   NotificationsIndexRoute: NotificationsIndexRoute,
 }
