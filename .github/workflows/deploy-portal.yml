@@ -1,4 +1,5 @@
-name: Deploy the Portal app on IPFS (Production)
+name: Deploy Portal to IPFS
+
 on:
   release:
     types: [published]
@@ -6,33 +7,74 @@ on:
 
 jobs:
   deploy:
-    if: contains(github.event.release.name, 'portal')
+    if: contains(github.event.release.name, 'portal') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
-      - name: Setup Node.js with pnpm
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
-      - name: Build the Portal app
-        run: cd apps/portal && pnpm build
-      - name: Deploy to IPFS
+      - name: Type check Portal
+        run: pnpm typecheck:portal
+
+      - name: Build Portal app
+        run: pnpm build:portal
+
+      - name: Verify build output
         run: |
+          if [ ! -d "apps/portal/dist" ]; then
+            echo "❌ Build failed - dist directory not found"
+            exit 1
+          fi
+          echo "✅ Build verification passed"
+
+      - name: Deploy to IPFS
+        id: deploy
+        run: |
+          echo "🚀 Deploying Portal to IPFS..."
           output=$(pnpm blumen deploy --ens ${{ vars.PORTAL_ENS }} --safe ${{ vars.PORTAL_SAFE }})
           echo "$output"
-          cid=$(echo "$output" | grep -oP 'Root CID: \K\S+')
+
+          # Extract CID from output
+          cid=$(echo "$output" | grep -oP 'Root CID: \K\S+' || echo "")
+          if [ -z "$cid" ]; then
+            echo "❌ Failed to extract CID from deployment output"
+            exit 1
+          fi
+
+          echo "✅ Deployment successful!"
           echo "CID=$cid" >> $GITHUB_OUTPUT
+          echo "Deployment Output:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
           echo "$output" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🌐 **IPFS Gateway URLs:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Cloudflare: https://$cid.ipfs.cf-ipfs.com" >> $GITHUB_STEP_SUMMARY
+          echo "- dweb.link: https://$cid.ipfs.dweb.link" >> $GITHUB_STEP_SUMMARY
         env:
           BLUMEN_STORACHA_PROOF: ${{ secrets.BLUMEN_STORACHA_PROOF }}
           BLUMEN_STORACHA_TOKEN: ${{ secrets.BLUMEN_STORACHA_TOKEN }}
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ "${{ steps.deploy.outcome }}" == "success" ]; then
+            echo "✅ Portal deployment completed successfully!"
+            echo "CID: ${{ steps.deploy.outputs.cid }}"
+          else
+            echo "❌ Portal deployment failed!"
+            exit 1
+          fi

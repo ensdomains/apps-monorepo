@@ -1,0 +1,100 @@
+version: 2
+updates:
+  # Enable version updates for npm (root workspace)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "svemat01"
+      - "LeonmanRolls"
+    assignees:
+      - "svemat01"
+      - "LeonmanRolls"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+    ignore:
+      # Ignore major version updates for critical packages
+      - dependency-name: "@tanstack/react-query"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@tanstack/react-router"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "wagmi"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "viem"
+        update-types: ["version-update:semver-major"]
+
+  # Enable version updates for npm (portal app)
+  - package-ecosystem: "npm"
+    directory: "/apps/portal"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "svemat01"
+      - "LeonmanRolls"
+    assignees:
+      - "svemat01"
+      - "LeonmanRolls"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+      - "portal"
+
+  # Enable version updates for npm (manager app)
+  - package-ecosystem: "npm"
+    directory: "/apps/manager"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "svemat01"
+      - "LeonmanRolls"
+      - "f1lander"
+    assignees:
+      - "svemat01"
+      - "LeonmanRolls"
+      - "f1lander"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+      - "manager"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "svemat01"
+      - "LeonmanRolls"
+    assignees:
+      - "svemat01"
+      - "LeonmanRolls"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+      - "github-actions"

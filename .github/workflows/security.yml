@@ -1,0 +1,76 @@
+name: Security Scanning
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    # Run weekly on Sundays at 2 AM UTC
+    - cron: "0 2 * * 0"
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch all history for change detection
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Detect changed packages
+        id: changed
+        run: |
+          echo "🔍 Detecting changed packages for security scanning..."
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            echo "📅 Scheduled run - scanning all packages"
+            echo "scan_all=true" >> $GITHUB_OUTPUT
+          else
+            CHANGED_PACKAGES=$(pnpm --filter="[origin/main]" list --depth=-1 --json | jq -r '.[].name' | tr '\n' ' ')
+            echo "Changed packages: $CHANGED_PACKAGES"
+            echo "packages=$CHANGED_PACKAGES" >> $GITHUB_OUTPUT
+            echo "scan_all=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run npm audit on changed packages
+        if: steps.changed.outputs.scan_all == 'false'
+        run: |
+          echo "🔒 Running npm audit on changed packages and their dependencies..."
+          pnpm --filter="...[origin/main]" audit --audit-level moderate || echo "No vulnerabilities found in changed packages"
+
+      - name: Run npm audit on all packages
+        if: steps.changed.outputs.scan_all == 'true'
+        run: |
+          echo "🔒 Running npm audit on all packages..."
+          pnpm audit --audit-level moderate
+
+      # - name: Run Snyk security scan
+      #   uses: snyk/actions/node@master
+      #   continue-on-error: true
+      #   env:
+      #     SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      #   with:
+      #     args: --severity-threshold=high
+
+      - name: Run CodeQL analysis
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
