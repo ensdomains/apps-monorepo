@@ -9,50 +9,109 @@ const TIME = {
   YEAR: 365 * 24 * 60 * 60 * 1000,
 } as const
 
-export const MOCK_NOTIFICATIONS: Notification[] = [
-  // erni.eth, transferred, received 2 hours ago
-  // lizard.eth, expires in 30 days, received 3 days ago
-  // asdadadadadddddasdadasdadadadasdasdadasd.eth, expires in 7 days, received 4 days ago
-  // 😢🥲🫣🤕😩🦞🐹🪿🦄🦋⛅️🥲🫣🤕😩🦞🐹🪿🦄🦋⛅️.eth, expires in 30 days, received 29 days ago
-  // erin.eth, expires in 30 days, received 60 days ago
-  {
-    type: 'name-transferred',
-    name: 'erni.eth',
-    txHash: '0x1234567890',
-    to: '0x1234567890',
-    timestamp: now - 2 * TIME.HOUR,
-    unread: true,
-  },
-  {
-    type: 'name-expiry',
-    name: 'lizard.eth',
-    expiryDate: now + 30 * TIME.DAY,
-    timestamp: now - 3 * TIME.DAY,
-  },
-  {
-    type: 'name-expiry',
-    name: 'asdadadadadddddasdadasdadadadasdasdadasd.eth',
-    expiryDate: now + 7 * TIME.DAY,
-    timestamp: now - 4 * TIME.DAY,
-  },
-  {
-    type: 'name-expiry',
-    name: '🥲🫣🤕😩🦞🐹🪿🦄🦋⛅️🥲🫣🤕😩🦞🐹🪿🦄🦋⛅️.eth',
-    expiryDate: now + 30 * TIME.DAY,
-    timestamp: now - 29 * TIME.DAY,
-  },
-  {
-    type: 'blog-post',
-    timestamp: now - 29 * TIME.DAY,
-    title: 'ENS Picks Linea for Layer 2 Rollout',
-    imageUrl:
-      'https://ens.domains/_next/static/media/cover-thumb.136ad78c.webp',
-    url: 'https://ens.domains/blog/post/ens-picks-linea',
-  },
-  {
-    type: 'name-expiry',
-    name: 'erin.eth',
-    expiryDate: now + 30 * TIME.DAY,
-    timestamp: now - 60 * TIME.DAY,
-  },
+const types = ['name-expiry', 'name-transferred', 'blog-post']
+const names = [
+  'vitalik.eth',
+  'nick.eth',
+  'erni.eth',
+  'lizard.eth',
+  'asdadadadadddddasdadasdadadadasdasdadasd.eth',
+  '🥲🫣🤕😩🦞🐹🪿🦄🦋⛅️🥲🫣🤕😩🦞🐹🪿🦄🦋⛅️.eth',
+  'erin.eth',
+  'test.eth',
+  'helgesson.eth',
+  'noavatar.eth',
+  'beau.eth',
+  'jefflau.eth',
+  'leontalbert.eth',
+  'ucles.eth',
+  '0xtestwallet.base.eth',
 ]
+
+const postSlugs = await fetch('https://ens.domains/blog/search.json')
+  .then((res) => res.json())
+  .then((data) => data.map((post: { slug: string }) => post.slug))
+
+const getPostMetadata = async (slug: string) => {
+  const post = await fetch(
+    `https://ens.domains/blog/post/${slug}/metadata.json`,
+  ).then((res) => res.json())
+  return post as {
+    slug: string
+    title: string
+
+    assets: {
+      post: {
+        ['cover-thumb']?: {
+          src: string
+        }
+        cover?: {
+          src: string
+        }
+      }
+    }
+  }
+}
+
+type PostData = {
+  slug: string
+  title: string
+  cover: string
+}
+
+const postCache: Record<string, PostData> = {}
+
+const getRandomPost = async () => {
+  const slug = postSlugs[Math.floor(Math.random() * postSlugs.length)]
+  if (!postCache[slug]) {
+    const post = await getPostMetadata(slug)
+    postCache[slug] = {
+      slug,
+      title: post.title,
+      cover: `https://ens.domains${post.assets?.post?.['cover-thumb']?.src || post.assets?.post?.cover?.src}`,
+    }
+  }
+  return postCache[slug]
+}
+
+export const generateRandomNotification = async (): Promise<Notification> => {
+  const type = types[Math.floor(Math.random() * types.length)]
+  const name = names[Math.floor(Math.random() * names.length)]
+
+  switch (type) {
+    case 'name-expiry':
+      return {
+        type,
+        name,
+        expiryDate: now + Math.random() * 30 * TIME.DAY,
+        timestamp: now - Math.random() * 60 * TIME.DAY,
+        unread: Math.random() < 0.5,
+      }
+    case 'name-transferred':
+      return {
+        type,
+        name,
+        timestamp: now - Math.random() * 60 * TIME.DAY,
+        txHash: '0x1234567890',
+        to: '0x1234567890',
+        unread: Math.random() < 0.5,
+      }
+    case 'blog-post': {
+      const post = await getRandomPost()
+      return {
+        type,
+        title: post.title,
+        imageUrl: post.cover,
+        url: `https://ens.domains/blog/post/${post.slug}`,
+        timestamp: now - Math.random() * 60 * TIME.DAY,
+        unread: Math.random() < 0.5,
+      }
+    }
+    default:
+      throw new Error(`Unknown notification type: ${type}`)
+  }
+}
+
+export const MOCK_NOTIFICATIONS: Notification[] = (
+  await Promise.all(Array.from({ length: 10 }).map(generateRandomNotification))
+).sort((a, b) => b.timestamp - a.timestamp)
