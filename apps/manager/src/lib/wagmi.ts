@@ -5,18 +5,9 @@ import {
   injectedWallet,
   metaMaskWallet,
 } from '@rainbow-me/rainbowkit/wallets'
-import { QueryClient } from '@tanstack/react-query'
 import { createClient, type HttpTransport, http } from 'viem'
 import { mainnet } from 'viem/chains'
 import { createConfig } from 'wagmi'
-
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      gcTime: 1000 * 60 * 60 * 1, // 1 hour
-    },
-  },
-})
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
@@ -41,3 +32,6 @@ export const wagmiConfig = createConfig({
     })
   },
 })
+
+export type ClientType = ReturnType<typeof wagmiConfig.getClient>
+export type ChainType = ClientType['chain']

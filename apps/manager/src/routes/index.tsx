@@ -1,16 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
+import { CheckNamePage } from '@/features/register/pages/CheckNamePage'
+
+function IndexPage() {
+  return <CheckNamePage />
+}
 
 export const Route = createFileRoute('/')({
-  component: App,
+  component: IndexPage,
 })
-
-function App() {
-  const { t } = useTranslation()
-  return (
-    <>
-      {t('hello')}
-      <h1>this is a placeholder</h1>
-    </>
-  )
-}

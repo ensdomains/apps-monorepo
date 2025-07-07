@@ -1,10 +1,5 @@
 {
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    "src/utils/themeSetup.ts",
-    "./module.d.ts"
-  ],
+  "include": ["**/*.ts", "**/*.tsx", "src/utils/themeSetup.js"],
   "compilerOptions": {
     "target": "ES2022",
     "jsx": "react-jsx",
@@ -27,7 +22,8 @@
     "noUncheckedSideEffectImports": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@ens-apps/utils": ["../../packages/utils/src"]
     }
   }
 }

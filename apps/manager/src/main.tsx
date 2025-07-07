@@ -4,26 +4,8 @@ import ReactDOM from 'react-dom/client'
 import reportWebVitals from './reportWebVitals.ts'
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
-import '@ensdomains/thorin/dist/thorin.css'
 import '@rainbow-me/rainbowkit/styles.css'
-import '@/styles/global.css.ts'
-
-import resources from 'virtual:i18next-loader'
-import i18n from 'i18next'
-import LanguageDetector from 'i18next-browser-languagedetector'
-
-import { initReactI18next } from 'react-i18next'
-
-i18n
-  .use(LanguageDetector)
-  .use(initReactI18next)
-  .init({
-    supportedLngs: ['de', 'en', 'fr'],
-    resources,
-    interpolation: {
-      escapeValue: false,
-    },
-  })
+import '@/styles/index.css'
 
 // Create a new router instance
 const router = createRouter({
@@ -51,6 +33,12 @@ if (rootElement && !rootElement.innerHTML) {
       <RouterProvider router={router} />
     </StrictMode>,
   )
+}
+
+// @ts-ignore
+BigInt.prototype.toJSON = function () {
+  // @ts-ignore
+  return JSON.rawJSON(this.toString())
 }
 
 // If you want to start measuring performance in your app, pass a function

@@ -1,24 +1,19 @@
 /// <reference types="vitest" />
 
-import path, { dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import i18nextLoader from '@ensdomains/vite-plugin-i18next-loader'
+import tailwindcss from '@tailwindcss/vite'
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
-import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin'
 import viteReact from '@vitejs/plugin-react-swc'
 import { defineConfig } from 'vite'
-
-const locales = dirname(
-  fileURLToPath(import.meta.resolve('@ensdomains/locales')),
-)
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    TanStackRouterVite({ autoCodeSplitting: true }),
+    TanStackRouterVite({
+      autoCodeSplitting: true,
+      routeFileIgnorePattern: '.((css|const).ts)',
+    }),
     viteReact(),
-    vanillaExtractPlugin(),
-    i18nextLoader({ paths: [locales] }),
+    tailwindcss(),
   ],
   test: {
     globals: true,
@@ -30,7 +25,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': path.resolve('./src'),
+      '@': new URL('./src', import.meta.url).pathname,
+      '@ens-apps/utils': new URL('../../packages/utils/src', import.meta.url)
+        .pathname,
     },
   },
 })
