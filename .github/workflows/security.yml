@@ -33,28 +33,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Detect changed packages
-        id: changed
+      - name: Show changed packages (for reference)
         run: |
-          echo "🔍 Detecting changed packages for security scanning..."
+          echo "🔍 Changed packages (for reference):"
           if [ "${{ github.event_name }}" == "schedule" ]; then
             echo "📅 Scheduled run - scanning all packages"
-            echo "scan_all=true" >> $GITHUB_OUTPUT
           else
-            CHANGED_PACKAGES=$(pnpm --filter="[origin/main]" list --depth=-1 --json | jq -r '.[].name' | tr '\n' ' ')
-            echo "Changed packages: $CHANGED_PACKAGES"
-            echo "packages=$CHANGED_PACKAGES" >> $GITHUB_OUTPUT
-            echo "scan_all=false" >> $GITHUB_OUTPUT
+            pnpm --filter="[origin/main]" list --depth=-1 || echo "No packages changed"
           fi
 
-      - name: Run npm audit on changed packages
-        if: steps.changed.outputs.scan_all == 'false'
-        run: |
-          echo "🔒 Running npm audit on changed packages and their dependencies..."
-          pnpm --filter="...[origin/main]" audit --audit-level moderate || echo "No vulnerabilities found in changed packages"
-
       - name: Run npm audit on all packages
-        if: steps.changed.outputs.scan_all == 'true'
         run: |
           echo "🔒 Running npm audit on all packages..."
           pnpm audit --audit-level moderate
