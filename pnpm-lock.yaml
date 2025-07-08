@@ -82,8 +82,8 @@ catalogs:
       specifier: ^2.9.0
       version: 2.14.16
     web-vitals:
-      specifier: ^4.2.4
-      version: 4.2.4
+      specifier: ^5.0.3
+      version: 5.0.3
     xstate:
       specifier: ^5.19.2
       version: 5.19.2
@@ -259,7 +259,7 @@ importers:
         version: 3.1.1(@types/debug@4.1.12)(@types/node@22.14.1)(happy-dom@17.4.4)(jiti@2.4.2)(lightningcss@1.30.1)(tsx@4.19.3)
       web-vitals:
         specifier: 'catalog:'
-        version: 4.2.4
+        version: 5.0.3
 
   apps/portal:
     dependencies:
@@ -374,7 +374,7 @@ importers:
         version: 3.1.1(@types/debug@4.1.12)(@types/node@22.14.1)(happy-dom@17.4.4)(jiti@2.4.2)(lightningcss@1.30.1)(tsx@4.19.3)
       web-vitals:
         specifier: 'catalog:'
-        version: 4.2.4
+        version: 5.0.3
 
   packages/locales: {}
 
@@ -4782,8 +4782,8 @@ packages:
   wcwidth@1.0.1:
     resolution: {integrity: sha512-XHPEwS0q6TaxcvG85+8EYkbiCux2XtWG2mkc47Ng2A77BQu9+DqIOJldST4HgPkuea7dvKSj5VgX3P1d4rW8Tg==}
 
-  web-vitals@4.2.4:
-    resolution: {integrity: sha512-r4DIlprAGwJ7YM11VZp4R884m0Vmgr6EAKe3P+kO0PPj3Unqyvv59rczf6UiGcb9Z8QxZVcqKNwv/g0WNdWwsw==}
+  web-vitals@5.0.3:
+    resolution: {integrity: sha512-4KmOFYxj7qT6RAdCH0SWwq8eKeXNhAFXR4PmgF6nrWFmrJ41n7lq3UCA6UK0GebQ4uu+XP8e8zGjaDO3wZlqTg==}
 
   webextension-polyfill@0.10.0:
     resolution: {integrity: sha512-c5s35LgVa5tFaHhrZDnr3FpQpjj1BB+RXhLTYUxGqBVN460HkbM8TBtEqdXWbpTKfzwCcjAZVF7zXCYSKtcp9g==}
@@ -10062,7 +10062,7 @@ snapshots:
       defaults: 1.0.4
     optional: true
 
-  web-vitals@4.2.4: {}
+  web-vitals@5.0.3: {}
 
   webextension-polyfill@0.10.0: {}
 
