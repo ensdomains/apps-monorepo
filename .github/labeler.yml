@@ -1,0 +1,27 @@
+# Labeler configuration
+# Labels:
+# - dependencies: Any PR that touches package.json, pnpm-lock.yaml, or dependency files
+# - automated: Any PR from bots (e.g., Dependabot)
+# - CI/CD: Any PR that changes workflow files
+# - manager: Any PR that touches the manager app
+# - portal: Any PR that touches the portal app
+
+# Dependency updates
+dependencies:
+  - "package.json"
+  - "pnpm-lock.yaml"
+  - "**/package.json"
+  - "**/pnpm-lock.yaml"
+
+# CI/CD workflow changes
+CI/CD:
+  - ".github/workflows/**"
+  - ".github/actions/**"
+
+# Manager app changes
+manager:
+  - "apps/manager/**"
+
+# Portal app changes
+portal:
+  - "apps/portal/**"
