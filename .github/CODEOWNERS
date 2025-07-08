@@ -1,0 +1,13 @@
+# Initial CODEOWNERS to be updated
+# ================================
+
+/.github/dependabot.yml @svemat01
+
+# Workflow files
+/.github/workflows/ @svemat01 @LeonmanRolls
+
+# Manager app specific
+/apps/manager/ @svemat01 @LeonmanRolls @f1lander
+
+# Shared packages
+/packages/ @svemat01 @LeonmanRolls
