@@ -31,27 +31,27 @@ updates:
       - dependency-name: "viem"
         update-types: ["version-update:semver-major"]
 
-  # Enable version updates for npm (portal app)
-  - package-ecosystem: "npm"
-    directory: "/apps/portal"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-    open-pull-requests-limit: 5
-    reviewers:
-      - "svemat01"
-      - "LeonmanRolls"
-    assignees:
-      - "svemat01"
-      - "LeonmanRolls"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "automated"
-      - "portal"
+  # # Enable version updates for npm (portal app)
+  # - package-ecosystem: "npm"
+  #   directory: "/apps/portal"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
+  #     time: "09:00"
+  #   open-pull-requests-limit: 5
+  #   reviewers:
+  #     - "svemat01"
+  #     - "LeonmanRolls"
+  #   assignees:
+  #     - "svemat01"
+  #     - "LeonmanRolls"
+  #   commit-message:
+  #     prefix: "chore"
+  #     include: "scope"
+  #   labels:
+  #     - "dependencies"
+  #     - "automated"
+  #     - "portal"
 
   # Enable version updates for npm (manager app)
   - package-ecosystem: "npm"
