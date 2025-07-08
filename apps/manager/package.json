@@ -50,6 +50,7 @@
     "xstate": "^5.20.1"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.9.1",
     "@statelyai/inspect": "^0.4.0",
     "@storybook/react-vite": "^9.0.16",
     "@testing-library/dom": "^10.4.0",
@@ -66,6 +67,7 @@
     "typescript": "^5.7.2",
     "vite": "^7.0.3",
     "vitest": "^3.2.4",
-    "web-vitals": "^5.0.3"
+    "web-vitals": "^5.0.3",
+    "wrangler": "^4.24.0"
   }
 }

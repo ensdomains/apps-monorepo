@@ -6,3 +6,6 @@ dist-ssr
 
 *storybook.log
 storybook-static
+
+.wrangler
+.dev.vars*
