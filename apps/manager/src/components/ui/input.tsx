@@ -54,8 +54,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
     const inputClasses = cn(
       // Base styles are in BaseInput component
-      size === 'sm' && 'h-8 text-sm px-3',
-      size === 'lg' && 'h-12 text-lg px-4',
+      size === 'sm' && 'h-8 px-3 text-sm',
+      size === 'lg' && 'h-12 px-4 text-lg',
       actualVariant === 'error' &&
         'border-destructive focus-visible:ring-destructive',
       actualVariant === 'success' &&

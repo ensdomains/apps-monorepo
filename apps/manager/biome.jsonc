@@ -1,12 +1,16 @@
 {
   "$schema": "../../node_modules/@biomejs/biome/configuration_schema.json",
+  "root": false,
   "extends": "//",
   "linter": {
     "rules": {
       "nursery": {
         "useSortedClasses": {
           "level": "error",
-          "fix": "safe"
+          "fix": "safe",
+          "options": {
+            "functions": ["cn", "cva", "clsx"]
+          }
         }
       }
     }
