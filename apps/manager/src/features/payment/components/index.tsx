@@ -86,7 +86,7 @@ export const PaymentMethodList = () => {
       </div>
       {defaultPaymentMethod ? (
         <PaymentMethodItem
-          key={defaultPaymentMethod.name}
+          key={defaultPaymentMethod.id}
           paymentMethod={defaultPaymentMethod}
           isDefault
         />
@@ -104,7 +104,7 @@ export const PaymentMethodList = () => {
       </div>
       {backupPaymentMethods.length > 0 ? (
         backupPaymentMethods.map((pm) => (
-          <PaymentMethodItem key={pm.name} paymentMethod={pm} />
+          <PaymentMethodItem key={pm.id} paymentMethod={pm} />
         ))
       ) : (
         <LinkButton to="/payment/add" variant="secondary" className="w-full">
