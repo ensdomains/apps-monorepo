@@ -28,7 +28,7 @@
     "i18next-browser-languagedetector": "^8.1.0",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "react-i18next": "^15.5.1",
+    "react-i18next": "^15.6.0",
     "viem": "catalog:",
     "wagmi": "catalog:",
     "xstate": "catalog:",
