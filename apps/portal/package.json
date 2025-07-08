@@ -17,7 +17,7 @@
     "@ensdomains/locales": "workspace:^",
     "@ensdomains/thorin": "1.0.0-beta.28",
     "@rainbow-me/rainbowkit": "^2.2.4",
-    "@tanstack/react-query": "^5.74.3",
+    "@tanstack/react-query": "^5.81.5",
     "@tanstack/react-router": "^1.114.3",
     "@tanstack/react-router-devtools": "^1.114.3",
     "@tanstack/router-plugin": "^1.114.3",
