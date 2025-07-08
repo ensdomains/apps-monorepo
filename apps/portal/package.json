@@ -29,7 +29,7 @@
     "neverthrow": "^8.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-i18next": "^15.5.1",
+    "react-i18next": "^15.6.0",
     "viem": "^2.31.7",
     "wagmi": "^2.15.6",
     "xstate": "^5.19.2"
