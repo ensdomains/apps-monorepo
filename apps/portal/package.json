@@ -45,7 +45,7 @@
     "@vanilla-extract/vite-plugin": "catalog:",
     "@vitejs/plugin-react-swc": "catalog:",
     "@vitest/coverage-v8": "catalog:",
-    "blumen": "^0.16.3",
+    "blumen": "^0.16.5",
     "happy-dom": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
