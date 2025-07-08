@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 
-import path, { dirname } from 'node:path'
+import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import i18nextLoader from '@ensdomains/vite-plugin-i18next-loader'
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
