@@ -1,15 +1,26 @@
-name: reviewdog
-on: [pull_request]
+name: Biome Code Quality
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
 jobs:
   biome:
-    name: runner / Biome
+    name: Biome Linting & Formatting
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: mongolyy/reviewdog-action-biome@v1
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Biome check with reviewdog
+        uses: mongolyy/reviewdog-action-biome@v1
         with:
           github_token: ${{ secrets.github_token }}
           reporter: github-pr-review
