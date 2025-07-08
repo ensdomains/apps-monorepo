@@ -19,7 +19,7 @@
     "@rainbow-me/rainbowkit": "^2.2.4",
     "@tanstack/react-query": "^5.74.3",
     "@tanstack/react-router": "^1.114.3",
-    "@tanstack/react-router-devtools": "^1.114.3",
+    "@tanstack/react-router-devtools": "^1.125.6",
     "@tanstack/router-plugin": "^1.114.3",
     "@vanilla-extract/css": "^1.17.1",
     "@wagmi/core": "^2.17.3",
