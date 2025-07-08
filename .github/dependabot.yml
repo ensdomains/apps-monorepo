@@ -1,6 +1,8 @@
 version: 2
 updates:
   # Enable version updates for npm (root workspace)
+  # For pnpm workspaces, only configure the root directory - Dependabot will automatically
+  # detect and update all packages in the workspace
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -8,9 +10,6 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 10
-    reviewers:
-      - "svemat01"
-      - "LeonmanRolls"
     assignees:
       - "svemat01"
       - "LeonmanRolls"
@@ -20,62 +19,96 @@ updates:
     labels:
       - "dependencies"
       - "automated"
-    ignore:
-      # Ignore major version updates for critical packages
-      - dependency-name: "@tanstack/react-query"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "@tanstack/react-router"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "wagmi"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "viem"
-        update-types: ["version-update:semver-major"]
+    groups:
+      # React ecosystem - Group React and related packages together
+      # Create groups when multiple packages are tightly coupled and should be updated together
+      # to avoid compatibility issues or when they're part of the same ecosystem
+      react-ecosystem:
+        patterns:
+          - "react*"
+          - "@types/react*"
+        update-types:
+          - "minor"
+          - "patch"
 
-  # # Enable version updates for npm (portal app)
-  # - package-ecosystem: "npm"
-  #   directory: "/apps/portal"
-  #   schedule:
-  #     interval: "weekly"
-  #     day: "monday"
-  #     time: "09:00"
-  #   open-pull-requests-limit: 5
-  #   reviewers:
-  #     - "svemat01"
-  #     - "LeonmanRolls"
-  #   assignees:
-  #     - "svemat01"
-  #     - "LeonmanRolls"
-  #   commit-message:
-  #     prefix: "chore"
-  #     include: "scope"
-  #   labels:
-  #     - "dependencies"
-  #     - "automated"
-  #     - "portal"
+      # TanStack ecosystem - Group TanStack packages together for consistency
+      tanstack-ecosystem:
+        patterns:
+          - "@tanstack*"
+        update-types:
+          - "minor"
+          - "patch"
 
-  # Enable version updates for npm (manager app)
-  - package-ecosystem: "npm"
-    directory: "/apps/manager"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-    open-pull-requests-limit: 5
-    reviewers:
-      - "svemat01"
-      - "LeonmanRolls"
-      - "f1lander"
-    assignees:
-      - "svemat01"
-      - "LeonmanRolls"
-      - "f1lander"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "automated"
-      - "manager"
+      # Web3/Wagmi ecosystem - Group blockchain-related packages
+      web3-ecosystem:
+        patterns:
+          - "wagmi"
+          - "viem"
+          - "@wagmi/core"
+          - "@rainbow-me/rainbowkit"
+        update-types:
+          - "minor"
+          - "patch"
+
+      # XState ecosystem - Group state management packages
+      xstate-ecosystem:
+        patterns:
+          - "xstate"
+          - "@xstate/react"
+          - "@statelyai/inspect"
+        update-types:
+          - "minor"
+          - "patch"
+
+      # Testing ecosystem - Group testing-related packages
+      testing-ecosystem:
+        patterns:
+          - "vitest"
+          - "@vitest/coverage-v8"
+          - "@testing-library/*"
+          - "happy-dom"
+        update-types:
+          - "minor"
+          - "patch"
+
+      # Build tools - Group build and bundling tools
+      build-tools:
+        patterns:
+          - "vite"
+          - "*vite*"
+          - "typescript"
+        update-types:
+          - "minor"
+          - "patch"
+
+      # UI/Design system - Group UI-related packages
+      ui-ecosystem:
+        patterns:
+          - "@radix-ui/*"
+          - "lucide*"
+          - "class-variance-authority"
+          - "clsx"
+          - "tailwind-merge"
+          - "tailwindcss"
+          - "vaul"
+        update-types:
+          - "minor"
+          - "patch"
+
+      # Development tools - Group dev dependencies that don't affect runtime
+      dev-tools:
+        patterns:
+          - "@biomejs/biome"
+          - "knip"
+          - "blumen"
+          - "web-vitals"
+          - "storybook"
+          - "@storybook/*"
+          - "wrangler"
+          - "@cloudflare/vite-plugin"
+        update-types:
+          - "minor"
+          - "patch"
 
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
@@ -85,9 +118,6 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 5
-    reviewers:
-      - "svemat01"
-      - "LeonmanRolls"
     assignees:
       - "svemat01"
       - "LeonmanRolls"
@@ -97,4 +127,4 @@ updates:
     labels:
       - "dependencies"
       - "automated"
-      - "github-actions"
+      - "CI/CD"
