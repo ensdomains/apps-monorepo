@@ -1,5 +1,5 @@
 {
-  "name": "ens-app-v4",
+  "name": "manager",
   "private": true,
   "type": "module",
   "scripts": {
