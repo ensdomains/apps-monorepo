@@ -39,7 +39,7 @@ jobs:
           echo "packages=$CHANGED_PACKAGES" >> $GITHUB_OUTPUT
 
           # Check if any apps changed
-          if echo "$CHANGED_PACKAGES" | grep -q "portal\|ens-app-v4"; then
+          if echo "$CHANGED_PACKAGES" | grep -q "portal\|manager"; then
             echo "has_apps=true" >> $GITHUB_OUTPUT
           else
             echo "has_apps=false" >> $GITHUB_OUTPUT
