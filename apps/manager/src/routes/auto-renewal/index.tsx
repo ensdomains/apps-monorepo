@@ -5,11 +5,8 @@ import {
   NonAutoRenewalWarning,
 } from '@/features/auto-renewal/components'
 import { NON_AUTO_RENEWALS, RENEWALS } from '@/features/auto-renewal/MOCKS'
-import {
-  PaymentMethodAdd,
-  PaymentMethodList,
-} from '@/features/payment/components'
-import { PAYMENT_METHODS } from '@/features/payment/MOCKS'
+import { PaymentMethodList } from '@/features/payment/components'
+import { PaymentMethodAdd } from '@/features/payment/components/add'
 
 export const Route = createFileRoute('/auto-renewal/')({
   component: RouteComponent,
@@ -26,7 +23,7 @@ function RouteComponent() {
         ))}
       </div>
       <PaymentMethodAdd />
-      <PaymentMethodList paymentMethods={PAYMENT_METHODS} />
+      <PaymentMethodList />
       <Button variant="default" className="w-full" size="lg">
         Confirm
       </Button>

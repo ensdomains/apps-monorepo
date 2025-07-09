@@ -66,7 +66,7 @@ const ConnectedContent = () => {
           </DropdownMenuItem>
 
           <DropdownMenuItem asChild>
-            <Link to="/payment/add">
+            <Link to="/payment/list">
               <CreditCard />
               Payment Methods
             </Link>

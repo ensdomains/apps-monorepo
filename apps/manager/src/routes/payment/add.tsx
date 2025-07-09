@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { PaymentMethodAddScreen } from '@/features/payment/components'
+import { PaymentMethodAddScreen } from '@/features/payment/components/add'
 
 export const Route = createFileRoute('/payment/add')({
   component: RouteComponent,
