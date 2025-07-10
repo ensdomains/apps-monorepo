@@ -6,7 +6,7 @@ import {
 } from '@/services/checkNameAvailabilityService'
 import { CheckAvailability } from '../components/CheckAvailability'
 
-export function CheckNamePage() {
+export function CheckDomainPage() {
   const navigate = useNavigate()
   const [inputValue, setInputValue] = useState('')
   const [isSearching, setIsSearching] = useState(false)
