@@ -1,5 +1,3 @@
-import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
 import { ChevronDownIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -11,25 +9,45 @@ import {
 } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { getEstimationFullRegistrationQueryOptions } from '../services/estimationFullRegistrationService'
+import { CreditCardPaymentDrawer, CryptoPaymentDrawer } from './PaymentDrawer'
 import { RegisterDrawer } from './RegisterDrawer'
+
+type EstimationData = {
+  estimatedGasFee: bigint
+  estimatedGasLoading: boolean
+  yearlyFee: bigint
+  totalDurationBasedFee: bigint
+  hasPremium: boolean
+  premiumFee: bigint
+  gasPrice: bigint
+  seconds: number
+}
 
 type PricingProps = {
   domainName: string
   duration: number
-  currency: 'ETH' | 'USD'
-  onChangeDuration: (duration: number) => void
-  onChangeCurrency: (currency: 'ETH' | 'USD') => void
+  currencyType: 'ETH' | 'USD'
+  estimation?: EstimationData
+  isConnected: boolean
+  onSetDuration: (duration: number) => void
+  onSetCurrency: (currency: 'ETH' | 'USD') => void
+  onSelectPayment: (method: 'crypto' | 'credit-card') => void
+  onSelectCrypto: (cryptoId: string) => void
+  onConfirmPayment: () => void
 }
 
 export const Pricing = ({
   domainName,
   duration,
-  currency,
-  onChangeDuration,
-  onChangeCurrency,
+  currencyType,
+  estimation,
+  isConnected,
+  onSetDuration,
+  onSetCurrency,
+  onSelectPayment,
+  onSelectCrypto,
+  onConfirmPayment,
 }: PricingProps) => {
-  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<'years' | 'date'>('years')
   const [customYears, setCustomYears] = useState('')
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
@@ -37,14 +55,6 @@ export const Pricing = ({
 
   // For pricing calculation, round up decimal years since service is mocked
   const pricingDuration = Math.ceil(duration)
-
-  const { data: estimation } = useQuery({
-    ...getEstimationFullRegistrationQueryOptions(
-      domainName.split('.')[0] || '',
-      pricingDuration * 31536000,
-    ),
-    enabled: !!domainName,
-  })
 
   const yearOptions = [
     { years: 1, discount: 0 },
@@ -57,10 +67,10 @@ export const Pricing = ({
 
   const baseRegistrationFee =
     (Number(estimation?.totalDurationBasedFee || 0) / 1e18) *
-    (currency === 'USD' ? 2500 : 1)
+    (currencyType === 'USD' ? 2500 : 1)
   const networkFee =
     (Number(estimation?.estimatedGasFee || 0) / 1e18) *
-    (currency === 'USD' ? 2500 : 1)
+    (currencyType === 'USD' ? 2500 : 1)
 
   // Calculate discount based on rounded duration for pricing
   const selectedYearOption = yearOptions.find(
@@ -99,7 +109,7 @@ export const Pricing = ({
     if (date) {
       setSelectedDate(date)
       const calculatedDuration = calculateDurationFromDate(date)
-      onChangeDuration(calculatedDuration)
+      onSetDuration(calculatedDuration)
     }
   }
 
@@ -116,16 +126,6 @@ export const Pricing = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Button
-          variant="ghost"
-          onClick={() => navigate({ to: '/' })}
-          className="h-auto p-2"
-        >
-          ← Back
-        </Button>
-      </div>
-
       <div className="inline-flex items-center rounded bg-foreground px-2 py-1 font-bold text-background text-lg">
         {domainName}
       </div>
@@ -153,7 +153,7 @@ export const Pricing = ({
                 <button
                   key={yearOption.years}
                   type="button"
-                  onClick={() => onChangeDuration(yearOption.years)}
+                  onClick={() => onSetDuration(yearOption.years)}
                   className={`relative rounded-lg border p-4 text-left transition-colors ${
                     duration === yearOption.years
                       ? 'border-primary bg-primary/5 text-primary'
@@ -195,7 +195,7 @@ export const Pricing = ({
                   setCustomYears(e.target.value)
                   const years = parseInt(e.target.value)
                   if (years >= 1 && years <= 999) {
-                    onChangeDuration(years)
+                    onSetDuration(years)
                   }
                 }}
                 min="1"
@@ -243,9 +243,9 @@ export const Pricing = ({
           <div className="flex items-center rounded-md border border-border">
             <button
               type="button"
-              onClick={() => onChangeCurrency('USD')}
+              onClick={() => onSetCurrency('USD')}
               className={`px-3 py-1 font-medium text-sm transition-colors ${
-                currency === 'USD'
+                currencyType === 'USD'
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
@@ -254,9 +254,9 @@ export const Pricing = ({
             </button>
             <button
               type="button"
-              onClick={() => onChangeCurrency('ETH')}
+              onClick={() => onSetCurrency('ETH')}
               className={`px-3 py-1 font-medium text-sm transition-colors ${
-                currency === 'ETH'
+                currencyType === 'ETH'
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
@@ -288,8 +288,8 @@ export const Pricing = ({
 
           <div className="text-right">
             <div className="font-bold text-2xl text-foreground">
-              {currency === 'ETH' ? '⟠' : '$'}
-              {total.toFixed(2)} {currency}
+              {currencyType === 'ETH' ? '⟠' : '$'}
+              {total.toFixed(2)} {currencyType}
             </div>
           </div>
 
@@ -313,8 +313,8 @@ export const Pricing = ({
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">
                   ({pricingDuration} year{pricingDuration !== 1 ? 's' : ''} ×{' '}
-                  {currency === 'ETH' ? '⟠' : '$'}
-                  {pricePerYear.toFixed(2)} {currency}/year)
+                  {currencyType === 'ETH' ? '⟠' : '$'}
+                  {pricePerYear.toFixed(2)} {currencyType}/year)
                   {pricingDuration !== duration && (
                     <span className="block text-muted-foreground/70 text-xs">
                       (Rounded up from {duration.toFixed(2)} years)
@@ -322,7 +322,7 @@ export const Pricing = ({
                   )}
                 </span>
                 <span className="text-foreground">
-                  {currency === 'ETH' ? '⟠' : '$'}
+                  {currencyType === 'ETH' ? '⟠' : '$'}
                   {basePrice.toFixed(2)}
                 </span>
               </div>
@@ -332,7 +332,7 @@ export const Pricing = ({
                     ({discountPercentage}% off)
                   </span>
                   <span className="text-green-600">
-                    -{currency === 'ETH' ? '⟠' : '$'}
+                    -{currencyType === 'ETH' ? '⟠' : '$'}
                     {discountAmount.toFixed(2)}
                   </span>
                 </div>
@@ -340,7 +340,7 @@ export const Pricing = ({
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Est. network fee</span>
                 <span className="text-foreground">
-                  {currency === 'ETH' ? '⟠' : '$'}
+                  {currencyType === 'ETH' ? '⟠' : '$'}
                   {networkFee.toFixed(4)}
                 </span>
               </div>
@@ -348,7 +348,7 @@ export const Pricing = ({
                 <div className="flex justify-between font-medium text-sm">
                   <span className="text-foreground">Total</span>
                   <span className="text-foreground">
-                    {currency === 'ETH' ? '⟠' : '$'}
+                    {currencyType === 'ETH' ? '⟠' : '$'}
                     {total.toFixed(2)}
                   </span>
                 </div>
@@ -357,15 +357,34 @@ export const Pricing = ({
           </Collapsible>
         </div>
 
-        <RegisterDrawer
-          domainName={domainName}
-          duration={duration}
-          priceUSD={currency === 'USD' ? total : total * 2500}
-        >
-          <Button className="h-12 w-full font-semibold text-base">
-            Register
-          </Button>
-        </RegisterDrawer>
+        {!isConnected ? (
+          <RegisterDrawer
+            domainName={domainName}
+            duration={duration}
+            priceUSD={currencyType === 'USD' ? total : total * 2500}
+          >
+            <Button className="h-12 w-full font-semibold text-base">
+              Register
+            </Button>
+          </RegisterDrawer>
+        ) : (
+          <div className="flex space-x-3">
+            <CreditCardPaymentDrawer
+              domainName={domainName}
+              duration={duration}
+              priceUSD={currencyType === 'USD' ? total : total * 2500}
+              onPaymentSelect={onSelectPayment}
+            />
+            <CryptoPaymentDrawer
+              domainName={domainName}
+              duration={duration}
+              priceUSD={currencyType === 'USD' ? total : total * 2500}
+              onPaymentSelect={onSelectPayment}
+              onCryptoSelect={onSelectCrypto}
+              onConfirmPayment={onConfirmPayment}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

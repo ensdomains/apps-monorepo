@@ -12,6 +12,11 @@ export class NameAvailabilityError extends TaggedError(
 export enum RegistrationStep {
   CHECK_AVAILABILITY = 'checkAvailability',
   PRICING = 'pricing',
+  PAYMENT_IN_PROGRESS = 'paymentInProgress',
+  PAYMENT_SUCCESS = 'paymentSuccess',
+  REGISTRATION_IN_PROGRESS = 'registrationInProgress',
+  REGISTRATION_SUCCESS = 'registrationSuccess',
+  AUTORENEWAL = 'autorenewal',
 }
 
 export type SearchMachineContext = {
@@ -21,6 +26,13 @@ export type SearchMachineContext = {
   step: RegistrationStep
   duration: number
   currencyType: 'ETH' | 'USD'
+  selectedPaymentMethod?: 'crypto' | 'credit-card'
+  selectedCrypto?: string
+  // Registration data
+  domainName?: string
+  totalPrice?: string
+  yearlyPrice?: string
+  gasPrice?: string
 }
 
 // Mock unavailable names
@@ -74,7 +86,15 @@ export const searchMachine = setup({
       | { type: 'next' }
       | { type: 'back' }
       | { type: 'setDuration'; duration: number }
-      | { type: 'setCurrency'; currencyType: 'ETH' | 'USD' },
+      | { type: 'setCurrency'; currencyType: 'ETH' | 'USD' }
+      | { type: 'selectPayment'; method: 'crypto' | 'credit-card' }
+      | { type: 'selectCrypto'; cryptoId: string }
+      | { type: 'confirmPayment' }
+      | { type: 'paymentSuccess' }
+      | { type: 'skipNotifications' }
+      | { type: 'registrationSuccess' }
+      | { type: 'setupAutorenewal' }
+      | { type: 'skipAutorenewal' },
   },
 
   actors: {
@@ -95,8 +115,40 @@ export const searchMachine = setup({
     step: RegistrationStep.PRICING,
     duration: 1,
     currencyType: 'ETH',
+    domainName: undefined,
   },
   initial: 'Pricing',
+  // Global event handlers available from any state
+  on: {
+    setDuration: {
+      actions: [
+        assign({
+          duration: ({ event }) => event.duration,
+        }),
+      ],
+    },
+    setCurrency: {
+      actions: [
+        assign({
+          currencyType: ({ event }) => event.currencyType,
+        }),
+      ],
+    },
+    selectPayment: {
+      actions: [
+        assign({
+          selectedPaymentMethod: ({ event }) => event.method,
+        }),
+      ],
+    },
+    selectCrypto: {
+      actions: [
+        assign({
+          selectedCrypto: ({ event }) => event.cryptoId,
+        }),
+      ],
+    },
+  },
   states: {
     Idle: {
       on: {
@@ -168,6 +220,7 @@ export const searchMachine = setup({
           actions: [
             assign({
               step: (_) => RegistrationStep.PRICING,
+              domainName: ({ context }) => `${context.name}.eth`,
             }),
           ],
         },
@@ -207,17 +260,12 @@ export const searchMachine = setup({
             }),
           ],
         },
-        setDuration: {
+
+        confirmPayment: {
+          target: 'PaymentInProgress',
           actions: [
             assign({
-              duration: ({ event }) => event.duration,
-            }),
-          ],
-        },
-        setCurrency: {
-          actions: [
-            assign({
-              currencyType: ({ event }) => event.currencyType,
+              step: (_) => RegistrationStep.PAYMENT_IN_PROGRESS,
             }),
           ],
         },
@@ -237,6 +285,130 @@ export const searchMachine = setup({
               isAvailable: (_) => undefined,
               error: (_) => undefined,
               step: RegistrationStep.CHECK_AVAILABILITY,
+            }),
+          ],
+        },
+      },
+    },
+    PaymentInProgress: {
+      on: {
+        paymentSuccess: {
+          target: 'PaymentSuccess',
+          actions: [
+            assign({
+              step: (_) => RegistrationStep.PAYMENT_SUCCESS,
+            }),
+          ],
+        },
+        back: {
+          target: 'Pricing',
+          actions: [
+            assign({
+              step: (_) => RegistrationStep.PRICING,
+            }),
+          ],
+        },
+      },
+    },
+    PaymentSuccess: {
+      on: {
+        skipNotifications: {
+          target: 'RegistrationInProgress',
+          actions: [
+            assign({
+              step: (_) => RegistrationStep.REGISTRATION_IN_PROGRESS,
+            }),
+          ],
+        },
+        reset: {
+          target: 'Idle',
+          actions: [
+            assign({
+              name: (_) => undefined,
+              isAvailable: (_) => undefined,
+              error: (_) => undefined,
+              step: RegistrationStep.CHECK_AVAILABILITY,
+              selectedPaymentMethod: (_) => undefined,
+              selectedCrypto: (_) => undefined,
+            }),
+          ],
+        },
+        back: {
+          target: 'Pricing',
+          actions: [
+            assign({
+              step: (_) => RegistrationStep.PRICING,
+            }),
+          ],
+        },
+      },
+    },
+    RegistrationInProgress: {
+      on: {
+        registrationSuccess: {
+          target: 'RegistrationSuccess',
+          actions: [
+            assign({
+              step: (_) => RegistrationStep.REGISTRATION_SUCCESS,
+            }),
+          ],
+        },
+        back: {
+          target: 'PaymentSuccess',
+          actions: [
+            assign({
+              step: (_) => RegistrationStep.PAYMENT_SUCCESS,
+            }),
+          ],
+        },
+      },
+    },
+    RegistrationSuccess: {
+      on: {
+        setupAutorenewal: {
+          target: 'Autorenewal',
+          actions: [
+            assign({
+              step: (_) => RegistrationStep.AUTORENEWAL,
+            }),
+          ],
+        },
+      },
+    },
+    Autorenewal: {
+      on: {
+        back: {
+          target: 'Pricing',
+          actions: [
+            assign({
+              step: (_) => RegistrationStep.PRICING,
+            }),
+          ],
+        },
+        skipAutorenewal: {
+          target: 'Idle',
+          actions: [
+            assign({
+              name: (_) => undefined,
+              isAvailable: (_) => undefined,
+              error: (_) => undefined,
+              step: RegistrationStep.CHECK_AVAILABILITY,
+              selectedPaymentMethod: (_) => undefined,
+              selectedCrypto: (_) => undefined,
+              domainName: (_) => undefined,
+            }),
+          ],
+        },
+        reset: {
+          target: 'Idle',
+          actions: [
+            assign({
+              name: (_) => undefined,
+              isAvailable: (_) => undefined,
+              error: (_) => undefined,
+              step: RegistrationStep.CHECK_AVAILABILITY,
+              selectedPaymentMethod: (_) => undefined,
+              selectedCrypto: (_) => undefined,
             }),
           ],
         },

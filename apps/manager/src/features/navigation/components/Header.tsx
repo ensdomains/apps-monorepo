@@ -7,6 +7,7 @@ import {
   List,
   RefreshCcw,
   Unlink,
+  User,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAccount, useDisconnect, useEnsAvatar, useEnsName } from 'wagmi'
@@ -41,19 +42,30 @@ const ConnectedContent = () => {
 
   const [notificationsOpen, setNotificationsOpen] = useState(false)
 
+  // Fallback display for when there's no ENS name
+  const displayName =
+    ensName || `${address?.slice(0, 6)}...${address?.slice(-4)}`
+
   return (
     <div className="mr-6 flex items-center gap-4">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button type="button" className="flex items-center gap-2">
-            {ensAvatar && (
+          <button
+            type="button"
+            className="flex items-center gap-2 rounded-md p-2 hover:bg-gray-100"
+          >
+            {ensAvatar ? (
               <img
                 src={ensAvatar}
                 alt="ENS Avatar"
-                className="size-11 rounded-full"
+                className="size-8 rounded-full"
               />
+            ) : (
+              <div className="flex size-8 items-center justify-center rounded-full bg-gray-200">
+                <User className="size-4 text-gray-600" />
+              </div>
             )}
-            <span className="">{ensName}</span>
+            <span className="font-medium text-sm">{displayName}</span>
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
@@ -131,7 +143,7 @@ const Menu = () => {
 export const Header = () => {
   const { isConnected } = useAccount()
   return (
-    <nav className="sticky top-0 z-10 flex items-center justify-end bg-gray-50 p-8">
+    <nav className="sticky top-0 z-10 flex items-center justify-end bg-background p-8">
       <Link to="/" className="mr-auto">
         <img src={ensLogo} alt="ENS Logo" className="h-8" />
       </Link>
