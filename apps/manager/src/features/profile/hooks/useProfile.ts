@@ -5,6 +5,7 @@ import { getRecords } from '@ensdomains/ensjs/public'
 import { getSubgraphRecords } from '@ensdomains/ensjs/subgraph'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import type { ProfileRecordsResult } from '@/features/profile/types'
 
 class SubgraphError extends TaggedError('SubgraphError')<{
   cause: unknown
