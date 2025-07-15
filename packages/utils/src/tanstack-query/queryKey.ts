@@ -35,3 +35,22 @@ export function createQueryKey<TKey extends string, TVariables = void>(
     ? () => QueryKey<TKey>
     : (variables: TVariables) => QueryKey<TKey, TVariables>
 }
+
+export function qk<TScope, TAction, TVariables extends Record<string, unknown>>(
+  scope: TScope,
+  action: TAction,
+  variables: TVariables,
+): [
+  {
+    $scope: TScope
+    $action: TAction
+  } & TVariables,
+] {
+  return [
+    {
+      $scope: scope,
+      $action: action,
+      ...variables,
+    },
+  ]
+}
