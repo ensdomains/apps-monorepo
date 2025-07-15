@@ -1,7 +1,10 @@
-import { socialRecords } from '@/features/profile/data/records'
 import { AddTextRecordsDialog } from '@/features/profile/components/dialogs/AddTextRecordsDialog'
-import { RecordEntry } from '@/features/profile/components/RecordEntry'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
+import { RecordEntry } from '@/features/profile/components/RecordEntry'
+import {
+  getAvailableSocialRecords,
+  getSocialRecord,
+} from '@/features/profile/data/records'
 
 export const SocialLinksSection = withForm({
   ...sharedOptions,
@@ -14,9 +17,7 @@ export const SocialLinksSection = withForm({
             // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
             <form.Field key={i} name={`social[${i}].value`}>
               {(field) => {
-                const record = socialRecords.find(
-                  (record) => record.key === key,
-                )
+                const record = getSocialRecord(key)
                 if (!record) return null
                 return (
                   <RecordEntry
@@ -37,9 +38,8 @@ export const SocialLinksSection = withForm({
           <AddTextRecordsDialog
             buttonLabel="Add Social Link"
             title="Add Social Link"
-            records={socialRecords.filter(
-              (record) =>
-                !socialField.state.value.some(({ key }) => key === record.key),
+            records={getAvailableSocialRecords(
+              socialField.state.value.map(({ key }) => key),
             )}
             onAdd={(keys) => {
               keys.forEach((key) => {

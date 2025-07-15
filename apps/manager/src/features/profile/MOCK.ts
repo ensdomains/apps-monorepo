@@ -1,4 +1,4 @@
-import { contactRecords, socialRecords } from './data/records'
+import { isContactRecord, isSocialRecord } from './data/records'
 
 import type { ProfileRecords, ProfileRecordsResult } from './types'
 
@@ -55,12 +55,8 @@ export const transformProfileRecords = (
       header: profile.texts.header,
       description: profile.texts.description,
     },
-    social: texts.filter(({ key }) =>
-      socialRecords.some((record) => record.key === key),
-    ),
-    contacts: texts.filter(({ key }) =>
-      contactRecords.some((record) => record.key === key),
-    ),
+    social: texts.filter(({ key }) => isSocialRecord(key)),
+    contacts: texts.filter(({ key }) => isContactRecord(key)),
     addresses,
     links,
   }

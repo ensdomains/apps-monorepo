@@ -1,8 +1,11 @@
 import { Badge } from '@/components/ui/badge'
-import { addressRecords } from '@/features/profile/data/records'
 import { AddAddressRecordsDialog } from '@/features/profile/components/dialogs/AddAddressRecordsDialog'
-import { RecordEntry } from '@/features/profile/components/RecordEntry'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
+import { RecordEntry } from '@/features/profile/components/RecordEntry'
+import {
+  getAddressRecord,
+  getAvailableAddressRecords,
+} from '@/features/profile/data/records'
 
 export const CryptoAddressesSection = withForm({
   ...sharedOptions,
@@ -20,9 +23,7 @@ export const CryptoAddressesSection = withForm({
               // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
               <form.Field key={i} name={`addresses[${i}].value`}>
                 {(field) => {
-                  const record = addressRecords.find(
-                    (record) => record.coinType === coinType,
-                  )
+                  const record = getAddressRecord(coinType)
                   if (!record) return null
                   return (
                     <RecordEntry
@@ -45,12 +46,10 @@ export const CryptoAddressesSection = withForm({
           <AddAddressRecordsDialog
             buttonLabel="Add Crypto Address"
             title="Add Crypto Address"
-            records={addressRecords.filter(
-              (record) =>
-                !addressField.state.value.some(
-                  ({ coinType }: { coinType: number }) =>
-                    coinType === record.coinType,
-                ),
+            records={getAvailableAddressRecords(
+              addressField.state.value.map(
+                ({ coinType }: { coinType: number }) => coinType,
+              ),
             )}
             onAdd={(coinTypes) => {
               coinTypes.forEach((coinType) => {

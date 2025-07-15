@@ -1,9 +1,12 @@
 import { X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { contactRecords } from '@/features/profile/data/records'
 import { AddTextRecordsDialog } from '@/features/profile/components/dialogs/AddTextRecordsDialog'
-import { RecordEntry } from '@/features/profile/components/RecordEntry'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
+import { RecordEntry } from '@/features/profile/components/RecordEntry'
+import {
+  getAvailableContactRecords,
+  getContactRecord,
+} from '@/features/profile/data/records'
 
 export const BioSection = withForm({
   ...sharedOptions,
@@ -63,9 +66,7 @@ export const BioSection = withForm({
                 // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
                 <form.Field key={i} name={`contacts[${i}].value`}>
                   {(field) => {
-                    const record = contactRecords.find(
-                      (record) => record.key === key,
-                    )
+                    const record = getContactRecord(key)
                     if (!record) return null
                     return (
                       <RecordEntry
@@ -87,11 +88,8 @@ export const BioSection = withForm({
             <AddTextRecordsDialog
               buttonLabel="Add Contact Information"
               title="Add Contact Information"
-              records={contactRecords.filter(
-                (record) =>
-                  !contactField.state.value.some(
-                    ({ key }: { key: string }) => key === record.key,
-                  ),
+              records={getAvailableContactRecords(
+                contactField.state.value.map(({ key }: { key: string }) => key),
               )}
               onAdd={(keys) => {
                 keys.forEach((key) => {
