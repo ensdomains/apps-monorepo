@@ -2,6 +2,7 @@
 
 import { CheckCircleIcon } from 'lucide-react'
 import * as React from 'react'
+import { QRPattern } from '@/components/atoms'
 
 interface RegistrationSuccessProps {
   domainName: string
@@ -13,7 +14,6 @@ export function RegistrationSuccess({
   onSetupAutorenewal,
 }: RegistrationSuccessProps) {
   React.useEffect(() => {
-    // Auto-transition to autorenewal after 3 seconds
     const timer = setTimeout(() => {
       onSetupAutorenewal()
     }, 3000)
@@ -23,76 +23,8 @@ export function RegistrationSuccess({
 
   return (
     <div className="mx-auto max-w-md space-y-8 p-6 text-center">
-      {/* QR-like pattern placeholder - same as registration in progress */}
       <div className="flex justify-center">
-        <div className="grid h-32 w-32 grid-cols-8 gap-1">
-          {/* Creating a QR-like pattern */}
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-        </div>
+        <QRPattern />
       </div>
 
       {/* Domain name */}

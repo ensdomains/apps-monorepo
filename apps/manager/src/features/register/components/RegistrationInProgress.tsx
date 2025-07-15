@@ -1,7 +1,8 @@
 'use client'
 
-import { CheckCircleIcon } from 'lucide-react'
+import { LoaderIcon } from 'lucide-react'
 import * as React from 'react'
+import { QRPattern } from '@/components/atoms'
 
 interface RegistrationInProgressProps {
   domainName: string
@@ -13,13 +14,8 @@ export function RegistrationInProgress({
   onRegistrationSuccess,
 }: RegistrationInProgressProps) {
   React.useEffect(() => {
-    // Mock registration process - simulate contract calls
     const processRegistration = async () => {
-      // Simulate network delay for contract interactions
-      // This would be where actual ENS registration contract calls happen
       await new Promise((resolve) => setTimeout(resolve, 4000))
-
-      // Simulate successful registration
       onRegistrationSuccess()
     }
 
@@ -28,76 +24,8 @@ export function RegistrationInProgress({
 
   return (
     <div className="mx-auto max-w-md space-y-8 p-6 text-center">
-      {/* QR-like pattern placeholder */}
       <div className="flex justify-center">
-        <div className="grid h-32 w-32 grid-cols-8 gap-1">
-          {/* Creating a QR-like pattern */}
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-        </div>
+        <QRPattern />
       </div>
 
       {/* Domain name */}
@@ -113,7 +41,7 @@ export function RegistrationInProgress({
       {/* Registration status */}
       <div className="space-y-2">
         <div className="flex items-center justify-center gap-2">
-          <CheckCircleIcon className="h-4 w-4 text-gray-600" />
+          <LoaderIcon className="h-4 w-4 text-gray-600" />
           <span className="font-medium text-gray-900 text-sm">
             Registration in progress
           </span>

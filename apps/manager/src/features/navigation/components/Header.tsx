@@ -10,7 +10,13 @@ import {
   User,
 } from 'lucide-react'
 import { useState } from 'react'
-import { useAccount, useDisconnect, useEnsAvatar, useEnsName } from 'wagmi'
+import {
+  useAccount,
+  useDisconnect,
+  useEnsAvatar,
+  useEnsName,
+  useSwitchChain,
+} from 'wagmi'
 import ensLogo from '@/assets/icons/ens.svg'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,12 +31,12 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { NotificationsDropdown } from '@/features/notifications/components'
-import { MOCK_NOTIFICATIONS } from '@/features/notifications/MOCK'
 import { useTheme } from '@/hooks/use-theme'
 
 const ConnectedContent = () => {
-  const { address } = useAccount()
+  const { address, chain } = useAccount()
   const { disconnect } = useDisconnect()
+  const { chains, switchChain } = useSwitchChain()
 
   const { data: ensName } = useEnsName({ address })
   const { data: ensAvatar } = useEnsAvatar({
@@ -48,6 +54,35 @@ const ConnectedContent = () => {
 
   return (
     <div className="mr-6 flex items-center gap-4">
+      {/* Network Selector */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-2">
+            <div className="h-2 w-2 rounded-full bg-green-500" />
+            {chain?.name || 'Unknown'}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          {chains.map((availableChain) => (
+            <DropdownMenuItem
+              key={availableChain.id}
+              onClick={() => switchChain({ chainId: availableChain.id })}
+              className="flex items-center gap-2"
+            >
+              <div
+                className={`h-2 w-2 rounded-full ${
+                  chain?.id === availableChain.id
+                    ? 'bg-green-500'
+                    : 'bg-gray-300'
+                }`}
+              />
+              {availableChain.name}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* User Profile Dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -96,6 +131,8 @@ const ConnectedContent = () => {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {/* Notifications */}
       <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
         <PopoverTrigger asChild>
           <Button variant="ghost" size="icon">
@@ -103,10 +140,7 @@ const ConnectedContent = () => {
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-sm" collisionPadding={16} sideOffset={16}>
-          <NotificationsDropdown
-            notifications={MOCK_NOTIFICATIONS}
-            onAction={() => setNotificationsOpen(false)}
-          />
+          <NotificationsDropdown onAction={() => setNotificationsOpen(false)} />
         </PopoverContent>
       </Popover>
     </div>

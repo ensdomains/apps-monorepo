@@ -105,10 +105,6 @@ export function Registration({ initialName }: RegistrationProps) {
     send({ type: 'setupAutorenewal' })
   }
 
-  const handleSkipAutorenewal = () => {
-    send({ type: 'skipAutorenewal' })
-  }
-
   // domainName already includes .eth from the state machine
   const displayDomainName =
     domainName || (name ? (name.endsWith('.eth') ? name : `${name}.eth`) : '')
@@ -168,11 +164,7 @@ export function Registration({ initialName }: RegistrationProps) {
       )}
 
       {step === RegistrationStep.AUTORENEWAL && (
-        <Autorenewal
-          domainName={displayDomainName}
-          duration={duration}
-          onSkipAutorenewal={handleSkipAutorenewal}
-        />
+        <Autorenewal domainName={displayDomainName} duration={duration} />
       )}
     </div>
   )

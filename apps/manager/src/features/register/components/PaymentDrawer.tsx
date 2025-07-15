@@ -2,6 +2,7 @@
 
 import { CreditCardIcon } from 'lucide-react'
 import * as React from 'react'
+import { useAccount } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -17,8 +18,8 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from '@/components/ui/drawer'
-import { Input } from '@/components/ui/input'
 import { useMediaQuery } from '@/hooks/use-media-query'
+import { useStablecoinBalances } from '../hooks/useStablecoinBalances'
 
 interface PaymentDrawerProps {
   domainName?: string
@@ -52,7 +53,6 @@ export function CreditCardPaymentDrawer({
     </Button>
   )
 
-  // Credit card (MoonPay mock) content
   const creditCardContent = (
     <div className="space-y-6">
       {/* Domain info */}
@@ -123,39 +123,17 @@ export function CryptoPaymentDrawer({
   const [open, setOpen] = React.useState(false)
   const [selectedCoin, setSelectedCoin] = React.useState<string>('')
   const isDesktop = useMediaQuery('(min-width: 768px)')
+  const { address, isConnected, chain } = useAccount()
 
-  // Reusable trigger button
+  const { top3Stablecoins, isLoading, hasBalances, error } =
+    useStablecoinBalances()
+
   const triggerButton = (
     <Button className="h-12 flex-1 font-semibold text-base">
       Pay with crypto
     </Button>
   )
 
-  const cryptoOptions = [
-    {
-      id: 'optimism-usdc',
-      name: 'Optimism USDC',
-      balance: '$11,987.23',
-      icon: 'O',
-      color: 'red',
-    },
-    {
-      id: 'base-usdc',
-      name: 'Base USDC',
-      balance: '$8,987.23',
-      icon: 'B',
-      color: 'blue',
-    },
-    {
-      id: 'arbitrum-usdt',
-      name: 'Arbitrum USDT',
-      balance: '$2,987.23',
-      icon: 'A',
-      color: 'gray',
-    },
-  ]
-
-  // Crypto payment content
   const cryptoContent = (
     <div className="space-y-6">
       {/* Domain info */}
@@ -176,51 +154,95 @@ export function CryptoPaymentDrawer({
         </p>
       </div>
 
-      {/* Search coins */}
+      {/* Stablecoin options */}
       <div className="space-y-4">
-        <Input placeholder="Search coins" className="w-full" />
+        {isLoading && (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-gray-500 text-sm">
+              Loading your stablecoin balances...
+            </div>
+          </div>
+        )}
 
-        {/* Coin options */}
-        <div className="space-y-2">
-          {cryptoOptions.map((coin) => (
-            <button
-              key={coin.id}
-              onClick={() => setSelectedCoin(coin.id)}
-              type="button"
-              className="flex w-full cursor-pointer items-center justify-between p-3 text-left hover:bg-gray-50"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200">
-                  <span className="font-bold text-gray-700 text-sm">
-                    {coin.icon}
+        {!isLoading && !hasBalances && (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            {!isConnected ? (
+              <>
+                <div className="mb-2 text-gray-500 text-sm">
+                  Please connect your wallet first
+                </div>
+                <div className="text-gray-400 text-xs">
+                  You need to connect a wallet to see your stablecoin balances
+                </div>
+              </>
+            ) : !chain ? (
+              <>
+                <div className="mb-2 text-gray-500 text-sm">
+                  Network not detected
+                </div>
+                <div className="text-gray-400 text-xs">
+                  Please check your wallet connection
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-2 text-gray-500 text-sm">
+                  No stablecoin balances found
+                </div>
+                <div className="text-gray-400 text-xs">
+                  Make sure you have USDC, USDT, or DAI on {chain.name}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {!isLoading && hasBalances && (
+          <div className="space-y-2">
+            {top3Stablecoins.map((coin) => (
+              <button
+                key={coin.id}
+                onClick={() => setSelectedCoin(coin.id)}
+                type="button"
+                className="flex w-full cursor-pointer items-center justify-between p-3 text-left hover:bg-gray-50"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200">
+                    <span className="font-bold text-gray-700 text-sm">
+                      {coin.chainInfo.icon}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-900">{coin.name}</div>
+                    <div className="text-gray-500 text-xs">
+                      {coin.chainInfo.name}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-900">
+                    {coin.formattedBalance}
                   </span>
+                  <div
+                    className={`h-4 w-4 rounded-full border-2 ${
+                      selectedCoin === coin.id
+                        ? 'border-blue-500 bg-blue-500'
+                        : 'border-gray-300'
+                    }`}
+                  >
+                    {selectedCoin === coin.id && (
+                      <div className="h-full w-full rounded-full bg-blue-500"></div>
+                    )}
+                  </div>
                 </div>
-                <div className="font-medium text-gray-900">{coin.name}</div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-gray-900">
-                  {coin.balance}
-                </span>
-                <div
-                  className={`h-4 w-4 rounded-full border-2 ${
-                    selectedCoin === coin.id
-                      ? 'border-blue-500 bg-blue-500'
-                      : 'border-gray-300'
-                  }`}
-                >
-                  {selectedCoin === coin.id && (
-                    <div className="h-full w-full rounded-full bg-blue-500"></div>
-                  )}
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
+              </button>
+            ))}
+          </div>
+        )}
 
-        {/* Continue button */}
         <Button
           className="w-full"
-          disabled={!selectedCoin}
+          disabled={!selectedCoin || !hasBalances}
           onClick={() => {
             if (selectedCoin) {
               onPaymentSelect?.('crypto')
@@ -232,14 +254,13 @@ export function CryptoPaymentDrawer({
         >
           Continue with{' '}
           {selectedCoin
-            ? cryptoOptions.find((c) => c.id === selectedCoin)?.name
+            ? top3Stablecoins.find((c) => c.id === selectedCoin)?.name
             : 'Selected Coin'}
         </Button>
       </div>
     </div>
   )
 
-  // Desktop Dialog
   if (isDesktop) {
     return (
       <Dialog open={open} onOpenChange={setOpen}>
@@ -254,7 +275,6 @@ export function CryptoPaymentDrawer({
     )
   }
 
-  // Mobile Drawer
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
@@ -268,7 +288,6 @@ export function CryptoPaymentDrawer({
   )
 }
 
-// Main Payment Drawer Component (for backward compatibility)
 export function PaymentDrawer({
   domainName = 'example.eth',
   duration = 25,
