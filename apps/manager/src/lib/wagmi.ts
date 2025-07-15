@@ -1,4 +1,4 @@
-import { addEnsContracts } from '@ensdomains/ensjs'
+import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { connectorsForWallets } from '@rainbow-me/rainbowkit'
 import {
   frameWallet,
@@ -13,7 +13,16 @@ export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: true,
   multiInjectedProviderDiscovery: true,
-  chains: [addEnsContracts(mainnet)],
+  chains: [
+    {
+      ...extendChainWithEns(mainnet),
+      subgraphs: {
+        ens: {
+          url: 'https://api.alpha.ensnode.io/subgraph',
+        },
+      },
+    },
+  ],
   connectors: connectorsForWallets(
     [
       {
