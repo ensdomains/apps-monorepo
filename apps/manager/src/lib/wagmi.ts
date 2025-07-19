@@ -28,7 +28,6 @@ const isDevelopment =
   process.env.NEXT_PUBLIC_ENABLE_ANVIL === 'true'
 
 export const wagmiConfig = createConfig({
-  syncConnectedChain: false,
   ssr: false,
   multiInjectedProviderDiscovery: true,
   chains: isDevelopment
@@ -44,6 +43,7 @@ export const wagmiConfig = createConfig({
     { projectId: 'YOUR_PROJECT_ID', appName: 'demo' },
   ),
   client: ({ chain }) => {
+    console.log('+++++++++chain', chain)
     return createClient<HttpTransport, typeof chain>({
       chain,
       transport: http(

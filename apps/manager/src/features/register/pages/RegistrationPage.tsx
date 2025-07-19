@@ -1,18 +1,16 @@
 import { useNavigate } from '@tanstack/react-router'
-import { useMachine } from '@xstate/react'
-import { useEffect, useMemo } from 'react'
-import { useAccount } from 'wagmi'
+import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Autorenewal } from '../components/Autorenewal'
-import { PaymentInProgress } from '../components/PaymentInProgress'
-import { PaymentSuccess } from '../components/PaymentSuccess'
+import { CommitmentError } from '../components/CommitmentError'
 import { Pricing } from '../components/Pricing'
 import { RegistrationInProgress } from '../components/RegistrationInProgress'
 import { RegistrationSuccess } from '../components/RegistrationSuccess'
+import { WaitingForCommitTime } from '../components/WaitingForCommitTime'
 import {
   RegistrationStep,
-  searchMachine,
-} from '../machines/registrationMachineMock'
+  useEnsRegistration,
+} from '../hooks/useEnsRegistration'
 
 interface RegistrationProps {
   initialName?: string
@@ -20,94 +18,95 @@ interface RegistrationProps {
 
 export function Registration({ initialName }: RegistrationProps) {
   const navigate = useNavigate()
-  const { isConnected } = useAccount()
-  const [state, send] = useMachine(searchMachine)
 
-  useEffect(() => {
-    if (initialName) {
-      // Set domain name in context and prepare for pricing
-      send({ type: 'search', name: initialName })
-    }
-  }, [initialName, send])
+  // Use the XState registration hook
+  const {
+    step,
+    domainName,
+    duration,
+    pricing,
+    currencyType,
+    remainingTime,
+    commitTxHash,
+    registerTxHash,
+    isCommitPending,
+    isRegisterPending,
+    isRegisterConfirming,
+    isConnected,
+    setDuration,
+    setCurrency,
+    selectPayment,
+    selectCrypto,
+    confirmPayment,
+    retryCommit,
+    skipNotifications,
+    setupAutorenewal,
+    completeFlow,
+    reset,
+  } = useEnsRegistration(initialName)
+  // UI state for backward compatibility with existing components
+  const [localCurrencyType, setLocalCurrencyType] = useState<'ETH' | 'USD'>(
+    'ETH',
+  )
 
-  const { step, name, domainName, duration, currencyType, selectedCrypto } =
-    state.context
+  // Event handlers
+  const handlePaymentSelect = (method: 'crypto' | 'credit-card') => {
+    selectPayment(method)
+    console.log('💳 Payment method selected:', method)
+  }
 
-  // TODO: remove this once we have a real duration
-  const pricingDuration = Math.ceil(duration)
+  const handleCryptoSelect = (cryptoId: string) => {
+    selectCrypto(cryptoId)
+    console.log('🪙 Crypto selected:', cryptoId)
+  }
 
-  // TODO: remove this once we have a real estimation
+  const handleBack = () => {
+    // Reset the registration state when going back
+    reset()
+    navigate({ to: '/' })
+  }
+
+  // Create estimation for pricing component
   const estimation = useMemo(() => {
-    if (!domainName && !name) return undefined
+    if (!domainName) return undefined
 
-    const baseYearlyFee = 5000000000000000n
-    const yearMultiplier = BigInt(Math.max(1, Math.floor(pricingDuration)))
+    const basePrice = BigInt(pricing?.base || '25000000000000000')
+    const totalPrice = BigInt(pricing?.totalPrice || '25000000000000000')
+    const yearMultiplier = BigInt(Math.max(1, Math.floor(duration)))
 
     return {
       estimatedGasFee: 2000000000000000n,
       estimatedGasLoading: false,
-      yearlyFee: baseYearlyFee,
-      totalDurationBasedFee: baseYearlyFee * yearMultiplier,
+      yearlyFee: basePrice,
+      totalDurationBasedFee: totalPrice * yearMultiplier,
       hasPremium: false,
       premiumFee: 0n,
       gasPrice: 20000000000n,
-      seconds: pricingDuration * 31536000,
+      seconds: duration * 31536000,
     }
-  }, [domainName, name, pricingDuration])
-
-  const handleBack = () => {
-    if (step === RegistrationStep.PRICING) {
-      navigate({ to: '/' })
-    } else if (step === RegistrationStep.REGISTRATION_IN_PROGRESS) {
-      // This step goes to PaymentSuccess, but we want Pricing
-      // So we go back twice: first to PaymentSuccess, then to Pricing
-      send({ type: 'back' })
-      setTimeout(() => send({ type: 'back' }), 0)
-    } else {
-      // All other steps go to pricing on 'back'
-      send({ type: 'back' })
-    }
-  }
-
-  const handleSetDuration = (newDuration: number) => {
-    send({ type: 'setDuration', duration: newDuration })
-  }
+  }, [domainName, duration, pricing])
 
   const handleSetCurrency = (currency: 'ETH' | 'USD') => {
-    send({ type: 'setCurrency', currencyType: currency })
+    setLocalCurrencyType(currency)
+    setCurrency(currency)
   }
 
   const handleSelectPayment = (method: 'crypto' | 'credit-card') => {
-    send({ type: 'selectPayment', method })
+    handlePaymentSelect(method)
   }
 
   const handleSelectCrypto = (cryptoId: string) => {
-    send({ type: 'selectCrypto', cryptoId })
+    handleCryptoSelect(cryptoId)
   }
 
-  const handleConfirmPayment = () => {
-    send({ type: 'confirmPayment' })
-  }
-
-  const handlePaymentSuccess = () => {
-    send({ type: 'paymentSuccess' })
-  }
-
-  const handleSkipNotifications = () => {
-    send({ type: 'skipNotifications' })
-  }
-
-  const handleRegistrationSuccess = () => {
-    send({ type: 'registrationSuccess' })
-  }
+  const handleRegistrationSuccess = () => {}
 
   const handleSetupAutorenewal = () => {
-    send({ type: 'setupAutorenewal' })
+    setupAutorenewal()
   }
 
-  // domainName already includes .eth from the state machine
-  const displayDomainName =
-    domainName || (name ? (name.endsWith('.eth') ? name : `${name}.eth`) : '')
+  // Display domain name
+  const displayDomainName = domainName || ''
 
   return (
     <div className="mx-auto max-w-md">
@@ -115,6 +114,11 @@ export function Registration({ initialName }: RegistrationProps) {
         <Button variant="ghost" onClick={handleBack} className="h-auto p-2">
           ← Back
         </Button>
+
+        {/* Debug info for development */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="text-xs text-gray-500">XState: {step}</div>
+        )}
       </div>
 
       {step === RegistrationStep.PRICING && displayDomainName && (
@@ -122,41 +126,47 @@ export function Registration({ initialName }: RegistrationProps) {
           <Pricing
             domainName={displayDomainName}
             duration={duration}
-            currencyType={currencyType}
+            currencyType={currencyType || localCurrencyType}
             estimation={estimation}
             isConnected={isConnected}
-            onSetDuration={handleSetDuration}
+            isLoading={isCommitPending}
+            onSetDuration={setDuration}
             onSetCurrency={handleSetCurrency}
             onSelectPayment={handleSelectPayment}
             onSelectCrypto={handleSelectCrypto}
-            onConfirmPayment={handleConfirmPayment}
+            onConfirmPayment={confirmPayment}
           />
         </div>
       )}
 
-      {step === RegistrationStep.PAYMENT_IN_PROGRESS && (
-        <PaymentInProgress
+      {/* XState enhanced waiting period with countdown */}
+      {step === RegistrationStep.WAITING_FOR_COMMIT_TIME && (
+        <WaitingForCommitTime
           domainName={displayDomainName}
-          selectedCrypto={selectedCrypto}
-          onPaymentSuccess={handlePaymentSuccess}
+          remainingTime={remainingTime}
+          commitTxHash={commitTxHash}
+          onSkip={
+            process.env.NODE_ENV === 'development'
+              ? skipNotifications
+              : undefined
+          }
         />
       )}
 
-      {step === RegistrationStep.PAYMENT_SUCCESS && (
-        <PaymentSuccess
-          domainName={displayDomainName}
-          onComplete={handleSkipNotifications}
-        />
+      {step === RegistrationStep.COMMITMENT_ERROR && (
+        <CommitmentError domainName={displayDomainName} onRetry={retryCommit} />
       )}
 
-      {step === RegistrationStep.REGISTRATION_IN_PROGRESS && (
+      {step === RegistrationStep.REGISTER && (
         <RegistrationInProgress
           domainName={displayDomainName}
+          registerTxHash={registerTxHash}
+          isRegisterConfirming={isRegisterConfirming}
           onRegistrationSuccess={handleRegistrationSuccess}
         />
       )}
 
-      {step === RegistrationStep.REGISTRATION_SUCCESS && (
+      {step === RegistrationStep.REGISTER_SUCCESS && (
         <RegistrationSuccess
           domainName={displayDomainName}
           onSetupAutorenewal={handleSetupAutorenewal}
@@ -164,7 +174,67 @@ export function Registration({ initialName }: RegistrationProps) {
       )}
 
       {step === RegistrationStep.AUTORENEWAL && (
-        <Autorenewal domainName={displayDomainName} duration={duration} />
+        <Autorenewal
+          domainName={displayDomainName}
+          duration={duration}
+          onReset={reset}
+          onCompleteFlow={completeFlow}
+        />
+      )}
+
+      {/* Debug panel in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mx-auto mt-4 max-w-md p-4">
+          <details className="text-xs">
+            <summary className="cursor-pointer font-medium text-gray-600">
+              XState Debug Info
+            </summary>
+            <div className="mt-2 space-y-1 rounded bg-gray-100 p-2 font-mono text-gray-800">
+              <div>
+                <strong>Step:</strong> {step}
+              </div>
+              <div>
+                <strong>Domain:</strong> {domainName}
+              </div>
+              <div>
+                <strong>Duration:</strong> {duration}y
+              </div>
+              <div>
+                <strong>Connected:</strong> {isConnected ? '✅' : '❌'}
+              </div>
+              <div>
+                <strong>Commit Pending:</strong> {isCommitPending ? '⏳' : '✅'}
+              </div>
+              <div>
+                <strong>Register Pending:</strong>{' '}
+                {isRegisterPending ? '⏳' : '✅'}
+              </div>
+              {remainingTime > 0 && (
+                <div>
+                  <strong>Timer:</strong> {remainingTime}s
+                </div>
+              )}
+              {commitTxHash && (
+                <div>
+                  <strong>Commit TX:</strong> {commitTxHash.slice(0, 10)}...
+                </div>
+              )}
+              {registerTxHash && (
+                <div>
+                  <strong>Register TX:</strong> {registerTxHash.slice(0, 10)}...
+                </div>
+              )}
+              <Button
+                onClick={reset}
+                size="sm"
+                variant="outline"
+                className="mt-2"
+              >
+                Reset State
+              </Button>
+            </div>
+          </details>
+        </div>
       )}
     </div>
   )

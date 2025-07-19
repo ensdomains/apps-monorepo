@@ -1,26 +1,4 @@
-// Mock unavailable names
-const UNAVAILABLE_NAMES = [
-  'ucles.eth',
-  'test.eth',
-  'vitalik.eth',
-  'ethereum.eth',
-  'ens.eth',
-  'wallet.eth',
-  'crypto.eth',
-  'bitcoin.eth',
-  'web3.eth',
-  'defi.eth',
-  'nft.eth',
-  'dao.eth',
-  'metaverse.eth',
-  'blockchain.eth',
-  'smart.eth',
-  'contract.eth',
-  'dapp.eth',
-  'token.eth',
-  'coin.eth',
-  'money.eth',
-]
+import { checkNameAvailabilityService as realCheckService } from '@/features/register/services/checkNameAvailabilityService'
 
 export interface NameAvailabilityResult {
   name: string
@@ -31,29 +9,30 @@ export interface NameAvailabilityResult {
 export async function checkNameAvailability(
   name: string,
 ): Promise<NameAvailabilityResult> {
-  try {
-    // Simulate network delay
-    await new Promise((resolve) =>
-      setTimeout(resolve, 1000 + Math.random() * 1000),
-    )
+  console.log('🌐 Global service: checking name availability for:', name)
 
-    // Simulate random errors for some names (5% chance)
-    if (Math.random() < 0.05) {
+  try {
+    // Use the real contract service
+    const result = await realCheckService(name)
+
+    if (result.isOk()) {
+      const data = result.value
+      console.log('✅ Global service: success', data)
+      return {
+        name: data.name,
+        isAvailable: data.isAvailable,
+      }
+    } else {
+      const error = result.error
+      console.error('❌ Global service: contract error', error)
       return {
         name,
         isAvailable: false,
-        error: 'Network error occurred while checking availability',
+        error: `Contract error: ${error.cause}`,
       }
     }
-
-    // Check if name is in unavailable list
-    const isUnavailable = UNAVAILABLE_NAMES.includes(name.toLowerCase())
-
-    return {
-      name,
-      isAvailable: !isUnavailable,
-    }
   } catch (error) {
+    console.error('❌ Global service: unexpected error', error)
     return {
       name,
       isAvailable: false,

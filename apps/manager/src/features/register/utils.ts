@@ -1,3 +1,4 @@
+import { BASE_PRICE_PER_YEAR } from './machines/registrationMachine'
 import { NameAvailabilityError } from './machines/searchNameMachine'
 
 export const isNameAvailabilityError = (
@@ -40,26 +41,26 @@ export const ERC20_ABI = [
 // Stablecoin configurations for different chains
 export const STABLECOINS = [
   {
-    id: 'usdc-anvil',
-    name: 'USDC (Anvil)',
-    address: '0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e',
-    chainId: 31337,
+    id: 'usdc-local',
+    name: 'USDC (Local)',
+    address: '0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e', // Mock address for UI
+    chainId: 31337, // Updated to match our custom chain
     icon: 'USDC',
     decimals: 6,
   },
   {
-    id: 'usdt-anvil',
-    name: 'USDT (Anvil)',
-    address: '0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0',
-    chainId: 31337,
+    id: 'usdt-local',
+    name: 'USDT (Local)',
+    address: '0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0', // Mock address for UI
+    chainId: 31337, // Updated to match our custom chain
     icon: 'USDT',
     decimals: 6,
   },
   {
-    id: 'dai-anvil',
-    name: 'DAI (Anvil)',
-    address: '0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82',
-    chainId: 31337,
+    id: 'dai-local',
+    name: 'DAI (Local)',
+    address: '0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82', // Mock address for UI
+    chainId: 31337, // Updated to match our custom chain
     icon: 'DAI',
     decimals: 18,
   },
@@ -100,4 +101,16 @@ export function getChainInfo(chainId: number) {
   return (
     chainMap[chainId as keyof typeof chainMap] || { name: 'Unknown', icon: '?' }
   )
+}
+
+export function calculateRegistrationPrice(duration: number) {
+  const basePricePerYear = BigInt(BASE_PRICE_PER_YEAR)
+  const totalPrice = basePricePerYear * BigInt(duration)
+  console.log(
+    '💰 Calculated fallback price:',
+    totalPrice.toString(),
+    'for duration:',
+    duration,
+  )
+  return totalPrice
 }

@@ -25,6 +25,7 @@ interface PaymentDrawerProps {
   domainName?: string
   duration?: number
   priceUSD?: number
+  isLoading?: boolean
   onPaymentSelect?: (method: 'crypto' | 'credit-card') => void
   onCryptoSelect?: (cryptoId: string) => void
   onConfirmPayment?: () => void
@@ -116,6 +117,7 @@ export function CryptoPaymentDrawer({
   domainName = 'example.eth',
   duration = 25,
   priceUSD = 2800,
+  isLoading = false,
   onPaymentSelect,
   onCryptoSelect,
   onConfirmPayment,
@@ -125,8 +127,26 @@ export function CryptoPaymentDrawer({
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const { address, isConnected, chain } = useAccount()
 
-  const { top3Stablecoins, isLoading, hasBalances, error } =
+  const { top3Stablecoins, isLoading: isLoadingStablecoins, hasBalances } =
     useStablecoinBalances()
+
+  // Add debugging for stablecoin data
+  React.useEffect(() => {
+    console.log('💳 CryptoPaymentDrawer state:', {
+      isConnected,
+      address,
+      chain: chain?.name,
+      chainId: chain?.id,
+      isLoading,
+      hasBalances,
+      stablecoinCount: top3Stablecoins.length,
+      stablecoins: top3Stablecoins.map((coin) => ({
+        id: coin.id,
+        name: coin.name,
+        balance: coin.formattedBalance,
+      })),
+    })
+  }, [isConnected, address, chain, hasBalances, top3Stablecoins, isLoading])
 
   const triggerButton = (
     <Button className="h-12 flex-1 font-semibold text-base">
@@ -152,6 +172,11 @@ export function CryptoPaymentDrawer({
         <p className="text-gray-600 text-sm">
           Pay with any stablecoin on any chain
         </p>
+        {process.env.NODE_ENV === 'development' && (
+          <p className="mt-1 text-amber-600 text-xs">
+            ⚠️ Demo mode: Payments will be processed with ETH
+          </p>
+        )}
       </div>
 
       {/* Stablecoin options */}
@@ -242,20 +267,31 @@ export function CryptoPaymentDrawer({
 
         <Button
           className="w-full"
-          disabled={!selectedCoin || !hasBalances}
+          disabled={isLoading}
           onClick={() => {
+            console.log('💰 Payment button clicked:', {
+              selectedCoin,
+              hasBalances,
+              coinData: selectedCoin
+                ? top3Stablecoins.find((c) => c.id === selectedCoin)
+                : null,
+            })
+
+            console.log('✅ Proceeding with payment flow...')
+            onPaymentSelect?.('crypto')
             if (selectedCoin) {
-              onPaymentSelect?.('crypto')
               onCryptoSelect?.(selectedCoin)
-              setOpen(false)
-              onConfirmPayment?.()
             }
+            setOpen(false)
+            onConfirmPayment?.()
           }}
         >
-          Continue with{' '}
-          {selectedCoin
-            ? top3Stablecoins.find((c) => c.id === selectedCoin)?.name
-            : 'Selected Coin'}
+          {isLoading 
+            ? 'Processing...' 
+            : selectedCoin && hasBalances
+              ? `Continue with ${top3Stablecoins.find((c) => c.id === selectedCoin)?.name}`
+              : 'Continue with Payment'
+          }
         </Button>
       </div>
     </div>

@@ -29,6 +29,7 @@ type PricingProps = {
   currencyType: 'ETH' | 'USD'
   estimation?: EstimationData
   isConnected: boolean
+  isLoading?: boolean
   onSetDuration: (duration: number) => void
   onSetCurrency: (currency: 'ETH' | 'USD') => void
   onSelectPayment: (method: 'crypto' | 'credit-card') => void
@@ -42,6 +43,7 @@ export const Pricing = ({
   currencyType,
   estimation,
   isConnected,
+  isLoading = false,
   onSetDuration,
   onSetCurrency,
   onSelectPayment,
@@ -379,6 +381,7 @@ export const Pricing = ({
               domainName={domainName}
               duration={duration}
               priceUSD={currencyType === 'USD' ? total : total * 2500}
+              isLoading={isLoading}
               onPaymentSelect={onSelectPayment}
               onCryptoSelect={onSelectCrypto}
               onConfirmPayment={onConfirmPayment}

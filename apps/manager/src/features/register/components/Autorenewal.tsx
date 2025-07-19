@@ -9,9 +9,11 @@ import { Button } from '@/components/ui/button'
 interface AutorenewalProps {
   domainName: string
   duration: number
+  onReset?: () => void
+  onCompleteFlow?: () => void
 }
 
-export function Autorenewal({ domainName, duration }: AutorenewalProps) {
+export function Autorenewal({ domainName, duration, onReset, onCompleteFlow }: AutorenewalProps) {
   const navigate = useNavigate()
   const [skipped, setSkipped] = useState(false)
   const currentDate = new Date()
@@ -26,6 +28,14 @@ export function Autorenewal({ domainName, duration }: AutorenewalProps) {
 
   const handleSkipAutorenewal = () => {
     setSkipped(true)
+  }
+
+  const handleNavigateAway = (to: string) => {
+    // Clear localStorage when user completes the flow
+    onCompleteFlow?.()
+    // Reset the registration state when navigating away
+    onReset?.()
+    navigate({ to })
   }
 
   return (
@@ -47,13 +57,16 @@ export function Autorenewal({ domainName, duration }: AutorenewalProps) {
 
         {skipped ? (
           <div className="space-y-4">
-            <Button className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-background px-4 py-4 text-foreground hover:text-white">
+            <Button 
+              className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-background px-4 py-4 text-foreground hover:text-white"
+              onClick={() => handleNavigateAway('/')}
+            >
               Create profile
               <ArrowRightIcon className="h-4 w-4" />
             </Button>
             <Button
               className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-background px-4 py-4 text-foreground hover:text-white"
-              onClick={() => navigate({ to: '/' })}
+              onClick={() => handleNavigateAway('/')}
             >
               Back to dashboard
               <ArrowRightIcon className="h-4 w-4" />
