@@ -13,7 +13,12 @@ export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: false,
   multiInjectedProviderDiscovery: true,
-  chains: [addEnsContracts(mainnet)],
+  chains: [
+    {
+      ...addEnsContracts(mainnet),
+      subgraphs: { ens: { url: 'https://api.alpha.blue.ensnode.io/subgraph' } },
+    },
+  ],
   connectors: connectorsForWallets(
     [
       {

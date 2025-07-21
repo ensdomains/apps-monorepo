@@ -5,8 +5,9 @@ import {
   getSortedRowModel,
   type SortingState,
   useReactTable,
-} from "@tanstack/react-table"
- 
+} from '@tanstack/react-table'
+import { useState } from 'react'
+
 import {
   Table,
   TableBody,
@@ -14,19 +15,23 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { useState } from "react"
- 
+} from '@/components/ui/table'
+import { cn } from '@/lib/utils'
+
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
+}
+
+const isCoinText = (value: unknown): value is { id: number; value: string } => {
+  return 'id' in (value as object) && 'value' in (value as object)
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
 }: DataTableProps<TData, TValue>) {
-     const [sorting, setSorting] = useState<SortingState>([])
+  const [sorting, setSorting] = useState<SortingState>([])
   const table = useReactTable({
     data,
     columns,
@@ -38,22 +43,21 @@ export function DataTable<TData, TValue>({
     },
   })
 
- 
   return (
-    <div className="rounded-md border">
+    <div>
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
+              {headerGroup.headers.map((header, i) => {
                 return (
-                  <TableHead key={header.id}>
+                  <TableHead className={cn(i === 0 && 'pl-8')} key={header.id}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
                   </TableHead>
                 )
               })}
@@ -62,14 +66,21 @@ export function DataTable<TData, TValue>({
         </TableHeader>
         <TableBody>
           {table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map((row) => (
+            table.getRowModel().rows.map((row, _i) => (
               <TableRow
                 key={row.id}
-                data-state={row.getIsSelected() && "selected"}
+                data-state={row.getIsSelected() && 'selected'}
               >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                {row.getVisibleCells().map((cell, i) => (
+                  <TableCell
+                    className={cn(i === 0 ? 'pl-8' : 'font-mono', i === 1 && 'flex flex-row items-center gap-2')}
+                    key={cell.id}
+                  >
+                    {isCoinText(row.original) && i === 1 ? <>
+                      {row.original.id}
+                      <span className="font-sans text-gray-500 uppercase">{flexRender(cell.column.columnDef.cell, cell.getContext())}</span>
+
+                    </> : flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}
               </TableRow>

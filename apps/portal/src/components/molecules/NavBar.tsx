@@ -1,13 +1,12 @@
 import { Link } from '@tanstack/react-router'
 import { BookIcon, CircleQuestionMarkIcon, SettingsIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
+import { useAccount } from 'wagmi'
 import { LogoSVG } from '@/assets/logo'
 import { SearchBar } from './SearchBar'
-import { useAccount } from 'wagmi'
 
 export const NavBar = () => {
-
-  const {address} = useAccount()
+  const { address } = useAccount()
 
   return (
     <nav className="sticky top-0 left-0 flex flex-row p-4 bg-background text-foreground w-full justify-between border-b border-b-gray-300 h-(--header-height)">

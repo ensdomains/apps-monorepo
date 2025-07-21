@@ -1,39 +1,56 @@
-
-
-import { Button } from "@/components/ui/button"
-import { type ColumnDef } from "@tanstack/react-table"
-
-import { ArrowUpDown } from "lucide-react"
+import type { ColumnDef } from '@tanstack/react-table'
+import { ArrowUpDown } from 'lucide-react'
 
 // This type is used to define the shape of our data.
 // You can use a Zod schema here if you want.
 export type Record = {
   type: string
-  key: string
+  key?: string
   value: string
+}
+
+const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
+  return (
+    <button className="p-0 flex flex-row items-center" type="button" {...props}>
+      {children}
+      <ArrowUpDown className="ml-2 h-4 w-4" />
+    </button>
+  )
 }
 
 export const columns: ColumnDef<Record>[] = [
   {
-    accessorKey: "type",
-    header: "Type",
+    accessorKey: 'type',
+    header: ({ column }) => (
+      <SortButton
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      >
+        Type
+      </SortButton>
+    ),
   },
   {
-    accessorKey: "key",
-      header: ({ column }) => {
+    accessorKey: 'key',
+    header: ({ column }) => {
       return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        <SortButton
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
           Key
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        </SortButton>
       )
     },
   },
   {
-    accessorKey: "value",
-    header: "Value",
+    accessorKey: 'value',
+    header: ({ column }) => {
+      return (
+        <SortButton
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Value
+        </SortButton>
+      )
+    },
   },
 ]

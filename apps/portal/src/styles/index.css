@@ -1,5 +1,6 @@
 @import "tw-animate-css";
 @import "tailwindcss";
+@import "./fonts.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -43,4 +44,11 @@
   body {
     @reference bg-background text-foreground;
   }
+}
+
+@theme {
+  --font-sans: "ABCMonumentGrotesk";
+  --font-mono: "ABCMonumentGroteskMono";
+  --font-semi-mono: "ABCMonumentGroteskSemiMono";
+  --font-serif: "ABCMarist";
 }
