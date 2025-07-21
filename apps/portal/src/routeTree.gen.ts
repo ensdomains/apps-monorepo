@@ -9,50 +9,68 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as NameIndexRouteImport } from './routes/$name/index'
+import { Route as NameRecordsRouteImport } from './routes/$name/records'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const NameIndexRoute = NameIndexRouteImport.update({
+  id: '/$name/',
+  path: '/$name/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NameRecordsRoute = NameRecordsRouteImport.update({
+  id: '/$name/records',
+  path: '/$name/records',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/$name/records': typeof NameRecordsRoute
+  '/$name': typeof NameIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/$name/records': typeof NameRecordsRoute
+  '/$name': typeof NameIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/$name/records': typeof NameRecordsRoute
+  '/$name/': typeof NameIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/$name/records' | '/$name'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/$name/records' | '/$name'
+  id: '__root__' | '/$name/records' | '/$name/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  NameRecordsRoute: typeof NameRecordsRoute
+  NameIndexRoute: typeof NameIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/$name/': {
+      id: '/$name/'
+      path: '/$name'
+      fullPath: '/$name'
+      preLoaderRoute: typeof NameIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$name/records': {
+      id: '/$name/records'
+      path: '/$name/records'
+      fullPath: '/$name/records'
+      preLoaderRoute: typeof NameRecordsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  NameRecordsRoute: NameRecordsRoute,
+  NameIndexRoute: NameIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

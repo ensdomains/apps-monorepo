@@ -23,7 +23,7 @@ export default defineConfig({
     viteReact(),
     i18nextLoader({ paths: [locales] }),
     tailwindcss(),
-    cloudflare()
+    cloudflare(),
   ],
   test: {
     globals: true,
