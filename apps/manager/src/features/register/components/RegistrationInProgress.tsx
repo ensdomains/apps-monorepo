@@ -1,7 +1,7 @@
 'use client'
 
-import { LoaderIcon, ExternalLinkIcon } from 'lucide-react'
-import * as React from 'react'
+import { ExternalLinkIcon, LoaderIcon } from 'lucide-react'
+
 import { QRPattern } from '@/components/atoms'
 
 interface RegistrationInProgressProps {
@@ -40,14 +40,14 @@ export function RegistrationInProgress({
         <div className="flex items-center justify-center gap-2">
           <LoaderIcon className="h-4 w-4 text-gray-600" />
           <span className="font-medium text-gray-900 text-sm">
-            {registerTxHash && !isRegisterConfirming 
-              ? 'Registration confirmed!' 
-              : registerTxHash 
-              ? 'Confirming registration...' 
-              : 'Registration in progress'}
+            {registerTxHash && !isRegisterConfirming
+              ? 'Registration confirmed!'
+              : registerTxHash
+                ? 'Confirming registration...'
+                : 'Registration in progress'}
           </span>
         </div>
-        
+
         {registerTxHash && (
           <div className="space-y-2">
             <p className="text-muted-foreground text-sm">Transaction Hash:</p>
@@ -62,15 +62,17 @@ export function RegistrationInProgress({
             </a>
           </div>
         )}
-        
+
         <div className="h-1 w-full rounded-full bg-gray-200">
-          <div className={`h-1 rounded-full transition-all duration-500 ${
-            registerTxHash && !isRegisterConfirming
-              ? 'w-full bg-green-600'
-              : registerTxHash
-              ? 'w-4/5 animate-pulse bg-blue-600'
-              : 'w-2/3 animate-pulse bg-gray-600'
-          }`}></div>
+          <div
+            className={`h-1 rounded-full transition-all duration-500 ${
+              registerTxHash && !isRegisterConfirming
+                ? 'w-full bg-green-600'
+                : registerTxHash
+                  ? 'w-4/5 animate-pulse bg-blue-600'
+                  : 'w-2/3 animate-pulse bg-gray-600'
+            }`}
+          ></div>
         </div>
       </div>
     </div>

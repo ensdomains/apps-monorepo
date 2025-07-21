@@ -13,7 +13,12 @@ interface AutorenewalProps {
   onCompleteFlow?: () => void
 }
 
-export function Autorenewal({ domainName, duration, onReset, onCompleteFlow }: AutorenewalProps) {
+export function Autorenewal({
+  domainName,
+  duration,
+  onReset,
+  onCompleteFlow,
+}: AutorenewalProps) {
   const navigate = useNavigate()
   const [skipped, setSkipped] = useState(false)
   const currentDate = new Date()
@@ -57,7 +62,7 @@ export function Autorenewal({ domainName, duration, onReset, onCompleteFlow }: A
 
         {skipped ? (
           <div className="space-y-4">
-            <Button 
+            <Button
               className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-background px-4 py-4 text-foreground hover:text-white"
               onClick={() => handleNavigateAway('/')}
             >

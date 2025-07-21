@@ -27,7 +27,7 @@ export function CommitmentError({ domainName, onRetry }: CommitmentErrorProps) {
       <div className="space-y-4">
         <div className="flex items-center justify-center gap-2">
           <AlertCircleIcon className="h-6 w-6 text-red-600" />
-          <span className="font-medium text-red-900 text-lg">
+          <span className="font-medium text-lg text-red-900">
             Transaction Failed
           </span>
         </div>

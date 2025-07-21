@@ -1,9 +1,21 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 export const useTheme = () => {
   const [theme, setTheme] = useState('light')
 
   useEffect(() => {
+    const applyTheme = (newTheme: string) => {
+      const root = document.documentElement
+
+      if (newTheme === 'dark') {
+        root.classList.add('dark')
+      } else {
+        root.classList.remove('dark')
+      }
+
+      localStorage.setItem('theme', newTheme)
+    }
+
     const savedTheme = localStorage.getItem('theme')
     const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
       .matches
@@ -22,7 +34,7 @@ export const useTheme = () => {
     applyTheme(initialTheme)
   }, [])
 
-  const applyTheme = (newTheme: string) => {
+  const applyTheme = useCallback((newTheme: string) => {
     const root = document.documentElement
 
     if (newTheme === 'dark') {
@@ -32,13 +44,13 @@ export const useTheme = () => {
     }
 
     localStorage.setItem('theme', newTheme)
-  }
+  }, [])
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     const newTheme = theme === 'light' ? 'dark' : 'light'
     setTheme(newTheme)
     applyTheme(newTheme)
-  }
+  }, [theme, applyTheme])
 
   return { theme, toggleTheme }
 }

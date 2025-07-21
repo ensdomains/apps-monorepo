@@ -1,5 +1,3 @@
-
-
 interface WaitingForCommitTimeProps {
   domainName: string
   remainingTime: number
@@ -25,7 +23,7 @@ export function WaitingForCommitTime({
     <div className="mx-auto max-w-md p-6 text-center">
       {/* Header */}
       <div className="mb-6">
-        <div className="mb-2 text-lg font-semibold text-gray-900">
+        <div className="mb-2 font-semibold text-gray-900 text-lg">
           Waiting for commit confirmation
         </div>
         <div className="inline-flex items-center rounded bg-foreground px-3 py-1 font-bold font-mono text-background text-lg">
@@ -35,7 +33,10 @@ export function WaitingForCommitTime({
 
       {/* Timer Circle */}
       <div className="relative mx-auto mb-6 h-32 w-32">
-        <svg className="h-32 w-32 -rotate-90 transform" aria-label="Countdown timer">
+        <svg
+          className="-rotate-90 h-32 w-32 transform"
+          aria-label="Countdown timer"
+        >
           <title>Countdown Timer</title>
           {/* Background circle */}
           <circle
@@ -61,31 +62,32 @@ export function WaitingForCommitTime({
             strokeLinecap="round"
           />
         </svg>
-        
+
         {/* Timer text in center */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="font-bold text-2xl text-gray-900">
               {formatTime(remainingTime)}
             </div>
-            <div className="text-xs text-gray-500">remaining</div>
+            <div className="text-gray-500 text-xs">remaining</div>
           </div>
         </div>
       </div>
 
       {/* Description */}
-      <div className="mb-6 space-y-2 text-sm text-gray-600">
+      <div className="mb-6 space-y-2 text-gray-600 text-sm">
         <p>
           Your commit transaction has been confirmed. We need to wait 1 minute
           before proceeding with the registration.
         </p>
         <p>
-          This waiting period is required by the ENS protocol to prevent front-running attacks.
+          This waiting period is required by the ENS protocol to prevent
+          front-running attacks.
         </p>
         {commitTxHash && (
           <p className="text-xs">
             <span className="font-medium">Commit TX:</span>{' '}
-            <span className="font-mono break-all">{commitTxHash}</span>
+            <span className="break-all font-mono">{commitTxHash}</span>
           </p>
         )}
       </div>
@@ -93,19 +95,17 @@ export function WaitingForCommitTime({
       {/* Status */}
       <div className="mb-6">
         {remainingTime > 0 ? (
-          <div className="flex items-center justify-center space-x-2 text-sm text-amber-600">
+          <div className="flex items-center justify-center space-x-2 text-amber-600 text-sm">
             <div className="h-2 w-2 animate-pulse rounded-full bg-amber-500"></div>
             <span>Please wait, registration will start automatically...</span>
           </div>
         ) : (
-          <div className="flex items-center justify-center space-x-2 text-sm text-green-600">
+          <div className="flex items-center justify-center space-x-2 text-green-600 text-sm">
             <div className="h-2 w-2 rounded-full bg-green-500"></div>
             <span>Ready to register! Starting registration...</span>
           </div>
         )}
       </div>
-
-      
     </div>
   )
-} 
+}

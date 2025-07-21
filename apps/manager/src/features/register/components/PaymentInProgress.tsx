@@ -51,18 +51,18 @@ export function PaymentInProgress({
 
         <div>
           <h2 className="font-bold text-foreground text-xl">
-            {commitTxHash && !isCommitConfirming 
-              ? 'Transaction Confirmed' 
-              : commitTxHash 
-              ? 'Confirming Transaction' 
-              : 'Processing Payment'}
+            {commitTxHash && !isCommitConfirming
+              ? 'Transaction Confirmed'
+              : commitTxHash
+                ? 'Confirming Transaction'
+                : 'Processing Payment'}
           </h2>
           <p className="mt-2 text-muted-foreground text-sm">
             {commitTxHash && !isCommitConfirming
               ? 'Your transaction has been confirmed on the blockchain'
               : commitTxHash
-              ? 'Waiting for blockchain confirmation...'
-              : 'Please confirm the transaction in your wallet'}
+                ? 'Waiting for blockchain confirmation...'
+                : 'Please confirm the transaction in your wallet'}
           </p>
         </div>
       </div>
@@ -142,15 +142,15 @@ export function PaymentInProgress({
               commitTxHash && !isCommitConfirming
                 ? 'text-green-600'
                 : commitTxHash
-                ? 'text-blue-600'
-                : 'text-yellow-600'
+                  ? 'text-blue-600'
+                  : 'text-yellow-600'
             }`}
           >
             {commitTxHash && !isCommitConfirming
               ? 'Commit confirmed on blockchain'
               : commitTxHash
-              ? 'Confirming on blockchain...'
-              : 'Waiting for blockchain confirmation'}
+                ? 'Confirming on blockchain...'
+                : 'Waiting for blockchain confirmation'}
           </span>
         </div>
 

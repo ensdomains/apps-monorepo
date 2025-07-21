@@ -127,8 +127,7 @@ export function CryptoPaymentDrawer({
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const { address, isConnected, chain } = useAccount()
 
-  const { top3Stablecoins, isLoading: isLoadingStablecoins, hasBalances } =
-    useStablecoinBalances()
+  const { top3Stablecoins, hasBalances } = useStablecoinBalances()
 
   // Add debugging for stablecoin data
   React.useEffect(() => {
@@ -286,12 +285,11 @@ export function CryptoPaymentDrawer({
             onConfirmPayment?.()
           }}
         >
-          {isLoading 
-            ? 'Processing...' 
+          {isLoading
+            ? 'Processing...'
             : selectedCoin && hasBalances
               ? `Continue with ${top3Stablecoins.find((c) => c.id === selectedCoin)?.name}`
-              : 'Continue with Payment'
-          }
+              : 'Continue with Payment'}
         </Button>
       </div>
     </div>
