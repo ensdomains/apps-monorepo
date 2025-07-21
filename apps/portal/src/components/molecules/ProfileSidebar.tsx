@@ -6,6 +6,7 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
+  SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -23,19 +24,19 @@ const itemGroups = [
     {
       title: 'Records',
       url: '/$name/records',
-      icon: FileSpreadsheetIcon
+      icon: FileSpreadsheetIcon,
     },
     {
       title: 'Records',
       url: '/$name/records',
-      icon: FileSpreadsheetIcon
-    }
-  ]
+      icon: FileSpreadsheetIcon,
+    },
+  ],
 ] as const
 
 export const ProfileSidebar = ({ name }: { name: string }) => {
   return (
-    <Sidebar>
+    <Sidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!">
       <SidebarHeader>
         <span className="text-lg font-bold">{name}</span>
       </SidebarHeader>
@@ -48,8 +49,8 @@ export const ProfileSidebar = ({ name }: { name: string }) => {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
                       <Link params={{ name }} to={item.url}>
-                        <item.icon />
-                        <span>{item.title}</span>
+                        <item.icon height={24} width={24} />
+                        <span className="text-sm font-medium">{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

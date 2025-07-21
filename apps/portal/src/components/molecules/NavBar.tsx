@@ -3,10 +3,14 @@ import { BookIcon, CircleQuestionMarkIcon, SettingsIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import { LogoSVG } from '@/assets/logo'
 import { SearchBar } from './SearchBar'
+import { useAccount } from 'wagmi'
 
 export const NavBar = () => {
+
+  const {address} = useAccount()
+
   return (
-    <nav className="sticky top-0 left-0 flex flex-row p-4 bg-background text-foreground w-full justify-between border-b border-b-gray-300">
+    <nav className="sticky top-0 left-0 flex flex-row p-4 bg-background text-foreground w-full justify-between border-b border-b-gray-300 h-(--header-height)">
       <div className="flex flex-row gap-2 items-center w-full">
         <LogoSVG width={72} height="auto" />{' '}
         <span className="font-bold">Explorer</span>
@@ -27,6 +31,7 @@ export const NavBar = () => {
         >
           <BookIcon height={16} width={16} />
         </ExternalLink>
+        {address?.slice(0, 6)}
       </div>
     </nav>
   )
