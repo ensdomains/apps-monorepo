@@ -3,7 +3,7 @@
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import i18nextLoader from '@ensdomains/vite-plugin-i18next-loader'
-import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
+import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin'
 import viteReact from '@vitejs/plugin-react-swc'
 import { defineConfig } from 'vite'
@@ -15,7 +15,7 @@ const locales = dirname(
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    TanStackRouterVite({
+    tanstackRouter({
       autoCodeSplitting: true,
       routeFileIgnorePattern: '.((css|const).ts)',
     }),
