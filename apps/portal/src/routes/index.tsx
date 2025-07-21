@@ -1,9 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { NavBar } from '@/components/ui/NavBar'
+import { useTheme } from '@/hooks/use-theme'
 
 export const Route = createFileRoute('/')({
   component: App,
 })
 
 function App() {
-  return <></>
+  const { toggleTheme, theme } = useTheme()
+
+  return <NavBar />
 }

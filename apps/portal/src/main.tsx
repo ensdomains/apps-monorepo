@@ -5,7 +5,7 @@ import reportWebVitals from './reportWebVitals.ts'
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
 import '@rainbow-me/rainbowkit/styles.css'
-
+import '@/styles/index.css'
 import resources from 'virtual:i18next-loader'
 import i18n from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'

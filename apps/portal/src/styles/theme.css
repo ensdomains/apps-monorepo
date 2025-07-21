@@ -1,0 +1,16 @@
+@theme {
+  --font-sans: "ABCMonumentGrotesk";
+  --font-mono: "ABCMonumentGroteskMono";
+  --font-semi-mono: "ABCMonumentGroteskSemiMono";
+  --font-serif: "ABCMarist";
+}
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+}
+
+:root.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+}
