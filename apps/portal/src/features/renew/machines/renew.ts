@@ -6,7 +6,7 @@ import { fromPromise, ok } from 'neverthrow'
 import type { TransactionReceipt } from 'viem'
 import { assign, log, setup } from 'xstate'
 import { wagmiConfig } from '@/lib/wagmi'
-import { safeGetClient, WagmiClientError } from '@/lib/wagmi/helpers'
+import { safeGetClient, type WagmiClientError } from '@/lib/wagmi/helpers'
 import {
   type TransactionMachineError,
   transactionMachine,

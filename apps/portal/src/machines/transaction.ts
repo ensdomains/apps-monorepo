@@ -6,8 +6,8 @@ import { type ChainType, wagmiConfig } from '@/lib/wagmi'
 import {
   safeSendTransaction,
   safeWaitForTransactionReceipt,
-  WagmiSendTransactionError,
-  WagmiWaitForTransactionReceiptError,
+  type WagmiSendTransactionError,
+  type WagmiWaitForTransactionReceiptError,
 } from '@/lib/wagmi/helpers'
 
 export type TransactionMachineError =
