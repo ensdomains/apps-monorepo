@@ -24,6 +24,11 @@ const itemGroups = [
       title: 'Records',
       url: '/$name/records',
       icon: FileSpreadsheetIcon
+    },
+    {
+      title: 'Records',
+      url: '/$name/records',
+      icon: FileSpreadsheetIcon
     }
   ]
 ] as const
@@ -32,7 +37,7 @@ export const ProfileSidebar = ({ name }: { name: string }) => {
   return (
     <Sidebar>
       <SidebarHeader>
-        {name}
+        <span className="text-lg font-bold">{name}</span>
       </SidebarHeader>
       <SidebarContent>
         {itemGroups.map((items) => (
