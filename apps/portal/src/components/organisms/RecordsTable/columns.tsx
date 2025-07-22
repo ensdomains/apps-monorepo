@@ -6,17 +6,17 @@ import { Checkbox } from '@/components/ui/checkbox'
 // You can use a Zod schema here if you want.
 export type Record = { value: string } & (
   | {
-      type: 'coin'
-      id: number
-      key: string
-    }
+    type: 'coin'
+    id: number
+    key: string
+  }
   | {
-      type: 'contentHash'
-    }
+    type: 'contentHash'
+  }
   | {
-      type: 'text'
-      key: string
-    }
+    type: 'text'
+    key: string
+  }
 )
 
 const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
@@ -76,7 +76,7 @@ export const columns: ColumnDef<Record>[] = [
     },
     cell: ({ column, row }) => {
       const type = row.original.type
-      const value = row.getValue(column.id) as Record['value']
+      const value = row.getValue(column.id) as string
       if (type === 'coin') {
         return (
           <span className={'flex flex-row items-center gap-2'}>
@@ -84,7 +84,7 @@ export const columns: ColumnDef<Record>[] = [
             <span className="font-sans text-gray-500 uppercase">{value}</span>
           </span>
         )
-      } else return value
+      } else return <span className="font-mono">{value}</span>
     },
   },
   {
@@ -98,5 +98,10 @@ export const columns: ColumnDef<Record>[] = [
         </SortButton>
       )
     },
+    cell: ({ column, row }) => {
+      const value = row.getValue(column.id) as Record['value']
+
+      return <span className="font-mono">{value}</span>
+    }
   },
 ]
