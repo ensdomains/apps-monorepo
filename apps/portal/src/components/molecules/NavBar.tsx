@@ -1,12 +1,11 @@
+import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { Link } from '@tanstack/react-router'
 import { BookIcon, CircleQuestionMarkIcon, SettingsIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
-import { useAccount } from 'wagmi'
 import { LogoSVG } from '@/assets/logo'
 import { SearchBar } from './SearchBar'
 
 export const NavBar = () => {
-  const { address } = useAccount()
 
   return (
     <nav className="sticky top-0 left-0 flex flex-row p-4 bg-background text-foreground w-full justify-between border-b border-b-gray-300 h-(--header-height)">
@@ -30,7 +29,7 @@ export const NavBar = () => {
         >
           <BookIcon height={16} width={16} />
         </ExternalLink>
-        {address?.slice(0, 6)}
+        <ConnectButton showBalance={false} accountStatus="avatar" />
       </div>
     </nav>
   )

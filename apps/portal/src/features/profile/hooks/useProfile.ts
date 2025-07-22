@@ -3,6 +3,7 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getRecords } from '@ensdomains/ensjs/public'
 import { getSubgraphRecords } from '@ensdomains/ensjs/subgraph'
+import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
@@ -24,7 +25,7 @@ export const getProfile = ResultFn(async function* (name: string) {
   )
 
   const records = yield* await fromPromise(
-    getRecords(client, { name, ...subgraphRecords, contentHash: true }),
+    getRecords(client, { name, ...subgraphRecords, contentHash: true, abi: true }),
     (e) => new RecordsError({ cause: e }),
   )
 
@@ -46,3 +47,7 @@ export const getProfileQueryOptions = (name: string) =>
     queryKey: profileQueryKey({ name }),
     queryFn: ({ queryKey: [, { name }] }) => getProfile(name),
   })
+
+export const useProfile = (name: string) => {
+  return useQuery(getProfileQueryOptions(name))
+}
