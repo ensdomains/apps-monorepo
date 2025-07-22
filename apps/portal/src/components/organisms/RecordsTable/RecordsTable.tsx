@@ -11,8 +11,6 @@ type Entries<T> = {
 const recordsToTableData = (records: GetRecordsReturnType) => {
   const data: { key?: string, value: string, type: string; id?: number }[] = []
 
-  console.log(records)
-
   for (const [key, value] of Object.entries(records) as Entries<GetRecordsReturnType>) {
     if (key === 'contentHash' && value) {
       data.push({ type: key, value: `${value.protocolType}://${value.decoded}` })

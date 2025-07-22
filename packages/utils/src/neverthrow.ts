@@ -1,4 +1,4 @@
-import { Err, err, ok, Result, ResultAsync, safeTry } from 'neverthrow'
+import { type Err, err, ok, type Result, type ResultAsync, safeTry } from 'neverthrow'
 
 export type InferOkTypes<R> = R extends Result<infer T, unknown> ? T : never
 export type InferErrTypes<R> = R extends Result<unknown, infer E> ? E : never
@@ -101,15 +101,9 @@ export type Equals<X, Y> = (<T>() => T extends X ? 1 : 2) extends <
   : false
 
 export function TaggedError<const Tag extends string>(tag: Tag) {
-  class Base<A extends Record<string, unknown>> extends DataError<A> {
+  return class Base<A extends Record<string, unknown>> extends DataError<A> {
     readonly _tag = tag
+    name = `TaggedError#${tag}`
   }
-
-  Base.prototype.name = tag
-  Object.defineProperty(Base, 'name', {
-    value: `TaggedError#${tag}`,
-    writable: false,
-  })
-
-  return Base
 }
+
