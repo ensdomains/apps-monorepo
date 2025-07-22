@@ -2,7 +2,7 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ok } from 'neverthrow'
-import { checkRealNameAvailability } from './realEnsContractService'
+import { checkRealNameAvailability } from './nameChainContractService'
 
 export class NameAvailabilityError extends TaggedError(
   'NameAvailabilityError',

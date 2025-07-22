@@ -2,37 +2,17 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok } from 'neverthrow'
 import {
   type Address,
-  createPublicClient,
   encodeAbiParameters,
   encodeFunctionData,
-  http,
   keccak256,
 } from 'viem'
-import { localhost } from 'viem/chains'
+import { publicClient } from '@/lib/wagmi'
 
-export class RealEnsContractError extends TaggedError('RealEnsContractError')<{
+export class NameChainContractError extends TaggedError(
+  'NameChainContractError',
+)<{
   cause: unknown
 }> {}
-
-// Use the same anvil chain configuration as wagmi.ts
-const anvil = {
-  ...localhost,
-  id: 31338,
-  name: 'Anvil',
-  rpcUrls: {
-    ...localhost.rpcUrls,
-    default: {
-      http: ['http://127.0.0.1:8546'],
-      webSocket: ['ws://127.0.0.1:8546'],
-    },
-  },
-}
-
-// Create public client using the same configuration as wagmi
-const publicL2Client = createPublicClient({
-  chain: anvil,
-  transport: http('http://127.0.0.1:8546'),
-})
 
 export const CONTRACT_ADDRESSES = {
   L2: {
@@ -124,16 +104,9 @@ export const ETH_REGISTRAR_ABI = [
   },
 ] as const
 
-const REGISTRY_ADDRESS = '0x32850cAd1e9170614704fF8BA37a25e498e1B832'
-const EMPTY_ADDRESS = '0x0000000000000000000000000000000000000000'
+export const REGISTRY_ADDRESS = '0x32850cAd1e9170614704fF8BA37a25e498e1B832'
+export const EMPTY_ADDRESS = '0x0000000000000000000000000000000000000000'
 
-const defaultGas = {
-  gas: 1000000n,
-  maxFeePerGas: 1000000000n,
-  maxPriorityFeePerGas: 1000000000n,
-}
-
-// Transaction parameter types for wagmi hooks
 export interface CommitTransactionParams {
   to: Address
   data: `0x${string}`
@@ -151,7 +124,6 @@ export interface RegisterTransactionParams {
   maxPriorityFeePerGas: bigint
 }
 
-// Helper function to generate commitment hash
 export const generateCommitment = (
   name: string,
   ownerAddress: string,
@@ -200,17 +172,19 @@ export const checkRealNameAvailability = ResultFn(async function* (
   try {
     // First, let's test if the network is reachable
     const networkTest = yield* await fromPromise(
-      publicL2Client.getChainId(),
+      publicClient.getChainId(),
       (e) => {
         console.error('❌ Network connection failed:', e)
-        return new RealEnsContractError({ cause: `Network unreachable: ${e}` })
+        return new NameChainContractError({
+          cause: `Network unreachable: ${e}`,
+        })
       },
     )
 
     console.log('✅ Network connection successful, chain ID:', networkTest)
 
     const availability = yield* await fromPromise(
-      publicL2Client.readContract({
+      publicClient.readContract({
         address: CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
         abi: ETH_REGISTRAR_ABI,
         functionName: 'available',
@@ -218,7 +192,9 @@ export const checkRealNameAvailability = ResultFn(async function* (
       }),
       (e) => {
         console.error('❌ Contract call failed:', e)
-        return new RealEnsContractError({ cause: `Contract call failed: ${e}` })
+        return new NameChainContractError({
+          cause: `Contract call failed: ${e}`,
+        })
       },
     )
 
@@ -230,7 +206,7 @@ export const checkRealNameAvailability = ResultFn(async function* (
     })
   } catch (error) {
     console.error('❌ Unexpected error in checkRealNameAvailability:', error)
-    throw new RealEnsContractError({ cause: error })
+    throw new NameChainContractError({ cause: error })
   }
 })
 
@@ -239,16 +215,16 @@ export const getRealNamePrice = ResultFn(async function* (
   duration: number = 1,
 ) {
   const cleanName = name.replace('.eth', '')
-  const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60) // Convert years to seconds
+  const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
 
   const priceResult = yield* await fromPromise(
-    publicL2Client.readContract({
+    publicClient.readContract({
       address: CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
       abi: ETH_REGISTRAR_ABI,
       functionName: 'rentPrice',
       args: [cleanName, durationInSeconds],
     }),
-    (e) => new RealEnsContractError({ cause: e }),
+    (e) => new NameChainContractError({ cause: e }),
   )
 
   const totalPrice = (priceResult as any).base + (priceResult as any).premium
@@ -260,12 +236,14 @@ export const getRealNamePrice = ResultFn(async function* (
   })
 })
 
-// Generate commit transaction parameters (no execution)
 export const getCommitTransactionParams = (
   name: string,
   ownerAddress: string,
   duration: number = 1,
-): CommitTransactionParams => {
+): Omit<
+  CommitTransactionParams,
+  'gas' | 'maxFeePerGas' | 'maxPriorityFeePerGas'
+> => {
   const { commitment } = generateCommitment(name, ownerAddress, duration)
 
   return {
@@ -275,25 +253,18 @@ export const getCommitTransactionParams = (
       functionName: 'commit',
       args: [commitment],
     }),
-    ...defaultGas,
   }
 }
 
-// Legacy function that actually executes transaction (deprecated)
-export const commitNameRegistration = () => {
-  throw new RealEnsContractError({
-    cause:
-      'commitNameRegistration should not be called directly. Use getCommitTransactionParams with wagmi hooks instead.',
-  })
-}
-
-// Generate register transaction parameters (no execution)
 export const getRegisterTransactionParams = (
   name: string,
   ownerAddress: string,
   duration: number = 1,
   valueInEth: string = '0.025',
-): RegisterTransactionParams => {
+): Omit<
+  RegisterTransactionParams,
+  'gas' | 'maxFeePerGas' | 'maxPriorityFeePerGas'
+> => {
   const cleanName = name.replace('.eth', '')
   const { secret } = generateCommitment(name, ownerAddress, duration)
   const valueInWei = BigInt(parseFloat(valueInEth) * 1e18)
@@ -314,29 +285,20 @@ export const getRegisterTransactionParams = (
       ],
     }),
     value: valueInWei,
-    ...defaultGas,
   }
-}
-
-// Legacy function (deprecated)
-export const registerName = () => {
-  throw new RealEnsContractError({
-    cause:
-      'registerName should not be called directly. Use getRegisterTransactionParams with wagmi hooks instead.',
-  })
 }
 
 export const validateNameFormat = ResultFn(async function* (name: string) {
   const cleanName = name.replace('.eth', '')
 
   const isValid = yield* await fromPromise(
-    publicL2Client.readContract({
+    publicClient.readContract({
       address: CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
       abi: ETH_REGISTRAR_ABI,
       functionName: 'valid',
       args: [cleanName],
     }),
-    (e) => new RealEnsContractError({ cause: e }),
+    (e) => new NameChainContractError({ cause: e }),
   )
 
   return ok({

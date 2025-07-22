@@ -9,9 +9,11 @@ import {
 } from '../machines/registrationMachine'
 import {
   CONTRACT_ADDRESSES,
+  EMPTY_ADDRESS,
   ETH_REGISTRAR_ABI,
   generateCommitment,
-} from '../services/realEnsContractService'
+  REGISTRY_ADDRESS,
+} from '../services/nameChainContractService'
 import { calculateRegistrationPrice } from '../utils'
 
 export { RegistrationStep } from '../machines/registrationMachine'
@@ -59,7 +61,6 @@ export function useEnsRegistration(initialName?: string) {
     }
   }, [state.context.duration, state.context.name, send])
 
-  // Timer logic for 60-second minimum commitment age (matches contract requirements)
   useEffect(() => {
     if (
       state.context.step === RegistrationStep.WAITING_FOR_COMMIT_TIME &&
@@ -104,7 +105,6 @@ export function useEnsRegistration(initialName?: string) {
     }
   }, [state.context.step, state.context.commitTimestamp, send])
 
-  // Actions matching working implementation
   const startCommitment = useCallback(async () => {
     if (!state.context.name || !address || !isConnected || !walletClient) {
       console.log('❌ Missing required data:', {
@@ -121,7 +121,6 @@ export function useEnsRegistration(initialName?: string) {
       console.log('🔒 Starting commit transaction for:', state.context.name)
       console.log('🌐 Current chain ID:', chainId)
 
-      // Generate commitment like working version
       const { commitment, secret } = generateCommitment(
         state.context.name,
         address,
@@ -140,7 +139,6 @@ export function useEnsRegistration(initialName?: string) {
 
       console.log('✅ Commit transaction sent with hash:', hash)
 
-      // ✅ Wait for transaction receipt to confirm it was mined
       console.log('⏳ Waiting for commit transaction confirmation...')
       const receipt = await waitForTransactionReceipt(wagmiConfig, {
         hash,
@@ -151,7 +149,6 @@ export function useEnsRegistration(initialName?: string) {
       const timestamp = Date.now()
       console.log('📅 Commit timestamp:', timestamp)
 
-      // Send success result to state machine only after confirmation
       send({
         type: 'COMMIT_RESULT',
         commitment,
@@ -194,7 +191,6 @@ export function useEnsRegistration(initialName?: string) {
       console.log('📝 Starting register transaction for:', state.context.name)
       console.log('🌐 Current chain ID:', chainId)
 
-      // Calculate ETH value using our price calculation function
       const valueInWei = calculateRegistrationPrice(state.context.duration)
       const durationInSeconds = BigInt(
         state.context.duration * 365 * 24 * 60 * 60,
@@ -204,7 +200,6 @@ export function useEnsRegistration(initialName?: string) {
       console.log('💰 Registration price in wei:', valueInWei.toString())
       console.log('⏱️ Duration in seconds:', durationInSeconds.toString())
 
-      // Use walletClient.writeContract like working version
       const hash = await walletClient.writeContract({
         address: CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
         abi: ETH_REGISTRAR_ABI,
@@ -213,8 +208,8 @@ export function useEnsRegistration(initialName?: string) {
           cleanName,
           address as `0x${string}`,
           state.context.secret as `0x${string}`,
-          '0x32850cAd1e9170614704fF8BA37a25e498e1B832' as `0x${string}`, // registry
-          '0x0000000000000000000000000000000000000000' as `0x${string}`, // resolver
+          REGISTRY_ADDRESS as `0x${string}`,
+          EMPTY_ADDRESS as `0x${string}`,
           durationInSeconds,
         ],
         value: valueInWei,
@@ -222,7 +217,6 @@ export function useEnsRegistration(initialName?: string) {
 
       console.log('✅ Register transaction sent:', hash)
 
-      // ✅ Wait for transaction receipt to confirm it was mined
       console.log('⏳ Waiting for register transaction confirmation...')
       const receipt = await waitForTransactionReceipt(wagmiConfig, {
         hash,
@@ -231,7 +225,6 @@ export function useEnsRegistration(initialName?: string) {
 
       console.log('✅ Register transaction confirmed:', receipt)
 
-      // Send success result to state machine only after confirmation
       send({
         type: 'REGISTER_RESULT',
         txHash: hash,
@@ -254,12 +247,11 @@ export function useEnsRegistration(initialName?: string) {
     send,
   ])
 
-  // Auto-start registration when timer completes - but not if we're in an error state
   useEffect(() => {
     if (
       state.context.step === RegistrationStep.REGISTER &&
       !state.context.registerTxHash &&
-      !state.context.error // Don't auto-start if there's an error
+      !state.context.error
     ) {
       startRegistration()
     }
@@ -272,7 +264,6 @@ export function useEnsRegistration(initialName?: string) {
 
   // Public API
   return {
-    // State
     step: state.context.step,
     domainName: state.context.name,
     duration: state.context.duration,
@@ -281,28 +272,18 @@ export function useEnsRegistration(initialName?: string) {
     selectedPaymentMethod: state.context.selectedPaymentMethod,
     selectedCrypto: state.context.selectedCrypto,
     error: state.context.error,
-
-    // Timer
     remainingTime: state.context.remainingTime,
-
-    // Transaction state
     commitTxHash: state.context.commitTxHash,
     registerTxHash: state.context.registerTxHash,
-    isCommitPending: false, // We handle this differently now
-    isRegisterPending: false, // We handle this differently now
+    isCommitPending: false,
+    isRegisterPending: false,
     isCommitConfirming: false,
     isRegisterConfirming: false,
     isCommitSuccess: !!state.context.commitTxHash,
     isRegisterSuccess: !!state.context.registerTxHash,
-
-    // Calculated price for registration
     calculatedPrice: calculateRegistrationPrice(state.context.duration),
-
-    // Wallet state
     isConnected,
     address,
-
-    // Actions
     setDomainName: (name: string) => send({ type: 'SET_NAME', name }),
     setDuration: (duration: number) => send({ type: 'SET_DURATION', duration }),
     setCurrency: (currencyType: 'ETH' | 'USD') =>
@@ -311,8 +292,6 @@ export function useEnsRegistration(initialName?: string) {
       send({ type: 'SELECT_PAYMENT', method }),
     selectCrypto: (cryptoId: string) =>
       send({ type: 'SELECT_CRYPTO', cryptoId }),
-
-    // Flow actions
     confirmPayment: () => {
       send({ type: 'CONFIRM_PAYMENT' })
       startCommitment()
@@ -323,7 +302,7 @@ export function useEnsRegistration(initialName?: string) {
     },
     skipNotifications: () => send({ type: 'SKIP_NOTIFICATIONS' }),
     setupAutorenewal: () => send({ type: 'SETUP_AUTORENEWAL' }),
-    completeFlow: () => send({ type: 'COMPLETE_FLOW' }), // Clear localStorage when flow is complete
+    completeFlow: () => send({ type: 'COMPLETE_FLOW' }),
     reset: () => {
       send({ type: 'RESET' })
     },

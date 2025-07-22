@@ -1,7 +1,6 @@
 import { assign, fromPromise, setup } from 'xstate'
-import { getRealNamePrice } from '../services/realEnsContractService'
+import { getRealNamePrice } from '../services/nameChainContractService'
 
-// Persistence keys
 const STORAGE_KEYS = {
   COMMITMENT: 'ens_commitment',
   SECRET: 'ens_secret',
@@ -13,12 +12,13 @@ const STORAGE_KEYS = {
   REGISTER_TX_HASH: 'ens_register_tx_hash',
   OWNER_ADDRESS: 'ens_owner_address',
 }
+
 export const BASE_PRICE_PER_YEAR = '25000000000000000'
 
 export enum RegistrationStep {
   PRICING = 'pricing',
   MAKE_COMMITMENT = 'makeCommitment',
-  COMMITMENT_ERROR = 'commitmentError', // New error state for commit failures
+  COMMITMENT_ERROR = 'commitmentError',
   WAITING_FOR_COMMIT_TIME = 'waitingForCommitTime',
   REGISTER = 'registerInProgress',
   REGISTER_SUCCESS = 'registerSuccess',
@@ -26,36 +26,25 @@ export enum RegistrationStep {
 }
 
 interface RegistrationContext {
-  // Domain info
   name: string
   duration: number
   isAvailable: boolean | null
-
-  // Pricing
   pricing?: {
     totalPrice: string
     base: string
     premium: string
   }
-
-  // Registration data
   ownerAddress: string
   commitment: string
   secret: string
   commitTimestamp: number
   remainingTime: number
-
-  // Transaction hashes
   commitTxHash: string
   registerTxHash: string
-
-  // UI state
   step: RegistrationStep
   currencyType: 'ETH' | 'USD'
   selectedPaymentMethod?: 'crypto' | 'credit-card'
   selectedCrypto?: string
-
-  // Error handling
   error: string
 }
 
@@ -77,16 +66,15 @@ type RegistrationEvent =
   | { type: 'TIMER_TICK'; remainingTime: number }
   | { type: 'TIMER_COMPLETE' }
   | { type: 'REGISTER_RESULT'; txHash: string }
-  | { type: 'RETRY_COMMIT' } // New event to retry commitment
+  | { type: 'RETRY_COMMIT' }
   | { type: 'SKIP_NOTIFICATIONS' }
   | { type: 'SETUP_AUTORENEWAL' }
-  | { type: 'COMPLETE_FLOW' } // New event to clear localStorage when flow is complete
+  | { type: 'COMPLETE_FLOW' }
   | { type: 'RESET' }
   | { type: 'ERROR'; message: string }
 
 const isBrowser = typeof window !== 'undefined'
 
-// Load saved state from localStorage
 const loadSavedData = (): Partial<RegistrationContext> => {
   const defaultData: Partial<RegistrationContext> = {
     name: '',
@@ -130,66 +118,17 @@ const loadSavedData = (): Partial<RegistrationContext> => {
   }
 }
 
-// Save to localStorage
 const saveToStorage = (key: string, value: string) => {
   if (isBrowser) {
     localStorage.setItem(key, value)
   }
 }
 
-// Clear storage
 const clearStorage = () => {
   if (isBrowser) {
     Object.values(STORAGE_KEYS).forEach((key) => {
       localStorage.removeItem(key)
     })
-  }
-}
-
-// Determine initial step based on saved data - matching working version
-function _determineInitialStep(
-  saved: Partial<RegistrationContext>,
-): RegistrationStep {
-  if (saved.registerTxHash) {
-    return RegistrationStep.REGISTER_SUCCESS
-  }
-
-  if (saved.commitment && saved.secret && saved.name && saved.commitTimestamp) {
-    const now = Date.now()
-    const commitTime = saved.commitTimestamp
-    const elapsedTime = now - commitTime
-
-    // Check if within 24 hours (maxCommitmentAge)
-    if (elapsedTime < 24 * 60 * 60 * 1000) {
-      // Check if past 60 seconds (minCommitmentAge)
-      if (elapsedTime >= 60 * 1000) {
-        return RegistrationStep.REGISTER
-      } else {
-        return RegistrationStep.WAITING_FOR_COMMIT_TIME
-      }
-    }
-  }
-
-  return RegistrationStep.PRICING
-}
-
-// Map RegistrationStep to state machine state names
-function _getInitialStateName(step: RegistrationStep): string {
-  switch (step) {
-    case RegistrationStep.PRICING:
-      return 'pricing'
-    case RegistrationStep.MAKE_COMMITMENT:
-      return 'makeCommitment'
-    case RegistrationStep.WAITING_FOR_COMMIT_TIME:
-      return 'waitingForCommitTime'
-    case RegistrationStep.REGISTER:
-      return 'registerInProgress'
-    case RegistrationStep.REGISTER_SUCCESS:
-      return 'registerSuccess'
-    case RegistrationStep.AUTORENEWAL:
-      return 'autorenewal'
-    default:
-      return 'pricing'
   }
 }
 
@@ -206,7 +145,7 @@ const initialContext: RegistrationContext = {
   remainingTime: savedData.remainingTime || 0,
   commitTxHash: savedData.commitTxHash || '',
   registerTxHash: savedData.registerTxHash || '',
-  step: RegistrationStep.PRICING, // Always start in pricing state
+  step: RegistrationStep.PRICING,
   currencyType: savedData.currencyType || 'ETH',
   selectedPaymentMethod: savedData.selectedPaymentMethod,
   selectedCrypto: savedData.selectedCrypto,
@@ -272,7 +211,7 @@ export const registrationMachine = setup({
         event.type === 'COMMIT_RESULT' ? event.timestamp : 0,
       commitTxHash: ({ event }) =>
         event.type === 'COMMIT_RESULT' ? event.txHash : '',
-      step: () => RegistrationStep.WAITING_FOR_COMMIT_TIME, // Restore timer step
+      step: () => RegistrationStep.WAITING_FOR_COMMIT_TIME,
     }),
 
     updateTimer: assign({
@@ -294,7 +233,6 @@ export const registrationMachine = setup({
       error: () => '',
     }),
 
-    // Persistence actions
     saveCommitData: ({ context }) => {
       saveToStorage(STORAGE_KEYS.COMMITMENT, context.commitment)
       saveToStorage(STORAGE_KEYS.SECRET, context.secret)
@@ -361,7 +299,6 @@ export const registrationMachine = setup({
     pricing: {
       entry: ['clearError'],
       always: [
-        // Auto-transition based on saved state - only after machine is initialized
         {
           target: 'registerSuccess',
           guard: ({ context }) => {
@@ -386,7 +323,6 @@ export const registrationMachine = setup({
               const commitTime = context.commitTimestamp
               const elapsedTime = now - commitTime
 
-              // Check if within 24 hours (maxCommitmentAge) and past 60 seconds (minCommitmentAge)
               return (
                 elapsedTime < 24 * 60 * 60 * 1000 && elapsedTime >= 60 * 1000
               )
@@ -408,7 +344,6 @@ export const registrationMachine = setup({
               const commitTime = context.commitTimestamp
               const elapsedTime = now - commitTime
 
-              // Check if within 24 hours but not yet past 60 seconds
               return (
                 elapsedTime < 24 * 60 * 60 * 1000 && elapsedTime < 60 * 1000
               )
@@ -524,7 +459,7 @@ export const registrationMachine = setup({
           target: 'autorenewal',
         },
         COMPLETE_FLOW: {
-          actions: ['clearAllData'], // Clear localStorage when user completes the flow
+          actions: ['clearAllData'],
         },
       },
     },
@@ -537,7 +472,7 @@ export const registrationMachine = setup({
       ],
       on: {
         COMPLETE_FLOW: {
-          actions: ['clearAllData'], // Clear localStorage when user completes the flow
+          actions: ['clearAllData'],
         },
       },
     },

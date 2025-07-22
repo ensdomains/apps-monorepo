@@ -19,7 +19,6 @@ interface RegistrationProps {
 export function Registration({ initialName }: RegistrationProps) {
   const navigate = useNavigate()
 
-  // Use the XState registration hook
   const {
     step,
     domainName,
@@ -44,14 +43,12 @@ export function Registration({ initialName }: RegistrationProps) {
     completeFlow,
     reset,
   } = useEnsRegistration(initialName)
-  // UI state for backward compatibility with existing components
+
   const [localCurrencyType, setLocalCurrencyType] = useState<'ETH' | 'USD'>(
     'ETH',
   )
 
-  // Navigation prevention logic
   useEffect(() => {
-    // Define critical steps where navigation should be prevented
     const criticalSteps = [
       RegistrationStep.MAKE_COMMITMENT,
       RegistrationStep.WAITING_FOR_COMMIT_TIME,
@@ -60,7 +57,6 @@ export function Registration({ initialName }: RegistrationProps) {
 
     const isInCriticalStep = criticalSteps.includes(step)
 
-    // Prevent browser back button during critical steps
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (isInCriticalStep) {
         const message =
@@ -71,14 +67,11 @@ export function Registration({ initialName }: RegistrationProps) {
       }
     }
 
-    // Prevent browser back button
     const handlePopState = (event: PopStateEvent) => {
       if (isInCriticalStep) {
         event.preventDefault()
-        // Push the current state back to prevent navigation
         window.history.pushState(null, '', window.location.href)
 
-        // Show confirmation dialog
         const confirmed = window.confirm(
           '⚠️ Registration in progress! Leaving this page will cancel your registration. Are you sure you want to leave?',
         )
@@ -90,20 +83,16 @@ export function Registration({ initialName }: RegistrationProps) {
       }
     }
 
-    // Prevent keyboard shortcuts (Ctrl+W, Alt+F4, etc.)
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isInCriticalStep) {
-        // Prevent Ctrl+W (close tab)
         if (event.ctrlKey && event.key === 'w') {
           event.preventDefault()
           return false
         }
-        // Prevent Ctrl+Shift+W (close window)
         if (event.ctrlKey && event.shiftKey && event.key === 'W') {
           event.preventDefault()
           return false
         }
-        // Prevent Alt+F4 (close window)
         if (event.altKey && event.key === 'F4') {
           event.preventDefault()
           return false
@@ -111,27 +100,21 @@ export function Registration({ initialName }: RegistrationProps) {
       }
     }
 
-    // Add event listeners
     if (isInCriticalStep) {
       window.addEventListener('beforeunload', handleBeforeUnload)
       window.addEventListener('popstate', handlePopState)
       document.addEventListener('keydown', handleKeyDown)
-
-      // Push current state to prevent back button
       window.history.pushState(null, '', window.location.href)
 
-      // Update page title to indicate registration in progress
       const originalTitle = document.title
       document.title = `🔄 Registration in Progress - ${originalTitle}`
     }
 
-    // Cleanup event listeners
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
       window.removeEventListener('popstate', handlePopState)
       document.removeEventListener('keydown', handleKeyDown)
 
-      // Restore original page title
       if (isInCriticalStep) {
         document.title = document.title.replace(
           '🔄 Registration in Progress - ',
@@ -141,7 +124,6 @@ export function Registration({ initialName }: RegistrationProps) {
     }
   }, [step, reset, navigate])
 
-  // Event handlers
   const handlePaymentSelect = (method: 'crypto' | 'credit-card') => {
     selectPayment(method)
     console.log('💳 Payment method selected:', method)
@@ -153,7 +135,6 @@ export function Registration({ initialName }: RegistrationProps) {
   }
 
   const handleBack = () => {
-    // Check if we're in a critical step
     const criticalSteps = [
       RegistrationStep.MAKE_COMMITMENT,
       RegistrationStep.WAITING_FOR_COMMIT_TIME,
@@ -170,12 +151,10 @@ export function Registration({ initialName }: RegistrationProps) {
       }
     }
 
-    // Reset the registration state when going back
     reset()
     navigate({ to: '/' })
   }
 
-  // Create estimation for pricing component
   const estimation = useMemo(() => {
     if (!domainName) return undefined
 
@@ -214,10 +193,8 @@ export function Registration({ initialName }: RegistrationProps) {
     setupAutorenewal()
   }
 
-  // Display domain name
   const displayDomainName = domainName || ''
 
-  // Check if we're in a critical step
   const criticalSteps = [
     RegistrationStep.MAKE_COMMITMENT,
     RegistrationStep.WAITING_FOR_COMMIT_TIME,
@@ -235,51 +212,12 @@ export function Registration({ initialName }: RegistrationProps) {
           disabled={isInCriticalStep}
         >
           ← Back
-          {isInCriticalStep && (
-            <span className="ml-2 text-xs text-orange-600">
-              (Registration in progress)
-            </span>
-          )}
         </Button>
 
-        {/* Debug info for development */}
         {process.env.NODE_ENV === 'development' && (
           <div className="text-gray-500 text-xs">XState: {step}</div>
         )}
       </div>
-
-      {/* Navigation warning for critical steps */}
-      {isInCriticalStep && (
-        <div className="mb-4 rounded-md bg-orange-50 p-3 text-sm text-orange-800">
-          <div className="flex items-center">
-            <span className="mr-2">⚠️</span>
-            <span>
-              <strong>Registration in progress!</strong> Please don't close this
-              page or navigate away until the registration is complete.
-            </span>
-          </div>
-
-          {/* Step-specific progress messages */}
-          {step === RegistrationStep.MAKE_COMMITMENT && (
-            <div className="mt-2 text-xs text-orange-700">
-              🔒 Committing your domain registration...
-            </div>
-          )}
-
-          {step === RegistrationStep.WAITING_FOR_COMMIT_TIME && (
-            <div className="mt-2 text-xs text-orange-700">
-              ⏰ Waiting for commitment to mature ({remainingTime}s
-              remaining)...
-            </div>
-          )}
-
-          {step === RegistrationStep.REGISTER && (
-            <div className="mt-2 text-xs text-orange-700">
-              📝 Registering your domain on the blockchain...
-            </div>
-          )}
-        </div>
-      )}
 
       {step === RegistrationStep.PRICING && displayDomainName && (
         <div className="mx-auto max-w-md px-4 py-6">
@@ -341,7 +279,6 @@ export function Registration({ initialName }: RegistrationProps) {
         />
       )}
 
-      {/* Debug panel in development */}
       {process.env.NODE_ENV === 'development' && (
         <div className="mx-auto mt-4 max-w-md p-4">
           <details className="text-xs">

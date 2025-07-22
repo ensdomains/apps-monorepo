@@ -5,19 +5,24 @@ import {
   injectedWallet,
   metaMaskWallet,
 } from '@rainbow-me/rainbowkit/wallets'
-import { createClient, type HttpTransport, http } from 'viem'
+import {
+  createClient,
+  createPublicClient,
+  type HttpTransport,
+  http,
+} from 'viem'
 import { localhost, mainnet } from 'viem/chains'
 import { createConfig } from 'wagmi'
 
-// Use localhost chain for Anvil with custom configuration
-// for namechain (devnet) we use 31338 and rpc is http://127.0.0.1:8546
-const anvil = {
+const ANVIL_RPC_URL = 'http://127.0.0.1:8546'
+
+export const anvil = {
   ...localhost,
   id: 31338,
   name: 'Anvil',
   rpcUrls: {
     default: {
-      http: ['http://127.0.0.1:8546'],
+      http: [ANVIL_RPC_URL],
       webSocket: ['ws://127.0.0.1:8546'],
     },
   },
@@ -47,11 +52,16 @@ export const wagmiConfig = createConfig({
       chain,
       transport: http(
         chain.id === 31338
-          ? 'http://127.0.0.1:8546' // Use local RPC for Anvil
+          ? ANVIL_RPC_URL
           : 'https://lb.drpc.org/ogrpc?network=ethereum&dkey=AgBISc2US0WgjMYhz9MRMJZsJaE8hzcR76fgOpXEh2H0',
       ),
     })
   },
+})
+
+export const publicClient = createPublicClient({
+  chain: anvil,
+  transport: http(ANVIL_RPC_URL),
 })
 
 export type ClientType = ReturnType<typeof wagmiConfig.getClient>
