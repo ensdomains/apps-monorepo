@@ -1,19 +1,22 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { DataTable } from '@/components/molecules/DataTable/DataTable'
-import { columns } from './columns';
-
+import { columns, type Record } from './columns'
 
 type Entries<T> = {
-  [K in keyof T]-?: [K, T[K]];
-}[keyof T][];
-
+  [K in keyof T]-?: [K, T[K]]
+}[keyof T][]
 
 const recordsToTableData = (records: GetRecordsReturnType) => {
-  const data: { key?: string, value: string, type: string; id?: number }[] = []
+  const data: Record[] = []
 
-  for (const [key, value] of Object.entries(records) as Entries<GetRecordsReturnType>) {
+  for (const [key, value] of Object.entries(
+    records,
+  ) as Entries<GetRecordsReturnType>) {
     if (key === 'contentHash' && value) {
-      data.push({ type: key, value: `${value.protocolType}://${value.decoded}` })
+      data.push({
+        type: key,
+        value: `${value.protocolType}://${value.decoded}`,
+      })
     }
     if (key === 'texts') {
       for (const { key, value: text } of Object.values(value)) {

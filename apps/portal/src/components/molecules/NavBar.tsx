@@ -6,7 +6,6 @@ import { LogoSVG } from '@/assets/logo'
 import { SearchBar } from './SearchBar'
 
 export const NavBar = () => {
-
   return (
     <nav className="sticky top-0 left-0 flex flex-row p-4 bg-background text-foreground w-full justify-between border-b border-b-gray-300 h-(--header-height)">
       <div className="flex flex-row gap-2 items-center w-full">
