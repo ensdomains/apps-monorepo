@@ -157,10 +157,12 @@ function _determineInitialStep(
   if (saved.commitment && saved.secret && saved.name && saved.commitTimestamp) {
     const now = Date.now()
     const commitTime = saved.commitTimestamp
+    const elapsedTime = now - commitTime
 
-    // If within 24 hours and past 60 seconds, can register
-    if (now - commitTime < 24 * 60 * 60 * 1000) {
-      if (now - commitTime >= 60 * 1000) {
+    // Check if within 24 hours (maxCommitmentAge)
+    if (elapsedTime < 24 * 60 * 60 * 1000) {
+      // Check if past 60 seconds (minCommitmentAge)
+      if (elapsedTime >= 60 * 1000) {
         return RegistrationStep.REGISTER
       } else {
         return RegistrationStep.WAITING_FOR_COMMIT_TIME
@@ -270,7 +272,7 @@ export const registrationMachine = setup({
         event.type === 'COMMIT_RESULT' ? event.timestamp : 0,
       commitTxHash: ({ event }) =>
         event.type === 'COMMIT_RESULT' ? event.txHash : '',
-      step: () => RegistrationStep.WAITING_FOR_COMMIT_TIME,
+      step: () => RegistrationStep.WAITING_FOR_COMMIT_TIME, // Restore timer step
     }),
 
     updateTimer: assign({
@@ -382,9 +384,11 @@ export const registrationMachine = setup({
             ) {
               const now = Date.now()
               const commitTime = context.commitTimestamp
+              const elapsedTime = now - commitTime
+
+              // Check if within 24 hours (maxCommitmentAge) and past 60 seconds (minCommitmentAge)
               return (
-                now - commitTime < 24 * 60 * 60 * 1000 &&
-                now - commitTime >= 60 * 1000
+                elapsedTime < 24 * 60 * 60 * 1000 && elapsedTime >= 60 * 1000
               )
             }
             return false
@@ -402,9 +406,11 @@ export const registrationMachine = setup({
             ) {
               const now = Date.now()
               const commitTime = context.commitTimestamp
+              const elapsedTime = now - commitTime
+
+              // Check if within 24 hours but not yet past 60 seconds
               return (
-                now - commitTime < 24 * 60 * 60 * 1000 &&
-                now - commitTime < 60 * 1000
+                elapsedTime < 24 * 60 * 60 * 1000 && elapsedTime < 60 * 1000
               )
             }
             return false

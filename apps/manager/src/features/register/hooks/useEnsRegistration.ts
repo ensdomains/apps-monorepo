@@ -59,6 +59,7 @@ export function useEnsRegistration(initialName?: string) {
     }
   }, [state.context.duration, state.context.name, send])
 
+  // Timer logic for 60-second minimum commitment age (matches contract requirements)
   useEffect(() => {
     if (
       state.context.step === RegistrationStep.WAITING_FOR_COMMIT_TIME &&

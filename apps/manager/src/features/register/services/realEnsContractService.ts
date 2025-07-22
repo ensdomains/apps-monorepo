@@ -3,40 +3,35 @@ import { fromPromise, ok } from 'neverthrow'
 import {
   type Address,
   createPublicClient,
-  defineChain,
   encodeAbiParameters,
   encodeFunctionData,
   http,
   keccak256,
 } from 'viem'
+import { localhost } from 'viem/chains'
 
 export class RealEnsContractError extends TaggedError('RealEnsContractError')<{
   cause: unknown
 }> {}
 
-export const L2ViemChain = defineChain({
-  id: 31337,
-  name: 'Custom Chain',
-  network: 'custom',
-  nativeCurrency: {
-    decimals: 18,
-    name: 'Ether',
-    symbol: 'ETH',
-  },
+// Use the same anvil chain configuration as wagmi.ts
+const anvil = {
+  ...localhost,
+  id: 31338,
+  name: 'Anvil',
   rpcUrls: {
+    ...localhost.rpcUrls,
     default: {
-      http: ['http://localhost:8546'],
-    },
-    public: {
-      http: ['http://localhost:8546'],
+      http: ['http://127.0.0.1:8546'],
+      webSocket: ['ws://127.0.0.1:8546'],
     },
   },
-  blockExplorers: {
-    default: {
-      name: 'Custom Explorer',
-      url: 'http://localhost:4000',
-    },
-  },
+}
+
+// Create public client using the same configuration as wagmi
+const publicL2Client = createPublicClient({
+  chain: anvil,
+  transport: http('http://127.0.0.1:8546'),
 })
 
 export const CONTRACT_ADDRESSES = {
@@ -129,11 +124,6 @@ export const ETH_REGISTRAR_ABI = [
   },
 ] as const
 
-const publicL2Client = createPublicClient({
-  chain: L2ViemChain,
-  transport: http('http://localhost:8546'),
-})
-
 const REGISTRY_ADDRESS = '0x32850cAd1e9170614704fF8BA37a25e498e1B832'
 const EMPTY_ADDRESS = '0x0000000000000000000000000000000000000000'
 
@@ -204,7 +194,7 @@ export const checkRealNameAvailability = ResultFn(async function* (
     name: cleanName,
     fullName: `${cleanName}.eth`,
     registrarAddress: CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
-    rpcUrl: 'http://localhost:8546',
+    rpcUrl: 'http://127.0.0.1:8546',
   })
 
   try {

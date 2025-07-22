@@ -54,7 +54,7 @@ export function useStablecoinBalances() {
 
   const stablecoinsWithBalances = useMemo(() => {
     if (!balanceData || !address || availableStablecoins.length === 0) {
-      if (chain?.id === 31337 && process.env.NODE_ENV === 'development') {
+      if (chain?.id === 31338 && process.env.NODE_ENV === 'development') {
         return availableStablecoins.map((coin) => ({
           ...coin,
           balance: BigInt(1000 * 10 ** coin.decimals),

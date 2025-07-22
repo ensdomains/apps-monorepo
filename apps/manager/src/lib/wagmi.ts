@@ -10,15 +10,15 @@ import { localhost, mainnet } from 'viem/chains'
 import { createConfig } from 'wagmi'
 
 // Use localhost chain for Anvil with custom configuration
+// for namechain (devnet) we use 31338 and rpc is http://127.0.0.1:8546
 const anvil = {
   ...localhost,
-  id: 31337,
+  id: 31338,
   name: 'Anvil',
   rpcUrls: {
-    ...localhost.rpcUrls,
     default: {
-      http: ['http://127.0.0.1:8545'],
-      webSocket: ['ws://127.0.0.1:8545'],
+      http: ['http://127.0.0.1:8546'],
+      webSocket: ['ws://127.0.0.1:8546'],
     },
   },
 }
@@ -43,12 +43,11 @@ export const wagmiConfig = createConfig({
     { projectId: 'YOUR_PROJECT_ID', appName: 'demo' },
   ),
   client: ({ chain }) => {
-    console.log('+++++++++chain', chain)
     return createClient<HttpTransport, typeof chain>({
       chain,
       transport: http(
-        chain.id === 31337
-          ? 'http://127.0.0.1:8545' // Use local RPC for Anvil
+        chain.id === 31338
+          ? 'http://127.0.0.1:8546' // Use local RPC for Anvil
           : 'https://lb.drpc.org/ogrpc?network=ethereum&dkey=AgBISc2US0WgjMYhz9MRMJZsJaE8hzcR76fgOpXEh2H0',
       ),
     })
