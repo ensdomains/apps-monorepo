@@ -9,14 +9,8 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import {
-  type CSSProperties,
-  type FC,
-  type PropsWithChildren,
-  useMemo,
-  useState,
-} from 'react'
-import { Sidebar, SidebarProvider, useSidebar } from '@/components/ui/sidebar'
+import { type FC, type PropsWithChildren, useMemo, useState } from 'react'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 import {
   Table,
   TableBody,
@@ -60,34 +54,27 @@ const recordsToTableData = (records: GetRecordsReturnType) => {
 }
 
 const RecordSidebar: FC<
-  PropsWithChildren<{ row: Row<Record> | null; name: string }>
-> = ({ children, row, name }) => {
+  PropsWithChildren<{ row: Row<Record> | null; name: string; open: boolean, setOpen: React.Dispatch<React.SetStateAction<boolean>> }>
+> = ({ children, row, name, open, setOpen }) => {
   return (
-    <SidebarProvider
-      defaultOpen={false}
-      style={
-        {
-          '--sidebar-width': '880px',
-          '--sidebar-width-mobile': '20rem',
-        } as CSSProperties
-      }
-    >
+    <Sheet open={open} onOpenChange={setOpen} defaultOpen={false}>
       {children}
-      <Sidebar side="right">
+      <SheetContent side="right" className="sm:max-w-[880px] bg-white">
         {row && <RecordDetails record={row.original} name={name} />}
-      </Sidebar>
-    </SidebarProvider>
+      </SheetContent>
+    </Sheet>
   )
 }
 
 const ClickableCell = ({
   cell,
+  toggleSidebar,
   setClickedRow,
 }: {
   cell: Cell<Record, unknown>
   setClickedRow: React.Dispatch<React.SetStateAction<Row<Record> | null>>
+  toggleSidebar: () => void
 }) => {
-  const { toggleSidebar } = useSidebar()
   if (cell.column.id === 'select') {
     return (
       <TableCell key={cell.id}>
@@ -103,6 +90,7 @@ const ClickableCell = ({
           toggleSidebar()
         }}
       >
+
         {flexRender(cell.column.columnDef.cell, cell.getContext())}
       </TableCell>
     )
@@ -138,8 +126,10 @@ export const RecordsTable = ({
 
   const [clickedRow, setClickedRow] = useState<Row<Record> | null>(null)
 
+  const [open, setOpen] = useState(false)
+
   return (
-    <RecordSidebar row={clickedRow} name={name}>
+    <RecordSidebar row={clickedRow}  {...{ name, open, setOpen }} >
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -150,9 +140,9 @@ export const RecordsTable = ({
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
                   </TableHead>
                 )
               })}
@@ -168,7 +158,9 @@ export const RecordsTable = ({
                 data-state={row.getIsSelected() && 'selected'}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <ClickableCell {...{ cell, setClickedRow }} key={cell.id} />
+                  <ClickableCell {...{ cell, setClickedRow }} key={cell.id} toggleSidebar={() => {
+                    setOpen(!open)
+                  }} />
                 ))}
               </TableRow>
             ))

@@ -2,6 +2,7 @@ import { SearchIcon, TrashIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { SheetHeader } from '@/components/ui/sheet'
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
 import type { Record } from '../RecordsTable/columns'
 
@@ -47,16 +48,16 @@ export const RecordDetails = ({
 
   return (
     <div className="py-6 px-8 flex flex-col gap-6">
-      <div className="flex flex-row justify-between">
+      <SheetHeader className="flex flex-row justify-between">
         <h2 className="font-sans capitalize text-[28px] font-medium">
           {record.type}
         </h2>
         {canEditRecords && (
-          <Button variant="secondary" className="bg-gray-200">
+          <Button variant="secondary" type="button" className="bg-gray-200">
             <TrashIcon /> Delete record
           </Button>
         )}
-      </div>
+      </SheetHeader>
       <RecordDetailsView record={record} />
     </div>
   )
