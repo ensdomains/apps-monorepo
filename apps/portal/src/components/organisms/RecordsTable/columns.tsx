@@ -2,22 +2,16 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { ArrowUpDown } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 
-// This type is used to define the shape of our data.
-// You can use a Zod schema here if you want.
+type AddressRecord = { type: 'address'; id: number; key: string }
+type ContentHashRecord = { type: 'contentHash' }
+type TextRecord = { type: 'text'; key: string }
+
 export type Record = { value: string } & (
-  | {
-      type: 'address'
-      id: number
-      key: string
-    }
-  | {
-      type: 'contentHash'
-    }
-  | {
-      type: 'text'
-      key: string
-    }
+  | AddressRecord
+  | ContentHashRecord
+  | TextRecord
 )
+
 
 const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
   return (
