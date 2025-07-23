@@ -7,7 +7,9 @@ import { SheetHeader } from '@/components/ui/sheet'
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
 import type { Record } from '../RecordsTable/columns'
 
-const AddressRecordValue = ({ record }: { record: Extract<Record, { type: 'address' }> }) => {
+const AddressRecordValue = ({ record, canEditRecords }: { record: Extract<Record, { type: 'address' }>; canEditRecords: boolean }) => {
+
+
   return (
     <div className="flex flex-row gap-4 p-6 border border-gray-200 rounded-lg w-full items-end">
       <div className="flex flex-col gap-1">
@@ -19,11 +21,26 @@ const AddressRecordValue = ({ record }: { record: Extract<Record, { type: 'addre
       </div>
       <div className="flex flex-col gap-1 w-full">
         <Label>Value</Label>
-        <Input className="border-gray-300 w-full font-mono" value={record.value} />
+        <Input className="border-gray-300 w-full font-mono disabled:opacity-100" disabled={!canEditRecords} value={record.value} />
       </div>
-      <Button variant="secondary" className="bg-gray-200">
+      {canEditRecords && <Button variant="secondary" className="bg-gray-200">
         Update
-      </Button>
+      </Button>}
+    </div>
+  )
+}
+
+const TextRecordValue = ({ record, canEditRecords }: { record: Extract<Record, { type: 'text' }>; canEditRecords: boolean }) => {
+
+  return (
+    <div className="flex flex-row gap-4 p-6 border border-gray-200 rounded-lg w-full items-end">
+      <div className="flex flex-col gap-1 w-full">
+        <Label htmlFor={record.key}>Text</Label>
+        <Input id={record.key} className="border-gray-300 w-full font-mono disabled:opacity-100" disabled={!canEditRecords} value={record.value} />
+
+      </div>  {canEditRecords && <Button variant="secondary" className="bg-gray-200">
+        Update
+      </Button>}
     </div>
   )
 }
@@ -56,10 +73,27 @@ const ResolverView = ({ name }: { name: string }) => {
   </div>
 }
 
-const RecordDetailsView = ({ record }: { record: Record }) => {
+const HistoryView = ({ name }: { name: string }) => {
+  return <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg">
+    <h3 className="text-2xl font-medium">History</h3>
+    {name}
+  </div>
+}
+
+const RecordDetailsView = ({ record, name }: { record: Record; name: string }) => {
+
+  const { data: canEditRecords, isLoading, error } = useCanEditRecords({ name })
+
+  if (isLoading) return <div>Loading...</div>
+
+  if (error || canEditRecords === undefined) return <div>Error checking permissions</div>
+
+
   switch (record.type) {
     case 'address':
-      return <AddressRecordValue record={record} />
+      return <AddressRecordValue {...{ record, canEditRecords }} />
+    case 'text':
+      return <TextRecordValue {...{ record, canEditRecords }} />
     default:
       return <div>Unknown record type</div>
   }
@@ -78,8 +112,8 @@ export const RecordDetails = ({
   return (
     <div className="py-6 px-8 flex flex-col gap-6">
       <SheetHeader className="flex flex-row justify-between">
-        <h2 className="font-sans capitalize text-[28px] font-medium">
-          {record.type}
+        <h2 className="font-sans text-[28px] font-medium">
+          <span className="capitalize">{record.type}</span> record
         </h2>
         {canEditRecords && (
           <Button variant="secondary" type="button" className="bg-gray-200">
@@ -87,8 +121,9 @@ export const RecordDetails = ({
           </Button>
         )}
       </SheetHeader>
-      <RecordDetailsView record={record} />
+      <RecordDetailsView {...{ record, name }} />
       <ResolverView name={name} />
+      <HistoryView name={name} />
     </div>
   )
 }
