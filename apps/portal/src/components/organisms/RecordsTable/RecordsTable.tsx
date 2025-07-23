@@ -1,13 +1,22 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import {
+  type Cell,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
+  type Row,
   type RowSelectionState,
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { useMemo, useState } from 'react'
+import {
+  type CSSProperties,
+  type FC,
+  type PropsWithChildren,
+  useMemo,
+  useState,
+} from 'react'
+import { Sidebar, SidebarProvider, useSidebar } from '@/components/ui/sidebar'
 import {
   Table,
   TableBody,
@@ -16,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { RecordDetails } from '../RecordDetails/RecordDetails'
 import { columns, type Record } from './columns'
 
 type Entries<T> = {
@@ -41,7 +51,7 @@ const recordsToTableData = (records: GetRecordsReturnType) => {
     }
     if (key === 'coins') {
       for (const { name, value: addr, id } of Object.values(value)) {
-        data.push({ key: name, value: addr, type: 'coin', id })
+        data.push({ key: name, value: addr, type: 'address', id })
       }
     }
   }
@@ -49,14 +59,66 @@ const recordsToTableData = (records: GetRecordsReturnType) => {
   return data
 }
 
+const RecordSidebar: FC<
+  PropsWithChildren<{ row: Row<Record> | null; name: string }>
+> = ({ children, row, name }) => {
+  return (
+    <SidebarProvider
+      defaultOpen={false}
+      style={
+        {
+          '--sidebar-width': '880px',
+          '--sidebar-width-mobile': '20rem',
+        } as CSSProperties
+      }
+    >
+      {children}
+      <Sidebar side="right">
+        {row && <RecordDetails record={row.original} name={name} />}
+      </Sidebar>
+    </SidebarProvider>
+  )
+}
+
+const ClickableCell = ({
+  cell,
+  setClickedRow,
+}: {
+  cell: Cell<Record, unknown>
+  setClickedRow: React.Dispatch<React.SetStateAction<Row<Record> | null>>
+}) => {
+  const { toggleSidebar } = useSidebar()
+  if (cell.column.id === 'select') {
+    return (
+      <TableCell key={cell.id}>
+        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+      </TableCell>
+    )
+  } else {
+    return (
+      <TableCell
+        key={cell.id}
+        onClick={() => {
+          setClickedRow(cell.row)
+          toggleSidebar()
+        }}
+      >
+        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+      </TableCell>
+    )
+  }
+}
+
 export const RecordsTable = ({
   records,
   rowSelection,
   setRowSelection,
+  name,
 }: {
   records: GetRecordsReturnType
   rowSelection: RowSelectionState
   setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>
+  name: string
 }) => {
   const tableData = useMemo(() => recordsToTableData(records), [records])
 
@@ -74,48 +136,51 @@ export const RecordsTable = ({
     onRowSelectionChange: setRowSelection,
   })
 
+  const [clickedRow, setClickedRow] = useState<Row<Record> | null>(null)
+
   return (
-    <Table>
-      <TableHeader>
-        {table.getHeaderGroups().map((headerGroup) => (
-          <TableRow key={headerGroup.id}>
-            {headerGroup.headers.map((header) => {
-              return (
-                <TableHead key={header.id}>
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
-                </TableHead>
-              )
-            })}
-          </TableRow>
-        ))}
-      </TableHeader>
-      <TableBody>
-        {table.getRowModel().rows?.length ? (
-          table.getRowModel().rows.map((row, _i) => (
-            <TableRow
-              key={row.id}
-              data-state={row.getIsSelected() && 'selected'}
-            >
-              {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </TableCell>
-              ))}
+    <RecordSidebar row={clickedRow} name={name}>
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => {
+                return (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                  </TableHead>
+                )
+              })}
             </TableRow>
-          ))
-        ) : (
-          <TableRow>
-            <TableCell colSpan={columns.length} className="h-24 text-center">
-              No results.
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-    </Table>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows?.length ? (
+            table.getRowModel().rows.map((row) => (
+              <TableRow
+                className="hover:bg-secondary"
+                key={row.id}
+                data-state={row.getIsSelected() && 'selected'}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <ClickableCell {...{ cell, setClickedRow }} key={cell.id} />
+                ))}
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={columns.length} className="h-24 text-center">
+                No results.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </RecordSidebar>
   )
 }

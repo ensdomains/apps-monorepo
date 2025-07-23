@@ -1,6 +1,12 @@
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import type { RowSelectionState } from '@tanstack/react-table'
-import { FileInputIcon, PencilLineIcon, SearchIcon, TrashIcon, XIcon } from 'lucide-react'
+import {
+  FileInputIcon,
+  PencilLineIcon,
+  SearchIcon,
+  TrashIcon,
+  XIcon,
+} from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { NavBar } from '@/components/molecules/NavBar'
 import { ProfileSidebar } from '@/components/molecules/ProfileSidebar'
@@ -73,8 +79,12 @@ function App() {
                     <Button variant="secondary">
                       <PencilLineIcon height={24} width={24} /> Edit
                     </Button>
-                    <Button variant="secondary"><FileInputIcon height={24} width={24} /> Export</Button>
-                    <Button variant="secondary"><TrashIcon height={24} width={24} /> Delete</Button>
+                    <Button variant="secondary">
+                      <FileInputIcon height={24} width={24} /> Export
+                    </Button>
+                    <Button variant="secondary">
+                      <TrashIcon height={24} width={24} /> Delete
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -91,6 +101,7 @@ function App() {
               )}
             </header>
             <RecordsTable
+              name={name}
               records={data.records}
               {...{ rowSelection, setRowSelection }}
             />

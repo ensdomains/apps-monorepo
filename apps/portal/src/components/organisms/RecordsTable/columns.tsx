@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 // You can use a Zod schema here if you want.
 export type Record = { value: string } & (
   | {
-      type: 'coin'
+      type: 'address'
       id: number
       key: string
     }
@@ -77,7 +77,7 @@ export const columns: ColumnDef<Record>[] = [
     cell: ({ column, row }) => {
       const type = row.original.type
       const value = row.getValue(column.id) as string
-      if (type === 'coin') {
+      if (type === 'address') {
         return (
           <span className={'flex flex-row items-center gap-2'}>
             {row.original.id}{' '}
