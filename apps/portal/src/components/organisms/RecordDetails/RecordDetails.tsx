@@ -1,4 +1,5 @@
-import { SearchIcon, TrashIcon } from 'lucide-react'
+import { ClipboardCopyIcon, SearchIcon, TrashIcon } from 'lucide-react'
+import { useEnsResolver } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -25,6 +26,34 @@ const AddressRecordValue = ({ record }: { record: Extract<Record, { type: 'addre
       </Button>
     </div>
   )
+}
+
+const ResolverValue = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex flex-col gap-1 w-full overflow-clip ">
+    <span className="font-sans font-normal text-sm text-gray-500">{label}</span>
+    <div className="flex flex-row justify-between">
+      <span className="font-mono underline decoration-dashed underline-offset-4 max-w-[336px] truncate">{value}</span>
+      <button className="cursor-pointer" type="button" onClick={() => navigator.clipboard.writeText(value)}><ClipboardCopyIcon height={16} width={16} /></button>
+    </div>
+  </div>
+)
+
+const ResolverView = ({ name }: { name: string }) => {
+  const { data: resolverAddress, error, isLoading } = useEnsResolver({ name })
+
+  if (isLoading) return <div>Loading...</div>
+  if (error) return <div>Error: {error.message}</div>
+  if (!resolverAddress) return <div>No data</div>
+
+  return <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg">
+    <h3 className="text-2xl font-medium">Resolver</h3>
+    <div className="grid grid-cols-2 gap-6">
+      <ResolverValue label="Mainnet contract address" value={resolverAddress} />
+      <ResolverValue label="Namechain contract address" value={resolverAddress} />
+      <ResolverValue label="Verifier address" value={resolverAddress} />
+      <ResolverValue label="Verifier gateway URL" value="https://ccip-resolver.app/{sender}/{data}" />
+    </div>
+  </div>
 }
 
 const RecordDetailsView = ({ record }: { record: Record }) => {
@@ -59,6 +88,7 @@ export const RecordDetails = ({
         )}
       </SheetHeader>
       <RecordDetailsView record={record} />
+      <ResolverView name={name} />
     </div>
   )
 }
