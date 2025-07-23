@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { CheckDomainPage } from '@/features/register/pages/CheckDomainPage'
+import { CheckNameAvailabilityPage } from '@/features/register/pages/CheckNameAvailabilityPage'
 
 function IndexPage() {
-  return <CheckDomainPage />
+  return <CheckNameAvailabilityPage />
 }
 
 export const Route = createFileRoute('/')({

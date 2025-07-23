@@ -1,5 +1,5 @@
 import { BASE_PRICE_PER_YEAR } from './machines/registrationMachine'
-import { NameAvailabilityError } from './machines/searchNameMachine'
+import { NameAvailabilityError } from './services/checkNameAvailabilityService'
 
 export const isNameAvailabilityError = (
   error: unknown,
