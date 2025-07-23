@@ -40,6 +40,7 @@
   --color-primary-foreground: oklch(0.985 0 0);
   --color-secondary: oklch(0.97 0 0);
   --color-secondary-foreground: oklch(0.205 0 0);
+  --color-secondary: oklch(93.344% 0.00757 16.522);
 }
 
 @layer base {
