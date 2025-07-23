@@ -1,4 +1,11 @@
-import { type Err, err, ok, type Result, type ResultAsync, safeTry } from 'neverthrow'
+import {
+  type Err,
+  err,
+  ok,
+  type Result,
+  type ResultAsync,
+  safeTry,
+} from 'neverthrow'
 
 export type InferOkTypes<R> = R extends Result<infer T, unknown> ? T : never
 export type InferErrTypes<R> = R extends Result<unknown, infer E> ? E : never
@@ -106,4 +113,3 @@ export function TaggedError<const Tag extends string>(tag: Tag) {
     name = `TaggedError#${tag}`
   }
 }
-

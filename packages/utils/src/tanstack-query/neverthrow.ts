@@ -35,9 +35,9 @@ export type UndefinedInitialDataResultOptions<
   TQueryKey extends GenericQueryKey = GenericQueryKey,
 > = UseResultQueryOptions<TQueryFnData, TError, TData, TQueryKey> & {
   initialData?:
-  | undefined
-  | InitialDataFunction<NonUndefinedGuard<TQueryFnData>>
-  | NonUndefinedGuard<TQueryFnData>
+    | undefined
+    | InitialDataFunction<NonUndefinedGuard<TQueryFnData>>
+    | NonUndefinedGuard<TQueryFnData>
 }
 
 export type UnusedSkipTokenResultOptions<
@@ -65,8 +65,8 @@ export type DefinedInitialDataResultOptions<
   'queryFn'
 > & {
   initialData:
-  | NonUndefinedGuard<TQueryFnData>
-  | (() => NonUndefinedGuard<TQueryFnData>)
+    | NonUndefinedGuard<TQueryFnData>
+    | (() => NonUndefinedGuard<TQueryFnData>)
   queryFn?: ResultQueryFunction<TQueryFnData, TError, TQueryKey>
 }
 
@@ -135,12 +135,12 @@ export function resultQueryOptions({
   const queryFn =
     typeof rawQueryFn === 'function'
       ? (context: QueryFunctionContext<GenericQueryKey>) =>
-        rawQueryFn(context).match(
-          (value) => value,
-          (error) => {
-            throw error
-          },
-        )
+          rawQueryFn(context).match(
+            (value) => value,
+            (error) => {
+              throw error
+            },
+          )
       : rawQueryFn
 
   return {
