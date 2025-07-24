@@ -7,7 +7,7 @@ import { SheetHeader } from '@/components/ui/sheet'
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
 import type { Record } from '../RecordsTable/columns'
 
-const AddressRecordValue = ({ record, canEditRecords }: { record: Extract<Record, { type: 'address' }>; canEditRecords: boolean }) => {
+const AddressRecordValue = ({ record, canEditRecords }: { record: Extract<Record, { type: 'address' }>; canEditRecords?: boolean }) => {
 
 
   return (
@@ -30,7 +30,7 @@ const AddressRecordValue = ({ record, canEditRecords }: { record: Extract<Record
   )
 }
 
-const TextRecordValue = ({ record, canEditRecords }: { record: Extract<Record, { type: 'text' }>; canEditRecords: boolean }) => {
+const TextRecordValue = ({ record, canEditRecords }: { record: Extract<Record, { type: 'text' }>; canEditRecords?: boolean }) => {
 
   return (
     <div className="flex flex-row gap-4 p-6 border border-gray-200 rounded-lg w-full items-end">
@@ -82,11 +82,7 @@ const HistoryView = ({ name }: { name: string }) => {
 
 const RecordDetailsView = ({ record, name }: { record: Record; name: string }) => {
 
-  const { data: canEditRecords, isLoading, error } = useCanEditRecords({ name })
-
-  if (isLoading) return <div>Loading...</div>
-
-  if (error || canEditRecords === undefined) return <div>Error checking permissions</div>
+  const { data: canEditRecords } = useCanEditRecords({ name })
 
 
   switch (record.type) {

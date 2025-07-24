@@ -1,4 +1,5 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
+import { PopoverTrigger } from '@radix-ui/react-popover'
 import {
   type Cell,
   flexRender,
@@ -9,7 +10,9 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
+import { SettingsIcon } from 'lucide-react'
 import { type FC, type PropsWithChildren, useMemo, useState } from 'react'
+import { Popover, PopoverContent } from '@/components/ui/popover'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import {
   Table,
@@ -19,8 +22,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { type TableViewSettings, useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
+import { cn } from '@/lib/utils'
 import { RecordDetails } from '../RecordDetails/RecordDetails'
 import { columns, type Record } from './columns'
+import { TableViewSwitch } from './TableViewSwitch'
 
 type Entries<T> = {
   [K in keyof T]-?: [K, T[K]]
@@ -70,14 +76,17 @@ const ClickableCell = ({
   cell,
   toggleSidebar,
   setClickedRow,
+  tableView,
 }: {
   cell: Cell<Record, unknown>
   setClickedRow: React.Dispatch<React.SetStateAction<Row<Record> | null>>
   toggleSidebar: () => void
+  tableView: TableViewSettings
 }) => {
   if (cell.column.id === 'select') {
     return (
-      <TableCell key={cell.id}>
+      <TableCell key={cell.id}
+        className={tableView.compact ? 'py-2' : 'py-4'}>
         {flexRender(cell.column.columnDef.cell, cell.getContext())}
       </TableCell>
     )
@@ -85,6 +94,7 @@ const ClickableCell = ({
     return (
       <TableCell
         key={cell.id}
+        className={tableView.compact ? 'py-2' : 'py-4'}
         onClick={() => {
           setClickedRow(cell.row)
           toggleSidebar()
@@ -128,9 +138,20 @@ export const RecordsTable = ({
 
   const [open, setOpen] = useState(false)
 
+  const [tableView] = useTableViewSettings()
+
   return (
-    <RecordSidebar row={clickedRow}  {...{ name, open, setOpen }} >
-      <Table>
+    <RecordSidebar row={clickedRow}  {...{ name, open, setOpen }}>
+
+      <Table className="relative">
+        <Popover>
+          <PopoverTrigger className="absolute right-6 top-4">
+            <SettingsIcon />
+          </PopoverTrigger>
+          <PopoverContent align="end">
+            <TableViewSwitch />
+          </PopoverContent>
+        </Popover>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
@@ -153,12 +174,12 @@ export const RecordsTable = ({
           {table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => (
               <TableRow
-                className="hover:bg-secondary"
+                className={cn('hover:bg-gray-200', tableView.strippedRows && "even:bg-gray-100")}
                 key={row.id}
                 data-state={row.getIsSelected() && 'selected'}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <ClickableCell {...{ cell, setClickedRow }} key={cell.id} toggleSidebar={() => {
+                  <ClickableCell {...{ cell, setClickedRow, tableView }} key={cell.id} toggleSidebar={() => {
                     setOpen(!open)
                   }} />
                 ))}

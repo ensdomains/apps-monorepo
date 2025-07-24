@@ -1,6 +1,8 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { ArrowUpDown } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
+import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings';
+import { cn } from '@/lib/utils';
 
 type AddressRecord = { type: 'address'; id: number; key: string }
 type ContentHashRecord = { type: 'contentHash' }
@@ -95,7 +97,12 @@ export const columns: ColumnDef<Record>[] = [
     cell: ({ column, row }) => {
       const value = row.getValue(column.id) as Record['value']
 
-      return <span className="font-mono">{value}</span>
+      const [settings] = useTableViewSettings()
+
+      return <div className={cn(`font-mono w-full`, settings.wrapText ? 'max-w-[670px] break-all whitespace-normal' : 'max-w-[670px] truncate')}>
+
+        <span>{value}</span>
+      </div>
     },
   },
 ]
