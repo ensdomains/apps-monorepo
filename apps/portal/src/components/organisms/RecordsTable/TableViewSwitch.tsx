@@ -2,8 +2,6 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { useTableViewSettings } from "@/features/profile/hooks/useTableViewSettings"
 
-
-
 export const TableViewSwitch = () => {
 
   const [tableView, setTableView] = useTableViewSettings()
