@@ -1,8 +1,11 @@
-import { addressRecords } from '../data/records'
+import { getAddressRecord, getRecord } from '../data/records'
 import type { ProfileRecords } from '../types'
 
 // Utility function to create diff
-export const createDiff = (original: ProfileRecords, current: ProfileRecords) => {
+export const createDiff = (
+  original: ProfileRecords,
+  current: ProfileRecords,
+) => {
   const diff: Record<
     string,
     { original?: any; current?: any; type: 'added' | 'removed' | 'modified' }
@@ -10,11 +13,6 @@ export const createDiff = (original: ProfileRecords, current: ProfileRecords) =>
 
   // Early return if objects are the same reference
   if (original === current) return diff
-
-  // Create coinType to name mapping once for better performance
-  const coinTypeToName = new Map(
-    addressRecords.map((r) => [r.coinType, r.name]),
-  )
 
   // Helper function to compare values (handles undefined, null, empty strings)
   const hasValueChanged = (oldVal: any, newVal: any): boolean => {
@@ -25,7 +23,7 @@ export const createDiff = (original: ProfileRecords, current: ProfileRecords) =>
 
   // Helper function to get display name for address records
   const getAddressDisplayName = (coinType: number): string => {
-    return coinTypeToName.get(coinType) || `Address ${coinType}`
+    return getAddressRecord(coinType)?.name || `Address ${coinType}`
   }
 
   // Helper function to check if a value is effectively empty
@@ -113,15 +111,15 @@ export const createDiff = (original: ProfileRecords, current: ProfileRecords) =>
   const currentBioMap = new Map()
 
   // Add bio fields to maps (only non-empty values)
-  if (original.bio) {
-    Object.entries(original.bio).forEach(([key, value]) => {
+  if (original.base) {
+    Object.entries(original.base).forEach(([key, value]) => {
       if (!isEmptyValue(value)) {
         originalBioMap.set(key, value)
       }
     })
   }
-  if (current.bio) {
-    Object.entries(current.bio).forEach(([key, value]) => {
+  if (current.base) {
+    Object.entries(current.base).forEach(([key, value]) => {
       if (!isEmptyValue(value)) {
         currentBioMap.set(key, value)
       }
@@ -142,10 +140,10 @@ export const createDiff = (original: ProfileRecords, current: ProfileRecords) =>
 
   // Compare contact records
   const originalContactMap = new Map(
-    original.contacts.map((c) => [c.key, c.value]),
+    original.contact.map((c) => [c.key, c.value]),
   )
   const currentContactMap = new Map(
-    current.contacts.map((c) => [c.key, c.value]),
+    current.contact.map((c) => [c.key, c.value]),
   )
   compareKeyValuePairs(originalContactMap, currentContactMap, 'contact')
 

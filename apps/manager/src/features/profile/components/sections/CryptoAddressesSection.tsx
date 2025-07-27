@@ -5,7 +5,7 @@ import { RecordEntry } from '@/features/profile/components/RecordEntry'
 import {
   getAddressRecord,
   getAvailableAddressRecords,
-} from '@/features/profile/data/records'
+} from '../../data/records'
 
 export const CryptoAddressesSection = withForm({
   ...sharedOptions,

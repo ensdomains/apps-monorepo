@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Main } from '@/features/profile/components'
+import { ProfileEdit } from '@/features/profile/components/ProfileEdit'
 
 export const Route = createFileRoute('/p/$name/edit')({
   component: RouteComponent,
@@ -8,5 +8,5 @@ export const Route = createFileRoute('/p/$name/edit')({
 function RouteComponent() {
   const { name } = Route.useParams()
 
-  return <Main name={name} />
+  return <ProfileEdit name={name} />
 }

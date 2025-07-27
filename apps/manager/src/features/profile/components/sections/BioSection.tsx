@@ -3,17 +3,18 @@ import { Input } from '@/components/ui/input'
 import { AddTextRecordsDialog } from '@/features/profile/components/dialogs/AddTextRecordsDialog'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
-import {
-  getAvailableContactRecords,
-  getContactRecord,
-} from '@/features/profile/data/records'
+import { getAvailableRecords, getRecord } from '../../data/records'
+// import {
+//   getAvailableContactRecords,
+//   getContactRecord,
+// } from '@/features/profile/data/records'
 
 export const BioSection = withForm({
   ...sharedOptions,
   render: ({ form }) => (
     <div className="flex flex-col gap-2 space-y-2">
       <div>
-        <form.Field name="bio.description">
+        <form.Field name="base.description">
           {(field) => (
             <>
               <div className="flex items-center justify-between">
@@ -38,7 +39,7 @@ export const BioSection = withForm({
       <div>
         <div className="flex items-center gap-2">
           <span className="font-medium">Add a link to bio</span>
-          <form.Field name="bio.url">
+          <form.Field name="base.url">
             {(field) => (
               <>
                 <Input
@@ -58,20 +59,20 @@ export const BioSection = withForm({
         </div>
       </div>
 
-      <form.Field name="contacts" mode="array">
+      <form.Field name="contact" mode="array">
         {(contactField) => (
           <div className="space-y-2">
             {contactField.state.value.map(
               ({ key }: { key: string }, i: number) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
-                <form.Field key={i} name={`contacts[${i}].value`}>
+                <form.Field key={i} name={`contact[${i}].value`}>
                   {(field) => {
-                    const record = getContactRecord(key)
+                    const record = getRecord(key)
                     if (!record) return null
                     return (
                       <RecordEntry
-                        name={record.name}
-                        placeholder={record.placeholder}
+                        name={record.data.name}
+                        placeholder={record.data.placeholder}
                         value={field.state.value}
                         onChange={(value) => {
                           field.handleChange(value)
@@ -88,8 +89,9 @@ export const BioSection = withForm({
             <AddTextRecordsDialog
               buttonLabel="Add Contact Information"
               title="Add Contact Information"
-              records={getAvailableContactRecords(
+              records={getAvailableRecords(
                 contactField.state.value.map(({ key }: { key: string }) => key),
+                'contact',
               )}
               onAdd={(keys) => {
                 keys.forEach((key) => {

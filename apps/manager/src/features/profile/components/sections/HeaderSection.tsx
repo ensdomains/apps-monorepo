@@ -14,7 +14,7 @@ export const HeaderSection = withForm({
     <div>
       {/* Header BG */}
       <div className="relative w-full">
-        <form.Field name="bio.header">
+        <form.Field name="base.header">
           {(field) => (
             <ImageSelectionDialog
               currentImage={field.state.value}
@@ -28,11 +28,12 @@ export const HeaderSection = withForm({
               title="Change Header Image"
               description="Choose a header image for your profile"
               type="header"
+              name={name}
             />
           )}
         </form.Field>
         <div className="-bottom-6 -translate-x-1/2 absolute left-1/2 size-32">
-          <form.Field name="bio.avatar">
+          <form.Field name="base.avatar">
             {(field) => (
               <ImageSelectionDialog
                 currentImage={field.state.value}
@@ -46,6 +47,7 @@ export const HeaderSection = withForm({
                 title="Change Avatar"
                 description="Choose an avatar for your profile"
                 type="avatar"
+                name={name}
               />
             )}
           </form.Field>

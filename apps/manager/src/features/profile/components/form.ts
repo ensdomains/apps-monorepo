@@ -3,7 +3,7 @@ import {
   createFormHookContexts,
   formOptions,
 } from '@tanstack/react-form'
-import type { ProfileRecords } from '@/features/profile/types'
+import { defaultProfileRecords } from '../utils/transformRecords'
 
 const { fieldContext, formContext } = createFormHookContexts()
 
@@ -15,5 +15,5 @@ export const { useAppForm, withForm } = createFormHook({
 })
 
 export const sharedOptions = formOptions({
-  defaultValues: {} as ProfileRecords,
+  defaultValues: defaultProfileRecords,
 })

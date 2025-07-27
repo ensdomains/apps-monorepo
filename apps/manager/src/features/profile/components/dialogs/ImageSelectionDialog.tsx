@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { useMachine } from '@xstate/react'
 import {
   AlertCircle,
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
+import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button, buttonVariants } from '@/components/ui/button'
 import {
@@ -28,7 +30,10 @@ import {
   imageSelectionMachine,
   type NFT,
 } from '@/features/profile/machines/imageSelection'
+import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { inspect } from '@/utils/xstate'
+
+export type ImageType = 'avatar' | 'header'
 
 export type ImageSelectionDialogProps = {
   currentImage?: string
@@ -37,7 +42,8 @@ export type ImageSelectionDialogProps = {
   onImageRemove: () => void
   title: string
   description?: string
-  type: 'avatar' | 'header'
+  type: ImageType
+  name?: string // For better alt text and debugging
 }
 
 export const ImageSelectionDialog = ({
@@ -48,12 +54,22 @@ export const ImageSelectionDialog = ({
   title,
   description,
   type,
+  name,
 }: ImageSelectionDialogProps) => {
   const [open, setOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dropZoneRef = useRef<HTMLButtonElement>(null)
 
   const hasImage = currentImage && currentImage.trim() !== ''
+
+  // Resolve the current image if it's an IPFS/NFT URL
+  const resolvedImage = useQuery({
+    ...parseAvatarQuery(currentImage),
+    enabled: !!currentImage && open, // Only resolve when dialog is open
+  })
+
+  // Use resolved image if available, otherwise fall back to original
+  const displayImage = resolvedImage.data || currentImage
 
   const [state, send] = useMachine(imageSelectionMachine, {
     input: {
@@ -82,7 +98,7 @@ export const ImageSelectionDialog = ({
     const files = e.dataTransfer.files
     if (files.length > 0) {
       const file = files[0]
-      if (file.type.startsWith('image/')) {
+      if (file?.type.startsWith('image/')) {
         const imageUrl = URL.createObjectURL(file)
         send({ type: 'OPEN_UPLOAD', imageUrl })
       } else {
@@ -115,6 +131,27 @@ export const ImageSelectionDialog = ({
     )
   }
 
+  // Get appropriate dimensions and styling based on type
+  const getImageStyles = (size: 'small' | 'medium' | 'large' = 'medium') => {
+    const baseClasses = 'mx-auto rounded-md object-cover'
+
+    if (type === 'avatar') {
+      const sizeClasses = {
+        small: 'size-20',
+        medium: 'size-32',
+        large: 'size-40',
+      }
+      return `${baseClasses} ${sizeClasses[size]}`
+    } else {
+      const sizeClasses = {
+        small: 'h-20 w-full',
+        medium: 'h-32 w-full',
+        large: 'h-40 w-full',
+      }
+      return `${baseClasses} ${sizeClasses[size]}`
+    }
+  }
+
   // Main step - shows all options
   const renderMainStep = () => (
     <>
@@ -137,8 +174,8 @@ export const ImageSelectionDialog = ({
 
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <LinkIcon className="size-4" />
-            <span className="font-medium text-sm">Enter URL manually</span>
+            <Upload className="size-4" />
+            <span className="font-medium text-sm">Upload or drag & drop</span>
           </div>
           <button
             ref={dropZoneRef}
@@ -157,13 +194,14 @@ export const ImageSelectionDialog = ({
             </div>
           </button>
         </div>
+
         <Button
           onClick={() => send({ type: 'OPEN_MANUAL_INPUT' })}
           variant="outline"
           className="w-full justify-start"
         >
           <Keyboard className="size-4" />
-          Enter Manually
+          Enter URL Manually
         </Button>
 
         {hasImage && (
@@ -206,22 +244,27 @@ export const ImageSelectionDialog = ({
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center">
             <p className="mb-2 font-medium text-sm">Current</p>
-            <img
-              src={currentImage}
-              alt="Current"
-              className={`mx-auto rounded-md object-cover ${
-                type === 'avatar' ? 'size-20' : 'h-20 w-full'
-              }`}
-            />
+            <ImageFallback.Root>
+              <ImageFallback.Image
+                src={displayImage}
+                alt={`Current ${type}`}
+                className={getImageStyles('small')}
+              />
+              <ImageFallback.Fallback>
+                <div
+                  className={`${getImageStyles('small')} flex items-center justify-center bg-gray-200`}
+                >
+                  <Image className="size-8 text-gray-400" />
+                </div>
+              </ImageFallback.Fallback>
+            </ImageFallback.Root>
           </div>
           <div className="text-center">
             <p className="mb-2 font-medium text-sm">Default</p>
             <img
               src={defaultImage || placeholderAvatar}
-              alt="Default"
-              className={`mx-auto rounded-md object-cover ${
-                type === 'avatar' ? 'size-20' : 'h-20 w-full'
-              }`}
+              alt={`Default ${type}`}
+              className={getImageStyles('small')}
             />
           </div>
         </div>
@@ -319,9 +362,7 @@ export const ImageSelectionDialog = ({
             <img
               src={nft.image}
               alt={nft.name}
-              className={`mx-auto rounded-md object-cover ${
-                type === 'avatar' ? 'size-32' : 'h-32 w-full'
-              }`}
+              className={getImageStyles('large')}
             />
             <p className="mt-2 font-medium">{nft.name}</p>
             <p className="text-gray-500 text-sm">{nft.collection}</p>
@@ -367,9 +408,7 @@ export const ImageSelectionDialog = ({
           <img
             src={state.context.uploadedImage || ''}
             alt="Uploaded"
-            className={`mx-auto rounded-md object-cover ${
-              type === 'avatar' ? 'size-32' : 'h-32 w-full'
-            }`}
+            className={getImageStyles('large')}
           />
           <p className="mt-2 text-gray-500 text-sm">
             <Crop className="mr-1 inline size-4" />
@@ -465,9 +504,7 @@ export const ImageSelectionDialog = ({
           <img
             src={state.context.manualUrl}
             alt="Preview"
-            className={`mx-auto rounded-md object-cover ${
-              type === 'avatar' ? 'size-32' : 'h-32 w-full'
-            }`}
+            className={getImageStyles('large')}
             onError={(e) => {
               e.currentTarget.style.display = 'none'
               send({
@@ -533,11 +570,20 @@ export const ImageSelectionDialog = ({
               <Image className="size-6 text-white" />
             </div>
           </div>
-          <img
-            src={currentImage || defaultImage || placeholderAvatar}
-            alt={type === 'avatar' ? 'Avatar' : 'Header'}
-            className="h-full w-full object-cover"
-          />
+          <ImageFallback.Root>
+            <ImageFallback.Image
+              src={displayImage || defaultImage}
+              alt={`${name || 'Profile'} ${type}`}
+              className="h-full w-full object-cover"
+            />
+            <ImageFallback.Fallback>
+              <img
+                src={placeholderAvatar}
+                alt={`${type} fallback`}
+                className="h-full w-full object-cover"
+              />
+            </ImageFallback.Fallback>
+          </ImageFallback.Root>
         </button>
       </DialogTrigger>
 
