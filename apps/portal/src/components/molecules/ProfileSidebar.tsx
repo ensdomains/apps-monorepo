@@ -25,11 +25,6 @@ const itemGroups = [
       url: '/$name/records',
       icon: FileSpreadsheetIcon,
     },
-    {
-      title: 'Records',
-      url: '/$name/records',
-      icon: FileSpreadsheetIcon,
-    },
   ],
 ] as const
 
