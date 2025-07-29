@@ -15,9 +15,7 @@ function App() {
         <NavBar />
         <div className="flex flex-1">
           <ProfileSidebar name={name} />
-          <SidebarInset className="w-full">
-            main
-          </SidebarInset>
+          <SidebarInset className="w-full">main</SidebarInset>
         </div>
       </SidebarProvider>
     </div>

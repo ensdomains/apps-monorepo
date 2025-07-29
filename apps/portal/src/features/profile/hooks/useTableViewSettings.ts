@@ -1,5 +1,4 @@
-
-import useLocalStorageState from "use-local-storage-state"
+import useLocalStorageState from 'use-local-storage-state'
 
 export type TableViewSettings = {
   compact: boolean
@@ -8,7 +7,10 @@ export type TableViewSettings = {
 }
 
 export const useTableViewSettings = () => {
-  return useLocalStorageState<TableViewSettings>('records-table-view-settings', {
-    defaultValue: { compact: false, strippedRows: false, wrapText: false },
-  })
+  return useLocalStorageState<TableViewSettings>(
+    'records-table-view-settings',
+    {
+      defaultValue: { compact: false, strippedRows: false, wrapText: false },
+    },
+  )
 }

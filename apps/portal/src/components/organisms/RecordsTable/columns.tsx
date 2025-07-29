@@ -1,8 +1,8 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { ArrowUpDown } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
-import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings';
-import { cn } from '@/lib/utils';
+import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
+import { cn } from '@/lib/utils'
 
 type AddressRecord = { type: 'address'; id: number; key: string }
 type ContentHashRecord = { type: 'contentHash' }
@@ -14,10 +14,13 @@ export type Record = { value: string } & (
   | TextRecord
 )
 
-
 const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
   return (
-    <button className="p-0 flex flex-row items-center cursor-pointer" type="button" {...props}>
+    <button
+      className="p-0 flex flex-row items-center cursor-pointer"
+      type="button"
+      {...props}
+    >
       {children}
       <ArrowUpDown className="ml-2 h-4 w-4" />
     </button>
@@ -99,10 +102,16 @@ export const columns: ColumnDef<Record>[] = [
 
       const [settings] = useTableViewSettings()
 
-      return <div className={cn(`font-mono w-full max-w-[30vw] sm:max-w-[670px]`, settings.wrapText ? 'break-all whitespace-normal' : 'truncate')}>
-
-        <span>{value}</span>
-      </div>
+      return (
+        <div
+          className={cn(
+            `font-mono w-full max-w-[30vw] sm:max-w-[670px]`,
+            settings.wrapText ? 'break-all whitespace-normal' : 'truncate',
+          )}
+        >
+          <span>{value}</span>
+        </div>
+      )
     },
   },
 ]

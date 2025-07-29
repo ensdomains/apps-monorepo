@@ -6,7 +6,11 @@ export const SearchBar = () => {
       <label htmlFor="search" aria-label="Search">
         <SearchIcon height={16} width={16} />
       </label>
-      <input id="search" className="w-full appearance-none border-none outline-none" placeholder="Search..." />
+      <input
+        id="search"
+        className="w-full appearance-none border-none outline-none"
+        placeholder="Search..."
+      />
     </div>
   )
 }

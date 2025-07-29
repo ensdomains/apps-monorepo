@@ -22,7 +22,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { type TableViewSettings, useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
+import {
+  type TableViewSettings,
+  useTableViewSettings,
+} from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
 import { RecordDetails } from '../RecordDetails/RecordDetails'
 import { columns, type Record } from './columns'
@@ -60,7 +63,12 @@ const recordsToTableData = (records: GetRecordsReturnType) => {
 }
 
 const RecordSidebar: FC<
-  PropsWithChildren<{ row: Row<Record> | null; name: string; open: boolean, setOpen: React.Dispatch<React.SetStateAction<boolean>> }>
+  PropsWithChildren<{
+    row: Row<Record> | null
+    name: string
+    open: boolean
+    setOpen: React.Dispatch<React.SetStateAction<boolean>>
+  }>
 > = ({ children, row, name, open, setOpen }) => {
   return (
     <Sheet open={open} onOpenChange={setOpen} defaultOpen={false}>
@@ -85,8 +93,7 @@ const ClickableCell = ({
 }) => {
   if (cell.column.id === 'select') {
     return (
-      <TableCell key={cell.id}
-        className={tableView.compact ? 'py-2' : 'py-4'}>
+      <TableCell key={cell.id} className={tableView.compact ? 'py-2' : 'py-4'}>
         {flexRender(cell.column.columnDef.cell, cell.getContext())}
       </TableCell>
     )
@@ -100,7 +107,6 @@ const ClickableCell = ({
           toggleSidebar()
         }}
       >
-
         {flexRender(cell.column.columnDef.cell, cell.getContext())}
       </TableCell>
     )
@@ -141,8 +147,7 @@ export const RecordsTable = ({
   const [tableView] = useTableViewSettings()
 
   return (
-    <RecordSidebar row={clickedRow}  {...{ name, open, setOpen }}>
-
+    <RecordSidebar row={clickedRow} {...{ name, open, setOpen }}>
       <Table className="relative">
         <Popover>
           <PopoverTrigger className="hidden sm:block absolute right-8 top-4 cursor-pointer">
@@ -161,9 +166,9 @@ export const RecordsTable = ({
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
                   </TableHead>
                 )
               })}
@@ -174,14 +179,21 @@ export const RecordsTable = ({
           {table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => (
               <TableRow
-                className={cn('hover:bg-gray-200', tableView.strippedRows && "even:bg-gray-100")}
+                className={cn(
+                  'hover:bg-gray-200',
+                  tableView.strippedRows && 'even:bg-gray-100',
+                )}
                 key={row.id}
                 data-state={row.getIsSelected() && 'selected'}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <ClickableCell {...{ cell, setClickedRow, tableView }} key={cell.id} toggleSidebar={() => {
-                    setOpen(!open)
-                  }} />
+                  <ClickableCell
+                    {...{ cell, setClickedRow, tableView }}
+                    key={cell.id}
+                    toggleSidebar={() => {
+                      setOpen(!open)
+                    }}
+                  />
                 ))}
               </TableRow>
             ))
