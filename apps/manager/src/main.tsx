@@ -5,7 +5,7 @@ import reportWebVitals from './reportWebVitals.ts'
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
 import '@rainbow-me/rainbowkit/styles.css'
-
+import '@/styles/index.css'
 
 // Create a new router instance
 const router = createRouter({
