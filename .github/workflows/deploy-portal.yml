@@ -62,7 +62,6 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "🌐 **IPFS Gateway URLs:**" >> $GITHUB_STEP_SUMMARY
-          echo "- Cloudflare: https://$cid.ipfs.cf-ipfs.com" >> $GITHUB_STEP_SUMMARY
           echo "- dweb.link: https://$cid.ipfs.dweb.link" >> $GITHUB_STEP_SUMMARY
         env:
           BLUMEN_STORACHA_PROOF: ${{ secrets.BLUMEN_STORACHA_PROOF }}
