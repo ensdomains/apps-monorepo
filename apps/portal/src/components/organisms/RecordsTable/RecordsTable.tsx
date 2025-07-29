@@ -145,7 +145,7 @@ export const RecordsTable = ({
 
       <Table className="relative">
         <Popover>
-          <PopoverTrigger className="absolute right-8 top-4 cursor-pointer">
+          <PopoverTrigger className="hidden sm:block absolute right-8 top-4 cursor-pointer">
             <SettingsIcon />
           </PopoverTrigger>
           <PopoverContent align="end">

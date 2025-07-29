@@ -64,7 +64,7 @@ const ResolverView = ({ name }: { name: string }) => {
 
   return <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg">
     <h3 className="text-2xl font-medium">Resolver</h3>
-    <div className="grid grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
       <ResolverValue label="Mainnet contract address" value={resolverAddress} />
       <ResolverValue label="Namechain contract address" value={resolverAddress} />
       <ResolverValue label="Verifier address" value={resolverAddress} />

@@ -99,7 +99,7 @@ export const columns: ColumnDef<Record>[] = [
 
       const [settings] = useTableViewSettings()
 
-      return <div className={cn(`font-mono w-full`, settings.wrapText ? 'max-w-[670px] break-all whitespace-normal' : 'max-w-[670px] truncate')}>
+      return <div className={cn(`font-mono w-full max-w-[30vw] sm:max-w-[670px]`, settings.wrapText ? 'break-all whitespace-normal' : 'truncate')}>
 
         <span>{value}</span>
       </div>
