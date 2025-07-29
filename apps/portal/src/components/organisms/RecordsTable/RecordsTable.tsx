@@ -53,8 +53,8 @@ const recordsToTableData = (records: GetRecordsReturnType) => {
       }
     }
     if (key === 'coins') {
-      for (const { name, value: addr, id } of Object.values(value)) {
-        data.push({ key: name, value: addr, type: 'address', id })
+      for (const { coinType, value: addr, symbol } of Object.values(value)) {
+        data.push({ key: symbol, value: addr, type: 'address', id: coinType })
       }
     }
   }
@@ -166,9 +166,9 @@ export const RecordsTable = ({
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
                   </TableHead>
                 )
               })}

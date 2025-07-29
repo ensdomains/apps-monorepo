@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@ens-apps/utils": "workspace:*",
-    "@ensdomains/ensjs": "^4.0.2",
+    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@a96ae22",
     "@ensdomains/locales": "workspace:^",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-checkbox": "^1.3.2",

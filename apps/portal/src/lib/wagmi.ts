@@ -5,9 +5,11 @@ import {
   injectedWallet,
   metaMaskWallet,
 } from '@rainbow-me/rainbowkit/wallets'
-import { createClient, type HttpTransport, http } from 'viem'
+import { createClient, type HttpTransport, http, zeroAddress } from 'viem'
 import { mainnet } from 'viem/chains'
 import { createConfig } from 'wagmi'
+
+const mainnetWithEns = addEnsContracts(mainnet)
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
@@ -15,8 +17,12 @@ export const wagmiConfig = createConfig({
   multiInjectedProviderDiscovery: true,
   chains: [
     {
-      ...addEnsContracts(mainnet),
-      subgraphs: { ens: { url: 'https://api.alpha.blue.ensnode.io/subgraph' } },
+      ...mainnetWithEns,
+      contracts: {
+        ...mainnetWithEns.contracts,
+        'ensL2EthRegistrar': { address: zeroAddress }
+      },
+      subgraphs: { ...mainnetWithEns.subgraphs, ens: { url: 'https://api.alpha.blue.ensnode.io/subgraph' } },
     },
   ],
   connectors: connectorsForWallets(
