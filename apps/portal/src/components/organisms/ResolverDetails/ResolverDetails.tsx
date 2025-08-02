@@ -44,7 +44,7 @@ const SupportedFeatures = ({ resolverAddress }: { resolverAddress: Address }) =>
 export const ResolverDetails = ({ resolverAddress }: { resolverAddress: Address }) => {
   return (
     <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg w-full">
-      <div className="w-full grid grid-cols-2 gap-4">
+      <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ResolverField label="Mainnet contract address" value={resolverAddress} />
         <ResolverField label="Namechain contract address" value={resolverAddress} />
         <ResolverField label="Verifier address" value={resolverAddress} />
