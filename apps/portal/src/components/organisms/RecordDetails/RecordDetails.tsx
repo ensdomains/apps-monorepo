@@ -75,7 +75,7 @@ const TextRecordValue = ({
 }
 
 const ResolverValue = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex flex-col gap-1 w-full overflow-clip ">
+  <div className="flex flex-col gap-1 w-full overflow-clip">
     <span className="font-sans font-normal text-sm text-gray-500">{label}</span>
     <div className="flex flex-row justify-between">
       <span className="font-mono underline decoration-dashed underline-offset-4 max-w-[336px] truncate">
