@@ -14,10 +14,10 @@ export interface SearchFormProps {
 export const SearchForm = ({
   placeholder = 'Search for a domain name...',
   onSearch,
-  loading = false,
+  // loading = false,
   recentSearches = [],
   onRecentSearchSelect,
-  showRecentSearches = true,
+  // showRecentSearches = true,
 }: SearchFormProps) => {
   const [query, setQuery] = useState('')
   const [showRecent, setShowRecent] = useState(false)
@@ -33,15 +33,15 @@ export const SearchForm = ({
     setQuery(e.target.value)
   }
 
-  const handleInputFocus = () => {
-    if (showRecentSearches && recentSearches.length > 0) {
-      setShowRecent(true)
-    }
-  }
+  // const handleInputFocus = () => {
+  //   if (showRecentSearches && recentSearches.length > 0) {
+  //     setShowRecent(true)
+  //   }
+  // }
 
-  const handleInputBlur = () => {
-    setTimeout(() => setShowRecent(false), 150)
-  }
+  // const handleInputBlur = () => {
+  //   setTimeout(() => setShowRecent(false), 150)
+  // }
 
   const handleRecentSearchClick = (recentQuery: string) => {
     setQuery(recentQuery)
@@ -54,15 +54,16 @@ export const SearchForm = ({
       <SearchField
         value={query}
         onChange={handleInputChange}
-        onFocus={handleInputFocus}
-        onBlur={handleInputBlur}
+        // TODO: Add this back in with fixed SearchField component
+        // onFocus={handleInputFocus}
+        // onBlur={handleInputBlur}
         onSearch={handleSearch}
         placeholder={placeholder}
-        buttonProps={{
-          loading,
-          disabled: !query.trim() || loading,
-        }}
-        size="lg"
+        // buttonProps={{
+        //   loading,
+        //   disabled: !query.trim() || loading,
+        // }}
+        // size="lg"
       />
 
       {showRecent && recentSearches.length > 0 && (

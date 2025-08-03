@@ -4,6 +4,12 @@ settings:
   autoInstallPeers: false
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    xstate:
+      specifier: ^5.20.1
+      version: 5.20.1
+
 patchedDependencies:
   xstate:
     hash: cd60a6eae163806e90144605b7835f441bcc3c7b456b9ad4eb0a7215997f36a5
@@ -128,7 +134,7 @@ importers:
         specifier: ^2.15.6
         version: 2.15.6(@tanstack/query-core@5.83.1)(@tanstack/react-query@5.84.1(react@19.1.0))(@types/react@19.1.8)(bufferutil@4.0.9)(db0@0.3.2)(immer@10.1.1)(ioredis@5.7.0)(react@19.1.0)(typescript@5.8.3)(utf-8-validate@5.0.10)(viem@2.31.7(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@3.25.76))(zod@3.25.76)
       xstate:
-        specifier: ^5.20.1
+        specifier: 'catalog:'
         version: 5.20.1(patch_hash=cd60a6eae163806e90144605b7835f441bcc3c7b456b9ad4eb0a7215997f36a5)
     devDependencies:
       '@cloudflare/vite-plugin':
@@ -315,8 +321,8 @@ importers:
         specifier: ^8.2.0
         version: 8.2.0
       xstate:
-        specifier: ^5.19.2
-        version: 5.19.2(patch_hash=cd60a6eae163806e90144605b7835f441bcc3c7b456b9ad4eb0a7215997f36a5)
+        specifier: 'catalog:'
+        version: 5.20.1(patch_hash=cd60a6eae163806e90144605b7835f441bcc3c7b456b9ad4eb0a7215997f36a5)
     devDependencies:
       typescript:
         specifier: ^5.7.2
