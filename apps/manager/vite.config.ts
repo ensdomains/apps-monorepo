@@ -11,7 +11,7 @@ export default defineConfig({
     port: 3000,
   },
   plugins: [
-    tanstackStart({ customViteReactPlugin: true }),
+    tanstackStart({ customViteReactPlugin: true, target: 'cloudflare-module' }),
     viteReact(),
     tailwindcss(),
   ],
