@@ -11,7 +11,7 @@ import { createConfig } from 'wagmi'
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
-  ssr: false,
+  ssr: true,
   multiInjectedProviderDiscovery: true,
   chains: [addEnsContracts(mainnet)],
   connectors: connectorsForWallets(

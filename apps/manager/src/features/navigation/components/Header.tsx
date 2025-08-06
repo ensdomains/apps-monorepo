@@ -25,7 +25,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { NotificationsDropdown } from '@/features/notifications/components'
-import { MOCK_NOTIFICATIONS } from '@/features/notifications/MOCK'
 import { useTheme } from '@/hooks/use-theme'
 
 const ConnectedContent = () => {
@@ -103,10 +102,7 @@ const ConnectedContent = () => {
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-sm" collisionPadding={16} sideOffset={16}>
-          <NotificationsDropdown
-            notifications={MOCK_NOTIFICATIONS}
-            onAction={() => setNotificationsOpen(false)}
-          />
+          <NotificationsDropdown onAction={() => setNotificationsOpen(false)} />
         </PopoverContent>
       </Popover>
     </div>

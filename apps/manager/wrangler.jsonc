@@ -1,7 +1,10 @@
 {
+  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "manager-app-v4",
-  "compatibility_date": "2025-07-08",
+  "main": ".output/server/index.mjs",
+  "compatibility_date": "2025-07-27",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
-    "not_found_handling": "single-page-application"
+    "directory": ".output/public"
   }
 }

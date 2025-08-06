@@ -13,6 +13,7 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as NotificationsIndexRouteImport } from './routes/notifications/index'
 import { Route as AutoRenewalIndexRouteImport } from './routes/auto-renewal/index'
+import { Route as PaymentListRouteImport } from './routes/payment/list'
 import { Route as PaymentAddRouteImport } from './routes/payment/add'
 import { Route as NotificationsSettingsRouteImport } from './routes/notifications/settings'
 import { Route as NotificationsAllRouteImport } from './routes/notifications/all'
@@ -35,6 +36,11 @@ const NotificationsIndexRoute = NotificationsIndexRouteImport.update({
 const AutoRenewalIndexRoute = AutoRenewalIndexRouteImport.update({
   id: '/auto-renewal/',
   path: '/auto-renewal/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaymentListRoute = PaymentListRouteImport.update({
+  id: '/payment/list',
+  path: '/payment/list',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PaymentAddRoute = PaymentAddRouteImport.update({
@@ -156,6 +162,13 @@ declare module '@tanstack/react-router' {
       path: '/auto-renewal'
       fullPath: '/auto-renewal'
       preLoaderRoute: typeof AutoRenewalIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/payment/list': {
+      id: '/payment/list'
+      path: '/payment/list'
+      fullPath: '/payment/list'
+      preLoaderRoute: typeof PaymentListRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/payment/add': {
