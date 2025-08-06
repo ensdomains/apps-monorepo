@@ -33,7 +33,7 @@
     "@tanstack/react-router": "^1.130.12",
     "@tanstack/react-router-devtools": "^1.130.13",
     "@tanstack/react-start": "^1.130.15",
-    "@wagmi/core": "^2.17.3",
+    "@wagmi/core": "^2.18.1",
     "@xstate/react": "^6.0.0",
     "@xstate/store": "^3.8.0",
     "class-variance-authority": "^0.7.1",
@@ -49,8 +49,8 @@
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.11",
     "vaul": "^1.1.2",
-    "viem": "^2.31.7",
-    "wagmi": "^2.15.6",
+    "viem": "^2.33.2",
+    "wagmi": "^2.16.1",
     "xstate": "catalog:"
   },
   "devDependencies": {
