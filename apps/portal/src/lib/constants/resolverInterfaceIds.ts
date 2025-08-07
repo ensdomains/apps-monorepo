@@ -11,12 +11,13 @@ export const RESOLVER_INTERFACE_IDS = {
   VersionableResolver: '0xd700ff33',
 } as const
 export type ResolverInterfaceName = keyof typeof RESOLVER_INTERFACE_IDS
-export type ResolverInterfaceId = (typeof RESOLVER_INTERFACE_IDS)[ResolverInterfaceName]
+export type ResolverInterfaceId =
+  (typeof RESOLVER_INTERFACE_IDS)[ResolverInterfaceName]
 
 export const RESOLVER_FEATURE_NAMES: Record<ResolverInterfaceName, string> = {
-  'ContentHashResolver': 'Content hash resolution',
-  'MultiCoinAddressResolver': 'Multicoin support',
-  'InterfaceResolver': 'Interface detection',
-  'AbiResolver': 'ABI resolution for contracts',
-  'TextResolver': 'Text records'
+  ContentHashResolver: 'Content hash resolution',
+  MultiCoinAddressResolver: 'Multicoin support',
+  InterfaceResolver: 'Interface detection',
+  AbiResolver: 'ABI resolution for contracts',
+  TextResolver: 'Text records',
 } as const

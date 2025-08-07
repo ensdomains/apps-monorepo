@@ -1,5 +1,9 @@
 import { Link } from '@tanstack/react-router'
-import { FileCodeIcon, FileSpreadsheetIcon, PersonStandingIcon } from 'lucide-react'
+import {
+  FileCodeIcon,
+  FileSpreadsheetIcon,
+  PersonStandingIcon,
+} from 'lucide-react'
 import {
   Sidebar,
   SidebarContent,
@@ -29,7 +33,7 @@ const itemGroups = [
       title: 'Resolver',
       url: '/$name/resolver',
       icon: FileCodeIcon,
-    }
+    },
   ],
 ] as const
 

@@ -117,12 +117,14 @@ export const RecordsTable = ({
   records,
   rowSelection,
   setRowSelection,
+  defaultTableSettings,
   name,
 }: {
   records: GetRecordsReturnType
   rowSelection: RowSelectionState
   setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>
   name: string
+  defaultTableSettings?: TableViewSettings
 }) => {
   const tableData = useMemo(() => recordsToTableData(records), [records])
 
@@ -144,7 +146,7 @@ export const RecordsTable = ({
 
   const [open, setOpen] = useState(false)
 
-  const [tableView] = useTableViewSettings()
+  const [tableView] = useTableViewSettings(defaultTableSettings)
 
   return (
     <RecordSidebar row={clickedRow} {...{ name, open, setOpen }}>

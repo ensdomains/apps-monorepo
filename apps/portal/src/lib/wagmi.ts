@@ -20,9 +20,12 @@ export const wagmiConfig = createConfig({
       ...mainnetWithEns,
       contracts: {
         ...mainnetWithEns.contracts,
-        'ensL2EthRegistrar': { address: zeroAddress }
+        ensL2EthRegistrar: { address: zeroAddress },
       },
-      subgraphs: { ...mainnetWithEns.subgraphs, ens: { url: 'https://api.alpha.blue.ensnode.io/subgraph' } },
+      subgraphs: {
+        ...mainnetWithEns.subgraphs,
+        ens: { url: 'https://api.alpha.blue.ensnode.io/subgraph' },
+      },
     },
   ],
   connectors: connectorsForWallets(

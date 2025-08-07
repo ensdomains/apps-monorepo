@@ -6,11 +6,11 @@ export type TableViewSettings = {
   wrapText: boolean
 }
 
-export const useTableViewSettings = () => {
+export const useTableViewSettings = (defaultValue: TableViewSettings = {
+  compact: false, strippedRows: false, wrapText: false
+}) => {
   return useLocalStorageState<TableViewSettings>(
     'records-table-view-settings',
-    {
-      defaultValue: { compact: false, strippedRows: false, wrapText: false },
-    },
+    { defaultValue },
   )
 }

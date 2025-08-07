@@ -1,5 +1,6 @@
-import { ClipboardCopyIcon, SearchIcon, TrashIcon } from 'lucide-react'
+import { SearchIcon, TrashIcon } from 'lucide-react'
 import { useEnsResolver } from 'wagmi'
+import { CopyableRecord, } from '@/components/molecules/CopyableRecord'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -77,18 +78,7 @@ const TextRecordValue = ({
 const ResolverValue = ({ label, value }: { label: string; value: string }) => (
   <div className="flex flex-col gap-1 w-full overflow-clip">
     <span className="font-sans font-normal text-sm text-gray-500">{label}</span>
-    <div className="flex flex-row justify-between">
-      <span className="font-mono underline decoration-dashed underline-offset-4 max-w-[336px] truncate">
-        {value}
-      </span>
-      <button
-        className="cursor-pointer"
-        type="button"
-        onClick={() => navigator.clipboard.writeText(value)}
-      >
-        <ClipboardCopyIcon height={16} width={16} />
-      </button>
-    </div>
+    <CopyableRecord value={value} />
   </div>
 )
 
