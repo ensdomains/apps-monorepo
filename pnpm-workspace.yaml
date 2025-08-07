@@ -1,3 +1,7 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+catalog:
+  # Needs to be shared between apps and utils for types to work
+  xstate: ^5.20.1

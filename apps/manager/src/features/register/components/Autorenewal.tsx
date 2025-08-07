@@ -24,14 +24,6 @@ export function Autorenewal({
     day: 'numeric',
   })
 
-  // Calculate renewal reminder date (15 days before expiry)
-  const reminderDate = new Date(expiryDate.getTime() - 15 * 24 * 60 * 60 * 1000)
-  const reminderDateString = reminderDate.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-
   return (
     <div className="mx-auto max-w-md space-y-8 p-6 text-center">
       {/* QR-like pattern placeholder - same as previous screens */}

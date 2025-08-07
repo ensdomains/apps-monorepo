@@ -9,16 +9,16 @@ const meta = {
   },
   tags: ['autodocs'],
   argTypes: {
-    size: {
-      control: 'select',
-      options: ['sm', 'default', 'lg'],
-    },
+    // size: {
+    //   control: 'select',
+    //   options: ['sm', 'default', 'lg'],
+    // },
     disabled: {
       control: 'boolean',
     },
-    showSearchIcon: {
-      control: 'boolean',
-    },
+    // showSearchIcon: {
+    //   control: 'boolean',
+    // },
   },
 } satisfies Meta<typeof SearchField>
 
@@ -43,7 +43,7 @@ export const WithValue: Story = {
 export const WithoutIcon: Story = {
   args: {
     placeholder: 'Search for domains...',
-    showSearchIcon: false,
+    // showSearchIcon: false,
     onSearch: (query) => console.log('Searching for:', query),
   },
 }
@@ -51,7 +51,7 @@ export const WithoutIcon: Story = {
 export const CustomSearchIcon: Story = {
   args: {
     placeholder: 'Search for domains...',
-    searchIconElement: <span>🔍</span>,
+    // searchIconElement: <span>🔍</span>,
     onSearch: (query) => console.log('Searching for:', query),
   },
 }
@@ -67,8 +67,8 @@ export const Disabled: Story = {
 export const CustomButton: Story = {
   args: {
     placeholder: 'Search for domains...',
-    buttonText: 'Find',
-    buttonProps: { variant: 'secondary' },
+    // buttonText: 'Find',
+    // buttonProps: { variant: 'secondary' },
     onSearch: (query) => console.log('Finding:', query),
   },
 }
@@ -78,19 +78,19 @@ export const DifferentSizes: Story = {
     <div className="flex flex-col gap-4">
       <SearchField
         placeholder="Small search field..."
-        size="sm"
-        buttonProps={{ size: 'sm' }}
+        // size="sm"
+        // buttonProps={{ size: 'sm' }}
         onSearch={(query) => console.log('Small search:', query)}
       />
       <SearchField
         placeholder="Default search field..."
-        size="default"
+        // size="default"
         onSearch={(query) => console.log('Default search:', query)}
       />
       <SearchField
         placeholder="Large search field..."
-        size="lg"
-        buttonProps={{ size: 'lg' }}
+        // size="lg"
+        // buttonProps={{ size: 'lg' }}
         onSearch={(query) => console.log('Large search:', query)}
       />
     </div>
@@ -118,8 +118,8 @@ export const FormIntegration: Story = {
       <h3 className="font-semibold text-lg">ENS Domain Search</h3>
       <SearchField
         placeholder="Search for available domains..."
-        buttonText="Check Availability"
-        buttonProps={{ variant: 'default' }}
+        // buttonText="Check Availability"
+        // buttonProps={{ variant: 'default' }}
         onSearch={(query) => {
           console.log('Searching for domains:', query)
           setTimeout(() => {
@@ -137,7 +137,7 @@ export const FormIntegration: Story = {
 export const WithValidation: Story = {
   args: {
     placeholder: 'Enter domain name...',
-    helperText: 'Enter a valid domain name (e.g., example.eth)',
+    // helperText: 'Enter a valid domain name (e.g., example.eth)',
     onSearch: (query) => {
       if (query.length < 3) {
         alert('Domain name must be at least 3 characters')
@@ -152,11 +152,11 @@ export const CustomStyling: Story = {
   args: {
     placeholder: 'Custom styled search...',
     className: 'max-w-xl',
-    buttonText: 'GO',
-    buttonProps: {
-      variant: 'destructive',
-      className: 'px-8',
-    },
+    // buttonText: 'GO',
+    // buttonProps: {
+    //   variant: 'destructive',
+    //   className: 'px-8',
+    // },
     onSearch: (query) => console.log('Custom search:', query),
   },
 }

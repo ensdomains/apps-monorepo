@@ -12,7 +12,7 @@ interface PaymentSuccessProps {
 }
 
 export function PaymentSuccess({
-  domainName,
+  domainName: _domainName,
   onComplete,
 }: PaymentSuccessProps) {
   const [email, setEmail] = useState('')

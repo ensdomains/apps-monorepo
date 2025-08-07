@@ -1,4 +1,4 @@
-import { Check, CircleArrowRight, CircleCheck, X } from 'lucide-react'
+import { Check, CircleArrowRight, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface DomainResultCardProps {

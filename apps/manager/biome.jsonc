@@ -18,10 +18,19 @@
   "files": {
     "includes": [
       "./**",
-      "!**/*.gen.ts",
+
       "!**/node_modules/**",
-      "!**/dist/**",
-      "!**/public/**"
+      "!**/public/**",
+
+      // Generated files
+      "!**/*.gen.ts",
+      "!**/*.gen.d.ts",
+
+      // Build & Temp files
+      "!**/.tanstack/**",
+      "!**/.output/**",
+      "!**/.nitro/**",
+      "!**/.wrangler/**"
     ]
   }
 }
