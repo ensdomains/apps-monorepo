@@ -14,6 +14,7 @@ export type ResolverInterfaceName = keyof typeof RESOLVER_INTERFACE_IDS
 export type ResolverInterfaceId =
   (typeof RESOLVER_INTERFACE_IDS)[ResolverInterfaceName]
 
+// @ts-expect-error not all feature names are display yet
 export const RESOLVER_FEATURE_NAMES: Record<ResolverInterfaceName, string> = {
   ContentHashResolver: 'Content hash resolution',
   MultiCoinAddressResolver: 'Multicoin support',
