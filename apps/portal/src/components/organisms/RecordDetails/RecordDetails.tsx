@@ -1,6 +1,6 @@
 import { SearchIcon, TrashIcon } from 'lucide-react'
 import { useEnsResolver } from 'wagmi'
-import { CopyableRecord, } from '@/components/molecules/CopyableRecord'
+import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'

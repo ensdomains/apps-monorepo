@@ -62,12 +62,8 @@ function RouteComponent() {
               {resolverAddress && <ResolverDetails {...{ resolverAddress }} />}
               <Accordion type="single" collapsible>
                 <AccordionItem value="resolver-metadata">
-                  <AccordionTrigger>
-                    Resolver metadata
-                  </AccordionTrigger>
-                  <AccordionContent>
-
-                  </AccordionContent>
+                  <AccordionTrigger>Resolver metadata</AccordionTrigger>
+                  <AccordionContent></AccordionContent>
                 </AccordionItem>
               </Accordion>
               <NameHistory name={name} />

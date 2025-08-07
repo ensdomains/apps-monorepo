@@ -10,15 +10,15 @@ export class GetBlockTimestampsError extends TaggedError(
   'GetBlockTimestampsError',
 )<{
   cause: GetBlockErrorType
-}> { }
+}> {}
 
 type GetBlockTimestampsParameters = {
   blocks: bigint[]
 }
 
-export const getBlockTimestamps = ResultFn(async function* (
-  { blocks }: GetBlockTimestampsParameters,
-) {
+export const getBlockTimestamps = ResultFn(async function* ({
+  blocks,
+}: GetBlockTimestampsParameters) {
   const client = yield* safeGetClient()
 
   const uniqueBlocks = [...new Set(blocks)]
@@ -28,9 +28,9 @@ export const getBlockTimestamps = ResultFn(async function* (
       uniqueBlocks.map(async (blockNumber) => {
         const block = await getBlock(client, { blockNumber })
         return { blockNumber, timestamp: block.timestamp }
-      })
+      }),
     ),
-    (e) => new GetBlockTimestampsError({ cause: e as GetBlockErrorType })
+    (e) => new GetBlockTimestampsError({ cause: e as GetBlockErrorType }),
   )
 
   const timestamps = new Map<bigint, bigint>()
@@ -41,7 +41,6 @@ export const getBlockTimestamps = ResultFn(async function* (
   return ok(timestamps)
 })
 
-
 export const getBlockTimestampsQueryKey = createQueryKey<
   'getBlockTimestampsQueryKey',
   GetBlockTimestampsParameters
@@ -49,11 +48,11 @@ export const getBlockTimestampsQueryKey = createQueryKey<
 
 export const getBlockTimestampsQueryOptions = (
   params: GetBlockTimestampsParameters,
-) => resultQueryOptions({
-  queryKey: getBlockTimestampsQueryKey(params),
-  queryFn: ({ queryKey: [, params] }) => getBlockTimestamps(params),
-})
+) =>
+  resultQueryOptions({
+    queryKey: getBlockTimestampsQueryKey(params),
+    queryFn: ({ queryKey: [, params] }) => getBlockTimestamps(params),
+  })
 
-export const useBlockTimestamps = (
-  params: GetBlockTimestampsParameters,
-) => useQuery(getBlockTimestampsQueryOptions(params))
+export const useBlockTimestamps = (params: GetBlockTimestampsParameters) =>
+  useQuery(getBlockTimestampsQueryOptions(params))

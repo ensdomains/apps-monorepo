@@ -1,21 +1,19 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import type { GetSupportedInterfacesErrorType } from '@ensdomains/ensjs/public'
 import type {
-  GetSupportedInterfacesErrorType,
-} from '@ensdomains/ensjs/public'
-import type { GetNameHistoryErrorType, GetNameHistoryParameters } from '@ensdomains/ensjs/subgraph'
+  GetNameHistoryErrorType,
+  GetNameHistoryParameters,
+} from '@ensdomains/ensjs/subgraph'
 import { getNameHistory as ensjs_getNameHistory } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class GetNameHistoryError extends TaggedError(
-  'GetNameHistoryError',
-)<{
+export class GetNameHistoryError extends TaggedError('GetNameHistoryError')<{
   cause: GetNameHistoryErrorType
-}> { }
-
+}> {}
 
 export const getNameHistory = ResultFn(async function* (
   params: GetNameHistoryParameters,
@@ -37,16 +35,12 @@ export const supportsInterfacesQueryKey = createQueryKey<
   GetNameHistoryParameters
 >('get-name-history')
 
-export const getNameHistoryQueryOptions = (
-  params: GetNameHistoryParameters,
-) =>
+export const getNameHistoryQueryOptions = (params: GetNameHistoryParameters) =>
   resultQueryOptions({
     queryKey: supportsInterfacesQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getNameHistory(params),
   })
 
-export const useNameHistory = (
-  params: GetNameHistoryParameters,
-) => {
+export const useNameHistory = (params: GetNameHistoryParameters) => {
   return useQuery(getNameHistoryQueryOptions(params))
 }

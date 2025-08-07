@@ -8,7 +8,13 @@ function Accordion({
   className,
   ...props
 }: React.ComponentProps<typeof AccordionPrimitive.Root>) {
-  return <AccordionPrimitive.Root {...props} data-slot="accordion" className={cn(className, 'border border-secondary rounded-md px-4')} />
+  return (
+    <AccordionPrimitive.Root
+      {...props}
+      data-slot="accordion"
+      className={cn(className, 'border border-secondary rounded-md px-4')}
+    />
+  )
 }
 
 function AccordionItem({

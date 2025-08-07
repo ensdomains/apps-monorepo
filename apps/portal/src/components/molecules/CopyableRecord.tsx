@@ -1,4 +1,4 @@
-import { ClipboardCopyIcon } from "lucide-react"
+import { ClipboardCopyIcon } from 'lucide-react'
 
 export const CopyableRecord = ({ value }: { value: string }) => {
   return (
