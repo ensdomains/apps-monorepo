@@ -6,7 +6,7 @@ import { useBlockTimestamps } from "@/features/profile/hooks/useBlockTimestamps"
 import { useNameHistory } from "@/features/profile/hooks/useNameHistory"
 
 type ResolverEventWithTimestamp = ResolverEvent & {
-  timestamp: number
+  timestamp?: bigint
 }
 
 const columns: ColumnDef<ResolverEventWithTimestamp>[] = [{
@@ -58,6 +58,6 @@ export const NameHistory = ({ name }: { name: string }) => {
     <div>
       <h2 className="text-[26px] font-medium">History</h2>
     </div>
-    <EventTable events={data?.resolverEvents || []} />
+    <EventTable events={(data?.resolverEvents || []) as ResolverEvent[]} />
   </div>
 }
