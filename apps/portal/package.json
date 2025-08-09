@@ -9,7 +9,9 @@
     "serve": "vite preview",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "deploy": "wrangler deploy",
+    "deploy:version": "wrangler versions upload"
   },
   "dependencies": {
     "@ens-apps/utils": "workspace:*",

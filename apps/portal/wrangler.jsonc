@@ -1,0 +1,7 @@
+{
+  "name": "portal-app",
+  "compatibility_date": "2025-07-08",
+  "assets": {
+    "not_found_handling": "single-page-application"
+  }
+}
