@@ -94,7 +94,7 @@ export const searchMachine = setup({
           target: 'Error',
           actions: [
             assign({
-              error: ({ event }) => event.error,
+              error: ({ event }) => event.error as WagmiClientError | NameAvailabilityError,
               isAvailable: (_) => undefined,
             }),
             log(({ event }) => `Availability check failed: ${event.error}`),

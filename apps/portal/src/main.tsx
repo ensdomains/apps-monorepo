@@ -7,6 +7,7 @@ import { routeTree } from './routeTree.gen'
 import '@ensdomains/thorin/dist/thorin.css'
 import '@rainbow-me/rainbowkit/styles.css'
 import '@/styles/global.css.ts'
+import '@/utils/themeSetup.ts'
 
 import resources from 'virtual:i18next-loader'
 import i18n from 'i18next'
