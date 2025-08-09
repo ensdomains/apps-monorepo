@@ -234,13 +234,8 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@types/react@19.1.8)(react@19.1.0)(xstate@5.20.1(patch_hash=cd60a6eae163806e90144605b7835f441bcc3c7b456b9ad4eb0a7215997f36a5))
       i18next:
-<<<<<<< HEAD
         specifier: ^25.3.2
-        version: 25.3.2(typescript@5.8.3)
-=======
-        specifier: ^25.2.0
-        version: 25.2.1(typescript@5.9.2)
->>>>>>> 78e9286 (chore(deps-dev): bump the build-tools group across 1 directory with 5 updates)
+        version: 25.3.2(typescript@5.9.2)
       i18next-browser-languagedetector:
         specifier: ^8.1.0
         version: 8.2.0
@@ -255,11 +250,7 @@ importers:
         version: 19.1.0(react@19.1.0)
       react-i18next:
         specifier: ^15.5.1
-<<<<<<< HEAD
-        version: 15.5.3(i18next@25.3.2(typescript@5.8.3))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(typescript@5.8.3)
-=======
-        version: 15.5.3(i18next@25.2.1(typescript@5.9.2))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(typescript@5.9.2)
->>>>>>> 78e9286 (chore(deps-dev): bump the build-tools group across 1 directory with 5 updates)
+        version: 15.5.3(i18next@25.3.2(typescript@5.9.2))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(typescript@5.9.2)
       viem:
         specifier: ^2.31.7
         version: 2.31.7(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76)
@@ -9213,9 +9204,9 @@ snapshots:
 
   '@scure/bip32@1.6.2':
     dependencies:
-      '@noble/curves': 1.8.1
-      '@noble/hashes': 1.7.1
-      '@scure/base': 1.2.4
+      '@noble/curves': 1.8.2
+      '@noble/hashes': 1.7.2
+      '@scure/base': 1.2.6
 
   '@scure/bip32@1.7.0':
     dependencies:
@@ -9230,8 +9221,8 @@ snapshots:
 
   '@scure/bip39@1.5.4':
     dependencies:
-      '@noble/hashes': 1.7.1
-      '@scure/base': 1.2.4
+      '@noble/hashes': 1.7.2
+      '@scure/base': 1.2.6
 
   '@scure/bip39@1.6.0':
     dependencies:
@@ -12237,11 +12228,7 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.27.0
 
-<<<<<<< HEAD
-  i18next@25.3.2(typescript@5.8.3):
-=======
-  i18next@25.2.1(typescript@5.9.2):
->>>>>>> 78e9286 (chore(deps-dev): bump the build-tools group across 1 directory with 5 updates)
+  i18next@25.3.2(typescript@5.9.2):
     dependencies:
       '@babel/runtime': 7.28.2
     optionalDependencies:
@@ -13015,10 +13002,10 @@ snapshots:
   ox@0.6.7(typescript@5.9.2)(zod@3.25.76):
     dependencies:
       '@adraffy/ens-normalize': 1.11.0
-      '@noble/curves': 1.8.1
-      '@noble/hashes': 1.7.1
-      '@scure/bip32': 1.6.2
-      '@scure/bip39': 1.5.4
+      '@noble/curves': 1.9.2
+      '@noble/hashes': 1.8.0
+      '@scure/bip32': 1.7.0
+      '@scure/bip39': 1.6.0
       abitype: 1.0.8(typescript@5.9.2)(zod@3.25.76)
       eventemitter3: 5.0.1
     optionalDependencies:
@@ -13367,19 +13354,11 @@ snapshots:
       react: 19.1.0
       scheduler: 0.26.0
 
-<<<<<<< HEAD
-  react-i18next@15.5.3(i18next@25.3.2(typescript@5.8.3))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(typescript@5.8.3):
+  react-i18next@15.5.3(i18next@25.3.2(typescript@5.9.2))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(typescript@5.9.2):
     dependencies:
       '@babel/runtime': 7.27.6
       html-parse-stringify: 3.0.1
-      i18next: 25.3.2(typescript@5.8.3)
-=======
-  react-i18next@15.5.3(i18next@25.2.1(typescript@5.9.2))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(typescript@5.9.2):
-    dependencies:
-      '@babel/runtime': 7.27.6
-      html-parse-stringify: 3.0.1
-      i18next: 25.2.1(typescript@5.9.2)
->>>>>>> 78e9286 (chore(deps-dev): bump the build-tools group across 1 directory with 5 updates)
+      i18next: 25.3.2(typescript@5.9.2)
       react: 19.1.0
     optionalDependencies:
       react-dom: 19.1.0(react@19.1.0)
