@@ -34,7 +34,7 @@
     "react-i18next": "^15.5.1",
     "viem": "^2.31.7",
     "wagmi": "^2.15.6",
-    "xstate": "^5.20.1"
+    "xstate": "catalog:"
   },
   "devDependencies": {
     "@ensdomains/vite-plugin-i18next-loader": "^4.0.3",
