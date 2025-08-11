@@ -2,6 +2,7 @@
 
 import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import rainbowKitCss from '@rainbow-me/rainbowkit/styles.css?url'
+import type { QueryClient } from '@tanstack/react-query'
 import {
   createRootRouteWithContext,
   HeadContent,
@@ -14,7 +15,6 @@ import { WagmiProvider } from 'wagmi'
 import { Layout } from '@/components/Layout'
 import { wagmiConfig } from '@/lib/wagmi'
 import appCss from '@/styles/index.css?url'
-import type { queryClient } from '@/utils/queryClient'
 
 const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
@@ -25,7 +25,7 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
 }
 
 interface RootRouterContext {
-  queryClient: typeof queryClient
+  queryClient: QueryClient
 }
 
 export const Route = createRootRouteWithContext<RootRouterContext>()({
