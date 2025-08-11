@@ -60,6 +60,7 @@
     "@cloudflare/vite-plugin": "^1.11.2",
     "@statelyai/inspect": "^0.4.0",
     "@storybook/react-vite": "^9.1.1",
+    "@tanstack/react-router-ssr-query": "^1.131.5",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.6.4",
     "@testing-library/react": "^16.2.0",
