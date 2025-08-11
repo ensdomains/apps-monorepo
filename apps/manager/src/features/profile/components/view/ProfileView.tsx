@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useAccount } from 'wagmi'
 import { ownerQuery } from '../../service/profileOwner'
@@ -18,10 +18,9 @@ interface ProfileViewProps {
 }
 
 export const ProfileView = ({ name }: ProfileViewProps) => {
-  const records = useQuery({
+  const records = useSuspenseQuery({
     ...profileRecordsQuery(name),
     select: transformProfileRecords,
-    throwOnError: true,
   })
 
   const owner = useQuery({
