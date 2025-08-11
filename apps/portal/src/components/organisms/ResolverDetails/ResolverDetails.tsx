@@ -1,5 +1,6 @@
-import { ClipboardCopyIcon } from 'lucide-react'
+
 import type { Address } from 'viem'
+import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { useSupportsInterfaces } from '@/hooks/useSupportsInterfaces'
 import {
   RESOLVER_FEATURE_NAMES,
@@ -7,21 +8,10 @@ import {
   type ResolverInterfaceName,
 } from '@/lib/constants/resolverInterfaceIds'
 
-const ResolverField = ({ label, value }: { label: string; value: string }) => (
+export const ResolverField = ({ label, value }: { label: string; value: string }) => (
   <div className="flex flex-col gap-1 w-full">
     <span className="font-sans font-normal text-sm text-gray-500">{label}</span>
-    <div className="flex flex-row gap-1">
-      <span className="font-mono underline decoration-dashed underline-offset-4">
-        {value}
-      </span>
-      <button
-        className="cursor-pointer"
-        type="button"
-        onClick={() => navigator.clipboard.writeText(value)}
-      >
-        <ClipboardCopyIcon height={16} width={16} />
-      </button>
-    </div>
+    <CopyableRecord value={value} />
   </div>
 )
 
@@ -83,11 +73,6 @@ export const ResolverDetails = ({
         <ResolverField
           label="Namechain contract address"
           value={resolverAddress}
-        />
-        <ResolverField label="Verifier address" value={resolverAddress} />
-        <ResolverField
-          label="Verifier gateway URL"
-          value="https://ccip-resolver.app/{sender}/{data}"
         />
       </div>
       <div className="border-t border-t-gray-200 h-[1px]"></div>

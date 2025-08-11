@@ -1,12 +1,12 @@
 import { SearchIcon, TrashIcon } from 'lucide-react'
 import { useEnsResolver } from 'wagmi'
-import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SheetHeader } from '@/components/ui/sheet'
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
 import type { Record } from '../RecordsTable/columns'
+import { ResolverField } from '../ResolverDetails/ResolverDetails'
 
 const AddressRecordValue = ({
   record,
@@ -75,12 +75,7 @@ const TextRecordValue = ({
   )
 }
 
-const ResolverValue = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex flex-col gap-1 w-full overflow-clip">
-    <span className="font-sans font-normal text-sm text-gray-500">{label}</span>
-    <CopyableRecord value={value} />
-  </div>
-)
+
 
 const ResolverView = ({ name }: { name: string }) => {
   const { data: resolverAddress, error, isLoading } = useEnsResolver({ name })
@@ -92,19 +87,14 @@ const ResolverView = ({ name }: { name: string }) => {
   return (
     <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg">
       <h3 className="text-2xl font-medium">Resolver</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <ResolverValue
+      <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ResolverField
           label="Mainnet contract address"
           value={resolverAddress}
         />
-        <ResolverValue
+        <ResolverField
           label="Namechain contract address"
           value={resolverAddress}
-        />
-        <ResolverValue label="Verifier address" value={resolverAddress} />
-        <ResolverValue
-          label="Verifier gateway URL"
-          value="https://ccip-resolver.app/{sender}/{data}"
         />
       </div>
     </div>

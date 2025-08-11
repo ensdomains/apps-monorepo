@@ -1,0 +1,5 @@
+export const ResolverMetadata = () => {
+  return <>
+
+  </>
+}
