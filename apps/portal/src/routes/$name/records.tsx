@@ -43,12 +43,15 @@ const RecordView = ({
 
 function App() {
   const { name } = useParams({ from: '/$name/records' })
-  const { data, isLoading, isError } = useProfile(name)
+  const { data, isLoading, error } = useProfile(name)
 
   const { view } = useSearch({ from: '/$name/records' })
 
   if (isLoading) return <div>Loading...</div>
-  if (isError || !data) return <div>Could not load records</div>
+  if (error || !data) {
+    if (error) return <div>Error: {error.message}</div>
+    return <div>Could not load records</div>
+  }
 
   return (
     <div className="[--header-height:calc(--spacing(16))]">
