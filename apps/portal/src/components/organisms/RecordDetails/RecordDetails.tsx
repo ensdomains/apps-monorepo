@@ -1,12 +1,15 @@
 import { SearchIcon, TrashIcon } from 'lucide-react'
-import { useEnsResolver } from 'wagmi'
+import { useChainId, useEnsResolver } from 'wagmi'
+import {
+  CCIPGatewayURLView,
+  ResolverField,
+} from '@/components/resolver/ResolverField'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SheetHeader } from '@/components/ui/sheet'
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
 import type { Record } from '../RecordsTable/columns'
-import { ResolverField } from '../ResolverDetails/ResolverDetails'
 
 const AddressRecordValue = ({
   record,
@@ -75,14 +78,24 @@ const TextRecordValue = ({
   )
 }
 
-
-
 const ResolverView = ({ name }: { name: string }) => {
   const { data: resolverAddress, error, isLoading } = useEnsResolver({ name })
+  const chainId = useChainId()
 
   if (isLoading) return <div>Loading...</div>
   if (error) return <div>Error: {error.message}</div>
   if (!resolverAddress) return <div>No data</div>
+
+  if (chainId === 1) {
+    return (
+      <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg">
+        <h3 className="text-2xl font-medium">Resolver</h3>
+        <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ResolverField label="Resolver address" value={resolverAddress} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg">
@@ -96,6 +109,7 @@ const ResolverView = ({ name }: { name: string }) => {
           label="Namechain contract address"
           value={resolverAddress}
         />
+        <CCIPGatewayURLView />
       </div>
     </div>
   )

@@ -23,7 +23,7 @@ export const getBlockTimestamps = ResultFn(async function* ({
 
   const uniqueBlocks = [...new Set(blocks)]
 
-  const result = yield* fromPromise(
+  const result = yield* await fromPromise(
     Promise.all(
       uniqueBlocks.map(async (blockNumber) => {
         const block = await getBlock(client, { blockNumber })

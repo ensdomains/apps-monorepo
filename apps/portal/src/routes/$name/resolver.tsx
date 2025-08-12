@@ -5,7 +5,8 @@ import { useEnsResolver } from 'wagmi'
 import { NavBar } from '@/components/molecules/NavBar'
 import { ProfileSidebar } from '@/components/molecules/ProfileSidebar'
 import { NameHistory } from '@/components/organisms/NameHistory/NameHistory'
-import { ResolverDetails } from '@/components/organisms/ResolverDetails/ResolverDetails'
+import { ResolverMetadata } from '@/components/organisms/ResolverMetadata/ResolverMetadata'
+import { ResolverDetails } from '@/components/resolver/ResolverDetails'
 import {
   Accordion,
   AccordionContent,
@@ -59,13 +60,20 @@ function RouteComponent() {
                   <div className="text-[26px] font-medium">Latest</div>
                 </div>
               </div>
-              {resolverAddress && <ResolverDetails {...{ resolverAddress }} />}
-              <Accordion type="single" collapsible>
-                <AccordionItem value="resolver-metadata">
-                  <AccordionTrigger>Resolver metadata</AccordionTrigger>
-                  <AccordionContent></AccordionContent>
-                </AccordionItem>
-              </Accordion>
+              {resolverAddress && (
+                <>
+                  <ResolverDetails {...{ resolverAddress }} />
+                  <Accordion type="single" collapsible>
+                    <AccordionItem value="resolver-metadata">
+                      <AccordionTrigger>Resolver metadata</AccordionTrigger>
+                      <AccordionContent>
+                        <ResolverMetadata resolverAddress={resolverAddress} />
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </>
+              )}
+
               <NameHistory name={name} />
             </div>
           </SidebarInset>

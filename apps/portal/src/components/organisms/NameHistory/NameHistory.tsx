@@ -17,7 +17,15 @@ const columns: ColumnDef<ResolverEventWithTimestamp>[] = [
 
       const date = new Date(Number(value) * 1000)
 
-      return <span>{date.toUTCString()}</span>
+      return (
+        <span>
+          {date.toLocaleDateString(undefined, {
+            month: '2-digit',
+            day: '2-digit',
+            year: 'numeric',
+          })}
+        </span>
+      )
     },
   },
   {

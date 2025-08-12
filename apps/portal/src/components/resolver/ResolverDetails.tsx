@@ -1,19 +1,12 @@
-
 import type { Address } from 'viem'
-import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { useChainId } from 'wagmi'
 import { useSupportsInterfaces } from '@/hooks/useSupportsInterfaces'
 import {
   RESOLVER_FEATURE_NAMES,
   RESOLVER_INTERFACE_IDS,
   type ResolverInterfaceName,
 } from '@/lib/constants/resolverInterfaceIds'
-
-export const ResolverField = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex flex-col gap-1 w-full">
-    <span className="font-sans font-normal text-sm text-gray-500">{label}</span>
-    <CopyableRecord value={value} />
-  </div>
-)
+import { ResolverField } from './ResolverField'
 
 const SupportedFeatures = ({
   resolverAddress,
@@ -63,6 +56,22 @@ export const ResolverDetails = ({
 }: {
   resolverAddress: Address
 }) => {
+
+  const chainId = useChainId()
+
+  if (chainId === 1) {
+    <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg w-full">
+      <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ResolverField
+          label="Mainnet contract address"
+          value={resolverAddress}
+        />
+      </div>
+      <div className="border-t border-t-gray-200 h-[1px]"></div>
+      <SupportedFeatures resolverAddress={resolverAddress} />
+    </div>
+  }
+
   return (
     <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg w-full">
       <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
