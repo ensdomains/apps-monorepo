@@ -1,63 +1,81 @@
-import { isContactRecord, isSocialRecord } from './data/records'
+import type { ProfileRecordsResult } from './service/profileRecords'
 
-import type { ProfileRecords, ProfileRecordsResult } from './types'
-
-export const getProfileRecords = (name: string): ProfileRecordsResult => {
-  return {
-    texts: {
-      avatar: 'https://enstate.rs/i/helgesson.eth',
-      header: 'https://ens.domains/og-image.png',
-      'com.twitter': 'https://x.com/helgesson_',
-      'com.github': 'https://github.com/svemat01',
-      'com.telegram': 'https://t.me/helgesson',
-      links: JSON.stringify([
+export const DEBUG_PROFILE: ProfileRecordsResult = {
+  texts: [
+    // Base records
+    { key: 'email', value: 'debug@ens.domains' },
+    { key: 'url', value: 'https://myportfolio.com' },
+    {
+      key: 'avatar',
+      value: 'https://euc.li/enslabs.eth',
+    },
+    {
+      key: 'description',
+      value:
+        'Ethereum enthusiast and product designer building the future of decentralized web.',
+    },
+    { key: 'keywords', value: 'ENS,web3,developer,ethereum' },
+    // Social records
+    { key: 'com.twitter', value: 'enslabs' },
+    { key: 'com.github', value: 'enslabs' },
+    { key: 'com.discord', value: 'enslabs' },
+    { key: 'com.reddit', value: 'enslabs' },
+    { key: 'com.telegram', value: 'enslabs' },
+    { key: 'com.linkedin', value: 'enslabs' },
+    { key: 'com.instagram', value: 'enslabs' },
+    // Contact records
+    { key: 'location', value: 'New York, NY' },
+    { key: 'phone', value: '+1-555-123-4567' },
+    { key: 'mail', value: 'PO Box 123, New York, NY 10001' },
+    // Links (as JSON string)
+    {
+      key: 'links',
+      value: JSON.stringify([
+        { name: 'Blog', url: 'https://ens.domains/blog' },
         {
-          name: 'Recent Projects',
-          url: 'https://projects.helgesson.dev',
+          name: 'Brand',
+          url: 'https://brand.ens.domains',
         },
         {
-          name: 'Blog',
-          url: 'https://blog.helgesson.dev',
-        },
-        {
-          name: 'Resume',
-          url: 'https://resume.helgesson.dev',
+          name: 'ENS Labs',
+          url: 'https://enslabs.org',
         },
       ]),
     },
-    addresses: {
-      60: '0x0000000000000000000000000000000000000000',
-      0: '0x0000000000000000000000000000000000000000',
+    // Unknown/custom records
+    { key: 'custom.record', value: 'custom value' },
+  ],
+  coins: [
+    // ETH (coinType 60)
+    {
+      coinType: 60,
+      value: '0x1234567890abcdef1234567890abcdef12345678',
+      symbol: 'ETH',
     },
-  }
-}
-
-export const transformProfileRecords = (
-  profile: ProfileRecordsResult,
-): ProfileRecords => {
-  const texts = Object.entries(profile.texts).map(([key, value]) => ({
-    key,
-    value,
-  }))
-  const addresses = Object.entries(profile.addresses).map(
-    ([coinType, value]) => ({
-      coinType: parseInt(coinType, 10),
-      value,
-    }),
-  )
-  const links: { name: string; url: string }[] = profile.texts.links
-    ? JSON.parse(profile.texts.links)
-    : []
-
-  return {
-    bio: {
-      avatar: profile.texts.avatar,
-      header: profile.texts.header,
-      description: profile.texts.description,
+    // BTC (coinType 0)
+    {
+      coinType: 0,
+      value: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+      symbol: 'BTC',
     },
-    social: texts.filter(({ key }) => isSocialRecord(key)),
-    contacts: texts.filter(({ key }) => isContactRecord(key)),
-    addresses,
-    links,
-  }
+    // LTC (coinType 2)
+    {
+      coinType: 2,
+      value: 'ltc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+      symbol: 'LTC',
+    },
+    // DOGE (coinType 3)
+    {
+      coinType: 3,
+      value: 'D7Y55w9F1Q6gkQwQ6gkQwQ6gkQwQ6gkQwQ',
+      symbol: 'DOGE',
+    },
+    // SOL (coinType 501)
+    {
+      coinType: 501,
+      value: '4Nd1mYQwQ6gkQwQ6gkQwQ6gkQwQ6gkQwQ6gkQwQ6gkQwQ',
+      symbol: 'SOL',
+    },
+  ],
+  resolverAddress: '0x0000000000000000000000000000000000000000',
 }

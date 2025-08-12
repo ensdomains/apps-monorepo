@@ -72,29 +72,28 @@ export const ViewHeaderSection = ({
     ],
   })
 
-  console.log({ header, avatar })
   return (
-    <div>
+    <div className="overflow-hidden md:rounded-xl">
       {/* Header BG */}
       <div className="relative w-full">
         <ImageFallback.Root className="w-full">
           <ImageFallback.Image
             src={header.data}
             alt={`${name} header`}
-            className="max-h-48 w-full object-contain"
+            className="max-h-48 w-full object-cover md:max-h-64 xl:max-h-80"
           />
           <ImageFallback.Fallback>
             <div
               className={clsx(
-                'h-48 w-full bg-gray-200',
+                'h-48 w-full bg-gray-200 md:h-64',
                 header.isLoading && 'animate-pulse',
               )}
             />
           </ImageFallback.Fallback>
         </ImageFallback.Root>
 
-        <div className="-bottom-6 -translate-x-1/2 absolute left-1/2 size-32">
-          <div className="size-32 overflow-hidden rounded-md bg-gray-200">
+        <div className="-bottom-10 max-md:-translate-x-1/2 absolute left-1/2 size-28 md:left-6 md:size-36 lg:size-40">
+          <div className="size-full overflow-hidden rounded-xl bg-gray-200 shadow-md ring-2 ring-white">
             <ImageFallback.Root>
               <ImageFallback.Image
                 src={avatar.data}
@@ -108,7 +107,7 @@ export const ViewHeaderSection = ({
                   className={clsx(avatar.isLoading && 'opacity-50')}
                 />
                 {avatar.isLoading && (
-                  <div className="absolute inset-0 animate-pulse rounded-md bg-gray-100" />
+                  <div className="absolute inset-0 animate-pulse rounded-xl bg-gray-100" />
                 )}
               </ImageFallback.Fallback>
             </ImageFallback.Root>
@@ -117,8 +116,8 @@ export const ViewHeaderSection = ({
       </div>
 
       {/* Main info */}
-      <div className="flex w-full flex-col gap-1 bg-gray-100 px-4 pt-8 pb-4">
-        <Highlight>{name}</Highlight>
+      <div className="flex w-full flex-col items-start gap-3 bg-gray-100 px-4 pt-16 pb-4 text-center md:px-6 md:pt-16 md:pb-6 md:text-left">
+        <Highlight className="text-lg md:text-2xl">{name}</Highlight>
         <div className="flex items-center whitespace-pre-wrap">
           <Wallet className="mr-2 size-5" />
           Owned by <OwnerLink address={owner} profileName={name} />

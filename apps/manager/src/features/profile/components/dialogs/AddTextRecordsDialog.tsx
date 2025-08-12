@@ -10,6 +10,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import type { TextRecord } from '@/features/profile/types'
+import { IconRenderer } from '../IconRenderer'
 
 export type AddTextRecordsDialogProps = {
   buttonLabel: string
@@ -62,7 +63,7 @@ export const AddTextRecordsDialog = ({
                   onClick={() => handleToggle(record.key)}
                   className="flex items-center gap-2"
                 >
-                  {record.icon}
+                  <IconRenderer icon={record.icon} className="size-4" />
                   <span>{record.name}</span>
                   {isSelected ? (
                     <Check className="size-4" />

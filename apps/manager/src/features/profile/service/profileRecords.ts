@@ -5,6 +5,7 @@ import { type GetRecordsReturnType, getRecords } from '@ensdomains/ensjs/public'
 import { getSubgraphRecords } from '@ensdomains/ensjs/subgraph'
 import { err, fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { DEBUG_PROFILE } from '../MOCK'
 
 class SubgraphError extends TaggedError('SubgraphError')<{
   cause: unknown
@@ -15,6 +16,15 @@ class RecordsError extends TaggedError('RecordsError')<{
 }> {}
 
 export const getProfileRecords = ResultFn(async function* (name: string) {
+  if (name === 'debug') {
+    return ok({
+      ...DEBUG_PROFILE,
+      _rawSubgraphRecords: {
+        isMigrated: false,
+        createdAt: new Date(),
+      } as unknown as NonNullable<typeof subgraphRecords>,
+    })
+  }
   const client = yield* safeGetClient()
 
   const subgraphRecords = yield* await fromPromise(

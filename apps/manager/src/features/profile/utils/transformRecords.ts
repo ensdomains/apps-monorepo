@@ -43,7 +43,7 @@ export const transformProfileRecords = (
     } else if (BASE_RECORDS_KEYS.includes(key as BaseRecordKey)) {
       records.base[key as BaseRecordKey] = value
     } else if (key === 'links') {
-      records.links.push(JSON.parse(value))
+      records.links.push(...JSON.parse(value))
     } else {
       records.unknown.push({
         key,

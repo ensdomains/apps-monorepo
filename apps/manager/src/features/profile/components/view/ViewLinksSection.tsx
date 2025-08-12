@@ -1,3 +1,5 @@
+import { ExternalLink } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import type { ProfileRecords } from '../../types'
 
 interface ViewLinksSectionProps {
@@ -7,20 +9,30 @@ interface ViewLinksSectionProps {
 export const ViewLinksSection = ({ records }: ViewLinksSectionProps) => {
   return (
     <div className="space-y-2">
-      <span className="font-medium">Links</span>
+      <div className="font-medium">Links</div>
       {records.links.length > 0 ? (
-        records.links.map((link, i) => (
-          <div key={`${link.name}-${i}`} className="flex items-center gap-2">
-            <a
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 text-sm hover:underline"
+        <div className="flex flex-wrap gap-2">
+          {records.links.map((link, i) => (
+            <Button
+              key={`${link.name}-${i}`}
+              asChild
+              variant="outline"
+              size="sm"
+              className="w-full min-w-1/3 flex-1 justify-between"
             >
-              {link.name}
-            </a>
-          </div>
-        ))
+              <a
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex w-full min-w-0 items-center justify-between gap-2"
+                title={link.url}
+              >
+                <span className="truncate">{link.name}</span>
+                <ExternalLink className="size-4" />
+              </a>
+            </Button>
+          ))}
+        </div>
       ) : (
         <p className="text-gray-600 text-sm">No links added</p>
       )}

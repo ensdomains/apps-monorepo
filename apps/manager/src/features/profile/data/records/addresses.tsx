@@ -1,8 +1,19 @@
+import { coinTypeToNameMap } from '@ensdomains/address-encoder'
+import { coinIcons } from '@/assets/coins/'
 import type { AddressRecord } from '../../types'
 
 const chainIdToCoinType = (chainId: number) => (0x80000000 | chainId) >>> 0
 
-export const addressRecords: AddressRecord[] = [
+export const addressRecords: AddressRecord[] = Object.entries(
+  coinTypeToNameMap,
+).map(([coinType, [notation, name]]) => ({
+  coinType: Number(coinType),
+  name,
+  notation,
+  icon: coinIcons[notation],
+}))
+
+export const addressRecords2: AddressRecord[] = [
   {
     coinType: 60,
     name: 'Ethereum',

@@ -28,7 +28,11 @@ export const CryptoAddressesSection = withForm({
                   return (
                     <RecordEntry
                       name={record.name}
-                      badge={<Badge variant="outline">{record.notation}</Badge>}
+                      badge={
+                        <Badge variant="outline" className="uppercase">
+                          {record.notation}
+                        </Badge>
+                      }
                       placeholder="Enter wallet address"
                       value={field.state.value}
                       onChange={(value) => {

@@ -31,6 +31,9 @@ importers:
       '@ens-apps/utils':
         specifier: workspace:*
         version: link:../../packages/utils
+      '@ensdomains/address-encoder':
+        specifier: ^1.1.2
+        version: 1.1.2
       '@ensdomains/ensjs':
         specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@230
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@230(typescript@5.9.2)(viem@2.31.7(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))(zod@3.25.76)
@@ -665,6 +668,9 @@ packages:
 
   '@ensdomains/address-encoder@1.1.1':
     resolution: {integrity: sha512-yg7s+suCuKRhaGsgLu57W/jxIs/Lnqs/SU7jT7UwS4ATSnW94jbUCbmyyZ82CQwKsmwaUE8uYvvVb4N6lfz29A==}
+
+  '@ensdomains/address-encoder@1.1.2':
+    resolution: {integrity: sha512-x+uUZbtvtWDh23dLH/U//re0s9v341tFB6SJeUElkQ31O3jkoUh3jvgnx+NxiohWW6JWW6QrXS4kigxuvwbi2A==}
 
   '@ensdomains/content-hash@3.1.0-rc.1':
     resolution: {integrity: sha512-OzdkXgdFmduzcJKU4KRkkJkQHnm5p7m7FkX8k+bHOEoOIzc0ueGT/Jay4nnb60wNk1wSHRmzY+hHBMpFDiGReg==}
@@ -7186,15 +7192,21 @@ snapshots:
 
   '@ensdomains/address-encoder@1.0.0-rc.3':
     dependencies:
-      '@noble/curves': 1.8.2
+      '@noble/curves': 1.9.2
       '@noble/hashes': 1.8.0
-      '@scure/base': 1.2.4
+      '@scure/base': 1.2.6
 
   '@ensdomains/address-encoder@1.1.1':
     dependencies:
       '@noble/curves': 1.8.2
       '@noble/hashes': 1.7.2
       '@scure/base': 1.2.4
+
+  '@ensdomains/address-encoder@1.1.2':
+    dependencies:
+      '@noble/curves': 1.9.2
+      '@noble/hashes': 1.8.0
+      '@scure/base': 1.2.6
 
   '@ensdomains/content-hash@3.1.0-rc.1':
     dependencies:
@@ -8999,9 +9011,9 @@ snapshots:
 
   '@scure/bip32@1.6.2':
     dependencies:
-      '@noble/curves': 1.8.1
-      '@noble/hashes': 1.7.1
-      '@scure/base': 1.2.4
+      '@noble/curves': 1.8.2
+      '@noble/hashes': 1.7.2
+      '@scure/base': 1.2.6
 
   '@scure/bip32@1.7.0':
     dependencies:
@@ -9016,8 +9028,8 @@ snapshots:
 
   '@scure/bip39@1.5.4':
     dependencies:
-      '@noble/hashes': 1.7.1
-      '@scure/base': 1.2.4
+      '@noble/hashes': 1.7.2
+      '@scure/base': 1.2.6
 
   '@scure/bip39@1.6.0':
     dependencies:
@@ -12671,8 +12683,8 @@ snapshots:
   ox@0.6.7(typescript@5.9.2)(zod@3.25.76):
     dependencies:
       '@adraffy/ens-normalize': 1.11.0
-      '@noble/curves': 1.8.1
-      '@noble/hashes': 1.7.1
+      '@noble/curves': 1.9.2
+      '@noble/hashes': 1.8.0
       '@scure/bip32': 1.6.2
       '@scure/bip39': 1.5.4
       abitype: 1.0.8(typescript@5.9.2)(zod@3.25.76)

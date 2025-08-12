@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button'
-import { RecordEntry } from '@/features/profile/components/RecordEntry'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
+import { RecordEntry } from '@/features/profile/components/RecordEntry'
 
 export const LinksSection = withForm({
   ...sharedOptions,

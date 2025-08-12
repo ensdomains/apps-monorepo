@@ -1,5 +1,5 @@
 import type { StandardSchemaV1 } from '@tanstack/react-form'
-import type { ReactNode } from 'react'
+import React from 'react'
 import type { Prettify } from 'viem'
 import type { BaseRecordKey, RecordCategory } from './data/records'
 
@@ -7,7 +7,7 @@ import type { BaseRecordKey, RecordCategory } from './data/records'
 export type BaseRecord = {
   name: string
   description?: string
-  icon?: () => ReactNode
+  icon?: React.FC<{ className?: string }> | string
   placeholder?: string
   required?: boolean
   validate?: {

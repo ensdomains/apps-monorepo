@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMachine } from '@xstate/react'
+import clsx from 'clsx'
 import {
   AlertCircle,
   ArrowLeft,
@@ -562,7 +563,7 @@ export const ImageSelectionDialog = ({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="group relative cursor-pointer overflow-hidden rounded-md"
+          className="group relative block w-full cursor-pointer overflow-hidden rounded-md"
           title={`Change ${type}`}
         >
           <div className="absolute inset-0 flex items-center justify-center rounded-md bg-transparent transition-all duration-200 group-hover:bg-black/20">
@@ -572,16 +573,20 @@ export const ImageSelectionDialog = ({
           </div>
           <ImageFallback.Root>
             <ImageFallback.Image
-              src={displayImage || defaultImage}
+              src={displayImage}
               alt={`${name || 'Profile'} ${type}`}
               className="h-full w-full object-cover"
             />
             <ImageFallback.Fallback>
-              <img
-                src={placeholderAvatar}
-                alt={`${type} fallback`}
-                className="h-full w-full object-cover"
-              />
+              {defaultImage ? (
+                <img
+                  src={defaultImage}
+                  alt={`Default ${type}`}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className={clsx('h-48 w-full bg-gray-200 md:h-64')} />
+              )}
             </ImageFallback.Fallback>
           </ImageFallback.Root>
         </button>
