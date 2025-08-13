@@ -8,7 +8,6 @@ import {
   Eye,
   Image,
   Keyboard,
-  Link as LinkIcon,
   Search,
   Trash2,
   Upload,
@@ -27,10 +26,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import {
-  imageSelectionMachine,
-  type NFT,
-} from '@/features/profile/machines/imageSelection'
+import { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { inspect } from '@/utils/xstate'
 

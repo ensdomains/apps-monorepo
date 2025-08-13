@@ -1,4 +1,4 @@
-import { getRecord } from '../../data/records'
+import { getRecordDef } from '../../data/records'
 import type { ProfileRecords } from '../../types'
 import { IconRenderer } from '../IconRenderer'
 
@@ -29,17 +29,17 @@ export const ViewBioSection = ({ records }: ViewBioSectionProps) => {
       {records.contact.length > 0 ? (
         <div className="flex flex-wrap gap-3 max-md:justify-center">
           {records.contact.map((contact, i) => {
-            const record = getRecord(contact.key)
+            const record = getRecordDef(contact.key)
             return (
               <div
                 key={`${contact.key}-${i}`}
                 className="flex items-center gap-1.5"
               >
                 <span className="text-gray-900 text-sm">
-                  {record?.data.icon ? (
-                    <IconRenderer icon={record.data.icon} className="size-4" />
+                  {record?.icon ? (
+                    <IconRenderer icon={record.icon} className="size-4" />
                   ) : (
-                    record?.data.name || contact.key
+                    record?.name || contact.key
                   )}
                 </span>
                 <span className="text-gray-600 text-sm">

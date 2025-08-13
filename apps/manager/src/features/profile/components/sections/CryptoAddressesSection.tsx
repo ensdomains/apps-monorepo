@@ -3,7 +3,7 @@ import { AddAddressRecordsDialog } from '@/features/profile/components/dialogs/A
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
 import {
-  getAddressRecord,
+  getAddressRecordDef,
   getAvailableAddressRecords,
 } from '../../data/records'
 
@@ -23,7 +23,7 @@ export const CryptoAddressesSection = withForm({
               // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
               <form.Field key={i} name={`addresses[${i}].value`}>
                 {(field) => {
-                  const record = getAddressRecord(coinType)
+                  const record = getAddressRecordDef(coinType)
                   if (!record) return null
                   return (
                     <RecordEntry

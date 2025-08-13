@@ -9,13 +9,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import type { TextRecord } from '@/features/profile/types'
+import type { TextRecordDef } from '../../data/records/types'
 import { IconRenderer } from '../IconRenderer'
 
 export type AddTextRecordsDialogProps = {
   buttonLabel: string
   title: string
-  records: TextRecord[]
+  records: TextRecordDef[]
   onAdd: (keys: string[]) => void
 }
 

@@ -1,4 +1,4 @@
-import { getAddressRecord, getRecord } from '../data/records'
+import { allSections, getAddressRecordDef, getRecordDef } from '../data/records'
 import type { ProfileRecords } from '../types'
 
 // Utility function to create diff
@@ -23,7 +23,7 @@ export const createDiff = (
 
   // Helper function to get display name for address records
   const getAddressDisplayName = (coinType: number): string => {
-    return getAddressRecord(coinType)?.name || `Address ${coinType}`
+    return getAddressRecordDef(coinType)?.name || `Address ${coinType}`
   }
 
   // Helper function to check if a value is effectively empty
@@ -37,7 +37,7 @@ export const createDiff = (
   const compareKeyValuePairs = (
     originalMap: Map<string, any>,
     currentMap: Map<string, any>,
-    category: string,
+    section: string,
     getDisplayName?: (key: string) => string,
   ) => {
     // Process current records (added/modified)
@@ -49,7 +49,7 @@ export const createDiff = (
       if (isEmptyValue(currentValue)) {
         // If there was an original value, this counts as removed
         if (!isEmptyValue(originalValue)) {
-          diff[`${category}.${displayName}`] = {
+          diff[`${section}.${displayName}`] = {
             original: originalValue,
             type: 'removed',
           }
@@ -59,13 +59,13 @@ export const createDiff = (
 
       if (originalValue === undefined || isEmptyValue(originalValue)) {
         // Added (only if current value is not empty)
-        diff[`${category}.${displayName}`] = {
+        diff[`${section}.${displayName}`] = {
           current: currentValue,
           type: 'added',
         }
       } else if (hasValueChanged(originalValue, currentValue)) {
         // Modified
-        diff[`${category}.${displayName}`] = {
+        diff[`${section}.${displayName}`] = {
           original: originalValue,
           current: currentValue,
           type: 'modified',
@@ -77,20 +77,13 @@ export const createDiff = (
     for (const [key, originalValue] of originalMap) {
       if (!currentMap.has(key) && !isEmptyValue(originalValue)) {
         const displayName = getDisplayName ? getDisplayName(key) : key
-        diff[`${category}.${displayName}`] = {
+        diff[`${section}.${displayName}`] = {
           original: originalValue,
           type: 'removed',
         }
       }
     }
   }
-
-  // Compare social records
-  const originalSocialMap = new Map(
-    original.social.map((s) => [s.key, s.value]),
-  )
-  const currentSocialMap = new Map(current.social.map((s) => [s.key, s.value]))
-  compareKeyValuePairs(originalSocialMap, currentSocialMap, 'social')
 
   // Compare address records
   const originalAddressMap = new Map(
@@ -138,14 +131,15 @@ export const createDiff = (
 
   compareKeyValuePairs(originalBioMap, currentBioMap, 'bio', getBioDisplayName)
 
-  // Compare contact records
-  const originalContactMap = new Map(
-    original.contact.map((c) => [c.key, c.value]),
-  )
-  const currentContactMap = new Map(
-    current.contact.map((c) => [c.key, c.value]),
-  )
-  compareKeyValuePairs(originalContactMap, currentContactMap, 'contact')
+  for (const section of allSections) {
+    const originalSectionMap = new Map(
+      original[section].map((s) => [s.key, s.value]),
+    )
+    const currentSectionMap = new Map(
+      current[section].map((s) => [s.key, s.value]),
+    )
+    compareKeyValuePairs(originalSectionMap, currentSectionMap, section)
+  }
 
   // Compare links (treat as a single field since it's stored as JSON string)
   const originalLinksStr = JSON.stringify(original.links || [])

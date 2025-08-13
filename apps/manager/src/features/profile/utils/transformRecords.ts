@@ -1,20 +1,34 @@
-import {
-  BASE_RECORDS_KEYS,
-  type BaseRecordKey,
-  getRecord,
-  RECORDS_CATEGORIES,
-} from '../data/records'
+import * as v from 'valibot'
+import { allSections, getRecordDef, staticTextRecords } from '../data/records'
+import type {
+  Section,
+  SpecialSection,
+  StaticRecordKey,
+} from '../data/records/types'
 import type { ProfileRecordsResult } from '../service/profileRecords'
 import type { ProfileRecords } from '../types'
 
-export const defaultProfileRecords: ProfileRecords = {
+export const newEmptyProfileRecords = (): ProfileRecords => ({
   base: {},
-  social: [],
-  contact: [],
   addresses: [],
   links: [],
   unknown: [],
-}
+  ...allSections.reduce(
+    (acc, key) => {
+      acc[key] = []
+      return acc
+    },
+    {} as Pick<ProfileRecords, Section | SpecialSection>,
+  ),
+})
+export const defaultProfileRecords = newEmptyProfileRecords()
+
+const LinksSchema = v.array(
+  v.object({
+    name: v.string(),
+    url: v.string(),
+  }),
+)
 
 /**
  * Transforms mock profile records to the standard ProfileRecords format
@@ -23,27 +37,21 @@ export const defaultProfileRecords: ProfileRecords = {
 export const transformProfileRecords = (
   profile: ProfileRecordsResult | undefined,
 ): ProfileRecords => {
-  const records: ProfileRecords = {
-    base: {},
-    social: [],
-    contact: [],
-    addresses: profile?.coins ?? [],
-    links: [],
-    unknown: [],
-  }
+  const records: ProfileRecords = newEmptyProfileRecords()
 
   if (!profile) {
     return records
   }
 
   for (const { key, value } of profile.texts) {
-    const record = getRecord(key)
+    const record = getRecordDef(key)
     if (record) {
-      records[record.category].push({ key, value })
-    } else if (BASE_RECORDS_KEYS.includes(key as BaseRecordKey)) {
-      records.base[key as BaseRecordKey] = value
+      records[record.section].push({ key, value })
+    } else if (staticTextRecords.includes(key as StaticRecordKey)) {
+      records.base[key as StaticRecordKey] = value
     } else if (key === 'links') {
-      records.links.push(...JSON.parse(value))
+      const links = v.parse(LinksSchema, JSON.parse(value))
+      records.links.push(...links)
     } else {
       records.unknown.push({
         key,
@@ -69,8 +77,8 @@ export const transformToServiceFormat = (
   const coins: Array<{ coinType: number; value: string }> = []
 
   // Add all text records
-  for (const category of RECORDS_CATEGORIES) {
-    for (const record of records[category]) {
+  for (const section of allSections) {
+    for (const record of records[section]) {
       texts.push({ key: record.key, value: record.value })
     }
   }
@@ -139,8 +147,8 @@ export const debugProfileRecords = (records: ProfileRecords | undefined) => {
 
   console.group('Profile Records Debug')
   console.log('Base records:', records.base)
-  for (const category of RECORDS_CATEGORIES) {
-    console.log(`${category} records:`, records[category])
+  for (const section of allSections) {
+    console.log(`${section} records:`, records[section])
   }
   console.log('Address records:', records.addresses)
   console.log('Links records:', records.links)

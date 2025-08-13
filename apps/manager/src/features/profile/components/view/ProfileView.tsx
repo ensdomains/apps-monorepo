@@ -1,14 +1,15 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useAccount } from 'wagmi'
+import { sectionsList } from '../../data/records'
 import { ownerQuery } from '../../service/profileOwner'
 import { profileRecordsQuery } from '../../service/profileRecords'
 import { transformProfileRecords } from '../../utils/transformRecords'
 import { ViewBioSection } from './ViewBioSection'
 import { ViewCryptoSection } from './ViewCryptoSection'
+import { ViewDynamicSection } from './ViewDynamicSection'
 import { ViewHeaderSection } from './ViewHeaderSection'
 import { ViewLinksSection } from './ViewLinksSection'
-import { ViewSocialSection } from './ViewSocialSection'
 
 interface ProfileViewProps {
   name: string
@@ -68,7 +69,13 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
         {/* Left/main column */}
         <div className="space-y-4 md:col-span-7 lg:col-span-8">
           <ViewBioSection records={records.data} />
-          <ViewSocialSection records={records.data} />
+          {sectionsList.map((section) => (
+            <ViewDynamicSection
+              key={section}
+              records={records.data}
+              section={section}
+            />
+          ))}
         </div>
 
         {/* Right/side column */}

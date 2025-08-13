@@ -9,13 +9,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import type { AddressRecord } from '@/features/profile/types'
+import type { AddressRecordDef } from '../../data/records/types'
 import { IconRenderer } from '../IconRenderer'
 
 export type AddAddressRecordsDialogProps = {
   buttonLabel: string
   title: string
-  records: AddressRecord[]
+  records: AddressRecordDef[]
   onAdd: (coinTypes: number[]) => void
 }
 
@@ -53,7 +53,7 @@ export const AddAddressRecordsDialog = ({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         {records.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 overflow-y-auto">
             {records.map((record) => {
               const isSelected = selectedCoinTypes.includes(record.coinType)
               return (

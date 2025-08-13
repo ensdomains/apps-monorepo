@@ -1,6 +1,6 @@
 import { Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { getAddressRecord } from '../../data/records'
+import { getAddressRecordDef } from '../../data/records'
 import type { ProfileRecords } from '../../types'
 import { IconRenderer } from '../IconRenderer'
 
@@ -21,7 +21,7 @@ const CryptoAddress = ({
 }: {
   address: ProfileRecords['addresses'][number]
 }) => {
-  const record = getAddressRecord(address.coinType)
+  const record = getAddressRecordDef(address.coinType)
   return (
     <Button
       type="button"
