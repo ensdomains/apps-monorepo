@@ -1,0 +1,7 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "api-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-08-14",
+  "compatibility_flags": ["nodejs_compat"]
+}
