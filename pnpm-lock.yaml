@@ -35,8 +35,8 @@ importers:
         specifier: ^1.1.2
         version: 1.1.2
       '@ensdomains/ensjs':
-        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@230
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@230(typescript@5.9.2)(viem@2.31.7(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))(zod@3.25.76)
+        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@6eb258a
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@6eb258a(typescript@5.9.2)(viem@2.31.7(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))(zod@3.25.76)
       '@radix-ui/react-collapsible':
         specifier: ^1.1.11
         version: 1.1.11(@types/react-dom@19.1.7(@types/react@19.1.9))(@types/react@19.1.9)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -684,8 +684,8 @@ packages:
     peerDependencies:
       viem: ^2.9.2
 
-  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@230':
-    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@230}
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@6eb258a':
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@6eb258a}
     version: 4.0.2
     engines: {node: '>=22'}
     peerDependencies:
@@ -2424,9 +2424,6 @@ packages:
 
   '@scure/base@1.1.9':
     resolution: {integrity: sha512-8YKhl8GHiNI/pU2VMaofa2Tor7PJRAjwQLBBuilkJ9L5+13yVbC7JO/wS7piioAvPSwR3JKM1IJ/u4xQzbcXKg==}
-
-  '@scure/base@1.2.4':
-    resolution: {integrity: sha512-5Yy9czTO47mqz+/J8GM6GIId4umdCk1wc1q8rKERQulIoc8VP9pzDcghv10Tl2E7R96ZUx/PhND3ESYUQX8NuQ==}
 
   '@scure/base@1.2.6':
     resolution: {integrity: sha512-g/nm5FgUa//MCj1gV09zTJTaM6KBAHqLN907YVQqf7zC49+DcO4B1so4ZX07Ef10Twr6nuqYEH9GEggFXA4Fmg==}
@@ -7198,9 +7195,9 @@ snapshots:
 
   '@ensdomains/address-encoder@1.1.1':
     dependencies:
-      '@noble/curves': 1.8.2
-      '@noble/hashes': 1.7.2
-      '@scure/base': 1.2.4
+      '@noble/curves': 1.9.2
+      '@noble/hashes': 1.8.0
+      '@scure/base': 1.2.6
 
   '@ensdomains/address-encoder@1.1.2':
     dependencies:
@@ -7211,8 +7208,8 @@ snapshots:
   '@ensdomains/content-hash@3.1.0-rc.1':
     dependencies:
       '@ensdomains/address-encoder': 1.0.0-rc.3
-      '@noble/curves': 1.8.2
-      '@scure/base': 1.2.4
+      '@noble/curves': 1.9.2
+      '@scure/base': 1.2.6
 
   '@ensdomains/dnsprovejs@0.5.1':
     dependencies:
@@ -7238,7 +7235,7 @@ snapshots:
       - typescript
       - zod
 
-  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@230(typescript@5.9.2)(viem@2.31.7(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))(zod@3.25.76)':
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@6eb258a(typescript@5.9.2)(viem@2.31.7(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))(zod@3.25.76)':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 1.1.1
@@ -8998,8 +8995,6 @@ snapshots:
   '@safe-global/safe-gateway-typescript-sdk@3.23.1': {}
 
   '@scure/base@1.1.9': {}
-
-  '@scure/base@1.2.4': {}
 
   '@scure/base@1.2.6': {}
 
