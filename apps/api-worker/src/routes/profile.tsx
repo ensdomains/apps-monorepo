@@ -117,7 +117,12 @@ app.get('/:name/og', async (c) => {
 
     return new Response(`Failed to generate the image`, {
       status: 500,
-    })
+    return new Response(
+      `Failed to generate OG image for profile: ${name}. Error: ${e && e.message ? e.message : String(e)}`,
+      {
+        status: 500,
+      }
+    )
   }
 })
 

@@ -18,7 +18,7 @@ export const getProfile = async (name: string) => {
   const response = await fetch(`https://enstate.rs/n/${name}`)
 
   if (!response.ok) {
-    throw new Error('Failed to fetch profile')
+    throw new Error(`Failed to fetch profile: ${response.status} ${response.statusText}`)
   }
 
   const data = (await response.json()) as ENStateResponse
