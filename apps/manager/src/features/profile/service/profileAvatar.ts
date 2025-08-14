@@ -29,8 +29,6 @@ export const parseAvatar = ResultFn(async function* (
     (e) => new ParseError({ cause: e }),
   )
 
-  console.log({ url, record })
-
   return ok(url)
 })
 
