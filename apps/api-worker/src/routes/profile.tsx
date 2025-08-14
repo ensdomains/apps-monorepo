@@ -122,12 +122,9 @@ app.get('/:name/og', async (c) => {
       height: HEIGHT,
       emoji: 'noto',
       headers: {
-        'Cache-Control':
-          'public, max-age=3600, s-maxage=43200, stale-while-revalidate=43200, stale-if-error=86400',
+        'Cache-Control': 'public, max-age=3600, stale-while-revalidate=21600',
         'CDN-Cache-Control':
-          'public, max-age=3600, s-maxage=43200, stale-while-revalidate=43200, stale-if-error=86400',
-        'Cloudflare-CDN-Cache-Control':
-          'public, max-age=3600, s-maxage=43200, stale-while-revalidate=43200, stale-if-error=86400',
+          'public, max-age=3600, stale-while-revalidate=21600',
       },
     })
   } catch (e) {
