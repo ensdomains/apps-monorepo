@@ -1,0 +1,26 @@
+import { cors } from 'hono/cors'
+import { HTTPException } from 'hono/http-exception'
+import { createApp } from './utils/hono'
+import { logger, prettifyError } from './utils/logger'
+
+const app = createApp()
+
+app.use('/*', cors())
+
+app.onError((err, c) => {
+  if (err instanceof HTTPException) {
+    // Get the custom response
+    return err.getResponse()
+  }
+
+  console.log('err', err)
+  logger.error('Internal server error', {
+    path: c.req.path,
+    method: c.req.method,
+    error: prettifyError(err),
+  })
+
+  return c.json({ error: 'Internal server error' }, 500)
+})
+
+export default app
