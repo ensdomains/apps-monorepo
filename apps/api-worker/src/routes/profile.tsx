@@ -121,6 +121,10 @@ app.get('/:name/og', async (c) => {
       width: WIDTH,
       height: HEIGHT,
       emoji: 'noto',
+      headers: {
+        'Cache-Control':
+          'public, max-age=3600, s-maxage=43200, stale-while-revalidate=43200, stale-if-error=86400',
+      },
     })
   } catch (e) {
     logger.error(prettifyError(e))
