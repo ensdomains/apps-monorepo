@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 import router from './router'
 
 export default {
