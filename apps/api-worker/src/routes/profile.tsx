@@ -11,13 +11,23 @@ import {
 import { COLORS, HEIGHT, WIDTH } from '../features/profile/constants'
 import { getProfile } from '../utils/enstate'
 import { createApp } from '../utils/hono'
+import { logger, prettifyError } from '../utils/logger'
 
 const app = createApp()
 
 app.get('/:name/og', async (c) => {
+  const name = c.req.param('name')
   try {
-    const name = c.req.param('name')
-    const profile = await getProfile(name)
+    const profile = await getProfile(name).catch((e) => {
+      logger.error(prettifyError(e))
+      return null
+    })
+
+    if (!profile) {
+      return new Response(`Profile not found`, {
+        status: 404,
+      })
+    }
 
     const maxNameWidthPx = 700
     const maxFontSizePx = 96
@@ -113,15 +123,13 @@ app.get('/:name/og', async (c) => {
       emoji: 'noto',
     })
   } catch (e) {
-    console.error(e)
+    logger.error(prettifyError(e))
 
-    return new Response(`Failed to generate the image`, {
-      status: 500,
     return new Response(
-      `Failed to generate OG image for profile: ${name}. Error: ${e && e.message ? e.message : String(e)}`,
+      `Failed to generate OG image for profile: ${name}. Error: ${e && typeof e === 'object' && 'message' in e ? e.message : String(e)}`,
       {
         status: 500,
-      }
+      },
     )
   }
 })
