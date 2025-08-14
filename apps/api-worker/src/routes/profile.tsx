@@ -15,7 +15,7 @@ import { logger, prettifyError } from '../utils/logger'
 
 const app = createApp()
 
-app.get('/:name/og', async (c) => {
+app.get('/:name/og-image.png', async (c) => {
   const name = c.req.param('name')
   try {
     const profile = await getProfile(name).catch((e) => {
