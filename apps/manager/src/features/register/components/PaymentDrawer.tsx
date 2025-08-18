@@ -3,6 +3,7 @@
 import { CreditCardIcon } from 'lucide-react'
 import * as React from 'react'
 import { useAccount } from 'wagmi'
+import { type StablecoinData, StablecoinList } from '@/components/molecules'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -19,7 +20,10 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer'
 import { useMediaQuery } from '@/hooks/use-media-query'
-import { useStablecoinBalances } from '../hooks/useStablecoinBalances'
+import {
+  type StablecoinBalance,
+  web3AuthService,
+} from '@/lib/web3Auth/web3AuthService'
 
 interface PaymentDrawerProps {
   domainName?: string
@@ -112,7 +116,6 @@ export function CreditCardPaymentDrawer({
   )
 }
 
-// Crypto Payment Drawer Component
 export function CryptoPaymentDrawer({
   domainName = 'example.eth',
   duration = 25,
@@ -124,28 +127,40 @@ export function CryptoPaymentDrawer({
 }: PaymentDrawerProps) {
   const [open, setOpen] = React.useState(false)
   const [selectedCoin, setSelectedCoin] = React.useState<string>('')
+  const [stablecoinBalances, setStablecoinBalances] = React.useState<
+    StablecoinBalance[]
+  >([])
+  const [stablecoinLoading, setStablecoinLoading] = React.useState(false)
   const isDesktop = useMediaQuery('(min-width: 768px)')
-  const { address, isConnected, chain } = useAccount()
+  const { isConnected, chain } = useAccount()
 
-  const { top3Stablecoins, hasBalances } = useStablecoinBalances()
+  console.log('💰 isConnected', isConnected)
+  console.log('💰 chain', chain)
+  console.log('💰 stablecoinBalances', stablecoinBalances)
 
-  // Add debugging for stablecoin data
+  // Fetch stablecoin balances using the same approach as Balance.tsx
+  const fetchStablecoinBalances = React.useCallback(async () => {
+    if (web3AuthService.isConnected && web3AuthService.isReady) {
+      try {
+        setStablecoinLoading(true)
+        const stablecoins = await web3AuthService.getStablecoinBalances()
+        setStablecoinBalances(stablecoins)
+      } catch (err) {
+        console.error('❌ Failed to fetch stablecoin balances:', err)
+        setStablecoinBalances([])
+      } finally {
+        setStablecoinLoading(false)
+      }
+    } else {
+      setStablecoinBalances([])
+    }
+  }, [])
+
   React.useEffect(() => {
-    console.log('💳 CryptoPaymentDrawer state:', {
-      isConnected,
-      address,
-      chain: chain?.name,
-      chainId: chain?.id,
-      isLoading,
-      hasBalances,
-      stablecoinCount: top3Stablecoins.length,
-      stablecoins: top3Stablecoins.map((coin) => ({
-        id: coin.id,
-        name: coin.name,
-        balance: coin.formattedBalance,
-      })),
-    })
-  }, [isConnected, address, chain, hasBalances, top3Stablecoins, isLoading])
+    fetchStablecoinBalances()
+  }, [fetchStablecoinBalances])
+
+  const hasBalances = stablecoinBalances.length > 0
 
   const triggerButton = (
     <Button className="h-12 flex-1 font-semibold text-base">
@@ -171,16 +186,11 @@ export function CryptoPaymentDrawer({
         <p className="text-gray-600 text-sm">
           Pay with any stablecoin on any chain
         </p>
-        {process.env.NODE_ENV === 'development' && (
-          <p className="mt-1 text-amber-600 text-xs">
-            ⚠️ Demo mode: Payments will be processed with ETH
-          </p>
-        )}
       </div>
 
       {/* Stablecoin options */}
       <div className="space-y-4">
-        {isLoading && (
+        {(isLoading || stablecoinLoading) && (
           <div className="flex items-center justify-center py-8">
             <div className="text-gray-500 text-sm">
               Loading your stablecoin balances...
@@ -188,7 +198,7 @@ export function CryptoPaymentDrawer({
           </div>
         )}
 
-        {!isLoading && !hasBalances && (
+        {!isLoading && !stablecoinLoading && !hasBalances && (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             {!isConnected ? (
               <>
@@ -221,58 +231,33 @@ export function CryptoPaymentDrawer({
           </div>
         )}
 
-        {!isLoading && hasBalances && (
-          <div className="space-y-2">
-            {top3Stablecoins.map((coin) => (
-              <button
-                key={coin.id}
-                onClick={() => setSelectedCoin(coin.id)}
-                type="button"
-                className="flex w-full cursor-pointer items-center justify-between p-3 text-left hover:bg-gray-50"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200">
-                    <span className="font-bold text-gray-700 text-sm">
-                      {coin.chainInfo.icon}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900">{coin.name}</div>
-                    <div className="text-gray-500 text-xs">
-                      {coin.chainInfo.name}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-900">
-                    {coin.formattedBalance}
-                  </span>
-                  <div
-                    className={`h-4 w-4 rounded-full border-2 ${
-                      selectedCoin === coin.id
-                        ? 'border-blue-500 bg-blue-500'
-                        : 'border-gray-300'
-                    }`}
-                  >
-                    {selectedCoin === coin.id && (
-                      <div className="h-full w-full rounded-full bg-blue-500"></div>
-                    )}
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
+        {!isLoading && !stablecoinLoading && hasBalances && (
+          <StablecoinList
+            stablecoins={stablecoinBalances.map(
+              (stablecoin): StablecoinData => ({
+                address: stablecoin.address,
+                symbol: stablecoin.symbol,
+                formattedBalance: stablecoin.formattedBalance,
+              }),
+            )}
+            showTitle={false}
+            interactive={true}
+            onStablecoinClick={(stablecoin) =>
+              setSelectedCoin(stablecoin.address)
+            }
+            selectedStablecoinId={selectedCoin}
+          />
         )}
 
         <Button
           className="w-full"
-          disabled={isLoading}
+          disabled={isLoading || stablecoinLoading}
           onClick={() => {
             console.log('💰 Payment button clicked:', {
               selectedCoin,
               hasBalances,
               coinData: selectedCoin
-                ? top3Stablecoins.find((c) => c.id === selectedCoin)
+                ? stablecoinBalances.find((c) => c.address === selectedCoin)
                 : null,
             })
 
@@ -285,10 +270,10 @@ export function CryptoPaymentDrawer({
             onConfirmPayment?.()
           }}
         >
-          {isLoading
+          {isLoading || stablecoinLoading
             ? 'Processing...'
             : selectedCoin && hasBalances
-              ? `Continue with ${top3Stablecoins.find((c) => c.id === selectedCoin)?.name}`
+              ? `Continue with ${stablecoinBalances.find((c) => c.address === selectedCoin)?.symbol}`
               : 'Continue with Payment'}
         </Button>
       </div>

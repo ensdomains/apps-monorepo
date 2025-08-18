@@ -1,12 +1,12 @@
+// biome-ignore assist/source/organizeImports: <explanation>
 import { createRouter, RouterProvider } from '@tanstack/react-router'
-import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
+import { StrictMode } from 'react'
 import reportWebVitals from './reportWebVitals.ts'
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
 import '@rainbow-me/rainbowkit/styles.css'
 import '@/styles/index.css'
-
 // Create a new router instance
 const router = createRouter({
   routeTree,

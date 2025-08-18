@@ -1,5 +1,5 @@
-import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { Web3AuthConnect } from './Web3AuthConnect'
 
 export const ConnectWallet = () => {
-  return <ConnectButton />
+  return <Web3AuthConnect />
 }

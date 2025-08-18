@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { useEffect, useMemo, useState } from 'react'
+
 import { Button } from '@/components/ui/button'
 import { Autorenewal } from '../components/Autorenewal'
 import { CommitmentError } from '../components/CommitmentError'
@@ -23,8 +23,6 @@ export function Registration({ initialName }: RegistrationProps) {
     step,
     domainName,
     duration,
-    pricing,
-    currencyType,
     remainingTime,
     commitTxHash,
     registerTxHash,
@@ -33,7 +31,6 @@ export function Registration({ initialName }: RegistrationProps) {
     isRegisterConfirming,
     isConnected,
     setDuration,
-    setCurrency,
     selectPayment,
     selectCrypto,
     confirmPayment,
@@ -44,94 +41,12 @@ export function Registration({ initialName }: RegistrationProps) {
     reset,
   } = useEnsRegistration(initialName)
 
-  const [localCurrencyType, setLocalCurrencyType] = useState<'ETH' | 'USD'>(
-    'ETH',
-  )
-
-  useEffect(() => {
-    const criticalSteps = [
-      RegistrationStep.MAKE_COMMITMENT,
-      RegistrationStep.WAITING_FOR_COMMIT_TIME,
-      RegistrationStep.REGISTER,
-    ]
-
-    const isInCriticalStep = criticalSteps.includes(step)
-
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (isInCriticalStep) {
-        const message =
-          '⚠️ Registration in progress! Leaving this page will cancel your registration. Are you sure you want to leave?'
-        event.preventDefault()
-        event.returnValue = message
-        return message
-      }
-    }
-
-    const handlePopState = (event: PopStateEvent) => {
-      if (isInCriticalStep) {
-        event.preventDefault()
-        window.history.pushState(null, '', window.location.href)
-
-        const confirmed = window.confirm(
-          '⚠️ Registration in progress! Leaving this page will cancel your registration. Are you sure you want to leave?',
-        )
-
-        if (confirmed) {
-          reset()
-          navigate({ to: '/' })
-        }
-      }
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (isInCriticalStep) {
-        if (event.ctrlKey && event.key === 'w') {
-          event.preventDefault()
-          return false
-        }
-        if (event.ctrlKey && event.shiftKey && event.key === 'W') {
-          event.preventDefault()
-          return false
-        }
-        if (event.altKey && event.key === 'F4') {
-          event.preventDefault()
-          return false
-        }
-      }
-    }
-
-    if (isInCriticalStep) {
-      window.addEventListener('beforeunload', handleBeforeUnload)
-      window.addEventListener('popstate', handlePopState)
-      document.addEventListener('keydown', handleKeyDown)
-      window.history.pushState(null, '', window.location.href)
-
-      const originalTitle = document.title
-      document.title = `🔄 Registration in Progress - ${originalTitle}`
-    }
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload)
-      window.removeEventListener('popstate', handlePopState)
-      document.removeEventListener('keydown', handleKeyDown)
-
-      if (isInCriticalStep) {
-        document.title = document.title.replace(
-          '🔄 Registration in Progress - ',
-          '',
-        )
-      }
-    }
-  }, [step, reset, navigate])
-
   const handlePaymentSelect = (method: 'crypto' | 'credit-card') => {
     selectPayment(method)
-    console.log('💳 Payment method selected:', method)
   }
 
   const handleCryptoSelect = (cryptoId: string) => {
     selectCrypto(cryptoId)
-    console.log('🪙 Crypto selected:', cryptoId)
   }
 
   const handleBack = () => {
@@ -155,29 +70,7 @@ export function Registration({ initialName }: RegistrationProps) {
     navigate({ to: '/' })
   }
 
-  const estimation = useMemo(() => {
-    if (!domainName) return undefined
-
-    const basePrice = BigInt(pricing?.base || '25000000000000000')
-    const totalPrice = BigInt(pricing?.totalPrice || '25000000000000000')
-    const yearMultiplier = BigInt(Math.max(1, Math.floor(duration)))
-
-    return {
-      estimatedGasFee: 2000000000000000n,
-      estimatedGasLoading: false,
-      yearlyFee: basePrice,
-      totalDurationBasedFee: totalPrice * yearMultiplier,
-      hasPremium: false,
-      premiumFee: 0n,
-      gasPrice: 20000000000n,
-      seconds: duration * 31536000,
-    }
-  }, [domainName, duration, pricing])
-
-  const handleSetCurrency = (currency: 'ETH' | 'USD') => {
-    setLocalCurrencyType(currency)
-    setCurrency(currency)
-  }
+  // Note: Pricing is now handled directly in the Pricing component using getTokenPrices
 
   const handleSelectPayment = (method: 'crypto' | 'credit-card') => {
     handlePaymentSelect(method)
@@ -224,15 +117,14 @@ export function Registration({ initialName }: RegistrationProps) {
           <Pricing
             domainName={displayDomainName}
             duration={duration}
-            currencyType={currencyType || localCurrencyType}
-            estimation={estimation}
             isConnected={isConnected}
             isLoading={isCommitPending}
             onSetDuration={setDuration}
-            onSetCurrency={handleSetCurrency}
             onSelectPayment={handleSelectPayment}
             onSelectCrypto={handleSelectCrypto}
-            onConfirmPayment={confirmPayment}
+            onConfirmPayment={(tokenPrice, selectedToken) =>
+              confirmPayment(tokenPrice, selectedToken)
+            }
           />
         </div>
       )}
@@ -251,6 +143,10 @@ export function Registration({ initialName }: RegistrationProps) {
       )}
 
       {step === RegistrationStep.COMMITMENT_ERROR && (
+        <CommitmentError domainName={displayDomainName} onRetry={retryCommit} />
+      )}
+
+      {step === RegistrationStep.REGISTRATION_ERROR && (
         <CommitmentError domainName={displayDomainName} onRetry={retryCommit} />
       )}
 

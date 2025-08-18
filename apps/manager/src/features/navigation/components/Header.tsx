@@ -1,22 +1,7 @@
-import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { Link } from '@tanstack/react-router'
-import {
-  Bell,
-  CreditCard,
-  LayoutGrid,
-  List,
-  RefreshCcw,
-  Unlink,
-  User,
-} from 'lucide-react'
+import { Bell, LayoutGrid } from 'lucide-react'
 import { useState } from 'react'
-import {
-  useAccount,
-  useDisconnect,
-  useEnsAvatar,
-  useEnsName,
-  useSwitchChain,
-} from 'wagmi'
+import { useAccount } from 'wagmi'
 import ensLogo from '@/assets/icons/ens.svg'
 import { Button } from '@/components/ui/button'
 import {
@@ -30,108 +15,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { Web3AuthConnect } from '@/components/Web3AuthConnect'
 import { NotificationsDropdown } from '@/features/notifications/components'
 import { useTheme } from '@/hooks/use-theme'
 
 const ConnectedContent = () => {
-  const { address, chain } = useAccount()
-  const { disconnect } = useDisconnect()
-  const { chains, switchChain } = useSwitchChain()
-
-  const { data: ensName } = useEnsName({ address })
-  const { data: ensAvatar } = useEnsAvatar({
-    name: ensName ?? undefined,
-    assetGatewayUrls: {
-      ipfs: 'https://ipfs.euc.li',
-    },
-  })
-
   const [notificationsOpen, setNotificationsOpen] = useState(false)
-
-  // Fallback display for when there's no ENS name
-  const displayName =
-    ensName || `${address?.slice(0, 6)}...${address?.slice(-4)}`
 
   return (
     <div className="mr-6 flex items-center gap-4">
-      {/* Network Selector */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2">
-            <div className="h-2 w-2 rounded-full bg-green-500" />
-            {chain?.name || 'Unknown'}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent>
-          {chains.map((availableChain) => (
-            <DropdownMenuItem
-              key={availableChain.id}
-              onClick={() => switchChain({ chainId: availableChain.id })}
-              className="flex items-center gap-2"
-            >
-              <div
-                className={`h-2 w-2 rounded-full ${
-                  chain?.id === availableChain.id
-                    ? 'bg-green-500'
-                    : 'bg-gray-300'
-                }`}
-              />
-              {availableChain.name}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* User Profile Dropdown */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className="flex items-center gap-2 rounded-md p-2 hover:bg-gray-100"
-          >
-            {ensAvatar ? (
-              <img
-                src={ensAvatar}
-                alt="ENS Avatar"
-                className="size-8 rounded-full"
-              />
-            ) : (
-              <div className="flex size-8 items-center justify-center rounded-full bg-gray-200">
-                <User className="size-4 text-gray-600" />
-              </div>
-            )}
-            <span className="font-medium text-sm">{displayName}</span>
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent>
-          {/* Renewals, Payment Methods, All Transactions, Disconnect */}
-          <DropdownMenuItem asChild>
-            <Link to="/auto-renewal">
-              <RefreshCcw />
-              Renewals
-            </Link>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem asChild>
-            <Link to="/payment/list">
-              <CreditCard />
-              Payment Methods
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            {/* @ts-expect-error route doesn't exist yet */}
-            <Link to="/transactions">
-              <List />
-              All Transactions
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => disconnect()}>
-            <Unlink />
-            Disconnect
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
       {/* Notifications */}
       <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
         <PopoverTrigger asChild>
@@ -143,6 +35,9 @@ const ConnectedContent = () => {
           <NotificationsDropdown onAction={() => setNotificationsOpen(false)} />
         </PopoverContent>
       </Popover>
+
+      {/* User Profile Dropdown */}
+      <Web3AuthConnect />
     </div>
   )
 }
@@ -150,7 +45,7 @@ const ConnectedContent = () => {
 const DisconnectedContent = () => {
   return (
     <div className="mr-6 flex items-center gap-4">
-      <ConnectButton />
+      <Web3AuthConnect />
     </div>
   )
 }
@@ -176,6 +71,7 @@ const Menu = () => {
 
 export const Header = () => {
   const { isConnected } = useAccount()
+  console.log('isConnected web3authService', isConnected)
   return (
     <nav className="sticky top-0 z-10 flex items-center justify-end bg-background p-8">
       <Link to="/" className="mr-auto">

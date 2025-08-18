@@ -8,6 +8,7 @@ import {
 import {
   createClient,
   createPublicClient,
+  createWalletClient,
   type HttpTransport,
   http,
 } from 'viem'
@@ -31,6 +32,8 @@ export const anvil = {
 const isDevelopment =
   process.env.NODE_ENV === 'development' ||
   process.env.NEXT_PUBLIC_ENABLE_ANVIL === 'true'
+
+export const defaultViemChain = isDevelopment ? anvil : mainnet
 
 export const wagmiConfig = createConfig({
   ssr: false,
@@ -60,8 +63,13 @@ export const wagmiConfig = createConfig({
 })
 
 export const publicClient = createPublicClient({
-  chain: anvil,
-  transport: http(ANVIL_RPC_URL),
+  chain: defaultViemChain,
+  transport: http(defaultViemChain.rpcUrls.default.http[0]),
+})
+
+export const walletClient = createWalletClient({
+  chain: defaultViemChain,
+  transport: http(defaultViemChain.rpcUrls.default.http[0]),
 })
 
 export type ClientType = ReturnType<typeof wagmiConfig.getClient>

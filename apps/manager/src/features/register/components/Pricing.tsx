@@ -1,5 +1,5 @@
 import { ChevronDownIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import {
@@ -9,43 +9,30 @@ import {
 } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  CONTRACT_ADDRESSES,
+  getTokenPrices,
+} from '../services/nameChainContractService'
 import { CreditCardPaymentDrawer, CryptoPaymentDrawer } from './PaymentDrawer'
 import { RegisterDrawer } from './RegisterDrawer'
-
-type EstimationData = {
-  estimatedGasFee: bigint
-  estimatedGasLoading: boolean
-  yearlyFee: bigint
-  totalDurationBasedFee: bigint
-  hasPremium: boolean
-  premiumFee: bigint
-  gasPrice: bigint
-  seconds: number
-}
 
 type PricingProps = {
   domainName: string
   duration: number
-  currencyType: 'ETH' | 'USD'
-  estimation?: EstimationData
   isConnected: boolean
   isLoading?: boolean
   onSetDuration: (duration: number) => void
-  onSetCurrency: (currency: 'ETH' | 'USD') => void
   onSelectPayment: (method: 'crypto' | 'credit-card') => void
   onSelectCrypto: (cryptoId: string) => void
-  onConfirmPayment: () => void
+  onConfirmPayment: (tokenPrice: bigint, selectedToken: string) => void
 }
 
 export const Pricing = ({
   domainName,
   duration,
-  currencyType,
-  estimation,
   isConnected,
   isLoading = false,
   onSetDuration,
-  onSetCurrency,
   onSelectPayment,
   onSelectCrypto,
   onConfirmPayment,
@@ -54,6 +41,9 @@ export const Pricing = ({
   const [customYears, setCustomYears] = useState('')
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [isBreakdownOpen, setIsBreakdownOpen] = useState(false)
+  const [priceLoading, setPriceLoading] = useState(false)
+  const [usdcPrice, setUsdcPrice] = useState<number | undefined>(undefined)
+  const [daiPrice, setDaiPrice] = useState<number | undefined>(undefined)
 
   // For pricing calculation, round up decimal years since service is mocked
   const pricingDuration = Math.ceil(duration)
@@ -67,38 +57,68 @@ export const Pricing = ({
     { years: 25, discount: 30 },
   ]
 
-  const baseRegistrationFee =
-    (Number(estimation?.totalDurationBasedFee || 0) / 1e18) *
-    (currencyType === 'USD' ? 2500 : 1)
-  const networkFee =
-    (Number(estimation?.estimatedGasFee || 0) / 1e18) *
-    (currencyType === 'USD' ? 2500 : 1)
+  // Fetch stablecoin prices when duration changes
+  useEffect(() => {
+    if (domainName && duration > 0) {
+      setPriceLoading(true)
+
+      const fetchPrices = async () => {
+        try {
+          const durationInSeconds = duration * 365 * 24 * 60 * 60
+          const result = await getTokenPrices(domainName, durationInSeconds)
+
+          if (result.isOk()) {
+            setUsdcPrice(parseFloat(result.value.usdc.formatted))
+            setDaiPrice(parseFloat(result.value.dai.formatted))
+            console.log('💰 Pricing updated:', {
+              domain: domainName,
+              duration,
+              usdc: result.value.usdc.formatted,
+              dai: result.value.dai.formatted,
+            })
+          } else {
+            console.error('Failed to get token prices:', result.error)
+            // Fallback to base price
+            setUsdcPrice(10 * duration)
+            setDaiPrice(10 * duration)
+          }
+        } catch (error) {
+          console.error('Error getting token prices:', error)
+          // Fallback to base price
+          setUsdcPrice(10 * duration)
+          setDaiPrice(10 * duration)
+        } finally {
+          setPriceLoading(false)
+        }
+      }
+
+      fetchPrices()
+    }
+  }, [domainName, duration])
+
+  // Use USDC price as the default display price (since it's more common)
+  const basePrice = usdcPrice || 0
+  const pricePerYear = duration > 0 ? basePrice / duration : 0
 
   // Calculate discount based on rounded duration for pricing
   const selectedYearOption = yearOptions.find(
     (option) => option.years === pricingDuration,
   )
 
-  let basePrice: number
-  let pricePerYear: number
   let discountPercentage: number
   let discountAmount: number
 
   if (selectedYearOption) {
     // This is a predefined year option with potential discount
     discountPercentage = selectedYearOption.discount
-    basePrice = baseRegistrationFee / (1 - discountPercentage / 100)
-    pricePerYear = basePrice / pricingDuration
-    discountAmount = basePrice - baseRegistrationFee
+    discountAmount = basePrice * (discountPercentage / 100)
   } else {
-    // This is a custom duration, use the API response directly
+    // This is a custom duration, no discount
     discountPercentage = 0
-    basePrice = baseRegistrationFee
-    pricePerYear = baseRegistrationFee / pricingDuration
     discountAmount = 0
   }
 
-  const total = baseRegistrationFee + networkFee
+  const finalPrice = basePrice - discountAmount
 
   const calculateDurationFromDate = (endDate: Date) => {
     const now = new Date()
@@ -242,29 +262,8 @@ export const Pricing = ({
           <h3 className="font-semibold text-foreground text-lg">
             Order Summary
           </h3>
-          <div className="flex items-center rounded-md border border-border">
-            <button
-              type="button"
-              onClick={() => onSetCurrency('USD')}
-              className={`px-3 py-1 font-medium text-sm transition-colors ${
-                currencyType === 'USD'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              USD
-            </button>
-            <button
-              type="button"
-              onClick={() => onSetCurrency('ETH')}
-              className={`px-3 py-1 font-medium text-sm transition-colors ${
-                currencyType === 'ETH'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              ETH
-            </button>
+          <div className="text-muted-foreground text-sm">
+            Prices in USD (stablecoins)
           </div>
         </div>
 
@@ -290,9 +289,13 @@ export const Pricing = ({
 
           <div className="text-right">
             <div className="font-bold text-2xl text-foreground">
-              {currencyType === 'ETH' ? '⟠' : '$'}
-              {total.toFixed(2)} {currencyType}
+              ${priceLoading ? '...' : finalPrice.toFixed(2)} USD
             </div>
+            {usdcPrice && daiPrice && (
+              <div className="text-muted-foreground text-sm">
+                {usdcPrice.toFixed(2)} USDC or {daiPrice.toFixed(2)} DAI
+              </div>
+            )}
           </div>
 
           <Collapsible open={isBreakdownOpen} onOpenChange={setIsBreakdownOpen}>
@@ -314,19 +317,15 @@ export const Pricing = ({
             <CollapsibleContent className="space-y-2 pt-3">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">
-                  ({pricingDuration} year{pricingDuration !== 1 ? 's' : ''} ×{' '}
-                  {currencyType === 'ETH' ? '⟠' : '$'}
-                  {pricePerYear.toFixed(2)} {currencyType}/year)
+                  ({pricingDuration} year{pricingDuration !== 1 ? 's' : ''} × $
+                  {pricePerYear.toFixed(2)} USD/year)
                   {pricingDuration !== duration && (
                     <span className="block text-muted-foreground/70 text-xs">
                       (Rounded up from {duration.toFixed(2)} years)
                     </span>
                   )}
                 </span>
-                <span className="text-foreground">
-                  {currencyType === 'ETH' ? '⟠' : '$'}
-                  {basePrice.toFixed(2)}
-                </span>
+                <span className="text-foreground">${basePrice.toFixed(2)}</span>
               </div>
               {discountPercentage > 0 && (
                 <div className="flex justify-between text-sm">
@@ -334,24 +333,15 @@ export const Pricing = ({
                     ({discountPercentage}% off)
                   </span>
                   <span className="text-green-600">
-                    -{currencyType === 'ETH' ? '⟠' : '$'}
-                    {discountAmount.toFixed(2)}
+                    -${discountAmount.toFixed(2)}
                   </span>
                 </div>
               )}
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Est. network fee</span>
-                <span className="text-foreground">
-                  {currencyType === 'ETH' ? '⟠' : '$'}
-                  {networkFee.toFixed(4)}
-                </span>
-              </div>
               <div className="border-border border-t pt-2">
                 <div className="flex justify-between font-medium text-sm">
                   <span className="text-foreground">Total</span>
                   <span className="text-foreground">
-                    {currencyType === 'ETH' ? '⟠' : '$'}
-                    {total.toFixed(2)}
+                    ${finalPrice.toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -363,7 +353,7 @@ export const Pricing = ({
           <RegisterDrawer
             domainName={domainName}
             duration={duration}
-            priceUSD={currencyType === 'USD' ? total : total * 2500}
+            priceUSD={finalPrice}
           >
             <Button className="h-12 w-full font-semibold text-base">
               Register
@@ -374,17 +364,23 @@ export const Pricing = ({
             <CreditCardPaymentDrawer
               domainName={domainName}
               duration={duration}
-              priceUSD={currencyType === 'USD' ? total : total * 2500}
+              priceUSD={finalPrice}
               onPaymentSelect={onSelectPayment}
             />
             <CryptoPaymentDrawer
               domainName={domainName}
               duration={duration}
-              priceUSD={currencyType === 'USD' ? total : total * 2500}
+              priceUSD={finalPrice}
               isLoading={isLoading}
               onPaymentSelect={onSelectPayment}
               onCryptoSelect={onSelectCrypto}
-              onConfirmPayment={onConfirmPayment}
+              onConfirmPayment={() => {
+                // Pass the USDC price and address to the registration flow
+                if (usdcPrice) {
+                  const rawPrice = BigInt(Math.ceil(usdcPrice * 1e6)) // Convert to USDC units (6 decimals)
+                  onConfirmPayment(rawPrice, CONTRACT_ADDRESSES.L2.MockUSDC)
+                }
+              }}
             />
           </div>
         )}

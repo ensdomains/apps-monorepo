@@ -1,29 +1,29 @@
 import { useMachine } from '@xstate/react'
 import { useCallback, useEffect } from 'react'
-import { useAccount, useWalletClient } from 'wagmi'
-import { waitForTransactionReceipt } from 'wagmi/actions'
-import { wagmiConfig } from '@/lib/wagmi'
+import { useAccount } from 'wagmi'
+import { web3AuthService } from '@/lib/web3Auth/web3AuthService'
 import {
   RegistrationStep,
   registrationMachine,
 } from '../machines/registrationMachine'
 import {
+  approveTokenForRegistration,
   CONTRACT_ADDRESSES,
-  EMPTY_ADDRESS,
   ETH_REGISTRAR_ABI,
-  generateCommitment,
-  REGISTRY_ADDRESS,
+  generateCommitmentViaContract,
+  registerDomain,
 } from '../services/nameChainContractService'
-import { calculateRegistrationPrice } from '../utils'
 
 export { RegistrationStep } from '../machines/registrationMachine'
 
 export function useEnsRegistration(initialName?: string) {
-  const { address, isConnected, chainId } = useAccount()
-
-  console.log('🌐 Current chain ID:', chainId)
-  const { data: walletClient } = useWalletClient({ chainId })
   const [state, send] = useMachine(registrationMachine)
+
+  // Use wagmi useAccount hook which now integrates with Web3Auth
+  const { address, isConnected } = useAccount()
+
+  // Get token selection from machine state
+  const selectedToken = state.context.selectedToken
 
   useEffect(() => {
     if (initialName && initialName !== state.context.name) {
@@ -32,9 +32,6 @@ export function useEnsRegistration(initialName?: string) {
         state.context.name &&
         state.context.name !== initialName
       ) {
-        console.log(
-          '🔄 Starting new registration with different domain, resetting state',
-        )
         send({ type: 'RESET' })
       }
 
@@ -50,114 +47,164 @@ export function useEnsRegistration(initialName?: string) {
 
   useEffect(() => {
     if (state.context.name && state.context.duration > 0) {
-      console.log(
-        '🔄 Recalculating pricing for:',
-        state.context.name,
-        'duration:',
-        state.context.duration,
-      )
       // Trigger pricing recalculation by setting the name again
       send({ type: 'SET_NAME', name: state.context.name })
     }
   }, [state.context.duration, state.context.name, send])
+
+  // Note: Token pricing is now handled in UI components
 
   useEffect(() => {
     if (
       state.context.step === RegistrationStep.WAITING_FOR_COMMIT_TIME &&
       state.context.commitTimestamp > 0
     ) {
-      console.log(
-        '🕐 Starting timer with timestamp:',
-        state.context.commitTimestamp,
-      )
+      // ✅ FIX: Use seconds consistently
+      const startTimestamp = state.context.commitTimestamp // This is in SECONDS
+      const now = Math.floor(Date.now() / 1000) // Convert to SECONDS
+      const elapsedTime = now - startTimestamp // Now both are in SECONDS
 
-      const startTimestamp = state.context.commitTimestamp
-      const now = Date.now()
-      const elapsedTime = now - startTimestamp
-
-      if (elapsedTime >= 60 * 1000) {
-        console.log('⚡ Timer already complete, going to register')
+      if (elapsedTime >= 90) {
+        console.log('✅ Timer complete, proceeding to register')
         send({ type: 'TIMER_COMPLETE' })
       } else {
-        const remaining = 60 - Math.floor(elapsedTime / 1000)
-        console.log('⏰ Starting timer with remaining time:', remaining)
+        const remaining = 90 - elapsedTime // Remaining seconds
         send({ type: 'TIMER_TICK', remainingTime: remaining })
 
         const timer = setInterval(() => {
-          const currentTime = Date.now()
-          const elapsed = currentTime - startTimestamp
+          const currentTime = Math.floor(Date.now() / 1000) // Convert to SECONDS
+          const elapsed = currentTime - startTimestamp // Both in SECONDS
 
-          if (elapsed >= 60 * 1000) {
-            console.log('✅ Timer complete, going to register')
+          if (elapsed >= 90) {
+            console.log('✅ Timer complete, proceeding to register')
             send({ type: 'TIMER_COMPLETE' })
             clearInterval(timer)
           } else {
-            const newRemaining = 60 - Math.floor(elapsed / 1000)
+            const newRemaining = 90 - elapsed
             send({ type: 'TIMER_TICK', remainingTime: newRemaining })
           }
         }, 1000)
 
         return () => {
-          console.log('🧹 Cleaning up timer')
           clearInterval(timer)
         }
       }
     }
   }, [state.context.step, state.context.commitTimestamp, send])
+  // OLD
+  // const startCommitment = useCallback(async () => {
+  //   if (
+  //     !state.context.name ||
+  //     !address ||
+  //     !isConnected ||
+  //     !web3AuthService.isReady
+  //   ) {
+  //     console.log('❌ Missing required data:', {
+  //       name: state.context.name,
+  //       address,
+  //       isConnected,
+  //       web3AuthReady: web3AuthService.isReady,
+  //     })
+  //     send({ type: 'ERROR', message: 'Missing required data for commitment' })
+  //     return
+  //   }
+
+  //   try {
+  //     console.log('🔒 Starting commit transaction for:', state.context.name)
+  //     console.log('🌐 Current chain ID:', chainId)
+
+  //     const { commitment, secret } = generateCommitment(
+  //       state.context.name,
+  //       address,
+  //       state.context.duration,
+  //     )
+
+  //     console.log('🔑 Generated commitment:', commitment)
+  //     console.log('🤫 Generated secret:', secret)
+
+  //     // Use Web3Auth service instead of wagmi walletClient
+  //     const hash = await web3AuthService.writeContract(
+  //       CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
+  //       ETH_REGISTRAR_ABI as unknown as unknown[],
+  //       'commit',
+  //       [commitment],
+  //     )
+
+  //     console.log('✅ Commit transaction sent with hash:', hash)
+
+  //     console.log('📅 Commit timestamp:', Date.now())
+
+  //     send({
+  //       type: 'COMMIT_RESULT',
+  //       commitment,
+  //       secret,
+  //       timestamp: Math.floor(Date.now() / 1000),
+  //       txHash: hash,
+  //     })
+
+  //     console.log('📤 Sent COMMIT_RESULT event to state machine')
+  //     console.log('🔑 Sent secret in COMMIT_RESULT:', secret)
+  //   } catch (error) {
+  //     console.error('❌ Error in commit transaction:', error)
+  //     send({
+  //       type: 'ERROR',
+  //       message: error instanceof Error ? error.message : 'Failed to commit',
+  //     })
+  //   }
+  // }, [
+  //   state.context.name,
+  //   state.context.duration,
+  //   address,
+  //   isConnected,
+  //   chainId,
+  //   send,
+  // ])
 
   const startCommitment = useCallback(async () => {
-    if (!state.context.name || !address || !isConnected || !walletClient) {
-      console.log('❌ Missing required data:', {
-        name: state.context.name,
-        address,
-        isConnected,
-        walletClient: !!walletClient,
-      })
+    if (
+      !state.context.name ||
+      !address ||
+      !isConnected ||
+      !web3AuthService.isReady
+    ) {
       send({ type: 'ERROR', message: 'Missing required data for commitment' })
       return
     }
 
     try {
-      console.log('🔒 Starting commit transaction for:', state.context.name)
-      console.log('🌐 Current chain ID:', chainId)
-
-      const { commitment, secret } = generateCommitment(
+      // ✅ Use service function for commitment generation
+      const commitmentResult = await generateCommitmentViaContract(
         state.context.name,
         address,
         state.context.duration,
+        web3AuthService,
       )
 
-      console.log('🔑 Generated commitment:', commitment)
-      console.log('🤫 Generated secret:', secret)
+      if (commitmentResult.isErr()) {
+        throw new Error(
+          `Failed to generate commitment: ${commitmentResult.error.message}`,
+        )
+      }
 
-      const hash = await walletClient.writeContract({
-        address: CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
-        abi: ETH_REGISTRAR_ABI,
-        functionName: 'commit',
-        args: [commitment],
-      })
+      const { commitment, secret } = commitmentResult.value
 
-      console.log('✅ Commit transaction sent with hash:', hash)
+      // Use Web3Auth service instead of wagmi walletClient
+      const hash = await web3AuthService.writeContract(
+        CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
+        ETH_REGISTRAR_ABI as unknown as unknown[],
+        'commit',
+        [commitment],
+      )
 
-      console.log('⏳ Waiting for commit transaction confirmation...')
-      const receipt = await waitForTransactionReceipt(wagmiConfig, {
-        hash,
-      })
-
-      console.log('✅ Commit transaction confirmed:', receipt)
-
-      const timestamp = Date.now()
-      console.log('📅 Commit timestamp:', timestamp)
+      console.log('✅ Commitment transaction sent:', hash)
 
       send({
         type: 'COMMIT_RESULT',
         commitment,
         secret,
-        timestamp,
+        timestamp: Math.floor(Date.now() / 1000), // ✅ Seconds, not milliseconds
         txHash: hash,
       })
-
-      console.log('📤 Sent COMMIT_RESULT event to state machine')
     } catch (error) {
       console.error('❌ Error in commit transaction:', error)
       send({
@@ -165,110 +212,99 @@ export function useEnsRegistration(initialName?: string) {
         message: error instanceof Error ? error.message : 'Failed to commit',
       })
     }
-  }, [
-    state.context.name,
-    state.context.duration,
-    address,
-    isConnected,
-    walletClient,
-    chainId,
-    send,
-  ])
+  }, [state.context.name, state.context.duration, address, isConnected, send])
 
-  const startRegistration = useCallback(async () => {
-    if (
-      !state.context.name ||
-      !address ||
-      !isConnected ||
-      !walletClient ||
-      !state.context.secret
-    ) {
-      send({ type: 'ERROR', message: 'Missing required data for registration' })
-      return
-    }
+  const startRegistration = useCallback(
+    async (tokenPrice: bigint, selectedToken: string) => {
+      try {
+        // Note: Duration conversion and name cleaning now handled in registerDomain service
 
-    try {
-      console.log('📝 Starting register transaction for:', state.context.name)
-      console.log('🌐 Current chain ID:', chainId)
+        // Step 1: Approve tokens for the registrar
 
-      const valueInWei = calculateRegistrationPrice(state.context.duration)
-      const durationInSeconds = BigInt(
-        state.context.duration * 365 * 24 * 60 * 60,
-      )
-      const cleanName = state.context.name.replace('.eth', '')
+        const approveResult = await approveTokenForRegistration(
+          selectedToken,
+          tokenPrice,
+          web3AuthService,
+        )
 
-      console.log('💰 Registration price in wei:', valueInWei.toString())
-      console.log('⏱️ Duration in seconds:', durationInSeconds.toString())
+        if (approveResult.isErr()) {
+          throw new Error(
+            `Token approval failed: ${approveResult.error.message}`,
+          )
+        }
 
-      const hash = await walletClient.writeContract({
-        address: CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
-        abi: ETH_REGISTRAR_ABI,
-        functionName: 'register',
-        args: [
-          cleanName,
+        // Step 2: Register the domain using the service function
+
+        const registerResult = await registerDomain(
+          state.context.name,
           address as `0x${string}`,
-          state.context.secret as `0x${string}`,
-          REGISTRY_ADDRESS as `0x${string}`,
-          EMPTY_ADDRESS as `0x${string}`,
-          durationInSeconds,
-        ],
-        value: valueInWei,
-      })
+          state.context.secret,
+          state.context.duration,
+          selectedToken,
+          web3AuthService,
+        )
 
-      console.log('✅ Register transaction sent:', hash)
+        if (registerResult.isErr()) {
+          throw new Error(
+            `Domain registration failed: ${registerResult.error.message}`,
+          )
+        }
 
-      console.log('⏳ Waiting for register transaction confirmation...')
-      const receipt = await waitForTransactionReceipt(wagmiConfig, {
-        hash,
-        chainId,
-      })
+        const registerHash = registerResult.value
+        console.log('✅ Registration complete:', registerHash)
 
-      console.log('✅ Register transaction confirmed:', receipt)
+        send({
+          type: 'REGISTER_RESULT',
+          txHash: registerHash,
+        })
+      } catch (error) {
+        console.error('❌ Registration failed:', error)
+        send({
+          type: 'ERROR',
+          message:
+            error instanceof Error ? error.message : 'Failed to register',
+        })
+      }
+    },
+    [
+      state.context.name,
+      state.context.duration,
+      state.context.secret,
+      address,
+      send,
+    ],
+  )
 
-      send({
-        type: 'REGISTER_RESULT',
-        txHash: hash,
-      })
-    } catch (error) {
-      console.error('❌ Error in register transaction:', error)
-      send({
-        type: 'ERROR',
-        message: error instanceof Error ? error.message : 'Failed to register',
-      })
-    }
-  }, [
-    state.context.name,
-    state.context.duration,
-    state.context.secret,
-    address,
-    isConnected,
-    walletClient,
-    chainId,
-    send,
-  ])
-
+  // Auto-trigger registration when timer completes
   useEffect(() => {
     if (
       state.context.step === RegistrationStep.REGISTER &&
-      !state.context.registerTxHash &&
-      !state.context.error
+      state.context.tokenPrice &&
+      state.context.selectedTokenForRegistration &&
+      state.context.secret
     ) {
-      startRegistration()
+      // Start registration with stored token info
+      startRegistration(
+        state.context.tokenPrice,
+        state.context.selectedTokenForRegistration,
+      )
     }
   }, [
     state.context.step,
-    state.context.registerTxHash,
-    state.context.error,
+    state.context.tokenPrice,
+    state.context.selectedTokenForRegistration,
+    state.context.secret,
     startRegistration,
   ])
+
+  // Note: startRegistration now requires tokenPrice and selectedToken parameters
+  // These will be passed when confirmPayment is called
 
   // Public API
   return {
     step: state.context.step,
     domainName: state.context.name,
     duration: state.context.duration,
-    pricing: state.context.pricing,
-    currencyType: state.context.currencyType,
     selectedPaymentMethod: state.context.selectedPaymentMethod,
     selectedCrypto: state.context.selectedCrypto,
     error: state.context.error,
@@ -281,28 +317,38 @@ export function useEnsRegistration(initialName?: string) {
     isRegisterConfirming: false,
     isCommitSuccess: !!state.context.commitTxHash,
     isRegisterSuccess: !!state.context.registerTxHash,
-    calculatedPrice: calculateRegistrationPrice(state.context.duration),
     isConnected,
     address,
+    selectedToken,
+    setSelectedToken: (tokenAddress: string) =>
+      send({ type: 'SELECT_TOKEN', tokenAddress }),
     setDomainName: (name: string) => send({ type: 'SET_NAME', name }),
     setDuration: (duration: number) => send({ type: 'SET_DURATION', duration }),
-    setCurrency: (currencyType: 'ETH' | 'USD') =>
-      send({ type: 'SET_CURRENCY', currencyType }),
     selectPayment: (method: 'crypto' | 'credit-card') =>
       send({ type: 'SELECT_PAYMENT', method }),
     selectCrypto: (cryptoId: string) =>
       send({ type: 'SELECT_CRYPTO', cryptoId }),
-    confirmPayment: () => {
+    confirmPayment: (tokenPrice: bigint, selectedToken: string) => {
+      // Store token info for later use when timer completes
+      send({ type: 'SET_TOKEN_INFO', tokenPrice, selectedToken })
       send({ type: 'CONFIRM_PAYMENT' })
       startCommitment()
+      // Note: startRegistration will be called when timer completes
+      // via the TIMER_COMPLETE event in the state machine
     },
     retryCommit: () => {
       send({ type: 'RETRY_COMMIT' })
       startCommitment()
     },
-    skipNotifications: () => send({ type: 'SKIP_NOTIFICATIONS' }),
-    setupAutorenewal: () => send({ type: 'SETUP_AUTORENEWAL' }),
-    completeFlow: () => send({ type: 'COMPLETE_FLOW' }),
+    skipNotifications: () => {
+      send({ type: 'SKIP_NOTIFICATIONS' })
+    },
+    setupAutorenewal: () => {
+      send({ type: 'SETUP_AUTORENEWAL' })
+    },
+    completeFlow: () => {
+      send({ type: 'COMPLETE_FLOW' })
+    },
     reset: () => {
       send({ type: 'RESET' })
     },

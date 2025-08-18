@@ -1,19 +1,18 @@
-import { assign, fromPromise, setup } from 'xstate'
-import { getRealNamePrice } from '../services/nameChainContractService'
+import { assign, setup } from 'xstate'
+import { CONTRACT_ADDRESSES } from '../services/nameChainContractService'
 
 const STORAGE_KEYS = {
   COMMITMENT: 'ens_commitment',
   SECRET: 'ens_secret',
   NAME: 'ens_name',
   COMMIT_TIMESTAMP: 'ens_commit_timestamp',
-  PRICING: 'ens_pricing',
   DURATION: 'ens_duration',
   COMMIT_TX_HASH: 'ens_commit_tx_hash',
   REGISTER_TX_HASH: 'ens_register_tx_hash',
   OWNER_ADDRESS: 'ens_owner_address',
 }
 
-export const BASE_PRICE_PER_YEAR = '25000000000000000'
+// Note: Pricing is now handled in UI components using getTokenPrices service
 
 export enum RegistrationStep {
   PRICING = 'pricing',
@@ -21,6 +20,7 @@ export enum RegistrationStep {
   COMMITMENT_ERROR = 'commitmentError',
   WAITING_FOR_COMMIT_TIME = 'waitingForCommitTime',
   REGISTER = 'registerInProgress',
+  REGISTRATION_ERROR = 'registrationError',
   REGISTER_SUCCESS = 'registerSuccess',
   AUTORENEWAL = 'autorenewal',
 }
@@ -29,11 +29,8 @@ interface RegistrationContext {
   name: string
   duration: number
   isAvailable: boolean | null
-  pricing?: {
-    totalPrice: string
-    base: string
-    premium: string
-  }
+
+  selectedToken: string
   ownerAddress: string
   commitment: string
   secret: string
@@ -46,6 +43,9 @@ interface RegistrationContext {
   selectedPaymentMethod?: 'crypto' | 'credit-card'
   selectedCrypto?: string
   error: string
+  // Token info for registration
+  tokenPrice: bigint | null
+  selectedTokenForRegistration: string | null
 }
 
 type RegistrationEvent =
@@ -55,6 +55,7 @@ type RegistrationEvent =
   | { type: 'SET_CURRENCY'; currencyType: 'ETH' | 'USD' }
   | { type: 'SELECT_PAYMENT'; method: 'crypto' | 'credit-card' }
   | { type: 'SELECT_CRYPTO'; cryptoId: string }
+  | { type: 'SELECT_TOKEN'; tokenAddress: string }
   | { type: 'CONFIRM_PAYMENT' }
   | {
       type: 'COMMIT_RESULT'
@@ -72,6 +73,7 @@ type RegistrationEvent =
   | { type: 'COMPLETE_FLOW' }
   | { type: 'RESET' }
   | { type: 'ERROR'; message: string }
+  | { type: 'SET_TOKEN_INFO'; tokenPrice: bigint; selectedToken: string }
 
 const isBrowser = typeof window !== 'undefined'
 
@@ -90,6 +92,8 @@ const loadSavedData = (): Partial<RegistrationContext> => {
     currencyType: 'ETH',
     error: '',
     isAvailable: null,
+    tokenPrice: null,
+    selectedTokenForRegistration: null,
   }
 
   if (!isBrowser) return defaultData
@@ -106,9 +110,6 @@ const loadSavedData = (): Partial<RegistrationContext> => {
       commitTxHash: localStorage.getItem(STORAGE_KEYS.COMMIT_TX_HASH) || '',
       registerTxHash: localStorage.getItem(STORAGE_KEYS.REGISTER_TX_HASH) || '',
       ownerAddress: localStorage.getItem(STORAGE_KEYS.OWNER_ADDRESS) || '',
-      pricing: localStorage.getItem(STORAGE_KEYS.PRICING)
-        ? JSON.parse(localStorage.getItem(STORAGE_KEYS.PRICING)!)
-        : undefined,
     }
 
     return { ...defaultData, ...saved }
@@ -137,7 +138,8 @@ const initialContext: RegistrationContext = {
   name: savedData.name || '',
   duration: savedData.duration || 1,
   isAvailable: savedData.isAvailable || null,
-  pricing: savedData.pricing,
+
+  selectedToken: CONTRACT_ADDRESSES.L2.MockUSDC, // Default to USDC
   ownerAddress: savedData.ownerAddress || '',
   commitment: savedData.commitment || '',
   secret: savedData.secret || '',
@@ -150,7 +152,10 @@ const initialContext: RegistrationContext = {
   selectedPaymentMethod: savedData.selectedPaymentMethod,
   selectedCrypto: savedData.selectedCrypto,
   error: '',
+  tokenPrice: null,
+  selectedTokenForRegistration: null,
 }
+
 
 export const registrationMachine = setup({
   types: {
@@ -158,15 +163,7 @@ export const registrationMachine = setup({
     events: {} as RegistrationEvent,
   },
   actors: {
-    loadPricing: fromPromise(
-      async ({ input }: { input: { name: string; duration: number } }) => {
-        const result = await getRealNamePrice(input.name, input.duration)
-        if (result.isOk()) {
-          return result.value
-        }
-        throw new Error('Failed to load pricing')
-      },
-    ),
+    // Note: Pricing logic removed - now handled in UI components using getTokenPrices service
   },
   actions: {
     setName: assign({
@@ -198,15 +195,28 @@ export const registrationMachine = setup({
         event.type === 'SELECT_CRYPTO' ? event.cryptoId : undefined,
     }),
 
-    setPricing: assign({
-      pricing: ({ event }) => (event as any).pricing,
+    selectToken: assign({
+      selectedToken: ({ event }) =>
+        event.type === 'SELECT_TOKEN' ? event.tokenAddress : '',
     }),
+
+    setTokenInfo: assign({
+      tokenPrice: ({ event }) =>
+        event.type === 'SET_TOKEN_INFO' ? event.tokenPrice : null,
+      selectedTokenForRegistration: ({ event }) =>
+        event.type === 'SET_TOKEN_INFO' ? event.selectedToken : null,
+    }),
+
+    // Note: Pricing assignment actions removed - pricing handled in UI
 
     setCommitResult: assign({
       commitment: ({ event }) =>
         event.type === 'COMMIT_RESULT' ? event.commitment : '',
-      secret: ({ event }) =>
-        event.type === 'COMMIT_RESULT' ? event.secret : '',
+      secret: ({ event }) => {
+        const secret = event.type === 'COMMIT_RESULT' ? event.secret : ''
+        console.log('🔑 Setting secret in context:', secret)
+        return secret
+      },
       commitTimestamp: ({ event }) =>
         event.type === 'COMMIT_RESULT' ? event.timestamp : 0,
       commitTxHash: ({ event }) =>
@@ -234,6 +244,12 @@ export const registrationMachine = setup({
     }),
 
     saveCommitData: ({ context }) => {
+      console.log('💾 Saving commit data to localStorage:', {
+        commitment: context.commitment,
+        secret: context.secret,
+        timestamp: context.commitTimestamp,
+        txHash: context.commitTxHash,
+      })
       saveToStorage(STORAGE_KEYS.COMMITMENT, context.commitment)
       saveToStorage(STORAGE_KEYS.SECRET, context.secret)
       saveToStorage(
@@ -251,12 +267,12 @@ export const registrationMachine = setup({
       saveToStorage(STORAGE_KEYS.NAME, context.name)
       saveToStorage(STORAGE_KEYS.DURATION, context.duration.toString())
       saveToStorage(STORAGE_KEYS.OWNER_ADDRESS, context.ownerAddress)
-      if (context.pricing) {
-        saveToStorage(STORAGE_KEYS.PRICING, JSON.stringify(context.pricing))
-      }
+      // Note: Pricing storage removed - pricing handled in UI components
     },
 
     clearAllData: () => {
+      // Don't clear commitment data if we're in the middle of registration
+      // Only clear if we're resetting from the beginning
       clearStorage()
     },
   },
@@ -282,6 +298,12 @@ export const registrationMachine = setup({
     },
     SELECT_CRYPTO: {
       actions: ['selectCrypto'],
+    },
+    SELECT_TOKEN: {
+      actions: ['selectToken'],
+    },
+    SET_TOKEN_INFO: {
+      actions: ['setTokenInfo'],
     },
     ERROR: {
       actions: ['setError'],
@@ -352,24 +374,7 @@ export const registrationMachine = setup({
           },
         },
       ],
-      invoke: {
-        src: 'loadPricing',
-        input: ({ context }) => ({
-          name: context.name,
-          duration: context.duration,
-        }),
-        onDone: {
-          actions: [
-            assign({
-              pricing: ({ event }) => event.output,
-            }),
-            'savePersistentData',
-          ],
-        },
-        onError: {
-          actions: ['setError'],
-        },
-      },
+      // Note: Pricing invokes removed - pricing handled in UI components
       on: {
         CONFIRM_PAYMENT: {
           target: 'makeCommitment',
@@ -430,6 +435,11 @@ export const registrationMachine = setup({
         },
         TIMER_COMPLETE: {
           target: 'registerInProgress',
+          actions: [
+            assign({
+              step: () => RegistrationStep.REGISTER,
+            }),
+          ],
         },
       },
     },
@@ -444,6 +454,28 @@ export const registrationMachine = setup({
         REGISTER_RESULT: {
           target: 'registerSuccess',
           actions: ['setRegisterResult', 'saveRegistrationData'],
+        },
+        ERROR: {
+          target: 'registrationError',
+          actions: ['setError'],
+        },
+      },
+    },
+
+    registrationError: {
+      entry: [
+        assign({
+          step: () => RegistrationStep.REGISTRATION_ERROR,
+        }),
+      ],
+      on: {
+        RETRY_COMMIT: {
+          target: 'makeCommitment',
+          actions: ['clearError'],
+        },
+        RESET: {
+          target: 'pricing',
+          actions: ['clearAllData', 'clearError'],
         },
       },
     },

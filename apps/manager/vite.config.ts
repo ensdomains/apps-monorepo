@@ -1,6 +1,7 @@
 /// <reference types="vitest" />
 
 import { cloudflare } from '@cloudflare/vite-plugin'
+import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import viteReact from '@vitejs/plugin-react-swc'
@@ -30,6 +31,19 @@ export default defineConfig({
       '@': new URL('./src', import.meta.url).pathname,
       '@ens-apps/utils': new URL('../../packages/utils/src', import.meta.url)
         .pathname,
+      buffer: 'buffer',
     },
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      define: {
+        global: 'globalThis',
+      },
+      plugins: [
+        NodeGlobalsPolyfillPlugin({
+          buffer: true
+        })
+      ]
+    }
   },
 })

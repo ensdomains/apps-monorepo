@@ -1,4 +1,3 @@
-import { BASE_PRICE_PER_YEAR } from './machines/registrationMachine'
 import { NameAvailabilityError } from './services/checkNameAvailabilityService'
 
 export const isNameAvailabilityError = (
@@ -39,34 +38,34 @@ export const ERC20_ABI = [
 ] as const
 
 // Stablecoin configurations for different chains
-export const STABLECOINS = [
+export const STABLECOINS: Record<
+  'USDC' | 'DAI',
   {
-    id: 'usdc-local',
+    id: string
+    name: string
+    address: `0x${string}`
+    chainId: number
+    decimals: number
+  }
+> = {
+  USDC: {
+    id: 'usdc',
     name: 'USDC (Local)',
-    address: '0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e', // Mock address for UI
+    address: '0xe7f1725e7734ce288f8367e1bb143e90bb3f0512', // Mock address for UI
     chainId: 31338, // Updated to match our custom chain
-    icon: 'USDC',
+
     decimals: 6,
   },
-  {
-    id: 'usdt-local',
-    name: 'USDT (Local)',
-    address: '0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0', // Mock address for UI
-    chainId: 31338, // Updated to match our custom chain
-    icon: 'USDT',
-    decimals: 6,
-  },
-  {
-    id: 'dai-local',
+  DAI: {
+    id: 'dai',
     name: 'DAI (Local)',
-    address: '0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82', // Mock address for UI
+    address: '0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0', // Mock address for UI
     chainId: 31338, // Updated to match our custom chain
-    icon: 'DAI',
     decimals: 18,
   },
-] as const
+} as const
 
-export type StablecoinConfig = (typeof STABLECOINS)[number]
+export type StablecoinConfig = (typeof STABLECOINS)[keyof typeof STABLECOINS]
 
 export function formatTokenBalance(
   balance: bigint,
@@ -103,14 +102,48 @@ export function getChainInfo(chainId: number) {
   )
 }
 
-export function calculateRegistrationPrice(duration: number) {
-  const basePricePerYear = BigInt(BASE_PRICE_PER_YEAR)
-  const totalPrice = basePricePerYear * BigInt(duration)
-  console.log(
-    '💰 Calculated price:',
-    totalPrice.toString(),
-    'for duration:',
-    duration,
+// Extended stablecoin interface with balance information
+export interface StablecoinWithBalance extends StablecoinConfig {
+  balance: bigint
+  formattedBalance: string
+  chainInfo: ReturnType<typeof getChainInfo>
+}
+
+// Helper functions for stablecoin operations
+export function getAvailableStablecoins(chainId?: number): StablecoinConfig[] {
+  if (!chainId) return []
+  return Object.values(STABLECOINS).filter((coin) => coin.chainId === chainId)
+}
+
+export function getStablecoinByAddress(
+  stablecoins: StablecoinWithBalance[],
+  address: string,
+): StablecoinWithBalance | undefined {
+  return stablecoins.find(
+    (coin) => coin.address.toLowerCase() === address.toLowerCase(),
   )
-  return totalPrice
+}
+
+export function createStablecoinWithBalance(
+  coin: StablecoinConfig,
+  balance: bigint = 0n,
+): StablecoinWithBalance {
+  return {
+    ...coin,
+    balance,
+    formattedBalance: formatTokenBalance(balance, coin.decimals, false),
+    chainInfo: getChainInfo(coin.chainId),
+  }
+}
+
+export function getAllStablecoinsWithBalances(
+  availableStablecoins: StablecoinConfig[],
+  stablecoinsWithBalances: StablecoinWithBalance[],
+): StablecoinWithBalance[] {
+  return availableStablecoins.map((coin) => {
+    const existing = stablecoinsWithBalances.find(
+      (c) => c.address === coin.address,
+    )
+    return existing || createStablecoinWithBalance(coin, 0n)
+  })
 }

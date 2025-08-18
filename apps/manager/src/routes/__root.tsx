@@ -2,18 +2,21 @@ import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
-import { WagmiProvider } from 'wagmi'
+import { Web3AuthProvider } from '@web3auth/modal/react'
+import { WagmiProvider } from '@web3auth/modal/react/wagmi'
 import { Layout } from '@/components/Layout'
-import { wagmiConfig } from '@/lib/wagmi'
+import web3AuthContextConfig from '@/lib/web3Auth/web3AuthContext'
 import { queryClient } from '@/utils/queryClient'
 
 const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
-    <WagmiProvider config={wagmiConfig}>
+    <Web3AuthProvider config={web3AuthContextConfig}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>{children}</RainbowKitProvider>
+        <WagmiProvider>
+          <RainbowKitProvider>{children}</RainbowKitProvider>
+        </WagmiProvider>
       </QueryClientProvider>
-    </WagmiProvider>
+    </Web3AuthProvider>
   )
 }
 

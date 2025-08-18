@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { DomainResultCard } from '@/components/molecules/DomainResultCard'
 import { SearchField } from '@/components/molecules/SearchField'
+import { getTokenPrices } from '../services/nameChainContractService'
 import { getErrorMessage } from '../utils'
 
 type CheckAvailabilityProps = {
@@ -25,6 +27,44 @@ export const CheckAvailability = ({
   name,
   onContinue,
 }: CheckAvailabilityProps) => {
+  const [price, setPrice] = useState<number | undefined>(undefined)
+  const [priceLoading, setPriceLoading] = useState(false)
+
+  // Get token price when name is available
+  useEffect(() => {
+    if (name && isAvailable && !isSearching) {
+      setPriceLoading(true)
+
+      const fetchPrices = async () => {
+        try {
+          // Get price for 1 year (365 * 24 * 60 * 60 seconds)
+          const duration = 365 * 24 * 60 * 60
+          const result = await getTokenPrices(name, duration)
+
+          if (result.isOk()) {
+            console.log('result prices', result.value)
+            const usdcFormatted = result.value.usdc.formatted
+
+            console.log('📊 checkPrice for', name, ':', usdcFormatted, 'USDC')
+            setPrice(Number(usdcFormatted))
+          } else {
+            console.error('Failed to get token prices:', result.error)
+            setPrice(10)
+          }
+        } catch (error) {
+          console.error('Error getting token prices:', error)
+          setPrice(10)
+        } finally {
+          setPriceLoading(false)
+        }
+      }
+
+      fetchPrices()
+    } else {
+      setPrice(undefined)
+    }
+  }, [name, isAvailable, isSearching])
+
   return (
     <div className="space-y-4">
       {/* Search Input */}
@@ -53,7 +93,8 @@ export const CheckAvailability = ({
           <DomainResultCard
             domainName={name}
             status={isAvailable ? 'available' : 'unavailable'}
-            price={isAvailable ? 5 : undefined}
+            price={isAvailable ? price : undefined}
+            priceLabel={priceLoading ? 'Loading...' : 'USDC/year'}
             onAction={() => isAvailable && onContinue()}
           />
         </div>
