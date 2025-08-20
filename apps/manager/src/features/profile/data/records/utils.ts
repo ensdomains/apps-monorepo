@@ -1,29 +1,11 @@
 import { addressRecords } from './address'
-import { sections, specialSections, textRecords } from './text'
+import {
+  sections,
+  specialSections,
+  staticTextRecords,
+  textRecords,
+} from './text'
 import type { AnySection, TextRecordDef } from './types'
-
-// // Grouped accessors
-// export const socialRecords = textRecords.filter(
-//   (r) => r.section === 'social',
-// ) as readonly RecordDefinition[]
-
-// export const contactRecords = textRecords.filter(
-//   (r) => r.section === 'contact',
-// ) as readonly RecordDefinition[]
-
-// const recordsByCategory = {
-//   social: socialRecords,
-//   contact: contactRecords,
-// } as const satisfies Record<RecordCategory, readonly RecordDefinition[]>
-
-// // Indexes for fast lookup
-// const createRecordIndex = <
-//   T extends readonly RecordDefinition[],
-//   C extends RecordCategory,
-// >(
-//   defs: T,
-//   category: C,
-// ) => Object.fromEntries(defs.map((def) => [def.key, { data: def, category }]))
 
 export const recordIndex = Object.fromEntries(
   textRecords.map((r) => [r.key, r]),
@@ -34,8 +16,29 @@ export const recordIndex = Object.fromEntries(
   >
 }
 
+export const addressRecordIndex = Object.fromEntries(
+  addressRecords.map((r) => [r.coinType, r]),
+) as {
+  readonly [K in (typeof addressRecords)[number]['coinType']]: Extract<
+    (typeof addressRecords)[number],
+    { coinType: K }
+  >
+}
+
 export const sectionsList = Object.keys(sections) as (keyof typeof sections)[]
 export const allSections = [...sectionsList, ...specialSections]
+
+export const forceFetchRecords = {
+  always: [
+    ...staticTextRecords,
+    ...textRecords.filter((r) => r.forceFetch === 'always').map((r) => r.key),
+  ],
+  whenNotIndexed: textRecords
+    .filter((r) => r.forceFetch === 'whenNotIndexed')
+    .map((r) => r.key),
+}
+
+export const alwaysProbeAddressRecords = ['60']
 
 /**
  * Generates a URL for a given text record and value, if the record supports linking.
@@ -68,7 +71,7 @@ export const getRecordDisplayValue = (
 export const getRecordDef = (key: string) =>
   recordIndex[key as keyof typeof recordIndex]
 export const getAddressRecordDef = (coinType: number) =>
-  addressRecords[coinType]
+  addressRecordIndex[coinType]
 
 export const getAvailableRecords = (usedKeys: string[], section: AnySection) =>
   textRecords.filter(

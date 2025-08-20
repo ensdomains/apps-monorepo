@@ -1,3 +1,10 @@
+import {
+  ClockIcon,
+  HouseIcon,
+  MailIcon,
+  MapPinIcon,
+  PhoneIcon,
+} from 'lucide-react'
 import type { SectionData, TextRecordDef } from './types'
 
 export const specialSections = ['contact'] as const
@@ -22,7 +29,7 @@ export const textRecords: TextRecordDef[] = [
     displayPrefix: '@',
     href: 'https://x.com/',
     kind: 'link',
-    alwaysProbe: true,
+    forceFetch: 'always',
   },
   {
     key: 'com.telegram',
@@ -31,6 +38,7 @@ export const textRecords: TextRecordDef[] = [
     displayPrefix: '@',
     href: 'https://t.me/',
     kind: 'link',
+    forceFetch: 'always',
   },
   {
     key: 'com.instagram',
@@ -40,13 +48,20 @@ export const textRecords: TextRecordDef[] = [
     kind: 'link',
     href: 'https://instagram.com/',
   },
-  { key: 'com.discord', section: 'social', name: 'Discord', kind: 'copy' },
+  {
+    key: 'com.discord',
+    section: 'social',
+    name: 'Discord',
+    kind: 'copy',
+    forceFetch: 'always',
+  },
   {
     key: 'com.github',
     section: 'social',
     name: 'GitHub',
     kind: 'link',
     href: 'https://github.com/',
+    forceFetch: 'always',
   },
   {
     key: 'com.linkedin',
@@ -95,7 +110,8 @@ export const textRecords: TextRecordDef[] = [
     description: 'Your email address',
     kind: 'link',
     href: 'mailto:',
-    alwaysProbe: true,
+    forceFetch: 'always',
+    icon: MailIcon,
   },
   {
     key: 'location',
@@ -103,6 +119,7 @@ export const textRecords: TextRecordDef[] = [
     name: 'Location',
     description: 'Your location',
     kind: 'copy',
+    icon: MapPinIcon,
   },
   {
     key: 'phone',
@@ -111,7 +128,8 @@ export const textRecords: TextRecordDef[] = [
     description: 'Your phone number',
     kind: 'link',
     href: 'tel:',
-    alwaysProbe: true,
+    forceFetch: 'always',
+    icon: PhoneIcon,
   },
   {
     key: 'mail',
@@ -119,6 +137,7 @@ export const textRecords: TextRecordDef[] = [
     name: 'Mailing Address',
     description: 'Your mailing address',
     kind: 'copy',
+    icon: HouseIcon,
   },
   {
     key: 'timezone',
@@ -126,5 +145,6 @@ export const textRecords: TextRecordDef[] = [
     name: 'Timezone',
     description: 'Your timezone',
     kind: 'copy',
+    icon: ClockIcon,
   },
 ]

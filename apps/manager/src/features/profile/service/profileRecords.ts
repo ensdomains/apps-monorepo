@@ -3,8 +3,12 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { type GetRecordsReturnType, getRecords } from '@ensdomains/ensjs/public'
 import { getSubgraphRecords } from '@ensdomains/ensjs/subgraph'
-import { err, fromPromise, ok } from 'neverthrow'
+import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import {
+  alwaysProbeAddressRecords,
+  forceFetchRecords,
+} from '../data/records/utils'
 import { DEBUG_PROFILE } from '../MOCK'
 
 class SubgraphError extends TaggedError('SubgraphError')<{
@@ -32,13 +36,30 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     getSubgraphRecords(client as any, { name }),
     (e) => new SubgraphError({ cause: e }),
   )
+  const texts = [
+    ...forceFetchRecords.always,
+    ...(subgraphRecords
+      ? subgraphRecords.texts.filter(
+          (t) => !forceFetchRecords.always.includes(t),
+        )
+      : forceFetchRecords.whenNotIndexed),
+  ]
 
-  if (!subgraphRecords) {
-    return err(new SubgraphError({ cause: 'No subgraph records found' }))
-  }
+  const coins = subgraphRecords
+    ? [
+        ...subgraphRecords.coins.filter(
+          (c) => !alwaysProbeAddressRecords.includes(c),
+        ),
+        ...alwaysProbeAddressRecords,
+      ]
+    : alwaysProbeAddressRecords
 
   const records = yield* await fromPromise(
-    getRecords(client, { name, ...subgraphRecords }),
+    getRecords(client, {
+      name,
+      texts,
+      coins,
+    }),
     (e) => new RecordsError({ cause: e }),
   )
 

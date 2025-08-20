@@ -35,8 +35,8 @@ importers:
         specifier: ^1.1.2
         version: 1.1.2
       '@ensdomains/ensjs':
-        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@6eb258a
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@6eb258a(typescript@5.9.2)(viem@2.31.7(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))(zod@3.25.76)
+        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@9b390e3
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@9b390e3(viem@2.31.7(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))
       '@radix-ui/react-collapsible':
         specifier: ^1.1.11
         version: 1.1.11(@types/react-dom@19.1.7(@types/react@19.1.9))(@types/react@19.1.9)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -684,8 +684,8 @@ packages:
     peerDependencies:
       viem: ^2.9.2
 
-  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@6eb258a':
-    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@6eb258a}
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@9b390e3':
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@9b390e3}
     version: 4.0.2
     engines: {node: '>=22'}
     peerDependencies:
@@ -4389,8 +4389,8 @@ packages:
     peerDependencies:
       graphql: 14 - 16
 
-  graphql-request@7.1.2:
-    resolution: {integrity: sha512-+XE3iuC55C2di5ZUrB4pjgwe+nIQBuXVIK9J98wrVwojzDW3GMdSBZfxUk8l4j9TieIpjpggclxhNEU9ebGF8w==}
+  graphql-request@7.2.0:
+    resolution: {integrity: sha512-0GR7eQHBFYz372u9lxS16cOtEekFlZYB2qOyq8wDvzRmdRSJ0mgUVX1tzNcIzk3G+4NY+mGtSz411wZdeDF/+A==}
     peerDependencies:
       graphql: 14 - 16
 
@@ -7235,22 +7235,18 @@ snapshots:
       - typescript
       - zod
 
-  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@6eb258a(typescript@5.9.2)(viem@2.31.7(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))(zod@3.25.76)':
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@9b390e3(viem@2.31.7(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 1.1.1
       '@ensdomains/content-hash': 3.1.0-rc.1
       '@ensdomains/dnsprovejs': 0.5.1
-      abitype: 1.0.8(typescript@5.9.2)(zod@3.25.76)
       dns-packet: 5.6.1
       graphql: 16.11.0
-      graphql-request: 7.1.2(graphql@16.11.0)
+      graphql-request: 7.2.0(graphql@16.11.0)
       pako: 2.1.0
       ts-pattern: 5.7.0
       viem: 2.31.7(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76)
-    transitivePeerDependencies:
-      - typescript
-      - zod
 
   '@ensdomains/thorin@1.0.0-beta.28(@vanilla-extract/css@1.17.4)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
     dependencies:
@@ -11818,7 +11814,7 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  graphql-request@7.1.2(graphql@16.11.0):
+  graphql-request@7.2.0(graphql@16.11.0):
     dependencies:
       '@graphql-typed-document-node/core': 3.2.0(graphql@16.11.0)
       graphql: 16.11.0

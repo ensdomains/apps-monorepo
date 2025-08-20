@@ -76,25 +76,25 @@ export const ViewHeaderSection = ({
     <div className="overflow-hidden md:rounded-xl">
       {/* Header BG */}
       <div className="relative w-full">
-        <ImageFallback.Root className="w-full">
+        <ImageFallback.Root className="aspect-[3/1] w-full md:aspect-[4/1]">
           <ImageFallback.Image
             src={header.data}
             alt={`${name} header`}
-            className="max-h-48 w-full object-cover md:max-h-64 xl:max-h-80"
+            className="size-full object-cover"
           />
           <ImageFallback.Fallback>
             <div
               className={clsx(
-                'h-48 w-full bg-gray-200 md:h-64',
+                'size-full bg-gray-200',
                 header.isLoading && 'animate-pulse',
               )}
             />
           </ImageFallback.Fallback>
         </ImageFallback.Root>
 
-        <div className="-bottom-10 max-md:-translate-x-1/2 absolute left-1/2 size-28 md:left-6 md:size-36 lg:size-40">
+        <div className="-bottom-10 max-md:-translate-x-1/2 absolute left-1/2 size-24 md:left-6 md:size-36 lg:size-40">
           <div className="size-full overflow-hidden rounded-xl bg-gray-200 shadow-md ring-2 ring-white">
-            <ImageFallback.Root>
+            <ImageFallback.Root className="contents">
               <ImageFallback.Image
                 src={avatar.data}
                 alt={`${name} avatar`}

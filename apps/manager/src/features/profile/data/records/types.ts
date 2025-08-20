@@ -47,8 +47,15 @@ type TextRecordBase = BaseRecord & {
   key: string
   section: Section | SpecialSection
   displayPrefix?: string
-  // Always attempt to resolve even if not discovered on-chain yet
-  alwaysProbe?: boolean
+  /**
+   * Controls if the record should be fetched from the chain.
+   * - 'always': Always fetch the record value regardless of indexing status.
+   * - 'whenNotIndexed': Include if the name hasn't been indexed (for example off-chain names).
+   * - false: Only include if in the indexed records.
+   *
+   * @default false
+   */
+  forceFetch?: 'always' | 'whenNotIndexed' | false
 }
 
 type TextRecordKind =

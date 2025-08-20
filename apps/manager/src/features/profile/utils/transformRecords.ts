@@ -43,6 +43,8 @@ export const transformProfileRecords = (
     return records
   }
 
+  records.addresses = profile.coins
+
   for (const { key, value } of profile.texts) {
     const record = getRecordDef(key)
     if (record) {
