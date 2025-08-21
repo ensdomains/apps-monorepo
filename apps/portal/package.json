@@ -5,11 +5,13 @@
   "scripts": {
     "start": "vite --port 3000",
     "dev": "vite --port 3000",
-    "build": "vite build && tsc",
+    "build": "vite build && tsc --noEmit",
     "serve": "vite preview",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "deploy": "wrangler deploy",
+    "deploy:version": "wrangler versions upload"
   },
   "dependencies": {
     "@ens-apps/utils": "workspace:*",
