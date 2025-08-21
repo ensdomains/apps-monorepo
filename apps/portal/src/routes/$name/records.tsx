@@ -1,14 +1,9 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams, useSearch } from '@tanstack/react-router'
-import { NavBar } from '@/components/molecules/NavBar'
-import { ProfileSidebar } from '@/components/molecules/ProfileSidebar'
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { RecordEdit } from '@/components/views/records/RecordEdit'
 import { RecordList } from '@/components/views/records/RecordList'
-import {
-  getProfileQueryOptions,
-} from '@/features/profile/hooks/useProfile'
+import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/$name/records')({
@@ -53,17 +48,5 @@ function App() {
     return <div>Could not load records</div>
   }
 
-  return (
-    <div className="[--header-height:calc(--spacing(16))]">
-      <SidebarProvider className="flex flex-col">
-        <NavBar />
-        <div className="flex flex-1">
-          <ProfileSidebar name={name} />
-          <SidebarInset className="w-full">
-            <RecordView {...{ view, name }} records={data.records} />
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
-    </div>
-  )
+  return <RecordView {...{ view, name }} records={data.records} />
 }

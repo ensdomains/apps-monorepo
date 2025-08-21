@@ -56,11 +56,10 @@ export const ResolverDetails = ({
 }: {
   resolverAddress: Address
 }) => {
-
   const chainId = useChainId()
 
   if (chainId === 1) {
-    <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg w-full">
+    ;<div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg w-full">
       <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ResolverField
           label="Mainnet contract address"

@@ -78,7 +78,13 @@ const TextRecordValue = ({
   )
 }
 
-const ContentHashValue = ({ record, canEditRecords }: { record: Extract<Record, { type: 'contentHash' }>; canEditRecords?: boolean }) => {
+const ContentHashValue = ({
+  record,
+  canEditRecords,
+}: {
+  record: Extract<Record, { type: 'contentHash' }>
+  canEditRecords?: boolean
+}) => {
   return (
     <div className="flex flex-row gap-4 p-6 border border-gray-200 rounded-lg w-full items-end">
       <div className="flex flex-col gap-1 w-full">

@@ -13,10 +13,14 @@
   "biome.enabled": true,
   "eslint.enable": false,
   "prettier.enable": false,
+  "deno.enable": false,
   "typescript.tsdk": "node_modules/typescript/lib",
   "editor.codeActionsOnSave": {
     "source.organizeImports.biome": "explicit",
     "quickfix.biome": "explicit"
   },
-  "i18n-ally.localesPaths": ["packages/locales/locales"]
+  "i18n-ally.localesPaths": ["packages/locales/locales"],
+  "[typescript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  }
 }
