@@ -44,7 +44,7 @@ function App() {
 
   if (isLoading) return <div>Loading...</div>
   if (error || !data) {
-    if (error) return <div>Error: {error.cause.message}</div>
+    if (error) return <div>Error: {(error.cause as Error).message}</div>
     return <div>Could not load records</div>
   }
 
