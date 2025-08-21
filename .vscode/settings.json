@@ -22,5 +22,8 @@
   "i18n-ally.localesPaths": ["packages/locales/locales"],
   "[typescript]": {
     "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome"
   }
 }
