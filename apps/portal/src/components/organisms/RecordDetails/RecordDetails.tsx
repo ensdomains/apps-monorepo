@@ -78,6 +78,27 @@ const TextRecordValue = ({
   )
 }
 
+const ContentHashValue = ({ record, canEditRecords }: { record: Extract<Record, { type: 'contentHash' }>; canEditRecords?: boolean }) => {
+  return (
+    <div className="flex flex-row gap-4 p-6 border border-gray-200 rounded-lg w-full items-end">
+      <div className="flex flex-col gap-1 w-full">
+        <Label htmlFor={record.type}>Content Hash</Label>
+        <Input
+          id={record.type}
+          className="border-gray-300 w-full font-mono disabled:opacity-100"
+          disabled={!canEditRecords}
+          value={record.value}
+        />
+      </div>{' '}
+      {canEditRecords && (
+        <Button variant="secondary" className="bg-gray-200">
+          Update
+        </Button>
+      )}
+    </div>
+  )
+}
+
 const ResolverView = ({ name }: { name: string }) => {
   const { data: resolverAddress, error, isLoading } = useEnsResolver({ name })
   const chainId = useChainId()
@@ -138,6 +159,8 @@ const RecordDetailsView = ({
       return <AddressRecordValue {...{ record, canEditRecords }} />
     case 'text':
       return <TextRecordValue {...{ record, canEditRecords }} />
+    case 'contentHash':
+      return <ContentHashValue {...{ record, canEditRecords }} />
     default:
       return <div>Unknown record type</div>
   }

@@ -1,4 +1,4 @@
-import type { Address } from 'viem'
+
 import { useChains } from 'wagmi'
 import {
   CCIPGatewayURLView,
@@ -6,11 +6,7 @@ import {
 } from '@/components/resolver/ResolverField'
 import type { wagmiConfig } from '@/lib/wagmi'
 
-export const ResolverMetadata = ({
-  resolverAddress,
-}: {
-  resolverAddress: Address
-}) => {
+export const ResolverMetadata = () => {
   const [chain] = useChains<typeof wagmiConfig>()
 
   return (
@@ -19,7 +15,7 @@ export const ResolverMetadata = ({
         label="Verifier contract address"
         value="0x5FB27553ee1e7C86C9fD4863a94A9f755B688bB8"
       />
-      <CCIPGatewayURLView resolverAddress={resolverAddress} />
+      <CCIPGatewayURLView />
       <ResolverField label="Chain ID" value={chain.id} />
 
       <ResolverField label="Subgraph URL" value={chain.subgraphs.ens.url} />

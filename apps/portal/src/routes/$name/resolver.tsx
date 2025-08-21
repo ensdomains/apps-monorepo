@@ -67,7 +67,7 @@ function RouteComponent() {
                     <AccordionItem value="resolver-metadata">
                       <AccordionTrigger>Resolver metadata</AccordionTrigger>
                       <AccordionContent>
-                        <ResolverMetadata resolverAddress={resolverAddress} />
+                        <ResolverMetadata />
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
