@@ -60,12 +60,6 @@ export function StablecoinList({
           bgColor: isDark ? 'bg-blue-950/30' : 'bg-blue-50',
           borderColor: isDark ? 'border-blue-800/50' : 'border-blue-200',
         },
-        // USDT - Green theme
-        {
-          color: 'text-green-600',
-          bgColor: isDark ? 'bg-green-950/30' : 'bg-green-50',
-          borderColor: isDark ? 'border-green-800/50' : 'border-green-200',
-        },
       ]
       const colorScheme = colorSchemes[index % colorSchemes.length]
 

@@ -1,6 +1,6 @@
 import { useMachine } from '@xstate/react'
 import { useCallback, useEffect } from 'react'
-import { useAccount } from 'wagmi'
+import { useAccountAbstraction } from '@/lib/web3Auth/useAccountAbstraction'
 import { web3AuthService } from '@/lib/web3Auth/web3AuthService'
 import {
   RegistrationStep,
@@ -8,9 +8,8 @@ import {
 } from '../machines/registrationMachine'
 import {
   approveTokenForRegistration,
-  CONTRACT_ADDRESSES,
-  ETH_REGISTRAR_ABI,
-  generateCommitmentViaContract,
+  commitToRegistration,
+  generateCommitment,
   registerDomain,
 } from '../services/nameChainContractService'
 
@@ -18,339 +17,260 @@ export { RegistrationStep } from '../machines/registrationMachine'
 
 export function useEnsRegistration(initialName?: string) {
   const [state, send] = useMachine(registrationMachine)
-
-  // Use wagmi useAccount hook which now integrates with Web3Auth
-  const { address, isConnected } = useAccount()
-
-  // Get token selection from machine state
-  const selectedToken = state.context.selectedToken
+  const { smartAccountInfo, refreshSmartAccountInfo } = useAccountAbstraction()
 
   useEffect(() => {
     if (initialName && initialName !== state.context.name) {
-      if (
-        state.context.registerTxHash &&
-        state.context.name &&
-        state.context.name !== initialName
-      ) {
-        send({ type: 'RESET' })
-      }
-
       send({ type: 'SET_NAME', name: initialName })
     }
-  }, [initialName, state.context.name, state.context.registerTxHash, send])
-
-  useEffect(() => {
-    if (address && address !== state.context.ownerAddress) {
-      send({ type: 'SET_OWNER_ADDRESS', address })
-    }
-  }, [address, state.context.ownerAddress, send])
-
-  useEffect(() => {
-    if (state.context.name && state.context.duration > 0) {
-      // Trigger pricing recalculation by setting the name again
-      send({ type: 'SET_NAME', name: state.context.name })
-    }
-  }, [state.context.duration, state.context.name, send])
-
-  // Note: Token pricing is now handled in UI components
+  }, [initialName, state.context.name, send])
 
   useEffect(() => {
     if (
-      state.context.step === RegistrationStep.WAITING_FOR_COMMIT_TIME &&
-      state.context.commitTimestamp > 0
+      smartAccountInfo?.address &&
+      smartAccountInfo.address !== state.context.ownerAddress
     ) {
-      // ✅ FIX: Use seconds consistently
-      const startTimestamp = state.context.commitTimestamp // This is in SECONDS
-      const now = Math.floor(Date.now() / 1000) // Convert to SECONDS
-      const elapsedTime = now - startTimestamp // Now both are in SECONDS
+      send({ type: 'SET_OWNER_ADDRESS', address: smartAccountInfo.address })
+    }
+  }, [smartAccountInfo?.address, state.context.ownerAddress, send])
 
-      if (elapsedTime >= 90) {
-        console.log('✅ Timer complete, proceeding to register')
-        send({ type: 'TIMER_COMPLETE' })
-      } else {
-        const remaining = 90 - elapsedTime // Remaining seconds
-        send({ type: 'TIMER_TICK', remainingTime: remaining })
+  useEffect(() => {
+    if (state.context.duration === 0) {
+      send({ type: 'SET_DURATION', duration: 1 })
+    }
+  }, [state.context.duration, send])
 
-        const timer = setInterval(() => {
-          const currentTime = Math.floor(Date.now() / 1000) // Convert to SECONDS
-          const elapsed = currentTime - startTimestamp // Both in SECONDS
+  useEffect(() => {
+    if (state.context.step === RegistrationStep.WAITING_FOR_COMMIT_TIME) {
+      let remainingTime = state.context.remainingTime
+      if (remainingTime <= 0 && state.context.commitTimestamp > 0) {
+        const now = Math.floor(Date.now() / 1000)
+        const elapsed = now - state.context.commitTimestamp
+        remainingTime = Math.max(0, 20 - elapsed)
+      }
 
-          if (elapsed >= 90) {
-            console.log('✅ Timer complete, proceeding to register')
-            send({ type: 'TIMER_COMPLETE' })
-            clearInterval(timer)
-          } else {
-            const newRemaining = 90 - elapsed
-            send({ type: 'TIMER_TICK', remainingTime: newRemaining })
-          }
-        }, 1000)
+      if (remainingTime <= 0) {
+        remainingTime = 20
+      }
 
-        return () => {
+      const timer = setInterval(() => {
+        remainingTime = Math.max(0, remainingTime - 1)
+
+        if (remainingTime > 0) {
+          send({
+            type: 'TIMER_TICK',
+            remainingTime,
+          })
+        } else {
+          send({ type: 'TIMER_COMPLETE' })
           clearInterval(timer)
         }
-      }
-    }
-  }, [state.context.step, state.context.commitTimestamp, send])
-  // OLD
-  // const startCommitment = useCallback(async () => {
-  //   if (
-  //     !state.context.name ||
-  //     !address ||
-  //     !isConnected ||
-  //     !web3AuthService.isReady
-  //   ) {
-  //     console.log('❌ Missing required data:', {
-  //       name: state.context.name,
-  //       address,
-  //       isConnected,
-  //       web3AuthReady: web3AuthService.isReady,
-  //     })
-  //     send({ type: 'ERROR', message: 'Missing required data for commitment' })
-  //     return
-  //   }
+      }, 1000)
 
-  //   try {
-  //     console.log('🔒 Starting commit transaction for:', state.context.name)
-  //     console.log('🌐 Current chain ID:', chainId)
-
-  //     const { commitment, secret } = generateCommitment(
-  //       state.context.name,
-  //       address,
-  //       state.context.duration,
-  //     )
-
-  //     console.log('🔑 Generated commitment:', commitment)
-  //     console.log('🤫 Generated secret:', secret)
-
-  //     // Use Web3Auth service instead of wagmi walletClient
-  //     const hash = await web3AuthService.writeContract(
-  //       CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
-  //       ETH_REGISTRAR_ABI as unknown as unknown[],
-  //       'commit',
-  //       [commitment],
-  //     )
-
-  //     console.log('✅ Commit transaction sent with hash:', hash)
-
-  //     console.log('📅 Commit timestamp:', Date.now())
-
-  //     send({
-  //       type: 'COMMIT_RESULT',
-  //       commitment,
-  //       secret,
-  //       timestamp: Math.floor(Date.now() / 1000),
-  //       txHash: hash,
-  //     })
-
-  //     console.log('📤 Sent COMMIT_RESULT event to state machine')
-  //     console.log('🔑 Sent secret in COMMIT_RESULT:', secret)
-  //   } catch (error) {
-  //     console.error('❌ Error in commit transaction:', error)
-  //     send({
-  //       type: 'ERROR',
-  //       message: error instanceof Error ? error.message : 'Failed to commit',
-  //     })
-  //   }
-  // }, [
-  //   state.context.name,
-  //   state.context.duration,
-  //   address,
-  //   isConnected,
-  //   chainId,
-  //   send,
-  // ])
-
-  const startCommitment = useCallback(async () => {
-    if (
-      !state.context.name ||
-      !address ||
-      !isConnected ||
-      !web3AuthService.isReady
-    ) {
-      send({ type: 'ERROR', message: 'Missing required data for commitment' })
-      return
-    }
-
-    try {
-      // ✅ Use service function for commitment generation
-      const commitmentResult = await generateCommitmentViaContract(
-        state.context.name,
-        address,
-        state.context.duration,
-        web3AuthService,
-      )
-
-      if (commitmentResult.isErr()) {
-        throw new Error(
-          `Failed to generate commitment: ${commitmentResult.error.message}`,
-        )
-      }
-
-      const { commitment, secret } = commitmentResult.value
-
-      // Use Web3Auth service instead of wagmi walletClient
-      const hash = await web3AuthService.writeContract(
-        CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
-        ETH_REGISTRAR_ABI as unknown as unknown[],
-        'commit',
-        [commitment],
-      )
-
-      console.log('✅ Commitment transaction sent:', hash)
-
-      send({
-        type: 'COMMIT_RESULT',
-        commitment,
-        secret,
-        timestamp: Math.floor(Date.now() / 1000), // ✅ Seconds, not milliseconds
-        txHash: hash,
-      })
-    } catch (error) {
-      console.error('❌ Error in commit transaction:', error)
-      send({
-        type: 'ERROR',
-        message: error instanceof Error ? error.message : 'Failed to commit',
-      })
-    }
-  }, [state.context.name, state.context.duration, address, isConnected, send])
-
-  const startRegistration = useCallback(
-    async (tokenPrice: bigint, selectedToken: string) => {
-      try {
-        // Note: Duration conversion and name cleaning now handled in registerDomain service
-
-        // Step 1: Approve tokens for the registrar
-
-        const approveResult = await approveTokenForRegistration(
-          selectedToken,
-          tokenPrice,
-          web3AuthService,
-        )
-
-        if (approveResult.isErr()) {
-          throw new Error(
-            `Token approval failed: ${approveResult.error.message}`,
-          )
-        }
-
-        // Step 2: Register the domain using the service function
-
-        const registerResult = await registerDomain(
-          state.context.name,
-          address as `0x${string}`,
-          state.context.secret,
-          state.context.duration,
-          selectedToken,
-          web3AuthService,
-        )
-
-        if (registerResult.isErr()) {
-          throw new Error(
-            `Domain registration failed: ${registerResult.error.message}`,
-          )
-        }
-
-        const registerHash = registerResult.value
-        console.log('✅ Registration complete:', registerHash)
-
-        send({
-          type: 'REGISTER_RESULT',
-          txHash: registerHash,
-        })
-      } catch (error) {
-        console.error('❌ Registration failed:', error)
-        send({
-          type: 'ERROR',
-          message:
-            error instanceof Error ? error.message : 'Failed to register',
-        })
-      }
-    },
-    [
-      state.context.name,
-      state.context.duration,
-      state.context.secret,
-      address,
-      send,
-    ],
-  )
-
-  // Auto-trigger registration when timer completes
-  useEffect(() => {
-    if (
-      state.context.step === RegistrationStep.REGISTER &&
-      state.context.tokenPrice &&
-      state.context.selectedTokenForRegistration &&
-      state.context.secret
-    ) {
-      // Start registration with stored token info
-      startRegistration(
-        state.context.tokenPrice,
-        state.context.selectedTokenForRegistration,
-      )
+      return () => clearInterval(timer)
     }
   }, [
     state.context.step,
-    state.context.tokenPrice,
-    state.context.selectedTokenForRegistration,
-    state.context.secret,
-    startRegistration,
+    state.context.commitTimestamp,
+    state.context.remainingTime,
+    send,
   ])
 
-  // Note: startRegistration now requires tokenPrice and selectedToken parameters
-  // These will be passed when confirmPayment is called
+  useEffect(() => {
+    if (
+      state.context.step === RegistrationStep.MAKE_COMMITMENT &&
+      state.context.name &&
+      smartAccountInfo?.address &&
+      state.context.duration > 0
+    ) {
+      const handleCommitment = async () => {
+        try {
+          const { commitment, secret } = await generateCommitment(
+            state.context.name,
+            smartAccountInfo.address,
+            state.context.duration,
+          )
 
-  // Public API
+          const walletClient = web3AuthService.getWalletClient()
+          if (!walletClient) {
+            throw new Error('Wallet client not available')
+          }
+
+          if (!smartAccountInfo?.address) {
+            throw new Error('Smart account not available')
+          }
+
+          const commitTxHash = await commitToRegistration(
+            commitment,
+            walletClient,
+          )
+
+          send({
+            type: 'COMMIT_RESULT',
+            commitment,
+            secret,
+            timestamp: Math.floor(Date.now() / 1000),
+            txHash: commitTxHash,
+          })
+        } catch (error) {
+          console.error('❌ Error during commitment:', error)
+        }
+      }
+
+      handleCommitment()
+    }
+  }, [
+    state.context.step,
+    state.context.name,
+    state.context.duration,
+    send,
+    smartAccountInfo?.address,
+  ])
+
+  useEffect(() => {
+    if (
+      state.context.step === RegistrationStep.REGISTER &&
+      state.context.name &&
+      state.context.ownerAddress &&
+      state.context.commitment &&
+      state.context.secret
+    ) {
+      const handleRegistration = async () => {
+        try {
+          const walletClient = web3AuthService.getWalletClient()
+          if (!walletClient) {
+            throw new Error('Wallet client not available')
+          }
+
+          if (!smartAccountInfo?.address) {
+            throw new Error('Smart account not available')
+          }
+
+          // First approve token if needed
+          if (
+            state.context.selectedTokenForRegistration &&
+            state.context.tokenPrice
+          ) {
+            try {
+              const approveTxHash = await approveTokenForRegistration(
+                state.context.selectedTokenForRegistration as `0x${string}`,
+                state.context.tokenPrice,
+                walletClient,
+              )
+              console.log('✅ Token approval successful:', approveTxHash)
+            } catch (error) {
+              console.error('❌ Token approval failed:', error)
+              send({
+                type: 'ERROR',
+                message: `Token approval failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              })
+              return
+            }
+          }
+
+          // Only proceed with registration if approval succeeded (or wasn't needed)
+          try {
+            const registerTxHash = await registerDomain(
+              state.context.name,
+              smartAccountInfo.address,
+              state.context.duration,
+              state.context.secret as `0x${string}`,
+              walletClient,
+              state.context.selectedTokenForRegistration as `0x${string}`,
+            )
+
+            send({
+              type: 'REGISTER_RESULT',
+              txHash: registerTxHash,
+            })
+          } catch (error) {
+            console.error('❌ Domain registration failed:', error)
+            send({
+              type: 'ERROR',
+              message: `Domain registration failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            })
+          }
+        } catch (error) {
+          console.error('❌ Error during registration:', error)
+        }
+      }
+
+      handleRegistration()
+    }
+  }, [
+    state.context.step,
+    state.context.name,
+    state.context.ownerAddress,
+    state.context.commitment,
+    state.context.secret,
+    state.context.selectedTokenForRegistration,
+    state.context.tokenPrice,
+    state.context.duration,
+    send,
+    smartAccountInfo?.address,
+  ])
+
   return {
     step: state.context.step,
     domainName: state.context.name,
     duration: state.context.duration,
-    selectedPaymentMethod: state.context.selectedPaymentMethod,
-    selectedCrypto: state.context.selectedCrypto,
-    error: state.context.error,
     remainingTime: state.context.remainingTime,
     commitTxHash: state.context.commitTxHash,
     registerTxHash: state.context.registerTxHash,
-    isCommitPending: false,
-    isRegisterPending: false,
-    isCommitConfirming: false,
+    isCommitPending: state.matches('makeCommitment'),
+    isRegisterPending: state.matches('registerInProgress'),
     isRegisterConfirming: false,
-    isCommitSuccess: !!state.context.commitTxHash,
-    isRegisterSuccess: !!state.context.registerTxHash,
-    isConnected,
-    address,
-    selectedToken,
-    setSelectedToken: (tokenAddress: string) =>
-      send({ type: 'SELECT_TOKEN', tokenAddress }),
-    setDomainName: (name: string) => send({ type: 'SET_NAME', name }),
-    setDuration: (duration: number) => send({ type: 'SET_DURATION', duration }),
-    selectPayment: (method: 'crypto' | 'credit-card') =>
-      send({ type: 'SELECT_PAYMENT', method }),
-    selectCrypto: (cryptoId: string) =>
-      send({ type: 'SELECT_CRYPTO', cryptoId }),
-    confirmPayment: (tokenPrice: bigint, selectedToken: string) => {
-      // Store token info for later use when timer completes
-      send({ type: 'SET_TOKEN_INFO', tokenPrice, selectedToken })
-      send({ type: 'CONFIRM_PAYMENT' })
-      startCommitment()
-      // Note: startRegistration will be called when timer completes
-      // via the TIMER_COMPLETE event in the state machine
+    isConnected: web3AuthService.isConnected,
+    selectedToken: state.context.selectedTokenForRegistration,
+    smartAccount: {
+      smartAccountAddress: smartAccountInfo?.address,
+      smartAccountReady: !!smartAccountInfo?.address,
+      stablecoinBalances: smartAccountInfo?.stablecoinBalances || [],
     },
-    retryCommit: () => {
+    refreshSmartAccountInfo,
+    setDuration: useCallback(
+      (duration: number) => {
+        send({ type: 'SET_DURATION', duration })
+      },
+      [send],
+    ),
+    selectPayment: useCallback(
+      (method: 'crypto' | 'credit-card') => {
+        send({ type: 'SELECT_PAYMENT', method })
+      },
+      [send],
+    ),
+    selectCrypto: useCallback(
+      (cryptoId: string) => {
+        send({ type: 'SELECT_CRYPTO', cryptoId })
+      },
+      [send],
+    ),
+    confirmPayment: useCallback(
+      (tokenPrice: number, selectedToken: any) => {
+        send({
+          type: 'SET_TOKEN_INFO',
+          tokenPrice: BigInt(tokenPrice),
+          selectedToken: selectedToken.address || selectedToken,
+        })
+        send({ type: 'CONFIRM_PAYMENT' })
+      },
+      [send],
+    ),
+    retryCommit: useCallback(() => {
       send({ type: 'RETRY_COMMIT' })
-      startCommitment()
-    },
-    skipNotifications: () => {
+    }, [send]),
+    skipNotifications: useCallback(() => {
       send({ type: 'SKIP_NOTIFICATIONS' })
-    },
-    setupAutorenewal: () => {
+    }, [send]),
+    setupAutorenewal: useCallback(() => {
       send({ type: 'SETUP_AUTORENEWAL' })
-    },
-    completeFlow: () => {
+    }, [send]),
+    completeFlow: useCallback(() => {
       send({ type: 'COMPLETE_FLOW' })
-    },
-    reset: () => {
+    }, [send]),
+    reset: useCallback(() => {
       send({ type: 'RESET' })
-    },
+    }, [send]),
   }
 }

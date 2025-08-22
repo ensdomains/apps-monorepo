@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import { useAccountAbstraction } from '@/lib/web3Auth/useAccountAbstraction'
 import { web3AuthService } from '@/lib/web3Auth/web3AuthService'
 import { Balance } from './Balance'
 import { SwitchChain } from './SwitchChain'
@@ -38,6 +39,8 @@ export const Web3AuthConnect = () => {
   const { userInfo } = useWeb3AuthUser()
   const web3Auth = useWeb3Auth()
 
+  const { smartAccountInfo, isUsingAA } = useAccountAbstraction()
+
   useEffect(() => {
     if (web3Auth?.web3Auth) {
       web3AuthService.setWeb3AuthModal(web3Auth.web3Auth)
@@ -56,14 +59,9 @@ export const Web3AuthConnect = () => {
       if (isConnected && web3AuthService.isReady) {
         try {
           const address = await web3AuthService.getAddress()
-          console.log('address', address)
           setAddress(address)
 
-          const balance = await web3AuthService.getBalance()
-          console.log('balance', balance)
-
           const chainId = await web3AuthService.getChainId()
-          console.log('chainId', chainId)
           setChainId(chainId)
         } catch (error) {
           console.error('Failed to get data:', error)
@@ -95,15 +93,13 @@ export const Web3AuthConnect = () => {
     return () => clearInterval(interval)
   }, [isConnected, chainId])
 
-  const handleCopyAddress = async () => {
-    if (address) {
-      try {
-        await navigator.clipboard.writeText(address)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      } catch (error) {
-        console.error('Failed to copy address:', error)
-      }
+  const handleCopyAddress = async (addressToCopy: string) => {
+    try {
+      await navigator.clipboard.writeText(addressToCopy)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (error) {
+      console.error('Failed to copy address:', error)
     }
   }
 
@@ -172,21 +168,23 @@ export const Web3AuthConnect = () => {
                 </div>
               )}
 
-              {/* Wallet Address */}
-              {address && (
+              {/* Smart Account Information */}
+              {isUsingAA && smartAccountInfo && (
                 <div className="mb-3">
                   <div className="mb-1 font-medium text-muted-foreground text-xs">
-                    Wallet Address
+                    Smart Account Address
                   </div>
                   <div className="flex items-center gap-2 rounded bg-muted p-2 text-xs">
                     <span className="font-mono text-muted-foreground">
-                      {`${address.slice(0, 6)}...${address.slice(-4)}`}
+                      {`${smartAccountInfo.address.slice(0, 6)}...${smartAccountInfo.address.slice(-4)}`}
                     </span>
                     <Button
                       variant="ghost"
                       size="sm"
                       className="h-6 w-6 p-0 hover:bg-background"
-                      onClick={handleCopyAddress}
+                      onClick={() =>
+                        handleCopyAddress(smartAccountInfo.address)
+                      }
                     >
                       <Copy className="size-3" />
                     </Button>
@@ -199,15 +197,9 @@ export const Web3AuthConnect = () => {
                 </div>
               )}
 
-              {/* Balance */}
-              {address && (
-                <div className="mb-3">
-                  <div className="mb-1 font-medium text-muted-foreground text-xs">
-                    Balance
-                  </div>
-                  <Balance key={chainId} />
-                </div>
-              )}
+              <div className="mb-3">
+                <Balance key={chainId} />
+              </div>
             </div>
 
             <DropdownMenuSeparator />

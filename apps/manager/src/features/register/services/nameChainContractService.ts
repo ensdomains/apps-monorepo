@@ -1,14 +1,10 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { err, fromPromise, ok, type Result } from 'neverthrow'
-import {
-  encodeAbiParameters,
-  formatUnits,
-  keccak256,
-} from 'viem'
+import { fromPromise, ok } from 'neverthrow'
+import { formatUnits } from 'viem'
+import { generatePrivateKey } from 'viem/accounts'
 
-// TODO: no dependency from wagmi, remove this
 import { publicClient } from '@/lib/wagmi'
-import type { Web3AuthServiceType } from '@/lib/web3Auth/web3AuthService'
+import { web3AuthService } from '@/lib/web3Auth/web3AuthService'
 
 export class NameChainContractError extends TaggedError(
   'NameChainContractError',
@@ -34,6 +30,10 @@ export const CONTRACT_ADDRESSES = {
   },
 }
 
+// Registry and empty address constants
+export const EMPTY_ADDRESS =
+  '0x0000000000000000000000000000000000000000' as `0x${string}`
+
 export const ETH_REGISTRAR_ABI = [
   {
     type: 'function',
@@ -47,52 +47,13 @@ export const ETH_REGISTRAR_ABI = [
     name: 'checkPrice',
     inputs: [
       { name: 'name', type: 'string', internalType: 'string' },
-      { name: 'duration', type: 'uint256', internalType: 'uint256' },
+      { name: 'duration', type: 'uint256', internalType: 'uint256' }, // Fixed: uint64 → uint256
       { name: 'token', type: 'address', internalType: 'address' },
     ],
     outputs: [
       { name: 'tokenAmount', type: 'uint256', internalType: 'uint256' },
     ],
     stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'rentPrice',
-    inputs: [
-      { name: 'name', type: 'string', internalType: 'string' },
-      { name: 'duration', type: 'uint256', internalType: 'uint256' },
-    ],
-    outputs: [
-      {
-        name: 'price',
-        type: 'tuple',
-        internalType: 'struct ITokenPriceOracle.Price', // ← Updated struct name
-        components: [
-          { name: 'base', type: 'uint256', internalType: 'uint256' },
-          { name: 'premium', type: 'uint256', internalType: 'uint256' },
-        ],
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'valid',
-    inputs: [
-      {
-        name: 'name',
-        type: 'string',
-        internalType: 'string',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'pure',
   },
   {
     type: 'function',
@@ -103,7 +64,7 @@ export const ETH_REGISTRAR_ABI = [
   },
   {
     type: 'function',
-    name: 'makeCommitment', // ← New function you'll need
+    name: 'makeCommitment',
     inputs: [
       { name: 'name', type: 'string', internalType: 'string' },
       { name: 'owner', type: 'address', internalType: 'address' },
@@ -122,153 +83,210 @@ export const ETH_REGISTRAR_ABI = [
       { name: 'name', type: 'string', internalType: 'string' },
       { name: 'owner', type: 'address', internalType: 'address' },
       { name: 'secret', type: 'bytes32', internalType: 'bytes32' },
-      {
-        name: 'subregistry',
-        type: 'address',
-        internalType: 'contract IRegistry',
-      },
+      { name: 'subregistry', type: 'address', internalType: 'address' },
       { name: 'resolver', type: 'address', internalType: 'address' },
-      { name: 'duration', type: 'uint64', internalType: 'uint64' },
-      { name: 'token', type: 'address', internalType: 'address' }, // ← NEW PARAMETER
-    ],
-    outputs: [{ name: 'tokenId', type: 'uint256', internalType: 'uint256' }],
-    stateMutability: 'nonpayable', // ← CHANGED from 'payable'
-  },
-  {
-    type: 'function',
-    name: 'renew', // ← New function for renewals
-    inputs: [
-      { name: 'name', type: 'string', internalType: 'string' },
       { name: 'duration', type: 'uint64', internalType: 'uint64' },
       { name: 'token', type: 'address', internalType: 'address' },
     ],
-    outputs: [],
+    outputs: [{ name: 'tokenId', type: 'uint256', internalType: 'uint256' }],
     stateMutability: 'nonpayable',
   },
   {
     type: 'function',
-    name: 'tokenPriceOracle', // ← New function for getting price oracle address
-    inputs: [],
-    outputs: [{ name: '', type: 'address', internalType: 'address' }],
+    name: 'rentPrice',
+    inputs: [
+      { name: 'name', type: 'string', internalType: 'string' },
+      { name: 'duration', type: 'uint64', internalType: 'uint64' },
+    ],
+    outputs: [
+      {
+        name: 'price',
+        type: 'tuple',
+        internalType: 'struct ITokenPriceOracle.Price',
+        components: [
+          { name: 'base', type: 'uint256', internalType: 'uint256' },
+          { name: 'premium', type: 'uint256', internalType: 'uint256' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'valid',
+    inputs: [{ name: 'name', type: 'string', internalType: 'string' }],
+    outputs: [{ name: '', type: 'bool', internalType: 'bool' }],
     stateMutability: 'view',
   },
 ] as const
-
-// Note: TOKEN_PRICE_ORACLE_ABI removed - we now use checkPrice directly on ETH_REGISTRAR
 
 // ERC20 ABI for token approvals
 export const ERC20_ABI = [
   {
-    type: 'function',
-    name: 'approve',
-    inputs: [
-      { name: 'spender', type: 'address', internalType: 'address' },
-      { name: 'amount', type: 'uint256', internalType: 'uint256' },
-    ],
-    outputs: [{ name: '', type: 'bool', internalType: 'bool' }],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
+    inputs: [{ name: '_owner', type: 'address' }],
     name: 'balanceOf',
-    inputs: [{ name: 'account', type: 'address', internalType: 'address' }],
-    outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],
+    outputs: [{ name: 'balance', type: 'uint256' }],
     stateMutability: 'view',
+    type: 'function',
   },
   {
-    type: 'function',
+    inputs: [],
     name: 'decimals',
-    inputs: [],
-    outputs: [{ name: '', type: 'uint8', internalType: 'uint8' }],
+    outputs: [{ name: '', type: 'uint8' }],
     stateMutability: 'view',
+    type: 'function',
   },
   {
-    type: 'function',
-    name: 'symbol',
     inputs: [],
-    outputs: [{ name: '', type: 'string', internalType: 'string' }],
+    name: 'symbol',
+    outputs: [{ name: '', type: 'string' }],
     stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    name: 'approve',
+    outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'spender', type: 'address' },
+    ],
+    name: 'allowance',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
   },
 ] as const
 
-export const REGISTRY_ADDRESS = '0x5fc8d32690cc91d4c39d9d3abcbd16989f875707' // Use your actual registry address
-export const EMPTY_ADDRESS = '0x0000000000000000000000000000000000000000'
-
-
-export const generateCommitment = (
+// Real commitment generation using ENS contract
+export const generateCommitment = async (
   name: string,
   ownerAddress: string,
   duration: number,
-): { commitment: `0x${string}`; secret: `0x${string}` } => {
+): Promise<{ commitment: `0x${string}`; secret: `0x${string}` }> => {
   const cleanName = name.replace('.eth', '')
-  const durationInSeconds = BigInt(duration)
-  const secret =
-    '0x8891f460088d2245cff60da5e49a21cfc4673324610b9cbbd8c6b9eb410d83a5'
+  const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
+  const secret = generatePrivateKey()
 
-  const encodedData = encodeAbiParameters(
-    [
-      { name: 'name', type: 'string' },
-      { name: 'owner', type: 'address' },
-      { name: 'secret', type: 'bytes32' },
-      { name: 'subRegistry', type: 'address' },
-      { name: 'resolver', type: 'address' },
-      { name: 'duration', type: 'uint64' },
-    ],
-    [
+  console.log('🔑 Generating real ENS commitment:', {
+    name: cleanName,
+    ownerAddress,
+    duration: durationInSeconds.toString(),
+    secret,
+  })
+
+  // Use the contract's makeCommitment function to generate the real commitment
+  const commitment = (await publicClient.readContract({
+    address: CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
+    abi: ETH_REGISTRAR_ABI,
+    functionName: 'makeCommitment',
+    args: [
       cleanName,
       ownerAddress as `0x${string}`,
       secret as `0x${string}`,
-      REGISTRY_ADDRESS as `0x${string}`,
-      EMPTY_ADDRESS as `0x${string}`,
+      CONTRACT_ADDRESSES.L2.ETHRegistry, // subregistry
+      EMPTY_ADDRESS, // resolver
       durationInSeconds,
     ],
-  )
+  })) as `0x${string}`
 
-  const commitment = keccak256(encodedData)
+  console.log('✅ Real ENS commitment generated:', commitment)
   return { commitment, secret }
 }
 
-export const generateCommitmentViaContract = async (
+// Real ENS registration functions
+export const commitToRegistration = async (
+  commitment: `0x${string}`,
+  walletClient: any,
+): Promise<`0x${string}`> => {
+  console.log('🔒 Committing to registration:', commitment)
+
+  // Use Web3Auth EOA address for signing
+  const signingAccount = await web3AuthService.getAccount()
+
+  const hash = await walletClient.writeContract({
+    address: CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
+    abi: ETH_REGISTRAR_ABI,
+    functionName: 'commit',
+    args: [commitment],
+    account: signingAccount,
+    chain: web3AuthService.chain?.viemChain,
+  })
+
+  console.log('✅ Commitment transaction hash:', hash)
+  return hash
+}
+
+export const approveTokenForRegistration = async (
+  tokenAddress: `0x${string}`,
+  amount: bigint,
+  walletClient: any,
+): Promise<`0x${string}`> => {
+  console.log('✅ Approving token for registration:', { tokenAddress, amount })
+
+  // Use Web3Auth EOA address for signing
+  const signingAccount = await web3AuthService.getAccount()
+
+  const hash = await walletClient.writeContract({
+    address: tokenAddress,
+    abi: ERC20_ABI,
+    functionName: 'approve',
+    args: [CONTRACT_ADDRESSES.L2.ETH_REGISTRAR, amount],
+    account: signingAccount,
+    chain: web3AuthService.chain?.viemChain,
+  })
+
+  console.log('✅ Token approval transaction hash:', hash)
+  return hash
+}
+
+export const registerDomain = async (
   name: string,
-  ownerAddress: string,
-  duration: number, // in years
-  web3AuthService: Web3AuthServiceType,
-): Promise<
-  Result<{ commitment: string; secret: string }, NameChainContractError>
-> => {
-  try {
-    console.log('🔑 Generating commitment via contract')
+  ownerAddress: `0x${string}`,
+  duration: number,
+  secret: `0x${string}`,
+  walletClient: any,
+  tokenAddress: `0x${string}` = CONTRACT_ADDRESSES.L2.MockUSDC, // Default to USDC but allow override
+): Promise<`0x${string}`> => {
+  console.log('📝 Registering domain:', {
+    name,
+    ownerAddress,
+    duration,
+    tokenAddress,
+  })
 
-    const cleanName = name.replace('.eth', '')
-    const secret =
-      '0x8891f460088d2245cff60da5e49a21cfc4673324610b9cbbd8c6b9eb410d83a5'
-    const _durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
+  const cleanName = name.replace('.eth', '')
+  const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
 
-    // Use the contract's makeCommitment function for perfect compatibility
-    const commitment = await web3AuthService.readContract(
-      CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
-      ETH_REGISTRAR_ABI as unknown as unknown[],
-      'makeCommitment',
-      [
-        cleanName,
-        ownerAddress as `0x${string}`,
-        secret as `0x${string}`,
-        REGISTRY_ADDRESS as `0x${string}`,
-        EMPTY_ADDRESS as `0x${string}`,
-        _durationInSeconds,
-      ],
-    )
+  // Use Web3Auth EOA address for signing
+  const signingAccount = await web3AuthService.getAccount()
 
-    console.log('✅ Commitment generated via contract')
-
-    return ok({
-      commitment: commitment as string,
+  const hash = await walletClient.writeContract({
+    address: CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
+    abi: ETH_REGISTRAR_ABI,
+    functionName: 'register',
+    args: [
+      cleanName,
+      ownerAddress,
       secret,
-    })
-  } catch (error) {
-    console.error('❌ Failed to generate commitment via contract:', error)
-    return err(new NameChainContractError({ cause: error }))
-  }
+      CONTRACT_ADDRESSES.L2.ETHRegistry,
+      EMPTY_ADDRESS,
+      durationInSeconds,
+      tokenAddress,
+    ],
+    account: signingAccount,
+    chain: web3AuthService.chain?.viemChain,
+  })
+
+  console.log('✅ Domain registration transaction hash:', hash)
+  return hash
 }
 
 export const checkRealNameAvailability = ResultFn(async function* (
@@ -312,7 +330,6 @@ export const checkRealNameAvailability = ResultFn(async function* (
   }
 })
 
-
 export const getTokenPrices = ResultFn(async function* (
   name: string,
   duration: number, // in seconds
@@ -355,65 +372,3 @@ export const getTokenPrices = ResultFn(async function* (
     },
   })
 })
-
-export const approveTokenForRegistration = async (
-  tokenAddress: string,
-  amount: bigint,
-  web3AuthService: Web3AuthServiceType,
-): Promise<Result<string, NameChainContractError>> => {
-  console.log('✅ Starting token approval for registration')
-
-  try {
-    const hash = await web3AuthService.writeContract(
-      tokenAddress,
-      ERC20_ABI as unknown as unknown[],
-      'approve',
-      [CONTRACT_ADDRESSES.L2.ETH_REGISTRAR, amount],
-    )
-
-    console.log('✅ Token approval transaction sent:', hash)
-    return ok(hash)
-  } catch (error) {
-    console.error('❌ Failed to approve token:', error)
-    return err(new NameChainContractError({ cause: error }))
-  }
-}
-
-export const registerDomain = async (
-  name: string,
-  ownerAddress: string,
-  secret: string,
-  duration: number, // in years
-  selectedToken: string,
-  web3AuthService: Web3AuthServiceType,
-): Promise<Result<string, NameChainContractError>> => {
-  console.log('📝 Starting domain registration')
-
-  try {
-    // Convert duration from years to seconds
-    const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
-    const cleanName = name.replace('.eth', '')
-
-    // Register the domain using the selected token
-    const registerHash = await web3AuthService.writeContract(
-      CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
-      ETH_REGISTRAR_ABI as unknown as unknown[],
-      'register',
-      [
-        cleanName,
-        ownerAddress as `0x${string}`,
-        secret as `0x${string}`,
-        REGISTRY_ADDRESS as `0x${string}`,
-        EMPTY_ADDRESS as `0x${string}`,
-        durationInSeconds,
-        selectedToken as `0x${string}`,
-      ],
-    )
-
-    console.log('✅ Domain registration transaction sent:', registerHash)
-    return ok(registerHash)
-  } catch (error) {
-    console.error('❌ Failed to register domain:', error)
-    return err(new NameChainContractError({ cause: error }))
-  }
-}

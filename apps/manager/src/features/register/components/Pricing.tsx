@@ -9,12 +9,12 @@ import {
 } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useAccountAbstraction } from '@/lib/web3Auth/useAccountAbstraction'
 import {
   CONTRACT_ADDRESSES,
   getTokenPrices,
 } from '../services/nameChainContractService'
 import { CreditCardPaymentDrawer, CryptoPaymentDrawer } from './PaymentDrawer'
-import { RegisterDrawer } from './RegisterDrawer'
 
 type PricingProps = {
   domainName: string
@@ -44,10 +44,12 @@ export const Pricing = ({
   const [priceLoading, setPriceLoading] = useState(false)
   const [usdcPrice, setUsdcPrice] = useState<number | undefined>(undefined)
   const [daiPrice, setDaiPrice] = useState<number | undefined>(undefined)
+  const [pricingDuration, setPricingDuration] = useState(duration)
 
-  // For pricing calculation, round up decimal years since service is mocked
-  const pricingDuration = Math.ceil(duration)
+  // Check if AA is available
+  const { isUsingAA } = useAccountAbstraction()
 
+  // Year options for quick selection
   const yearOptions = [
     { years: 1, discount: 0 },
     { years: 2, discount: 0 },
@@ -57,69 +59,29 @@ export const Pricing = ({
     { years: 25, discount: 30 },
   ]
 
-  // Fetch stablecoin prices when duration changes
-  useEffect(() => {
-    if (domainName && duration > 0) {
-      setPriceLoading(true)
+  // Calculate discount based on duration (using real contract prices)
+  const getDiscountInfo = () => {
+    if (!usdcPrice)
+      return { discountPercentage: 0, discountAmount: 0, finalPrice: 0 }
 
-      const fetchPrices = async () => {
-        try {
-          const durationInSeconds = duration * 365 * 24 * 60 * 60
-          const result = await getTokenPrices(domainName, durationInSeconds)
+    // Find the discount for the selected duration
+    const selectedYearOption = yearOptions.find(
+      (option) => option.years === pricingDuration,
+    )
+    const discountPercentage = selectedYearOption
+      ? selectedYearOption.discount
+      : 0
 
-          if (result.isOk()) {
-            setUsdcPrice(parseFloat(result.value.usdc.formatted))
-            setDaiPrice(parseFloat(result.value.dai.formatted))
-            console.log('💰 Pricing updated:', {
-              domain: domainName,
-              duration,
-              usdc: result.value.usdc.formatted,
-              dai: result.value.dai.formatted,
-            })
-          } else {
-            console.error('Failed to get token prices:', result.error)
-            // Fallback to base price
-            setUsdcPrice(10 * duration)
-            setDaiPrice(10 * duration)
-          }
-        } catch (error) {
-          console.error('Error getting token prices:', error)
-          // Fallback to base price
-          setUsdcPrice(10 * duration)
-          setDaiPrice(10 * duration)
-        } finally {
-          setPriceLoading(false)
-        }
-      }
+    // Calculate discount amount based on real contract price
+    const discountAmount = (usdcPrice * discountPercentage) / 100
+    const finalPrice = usdcPrice - discountAmount
 
-      fetchPrices()
-    }
-  }, [domainName, duration])
-
-  // Use USDC price as the default display price (since it's more common)
-  const basePrice = usdcPrice || 0
-  const pricePerYear = duration > 0 ? basePrice / duration : 0
-
-  // Calculate discount based on rounded duration for pricing
-  const selectedYearOption = yearOptions.find(
-    (option) => option.years === pricingDuration,
-  )
-
-  let discountPercentage: number
-  let discountAmount: number
-
-  if (selectedYearOption) {
-    // This is a predefined year option with potential discount
-    discountPercentage = selectedYearOption.discount
-    discountAmount = basePrice * (discountPercentage / 100)
-  } else {
-    // This is a custom duration, no discount
-    discountPercentage = 0
-    discountAmount = 0
+    return { discountPercentage, discountAmount, finalPrice }
   }
 
-  const finalPrice = basePrice - discountAmount
+  const { discountPercentage, discountAmount, finalPrice } = getDiscountInfo()
 
+  // Calculate duration from date
   const calculateDurationFromDate = (endDate: Date) => {
     const now = new Date()
     const diffInMs = endDate.getTime() - now.getTime()
@@ -145,6 +107,82 @@ export const Pricing = ({
 
   const minDate = new Date()
   minDate.setDate(minDate.getDate() + 1)
+
+  // Fetch token prices when duration changes
+  useEffect(() => {
+    const fetchPrices = async () => {
+      if (!domainName || !isConnected) return
+
+      setPriceLoading(true)
+      try {
+        // Convert duration from years to seconds (365 days * 24 hours * 60 minutes * 60 seconds)
+        const durationInSeconds = pricingDuration * 365 * 24 * 60 * 60
+        const result = await getTokenPrices(domainName, durationInSeconds)
+        if (result.isOk()) {
+          setUsdcPrice(parseFloat(result.value.usdc.formatted))
+          setDaiPrice(parseFloat(result.value.dai.formatted))
+        } else {
+          console.error('Failed to get token prices:', result.error)
+          // Set fallback prices to 0 if contract call fails
+          setUsdcPrice(0)
+          setDaiPrice(0)
+        }
+      } catch (error) {
+        console.error('Failed to get token prices:', error)
+        // Set fallback prices to 0 if there's an error
+        setUsdcPrice(0)
+        setDaiPrice(0)
+      } finally {
+        setPriceLoading(false)
+      }
+    }
+
+    fetchPrices()
+  }, [domainName, pricingDuration, isConnected])
+
+  // Update pricing duration when duration prop changes
+  useEffect(() => {
+    setPricingDuration(duration)
+  }, [duration])
+
+  const handleConfirmPayment = (
+    _tokenPrice: number,
+    selectedToken: { address: string; symbol: string },
+  ) => {
+    if (!selectedToken) {
+      // Fallback to USDC if no token selected
+      const rawPrice = BigInt(Math.ceil(finalPrice * 1e6)) // USDC has 6 decimals
+      onConfirmPayment(rawPrice, CONTRACT_ADDRESSES.L2.MockUSDC)
+      return
+    }
+
+    // Extract token address from the selected token object
+    const tokenAddress = selectedToken.address || selectedToken
+
+    // Use the final price (with discount applied) for the selected token
+    let finalTokenPrice: number
+    let finalTokenAddress: string
+    let decimals: number
+
+    if (tokenAddress === CONTRACT_ADDRESSES.L2.MockUSDC) {
+      finalTokenPrice = finalPrice // Use discounted price
+      finalTokenAddress = CONTRACT_ADDRESSES.L2.MockUSDC
+      decimals = 6 // USDC has 6 decimals
+    } else if (tokenAddress === CONTRACT_ADDRESSES.L2.MockDAI) {
+      finalTokenPrice = finalPrice // Use discounted price
+      finalTokenAddress = CONTRACT_ADDRESSES.L2.MockDAI
+      decimals = 18 // DAI has 18 decimals
+    } else {
+      // Fallback to USDC
+      finalTokenPrice = finalPrice // Use discounted price
+      finalTokenAddress = CONTRACT_ADDRESSES.L2.MockUSDC
+      decimals = 6 // USDC has 6 decimals
+    }
+
+    // Calculate raw price with correct decimals for the selected token
+    const rawPrice = BigInt(Math.ceil(finalTokenPrice * 10 ** decimals))
+    onConfirmPayment(rawPrice, finalTokenAddress)
+  }
 
   return (
     <div className="space-y-4">
@@ -318,14 +356,19 @@ export const Pricing = ({
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">
                   ({pricingDuration} year{pricingDuration !== 1 ? 's' : ''} × $
-                  {pricePerYear.toFixed(2)} USD/year)
+                  {usdcPrice
+                    ? (usdcPrice / pricingDuration).toFixed(2)
+                    : '0.00'}{' '}
+                  USD/year)
                   {pricingDuration !== duration && (
                     <span className="block text-muted-foreground/70 text-xs">
                       (Rounded up from {duration.toFixed(2)} years)
                     </span>
                   )}
                 </span>
-                <span className="text-foreground">${basePrice.toFixed(2)}</span>
+                <span className="text-foreground">
+                  ${usdcPrice ? usdcPrice.toFixed(2) : '0.00'}
+                </span>
               </div>
               {discountPercentage > 0 && (
                 <div className="flex justify-between text-sm">
@@ -350,15 +393,9 @@ export const Pricing = ({
         </div>
 
         {!isConnected ? (
-          <RegisterDrawer
-            domainName={domainName}
-            duration={duration}
-            priceUSD={finalPrice}
-          >
-            <Button className="h-12 w-full font-semibold text-base">
-              Register
-            </Button>
-          </RegisterDrawer>
+          <Button className="h-12 w-full font-semibold text-base">
+            Connect Wallet to Register
+          </Button>
         ) : (
           <div className="flex space-x-3">
             <CreditCardPaymentDrawer
@@ -374,13 +411,8 @@ export const Pricing = ({
               isLoading={isLoading}
               onPaymentSelect={onSelectPayment}
               onCryptoSelect={onSelectCrypto}
-              onConfirmPayment={() => {
-                // Pass the USDC price and address to the registration flow
-                if (usdcPrice) {
-                  const rawPrice = BigInt(Math.ceil(usdcPrice * 1e6)) // Convert to USDC units (6 decimals)
-                  onConfirmPayment(rawPrice, CONTRACT_ADDRESSES.L2.MockUSDC)
-                }
-              }}
+              onConfirmPayment={handleConfirmPayment}
+              isUsingAA={isUsingAA}
             />
           </div>
         )}

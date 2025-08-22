@@ -39,6 +39,13 @@ export class Web3AuthService {
   // Store the Web3Auth modal instance reference
   private web3AuthModal: Web3Auth | null = null
 
+  // Store listener references for cleanup
+  private listeners: {
+    accountsChanged?: (accounts: string[]) => void
+    chainChanged?: (chainId: string) => void
+    disconnect?: () => void
+  } = {}
+
   /**
    * Initialize the service with Web3Auth modal context
    * This should be called from a React component that has access to useWeb3Auth
@@ -106,24 +113,45 @@ export class Web3AuthService {
   }
 
   /**
+   * Remove existing provider listeners
+   */
+  private removeProviderListeners(provider: IProvider) {
+    if (this.listeners.accountsChanged) {
+      provider.removeListener('accountsChanged', this.listeners.accountsChanged)
+    }
+    if (this.listeners.chainChanged) {
+      provider.removeListener('chainChanged', this.listeners.chainChanged)
+    }
+    if (this.listeners.disconnect) {
+      provider.removeListener('disconnect', this.listeners.disconnect)
+    }
+  }
+
+  /**
    * Setup listener for provider changes
    */
   private setupProviderListener(provider: IProvider) {
-    // Listen for account changes
-    provider.on('accountsChanged', (_accounts: string[]) => {
-      this.updateProvider()
-    })
+    // Remove existing listeners first to prevent duplicates
+    this.removeProviderListeners(provider)
 
-    // Listen for chain changes
-    provider.on('chainChanged', (_chainId: string) => {
+    // Create new listener functions
+    this.listeners.accountsChanged = (_accounts: string[]) => {
       this.updateProvider()
-    })
+    }
 
-    // Listen for disconnect
-    provider.on('disconnect', () => {
+    this.listeners.chainChanged = (_chainId: string) => {
+      this.updateProvider()
+    }
+
+    this.listeners.disconnect = () => {
       this.provider = null
       this.userInfo = null
-    })
+    }
+
+    // Add the new listeners
+    provider.on('accountsChanged', this.listeners.accountsChanged)
+    provider.on('chainChanged', this.listeners.chainChanged)
+    provider.on('disconnect', this.listeners.disconnect)
   }
 
   /**
@@ -157,11 +185,19 @@ export class Web3AuthService {
     }
 
     try {
+      // Remove provider listeners before disconnecting
+      if (this.provider) {
+        this.removeProviderListeners(this.provider)
+      }
+
       // Disconnect using the Web3Auth instance
       await this.web3AuthModal.logout()
       this.provider = null
       this.userInfo = null
       this.currentChain = chains.ethereum
+
+      // Clear listener references
+      this.listeners = {}
     } catch (error) {
       console.error('Failed to disconnect:', error)
       throw error
@@ -430,7 +466,10 @@ export class Web3AuthService {
     }
   }
 
-  private getPublicClient() {
+  /**
+   * Get the public client for blockchain interactions
+   */
+  getPublicClient() {
     if (!this.provider) {
       throw new Error('Provider not available')
     }
@@ -440,7 +479,10 @@ export class Web3AuthService {
     })
   }
 
-  private getWalletClient() {
+  /**
+   * Get the wallet client for blockchain interactions
+   */
+  getWalletClient() {
     if (!this.provider) {
       throw new Error('Provider not available')
     }
@@ -449,6 +491,18 @@ export class Web3AuthService {
       chain: this.currentChain?.viemChain || defaultViemChain,
       transport: custom(this.provider),
     })
+  }
+
+  /**
+   * Get the account address for transactions
+   */
+  async getAccount(): Promise<`0x${string}`> {
+    if (!this.provider) {
+      throw new Error('Provider not available')
+    }
+
+    const address = await this.getAddress()
+    return address as `0x${string}`
   }
 
   get isConnected(): boolean {
@@ -469,6 +523,18 @@ export class Web3AuthService {
 
   get providerInstance(): IProvider | null {
     return this.provider
+  }
+
+  /**
+   * Clean up all listeners and reset state
+   */
+  cleanup(): void {
+    if (this.provider) {
+      this.removeProviderListeners(this.provider)
+    }
+    this.listeners = {}
+    this.provider = null
+    this.userInfo = null
   }
 }
 

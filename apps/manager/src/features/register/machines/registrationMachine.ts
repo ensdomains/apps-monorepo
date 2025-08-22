@@ -6,6 +6,7 @@ const STORAGE_KEYS = {
   SECRET: 'ens_secret',
   NAME: 'ens_name',
   COMMIT_TIMESTAMP: 'ens_commit_timestamp',
+  REMAINING_TIME: 'ens_remaining_time',
   DURATION: 'ens_duration',
   COMMIT_TX_HASH: 'ens_commit_tx_hash',
   REGISTER_TX_HASH: 'ens_register_tx_hash',
@@ -107,6 +108,9 @@ const loadSavedData = (): Partial<RegistrationContext> => {
       commitTimestamp: parseInt(
         localStorage.getItem(STORAGE_KEYS.COMMIT_TIMESTAMP) || '0',
       ),
+      remainingTime: parseInt(
+        localStorage.getItem(STORAGE_KEYS.REMAINING_TIME) || '0',
+      ),
       commitTxHash: localStorage.getItem(STORAGE_KEYS.COMMIT_TX_HASH) || '',
       registerTxHash: localStorage.getItem(STORAGE_KEYS.REGISTER_TX_HASH) || '',
       ownerAddress: localStorage.getItem(STORAGE_KEYS.OWNER_ADDRESS) || '',
@@ -156,7 +160,6 @@ const initialContext: RegistrationContext = {
   selectedTokenForRegistration: null,
 }
 
-
 export const registrationMachine = setup({
   types: {
     context: {} as RegistrationContext,
@@ -168,6 +171,24 @@ export const registrationMachine = setup({
   actions: {
     setName: assign({
       name: ({ event }) => (event.type === 'SET_NAME' ? event.name : ''),
+    }),
+
+    resetData: assign({
+      name: ({ event }) => (event.type === 'SET_NAME' ? event.name : ''),
+      duration: () => 1,
+      commitment: () => '',
+      secret: () => '',
+      commitTimestamp: () => 0,
+      remainingTime: () => 0,
+      commitTxHash: () => '',
+      registerTxHash: () => '',
+      step: () => RegistrationStep.PRICING,
+      selectedPaymentMethod: () => undefined,
+      selectedCrypto: () => undefined,
+      error: () => '',
+      isAvailable: () => null,
+      tokenPrice: () => null,
+      selectedTokenForRegistration: () => null,
     }),
 
     setDuration: assign({
@@ -221,6 +242,7 @@ export const registrationMachine = setup({
         event.type === 'COMMIT_RESULT' ? event.timestamp : 0,
       commitTxHash: ({ event }) =>
         event.type === 'COMMIT_RESULT' ? event.txHash : '',
+      remainingTime: () => 60, // Initialize timer to 20 seconds
       step: () => RegistrationStep.WAITING_FOR_COMMIT_TIME,
     }),
 
@@ -228,6 +250,15 @@ export const registrationMachine = setup({
       remainingTime: ({ event }) =>
         event.type === 'TIMER_TICK' ? event.remainingTime : 0,
     }),
+
+    saveTimer: ({ context }) => {
+      if (context.remainingTime > 0) {
+        saveToStorage(
+          STORAGE_KEYS.REMAINING_TIME,
+          context.remainingTime.toString(),
+        )
+      }
+    },
 
     setRegisterResult: assign({
       registerTxHash: ({ event }) =>
@@ -249,6 +280,7 @@ export const registrationMachine = setup({
         secret: context.secret,
         timestamp: context.commitTimestamp,
         txHash: context.commitTxHash,
+        remainingTime: context.remainingTime,
       })
       saveToStorage(STORAGE_KEYS.COMMITMENT, context.commitment)
       saveToStorage(STORAGE_KEYS.SECRET, context.secret)
@@ -257,6 +289,10 @@ export const registrationMachine = setup({
         context.commitTimestamp.toString(),
       )
       saveToStorage(STORAGE_KEYS.COMMIT_TX_HASH, context.commitTxHash)
+      saveToStorage(
+        STORAGE_KEYS.REMAINING_TIME,
+        context.remainingTime.toString(),
+      )
     },
 
     saveRegistrationData: ({ context }) => {
@@ -271,8 +307,17 @@ export const registrationMachine = setup({
     },
 
     clearAllData: () => {
-      // Don't clear commitment data if we're in the middle of registration
-      // Only clear if we're resetting from the beginning
+      console.log('🧹 Clearing all registration data from localStorage')
+      clearStorage()
+    },
+
+    clearStateAfterSuccess: () => {
+      console.log('✨ Clearing state after successful registration')
+      clearStorage()
+    },
+
+    clearStateAfterError: () => {
+      console.log('🔄 Clearing state after registration error')
       clearStorage()
     },
   },
@@ -281,9 +326,35 @@ export const registrationMachine = setup({
   initial: 'pricing',
 
   on: {
-    SET_NAME: {
-      actions: ['setName', 'savePersistentData'],
-    },
+    SET_NAME: [
+      {
+        // If there's previous state and a different domain name, do a full reset
+        guard: ({ context, event }) => {
+          return (
+            event.type === 'SET_NAME' &&
+            context.name !== '' &&
+            event.name !== context.name
+          )
+        },
+        actions: [
+          ({ context, event }) => {
+            console.log(
+              '🔄 New domain search detected - clearing previous state',
+            )
+            console.log(
+              `  Previous domain: "${context.name}" → New domain: "${event.name}"`,
+            )
+            clearStorage()
+          },
+          'resetData',
+          'savePersistentData',
+        ],
+      },
+      {
+        // Default case - just set the name
+        actions: ['setName', 'savePersistentData'],
+      },
+    ],
     SET_DURATION: {
       actions: ['setDuration', 'savePersistentData'],
     },
@@ -410,6 +481,7 @@ export const registrationMachine = setup({
         assign({
           step: () => RegistrationStep.COMMITMENT_ERROR,
         }),
+        'clearStateAfterError', // Clear state after error for fresh start
       ],
       on: {
         RETRY_COMMIT: {
@@ -431,7 +503,7 @@ export const registrationMachine = setup({
       ],
       on: {
         TIMER_TICK: {
-          actions: ['updateTimer'],
+          actions: ['updateTimer', 'saveTimer'],
         },
         TIMER_COMPLETE: {
           target: 'registerInProgress',
@@ -467,6 +539,7 @@ export const registrationMachine = setup({
         assign({
           step: () => RegistrationStep.REGISTRATION_ERROR,
         }),
+        'clearStateAfterError', // Clear state after error for fresh start
       ],
       on: {
         RETRY_COMMIT: {
@@ -485,6 +558,7 @@ export const registrationMachine = setup({
         assign({
           step: () => RegistrationStep.REGISTER_SUCCESS,
         }),
+        'clearStateAfterSuccess', // Clear state immediately after success
       ],
       on: {
         SETUP_AUTORENEWAL: {

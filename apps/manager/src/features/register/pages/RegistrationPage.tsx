@@ -1,6 +1,6 @@
 import { useNavigate } from '@tanstack/react-router'
-
 import { Button } from '@/components/ui/button'
+import { useAccountAbstraction } from '@/lib/web3Auth/useAccountAbstraction'
 import { Autorenewal } from '../components/Autorenewal'
 import { CommitmentError } from '../components/CommitmentError'
 import { Pricing } from '../components/Pricing'
@@ -27,9 +27,8 @@ export function Registration({ initialName }: RegistrationProps) {
     commitTxHash,
     registerTxHash,
     isCommitPending,
-    isRegisterPending,
     isRegisterConfirming,
-    isConnected,
+
     setDuration,
     selectPayment,
     selectCrypto,
@@ -40,6 +39,13 @@ export function Registration({ initialName }: RegistrationProps) {
     completeFlow,
     reset,
   } = useEnsRegistration(initialName)
+
+  const { smartAccountInfo, isLoading: isLoadingAccount } =
+    useAccountAbstraction()
+
+  const isConnected = smartAccountInfo?.isConnected || false
+
+  console.log('smartAccountInfo', smartAccountInfo)
 
   const handlePaymentSelect = (method: 'crypto' | 'credit-card') => {
     selectPayment(method)
@@ -69,8 +75,6 @@ export function Registration({ initialName }: RegistrationProps) {
     reset()
     navigate({ to: '/' })
   }
-
-  // Note: Pricing is now handled directly in the Pricing component using getTokenPrices
 
   const handleSelectPayment = (method: 'crypto' | 'credit-card') => {
     handlePaymentSelect(method)
@@ -113,19 +117,32 @@ export function Registration({ initialName }: RegistrationProps) {
       </div>
 
       {step === RegistrationStep.PRICING && displayDomainName && (
-        <div className="mx-auto max-w-md px-4 py-6">
-          <Pricing
-            domainName={displayDomainName}
-            duration={duration}
-            isConnected={isConnected}
-            isLoading={isCommitPending}
-            onSetDuration={setDuration}
-            onSelectPayment={handleSelectPayment}
-            onSelectCrypto={handleSelectCrypto}
-            onConfirmPayment={(tokenPrice, selectedToken) =>
-              confirmPayment(tokenPrice, selectedToken)
-            }
-          />
+        <div className="mx-auto max-w-md space-y-6 px-4 py-6">
+          {isLoadingAccount ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="mb-2 text-gray-500 text-sm">
+                  Loading account information...
+                </div>
+                <div className="text-gray-400 text-xs">
+                  Please wait while we connect to your wallet
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Pricing
+              domainName={displayDomainName}
+              duration={duration}
+              isConnected={isConnected}
+              isLoading={isCommitPending}
+              onSetDuration={setDuration}
+              onSelectPayment={handleSelectPayment}
+              onSelectCrypto={handleSelectCrypto}
+              onConfirmPayment={(tokenPrice, selectedToken) =>
+                confirmPayment(Number(tokenPrice), selectedToken)
+              }
+            />
+          )}
         </div>
       )}
 
@@ -176,48 +193,16 @@ export function Registration({ initialName }: RegistrationProps) {
       )}
 
       {process.env.NODE_ENV === 'development' && (
-        <div className="mx-auto mt-4 max-w-md p-4">
-          <details className="text-xs">
-            <summary className="cursor-pointer font-medium text-gray-600">
-              XState Debug Info
-            </summary>
-            <div className="mt-2 space-y-1 rounded bg-gray-100 p-2 font-mono text-gray-800">
-              <div>
-                <strong>Step:</strong> {step}
-              </div>
-              <div>
-                <strong>Domain:</strong> {domainName}
-              </div>
-              <div>
-                <strong>Duration:</strong> {duration}y
-              </div>
-              <div>
-                <strong>Connected:</strong> {isConnected ? '✅' : '❌'}
-              </div>
-              <div>
-                <strong>Commit Pending:</strong> {isCommitPending ? '⏳' : '✅'}
-              </div>
-              <div>
-                <strong>Register Pending:</strong>{' '}
-                {isRegisterPending ? '⏳' : '✅'}
-              </div>
-              {remainingTime > 0 && (
-                <div>
-                  <strong>Timer:</strong> {remainingTime}s
-                </div>
-              )}
-              {commitTxHash && (
-                <div>
-                  <strong>Commit TX:</strong> {commitTxHash.slice(0, 10)}...
-                </div>
-              )}
-              {registerTxHash && (
-                <div>
-                  <strong>Register TX:</strong> {registerTxHash.slice(0, 10)}...
-                </div>
-              )}
-            </div>
-          </details>
+        <div className="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <h3 className="mb-2 font-semibold text-gray-900">Debug Info</h3>
+          <div className="space-y-1 text-gray-600 text-sm">
+            <div>Step: {step}</div>
+            <div>Domain: {domainName || 'None'}</div>
+            <div>Duration: {duration} years</div>
+            <div>Connected: {isConnected ? 'Yes' : 'No'}</div>
+            <div>Commit Hash: {commitTxHash || 'None'}</div>
+            <div>Register Hash: {registerTxHash || 'None'}</div>
+          </div>
         </div>
       )}
     </div>
