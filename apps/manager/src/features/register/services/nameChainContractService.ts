@@ -1,10 +1,14 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { fromPromise, ok } from 'neverthrow'
+import { err, fromPromise, ok, type Result } from 'neverthrow'
 import { formatUnits } from 'viem'
 import { generatePrivateKey } from 'viem/accounts'
 
 import { publicClient } from '@/lib/wagmi'
-import { web3AuthService } from '@/lib/web3Auth/web3AuthService'
+import { getAAService } from '@/lib/web3Auth/accountAbstractionService'
+import {
+  type Web3AuthServiceType,
+  web3AuthService,
+} from '@/lib/web3Auth/web3AuthService'
 
 export class NameChainContractError extends TaggedError(
   'NameChainContractError',
@@ -170,84 +174,169 @@ export const generateCommitment = async (
   name: string,
   ownerAddress: string,
   duration: number,
-): Promise<{ commitment: `0x${string}`; secret: `0x${string}` }> => {
-  const cleanName = name.replace('.eth', '')
-  const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
-  const secret = generatePrivateKey()
+  web3AuthService: Web3AuthServiceType,
+): Promise<
+  Result<
+    { commitment: `0x${string}`; secret: `0x${string}` },
+    NameChainContractError
+  >
+> => {
+  try {
+    const cleanName = name.replace('.eth', '')
+    const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
+    const secret = generatePrivateKey()
 
-  console.log('🔑 Generating real ENS commitment:', {
-    name: cleanName,
-    ownerAddress,
-    duration: durationInSeconds.toString(),
-    secret,
-  })
+    console.log('🔑 Generating real ENS commitment:', {
+      name: cleanName,
+      ownerAddress,
+      duration: durationInSeconds.toString(),
+      secret,
+    })
 
-  // Use the contract's makeCommitment function to generate the real commitment
-  const commitment = (await publicClient.readContract({
-    address: CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
-    abi: ETH_REGISTRAR_ABI,
-    functionName: 'makeCommitment',
-    args: [
-      cleanName,
-      ownerAddress as `0x${string}`,
-      secret as `0x${string}`,
-      CONTRACT_ADDRESSES.L2.ETHRegistry, // subregistry
-      EMPTY_ADDRESS, // resolver
-      durationInSeconds,
-    ],
-  })) as `0x${string}`
+    // Use the contract's makeCommitment function to generate the real commitment
+    const commitment = await web3AuthService.readContract(
+      CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
+      ETH_REGISTRAR_ABI as unknown as unknown[],
+      'makeCommitment',
+      [
+        cleanName,
+        ownerAddress as `0x${string}`,
+        secret as `0x${string}`,
+        CONTRACT_ADDRESSES.L2.ETHRegistry,
+        EMPTY_ADDRESS as `0x${string}`,
+        durationInSeconds,
+      ],
+    )
 
-  console.log('✅ Real ENS commitment generated:', commitment)
-  return { commitment, secret }
+    console.log('✅ Real ENS commitment generated:', commitment)
+    return ok({ commitment: commitment as `0x${string}`, secret })
+  } catch (error) {
+    console.error('❌ Failed to generate commitment:', error)
+    return err(new NameChainContractError({ cause: error }))
+  }
 }
 
 // Real ENS registration functions
 export const commitToRegistration = async (
   commitment: `0x${string}`,
-  walletClient: any,
-): Promise<`0x${string}`> => {
-  console.log('🔒 Committing to registration:', commitment)
+  web3AuthService: Web3AuthServiceType,
+): Promise<Result<`0x${string}`, NameChainContractError>> => {
+  try {
+    console.log('🔒 Committing to registration:', commitment)
 
-  // Use Web3Auth EOA address for signing
-  const signingAccount = await web3AuthService.getAccount()
+    // Use account abstraction service instead of web3AuthService directly
+    const aaService = await getAAService()
 
-  const hash = await walletClient.writeContract({
-    address: CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
-    abi: ETH_REGISTRAR_ABI,
-    functionName: 'commit',
-    args: [commitment],
-    account: signingAccount,
-    chain: web3AuthService.chain?.viemChain,
-  })
+    const result = await aaService.writeContract(
+      web3AuthService,
+      CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
+      ETH_REGISTRAR_ABI as any,
+      'commit',
+      [commitment],
+    )
 
-  console.log('✅ Commitment transaction hash:', hash)
-  return hash
+    if (result.isErr()) {
+      return err(
+        new NameChainContractError({
+          cause: `Commitment failed: ${result.error.message}`,
+        }),
+      )
+    }
+
+    console.log('✅ Commitment transaction hash:', result.value)
+    return ok(result.value)
+  } catch (error) {
+    console.error('❌ Failed to commit to registration:', error)
+    return err(new NameChainContractError({ cause: error }))
+  }
 }
 
 export const approveTokenForRegistration = async (
-  tokenAddress: `0x${string}`,
+  tokenAddress: string,
   amount: bigint,
-  walletClient: any,
-): Promise<`0x${string}`> => {
-  console.log('✅ Approving token for registration:', { tokenAddress, amount })
+  web3AuthService: Web3AuthServiceType,
+): Promise<Result<string, NameChainContractError>> => {
+  console.log('✅ Starting token approval for registration')
 
-  // Use Web3Auth EOA address for signing
-  const signingAccount = await web3AuthService.getAccount()
+  try {
+    // Use account abstraction service instead of web3AuthService directly
+    const aaService = await getAAService()
 
-  const hash = await walletClient.writeContract({
-    address: tokenAddress,
-    abi: ERC20_ABI,
-    functionName: 'approve',
-    args: [CONTRACT_ADDRESSES.L2.ETH_REGISTRAR, amount],
-    account: signingAccount,
-    chain: web3AuthService.chain?.viemChain,
-  })
+    const result = await aaService.writeContract(
+      web3AuthService,
+      tokenAddress as `0x${string}`,
+      ERC20_ABI as any,
+      'approve',
+      [CONTRACT_ADDRESSES.L2.ETH_REGISTRAR, amount],
+    )
 
-  console.log('✅ Token approval transaction hash:', hash)
-  return hash
+    if (result.isErr()) {
+      return err(
+        new NameChainContractError({
+          cause: `Token approval failed: ${result.error.message}`,
+        }),
+      )
+    }
+
+    console.log('✅ Token approval transaction sent:', result.value)
+    return ok(result.value)
+  } catch (error) {
+    console.error('❌ Failed to approve token:', error)
+    return err(new NameChainContractError({ cause: error }))
+  }
+}
+export const registerDomain = async (
+  name: string,
+  ownerAddress: string,
+  secret: string,
+  duration: number, // in years
+  selectedToken: string,
+  web3AuthService: Web3AuthServiceType,
+): Promise<Result<string, NameChainContractError>> => {
+  console.log('📝 Starting domain registration')
+
+  try {
+    // Convert duration from years to seconds
+    const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
+    const cleanName = name.replace('.eth', '')
+
+    // Use account abstraction service instead of web3AuthService directly
+    const aaService = await getAAService()
+
+    // Register the domain using the selected token
+    const result = await aaService.writeContract(
+      web3AuthService,
+      CONTRACT_ADDRESSES.L2.ETH_REGISTRAR,
+      ETH_REGISTRAR_ABI as any,
+      'register',
+      [
+        cleanName,
+        ownerAddress as `0x${string}`,
+        secret as `0x${string}`,
+        CONTRACT_ADDRESSES.L2.ETHRegistry,
+        EMPTY_ADDRESS as `0x${string}`,
+        durationInSeconds,
+        selectedToken as `0x${string}`,
+      ],
+    )
+
+    if (result.isErr()) {
+      return err(
+        new NameChainContractError({
+          cause: `Domain registration failed: ${result.error.message}`,
+        }),
+      )
+    }
+
+    console.log('✅ Domain registration transaction sent:', result.value)
+    return ok(result.value)
+  } catch (error) {
+    console.error('❌ Failed to register domain:', error)
+    return err(new NameChainContractError({ cause: error }))
+  }
 }
 
-export const registerDomain = async (
+export const registerDomainLegacy = async (
   name: string,
   ownerAddress: `0x${string}`,
   duration: number,

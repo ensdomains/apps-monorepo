@@ -85,25 +85,35 @@ export function useEnsRegistration(initialName?: string) {
     ) {
       const handleCommitment = async () => {
         try {
-          const { commitment, secret } = await generateCommitment(
+          const commitmentResult = await generateCommitment(
             state.context.name,
             smartAccountInfo.address,
             state.context.duration,
+            web3AuthService,
           )
 
-          const walletClient = web3AuthService.getWalletClient()
-          if (!walletClient) {
-            throw new Error('Wallet client not available')
+          if (commitmentResult.isErr()) {
+            throw new Error(
+              `Commitment generation failed: ${commitmentResult.error.message}`,
+            )
           }
+
+          const { commitment, secret } = commitmentResult.value
 
           if (!smartAccountInfo?.address) {
             throw new Error('Smart account not available')
           }
 
-          const commitTxHash = await commitToRegistration(
+          const commitResult = await commitToRegistration(
             commitment,
-            walletClient,
+            web3AuthService,
           )
+
+          if (commitResult.isErr()) {
+            throw new Error(`Commitment failed: ${commitResult.error.message}`)
+          }
+
+          const commitTxHash = commitResult.value
 
           send({
             type: 'COMMIT_RESULT',
@@ -152,12 +162,19 @@ export function useEnsRegistration(initialName?: string) {
             state.context.tokenPrice
           ) {
             try {
-              const approveTxHash = await approveTokenForRegistration(
+              const approveResult = await approveTokenForRegistration(
                 state.context.selectedTokenForRegistration as `0x${string}`,
                 state.context.tokenPrice,
-                walletClient,
+                web3AuthService,
               )
-              console.log('✅ Token approval successful:', approveTxHash)
+
+              if (approveResult.isErr()) {
+                throw new Error(
+                  `Token approval failed: ${approveResult.error.message}`,
+                )
+              }
+
+              console.log('✅ Token approval successful:', approveResult.value)
             } catch (error) {
               console.error('❌ Token approval failed:', error)
               send({
@@ -170,18 +187,24 @@ export function useEnsRegistration(initialName?: string) {
 
           // Only proceed with registration if approval succeeded (or wasn't needed)
           try {
-            const registerTxHash = await registerDomain(
+            const registerResult = await registerDomain(
               state.context.name,
               smartAccountInfo.address,
-              state.context.duration,
               state.context.secret as `0x${string}`,
-              walletClient,
+              state.context.duration,
               state.context.selectedTokenForRegistration as `0x${string}`,
+              web3AuthService,
             )
+
+            if (registerResult.isErr()) {
+              throw new Error(
+                `Domain registration failed: ${registerResult.error.message}`,
+              )
+            }
 
             send({
               type: 'REGISTER_RESULT',
-              txHash: registerTxHash,
+              txHash: registerResult.value,
             })
           } catch (error) {
             console.error('❌ Domain registration failed:', error)

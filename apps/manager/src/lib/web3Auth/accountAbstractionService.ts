@@ -1,7 +1,8 @@
+import { err, ok, type Result } from 'neverthrow'
 import { createSmartAccountClient } from 'permissionless'
 import { toSimpleSmartAccount } from 'permissionless/accounts'
 import { createPimlicoClient } from 'permissionless/clients/pimlico'
-import { type Address, type Hash, http } from 'viem'
+import { type Abi, type Address, type Hash, http } from 'viem'
 import {
   createBundlerClient,
   entryPoint07Address,
@@ -36,6 +37,16 @@ export interface AATransaction {
   to: Address
   value?: bigint
   data?: `0x${string}`
+}
+
+export class AccountAbstractionError extends Error {
+  constructor(
+    message: string,
+    public cause?: unknown,
+  ) {
+    super(message)
+    this.name = 'AccountAbstractionError'
+  }
 }
 
 export class AccountAbstractionService {
@@ -191,6 +202,48 @@ export class AccountAbstractionService {
     }
   }
 
+  async writeContract(
+    web3AuthService: Web3AuthServiceType,
+    contractAddress: Address,
+    abi: Abi,
+    functionName: string,
+    args: any[],
+  ): Promise<Result<Hash, AccountAbstractionError>> {
+    try {
+      const smartAccountClient =
+        await this.createSmartAccountClient(web3AuthService)
+
+      const hash = await smartAccountClient.writeContract({
+        address: contractAddress,
+        abi,
+        functionName,
+        args,
+      })
+
+      // Wait for transaction confirmation
+      const receipt = await this.publicClient.waitForTransactionReceipt({
+        hash,
+        timeout: 30000,
+      })
+
+      console.log('✅ Smart account transaction confirmed:', {
+        hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed,
+      })
+
+      return ok(hash)
+    } catch (error) {
+      console.error('❌ Smart account writeContract failed:', error)
+      return err(
+        new AccountAbstractionError(
+          `Smart account writeContract failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          error,
+        ),
+      )
+    }
+  }
+
   async createSmartAccountClient(web3AuthService: Web3AuthServiceType) {
     const smartAccount = await this.createSmartAccount(web3AuthService)
 
@@ -228,24 +281,41 @@ export class AccountAbstractionService {
   async sendTransaction(
     web3AuthService: Web3AuthServiceType,
     transaction: AATransaction,
-  ): Promise<Hash> {
-    const smartAccountClient =
-      await this.createSmartAccountClient(web3AuthService)
+  ): Promise<Result<Hash, AccountAbstractionError>> {
+    try {
+      const smartAccountClient =
+        await this.createSmartAccountClient(web3AuthService)
 
-    const call = {
-      to: transaction.to,
-      value: transaction.value || 0n,
-      data: transaction.data || '0x',
+      const call = {
+        to: transaction.to,
+        value: transaction.value || 0n,
+        data: transaction.data || '0x',
+      }
+
+      const txHash = await smartAccountClient.sendTransaction({ calls: [call] })
+
+      // Wait for transaction confirmation
+      const receipt = await this.publicClient.waitForTransactionReceipt({
+        hash: txHash,
+        timeout: 30000,
+      })
+
+      console.log('✅ Smart account transaction confirmed:', {
+        hash: txHash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed,
+      })
+
+      return ok(txHash)
+    } catch (error) {
+      console.error('❌ Smart account sendTransaction failed:', error)
+      return err(
+        new AccountAbstractionError(
+          `Smart account sendTransaction failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          error,
+        ),
+      )
     }
-
-    const txHash = await smartAccountClient.sendTransaction({ calls: [call] })
-
-    await this.publicClient.waitForTransactionReceipt({
-      hash: txHash,
-      timeout: 30000,
-    })
-
-    return txHash
   }
 
   async checkInfrastructure(): Promise<boolean> {
@@ -264,43 +334,6 @@ export class AccountAbstractionService {
     } catch {
       return false
     }
-  }
-
-  async fundSmartAccount(
-    smartAccountAddress: Address,
-    amount: bigint,
-    web3AuthService: Web3AuthServiceType,
-  ): Promise<Hash> {
-    const hash = await web3AuthService.sendTransaction(
-      smartAccountAddress,
-      (Number(amount) / 1e18).toString(),
-    )
-    return hash as Hash
-  }
-
-  async fundSmartAccountWithUSDC(
-    smartAccountAddress: Address,
-    amount: bigint,
-    usdcContractAddress: Address,
-    web3AuthService: Web3AuthServiceType,
-  ): Promise<Hash> {
-    const hash = await web3AuthService.writeContract(
-      usdcContractAddress,
-      [
-        {
-          name: 'transfer',
-          type: 'function',
-          inputs: [
-            { name: 'to', type: 'address' },
-            { name: 'amount', type: 'uint256' },
-          ],
-          outputs: [{ name: 'success', type: 'bool' }],
-        },
-      ],
-      'transfer',
-      [smartAccountAddress, amount],
-    )
-    return hash as Hash
   }
 }
 
