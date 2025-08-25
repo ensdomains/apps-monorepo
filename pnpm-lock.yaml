@@ -86,8 +86,8 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0(@types/react@19.1.9)(react@19.1.1)(xstate@5.20.2(patch_hash=cd60a6eae163806e90144605b7835f441bcc3c7b456b9ad4eb0a7215997f36a5))
       '@xstate/store':
-        specifier: ^3.8.0
-        version: 3.8.0(react@19.1.1)(solid-js@1.9.9)
+        specifier: ^3.9.2
+        version: 3.9.2(react@19.1.1)(solid-js@1.9.9)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -3604,8 +3604,8 @@ packages:
       xstate:
         optional: true
 
-  '@xstate/store@3.8.0':
-    resolution: {integrity: sha512-VO9/qAJmXrGNkT8hyOM/jgGtNzbUOwCIpnor5vnFGrQUUCo46pB5jtYuYcW2yQy2XfCuYAqD9A4J3PG6v+uO2A==}
+  '@xstate/store@3.9.2':
+    resolution: {integrity: sha512-wOMS4WNrDA3STbO8JtGnOvFdXlIG4rCRsWas7MNljFm87lQUIL3dj7yQ2Smb5WQq/M88gYLd9Ju2d+cyLBRt1Q==}
     peerDependencies:
       react: ^18.2.0 || ^19.0.0
       solid-js: ^1.7.6
@@ -5751,8 +5751,8 @@ packages:
   preact@10.26.9:
     resolution: {integrity: sha512-SSjF9vcnF27mJK1XyFMNJzFd5u3pQiATFqoaDy03XuN00u4ziveVVEGt5RKJrDR8MHE/wJo9Nnad56RLzS2RMA==}
 
-  preact@10.27.0:
-    resolution: {integrity: sha512-/DTYoB6mwwgPytiqQTh/7SFRL98ZdiD8Sk8zIUVOxtwq4oWcwrcd1uno9fE/zZmUaUrFNYzbH14CPebOz9tZQw==}
+  preact@10.27.1:
+    resolution: {integrity: sha512-V79raXEWch/rbqoNc7nT9E4ep7lu+mI3+sBmfRD4i1M73R3WLYcCtdI0ibxGVf4eQL8ZIz2nFacqEC+rmnOORQ==}
 
   precinct@12.2.0:
     resolution: {integrity: sha512-NFBMuwIfaJ4SocE9YXPU/n4AcNSoFMVFjP72nvl3cx69j/ke61/hPOWFREVxLkFhhEGnA8ZuVfTqJBa+PK3b5w==}
@@ -7598,7 +7598,7 @@ snapshots:
       eth-json-rpc-filters: 6.0.1
       eventemitter3: 5.0.1
       keccak: 3.0.4
-      preact: 10.27.0
+      preact: 10.27.1
       sha.js: 2.4.12
     transitivePeerDependencies:
       - supports-color
@@ -11255,7 +11255,7 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
-  '@xstate/store@3.8.0(react@19.1.1)(solid-js@1.9.9)':
+  '@xstate/store@3.9.2(react@19.1.1)(solid-js@1.9.9)':
     optionalDependencies:
       react: 19.1.1
       solid-js: 1.9.9
@@ -13562,7 +13562,7 @@ snapshots:
 
   preact@10.26.9: {}
 
-  preact@10.27.0: {}
+  preact@10.27.1: {}
 
   precinct@12.2.0:
     dependencies:
