@@ -86,8 +86,8 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0(@types/react@19.1.11)(react@19.1.1)(xstate@5.20.2(patch_hash=cd60a6eae163806e90144605b7835f441bcc3c7b456b9ad4eb0a7215997f36a5))
       '@xstate/store':
-        specifier: ^3.8.0
-        version: 3.8.0(react@19.1.1)(solid-js@1.9.9)
+        specifier: ^3.9.2
+        version: 3.9.2(react@19.1.1)(solid-js@1.9.9)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -3352,8 +3352,8 @@ packages:
       xstate:
         optional: true
 
-  '@xstate/store@3.8.0':
-    resolution: {integrity: sha512-VO9/qAJmXrGNkT8hyOM/jgGtNzbUOwCIpnor5vnFGrQUUCo46pB5jtYuYcW2yQy2XfCuYAqD9A4J3PG6v+uO2A==}
+  '@xstate/store@3.9.2':
+    resolution: {integrity: sha512-wOMS4WNrDA3STbO8JtGnOvFdXlIG4rCRsWas7MNljFm87lQUIL3dj7yQ2Smb5WQq/M88gYLd9Ju2d+cyLBRt1Q==}
     peerDependencies:
       react: ^18.2.0 || ^19.0.0
       solid-js: ^1.7.6
@@ -10858,7 +10858,7 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
-  '@xstate/store@3.8.0(react@19.1.1)(solid-js@1.9.9)':
+  '@xstate/store@3.9.2(react@19.1.1)(solid-js@1.9.9)':
     optionalDependencies:
       react: 19.1.1
       solid-js: 1.9.9
