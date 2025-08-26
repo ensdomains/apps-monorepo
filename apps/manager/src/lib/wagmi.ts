@@ -36,7 +36,8 @@ const isDevelopment =
 export const defaultViemChain = isDevelopment ? anvil : mainnet
 
 export const wagmiConfig = createConfig({
-  ssr: false,
+  syncConnectedChain: false,
+  ssr: true,
   multiInjectedProviderDiscovery: true,
   chains: isDevelopment
     ? [addEnsContracts(mainnet), anvil]

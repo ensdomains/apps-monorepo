@@ -1,5 +1,5 @@
 import { useSelector } from '@xstate/store/react'
-import { Cross, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button, LinkButton } from '@/components/ui/button'
 import { formatExpiryTime, formatRelativeTime } from '@/utils/time'
@@ -11,7 +11,6 @@ import type {
   BlogPostNotification,
   NameExpiryNotification,
   NameTransferredNotification,
-  Notification,
 } from '../types'
 import { groupNotificationsByTime } from '../utils'
 
@@ -23,7 +22,6 @@ const NotificationWrapper = ({ children }: { children: React.ReactNode }) => (
 const NotificationHeader = ({
   children,
   timestamp,
-  onMarkAsRead,
   onRemove,
 }: {
   children?: React.ReactNode
@@ -58,7 +56,6 @@ const ActionRow = ({ children }: { children: React.ReactNode }) => (
 // Notification type components
 const NameTransferredNotificationComponent = ({
   notification,
-  onAction,
   onMarkAsRead,
   onRemove,
 }: {

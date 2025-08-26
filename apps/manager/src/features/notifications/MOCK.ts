@@ -29,7 +29,8 @@ const names = [
 ]
 
 const postSlugs = await fetch('https://ens.domains/blog/search.json')
-  .then((res) => res.json())
+  // biome-ignore lint/suspicious/noExplicitAny: Quick mock
+  .then((res) => res.json() as any)
   .then((data) => data.map((post: { slug: string }) => post.slug))
 
 const getPostMetadata = async (slug: string) => {

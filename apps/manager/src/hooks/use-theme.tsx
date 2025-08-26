@@ -1,5 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 
+const _applyTheme = (newTheme: string) => {
+  const root = document.documentElement
+
+  if (newTheme === 'dark') {
+    root.classList.add('dark')
+  } else {
+    root.classList.remove('dark')
+  }
+
+  localStorage.setItem('theme', newTheme)
+}
+
 export const useTheme = () => {
   const [theme, setTheme] = useState('light')
 
@@ -17,10 +29,12 @@ export const useTheme = () => {
     }
 
     const savedTheme = localStorage.getItem('theme')
-    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
-      .matches
-      ? 'dark'
-      : 'light'
+    // const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
+    //   .matches
+    //   ? 'dark'
+    //   : 'light'
+    // Always default to light theme until we have a proper dark mode
+    const systemTheme = 'light'
 
     // Handle both quoted and unquoted values from localStorage
     let cleanTheme = savedTheme

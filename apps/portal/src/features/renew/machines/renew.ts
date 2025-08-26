@@ -97,7 +97,7 @@ export const renewMachine = setup({
         onError: {
           target: 'Failure',
           actions: [
-            assign({ error: ({ event }) => event.error }),
+            assign({ error: ({ event }) => event.error as WagmiClientError | PriceResolutionError }),
             log(({ event }) => `Price resolution failed: ${event.error}`),
           ],
         },
