@@ -11,7 +11,8 @@ import {
 } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { Web3AuthProvider } from '@web3auth/modal/react'
-import { WagmiProvider } from '@web3auth/modal/react/wagmi'
+import { WagmiProvider } from 'wagmi'
+import { wagmiConfig } from '@/lib/wagmi'
 import type { ReactNode } from 'react'
 import { Layout } from '@/components/Layout'
 import web3AuthContextConfig from '@/lib/web3Auth/web3AuthContext'
@@ -22,7 +23,7 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
     <Web3AuthProvider config={web3AuthContextConfig}>
       <QueryClientProvider client={queryClient}>
-        <WagmiProvider>
+        <WagmiProvider config={wagmiConfig}>
           <RainbowKitProvider>{children}</RainbowKitProvider>
         </WagmiProvider>
       </QueryClientProvider>
@@ -66,7 +67,6 @@ function RootComponent() {
           <Outlet />
         </Layout>
       </ProvidersWrapper>
-
       <TanStackRouterDevtools position="bottom-right" />
     </RootDocument>
   )
