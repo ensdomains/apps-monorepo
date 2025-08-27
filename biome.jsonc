@@ -11,8 +11,8 @@
       "apps/**",
       "packages/**",
       "!**/*.gen.ts",
-      "!**/node_modules/**",
-      "!**/dist/**"
+      "!**/node_modules",
+      "!**/dist"
     ]
   },
   "formatter": {
