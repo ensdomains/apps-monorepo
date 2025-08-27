@@ -61,29 +61,6 @@ const resolverColumns: ColumnDef<WithTimestamp<ResolverEvent>>[] = [
   },
 ]
 
-const Owner = ({ owner }: { owner: Address }) => {
-  const { data: ensName, isLoading } = useEnsName({
-    address: owner,
-    universalResolverAddress: getChainContractAddress({
-      chain: mainnet,
-      contract: 'ensUniversalResolver',
-    }),
-  })
-
-  if (isLoading) return <div>Loading...</div>
-
-  if (ensName) {
-    return (
-      <>
-        <CopyableRecord value={ensName} />
-        <CopyableRecord value={owner} />
-      </>
-    )
-  } else {
-    return <CopyableRecord value={owner} />
-  }
-}
-
 const OwnerTableDisplay = ({ owner }: { owner: Address }) => {
   const { data: ensName, isLoading } = useEnsName({
     address: owner,
