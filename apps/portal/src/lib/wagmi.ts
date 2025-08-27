@@ -5,15 +5,29 @@ import {
   injectedWallet,
   metaMaskWallet,
 } from '@rainbow-me/rainbowkit/wallets'
-import { createClient, type HttpTransport, http } from 'viem'
+import { createClient, type HttpTransport, http, zeroAddress } from 'viem'
 import { mainnet } from 'viem/chains'
 import { createConfig } from 'wagmi'
+
+const mainnetWithEns = addEnsContracts(mainnet)
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: false,
   multiInjectedProviderDiscovery: true,
-  chains: [addEnsContracts(mainnet)],
+  chains: [
+    {
+      ...mainnetWithEns,
+      contracts: {
+        ...mainnetWithEns.contracts,
+        ensL2EthRegistrar: { address: zeroAddress },
+      },
+      subgraphs: {
+        ...mainnetWithEns.subgraphs,
+        ens: { url: 'https://api.alpha.blue.ensnode.io/subgraph' },
+      },
+    },
+  ],
   connectors: connectorsForWallets(
     [
       {
@@ -26,9 +40,7 @@ export const wagmiConfig = createConfig({
   client: ({ chain }) => {
     return createClient<HttpTransport, typeof chain>({
       chain,
-      transport: http(
-        'https://lb.drpc.org/ogrpc?network=ethereum&dkey=AgBISc2US0WgjMYhz9MRMJZsJaE8hzcR76fgOpXEh2H0',
-      ),
+      transport: http('https://ethereum-rpc.publicnode.com'),
     })
   },
 })

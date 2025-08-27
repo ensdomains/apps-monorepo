@@ -3,7 +3,7 @@ import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import { getAvailable } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import { assign, createActor, log, setup } from 'xstate'
-import { safeGetClient, WagmiClientError } from '@/lib/wagmi/helpers'
+import { safeGetClient, type WagmiClientError } from '@/lib/wagmi/helpers'
 
 export class NameAvailabilityError extends TaggedError(
   'NameAvailabilityError',
@@ -94,7 +94,8 @@ export const searchMachine = setup({
           target: 'Error',
           actions: [
             assign({
-              error: ({ event }) => event.error as WagmiClientError | NameAvailabilityError,
+              error: ({ event }) =>
+                event.error as WagmiClientError | NameAvailabilityError,
               isAvailable: (_) => undefined,
             }),
             log(({ event }) => `Availability check failed: ${event.error}`),

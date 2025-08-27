@@ -43,7 +43,7 @@ export function RegisterDrawer({
 }: RegisterDrawerProps) {
   const [open, setOpen] = React.useState(false)
   const [selectedWallet, setSelectedWallet] = React.useState<string>('coinbase')
-  const [emailPhone, setEmailPhone] = React.useState('')
+  const [_emailPhone, setEmailPhone] = React.useState('')
   const isDesktop = useMediaQuery('(min-width: 768px)')
 
   // Wagmi hooks for wallet connection
@@ -102,6 +102,8 @@ export function RegisterDrawer({
     // TODO: Implement social sign-in logic
     console.log('Signing in with:', provider)
   }
+
+  const emailPhone = React.useId()
 
   const content = (
     <div className="space-y-6">
@@ -256,7 +258,7 @@ export function RegisterDrawer({
 
           {/* Email/Phone Input */}
           <div className="space-y-2">
-            <Label htmlFor="email-phone" className="sr-only">
+            <Label htmlFor={emailPhone} className="sr-only">
               Email or phone number
             </Label>
             <div className="relative">
@@ -265,7 +267,7 @@ export function RegisterDrawer({
                 <MailIcon className="h-4 w-4 text-muted-foreground" />
               </div>
               <Input
-                id="email-phone"
+                id={emailPhone}
                 type="text"
                 placeholder="Enter your email or phone number"
                 value={emailPhone}

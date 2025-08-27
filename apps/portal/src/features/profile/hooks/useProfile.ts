@@ -24,7 +24,12 @@ export const getProfile = ResultFn(async function* (name: string) {
   )
 
   const records = yield* await fromPromise(
-    getRecords(client, { name, ...subgraphRecords }),
+    getRecords(client, {
+      name,
+      ...subgraphRecords,
+      contentHash: true,
+      abi: true,
+    }),
     (e) => new RecordsError({ cause: e }),
   )
 

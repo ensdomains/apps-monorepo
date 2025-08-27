@@ -1,15 +1,15 @@
-import {
-  type DataTag,
-  type DefinedInitialDataOptions,
-  type InitialDataFunction,
-  type OmitKeyof,
-  type QueryFunctionContext,
-  type SkipToken,
-  type UndefinedInitialDataOptions,
-  type UnusedSkipTokenOptions,
-  type UseQueryOptions,
+import type {
+  DataTag,
+  DefinedInitialDataOptions,
+  InitialDataFunction,
+  OmitKeyof,
+  QueryFunctionContext,
+  SkipToken,
+  UndefinedInitialDataOptions,
+  UnusedSkipTokenOptions,
+  UseQueryOptions,
 } from '@tanstack/react-query'
-import { type Result, type ResultAsync } from 'neverthrow'
+import type { Result, ResultAsync } from 'neverthrow'
 
 export type ResultError = { _tag: string }
 export type GenericQueryKey = readonly [string, Record<string, unknown>?]
