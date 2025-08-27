@@ -8,7 +8,7 @@ import {
   TrashIcon,
   XIcon,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { RecordsTable } from '@/components/organisms/RecordsTable/RecordsTable'
 import { Button } from '@/components/ui/button'
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
@@ -29,6 +29,8 @@ export const RecordList = ({
     () => Object.keys(rowSelection).length,
     [rowSelection],
   )
+
+  const searchRecordsId = useId()
 
   return (
     <>
@@ -70,11 +72,11 @@ export const RecordList = ({
           </div>
         ) : (
           <div className="flex flex-row gap-2 w-full bg-white  rounded-sm p-2 h-10">
-            <label htmlFor="search-records" aria-label="Search records">
+            <label htmlFor={searchRecordsId} aria-label="Search records">
               <SearchIcon />
             </label>
             <input
-              id="search-records"
+              id={searchRecordsId}
               className="w-full "
               placeholder="Search records..."
             />

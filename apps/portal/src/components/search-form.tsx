@@ -1,17 +1,18 @@
 import { Search } from 'lucide-react'
-
+import { useId } from 'react'
 import { Label } from '@/components/ui/label'
 import { SidebarInput } from '@/components/ui/sidebar'
 
 export function SearchForm({ ...props }: React.ComponentProps<'form'>) {
+  const searchId = useId()
   return (
     <form {...props}>
       <div className="relative">
-        <Label htmlFor="search" className="sr-only">
+        <Label htmlFor={searchId} className="sr-only">
           Search
         </Label>
         <SidebarInput
-          id="search"
+          id={searchId}
           placeholder="Type to search..."
           className="h-8 pl-7"
         />
