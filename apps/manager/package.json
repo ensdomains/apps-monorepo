@@ -50,7 +50,7 @@
     "tailwindcss": "^4.1.12",
     "vaul": "^1.1.2",
     "viem": "^2.35.1",
-    "wagmi": "^2.16.6",
+    "wagmi": "^2.16.8",
     "xstate": "catalog:"
   },
   "devDependencies": {
