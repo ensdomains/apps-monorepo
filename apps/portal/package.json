@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@ens-apps/utils": "workspace:*",
-    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@a96ae22",
+    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@3395fae",
     "@ensdomains/locales": "workspace:^",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-avatar": "^1.1.10",

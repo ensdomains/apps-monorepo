@@ -1,15 +1,15 @@
-import { addEnsContracts } from '@ensdomains/ensjs'
+import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { connectorsForWallets } from '@rainbow-me/rainbowkit'
 import {
   frameWallet,
   injectedWallet,
   metaMaskWallet,
 } from '@rainbow-me/rainbowkit/wallets'
-import { createClient, type HttpTransport, http, zeroAddress } from 'viem'
+import { createClient, type HttpTransport, http } from 'viem'
 import { mainnet } from 'viem/chains'
 import { createConfig } from 'wagmi'
 
-const mainnetWithEns = addEnsContracts(mainnet)
+const mainnetWithEns = extendChainWithEns(mainnet)
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
@@ -18,10 +18,6 @@ export const wagmiConfig = createConfig({
   chains: [
     {
       ...mainnetWithEns,
-      contracts: {
-        ...mainnetWithEns.contracts,
-        ensL2EthRegistrar: { address: zeroAddress },
-      },
       subgraphs: {
         ...mainnetWithEns.subgraphs,
         ens: { url: 'https://api.alpha.blue.ensnode.io/subgraph' },
@@ -40,7 +36,7 @@ export const wagmiConfig = createConfig({
   client: ({ chain }) => {
     return createClient<HttpTransport, typeof chain>({
       chain,
-      transport: http('https://ethereum-rpc.publicnode.com'),
+      transport: http(),
     })
   },
 })
