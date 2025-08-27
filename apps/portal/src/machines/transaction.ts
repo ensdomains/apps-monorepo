@@ -71,7 +71,9 @@ export const transactionMachine = setup({
         onError: {
           target: 'Error',
           actions: [
-            assign({ error: ({ event }) => event.error as TransactionMachineError }),
+            assign({
+              error: ({ event }) => event.error as TransactionMachineError,
+            }),
             log(({ event }) => `Transaction failed to send: ${event.error}`),
           ],
         },

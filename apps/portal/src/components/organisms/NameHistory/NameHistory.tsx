@@ -3,7 +3,10 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { DataTable } from '@/components/molecules/DataTable/DataTable'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
-import { type GetNameHistoryError, useNameHistory } from '@/features/profile/hooks/useNameHistory'
+import {
+  type GetNameHistoryError,
+  useNameHistory,
+} from '@/features/profile/hooks/useNameHistory'
 
 type ResolverEventWithTimestamp = ResolverEvent & {
   timestamp?: bigint
@@ -61,10 +64,12 @@ const EventTable = ({ events }: { events: ResolverEvent[] }) => {
   if (error || !timestamps)
     return <div>Failed to fetch block timestamps: {error?.message}</div>
 
-  const data = events.map((ev) => ({
-    ...ev,
-    timestamp: timestamps.get(BigInt(ev.blockNumber)),
-  })).toReversed()
+  const data = events
+    .map((ev) => ({
+      ...ev,
+      timestamp: timestamps.get(BigInt(ev.blockNumber)),
+    }))
+    .toReversed()
 
   return <DataTable data={data} columns={columns} />
 }
@@ -72,9 +77,9 @@ const EventTable = ({ events }: { events: ResolverEvent[] }) => {
 export const NameHistory = ({ name }: { name: string }) => {
   const { data, isLoading, error } = useNameHistory({ name })
 
-
   if (isLoading) return <div>Loading...</div>
-  if (error) return <div>Error: {(error as GetNameHistoryError).cause?.message}</div>
+  if (error)
+    return <div>Error: {(error as GetNameHistoryError).cause?.message}</div>
 
   return (
     <div className="flex flex-col gap-1 p-6 border border-secondary rounded-lg w-full">

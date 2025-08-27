@@ -3,6 +3,7 @@ import {
   FileCodeIcon,
   FileSpreadsheetIcon,
   PersonStandingIcon,
+  UserLockIcon,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -33,6 +34,13 @@ const itemGroups = [
       title: 'Resolver',
       url: '/$name/resolver',
       icon: FileCodeIcon,
+    },
+  ],
+  [
+    {
+      title: 'Ownership',
+      url: '/$name/ownership',
+      icon: UserLockIcon,
     },
   ],
 ] as const

@@ -8,11 +8,11 @@ import { safeGetClient } from '@/lib/wagmi/helpers'
 
 class SubgraphError extends TaggedError('SubgraphError')<{
   cause: unknown
-}> { }
+}> {}
 
 class RecordsError extends TaggedError('RecordsError')<{
   cause: unknown
-}> { }
+}> {}
 
 export const getProfile = ResultFn(async function* (name: string) {
   // const client = yield* fromSync(() => getClient(wagmiConfig), ClientError.from)
@@ -51,4 +51,3 @@ export const getProfileQueryOptions = (name: string) =>
     queryKey: profileQueryKey({ name }),
     queryFn: ({ queryKey: [, { name }] }) => getProfile(name),
   })
-
