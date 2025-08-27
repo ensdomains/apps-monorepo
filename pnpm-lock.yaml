@@ -25,6 +25,9 @@ importers:
       knip:
         specifier: ^5.63.0
         version: 5.63.0(@types/node@24.3.0)(typescript@5.9.2)
+      wrangler:
+        specifier: ^4.32.0
+        version: 4.32.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
 
   apps/manager:
     dependencies:
@@ -191,9 +194,6 @@ importers:
       web-vitals:
         specifier: ^5.1.0
         version: 5.1.0
-      wrangler:
-        specifier: ^4.32.0
-        version: 4.32.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
 
   apps/portal:
     dependencies:
@@ -320,7 +320,7 @@ importers:
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: ^1.11.7
-        version: 1.11.7(bufferutil@4.0.9)(rollup@4.47.1)(utf-8-validate@5.0.10)(vite@7.1.3(@types/node@24.3.0)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.4))(workerd@1.20250816.0)
+        version: 1.11.7(bufferutil@4.0.9)(rollup@4.47.1)(utf-8-validate@5.0.10)(vite@7.1.3(@types/node@24.3.0)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.4))(workerd@1.20250816.0)(wrangler@4.32.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))
       '@ensdomains/vite-plugin-i18next-loader':
         specifier: ^4.0.3
         version: 4.0.3(vite@7.1.3(@types/node@24.3.0)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.4))
@@ -7144,6 +7144,25 @@ snapshots:
       ws: 8.18.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - '@cloudflare/workers-types'
+      - bufferutil
+      - rollup
+      - utf-8-validate
+      - workerd
+
+  '@cloudflare/vite-plugin@1.11.7(bufferutil@4.0.9)(rollup@4.47.1)(utf-8-validate@5.0.10)(vite@7.1.3(@types/node@24.3.0)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.4))(workerd@1.20250816.0)(wrangler@4.32.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))':
+    dependencies:
+      '@cloudflare/unenv-preset': 2.6.2(unenv@2.0.0-rc.19)(workerd@1.20250816.0)
+      '@mjackson/node-fetch-server': 0.6.1
+      '@rollup/plugin-replace': 6.0.2(rollup@4.47.1)
+      get-port: 7.1.0
+      miniflare: 4.20250816.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      picocolors: 1.1.1
+      tinyglobby: 0.2.14
+      unenv: 2.0.0-rc.19
+      vite: 7.1.3(@types/node@24.3.0)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.4)
+      wrangler: 4.32.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      ws: 8.18.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+    transitivePeerDependencies:
       - bufferutil
       - rollup
       - utf-8-validate
