@@ -1,7 +1,14 @@
+import { cx } from 'class-variance-authority'
 import { CheckIcon, ClipboardCopyIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-export const CopyableRecord = ({ value }: { value: string | number }) => {
+export const CopyableRecord = ({
+  value,
+  className,
+}: {
+  value: string | number
+  className?: string
+}) => {
   const [copy, setCopy] = useState(false)
 
   useEffect(() => {
@@ -11,7 +18,7 @@ export const CopyableRecord = ({ value }: { value: string | number }) => {
   }, [copy, value])
 
   return (
-    <div className="flex flex-row gap-2">
+    <div className={cx('flex flex-row gap-2', className)}>
       <span className="font-mono underline decoration-dashed underline-offset-4 truncate">
         {value}
       </span>
