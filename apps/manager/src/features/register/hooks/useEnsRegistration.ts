@@ -2,9 +2,11 @@ import { useMachine } from '@xstate/react'
 import { useCallback, useEffect } from 'react'
 import { useAccountAbstraction } from '@/lib/web3Auth/useAccountAbstraction'
 import { web3AuthService } from '@/lib/web3Auth/web3AuthService'
-import {
-  RegistrationStep,
-  registrationMachine,
+import { 
+  registrationMachine, 
+  getPersistedState, 
+  persistState, 
+  clearPersistedState 
 } from '../machines/registrationMachine'
 import {
   approveTokenForRegistration,
@@ -13,11 +15,17 @@ import {
   registerDomain,
 } from '../services/nameChainContractService'
 
-export { RegistrationStep } from '../machines/registrationMachine'
-
 export function useEnsRegistration(initialName?: string) {
-  const [state, send] = useMachine(registrationMachine)
+  const [state, send] = useMachine(registrationMachine, {
+    snapshot: getPersistedState(),
+  })
+
   const { smartAccountInfo, refreshSmartAccountInfo } = useAccountAbstraction()
+
+  // Persist state changes
+  useEffect(() => {
+    persistState(state)
+  }, [state])
 
   useEffect(() => {
     if (initialName && initialName !== state.context.name) {
@@ -41,7 +49,7 @@ export function useEnsRegistration(initialName?: string) {
   }, [state.context.duration, send])
 
   useEffect(() => {
-    if (state.context.step === RegistrationStep.WAITING_FOR_COMMIT_TIME) {
+    if (state.matches('waitingForCommitTime')) {
       let remainingTime = state.context.remainingTime
       if (remainingTime <= 0 && state.context.commitTimestamp > 0) {
         const now = Math.floor(Date.now() / 1000)
@@ -70,7 +78,7 @@ export function useEnsRegistration(initialName?: string) {
       return () => clearInterval(timer)
     }
   }, [
-    state.context.step,
+    state.matches('waitingForCommitTime'),
     state.context.commitTimestamp,
     state.context.remainingTime,
     send,
@@ -78,7 +86,7 @@ export function useEnsRegistration(initialName?: string) {
 
   useEffect(() => {
     if (
-      state.context.step === RegistrationStep.MAKE_COMMITMENT &&
+      state.matches('makeCommitment') &&
       state.context.name &&
       smartAccountInfo?.address &&
       state.context.duration > 0
@@ -130,7 +138,7 @@ export function useEnsRegistration(initialName?: string) {
       handleCommitment()
     }
   }, [
-    state.context.step,
+    state.matches('makeCommitment'),
     state.context.name,
     state.context.duration,
     send,
@@ -139,7 +147,7 @@ export function useEnsRegistration(initialName?: string) {
 
   useEffect(() => {
     if (
-      state.context.step === RegistrationStep.REGISTER &&
+      state.matches('registerInProgress') &&
       state.context.name &&
       state.context.ownerAddress &&
       state.context.commitment &&
@@ -221,7 +229,7 @@ export function useEnsRegistration(initialName?: string) {
       handleRegistration()
     }
   }, [
-    state.context.step,
+    state.matches('registerInProgress'),
     state.context.name,
     state.context.ownerAddress,
     state.context.commitment,
@@ -234,7 +242,6 @@ export function useEnsRegistration(initialName?: string) {
   ])
 
   return {
-    step: state.context.step,
     domainName: state.context.name,
     duration: state.context.duration,
     remainingTime: state.context.remainingTime,
@@ -251,6 +258,12 @@ export function useEnsRegistration(initialName?: string) {
       stablecoinBalances: smartAccountInfo?.stablecoinBalances || [],
     },
     refreshSmartAccountInfo,
+    // State matching helpers
+    isCommitmentError: state.matches('commitmentError'),
+    isRegistrationError: state.matches('registrationError'),
+    isWaitingForCommitTime: state.matches('waitingForCommitTime'),
+    isRegisterSuccess: state.matches('registerSuccess'),
+    isAutorenewal: state.matches('autorenewal'),
     setDuration: useCallback(
       (duration: number) => {
         send({ type: 'SET_DURATION', duration })
@@ -293,7 +306,9 @@ export function useEnsRegistration(initialName?: string) {
       send({ type: 'COMPLETE_FLOW' })
     }, [send]),
     reset: useCallback(() => {
+      clearPersistedState()
       send({ type: 'RESET' })
     }, [send]),
+    clearPersistedState,
   }
 }

@@ -1,19 +1,46 @@
 import { assign, setup } from 'xstate'
 import { CONTRACT_ADDRESSES } from '../services/nameChainContractService'
 
-const STORAGE_KEYS = {
-  COMMITMENT: 'ens_commitment',
-  SECRET: 'ens_secret',
-  NAME: 'ens_name',
-  COMMIT_TIMESTAMP: 'ens_commit_timestamp',
-  REMAINING_TIME: 'ens_remaining_time',
-  DURATION: 'ens_duration',
-  COMMIT_TX_HASH: 'ens_commit_tx_hash',
-  REGISTER_TX_HASH: 'ens_register_tx_hash',
-  OWNER_ADDRESS: 'ens_owner_address',
+// Note: Persistence is now handled by XState's built-in persistence system
+// No need for manual STORAGE_KEYS or localStorage management
+
+// Persistence utilities
+export const PERSISTENCE_KEY = 'ens_registration_machine_state'
+
+export const getPersistedState = () => {
+  if (typeof window === 'undefined') return undefined
+  
+  try {
+    const persisted = localStorage.getItem(PERSISTENCE_KEY)
+    if (persisted) {
+      return JSON.parse(persisted)
+    }
+  } catch (error) {
+    console.error('Error loading persisted state:', error)
+  }
+  return undefined
 }
 
-// Note: Pricing is now handled in UI components using getTokenPrices service
+export const persistState = (state: any) => {
+  if (typeof window === 'undefined') return
+  
+  try {
+    const snapshot = state.getPersistedSnapshot()
+    localStorage.setItem(PERSISTENCE_KEY, JSON.stringify(snapshot))
+  } catch (error) {
+    console.error('Error persisting state:', error)
+  }
+}
+
+export const clearPersistedState = () => {
+  if (typeof window === 'undefined') return
+  
+  try {
+    localStorage.removeItem(PERSISTENCE_KEY)
+  } catch (error) {
+    console.error('Error clearing persisted state:', error)
+  }
+}
 
 export enum RegistrationStep {
   PRICING = 'pricing',
@@ -39,7 +66,7 @@ interface RegistrationContext {
   remainingTime: number
   commitTxHash: string
   registerTxHash: string
-  step: RegistrationStep
+  // step: RegistrationStep  // Removed - redundant with XState state
   currencyType: 'ETH' | 'USD'
   selectedPaymentMethod?: 'crypto' | 'credit-card'
   selectedCrypto?: string
@@ -76,89 +103,7 @@ type RegistrationEvent =
   | { type: 'ERROR'; message: string }
   | { type: 'SET_TOKEN_INFO'; tokenPrice: bigint; selectedToken: string }
 
-const isBrowser = typeof window !== 'undefined'
 
-const loadSavedData = (): Partial<RegistrationContext> => {
-  const defaultData: Partial<RegistrationContext> = {
-    name: '',
-    duration: 1,
-    commitment: '',
-    secret: '',
-    commitTimestamp: 0,
-    remainingTime: 0,
-    commitTxHash: '',
-    registerTxHash: '',
-    ownerAddress: '',
-    step: RegistrationStep.PRICING,
-    currencyType: 'ETH',
-    error: '',
-    isAvailable: null,
-    tokenPrice: null,
-    selectedTokenForRegistration: null,
-  }
-
-  if (!isBrowser) return defaultData
-
-  try {
-    const saved = {
-      name: localStorage.getItem(STORAGE_KEYS.NAME) || '',
-      duration: parseInt(localStorage.getItem(STORAGE_KEYS.DURATION) || '1'),
-      commitment: localStorage.getItem(STORAGE_KEYS.COMMITMENT) || '',
-      secret: localStorage.getItem(STORAGE_KEYS.SECRET) || '',
-      commitTimestamp: parseInt(
-        localStorage.getItem(STORAGE_KEYS.COMMIT_TIMESTAMP) || '0',
-      ),
-      remainingTime: parseInt(
-        localStorage.getItem(STORAGE_KEYS.REMAINING_TIME) || '0',
-      ),
-      commitTxHash: localStorage.getItem(STORAGE_KEYS.COMMIT_TX_HASH) || '',
-      registerTxHash: localStorage.getItem(STORAGE_KEYS.REGISTER_TX_HASH) || '',
-      ownerAddress: localStorage.getItem(STORAGE_KEYS.OWNER_ADDRESS) || '',
-    }
-
-    return { ...defaultData, ...saved }
-  } catch (error) {
-    console.error('Error loading saved registration data:', error)
-    return defaultData
-  }
-}
-
-const saveToStorage = (key: string, value: string) => {
-  if (isBrowser) {
-    localStorage.setItem(key, value)
-  }
-}
-
-const clearStorage = () => {
-  if (isBrowser) {
-    Object.values(STORAGE_KEYS).forEach((key) => {
-      localStorage.removeItem(key)
-    })
-  }
-}
-
-const savedData = loadSavedData()
-const initialContext: RegistrationContext = {
-  name: savedData.name || '',
-  duration: savedData.duration || 1,
-  isAvailable: savedData.isAvailable || null,
-
-  selectedToken: CONTRACT_ADDRESSES.L2.MockUSDC, // Default to USDC
-  ownerAddress: savedData.ownerAddress || '',
-  commitment: savedData.commitment || '',
-  secret: savedData.secret || '',
-  commitTimestamp: savedData.commitTimestamp || 0,
-  remainingTime: savedData.remainingTime || 0,
-  commitTxHash: savedData.commitTxHash || '',
-  registerTxHash: savedData.registerTxHash || '',
-  step: RegistrationStep.PRICING,
-  currencyType: savedData.currencyType || 'ETH',
-  selectedPaymentMethod: savedData.selectedPaymentMethod,
-  selectedCrypto: savedData.selectedCrypto,
-  error: '',
-  tokenPrice: null,
-  selectedTokenForRegistration: null,
-}
 
 export const registrationMachine = setup({
   types: {
@@ -182,7 +127,6 @@ export const registrationMachine = setup({
       remainingTime: () => 0,
       commitTxHash: () => '',
       registerTxHash: () => '',
-      step: () => RegistrationStep.PRICING,
       selectedPaymentMethod: () => undefined,
       selectedCrypto: () => undefined,
       error: () => '',
@@ -243,7 +187,6 @@ export const registrationMachine = setup({
       commitTxHash: ({ event }) =>
         event.type === 'COMMIT_RESULT' ? event.txHash : '',
       remainingTime: () => 60, // Initialize timer to 20 seconds
-      step: () => RegistrationStep.WAITING_FOR_COMMIT_TIME,
     }),
 
     updateTimer: assign({
@@ -251,19 +194,11 @@ export const registrationMachine = setup({
         event.type === 'TIMER_TICK' ? event.remainingTime : 0,
     }),
 
-    saveTimer: ({ context }) => {
-      if (context.remainingTime > 0) {
-        saveToStorage(
-          STORAGE_KEYS.REMAINING_TIME,
-          context.remainingTime.toString(),
-        )
-      }
-    },
+
 
     setRegisterResult: assign({
       registerTxHash: ({ event }) =>
         event.type === 'REGISTER_RESULT' ? event.txHash : '',
-      step: () => RegistrationStep.REGISTER_SUCCESS,
     }),
 
     setError: assign({
@@ -274,55 +209,35 @@ export const registrationMachine = setup({
       error: () => '',
     }),
 
-    saveCommitData: ({ context }) => {
-      console.log('💾 Saving commit data to localStorage:', {
-        commitment: context.commitment,
-        secret: context.secret,
-        timestamp: context.commitTimestamp,
-        txHash: context.commitTxHash,
-        remainingTime: context.remainingTime,
-      })
-      saveToStorage(STORAGE_KEYS.COMMITMENT, context.commitment)
-      saveToStorage(STORAGE_KEYS.SECRET, context.secret)
-      saveToStorage(
-        STORAGE_KEYS.COMMIT_TIMESTAMP,
-        context.commitTimestamp.toString(),
-      )
-      saveToStorage(STORAGE_KEYS.COMMIT_TX_HASH, context.commitTxHash)
-      saveToStorage(
-        STORAGE_KEYS.REMAINING_TIME,
-        context.remainingTime.toString(),
-      )
-    },
 
-    saveRegistrationData: ({ context }) => {
-      saveToStorage(STORAGE_KEYS.REGISTER_TX_HASH, context.registerTxHash)
-    },
 
-    savePersistentData: ({ context }) => {
-      saveToStorage(STORAGE_KEYS.NAME, context.name)
-      saveToStorage(STORAGE_KEYS.DURATION, context.duration.toString())
-      saveToStorage(STORAGE_KEYS.OWNER_ADDRESS, context.ownerAddress)
-      // Note: Pricing storage removed - pricing handled in UI components
-    },
 
-    clearAllData: () => {
-      console.log('🧹 Clearing all registration data from localStorage')
-      clearStorage()
-    },
 
-    clearStateAfterSuccess: () => {
-      console.log('✨ Clearing state after successful registration')
-      clearStorage()
-    },
 
-    clearStateAfterError: () => {
-      console.log('🔄 Clearing state after registration error')
-      clearStorage()
-    },
+
+
   },
 }).createMachine({
-  context: initialContext,
+  context: {
+    name: '',
+    duration: 1,
+    isAvailable: null,
+
+    selectedToken: CONTRACT_ADDRESSES.L2.MockUSDC, // Default to USDC
+    ownerAddress: '',
+    commitment: '',
+    secret: '',
+    commitTimestamp: 0,
+    remainingTime: 0,
+    commitTxHash: '',
+    registerTxHash: '',
+    currencyType: 'ETH',
+    selectedPaymentMethod: undefined,
+    selectedCrypto: undefined,
+    error: '',
+    tokenPrice: null,
+    selectedTokenForRegistration: null,
+  },
   initial: 'pricing',
 
   on: {
@@ -344,22 +259,22 @@ export const registrationMachine = setup({
             console.log(
               `  Previous domain: "${context.name}" → New domain: "${event.name}"`,
             )
-            clearStorage()
+            // This action is no longer needed as persistence handles clearing
+            // clearStorage()
           },
           'resetData',
-          'savePersistentData',
         ],
       },
       {
         // Default case - just set the name
-        actions: ['setName', 'savePersistentData'],
+        actions: ['setName'],
       },
     ],
     SET_DURATION: {
-      actions: ['setDuration', 'savePersistentData'],
+      actions: ['setDuration'],
     },
     SET_OWNER_ADDRESS: {
-      actions: ['setOwnerAddress', 'savePersistentData'],
+      actions: ['setOwnerAddress'],
     },
     SET_CURRENCY: {
       actions: ['setCurrency'],
@@ -380,16 +295,17 @@ export const registrationMachine = setup({
       actions: ['setError'],
     },
     COMPLETE_FLOW: {
-      actions: ['clearAllData'], // Clear localStorage when user completes the flow
+      // No actions needed - persistence handles state management
     },
     RESET: {
       target: '.pricing',
-      actions: ['clearAllData'],
+      // No actions needed - persistence handles state management
     },
   },
 
   states: {
     pricing: {
+      tags: ['pricing', 'idle', 'form'],
       entry: ['clearError'],
       always: [
         {
@@ -449,25 +365,16 @@ export const registrationMachine = setup({
       on: {
         CONFIRM_PAYMENT: {
           target: 'makeCommitment',
-          actions: [
-            assign({
-              step: () => RegistrationStep.MAKE_COMMITMENT,
-            }),
-          ],
         },
       },
     },
 
     makeCommitment: {
-      entry: [
-        assign({
-          step: () => RegistrationStep.MAKE_COMMITMENT,
-        }),
-      ],
+      tags: ['commitment', 'loading', 'pending', 'transaction'],
       on: {
         COMMIT_RESULT: {
           target: 'waitingForCommitTime',
-          actions: ['setCommitResult', 'saveCommitData'],
+          actions: ['setCommitResult'],
         },
         ERROR: {
           target: 'commitmentError',
@@ -477,12 +384,7 @@ export const registrationMachine = setup({
     },
 
     commitmentError: {
-      entry: [
-        assign({
-          step: () => RegistrationStep.COMMITMENT_ERROR,
-        }),
-        'clearStateAfterError', // Clear state after error for fresh start
-      ],
+      tags: ['error', 'commitment-error', 'recoverable', 'form'],
       on: {
         RETRY_COMMIT: {
           target: 'makeCommitment',
@@ -490,42 +392,29 @@ export const registrationMachine = setup({
         },
         RESET: {
           target: 'pricing',
-          actions: ['clearAllData', 'clearError'],
+          actions: ['clearError'],
         },
       },
     },
 
     waitingForCommitTime: {
-      entry: [
-        assign({
-          step: () => RegistrationStep.WAITING_FOR_COMMIT_TIME,
-        }),
-      ],
+      tags: ['waiting', 'timer', 'pending', 'countdown'],
       on: {
         TIMER_TICK: {
-          actions: ['updateTimer', 'saveTimer'],
+          actions: ['updateTimer'],
         },
         TIMER_COMPLETE: {
           target: 'registerInProgress',
-          actions: [
-            assign({
-              step: () => RegistrationStep.REGISTER,
-            }),
-          ],
         },
       },
     },
 
     registerInProgress: {
-      entry: [
-        assign({
-          step: () => RegistrationStep.REGISTER,
-        }),
-      ],
+      tags: ['registration', 'loading', 'pending', 'transaction'],
       on: {
         REGISTER_RESULT: {
           target: 'registerSuccess',
-          actions: ['setRegisterResult', 'saveRegistrationData'],
+          actions: ['setRegisterResult'],
         },
         ERROR: {
           target: 'registrationError',
@@ -535,12 +424,7 @@ export const registrationMachine = setup({
     },
 
     registrationError: {
-      entry: [
-        assign({
-          step: () => RegistrationStep.REGISTRATION_ERROR,
-        }),
-        'clearStateAfterError', // Clear state after error for fresh start
-      ],
+      tags: ['error', 'registration-error', 'recoverable', 'form'],
       on: {
         RETRY_COMMIT: {
           target: 'makeCommitment',
@@ -548,39 +432,47 @@ export const registrationMachine = setup({
         },
         RESET: {
           target: 'pricing',
-          actions: ['clearAllData', 'clearError'],
+          actions: ['clearError'],
         },
       },
     },
 
     registerSuccess: {
-      entry: [
-        assign({
-          step: () => RegistrationStep.REGISTER_SUCCESS,
-        }),
-        'clearStateAfterSuccess', // Clear state immediately after success
-      ],
+      tags: ['success', 'completed', 'idle', 'form'],
       on: {
         SETUP_AUTORENEWAL: {
           target: 'autorenewal',
         },
         COMPLETE_FLOW: {
-          actions: ['clearAllData'],
+          // No actions needed - persistence handles state management
         },
       },
     },
 
     autorenewal: {
-      entry: [
-        assign({
-          step: () => RegistrationStep.AUTORENEWAL,
-        }),
-      ],
+      tags: ['autorenewal', 'setup', 'idle', 'form'],
       on: {
         COMPLETE_FLOW: {
-          actions: ['clearAllData'],
+          // No actions needed - persistence handles state management
         },
       },
     },
+  },
+  persistence: {
+    // Configure persistence to save state to localStorage
+    // This will persist the state of the machine across page reloads
+    // and will be loaded when the machine is created.
+    // The 'storage' option specifies the storage mechanism.
+    // 'localStorage' is the default, but you can use 'sessionStorage' or a custom implementation.
+    // 'storage' can also be an object with 'key' and 'serialize' properties.
+    // For example, to use sessionStorage:
+    // persistence: {
+    //   storage: {
+    //     key: 'registrationMachineState',
+    //     serialize: (state) => JSON.stringify(state),
+    //   },
+    // },
+    // If you want to persist to a custom storage, you'd implement it here.
+    // For now, we'll rely on XState's default persistence.
   },
 })
