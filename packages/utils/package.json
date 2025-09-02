@@ -9,14 +9,14 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"No tests for utils package\""
   },
   "devDependencies": {
-    "typescript": "^5.7.2"
+    "typescript": "^5.9.2"
   },
   "keywords": [],
   "dependencies": {
-    "@tanstack/react-query": "^5.83.0",
+    "@tanstack/react-query": "^5.85.5",
     "neverthrow": "^8.2.0",
     "xstate": "catalog:"
   }

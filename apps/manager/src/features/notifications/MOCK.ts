@@ -43,7 +43,7 @@ const getPostMetadata = async (slug: string) => {
 
     assets: {
       post: {
-        ['cover-thumb']?: {
+        'cover-thumb'?: {
           src: string
         }
         cover?: {
