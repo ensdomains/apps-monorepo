@@ -206,9 +206,6 @@ importers:
       '@ensdomains/locales':
         specifier: workspace:^
         version: link:../../packages/locales
-      '@ensdomains/thorin':
-        specifier: 1.0.0-beta.28
-        version: 1.0.0-beta.28(@vanilla-extract/css@1.17.1)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       '@radix-ui/react-accordion':
         specifier: ^1.2.12
         version: 1.2.12(@types/react-dom@19.1.9(@types/react@19.1.12))(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -757,13 +754,6 @@ packages:
     engines: {node: '>=22'}
     peerDependencies:
       viem: ^2.9.2
-
-  '@ensdomains/thorin@1.0.0-beta.28':
-    resolution: {integrity: sha512-t+/n5c9e923lUR/YH0TIO9cON+xIhGA+qKOqaY5bF3mv7kC3Ob2+c96PYlyz3aa44zbNVv3J7lqxCvEWtRpRRw==}
-    engines: {node: '>=20'}
-    peerDependencies:
-      react: ^18
-      react-dom: ^18
 
   '@ensdomains/vite-plugin-i18next-loader@4.0.3':
     resolution: {integrity: sha512-5GLYnA5krGIE770DjLBR87hfLpmTJQJea/pIXLufit/mC+dsyicNbOKMOwR796s+8vKvE8AtARtGtBa4n9JBEQ==}
@@ -3084,11 +3074,6 @@ packages:
 
   '@vanilla-extract/private@1.0.9':
     resolution: {integrity: sha512-gT2jbfZuaaCLrAxwXbRgIhGhcXbRZCG3v4TTUnjw0EJ7ArdBRxkq4msNJkbuRkCgfIK5ATmprB5t9ljvLeFDEA==}
-
-  '@vanilla-extract/sprinkles@1.6.3':
-    resolution: {integrity: sha512-oCHlQeYOBIJIA2yWy2GnY5wE2A7hGHDyJplJo4lb+KEIBcJWRnDJDg8ywDwQS5VfWJrBBO3drzYZPFpWQjAMiQ==}
-    peerDependencies:
-      '@vanilla-extract/css': ^1.0.0
 
   '@vanilla-extract/sprinkles@1.6.4':
     resolution: {integrity: sha512-lW3MuIcdIeHKX81DzhTnw68YJdL1ial05exiuvTLJMdHXQLKcVB93AncLPajMM6mUhaVVx5ALZzNHMTrq/U9Hg==}
@@ -5634,12 +5619,6 @@ packages:
       '@types/react':
         optional: true
 
-  react-transition-state@2.3.1:
-    resolution: {integrity: sha512-Z48el73x+7HUEM131dof9YpcQ5IlM4xB+pKWH/lX3FhxGfQaNTZa16zb7pWkC/y5btTZzXfCtglIJEGc57giOw==}
-    peerDependencies:
-      react: '>=16.8.0'
-      react-dom: '>=16.8.0'
-
   react@19.1.1:
     resolution: {integrity: sha512-w8nqGImo45dmMIfljjMwOGtbmC/mk4CMYhWIicdSflH91J9TyCyczcPFXJzrZ/ZXcgGRFeP6BU0BEJTw6tZdfQ==}
     engines: {node: '>=0.10.0'}
@@ -7320,17 +7299,6 @@ snapshots:
       pako: 2.1.0
       ts-pattern: 5.7.0
       viem: 2.37.1(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76)
-
-  '@ensdomains/thorin@1.0.0-beta.28(@vanilla-extract/css@1.17.1)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
-    dependencies:
-      '@vanilla-extract/sprinkles': 1.6.3(@vanilla-extract/css@1.17.1)
-      clsx: 2.1.1
-      react: 19.1.1
-      react-dom: 19.1.1(react@19.1.1)
-      react-transition-state: 2.3.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
-      ts-pattern: 5.7.0
-    transitivePeerDependencies:
-      - '@vanilla-extract/css'
 
   '@ensdomains/vite-plugin-i18next-loader@4.0.3(vite@7.1.4(@types/node@24.3.0)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.20.3))':
     dependencies:
@@ -9910,10 +9878,6 @@ snapshots:
   '@vanilla-extract/private@1.0.6': {}
 
   '@vanilla-extract/private@1.0.9': {}
-
-  '@vanilla-extract/sprinkles@1.6.3(@vanilla-extract/css@1.17.1)':
-    dependencies:
-      '@vanilla-extract/css': 1.17.1
 
   '@vanilla-extract/sprinkles@1.6.4(@vanilla-extract/css@1.17.3)':
     dependencies:
@@ -13123,11 +13087,6 @@ snapshots:
       tslib: 2.8.1
     optionalDependencies:
       '@types/react': 19.1.12
-
-  react-transition-state@2.3.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
-    dependencies:
-      react: 19.1.1
-      react-dom: 19.1.1(react@19.1.1)
 
   react@19.1.1: {}
 
