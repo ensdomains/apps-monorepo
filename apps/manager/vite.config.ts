@@ -7,9 +7,12 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import viteReact from '@vitejs/plugin-react-swc'
 import { defineConfig } from 'vite'
 
+import { nodePolyfills } from 'vite-plugin-node-polyfills'
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
+    nodePolyfills(),
     tanstackRouter({
       autoCodeSplitting: true,
       routeFileIgnorePattern: '.((css|const).ts)',

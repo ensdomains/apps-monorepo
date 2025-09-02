@@ -1,6 +1,6 @@
 import { WEB3AUTH_NETWORK } from '@web3auth/modal'
 import type { Web3AuthContextConfig } from '@web3auth/modal/react'
-import { namechainChain } from './chains'
+import { namechainChain } from '../chains'
 
 const clientId = import.meta.env.VITE_WEB3AUTH_CLIENT_ID
 

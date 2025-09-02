@@ -15,9 +15,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { Web3AuthConnect } from '@/components/Web3AuthConnect'
 import { NotificationsDropdown } from '@/features/notifications/components'
 import { useTheme } from '@/hooks/use-theme'
+import { ParaConnectButton } from '@/lib/Para/ParaConnectButton'
 
 const ConnectedContent = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false)
@@ -37,7 +37,7 @@ const ConnectedContent = () => {
       </Popover>
 
       {/* User Profile Dropdown */}
-      <Web3AuthConnect />
+      <ParaConnectButton />
     </div>
   )
 }
@@ -45,7 +45,7 @@ const ConnectedContent = () => {
 const DisconnectedContent = () => {
   return (
     <div className="mr-6 flex items-center gap-4">
-      <Web3AuthConnect />
+      <ParaConnectButton />
     </div>
   )
 }

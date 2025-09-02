@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { type ChainConfig, chains } from '@/lib/web3Auth/chains'
+import { type ChainConfig, chains } from '@/lib/chains'
 import { web3AuthService } from '@/lib/web3Auth/web3AuthService'
 
 export function SwitchChain() {

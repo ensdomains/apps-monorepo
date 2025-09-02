@@ -12,7 +12,7 @@ import {
 import { ERC20_ABI } from '@/features/register/services/nameChainContractService'
 import { STABLECOINS } from '@/features/register/utils'
 import { defaultViemChain } from '@/lib/wagmi'
-import { type ChainConfig, chains } from './chains'
+import { type ChainConfig, chains } from '../chains'
 
 export interface Web3AuthUserInfo {
   name?: string

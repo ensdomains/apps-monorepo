@@ -7,6 +7,12 @@ export interface ChainConfig extends CustomChainConfig {
   viemChain: Chain
 }
 
+export const viemNamechainChain = {
+  ...anvil,
+  id: 31338,
+  name: 'Namechain',
+}
+
 export const chains: {
   [key: string]: ChainConfig
 } = {

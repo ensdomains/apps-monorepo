@@ -20,6 +20,9 @@
   "dependencies": {
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/ensjs": "^4.0.2",
+    "@getpara/viem-v2-integration": "2.0.0-alpha.51",
+    "@getpara/wagmi-v2-integration": "2.0.0-alpha.51",
+    "@getpara/web-sdk": "2.0.0-alpha.51",
     "@radix-ui/react-collapsible": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-dropdown-menu": "^2.1.15",
