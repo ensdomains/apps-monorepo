@@ -1,6 +1,5 @@
 /// <reference types="vite/client" />
 
-import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import rainbowKitCss from '@rainbow-me/rainbowkit/styles.css?url'
 import type { QueryClient } from '@tanstack/react-query'
 import {
@@ -13,13 +12,17 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import type { ReactNode } from 'react'
 import { WagmiProvider } from 'wagmi'
 import { Layout } from '@/components/Layout'
+import { WalletModal } from '@/features/wallet/components/Modal'
 import { wagmiConfig } from '@/lib/wagmi'
 import appCss from '@/styles/index.css?url'
 
 const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
     <WagmiProvider config={wagmiConfig}>
-      <RainbowKitProvider>{children}</RainbowKitProvider>
+      <QueryClientProvider client={queryClient}>
+        {children}
+        <WalletModal />
+      </QueryClientProvider>
     </WagmiProvider>
   )
 }

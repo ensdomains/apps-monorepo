@@ -1,4 +1,3 @@
-import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { Link } from '@tanstack/react-router'
 import {
   Bell,
@@ -25,6 +24,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { NotificationsDropdown } from '@/features/notifications/components'
+import { ConnectButton } from '@/features/wallet/components/Modal'
 import { useTheme } from '@/hooks/use-theme'
 
 const ConnectedContent = () => {
