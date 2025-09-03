@@ -14,6 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { paraModalOpenAtom } from '@/lib/wagmi'
+import { ParaAuth } from './ParaAuth'
 
 export const WalletModalOpenAtom = createAtom(false)
 
@@ -121,13 +123,26 @@ const DisconnectedContent = () => {
 
 export const WalletModal = () => {
   const isOpen = useAtom(WalletModalOpenAtom)
+  const isParaModalOpen = useAtom(paraModalOpenAtom)
   const { isConnected } = useAccount()
 
   useAccountEffect({
     onConnect() {
       WalletModalOpenAtom.set(false)
+      paraModalOpenAtom.set(false)
     },
   })
+
+  // Show Para modal when paraModalOpenAtom is true
+  if (isParaModalOpen) {
+    return (
+      <Dialog open={isParaModalOpen} onOpenChange={paraModalOpenAtom.set}>
+        <DialogContent>
+          <ParaAuth />
+        </DialogContent>
+      </Dialog>
+    )
+  }
 
   return (
     <Dialog
