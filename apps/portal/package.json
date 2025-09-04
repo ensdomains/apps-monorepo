@@ -14,6 +14,7 @@
     "deploy:version": "wrangler versions upload"
   },
   "dependencies": {
+    "@adraffy/ens-normalize": "^1.11.0",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@3395fae",
     "@ensdomains/locales": "workspace:^",
@@ -44,7 +45,6 @@
     "lucide": "^0.540.0",
     "lucide-react": "^0.540.0",
     "neverthrow": "^8.2.0",
-    "punycode": "^2.3.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-external-link": "^2.6.0",
