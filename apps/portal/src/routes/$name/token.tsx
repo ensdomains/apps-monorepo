@@ -7,6 +7,7 @@ import { hexToString } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getWrapperDataQueryOptions } from '@/features/profile/hooks/useWrapperData'
 import { useContractAddress } from '@/hooks/useContractAddress'
 import { dnsEncodeName } from '@/utils/dnsEncodeName'
@@ -38,6 +39,8 @@ function RouteComponent() {
   const isNormalized = ens_normalize(name) === name
 
   const hasEmoji = Boolean(parts.find((part) => part.emoji))
+
+  const labels = parts.map((label) => String.fromCodePoint(...label.input))
 
   return (
     <div className="p-6">
@@ -73,7 +76,7 @@ function RouteComponent() {
             <CopyableRecord value={hex} />
           </div>
         </div>
-        <div className="flex border border-gray-200 rounded-lg">
+        <div className="flex border border-gray-200 rounded-lg flex-col">
           <div className="flex flex-col w-full p-6 gap-6">
             <h2 className="font-medium text-2xl">Normalization</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -95,7 +98,7 @@ function RouteComponent() {
                   ))}
                 </div>
               </div>
-              <div className="flex flex-col gap-1 ">
+              <div className="flex flex-col gap-1">
                 <Label>Normalization</Label>
                 <div className="flex flex-row gap-4 items-center">
                   <div
@@ -120,6 +123,27 @@ function RouteComponent() {
               </div>
             </div>
           </div>
+          <Tabs defaultValue={labels[0]}>
+            <div className="pl-6 border-b w-full border-b-gray-300">
+              <span className="font-medium">Labels: </span>
+              <TabsList>
+                {labels.map((label) => {
+                  return (
+                    <TabsTrigger key={label} value={label}>
+                      {label}
+                    </TabsTrigger>
+                  )
+                })}
+              </TabsList>
+            </div>
+            {labels.map((label) => {
+              return (
+                <TabsContent value={label} key={label}>
+                  {label}
+                </TabsContent>
+              )
+            })}
+          </Tabs>
         </div>
       </div>
     </div>
