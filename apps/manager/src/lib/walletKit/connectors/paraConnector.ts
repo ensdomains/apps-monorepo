@@ -1,5 +1,3 @@
-// paraConnector.ts
-
 import type Para from '@getpara/web-sdk'
 import { Environment } from '@getpara/web-sdk'
 import type { Address, EIP1193Provider } from 'viem'
@@ -18,7 +16,6 @@ interface ParaConnectorOptions {
   ]
 }
 
-// Type definitions for Para SDK methods
 interface ParaRequestParams {
   method: string
   params?: unknown[]
@@ -43,7 +40,6 @@ interface ParaSDK {
   removeListener?(event: string, listener: (...args: unknown[]) => void): void
 }
 
-// Wrapper para hacer que Para funcione como EIP1193Provider
 class ParaProvider {
   private para: ParaSDK
 
@@ -61,7 +57,6 @@ class ParaProvider {
     console.log(`ParaProvider.request: ${method}`, params)
 
     try {
-      // Mapear métodos comunes de EIP-1193
       switch (method) {
         case 'eth_accounts':
           return await this.getAccounts()
@@ -82,7 +77,6 @@ class ParaProvider {
           return await this.switchChain(params ?? [])
 
         default:
-          // Para otros métodos, intentar usar el request nativo de Para
           return await this.para.request({ method, params })
       }
     } catch (error) {
@@ -122,15 +116,13 @@ class ParaProvider {
 
   private async getChainId(): Promise<string> {
     try {
-      // Intentar obtener chainId de Para
       const chainId = await this.para.request({
         method: 'eth_chainId',
       })
       return chainId as string
     } catch (error) {
       console.error('Error getting chainId from Para:', error)
-      // Fallback a un chainId por defecto
-      return '0x1' // Mainnet como fallback
+      return '0x1'
     }
   }
 
@@ -168,15 +160,11 @@ class ParaProvider {
       })
     } catch (error) {
       console.error('Error switching chain:', error)
-      // Para podría no soportar este método, pero no lanzamos error
-      // para mantener compatibilidad
     }
   }
 
-  // Métodos de eventos - implementación básica
   on(event: string, listener: (...args: unknown[]) => void): void {
     console.log(`Event listener added for: ${event}`)
-    // TODO: Implementar eventos reales cuando sepamos cómo Para los maneja
     if (typeof this.para.on === 'function') {
       this.para.on(event, listener)
     }
@@ -189,7 +177,6 @@ class ParaProvider {
     }
   }
 
-  // Alias para removeListener (algunos providers usan off en lugar de removeListener)
   off(event: string, listener: (...args: unknown[]) => void): void {
     this.removeListener(event, listener)
   }
@@ -210,7 +197,6 @@ export function paraConnectorCore(
       console.log('ParaConnector: Setting up...')
 
       if (!para) {
-        // Use the shared Para instance from paraService
         const paraInstance = getParaInstance()
         para = paraInstance as unknown as ParaSDK
 
@@ -234,7 +220,6 @@ export function paraConnectorCore(
       const provider = await this.getProvider()
 
       try {
-        // Intentar obtener cuentas
         const accounts = (await provider.request({
           method: 'eth_requestAccounts',
         })) as string[]
@@ -267,7 +252,6 @@ export function paraConnectorCore(
         para.logout()
       }
 
-      // Emitir evento de desconexión
       config.emitter.emit('disconnect')
     },
 
@@ -353,7 +337,6 @@ export function paraConnectorCore(
           resultChain.name,
         )
 
-        // Emitir evento de cambio de chain
         config.emitter.emit('change', { chainId })
 
         return resultChain
@@ -363,7 +346,6 @@ export function paraConnectorCore(
       }
     },
 
-    // Handlers de eventos
     onAccountsChanged(accounts) {
       console.log('ParaConnector: Accounts changed:', accounts)
 
@@ -390,7 +372,6 @@ export function paraConnectorCore(
   }))
 }
 
-// Export por defecto para conveniencia
 export default paraConnectorCore
 
 export const paraConnector = paraConnectorCore({
