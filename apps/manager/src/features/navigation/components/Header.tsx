@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/popover'
 import { NotificationsDropdown } from '@/features/notifications/components'
 import { useTheme } from '@/hooks/use-theme'
-import { ParaConnectButton } from '@/lib/Para/ParaConnectButton'
+import { ConnectWalletButton } from '@/lib/walletKit/components/ConnectWalletButton'
 
 const ConnectedContent = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false)
@@ -37,7 +37,7 @@ const ConnectedContent = () => {
       </Popover>
 
       {/* User Profile Dropdown */}
-      <ParaConnectButton />
+      <ConnectWalletButton />
     </div>
   )
 }
@@ -45,7 +45,7 @@ const ConnectedContent = () => {
 const DisconnectedContent = () => {
   return (
     <div className="mr-6 flex items-center gap-4">
-      <ParaConnectButton />
+      <ConnectWalletButton />
     </div>
   )
 }
@@ -70,8 +70,9 @@ const Menu = () => {
 }
 
 export const Header = () => {
-  const { isConnected } = useAccount()
-  console.log('isConnected web3authService', isConnected)
+  const { isConnected, address } = useAccount()
+  console.log('isConnected para wallet', isConnected)
+  console.log('address para wallet', address)
   return (
     <nav className="sticky top-0 z-10 flex items-center justify-end bg-background p-8">
       <Link to="/" className="mr-auto">
