@@ -4,4 +4,4 @@ packages:
 
 catalog:
   # Needs to be shared between apps and utils for types to work
-  xstate: ^5.20.2
+  xstate: ^5.21.0
