@@ -35,8 +35,8 @@ importers:
         specifier: ^4.9.1
         version: 4.9.6
       lucide:
-        specifier: ^0.525.0
-        version: 0.525.0
+        specifier: ^0.542.0
+        version: 0.542.0
       workers-og:
         specifier: ^0.0.27
         version: 0.0.27
@@ -126,11 +126,11 @@ importers:
         specifier: ^10.1.1
         version: 10.1.1
       lucide:
-        specifier: ^0.541.0
-        version: 0.541.0
+        specifier: ^0.542.0
+        version: 0.542.0
       lucide-react:
-        specifier: ^0.541.0
-        version: 0.541.0(react@19.1.1)
+        specifier: ^0.542.0
+        version: 0.542.0(react@19.1.1)
       neverthrow:
         specifier: ^8.2.0
         version: 8.2.0
@@ -147,8 +147,8 @@ importers:
         specifier: ^3.3.1
         version: 3.3.1
       tailwindcss:
-        specifier: ^4.1.12
-        version: 4.1.12
+        specifier: ^4.1.13
+        version: 4.1.13
       vaul:
         specifier: ^1.1.2
         version: 1.1.2(@types/react-dom@19.1.7(@types/react@19.1.11))(@types/react@19.1.11)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -301,11 +301,11 @@ importers:
         specifier: ^8.2.0
         version: 8.2.0
       lucide:
-        specifier: ^0.540.0
-        version: 0.540.0
+        specifier: ^0.542.0
+        version: 0.542.0
       lucide-react:
-        specifier: ^0.540.0
-        version: 0.540.0(react@19.1.1)
+        specifier: ^0.542.0
+        version: 0.542.0(react@19.1.1)
       neverthrow:
         specifier: ^8.2.0
         version: 8.2.0
@@ -383,8 +383,8 @@ importers:
         specifier: ^18.0.1
         version: 18.0.1
       tailwindcss:
-        specifier: ^4.1.12
-        version: 4.1.12
+        specifier: ^4.1.13
+        version: 4.1.13
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
@@ -4994,24 +4994,13 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
-  lucide-react@0.540.0:
-    resolution: {integrity: sha512-armkCAqQvO62EIX4Hq7hqX/q11WSZu0Jd23cnnqx0/49yIxGXyL/zyZfBxNN9YDx0ensPTb4L+DjTh3yQXUxtQ==}
+  lucide-react@0.542.0:
+    resolution: {integrity: sha512-w3hD8/SQB7+lzU2r4VdFyzzOzKnUjTZIF/MQJGSSvni7Llewni4vuViRppfRAa2guOsY5k4jZyxw/i9DQHv+dw==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  lucide-react@0.541.0:
-    resolution: {integrity: sha512-s0Vircsu5WaGv2KoJZ5+SoxiAJ3UXV5KqEM3eIFDHaHkcLIFdIWgXtZ412+Gh02UsdS7Was+jvEpBvPCWQISlg==}
-    peerDependencies:
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-
-  lucide@0.525.0:
-    resolution: {integrity: sha512-sfehWlaE/7NVkcEQ4T9JD3eID8RNMIGJBBUq9wF3UFiJIrcMKRbU3g1KGfDk4svcW7yw8BtDLXaXo02scDtUYQ==}
-
-  lucide@0.540.0:
-    resolution: {integrity: sha512-jUaVZLW/lSmbiZEnhIaV0wUHedNtguzFRf0cWsJi65jz1T/CCRBiiixBdgllNqhIBbe++bh39Vb7i739RPlZWQ==}
-
-  lucide@0.541.0:
-    resolution: {integrity: sha512-L4lj6PQMu3phzKEMGj3yX+1FXVMUtzjXEo4iajXSHmA3a93IxbFRmJddq96E8MYEP6JbBjs+fo4hVygZqngSVg==}
+  lucide@0.542.0:
+    resolution: {integrity: sha512-+EtDSHjqg/nONgCfnjHCNd84OzbDjxR8ShnOf+oImlU+A8gqlptZ6pGrMCnhEDw8pVNQv3zu/L0eDvMzcc7nWA==}
 
   luxon@3.7.1:
     resolution: {integrity: sha512-RkRWjA926cTvz5rAb1BqyWkKbbjzCGchDUIKMCUvNi17j6f6j8uHGDV82Aqcqtzd+icoYpELmG3ksgGiFNNcNg==}
@@ -6124,6 +6113,9 @@ packages:
 
   tailwindcss@4.1.12:
     resolution: {integrity: sha512-DzFtxOi+7NsFf7DBtI3BJsynR+0Yp6etH+nRPTbpWnS2pZBaSksv/JGctNwSWzbFjp0vxSqknaUylseZqMDGrA==}
+
+  tailwindcss@4.1.13:
+    resolution: {integrity: sha512-i+zidfmTqtwquj4hMEwdjshYYgMbOrPzb9a0M3ZgNa0JMoZeFC6bxZvO8yr8ozS6ix2SDz0+mvryPeBs2TFE+w==}
 
   tapable@2.2.2:
     resolution: {integrity: sha512-Re10+NauLTMCudc7T5WLFLAwDhQ0JWdrMK+9B2M8zR5hRExKmsRDCBA7/aV/pNJFltmBFO5BAMlQFi/vq3nKOg==}
@@ -13127,19 +13119,11 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@0.540.0(react@19.1.1):
+  lucide-react@0.542.0(react@19.1.1):
     dependencies:
       react: 19.1.1
 
-  lucide-react@0.541.0(react@19.1.1):
-    dependencies:
-      react: 19.1.1
-
-  lucide@0.525.0: {}
-
-  lucide@0.540.0: {}
-
-  lucide@0.541.0: {}
+  lucide@0.542.0: {}
 
   luxon@3.7.1: {}
 
@@ -14492,6 +14476,8 @@ snapshots:
   tailwind-merge@3.3.1: {}
 
   tailwindcss@4.1.12: {}
+
+  tailwindcss@4.1.13: {}
 
   tapable@2.2.2: {}
 
