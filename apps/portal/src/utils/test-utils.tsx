@@ -1,4 +1,3 @@
-import { ThemeProvider } from '@ensdomains/thorin'
 import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import { type RenderOptions, render } from '@testing-library/react'
 import { createConfig, mock, WagmiProvider } from 'wagmi'
@@ -54,11 +53,11 @@ beforeEach(() => queryClient.clear())
 const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
   return (
     <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>
-          <ThemeProvider>{children}</ThemeProvider>
-        </RainbowKitProvider>
-      </QueryClientProvider>
+      <RainbowKitProvider>
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      </RainbowKitProvider>
     </WagmiProvider>
   )
 }

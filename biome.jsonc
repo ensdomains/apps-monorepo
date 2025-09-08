@@ -11,8 +11,8 @@
       "apps/**",
       "packages/**",
       "!**/*.gen.ts",
-      "!**/node_modules/**",
-      "!**/dist/**"
+      "!**/node_modules",
+      "!**/dist"
     ]
   },
   "formatter": {
@@ -23,7 +23,10 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "recommended": true,
+      "suspicious": {
+        "noUnknownAtRules": "off"
+      }
     }
   },
   "javascript": {

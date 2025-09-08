@@ -2,9 +2,10 @@
 
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { cloudflare } from '@cloudflare/vite-plugin'
 import i18nextLoader from '@ensdomains/vite-plugin-i18next-loader'
-import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
-import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin'
+import tailwindcss from '@tailwindcss/vite'
+import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import viteReact from '@vitejs/plugin-react-swc'
 import { defineConfig } from 'vite'
 
@@ -15,13 +16,14 @@ const locales = dirname(
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    TanStackRouterVite({
+    tanstackRouter({
       autoCodeSplitting: true,
       routeFileIgnorePattern: '.((css|const).ts)',
     }),
     viteReact(),
-    vanillaExtractPlugin(),
     i18nextLoader({ paths: [locales] }),
+    tailwindcss(),
+    cloudflare(),
   ],
   test: {
     globals: true,

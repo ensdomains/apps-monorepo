@@ -193,7 +193,7 @@ export const Pricing = ({
                 value={customYears}
                 onChange={(e) => {
                   setCustomYears(e.target.value)
-                  const years = parseInt(e.target.value)
+                  const years = parseInt(e.target.value, 10)
                   if (years >= 1 && years <= 999) {
                     onSetDuration(years)
                   }
