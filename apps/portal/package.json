@@ -35,7 +35,7 @@
     "@tanstack/react-router-devtools": "^1.131.36",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/router-plugin": "^1.131.36",
-    "@wagmi/core": "^2.19.0",
+    "@wagmi/core": "^2.20.3",
     "@xstate/react": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -51,8 +51,8 @@
     "tailwind-merge": "^3.3.1",
     "tw-animate-css": "^1.3.7",
     "use-local-storage-state": "^19.5.0",
-    "viem": "^2.34.0",
-    "wagmi": "^2.16.4",
+    "viem": "^2.37.4",
+    "wagmi": "^2.16.9",
     "xstate": "catalog:"
   },
   "devDependencies": {
