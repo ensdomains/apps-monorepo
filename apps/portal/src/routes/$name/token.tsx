@@ -1,9 +1,8 @@
-import { ens_normalize, ens_split } from '@adraffy/ens-normalize'
+import { ens_normalize, ens_split, ens_tokenize } from '@adraffy/ens-normalize'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import { cx } from 'class-variance-authority'
 import { CheckCircleIcon } from 'lucide-react'
-import { hexToString } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { Label } from '@/components/ui/label'
@@ -15,6 +14,24 @@ import { dnsEncodeName } from '@/utils/dnsEncodeName'
 export const Route = createFileRoute('/$name/token')({
   component: RouteComponent,
 })
+
+function escapeUnicode(name: string) {
+  const tokens = ens_tokenize(name)
+  return tokens
+    .map((tok) => {
+      const cps = tok.cps || (tok.cp !== undefined ? [tok.cp] : [])
+      return cps
+        .map((cp) => {
+          if (cp > 0x7f) {
+            // anything beyond ASCII
+            return `\\u{${cp.toString(16).toUpperCase()}}`
+          }
+          return String.fromCodePoint(cp)
+        })
+        .join('')
+    })
+    .join('')
+}
 
 function RouteComponent() {
   const { name } = useParams({ from: '/$name/token' })
@@ -32,9 +49,11 @@ function RouteComponent() {
 
   const parts = ens_split(name)
 
-  const dnsEncode = hexToString(dnsEncodeName(name))
+  const dnsEncode = dnsEncodeName(name)
 
   const ascii = new URL(`https://${name}`).hostname
+
+  const hash = namehash(ascii)
 
   const isNormalized = ens_normalize(name) === name
 
@@ -49,11 +68,11 @@ function RouteComponent() {
           <h1 className="text-[28px] font-medium">Token info</h1>
         </header>
         <div className="flex border border-gray-200 rounded-lg w-full p-6 gap-6 flex-wrap">
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
             <Label>Contract</Label>
             <CopyableRecord value={contractAddress} />
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
             <Label>Token Standard</Label>
             <CopyableRecord
               value={
@@ -63,15 +82,15 @@ function RouteComponent() {
               }
             />
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
             <Label>Protocol version</Label>
             <CopyableRecord value="ENSv1" />
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
             <Label>Token ID</Label>
             <CopyableRecord value={tokenId} />
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
             <Label>Token ID (HEX)</Label>
             <CopyableRecord value={hex} />
           </div>
@@ -79,7 +98,7 @@ function RouteComponent() {
         <div className="flex border border-gray-200 rounded-lg flex-col">
           <div className="flex flex-col w-full p-6 gap-6">
             <h2 className="font-medium text-2xl">Normalization</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
                 <Label>Input</Label>
                 <div className="flex flex-row gap-1 flex-wrap min-w-[38px] items-end">
@@ -114,12 +133,20 @@ function RouteComponent() {
                 </div>
               </div>
               <div className="flex flex-col gap-1">
+                <Label>Unicode</Label>
+                <CopyableRecord value={escapeUnicode(name)} />
+              </div>
+              <div className="flex flex-col gap-1">
                 <Label>ASCII</Label>
                 <CopyableRecord value={ascii} />
               </div>
               <div className="flex flex-col gap-1">
                 <Label>DNS-encoded</Label>
                 <CopyableRecord value={dnsEncode} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label>Namehash</Label>
+                <CopyableRecord value={hash} />
               </div>
             </div>
           </div>
@@ -136,10 +163,26 @@ function RouteComponent() {
                 })}
               </TabsList>
             </div>
-            {labels.map((label) => {
+            {parts.map((part) => {
+              const label = String.fromCodePoint(...part.input)
               return (
-                <TabsContent value={label} key={label}>
-                  {label}
+                <TabsContent
+                  className="grid grid-cols-2 gap-6"
+                  value={label}
+                  key={label}
+                >
+                  <div className="flex flex-col gap-1">
+                    <Label>Input</Label>
+                    <CopyableRecord value={label} />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label>Normalization</Label>
+                    <CopyableRecord value={part.type as 'ASCII'} />
+                  </div>
+                  <div className="flex flex-col gap-1 col-span-full">
+                    <Label>Labelhash</Label>
+                    <CopyableRecord value={labelhash(label)} />
+                  </div>
                 </TabsContent>
               )
             })}

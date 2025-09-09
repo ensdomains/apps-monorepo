@@ -18,8 +18,13 @@ export const CopyableRecord = ({
   }, [copy, value])
 
   return (
-    <div className={cx('flex flex-row gap-2', className)}>
-      <span className="font-mono underline decoration-dashed underline-offset-4 truncate">
+    <div
+      className={cx(
+        'flex flex-row gap-2 w-full lg:w-max justify-between',
+        className,
+      )}
+    >
+      <span className="font-mono underline decoration-dashed underline-offset-4 truncate max-w-full">
         {value}
       </span>
       <button
