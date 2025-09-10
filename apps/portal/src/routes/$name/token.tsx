@@ -24,9 +24,11 @@ function RouteComponent() {
     contract: 'ensBaseRegistrarImplementation',
   })
 
-  const { data: wrapperData, error: isWrappedError, isLoading } = useQuery(
-    getWrapperDataQueryOptions({ name }),
-  )
+  const {
+    data: wrapperData,
+    error: isWrappedError,
+    isLoading,
+  } = useQuery(getWrapperDataQueryOptions({ name }))
 
   if (isWrappedError) return <div>Error: {isWrappedError.message}</div>
 
