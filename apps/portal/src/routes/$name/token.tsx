@@ -1,4 +1,4 @@
-import { ens_normalize, ens_split, ens_tokenize } from '@adraffy/ens-normalize'
+import { ens_normalize, ens_split } from '@adraffy/ens-normalize'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import { cx } from 'class-variance-authority'
@@ -10,28 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getWrapperDataQueryOptions } from '@/features/profile/hooks/useWrapperData'
 import { useContractAddress } from '@/hooks/useContractAddress'
 import { dnsEncodeName } from '@/utils/dnsEncodeName'
+import { escapeUnicode } from '@/utils/escapeUnicode'
 
 export const Route = createFileRoute('/$name/token')({
   component: RouteComponent,
 })
-
-function escapeUnicode(name: string) {
-  const tokens = ens_tokenize(name)
-  return tokens
-    .map((tok) => {
-      const cps = tok.cps || (tok.cp !== undefined ? [tok.cp] : [])
-      return cps
-        .map((cp) => {
-          if (cp > 0x7f) {
-            // anything beyond ASCII
-            return `\\u{${cp.toString(16).toUpperCase()}}`
-          }
-          return String.fromCodePoint(cp)
-        })
-        .join('')
-    })
-    .join('')
-}
 
 function RouteComponent() {
   const { name } = useParams({ from: '/$name/token' })
