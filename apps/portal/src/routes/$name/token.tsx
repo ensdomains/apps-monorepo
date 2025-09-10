@@ -9,8 +9,9 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getWrapperDataQueryOptions } from '@/features/profile/hooks/useWrapperData'
 import { useContractAddress } from '@/hooks/useContractAddress'
-import { dnsEncodeName } from '@/utils/dnsEncodeName'
-import { escapeUnicode } from '@/utils/escapeUnicode'
+import { dnsEncodeName } from '@/utils/token/dnsEncodeName'
+import { escapeUnicode } from '@/utils/token/escapeUnicode'
+import { asciiEncode } from '@/utils/token/ascii'
 
 export const Route = createFileRoute('/$name/token')({
   component: RouteComponent,
@@ -34,7 +35,7 @@ function RouteComponent() {
 
   const dnsEncode = dnsEncodeName(name)
 
-  const ascii = new URL(`https://${name}`).hostname
+  const ascii = asciiEncode(name)
 
   const hash = namehash(ascii)
 
@@ -137,7 +138,7 @@ function RouteComponent() {
               </div>
             </div>
           </div>
-          <Tabs defaultValue={labels[0]}>
+          {labels[0] ? <Tabs defaultValue={labels[0]}>
             <div className="pl-6 border-b w-full border-b-gray-300">
               <span className="font-medium">Labels: </span>
               <TabsList>
@@ -173,7 +174,7 @@ function RouteComponent() {
                 </TabsContent>
               )
             })}
-          </Tabs>
+          </Tabs> : <div>Invalid name: no labels</div>}
         </div>
       </div>
     </div>
