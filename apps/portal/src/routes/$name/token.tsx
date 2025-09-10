@@ -24,7 +24,15 @@ function RouteComponent() {
     contract: 'ensBaseRegistrarImplementation',
   })
 
-  const isWrapped = useQuery(getWrapperDataQueryOptions({ name }))
+  const { data: wrapperData, error: isWrappedError, isLoading } = useQuery(
+    getWrapperDataQueryOptions({ name }),
+  )
+
+  if (isWrappedError) return <div>Error: {isWrappedError.message}</div>
+
+  if (isLoading) return <div>Loading...</div>
+
+  const isWrapped = Boolean(wrapperData)
 
   const contractAddress = isWrapped ? nameWrapperAddress : registrarAddress
 
@@ -166,7 +174,7 @@ function RouteComponent() {
                     </div>
                     <div className="flex flex-col gap-1">
                       <Label>Normalization</Label>
-                      <CopyableRecord value={part.type as 'ASCII'} />
+                      <CopyableRecord value={part.type as string} />
                     </div>
                     <div className="flex flex-col gap-1 col-span-full">
                       <Label>Labelhash</Label>
