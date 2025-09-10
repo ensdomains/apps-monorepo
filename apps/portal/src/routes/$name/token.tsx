@@ -86,9 +86,9 @@ function RouteComponent() {
             <Label>Protocol version</Label>
             <CopyableRecord value="ENSv1" />
           </div>
-          <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
+          <div className="flex flex-col gap-1 w-full max-w-full">
             <Label>Token ID</Label>
-            <CopyableRecord value={tokenId} />
+            <CopyableRecord value={tokenId} className="max-w-full" />
           </div>
           <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
             <Label>Token ID (HEX)</Label>
@@ -129,7 +129,11 @@ function RouteComponent() {
                     <CheckCircleIcon width={16} height={16} />
                     <div>{isNormalized ? 'Normalized' : 'Not Normalized'}</div>
                   </div>
-                  <div>{hasEmoji ? 'ASCII + Emoji' : 'ASCII'}</div>
+                  <div>
+                    {hasEmoji
+                      ? `${parts.map((part) => part.type).join(' + ')} + Emoji`
+                      : parts.map((part) => part.type).join(' + ')}
+                  </div>
                 </div>
               </div>
               <div className="flex flex-col gap-1">
@@ -144,9 +148,9 @@ function RouteComponent() {
                 <Label>DNS-encoded</Label>
                 <CopyableRecord value={dnsEncode} />
               </div>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 w-full max-w-full">
                 <Label>Namehash</Label>
-                <CopyableRecord value={hash} />
+                <CopyableRecord value={hash} className="max-w-full" />
               </div>
             </div>
           </div>
