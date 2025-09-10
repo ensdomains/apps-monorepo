@@ -37,32 +37,48 @@ const LinksSchema = v.array(
 export const transformProfileRecords = (
   profile: ProfileRecordsResult | undefined,
 ): ProfileRecords => {
-  const records: ProfileRecords = newEmptyProfileRecords()
-
   if (!profile) {
-    return records
+    return newEmptyProfileRecords()
   }
 
-  records.addresses = profile.coins
-
-  for (const { key, value } of profile.texts) {
+  const processTextRecord = (
+    acc: ProfileRecords,
+    { key, value }: { key: string; value: string },
+  ): ProfileRecords => {
     const record = getRecordDef(key)
+    
     if (record) {
-      records[record.section].push({ key, value })
-    } else if (staticTextRecords.includes(key as StaticRecordKey)) {
-      records.base[key as StaticRecordKey] = value
-    } else if (key === 'links') {
+      return {
+        ...acc,
+        [record.section]: [...acc[record.section], { key, value }],
+      }
+    }
+    
+    if (staticTextRecords.includes(key as StaticRecordKey)) {
+      return {
+        ...acc,
+        base: { ...acc.base, [key]: value },
+      }
+    }
+    
+    if (key === 'links') {
       const links = v.parse(LinksSchema, JSON.parse(value))
-      records.links.push(...links)
-    } else {
-      records.unknown.push({
-        key,
-        value,
-      })
+      return {
+        ...acc,
+        links: [...acc.links, ...links],
+      }
+    }
+    
+    return {
+      ...acc,
+      unknown: [...acc.unknown, { key, value }],
     }
   }
 
-  return records
+  const baseRecords = newEmptyProfileRecords()
+  const withAddresses = { ...baseRecords, addresses: profile.coins }
+  
+  return profile.texts.reduce(processTextRecord, withAddresses)
 }
 
 /**
@@ -75,40 +91,30 @@ export const transformToServiceFormat = (
   texts: Array<{ key: string; value: string }>
   coins: Array<{ coinType: number; value: string }>
 } => {
-  const texts: Array<{ key: string; value: string }> = []
-  const coins: Array<{ coinType: number; value: string }> = []
+  const sectionTexts = allSections.flatMap((section) =>
+    records[section].map(({ key, value }) => ({ key, value }))
+  )
 
-  // Add all text records
-  for (const section of allSections) {
-    for (const record of records[section]) {
-      texts.push({ key: record.key, value: record.value })
-    }
-  }
+  const baseTexts = Object.entries(records.base).map(([key, value]) => ({
+    key,
+    value,
+  }))
 
-  // Add base profile records
-  for (const [key, value] of Object.entries(records.base)) {
-    texts.push({ key, value })
-  }
+  const unknownTexts = records.unknown.map(({ key, value }) => ({
+    key,
+    value,
+  }))
 
-  // Add unknown records
-  for (const record of records.unknown) {
-    texts.push({ key: record.key, value: record.value })
-  }
+  const linksText =
+    records.links.length > 0
+      ? [{ key: 'links', value: JSON.stringify(records.links) }]
+      : []
 
-  // Add links as JSON string
-  if (records.links.length > 0) {
-    texts.push({ key: 'links', value: JSON.stringify(records.links) })
-  }
+  const texts = [...sectionTexts, ...baseTexts, ...unknownTexts, ...linksText]
 
-  // Add address records
-  records.addresses.forEach(({ coinType, value }) => {
-    if (value && value.trim() !== '') {
-      coins.push({
-        coinType,
-        value,
-      })
-    }
-  })
+  const coins = records.addresses
+    .filter(({ value }) => value && value.trim() !== '')
+    .map(({ coinType, value }) => ({ coinType, value }))
 
   return { texts, coins }
 }
