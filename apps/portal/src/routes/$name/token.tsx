@@ -9,9 +9,9 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getWrapperDataQueryOptions } from '@/features/profile/hooks/useWrapperData'
 import { useContractAddress } from '@/hooks/useContractAddress'
+import { asciiEncode } from '@/utils/token/ascii'
 import { dnsEncodeName } from '@/utils/token/dnsEncodeName'
 import { escapeUnicode } from '@/utils/token/escapeUnicode'
-import { asciiEncode } from '@/utils/token/ascii'
 
 export const Route = createFileRoute('/$name/token')({
   component: RouteComponent,
@@ -138,43 +138,47 @@ function RouteComponent() {
               </div>
             </div>
           </div>
-          {labels[0] ? <Tabs defaultValue={labels[0]}>
-            <div className="pl-6 border-b w-full border-b-gray-300">
-              <span className="font-medium">Labels: </span>
-              <TabsList>
-                {labels.map((label) => {
-                  return (
-                    <TabsTrigger key={label} value={label}>
-                      {label}
-                    </TabsTrigger>
-                  )
-                })}
-              </TabsList>
-            </div>
-            {parts.map((part) => {
-              const label = String.fromCodePoint(...part.input)
-              return (
-                <TabsContent
-                  className="grid grid-cols-2 gap-6"
-                  value={label}
-                  key={label}
-                >
-                  <div className="flex flex-col gap-1">
-                    <Label>Input</Label>
-                    <CopyableRecord value={label} />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <Label>Normalization</Label>
-                    <CopyableRecord value={part.type as 'ASCII'} />
-                  </div>
-                  <div className="flex flex-col gap-1 col-span-full">
-                    <Label>Labelhash</Label>
-                    <CopyableRecord value={labelhash(label)} />
-                  </div>
-                </TabsContent>
-              )
-            })}
-          </Tabs> : <div>Invalid name: no labels</div>}
+          {labels[0] ? (
+            <Tabs defaultValue={labels[0]}>
+              <div className="pl-6 border-b w-full border-b-gray-300">
+                <span className="font-medium">Labels: </span>
+                <TabsList>
+                  {labels.map((label) => {
+                    return (
+                      <TabsTrigger key={label} value={label}>
+                        {label}
+                      </TabsTrigger>
+                    )
+                  })}
+                </TabsList>
+              </div>
+              {parts.map((part) => {
+                const label = String.fromCodePoint(...part.input)
+                return (
+                  <TabsContent
+                    className="grid grid-cols-2 gap-6"
+                    value={label}
+                    key={label}
+                  >
+                    <div className="flex flex-col gap-1">
+                      <Label>Input</Label>
+                      <CopyableRecord value={label} />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Label>Normalization</Label>
+                      <CopyableRecord value={part.type as 'ASCII'} />
+                    </div>
+                    <div className="flex flex-col gap-1 col-span-full">
+                      <Label>Labelhash</Label>
+                      <CopyableRecord value={labelhash(label)} />
+                    </div>
+                  </TabsContent>
+                )
+              })}
+            </Tabs>
+          ) : (
+            <div>Invalid name: no labels</div>
+          )}
         </div>
       </div>
     </div>
