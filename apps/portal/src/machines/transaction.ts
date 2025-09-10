@@ -6,8 +6,8 @@ import { type ChainType, wagmiConfig } from '@/lib/wagmi'
 import {
   safeSendTransaction,
   safeWaitForTransactionReceipt,
-  WagmiSendTransactionError,
-  WagmiWaitForTransactionReceiptError,
+  type WagmiSendTransactionError,
+  type WagmiWaitForTransactionReceiptError,
 } from '@/lib/wagmi/helpers'
 
 export type TransactionMachineError =
@@ -71,7 +71,9 @@ export const transactionMachine = setup({
         onError: {
           target: 'Error',
           actions: [
-            assign({ error: ({ event }) => event.error as TransactionMachineError }),
+            assign({
+              error: ({ event }) => event.error as TransactionMachineError,
+            }),
             log(({ event }) => `Transaction failed to send: ${event.error}`),
           ],
         },

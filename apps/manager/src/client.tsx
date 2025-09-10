@@ -13,9 +13,9 @@ hydrateRoot(
   </StrictMode>,
 )
 
-// @ts-ignore
+// @ts-expect-error
 BigInt.prototype.toJSON = function () {
-  // @ts-ignore
+  // @ts-expect-error
   return JSON.rawJSON(this.toString())
 }
 

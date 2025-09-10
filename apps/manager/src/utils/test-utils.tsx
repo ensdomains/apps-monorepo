@@ -14,9 +14,7 @@ import { beforeEach } from 'vitest'
 
 import { hashFn } from 'wagmi/query'
 
-const mainnetWithEns = {
-  ...addEnsContracts(mainnet),
-}
+const mainnetWithEns = addEnsContracts(mainnet)
 
 const client = createClient({
   transport: http('http://mock.local'),

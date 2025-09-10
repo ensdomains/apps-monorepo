@@ -9,68 +9,140 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as ProfileNameIndexRouteImport } from './routes/profile/$name/index'
+import { Route as NameRouteImport } from './routes/$name'
+import { Route as NameIndexRouteImport } from './routes/$name/index'
+import { Route as NameResolverRouteImport } from './routes/$name/resolver'
+import { Route as NameRecordsRouteImport } from './routes/$name/records'
+import { Route as NameOwnershipRouteImport } from './routes/$name/ownership'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const NameRoute = NameRouteImport.update({
+  id: '/$name',
+  path: '/$name',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProfileNameIndexRoute = ProfileNameIndexRouteImport.update({
-  id: '/profile/$name/',
-  path: '/profile/$name/',
-  getParentRoute: () => rootRouteImport,
+const NameIndexRoute = NameIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => NameRoute,
+} as any)
+const NameResolverRoute = NameResolverRouteImport.update({
+  id: '/resolver',
+  path: '/resolver',
+  getParentRoute: () => NameRoute,
+} as any)
+const NameRecordsRoute = NameRecordsRouteImport.update({
+  id: '/records',
+  path: '/records',
+  getParentRoute: () => NameRoute,
+} as any)
+const NameOwnershipRoute = NameOwnershipRouteImport.update({
+  id: '/ownership',
+  path: '/ownership',
+  getParentRoute: () => NameRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/profile/$name': typeof ProfileNameIndexRoute
+  '/$name': typeof NameRouteWithChildren
+  '/$name/ownership': typeof NameOwnershipRoute
+  '/$name/records': typeof NameRecordsRoute
+  '/$name/resolver': typeof NameResolverRoute
+  '/$name/': typeof NameIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/profile/$name': typeof ProfileNameIndexRoute
+  '/$name/ownership': typeof NameOwnershipRoute
+  '/$name/records': typeof NameRecordsRoute
+  '/$name/resolver': typeof NameResolverRoute
+  '/$name': typeof NameIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/profile/$name/': typeof ProfileNameIndexRoute
+  '/$name': typeof NameRouteWithChildren
+  '/$name/ownership': typeof NameOwnershipRoute
+  '/$name/records': typeof NameRecordsRoute
+  '/$name/resolver': typeof NameResolverRoute
+  '/$name/': typeof NameIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/profile/$name'
+  fullPaths:
+    | '/$name'
+    | '/$name/ownership'
+    | '/$name/records'
+    | '/$name/resolver'
+    | '/$name/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/profile/$name'
-  id: '__root__' | '/' | '/profile/$name/'
+  to: '/$name/ownership' | '/$name/records' | '/$name/resolver' | '/$name'
+  id:
+    | '__root__'
+    | '/$name'
+    | '/$name/ownership'
+    | '/$name/records'
+    | '/$name/resolver'
+    | '/$name/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  ProfileNameIndexRoute: typeof ProfileNameIndexRoute
+  NameRoute: typeof NameRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/$name': {
+      id: '/$name'
+      path: '/$name'
+      fullPath: '/$name'
+      preLoaderRoute: typeof NameRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/profile/$name/': {
-      id: '/profile/$name/'
-      path: '/profile/$name'
-      fullPath: '/profile/$name'
-      preLoaderRoute: typeof ProfileNameIndexRouteImport
-      parentRoute: typeof rootRouteImport
+    '/$name/': {
+      id: '/$name/'
+      path: '/'
+      fullPath: '/$name/'
+      preLoaderRoute: typeof NameIndexRouteImport
+      parentRoute: typeof NameRoute
+    }
+    '/$name/resolver': {
+      id: '/$name/resolver'
+      path: '/resolver'
+      fullPath: '/$name/resolver'
+      preLoaderRoute: typeof NameResolverRouteImport
+      parentRoute: typeof NameRoute
+    }
+    '/$name/records': {
+      id: '/$name/records'
+      path: '/records'
+      fullPath: '/$name/records'
+      preLoaderRoute: typeof NameRecordsRouteImport
+      parentRoute: typeof NameRoute
+    }
+    '/$name/ownership': {
+      id: '/$name/ownership'
+      path: '/ownership'
+      fullPath: '/$name/ownership'
+      preLoaderRoute: typeof NameOwnershipRouteImport
+      parentRoute: typeof NameRoute
     }
   }
 }
 
+interface NameRouteChildren {
+  NameOwnershipRoute: typeof NameOwnershipRoute
+  NameRecordsRoute: typeof NameRecordsRoute
+  NameResolverRoute: typeof NameResolverRoute
+  NameIndexRoute: typeof NameIndexRoute
+}
+
+const NameRouteChildren: NameRouteChildren = {
+  NameOwnershipRoute: NameOwnershipRoute,
+  NameRecordsRoute: NameRecordsRoute,
+  NameResolverRoute: NameResolverRoute,
+  NameIndexRoute: NameIndexRoute,
+}
+
+const NameRouteWithChildren = NameRoute._addFileChildren(NameRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  ProfileNameIndexRoute: ProfileNameIndexRoute,
+  NameRoute: NameRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

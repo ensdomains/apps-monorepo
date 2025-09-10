@@ -19,18 +19,18 @@
     "includes": [
       "./**",
 
-      "!**/node_modules/**",
-      "!**/public/**",
+      "!**/node_modules",
+      "!**/public",
 
       // Generated files
       "!**/*.gen.ts",
       "!**/*.gen.d.ts",
 
       // Build & Temp files
-      "!**/.tanstack/**",
-      "!**/.output/**",
-      "!**/.nitro/**",
-      "!**/.wrangler/**"
+      "!**/.tanstack",
+      "!**/.output",
+      "!**/.nitro",
+      "!**/.wrangler"
     ]
   }
 }
