@@ -17,6 +17,8 @@ import { Route as PaymentListRouteImport } from './routes/payment/list'
 import { Route as PaymentAddRouteImport } from './routes/payment/add'
 import { Route as NotificationsSettingsRouteImport } from './routes/notifications/settings'
 import { Route as NotificationsAllRouteImport } from './routes/notifications/all'
+import { Route as PNameIndexRouteImport } from './routes/p/$name/index'
+import { Route as PNameEditRouteImport } from './routes/p/$name/edit'
 
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
@@ -58,6 +60,16 @@ const NotificationsAllRoute = NotificationsAllRouteImport.update({
   path: '/notifications/all',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PNameIndexRoute = PNameIndexRouteImport.update({
+  id: '/p/$name/',
+  path: '/p/$name/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PNameEditRoute = PNameEditRouteImport.update({
+  id: '/p/$name/edit',
+  path: '/p/$name/edit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +80,8 @@ export interface FileRoutesByFullPath {
   '/payment/list': typeof PaymentListRoute
   '/auto-renewal': typeof AutoRenewalIndexRoute
   '/notifications': typeof NotificationsIndexRoute
+  '/p/$name/edit': typeof PNameEditRoute
+  '/p/$name': typeof PNameIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +92,8 @@ export interface FileRoutesByTo {
   '/payment/list': typeof PaymentListRoute
   '/auto-renewal': typeof AutoRenewalIndexRoute
   '/notifications': typeof NotificationsIndexRoute
+  '/p/$name/edit': typeof PNameEditRoute
+  '/p/$name': typeof PNameIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +105,8 @@ export interface FileRoutesById {
   '/payment/list': typeof PaymentListRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/notifications/': typeof NotificationsIndexRoute
+  '/p/$name/edit': typeof PNameEditRoute
+  '/p/$name/': typeof PNameIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +119,8 @@ export interface FileRouteTypes {
     | '/payment/list'
     | '/auto-renewal'
     | '/notifications'
+    | '/p/$name/edit'
+    | '/p/$name'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +131,8 @@ export interface FileRouteTypes {
     | '/payment/list'
     | '/auto-renewal'
     | '/notifications'
+    | '/p/$name/edit'
+    | '/p/$name'
   id:
     | '__root__'
     | '/'
@@ -121,6 +143,8 @@ export interface FileRouteTypes {
     | '/payment/list'
     | '/auto-renewal/'
     | '/notifications/'
+    | '/p/$name/edit'
+    | '/p/$name/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +156,8 @@ export interface RootRouteChildren {
   PaymentListRoute: typeof PaymentListRoute
   AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
   NotificationsIndexRoute: typeof NotificationsIndexRoute
+  PNameEditRoute: typeof PNameEditRoute
+  PNameIndexRoute: typeof PNameIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +218,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotificationsAllRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/p/$name/': {
+      id: '/p/$name/'
+      path: '/p/$name'
+      fullPath: '/p/$name'
+      preLoaderRoute: typeof PNameIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/p/$name/edit': {
+      id: '/p/$name/edit'
+      path: '/p/$name/edit'
+      fullPath: '/p/$name/edit'
+      preLoaderRoute: typeof PNameEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -204,6 +244,8 @@ const rootRouteChildren: RootRouteChildren = {
   PaymentListRoute: PaymentListRoute,
   AutoRenewalIndexRoute: AutoRenewalIndexRoute,
   NotificationsIndexRoute: NotificationsIndexRoute,
+  PNameEditRoute: PNameEditRoute,
+  PNameIndexRoute: PNameIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { ClientOnly, createFileRoute } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import {
   AutoRenewalItem,
@@ -23,7 +23,9 @@ function RouteComponent() {
         ))}
       </div>
       <PaymentMethodAdd />
-      <PaymentMethodList />
+      <ClientOnly>
+        <PaymentMethodList />
+      </ClientOnly>
       <Button variant="default" className="w-full" size="lg">
         Confirm
       </Button>
