@@ -1,6 +1,6 @@
-import { cx } from 'class-variance-authority'
 import { CheckIcon, ClipboardCopyIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { cn } from '@/lib/utils'
 
 export const CopyableRecord = ({
   value,
@@ -19,7 +19,7 @@ export const CopyableRecord = ({
 
   return (
     <div
-      className={cx(
+      className={cn(
         'flex flex-row gap-2 w-full lg:w-max justify-between',
         className,
       )}

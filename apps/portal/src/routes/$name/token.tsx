@@ -1,7 +1,6 @@
 import { ens_normalize, ens_split } from '@adraffy/ens-normalize'
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, useParams } from '@tanstack/react-router'
-import { cx } from 'class-variance-authority'
+import { createFileRoute } from '@tanstack/react-router'
 import { CheckCircleIcon } from 'lucide-react'
 import { labelhash, namehash } from 'viem/ens'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
@@ -12,13 +11,14 @@ import { useContractAddress } from '@/hooks/useContractAddress'
 import { asciiEncode } from '@/utils/token/ascii'
 import { dnsEncodeName } from '@/utils/token/dnsEncodeName'
 import { escapeUnicode } from '@/utils/token/escapeUnicode'
+import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/$name/token')({
   component: RouteComponent,
 })
 
 function RouteComponent() {
-  const { name } = useParams({ from: '/$name/token' })
+  const { name } = Route.useParams()
   const nameWrapperAddress = useContractAddress({ contract: 'ensNameWrapper' })
   const registrarAddress = useContractAddress({
     contract: 'ensBaseRegistrarImplementation',
@@ -115,7 +115,7 @@ function RouteComponent() {
                 <Label>Normalization</Label>
                 <div className="flex flex-row gap-4 items-center">
                   <div
-                    className={cx(
+                    className={cn(
                       'p-2 pr-4 rounded-[99px] w-max flex flex-row items-center gap-1',
                       isNormalized ? 'bg-green-200' : 'bg-red-200',
                     )}
