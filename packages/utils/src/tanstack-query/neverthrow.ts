@@ -4,6 +4,7 @@ import type {
   InitialDataFunction,
   OmitKeyof,
   QueryFunctionContext,
+  QueryKey,
   SkipToken,
   UndefinedInitialDataOptions,
   UnusedSkipTokenOptions,
@@ -12,7 +13,6 @@ import type {
 import type { Result, ResultAsync } from 'neverthrow'
 
 export type ResultError = { _tag: string }
-export type GenericQueryKey = readonly [string, Record<string, unknown>?]
 
 export type NonUndefinedGuard<T> = T extends undefined ? never : T
 
@@ -20,7 +20,7 @@ export type UseResultQueryOptions<
   TQueryFnData,
   TError extends ResultError,
   TData = TQueryFnData,
-  TQueryKey extends GenericQueryKey = GenericQueryKey,
+  TQueryKey extends QueryKey = QueryKey,
 > = OmitKeyof<
   UseQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
   'queryFn'
@@ -32,7 +32,7 @@ export type UndefinedInitialDataResultOptions<
   TQueryFnData,
   TError extends ResultError,
   TData = TQueryFnData,
-  TQueryKey extends GenericQueryKey = GenericQueryKey,
+  TQueryKey extends QueryKey = QueryKey,
 > = UseResultQueryOptions<TQueryFnData, TError, TData, TQueryKey> & {
   initialData?:
     | undefined
@@ -44,7 +44,7 @@ export type UnusedSkipTokenResultOptions<
   TQueryFnData,
   TError extends ResultError,
   TData = TQueryFnData,
-  TQueryKey extends GenericQueryKey = GenericQueryKey,
+  TQueryKey extends QueryKey = QueryKey,
 > = OmitKeyof<
   UseResultQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
   'queryFn'
@@ -59,7 +59,7 @@ export type DefinedInitialDataResultOptions<
   TQueryFnData,
   TError extends ResultError,
   TData = TQueryFnData,
-  TQueryKey extends GenericQueryKey = GenericQueryKey,
+  TQueryKey extends QueryKey = QueryKey,
 > = Omit<
   UseResultQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
   'queryFn'
@@ -73,7 +73,7 @@ export type DefinedInitialDataResultOptions<
 export type ResultQueryFunction<
   TData,
   TError extends ResultError,
-  TQueryKey extends GenericQueryKey = GenericQueryKey,
+  TQueryKey extends QueryKey = QueryKey,
   TPageParam = never,
 > = (
   context: QueryFunctionContext<TQueryKey, TPageParam>,
@@ -83,7 +83,7 @@ export function resultQueryOptions<
   TQueryFnData,
   TError extends ResultError,
   TData = TQueryFnData,
-  TQueryKey extends GenericQueryKey = GenericQueryKey,
+  TQueryKey extends QueryKey = QueryKey,
 >(
   options: DefinedInitialDataResultOptions<
     TQueryFnData,
@@ -98,7 +98,7 @@ export function resultQueryOptions<
   TQueryFnData,
   TError extends ResultError,
   TData = TQueryFnData,
-  TQueryKey extends GenericQueryKey = GenericQueryKey,
+  TQueryKey extends QueryKey = QueryKey,
 >(
   options: UnusedSkipTokenResultOptions<TQueryFnData, TError, TData, TQueryKey>,
 ): UnusedSkipTokenOptions<TQueryFnData, TError, TData, TQueryKey> & {
@@ -108,7 +108,7 @@ export function resultQueryOptions<
   TQueryFnData,
   TError extends ResultError,
   TData = TQueryFnData,
-  TQueryKey extends GenericQueryKey = GenericQueryKey,
+  TQueryKey extends QueryKey = QueryKey,
 >(
   options: UndefinedInitialDataResultOptions<
     TQueryFnData,
@@ -130,11 +130,11 @@ export function resultQueryOptions({
   unknown,
   ResultError,
   unknown,
-  GenericQueryKey
+  QueryKey
 > {
   const queryFn =
     typeof rawQueryFn === 'function'
-      ? (context: QueryFunctionContext<GenericQueryKey>) =>
+      ? (context: QueryFunctionContext<QueryKey>) =>
           rawQueryFn(context).match(
             (value) => value,
             (error) => {

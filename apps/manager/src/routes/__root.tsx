@@ -2,9 +2,9 @@
 
 import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import rainbowKitCss from '@rainbow-me/rainbowkit/styles.css?url'
-import { QueryClientProvider } from '@tanstack/react-query'
+import type { QueryClient } from '@tanstack/react-query'
 import {
-  createRootRoute,
+  createRootRouteWithContext,
   HeadContent,
   Outlet,
   Scripts,
@@ -15,19 +15,20 @@ import { WagmiProvider } from 'wagmi'
 import { Layout } from '@/components/Layout'
 import { wagmiConfig } from '@/lib/wagmi'
 import appCss from '@/styles/index.css?url'
-import { queryClient } from '@/utils/queryClient'
 
 const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
     <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>{children}</RainbowKitProvider>
-      </QueryClientProvider>
+      <RainbowKitProvider>{children}</RainbowKitProvider>
     </WagmiProvider>
   )
 }
 
-export const Route = createRootRoute({
+interface RootRouterContext {
+  queryClient: QueryClient
+}
+
+export const Route = createRootRouteWithContext<RootRouterContext>()({
   head: () => ({
     meta: [
       {

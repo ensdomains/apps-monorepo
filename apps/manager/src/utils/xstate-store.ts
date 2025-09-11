@@ -17,7 +17,8 @@ export const createPersistedStore = <
   { context, ...rest }: StoreConfig<TContext, TEventPayloadMap, TEmitted>,
   { key }: PersistedStoreOptions,
 ) => {
-  const persistedContext = localStorage.getItem(key)
+  const persistedContext =
+    typeof window !== 'undefined' ? localStorage.getItem(key) : undefined
   const initialContext = persistedContext
     ? (JSON.parse(persistedContext) as TContext)
     : context
@@ -28,7 +29,9 @@ export const createPersistedStore = <
   })
 
   store.subscribe((snapshot) => {
-    localStorage.setItem(key, JSON.stringify(snapshot.context))
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(key, JSON.stringify(snapshot.context))
+    }
   })
 
   return store
