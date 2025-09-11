@@ -8,10 +8,10 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getWrapperDataQueryOptions } from '@/features/profile/hooks/useWrapperData'
 import { useContractAddress } from '@/hooks/useContractAddress'
+import { cn } from '@/lib/utils'
 import { asciiEncode } from '@/utils/token/ascii'
 import { dnsEncodeName } from '@/utils/token/dnsEncodeName'
 import { escapeUnicode } from '@/utils/token/escapeUnicode'
-import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/$name/token')({
   component: RouteComponent,
