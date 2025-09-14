@@ -1,5 +1,5 @@
 import { fromPromise, type ResultAsync } from 'neverthrow'
-import { rawError } from './result'
+import { rawError } from  '../../utils/result'
 
 export const KV_KEY = {
   AUTH: {

@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import router from './api'
+import router from './app'
 
 export default {
   fetch: router.fetch,

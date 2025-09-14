@@ -1,8 +1,8 @@
 import { createMiddleware } from 'hono/factory'
 import { jwt as honoJwt } from 'hono/jwt'
 import * as v from 'valibot'
-import type { BaseEnv, Variables } from '@/api/utils/hono'
-import { AuthPayload } from '../../utils/auth'
+import type { BaseEnv, Variables } from '@/app/middleware/hono'
+import { AuthPayload } from '@/core/auth/jwt'
 
 export const verifySignature = createMiddleware<
   BaseEnv & {

@@ -1,7 +1,7 @@
 import { HTTPException } from 'hono/http-exception'
 import { logger, prettifyError } from '@/utils/logger'
 import authApp from './routes/auth'
-import { createApp } from './utils/hono'
+import { createApp } from  './middleware/hono'
 
 const app = createApp()
 

@@ -3,9 +3,9 @@ import { match, P } from 'ts-pattern'
 import * as v from 'valibot'
 import { createJWT, createNonce } from '@/services/auth'
 import { ethAddress } from '@/utils/validation'
-import { injectDb } from '../middleware/database'
-import { injectEthClient } from '../middleware/eth'
-import { createApp, internalServerError } from '../utils/hono'
+import { injectDb } from  '../../middleware/database'
+import { injectEthClient } from  '../../middleware/eth'
+import { createApp, internalServerError } from  '../../middleware/hono'
 
 const app = createApp()
 

@@ -1,7 +1,7 @@
 import { mainnet, sepolia } from "viem/chains";
 
 import { createPublicClient, http } from "viem";
-import { error } from "./result";
+import { error } from  '../../utils/result';
 import { ok, Result } from "neverthrow";
 import { extendChainWithEns  } from "@ensdomains/ensjs/chain";
 
