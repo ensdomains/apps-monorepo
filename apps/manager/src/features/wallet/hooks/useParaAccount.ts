@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { para } from '@/lib/wagmi'
+import { para } from '../machines/para'
 
 export const useParaAccount = () => {
   const { data: isLoggedIn = false, isLoading: isCheckingLogin } = useQuery({

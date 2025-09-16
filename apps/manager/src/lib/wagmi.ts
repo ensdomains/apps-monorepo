@@ -1,33 +1,27 @@
 import { createParaConnector } from '@getpara/wagmi-v2-connector'
-import { ParaWeb } from '@getpara/web-sdk'
 import { injected } from '@wagmi/core'
-import { createAtom } from '@xstate/store'
 import { http } from 'viem'
 import { mainnet } from 'viem/chains'
 import { createConfig } from 'wagmi'
 import { walletConnect } from 'wagmi/connectors'
-
-const para = new ParaWeb('beta_2996c2e68bb6304f19eb12b0288ffbff')
+import { para, paraMachine } from '@/features/wallet/machines/para'
 
 const paraConnector = createParaConnector({
   para,
   appName: 'demo',
   options: {},
   renderModal: (onClose) => {
-    paraModalOpenAtom.subscribe((value) => {
-      if (!value) {
+    paraMachine.subscribe(({ value }) => {
+      if (value === 'closed') {
         onClose()
-        console.log('Told para modal to close')
       }
     })
 
     return {
-      openModal: () => paraModalOpenAtom.set(true),
+      openModal: () => paraMachine.send({ type: 'OPEN' }),
     }
   },
 })
-
-export const paraModalOpenAtom = createAtom(false)
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,

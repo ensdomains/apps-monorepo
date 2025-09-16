@@ -1,4 +1,5 @@
 import type { ConnectErrorType } from '@wagmi/core'
+import { useSelector } from '@xstate/react'
 import { createAtom } from '@xstate/store'
 import { useAtom } from '@xstate/store/react'
 import { Loader2, LoaderIcon, WalletIcon } from 'lucide-react'
@@ -14,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { paraModalOpenAtom } from '@/lib/wagmi'
+import { para, paraMachine } from '../machines/para'
 import { ParaAuth } from './ParaAuth'
 
 export const WalletModalOpenAtom = createAtom(false)
@@ -123,20 +124,41 @@ const DisconnectedContent = () => {
 
 export const WalletModal = () => {
   const isOpen = useAtom(WalletModalOpenAtom)
-  const isParaModalOpen = useAtom(paraModalOpenAtom)
+  const isParaModalOpen = useSelector(
+    paraMachine,
+    (state) => state.value !== 'closed',
+  )
   const { isConnected } = useAccount()
 
   useAccountEffect({
     onConnect() {
       WalletModalOpenAtom.set(false)
-      paraModalOpenAtom.set(false)
+      paraMachine.send({
+        type: 'CLOSE',
+      })
+    },
+    onDisconnect() {
+      para.logout()
     },
   })
 
   // Show Para modal when paraModalOpenAtom is true
   if (isParaModalOpen) {
     return (
-      <Dialog open={isParaModalOpen} onOpenChange={paraModalOpenAtom.set}>
+      <Dialog
+        open={isParaModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            paraMachine.send({
+              type: 'CLOSE',
+            })
+          } else {
+            paraMachine.send({
+              type: 'OPEN',
+            })
+          }
+        }}
+      >
         <DialogContent>
           <ParaAuth />
         </DialogContent>
