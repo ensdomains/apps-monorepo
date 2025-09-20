@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import {
+  CoinsIcon,
   FileCodeIcon,
   FileSpreadsheetIcon,
   PersonStandingIcon,
@@ -41,6 +42,13 @@ const itemGroups = [
       title: 'Ownership',
       url: '/$name/ownership',
       icon: UserLockIcon,
+    },
+  ],
+  [
+    {
+      title: 'Token info',
+      url: '/$name/token',
+      icon: CoinsIcon,
     },
   ],
 ] as const

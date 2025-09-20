@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as NameRouteImport } from './routes/$name'
 import { Route as NameIndexRouteImport } from './routes/$name/index'
+import { Route as NameTokenRouteImport } from './routes/$name/token'
 import { Route as NameResolverRouteImport } from './routes/$name/resolver'
 import { Route as NameRecordsRouteImport } from './routes/$name/records'
 import { Route as NameOwnershipRouteImport } from './routes/$name/ownership'
@@ -23,6 +24,11 @@ const NameRoute = NameRouteImport.update({
 const NameIndexRoute = NameIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => NameRoute,
+} as any)
+const NameTokenRoute = NameTokenRouteImport.update({
+  id: '/token',
+  path: '/token',
   getParentRoute: () => NameRoute,
 } as any)
 const NameResolverRoute = NameResolverRouteImport.update({
@@ -46,12 +52,14 @@ export interface FileRoutesByFullPath {
   '/$name/ownership': typeof NameOwnershipRoute
   '/$name/records': typeof NameRecordsRoute
   '/$name/resolver': typeof NameResolverRoute
+  '/$name/token': typeof NameTokenRoute
   '/$name/': typeof NameIndexRoute
 }
 export interface FileRoutesByTo {
   '/$name/ownership': typeof NameOwnershipRoute
   '/$name/records': typeof NameRecordsRoute
   '/$name/resolver': typeof NameResolverRoute
+  '/$name/token': typeof NameTokenRoute
   '/$name': typeof NameIndexRoute
 }
 export interface FileRoutesById {
@@ -60,6 +68,7 @@ export interface FileRoutesById {
   '/$name/ownership': typeof NameOwnershipRoute
   '/$name/records': typeof NameRecordsRoute
   '/$name/resolver': typeof NameResolverRoute
+  '/$name/token': typeof NameTokenRoute
   '/$name/': typeof NameIndexRoute
 }
 export interface FileRouteTypes {
@@ -69,15 +78,22 @@ export interface FileRouteTypes {
     | '/$name/ownership'
     | '/$name/records'
     | '/$name/resolver'
+    | '/$name/token'
     | '/$name/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/$name/ownership' | '/$name/records' | '/$name/resolver' | '/$name'
+  to:
+    | '/$name/ownership'
+    | '/$name/records'
+    | '/$name/resolver'
+    | '/$name/token'
+    | '/$name'
   id:
     | '__root__'
     | '/$name'
     | '/$name/ownership'
     | '/$name/records'
     | '/$name/resolver'
+    | '/$name/token'
     | '/$name/'
   fileRoutesById: FileRoutesById
 }
@@ -99,6 +115,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/$name/'
       preLoaderRoute: typeof NameIndexRouteImport
+      parentRoute: typeof NameRoute
+    }
+    '/$name/token': {
+      id: '/$name/token'
+      path: '/token'
+      fullPath: '/$name/token'
+      preLoaderRoute: typeof NameTokenRouteImport
       parentRoute: typeof NameRoute
     }
     '/$name/resolver': {
@@ -129,6 +152,7 @@ interface NameRouteChildren {
   NameOwnershipRoute: typeof NameOwnershipRoute
   NameRecordsRoute: typeof NameRecordsRoute
   NameResolverRoute: typeof NameResolverRoute
+  NameTokenRoute: typeof NameTokenRoute
   NameIndexRoute: typeof NameIndexRoute
 }
 
@@ -136,6 +160,7 @@ const NameRouteChildren: NameRouteChildren = {
   NameOwnershipRoute: NameOwnershipRoute,
   NameRecordsRoute: NameRecordsRoute,
   NameResolverRoute: NameResolverRoute,
+  NameTokenRoute: NameTokenRoute,
   NameIndexRoute: NameIndexRoute,
 }
 
