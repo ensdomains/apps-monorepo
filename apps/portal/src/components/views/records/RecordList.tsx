@@ -1,6 +1,14 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { Link } from '@tanstack/react-router'
-import type { RowSelectionState } from '@tanstack/react-table'
+import {
+  type ColumnFiltersState,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  type RowSelectionState,
+  type SortingState,
+  useReactTable,
+} from '@tanstack/react-table'
 import {
   FileInputIcon,
   PencilLineIcon,
@@ -9,6 +17,7 @@ import {
   XIcon,
 } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
+import { columns } from '@/components/organisms/RecordsTable/columns'
 import { RecordsTable } from '@/components/organisms/RecordsTable/RecordsTable'
 import { Button } from '@/components/ui/button'
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
@@ -31,7 +40,27 @@ export const RecordList = ({
     [rowSelection],
   )
 
+  const [sorting, setSorting] = useState<SortingState>([])
   const records = useMemo(() => recordsToTableData(rawRecords), [rawRecords])
+
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+
+  const table = useReactTable({
+    data: records,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
+    state: {
+      sorting,
+      rowSelection,
+      columnFilters,
+    },
+    onRowSelectionChange: setRowSelection,
+    onColumnFiltersChange: setColumnFilters,
+    getFilteredRowModel: getFilteredRowModel(),
+    globalFilterFn: 'includesString',
+  })
 
   const recordCount = records.length
 
@@ -84,13 +113,14 @@ export const RecordList = ({
               id={searchRecordsId}
               className="w-full "
               placeholder="Search records..."
+              onChange={(event) => table.setGlobalFilter(event.target.value)}
             />
           </div>
         )}
       </header>
       <RecordsTable
         name={name}
-        records={records}
+        table={table}
         {...{ rowSelection, setRowSelection }}
       />
     </>

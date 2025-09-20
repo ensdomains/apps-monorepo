@@ -1,12 +1,8 @@
 import { PopoverTrigger } from '@radix-ui/react-popover'
 import {
   flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
   type Row,
-  type RowSelectionState,
-  type SortingState,
-  useReactTable,
+  type Table as TableData,
 } from '@tanstack/react-table'
 import { SettingsIcon } from 'lucide-react'
 import { useState } from 'react'
@@ -29,32 +25,14 @@ import { RecordTableRow } from './RecordTableRow'
 import { TableViewSwitch } from './TableViewSwitch'
 
 export const RecordsTable = ({
-  records,
-  rowSelection,
-  setRowSelection,
   defaultTableSettings,
   name,
+  table,
 }: {
-  records: Record[]
-  rowSelection: RowSelectionState
-  setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>
   name: string
   defaultTableSettings?: TableViewSettings
+  table: TableData<Record>
 }) => {
-  const [sorting, setSorting] = useState<SortingState>([])
-  const table = useReactTable({
-    data: records,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    onSortingChange: setSorting,
-    getSortedRowModel: getSortedRowModel(),
-    state: {
-      sorting,
-      rowSelection,
-    },
-    onRowSelectionChange: setRowSelection,
-  })
-
   const [clickedRow, setClickedRow] = useState<Row<Record> | null>(null)
 
   const [open, setOpen] = useState(false)
