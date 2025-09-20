@@ -1,7 +1,6 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { PopoverTrigger } from '@radix-ui/react-popover'
 import {
-  type Cell,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
@@ -26,9 +25,9 @@ import {
   type TableViewSettings,
   useTableViewSettings,
 } from '@/features/profile/hooks/useTableViewSettings'
-import { cn } from '@/lib/utils'
 import { RecordDetails } from '../RecordDetails/RecordDetails'
 import { columns, type Record } from './columns'
+import { RecordTableRow } from './RecordTableRow'
 import { TableViewSwitch } from './TableViewSwitch'
 
 type Entries<T> = {
@@ -78,39 +77,6 @@ const RecordSidebar: FC<
       </SheetContent>
     </Sheet>
   )
-}
-
-const ClickableCell = ({
-  cell,
-  toggleSidebar,
-  setClickedRow,
-  tableView,
-}: {
-  cell: Cell<Record, unknown>
-  setClickedRow: React.Dispatch<React.SetStateAction<Row<Record> | null>>
-  toggleSidebar: () => void
-  tableView: TableViewSettings
-}) => {
-  if (cell.column.id === 'select') {
-    return (
-      <TableCell key={cell.id} className={tableView.compact ? 'py-2' : 'py-4'}>
-        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-      </TableCell>
-    )
-  } else {
-    return (
-      <TableCell
-        key={cell.id}
-        className={tableView.compact ? 'py-2' : 'py-4'}
-        onClick={() => {
-          setClickedRow(cell.row)
-          toggleSidebar()
-        }}
-      >
-        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-      </TableCell>
-    )
-  }
 }
 
 export const RecordsTable = ({
@@ -177,26 +143,14 @@ export const RecordsTable = ({
         </TableHeader>
         <TableBody>
           {table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map((row) => (
-              <TableRow
-                className={cn(
-                  'hover:bg-gray-200',
-                  tableView.strippedRows && 'even:bg-gray-100',
-                )}
-                key={row.id}
-                data-state={row.getIsSelected() && 'selected'}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <ClickableCell
-                    {...{ cell, setClickedRow, tableView }}
-                    key={cell.id}
-                    toggleSidebar={() => {
-                      setOpen(!open)
-                    }}
-                  />
-                ))}
-              </TableRow>
-            ))
+            table
+              .getRowModel()
+              .rows.map((row) => (
+                <RecordTableRow
+                  key={row.id}
+                  {...{ row, tableView, setOpen, setClickedRow, open }}
+                />
+              ))
           ) : (
             <TableRow>
               <TableCell colSpan={columns.length} className="h-24 text-center">
