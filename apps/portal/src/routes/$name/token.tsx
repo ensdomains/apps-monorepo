@@ -56,6 +56,8 @@ function RouteComponent() {
 
   const labels = parts.map((label) => String.fromCodePoint(...label.input))
 
+  const encoding = parts.map((part) => part.type).join(' + ')
+
   return (
     <div className="p-6">
       <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
@@ -70,16 +72,8 @@ function RouteComponent() {
           <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
             <Label>Token Standard</Label>
             <CopyableRecord
-              value={
-                contractAddress === nameWrapperAddress
-                  ? 'NameWrapper (ERC-721)'
-                  : 'ERC-721'
-              }
+              value={isWrapped ? 'NameWrapper' : 'Base Registrar (ERC-721)'}
             />
-          </div>
-          <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
-            <Label>Protocol version</Label>
-            <CopyableRecord value="ENSv1" />
           </div>
           <div className="flex flex-col gap-1 w-full max-w-full">
             <Label>Token ID</Label>
@@ -124,11 +118,7 @@ function RouteComponent() {
                     <CheckCircleIcon width={16} height={16} />
                     <div>{normalized ? 'Normalized' : 'Not Normalized'}</div>
                   </div>
-                  <div>
-                    {hasEmoji
-                      ? `${parts.map((part) => part.type).join(' + ')} + Emoji`
-                      : parts.map((part) => part.type).join(' + ')}
-                  </div>
+                  <div>{hasEmoji ? `${encoding} + Emoji` : encoding}</div>
                 </div>
               </div>
               <div className="flex flex-col gap-1">
