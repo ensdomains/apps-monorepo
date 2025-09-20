@@ -1,4 +1,3 @@
-import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { PopoverTrigger } from '@radix-ui/react-popover'
 import {
   flexRender,
@@ -10,9 +9,8 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { SettingsIcon } from 'lucide-react'
-import { type FC, type PropsWithChildren, useState } from 'react'
+import { useState } from 'react'
 import { Popover, PopoverContent } from '@/components/ui/popover'
-import { Sheet, SheetContent } from '@/components/ui/sheet'
 import {
   Table,
   TableBody,
@@ -25,59 +23,10 @@ import {
   type TableViewSettings,
   useTableViewSettings,
 } from '@/features/profile/hooks/useTableViewSettings'
-import { RecordDetails } from '../RecordDetails/RecordDetails'
 import { columns, type Record } from './columns'
+import { RecordSidebar } from './RecordSidebar'
 import { RecordTableRow } from './RecordTableRow'
 import { TableViewSwitch } from './TableViewSwitch'
-
-type Entries<T> = {
-  [K in keyof T]-?: [K, T[K]]
-}[keyof T][]
-
-export const recordsToTableData = (records: GetRecordsReturnType): Record[] => {
-  const data: Record[] = []
-
-  for (const [key, value] of Object.entries(
-    records,
-  ) as Entries<GetRecordsReturnType>) {
-    if (key === 'contentHash' && value) {
-      data.push({
-        type: key,
-        value: `${value.protocolType}://${value.decoded}`,
-      })
-    }
-    if (key === 'texts') {
-      for (const { key, value: text } of Object.values(value)) {
-        data.push({ key, value: text, type: 'text' })
-      }
-    }
-    if (key === 'coins') {
-      for (const { coinType, value: addr, symbol } of Object.values(value)) {
-        data.push({ key: symbol, value: addr, type: 'address', id: coinType })
-      }
-    }
-  }
-
-  return data
-}
-
-const RecordSidebar: FC<
-  PropsWithChildren<{
-    row: Row<Record> | null
-    name: string
-    open: boolean
-    setOpen: React.Dispatch<React.SetStateAction<boolean>>
-  }>
-> = ({ children, row, name, open, setOpen }) => {
-  return (
-    <Sheet open={open} onOpenChange={setOpen} defaultOpen={false}>
-      {children}
-      <SheetContent side="right" className="sm:max-w-[880px] bg-white">
-        {row && <RecordDetails record={row.original} name={name} />}
-      </SheetContent>
-    </Sheet>
-  )
-}
 
 export const RecordsTable = ({
   records,

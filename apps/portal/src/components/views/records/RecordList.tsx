@@ -9,12 +9,10 @@ import {
   XIcon,
 } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
-import {
-  RecordsTable,
-  recordsToTableData,
-} from '@/components/organisms/RecordsTable/RecordsTable'
+import { RecordsTable } from '@/components/organisms/RecordsTable/RecordsTable'
 import { Button } from '@/components/ui/button'
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
+import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
 export const RecordList = ({
   name,
@@ -33,7 +31,7 @@ export const RecordList = ({
     [rowSelection],
   )
 
-  const records = recordsToTableData(rawRecords)
+  const records = useMemo(() => recordsToTableData(rawRecords), [rawRecords])
 
   const recordCount = records.length
 
