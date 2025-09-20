@@ -76,7 +76,7 @@ const OwnerTableDisplay = ({ owner }: { owner: Address }) => {
     return <CopyableRecord value={ensName} />
   }
   return (
-    <CopyableRecord className="w-full md:max-w-64 lg:max-w-96" value={owner} />
+    <CopyableRecord className="w-full md:max-w-48 lg:max-w-72" value={owner} />
   )
 }
 
@@ -126,7 +126,7 @@ const domainColumns: ColumnDef<WithTimestamp<DomainEvent>>[] = [
       return (
         <CopyableRecord
           href={`https://etherscan.io/tx/${value}`}
-          className="w-full max-w-64"
+          className="w-full max-w-48 lg:max-w-64"
           value={value}
         />
       )
