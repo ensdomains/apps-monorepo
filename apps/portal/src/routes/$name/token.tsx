@@ -72,7 +72,7 @@ function RouteComponent() {
           <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
             <Label>Token Standard</Label>
             <CopyableRecord
-              value={isWrapped ? 'NameWrapper' : 'Base Registrar (ERC-721)'}
+              value={isWrapped ? 'NameWrapper' : 'Base Registrar'}
             />
           </div>
           <div className="flex flex-col gap-1 w-full max-w-full">
