@@ -4,31 +4,6 @@
 
 This project uses TanStack Query with a custom `resultQueryOptions` wrapper that integrates with `neverthrow` for error handling. **ALWAYS** follow these patterns when working with queries:
 
-### Query Function Patterns
-
-#### ✅ CORRECT: Destructure queryKey in queryFn
-```typescript
-export const getMyDataQueryOptions = (param1: string, param2: number) =>
-  resultQueryOptions({
-    queryKey: ['myData', { param1, param2 }] as const,
-    queryFn: ({ queryKey: [, params] }) => {
-      // Type cast params for type safety
-      const { param1, param2 } = params as { param1: string; param2: number }
-      return fetchMyData({ param1, param2 })
-    },
-  })
-```
-
-#### ❌ INCORRECT: Using closure variables directly
-```typescript
-// DON'T DO THIS - violates TanStack Query best practices
-export const getMyDataQueryOptions = (param1: string, param2: number) =>
-  resultQueryOptions({
-    queryKey: ['myData', { param1, param2 }] as const,
-    queryFn: () => fetchMyData({ param1, param2 }), // Wrong!
-  })
-```
-
 ### Query Key Patterns
 
 1. **Use tuple format**: `[feature, params]` where:
@@ -38,12 +13,6 @@ export const getMyDataQueryOptions = (param1: string, param2: number) =>
 2. **Always use `as const`** for better TypeScript inference:
    ```typescript
    queryKey: ['profile', { name }] as const
-   ```
-
-3. **Create factory functions** for complex query keys:
-   ```typescript
-   const profileQueryKey = ({ name }: { name: string }) =>
-     ['profile', { name }] as const
    ```
 
 ### File Organization
@@ -58,7 +27,6 @@ export const getMyDataQueryOptions = (param1: string, param2: number) =>
 ### Example Patterns in This Codebase
 
 Reference these files for correct patterns:
-- `/src/features/searchName/services/searchNameService.ts`
 - `/src/features/profile/hooks/useProfile.ts`
 - `/src/features/profile/hooks/useEnsOwner.ts`
 - `/src/hooks/useSupportsInterfaces.ts`
