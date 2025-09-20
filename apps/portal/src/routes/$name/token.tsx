@@ -1,4 +1,4 @@
-import { ens_normalize, ens_split } from '@adraffy/ens-normalize'
+import { ens_split } from '@adraffy/ens-normalize'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { CheckCircleIcon } from 'lucide-react'
@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { asciiEncode } from '@/utils/token/ascii'
 import { dnsEncodeName } from '@/utils/token/dnsEncodeName'
 import { escapeUnicode } from '@/utils/token/escapeUnicode'
+import { isNormalized } from '@/utils/token/isNormalized'
 
 export const Route = createFileRoute('/$name/token')({
   component: RouteComponent,
@@ -49,7 +50,7 @@ function RouteComponent() {
 
   const hash = namehash(ascii)
 
-  const isNormalized = ens_normalize(name) === name
+  const normalized = isNormalized(name)
 
   const hasEmoji = Boolean(parts.find((part) => part.emoji))
 
@@ -117,11 +118,11 @@ function RouteComponent() {
                   <div
                     className={cn(
                       'p-2 pr-4 rounded-[99px] w-max flex flex-row items-center gap-1',
-                      isNormalized ? 'bg-green-200' : 'bg-red-200',
+                      normalized ? 'bg-green-200' : 'bg-red-200',
                     )}
                   >
                     <CheckCircleIcon width={16} height={16} />
-                    <div>{isNormalized ? 'Normalized' : 'Not Normalized'}</div>
+                    <div>{normalized ? 'Normalized' : 'Not Normalized'}</div>
                   </div>
                   <div>
                     {hasEmoji
