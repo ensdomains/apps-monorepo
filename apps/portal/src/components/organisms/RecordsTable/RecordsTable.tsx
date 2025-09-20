@@ -11,7 +11,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { SettingsIcon } from 'lucide-react'
-import { type FC, type PropsWithChildren, useMemo, useState } from 'react'
+import { type FC, type PropsWithChildren, useState } from 'react'
 import { Popover, PopoverContent } from '@/components/ui/popover'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import {
@@ -35,7 +35,7 @@ type Entries<T> = {
   [K in keyof T]-?: [K, T[K]]
 }[keyof T][]
 
-const recordsToTableData = (records: GetRecordsReturnType) => {
+export const recordsToTableData = (records: GetRecordsReturnType): Record[] => {
   const data: Record[] = []
 
   for (const [key, value] of Object.entries(
@@ -120,17 +120,15 @@ export const RecordsTable = ({
   defaultTableSettings,
   name,
 }: {
-  records: GetRecordsReturnType
+  records: Record[]
   rowSelection: RowSelectionState
   setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>
   name: string
   defaultTableSettings?: TableViewSettings
 }) => {
-  const tableData = useMemo(() => recordsToTableData(records), [records])
-
   const [sorting, setSorting] = useState<SortingState>([])
   const table = useReactTable({
-    data: tableData,
+    data: records,
     columns,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,

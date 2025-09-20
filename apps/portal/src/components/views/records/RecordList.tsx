@@ -9,13 +9,16 @@ import {
   XIcon,
 } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
-import { RecordsTable } from '@/components/organisms/RecordsTable/RecordsTable'
+import {
+  RecordsTable,
+  recordsToTableData,
+} from '@/components/organisms/RecordsTable/RecordsTable'
 import { Button } from '@/components/ui/button'
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
 
 export const RecordList = ({
   name,
-  records,
+  records: rawRecords,
 }: {
   name: string
   records: GetRecordsReturnType
@@ -30,18 +33,22 @@ export const RecordList = ({
     [rowSelection],
   )
 
+  const records = recordsToTableData(rawRecords)
+
+  const recordCount = records.length
+
   const searchRecordsId = useId()
 
   return (
     <>
       <header className="bg-gray-100 px-8 pb-4 pt-12 flex flex-col gap-4">
         <div className="flex flex-row justify-between">
-          <h1 className="text-[28px] font-medium">Records</h1>
+          <h1 className="text-[28px] font-medium">{recordCount} Records</h1>
           {canEditRecords && (
             <Link from="/$name/records" search={{ view: 'edit' }}>
               <Button variant="secondary" disabled={rowCount > 0} type="button">
                 <PencilLineIcon height={24} width={24} />
-                Edit Records
+                Records
               </Button>
             </Link>
           )}
