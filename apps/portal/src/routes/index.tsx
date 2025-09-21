@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { ChevronRight, SearchIcon } from 'lucide-react'
 import { useId } from 'react'
 import { ExternalLink } from 'react-external-link'
@@ -33,6 +33,19 @@ const LinkBlock = ({
   </ExternalLink>
 )
 
+const ExampleName = ({
+  name,
+  category,
+}: {
+  name: string
+  category: string
+}) => (
+  <Link to="/$name" params={{ name }} className="px-6 py-4">
+    <h4 className="font-mono font-medium">{name}</h4>
+    <p>{category}</p>
+  </Link>
+)
+
 function RouteComponent() {
   const id = useId()
   return (
@@ -61,8 +74,8 @@ function RouteComponent() {
         </header>
         <section className="flex flex-col gap-6">
           <h2 className="text-2xl font-medium">Learn about ENS development</h2>
-          <div className="flex flex-row flex-wrap gap-6">
-            <div className="flex flex-row flex-wrap gap-4 max-w-160">
+          <div className="grid grid-cols-[1fr_auto] gap-6">
+            <div className="flex flex-row flex-wrap gap-4 w-full">
               <LinkBlock
                 title="ENS Docs"
                 description="The official documentation."
@@ -78,6 +91,14 @@ function RouteComponent() {
                 description="Get help with development."
                 href="https://t.me/ensdomains"
               />
+            </div>
+            <div className="flex flex-col gap-4 w-90">
+              <h3 className="font-medium">Examples</h3>
+              <div className="flex flex-col border border-gray-300 rounded-lg divide-y divide-gray-300">
+                <ExampleName name="vitalik.eth" category="Standard setup" />
+                <ExampleName name="😵💫😵💫😵💫.eth" category="Emojis" />
+                <ExampleName name="öbb.eth" category="Mixed characters" />
+              </div>
             </div>
           </div>
         </section>

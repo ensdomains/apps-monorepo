@@ -10,10 +10,10 @@ export const NavBar = () => {
 
   return (
     <nav className="sticky top-0 left-0 flex flex-row p-4 bg-background text-foreground w-full justify-between border-b border-b-gray-300 h-(--header-height)">
-      <div className="flex flex-row gap-2 items-center w-full">
+      <Link to="/" className="flex flex-row gap-2 items-center w-full">
         <LogoSVG width={72} height="auto" />{' '}
         <span className="font-bold">Explorer</span>
-      </div>
+      </Link>
       {location.pathname !== '/' && (
         <div className="flex flex-row gap-2 w-full">
           <SearchBar />
