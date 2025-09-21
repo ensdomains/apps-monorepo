@@ -2,11 +2,11 @@ import type { Row } from '@tanstack/react-table'
 import type { FC, PropsWithChildren } from 'react'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { RecordDetails } from '../RecordDetails/RecordDetails'
-import type { Record } from './columns'
+import type { NameRecord } from './columns'
 
 export const RecordSidebar: FC<
   PropsWithChildren<{
-    row: Row<Record> | null
+    row: Row<NameRecord> | null
     name: string
     open: boolean
     setOpen: React.Dispatch<React.SetStateAction<boolean>>

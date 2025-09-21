@@ -3,7 +3,7 @@ import { TableRow } from '@/components/ui/table'
 import type { TableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
 import { ClickableCell } from './ClickableCell'
-import type { Record } from './columns'
+import type { NameRecord } from './columns'
 
 export const RecordTableRow = ({
   row,
@@ -12,9 +12,9 @@ export const RecordTableRow = ({
   setClickedRow,
   open,
 }: {
-  row: Row<Record>
+  row: Row<NameRecord>
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
-  setClickedRow: React.Dispatch<React.SetStateAction<Row<Record> | null>>
+  setClickedRow: React.Dispatch<React.SetStateAction<Row<NameRecord> | null>>
   tableView: TableViewSettings
   open: boolean
 }) => {

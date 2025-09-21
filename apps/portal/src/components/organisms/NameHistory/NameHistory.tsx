@@ -15,10 +15,7 @@ import {
   type GetNameHistoryError,
   useNameHistory,
 } from '@/features/profile/hooks/useNameHistory'
-
-type WithTimestamp<T> = T & {
-  timestamp?: bigint
-}
+import type { WithTimestamp } from '@/utils/types'
 
 const resolverColumns: ColumnDef<WithTimestamp<ResolverEvent>>[] = [
   {

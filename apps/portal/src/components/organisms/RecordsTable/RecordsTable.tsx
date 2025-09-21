@@ -19,7 +19,7 @@ import {
   type TableViewSettings,
   useTableViewSettings,
 } from '@/features/profile/hooks/useTableViewSettings'
-import { columns, type Record } from './columns'
+import { columns, type NameRecord } from './columns'
 import { RecordSidebar } from './RecordSidebar'
 import { RecordTableRow } from './RecordTableRow'
 import { TableViewSwitch } from './TableViewSwitch'
@@ -31,9 +31,9 @@ export const RecordsTable = ({
 }: {
   name: string
   defaultTableSettings?: TableViewSettings
-  table: TableData<Record>
+  table: TableData<NameRecord>
 }) => {
-  const [clickedRow, setClickedRow] = useState<Row<Record> | null>(null)
+  const [clickedRow, setClickedRow] = useState<Row<NameRecord> | null>(null)
 
   const [open, setOpen] = useState(false)
 

@@ -1,7 +1,7 @@
 import { type Cell, flexRender, type Row } from '@tanstack/react-table'
 import { TableCell } from '@/components/ui/table'
 import type { TableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
-import type { Record } from './columns'
+import type { NameRecord } from './columns'
 
 export const ClickableCell = ({
   cell,
@@ -9,8 +9,8 @@ export const ClickableCell = ({
   setClickedRow,
   tableView,
 }: {
-  cell: Cell<Record, unknown>
-  setClickedRow: React.Dispatch<React.SetStateAction<Row<Record> | null>>
+  cell: Cell<NameRecord, unknown>
+  setClickedRow: React.Dispatch<React.SetStateAction<Row<NameRecord> | null>>
   toggleSidebar: () => void
   tableView: TableViewSettings
 }) => {

@@ -56,7 +56,11 @@
       "set-function-length": "npm:@socketregistry/set-function-length@^1",
       "string.prototype.codepointat": "npm:@socketregistry/string.prototype.codepointat@^1",
       "typed-array-buffer": "npm:@socketregistry/typed-array-buffer@^1",
-      "which-typed-array": "npm:@socketregistry/which-typed-array@^1"
+      "which-typed-array": "npm:@socketregistry/which-typed-array@^1",
+      "@ensdomains/ensjs": "link:../../../ensjs/packages/ensjs"
     }
+  },
+  "dependencies": {
+    "@ensdomains/ensjs": "link:../../../ensjs/packages/ensjs"
   }
 }

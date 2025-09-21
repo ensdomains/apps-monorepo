@@ -1,12 +1,14 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
-import type { Record } from '@/components/organisms/RecordsTable/columns'
+import type { NameRecord } from '@/components/organisms/RecordsTable/columns'
 
 type Entries<T> = {
   [K in keyof T]-?: [K, T[K]]
 }[keyof T][]
 
-export const recordsToTableData = (records: GetRecordsReturnType): Record[] => {
-  const data: Record[] = []
+export const recordsToTableData = (
+  records: GetRecordsReturnType,
+): NameRecord[] => {
+  const data: NameRecord[] = []
 
   for (const [key, value] of Object.entries(
     records,
