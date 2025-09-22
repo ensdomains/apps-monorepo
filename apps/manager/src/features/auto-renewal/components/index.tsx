@@ -94,7 +94,7 @@ export const NonAutoRenewalWarning = ({
         </div>
         <div className="text-gray-500 text-sm">
           {/* "erni.eth expires on July 10, 2025. Enable autorenewal or renew manually to avoid expiration." if only one name */}
-          {nonAutoRenewals.length === 1 ? (
+          {nonAutoRenewals.length === 1 && nonAutoRenewals[0] ? (
             <>
               {nonAutoRenewals[0].name} expires on{' '}
               <span className="font-medium">
@@ -102,7 +102,7 @@ export const NonAutoRenewalWarning = ({
               </span>
               . Enable auto-renewal or renew manually to avoid expiration.
             </>
-          ) : (
+          ) : nonAutoRenewals[0] ? (
             <>
               {nonAutoRenewals.join(', ')} are expiring without auto-renewal
               with the earliest expiring on{' '}
@@ -111,7 +111,7 @@ export const NonAutoRenewalWarning = ({
               </span>
               . Enable auto-renewal or renew manually to avoid expiration.
             </>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
