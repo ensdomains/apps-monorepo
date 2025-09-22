@@ -53,11 +53,11 @@ beforeEach(() => queryClient.clear())
 const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
   return (
     <WagmiProvider config={wagmiConfig}>
-      <RainbowKitProvider>
-        <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider>
           {children}
-        </QueryClientProvider>
-      </RainbowKitProvider>
+        </RainbowKitProvider>
+      </QueryClientProvider>
     </WagmiProvider>
   )
 }
