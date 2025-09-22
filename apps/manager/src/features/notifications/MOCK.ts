@@ -77,7 +77,7 @@ const getRandomPost = async () => {
 
 export const generateRandomNotification = async (): Promise<Notification> => {
   const type = types[Math.floor(Math.random() * types.length)]
-  const name = names[Math.floor(Math.random() * names.length)]
+  const name = names[Math.floor(Math.random() * names.length)] ?? 'default.eth'
 
   switch (type) {
     case 'name-expiry':

@@ -108,6 +108,7 @@ export const renewMachine = setup({
         src: 'transactionManager',
         id: 'transactionMgr',
         input: ({ context }) => ({
+          // @ts-expect-error - makeFunctionData doesn't exist on renewNames yet
           transactionRequest: renewNames.makeFunctionData(
             wagmiConfig.getClient(),
             {
