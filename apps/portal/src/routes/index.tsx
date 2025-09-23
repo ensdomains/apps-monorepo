@@ -167,7 +167,7 @@ function RouteComponent() {
             </label>
             <input
               id={id}
-              className="w-full appearance-none border-none outline-none text-2xl p-4"
+              className="w-full appearance-none border-none outline-none text-2xl p-4 pl-0"
               placeholder="Search..."
             />
           </div>
