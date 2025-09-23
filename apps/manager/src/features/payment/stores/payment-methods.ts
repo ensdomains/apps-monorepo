@@ -22,8 +22,10 @@ export const paymentMethodsStore = createPersistedStore(
         produce(context, (draft) => {
           // index 0 will be the default payment method so move the item to the first position
           const item = draft.paymentMethods[event.index]
-          draft.paymentMethods.splice(event.index, 1)
-          draft.paymentMethods.unshift(item)
+          if (item) {
+            draft.paymentMethods.splice(event.index, 1)
+            draft.paymentMethods.unshift(item)
+          }
         }),
     },
   },
