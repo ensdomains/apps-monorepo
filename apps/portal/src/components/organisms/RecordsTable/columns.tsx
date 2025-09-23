@@ -8,7 +8,7 @@ type AddressRecord = { type: 'address'; id: number; key: string }
 type ContentHashRecord = { type: 'contentHash' }
 type TextRecord = { type: 'text'; key: string }
 
-export type Record = { value: string } & (
+export type NameRecord = { value: string } & (
   | AddressRecord
   | ContentHashRecord
   | TextRecord
@@ -27,7 +27,7 @@ const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
   )
 }
 
-export const columns: ColumnDef<Record>[] = [
+export const columns: ColumnDef<NameRecord>[] = [
   {
     id: 'select',
     header: ({ table }) => (
@@ -98,7 +98,7 @@ export const columns: ColumnDef<Record>[] = [
       )
     },
     cell: ({ column, row }) => {
-      const value = row.getValue(column.id) as Record['value']
+      const value = row.getValue(column.id) as NameRecord['value']
 
       const [settings] = useTableViewSettings()
 

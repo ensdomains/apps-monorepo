@@ -15,10 +15,7 @@ import {
   type GetNameHistoryError,
   useNameHistory,
 } from '@/features/profile/hooks/useNameHistory'
-
-type WithTimestamp<T> = T & {
-  timestamp?: bigint
-}
+import type { WithTimestamp } from '@/utils/types'
 
 const resolverColumns: ColumnDef<WithTimestamp<ResolverEvent>>[] = [
   {
@@ -75,7 +72,9 @@ const OwnerTableDisplay = ({ owner }: { owner: Address }) => {
   if (ensName) {
     return <CopyableRecord value={ensName} />
   }
-  return <CopyableRecord value={owner} />
+  return (
+    <CopyableRecord className="w-full md:max-w-48 lg:max-w-72" value={owner} />
+  )
 }
 
 const domainColumns: ColumnDef<WithTimestamp<DomainEvent>>[] = [
@@ -122,9 +121,11 @@ const domainColumns: ColumnDef<WithTimestamp<DomainEvent>>[] = [
     cell({ column, row }) {
       const value = row.getValue(column.id) as string
       return (
-        <div className="w-max">
-          <CopyableRecord value={value} />
-        </div>
+        <CopyableRecord
+          href={`https://etherscan.io/tx/${value}`}
+          className="w-full max-w-48 lg:max-w-64"
+          value={value}
+        />
       )
     },
   },

@@ -1,5 +1,10 @@
+import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
+import { useQuery } from '@tanstack/react-query'
+import type { ColumnDef } from '@tanstack/react-table'
 import { SearchIcon, TrashIcon } from 'lucide-react'
+import { ExternalLink } from 'react-external-link'
 import { useChainId, useEnsResolver } from 'wagmi'
+import { DataTable } from '@/components/molecules/DataTable/DataTable'
 import {
   CCIPGatewayURLView,
   ResolverField,
@@ -9,13 +14,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SheetHeader } from '@/components/ui/sheet'
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
-import type { Record } from '../RecordsTable/columns'
+import { getRecordHistoryQueryOptions } from '@/features/profile/hooks/useRecordHistory'
+import { filterRecordHistoryByRecord } from '@/utils/subgraph/filterRecordHistoryByRecord'
+import { recordTypeToSubgraphKey } from '@/utils/subgraph/recordTypeToSubgraphKey'
+import type { NameRecord } from '../RecordsTable/columns'
 
 const AddressRecordValue = ({
   record,
   canEditRecords,
 }: {
-  record: Extract<Record, { type: 'address' }>
+  record: Extract<NameRecord, { type: 'address' }>
   canEditRecords?: boolean
 }) => {
   return (
@@ -55,7 +63,7 @@ const TextRecordValue = ({
   record,
   canEditRecords,
 }: {
-  record: Extract<Record, { type: 'text' }>
+  record: Extract<NameRecord, { type: 'text' }>
   canEditRecords?: boolean
 }) => {
   return (
@@ -82,7 +90,7 @@ const ContentHashValue = ({
   record,
   canEditRecords,
 }: {
-  record: Extract<Record, { type: 'contentHash' }>
+  record: Extract<NameRecord, { type: 'contentHash' }>
   canEditRecords?: boolean
 }) => {
   return (
@@ -142,11 +150,75 @@ const ResolverView = ({ name }: { name: string }) => {
   )
 }
 
-const HistoryView = ({ name }: { name: string }) => {
+const columns: ColumnDef<ReturnResolverEvent>[] = [
+  {
+    header: 'Block',
+    accessorKey: 'blockNumber',
+    cell({ column, row }) {
+      const value = row.getValue(column.id) as number
+
+      return (
+        <ExternalLink href={`https://etherscan.io/block/${value}`}>
+          <span className="font-mono underline decoration-dashed underline-offset-4 hover:text-gray-600">
+            {value}
+          </span>
+        </ExternalLink>
+      )
+    },
+  },
+  {
+    accessorFn: (val) => {
+      switch (val.type) {
+        case 'ContenthashChanged':
+          return val.contentHash
+        case 'TextChanged':
+          return `${val.key}: ${val.value ?? 'null'}`
+        case 'AddrChanged':
+        case 'MulticoinAddrChanged':
+          return val.addr
+      }
+    },
+    header: 'Value',
+    cell({ column, row }) {
+      const value = row.getValue(column.id) as string
+      return <span className="font-mono">{value}</span>
+    },
+  },
+]
+
+const HistoryView = ({
+  name,
+  record,
+}: {
+  name: string
+  record: NameRecord
+}) => {
+  const {
+    data: history,
+    isLoading,
+    error,
+  } = useQuery(
+    getRecordHistoryQueryOptions({
+      name,
+      key: recordTypeToSubgraphKey(record.type),
+    }),
+  )
+
+  if (isLoading) return <div>Loading...</div>
+
+  if (error) {
+    if (error._tag === 'Wagmi/ClientError')
+      return <div>Error connecting to Ethereum</div>
+    return <div>Error: {error.cause?.message}</div>
+  }
+
   return (
-    <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg">
+    <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg overflow-y-scroll">
       <h3 className="text-2xl font-medium">History</h3>
-      {name}
+      <DataTable
+        data={filterRecordHistoryByRecord(history || [], record)}
+        columns={columns}
+      />
     </div>
   )
 }
@@ -155,7 +227,7 @@ const RecordDetailsView = ({
   record,
   name,
 }: {
-  record: Record
+  record: NameRecord
   name: string
 }) => {
   const { data: canEditRecords } = useCanEditRecords({ name })
@@ -176,13 +248,13 @@ export const RecordDetails = ({
   record,
   name,
 }: {
-  record: Record
+  record: NameRecord
   name: string
 }) => {
   const { data: canEditRecords } = useCanEditRecords({ name })
 
   return (
-    <div className="py-6 px-8 flex flex-col gap-6">
+    <div className="py-6 px-8 flex flex-col gap-6 h-screen">
       <SheetHeader className="flex flex-row justify-between">
         <h2 className="font-sans text-[28px] font-medium">
           <span className="capitalize">{record.type}</span> record
@@ -195,7 +267,7 @@ export const RecordDetails = ({
       </SheetHeader>
       <RecordDetailsView {...{ record, name }} />
       <ResolverView name={name} />
-      <HistoryView name={name} />
+      <HistoryView {...{ name, record }} />
     </div>
   )
 }

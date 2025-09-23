@@ -1,13 +1,16 @@
 import { CheckIcon, ClipboardCopyIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { ExternalLink } from 'react-external-link'
 import { cn } from '@/lib/utils'
 
 export const CopyableRecord = ({
   value,
   className,
+  href,
 }: {
   value: string | number
   className?: string
+  href?: string
 }) => {
   const [copy, setCopy] = useState(false)
 
@@ -20,13 +23,22 @@ export const CopyableRecord = ({
   return (
     <div
       className={cn(
-        'flex flex-row gap-2 w-full lg:w-max justify-between',
+        'flex flex-row gap-2 w-full lg:w-max justify-between hover:text-gray-700',
         className,
       )}
     >
-      <span className="font-mono underline decoration-dashed underline-offset-4 truncate max-w-full">
-        {value}
-      </span>
+      {href ? (
+        <ExternalLink
+          className="font-mono underline decoration-dashed underline-offset-4 truncate max-w-full "
+          href={href}
+        >
+          {value}
+        </ExternalLink>
+      ) : (
+        <span className="font-mono underline decoration-dashed underline-offset-4 truncate max-w-full">
+          {value}
+        </span>
+      )}
       <button
         className="cursor-pointer"
         type="button"
