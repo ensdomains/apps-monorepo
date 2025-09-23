@@ -8,6 +8,7 @@ import { useAccount, useDisconnect, useEnsName } from 'wagmi'
 import { NavBar } from '@/components/molecules/NavBar'
 import { Button } from '@/components/ui/button'
 import { getNamesForAddressQueryOptions } from '@/features/dashboard/useNamesForAddress'
+import { getNameTransactionCountQueryOptions } from '@/features/dashboard/useNameTransactionCount'
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,
@@ -65,10 +66,36 @@ const NameCount = ({ address }: { address: Address }) => {
   }
   if (isLoading) return <div>Loading...</div>
   return (
-    <div className="flex flex-row justify-between items-center w-full p-6 rounded-lg border border-gray-300">
+    <div className="flex flex-row justify-between items-center w-full p-6 rounded-lg border border-gray-300 hover:bg-gray-100 duration-150">
       <div className="flex flex-col w-full">
         <div className="font-medium text-[26px]">{names?.length}</div>
         <div className="leading-none">names owned</div>
+      </div>
+      <div className="h-8 w-8 p-2 rounded-sm bg-gray-100 flex items-center justify-center">
+        <ChevronRight height={16} width={16} />
+      </div>
+    </div>
+  )
+}
+
+const TransactionCount = ({ name }: { name: string }) => {
+  const {
+    data: txCount,
+    isLoading,
+    error,
+  } = useQuery(getNameTransactionCountQueryOptions({ name }))
+
+  if (error) {
+    if (error._tag === 'Wagmi/ClientError')
+      return <div>Error connecting to Ethereum</div>
+    return <div>Error: {error.cause?.message}</div>
+  }
+  if (isLoading) return <div>Loading...</div>
+  return (
+    <div className="flex flex-row justify-between items-center w-full p-6 rounded-lg border border-gray-300 hover:bg-gray-100 duration-150">
+      <div className="flex flex-col w-full">
+        <div className="font-medium text-[26px]">{txCount}</div>
+        <div className="leading-none">transactions</div>
       </div>
       <div className="h-8 w-8 p-2 rounded-sm bg-gray-100 flex items-center justify-center">
         <ChevronRight height={16} width={16} />
@@ -111,7 +138,7 @@ const ConnectedWithENSName = () => {
         </div>
         <div className="w-full flex justify-between gap-6">
           <NameCount address={address} />
-          <div className="w-full p-6">placeholder</div>
+          {ensName && <TransactionCount name={ensName} />}
         </div>
       </section>
     )
