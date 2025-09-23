@@ -25,7 +25,7 @@ const LinkBlock = ({
 }) => (
   <ExternalLink
     href={href}
-    className="w-[312px] p-6 rounded-md border border-gray-300 hover:bg-gray-100 duration-150"
+    className="w-full sm:w-[312px] p-6 rounded-md border border-gray-300 hover:bg-gray-100 duration-150"
   >
     <div className="flex flex-row justify-between items-center">
       <div>
@@ -136,7 +136,7 @@ const ConnectedWithENSName = () => {
             Disconnect
           </Button>
         </div>
-        <div className="w-full flex justify-between gap-6">
+        <div className="w-full flex justify-between gap-6 flex-wrap sm:flex-nowrap">
           <NameCount address={address} />
           {ensName && <TransactionCount name={ensName} />}
         </div>
@@ -151,7 +151,7 @@ function RouteComponent() {
   return (
     <>
       <NavBar />
-      <main className="mx-auto max-w-5xl py-10 flex flex-col gap-12">
+      <main className="mx-auto max-w-5xl py-10 flex flex-col gap-12 p-6">
         <header className="flex flex-col gap-6">
           <div>
             <h1 className="text-[40px] font-bold">ENS Explorer</h1>
@@ -175,7 +175,7 @@ function RouteComponent() {
         <ConnectedWithENSName />
         <section className="flex flex-col gap-6">
           <h2 className="text-2xl font-medium">Learn about ENS development</h2>
-          <div className="grid grid-cols-[1fr_auto] gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-6">
             <div className="flex flex-row flex-wrap gap-4 w-full">
               <LinkBlock
                 title="ENS Docs"
@@ -193,7 +193,7 @@ function RouteComponent() {
                 href="https://t.me/ensdomains"
               />
             </div>
-            <div className="flex flex-col gap-4 w-90">
+            <div className="flex flex-col gap-4 w-full sm:w-90">
               <h3 className="font-medium">Examples</h3>
               <div className="flex flex-col border border-gray-300 rounded-lg divide-y divide-gray-300">
                 <ExampleName name="vitalik.eth" category="Standard setup" />
