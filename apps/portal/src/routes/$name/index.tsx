@@ -54,7 +54,10 @@ const Owner = ({ name }: { name: string }) => {
   return (
     <span className="flex flex-row gap-1 items-baseline">
       <span>Owned by</span>
-      <CopyableRecord className="max-w-40" value={owner.owner} />
+      <CopyableRecord
+        className="max-w-40 sm:max-w-44 lg:max-w-max"
+        value={owner.owner}
+      />
     </span>
   )
 }
