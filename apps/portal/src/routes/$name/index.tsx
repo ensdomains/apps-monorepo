@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { PrimaryNameLabel } from '@/features/profile/components/PrimaryNameLabel'
+import { RecordCount } from '@/features/profile/components/RecordCount'
+import { ResolverLocation } from '@/features/profile/components/ResolverLocation'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 export const Route = createFileRoute('/$name/')({
   component: App,
@@ -51,6 +53,16 @@ function App() {
           </div>
         </div>
         <ExpiryWithRegistrationData name={name} />
+        <div className="flex flex-col border border-gray-300 rounded-lg divide-y divide-gray-300">
+          <RecordCount name={name} />
+          <ResolverLocation name={name} />
+        </div>
+        <div className="flex flex-col border border-gray-300 rounded-lg divide-y divide-gray-300">
+          placeholder
+        </div>
+        <div className="flex flex-col border border-gray-300 rounded-lg divide-y divide-gray-300">
+          placeholder
+        </div>
       </div>
     </div>
   )
