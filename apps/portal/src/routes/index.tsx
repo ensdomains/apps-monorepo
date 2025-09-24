@@ -7,7 +7,7 @@ import type { Address } from 'viem'
 import { useAccount, useDisconnect, useEnsName } from 'wagmi'
 import { NavBar } from '@/components/molecules/NavBar'
 import { Button } from '@/components/ui/button'
-import { getNamesForAddressQueryOptions } from '@/features/dashboard/useNamesForAddress'
+import { getNamesForAddressQueryOptions } from '@/features/dashboard/hooks/useNamesForAddress'
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,
@@ -96,7 +96,11 @@ const ConnectedWithENSName = () => {
       <section className="flex flex-col gap-6">
         <div className="flex flex-row justify-between items-center">
           <div className="w-full flex flex-row gap-2 items-baseline">
-            <h3 className="text-[28px] font-bold">{ensName}</h3>
+            {ensName && (
+              <Link to="/$name" params={{ name: ensName }}>
+                <h3 className="text-[28px] font-bold">{ensName}</h3>
+              </Link>
+            )}
             <span className="font-mono text-gray-500 font-medium">
               {address?.slice(0, 6)}...{address?.slice(-4)}
             </span>

@@ -7,7 +7,6 @@ import type {
   GetNameHistoryParameters,
 } from '@ensdomains/ensjs/subgraph'
 import { getNameHistory as ensjs_getNameHistory } from '@ensdomains/ensjs/subgraph'
-import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
@@ -40,7 +39,3 @@ export const getNameHistoryQueryOptions = (params: GetNameHistoryParameters) =>
     queryKey: supportsInterfacesQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getNameHistory(params),
   })
-
-export const useNameHistory = (params: GetNameHistoryParameters) => {
-  return useQuery(getNameHistoryQueryOptions(params))
-}
