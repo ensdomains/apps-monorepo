@@ -8,7 +8,6 @@ import { useAccount, useDisconnect, useEnsName } from 'wagmi'
 import { NavBar } from '@/components/molecules/NavBar'
 import { Button } from '@/components/ui/button'
 import { getNamesForAddressQueryOptions } from '@/features/dashboard/useNamesForAddress'
-import { getNameTransactionCountQueryOptions } from '@/features/dashboard/useNameTransactionCount'
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,
@@ -78,32 +77,6 @@ const NameCount = ({ address }: { address: Address }) => {
   )
 }
 
-const TransactionCount = ({ name }: { name: string }) => {
-  const {
-    data: txCount,
-    isLoading,
-    error,
-  } = useQuery(getNameTransactionCountQueryOptions({ name }))
-
-  if (error) {
-    if (error._tag === 'Wagmi/ClientError')
-      return <div>Error connecting to Ethereum</div>
-    return <div>Error: {error.cause?.message}</div>
-  }
-  if (isLoading) return <div>Loading...</div>
-  return (
-    <div className="flex flex-row justify-between items-center w-full p-6 rounded-lg border border-gray-300 hover:bg-gray-100 duration-150">
-      <div className="flex flex-col w-full">
-        <div className="font-medium text-[26px]">{txCount}</div>
-        <div className="leading-none">transactions</div>
-      </div>
-      <div className="h-8 w-8 p-2 rounded-sm bg-gray-100 flex items-center justify-center">
-        <ChevronRight height={16} width={16} />
-      </div>
-    </div>
-  )
-}
-
 const ConnectedWithENSName = () => {
   const { address } = useAccount()
   const { disconnect } = useDisconnect()
@@ -138,7 +111,6 @@ const ConnectedWithENSName = () => {
         </div>
         <div className="w-full flex justify-between gap-6 flex-wrap sm:flex-nowrap">
           <NameCount address={address} />
-          {ensName && <TransactionCount name={ensName} />}
         </div>
       </section>
     )
@@ -147,6 +119,8 @@ const ConnectedWithENSName = () => {
 
 function RouteComponent() {
   const id = useId()
+
+  const navigate = Route.useNavigate()
 
   return (
     <>
@@ -157,7 +131,16 @@ function RouteComponent() {
             <h1 className="text-[40px] font-bold">ENS Explorer</h1>
             <p>The definitive ENS name explorer.</p>
           </div>
-          <div className="w-full flex flex-row gap-4 items-center border border-border rounded-sm">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              const fd = new FormData(e.currentTarget)
+              const search = fd.get('search') as string
+
+              navigate({ from: '/$name', params: { name: search } })
+            }}
+            className="w-full flex flex-row gap-4 items-center border border-border rounded-sm"
+          >
             <label htmlFor="search" aria-label="Search">
               <SearchIcon
                 className="text-gray-600 ml-4 w-8"
@@ -166,11 +149,12 @@ function RouteComponent() {
               />
             </label>
             <input
+              name="search"
               id={id}
               className="w-full appearance-none border-none outline-none text-2xl p-4 pl-0"
               placeholder="Search..."
             />
-          </div>
+          </form>
         </header>
         <ConnectedWithENSName />
         <section className="flex flex-col gap-6">
