@@ -131,7 +131,7 @@ function RouteComponent() {
               </div>
               <div className="flex flex-col gap-1">
                 <Label>DNS-encoded</Label>
-                <CopyableRecord value={dnsEncode} />
+                <CopyableRecord value={dnsEncode} className="max-w-full" />
               </div>
               <div className="flex flex-col gap-1 w-full max-w-full">
                 <Label>Namehash</Label>
