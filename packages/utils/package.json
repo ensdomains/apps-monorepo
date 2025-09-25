@@ -12,11 +12,14 @@
     "test": "echo \"No tests for utils package\""
   },
   "devDependencies": {
-    "typescript": "^5.9.2"
+    "happy-dom": "^18.0.1",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   },
   "keywords": [],
   "dependencies": {
     "@tanstack/react-query": "^5.87.1",
+    "@xstate/store": "catalog:",
     "neverthrow": "^8.2.0",
     "xstate": "catalog:"
   }

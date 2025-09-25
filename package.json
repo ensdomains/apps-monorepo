@@ -29,7 +29,8 @@
       "keccak"
     ],
     "patchedDependencies": {
-      "xstate": "patches/xstate.patch"
+      "xstate": "patches/xstate.patch",
+      "@xstate/store": "patches/@xstate__store.patch"
     },
     "overrides": {
       "available-typed-arrays": "npm:@socketregistry/available-typed-arrays@^1",

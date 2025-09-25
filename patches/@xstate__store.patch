@@ -1,0 +1,46 @@
+diff --git a/dist/declarations/src/index.d.ts b/dist/declarations/src/index.d.ts
+index 8359a8a4ac0e51f018321f952b486594853c46b8..5ec1a204d16f892adfd07e9217b28bb0bba13966 100644
+--- a/dist/declarations/src/index.d.ts
++++ b/dist/declarations/src/index.d.ts
+@@ -1,5 +1,5 @@
+ export { shallowEqual } from "./shallowEqual.js";
+ export { fromStore } from "./fromStore.js";
+-export { createStore, createStoreWithProducer, createStoreConfig } from "./store.js";
++export { createStore, createStoreWithProducer, createStoreConfig, createStoreTransition } from "./store.js";
+ export { createAtom, createAsyncAtom } from "./atom.js";
+-export type { EventPayloadMap, ExtractEvents, StoreEffect, StoreAssigner, StoreSnapshot, Store, StoreConfig, AnyStore, SnapshotFromStore, EventFromStore, Observer, Subscription, Subscribable, EventObject, StoreInspectionEvent, StoreInspectedSnapshotEvent, StoreInspectedActionEvent, StoreInspectedEventEvent, StoreInspectedActorEvent, ActorRefLike, Selector, Selection, Readable, BaseAtom, Atom, AtomOptions, AnyAtom, ReadonlyAtom, EventFromStoreConfig, EmitsFromStoreConfig, ContextFromStoreConfig } from "./types.js";
++export type { EventPayloadMap, ExtractEvents, StoreEffect, StoreAssigner, StoreSnapshot, Store, StoreConfig, AnyStore, SnapshotFromStore, EventFromStore, Observer, Subscription, Subscribable, EventObject, StoreInspectionEvent, StoreInspectedSnapshotEvent, StoreInspectedActionEvent, StoreInspectedEventEvent, StoreInspectedActorEvent, ActorRefLike, Selector, Selection, Readable, BaseAtom, Atom, AtomOptions, AnyAtom, ReadonlyAtom, StoreLogic, AnyStoreLogic, AnyStoreConfig, EventFromStoreConfig, EmitsFromStoreConfig, ContextFromStoreConfig } from "./types.js";
+diff --git a/dist/xstate-store.cjs.js b/dist/xstate-store.cjs.js
+index 966ad6ced70dde1fdb47abd8be29f663d5dc545b..a6a62129380d88481ac61c1eb21ab369b87827de 100644
+--- a/dist/xstate-store.cjs.js
++++ b/dist/xstate-store.cjs.js
+@@ -73,5 +73,6 @@ exports.createAtom = store.createAtom;
+ exports.createStore = store.createStore;
+ exports.createStoreConfig = store.createStoreConfig;
+ exports.createStoreWithProducer = store.createStoreWithProducer;
++exports.createStoreTransition = store.createStoreTransition;
+ exports.fromStore = fromStore;
+ exports.shallowEqual = shallowEqual;
+diff --git a/dist/xstate-store.cjs.mjs b/dist/xstate-store.cjs.mjs
+index d2b2bd0c8b7efda1f271bd2049e27b9237653423..c13f4a3a34c1eeaf3c7f71683e3543e642616e79 100644
+--- a/dist/xstate-store.cjs.mjs
++++ b/dist/xstate-store.cjs.mjs
+@@ -4,6 +4,7 @@ export {
+   createStore,
+   createStoreConfig,
+   createStoreWithProducer,
++  createStoreTransition,
+   fromStore,
+   shallowEqual
+ } from "./xstate-store.cjs.js";
+diff --git a/dist/xstate-store.esm.js b/dist/xstate-store.esm.js
+index a499fda8c8ac36153345e71b1a385cd03ffe2863..866689e3796ec86b20721ff95c03c7c0aff32f45 100644
+--- a/dist/xstate-store.esm.js
++++ b/dist/xstate-store.esm.js
+@@ -1,5 +1,5 @@
+ import { c as createStoreTransition } from './store-811dffc6.esm.js';
+-export { f as createAsyncAtom, e as createAtom, a as createStore, d as createStoreConfig, b as createStoreWithProducer } from './store-811dffc6.esm.js';
++export { f as createAsyncAtom, e as createAtom, a as createStore, d as createStoreConfig, b as createStoreWithProducer, c as createStoreTransition } from './store-811dffc6.esm.js';
+ 
+ // From https://github.com/reduxjs/react-redux/blob/720f0ba79236cdc3e1115f4ef9a7760a21784b48/src/utils/shallowEqual.ts
+ function is(x, y) {
