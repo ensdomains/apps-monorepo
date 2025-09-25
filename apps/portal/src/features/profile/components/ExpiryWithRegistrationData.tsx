@@ -68,7 +68,7 @@ const RegistrationData = ({ name }: { name: string }) => {
 
 export const ExpiryWithRegistrationData = ({ name }: { name: string }) => {
   return (
-    <div className="w-full flex flex-col p-6 gap-4 rounded-lg border border-gray-300 xl:col-span-2">
+    <div className="w-full flex flex-col p-6 gap-4 rounded-lg border border-gray-300 lg:col-span-2">
       <Expiry name={name} />
       <RegistrationData name={name} />
     </div>
