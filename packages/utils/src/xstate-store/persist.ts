@@ -1,43 +1,42 @@
 // Source: https://github.com/statelyai/xstate/blob/e3094b28ffae126686e3fe9ff9677ed54d092443/packages/xstate-store/src/persist.ts
 
-import type { EventObject } from 'xstate';
-import {
-  // StoreContext,
-  type EventPayloadMap,
-  type StoreConfig,
-  type ExtractEvents,
-  type StoreSnapshot,
-  type EmitsFromStoreConfig,
-  type StoreLogic,
-  type AnyStoreConfig,
-  type AnyStoreLogic,
-} from '@xstate/store';
-import { storeConfigToLogic, type StoreContext } from './utils';
+import type {
+  AnyStoreConfig,
+  AnyStoreLogic,
+  EmitsFromStoreConfig,
+  EventPayloadMap,
+  ExtractEvents,
+  StoreConfig,
+  StoreLogic,
+  StoreSnapshot,
+} from '@xstate/store'
+import type { EventObject } from 'xstate'
+import { type StoreContext, storeConfigToLogic } from './utils'
 
 interface PersistOptions {
   /** The local storage key to use for persisting the store. */
-  name: string;
+  name: string
   /** Custom serializer for storing/retrieving data from localStorage */
   serializer?: {
-    serialize: (value: any) => string;
-    deserialize: (value: string) => any;
-  };
+    serialize: (value: any) => string
+    deserialize: (value: string) => any
+  }
   /** Custom storage */
-  storage?: Storage;
+  storage?: Storage
 }
 
 // Default serializer using JSON
 const defaultSerializer = {
   serialize: JSON.stringify,
-  deserialize: JSON.parse
-};
+  deserialize: JSON.parse,
+}
 
 // Check if localStorage is available
 function getLocalStorage(): Storage | undefined {
   if (typeof window === 'undefined') {
-    return undefined;
+    return undefined
   }
-  return window.localStorage;
+  return window.localStorage
 }
 
 // Load persisted state from localStorage
@@ -45,30 +44,30 @@ function loadPersistedState<TContext extends StoreContext>(
   key: string,
   storage: Storage,
   serializer: PersistOptions['serializer'],
-  fallbackContext: TContext
+  fallbackContext: TContext,
 ): TContext {
   if (!getLocalStorage()) {
-    return fallbackContext;
+    return fallbackContext
   }
 
   try {
-    const serialized = storage.getItem(key);
+    const serialized = storage.getItem(key)
     if (!serialized) {
-      return fallbackContext;
+      return fallbackContext
     }
 
-    const { deserialize } = serializer || defaultSerializer;
-    const persisted = deserialize(serialized);
+    const { deserialize } = serializer || defaultSerializer
+    const persisted = deserialize(serialized)
 
     // Validate that the persisted data has the expected structure
     if (persisted && typeof persisted === 'object' && 'context' in persisted) {
-      return persisted.context;
+      return persisted.context
     }
 
-    return fallbackContext;
+    return fallbackContext
   } catch (error) {
-    console.warn(`Failed to load persisted state for key "${key}":`, error);
-    return fallbackContext;
+    console.warn(`Failed to load persisted state for key "${key}":`, error)
+    return fallbackContext
   }
 }
 
@@ -77,105 +76,105 @@ function savePersistedState<TContext extends StoreContext>(
   key: string,
   snapshot: StoreSnapshot<TContext>,
   serializer: PersistOptions['serializer'],
-  storage: Storage
+  storage: Storage,
 ): void {
   if (!getLocalStorage()) {
-    return;
+    return
   }
 
   try {
-    const { serialize } = serializer || defaultSerializer;
-    const serialized = serialize(snapshot);
-    storage.setItem(key, serialized);
+    const { serialize } = serializer || defaultSerializer
+    const serialized = serialize(snapshot)
+    storage.setItem(key, serialized)
   } catch (error) {
-    console.warn(`Failed to save persisted state for key "${key}":`, error);
+    console.warn(`Failed to save persisted state for key "${key}":`, error)
   }
 }
 
 export function persist<
   TContext extends StoreContext,
   TEventPayloadMap extends EventPayloadMap,
-  TEmittedPayloadMap extends EventPayloadMap
+  TEmittedPayloadMap extends EventPayloadMap,
 >(
   storeConfig: StoreConfig<TContext, TEventPayloadMap, TEmittedPayloadMap>,
-  options: PersistOptions
+  options: PersistOptions,
 ): StoreLogic<
   StoreSnapshot<TContext>,
   ExtractEvents<TEventPayloadMap>,
   EmitsFromStoreConfig<any>
->;
+>
 export function persist<
   TContext extends StoreContext,
   TEvent extends EventObject,
-  TEmitted extends EventObject
+  TEmitted extends EventObject,
 >(
   storeLogic: StoreLogic<StoreSnapshot<TContext>, TEvent, TEmitted>,
-  options: PersistOptions
-): StoreLogic<StoreSnapshot<TContext>, TEvent, TEmitted>;
+  options: PersistOptions,
+): StoreLogic<StoreSnapshot<TContext>, TEvent, TEmitted>
 export function persist(
   storeConfigOrLogic: AnyStoreConfig | AnyStoreLogic,
-  options: PersistOptions
+  options: PersistOptions,
 ): AnyStoreLogic {
-  const resolvedStorage = options.storage ?? getLocalStorage();
+  const resolvedStorage = options.storage ?? getLocalStorage()
   if (!resolvedStorage) {
-    throw new Error('No storage provided');
+    throw new Error('No storage provided')
   }
   const logic =
     'transition' in storeConfigOrLogic
       ? storeConfigOrLogic
-      : storeConfigToLogic(storeConfigOrLogic);
-  const initialContext = logic.getInitialSnapshot().context;
+      : storeConfigToLogic(storeConfigOrLogic)
+  const initialContext = logic.getInitialSnapshot().context
   const resolvedContext = resolvedStorage
     ? loadPersistedState(
         options.name,
         resolvedStorage,
         options.serializer,
-        initialContext
+        initialContext,
       )
-    : initialContext;
+    : initialContext
 
-  const initialSnapshot = logic.getInitialSnapshot();
+  const initialSnapshot = logic.getInitialSnapshot()
 
   logic.getInitialSnapshot = () => ({
     ...initialSnapshot,
-    context: resolvedContext
-  });
+    context: resolvedContext,
+  })
 
   // Load persisted state for initial snapshot
-  const originalGetInitialSnapshot = logic.getInitialSnapshot;
+  const originalGetInitialSnapshot = logic.getInitialSnapshot
   const persistedContext = loadPersistedState(
     options.name,
     resolvedStorage,
     options.serializer,
-    originalGetInitialSnapshot().context
-  );
+    originalGetInitialSnapshot().context,
+  )
 
   const getInitialSnapshot = () => ({
     ...originalGetInitialSnapshot(),
-    context: persistedContext
-  });
+    context: persistedContext,
+  })
 
   // Wrap the transition to save state after each transition
-  const originalTransition = logic.transition;
+  const originalTransition = logic.transition
   const transition = (snapshot: any, event: any): [any, any[]] => {
-    const [nextSnapshot, effects] = originalTransition(snapshot, event);
+    const [nextSnapshot, effects] = originalTransition(snapshot, event)
 
-    const storage = options.storage ?? getLocalStorage();
+    const storage = options.storage ?? getLocalStorage()
 
     if (storage) {
       savePersistedState(
         options.name,
         nextSnapshot,
         options.serializer,
-        storage
-      );
+        storage,
+      )
     }
 
-    return [nextSnapshot, effects];
-  };
+    return [nextSnapshot, effects]
+  }
 
   return {
     getInitialSnapshot,
-    transition
-  };
+    transition,
+  }
 }

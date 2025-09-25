@@ -1,14 +1,21 @@
-import type {EventPayloadMap, StoreConfig, StoreSnapshot, ExtractEvents, EmitsFromStoreConfig, StoreLogic } from '@xstate/store';
-import { createStoreTransition } from '@xstate/store';
+import type {
+  EmitsFromStoreConfig,
+  EventPayloadMap,
+  ExtractEvents,
+  StoreConfig,
+  StoreLogic,
+  StoreSnapshot,
+} from '@xstate/store'
+import { createStoreTransition } from '@xstate/store'
 
-export type StoreContext = Record<string, any>;
+export type StoreContext = Record<string, any>
 
 export function storeConfigToLogic<
   TContext extends StoreContext,
   TEventPayloadMap extends EventPayloadMap,
-  TEmittedPayloadMap extends EventPayloadMap
+  TEmittedPayloadMap extends EventPayloadMap,
 >(
-  storeConfig: StoreConfig<TContext, TEventPayloadMap, TEmittedPayloadMap>
+  storeConfig: StoreConfig<TContext, TEventPayloadMap, TEmittedPayloadMap>,
 ): StoreLogic<
   StoreSnapshot<TContext>,
   ExtractEvents<TEventPayloadMap>,
@@ -19,8 +26,8 @@ export function storeConfigToLogic<
       status: 'active',
       context: storeConfig.context,
       output: undefined,
-      error: undefined
+      error: undefined,
     }),
-    transition: createStoreTransition(storeConfig.on)
-  };
+    transition: createStoreTransition(storeConfig.on),
+  }
 }
