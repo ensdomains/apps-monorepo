@@ -7,12 +7,12 @@ export const ResolverLocation = ({ name }: { name: string }) => {
     <Link
       to="/$name/resolver"
       params={{ name }}
-      className="w-full p-6 hover:bg-gray-100 duration-150"
+      className="w-full p-6 border border-gray-300 rounded-xl hover:bg-gray-100 duration-150 xl:col-span-3"
     >
       <div className="flex flex-row justify-between items-center">
         <div>
-          <h3 className="font-medium text-2xl">Mainnet</h3>
           <Label>Resolver location</Label>
+          <h3 className="font-medium text-2xl">Mainnet</h3>
         </div>
         <NamechainSVG height={40} width={40} />
       </div>

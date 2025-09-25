@@ -27,7 +27,7 @@ const Owner = ({ name }: { name: string }) => {
     <span className="flex flex-row gap-1 items-baseline">
       <span>Owned by</span>
       <CopyableRecord
-        className="max-w-40 sm:max-w-60 xl:max-w-max"
+        className="max-w-40 sm:max-w-54 xl:max-w-80"
         value={owner.owner}
       />
     </span>
@@ -38,13 +38,13 @@ function App() {
   const { name } = useParams({ from: '/$name/' })
 
   return (
-    <div className="flex flex-col xl:grid-cols-2 gap-4 p-4">
+    <div className="flex flex-col gap-4 p-4 max-w-5xl mx-auto">
       <div className="flex flex-row justify-between items-baseline">
         <h1 className="text-[28px] font-medium leading-[1]">Overview</h1>
         <Button variant="secondary">Extend</Button>
       </div>
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <div className="xl:col-span-2 flex flex-col sm:flex-row p-6 items-center gap-6 rounded-lg border border-gray-300">
+      <div className="grid grid-cols-1 xl:grid-cols-6 gap-4">
+        <div className="xl:col-span-4 flex flex-col sm:flex-row p-6 items-center gap-6 rounded-lg border border-gray-300">
           <NameAvatar name={name} />
           <div className="flex flex-col gap-1 items-center sm:items-start">
             <PrimaryNameLabel name={name} />
@@ -53,16 +53,9 @@ function App() {
           </div>
         </div>
         <ExpiryWithRegistrationData name={name} />
-        <div className="flex flex-col border border-gray-300 rounded-lg divide-y divide-gray-300">
-          <RecordCount name={name} />
-          <ResolverLocation name={name} />
-        </div>
-        <div className="flex flex-col border border-gray-300 rounded-lg divide-y divide-gray-300">
-          placeholder
-        </div>
-        <div className="flex flex-col border border-gray-300 rounded-lg divide-y divide-gray-300">
-          placeholder
-        </div>
+        <ResolverLocation name={name} />
+        <ResolverLocation name={name} />
+        <RecordCount name={name} />
       </div>
     </div>
   )
