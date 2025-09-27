@@ -26,7 +26,11 @@
       "esbuild",
       "@swc/core",
       "protobufjs",
-      "keccak"
+      "keccak",
+      "oxc-resolver",
+      "workerd",
+      "sharp",
+      "@tailwindcss/oxide"
     ],
     "patchedDependencies": {
       "xstate": "patches/xstate.patch"
