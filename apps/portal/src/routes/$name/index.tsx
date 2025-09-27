@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { PrimaryNameLabel } from '@/features/profile/components/PrimaryNameLabel'
+import { RecentActivity } from '@/features/profile/components/RecentActivity'
 import { RecordCount } from '@/features/profile/components/RecordCount'
 import { ResolverLocation } from '@/features/profile/components/ResolverLocation'
 import { RolesCount } from '@/features/profile/components/RolesCount'
@@ -61,6 +62,7 @@ function App() {
         <SubnameCount name={name} />
         <RolesCount name={name} />
       </div>
+      <RecentActivity name={name} />
     </div>
   )
 }

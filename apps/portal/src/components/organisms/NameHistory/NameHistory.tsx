@@ -51,9 +51,11 @@ const resolverColumns: ColumnDef<WithTimestamp<ResolverEvent>>[] = [
     cell({ column, row }) {
       const value = row.getValue(column.id) as string
       return (
-        <div className="w-max">
-          <CopyableRecord value={value} />
-        </div>
+        <CopyableRecord
+          href={`https://etherscan.io/tx/${value}`}
+          className="w-full max-w-48 lg:max-w-64"
+          value={value}
+        />
       )
     },
   },
