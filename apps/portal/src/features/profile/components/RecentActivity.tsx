@@ -11,45 +11,46 @@ import type { WithTimestamp } from '@/utils/types'
 import { useBlockTimestamps } from '../hooks/useBlockTimestamps'
 import { getNameHistoryQueryOptions } from '../hooks/useNameHistory'
 
-const columns: ColumnDef<WithTimestamp<BaseResolverEvent | BaseDomainEvent | BaseRegistrationEvent>>[] =
-  [
-    {
-      accessorKey: 'timestamp',
-      cell({ column, row }) {
-        const value = row.getValue(column.id) as bigint
+const columns: ColumnDef<
+  WithTimestamp<BaseResolverEvent | BaseDomainEvent | BaseRegistrationEvent>
+>[] = [
+  {
+    accessorKey: 'timestamp',
+    cell({ column, row }) {
+      const value = row.getValue(column.id) as bigint
 
-        const date = new Date(Number(value) * 1000)
+      const date = new Date(Number(value) * 1000)
 
-        return (
-          <span>
-            {date.toLocaleDateString(undefined, {
-              month: 'long',
-              day: '2-digit',
-              year: 'numeric',
-            })}
-          </span>
-        )
-      },
+      return (
+        <span>
+          {date.toLocaleDateString(undefined, {
+            month: 'long',
+            day: '2-digit',
+            year: 'numeric',
+          })}
+        </span>
+      )
     },
-    {
-      accessorKey: 'type',
-      header: 'Type',
+  },
+  {
+    accessorKey: 'type',
+    header: 'Type',
+  },
+  {
+    accessorKey: 'transactionID',
+    header: 'Transaction',
+    cell({ column, row }) {
+      const value = row.getValue(column.id) as string
+      return (
+        <CopyableRecord
+          href={`https://etherscan.io/tx/${value}`}
+          className="w-full max-w-72 lg:max-w-80 xl:max-w-max"
+          value={value}
+        />
+      )
     },
-    {
-      accessorKey: 'transactionID',
-      header: 'Transaction',
-      cell({ column, row }) {
-        const value = row.getValue(column.id) as string
-        return (
-          <CopyableRecord
-            href={`https://etherscan.io/tx/${value}`}
-            className="w-full max-w-72 lg:max-w-80 xl:max-w-max"
-            value={value}
-          />
-        )
-      },
-    },
-  ]
+  },
+]
 
 const RecentActivityTable = ({
   events,
@@ -99,12 +100,12 @@ export const RecentActivity = ({ name }: { name: string }) => {
     <div className="flex flex-col border border-gray-300 p-6 gap-6 rounded-lg">
       <h3 className="font-medium text-2xl">Recent Activity</h3>
       <RecentActivityTable
-      events={[
-        ...events.domainEvents,
-        ...(events.registrationEvents || []),
-        ...(events.resolverEvents || []),
-      ]}
-    />
+        events={[
+          ...events.domainEvents,
+          ...(events.registrationEvents || []),
+          ...(events.resolverEvents || []),
+        ]}
+      />
     </div>
   )
 }
