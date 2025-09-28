@@ -4,6 +4,7 @@ import type {
   RegistrationEvent,
   ResolverEvent,
 } from '@ensdomains/ensjs/subgraph'
+import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { Address } from 'viem/accounts'
 import { mainnet } from 'viem/chains'
@@ -13,7 +14,7 @@ import { DataTable } from '@/components/molecules/DataTable/DataTable'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import {
   type GetNameHistoryError,
-  useNameHistory,
+  getNameHistoryQueryOptions,
 } from '@/features/profile/hooks/useNameHistory'
 import type { WithTimestamp } from '@/utils/types'
 
@@ -50,9 +51,11 @@ const resolverColumns: ColumnDef<WithTimestamp<ResolverEvent>>[] = [
     cell({ column, row }) {
       const value = row.getValue(column.id) as string
       return (
-        <div className="w-max">
-          <CopyableRecord value={value} />
-        </div>
+        <CopyableRecord
+          href={`https://etherscan.io/tx/${value}`}
+          className="w-full max-w-48 lg:max-w-64"
+          value={value}
+        />
       )
     },
   },
@@ -180,7 +183,9 @@ export const NameHistory = ({
   name: string
   eventType?: keyof EventType
 }) => {
-  const { data, isLoading, error } = useNameHistory({ name })
+  const { data, isLoading, error } = useQuery(
+    getNameHistoryQueryOptions({ name }),
+  )
 
   if (isLoading) return <div>Loading...</div>
   if (error)
