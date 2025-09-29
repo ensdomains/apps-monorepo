@@ -5,7 +5,7 @@ import {
   injectedWallet,
   metaMaskWallet,
 } from '@rainbow-me/rainbowkit/wallets'
-import { createClient, type HttpTransport, http } from 'viem'
+import { createClient, http } from 'viem'
 import { mainnet } from 'viem/chains'
 import { createConfig } from 'wagmi'
 
@@ -35,11 +35,8 @@ export const wagmiConfig = createConfig({
     },
   ],
   connectors,
-  client: ({ chain }) => {
-    return createClient<HttpTransport, typeof chain>({
-      chain,
-      transport: http(),
-    })
+  client({ chain }) {
+    return createClient({ chain, transport: http() })
   },
 })
 

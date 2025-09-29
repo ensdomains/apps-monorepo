@@ -44,7 +44,12 @@ const ExtendNameButton = ({ name }: { name: string }) => {
     getCanExtendNameQueryOptions({ name }),
   )
 
-  if (error) return <div>Error: {error.cause?.message}</div>
+  if (error)
+    return (
+      <div>
+        {error._tag}: {error.cause?.message}
+      </div>
+    )
   if (isLoading) return <div>Loading...</div>
   if (!data) return null
 
