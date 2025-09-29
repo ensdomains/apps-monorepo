@@ -1,6 +1,7 @@
+import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useChainId } from 'wagmi'
-import { useSupportsInterfaces } from '@/hooks/useSupportsInterfaces'
+import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import {
   RESOLVER_FEATURE_NAMES,
   RESOLVER_INTERFACE_IDS,
@@ -17,10 +18,12 @@ const SupportedFeatures = ({
     data: supportsInterfaces,
     error,
     isLoading,
-  } = useSupportsInterfaces({
-    address: resolverAddress,
-    interfaces: Object.values(RESOLVER_INTERFACE_IDS),
-  })
+  } = useQuery(
+    getSupportsInterfacesQueryOptions({
+      address: resolverAddress,
+      interfaces: Object.values(RESOLVER_INTERFACE_IDS),
+    }),
+  )
 
   const supportedInterfaceIds = Object.keys(RESOLVER_INTERFACE_IDS)
     .filter((_, index) => supportsInterfaces?.[index])

@@ -9,7 +9,17 @@ import { createClient, type HttpTransport, http } from 'viem'
 import { mainnet } from 'viem/chains'
 import { createConfig } from 'wagmi'
 
-const mainnetWithEns = extendChainWithEns(mainnet)
+export const mainnetWithEns = extendChainWithEns(mainnet)
+
+export const connectors = connectorsForWallets(
+  [
+    {
+      groupName: 'Popular',
+      wallets: [injectedWallet, metaMaskWallet, frameWallet],
+    },
+  ],
+  { projectId: 'YOUR_PROJECT_ID', appName: 'demo' },
+)
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
@@ -24,15 +34,7 @@ export const wagmiConfig = createConfig({
       },
     },
   ],
-  connectors: connectorsForWallets(
-    [
-      {
-        groupName: 'Popular',
-        wallets: [injectedWallet, metaMaskWallet, frameWallet],
-      },
-    ],
-    { projectId: 'YOUR_PROJECT_ID', appName: 'demo' },
-  ),
+  connectors,
   client: ({ chain }) => {
     return createClient<HttpTransport, typeof chain>({
       chain,

@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SheetHeader } from '@/components/ui/sheet'
-import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
+import { getCanEditRecordsQueryOptions } from '@/features/profile/hooks/useCanEditRecords'
 import { getRecordHistoryQueryOptions } from '@/features/profile/hooks/useRecordHistory'
 import { filterRecordHistoryByRecord } from '@/utils/subgraph/filterRecordHistoryByRecord'
 import { recordTypeToSubgraphKey } from '@/utils/subgraph/recordTypeToSubgraphKey'
@@ -230,7 +230,9 @@ const RecordDetailsView = ({
   record: NameRecord
   name: string
 }) => {
-  const { data: canEditRecords } = useCanEditRecords({ name })
+  const { data: canEditRecords } = useQuery(
+    getCanEditRecordsQueryOptions({ name }),
+  )
 
   switch (record.type) {
     case 'address':
@@ -251,7 +253,9 @@ export const RecordDetails = ({
   record: NameRecord
   name: string
 }) => {
-  const { data: canEditRecords } = useCanEditRecords({ name })
+  const { data: canEditRecords } = useQuery(
+    getCanEditRecordsQueryOptions({ name }),
+  )
 
   return (
     <div className="py-6 px-8 flex flex-col gap-6 h-screen">

@@ -6,7 +6,6 @@ import {
   type GetSupportedInterfacesParameters,
   getSupportedInterfaces,
 } from '@ensdomains/ensjs/public'
-import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Hex } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -48,9 +47,3 @@ export const getSupportsInterfacesQueryOptions = (
     queryKey: supportsInterfacesQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getSupportsInterfaces(params),
   })
-
-export const useSupportsInterfaces = (
-  params: GetSupportsInterfacesParameters,
-) => {
-  return useQuery(getSupportsInterfacesQueryOptions(params))
-}

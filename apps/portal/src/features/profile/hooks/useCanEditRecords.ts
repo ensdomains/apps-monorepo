@@ -3,7 +3,6 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { publicResolverSetAddrSnippet } from '@ensdomains/ensjs/contracts'
 import { EMPTY_ADDRESS } from '@ensdomains/ensjs/utils'
-import { useQuery } from '@tanstack/react-query'
 import { fromPromise, fromThrowable, ok } from 'neverthrow'
 import type { Address } from 'viem/accounts'
 import {
@@ -91,6 +90,3 @@ export const getCanEditRecordsQueryOptions = (
     queryKey: canEditRecordsQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => canEditRecords(params),
   })
-
-export const useCanEditRecords = (params: CanEditRecordsParameters) =>
-  useQuery(getCanEditRecordsQueryOptions(params))

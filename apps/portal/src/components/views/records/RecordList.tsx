@@ -1,4 +1,5 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
   type ColumnFiltersState,
@@ -20,7 +21,7 @@ import { useId, useMemo, useState } from 'react'
 import { columns } from '@/components/organisms/RecordsTable/columns'
 import { RecordsTable } from '@/components/organisms/RecordsTable/RecordsTable'
 import { Button } from '@/components/ui/button'
-import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
+import { getCanEditRecordsQueryOptions } from '@/features/profile/hooks/useCanEditRecords'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
 export const RecordList = ({
@@ -31,7 +32,9 @@ export const RecordList = ({
   records: GetRecordsReturnType
   view: 'list' | 'edit'
 }) => {
-  const { data: canEditRecords } = useCanEditRecords({ name })
+  const { data: canEditRecords } = useQuery(
+    getCanEditRecordsQueryOptions({ name }),
+  )
 
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
