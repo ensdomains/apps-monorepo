@@ -23,14 +23,11 @@ export const canExtendName = ResultFn(async function* ({
 
   const safeGetParameters = fromThrowable(
     () =>
-      renewNamesWriteParameters(
-        connectorClient,
-        {
-          nameOrNames: name,
-          value: 1n,
-          duration: 60n,
-        },
-      ),
+      renewNamesWriteParameters(connectorClient, {
+        nameOrNames: name,
+        value: 1n,
+        duration: 60n,
+      }),
     (e) =>
       new CanExtendNameError({
         cause: e as RenewNamesWriteParametersErrorType,
