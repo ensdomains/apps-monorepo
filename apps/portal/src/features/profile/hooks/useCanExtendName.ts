@@ -7,8 +7,9 @@ import {
 } from '@ensdomains/ensjs/wallet'
 import { fromPromise, fromThrowable, ok } from 'neverthrow'
 import { type EstimateGasErrorType, estimateGas } from 'viem/actions'
-import { wagmiConfig } from '@/lib/wagmi'
-import { safeGetClient, safeGetConnectorClient } from '@/lib/wagmi/helpers'
+import type { GetConnectorClientData } from 'wagmi/query'
+import type { wagmiConfig } from '@/lib/wagmi'
+import { safeGetClient } from '@/lib/wagmi/helpers'
 
 class CanExtendNameError extends TaggedError('CanExtendNameError')<{
   cause: EstimateGasErrorType | RenewNamesWriteParametersErrorType
@@ -16,9 +17,8 @@ class CanExtendNameError extends TaggedError('CanExtendNameError')<{
 
 export const canExtendName = ResultFn(async function* ({
   name,
+  connectorClient,
 }: CanExtendNameParameters) {
-  const connectorClient = yield* safeGetConnectorClient(wagmiConfig)
-
   const client = yield* safeGetClient()
 
   const safeGetParameters = fromThrowable(
@@ -51,6 +51,7 @@ export const canExtendNameQueryKey = createQueryKey<
 
 export type CanExtendNameParameters = {
   name: string
+  connectorClient: GetConnectorClientData<typeof wagmiConfig, 1>
 }
 
 export const getCanExtendNameQueryOptions = (params: CanExtendNameParameters) =>
