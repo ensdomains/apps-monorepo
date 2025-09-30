@@ -1,11 +1,12 @@
 import { sign, verify } from 'hono/jwt'
 import { fromAsyncThrowable, ok } from 'neverthrow'
 import * as v from 'valibot'
-import { createIntoError, error } from '@/utils/result'
+import { createIntoError, error } from '#utils/result.js'
 
 const JWT_EXPIRATION = 60 * 60 * 3 // 3 hours
 
 export const AuthPayload = v.object({
+  user_id: v.string(),
   address: v.string(),
 })
 

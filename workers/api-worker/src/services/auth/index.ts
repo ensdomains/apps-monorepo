@@ -1,11 +1,11 @@
 import { ok, safeTry } from 'neverthrow'
 import type { Address, Hash } from 'viem'
 import { generateSiweNonce } from 'viem/siwe'
-import { signJWT } from '@/core/auth/jwt'
-import type { Database } from '@/core/database'
-import type { ViemClient } from '@/core/eth/client'
-import { intoKVResult, KV_KEY } from '@/core/kv'
-import { error } from '@/utils/result'
+import { signJWT } from '#core/auth/jwt.js'
+import type { Database } from '#core/database/index.js'
+import type { ViemClient } from '#core/eth/client.js'
+import { intoKVResult, KV_KEY } from '#core/kv/index.js'
+import { error } from '#utils/result.js'
 import { addUserIfNotExists } from '../users'
 import { safeVerifySiweMessage } from './helpers'
 
@@ -60,6 +60,8 @@ export const createJWT = ({
       message,
       signature,
       nonce,
+      // TODO: CRITICAL Add domain verification
+      // domain: 'app.ens.domains',
     })
 
     if (!valid) {
@@ -69,11 +71,13 @@ export const createJWT = ({
       })
     }
 
-    yield* addUserIfNotExists(db, address)
+    const user = yield* addUserIfNotExists(db, address)
+    console.log('user', user)
 
     const jwt = yield* signJWT(
       {
         address,
+        user_id: user.id,
       },
       env,
     )

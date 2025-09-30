@@ -4,19 +4,20 @@
   "main": "src/worker.ts",
   "compatibility_date": "2025-08-14",
   "compatibility_flags": ["nodejs_compat"],
-  
+
   "hyperdrive": [
     {
       "binding": "DB",
-      "id": "NONE"
+      "id": "NONE",
+      "localConnectionString": "postgresql://postgres:postgres@localhost/postgres"
     }
   ],
 
   "kv_namespaces": [
-      {
-          "binding": "KV",
-          "id": "4f44782c9c28436c9af279f46298fb94"
-      }
+    {
+      "binding": "KV",
+      "id": "4f44782c9c28436c9af279f46298fb94"
+    }
   ],
 
   "vars": {

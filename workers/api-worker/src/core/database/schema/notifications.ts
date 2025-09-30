@@ -19,9 +19,9 @@ export const userChannels = pgTable(
   'user_channels',
   {
     id: uuid('id').primaryKey().default(randomUUIDv7),
-    user_address: text('user_address')
+    user_id: uuid('user_id')
       .notNull()
-      .references(() => users.address, {
+      .references(() => users.id, {
         onDelete: 'cascade',
       }),
     /**
@@ -55,7 +55,7 @@ export const userChannels = pgTable(
   },
   (table) => [
     unique('user_channel_unique').on(
-      table.user_address,
+      table.user_id,
       table.channel,
       table.target,
     ),
@@ -66,8 +66,8 @@ export const userChannelRelations = relations(
   userChannels,
   ({ one, many }) => ({
     user: one(users, {
-      fields: [userChannels.user_address],
-      references: [users.address],
+      fields: [userChannels.user_id],
+      references: [users.id],
     }),
     notifications: many(notifications),
   }),
@@ -79,9 +79,9 @@ export const notificationPreferences = pgTable(
   'notification_preferences',
   {
     id: uuid('id').primaryKey().default(randomUUIDv7),
-    user_address: text('user_address')
+    user_id: uuid('user_id')
       .notNull()
-      .references(() => users.address, {
+      .references(() => users.id, {
         onDelete: 'cascade',
       }),
     kind: text('kind').$type<NotificationKind>().notNull(),
@@ -92,7 +92,7 @@ export const notificationPreferences = pgTable(
   },
   (table) => [
     unique('notification_preference_unique').on(
-      table.user_address,
+      table.user_id,
       table.kind,
       table.channel,
     ),
@@ -103,8 +103,8 @@ export const notificationPreferenceRelations = relations(
   notificationPreferences,
   ({ one }) => ({
     user: one(users, {
-      fields: [notificationPreferences.user_address],
-      references: [users.address],
+      fields: [notificationPreferences.user_id],
+      references: [users.id],
     }),
   }),
 )
@@ -121,9 +121,9 @@ export const notifications = pgTable('notifications', {
   /**
    * User wallet address
    */
-  user_address: text('user_address')
+  user_id: uuid('user_id')
     .notNull()
-    .references(() => users.address, {
+    .references(() => users.id, {
       onDelete: 'cascade',
     }),
   /**
@@ -144,8 +144,8 @@ export const notificationRelations = relations(
   notifications,
   ({ one, many }) => ({
     user: one(users, {
-      fields: [notifications.user_address],
-      references: [users.address],
+      fields: [notifications.user_id],
+      references: [users.id],
     }),
     deliveries: many(notificationDeliveries),
   }),
@@ -205,9 +205,9 @@ export const broadcastRelations = relations(broadcasts, ({ many }) => ({
 export const broadcastsSeen = pgTable(
   'broadcasts_seen',
   {
-    user_address: text('user_address')
+    user_id: uuid('user_id')
       .notNull()
-      .references(() => users.address, {
+      .references(() => users.id, {
         onDelete: 'cascade',
       }),
     broadcast_id: uuid('broadcast_id')
@@ -219,7 +219,7 @@ export const broadcastsSeen = pgTable(
   },
   (table) => [
     primaryKey({
-      columns: [table.user_address, table.broadcast_id],
+      columns: [table.user_id, table.broadcast_id],
     }),
   ],
 )
@@ -230,7 +230,7 @@ export const broadcastsSeenRelations = relations(broadcastsSeen, ({ one }) => ({
     references: [broadcasts.id],
   }),
   user: one(users, {
-    fields: [broadcastsSeen.user_address],
-    references: [users.address],
+    fields: [broadcastsSeen.user_id],
+    references: [users.id],
   }),
 }))

@@ -59,12 +59,8 @@
           "name": "ens_eval_pointers_name_ens_names_name_fk",
           "tableFrom": "ens_eval_pointers",
           "tableTo": "ens_names",
-          "columnsFrom": [
-            "name"
-          ],
-          "columnsTo": [
-            "name"
-          ],
+          "columnsFrom": ["name"],
+          "columnsTo": ["name"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -143,12 +139,8 @@
           "name": "ens_watchers_user_address_users_address_fk",
           "tableFrom": "ens_watchers",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_address"
-          ],
-          "columnsTo": [
-            "address"
-          ],
+          "columnsFrom": ["user_address"],
+          "columnsTo": ["address"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -156,12 +148,8 @@
           "name": "ens_watchers_name_ens_names_name_fk",
           "tableFrom": "ens_watchers",
           "tableTo": "ens_names",
-          "columnsFrom": [
-            "name"
-          ],
-          "columnsTo": [
-            "name"
-          ],
+          "columnsFrom": ["name"],
+          "columnsTo": ["name"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -171,10 +159,7 @@
         "ens_watcher_unique": {
           "name": "ens_watcher_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_address",
-            "name"
-          ]
+          "columns": ["user_address", "name"]
         }
       },
       "policies": {},
@@ -211,12 +196,8 @@
           "name": "favorites_user_address_users_address_fk",
           "tableFrom": "favorites",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_address"
-          ],
-          "columnsTo": [
-            "address"
-          ],
+          "columnsFrom": ["user_address"],
+          "columnsTo": ["address"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -224,10 +205,7 @@
       "compositePrimaryKeys": {
         "favorites_user_address_name_pk": {
           "name": "favorites_user_address_name_pk",
-          "columns": [
-            "user_address",
-            "name"
-          ]
+          "columns": ["user_address", "name"]
         }
       },
       "uniqueConstraints": {},
@@ -304,12 +282,8 @@
           "name": "broadcasts_seen_user_address_users_address_fk",
           "tableFrom": "broadcasts_seen",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_address"
-          ],
-          "columnsTo": [
-            "address"
-          ],
+          "columnsFrom": ["user_address"],
+          "columnsTo": ["address"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -317,12 +291,8 @@
           "name": "broadcasts_seen_broadcast_id_broadcasts_id_fk",
           "tableFrom": "broadcasts_seen",
           "tableTo": "broadcasts",
-          "columnsFrom": [
-            "broadcast_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["broadcast_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -330,10 +300,7 @@
       "compositePrimaryKeys": {
         "broadcasts_seen_user_address_broadcast_id_pk": {
           "name": "broadcasts_seen_user_address_broadcast_id_pk",
-          "columns": [
-            "user_address",
-            "broadcast_id"
-          ]
+          "columns": ["user_address", "broadcast_id"]
         }
       },
       "uniqueConstraints": {},
@@ -416,12 +383,8 @@
           "name": "notification_deliveries_notification_id_notifications_id_fk",
           "tableFrom": "notification_deliveries",
           "tableTo": "notifications",
-          "columnsFrom": [
-            "notification_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["notification_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -488,12 +451,8 @@
           "name": "notification_preferences_user_address_users_address_fk",
           "tableFrom": "notification_preferences",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_address"
-          ],
-          "columnsTo": [
-            "address"
-          ],
+          "columnsFrom": ["user_address"],
+          "columnsTo": ["address"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -503,11 +462,7 @@
         "notification_preference_unique": {
           "name": "notification_preference_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_address",
-            "kind",
-            "channel"
-          ]
+          "columns": ["user_address", "kind", "channel"]
         }
       },
       "policies": {},
@@ -575,12 +530,8 @@
           "name": "notifications_user_address_users_address_fk",
           "tableFrom": "notifications",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_address"
-          ],
-          "columnsTo": [
-            "address"
-          ],
+          "columnsFrom": ["user_address"],
+          "columnsTo": ["address"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -590,9 +541,7 @@
         "notifications_idempotency_key_unique": {
           "name": "notifications_idempotency_key_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "idempotency_key"
-          ]
+          "columns": ["idempotency_key"]
         }
       },
       "policies": {},
@@ -665,12 +614,8 @@
           "name": "user_channels_user_address_users_address_fk",
           "tableFrom": "user_channels",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_address"
-          ],
-          "columnsTo": [
-            "address"
-          ],
+          "columnsFrom": ["user_address"],
+          "columnsTo": ["address"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -680,11 +625,7 @@
         "user_channel_unique": {
           "name": "user_channel_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_address",
-            "channel",
-            "target"
-          ]
+          "columns": ["user_address", "channel", "target"]
         }
       },
       "policies": {},

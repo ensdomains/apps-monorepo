@@ -1,5 +1,5 @@
 import { createMiddleware } from 'hono/factory'
-import { createEnsClient, type ViemClient } from '@/core/eth/client'
+import { createEnsClient, type ViemClient } from '#core/eth/client.js'
 import type { BaseEnv, Variables } from './hono'
 
 export type InjectEthClientContext = Variables<{

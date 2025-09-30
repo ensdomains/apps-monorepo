@@ -1,8 +1,8 @@
 import { type Context, Hono, type Schema } from 'hono'
 import type { HonoOptions } from 'hono/hono-base'
 import type { BlankEnv, BlankSchema, Env as HonoEnv } from 'hono/types'
-import { logger } from '@/utils/logger'
-import type { GenericError } from '@/utils/result'
+import { logger } from '#utils/logger.js'
+import type { GenericError } from '#utils/result.js'
 
 export type Variables<T> = {
   Variables: T

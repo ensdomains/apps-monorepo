@@ -9,6 +9,10 @@ export const coerceBoolean = v.pipe(
   v.transform((val) => val === 'true' || val === true),
 )
 
+export const hex = v.custom<`0x${string}`>((input) =>
+  typeof input === 'string' ? /^0x[0-9a-fA-F]+$/.test(input) : false,
+)
+
 export const ethAddress = v.custom<`0x${string}`>((input) =>
   typeof input === 'string' ? /^0x[0-9a-fA-F]{40}$/.test(input) : false,
 )

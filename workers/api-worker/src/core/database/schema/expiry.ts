@@ -1,15 +1,7 @@
-import {
-  bigint,
-  integer,
-  pgTable,
-  text,
-  timestamp,
-  unique,
-  uuid,
-} from 'drizzle-orm/pg-core'
+import { relations } from 'drizzle-orm'
+import { pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
 import { randomUUIDv7 } from '../utils/schemaHelpers'
 import { users } from './core'
-import { relations } from 'drizzle-orm'
 
 export const ensNames = pgTable('ens_names', {
   name: text('name').primaryKey(),
@@ -36,26 +28,35 @@ export const ensEvalPointers = pgTable('ens_eval_pointers', {
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
 
-export const ensEvalPointerRelations = relations(ensEvalPointers, ({ one }) => ({
-  ensName: one(ensNames, {
-    fields: [ensEvalPointers.name],
-    references: [ensNames.name],
+export const ensEvalPointerRelations = relations(
+  ensEvalPointers,
+  ({ one }) => ({
+    ensName: one(ensNames, {
+      fields: [ensEvalPointers.name],
+      references: [ensNames.name],
+    }),
   }),
-}))
+)
 
 // ===============================
 
-export const ensWatchers = pgTable('ens_watchers', {
-  id: uuid('id').primaryKey().default(randomUUIDv7),
-  user_address: text('user_address').notNull().references(() => users.address, {
-    onDelete: 'cascade',
-  }),
-  name: text('name').notNull().references(() => ensNames.name, {
-    onDelete: 'cascade',
-  }),
-}, (table) => [
-  unique('ens_watcher_unique').on(table.user_address, table.name),
-])
+export const ensWatchers = pgTable(
+  'ens_watchers',
+  {
+    id: uuid('id').primaryKey().default(randomUUIDv7),
+    user_id: uuid('user_id')
+      .notNull()
+      .references(() => users.id, {
+        onDelete: 'cascade',
+      }),
+    name: text('name')
+      .notNull()
+      .references(() => ensNames.name, {
+        onDelete: 'cascade',
+      }),
+  },
+  (table) => [unique('ens_watcher_unique').on(table.user_id, table.name)],
+)
 
 export const ensWatcherRelations = relations(ensWatchers, ({ one }) => ({
   ensName: one(ensNames, {

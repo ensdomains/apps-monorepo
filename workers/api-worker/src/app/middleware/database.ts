@@ -1,5 +1,5 @@
 import { createMiddleware } from 'hono/factory'
-import { type Database, getDatabase } from '@/core/database'
+import { type Database, getDatabase } from '#core/database/index.js'
 import type { BaseEnv, Variables } from './hono'
 
 export type InjectDbContext = Variables<{

@@ -1,4 +1,4 @@
-import { err, fromPromise, ok, Result, ResultAsync } from 'neverthrow'
+import { err, fromPromise, ok, type Result, ResultAsync } from 'neverthrow'
 
 const AppErrorSymbol = Symbol('AppError')
 

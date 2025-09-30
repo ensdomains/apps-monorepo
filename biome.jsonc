@@ -10,6 +10,7 @@
     "includes": [
       "apps/**",
       "packages/**",
+      "workers/**",
       "!**/*.gen.ts",
       "!**/node_modules",
       "!**/dist"

@@ -1,6 +1,7 @@
 {
   "name": "api-worker",
   "type": "module",
+  "main": "src/worker.ts",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
@@ -8,6 +9,7 @@
     "cf-typegen": "wrangler types --env-interface CloudflareBindings worker-configuration.gen.d.ts"
   },
   "dependencies": {
+    "@ens-apps/utils": "workspace:*",
     "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@7109549",
     "@hono/valibot-validator": "^0.5.3",
     "drizzle-orm": "^0.44.5",
@@ -28,5 +30,8 @@
     "drizzle-kit": "^0.31.4",
     "vite": "^7.1.5",
     "wrangler": "^4.34.0"
+  },
+  "imports": {
+    "#*": "./src/*"
   }
 }
