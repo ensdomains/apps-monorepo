@@ -10,6 +10,10 @@ import {
   unique,
   uuid,
 } from 'drizzle-orm/pg-core'
+import type {
+  AnyNotificationPayload,
+  Notification,
+} from '#types/notifications.js'
 import { randomUUIDv7 } from '../utils/schemaHelpers'
 import { users } from './core'
 
@@ -84,7 +88,7 @@ export const notificationPreferences = pgTable(
       .references(() => users.id, {
         onDelete: 'cascade',
       }),
-    kind: text('kind').$type<NotificationKind>().notNull(),
+    kind: text('kind').$type<Notification['kind']>().notNull(),
     channel: text('channel').$type<DeliveryChannel>().notNull(),
     enabled: boolean('enabled').default(true),
     extra_config: jsonb('extra_config'),
@@ -111,8 +115,6 @@ export const notificationPreferenceRelations = relations(
 
 // ===============================
 
-export type NotificationKind = 'name-expiry'
-
 export const notifications = pgTable('notifications', {
   /**
    * Notification ID
@@ -129,12 +131,14 @@ export const notifications = pgTable('notifications', {
   /**
    * Notification kind
    */
-  kind: text('kind').$type<NotificationKind>().notNull(),
+  kind: text('kind').$type<Notification['kind']>().notNull(),
   /**
    * Payload
    */
-  payload: jsonb('payload'),
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  payload: jsonb('payload').$type<AnyNotificationPayload>(),
+  created_at: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
   read_at: timestamp('read_at', { withTimezone: true }),
   archived_at: timestamp('archived_at', { withTimezone: true }),
   idempotency_key: text('idempotency_key').unique().notNull(),
@@ -193,7 +197,9 @@ export const broadcasts = pgTable('broadcasts', {
   id: uuid('id').primaryKey().default(randomUUIDv7),
   kind: text('kind').$type<BroadcastKind>().notNull(),
   payload: jsonb('payload'),
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  created_at: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 })
 
 export const broadcastRelations = relations(broadcasts, ({ many }) => ({

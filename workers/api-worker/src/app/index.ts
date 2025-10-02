@@ -3,10 +3,12 @@ import { logger, prettifyError } from '#utils/logger.js'
 import { createApp } from './middleware/hono'
 import authApp from './routes/auth'
 import favoritesApp from './routes/favorites'
+import notificationsApp from './routes/notifications'
 
 const app = createApp()
   .route('/', authApp)
   .route('/', favoritesApp)
+  .route('/', notificationsApp)
   .onError((err, c) => {
     if (err instanceof HTTPException) {
       // Get the custom response
