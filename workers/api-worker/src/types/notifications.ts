@@ -41,3 +41,5 @@ export type Broadcast = BlogPostBroadcast
 export type Broadcasts = {
   [K in Broadcast as K['kind']]: Prettify<Omit<K, 'kind'>>
 }
+
+export type AnyBroadcastPayload = Broadcasts[keyof Broadcasts]

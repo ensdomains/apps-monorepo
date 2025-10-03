@@ -11,6 +11,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 import type {
+  AnyBroadcastPayload,
   AnyNotificationPayload,
   Notification,
 } from '#types/notifications.js'
@@ -196,7 +197,7 @@ export type BroadcastKind = 'blog-post'
 export const broadcasts = pgTable('broadcasts', {
   id: uuid('id').primaryKey().default(randomUUIDv7),
   kind: text('kind').$type<BroadcastKind>().notNull(),
-  payload: jsonb('payload'),
+  payload: jsonb('payload').$type<AnyBroadcastPayload>(),
   created_at: timestamp('created_at', { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -221,7 +222,10 @@ export const broadcastsSeen = pgTable(
       .references(() => broadcasts.id, {
         onDelete: 'cascade',
       }),
-    created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    read_at: timestamp('read_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    archived_at: timestamp('archived_at', { withTimezone: true }),
   },
   (table) => [
     primaryKey({
