@@ -24,7 +24,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { NotificationsDropdown } from '@/features/notifications/components'
+import { NotificationsDropdown } from '@/features/notifications/components/dropdown'
 import { useTheme } from '@/hooks/use-theme'
 
 const ConnectedContent = () => {

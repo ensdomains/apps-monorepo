@@ -54,7 +54,12 @@ export const Route = createRootRouteWithContext<RootRouterContext>()({
     ],
   }),
   component: RootComponent,
+  notFoundComponent: NotFoundComponent,
 })
+
+function NotFoundComponent() {
+  return <div>Not Found</div>
+}
 
 function RootComponent() {
   return (

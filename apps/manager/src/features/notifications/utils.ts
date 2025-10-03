@@ -1,7 +1,9 @@
 import { TIME_UNITS } from '@/utils/time'
-import type { Notification } from './types'
+import type { BackendNotification } from './queries/notifications'
 
-export const groupNotificationsByTime = (notifications: Notification[]) => {
+export const groupNotificationsByTime = (
+  notifications: BackendNotification[],
+) => {
   if (notifications.length === 0) {
     return { groups: [] }
   }
@@ -31,50 +33,61 @@ export const groupNotificationsByTime = (notifications: Notification[]) => {
   const oneYearAgo = now - 365 * TIME_UNITS.DAY
 
   // Sort notifications by timestamp (newest first)
-  const sortedNotifications = [...notifications].sort(
-    (a, b) => b.timestamp - a.timestamp,
-  )
+  const sortedNotifications = [...notifications].sort((a, b) => {
+    const aTime = a.timestamp || 0
+    const bTime = b.timestamp || 0
+    return bTime - aTime
+  })
 
-  const groups: { title: string; notifications: Notification[] }[] = []
+  const groups: { title: string; notifications: BackendNotification[] }[] = []
 
-  const addGroup = (title: string, notifications: Notification[]) => {
+  const addGroup = (title: string, notifications: BackendNotification[]) => {
     if (notifications.length > 0) {
       groups.push({ title, notifications })
     }
   }
 
   // Group notifications
-  const today_notifications = sortedNotifications.filter(
-    (n) => n.timestamp >= todayStart,
-  )
-  const yesterday_notifications = sortedNotifications.filter(
-    (n) => n.timestamp >= yesterdayStart && n.timestamp < todayStart,
-  )
-  const thisWeek_notifications = sortedNotifications.filter(
-    (n) => n.timestamp >= thisWeekStartTime && n.timestamp < yesterdayStart,
-  )
-  const lastWeek_notifications = sortedNotifications.filter(
-    (n) => n.timestamp >= lastWeekStart && n.timestamp < thisWeekStartTime,
-  )
-  const thisMonth_notifications = sortedNotifications.filter(
-    (n) => n.timestamp >= thisMonthStartTime && n.timestamp < lastWeekStart,
-  )
-  const lastMonth_notifications = sortedNotifications.filter(
-    (n) =>
-      n.timestamp >= lastMonthStartTime && n.timestamp < thisMonthStartTime,
-  )
-  const recent_notifications = sortedNotifications.filter(
-    (n) => n.timestamp >= threeMonthsAgo && n.timestamp < lastMonthStartTime,
-  )
-  const older_notifications = sortedNotifications.filter(
-    (n) => n.timestamp >= sixMonthsAgo && n.timestamp < threeMonthsAgo,
-  )
-  const muchOlder_notifications = sortedNotifications.filter(
-    (n) => n.timestamp >= oneYearAgo && n.timestamp < sixMonthsAgo,
-  )
-  const ancient_notifications = sortedNotifications.filter(
-    (n) => n.timestamp < oneYearAgo,
-  )
+  const today_notifications = sortedNotifications.filter((n) => {
+    const time = n.timestamp || 0
+    return time >= todayStart
+  })
+  const yesterday_notifications = sortedNotifications.filter((n) => {
+    const time = n.timestamp || 0
+    return time >= yesterdayStart && time < todayStart
+  })
+  const thisWeek_notifications = sortedNotifications.filter((n) => {
+    const time = n.timestamp || 0
+    return time >= thisWeekStartTime && time < yesterdayStart
+  })
+  const lastWeek_notifications = sortedNotifications.filter((n) => {
+    const time = n.timestamp || 0
+    return time >= lastWeekStart && time < thisWeekStartTime
+  })
+  const thisMonth_notifications = sortedNotifications.filter((n) => {
+    const time = n.timestamp || 0
+    return time >= thisMonthStartTime && time < lastWeekStart
+  })
+  const lastMonth_notifications = sortedNotifications.filter((n) => {
+    const time = n.timestamp || 0
+    return time >= lastMonthStartTime && time < thisMonthStartTime
+  })
+  const recent_notifications = sortedNotifications.filter((n) => {
+    const time = n.timestamp || 0
+    return time >= threeMonthsAgo && time < lastMonthStartTime
+  })
+  const older_notifications = sortedNotifications.filter((n) => {
+    const time = n.timestamp || 0
+    return time >= sixMonthsAgo && time < threeMonthsAgo
+  })
+  const muchOlder_notifications = sortedNotifications.filter((n) => {
+    const time = n.timestamp || 0
+    return time >= oneYearAgo && time < sixMonthsAgo
+  })
+  const ancient_notifications = sortedNotifications.filter((n) => {
+    const time = n.timestamp || 0
+    return time < oneYearAgo
+  })
 
   // Add groups in chronological order
   addGroup('Today', today_notifications)

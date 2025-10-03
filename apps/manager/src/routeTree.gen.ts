@@ -18,6 +18,7 @@ import { Route as PaymentAddRouteImport } from './routes/payment/add'
 import { Route as NotificationsSettingsRouteImport } from './routes/notifications/settings'
 import { Route as NotificationsAllRouteImport } from './routes/notifications/all'
 import { Route as PNameIndexRouteImport } from './routes/p/$name/index'
+import { Route as DebugBackendIndexRouteImport } from './routes/debug/backend/index'
 import { Route as PNameEditRouteImport } from './routes/p/$name/edit'
 
 const RegisterRoute = RegisterRouteImport.update({
@@ -65,6 +66,11 @@ const PNameIndexRoute = PNameIndexRouteImport.update({
   path: '/p/$name/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DebugBackendIndexRoute = DebugBackendIndexRouteImport.update({
+  id: '/debug/backend/',
+  path: '/debug/backend/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PNameEditRoute = PNameEditRouteImport.update({
   id: '/p/$name/edit',
   path: '/p/$name/edit',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/auto-renewal': typeof AutoRenewalIndexRoute
   '/notifications': typeof NotificationsIndexRoute
   '/p/$name/edit': typeof PNameEditRoute
+  '/debug/backend': typeof DebugBackendIndexRoute
   '/p/$name': typeof PNameIndexRoute
 }
 export interface FileRoutesByTo {
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/auto-renewal': typeof AutoRenewalIndexRoute
   '/notifications': typeof NotificationsIndexRoute
   '/p/$name/edit': typeof PNameEditRoute
+  '/debug/backend': typeof DebugBackendIndexRoute
   '/p/$name': typeof PNameIndexRoute
 }
 export interface FileRoutesById {
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/notifications/': typeof NotificationsIndexRoute
   '/p/$name/edit': typeof PNameEditRoute
+  '/debug/backend/': typeof DebugBackendIndexRoute
   '/p/$name/': typeof PNameIndexRoute
 }
 export interface FileRouteTypes {
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | '/auto-renewal'
     | '/notifications'
     | '/p/$name/edit'
+    | '/debug/backend'
     | '/p/$name'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/auto-renewal'
     | '/notifications'
     | '/p/$name/edit'
+    | '/debug/backend'
     | '/p/$name'
   id:
     | '__root__'
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/auto-renewal/'
     | '/notifications/'
     | '/p/$name/edit'
+    | '/debug/backend/'
     | '/p/$name/'
   fileRoutesById: FileRoutesById
 }
@@ -157,6 +169,7 @@ export interface RootRouteChildren {
   AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
   NotificationsIndexRoute: typeof NotificationsIndexRoute
   PNameEditRoute: typeof PNameEditRoute
+  DebugBackendIndexRoute: typeof DebugBackendIndexRoute
   PNameIndexRoute: typeof PNameIndexRoute
 }
 
@@ -225,6 +238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PNameIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/debug/backend/': {
+      id: '/debug/backend/'
+      path: '/debug/backend'
+      fullPath: '/debug/backend'
+      preLoaderRoute: typeof DebugBackendIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/p/$name/edit': {
       id: '/p/$name/edit'
       path: '/p/$name/edit'
@@ -245,6 +265,7 @@ const rootRouteChildren: RootRouteChildren = {
   AutoRenewalIndexRoute: AutoRenewalIndexRoute,
   NotificationsIndexRoute: NotificationsIndexRoute,
   PNameEditRoute: PNameEditRoute,
+  DebugBackendIndexRoute: DebugBackendIndexRoute,
   PNameIndexRoute: PNameIndexRoute,
 }
 export const routeTree = rootRouteImport

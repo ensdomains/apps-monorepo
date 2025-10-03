@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { NotificationsDropdown } from '@/features/notifications/components'
+import { NotificationsDropdown } from '@/features/notifications/components/dropdown'
 
 export const Route = createFileRoute('/notifications/')({
   component: RouteComponent,
@@ -7,7 +7,7 @@ export const Route = createFileRoute('/notifications/')({
 
 function RouteComponent() {
   return (
-    <div className="m-5 max-w-sm rounded-md border border-gray-400">
+    <div className="mx-auto my-5 max-w-md">
       <NotificationsDropdown />
     </div>
   )
