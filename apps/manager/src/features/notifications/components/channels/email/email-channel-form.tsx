@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { addEmailChannelMutationOptions } from '../queries/channels'
+import { addEmailChannelMutationOptions } from '../../../queries/channels'
 
 interface EmailChannelFormProps {
   onSuccess: () => void

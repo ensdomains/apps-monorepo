@@ -1,9 +1,9 @@
 import { TIME_UNITS } from '@/utils/time'
-import type { BackendNotification } from './queries/notifications'
+import type { BackendNotification, GroupedNotifications } from '../types'
 
 export const groupNotificationsByTime = (
   notifications: BackendNotification[],
-) => {
+): GroupedNotifications => {
   if (notifications.length === 0) {
     return { groups: [] }
   }

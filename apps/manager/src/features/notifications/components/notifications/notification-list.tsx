@@ -1,10 +1,10 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { LinkButton } from '@/components/ui/button'
 import {
-  BackendNotification,
+  type BackendNotification,
   notificationsInfiniteQuery,
-} from '../queries/notifications'
-import { groupNotificationsByTime } from '../utils'
+} from '../../queries/notifications'
+import { groupNotificationsByTime } from '../../utils'
 import { NotificationItem } from './notification-items'
 
 const NotificationGroup = ({

@@ -1,7 +1,7 @@
-import { StepIndicator } from './step-indicator'
+import { StepIndicator } from '../../../shared/step-indicator'
 import { TelegramAuthStep } from './telegram-auth-step'
 import { TelegramCreateStep } from './telegram-create-step'
-import type { TelegramStepProps } from './telegram-steps.types'
+import type { TelegramStepProps } from './types'
 
 export function TelegramSteps({ state, actions }: TelegramStepProps) {
   const { currentStep, telegramAuthData, isChannelCreated } = state

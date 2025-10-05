@@ -17,8 +17,8 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { channelsQueryOptions } from '../queries/channels'
-import { AddChannelModal } from './add-channel-modal'
-import { ChannelCard } from './channel-card'
+import { AddChannelModal } from './channels/add-channel-modal'
+import { ChannelCard } from './channels/channel-card'
 
 export function NotificationSettings() {
   const { data: channels = [], isLoading } = useQuery(channelsQueryOptions)

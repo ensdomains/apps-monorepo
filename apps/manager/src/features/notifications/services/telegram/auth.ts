@@ -1,10 +1,4 @@
-import {TelegramAuthData} from 'api-worker/types/telegram'
-
-export interface TelegramLoginOptions {
-  botId?: string
-  requestAccess?: 'write' | 'read'
-  lang?: string
-}
+import type { TelegramAuthData, TelegramLoginOptions } from './types'
 
 const TELEGRAM_ORIGIN = 'https://oauth.telegram.org'
 
@@ -53,8 +47,6 @@ export async function loginWithTelegramPopup(
 
     const onMessage = (event: MessageEvent) => {
       if (event.source !== popup) {
-        // Debug unrelated message source
-        // console.debug('[TelegramLogin] Ignoring message from unrelated source', event);
         return
       }
       try {
@@ -69,7 +61,6 @@ export async function loginWithTelegramPopup(
           resolve(data.result as TelegramAuthData)
         }
       } catch (err) {
-        // Debug parse errors or unrelated messages
         console.debug(
           '[TelegramLogin] Failed to parse message data or unrelated message:',
           event.data,
@@ -111,13 +102,13 @@ export async function loginWithTelegramPopup(
  * If Telegram redirected back with a hash fragment (#tgAuthResult=...)
  * extract it and return the parsed TelegramUser
  */
-export function decodeTelegramAuthDataFromUrlHash(hash: string): TelegramAuthData | null {
-  const match = hash.match(
-    /[#?&]tgAuthResult=([A-Za-z0-9\-_]*)$/,
-  )
+export function decodeTelegramAuthDataFromUrlHash(
+  hash: string,
+): TelegramAuthData | null {
+  const match = hash.match(/[#?&]tgAuthResult=([A-Za-z0-9\-_]*)$/)
   if (!match) return null
   try {
-    let data = match[1]!.replace(/-/g, '+').replace(/_/g, '/')
+    let data = match[1]?.replace(/-/g, '+').replace(/_/g, '/') || ''
     const pad = data.length % 4
     if (pad > 1) data += '='.repeat(4 - pad)
     const decoded = atob(data)

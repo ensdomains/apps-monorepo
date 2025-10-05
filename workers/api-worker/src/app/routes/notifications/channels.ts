@@ -264,6 +264,18 @@ export default createApp()
         }
       }
 
+      const existingChannel = await c.var.db.query.userChannels.findFirst({
+        where: and(
+          eq(TABLE.userChannels.user_id, userId),
+          eq(TABLE.userChannels.channel, 'telegram'),
+          eq(TABLE.userChannels.target, auth_data.id.toString()),
+        ),
+      })
+
+      if (existingChannel) {
+        return c.json({ error: 'Channel already exists' }, 400)
+      }
+
       const channel = await c.var.db
         .insert(TABLE.userChannels)
         .values({

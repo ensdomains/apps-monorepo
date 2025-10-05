@@ -2,8 +2,8 @@ import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
 import type { TelegramAuthData } from 'api-worker/types/telegram'
 import type { InferResponseType } from 'hono'
-import { loginWithTelegramPopup } from '@/features/notifications/telegram'
 import { backendClient } from '@/utils/backend-client'
+import { loginWithTelegramPopup } from '../services/telegram/auth'
 
 // Types
 export type Channel = InferResponseType<

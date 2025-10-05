@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { channelsQueryOptions } from '../queries/channels'
+import { channelsQueryOptions } from '../../queries/channels'
 
 interface NotificationKind {
   id: string

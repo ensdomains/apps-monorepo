@@ -2,11 +2,11 @@ import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store/react'
 import { Button, LinkButton } from '@/components/ui/button'
 import { isBackendAuthed } from '@/utils/backend-client'
-import { signInBackendMutation } from '../queries/auth'
+import { signInBackendMutation } from '../../queries/auth'
 import {
   notificationsInfiniteQuery,
   unreadCountQuery,
-} from '../queries/notifications'
+} from '../../queries/notifications'
 import { NotificationItem } from './notification-items'
 
 export const NotificationsDropdown = ({

@@ -10,8 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { EmailChannelForm } from './email-channel-form'
-import { TelegramChannelForm } from './telegram-channel-form'
+import { EmailChannelForm } from './email'
+import { TelegramChannelForm } from './telegram'
 
 interface AddChannelModalProps {
   open: boolean

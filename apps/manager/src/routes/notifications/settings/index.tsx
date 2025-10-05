@@ -1,7 +1,9 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { NotificationPreferences } from '@/features/notifications/components/preferences'
-import { NotificationSettings } from '@/features/notifications/components/settings'
+import {
+  NotificationPreferences,
+  NotificationSettings,
+} from '@/features/notifications/components'
 
 export const Route = createFileRoute('/notifications/settings/')({
   component: RouteComponent,

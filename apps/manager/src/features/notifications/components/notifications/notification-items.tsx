@@ -2,13 +2,13 @@ import type { Broadcasts, Notifications } from 'api-worker/types/notifications'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatExpiryTime } from '@/utils/time'
-import type { BackendNotification } from '../queries/notifications'
+import type { BackendNotification } from '../../queries/notifications'
 import {
   ActionRow,
   NameDisplay,
   NotificationHeader,
   NotificationWrapper,
-} from './shared'
+} from '../shared'
 
 type BaseItemProps = {
   timestamp: number

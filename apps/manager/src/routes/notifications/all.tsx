@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { AllNotifications } from '@/features/notifications/components/all-notifications'
+import { AllNotifications } from '@/features/notifications/components'
 import { signInBackendMutation } from '@/features/notifications/queries/auth'
 import { isBackendAuthed } from '@/utils/backend-client'
 

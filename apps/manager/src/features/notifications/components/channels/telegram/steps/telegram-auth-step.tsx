@@ -1,7 +1,7 @@
 import { ExternalLink, MessageSquare, XCircle } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import type { TelegramStepProps } from './telegram-steps.types'
+import type { TelegramStepProps } from './types'
 
 export function TelegramAuthStep({ state, actions }: TelegramStepProps) {
   const { isAuthenticating, authError } = state
@@ -24,7 +24,7 @@ export function TelegramAuthStep({ state, actions }: TelegramStepProps) {
         </Alert>
       )}
 
-      <div className="py-6 text-center">
+      <div className="text-center">
         <Button
           onClick={onTelegramAuth}
           disabled={isAuthenticating}
@@ -36,6 +36,8 @@ export function TelegramAuthStep({ state, actions }: TelegramStepProps) {
         </Button>
       </div>
 
+      <hr className="my-4" />
+
       <Alert>
         <ExternalLink className="h-4 w-4" />
         <AlertDescription>
@@ -44,7 +46,7 @@ export function TelegramAuthStep({ state, actions }: TelegramStepProps) {
         </AlertDescription>
       </Alert>
 
-      <div className="flex gap-2 pt-4">
+      <div className="flex gap-2">
         <Button
           type="button"
           variant="outline"

@@ -38,7 +38,7 @@ import {
   type Channel,
   deleteChannelMutationOptions,
   testChannelMutationOptions,
-} from '../queries/channels'
+} from '../../queries/channels'
 
 interface ChannelCardProps {
   channel: Channel

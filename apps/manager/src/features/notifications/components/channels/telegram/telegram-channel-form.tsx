@@ -5,13 +5,13 @@ import { toast } from 'sonner'
 import {
   addTelegramChannelMutationOptions,
   telegramAuthMutationOptions,
-} from '../queries/channels'
-import { TelegramSteps } from './telegram-steps'
+} from '../../../queries/channels'
+import { TelegramSteps } from './steps/telegram-steps'
 import type {
   TelegramStep,
   TelegramStepActions,
   TelegramStepState,
-} from './telegram-steps.types'
+} from './steps/types'
 
 interface TelegramChannelFormProps {
   onSuccess: () => void

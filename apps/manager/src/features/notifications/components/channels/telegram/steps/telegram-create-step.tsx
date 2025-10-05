@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import type { TelegramStepProps } from './telegram-steps.types'
+import type { TelegramStepProps } from './types'
 
 export function TelegramCreateStep({ state, actions }: TelegramStepProps) {
   const {
@@ -37,14 +37,7 @@ export function TelegramCreateStep({ state, actions }: TelegramStepProps) {
         </Alert>
       )}
 
-      <Alert>
-        <MessageSquare className="h-4 w-4" />
-        <AlertDescription>
-          Now create a notification channel to receive ENS updates via Telegram.
-        </AlertDescription>
-      </Alert>
-
-      <div className="py-6 text-center">
+      <div className="text-center">
         <Button
           onClick={onCreateChannel}
           disabled={isCreatingChannel}
@@ -58,22 +51,7 @@ export function TelegramCreateStep({ state, actions }: TelegramStepProps) {
         </Button>
       </div>
 
-      {channelError && (
-        <div className="space-y-2">
-          <Button
-            onClick={onCreateChannel}
-            disabled={isCreatingChannel}
-            className="w-full"
-          >
-            Try Again
-          </Button>
-          <Button onClick={onBackToAuth} variant="outline" className="w-full">
-            Use Different Account
-          </Button>
-        </div>
-      )}
-
-      <div className="flex gap-2 pt-4">
+      <div className="flex gap-2">
         {!isChannelCreated && (
           <Button
             type="button"
@@ -86,17 +64,6 @@ export function TelegramCreateStep({ state, actions }: TelegramStepProps) {
             Back to Authentication
           </Button>
         )}
-
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={isCreatingChannel}
-          className="flex-1"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Cancel
-        </Button>
       </div>
     </>
   )

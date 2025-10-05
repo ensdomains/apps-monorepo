@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { NotificationsDropdown } from '@/features/notifications/components/dropdown'
+import { NotificationsDropdown } from '@/features/notifications/components'
 
 export const Route = createFileRoute('/notifications/')({
   component: RouteComponent,
