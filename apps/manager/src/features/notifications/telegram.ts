@@ -1,21 +1,20 @@
-export interface TelegramUser {
-  id: number
-  first_name: string
-  last_name?: string
-  username?: string
-  photo_url?: string
-  auth_date: number
-  hash: string
-}
+import {TelegramAuthData} from 'api-worker/types/telegram'
+
+
 
 export interface TelegramLoginOptions {
-  botId: string
+  botId?: string
   requestAccess?: 'write' | 'read'
   lang?: string
-  redirect?: boolean
 }
 
 const TELEGRAM_ORIGIN = 'https://oauth.telegram.org'
+
+export const TELEGRAM_BOT_ID = import.meta.env.VITE_TELEGRAM_BOT_ID as string
+
+if (!TELEGRAM_BOT_ID) {
+  throw new Error('TELEGRAM_BOT_ID is not set')
+}
 
 /**
  * Opens Telegram login in a popup window and resolves with TelegramUser
@@ -23,8 +22,8 @@ const TELEGRAM_ORIGIN = 'https://oauth.telegram.org'
  */
 export async function loginWithTelegramPopup(
   options: TelegramLoginOptions,
-): Promise<TelegramUser> {
-  const { botId, requestAccess, lang } = options
+): Promise<TelegramAuthData> {
+  const { botId = TELEGRAM_BOT_ID, requestAccess, lang } = options
 
   const origin = window.location.origin
   const returnTo = window.location.href
@@ -69,7 +68,7 @@ export async function loginWithTelegramPopup(
             data.result,
           )
           cleanup()
-          resolve(data.result as TelegramUser)
+          resolve(data.result as TelegramAuthData)
         }
       } catch (err) {
         // Debug parse errors or unrelated messages
@@ -114,13 +113,11 @@ export async function loginWithTelegramPopup(
  * If Telegram redirected back with a hash fragment (#tgAuthResult=...)
  * extract it and return the parsed TelegramUser
  */
-export function getTelegramAuthFromUrl(): TelegramUser | null {
-  const match = window.location.hash.match(
+export function decodeTelegramAuthDataFromUrlHash(hash: string): TelegramAuthData | null {
+  const match = hash.match(
     /[#?&]tgAuthResult=([A-Za-z0-9\-_]*)$/,
   )
   if (!match) return null
-  window.location.hash = window.location.hash.replace(match[0], '')
-
   try {
     let data = match[1]!.replace(/-/g, '+').replace(/_/g, '/')
     const pad = data.length % 4

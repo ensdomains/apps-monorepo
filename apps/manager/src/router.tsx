@@ -1,9 +1,7 @@
 import {
   MutationCache,
-  matchQuery,
-  Query,
   QueryClient,
-  QueryKey,
+  type QueryKey,
 } from '@tanstack/react-query'
 import { createRouter as createTanStackRouter } from '@tanstack/react-router'
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
@@ -29,14 +27,11 @@ export function createRouter() {
     },
     mutationCache: new MutationCache({
       onSuccess: (_data, _variables, _context, mutation) => {
-        queryClient.invalidateQueries({
-          predicate: (query) =>
-            // invalidate all matching tags at once
-            // or everything if no meta is provided
-            mutation.meta?.invalidates?.some((queryKey) =>
-              matchQuery({ queryKey }, query),
-            ) ?? true,
-        })
+        if (mutation.meta?.invalidates) {
+          queryClient.invalidateQueries({
+            queryKey: mutation.meta?.invalidates,
+          })
+        }
       },
     }),
   })

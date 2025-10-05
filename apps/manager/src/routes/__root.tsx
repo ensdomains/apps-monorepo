@@ -11,6 +11,7 @@ import {
 } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import type { ReactNode } from 'react'
+import { Toaster } from 'sonner'
 import { WagmiProvider } from 'wagmi'
 import { Layout } from '@/components/Layout'
 import { wagmiConfig } from '@/lib/wagmi'
@@ -68,6 +69,7 @@ function RootComponent() {
         <Layout>
           <Outlet />
         </Layout>
+        <Toaster position="top-right" />
       </ProvidersWrapper>
 
       <TanStackRouterDevtools position="bottom-right" />

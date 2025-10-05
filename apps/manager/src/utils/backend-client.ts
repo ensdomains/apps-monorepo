@@ -25,7 +25,7 @@ export const isBackendAuthed = backendAuthStore.select(
   (state) => state.authKey !== undefined,
 )
 
-export const backendClient = hc<AppRouter>('http://localhost:2999', {
+export const backendClient = hc<AppRouter>('/api', {
   headers: () => {
     const auth = backendAuthStore.get().context.authKey
 

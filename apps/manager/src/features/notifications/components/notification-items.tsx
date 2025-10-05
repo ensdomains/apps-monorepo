@@ -1,13 +1,8 @@
-import type { Broadcasts, Notifications } from 'api-worker/types'
+import type { Broadcasts, Notifications } from 'api-worker/types/notifications'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatExpiryTime } from '@/utils/time'
-import { BackendNotification } from '../queries/notifications'
-import type {
-  BlogPostNotification,
-  NameExpiryNotification,
-  NameTransferredNotification,
-} from '../types'
+import type { BackendNotification } from '../queries/notifications'
 import {
   ActionRow,
   NameDisplay,
