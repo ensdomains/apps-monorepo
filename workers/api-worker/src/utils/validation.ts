@@ -1,4 +1,6 @@
+import { ok } from 'neverthrow'
 import * as v from 'valibot'
+import { error, GenericError } from './result'
 export const coerceNumber = v.pipe(
   v.union([v.string(), v.number()]),
   v.transform((val) => Number(val)),
@@ -16,3 +18,25 @@ export const hex = v.custom<`0x${string}`>((input) =>
 export const ethAddress = v.custom<`0x${string}`>((input) =>
   typeof input === 'string' ? /^0x[0-9a-fA-F]{40}$/.test(input) : false,
 )
+
+export const parseIntoResult = <
+  const TSchema extends v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>,
+  const TBaseError extends GenericError,
+>(
+  schema: TSchema,
+  input: unknown,
+  baseError: TBaseError = {
+    code: 'INVALID_INPUT',
+    message: 'Invalid input',
+  } as TBaseError,
+) => {
+  const parseResult = v.safeParse(schema, input)
+  if (!parseResult.success) {
+    return error({
+      ...baseError,
+      issues: parseResult.issues,
+      output: parseResult.output,
+    })
+  }
+  return ok(parseResult.output)
+}

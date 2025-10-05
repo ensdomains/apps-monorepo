@@ -12,8 +12,10 @@ import {
 } from 'drizzle-orm/pg-core'
 import type {
   AnyBroadcastPayload,
+  AnyChannelData,
   AnyNotificationPayload,
   Notification,
+  UserChannel,
 } from '#types/notifications.js'
 import { randomUUIDv7 } from '../utils/schemaHelpers'
 import { users } from './core'
@@ -32,11 +34,13 @@ export const userChannels = pgTable(
     /**
      * Which medium (email, push, telegram)
      */
-    channel: text('channel').$type<DeliveryChannel>().notNull(),
+    channel: text('channel').$type<UserChannel>().notNull(),
     /**
      * The actual identifier (email address, FCM endpoint, etc)
      */
-    target: text('target').notNull(),
+    target: text('target'),
+
+    data: jsonb('data').$type<AnyChannelData>(),
     /**
      * When the channel was verified
      */
@@ -57,6 +61,12 @@ export const userChannels = pgTable(
      * When the channel was last bounced
      */
     last_bounce_at: timestamp('last_bounce_at', { withTimezone: true }),
+
+    // ⏱️ anti‑spam: track verification sends/attempts
+    last_verification_sent_at: timestamp('last_verification_sent_at', {
+      withTimezone: true,
+    }),
+    verification_attempts: integer('verification_attempts').default(0),
   },
   (table) => [
     unique('user_channel_unique').on(
@@ -75,6 +85,48 @@ export const userChannelRelations = relations(
       references: [users.id],
     }),
     notifications: many(notifications),
+    verifications: many(channelVerifications),
+  }),
+)
+
+// ===============================
+
+export const channelVerifications = pgTable('channel_verifications', {
+  id: uuid('id').primaryKey().default(randomUUIDv7),
+
+  user_id: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+
+  channel_id: uuid('channel_id').references(() => userChannels.id, {
+    onDelete: 'cascade',
+  }),
+
+  channel: text('channel').$type<UserChannel>().notNull(),
+  target: text('target'), // email during email verification, null for Telegram until bot callback
+
+  purpose: text('purpose').notNull(), // 'verify' | 'unsubscribe' | 'link'
+
+  token: text('token').notNull(),
+
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
+  consumed_at: timestamp('consumed_at', { withTimezone: true }),
+
+  attempts: integer('attempts').default(0),
+})
+
+export const channelVerificationRelations = relations(
+  channelVerifications,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [channelVerifications.user_id],
+      references: [users.id],
+    }),
+    channel: one(userChannels, {
+      fields: [channelVerifications.channel_id],
+      references: [userChannels.id],
+    }),
   }),
 )
 

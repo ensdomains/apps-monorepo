@@ -4,11 +4,13 @@ import { createApp } from './middleware/hono'
 import authApp from './routes/auth'
 import favoritesApp from './routes/favorites'
 import notificationsApp from './routes/notifications'
+import webhookApp from './routes/webhook'
 
 const app = createApp()
   .route('/', authApp)
   .route('/', favoritesApp)
   .route('/', notificationsApp)
+  .route('/', webhookApp)
   .onError((err, c) => {
     if (err instanceof HTTPException) {
       // Get the custom response

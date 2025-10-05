@@ -1,4 +1,4 @@
-import type { Prettify } from './helpers'
+import type { KindToPayload, Prettify } from './helpers'
 
 // ===============================
 // Notifications
@@ -19,9 +19,7 @@ export type NameTransferredNotification = {
 
 export type Notification = NameExpiryNotification | NameTransferredNotification
 
-export type Notifications = {
-  [K in Notification as K['kind']]: Prettify<Omit<K, 'kind'>>
-}
+export type Notifications = KindToPayload<Notification>
 
 export type AnyNotificationPayload = Notifications[keyof Notifications]
 
@@ -38,8 +36,24 @@ export type BlogPostBroadcast = {
 
 export type Broadcast = BlogPostBroadcast
 
-export type Broadcasts = {
-  [K in Broadcast as K['kind']]: Prettify<Omit<K, 'kind'>>
-}
+export type Broadcasts = KindToPayload<Broadcast>
 
 export type AnyBroadcastPayload = Broadcasts[keyof Broadcasts]
+
+// ===============================
+// User Channels
+// ===============================
+
+export type ChannelData = {
+  email: null
+  telegram: {
+    username: string
+  }
+  push: {
+    token: string
+  }
+}
+
+export type UserChannel = keyof ChannelData
+
+export type AnyChannelData = ChannelData[keyof ChannelData]

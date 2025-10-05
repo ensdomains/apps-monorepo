@@ -5,8 +5,9 @@ import { requireAuth } from '#app/middleware/auth.js'
 import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
-import type { Prettify } from '#types/helpers.js'
+import type { DiscriminatedPayloadMapper, Prettify } from '#types/helpers.js'
 import type { Broadcasts, Notifications } from '#types/notifications.js'
+import channels from './channels.js'
 
 /**
  * Notification routes for managing user notifications and broadcasts.
@@ -19,6 +20,7 @@ import type { Broadcasts, Notifications } from '#types/notifications.js'
  */
 export default createApp()
   .basePath('/notifications')
+  .route('/', channels)
   /**
    * GET /notifications
    *
@@ -71,17 +73,6 @@ export default createApp()
         limit: limit,
       })
 
-      // Type-safe notification with proper kind/payload typing
-      type TypedNotification = Prettify<
-        Omit<(typeof personal)[number], 'kind' | 'payload'>
-      > &
-        {
-          [K in keyof Notifications]: {
-            kind: K
-            payload: Notifications[K]
-          }
-        }[keyof Notifications]
-
       //
       // Broadcast notifications (system-wide announcements like blog posts)
       // This table is small, so we can always do a simple scan
@@ -107,24 +98,23 @@ export default createApp()
         .orderBy(desc(TABLE.broadcasts.id))
         .limit(limit) // ← cheap, table is tiny (broadcasts are system-wide, not user-specific)
 
-      // Type-safe broadcast with proper kind/payload typing
-      type TypedBroadcast = Prettify<
-        Omit<(typeof broadcasts)[number], 'kind' | 'payload'>
-      > &
-        {
-          [K in keyof Broadcasts]: {
-            kind: K
-            payload: Broadcasts[K]
-          }
-        }[keyof Broadcasts]
-
       //
       // Merge personal and broadcast notifications, then sort by creation time
       // Since both use UUIDv7 (time-ordered), we can sort by ID for chronological order
       //
       const merged = [
-        ...(personal as TypedNotification[]),
-        ...(broadcasts as TypedBroadcast[]),
+        ...(personal as DiscriminatedPayloadMapper<
+          Notifications,
+          (typeof personal)[number],
+          'kind',
+          'payload'
+        >[]),
+        ...(broadcasts as DiscriminatedPayloadMapper<
+          Broadcasts,
+          (typeof broadcasts)[number],
+          'kind',
+          'payload'
+        >[]),
       ]
         .sort(
           (a, b) => b.id.localeCompare(a.id), // UUIDv7 is time-ordered, so ID comparison works

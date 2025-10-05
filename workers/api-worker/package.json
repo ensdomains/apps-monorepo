@@ -28,6 +28,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.12.3",
+    "@grammyjs/types": "^3.22.2",
     "@types/node": "^24.3.1",
     "@types/pg": "^8.15.5",
     "dotenv": "^17.2.2",
