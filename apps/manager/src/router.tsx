@@ -28,9 +28,11 @@ export function createRouter() {
     mutationCache: new MutationCache({
       onSuccess: (_data, _variables, _context, mutation) => {
         if (mutation.meta?.invalidates) {
-          queryClient.invalidateQueries({
-            queryKey: mutation.meta?.invalidates,
-          })
+          for (const invalidate of mutation.meta.invalidates) {
+            queryClient.invalidateQueries({
+              queryKey: invalidate,
+            })
+          }
         }
       },
     }),

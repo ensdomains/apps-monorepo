@@ -1,4 +1,4 @@
-import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
 import type { TelegramAuthData } from 'api-worker/types/telegram'
 import type { InferResponseType } from 'hono'
@@ -25,6 +25,27 @@ export const channelsQueryOptions = queryOptions({
   },
 })
 
+export const channelQueryOptions = (channelId: string) =>
+  queryOptions({
+    queryKey: qk('channels', 'channel', {
+      channelId,
+    }),
+    queryFn: async () => {
+      const response = await backendClient.notifications.channels[':id'].$get({
+        param: { id: channelId },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch channel: ${response.statusText}`)
+      }
+
+      return response.json()
+    },
+    meta: {
+      dependsOn: ['backend'],
+    },
+  })
+
 // Mutations
 export const addEmailChannelMutationOptions = mutationOptions({
   mutationFn: async ({ email }: { email: string }) => {
@@ -42,7 +63,11 @@ export const addEmailChannelMutationOptions = mutationOptions({
     return response.json()
   },
   meta: {
-    invalidates: [qk('channels', 'list')],
+    invalidates: [
+      $qk({
+        $scope: 'channels',
+      }),
+    ],
   },
 })
 
@@ -70,7 +95,11 @@ export const addTelegramChannelMutationOptions = mutationOptions({
     return response.json()
   },
   meta: {
-    invalidates: [qk('channels', 'list')],
+    invalidates: [
+      $qk({
+        $scope: 'channels',
+      }),
+    ],
   },
 })
 

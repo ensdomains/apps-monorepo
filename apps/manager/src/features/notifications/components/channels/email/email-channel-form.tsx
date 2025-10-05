@@ -1,97 +1,103 @@
 import { useMutation } from '@tanstack/react-query'
-import { ArrowLeft, Mail } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { addEmailChannelMutationOptions } from '../../../queries/channels'
-
-interface EmailChannelFormProps {
-  onSuccess: () => void
-  onCancel: () => void
-}
+import {
+  addEmailChannelMutationOptions,
+  verifyEmailMutationOptions,
+} from '../../../queries/channels'
+import type { EmailChannelFormProps, EmailStep } from '../../../types/email'
+import { StepIndicator } from '../../shared/step-indicator'
+import { EmailSendStep } from './email-send-step'
+import { EmailVerifyStep } from './email-verify-step'
 
 export function EmailChannelForm({
   onSuccess,
   onCancel,
 }: EmailChannelFormProps) {
-  const [email, setEmail] = useState('')
-  const addEmailChannelMutation = useMutation(addEmailChannelMutationOptions)
+  const [currentStep, setCurrentStep] = useState<EmailStep>('send')
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const addEmailChannelMutation = useMutation({
+    ...addEmailChannelMutationOptions,
+    onSuccess: () => {
+      toast.success('Verification email sent! Check your inbox.')
+      setCurrentStep('verify')
+    },
+    onError: (error) => {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to send verification email'
+      toast.error(errorMessage)
+    },
+  })
 
-    if (!email.trim()) {
-      toast.error('Please enter an email address')
-      return
-    }
+  const verifyEmailMutation = useMutation({
+    ...verifyEmailMutationOptions,
+    onSuccess: () => {
+      toast.success('Email verified successfully!')
+      onSuccess()
+    },
+    onError: (error) => {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to verify email'
+      toast.error(errorMessage)
+    },
+  })
 
-    addEmailChannelMutation.mutate(
-      { email: email.trim() },
-      {
-        onSuccess: () => {
-          toast.success('Verification email sent! Check your inbox.')
-          onSuccess()
-        },
-        onError: (error: any) => {
-          const errorMessage = error?.message || 'Failed to add email channel'
-          toast.error(errorMessage)
-        },
-      },
-    )
+  const handleSendEmail = (emailAddress: string) => {
+    addEmailChannelMutation.mutate({ email: emailAddress })
+  }
+
+  const handleVerifyCode = (token: string) => {
+    verifyEmailMutation.mutate(token)
+  }
+
+  const handleBackToSend = () => {
+    setCurrentStep('send')
+    addEmailChannelMutation.reset()
+    verifyEmailMutation.reset()
+  }
+
+  const getCurrentStepNumber = () => {
+    return currentStep === 'send' ? 1 : 2
+  }
+
+  const getCompletedSteps = () => {
+    const completed: number[] = []
+    if (currentStep === 'verify') completed.push(1)
+    if (verifyEmailMutation.isSuccess) completed.push(2)
+    return completed
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="email">Email Address</Label>
-        <div className="relative">
-          <Mail className="-translate-y-1/2 absolute top-1/2 left-3 h-4 w-4 text-muted-foreground" />
-          {/** biome-ignore lint/correctness/useUniqueElementIds: <explanation> */}
-          <Input
-            id="email"
-            type="email"
-            placeholder="your@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="pl-10"
-            disabled={addEmailChannelMutation.isPending}
-            required
-          />
-        </div>
-      </div>
+    <div className="space-y-4">
+      <StepIndicator
+        currentStep={getCurrentStepNumber()}
+        totalSteps={2}
+        completedSteps={getCompletedSteps()}
+      />
 
-      <Alert>
-        <Mail className="h-4 w-4" />
-        <AlertDescription>
-          We'll send a verification email to confirm this address. Check your
-          spam folder if you don't see it.
-        </AlertDescription>
-      </Alert>
+      {currentStep === 'send' && (
+        <EmailSendStep
+          isSendingEmail={addEmailChannelMutation.isPending}
+          emailError={addEmailChannelMutation.error?.message || null}
+          onSendEmail={handleSendEmail}
+          onCancel={onCancel}
+        />
+      )}
 
-      <div className="flex gap-2 pt-4">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={addEmailChannelMutation.isPending}
-          className="flex-1"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>
-        <Button
-          type="submit"
-          disabled={addEmailChannelMutation.isPending || !email.trim()}
-          className="flex-1"
-        >
-          {addEmailChannelMutation.isPending
-            ? 'Sending...'
-            : 'Send Verification'}
-        </Button>
-      </div>
-    </form>
+      {currentStep === 'verify' && (
+        <EmailVerifyStep
+          channelId={addEmailChannelMutation.data?.channelId || ''}
+          isVerifying={verifyEmailMutation.isPending}
+          isVerified={verifyEmailMutation.isSuccess}
+          verificationError={verifyEmailMutation.error?.message || null}
+          onVerifyCode={handleVerifyCode}
+          onBackToSend={handleBackToSend}
+          onCancel={onCancel}
+          onSuccess={onSuccess}
+        />
+      )}
+    </div>
   )
 }

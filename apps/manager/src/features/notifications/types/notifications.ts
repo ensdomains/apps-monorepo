@@ -4,7 +4,7 @@ import type { backendClient } from '@/utils/backend-client'
 // Backend notification types
 export type BackendNotification = InferResponseType<
   typeof backendClient.notifications.$get
->[number]
+>['notifications'][number]
 
 // Notification grouping types
 export interface NotificationGroup {

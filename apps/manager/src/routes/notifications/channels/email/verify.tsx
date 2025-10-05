@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { EmailVerifyStep } from '@/features/notifications/components/channels/email/email-verify-step'
 import { verifyEmailMutationOptions } from '@/features/notifications/queries/channels'
 
 // Shared card wrapper component
@@ -66,10 +67,11 @@ function EmailVerificationPage() {
     navigate({ to: '/notifications/settings' })
   }
 
-  const handleVerify = () => {
-    if (!token) return
+  const handleVerify = (verificationToken?: string) => {
+    const tokenToUse = verificationToken || token
+    if (!tokenToUse) return
 
-    verifyEmailMutation.mutate(token, {
+    verifyEmailMutation.mutate(tokenToUse, {
       onSuccess: () => {
         toast.success('Email verified successfully')
         setTimeout(() => {
@@ -82,25 +84,26 @@ function EmailVerificationPage() {
     })
   }
 
-  // If no token, show missing token state
+  // If no token, show manual code entry using the shared component
   if (!token) {
     return (
       <VerificationCard>
         <VerificationHeader
-          icon={<XCircle className="h-6 w-6 text-red-600" />}
-          title="Missing Verification Token"
-          description="No verification token was found in the URL. Please check your email and use the link provided to verify your email address."
+          icon={<Mail className="h-6 w-6 text-gray-400" />}
+          title="Enter Verification Code"
+          description="Enter the verification code from your email to verify your address."
         />
-        <CardContent className="space-y-4">
-          <Alert variant="destructive">
-            <XCircle className="h-4 w-4" />
-            <AlertDescription>
-              The verification link is invalid or missing a token.
-            </AlertDescription>
-          </Alert>
-          <Button className="w-full" asChild>
-            <Link to="/notifications/settings">Back to Settings</Link>
-          </Button>
+        <CardContent>
+          <EmailVerifyStep
+            channelId=""
+            isVerifying={verifyEmailMutation.isPending}
+            isVerified={verifyEmailMutation.isSuccess}
+            verificationError={verifyEmailMutation.error?.message || null}
+            onVerifyCode={(code) => handleVerify(code)}
+            onBackToSend={() => {}} // Not applicable for this route
+            onCancel={handleContinue}
+            onSuccess={handleContinue}
+          />
         </CardContent>
       </VerificationCard>
     )
@@ -173,7 +176,7 @@ function EmailVerificationPage() {
         {/* Action buttons */}
         {isError ? (
           <div className="space-y-2">
-            <Button onClick={handleVerify} className="w-full">
+            <Button onClick={() => handleVerify()} className="w-full">
               Try Again
             </Button>
             <Button
@@ -190,7 +193,7 @@ function EmailVerificationPage() {
           </Button>
         ) : (
           <div className="space-y-2">
-            <Button onClick={handleVerify} className="w-full">
+            <Button onClick={() => handleVerify()} className="w-full">
               Verify Email Address
             </Button>
             <Button variant="outline" className="w-full" asChild>

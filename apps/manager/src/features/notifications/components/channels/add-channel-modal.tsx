@@ -58,20 +58,23 @@ export function AddChannelModal({ open, onOpenChange }: AddChannelModalProps) {
 
   if (selectedType) {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog
+        open={open}
+        onOpenChange={() => {
+          const confirmed = confirm(
+            'Are you sure you want to close this modal?',
+          )
+          if (confirmed) {
+            handleClose()
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center justify-between">
               <DialogTitle>
                 Add {selectedType === 'email' ? 'Email' : 'Telegram'} Channel
               </DialogTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedType(null)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
             </div>
             <DialogDescription>
               {selectedType === 'email'
