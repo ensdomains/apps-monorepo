@@ -3,7 +3,7 @@
   "type": "module",
   "main": "src/worker.ts",
   "exports": {
-    "./types": "./src/types/index.ts",
+    "./types/*": "./src/types/*.ts",
     ".": "./src/worker.ts"
   },
   "scripts": {

@@ -24,13 +24,15 @@ export const signInBackendMutation = mutationOptions({
 
     const nonce = await getNonce()
 
+    const url = new URL(window.location.origin)
+
     const siweMessage = createSiweMessage({
       address: account.address,
       // domain: 'app.ens.domains',
-      domain: 'localhost',
+      domain: url.hostname,
       nonce,
       chainId: wagmiConfig.chains[0].id,
-      uri: 'http://localhost:3000',
+      uri: url.origin,
       version: '1',
     })
 

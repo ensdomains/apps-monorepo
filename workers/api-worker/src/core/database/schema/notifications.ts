@@ -98,9 +98,11 @@ export const channelVerifications = pgTable('channel_verifications', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
 
-  channel_id: uuid('channel_id').references(() => userChannels.id, {
-    onDelete: 'cascade',
-  }),
+  channel_id: uuid('channel_id')
+    .references(() => userChannels.id, {
+      onDelete: 'cascade',
+    })
+    .notNull(),
 
   channel: text('channel').$type<UserChannel>().notNull(),
   target: text('target'), // email during email verification, null for Telegram until bot callback

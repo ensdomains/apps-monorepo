@@ -15,11 +15,12 @@ import { Route as NotificationsIndexRouteImport } from './routes/notifications/i
 import { Route as AutoRenewalIndexRouteImport } from './routes/auto-renewal/index'
 import { Route as PaymentListRouteImport } from './routes/payment/list'
 import { Route as PaymentAddRouteImport } from './routes/payment/add'
-import { Route as NotificationsSettingsRouteImport } from './routes/notifications/settings'
 import { Route as NotificationsAllRouteImport } from './routes/notifications/all'
 import { Route as PNameIndexRouteImport } from './routes/p/$name/index'
+import { Route as NotificationsSettingsIndexRouteImport } from './routes/notifications/settings/index'
 import { Route as DebugBackendIndexRouteImport } from './routes/debug/backend/index'
 import { Route as PNameEditRouteImport } from './routes/p/$name/edit'
+import { Route as NotificationsSettingsTelegramRouteImport } from './routes/notifications/settings/telegram'
 
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
@@ -51,11 +52,6 @@ const PaymentAddRoute = PaymentAddRouteImport.update({
   path: '/payment/add',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NotificationsSettingsRoute = NotificationsSettingsRouteImport.update({
-  id: '/notifications/settings',
-  path: '/notifications/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const NotificationsAllRoute = NotificationsAllRouteImport.update({
   id: '/notifications/all',
   path: '/notifications/all',
@@ -66,6 +62,12 @@ const PNameIndexRoute = PNameIndexRouteImport.update({
   path: '/p/$name/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotificationsSettingsIndexRoute =
+  NotificationsSettingsIndexRouteImport.update({
+    id: '/notifications/settings/',
+    path: '/notifications/settings/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DebugBackendIndexRoute = DebugBackendIndexRouteImport.update({
   id: '/debug/backend/',
   path: '/debug/backend/',
@@ -76,31 +78,39 @@ const PNameEditRoute = PNameEditRouteImport.update({
   path: '/p/$name/edit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotificationsSettingsTelegramRoute =
+  NotificationsSettingsTelegramRouteImport.update({
+    id: '/notifications/settings/telegram',
+    path: '/notifications/settings/telegram',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/register': typeof RegisterRoute
   '/notifications/all': typeof NotificationsAllRoute
-  '/notifications/settings': typeof NotificationsSettingsRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/auto-renewal': typeof AutoRenewalIndexRoute
   '/notifications': typeof NotificationsIndexRoute
+  '/notifications/settings/telegram': typeof NotificationsSettingsTelegramRoute
   '/p/$name/edit': typeof PNameEditRoute
   '/debug/backend': typeof DebugBackendIndexRoute
+  '/notifications/settings': typeof NotificationsSettingsIndexRoute
   '/p/$name': typeof PNameIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/register': typeof RegisterRoute
   '/notifications/all': typeof NotificationsAllRoute
-  '/notifications/settings': typeof NotificationsSettingsRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/auto-renewal': typeof AutoRenewalIndexRoute
   '/notifications': typeof NotificationsIndexRoute
+  '/notifications/settings/telegram': typeof NotificationsSettingsTelegramRoute
   '/p/$name/edit': typeof PNameEditRoute
   '/debug/backend': typeof DebugBackendIndexRoute
+  '/notifications/settings': typeof NotificationsSettingsIndexRoute
   '/p/$name': typeof PNameIndexRoute
 }
 export interface FileRoutesById {
@@ -108,13 +118,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/register': typeof RegisterRoute
   '/notifications/all': typeof NotificationsAllRoute
-  '/notifications/settings': typeof NotificationsSettingsRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/notifications/': typeof NotificationsIndexRoute
+  '/notifications/settings/telegram': typeof NotificationsSettingsTelegramRoute
   '/p/$name/edit': typeof PNameEditRoute
   '/debug/backend/': typeof DebugBackendIndexRoute
+  '/notifications/settings/': typeof NotificationsSettingsIndexRoute
   '/p/$name/': typeof PNameIndexRoute
 }
 export interface FileRouteTypes {
@@ -123,39 +134,42 @@ export interface FileRouteTypes {
     | '/'
     | '/register'
     | '/notifications/all'
-    | '/notifications/settings'
     | '/payment/add'
     | '/payment/list'
     | '/auto-renewal'
     | '/notifications'
+    | '/notifications/settings/telegram'
     | '/p/$name/edit'
     | '/debug/backend'
+    | '/notifications/settings'
     | '/p/$name'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/register'
     | '/notifications/all'
-    | '/notifications/settings'
     | '/payment/add'
     | '/payment/list'
     | '/auto-renewal'
     | '/notifications'
+    | '/notifications/settings/telegram'
     | '/p/$name/edit'
     | '/debug/backend'
+    | '/notifications/settings'
     | '/p/$name'
   id:
     | '__root__'
     | '/'
     | '/register'
     | '/notifications/all'
-    | '/notifications/settings'
     | '/payment/add'
     | '/payment/list'
     | '/auto-renewal/'
     | '/notifications/'
+    | '/notifications/settings/telegram'
     | '/p/$name/edit'
     | '/debug/backend/'
+    | '/notifications/settings/'
     | '/p/$name/'
   fileRoutesById: FileRoutesById
 }
@@ -163,13 +177,14 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   RegisterRoute: typeof RegisterRoute
   NotificationsAllRoute: typeof NotificationsAllRoute
-  NotificationsSettingsRoute: typeof NotificationsSettingsRoute
   PaymentAddRoute: typeof PaymentAddRoute
   PaymentListRoute: typeof PaymentListRoute
   AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
   NotificationsIndexRoute: typeof NotificationsIndexRoute
+  NotificationsSettingsTelegramRoute: typeof NotificationsSettingsTelegramRoute
   PNameEditRoute: typeof PNameEditRoute
   DebugBackendIndexRoute: typeof DebugBackendIndexRoute
+  NotificationsSettingsIndexRoute: typeof NotificationsSettingsIndexRoute
   PNameIndexRoute: typeof PNameIndexRoute
 }
 
@@ -217,13 +232,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PaymentAddRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/notifications/settings': {
-      id: '/notifications/settings'
-      path: '/notifications/settings'
-      fullPath: '/notifications/settings'
-      preLoaderRoute: typeof NotificationsSettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/notifications/all': {
       id: '/notifications/all'
       path: '/notifications/all'
@@ -236,6 +244,13 @@ declare module '@tanstack/react-router' {
       path: '/p/$name'
       fullPath: '/p/$name'
       preLoaderRoute: typeof PNameIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications/settings/': {
+      id: '/notifications/settings/'
+      path: '/notifications/settings'
+      fullPath: '/notifications/settings'
+      preLoaderRoute: typeof NotificationsSettingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/debug/backend/': {
@@ -252,6 +267,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PNameEditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/notifications/settings/telegram': {
+      id: '/notifications/settings/telegram'
+      path: '/notifications/settings/telegram'
+      fullPath: '/notifications/settings/telegram'
+      preLoaderRoute: typeof NotificationsSettingsTelegramRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -259,13 +281,14 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   RegisterRoute: RegisterRoute,
   NotificationsAllRoute: NotificationsAllRoute,
-  NotificationsSettingsRoute: NotificationsSettingsRoute,
   PaymentAddRoute: PaymentAddRoute,
   PaymentListRoute: PaymentListRoute,
   AutoRenewalIndexRoute: AutoRenewalIndexRoute,
   NotificationsIndexRoute: NotificationsIndexRoute,
+  NotificationsSettingsTelegramRoute: NotificationsSettingsTelegramRoute,
   PNameEditRoute: PNameEditRoute,
   DebugBackendIndexRoute: DebugBackendIndexRoute,
+  NotificationsSettingsIndexRoute: NotificationsSettingsIndexRoute,
   PNameIndexRoute: PNameIndexRoute,
 }
 export const routeTree = rootRouteImport
