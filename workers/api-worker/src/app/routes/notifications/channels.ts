@@ -21,54 +21,10 @@ const generateToken = () => {
   )
 }
 
-/**
- * Notification routes for managing user notifications and broadcasts.
- *
- * This module handles:
- * - Personal notifications (user-specific events like name expiry, transfers)
- * - Broadcast notifications (system-wide announcements like blog posts)
- * - Pagination using cursor-based approach with UUIDv7 timestamps
- * - Marking notifications as read/unread and archived
- */
-export default createApp()
-  .basePath('/channels')
-  /**
-   * GET /notifications
-   *
-   * Retrieves a paginated list of notifications for the authenticated user.
-   * Combines personal notifications and broadcast notifications, sorted by creation time.
-   *
-   * @param cursor - Optional cursor for pagination (UUIDv7 timestamp)
-   * @returns Paginated list of notifications with next cursor
-   */
-  .get('/', ...requireAuth, injectDb, async (c) => {
-    const userId = c.var.user_id
-
-    const channels = await c.var.db.query.userChannels.findMany({
-      columns: {
-        id: true,
-        channel: true,
-        target: true,
-        data: true,
-        status: true,
-        status_reason: true,
-        verified_at: true,
-        last_sent_at: true,
-        last_bounce_at: true,
-        last_verification_sent_at: true,
-      },
-      where: eq(TABLE.userChannels.user_id, userId),
-    })
-
-    const sanitizedChannels = channels.map(({ target, data, ...rest }) => ({
-      ...rest,
-      label: sanitizeChannel(rest.channel, target, data),
-    }))
-
-    return c.json(sanitizedChannels)
-  })
+const emailRoutes = createApp()
+  .basePath('/email')
   .post(
-    '/email',
+    '/',
     ...requireAuth,
     injectDb,
     vValidator(
@@ -185,14 +141,13 @@ export default createApp()
 
       return c.json({
         message: 'Verification email sent',
-        // In production, don't return the token
-        token: result.verification.token,
         expires_at: result.verification.expires_at,
+        channelId: result.channel.id,
       })
     },
   )
   .post(
-    '/email/verify',
+    '/verify',
     vValidator(
       'json',
       v.object({
@@ -235,6 +190,223 @@ export default createApp()
       return c.json({ message: 'Email verified successfully' })
     },
   )
+
+const idRoutes = createApp()
+  .basePath('/:id')
+  .get('/', ...requireAuth, injectDb, async (c) => {
+    const userId = c.var.user_id
+    const channelId = c.req.param('id')
+
+    const channel = await c.var.db.query.userChannels.findFirst({
+      columns: {
+        id: true,
+        channel: true,
+        target: true,
+        data: true,
+        status: true,
+        status_reason: true,
+        verified_at: true,
+        last_sent_at: true,
+        last_bounce_at: true,
+        last_verification_sent_at: true,
+      },
+      where: and(
+        eq(TABLE.userChannels.user_id, userId),
+        eq(TABLE.userChannels.id, channelId),
+      ),
+    })
+
+    if (!channel) {
+      return c.json({ error: 'Channel not found' }, 404)
+    }
+
+    const { target, data, ...rest } = channel
+
+    const sanitizedChannel = {
+      ...rest,
+      label: sanitizeChannel(rest.channel, target, data),
+    }
+
+    return c.json(sanitizedChannel)
+  })
+  .delete('/', ...requireAuth, injectDb, async (c) => {
+    const userId = c.var.user_id
+    const channelId = c.req.param('id')
+
+    const channel = await c.var.db.query.userChannels.findFirst({
+      where: and(
+        eq(TABLE.userChannels.id, channelId),
+        eq(TABLE.userChannels.user_id, userId),
+      ),
+    })
+
+    if (!channel) {
+      return c.json({ error: 'Channel not found' }, 404)
+    }
+
+    await c.var.db
+      .delete(TABLE.userChannels)
+      .where(eq(TABLE.userChannels.id, channelId))
+
+    return c.json({ message: 'Channel deleted successfully' })
+  })
+  .post('/test', ...requireAuth, injectDb, async (c) => {
+    const userId = c.var.user_id
+    const channelId = c.req.param('id')
+
+    const channel = await c.var.db.query.userChannels.findFirst({
+      where: and(
+        eq(TABLE.userChannels.id, channelId),
+        eq(TABLE.userChannels.user_id, userId),
+      ),
+    })
+
+    if (!channel) {
+      return c.json({ error: 'Channel not found' }, 404)
+    }
+
+    if (channel.status !== 'verified') {
+      return c.json(
+        { error: 'Channel must be verified to send test notifications' },
+        400,
+      )
+    }
+
+    // TODO: Send test notification based on channel type
+    // For now, just update the last_sent_at timestamp
+    await c.var.db
+      .update(TABLE.userChannels)
+      .set({
+        last_sent_at: new Date(),
+      })
+      .where(eq(TABLE.userChannels.id, channelId))
+
+    return c.json({ message: 'Test notification sent successfully' })
+  })
+  .post('/resend', ...requireAuth, injectDb, async (c) => {
+    const userId = c.var.user_id
+    const channelId = c.req.param('id')
+
+    const channel = await c.var.db.query.userChannels.findFirst({
+      where: and(
+        eq(TABLE.userChannels.id, channelId),
+        eq(TABLE.userChannels.user_id, userId),
+      ),
+    })
+
+    if (!channel) {
+      return c.json({ error: 'Channel not found' }, 404)
+    }
+
+    if (channel.status !== 'pending') {
+      return c.json({ error: 'Channel is not pending verification' }, 400)
+    }
+
+    // Check cooldown (5 minutes)
+    if (channel.last_verification_sent_at) {
+      const cooldownMs = 5 * 60 * 1000 // 5 minutes
+      const timeSinceLastSent =
+        Date.now() - new Date(channel.last_verification_sent_at).getTime()
+
+      if (timeSinceLastSent < cooldownMs) {
+        const remainingMs = cooldownMs - timeSinceLastSent
+        const remainingMinutes = Math.ceil(remainingMs / (60 * 1000))
+        return c.json(
+          {
+            error: `Please wait ${remainingMinutes} minutes before requesting another verification email`,
+          },
+          429,
+        )
+      }
+    }
+
+    // Create new verification token
+    const verification = await c.var.db
+      .insert(TABLE.channelVerifications)
+      .values({
+        user_id: userId,
+        channel_id: channelId,
+        channel: channel.channel,
+        purpose: 'verify',
+        token: generateToken(),
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+        attempts: 0,
+      })
+      .returning({
+        id: TABLE.channelVerifications.id,
+        token: TABLE.channelVerifications.token,
+      })
+      .then((verifications) => verifications.at(0))
+
+    if (!verification) {
+      return c.json({ error: 'Failed to create verification' }, 500)
+    }
+
+    // Update last verification sent timestamp
+    await c.var.db
+      .update(TABLE.userChannels)
+      .set({
+        last_verification_sent_at: new Date(),
+      })
+      .where(eq(TABLE.userChannels.id, channelId))
+
+    // TODO: Send verification email/notification
+    logger.info('Verification resent', {
+      channelId,
+      channel: channel.channel,
+      token: verification.token,
+    })
+
+    return c.json({ message: 'Verification sent successfully' })
+  })
+
+/**
+ * Notification routes for managing user notifications and broadcasts.
+ *
+ * This module handles:
+ * - Personal notifications (user-specific events like name expiry, transfers)
+ * - Broadcast notifications (system-wide announcements like blog posts)
+ * - Pagination using cursor-based approach with UUIDv7 timestamps
+ * - Marking notifications as read/unread and archived
+ */
+export default createApp()
+  .basePath('/channels')
+  /**
+   * GET /notifications
+   *
+   * Retrieves a paginated list of notifications for the authenticated user.
+   * Combines personal notifications and broadcast notifications, sorted by creation time.
+   *
+   * @param cursor - Optional cursor for pagination (UUIDv7 timestamp)
+   * @returns Paginated list of notifications with next cursor
+   */
+  .get('/', ...requireAuth, injectDb, async (c) => {
+    const userId = c.var.user_id
+
+    const channels = await c.var.db.query.userChannels.findMany({
+      columns: {
+        id: true,
+        channel: true,
+        target: true,
+        data: true,
+        status: true,
+        status_reason: true,
+        verified_at: true,
+        last_sent_at: true,
+        last_bounce_at: true,
+        last_verification_sent_at: true,
+      },
+      where: eq(TABLE.userChannels.user_id, userId),
+    })
+
+    const sanitizedChannels = channels.map(({ target, data, ...rest }) => ({
+      ...rest,
+      label: sanitizeChannel(rest.channel, target, data),
+    }))
+
+    return c.json(sanitizedChannels)
+  })
+  .route('/', emailRoutes)
   .post(
     '/telegram',
     ...requireAuth,
@@ -317,133 +489,4 @@ export default createApp()
       return c.json({ message: messageResult.value })
     },
   )
-  .delete('/:id', ...requireAuth, injectDb, async (c) => {
-    const userId = c.var.user_id
-    const channelId = c.req.param('id')
-
-    const channel = await c.var.db.query.userChannels.findFirst({
-      where: and(
-        eq(TABLE.userChannels.id, channelId),
-        eq(TABLE.userChannels.user_id, userId),
-      ),
-    })
-
-    if (!channel) {
-      return c.json({ error: 'Channel not found' }, 404)
-    }
-
-    await c.var.db
-      .delete(TABLE.userChannels)
-      .where(eq(TABLE.userChannels.id, channelId))
-
-    return c.json({ message: 'Channel deleted successfully' })
-  })
-  .post('/:id/test', ...requireAuth, injectDb, async (c) => {
-    const userId = c.var.user_id
-    const channelId = c.req.param('id')
-
-    const channel = await c.var.db.query.userChannels.findFirst({
-      where: and(
-        eq(TABLE.userChannels.id, channelId),
-        eq(TABLE.userChannels.user_id, userId),
-      ),
-    })
-
-    if (!channel) {
-      return c.json({ error: 'Channel not found' }, 404)
-    }
-
-    if (channel.status !== 'verified') {
-      return c.json(
-        { error: 'Channel must be verified to send test notifications' },
-        400,
-      )
-    }
-
-    // TODO: Send test notification based on channel type
-    // For now, just update the last_sent_at timestamp
-    await c.var.db
-      .update(TABLE.userChannels)
-      .set({
-        last_sent_at: new Date(),
-      })
-      .where(eq(TABLE.userChannels.id, channelId))
-
-    return c.json({ message: 'Test notification sent successfully' })
-  })
-  .post('/:id/resend', ...requireAuth, injectDb, async (c) => {
-    const userId = c.var.user_id
-    const channelId = c.req.param('id')
-
-    const channel = await c.var.db.query.userChannels.findFirst({
-      where: and(
-        eq(TABLE.userChannels.id, channelId),
-        eq(TABLE.userChannels.user_id, userId),
-      ),
-    })
-
-    if (!channel) {
-      return c.json({ error: 'Channel not found' }, 404)
-    }
-
-    if (channel.status !== 'pending') {
-      return c.json({ error: 'Channel is not pending verification' }, 400)
-    }
-
-    // Check cooldown (5 minutes)
-    if (channel.last_verification_sent_at) {
-      const cooldownMs = 5 * 60 * 1000 // 5 minutes
-      const timeSinceLastSent =
-        Date.now() - new Date(channel.last_verification_sent_at).getTime()
-
-      if (timeSinceLastSent < cooldownMs) {
-        const remainingMs = cooldownMs - timeSinceLastSent
-        const remainingMinutes = Math.ceil(remainingMs / (60 * 1000))
-        return c.json(
-          {
-            error: `Please wait ${remainingMinutes} minutes before requesting another verification email`,
-          },
-          429,
-        )
-      }
-    }
-
-    // Create new verification token
-    const verification = await c.var.db
-      .insert(TABLE.channelVerifications)
-      .values({
-        user_id: userId,
-        channel_id: channelId,
-        channel: channel.channel,
-        purpose: 'verify',
-        token: generateToken(),
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-        attempts: 0,
-      })
-      .returning({
-        id: TABLE.channelVerifications.id,
-        token: TABLE.channelVerifications.token,
-      })
-      .then((verifications) => verifications.at(0))
-
-    if (!verification) {
-      return c.json({ error: 'Failed to create verification' }, 500)
-    }
-
-    // Update last verification sent timestamp
-    await c.var.db
-      .update(TABLE.userChannels)
-      .set({
-        last_verification_sent_at: new Date(),
-      })
-      .where(eq(TABLE.userChannels.id, channelId))
-
-    // TODO: Send verification email/notification
-    logger.info('Verification resent', {
-      channelId,
-      channel: channel.channel,
-      token: verification.token,
-    })
-
-    return c.json({ message: 'Verification sent successfully' })
-  })
+  .route('/', idRoutes)
