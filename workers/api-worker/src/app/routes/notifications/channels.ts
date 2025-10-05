@@ -4,13 +4,14 @@ import * as v from 'valibot'
 import { requireAuth } from '#app/middleware/auth.js'
 import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
-import { TABLE } from '#core/database/index.js'
+import { Database, TABLE } from '#core/database/index.js'
 import { sanitizeChannel } from '#services/notifications/helpers.js'
 import {
   TelegramAuthSchema,
   verifyTelegramAuth,
 } from '#services/telegram/auth.js'
 import { makeTelegramRequest } from '#services/telegram/utils.js'
+import { UserChannel } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
 
 // Generate a random token that's somewhat user readable

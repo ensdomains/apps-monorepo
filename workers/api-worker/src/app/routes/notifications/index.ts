@@ -6,8 +6,9 @@ import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
 import type { DiscriminatedPayloadMapper, Prettify } from '#types/helpers.js'
-import type { Broadcasts, Notifications } from '#types/notifications.js'
+import type { Broadcasts, UserNotifications } from '#types/notifications.js'
 import channels from './channels.js'
+import preferences from './preferences.js'
 
 /**
  * Notification routes for managing user notifications and broadcasts.
@@ -21,6 +22,7 @@ import channels from './channels.js'
 export default createApp()
   .basePath('/notifications')
   .route('/', channels)
+  .route('/', preferences)
   /**
    * GET /notifications
    *
@@ -104,7 +106,7 @@ export default createApp()
       //
       const merged = [
         ...(personal as DiscriminatedPayloadMapper<
-          Notifications,
+          UserNotifications,
           (typeof personal)[number],
           'kind',
           'payload'

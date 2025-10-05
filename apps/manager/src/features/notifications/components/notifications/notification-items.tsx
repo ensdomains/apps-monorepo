@@ -1,4 +1,7 @@
-import type { Broadcasts, Notifications } from 'api-worker/types/notifications'
+import type {
+  Broadcasts,
+  UserNotifications,
+} from 'api-worker/types/notifications'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatExpiryTime } from '@/utils/time'
@@ -17,8 +20,8 @@ type BaseItemProps = {
   onRemove?: () => void
 }
 
-type NotificationItemProps<K extends keyof Notifications> = {
-  payload: Notifications[K]
+type NotificationItemProps<K extends keyof UserNotifications> = {
+  payload: UserNotifications[K]
 } & BaseItemProps
 
 type BroadcastItemProps<K extends keyof Broadcasts> = {
@@ -131,7 +134,7 @@ export const NotificationItems = {
   'name-transferred': NameTransferredNotificationItem,
   'blog-post': BlogPostBroadcastItem,
 } satisfies {
-  [K in keyof Notifications]: React.FC<NotificationItemProps<K>>
+  [K in keyof UserNotifications]: React.FC<NotificationItemProps<K>>
 } & { [K in keyof Broadcasts]: React.FC<BroadcastItemProps<K>> }
 
 export const NotificationItem = ({
