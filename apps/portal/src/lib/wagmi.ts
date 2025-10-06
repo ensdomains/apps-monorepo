@@ -5,25 +5,53 @@ import {
   injectedWallet,
   metaMaskWallet,
 } from '@rainbow-me/rainbowkit/wallets'
-import { createClient, type HttpTransport, http } from 'viem'
-import { mainnet } from 'viem/chains'
+import { createClient, defineChain, type HttpTransport, http } from 'viem'
 import { createConfig } from 'wagmi'
 
-const mainnetWithEns = extendChainWithEns(mainnet)
+export const l2Devnet = defineChain({
+  id: 15658734,
+  name: 'L2 Devnet',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'Ether',
+    symbol: 'ETH',
+  },
+  rpcUrls: {
+    default: {
+      http: ['http://127.0.0.1:8546'],
+      webSocket: ['ws://127.0.0.1:8546'],
+    },
+  },
+  testnet: true,
+})
+
+export const l1Devnet = defineChain({
+  id: 15658733,
+  name: 'L1 Devnet',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'Ether',
+    symbol: 'ETH',
+  },
+  rpcUrls: {
+    default: {
+      http: ['http://127.0.0.1:8545'],
+      webSocket: ['ws://127.0.0.1:8545'],
+    },
+  },
+  contracts: {
+    multicall3: {
+      address: '0x',
+    },
+  },
+  testnet: true,
+})
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: false,
   multiInjectedProviderDiscovery: true,
-  chains: [
-    {
-      ...mainnetWithEns,
-      subgraphs: {
-        ...mainnetWithEns.subgraphs,
-        ens: { url: 'https://api.alpha.blue.ensnode.io/subgraph' },
-      },
-    },
-  ],
+  chains: [extendChainWithEns(l1Devnet)],
   connectors: connectorsForWallets(
     [
       {
