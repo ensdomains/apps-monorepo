@@ -164,6 +164,11 @@ const machine = setup({
         input: {
           on: {
             VERIFY_OTP: {
+              actions: [
+                assign({
+                  verificationCode: ({ event }) => event.verificationCode,
+                }),
+              ],
               target: 'verify',
             },
           },
