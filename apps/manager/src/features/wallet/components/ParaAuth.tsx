@@ -35,7 +35,6 @@ const InputStep = () => {
   const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('email')
   const [email, setEmail] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
-  const [countryCode, setCountryCode] = useState('+1')
 
   return (
     <div className="space-y-4">
@@ -72,21 +71,35 @@ const InputStep = () => {
       ) : (
         <div className="space-y-2">
           <Label htmlFor="phone">Phone number</Label>
-          <div className="flex space-x-2">
-            <Input
-              value={countryCode}
-              onChange={(e) => setCountryCode(e.target.value)}
-              className="w-20"
-            />
-            <Input
-              id="phone"
-              type="tel"
-              placeholder="Enter your phone number"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              className="flex-1"
-            />
-          </div>
+          <Input
+            id="phone"
+            type="tel"
+            placeholder="e.g. +15551234567"
+            value={phoneNumber}
+            onChange={(e) => {
+              // Remove all non-digit characters except leading +
+              let value = e.target.value;
+              if (value[0] !== '+') {
+                value = '+' + value.replace(/[^0-9]/g, '');
+              } else {
+                value = '+' + value.slice(1).replace(/[^0-9]/g, '');
+              }
+              setPhoneNumber(value);
+            }}
+            className="w-full"
+            inputMode="tel"
+            autoComplete="tel"
+            maxLength={16}
+            pattern="^\+[1-9]\d{1,14}$"
+          />
+          {phoneNumber && !/^\+[1-9]\d{1,14}$/.test(phoneNumber) && (
+            <p className="text-xs text-red-500">
+              Please enter a valid phone number in E.164 format (e.g. +15551234567)
+            </p>
+          )}
+          <p className="text-xs text-gray-500">
+            Enter your full phone number in international format (E.164), e.g. +15551234567
+          </p>
         </div>
       )}
 
@@ -97,12 +110,12 @@ const InputStep = () => {
           } else {
             paraMachine.send({
               type: 'LOGIN_PHONE',
-              phoneNumber: `+${countryCode}${phoneNumber}` as `+${number}`,
+              phoneNumber: phoneNumber as `+${number}`,
             })
           }
         }}
         disabled={
-          authMethod === 'email' ? !email : !phoneNumber || !countryCode
+          authMethod === 'email' ? !email : !phoneNumber
         }
         className="w-full"
       >

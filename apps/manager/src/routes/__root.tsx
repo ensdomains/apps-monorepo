@@ -1,7 +1,6 @@
 /// <reference types="vite/client" />
 
-import rainbowKitCss from '@rainbow-me/rainbowkit/styles.css?url'
-import type { QueryClient } from '@tanstack/react-query'
+import { type QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createRootRouteWithContext,
   HeadContent,
@@ -17,6 +16,8 @@ import { wagmiConfig } from '@/lib/wagmi'
 import appCss from '@/styles/index.css?url'
 
 const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
+  const { queryClient } = Route.useRouteContext()
+
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
@@ -49,10 +50,6 @@ export const Route = createRootRouteWithContext<RootRouterContext>()({
       {
         rel: 'stylesheet',
         href: appCss,
-      },
-      {
-        rel: 'stylesheet',
-        href: rainbowKitCss,
       },
     ],
   }),
