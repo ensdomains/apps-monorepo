@@ -33,7 +33,8 @@
       "@tailwindcss/oxide"
     ],
     "patchedDependencies": {
-      "xstate": "patches/xstate.patch"
+      "xstate": "patches/xstate.patch",
+      "@getpara/core-sdk": "patches/@getpara__core-sdk.patch"
     },
     "overrides": {
       "available-typed-arrays": "npm:@socketregistry/available-typed-arrays@^1",

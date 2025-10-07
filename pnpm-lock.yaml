@@ -38,6 +38,9 @@ overrides:
   which-typed-array: npm:@socketregistry/which-typed-array@^1
 
 patchedDependencies:
+  '@getpara/core-sdk':
+    hash: 149bcd35d2a135446b7f1257ed5748d0041bd8f45ccde351d94225632283df73
+    path: patches/@getpara__core-sdk.patch
   xstate:
     hash: cd60a6eae163806e90144605b7835f441bcc3c7b456b9ad4eb0a7215997f36a5
     path: patches/xstate.patch
@@ -7281,7 +7284,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@getpara/core-sdk@2.0.0-alpha.63':
+  '@getpara/core-sdk@2.0.0-alpha.63(patch_hash=149bcd35d2a135446b7f1257ed5748d0041bd8f45ccde351d94225632283df73)':
     dependencies:
       '@celo/utils': 8.0.3
       '@cosmjs/encoding': 0.32.4
@@ -7307,7 +7310,7 @@ snapshots:
 
   '@getpara/viem-v2-integration@2.0.0-alpha.63(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))':
     dependencies:
-      '@getpara/core-sdk': 2.0.0-alpha.63
+      '@getpara/core-sdk': 2.0.0-alpha.63(patch_hash=149bcd35d2a135446b7f1257ed5748d0041bd8f45ccde351d94225632283df73)
       viem: 2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76)
     transitivePeerDependencies:
       - debug
@@ -7327,7 +7330,7 @@ snapshots:
 
   '@getpara/web-sdk@2.0.0-alpha.63':
     dependencies:
-      '@getpara/core-sdk': 2.0.0-alpha.63
+      '@getpara/core-sdk': 2.0.0-alpha.63(patch_hash=149bcd35d2a135446b7f1257ed5748d0041bd8f45ccde351d94225632283df73)
       '@getpara/user-management-client': 2.0.0-alpha.63
       base64url: 3.0.1
       buffer: 6.0.3

@@ -1,0 +1,25 @@
+diff --git a/dist/esm/transmission/transmissionUtils.js b/dist/esm/transmission/transmissionUtils.js
+index 8453b826a39018543a9f7a86db3ef851220c53ee..1fda75331f21ed1c3f375f1e70b642882f99f22b 100644
+--- a/dist/esm/transmission/transmissionUtils.js
++++ b/dist/esm/transmission/transmissionUtils.js
+@@ -4,15 +4,17 @@ import {
+ import { Encrypt as ECIESEncrypt, Decrypt as ECIESDecrypt } from "@celo/utils/lib/ecies.js";
+ import { Buffer } from "buffer";
+ import * as eutil from "@ethereumjs/util";
+-import { randomBytes } from "crypto";
+ function upload(message, userManagementClient) {
+   return __async(this, null, function* () {
+     let secret;
+     let publicKeyUint8Array;
+     while (true) {
+       try {
+-        secret = randomBytes(32).toString("hex");
+-        publicKeyUint8Array = eutil.privateToPublic(Buffer.from(secret, "hex"));
++        const privateKeyUint8Array = new Uint8Array(32);
++        crypto.getRandomValues(privateKeyUint8Array);
++
++        secret = Buffer.from(privateKeyUint8Array).toString('hex');
++        publicKeyUint8Array = eutil.privateToPublic(privateKeyUint8Array);
+         break;
+       } catch (e) {
+         continue;
