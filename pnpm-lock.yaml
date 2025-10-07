@@ -90,11 +90,11 @@ importers:
         specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@7109549
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@7109549(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))
       '@getpara/wagmi-v2-connector':
-        specifier: 2.0.0-alpha.52
-        version: 2.0.0-alpha.52(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))(wagmi@2.16.9(@tanstack/query-core@5.90.2)(@tanstack/react-query@5.90.2(react@19.1.1))(@types/react@19.1.12)(bufferutil@4.0.9)(immer@10.1.3)(react@19.1.1)(typescript@5.9.2)(utf-8-validate@5.0.10)(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))(zod@3.25.76))
+        specifier: 2.0.0-alpha.63
+        version: 2.0.0-alpha.63(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))(wagmi@2.16.9(@tanstack/query-core@5.90.2)(@tanstack/react-query@5.90.2(react@19.1.1))(@types/react@19.1.12)(bufferutil@4.0.9)(immer@10.1.3)(react@19.1.1)(typescript@5.9.2)(utf-8-validate@5.0.10)(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))(zod@3.25.76))
       '@getpara/web-sdk':
-        specifier: 2.0.0-alpha.52
-        version: 2.0.0-alpha.52
+        specifier: 2.0.0-alpha.63
+        version: 2.0.0-alpha.63
       '@radix-ui/react-collapsible':
         specifier: ^1.1.12
         version: 1.1.12(@types/react-dom@19.1.9(@types/react@19.1.12))(@types/react@19.1.12)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -1437,27 +1437,30 @@ packages:
     peerDependencies:
       viem: '>=2.0.0'
 
-  '@getpara/core-sdk@2.0.0-alpha.52':
-    resolution: {integrity: sha512-xI8lyjuYIYjrfYATZejSNlsYAr1PPhLiDTbzcGaH+0qVxNhv1c07NbUR78V7RGAeHc4x72+C09rgSYpiBWwW/A==}
+  '@getpara/core-sdk@2.0.0-alpha.63':
+    resolution: {integrity: sha512-mLnJdHt0BP8DVq68QpRPaG7gs9DPA0EFanWgyZts6Y5ryIhTWXmXUPg1DzDWucm/ckdIDp958tPlPzDqvLfnbw==}
 
-  '@getpara/user-management-client@2.0.0-alpha.52':
-    resolution: {integrity: sha512-jV5wSNMlR1pXQVcsxKUZXO5fwcbMo5L1bI9FwPquIxmI6NrisunIwUAZDkesZggbZidgCWpNTWWEiDIJg1tiVA==}
+  '@getpara/shared@1.1.0':
+    resolution: {integrity: sha512-AeHpbsIW7zGl4QI0fnWmFXbvUAtotNth0+ohBjdbWh0eF6ocCRsPyXEHYX8Wsb0I40A0I0DOI6iSNTXiddie4Q==}
 
-  '@getpara/viem-v2-integration@2.0.0-alpha.52':
-    resolution: {integrity: sha512-2ask4UTw8o/grZy3djYpFgPQOuwuPOBSTxTmUt71/1kwstU1vUtlAZOkrT+06ae2a8oh5zmoAeu8jrMcPr0CIQ==}
+  '@getpara/user-management-client@2.0.0-alpha.63':
+    resolution: {integrity: sha512-NSzKRCw/27zHTpPh1r49Sjcnr6CXjA4UrW7Hh4dbWmk6LB/txQ7bM9r9lPSJNm8+8BtA0+QIXB8q/9e331954w==}
+
+  '@getpara/viem-v2-integration@2.0.0-alpha.63':
+    resolution: {integrity: sha512-TL49J0gcKzI9yhUu1ah/zb6WBahC+3NgQDCbIyYwTGTZZ7bDwH4nZxnlGLfQgBk/BQP7Y9RvLOD4aSU1Qdcpng==}
     peerDependencies:
       viem: 2.x
 
-  '@getpara/wagmi-v2-connector@2.0.0-alpha.52':
-    resolution: {integrity: sha512-snMVDvslGZotMRgAS53V/mHvhXsul6I+QSi1Iz1+/qHAkdwienti+E/cYVOkZNs1SWasoS+b4Vr0zF+BQa2ltQ==}
+  '@getpara/wagmi-v2-connector@2.0.0-alpha.63':
+    resolution: {integrity: sha512-iY1Lhriyxz0GDQHMQQN1GGUV+5deDF1uv0mcrX0dPL6senWsYWVtiQmVAt174O0vMAfgPJb/NXfiUxy547f7hA==}
     peerDependencies:
       react: '*'
       react-dom: '*'
       viem: 2.x
       wagmi: ^2.9.0
 
-  '@getpara/web-sdk@2.0.0-alpha.52':
-    resolution: {integrity: sha512-aTiixiuq8nQx12zfRb7pri2253zH3Da0esXWUtsKtqltt6m5Jcruy/E3MICbTzxYyfUJD/RXtBrPB+TvEK/vOA==}
+  '@getpara/web-sdk@2.0.0-alpha.63':
+    resolution: {integrity: sha512-Lu0FAtvi8N0NEIAmsg9hTEiFTmZQ2KJaeCMXopCkhhbNxoajloKZD61tL9QM/VZml6guM0VxMDMybrtZ7zb8Wg==}
     peerDependencies:
       '@farcaster/miniapp-sdk': ^0.1.2
     peerDependenciesMeta:
@@ -7278,12 +7281,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@getpara/core-sdk@2.0.0-alpha.52':
+  '@getpara/core-sdk@2.0.0-alpha.63':
     dependencies:
       '@celo/utils': 8.0.3
       '@cosmjs/encoding': 0.32.4
       '@ethereumjs/util': 9.1.0
-      '@getpara/user-management-client': 2.0.0-alpha.52
+      '@getpara/user-management-client': 2.0.0-alpha.63
       '@noble/hashes': 1.8.0
       base64url: 3.0.1
       libphonenumber-js: 1.12.23
@@ -7292,24 +7295,27 @@ snapshots:
     transitivePeerDependencies:
       - debug
 
-  '@getpara/user-management-client@2.0.0-alpha.52':
+  '@getpara/shared@1.1.0': {}
+
+  '@getpara/user-management-client@2.0.0-alpha.63':
     dependencies:
+      '@getpara/shared': 1.1.0
       axios: 1.12.2
       libphonenumber-js: 1.12.23
     transitivePeerDependencies:
       - debug
 
-  '@getpara/viem-v2-integration@2.0.0-alpha.52(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))':
+  '@getpara/viem-v2-integration@2.0.0-alpha.63(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))':
     dependencies:
-      '@getpara/core-sdk': 2.0.0-alpha.52
+      '@getpara/core-sdk': 2.0.0-alpha.63
       viem: 2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76)
     transitivePeerDependencies:
       - debug
 
-  '@getpara/wagmi-v2-connector@2.0.0-alpha.52(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))(wagmi@2.16.9(@tanstack/query-core@5.90.2)(@tanstack/react-query@5.90.2(react@19.1.1))(@types/react@19.1.12)(bufferutil@4.0.9)(immer@10.1.3)(react@19.1.1)(typescript@5.9.2)(utf-8-validate@5.0.10)(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))(zod@3.25.76))':
+  '@getpara/wagmi-v2-connector@2.0.0-alpha.63(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))(wagmi@2.16.9(@tanstack/query-core@5.90.2)(@tanstack/react-query@5.90.2(react@19.1.1))(@types/react@19.1.12)(bufferutil@4.0.9)(immer@10.1.3)(react@19.1.1)(typescript@5.9.2)(utf-8-validate@5.0.10)(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))(zod@3.25.76))':
     dependencies:
-      '@getpara/viem-v2-integration': 2.0.0-alpha.52(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))
-      '@getpara/web-sdk': 2.0.0-alpha.52
+      '@getpara/viem-v2-integration': 2.0.0-alpha.63(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))
+      '@getpara/web-sdk': 2.0.0-alpha.63
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
       viem: 2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76)
@@ -7319,10 +7325,10 @@ snapshots:
       - debug
       - encoding
 
-  '@getpara/web-sdk@2.0.0-alpha.52':
+  '@getpara/web-sdk@2.0.0-alpha.63':
     dependencies:
-      '@getpara/core-sdk': 2.0.0-alpha.52
-      '@getpara/user-management-client': 2.0.0-alpha.52
+      '@getpara/core-sdk': 2.0.0-alpha.63
+      '@getpara/user-management-client': 2.0.0-alpha.63
       base64url: 3.0.1
       buffer: 6.0.3
       cbor-web: 9.0.2
