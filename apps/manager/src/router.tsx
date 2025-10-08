@@ -7,6 +7,17 @@ import { createRouter as createTanStackRouter } from '@tanstack/react-router'
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
 import { routeTree } from './routeTree.gen'
 
+declare module '@tanstack/react-query' {
+  interface Register {
+    mutationMeta: {
+      invalidates?: Array<QueryKey>
+    }
+    queryMeta: {
+      dependsOn?: string[]
+    }
+  }
+}
+
 export function getRouter() {
   const queryClient = new QueryClient({
     defaultOptions: {
