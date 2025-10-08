@@ -46,21 +46,21 @@ export const transformProfileRecords = (
     { key, value }: { key: string; value: string },
   ): ProfileRecords => {
     const record = getRecordDef(key)
-    
+
     if (record) {
       return {
         ...acc,
         [record.section]: [...acc[record.section], { key, value }],
       }
     }
-    
+
     if (staticTextRecords.includes(key as StaticRecordKey)) {
       return {
         ...acc,
         base: { ...acc.base, [key]: value },
       }
     }
-    
+
     if (key === 'links') {
       const links = v.parse(LinksSchema, JSON.parse(value))
       return {
@@ -68,7 +68,7 @@ export const transformProfileRecords = (
         links: [...acc.links, ...links],
       }
     }
-    
+
     return {
       ...acc,
       unknown: [...acc.unknown, { key, value }],
@@ -77,7 +77,7 @@ export const transformProfileRecords = (
 
   const baseRecords = newEmptyProfileRecords()
   const withAddresses = { ...baseRecords, addresses: profile.coins }
-  
+
   return profile.texts.reduce(processTextRecord, withAddresses)
 }
 
@@ -92,7 +92,7 @@ export const transformToServiceFormat = (
   coins: Array<{ coinType: number; value: string }>
 } => {
   const sectionTexts = allSections.flatMap((section) =>
-    records[section].map(({ key, value }) => ({ key, value }))
+    records[section].map(({ key, value }) => ({ key, value })),
   )
 
   const baseTexts = Object.entries(records.base).map(([key, value]) => ({

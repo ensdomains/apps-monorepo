@@ -2,7 +2,7 @@ import type { SVGProps } from 'react'
 
 type Props = SVGProps<SVGSVGElement>
 
-export const LogoSVG = (props: Props) => {
+export const LogoWithTextSVG = (props: Props) => {
   return (
     <svg
       width="300"
