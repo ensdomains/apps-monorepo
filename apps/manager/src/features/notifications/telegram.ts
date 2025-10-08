@@ -1,4 +1,4 @@
-import {TelegramAuthData} from 'api-worker/types/telegram'
+import type { TelegramAuthData } from 'api-worker/types'
 
 export interface TelegramLoginOptions {
   botId?: string
@@ -111,10 +111,10 @@ export async function loginWithTelegramPopup(
  * If Telegram redirected back with a hash fragment (#tgAuthResult=...)
  * extract it and return the parsed TelegramUser
  */
-export function decodeTelegramAuthDataFromUrlHash(hash: string): TelegramAuthData | null {
-  const match = hash.match(
-    /[#?&]tgAuthResult=([A-Za-z0-9\-_]*)$/,
-  )
+export function decodeTelegramAuthDataFromUrlHash(
+  hash: string,
+): TelegramAuthData | null {
+  const match = hash.match(/[#?&]tgAuthResult=([A-Za-z0-9\-_]*)$/)
   if (!match) return null
   try {
     let data = match[1]!.replace(/-/g, '+').replace(/_/g, '/')

@@ -43,6 +43,9 @@ export class YieldableError extends globalThis.Error {
 
     return result
   }
+  toErr() {
+    return err(this)
+  }
   toString(this: Error) {
     return this.message ? `${this.name}: ${this.message}` : this.name
   }
@@ -145,7 +148,11 @@ type TaggedError<
 export const TaggedError = <Tag extends string>(
   tag: Tag,
 ): (new <TArgs extends AnyErrorBody = {}>(
-  args: DefaultErrorBody & { readonly [TKey in keyof TArgs as TKey extends '_tag' ? never : TKey]: TArgs[TKey] },
+  args: DefaultErrorBody & {
+    readonly [TKey in keyof TArgs as TKey extends '_tag'
+      ? never
+      : TKey]: TArgs[TKey]
+  },
 ) => TaggedError<Tag, TArgs>) => {
   class Base extends DataError<{}> {
     readonly _tag = tag

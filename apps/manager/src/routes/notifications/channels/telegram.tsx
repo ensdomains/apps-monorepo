@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import type { TelegramAuthData } from 'api-worker/types/telegram'
+import type { TelegramAuthData } from 'api-worker/types'
 import { ArrowRight, CheckCircle, MessageSquare, XCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'

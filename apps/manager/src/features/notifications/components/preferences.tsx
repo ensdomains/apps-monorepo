@@ -1,10 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import {
-  ArrowRightLeft,
-  Calendar,
-  Info,
-  type LucideIcon,
-} from 'lucide-react'
+import { NOTIFICATION_METADATA, type Prettify } from 'api-worker/types'
+import { ArrowRightLeft, Calendar, Info, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -23,11 +19,7 @@ import {
   preferencesQueryOptions,
   updatePreferenceMutationOptions,
 } from '../queries/preferences'
-import type {
-  ChannelType,
-} from '../types/preferences'
-import { NOTIFICATION_METADATA } from 'api-worker/types/notifications'
-import { Prettify } from 'api-worker/types/helpers'
+import type { ChannelType } from '../types/preferences'
 
 const KIND_ICONS: Record<keyof typeof NOTIFICATION_METADATA, LucideIcon> = {
   'name-expiry': Calendar,
@@ -40,19 +32,26 @@ const kindsData = Object.entries(NOTIFICATION_METADATA).map(([k, v]) => ({
   icon: KIND_ICONS[k as keyof typeof KIND_ICONS],
   ...v,
 })) as {
-  [K in keyof typeof NOTIFICATION_METADATA]: Prettify<typeof NOTIFICATION_METADATA[K] & {
-    id: K
-    icon: LucideIcon
-  }>
+  [K in keyof typeof NOTIFICATION_METADATA]: Prettify<
+    (typeof NOTIFICATION_METADATA)[K] & {
+      id: K
+      icon: LucideIcon
+    }
+  >
 }[keyof typeof NOTIFICATION_METADATA][]
 
-const groupedKinds = Object.entries(kindsData.reduce((acc, kind) => {
-  if (!acc[kind.category]) {
-    acc[kind.category] = []
-  }
-  acc[kind.category]?.push(kind)
-  return acc
-}, {} as Record<string, typeof kindsData>)).map(([category, kinds]) => ({
+const groupedKinds = Object.entries(
+  kindsData.reduce(
+    (acc, kind) => {
+      if (!acc[kind.category]) {
+        acc[kind.category] = []
+      }
+      acc[kind.category]?.push(kind)
+      return acc
+    },
+    {} as Record<string, typeof kindsData>,
+  ),
+).map(([category, kinds]) => ({
   category,
   kinds,
 }))

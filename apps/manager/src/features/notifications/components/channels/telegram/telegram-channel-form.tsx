@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import type { TelegramAuthData } from 'api-worker/types/telegram'
+import type { TelegramAuthData } from 'api-worker/types'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import {

@@ -1,3 +1,4 @@
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { ok, safeTry } from 'neverthrow'
 import type { Address, Hash } from 'viem'
 import { generateSiweNonce } from 'viem/siwe'
@@ -6,8 +7,15 @@ import type { Database } from '#core/database/index.js'
 import type { ViemClient } from '#core/eth/client.js'
 import { intoKVResult, KV_KEY } from '#core/kv/index.js'
 import { addUserIfNotExists } from '../users'
-import { InvalidNonceError, InvalidSignatureError } from './errors'
 import { safeVerifySiweMessage } from './helpers'
+
+class InvalidNonceError extends TaggedError('INVALID_NONCE')<{
+  message: string
+}> {}
+
+class InvalidSignatureError extends TaggedError('INVALID_SIGNATURE')<{
+  message: string
+}> {}
 
 export const createNonce = (env: CloudflareBindings) => {
   const nonce = generateSiweNonce()

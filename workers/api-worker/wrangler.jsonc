@@ -20,6 +20,35 @@
     }
   ],
 
+  "queues": {
+    "producers": [
+      { 
+        "binding": "TELEGRAM_QUEUE", 
+        "queue": "api-worker-telegram-delivery"
+      },
+      { 
+        "binding": "EMAIL_QUEUE", 
+        "queue": "api-worker-email-delivery" 
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "api-worker-telegram-delivery",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 3,
+        "dead_letter_queue": "api-worker-telegram-delivery-dlq"
+      },
+      {
+        "queue": "api-worker-email-delivery",
+        "max_batch_size": 50,
+        "max_batch_timeout": 30,
+        "max_retries": 3,
+        "dead_letter_queue": "api-worker-email-delivery-dlq"
+      }
+    ]
+  },
+
   "vars": {
     "CHAIN": "mainnet",
     "BASE_URL": "https://notifications.ens.domains"

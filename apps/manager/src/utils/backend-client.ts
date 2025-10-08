@@ -1,5 +1,5 @@
 import { createStore } from '@xstate/store'
-import type { AppRouter } from 'api-worker'
+import type { AppRouter } from 'api-worker/hc'
 import { hc } from 'hono/client'
 
 // export const backendAuthKey = createAtom<string | null>(null)

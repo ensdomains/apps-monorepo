@@ -15,7 +15,7 @@ import type {
   AnyChannelData,
   AnyUserNotificationPayload,
   UserChannel,
-  UserNotification,
+  UserNotificationKind,
 } from '#types/notifications.js'
 import { randomUUIDv7 } from '../utils/schemaHelpers'
 import { users } from './core'
@@ -143,7 +143,7 @@ export const notificationPreferences = pgTable(
       .references(() => users.id, {
         onDelete: 'cascade',
       }),
-    kind: text('kind').$type<UserNotification['kind']>().notNull(),
+    kind: text('kind').$type<UserNotificationKind>().notNull(),
     channel: text('channel').$type<DeliveryChannel>().notNull(),
     enabled: boolean('enabled').default(true),
     extra_config: jsonb('extra_config'),
@@ -186,7 +186,7 @@ export const notifications = pgTable('notifications', {
   /**
    * Notification kind
    */
-  kind: text('kind').$type<UserNotification['kind']>().notNull(),
+  kind: text('kind').$type<UserNotificationKind>().notNull(),
   /**
    * Payload
    */

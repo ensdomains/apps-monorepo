@@ -1,6 +1,6 @@
 import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
-import type { TelegramAuthData } from 'api-worker/types/telegram'
+import type { TelegramAuthData } from 'api-worker/types'
 import type { InferResponseType } from 'hono'
 import { backendClient } from '@/utils/backend-client'
 import { loginWithTelegramPopup } from '../services/telegram/auth'

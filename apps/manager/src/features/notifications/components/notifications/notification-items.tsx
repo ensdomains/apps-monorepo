@@ -1,7 +1,4 @@
-import type {
-  Broadcasts,
-  UserNotifications,
-} from 'api-worker/types/notifications'
+import type { Broadcasts, UserNotifications } from 'api-worker/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatExpiryTime } from '@/utils/time'

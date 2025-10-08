@@ -1,4 +1,4 @@
-import type { TelegramAuthData } from 'api-worker/types/telegram'
+import type { TelegramAuthData } from 'api-worker/types'
 
 // Telegram step types
 export type TelegramStep = 'auth' | 'create'
