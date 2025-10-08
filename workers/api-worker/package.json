@@ -3,13 +3,23 @@
   "type": "module",
   "main": "src/worker.ts",
   "exports": {
-    "./types/*": "./src/types/*.ts",
-    ".": "./src/worker.ts"
+    "./types": {
+      "types": "./dist/src/types/index.d.ts",
+      "default": "./dist/src/types/index.js"
+    },
+    "./hc": {
+      "types": "./dist/src/hc.d.ts",
+      "default": "./dist/src/hc.js"
+    }
   },
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
-    "deploy": "pnpm build && wrangler deploy",
+    "dev": "concurrently \"pnpm dev:vite\" \"pnpm dev:tsc\" --names \"vite,tsc\" --prefix-colors \"cyan,yellow\" --kill-others-on-fail --restart-tries 3 --restart-after 2000",
+    "dev:vite": "vite dev",
+    "dev:tsc": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "build:vite": "vite build",
+    "build:tsc": "tsc -p tsconfig.build.json",
+    "build": "pnpm build:vite && pnpm build:tsc",
+    "deploy": "pnpm build:vite && wrangler deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings worker-configuration.gen.d.ts"
   },
   "dependencies": {
@@ -31,6 +41,7 @@
     "@grammyjs/types": "^3.22.2",
     "@types/node": "^24.3.1",
     "@types/pg": "^8.15.5",
+    "concurrently": "^9.2.1",
     "dotenv": "^17.2.2",
     "drizzle-kit": "^0.31.4",
     "vite": "^7.1.5",
