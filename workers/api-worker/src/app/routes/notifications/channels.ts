@@ -487,7 +487,7 @@ export default createApp()
         return c.json({ error: 'Failed to send message' }, 400)
       }
 
-      return c.json({ message: messageResult.value })
+      return c.json({ ok: true })
     },
   )
   .route('/', idRoutes)

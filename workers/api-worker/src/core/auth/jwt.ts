@@ -1,7 +1,8 @@
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { sign, verify } from 'hono/jwt'
-import { fromAsyncThrowable, ok } from 'neverthrow'
+import { err, fromAsyncThrowable, ok } from 'neverthrow'
 import * as v from 'valibot'
-import { createIntoError, error } from '#utils/result.js'
+import { error } from '#utils/result.js'
 
 const JWT_EXPIRATION = 60 * 60 * 3 // 3 hours
 
@@ -12,14 +13,30 @@ export const AuthPayload = v.object({
 
 export type AuthPayload = v.InferOutput<typeof AuthPayload>
 
+class SignJWTError extends TaggedError('SIGN_JWT_ERROR') {}
+
+class VerifyJWTError extends TaggedError('VERIFY_JWT_ERROR') {}
+
+class InvalidJWTPayloadError extends TaggedError('INVALID_JWT_PAYLOAD_ERROR')<{
+  issues: v.GenericIssue[]
+}> {}
+
 export const safeSign = fromAsyncThrowable(
   sign,
-  createIntoError('SIGN_JWT_ERROR'),
+  (err) =>
+    new SignJWTError({
+      message: err instanceof Error ? err.message : 'JWT signing failed',
+      cause: err,
+    }),
 )
 
 export const safeVerify = fromAsyncThrowable(
   verify,
-  createIntoError('VERIFY_JWT_ERROR'),
+  (err) =>
+    new VerifyJWTError({
+      message: err instanceof Error ? err.message : 'JWT verification failed',
+      cause: err,
+    }),
 )
 
 export const signJWT = (
@@ -44,11 +61,7 @@ export const verifyJWT = <TSchema extends v.ObjectSchema<any, any>>(
   return safeVerify(token, env.JWT_SECRET).andThen((payload) => {
     const result = v.safeParse(schema, payload)
     if (!result.success) {
-      return error({
-        code: 'INVALID_JWT_PAYLOAD',
-        message: 'Invalid JWT Payload',
-        issues: result.issues,
-      })
+      return err(new InvalidJWTPayloadError({ issues: result.issues }))
     }
     return ok(result.output)
   })

@@ -48,15 +48,15 @@ export default createApp()
       if (jwt.isErr()) {
         return match(jwt.error)
 
-          .with({ code: 'INVALID_SIGNATURE' }, () =>
+          .with({ _tag: 'INVALID_SIGNATURE' }, () =>
             c.json({ error: 'Invalid signature' }, 400),
           )
-          .with({ code: 'INVALID_NONCE' }, () =>
+          .with({ _tag: 'INVALID_NONCE' }, () =>
             c.json({ error: 'Invalid nonce' }, 400),
           )
           .with(
             {
-              code: P.union(
+              _tag: P.union(
                 'DATABASE_ERROR',
                 'KV_ERROR',
                 'SIGN_JWT_ERROR',

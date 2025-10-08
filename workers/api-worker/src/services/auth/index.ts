@@ -5,8 +5,8 @@ import { signJWT } from '#core/auth/jwt.js'
 import type { Database } from '#core/database/index.js'
 import type { ViemClient } from '#core/eth/client.js'
 import { intoKVResult, KV_KEY } from '#core/kv/index.js'
-import { error } from '#utils/result.js'
 import { addUserIfNotExists } from '../users'
+import { InvalidNonceError, InvalidSignatureError } from './errors'
 import { safeVerifySiweMessage } from './helpers'
 
 export const createNonce = (env: CloudflareBindings) => {
@@ -24,8 +24,7 @@ export const verifyAndConsumeNonce = (env: CloudflareBindings, nonce: string) =>
     const value = yield* intoKVResult(env.KV.get(KV_KEY.AUTH.NONCE(nonce)))
 
     if (!value) {
-      return error({
-        code: 'INVALID_NONCE',
+      yield* new InvalidNonceError({
         message: 'Invalid nonce',
       })
     }
@@ -65,8 +64,7 @@ export const createJWT = ({
     })
 
     if (!valid) {
-      return error({
-        code: 'INVALID_SIGNATURE',
+      yield* new InvalidSignatureError({
         message: 'Unable to verify signature',
       })
     }

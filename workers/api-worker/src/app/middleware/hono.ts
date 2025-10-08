@@ -2,7 +2,6 @@ import { type Context, Hono, type Schema } from 'hono'
 import type { HonoOptions } from 'hono/hono-base'
 import type { BlankEnv, BlankSchema, Env as HonoEnv } from 'hono/types'
 import { logger } from '#utils/logger.js'
-import type { GenericError } from '#utils/result.js'
 
 export type Variables<T> = {
   Variables: T
@@ -24,12 +23,12 @@ export const createApp = <
   return baseApp
 }
 
-export function internalServerError<TError extends GenericError>(
+export function internalServerError(
   c: Context,
-  { message, ...errMeta }: TError,
+  error: { message: string; _tag?: string },
 ) {
-  logger.error(message, {
-    ...errMeta,
+  logger.error(error.message, {
+    _tag: error._tag,
     path: c.req.path,
     method: c.req.method,
   })

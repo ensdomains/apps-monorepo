@@ -1,8 +1,17 @@
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromAsyncThrowable } from 'neverthrow'
 import { verifySiweMessage } from 'viem/siwe'
-import { createIntoError } from '#utils/result.js'
+
+class SiweVerifyError extends TaggedError('SIWE_VERIFY_ERROR')<{
+  message: string
+  cause?: unknown
+}> {}
 
 export const safeVerifySiweMessage = fromAsyncThrowable(
   verifySiweMessage,
-  createIntoError('SIWE_VERIFY_ERROR'),
+  (err) =>
+    new SiweVerifyError({
+      message: err instanceof Error ? err.message : 'SIWE verification failed',
+      cause: err,
+    }),
 )

@@ -1,5 +1,5 @@
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, type ResultAsync } from 'neverthrow'
-import { rawError } from '../../utils/result'
 
 export const KV_KEY = {
   AUTH: {
@@ -15,14 +15,13 @@ export const intoKVError = (err: unknown) => {
           cause: err,
         })
 
-  return rawError({
-    code: 'KV_ERROR',
+  return new KVError({
     message: error.message,
-    error,
+    cause: error,
   })
 }
 
-export type KVError = ReturnType<typeof intoKVError>
+class KVError extends TaggedError('KV_ERROR') {}
 
 export const intoKVResult = <T>(
   promise: PromiseLike<T>,
