@@ -29,7 +29,7 @@ export function useENSRenewal(options?: UseENSRenewalOptions) {
       }
 
       if (options?.useSmartAccount) {
-        // Use Rhinestone smart account for renewal
+        // Use Rhinestone smart account for renewal via transaction manager
         const rhinestoneService = new RhinestoneAccountService(
           publicClient,
           walletClient || undefined,
@@ -41,22 +41,35 @@ export function useENSRenewal(options?: UseENSRenewalOptions) {
           },
         )
 
-        // Execute ENS renewal through smart account (sends UserOperation)
-        const result = await rhinestoneService.executeENSRenewal({
+        // Get the renewal price and prepare transaction data
+        const txResult = await rhinestoneService.prepareENSRenewalTransaction({
           name,
           duration,
         })
 
-        if (result.isErr()) {
-          console.error('Failed to execute ENS renewal:', result.error)
+        if (txResult.isErr()) {
+          console.error('Failed to prepare ENS renewal:', txResult.error)
           return
         }
 
-        console.log('UserOperation sent:', result.value)
+        const { to, data, value } = txResult.value
 
-        // Optionally track the UserOperation in the transaction manager
-        // For now, we'll just log it since the transaction manager
-        // needs updates to properly handle UserOperations
+        // Execute via transaction manager with smart account
+        transaction.execute(
+          {
+            type: 'erc4337',
+            to,
+            data,
+            value,
+            from: walletClient?.account?.address,
+          },
+          {
+            ...transactionOptions,
+            // Pass smart account service config
+            bundlerUrl: options.bundlerUrl,
+            paymasterUrl: options.paymasterUrl,
+          },
+        )
       } else {
         // Use regular EOA for renewal
         const rhinestoneService = new RhinestoneAccountService(publicClient)
@@ -113,7 +126,7 @@ export function useENSRenewal(options?: UseENSRenewalOptions) {
   const getSmartAccountAddress = useCallback(
     async () => {
       if (!publicClient || !walletClient) {
-        console.error('No public or wallet client available')
+        console.warn('Wallet not connected - cannot get smart account address')
         return null
       }
 

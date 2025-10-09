@@ -51,3 +51,39 @@ export interface TransactionResult {
   status: 'pending' | 'confirmed' | 'failed'
   timestamp: number
 }
+
+// Modal-related types
+export type PaymentMethod = 'eth' | 'namechain-eth' | 'usdc' | 'mainnet-usdc' | 'base-usdc'
+
+export interface PaymentOption {
+  method: PaymentMethod
+  label: string
+  balance?: string
+  icon?: string
+  network?: string
+}
+
+export interface TransactionStep {
+  id: string
+  title: string
+  description?: string
+  status: 'pending' | 'in_progress' | 'completed' | 'failed'
+  hash?: Hash
+  error?: string
+}
+
+export type TransactionFlowType = 'single' | 'bridge' | 'batched'
+
+export interface TransactionModalState {
+  isOpen: boolean
+  title?: string
+  ensName?: string
+  avatarUrl?: string
+  network?: string
+  estimatedCost?: string
+  steps?: TransactionStep[]
+  currentStepIndex?: number
+  flowType?: TransactionFlowType
+  selectedPayment?: PaymentMethod
+  paymentOptions?: PaymentOption[]
+}

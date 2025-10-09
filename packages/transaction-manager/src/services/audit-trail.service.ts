@@ -232,6 +232,12 @@ export class AuditTrailService {
       this.storage.setItem(this.STORAGE_KEY, JSON.stringify({
         transitions: this.transitions,
         auditLog: this.auditLog
+      }, (key, value) => {
+        // Convert BigInt to string for JSON serialization
+        if (typeof value === 'bigint') {
+          return value.toString()
+        }
+        return value
       }))
     } catch (error) {
       console.error('Failed to save audit trail:', error)

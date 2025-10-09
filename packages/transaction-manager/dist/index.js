@@ -26,18 +26,24 @@ __export(index_exports, {
   EthCallFallbackError: () => EthCallFallbackError,
   GasEstimationError: () => GasEstimationError,
   ImportError: () => ImportError,
+  PaymentSelector: () => PaymentSelector,
   PersistenceError: () => PersistenceError,
   RhinestoneAccountError: () => RhinestoneAccountError,
   RhinestoneAccountService: () => RhinestoneAccountService,
+  TransactionDetails: () => TransactionDetails,
+  TransactionModal: () => TransactionModal,
+  TransactionModalHeader: () => TransactionModalHeader,
   TransactionRevertedError: () => TransactionRevertedError,
   TransactionService: () => TransactionService,
+  TransactionSteps: () => TransactionSteps,
   TransactionSubmissionError: () => TransactionSubmissionError,
   TransactionTimeoutError: () => TransactionTimeoutError,
   UserOperationError: () => UserOperationError,
   transactionMachine: () => transactionMachine,
   useAuditTrail: () => useAuditTrail,
   useENSRenewal: () => useENSRenewal,
-  useTransaction: () => useTransaction
+  useTransaction: () => useTransaction,
+  useTransactionModal: () => useTransactionModal
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -656,6 +662,11 @@ var AuditTrailService = class {
       this.storage.setItem(this.STORAGE_KEY, JSON.stringify({
         transitions: this.transitions,
         auditLog: this.auditLog
+      }, (key, value) => {
+        if (typeof value === "bigint") {
+          return value.toString();
+        }
+        return value;
       }));
     } catch (error) {
       console.error("Failed to save audit trail:", error);
@@ -1217,15 +1228,30 @@ function useENSRenewal(options) {
             sponsorshipPolicyId: options.sponsorshipPolicyId
           }
         );
-        const result = await rhinestoneService.executeENSRenewal({
+        const txResult = await rhinestoneService.prepareENSRenewalTransaction({
           name,
           duration
         });
-        if (result.isErr()) {
-          console.error("Failed to execute ENS renewal:", result.error);
+        if (txResult.isErr()) {
+          console.error("Failed to prepare ENS renewal:", txResult.error);
           return;
         }
-        console.log("UserOperation sent:", result.value);
+        const { to, data, value } = txResult.value;
+        transaction.execute(
+          {
+            type: "erc4337",
+            to,
+            data,
+            value,
+            from: walletClient?.account?.address
+          },
+          {
+            ...transactionOptions,
+            // Pass smart account service config
+            bundlerUrl: options.bundlerUrl,
+            paymasterUrl: options.paymasterUrl
+          }
+        );
       } else {
         const rhinestoneService = new RhinestoneAccountService(publicClient);
         const txResult = await rhinestoneService.prepareENSRenewalTransaction({
@@ -1270,7 +1296,7 @@ function useENSRenewal(options) {
   const getSmartAccountAddress = (0, import_react3.useCallback)(
     async () => {
       if (!publicClient || !walletClient) {
-        console.error("No public or wallet client available");
+        console.warn("Wallet not connected - cannot get smart account address");
         return null;
       }
       const rhinestoneService = new RhinestoneAccountService(
@@ -1299,6 +1325,734 @@ function useENSRenewal(options) {
     ...transaction
   };
 }
+
+// src/hooks/useTransactionModal.ts
+var import_react4 = require("react");
+var initialState = {
+  isOpen: false,
+  title: void 0,
+  ensName: void 0,
+  avatarUrl: void 0,
+  network: void 0,
+  estimatedCost: void 0,
+  steps: void 0,
+  currentStepIndex: 0,
+  flowType: "single",
+  selectedPayment: void 0,
+  paymentOptions: void 0
+};
+function useTransactionModal(defaultState) {
+  const [state, setState] = (0, import_react4.useState)({
+    ...initialState,
+    ...defaultState
+  });
+  const openModal = (0, import_react4.useCallback)(() => {
+    setState((prev) => ({ ...prev, isOpen: true }));
+  }, []);
+  const closeModal = (0, import_react4.useCallback)(() => {
+    setState((prev) => ({ ...prev, isOpen: false }));
+  }, []);
+  const setTitle = (0, import_react4.useCallback)((title) => {
+    setState((prev) => ({ ...prev, title }));
+  }, []);
+  const setENSName = (0, import_react4.useCallback)((ensName, avatarUrl) => {
+    setState((prev) => ({ ...prev, ensName, avatarUrl }));
+  }, []);
+  const setNetwork = (0, import_react4.useCallback)((network) => {
+    setState((prev) => ({ ...prev, network }));
+  }, []);
+  const setEstimatedCost = (0, import_react4.useCallback)((estimatedCost) => {
+    setState((prev) => ({ ...prev, estimatedCost }));
+  }, []);
+  const setSteps = (0, import_react4.useCallback)((steps) => {
+    setState((prev) => ({
+      ...prev,
+      steps,
+      currentStepIndex: 0,
+      flowType: steps.length > 1 ? "batched" : "single"
+    }));
+  }, []);
+  const addStep = (0, import_react4.useCallback)((step) => {
+    setState((prev) => ({
+      ...prev,
+      steps: [...prev.steps || [], step]
+    }));
+  }, []);
+  const updateStep = (0, import_react4.useCallback)(
+    (stepId, updates) => {
+      setState((prev) => ({
+        ...prev,
+        steps: prev.steps?.map(
+          (step) => step.id === stepId ? { ...step, ...updates } : step
+        )
+      }));
+    },
+    []
+  );
+  const nextStep = (0, import_react4.useCallback)(() => {
+    setState((prev) => ({
+      ...prev,
+      currentStepIndex: Math.min(
+        (prev.currentStepIndex || 0) + 1,
+        (prev.steps?.length || 1) - 1
+      )
+    }));
+  }, []);
+  const previousStep = (0, import_react4.useCallback)(() => {
+    setState((prev) => ({
+      ...prev,
+      currentStepIndex: Math.max((prev.currentStepIndex || 0) - 1, 0)
+    }));
+  }, []);
+  const setPaymentOptions = (0, import_react4.useCallback)((paymentOptions) => {
+    setState((prev) => ({ ...prev, paymentOptions }));
+  }, []);
+  const selectPayment = (0, import_react4.useCallback)((selectedPayment) => {
+    setState((prev) => ({ ...prev, selectedPayment }));
+  }, []);
+  const reset = (0, import_react4.useCallback)(() => {
+    setState({ ...initialState, ...defaultState });
+  }, [defaultState]);
+  return {
+    ...state,
+    openModal,
+    closeModal,
+    setTitle,
+    setENSName,
+    setNetwork,
+    setEstimatedCost,
+    setSteps,
+    addStep,
+    updateStep,
+    nextStep,
+    previousStep,
+    setPaymentOptions,
+    selectPayment,
+    reset
+  };
+}
+
+// src/components/TransactionModal/TransactionModal.tsx
+var import_react5 = require("react");
+
+// src/components/TransactionModal/TransactionModalHeader.tsx
+var import_jsx_runtime = require("react/jsx-runtime");
+function TransactionModalHeader({
+  title,
+  ensName,
+  avatarUrl,
+  status
+}) {
+  const getStatusLabel = () => {
+    if (status === "success") return "Done";
+    if (status?.startsWith("error")) return "Failed";
+    if (status === "submitting" || status === "pending" || status === "retrying") {
+      return "In Progress";
+    }
+    if (status === "preparing" || status === "idle") return "Not started";
+    return status;
+  };
+  const statusLabel = getStatusLabel();
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { textAlign: "center" }, children: [
+    ensName && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { marginBottom: "16px" }, children: [
+      avatarUrl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "img",
+        {
+          src: avatarUrl,
+          alt: ensName,
+          style: {
+            width: "80px",
+            height: "80px",
+            borderRadius: "50%",
+            objectFit: "cover",
+            marginBottom: "12px"
+          }
+        }
+      ) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "div",
+        {
+          style: {
+            width: "80px",
+            height: "80px",
+            borderRadius: "50%",
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "32px",
+            color: "white",
+            fontWeight: "bold",
+            marginBottom: "12px"
+          },
+          children: ensName.charAt(0).toUpperCase()
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "div",
+        {
+          style: {
+            fontSize: "20px",
+            fontWeight: "600",
+            color: "#333",
+            marginBottom: "4px"
+          },
+          children: ensName
+        }
+      )
+    ] }),
+    title && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginBottom: "8px" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "span",
+        {
+          style: {
+            fontSize: "14px",
+            color: "#666",
+            background: "#f5f5f5",
+            padding: "4px 8px",
+            borderRadius: "4px"
+          },
+          children: "[title]"
+        }
+      ),
+      statusLabel && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "span",
+        {
+          style: {
+            fontSize: "12px",
+            color: "#666",
+            padding: "2px 6px",
+            borderRadius: "4px",
+            background: "#f5f5f5"
+          },
+          children: statusLabel
+        }
+      )
+    ] })
+  ] });
+}
+
+// src/components/TransactionModal/TransactionSteps.tsx
+var import_jsx_runtime2 = require("react/jsx-runtime");
+function TransactionSteps({ steps, currentStepIndex }) {
+  if (!steps || steps.length === 0) return null;
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { marginTop: "20px" }, children: steps.map((step, index) => {
+    const isActive = index === currentStepIndex;
+    const isCompleted = step.status === "completed";
+    const isFailed = step.status === "failed";
+    const isInProgress = step.status === "in_progress";
+    const getStepIcon = () => {
+      if (isCompleted) return "\u2713";
+      if (isFailed) return "\u2717";
+      if (isInProgress) return "\u27F3";
+      return "\u2192";
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+      "div",
+      {
+        style: {
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "12px",
+          padding: "12px",
+          marginBottom: index < steps.length - 1 ? "8px" : 0,
+          background: isActive ? "#f5f5f5" : "transparent",
+          borderRadius: "8px",
+          borderLeft: `3px solid ${isCompleted ? "#4CAF50" : isFailed ? "#F44336" : isInProgress ? "#2196F3" : "#E0E0E0"}`
+        },
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+            "div",
+            {
+              style: {
+                width: "24px",
+                height: "24px",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "14px",
+                background: isCompleted ? "#4CAF50" : isFailed ? "#F44336" : isInProgress ? "#2196F3" : "#E0E0E0",
+                color: isCompleted || isFailed || isInProgress ? "white" : "#666",
+                flexShrink: 0
+              },
+              children: getStepIcon()
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { flex: 1 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+              "div",
+              {
+                style: {
+                  fontSize: "14px",
+                  fontWeight: isActive ? "600" : "500",
+                  color: isFailed ? "#F44336" : "#333",
+                  marginBottom: step.description ? "4px" : 0
+                },
+                children: step.title
+              }
+            ),
+            step.description && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: "12px", color: "#666" }, children: step.description }),
+            step.hash && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+              "a",
+              {
+                href: `https://sepolia.etherscan.io/tx/${step.hash}`,
+                target: "_blank",
+                rel: "noopener noreferrer",
+                style: {
+                  fontSize: "12px",
+                  color: "#2196F3",
+                  textDecoration: "none",
+                  display: "inline-block",
+                  marginTop: "4px"
+                },
+                children: "View transaction \u2197"
+              }
+            ),
+            isFailed && step.error && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+              "div",
+              {
+                style: {
+                  fontSize: "12px",
+                  color: "#F44336",
+                  marginTop: "4px",
+                  padding: "8px",
+                  background: "#FFEBEE",
+                  borderRadius: "4px"
+                },
+                children: step.error
+              }
+            )
+          ] })
+        ]
+      },
+      step.id
+    );
+  }) });
+}
+
+// src/components/TransactionModal/TransactionDetails.tsx
+var import_jsx_runtime3 = require("react/jsx-runtime");
+function TransactionDetails({
+  network,
+  estimatedCost,
+  status
+}) {
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+    "div",
+    {
+      style: {
+        marginTop: "20px",
+        padding: "16px",
+        background: "#f9f9f9",
+        borderRadius: "8px",
+        border: "1px solid #e0e0e0"
+      },
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+          "div",
+          {
+            style: {
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: estimatedCost ? "12px" : 0
+            },
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { fontSize: "14px", color: "#666" }, children: "Network" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "6px" }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                  "div",
+                  {
+                    style: {
+                      width: "16px",
+                      height: "16px",
+                      borderRadius: "50%",
+                      background: network.toLowerCase().includes("sepolia") ? "#FFA726" : "linear-gradient(135deg, #627EEA 0%, #8A92B2 100%)"
+                    }
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { fontSize: "14px", fontWeight: "500", color: "#333" }, children: network })
+              ] })
+            ]
+          }
+        ),
+        estimatedCost && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+          "div",
+          {
+            style: {
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center"
+            },
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { fontSize: "14px", color: "#666" }, children: "Est. cost" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { fontSize: "14px", fontWeight: "500", color: "#333" }, children: estimatedCost })
+            ]
+          }
+        )
+      ]
+    }
+  );
+}
+
+// src/components/TransactionModal/PaymentSelector.tsx
+var import_jsx_runtime4 = require("react/jsx-runtime");
+function PaymentSelector({ options, selected, onSelect }) {
+  if (!options || options.length === 0) return null;
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { style: { marginTop: "20px" }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+      "h3",
+      {
+        style: {
+          fontSize: "16px",
+          fontWeight: "600",
+          color: "#333",
+          marginBottom: "12px"
+        },
+        children: "Choose payment"
+      }
+    ),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: "8px" }, children: options.map((option) => {
+      const isSelected = selected === option.method;
+      return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+        "button",
+        {
+          onClick: () => onSelect?.(option.method),
+          style: {
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "12px 16px",
+            background: isSelected ? "#E3F2FD" : "white",
+            border: `2px solid ${isSelected ? "#2196F3" : "#E0E0E0"}`,
+            borderRadius: "8px",
+            cursor: "pointer",
+            transition: "all 0.2s"
+          },
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "12px" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                "div",
+                {
+                  style: {
+                    width: "20px",
+                    height: "20px",
+                    borderRadius: "50%",
+                    border: `2px solid ${isSelected ? "#2196F3" : "#ccc"}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                  },
+                  children: isSelected && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                    "div",
+                    {
+                      style: {
+                        width: "10px",
+                        height: "10px",
+                        borderRadius: "50%",
+                        background: "#2196F3"
+                      }
+                    }
+                  )
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                "div",
+                {
+                  style: {
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "50%",
+                    background: option.method.includes("usdc") ? "#2775CA" : "linear-gradient(135deg, #627EEA 0%, #8A92B2 100%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "white",
+                    fontSize: "12px",
+                    fontWeight: "bold"
+                  },
+                  children: option.method.includes("usdc") ? "U" : "\u039E"
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { fontSize: "14px", fontWeight: "500", color: "#333" }, children: option.label }),
+                option.network && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { fontSize: "12px", color: "#666" }, children: option.network })
+              ] })
+            ] }),
+            option.balance && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { fontSize: "14px", color: "#666" }, children: option.balance })
+          ]
+        },
+        option.method
+      );
+    }) })
+  ] });
+}
+
+// src/components/TransactionModal/TransactionModal.tsx
+var import_jsx_runtime5 = require("react/jsx-runtime");
+function TransactionModal({
+  isOpen,
+  title,
+  ensName,
+  avatarUrl,
+  network,
+  estimatedCost,
+  steps,
+  currentStepIndex = 0,
+  flowType = "single",
+  selectedPayment,
+  paymentOptions,
+  machineState = "idle",
+  onClose,
+  onStart,
+  onContinue,
+  onDone,
+  onRetry,
+  onPaymentSelect,
+  onBack
+}) {
+  (0, import_react5.useEffect)(() => {
+    const handleEscape = (e) => {
+      if (e.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isOpen, onClose]);
+  (0, import_react5.useEffect)(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
+  if (!isOpen) return null;
+  const isIdle = machineState === "idle" || machineState === "preparing";
+  const isInProgress = machineState === "submitting" || machineState === "pending" || machineState === "confirming";
+  const isSuccess = machineState === "success";
+  const isError = machineState.startsWith("error");
+  const isRetrying = machineState === "retrying";
+  console.log("TransactionModal - machineState:", machineState, { isIdle, isInProgress, isSuccess, isError, isRetrying });
+  const getButtonConfig = () => {
+    if (isSuccess) {
+      return {
+        text: "Done",
+        onClick: onDone,
+        disabled: false
+      };
+    }
+    if (isError) {
+      return {
+        text: "Retry",
+        onClick: onRetry,
+        disabled: false
+      };
+    }
+    if (isInProgress || isRetrying) {
+      return {
+        text: isRetrying ? "Retrying..." : "Waiting...",
+        onClick: void 0,
+        disabled: true
+      };
+    }
+    if (steps && steps.length > 1 && currentStepIndex < steps.length - 1) {
+      return {
+        text: "Continue",
+        onClick: onContinue,
+        disabled: false
+      };
+    }
+    return {
+      text: "Start",
+      onClick: onStart,
+      disabled: false
+    };
+  };
+  const buttonConfig = getButtonConfig();
+  const showPaymentSelector = isIdle && paymentOptions && paymentOptions.length > 0;
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+    "div",
+    {
+      style: {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1e3,
+        padding: "20px"
+      },
+      onClick: onClose,
+      children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+        "div",
+        {
+          style: {
+            backgroundColor: "white",
+            borderRadius: "12px",
+            maxWidth: "420px",
+            width: "100%",
+            maxHeight: "90vh",
+            overflow: "auto",
+            position: "relative",
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)"
+          },
+          onClick: (e) => e.stopPropagation(),
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+              "button",
+              {
+                onClick: onClose,
+                style: {
+                  position: "absolute",
+                  top: "16px",
+                  right: "16px",
+                  background: "transparent",
+                  border: "none",
+                  fontSize: "24px",
+                  cursor: "pointer",
+                  padding: "4px 8px",
+                  lineHeight: 1,
+                  color: "#666"
+                },
+                "aria-label": "Close modal",
+                children: "\xD7"
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { padding: "24px" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                TransactionModalHeader,
+                {
+                  title,
+                  ensName,
+                  avatarUrl,
+                  status: machineState
+                }
+              ),
+              isInProgress && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+                "div",
+                {
+                  style: {
+                    marginTop: "16px",
+                    padding: "8px 12px",
+                    background: "#FFF3E0",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    color: "#F57C00",
+                    textAlign: "center"
+                  },
+                  children: [
+                    "\u23F3 ",
+                    isRetrying ? "Retrying transaction..." : "Transaction in progress..."
+                  ]
+                }
+              ),
+              isSuccess && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                "div",
+                {
+                  style: {
+                    marginTop: "16px",
+                    padding: "8px 12px",
+                    background: "#E8F5E9",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    color: "#2E7D32",
+                    textAlign: "center"
+                  },
+                  children: "\u2713 Transaction completed"
+                }
+              ),
+              isError && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                "div",
+                {
+                  style: {
+                    marginTop: "16px",
+                    padding: "8px 12px",
+                    background: "#FFEBEE",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    color: "#C62828",
+                    textAlign: "center"
+                  },
+                  children: "\u2717 Transaction failed"
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                TransactionDetails,
+                {
+                  network: network || "Mainnet",
+                  estimatedCost,
+                  status: machineState
+                }
+              ),
+              steps && steps.length > 1 && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                TransactionSteps,
+                {
+                  steps,
+                  currentStepIndex
+                }
+              ),
+              showPaymentSelector && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                PaymentSelector,
+                {
+                  options: paymentOptions,
+                  selected: selectedPayment,
+                  onSelect: onPaymentSelect
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { marginTop: "24px", display: "flex", gap: "12px" }, children: [
+                onBack && currentStepIndex > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                  "button",
+                  {
+                    onClick: onBack,
+                    style: {
+                      flex: 1,
+                      padding: "12px 24px",
+                      fontSize: "16px",
+                      background: "#f5f5f5",
+                      color: "#333",
+                      border: "none",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      fontWeight: 500
+                    },
+                    children: "\u2190 Back"
+                  }
+                ),
+                buttonConfig.onClick && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                  "button",
+                  {
+                    onClick: buttonConfig.onClick,
+                    disabled: buttonConfig.disabled,
+                    style: {
+                      flex: 1,
+                      padding: "12px 24px",
+                      fontSize: "16px",
+                      background: buttonConfig.disabled ? "#ccc" : "#2196F3",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      cursor: buttonConfig.disabled ? "not-allowed" : "pointer",
+                      fontWeight: 500
+                    },
+                    children: buttonConfig.text
+                  }
+                )
+              ] })
+            ] })
+          ]
+        }
+      )
+    }
+  );
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   AuditTrailService,
@@ -1307,17 +2061,23 @@ function useENSRenewal(options) {
   EthCallFallbackError,
   GasEstimationError,
   ImportError,
+  PaymentSelector,
   PersistenceError,
   RhinestoneAccountError,
   RhinestoneAccountService,
+  TransactionDetails,
+  TransactionModal,
+  TransactionModalHeader,
   TransactionRevertedError,
   TransactionService,
+  TransactionSteps,
   TransactionSubmissionError,
   TransactionTimeoutError,
   UserOperationError,
   transactionMachine,
   useAuditTrail,
   useENSRenewal,
-  useTransaction
+  useTransaction,
+  useTransactionModal
 });
 //# sourceMappingURL=index.js.map

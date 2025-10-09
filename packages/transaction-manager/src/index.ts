@@ -5,7 +5,12 @@ export type {
   EOATransactionRequest,
   ERC4337UserOperation,
   TransactionOptions,
-  TransactionResult
+  TransactionResult,
+  PaymentMethod,
+  PaymentOption,
+  TransactionStep,
+  TransactionFlowType,
+  TransactionModalState
 } from './types/transaction.types'
 
 export type {
@@ -34,9 +39,24 @@ export { transactionMachine } from './machines/transaction.machine'
 export { useTransaction, type UseTransactionReturn } from './hooks/useTransaction'
 export { useAuditTrail, type UseAuditTrailReturn } from './hooks/useAuditTrail'
 export { useENSRenewal, type UseENSRenewalOptions } from './hooks/useENSRenewal'
+export { useTransactionModal, type UseTransactionModalReturn } from './hooks/useTransactionModal'
 
 // Contracts
 export { ENS_SEPOLIA_CONTRACTS, ETH_REGISTRAR_CONTROLLER_ABI } from './contracts/ens-sepolia'
+
+// Components
+export {
+  TransactionModal,
+  TransactionModalHeader,
+  TransactionSteps,
+  TransactionDetails,
+  PaymentSelector,
+  type TransactionModalProps,
+  type TransactionModalHeaderProps,
+  type TransactionStepsProps,
+  type TransactionDetailsProps,
+  type PaymentSelectorProps
+} from './components/TransactionModal'
 
 // Errors
 export {

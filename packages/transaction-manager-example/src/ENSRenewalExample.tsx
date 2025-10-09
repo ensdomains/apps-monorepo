@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { formatEther, parseEther } from 'viem'
-import { useENSRenewal } from '@ens-apps/transaction-manager'
+import { useENSRenewal, TransactionModal, useTransactionModal } from '@ens-apps/transaction-manager'
 import { useAccount, usePublicClient, useSendTransaction } from 'wagmi'
 import { sepolia } from 'viem/chains'
 
@@ -11,9 +11,9 @@ function ENSRenewalExample() {
   const publicClient = usePublicClient({ chainId: sepolia.id })
   const { sendTransaction } = useSendTransaction()
 
-  const [name, setName] = useState('')
+  const [name, setName] = useState('leon.eth')
   const [duration, setDuration] = useState('1') // years
-  const [useSmartAccount, setUseSmartAccount] = useState(false)
+  const [useSmartAccount, setUseSmartAccount] = useState(true)
   const [renewalPrice, setRenewalPrice] = useState<bigint | null>(null)
   const [isLoadingPrice, setIsLoadingPrice] = useState(false)
   const [smartAccountAddress, setSmartAccountAddress] = useState<string | null>(null)
@@ -43,6 +43,20 @@ function ENSRenewalExample() {
     // paymasterUrl: `https://api.pimlico.io/v2/sepolia/rpc?apikey=${import.meta.env.VITE_PIMLICO_API_KEY}`,
   })
 
+  // Transaction Modal
+  const modal = useTransactionModal({
+    ensName: name || 'domico.eth',
+    network: 'Sepolia',
+    estimatedCost: renewalPrice ? `${formatEther(renewalPrice)} ETH` : '0.0011 ETH',
+  })
+
+  // Sync transaction state with modal - update estimated cost when renewal price changes
+  useEffect(() => {
+    if (renewalPrice) {
+      modal.setEstimatedCost(`${formatEther(renewalPrice)} ETH`)
+    }
+  }, [renewalPrice, modal.setEstimatedCost])
+
   // Fetch renewal price when name or duration changes
   useEffect(() => {
     const fetchPrice = async () => {
@@ -62,7 +76,7 @@ function ENSRenewalExample() {
   // Fetch smart account address when smart account is enabled
   useEffect(() => {
     const fetchAddress = async () => {
-      if (useSmartAccount && getSmartAccountAddress) {
+      if (useSmartAccount && getSmartAccountAddress && isConnected) {
         const addr = await getSmartAccountAddress()
         setSmartAccountAddress(addr)
       } else {
@@ -70,7 +84,7 @@ function ENSRenewalExample() {
       }
     }
     fetchAddress()
-  }, [useSmartAccount, getSmartAccountAddress])
+  }, [useSmartAccount, getSmartAccountAddress, isConnected])
 
   // Fetch smart account balance
   useEffect(() => {
@@ -104,13 +118,23 @@ function ENSRenewalExample() {
       return
     }
 
+    modal.openModal()
+  }
+
+  const handleStartTransaction = () => {
     const cleanName = name.replace('.eth', '')
     const durationInSeconds = BigInt(duration) * YEAR_IN_SECONDS
 
+    console.log('Starting transaction, current state:', state)
     renewName(cleanName, durationInSeconds, {
       description: `Renew ${cleanName}.eth for ${duration} year(s)`,
     })
   }
+
+  // Debug: Log state changes
+  useEffect(() => {
+    console.log('Transaction state changed to:', state)
+  }, [state])
 
   const handleFundSmartAccount = async () => {
     if (!smartAccountAddress) {
@@ -469,6 +493,20 @@ function ENSRenewalExample() {
           </div>
         </>
       )}
+
+      {/* Transaction Modal */}
+      <TransactionModal
+        isOpen={modal.isOpen}
+        title={`Renew ${name || 'Name'}`}
+        ensName={name}
+        network={modal.network}
+        estimatedCost={modal.estimatedCost}
+        machineState={state}
+        onClose={modal.closeModal}
+        onStart={handleStartTransaction}
+        onDone={modal.closeModal}
+        onRetry={handleStartTransaction}
+      />
     </div>
   )
 }
