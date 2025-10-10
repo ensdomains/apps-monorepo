@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RainbowKitProvider, ConnectButton } from '@rainbow-me/rainbowkit'
 import { config } from './wagmi-config'
 import ENSRenewalExample from './ENSRenewalExample'
+import { AuditTrailDashboard } from './examples/AuditTrailDashboard'
 import '@rainbow-me/rainbowkit/styles.css'
 
 const queryClient = new QueryClient()
@@ -37,8 +38,21 @@ function App() {
               </div>
             </header>
 
-            <main>
+            <main style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px',
+              paddingBottom: '40px'
+            }}>
               <ENSRenewalExample />
+              <div style={{
+                padding: '40px',
+                maxWidth: '1200px',
+                margin: '0 auto',
+                width: '100%'
+              }}>
+                <AuditTrailDashboard />
+              </div>
             </main>
           </div>
         </RainbowKitProvider>

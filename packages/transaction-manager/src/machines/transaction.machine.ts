@@ -2,7 +2,7 @@ import { setup, assign, fromPromise } from 'xstate'
 import type { Hash, TransactionReceipt } from 'viem'
 import type { TransactionRequest, TransactionOptions, TransactionModalState } from '../types/transaction.types'
 import type { TransactionService } from '../services/transaction.service'
-import type { AuditTrailService } from '../services/audit-trail.service'
+import * as auditTrail from '../services/audit-trail.service'
 import {
   TransactionSubmissionError,
   TransactionTimeoutError,
@@ -23,12 +23,10 @@ export const transactionMachine = setup({
       retryCount: number
       fallbackChecks: number
       transactionService: TransactionService
-      auditService?: AuditTrailService
       modal: TransactionModalState
     },
     input: {} as {
       transactionService: TransactionService
-      auditService?: AuditTrailService
     },
     events: {} as
       | { type: 'EXECUTE'; request: TransactionRequest; options?: TransactionOptions; modal?: Partial<TransactionModalState> }
@@ -122,31 +120,34 @@ export const transactionMachine = setup({
       context.receipt?.status === 'reverted'
   },
   actions: {
-    recordTransition: ({ context, self }) => {
-      if (context.auditService) {
+    recordTransition: ({ context, self, event }) => {
+      try {
         const state = self.getSnapshot()
-        context.auditService.recordTransition({
+        auditTrail.recordTransition({
           machineId: 'transaction',
           fromState: state.status === 'active' ? String(state.value) : 'unknown',
           toState: String(state.value),
-          event: state.event?.type || 'unknown',
+          event: event?.type || 'unknown',
           context: {
             hash: context.hash,
             request: context.request,
             retryCount: context.retryCount
           },
           metadata: {
-            chainId: context.request.chainId,
+            chainId: context.request?.chainId,
             transactionHash: context.hash
           }
         })
+      } catch (auditError) {
+        // Audit service errors should never crash the app
+        console.warn('Audit service error (non-fatal):', auditError)
       }
     },
 
     logError: ({ context }, params: any) => {
       const error = params?.error || params || 'Unknown error'
-      if (context.auditService) {
-        context.auditService.addAuditEntry(
+      try {
+        auditTrail.addAuditEntry(
           'error',
           'Transaction error occurred',
           {
@@ -155,14 +156,17 @@ export const transactionMachine = setup({
             request: context.request
           }
         )
+      } catch (auditError) {
+        // Audit service errors should never crash the app
+        console.warn('Audit service error (non-fatal):', auditError)
       }
       console.error('Transaction error:', error)
     },
 
     logCritical: ({ context }, params: any) => {
       const error = params?.error || params || 'Unknown critical error'
-      if (context.auditService) {
-        context.auditService.addAuditEntry(
+      try {
+        auditTrail.addAuditEntry(
           'critical',
           'Critical transaction failure',
           {
@@ -172,6 +176,9 @@ export const transactionMachine = setup({
             retryCount: context.retryCount
           }
         )
+      } catch (auditError) {
+        // Audit service errors should never crash the app
+        console.warn('Audit service error (non-fatal):', auditError)
       }
       console.error('CRITICAL:', error)
     }
@@ -185,7 +192,6 @@ export const transactionMachine = setup({
     retryCount: 0,
     fallbackChecks: 0,
     transactionService: input.transactionService,
-    auditService: input.auditService,
     modal: {
       isOpen: false,
       flowType: 'single',
@@ -263,7 +269,7 @@ export const transactionMachine = setup({
             assign({
               hash: ({ event }) => event.output,
               userOpHash: ({ event, context }) =>
-                context.request.type === 'erc4337' ? event.output : undefined
+                context.request?.type === 'erc4337' ? event.output : undefined
             }),
             'recordTransition'
           ]
@@ -360,8 +366,8 @@ export const transactionMachine = setup({
             target: 'success',
             actions: [
               ({ context }) => {
-                if (context.auditService) {
-                  context.auditService.addAuditEntry(
+                try {
+                  auditTrail.addAuditEntry(
                     'warning',
                     'Transaction succeeded via eth_call fallback',
                     {
@@ -369,6 +375,8 @@ export const transactionMachine = setup({
                       request: context.request
                     }
                   )
+                } catch (auditError) {
+                  console.warn('Audit service error (non-fatal):', auditError)
                 }
               },
               'recordTransition'
@@ -394,10 +402,9 @@ export const transactionMachine = setup({
           target: 'error.reverted',
           actions: [
             assign({
-              error: ({ context }) => new TransactionRevertedError({
-                hash: context.hash!,
-                reason: 'Transaction reverted'
-              })
+              error: ({ context }) => new TransactionRevertedError(
+                `Transaction ${context.hash} reverted`
+              )
             }),
             'logError',
             'recordTransition'
@@ -432,8 +439,8 @@ export const transactionMachine = setup({
       entry: [
         'recordTransition',
         ({ context }) => {
-          if (context.auditService) {
-            context.auditService.addAuditEntry(
+          try {
+            auditTrail.addAuditEntry(
               'info',
               'Transaction completed successfully',
               {
@@ -442,6 +449,8 @@ export const transactionMachine = setup({
                 gasUsed: context.receipt?.gasUsed?.toString()
               }
             )
+          } catch (auditError) {
+            console.warn('Audit service error (non-fatal):', auditError)
           }
         }
       ],

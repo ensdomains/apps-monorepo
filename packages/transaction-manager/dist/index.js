@@ -20,7 +20,6 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/index.ts
 var index_exports = {};
 __export(index_exports, {
-  AuditTrailService: () => AuditTrailService,
   ENS_SEPOLIA_CONTRACTS: () => ENS_SEPOLIA_CONTRACTS,
   ETH_REGISTRAR_CONTROLLER_ABI: () => ETH_REGISTRAR_CONTROLLER_ABI,
   EthCallFallbackError: () => EthCallFallbackError,
@@ -39,11 +38,17 @@ __export(index_exports, {
   TransactionSubmissionError: () => TransactionSubmissionError,
   TransactionTimeoutError: () => TransactionTimeoutError,
   UserOperationError: () => UserOperationError,
+  addAuditEntry: () => addAuditEntry,
+  clearAuditTrail: () => clearAuditTrail,
+  exportToJson: () => exportToJson,
+  generateDebugReport: () => generateDebugReport,
   getENSRenewalPrice: () => getENSRenewalPrice,
   getRhinestoneSmartAccountAddress: () => getRhinestoneSmartAccountAddress,
+  getTransitionHistory: () => getTransitionHistory,
+  importFromJson: () => importFromJson,
   prepareENSRenewal: () => prepareENSRenewal,
-  transactionMachine: () => transactionMachine,
-  useAuditTrail: () => useAuditTrail
+  recordTransition: () => recordTransition,
+  transactionMachine: () => transactionMachine
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -508,225 +513,238 @@ var TransactionService = class {
 
 // src/services/audit-trail.service.ts
 var import_neverthrow3 = require("neverthrow");
-var AuditTrailService = class {
-  constructor(storage = typeof window !== "undefined" ? localStorage : null, enableRemoteLogging = false) {
-    this.storage = storage;
-    this.enableRemoteLogging = enableRemoteLogging;
-    this.MAX_TRANSITIONS = 1e3;
-    this.MAX_AGE = 24 * 60 * 60 * 1e3;
-    // 24 hours
-    this.STORAGE_KEY = "@ens/audit-trail";
-    this.transitions = [];
-    this.auditLog = [];
-    if (this.storage) {
-      this.loadFromStorage();
-      this.setupCleanupInterval();
-    }
+var MAX_TRANSITIONS = 1e3;
+var MAX_AGE = 24 * 60 * 60 * 1e3;
+var STORAGE_KEY = "@ens/audit-trail";
+function generateUUID() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
   }
-  // UUID generator with fallback for non-secure contexts (HTTP)
-  generateUUID() {
-    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-      return crypto.randomUUID();
-    }
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0;
-      const v = c === "x" ? r : r & 3 | 8;
-      return v.toString(16);
-    });
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === "x" ? r : r & 3 | 8;
+    return v.toString(16);
+  });
+}
+function getSessionId() {
+  if (typeof window === "undefined") return "server";
+  let sessionId = sessionStorage.getItem("ens-session-id");
+  if (!sessionId) {
+    sessionId = generateUUID();
+    sessionStorage.setItem("ens-session-id", sessionId);
   }
-  recordTransition(transition) {
+  return sessionId;
+}
+function loadFromStorage() {
+  if (typeof window === "undefined" || !localStorage) {
+    return { transitions: [], auditLog: [] };
+  }
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (!data) return { transitions: [], auditLog: [] };
+    const parsed = JSON.parse(data);
+    return {
+      transitions: parsed.transitions || [],
+      auditLog: parsed.auditLog || []
+    };
+  } catch (error) {
+    console.warn("Failed to load audit trail from storage:", error);
+    return { transitions: [], auditLog: [] };
+  }
+}
+function saveToStorage(data) {
+  if (typeof window === "undefined" || !localStorage) return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data, (key, value) => {
+      if (typeof value === "bigint") {
+        return value.toString();
+      }
+      return value;
+    }));
+  } catch (error) {
+    console.warn("Failed to save audit trail to storage:", error);
+  }
+}
+function recordTransition(transition) {
+  try {
+    const data = loadFromStorage();
     const entry = {
       ...transition,
-      id: this.generateUUID(),
+      id: generateUUID(),
       timestamp: Date.now()
     };
-    this.transitions.push(entry);
-    if (this.transitions.length > this.MAX_TRANSITIONS) {
-      this.transitions.shift();
+    data.transitions.push(entry);
+    if (data.transitions.length > MAX_TRANSITIONS) {
+      data.transitions.shift();
     }
-    this.saveToStorage();
-    if (this.enableRemoteLogging && this.shouldLogRemotely(entry)) {
-      this.logToRemote(entry).catch(console.error);
-    }
+    saveToStorage(data);
+  } catch (error) {
+    console.warn("Audit service error (non-fatal):", error);
   }
-  addAuditEntry(level, message, details) {
+}
+function addAuditEntry(level, message, details) {
+  try {
+    const data = loadFromStorage();
     const entry = {
-      transitionId: this.transitions[this.transitions.length - 1]?.id || "unknown",
+      transitionId: data.transitions[data.transitions.length - 1]?.id || "unknown",
       timestamp: Date.now(),
       level,
       message,
       details,
       stackTrace: level === "error" || level === "critical" ? new Error().stack : void 0
     };
-    this.auditLog.push(entry);
+    data.auditLog.push(entry);
     if (level === "critical") {
       console.error("[CRITICAL]", message, details);
-      this.logToRemote(entry).catch(console.error);
     }
-    this.saveToStorage();
+    saveToStorage(data);
+  } catch (error) {
+    console.warn("Audit service error (non-fatal):", error);
   }
-  getTransitionHistory(filters) {
-    let history = [...this.transitions];
+}
+function getTransitionHistory(filters) {
+  try {
+    const data = loadFromStorage();
+    let history = [...data.transitions];
     if (filters?.machineId) {
       history = history.filter((t) => t.machineId === filters.machineId);
     }
-    if (filters?.fromTime) {
-      history = history.filter((t) => t.timestamp >= filters.fromTime);
+    if (filters?.fromTime !== void 0) {
+      const fromTime = filters.fromTime;
+      history = history.filter((t) => t.timestamp >= fromTime);
     }
-    if (filters?.toTime) {
-      history = history.filter((t) => t.timestamp <= filters.toTime);
+    if (filters?.toTime !== void 0) {
+      const toTime = filters.toTime;
+      history = history.filter((t) => t.timestamp <= toTime);
     }
     if (filters?.includeErrors === false) {
       history = history.filter((t) => !t.error);
     }
     return history;
+  } catch (error) {
+    console.warn("Audit service error (non-fatal):", error);
+    return [];
   }
-  generateDebugReport(transactionId) {
-    const relevantTransitions = transactionId ? this.transitions.filter(
+}
+function generateDebugReport(transactionId) {
+  try {
+    const data = loadFromStorage();
+    const relevantTransitions = transactionId ? data.transitions.filter(
       (t) => t.metadata?.transactionHash === transactionId || t.context.transactionId === transactionId
-    ) : this.transitions.slice(-50);
-    const relevantAuditLog = transactionId ? this.auditLog.filter(
+    ) : data.transitions.slice(-50);
+    const relevantAuditLog = transactionId ? data.auditLog.filter(
       (entry) => relevantTransitions.some((t) => t.id === entry.transitionId)
-    ) : this.auditLog.slice(-100);
+    ) : data.auditLog.slice(-100);
     return {
       generatedAt: Date.now(),
       systemInfo: {
         userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "Node.js",
         timestamp: Date.now(),
-        sessionId: this.getSessionId()
+        sessionId: getSessionId()
       },
       transitions: relevantTransitions,
       auditLog: relevantAuditLog,
-      errorSummary: this.generateErrorSummary(relevantTransitions),
-      stateDistribution: this.calculateStateDistribution(relevantTransitions),
-      performanceMetrics: this.calculatePerformanceMetrics(relevantTransitions)
+      errorSummary: generateErrorSummary(relevantTransitions),
+      stateDistribution: calculateStateDistribution(relevantTransitions),
+      performanceMetrics: calculatePerformanceMetrics(relevantTransitions)
     };
+  } catch (error) {
+    console.warn("Audit service error (non-fatal):", error);
+    return null;
   }
-  exportToJson() {
+}
+function exportToJson() {
+  try {
+    const data = loadFromStorage();
     return JSON.stringify({
-      transitions: this.transitions,
-      auditLog: this.auditLog,
+      transitions: data.transitions,
+      auditLog: data.auditLog,
       exported: Date.now()
     }, null, 2);
+  } catch (error) {
+    console.warn("Audit service error (non-fatal):", error);
+    return JSON.stringify({ transitions: [], auditLog: [], exported: Date.now() }, null, 2);
   }
-  importFromJson(json) {
-    return import_neverthrow3.ResultAsync.fromPromise(
-      Promise.resolve().then(() => {
-        const data = JSON.parse(json);
-        this.transitions = data.transitions || [];
-        this.auditLog = data.auditLog || [];
-        this.saveToStorage();
-      }),
-      (error) => new ImportError({ cause: error })
-    );
-  }
-  cleanup() {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
+}
+function importFromJson(json) {
+  return import_neverthrow3.ResultAsync.fromPromise(
+    Promise.resolve().then(() => {
+      try {
+        const parsed = JSON.parse(json);
+        const data = {
+          transitions: parsed.transitions || [],
+          auditLog: parsed.auditLog || []
+        };
+        saveToStorage(data);
+      } catch (error) {
+        throw new ImportError({ cause: error });
+      }
+    }),
+    (error) => new ImportError({ cause: error })
+  );
+}
+function clearAuditTrail() {
+  try {
+    if (typeof window !== "undefined" && localStorage) {
+      localStorage.removeItem(STORAGE_KEY);
     }
+  } catch (error) {
+    console.warn("Audit service error (non-fatal):", error);
   }
-  calculateStateDistribution(transitions) {
-    return transitions.reduce((acc, t) => {
-      acc[t.toState] = (acc[t.toState] || 0) + 1;
-      return acc;
-    }, {});
-  }
-  calculatePerformanceMetrics(transitions) {
-    if (transitions.length < 2) {
-      return {
-        avgTransitionTime: 0,
-        maxTransitionTime: 0,
-        minTransitionTime: 0,
-        totalTransitions: transitions.length
-      };
-    }
-    const durations = [];
-    for (let i = 1; i < transitions.length; i++) {
-      durations.push(transitions[i].timestamp - transitions[i - 1].timestamp);
-    }
+}
+function calculateStateDistribution(transitions) {
+  return transitions.reduce((acc, t) => {
+    acc[t.toState] = (acc[t.toState] || 0) + 1;
+    return acc;
+  }, {});
+}
+function calculatePerformanceMetrics(transitions) {
+  if (transitions.length < 2) {
     return {
-      avgTransitionTime: durations.reduce((a, b) => a + b, 0) / durations.length,
-      maxTransitionTime: Math.max(...durations),
-      minTransitionTime: Math.min(...durations),
+      avgTransitionTime: 0,
+      maxTransitionTime: 0,
+      minTransitionTime: 0,
       totalTransitions: transitions.length
     };
   }
-  generateErrorSummary(transitions) {
-    const errors = transitions.filter((t) => t.error);
-    const errorTypes = errors.reduce((acc, t) => {
-      const errorType = t.error?.name || "Unknown";
-      acc[errorType] = (acc[errorType] || 0) + 1;
-      return acc;
-    }, {});
-    return {
-      totalErrors: errors.length,
-      errorRate: transitions.length > 0 ? errors.length / transitions.length * 100 : 0,
-      errorTypes,
-      lastError: errors[errors.length - 1]?.error
-    };
+  const durations = [];
+  for (let i = 1; i < transitions.length; i++) {
+    durations.push(transitions[i].timestamp - transitions[i - 1].timestamp);
   }
-  setupCleanupInterval() {
-    this.cleanupInterval = setInterval(() => {
-      const cutoff = Date.now() - this.MAX_AGE;
-      this.transitions = this.transitions.filter((t) => t.timestamp > cutoff);
-      this.auditLog = this.auditLog.filter((e) => e.timestamp > cutoff);
-      this.saveToStorage();
-    }, 60 * 60 * 1e3);
-  }
-  saveToStorage() {
-    if (!this.storage) return;
+  return {
+    avgTransitionTime: durations.reduce((a, b) => a + b, 0) / durations.length,
+    maxTransitionTime: Math.max(...durations),
+    minTransitionTime: Math.min(...durations),
+    totalTransitions: transitions.length
+  };
+}
+function generateErrorSummary(transitions) {
+  const errors = transitions.filter((t) => t.error);
+  const errorTypes = errors.reduce((acc, t) => {
+    const errorType = t.error?.name || "Unknown";
+    acc[errorType] = (acc[errorType] || 0) + 1;
+    return acc;
+  }, {});
+  return {
+    totalErrors: errors.length,
+    errorRate: transitions.length > 0 ? errors.length / transitions.length * 100 : 0,
+    errorTypes,
+    lastError: errors[errors.length - 1]?.error
+  };
+}
+if (typeof window !== "undefined") {
+  setInterval(() => {
     try {
-      this.storage.setItem(this.STORAGE_KEY, JSON.stringify({
-        transitions: this.transitions,
-        auditLog: this.auditLog
-      }, (key, value) => {
-        if (typeof value === "bigint") {
-          return value.toString();
-        }
-        return value;
-      }));
+      const data = loadFromStorage();
+      const cutoff = Date.now() - MAX_AGE;
+      data.transitions = data.transitions.filter((t) => t.timestamp > cutoff);
+      data.auditLog = data.auditLog.filter((e) => e.timestamp > cutoff);
+      saveToStorage(data);
     } catch (error) {
-      console.error("Failed to save audit trail:", error);
+      console.warn("Audit cleanup error (non-fatal):", error);
     }
-  }
-  loadFromStorage() {
-    if (!this.storage) return;
-    try {
-      const data = this.storage.getItem(this.STORAGE_KEY);
-      if (data) {
-        const parsed = JSON.parse(data);
-        this.transitions = parsed.transitions || [];
-        this.auditLog = parsed.auditLog || [];
-      }
-    } catch (error) {
-      console.error("Failed to load audit trail:", error);
-    }
-  }
-  shouldLogRemotely(entry) {
-    return !!("error" in entry && entry.error || "level" in entry && (entry.level === "error" || entry.level === "critical"));
-  }
-  async logToRemote(entry) {
-    if (!this.enableRemoteLogging) return;
-    try {
-      await fetch("/api/audit-log", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(entry)
-      });
-    } catch (error) {
-      console.error("Failed to send audit log to remote:", error);
-    }
-  }
-  getSessionId() {
-    if (typeof window === "undefined") return "server";
-    let sessionId = sessionStorage.getItem("ens-session-id");
-    if (!sessionId) {
-      sessionId = this.generateUUID();
-      sessionStorage.setItem("ens-session-id", sessionId);
-    }
-    return sessionId;
-  }
-};
+  }, 60 * 60 * 1e3);
+}
 
 // src/machines/transaction.machine.ts
 var import_xstate = require("xstate");
@@ -784,30 +802,32 @@ var transactionMachine = (0, import_xstate.setup)({
     isReverted: ({ context }) => context.receipt?.status === "reverted"
   },
   actions: {
-    recordTransition: ({ context, self }) => {
-      if (context.auditService) {
+    recordTransition: ({ context, self, event }) => {
+      try {
         const state = self.getSnapshot();
-        context.auditService.recordTransition({
+        recordTransition({
           machineId: "transaction",
           fromState: state.status === "active" ? String(state.value) : "unknown",
           toState: String(state.value),
-          event: state.event?.type || "unknown",
+          event: event?.type || "unknown",
           context: {
             hash: context.hash,
             request: context.request,
             retryCount: context.retryCount
           },
           metadata: {
-            chainId: context.request.chainId,
+            chainId: context.request?.chainId,
             transactionHash: context.hash
           }
         });
+      } catch (auditError) {
+        console.warn("Audit service error (non-fatal):", auditError);
       }
     },
     logError: ({ context }, params) => {
       const error = params?.error || params || "Unknown error";
-      if (context.auditService) {
-        context.auditService.addAuditEntry(
+      try {
+        addAuditEntry(
           "error",
           "Transaction error occurred",
           {
@@ -816,13 +836,15 @@ var transactionMachine = (0, import_xstate.setup)({
             request: context.request
           }
         );
+      } catch (auditError) {
+        console.warn("Audit service error (non-fatal):", auditError);
       }
       console.error("Transaction error:", error);
     },
     logCritical: ({ context }, params) => {
       const error = params?.error || params || "Unknown critical error";
-      if (context.auditService) {
-        context.auditService.addAuditEntry(
+      try {
+        addAuditEntry(
           "critical",
           "Critical transaction failure",
           {
@@ -832,6 +854,8 @@ var transactionMachine = (0, import_xstate.setup)({
             retryCount: context.retryCount
           }
         );
+      } catch (auditError) {
+        console.warn("Audit service error (non-fatal):", auditError);
       }
       console.error("CRITICAL:", error);
     }
@@ -845,7 +869,6 @@ var transactionMachine = (0, import_xstate.setup)({
     retryCount: 0,
     fallbackChecks: 0,
     transactionService: input.transactionService,
-    auditService: input.auditService,
     modal: {
       isOpen: false,
       flowType: "single",
@@ -920,7 +943,7 @@ var transactionMachine = (0, import_xstate.setup)({
           actions: [
             (0, import_xstate.assign)({
               hash: ({ event }) => event.output,
-              userOpHash: ({ event, context }) => context.request.type === "erc4337" ? event.output : void 0
+              userOpHash: ({ event, context }) => context.request?.type === "erc4337" ? event.output : void 0
             }),
             "recordTransition"
           ]
@@ -1015,8 +1038,8 @@ var transactionMachine = (0, import_xstate.setup)({
             target: "success",
             actions: [
               ({ context }) => {
-                if (context.auditService) {
-                  context.auditService.addAuditEntry(
+                try {
+                  addAuditEntry(
                     "warning",
                     "Transaction succeeded via eth_call fallback",
                     {
@@ -1024,6 +1047,8 @@ var transactionMachine = (0, import_xstate.setup)({
                       request: context.request
                     }
                   );
+                } catch (auditError) {
+                  console.warn("Audit service error (non-fatal):", auditError);
                 }
               },
               "recordTransition"
@@ -1048,10 +1073,9 @@ var transactionMachine = (0, import_xstate.setup)({
           target: "error.reverted",
           actions: [
             (0, import_xstate.assign)({
-              error: ({ context }) => new TransactionRevertedError({
-                hash: context.hash,
-                reason: "Transaction reverted"
-              })
+              error: ({ context }) => new TransactionRevertedError(
+                `Transaction ${context.hash} reverted`
+              )
             }),
             "logError",
             "recordTransition"
@@ -1084,8 +1108,8 @@ var transactionMachine = (0, import_xstate.setup)({
       entry: [
         "recordTransition",
         ({ context }) => {
-          if (context.auditService) {
-            context.auditService.addAuditEntry(
+          try {
+            addAuditEntry(
               "info",
               "Transaction completed successfully",
               {
@@ -1094,6 +1118,8 @@ var transactionMachine = (0, import_xstate.setup)({
                 gasUsed: context.receipt?.gasUsed?.toString()
               }
             );
+          } catch (auditError) {
+            console.warn("Audit service error (non-fatal):", auditError);
           }
         }
       ],
@@ -1160,70 +1186,6 @@ var transactionMachine = (0, import_xstate.setup)({
     }
   }
 });
-
-// src/hooks/useAuditTrail.ts
-var import_react = require("react");
-var globalAuditService = null;
-function useAuditTrail() {
-  const [auditService] = (0, import_react.useState)(() => {
-    if (!globalAuditService && typeof window !== "undefined") {
-      globalAuditService = new AuditTrailService();
-    }
-    return globalAuditService;
-  });
-  (0, import_react.useEffect)(() => {
-    return () => {
-      if (auditService) {
-        auditService.cleanup();
-      }
-    };
-  }, [auditService]);
-  const getDebugReport = (0, import_react.useCallback)((transactionId) => {
-    if (!auditService) return null;
-    return auditService.generateDebugReport(transactionId);
-  }, [auditService]);
-  const exportAudit = (0, import_react.useCallback)(() => {
-    if (!auditService) return;
-    const json = auditService.exportToJson();
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `ens-audit-trail-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [auditService]);
-  const importAudit = (0, import_react.useCallback)(async (file) => {
-    if (!auditService) return;
-    const text = await file.text();
-    const result = await auditService.importFromJson(text);
-    if (result.isErr()) {
-      console.error("Failed to import audit data:", result.error);
-      throw result.error;
-    }
-  }, [auditService]);
-  const addEntry = (0, import_react.useCallback)((level, message, details) => {
-    if (!auditService) return;
-    auditService.addAuditEntry(level, message, details);
-  }, [auditService]);
-  const getTransitionHistory = (0, import_react.useCallback)((filters) => {
-    if (!auditService) return [];
-    return auditService.getTransitionHistory(filters);
-  }, [auditService]);
-  const clearAudit = (0, import_react.useCallback)(() => {
-    if (!auditService || typeof window === "undefined") return;
-    localStorage.removeItem("@ens/audit-trail");
-    globalAuditService = new AuditTrailService();
-  }, [auditService]);
-  return {
-    getDebugReport,
-    exportAudit,
-    importAudit,
-    addEntry,
-    getTransitionHistory,
-    clearAudit
-  };
-}
 
 // src/helpers/ens-renewal.helpers.ts
 var import_neverthrow4 = require("neverthrow");
@@ -1318,7 +1280,7 @@ async function getRhinestoneSmartAccountAddress(publicClient, walletClient, rhin
 }
 
 // src/components/TransactionModal/TransactionModal.tsx
-var import_react2 = require("react");
+var import_react = require("react");
 
 // src/components/TransactionModal/TransactionModalHeader.tsx
 var import_jsx_runtime = require("react/jsx-runtime");
@@ -1696,7 +1658,7 @@ function TransactionModal({
   onPaymentSelect,
   onBack
 }) {
-  (0, import_react2.useEffect)(() => {
+  (0, import_react.useEffect)(() => {
     const handleEscape = (e) => {
       if (e.key === "Escape" && isOpen) {
         onClose();
@@ -1705,7 +1667,7 @@ function TransactionModal({
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
-  (0, import_react2.useEffect)(() => {
+  (0, import_react.useEffect)(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
     } else {
@@ -1940,7 +1902,6 @@ function TransactionModal({
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
-  AuditTrailService,
   ENS_SEPOLIA_CONTRACTS,
   ETH_REGISTRAR_CONTROLLER_ABI,
   EthCallFallbackError,
@@ -1959,10 +1920,16 @@ function TransactionModal({
   TransactionSubmissionError,
   TransactionTimeoutError,
   UserOperationError,
+  addAuditEntry,
+  clearAuditTrail,
+  exportToJson,
+  generateDebugReport,
   getENSRenewalPrice,
   getRhinestoneSmartAccountAddress,
+  getTransitionHistory,
+  importFromJson,
   prepareENSRenewal,
-  transactionMachine,
-  useAuditTrail
+  recordTransition,
+  transactionMachine
 });
 //# sourceMappingURL=index.js.map

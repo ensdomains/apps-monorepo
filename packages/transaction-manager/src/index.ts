@@ -23,7 +23,15 @@ export type {
 
 // Services
 export { TransactionService } from './services/transaction.service'
-export { AuditTrailService } from './services/audit-trail.service'
+export {
+  recordTransition,
+  addAuditEntry,
+  getTransitionHistory,
+  generateDebugReport,
+  exportToJson,
+  importFromJson,
+  clearAuditTrail
+} from './services/audit-trail.service'
 export {
   RhinestoneAccountService,
   RhinestoneAccountError,
@@ -36,7 +44,7 @@ export {
 export { transactionMachine } from './machines/transaction.machine'
 
 // Hooks
-export { useAuditTrail, type UseAuditTrailReturn } from './hooks/useAuditTrail'
+// (None - use services directly)
 
 // Helpers
 export {

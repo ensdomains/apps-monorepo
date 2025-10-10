@@ -13,12 +13,14 @@
     "@rainbow-me/rainbowkit": "^2.2.8",
     "@rhinestone/module-sdk": "^0.4.0",
     "@tanstack/react-query": "^5.87.1",
+    "@xstate/react": "^6.0.0",
     "permissionless": "^0.2.57",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "ts-pattern": "^5.8.0",
     "viem": "^2.21.58",
-    "wagmi": "^2.16.9"
+    "wagmi": "^2.16.9",
+    "xstate": "catalog:"
   },
   "devDependencies": {
     "@types/react": "^19.0.6",

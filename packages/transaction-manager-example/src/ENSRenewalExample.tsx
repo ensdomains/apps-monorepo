@@ -1,4 +1,4 @@
-import React, { useReducer, useEffect } from 'react'
+import React, { useReducer, useEffect, useMemo } from 'react'
 import { useMachine } from '@xstate/react'
 import { match, P } from 'ts-pattern'
 import { formatEther, parseEther } from 'viem'
@@ -17,25 +17,42 @@ import { uiStateReducer, initialUIState } from './reducers/uiState.reducer'
 
 const YEAR_IN_SECONDS = 31536000n
 
-function ENSRenewalExample() {
-  const { address, isConnected } = useAccount()
-  const publicClient = usePublicClient({ chainId: sepolia.id })
-  const { data: walletClient } = useWalletClient()
-  const { sendTransaction } = useSendTransaction()
-
-  // Rhinestone config
-  const rhinestoneConfig = {
-    chain: sepolia,
-    rhinestoneApiKey: import.meta.env.VITE_RHINESTONE_API_KEY,
-  }
-
+// Inner component that contains the state machine
+// This component will remount when the walletClient changes (via key prop)
+function ENSRenewalWithMachine({
+  address,
+  isConnected,
+  publicClient,
+  walletClient,
+  rhinestoneConfig,
+  sendTransaction,
+}: {
+  address: `0x${string}` | undefined
+  isConnected: boolean
+  publicClient: any
+  walletClient: any
+  rhinestoneConfig: any
+  sendTransaction: any
+}) {
   // UI state
   const [ui, dispatch] = useReducer(uiStateReducer, initialUIState)
+
+  // Create transaction service with current clients
+  console.log('🔄 Creating TransactionService with walletClient:', {
+    hasWalletClient: !!walletClient,
+    walletAddress: walletClient?.account?.address
+  })
+
+  const transactionService = new TransactionService(
+    publicClient,
+    walletClient,
+    rhinestoneConfig
+  )
 
   // Transaction state machine
   const [state, send] = useMachine(transactionMachine, {
     input: {
-      transactionService: new TransactionService(publicClient!, walletClient),
+      transactionService,
     },
   })
 
@@ -57,6 +74,14 @@ function ENSRenewalExample() {
       showStatus: true,
       statusBackground: '#fff3e0',
       statusMessage: 'Preparing transaction...',
+    }))
+    .with('retrying', () => ({
+      buttonText: 'Retrying...',
+      buttonDisabled: true,
+      buttonColor: '#ccc',
+      showStatus: true,
+      statusBackground: '#fff3e0',
+      statusMessage: 'Retrying transaction...',
     }))
     .with('pending', 'confirming', 'checkingFallback', () => ({
       buttonText: 'Confirming...',
@@ -82,7 +107,22 @@ function ENSRenewalExample() {
       statusBackground: '#ffebee',
       statusMessage: `❌ Error: ${state.context.error?.message || 'Unknown error'}`,
     }))
-    .exhaustive()
+    .when((value) => typeof value === 'object' && 'error' in value, () => ({
+      buttonText: 'Retry',
+      buttonDisabled: false,
+      buttonColor: '#f44336',
+      showStatus: true,
+      statusBackground: '#ffebee',
+      statusMessage: `❌ Error: ${state.context.error?.message || 'Unknown error'}`,
+    }))
+    .otherwise(() => ({
+      buttonText: 'Loading...',
+      buttonDisabled: true,
+      buttonColor: '#ccc',
+      showStatus: false,
+      statusBackground: '',
+      statusMessage: null,
+    }))
 
   const hash = state.context.hash
 
@@ -582,6 +622,75 @@ function ENSRenewalExample() {
         onDone={() => send({ type: 'CLOSE_MODAL' })}
       />
     </div>
+  )
+}
+
+// Outer wrapper component that provides clients and forces remount when wallet changes
+function ENSRenewalExample() {
+  const { address, isConnected } = useAccount()
+  const publicClient = usePublicClient({ chainId: sepolia.id })
+  const { data: walletClient } = useWalletClient()
+  const { sendTransaction } = useSendTransaction()
+
+  // Rhinestone config
+  const rhinestoneConfig = {
+    chain: sepolia,
+    rhinestoneApiKey: import.meta.env.VITE_RHINESTONE_API_KEY,
+  }
+
+  // Wait for clients to be ready before rendering the machine component
+  if (!publicClient || !walletClient) {
+    return (
+      <div
+        style={{
+          padding: '40px',
+          maxWidth: '600px',
+          margin: '0 auto',
+          fontFamily: 'system-ui',
+        }}
+      >
+        <h1>🔧 ENS Renewal with Rhinestone</h1>
+        {!isConnected ? (
+          <div
+            style={{
+              padding: '20px',
+              background: '#fee',
+              borderRadius: '8px',
+              marginBottom: '20px',
+            }}
+          >
+            <p>Please connect your wallet to continue</p>
+          </div>
+        ) : (
+          <div
+            style={{
+              padding: '20px',
+              background: '#fff3e0',
+              borderRadius: '8px',
+              marginBottom: '20px',
+            }}
+          >
+            <p>⏳ Loading wallet client...</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Use wallet address as key to force remount when wallet changes
+  // This ensures the TransactionService is always created with the current walletClient
+  const key = `${walletClient.account?.address}-${publicClient.chain?.id}`
+
+  return (
+    <ENSRenewalWithMachine
+      key={key}
+      address={address}
+      isConnected={isConnected}
+      publicClient={publicClient}
+      walletClient={walletClient}
+      rhinestoneConfig={rhinestoneConfig}
+      sendTransaction={sendTransaction}
+    />
   )
 }
 

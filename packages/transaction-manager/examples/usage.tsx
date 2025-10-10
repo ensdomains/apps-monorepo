@@ -1,8 +1,11 @@
 import React from 'react'
 import { useMachine } from '@xstate/react'
 import { usePublicClient, useWalletClient } from 'wagmi'
-import { transactionMachine, TransactionService, useAuditTrail } from '@ens-apps/transaction-manager'
+import { transactionMachine, TransactionService, AuditTrailService } from '@ens-apps/transaction-manager'
 import type { EOATransactionRequest, ERC4337UserOperation } from '@ens-apps/transaction-manager'
+
+// Create singleton audit service
+const auditService = new AuditTrailService()
 
 /**
  * Example 1: Basic EOA Transaction
@@ -159,20 +162,11 @@ export function SmartAccountTransaction() {
  * Example 3: Audit Trail Dashboard
  */
 export function AuditTrailDashboard() {
-  const {
-    getDebugReport,
-    exportAudit,
-    importAudit,
-    getTransitionHistory,
-    clearAudit,
-    addEntry
-  } = useAuditTrail()
-
   const [history, setHistory] = React.useState<any[]>([])
   const [report, setReport] = React.useState<any>(null)
 
   const handleViewHistory = () => {
-    const transitions = getTransitionHistory({
+    const transitions = auditService.getTransitionHistory({
       fromTime: Date.now() - 3600000, // Last hour
       includeErrors: true
     })
@@ -180,16 +174,33 @@ export function AuditTrailDashboard() {
   }
 
   const handleGenerateReport = () => {
-    const debugReport = getDebugReport()
+    const debugReport = auditService.generateDebugReport()
     setReport(debugReport)
     console.log('Debug Report:', debugReport)
+  }
+
+  const handleExportAudit = () => {
+    const json = auditService.exportToJson()
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `ens-audit-trail-${Date.now()}.json`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       try {
-        await importAudit(file)
+        const text = await file.text()
+        const result = await auditService.importFromJson(text)
+
+        if (result.isErr()) {
+          throw result.error
+        }
+
         alert('Audit data imported successfully')
       } catch (error) {
         alert('Failed to import audit data')
@@ -198,7 +209,7 @@ export function AuditTrailDashboard() {
   }
 
   const handleAddCustomEntry = () => {
-    addEntry(
+    auditService.addAuditEntry(
       'info',
       'Custom audit entry',
       {
@@ -209,6 +220,14 @@ export function AuditTrailDashboard() {
     )
   }
 
+  const handleClearAudit = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('@ens/audit-trail')
+    }
+    setHistory([])
+    setReport(null)
+  }
+
   return (
     <div>
       <h3>Audit Trail Dashboard</h3>
@@ -216,8 +235,8 @@ export function AuditTrailDashboard() {
       <div>
         <button onClick={handleViewHistory}>View History</button>
         <button onClick={handleGenerateReport}>Generate Report</button>
-        <button onClick={exportAudit}>Export Audit</button>
-        <button onClick={clearAudit}>Clear Audit</button>
+        <button onClick={handleExportAudit}>Export Audit</button>
+        <button onClick={handleClearAudit}>Clear Audit</button>
         <button onClick={handleAddCustomEntry}>Add Custom Entry</button>
       </div>
 

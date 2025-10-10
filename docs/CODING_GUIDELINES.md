@@ -6,6 +6,10 @@
 
 React components should focus on presentation and user interaction, not business logic or state management. Extract logic into reusable functions and manage complex state in XState machines.
 
+**Prefer pure functions over classes.**
+
+Classes introduce additional complexity and coupling. Use pure functions, modules with exported functions, and services where possible. Reserve classes only for cases where object-oriented patterns provide clear benefits (e.g., third-party library requirements).
+
 ## React Layer Principles
 
 ### ❌ Avoid Custom Hooks (Unless Absolutely Necessary)
@@ -278,6 +282,70 @@ function useStateManagement() {
 const [state, send] = useMachine(machine)
 ```
 
+## Code Organization
+
+### Prefer Pure Functions Over Classes
+
+**Bad:**
+```typescript
+// ❌ Class-based service with instance state
+export class AuditTrailService {
+  private transitions: StateTransition[] = []
+  private auditLog: AuditEntry[] = []
+
+  recordTransition(transition: StateTransition): void {
+    this.transitions.push(transition)
+    this.save()
+  }
+
+  private save(): void {
+    localStorage.setItem('audit', JSON.stringify({
+      transitions: this.transitions,
+      auditLog: this.auditLog
+    }))
+  }
+}
+
+// Usage requires instantiation
+const service = new AuditTrailService()
+service.recordTransition(transition)
+```
+
+**Good:**
+```typescript
+// ✅ Module with pure functions
+function loadFromStorage(): AuditTrailData {
+  const data = localStorage.getItem('audit')
+  return data ? JSON.parse(data) : { transitions: [], auditLog: [] }
+}
+
+function saveToStorage(data: AuditTrailData): void {
+  localStorage.setItem('audit', JSON.stringify(data))
+}
+
+export function recordTransition(transition: StateTransition): void {
+  const data = loadFromStorage()
+  data.transitions.push(transition)
+  saveToStorage(data)
+}
+
+// Usage is direct and simple
+import * as auditTrail from './audit-trail.service'
+auditTrail.recordTransition(transition)
+```
+
+**Benefits:**
+- ✅ No instantiation required
+- ✅ Easier to test (no mocking classes)
+- ✅ Simpler imports and usage
+- ✅ More functional programming friendly
+- ✅ Better tree-shaking in bundlers
+
+**When classes ARE acceptable:**
+- Third-party library requirements
+- Complex object hierarchies with inheritance
+- Encapsulation with private state that truly benefits from OOP
+
 ## Summary
 
 **Golden Rules:**
@@ -288,12 +356,14 @@ const [state, send] = useMachine(machine)
 4. **Use React state for UI state** - Form inputs, toggles, simple caching
 5. **Be explicit** - Make data flow visible in component code
 6. **Minimize custom hooks** - Only when truly necessary (DOM APIs, framework integration)
+7. **Prefer pure functions over classes** - Use module exports instead of class instances
 
 **Ask yourself:**
 - Can this logic work outside React? → Make it a helper function
 - Is this UI state or business state? → React state vs XState
 - Am I hiding complexity in a hook? → Extract to helper instead
 - Would a new developer understand this component easily? → Keep it explicit
+- Am I using a class when functions would suffice? → Use module exports instead
 
 ---
 
