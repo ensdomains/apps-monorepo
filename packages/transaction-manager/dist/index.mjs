@@ -798,8 +798,31 @@ var transactionMachine = setup({
     retryCount: 0,
     fallbackChecks: 0,
     transactionService: input.transactionService,
-    auditService: input.auditService
+    auditService: input.auditService,
+    modal: {
+      isOpen: false,
+      flowType: "single",
+      currentStepIndex: 0
+    }
   }),
+  on: {
+    CLOSE_MODAL: {
+      actions: assign({
+        modal: ({ context }) => ({
+          ...context.modal,
+          isOpen: false
+        })
+      })
+    },
+    UPDATE_MODAL_DATA: {
+      actions: assign({
+        modal: ({ event, context }) => ({
+          ...context.modal,
+          ...event.data
+        })
+      })
+    }
+  },
   states: {
     idle: {
       on: {
@@ -813,7 +836,21 @@ var transactionMachine = setup({
             hash: void 0,
             userOpHash: void 0,
             receipt: void 0,
-            error: void 0
+            error: void 0,
+            modal: ({ event, context }) => ({
+              ...context.modal,
+              ...event.modal || {},
+              isOpen: true
+            })
+          })
+        },
+        OPEN_MODAL: {
+          actions: assign({
+            modal: ({ event, context }) => ({
+              ...context.modal,
+              ...event.data || {},
+              isOpen: true
+            })
           })
         }
       }
@@ -1138,112 +1175,6 @@ function useAuditTrail() {
     addEntry,
     getTransitionHistory,
     clearAudit
-  };
-}
-
-// src/hooks/useTransactionModal.ts
-import { useState as useState2, useCallback as useCallback2 } from "react";
-var initialState = {
-  isOpen: false,
-  title: void 0,
-  ensName: void 0,
-  avatarUrl: void 0,
-  network: void 0,
-  estimatedCost: void 0,
-  steps: void 0,
-  currentStepIndex: 0,
-  flowType: "single",
-  selectedPayment: void 0,
-  paymentOptions: void 0
-};
-function useTransactionModal(defaultState) {
-  const [state, setState] = useState2({
-    ...initialState,
-    ...defaultState
-  });
-  const openModal = useCallback2(() => {
-    setState((prev) => ({ ...prev, isOpen: true }));
-  }, []);
-  const closeModal = useCallback2(() => {
-    setState((prev) => ({ ...prev, isOpen: false }));
-  }, []);
-  const setTitle = useCallback2((title) => {
-    setState((prev) => ({ ...prev, title }));
-  }, []);
-  const setENSName = useCallback2((ensName, avatarUrl) => {
-    setState((prev) => ({ ...prev, ensName, avatarUrl }));
-  }, []);
-  const setNetwork = useCallback2((network) => {
-    setState((prev) => ({ ...prev, network }));
-  }, []);
-  const setEstimatedCost = useCallback2((estimatedCost) => {
-    setState((prev) => ({ ...prev, estimatedCost }));
-  }, []);
-  const setSteps = useCallback2((steps) => {
-    setState((prev) => ({
-      ...prev,
-      steps,
-      currentStepIndex: 0,
-      flowType: steps.length > 1 ? "batched" : "single"
-    }));
-  }, []);
-  const addStep = useCallback2((step) => {
-    setState((prev) => ({
-      ...prev,
-      steps: [...prev.steps || [], step]
-    }));
-  }, []);
-  const updateStep = useCallback2(
-    (stepId, updates) => {
-      setState((prev) => ({
-        ...prev,
-        steps: prev.steps?.map(
-          (step) => step.id === stepId ? { ...step, ...updates } : step
-        )
-      }));
-    },
-    []
-  );
-  const nextStep = useCallback2(() => {
-    setState((prev) => ({
-      ...prev,
-      currentStepIndex: Math.min(
-        (prev.currentStepIndex || 0) + 1,
-        (prev.steps?.length || 1) - 1
-      )
-    }));
-  }, []);
-  const previousStep = useCallback2(() => {
-    setState((prev) => ({
-      ...prev,
-      currentStepIndex: Math.max((prev.currentStepIndex || 0) - 1, 0)
-    }));
-  }, []);
-  const setPaymentOptions = useCallback2((paymentOptions) => {
-    setState((prev) => ({ ...prev, paymentOptions }));
-  }, []);
-  const selectPayment = useCallback2((selectedPayment) => {
-    setState((prev) => ({ ...prev, selectedPayment }));
-  }, []);
-  const reset = useCallback2(() => {
-    setState({ ...initialState, ...defaultState });
-  }, [defaultState]);
-  return {
-    ...state,
-    openModal,
-    closeModal,
-    setTitle,
-    setENSName,
-    setNetwork,
-    setEstimatedCost,
-    setSteps,
-    addStep,
-    updateStep,
-    nextStep,
-    previousStep,
-    setPaymentOptions,
-    selectPayment,
-    reset
   };
 }
 
@@ -1984,7 +1915,6 @@ export {
   getRhinestoneSmartAccountAddress,
   prepareENSRenewal,
   transactionMachine,
-  useAuditTrail,
-  useTransactionModal
+  useAuditTrail
 };
 //# sourceMappingURL=index.mjs.map

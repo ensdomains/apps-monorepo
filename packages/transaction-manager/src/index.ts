@@ -37,7 +37,6 @@ export { transactionMachine } from './machines/transaction.machine'
 
 // Hooks
 export { useAuditTrail, type UseAuditTrailReturn } from './hooks/useAuditTrail'
-export { useTransactionModal, type UseTransactionModalReturn } from './hooks/useTransactionModal'
 
 // Helpers
 export {

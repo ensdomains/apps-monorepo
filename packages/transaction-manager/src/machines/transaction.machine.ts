@@ -1,6 +1,6 @@
 import { setup, assign, fromPromise } from 'xstate'
 import type { Hash, TransactionReceipt } from 'viem'
-import type { TransactionRequest, TransactionOptions } from '../types/transaction.types'
+import type { TransactionRequest, TransactionOptions, TransactionModalState } from '../types/transaction.types'
 import type { TransactionService } from '../services/transaction.service'
 import type { AuditTrailService } from '../services/audit-trail.service'
 import {
@@ -24,16 +24,20 @@ export const transactionMachine = setup({
       fallbackChecks: number
       transactionService: TransactionService
       auditService?: AuditTrailService
+      modal: TransactionModalState
     },
     input: {} as {
       transactionService: TransactionService
       auditService?: AuditTrailService
     },
     events: {} as
-      | { type: 'EXECUTE'; request: TransactionRequest; options?: TransactionOptions }
+      | { type: 'EXECUTE'; request: TransactionRequest; options?: TransactionOptions; modal?: Partial<TransactionModalState> }
       | { type: 'RETRY' }
       | { type: 'CANCEL' }
       | { type: 'FORCE_SUCCESS' }
+      | { type: 'OPEN_MODAL'; data?: Partial<TransactionModalState> }
+      | { type: 'CLOSE_MODAL' }
+      | { type: 'UPDATE_MODAL_DATA'; data: Partial<TransactionModalState> }
   },
   actors: {
     submitTransaction: fromPromise(async ({ input }: {
@@ -181,8 +185,31 @@ export const transactionMachine = setup({
     retryCount: 0,
     fallbackChecks: 0,
     transactionService: input.transactionService,
-    auditService: input.auditService
+    auditService: input.auditService,
+    modal: {
+      isOpen: false,
+      flowType: 'single',
+      currentStepIndex: 0
+    }
   }),
+  on: {
+    CLOSE_MODAL: {
+      actions: assign({
+        modal: ({ context }) => ({
+          ...context.modal,
+          isOpen: false
+        })
+      })
+    },
+    UPDATE_MODAL_DATA: {
+      actions: assign({
+        modal: ({ event, context }) => ({
+          ...context.modal,
+          ...event.data
+        })
+      })
+    }
+  },
   states: {
     idle: {
       on: {
@@ -196,7 +223,21 @@ export const transactionMachine = setup({
             hash: undefined,
             userOpHash: undefined,
             receipt: undefined,
-            error: undefined
+            error: undefined,
+            modal: ({ event, context }) => ({
+              ...context.modal,
+              ...(event.modal || {}),
+              isOpen: true
+            })
+          })
+        },
+        OPEN_MODAL: {
+          actions: assign({
+            modal: ({ event, context }) => ({
+              ...context.modal,
+              ...(event.data || {}),
+              isOpen: true
+            })
           })
         }
       }

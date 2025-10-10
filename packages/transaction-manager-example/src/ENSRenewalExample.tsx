@@ -6,7 +6,6 @@ import {
   transactionMachine,
   TransactionService,
   TransactionModal,
-  useTransactionModal,
   prepareENSRenewal,
   getENSRenewalPrice,
   getRhinestoneSmartAccountAddress,
@@ -38,13 +37,6 @@ function ENSRenewalExample() {
     input: {
       transactionService: new TransactionService(publicClient!, walletClient),
     },
-  })
-
-  // Transaction Modal
-  const modal = useTransactionModal({
-    ensName: ui.name || 'domico.eth',
-    network: 'Sepolia',
-    estimatedCost: ui.renewalPrice ? `${formatEther(ui.renewalPrice)} ETH` : '0.0011 ETH',
   })
 
   // Derive UI state from machine state using ts-pattern
@@ -94,12 +86,17 @@ function ENSRenewalExample() {
 
   const hash = state.context.hash
 
-  // Sync transaction state with modal
+  // Update modal data when renewal price changes
   useEffect(() => {
     if (ui.renewalPrice) {
-      modal.setEstimatedCost(`${formatEther(ui.renewalPrice)} ETH`)
+      send({
+        type: 'UPDATE_MODAL_DATA',
+        data: {
+          estimatedCost: `${formatEther(ui.renewalPrice)} ETH`
+        }
+      })
     }
-  }, [ui.renewalPrice, modal.setEstimatedCost])
+  }, [ui.renewalPrice, send])
 
   // Fetch renewal price when name or duration changes
   useEffect(() => {
@@ -177,16 +174,12 @@ function ENSRenewalExample() {
     }
   }, [ui.smartAccountAddress, publicClient])
 
-  const handleRenew = () => {
+  const handleRenew = async () => {
     if (!ui.name) {
       alert('Please enter a name to renew')
       return
     }
 
-    modal.openModal()
-  }
-
-  const handleStartTransaction = async () => {
     if (!publicClient || !walletClient) {
       console.error('Missing clients')
       return
@@ -210,18 +203,24 @@ function ENSRenewalExample() {
 
     // Handle Result type with helper
     handleResult(result, {
-      onOk: ({ request, options }) => {
-        // Execute via transaction machine
+      onOk: (data: { request: any; options: any }) => {
+        // Execute via transaction machine with modal data
         send({
           type: 'EXECUTE',
-          request,
+          request: data.request,
           options: {
-            ...options,
+            ...data.options,
             description: `Renew ${cleanName}.eth for ${ui.duration} year(s)`,
           },
+          modal: {
+            title: `Renew ${ui.name}`,
+            ensName: ui.name,
+            network: 'Sepolia',
+            estimatedCost: ui.renewalPrice ? `${formatEther(ui.renewalPrice)} ETH` : '0.0011 ETH',
+          }
         })
       },
-      onErr: (error) => {
+      onErr: (error: Error) => {
         console.error('Failed to prepare renewal:', error)
         alert(`Failed to prepare transaction: ${error.message}`)
       },
@@ -577,16 +576,10 @@ function ENSRenewalExample() {
 
       {/* Transaction Modal */}
       <TransactionModal
-        isOpen={modal.isOpen}
-        title={`Renew ${ui.name || 'Name'}`}
-        ensName={ui.name}
-        network={modal.network}
-        estimatedCost={modal.estimatedCost}
+        {...state.context.modal}
         machineState={machineState}
-        onClose={modal.closeModal}
-        onStart={handleStartTransaction}
-        onDone={modal.closeModal}
-        onRetry={handleStartTransaction}
+        onClose={() => send({ type: 'CLOSE_MODAL' })}
+        onDone={() => send({ type: 'CLOSE_MODAL' })}
       />
     </div>
   )

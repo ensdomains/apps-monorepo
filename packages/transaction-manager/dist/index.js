@@ -43,8 +43,7 @@ __export(index_exports, {
   getRhinestoneSmartAccountAddress: () => getRhinestoneSmartAccountAddress,
   prepareENSRenewal: () => prepareENSRenewal,
   transactionMachine: () => transactionMachine,
-  useAuditTrail: () => useAuditTrail,
-  useTransactionModal: () => useTransactionModal
+  useAuditTrail: () => useAuditTrail
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -846,8 +845,31 @@ var transactionMachine = (0, import_xstate.setup)({
     retryCount: 0,
     fallbackChecks: 0,
     transactionService: input.transactionService,
-    auditService: input.auditService
+    auditService: input.auditService,
+    modal: {
+      isOpen: false,
+      flowType: "single",
+      currentStepIndex: 0
+    }
   }),
+  on: {
+    CLOSE_MODAL: {
+      actions: (0, import_xstate.assign)({
+        modal: ({ context }) => ({
+          ...context.modal,
+          isOpen: false
+        })
+      })
+    },
+    UPDATE_MODAL_DATA: {
+      actions: (0, import_xstate.assign)({
+        modal: ({ event, context }) => ({
+          ...context.modal,
+          ...event.data
+        })
+      })
+    }
+  },
   states: {
     idle: {
       on: {
@@ -861,7 +883,21 @@ var transactionMachine = (0, import_xstate.setup)({
             hash: void 0,
             userOpHash: void 0,
             receipt: void 0,
-            error: void 0
+            error: void 0,
+            modal: ({ event, context }) => ({
+              ...context.modal,
+              ...event.modal || {},
+              isOpen: true
+            })
+          })
+        },
+        OPEN_MODAL: {
+          actions: (0, import_xstate.assign)({
+            modal: ({ event, context }) => ({
+              ...context.modal,
+              ...event.data || {},
+              isOpen: true
+            })
           })
         }
       }
@@ -1189,112 +1225,6 @@ function useAuditTrail() {
   };
 }
 
-// src/hooks/useTransactionModal.ts
-var import_react2 = require("react");
-var initialState = {
-  isOpen: false,
-  title: void 0,
-  ensName: void 0,
-  avatarUrl: void 0,
-  network: void 0,
-  estimatedCost: void 0,
-  steps: void 0,
-  currentStepIndex: 0,
-  flowType: "single",
-  selectedPayment: void 0,
-  paymentOptions: void 0
-};
-function useTransactionModal(defaultState) {
-  const [state, setState] = (0, import_react2.useState)({
-    ...initialState,
-    ...defaultState
-  });
-  const openModal = (0, import_react2.useCallback)(() => {
-    setState((prev) => ({ ...prev, isOpen: true }));
-  }, []);
-  const closeModal = (0, import_react2.useCallback)(() => {
-    setState((prev) => ({ ...prev, isOpen: false }));
-  }, []);
-  const setTitle = (0, import_react2.useCallback)((title) => {
-    setState((prev) => ({ ...prev, title }));
-  }, []);
-  const setENSName = (0, import_react2.useCallback)((ensName, avatarUrl) => {
-    setState((prev) => ({ ...prev, ensName, avatarUrl }));
-  }, []);
-  const setNetwork = (0, import_react2.useCallback)((network) => {
-    setState((prev) => ({ ...prev, network }));
-  }, []);
-  const setEstimatedCost = (0, import_react2.useCallback)((estimatedCost) => {
-    setState((prev) => ({ ...prev, estimatedCost }));
-  }, []);
-  const setSteps = (0, import_react2.useCallback)((steps) => {
-    setState((prev) => ({
-      ...prev,
-      steps,
-      currentStepIndex: 0,
-      flowType: steps.length > 1 ? "batched" : "single"
-    }));
-  }, []);
-  const addStep = (0, import_react2.useCallback)((step) => {
-    setState((prev) => ({
-      ...prev,
-      steps: [...prev.steps || [], step]
-    }));
-  }, []);
-  const updateStep = (0, import_react2.useCallback)(
-    (stepId, updates) => {
-      setState((prev) => ({
-        ...prev,
-        steps: prev.steps?.map(
-          (step) => step.id === stepId ? { ...step, ...updates } : step
-        )
-      }));
-    },
-    []
-  );
-  const nextStep = (0, import_react2.useCallback)(() => {
-    setState((prev) => ({
-      ...prev,
-      currentStepIndex: Math.min(
-        (prev.currentStepIndex || 0) + 1,
-        (prev.steps?.length || 1) - 1
-      )
-    }));
-  }, []);
-  const previousStep = (0, import_react2.useCallback)(() => {
-    setState((prev) => ({
-      ...prev,
-      currentStepIndex: Math.max((prev.currentStepIndex || 0) - 1, 0)
-    }));
-  }, []);
-  const setPaymentOptions = (0, import_react2.useCallback)((paymentOptions) => {
-    setState((prev) => ({ ...prev, paymentOptions }));
-  }, []);
-  const selectPayment = (0, import_react2.useCallback)((selectedPayment) => {
-    setState((prev) => ({ ...prev, selectedPayment }));
-  }, []);
-  const reset = (0, import_react2.useCallback)(() => {
-    setState({ ...initialState, ...defaultState });
-  }, [defaultState]);
-  return {
-    ...state,
-    openModal,
-    closeModal,
-    setTitle,
-    setENSName,
-    setNetwork,
-    setEstimatedCost,
-    setSteps,
-    addStep,
-    updateStep,
-    nextStep,
-    previousStep,
-    setPaymentOptions,
-    selectPayment,
-    reset
-  };
-}
-
 // src/helpers/ens-renewal.helpers.ts
 var import_neverthrow4 = require("neverthrow");
 async function prepareENSRenewal(params) {
@@ -1388,7 +1318,7 @@ async function getRhinestoneSmartAccountAddress(publicClient, walletClient, rhin
 }
 
 // src/components/TransactionModal/TransactionModal.tsx
-var import_react3 = require("react");
+var import_react2 = require("react");
 
 // src/components/TransactionModal/TransactionModalHeader.tsx
 var import_jsx_runtime = require("react/jsx-runtime");
@@ -1766,7 +1696,7 @@ function TransactionModal({
   onPaymentSelect,
   onBack
 }) {
-  (0, import_react3.useEffect)(() => {
+  (0, import_react2.useEffect)(() => {
     const handleEscape = (e) => {
       if (e.key === "Escape" && isOpen) {
         onClose();
@@ -1775,7 +1705,7 @@ function TransactionModal({
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
-  (0, import_react3.useEffect)(() => {
+  (0, import_react2.useEffect)(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
     } else {
@@ -2033,7 +1963,6 @@ function TransactionModal({
   getRhinestoneSmartAccountAddress,
   prepareENSRenewal,
   transactionMachine,
-  useAuditTrail,
-  useTransactionModal
+  useAuditTrail
 });
 //# sourceMappingURL=index.js.map
