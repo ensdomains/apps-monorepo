@@ -1,23 +1,21 @@
 import React from 'react'
-import { useTransaction, useAuditTrail } from '@ens-apps/transaction-manager'
+import { useMachine } from '@xstate/react'
+import { usePublicClient, useWalletClient } from 'wagmi'
+import { transactionMachine, TransactionService, useAuditTrail } from '@ens-apps/transaction-manager'
 import type { EOATransactionRequest, ERC4337UserOperation } from '@ens-apps/transaction-manager'
 
 /**
  * Example 1: Basic EOA Transaction
  */
 export function SendEthButton() {
-  const {
-    execute,
-    retry,
-    state,
-    isLoading,
-    isPending,
-    isSuccess,
-    isError,
-    hash,
-    error,
-    debugReport
-  } = useTransaction()
+  const publicClient = usePublicClient()
+  const { data: walletClient } = useWalletClient()
+
+  const [state, send] = useMachine(transactionMachine, {
+    input: {
+      transactionService: new TransactionService(publicClient!, walletClient)
+    }
+  })
 
   const handleSend = () => {
     const request: EOATransactionRequest = {
@@ -28,13 +26,22 @@ export function SendEthButton() {
       chainId: 1
     }
 
-    execute(request, {
-      confirmations: 2,
-      timeout: 60000,
-      retryCount: 3,
-      retryDelay: 2000
+    send({
+      type: 'EXECUTE',
+      request,
+      options: {
+        confirmations: 2,
+        timeout: 60000,
+        retryCount: 3,
+        retryDelay: 2000
+      }
     })
   }
+
+  const isLoading = state.matches('preparing') || state.matches('submitting')
+  const isPending = state.matches('pending') || state.matches('confirming') || state.matches('checkingFallback')
+  const isSuccess = state.matches('success')
+  const isError = state.value.toString().startsWith('error')
 
   return (
     <div>
@@ -51,19 +58,16 @@ export function SendEthButton() {
 
       {isError && (
         <div>
-          <p>Error: {error?.message}</p>
-          <button onClick={retry}>Retry</button>
-          <button onClick={() => console.log(debugReport())}>
-            Export Debug Report
-          </button>
+          <p>Error: {state.context.error?.message}</p>
+          <button onClick={() => send({ type: 'RETRY' })}>Retry</button>
         </div>
       )}
 
       {isSuccess && (
         <div>
-          <p>Success! Transaction hash: {hash}</p>
+          <p>Success! Transaction hash: {state.context.hash}</p>
           <a
-            href={`https://etherscan.io/tx/${hash}`}
+            href={`https://etherscan.io/tx/${state.context.hash}`}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -72,7 +76,7 @@ export function SendEthButton() {
         </div>
       )}
 
-      <p>State: {state}</p>
+      <p>State: {state.value.toString()}</p>
     </div>
   )
 }
@@ -81,16 +85,14 @@ export function SendEthButton() {
  * Example 2: ERC-4337 User Operation
  */
 export function SmartAccountTransaction() {
-  const {
-    execute,
-    state,
-    isLoading,
-    isPending,
-    isSuccess,
-    isError,
-    hash,
-    error
-  } = useTransaction()
+  const publicClient = usePublicClient()
+  const { data: walletClient } = useWalletClient()
+
+  const [state, send] = useMachine(transactionMachine, {
+    input: {
+      transactionService: new TransactionService(publicClient!, walletClient)
+    }
+  })
 
   const handleSendUserOp = () => {
     const userOp: ERC4337UserOperation = {
@@ -108,11 +110,20 @@ export function SmartAccountTransaction() {
       chainId: 1
     }
 
-    execute(userOp, {
-      confirmations: 1,
-      timeout: 120000 // 2 minutes for 4337 ops
+    send({
+      type: 'EXECUTE',
+      request: userOp,
+      options: {
+        confirmations: 1,
+        timeout: 120000 // 2 minutes for 4337 ops
+      }
     })
   }
+
+  const isLoading = state.matches('preparing') || state.matches('submitting')
+  const isPending = state.matches('pending') || state.matches('confirming')
+  const isSuccess = state.matches('success')
+  const isError = state.value.toString().startsWith('error')
 
   return (
     <div>
@@ -129,17 +140,17 @@ export function SmartAccountTransaction() {
 
       {isError && (
         <div>
-          <p>Error: {error?.message}</p>
+          <p>Error: {state.context.error?.message}</p>
         </div>
       )}
 
       {isSuccess && (
         <div>
-          <p>Success! UserOp hash: {hash}</p>
+          <p>Success! UserOp hash: {state.context.hash}</p>
         </div>
       )}
 
-      <p>State: {state}</p>
+      <p>State: {state.value.toString()}</p>
     </div>
   )
 }
@@ -251,8 +262,21 @@ export function AuditTrailDashboard() {
  * Example 4: Multi-step Flow (Name Registration)
  */
 export function NameRegistrationFlow() {
-  const commitTx = useTransaction()
-  const registerTx = useTransaction()
+  const publicClient = usePublicClient()
+  const { data: walletClient } = useWalletClient()
+
+  const [commitState, sendCommit] = useMachine(transactionMachine, {
+    input: {
+      transactionService: new TransactionService(publicClient!, walletClient)
+    }
+  })
+
+  const [registerState, sendRegister] = useMachine(transactionMachine, {
+    input: {
+      transactionService: new TransactionService(publicClient!, walletClient)
+    }
+  })
+
   const [step, setStep] = React.useState<'commit' | 'wait' | 'register' | 'complete'>('commit')
 
   const handleCommit = () => {
@@ -264,8 +288,10 @@ export function NameRegistrationFlow() {
       chainId: 1
     }
 
-    commitTx.execute(request, {
-      confirmations: 1
+    sendCommit({
+      type: 'EXECUTE',
+      request,
+      options: { confirmations: 1 }
     })
   }
 
@@ -279,25 +305,32 @@ export function NameRegistrationFlow() {
       chainId: 1
     }
 
-    registerTx.execute(request, {
-      confirmations: 2
+    sendRegister({
+      type: 'EXECUTE',
+      request,
+      options: { confirmations: 2 }
     })
   }
 
   // Handle state transitions
   React.useEffect(() => {
-    if (commitTx.isSuccess && step === 'commit') {
+    if (commitState.matches('success') && step === 'commit') {
       setStep('wait')
       // Wait 60 seconds
       setTimeout(() => setStep('register'), 60000)
     }
-  }, [commitTx.isSuccess, step])
+  }, [commitState.value, step])
 
   React.useEffect(() => {
-    if (registerTx.isSuccess && step === 'register') {
+    if (registerState.matches('success') && step === 'register') {
       setStep('complete')
     }
-  }, [registerTx.isSuccess, step])
+  }, [registerState.value, step])
+
+  const commitLoading = commitState.matches('preparing') || commitState.matches('submitting')
+  const commitPending = commitState.matches('pending')
+  const registerLoading = registerState.matches('preparing') || registerState.matches('submitting')
+  const registerPending = registerState.matches('pending')
 
   return (
     <div>
@@ -307,14 +340,14 @@ export function NameRegistrationFlow() {
         <h4>Step 1: Commit</h4>
         <button
           onClick={handleCommit}
-          disabled={commitTx.isLoading || commitTx.isPending || step !== 'commit'}
+          disabled={commitLoading || commitPending || step !== 'commit'}
         >
-          {commitTx.isLoading ? 'Committing...' :
-           commitTx.isPending ? 'Waiting...' :
-           commitTx.isSuccess ? 'Committed!' :
+          {commitLoading ? 'Committing...' :
+           commitPending ? 'Waiting...' :
+           commitState.matches('success') ? 'Committed!' :
            'Start Commit'}
         </button>
-        {commitTx.hash && <p>Commit TX: {commitTx.hash}</p>}
+        {commitState.context.hash && <p>Commit TX: {commitState.context.hash}</p>}
       </div>
 
       {step === 'wait' && (
@@ -329,14 +362,14 @@ export function NameRegistrationFlow() {
           <h4>Step 3: Register</h4>
           <button
             onClick={handleRegister}
-            disabled={registerTx.isLoading || registerTx.isPending || step !== 'register'}
+            disabled={registerLoading || registerPending || step !== 'register'}
           >
-            {registerTx.isLoading ? 'Registering...' :
-             registerTx.isPending ? 'Waiting...' :
-             registerTx.isSuccess ? 'Registered!' :
+            {registerLoading ? 'Registering...' :
+             registerPending ? 'Waiting...' :
+             registerState.matches('success') ? 'Registered!' :
              'Complete Registration'}
           </button>
-          {registerTx.hash && <p>Register TX: {registerTx.hash}</p>}
+          {registerState.context.hash && <p>Register TX: {registerState.context.hash}</p>}
         </div>
       )}
 

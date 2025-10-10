@@ -36,10 +36,17 @@ export {
 export { transactionMachine } from './machines/transaction.machine'
 
 // Hooks
-export { useTransaction, type UseTransactionReturn } from './hooks/useTransaction'
 export { useAuditTrail, type UseAuditTrailReturn } from './hooks/useAuditTrail'
-export { useENSRenewal, type UseENSRenewalOptions } from './hooks/useENSRenewal'
 export { useTransactionModal, type UseTransactionModalReturn } from './hooks/useTransactionModal'
+
+// Helpers
+export {
+  prepareENSRenewal,
+  getENSRenewalPrice,
+  getRhinestoneSmartAccountAddress,
+  type PrepareENSRenewalParams,
+  type ENSRenewalTransactionData,
+} from './helpers/ens-renewal.helpers'
 
 // Contracts
 export { ENS_SEPOLIA_CONTRACTS, ETH_REGISTRAR_CONTROLLER_ABI } from './contracts/ens-sepolia'

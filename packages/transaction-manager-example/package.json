@@ -16,6 +16,7 @@
     "permissionless": "^0.2.57",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "ts-pattern": "^5.8.0",
     "viem": "^2.21.58",
     "wagmi": "^2.16.9"
   },

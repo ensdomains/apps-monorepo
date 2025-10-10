@@ -14,7 +14,7 @@ import {
 export const transactionMachine = setup({
   types: {
     context: {} as {
-      request: TransactionRequest
+      request?: TransactionRequest
       options: TransactionOptions
       hash?: Hash
       userOpHash?: Hash
@@ -26,12 +26,11 @@ export const transactionMachine = setup({
       auditService?: AuditTrailService
     },
     input: {} as {
-      request: TransactionRequest
-      options?: TransactionOptions
       transactionService: TransactionService
       auditService?: AuditTrailService
     },
     events: {} as
+      | { type: 'EXECUTE'; request: TransactionRequest; options?: TransactionOptions }
       | { type: 'RETRY' }
       | { type: 'CANCEL' }
       | { type: 'FORCE_SUCCESS' }
@@ -39,11 +38,15 @@ export const transactionMachine = setup({
   actors: {
     submitTransaction: fromPromise(async ({ input }: {
       input: {
-        request: TransactionRequest
+        request?: TransactionRequest
         options?: TransactionOptions
         service: TransactionService
       }
     }) => {
+      if (!input.request) {
+        throw new Error('No transaction request provided')
+      }
+
       const result = await input.service.submitTransaction(
         input.request,
         input.options
@@ -80,10 +83,14 @@ export const transactionMachine = setup({
 
     checkWithEthCall: fromPromise(async ({ input }: {
       input: {
-        request: TransactionRequest
+        request?: TransactionRequest
         service: TransactionService
       }
     }) => {
+      if (!input.request) {
+        throw new Error('No transaction request provided')
+      }
+
       const result = await input.service.checkWithEthCall(input.request)
 
       if (result.isErr()) {
@@ -167,16 +174,34 @@ export const transactionMachine = setup({
   }
 }).createMachine({
   id: 'transaction',
-  initial: 'preparing',
+  initial: 'idle',
   context: ({ input }) => ({
-    request: input.request,
-    options: input.options || {},
+    request: undefined,
+    options: {},
     retryCount: 0,
     fallbackChecks: 0,
     transactionService: input.transactionService,
     auditService: input.auditService
   }),
   states: {
+    idle: {
+      on: {
+        EXECUTE: {
+          target: 'preparing',
+          actions: assign({
+            request: ({ event }) => event.request,
+            options: ({ event }) => event.options || {},
+            retryCount: 0,
+            fallbackChecks: 0,
+            hash: undefined,
+            userOpHash: undefined,
+            receipt: undefined,
+            error: undefined
+          })
+        }
+      }
+    },
+
     preparing: {
       entry: 'recordTransition',
       always: 'submitting'
@@ -363,7 +388,6 @@ export const transactionMachine = setup({
     },
 
     success: {
-      type: 'final',
       entry: [
         'recordTransition',
         ({ context }) => {
@@ -379,30 +403,40 @@ export const transactionMachine = setup({
             )
           }
         }
-      ]
+      ],
+      on: {
+        EXECUTE: {
+          target: 'preparing',
+          actions: assign({
+            request: ({ event }) => event.request,
+            options: ({ event }) => event.options || {},
+            retryCount: 0,
+            fallbackChecks: 0,
+            hash: undefined,
+            userOpHash: undefined,
+            receipt: undefined,
+            error: undefined
+          })
+        }
+      }
     },
 
     error: {
       initial: 'unknown',
       states: {
         submission: {
-          type: 'final',
           entry: 'recordTransition'
         },
         timeout: {
-          type: 'final',
           entry: 'recordTransition'
         },
         reverted: {
-          type: 'final',
           entry: 'recordTransition'
         },
         cancelled: {
-          type: 'final',
           entry: 'recordTransition'
         },
         unknown: {
-          type: 'final',
           entry: 'recordTransition'
         }
       },
@@ -416,6 +450,19 @@ export const transactionMachine = setup({
             }),
             'recordTransition'
           ]
+        },
+        EXECUTE: {
+          target: 'preparing',
+          actions: assign({
+            request: ({ event }) => event.request,
+            options: ({ event }) => event.options || {},
+            retryCount: 0,
+            fallbackChecks: 0,
+            hash: undefined,
+            userOpHash: undefined,
+            receipt: undefined,
+            error: undefined
+          })
         }
       }
     }

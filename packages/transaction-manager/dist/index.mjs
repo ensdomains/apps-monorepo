@@ -691,6 +691,9 @@ var transactionMachine = setup({
   },
   actors: {
     submitTransaction: fromPromise2(async ({ input }) => {
+      if (!input.request) {
+        throw new Error("No transaction request provided");
+      }
       const result = await input.service.submitTransaction(
         input.request,
         input.options
@@ -714,6 +717,9 @@ var transactionMachine = setup({
       return result.value;
     }),
     checkWithEthCall: fromPromise2(async ({ input }) => {
+      if (!input.request) {
+        throw new Error("No transaction request provided");
+      }
       const result = await input.service.checkWithEthCall(input.request);
       if (result.isErr()) {
         throw result.error;
@@ -785,16 +791,33 @@ var transactionMachine = setup({
   }
 }).createMachine({
   id: "transaction",
-  initial: "preparing",
+  initial: "idle",
   context: ({ input }) => ({
-    request: input.request,
-    options: input.options || {},
+    request: void 0,
+    options: {},
     retryCount: 0,
     fallbackChecks: 0,
     transactionService: input.transactionService,
     auditService: input.auditService
   }),
   states: {
+    idle: {
+      on: {
+        EXECUTE: {
+          target: "preparing",
+          actions: assign({
+            request: ({ event }) => event.request,
+            options: ({ event }) => event.options || {},
+            retryCount: 0,
+            fallbackChecks: 0,
+            hash: void 0,
+            userOpHash: void 0,
+            receipt: void 0,
+            error: void 0
+          })
+        }
+      }
+    },
     preparing: {
       entry: "recordTransition",
       always: "submitting"
@@ -974,7 +997,6 @@ var transactionMachine = setup({
       }
     },
     success: {
-      type: "final",
       entry: [
         "recordTransition",
         ({ context }) => {
@@ -990,29 +1012,39 @@ var transactionMachine = setup({
             );
           }
         }
-      ]
+      ],
+      on: {
+        EXECUTE: {
+          target: "preparing",
+          actions: assign({
+            request: ({ event }) => event.request,
+            options: ({ event }) => event.options || {},
+            retryCount: 0,
+            fallbackChecks: 0,
+            hash: void 0,
+            userOpHash: void 0,
+            receipt: void 0,
+            error: void 0
+          })
+        }
+      }
     },
     error: {
       initial: "unknown",
       states: {
         submission: {
-          type: "final",
           entry: "recordTransition"
         },
         timeout: {
-          type: "final",
           entry: "recordTransition"
         },
         reverted: {
-          type: "final",
           entry: "recordTransition"
         },
         cancelled: {
-          type: "final",
           entry: "recordTransition"
         },
         unknown: {
-          type: "final",
           entry: "recordTransition"
         }
       },
@@ -1026,117 +1058,47 @@ var transactionMachine = setup({
             }),
             "recordTransition"
           ]
+        },
+        EXECUTE: {
+          target: "preparing",
+          actions: assign({
+            request: ({ event }) => event.request,
+            options: ({ event }) => event.options || {},
+            retryCount: 0,
+            fallbackChecks: 0,
+            hash: void 0,
+            userOpHash: void 0,
+            receipt: void 0,
+            error: void 0
+          })
         }
       }
     }
   }
 });
 
-// src/hooks/useTransaction.ts
+// src/hooks/useAuditTrail.ts
 import { useCallback, useState, useEffect } from "react";
-import { createActor } from "xstate";
-import { usePublicClient, useWalletClient } from "wagmi";
 var globalAuditService = null;
-function useTransaction() {
-  const publicClient = usePublicClient();
-  const { data: walletClient } = useWalletClient();
-  const [actor, setActor] = useState(null);
-  const [snapshot, setSnapshot] = useState({ value: "idle", context: {} });
-  useEffect(() => {
-    if (actor) {
-      const subscription = actor.subscribe((state2) => {
-        setSnapshot(state2);
-      });
-      return () => subscription.unsubscribe();
-    }
-  }, [actor]);
-  const send = useCallback((event) => {
-    if (actor) {
-      actor.send(event);
-    }
-  }, [actor]);
-  useEffect(() => {
+function useAuditTrail() {
+  const [auditService] = useState(() => {
     if (!globalAuditService && typeof window !== "undefined") {
       globalAuditService = new AuditTrailService();
     }
-  }, []);
-  const execute = useCallback((request, options) => {
-    if (!publicClient) {
-      console.error("No public client available");
-      return;
-    }
-    const transactionService = new TransactionService(
-      publicClient,
-      walletClient || void 0,
-      options?.rhinestoneConfig
-    );
-    const newActor = createActor(transactionMachine, {
-      input: {
-        request,
-        options: options || {},
-        transactionService,
-        auditService: globalAuditService || void 0
-      }
-    });
-    newActor.start();
-    setActor(newActor);
-  }, [publicClient, walletClient]);
-  const retry = useCallback(() => {
-    send({ type: "RETRY" });
-  }, [send]);
-  const cancel = useCallback(() => {
-    send({ type: "CANCEL" });
-  }, [send]);
-  const forceSuccess = useCallback(() => {
-    send({ type: "FORCE_SUCCESS" });
-  }, [send]);
-  const debugReport = useCallback(() => {
-    if (globalAuditService) {
-      return globalAuditService.generateDebugReport(snapshot.context?.hash);
-    }
-    return null;
-  }, [snapshot.context?.hash]);
-  const state = typeof snapshot.value === "object" ? Object.keys(snapshot.value).join(".") : String(snapshot.value || "idle");
-  return {
-    execute,
-    retry,
-    cancel,
-    forceSuccess,
-    state,
-    isIdle: state === "idle",
-    isLoading: state === "submitting" || state === "preparing",
-    isPending: state === "pending" || state === "confirming" || state === "checkingFallback",
-    isSuccess: state === "success",
-    isError: state.startsWith("error"),
-    hash: snapshot.context?.hash,
-    receipt: snapshot.context?.receipt,
-    error: snapshot.context?.error,
-    debugReport
-  };
-}
-
-// src/hooks/useAuditTrail.ts
-import { useCallback as useCallback2, useState as useState2, useEffect as useEffect2 } from "react";
-var globalAuditService2 = null;
-function useAuditTrail() {
-  const [auditService] = useState2(() => {
-    if (!globalAuditService2 && typeof window !== "undefined") {
-      globalAuditService2 = new AuditTrailService();
-    }
-    return globalAuditService2;
+    return globalAuditService;
   });
-  useEffect2(() => {
+  useEffect(() => {
     return () => {
       if (auditService) {
         auditService.cleanup();
       }
     };
   }, [auditService]);
-  const getDebugReport = useCallback2((transactionId) => {
+  const getDebugReport = useCallback((transactionId) => {
     if (!auditService) return null;
     return auditService.generateDebugReport(transactionId);
   }, [auditService]);
-  const exportAudit = useCallback2(() => {
+  const exportAudit = useCallback(() => {
     if (!auditService) return;
     const json = auditService.exportToJson();
     const blob = new Blob([json], { type: "application/json" });
@@ -1147,7 +1109,7 @@ function useAuditTrail() {
     a.click();
     URL.revokeObjectURL(url);
   }, [auditService]);
-  const importAudit = useCallback2(async (file) => {
+  const importAudit = useCallback(async (file) => {
     if (!auditService) return;
     const text = await file.text();
     const result = await auditService.importFromJson(text);
@@ -1156,18 +1118,18 @@ function useAuditTrail() {
       throw result.error;
     }
   }, [auditService]);
-  const addEntry = useCallback2((level, message, details) => {
+  const addEntry = useCallback((level, message, details) => {
     if (!auditService) return;
     auditService.addAuditEntry(level, message, details);
   }, [auditService]);
-  const getTransitionHistory = useCallback2((filters) => {
+  const getTransitionHistory = useCallback((filters) => {
     if (!auditService) return [];
     return auditService.getTransitionHistory(filters);
   }, [auditService]);
-  const clearAudit = useCallback2(() => {
+  const clearAudit = useCallback(() => {
     if (!auditService || typeof window === "undefined") return;
     localStorage.removeItem("@ens/audit-trail");
-    globalAuditService2 = new AuditTrailService();
+    globalAuditService = new AuditTrailService();
   }, [auditService]);
   return {
     getDebugReport,
@@ -1179,174 +1141,8 @@ function useAuditTrail() {
   };
 }
 
-// src/hooks/useENSRenewal.ts
-import React, { useCallback as useCallback3 } from "react";
-import { usePublicClient as usePublicClient2, useWalletClient as useWalletClient2 } from "wagmi";
-import { sepolia as sepolia2 } from "viem/chains";
-function useENSRenewal(options) {
-  const publicClient = usePublicClient2({ chainId: sepolia2.id });
-  const { data: walletClient } = useWalletClient2();
-  const transaction = useTransaction();
-  const [cachedSmartAccountAddress, setCachedSmartAccountAddress] = React.useState(null);
-  const renewName = useCallback3(
-    async (name, duration, transactionOptions) => {
-      console.log("\u{1F527} renewName called:", {
-        name,
-        duration: duration.toString(),
-        useSmartAccount: options?.useSmartAccount,
-        hasWalletClient: !!walletClient,
-        walletAddress: walletClient?.account?.address,
-        hasPublicClient: !!publicClient,
-        hasRhinestoneApiKey: !!options?.rhinestoneApiKey,
-        hasBundlerUrl: !!options?.bundlerUrl
-      });
-      if (!publicClient) {
-        console.error("\u274C No public client available");
-        return;
-      }
-      if (!walletClient) {
-        console.error("\u274C No wallet client available - wallet may not be connected");
-        return;
-      }
-      if (options?.useSmartAccount) {
-        console.log("\u{1F680} Using Rhinestone smart account for ENS renewal");
-        const rhinestoneService = new RhinestoneAccountService(
-          publicClient,
-          walletClient || void 0,
-          {
-            chain: sepolia2,
-            bundlerUrl: options.bundlerUrl,
-            paymasterUrl: options.paymasterUrl,
-            sponsorshipPolicyId: options.sponsorshipPolicyId,
-            rhinestoneApiKey: options.rhinestoneApiKey
-          }
-        );
-        const txResult = await rhinestoneService.prepareENSRenewalTransaction({
-          name,
-          duration
-        });
-        if (txResult.isErr()) {
-          console.error("\u274C Failed to prepare ENS renewal:", txResult.error);
-          return;
-        }
-        const { to, data, value } = txResult.value;
-        transaction.execute(
-          {
-            type: "rhinestone-intent",
-            to,
-            data,
-            value,
-            from: walletClient?.account?.address,
-            chainId: sepolia2.id,
-            rhinestoneParams: { name, duration }
-          },
-          {
-            ...transactionOptions,
-            rhinestoneConfig: {
-              chain: sepolia2,
-              bundlerUrl: options.bundlerUrl,
-              paymasterUrl: options.paymasterUrl,
-              sponsorshipPolicyId: options.sponsorshipPolicyId,
-              rhinestoneApiKey: options.rhinestoneApiKey
-            }
-          }
-        );
-      } else {
-        const rhinestoneService = new RhinestoneAccountService(publicClient);
-        const txResult = await rhinestoneService.prepareENSRenewalTransaction({
-          name,
-          duration
-        });
-        if (txResult.isErr()) {
-          console.error("Failed to prepare ENS renewal:", txResult.error);
-          return;
-        }
-        const { to, data, value } = txResult.value;
-        transaction.execute(
-          {
-            type: "eoa",
-            to,
-            data,
-            value,
-            from: walletClient?.account?.address
-          },
-          transactionOptions
-        );
-      }
-    },
-    [publicClient, walletClient, options, transaction]
-  );
-  const getRenewalPrice = useCallback3(
-    async (name, duration) => {
-      if (!publicClient) {
-        console.error("No public client available");
-        return null;
-      }
-      const rhinestoneService = new RhinestoneAccountService(publicClient);
-      const result = await rhinestoneService.getRenewalPrice(name, duration);
-      if (result.isErr()) {
-        console.error("Failed to get renewal price:", result.error);
-        return null;
-      }
-      return result.value;
-    },
-    [publicClient]
-  );
-  const getSmartAccountAddress = useCallback3(
-    async () => {
-      console.log("\u{1F50D} getSmartAccountAddress called:", {
-        hasPublicClient: !!publicClient,
-        hasWalletClient: !!walletClient,
-        walletAddress: walletClient?.account?.address,
-        hasRhinestoneApiKey: !!options?.rhinestoneApiKey,
-        hasCached: !!cachedSmartAccountAddress
-      });
-      if (cachedSmartAccountAddress && walletClient?.account?.address) {
-        console.log("\u2705 Returning cached smart account address:", cachedSmartAccountAddress);
-        return cachedSmartAccountAddress;
-      }
-      if (!publicClient || !walletClient) {
-        console.warn("\u26A0\uFE0F Wallet not connected - cannot get smart account address", {
-          hasPublicClient: !!publicClient,
-          hasWalletClient: !!walletClient
-        });
-        return null;
-      }
-      const rhinestoneService = new RhinestoneAccountService(
-        publicClient,
-        walletClient || void 0,
-        {
-          chain: sepolia2,
-          bundlerUrl: options?.bundlerUrl,
-          paymasterUrl: options?.paymasterUrl,
-          sponsorshipPolicyId: options?.sponsorshipPolicyId,
-          rhinestoneApiKey: options?.rhinestoneApiKey
-        }
-      );
-      const result = await rhinestoneService.getSmartAccountAddress();
-      if (result.isErr()) {
-        console.error("Failed to get smart account address:", result.error);
-        return null;
-      }
-      const address = result.value;
-      setCachedSmartAccountAddress(address);
-      return address;
-    },
-    [publicClient, walletClient, options, cachedSmartAccountAddress]
-  );
-  React.useEffect(() => {
-    setCachedSmartAccountAddress(null);
-  }, [walletClient?.account?.address]);
-  return {
-    renewName,
-    getRenewalPrice,
-    getSmartAccountAddress,
-    ...transaction
-  };
-}
-
 // src/hooks/useTransactionModal.ts
-import { useState as useState3, useCallback as useCallback4 } from "react";
+import { useState as useState2, useCallback as useCallback2 } from "react";
 var initialState = {
   isOpen: false,
   title: void 0,
@@ -1361,29 +1157,29 @@ var initialState = {
   paymentOptions: void 0
 };
 function useTransactionModal(defaultState) {
-  const [state, setState] = useState3({
+  const [state, setState] = useState2({
     ...initialState,
     ...defaultState
   });
-  const openModal = useCallback4(() => {
+  const openModal = useCallback2(() => {
     setState((prev) => ({ ...prev, isOpen: true }));
   }, []);
-  const closeModal = useCallback4(() => {
+  const closeModal = useCallback2(() => {
     setState((prev) => ({ ...prev, isOpen: false }));
   }, []);
-  const setTitle = useCallback4((title) => {
+  const setTitle = useCallback2((title) => {
     setState((prev) => ({ ...prev, title }));
   }, []);
-  const setENSName = useCallback4((ensName, avatarUrl) => {
+  const setENSName = useCallback2((ensName, avatarUrl) => {
     setState((prev) => ({ ...prev, ensName, avatarUrl }));
   }, []);
-  const setNetwork = useCallback4((network) => {
+  const setNetwork = useCallback2((network) => {
     setState((prev) => ({ ...prev, network }));
   }, []);
-  const setEstimatedCost = useCallback4((estimatedCost) => {
+  const setEstimatedCost = useCallback2((estimatedCost) => {
     setState((prev) => ({ ...prev, estimatedCost }));
   }, []);
-  const setSteps = useCallback4((steps) => {
+  const setSteps = useCallback2((steps) => {
     setState((prev) => ({
       ...prev,
       steps,
@@ -1391,13 +1187,13 @@ function useTransactionModal(defaultState) {
       flowType: steps.length > 1 ? "batched" : "single"
     }));
   }, []);
-  const addStep = useCallback4((step) => {
+  const addStep = useCallback2((step) => {
     setState((prev) => ({
       ...prev,
       steps: [...prev.steps || [], step]
     }));
   }, []);
-  const updateStep = useCallback4(
+  const updateStep = useCallback2(
     (stepId, updates) => {
       setState((prev) => ({
         ...prev,
@@ -1408,7 +1204,7 @@ function useTransactionModal(defaultState) {
     },
     []
   );
-  const nextStep = useCallback4(() => {
+  const nextStep = useCallback2(() => {
     setState((prev) => ({
       ...prev,
       currentStepIndex: Math.min(
@@ -1417,19 +1213,19 @@ function useTransactionModal(defaultState) {
       )
     }));
   }, []);
-  const previousStep = useCallback4(() => {
+  const previousStep = useCallback2(() => {
     setState((prev) => ({
       ...prev,
       currentStepIndex: Math.max((prev.currentStepIndex || 0) - 1, 0)
     }));
   }, []);
-  const setPaymentOptions = useCallback4((paymentOptions) => {
+  const setPaymentOptions = useCallback2((paymentOptions) => {
     setState((prev) => ({ ...prev, paymentOptions }));
   }, []);
-  const selectPayment = useCallback4((selectedPayment) => {
+  const selectPayment = useCallback2((selectedPayment) => {
     setState((prev) => ({ ...prev, selectedPayment }));
   }, []);
-  const reset = useCallback4(() => {
+  const reset = useCallback2(() => {
     setState({ ...initialState, ...defaultState });
   }, [defaultState]);
   return {
@@ -1451,8 +1247,100 @@ function useTransactionModal(defaultState) {
   };
 }
 
+// src/helpers/ens-renewal.helpers.ts
+import { ok as ok4, err as err4 } from "neverthrow";
+async function prepareENSRenewal(params) {
+  const {
+    publicClient,
+    walletClient,
+    name,
+    duration,
+    chainId,
+    useSmartAccount,
+    rhinestoneConfig
+  } = params;
+  try {
+    const rhinestoneService = new RhinestoneAccountService(
+      publicClient,
+      walletClient,
+      rhinestoneConfig
+    );
+    const txResult = await rhinestoneService.prepareENSRenewalTransaction({
+      name,
+      duration
+    });
+    if (txResult.isErr()) {
+      return txResult;
+    }
+    const { to, data, value } = txResult.value;
+    if (useSmartAccount && rhinestoneConfig) {
+      return ok4({
+        request: {
+          type: "rhinestone-intent",
+          to,
+          data,
+          value,
+          from: walletClient?.account?.address,
+          chainId,
+          rhinestoneParams: { name, duration }
+        },
+        options: {
+          rhinestoneConfig
+        }
+      });
+    } else {
+      return ok4({
+        request: {
+          type: "eoa",
+          to,
+          data,
+          value,
+          from: walletClient?.account?.address,
+          chainId
+        }
+      });
+    }
+  } catch (error) {
+    return err4(
+      error instanceof Error ? error : new Error("Failed to prepare ENS renewal")
+    );
+  }
+}
+async function getENSRenewalPrice(publicClient, name, duration) {
+  try {
+    const rhinestoneService = new RhinestoneAccountService(publicClient);
+    const result = await rhinestoneService.getRenewalPrice(name, duration);
+    if (result.isErr()) {
+      return err4(result.error);
+    }
+    return ok4(result.value);
+  } catch (error) {
+    return err4(
+      error instanceof Error ? error : new Error("Failed to get renewal price")
+    );
+  }
+}
+async function getRhinestoneSmartAccountAddress(publicClient, walletClient, rhinestoneConfig) {
+  try {
+    const rhinestoneService = new RhinestoneAccountService(
+      publicClient,
+      walletClient,
+      rhinestoneConfig
+    );
+    const result = await rhinestoneService.getSmartAccountAddress();
+    if (result.isErr()) {
+      return err4(result.error);
+    }
+    return ok4(result.value);
+  } catch (error) {
+    return err4(
+      error instanceof Error ? error : new Error("Failed to get smart account address")
+    );
+  }
+}
+
 // src/components/TransactionModal/TransactionModal.tsx
-import { useEffect as useEffect3 } from "react";
+import { useEffect as useEffect2 } from "react";
 
 // src/components/TransactionModal/TransactionModalHeader.tsx
 import { jsx, jsxs } from "react/jsx-runtime";
@@ -1830,7 +1718,7 @@ function TransactionModal({
   onPaymentSelect,
   onBack
 }) {
-  useEffect3(() => {
+  useEffect2(() => {
     const handleEscape = (e) => {
       if (e.key === "Escape" && isOpen) {
         onClose();
@@ -1839,7 +1727,7 @@ function TransactionModal({
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
-  useEffect3(() => {
+  useEffect2(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
     } else {
@@ -2092,10 +1980,11 @@ export {
   TransactionSubmissionError,
   TransactionTimeoutError,
   UserOperationError,
+  getENSRenewalPrice,
+  getRhinestoneSmartAccountAddress,
+  prepareENSRenewal,
   transactionMachine,
   useAuditTrail,
-  useENSRenewal,
-  useTransaction,
   useTransactionModal
 };
 //# sourceMappingURL=index.mjs.map

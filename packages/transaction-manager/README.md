@@ -23,33 +23,42 @@ pnpm add @ens-apps/transaction-manager
 ### Basic EOA Transaction
 
 ```tsx
-import { useTransaction } from '@ens-apps/transaction-manager'
+import { useMachine } from '@xstate/react'
+import { usePublicClient, useWalletClient } from 'wagmi'
+import { transactionMachine, TransactionService } from '@ens-apps/transaction-manager'
 
 function SendButton() {
-  const {
-    execute,
-    isLoading,
-    isPending,
-    isSuccess,
-    hash,
-    error
-  } = useTransaction()
+  const publicClient = usePublicClient()
+  const { data: walletClient } = useWalletClient()
+
+  const [state, send] = useMachine(transactionMachine, {
+    input: {
+      transactionService: new TransactionService(publicClient!, walletClient)
+    }
+  })
 
   const handleSend = () => {
-    execute({
-      type: 'eoa',
-      from: '0x...',
-      to: '0x...',
-      value: BigInt(1e18), // 1 ETH
-      chainId: 1
+    send({
+      type: 'EXECUTE',
+      request: {
+        type: 'eoa',
+        from: '0x...',
+        to: '0x...',
+        value: BigInt(1e18), // 1 ETH
+        chainId: 1
+      }
     })
   }
+
+  const isLoading = state.matches('preparing') || state.matches('submitting')
+  const isPending = state.matches('pending') || state.matches('confirming')
+  const isSuccess = state.matches('success')
 
   return (
     <button onClick={handleSend} disabled={isLoading || isPending}>
       {isLoading ? 'Preparing...' :
        isPending ? 'Waiting...' :
-       isSuccess ? `Success: ${hash}` :
+       isSuccess ? `Success: ${state.context.hash}` :
        'Send ETH'}
     </button>
   )
@@ -59,24 +68,36 @@ function SendButton() {
 ### ERC-4337 User Operation
 
 ```tsx
-import { useTransaction } from '@ens-apps/transaction-manager'
+import { useMachine } from '@xstate/react'
+import { usePublicClient, useWalletClient } from 'wagmi'
+import { transactionMachine, TransactionService } from '@ens-apps/transaction-manager'
 
 function SmartAccountButton() {
-  const { execute, state } = useTransaction()
+  const publicClient = usePublicClient()
+  const { data: walletClient } = useWalletClient()
+
+  const [state, send] = useMachine(transactionMachine, {
+    input: {
+      transactionService: new TransactionService(publicClient!, walletClient)
+    }
+  })
 
   const handleSend = () => {
-    execute({
-      type: 'erc4337',
-      from: '0x...', // Smart account address
-      to: '0x...',
-      callData: '0x...',
-      callGasLimit: BigInt(100000),
-      verificationGasLimit: BigInt(100000),
-      preVerificationGas: BigInt(50000),
-      maxFeePerGas: BigInt(20e9),
-      maxPriorityFeePerGas: BigInt(2e9),
-      entryPoint: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
-      chainId: 1
+    send({
+      type: 'EXECUTE',
+      request: {
+        type: 'erc4337',
+        from: '0x...', // Smart account address
+        to: '0x...',
+        callData: '0x...',
+        callGasLimit: BigInt(100000),
+        verificationGasLimit: BigInt(100000),
+        preVerificationGas: BigInt(50000),
+        maxFeePerGas: BigInt(20e9),
+        maxPriorityFeePerGas: BigInt(2e9),
+        entryPoint: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
+        chainId: 1
+      }
     })
   }
 
@@ -119,14 +140,78 @@ function DebugDashboard() {
 }
 ```
 
+### ENS Renewal with Helpers
+
+```tsx
+import { useMachine } from '@xstate/react'
+import { usePublicClient, useWalletClient } from 'wagmi'
+import {
+  transactionMachine,
+  TransactionService,
+  prepareENSRenewal,
+  getENSRenewalPrice,
+  getRhinestoneSmartAccountAddress
+} from '@ens-apps/transaction-manager'
+import { sepolia } from 'viem/chains'
+
+function ENSRenewal() {
+  const publicClient = usePublicClient()
+  const { data: walletClient } = useWalletClient()
+
+  const [state, send] = useMachine(transactionMachine, {
+    input: {
+      transactionService: new TransactionService(publicClient!, walletClient)
+    }
+  })
+
+  // Get renewal price using helper
+  const [price, setPrice] = useState<bigint | null>(null)
+
+  useEffect(() => {
+    async function fetchPrice() {
+      const result = await getENSRenewalPrice(publicClient!, 'vitalik', 31536000n)
+      if (result.isOk()) setPrice(result.value)
+    }
+    fetchPrice()
+  }, [publicClient])
+
+  // Execute renewal
+  const handleRenew = async () => {
+    const result = await prepareENSRenewal({
+      publicClient: publicClient!,
+      walletClient: walletClient!,
+      name: 'vitalik',
+      duration: 31536000n,
+      chainId: sepolia.id,
+      useSmartAccount: true,
+      rhinestoneConfig: { /* ... */ }
+    })
+
+    if (result.isOk()) {
+      send({
+        type: 'EXECUTE',
+        request: result.value.request,
+        options: result.value.options
+      })
+    }
+  }
+
+  return (
+    <button onClick={handleRenew} disabled={state.matches('pending')}>
+      Renew for {price ? formatEther(price) : '...'} ETH
+    </button>
+  )
+}
+```
+
 ## Transaction States
 
 The transaction machine follows these states:
 
 ```
-preparing → submitting → pending → confirming → success
-                ↓          ↓          ↓
-              error    fallback    reverted
+idle → preparing → submitting → pending → confirming → success
+          ↓          ↓          ↓
+        error    fallback    reverted
                 ↑          ↓
               retry    success
 ```

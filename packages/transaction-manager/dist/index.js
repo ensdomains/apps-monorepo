@@ -1,9 +1,7 @@
 "use strict";
-var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __export = (target, all) => {
   for (var name in all)
@@ -17,14 +15,6 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-  // If the importer is in node compatibility mode or this is not an ESM
-  // file that has been converted to a CommonJS file using a Babel-
-  // compatible transform (i.e. "__esModule" has not been set), then set
-  // "default" to the CommonJS "module.exports" for node compatibility.
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-  mod
-));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // src/index.ts
@@ -49,10 +39,11 @@ __export(index_exports, {
   TransactionSubmissionError: () => TransactionSubmissionError,
   TransactionTimeoutError: () => TransactionTimeoutError,
   UserOperationError: () => UserOperationError,
+  getENSRenewalPrice: () => getENSRenewalPrice,
+  getRhinestoneSmartAccountAddress: () => getRhinestoneSmartAccountAddress,
+  prepareENSRenewal: () => prepareENSRenewal,
   transactionMachine: () => transactionMachine,
   useAuditTrail: () => useAuditTrail,
-  useENSRenewal: () => useENSRenewal,
-  useTransaction: () => useTransaction,
   useTransactionModal: () => useTransactionModal
 });
 module.exports = __toCommonJS(index_exports);
@@ -748,6 +739,9 @@ var transactionMachine = (0, import_xstate.setup)({
   },
   actors: {
     submitTransaction: (0, import_xstate.fromPromise)(async ({ input }) => {
+      if (!input.request) {
+        throw new Error("No transaction request provided");
+      }
       const result = await input.service.submitTransaction(
         input.request,
         input.options
@@ -771,6 +765,9 @@ var transactionMachine = (0, import_xstate.setup)({
       return result.value;
     }),
     checkWithEthCall: (0, import_xstate.fromPromise)(async ({ input }) => {
+      if (!input.request) {
+        throw new Error("No transaction request provided");
+      }
       const result = await input.service.checkWithEthCall(input.request);
       if (result.isErr()) {
         throw result.error;
@@ -842,16 +839,33 @@ var transactionMachine = (0, import_xstate.setup)({
   }
 }).createMachine({
   id: "transaction",
-  initial: "preparing",
+  initial: "idle",
   context: ({ input }) => ({
-    request: input.request,
-    options: input.options || {},
+    request: void 0,
+    options: {},
     retryCount: 0,
     fallbackChecks: 0,
     transactionService: input.transactionService,
     auditService: input.auditService
   }),
   states: {
+    idle: {
+      on: {
+        EXECUTE: {
+          target: "preparing",
+          actions: (0, import_xstate.assign)({
+            request: ({ event }) => event.request,
+            options: ({ event }) => event.options || {},
+            retryCount: 0,
+            fallbackChecks: 0,
+            hash: void 0,
+            userOpHash: void 0,
+            receipt: void 0,
+            error: void 0
+          })
+        }
+      }
+    },
     preparing: {
       entry: "recordTransition",
       always: "submitting"
@@ -1031,7 +1045,6 @@ var transactionMachine = (0, import_xstate.setup)({
       }
     },
     success: {
-      type: "final",
       entry: [
         "recordTransition",
         ({ context }) => {
@@ -1047,29 +1060,39 @@ var transactionMachine = (0, import_xstate.setup)({
             );
           }
         }
-      ]
+      ],
+      on: {
+        EXECUTE: {
+          target: "preparing",
+          actions: (0, import_xstate.assign)({
+            request: ({ event }) => event.request,
+            options: ({ event }) => event.options || {},
+            retryCount: 0,
+            fallbackChecks: 0,
+            hash: void 0,
+            userOpHash: void 0,
+            receipt: void 0,
+            error: void 0
+          })
+        }
+      }
     },
     error: {
       initial: "unknown",
       states: {
         submission: {
-          type: "final",
           entry: "recordTransition"
         },
         timeout: {
-          type: "final",
           entry: "recordTransition"
         },
         reverted: {
-          type: "final",
           entry: "recordTransition"
         },
         cancelled: {
-          type: "final",
           entry: "recordTransition"
         },
         unknown: {
-          type: "final",
           entry: "recordTransition"
         }
       },
@@ -1083,117 +1106,47 @@ var transactionMachine = (0, import_xstate.setup)({
             }),
             "recordTransition"
           ]
+        },
+        EXECUTE: {
+          target: "preparing",
+          actions: (0, import_xstate.assign)({
+            request: ({ event }) => event.request,
+            options: ({ event }) => event.options || {},
+            retryCount: 0,
+            fallbackChecks: 0,
+            hash: void 0,
+            userOpHash: void 0,
+            receipt: void 0,
+            error: void 0
+          })
         }
       }
     }
   }
 });
 
-// src/hooks/useTransaction.ts
+// src/hooks/useAuditTrail.ts
 var import_react = require("react");
-var import_xstate2 = require("xstate");
-var import_wagmi = require("wagmi");
 var globalAuditService = null;
-function useTransaction() {
-  const publicClient = (0, import_wagmi.usePublicClient)();
-  const { data: walletClient } = (0, import_wagmi.useWalletClient)();
-  const [actor, setActor] = (0, import_react.useState)(null);
-  const [snapshot, setSnapshot] = (0, import_react.useState)({ value: "idle", context: {} });
-  (0, import_react.useEffect)(() => {
-    if (actor) {
-      const subscription = actor.subscribe((state2) => {
-        setSnapshot(state2);
-      });
-      return () => subscription.unsubscribe();
-    }
-  }, [actor]);
-  const send = (0, import_react.useCallback)((event) => {
-    if (actor) {
-      actor.send(event);
-    }
-  }, [actor]);
-  (0, import_react.useEffect)(() => {
+function useAuditTrail() {
+  const [auditService] = (0, import_react.useState)(() => {
     if (!globalAuditService && typeof window !== "undefined") {
       globalAuditService = new AuditTrailService();
     }
-  }, []);
-  const execute = (0, import_react.useCallback)((request, options) => {
-    if (!publicClient) {
-      console.error("No public client available");
-      return;
-    }
-    const transactionService = new TransactionService(
-      publicClient,
-      walletClient || void 0,
-      options?.rhinestoneConfig
-    );
-    const newActor = (0, import_xstate2.createActor)(transactionMachine, {
-      input: {
-        request,
-        options: options || {},
-        transactionService,
-        auditService: globalAuditService || void 0
-      }
-    });
-    newActor.start();
-    setActor(newActor);
-  }, [publicClient, walletClient]);
-  const retry = (0, import_react.useCallback)(() => {
-    send({ type: "RETRY" });
-  }, [send]);
-  const cancel = (0, import_react.useCallback)(() => {
-    send({ type: "CANCEL" });
-  }, [send]);
-  const forceSuccess = (0, import_react.useCallback)(() => {
-    send({ type: "FORCE_SUCCESS" });
-  }, [send]);
-  const debugReport = (0, import_react.useCallback)(() => {
-    if (globalAuditService) {
-      return globalAuditService.generateDebugReport(snapshot.context?.hash);
-    }
-    return null;
-  }, [snapshot.context?.hash]);
-  const state = typeof snapshot.value === "object" ? Object.keys(snapshot.value).join(".") : String(snapshot.value || "idle");
-  return {
-    execute,
-    retry,
-    cancel,
-    forceSuccess,
-    state,
-    isIdle: state === "idle",
-    isLoading: state === "submitting" || state === "preparing",
-    isPending: state === "pending" || state === "confirming" || state === "checkingFallback",
-    isSuccess: state === "success",
-    isError: state.startsWith("error"),
-    hash: snapshot.context?.hash,
-    receipt: snapshot.context?.receipt,
-    error: snapshot.context?.error,
-    debugReport
-  };
-}
-
-// src/hooks/useAuditTrail.ts
-var import_react2 = require("react");
-var globalAuditService2 = null;
-function useAuditTrail() {
-  const [auditService] = (0, import_react2.useState)(() => {
-    if (!globalAuditService2 && typeof window !== "undefined") {
-      globalAuditService2 = new AuditTrailService();
-    }
-    return globalAuditService2;
+    return globalAuditService;
   });
-  (0, import_react2.useEffect)(() => {
+  (0, import_react.useEffect)(() => {
     return () => {
       if (auditService) {
         auditService.cleanup();
       }
     };
   }, [auditService]);
-  const getDebugReport = (0, import_react2.useCallback)((transactionId) => {
+  const getDebugReport = (0, import_react.useCallback)((transactionId) => {
     if (!auditService) return null;
     return auditService.generateDebugReport(transactionId);
   }, [auditService]);
-  const exportAudit = (0, import_react2.useCallback)(() => {
+  const exportAudit = (0, import_react.useCallback)(() => {
     if (!auditService) return;
     const json = auditService.exportToJson();
     const blob = new Blob([json], { type: "application/json" });
@@ -1204,7 +1157,7 @@ function useAuditTrail() {
     a.click();
     URL.revokeObjectURL(url);
   }, [auditService]);
-  const importAudit = (0, import_react2.useCallback)(async (file) => {
+  const importAudit = (0, import_react.useCallback)(async (file) => {
     if (!auditService) return;
     const text = await file.text();
     const result = await auditService.importFromJson(text);
@@ -1213,18 +1166,18 @@ function useAuditTrail() {
       throw result.error;
     }
   }, [auditService]);
-  const addEntry = (0, import_react2.useCallback)((level, message, details) => {
+  const addEntry = (0, import_react.useCallback)((level, message, details) => {
     if (!auditService) return;
     auditService.addAuditEntry(level, message, details);
   }, [auditService]);
-  const getTransitionHistory = (0, import_react2.useCallback)((filters) => {
+  const getTransitionHistory = (0, import_react.useCallback)((filters) => {
     if (!auditService) return [];
     return auditService.getTransitionHistory(filters);
   }, [auditService]);
-  const clearAudit = (0, import_react2.useCallback)(() => {
+  const clearAudit = (0, import_react.useCallback)(() => {
     if (!auditService || typeof window === "undefined") return;
     localStorage.removeItem("@ens/audit-trail");
-    globalAuditService2 = new AuditTrailService();
+    globalAuditService = new AuditTrailService();
   }, [auditService]);
   return {
     getDebugReport,
@@ -1236,174 +1189,8 @@ function useAuditTrail() {
   };
 }
 
-// src/hooks/useENSRenewal.ts
-var import_react3 = __toESM(require("react"));
-var import_wagmi2 = require("wagmi");
-var import_chains2 = require("viem/chains");
-function useENSRenewal(options) {
-  const publicClient = (0, import_wagmi2.usePublicClient)({ chainId: import_chains2.sepolia.id });
-  const { data: walletClient } = (0, import_wagmi2.useWalletClient)();
-  const transaction = useTransaction();
-  const [cachedSmartAccountAddress, setCachedSmartAccountAddress] = import_react3.default.useState(null);
-  const renewName = (0, import_react3.useCallback)(
-    async (name, duration, transactionOptions) => {
-      console.log("\u{1F527} renewName called:", {
-        name,
-        duration: duration.toString(),
-        useSmartAccount: options?.useSmartAccount,
-        hasWalletClient: !!walletClient,
-        walletAddress: walletClient?.account?.address,
-        hasPublicClient: !!publicClient,
-        hasRhinestoneApiKey: !!options?.rhinestoneApiKey,
-        hasBundlerUrl: !!options?.bundlerUrl
-      });
-      if (!publicClient) {
-        console.error("\u274C No public client available");
-        return;
-      }
-      if (!walletClient) {
-        console.error("\u274C No wallet client available - wallet may not be connected");
-        return;
-      }
-      if (options?.useSmartAccount) {
-        console.log("\u{1F680} Using Rhinestone smart account for ENS renewal");
-        const rhinestoneService = new RhinestoneAccountService(
-          publicClient,
-          walletClient || void 0,
-          {
-            chain: import_chains2.sepolia,
-            bundlerUrl: options.bundlerUrl,
-            paymasterUrl: options.paymasterUrl,
-            sponsorshipPolicyId: options.sponsorshipPolicyId,
-            rhinestoneApiKey: options.rhinestoneApiKey
-          }
-        );
-        const txResult = await rhinestoneService.prepareENSRenewalTransaction({
-          name,
-          duration
-        });
-        if (txResult.isErr()) {
-          console.error("\u274C Failed to prepare ENS renewal:", txResult.error);
-          return;
-        }
-        const { to, data, value } = txResult.value;
-        transaction.execute(
-          {
-            type: "rhinestone-intent",
-            to,
-            data,
-            value,
-            from: walletClient?.account?.address,
-            chainId: import_chains2.sepolia.id,
-            rhinestoneParams: { name, duration }
-          },
-          {
-            ...transactionOptions,
-            rhinestoneConfig: {
-              chain: import_chains2.sepolia,
-              bundlerUrl: options.bundlerUrl,
-              paymasterUrl: options.paymasterUrl,
-              sponsorshipPolicyId: options.sponsorshipPolicyId,
-              rhinestoneApiKey: options.rhinestoneApiKey
-            }
-          }
-        );
-      } else {
-        const rhinestoneService = new RhinestoneAccountService(publicClient);
-        const txResult = await rhinestoneService.prepareENSRenewalTransaction({
-          name,
-          duration
-        });
-        if (txResult.isErr()) {
-          console.error("Failed to prepare ENS renewal:", txResult.error);
-          return;
-        }
-        const { to, data, value } = txResult.value;
-        transaction.execute(
-          {
-            type: "eoa",
-            to,
-            data,
-            value,
-            from: walletClient?.account?.address
-          },
-          transactionOptions
-        );
-      }
-    },
-    [publicClient, walletClient, options, transaction]
-  );
-  const getRenewalPrice = (0, import_react3.useCallback)(
-    async (name, duration) => {
-      if (!publicClient) {
-        console.error("No public client available");
-        return null;
-      }
-      const rhinestoneService = new RhinestoneAccountService(publicClient);
-      const result = await rhinestoneService.getRenewalPrice(name, duration);
-      if (result.isErr()) {
-        console.error("Failed to get renewal price:", result.error);
-        return null;
-      }
-      return result.value;
-    },
-    [publicClient]
-  );
-  const getSmartAccountAddress = (0, import_react3.useCallback)(
-    async () => {
-      console.log("\u{1F50D} getSmartAccountAddress called:", {
-        hasPublicClient: !!publicClient,
-        hasWalletClient: !!walletClient,
-        walletAddress: walletClient?.account?.address,
-        hasRhinestoneApiKey: !!options?.rhinestoneApiKey,
-        hasCached: !!cachedSmartAccountAddress
-      });
-      if (cachedSmartAccountAddress && walletClient?.account?.address) {
-        console.log("\u2705 Returning cached smart account address:", cachedSmartAccountAddress);
-        return cachedSmartAccountAddress;
-      }
-      if (!publicClient || !walletClient) {
-        console.warn("\u26A0\uFE0F Wallet not connected - cannot get smart account address", {
-          hasPublicClient: !!publicClient,
-          hasWalletClient: !!walletClient
-        });
-        return null;
-      }
-      const rhinestoneService = new RhinestoneAccountService(
-        publicClient,
-        walletClient || void 0,
-        {
-          chain: import_chains2.sepolia,
-          bundlerUrl: options?.bundlerUrl,
-          paymasterUrl: options?.paymasterUrl,
-          sponsorshipPolicyId: options?.sponsorshipPolicyId,
-          rhinestoneApiKey: options?.rhinestoneApiKey
-        }
-      );
-      const result = await rhinestoneService.getSmartAccountAddress();
-      if (result.isErr()) {
-        console.error("Failed to get smart account address:", result.error);
-        return null;
-      }
-      const address = result.value;
-      setCachedSmartAccountAddress(address);
-      return address;
-    },
-    [publicClient, walletClient, options, cachedSmartAccountAddress]
-  );
-  import_react3.default.useEffect(() => {
-    setCachedSmartAccountAddress(null);
-  }, [walletClient?.account?.address]);
-  return {
-    renewName,
-    getRenewalPrice,
-    getSmartAccountAddress,
-    ...transaction
-  };
-}
-
 // src/hooks/useTransactionModal.ts
-var import_react4 = require("react");
+var import_react2 = require("react");
 var initialState = {
   isOpen: false,
   title: void 0,
@@ -1418,29 +1205,29 @@ var initialState = {
   paymentOptions: void 0
 };
 function useTransactionModal(defaultState) {
-  const [state, setState] = (0, import_react4.useState)({
+  const [state, setState] = (0, import_react2.useState)({
     ...initialState,
     ...defaultState
   });
-  const openModal = (0, import_react4.useCallback)(() => {
+  const openModal = (0, import_react2.useCallback)(() => {
     setState((prev) => ({ ...prev, isOpen: true }));
   }, []);
-  const closeModal = (0, import_react4.useCallback)(() => {
+  const closeModal = (0, import_react2.useCallback)(() => {
     setState((prev) => ({ ...prev, isOpen: false }));
   }, []);
-  const setTitle = (0, import_react4.useCallback)((title) => {
+  const setTitle = (0, import_react2.useCallback)((title) => {
     setState((prev) => ({ ...prev, title }));
   }, []);
-  const setENSName = (0, import_react4.useCallback)((ensName, avatarUrl) => {
+  const setENSName = (0, import_react2.useCallback)((ensName, avatarUrl) => {
     setState((prev) => ({ ...prev, ensName, avatarUrl }));
   }, []);
-  const setNetwork = (0, import_react4.useCallback)((network) => {
+  const setNetwork = (0, import_react2.useCallback)((network) => {
     setState((prev) => ({ ...prev, network }));
   }, []);
-  const setEstimatedCost = (0, import_react4.useCallback)((estimatedCost) => {
+  const setEstimatedCost = (0, import_react2.useCallback)((estimatedCost) => {
     setState((prev) => ({ ...prev, estimatedCost }));
   }, []);
-  const setSteps = (0, import_react4.useCallback)((steps) => {
+  const setSteps = (0, import_react2.useCallback)((steps) => {
     setState((prev) => ({
       ...prev,
       steps,
@@ -1448,13 +1235,13 @@ function useTransactionModal(defaultState) {
       flowType: steps.length > 1 ? "batched" : "single"
     }));
   }, []);
-  const addStep = (0, import_react4.useCallback)((step) => {
+  const addStep = (0, import_react2.useCallback)((step) => {
     setState((prev) => ({
       ...prev,
       steps: [...prev.steps || [], step]
     }));
   }, []);
-  const updateStep = (0, import_react4.useCallback)(
+  const updateStep = (0, import_react2.useCallback)(
     (stepId, updates) => {
       setState((prev) => ({
         ...prev,
@@ -1465,7 +1252,7 @@ function useTransactionModal(defaultState) {
     },
     []
   );
-  const nextStep = (0, import_react4.useCallback)(() => {
+  const nextStep = (0, import_react2.useCallback)(() => {
     setState((prev) => ({
       ...prev,
       currentStepIndex: Math.min(
@@ -1474,19 +1261,19 @@ function useTransactionModal(defaultState) {
       )
     }));
   }, []);
-  const previousStep = (0, import_react4.useCallback)(() => {
+  const previousStep = (0, import_react2.useCallback)(() => {
     setState((prev) => ({
       ...prev,
       currentStepIndex: Math.max((prev.currentStepIndex || 0) - 1, 0)
     }));
   }, []);
-  const setPaymentOptions = (0, import_react4.useCallback)((paymentOptions) => {
+  const setPaymentOptions = (0, import_react2.useCallback)((paymentOptions) => {
     setState((prev) => ({ ...prev, paymentOptions }));
   }, []);
-  const selectPayment = (0, import_react4.useCallback)((selectedPayment) => {
+  const selectPayment = (0, import_react2.useCallback)((selectedPayment) => {
     setState((prev) => ({ ...prev, selectedPayment }));
   }, []);
-  const reset = (0, import_react4.useCallback)(() => {
+  const reset = (0, import_react2.useCallback)(() => {
     setState({ ...initialState, ...defaultState });
   }, [defaultState]);
   return {
@@ -1508,8 +1295,100 @@ function useTransactionModal(defaultState) {
   };
 }
 
+// src/helpers/ens-renewal.helpers.ts
+var import_neverthrow4 = require("neverthrow");
+async function prepareENSRenewal(params) {
+  const {
+    publicClient,
+    walletClient,
+    name,
+    duration,
+    chainId,
+    useSmartAccount,
+    rhinestoneConfig
+  } = params;
+  try {
+    const rhinestoneService = new RhinestoneAccountService(
+      publicClient,
+      walletClient,
+      rhinestoneConfig
+    );
+    const txResult = await rhinestoneService.prepareENSRenewalTransaction({
+      name,
+      duration
+    });
+    if (txResult.isErr()) {
+      return txResult;
+    }
+    const { to, data, value } = txResult.value;
+    if (useSmartAccount && rhinestoneConfig) {
+      return (0, import_neverthrow4.ok)({
+        request: {
+          type: "rhinestone-intent",
+          to,
+          data,
+          value,
+          from: walletClient?.account?.address,
+          chainId,
+          rhinestoneParams: { name, duration }
+        },
+        options: {
+          rhinestoneConfig
+        }
+      });
+    } else {
+      return (0, import_neverthrow4.ok)({
+        request: {
+          type: "eoa",
+          to,
+          data,
+          value,
+          from: walletClient?.account?.address,
+          chainId
+        }
+      });
+    }
+  } catch (error) {
+    return (0, import_neverthrow4.err)(
+      error instanceof Error ? error : new Error("Failed to prepare ENS renewal")
+    );
+  }
+}
+async function getENSRenewalPrice(publicClient, name, duration) {
+  try {
+    const rhinestoneService = new RhinestoneAccountService(publicClient);
+    const result = await rhinestoneService.getRenewalPrice(name, duration);
+    if (result.isErr()) {
+      return (0, import_neverthrow4.err)(result.error);
+    }
+    return (0, import_neverthrow4.ok)(result.value);
+  } catch (error) {
+    return (0, import_neverthrow4.err)(
+      error instanceof Error ? error : new Error("Failed to get renewal price")
+    );
+  }
+}
+async function getRhinestoneSmartAccountAddress(publicClient, walletClient, rhinestoneConfig) {
+  try {
+    const rhinestoneService = new RhinestoneAccountService(
+      publicClient,
+      walletClient,
+      rhinestoneConfig
+    );
+    const result = await rhinestoneService.getSmartAccountAddress();
+    if (result.isErr()) {
+      return (0, import_neverthrow4.err)(result.error);
+    }
+    return (0, import_neverthrow4.ok)(result.value);
+  } catch (error) {
+    return (0, import_neverthrow4.err)(
+      error instanceof Error ? error : new Error("Failed to get smart account address")
+    );
+  }
+}
+
 // src/components/TransactionModal/TransactionModal.tsx
-var import_react5 = require("react");
+var import_react3 = require("react");
 
 // src/components/TransactionModal/TransactionModalHeader.tsx
 var import_jsx_runtime = require("react/jsx-runtime");
@@ -1887,7 +1766,7 @@ function TransactionModal({
   onPaymentSelect,
   onBack
 }) {
-  (0, import_react5.useEffect)(() => {
+  (0, import_react3.useEffect)(() => {
     const handleEscape = (e) => {
       if (e.key === "Escape" && isOpen) {
         onClose();
@@ -1896,7 +1775,7 @@ function TransactionModal({
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
-  (0, import_react5.useEffect)(() => {
+  (0, import_react3.useEffect)(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
     } else {
@@ -2150,10 +2029,11 @@ function TransactionModal({
   TransactionSubmissionError,
   TransactionTimeoutError,
   UserOperationError,
+  getENSRenewalPrice,
+  getRhinestoneSmartAccountAddress,
+  prepareENSRenewal,
   transactionMachine,
   useAuditTrail,
-  useENSRenewal,
-  useTransaction,
   useTransactionModal
 });
 //# sourceMappingURL=index.js.map

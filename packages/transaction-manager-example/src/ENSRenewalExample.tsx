@@ -1,121 +1,184 @@
-import React, { useState, useEffect } from 'react'
+import React, { useReducer, useEffect } from 'react'
+import { useMachine } from '@xstate/react'
+import { match, P } from 'ts-pattern'
 import { formatEther, parseEther } from 'viem'
-import { useENSRenewal, TransactionModal, useTransactionModal } from '@ens-apps/transaction-manager'
-import { useAccount, usePublicClient, useSendTransaction } from 'wagmi'
+import {
+  transactionMachine,
+  TransactionService,
+  TransactionModal,
+  useTransactionModal,
+  prepareENSRenewal,
+  getENSRenewalPrice,
+  getRhinestoneSmartAccountAddress,
+} from '@ens-apps/transaction-manager'
+import { useAccount, usePublicClient, useWalletClient, useSendTransaction } from 'wagmi'
 import { sepolia } from 'viem/chains'
+import { handleResult } from './utils/result'
+import { uiStateReducer, initialUIState } from './reducers/uiState.reducer'
 
 const YEAR_IN_SECONDS = 31536000n
 
 function ENSRenewalExample() {
   const { address, isConnected } = useAccount()
   const publicClient = usePublicClient({ chainId: sepolia.id })
+  const { data: walletClient } = useWalletClient()
   const { sendTransaction } = useSendTransaction()
 
-  const [name, setName] = useState('leon.eth')
-  const [duration, setDuration] = useState('1') // years
-  const [useSmartAccount, setUseSmartAccount] = useState(true)
-  const [renewalPrice, setRenewalPrice] = useState<bigint | null>(null)
-  const [isLoadingPrice, setIsLoadingPrice] = useState(false)
-  const [smartAccountAddress, setSmartAccountAddress] = useState<string | null>(null)
-  const [smartAccountBalance, setSmartAccountBalance] = useState<bigint | null>(null)
-  const [fundingAmount, setFundingAmount] = useState('0.5')
-  const [isFunding, setIsFunding] = useState(false)
-
-  const {
-    renewName,
-    getRenewalPrice,
-    getSmartAccountAddress,
-    state,
-    isLoading,
-    isPending,
-    isSuccess,
-    isError,
-    hash,
-    error,
-    debugReport,
-  } = useENSRenewal({
-    useSmartAccount,
-    // Rhinestone API key (required)
+  // Rhinestone config
+  const rhinestoneConfig = {
+    chain: sepolia,
     rhinestoneApiKey: import.meta.env.VITE_RHINESTONE_API_KEY,
-    // Pimlico API key for bundler (required for smart accounts)
-    bundlerUrl: `https://api.pimlico.io/v2/sepolia/rpc?apikey=${
-      import.meta.env.VITE_PIMLICO_API_KEY || 'YOUR_API_KEY'
-    }`,
-    // Optional: Add paymaster for gasless transactions
-    // paymasterUrl: `https://api.pimlico.io/v2/sepolia/rpc?apikey=${import.meta.env.VITE_PIMLICO_API_KEY}`,
+  }
+
+  // UI state
+  const [ui, dispatch] = useReducer(uiStateReducer, initialUIState)
+
+  // Transaction state machine
+  const [state, send] = useMachine(transactionMachine, {
+    input: {
+      transactionService: new TransactionService(publicClient!, walletClient),
+    },
   })
 
   // Transaction Modal
   const modal = useTransactionModal({
-    ensName: name || 'domico.eth',
+    ensName: ui.name || 'domico.eth',
     network: 'Sepolia',
-    estimatedCost: renewalPrice ? `${formatEther(renewalPrice)} ETH` : '0.0011 ETH',
+    estimatedCost: ui.renewalPrice ? `${formatEther(ui.renewalPrice)} ETH` : '0.0011 ETH',
   })
 
-  // Sync transaction state with modal - update estimated cost when renewal price changes
+  // Derive UI state from machine state using ts-pattern
+  const machineState = state.value.toString()
+  const transactionUI = match(state.value)
+    .with('idle', () => ({
+      buttonText: `Renew ${ui.name || 'Name'}`,
+      buttonDisabled: !ui.name || ui.isLoadingPrice,
+      buttonColor: '#4CAF50',
+      showStatus: false,
+      statusBackground: '',
+      statusMessage: null,
+    }))
+    .with('preparing', 'submitting', () => ({
+      buttonText: 'Preparing...',
+      buttonDisabled: true,
+      buttonColor: '#ccc',
+      showStatus: true,
+      statusBackground: '#fff3e0',
+      statusMessage: 'Preparing transaction...',
+    }))
+    .with('pending', 'confirming', 'checkingFallback', () => ({
+      buttonText: 'Confirming...',
+      buttonDisabled: true,
+      buttonColor: '#ccc',
+      showStatus: true,
+      statusBackground: '#fff3e0',
+      statusMessage: 'Waiting for confirmation...',
+    }))
+    .with('success', () => ({
+      buttonText: 'Renew Again',
+      buttonDisabled: false,
+      buttonColor: '#4CAF50',
+      showStatus: true,
+      statusBackground: '#e8f5e9',
+      statusMessage: '✅ Renewal successful! Your name has been extended.',
+    }))
+    .with(P.string.startsWith('error'), () => ({
+      buttonText: 'Retry',
+      buttonDisabled: false,
+      buttonColor: '#f44336',
+      showStatus: true,
+      statusBackground: '#ffebee',
+      statusMessage: `❌ Error: ${state.context.error?.message || 'Unknown error'}`,
+    }))
+    .exhaustive()
+
+  const hash = state.context.hash
+
+  // Sync transaction state with modal
   useEffect(() => {
-    if (renewalPrice) {
-      modal.setEstimatedCost(`${formatEther(renewalPrice)} ETH`)
+    if (ui.renewalPrice) {
+      modal.setEstimatedCost(`${formatEther(ui.renewalPrice)} ETH`)
     }
-  }, [renewalPrice, modal.setEstimatedCost])
+  }, [ui.renewalPrice, modal.setEstimatedCost])
 
   // Fetch renewal price when name or duration changes
   useEffect(() => {
     const fetchPrice = async () => {
-      if (name && duration) {
-        setIsLoadingPrice(true)
-        const price = await getRenewalPrice(
-          name.replace('.eth', ''),
-          BigInt(duration) * YEAR_IN_SECONDS
+      if (ui.name && ui.duration && publicClient) {
+        dispatch({ type: 'SET_LOADING_PRICE', payload: true })
+        const result = await getENSRenewalPrice(
+          publicClient,
+          ui.name.replace('.eth', ''),
+          BigInt(ui.duration) * YEAR_IN_SECONDS
         )
-        setRenewalPrice(price)
-        setIsLoadingPrice(false)
+
+        // Handle Result type with helper
+        handleResult(result, {
+          onOk: (price: bigint) => dispatch({ type: 'SET_RENEWAL_PRICE', payload: price }),
+          onErr: (error: Error) => console.error('Failed to get price:', error),
+        })
+
+        dispatch({ type: 'SET_LOADING_PRICE', payload: false })
       }
     }
     fetchPrice()
-  }, [name, duration, getRenewalPrice])
+  }, [ui.name, ui.duration, publicClient])
 
   // Fetch smart account address when smart account is enabled
   useEffect(() => {
     const fetchAddress = async () => {
-      if (useSmartAccount && getSmartAccountAddress && isConnected) {
-        const addr = await getSmartAccountAddress()
-        setSmartAccountAddress(addr)
+      if (ui.useSmartAccount && publicClient && walletClient && isConnected) {
+        const result = await getRhinestoneSmartAccountAddress(
+          publicClient,
+          walletClient,
+          rhinestoneConfig
+        )
+
+        // Handle Result type with helper
+        handleResult(result, {
+          onOk: (address: string) => dispatch({ type: 'SET_SMART_ACCOUNT_ADDRESS', payload: address }),
+          onErr: (error: Error) => console.error('Failed to get smart account:', error),
+        })
       } else {
-        setSmartAccountAddress(null)
+        dispatch({ type: 'SET_SMART_ACCOUNT_ADDRESS', payload: null })
       }
     }
     fetchAddress()
-  }, [useSmartAccount, getSmartAccountAddress, isConnected])
+  }, [ui.useSmartAccount, publicClient, walletClient, isConnected])
+
+  // Clear smart account when wallet changes
+  useEffect(() => {
+    dispatch({ type: 'CLEAR_SMART_ACCOUNT' })
+  }, [walletClient?.account?.address])
 
   // Fetch smart account balance
   useEffect(() => {
     const fetchBalance = async () => {
-      if (smartAccountAddress && publicClient) {
+      if (ui.smartAccountAddress && publicClient) {
         try {
           const balance = await publicClient.getBalance({
-            address: smartAccountAddress as `0x${string}`,
+            address: ui.smartAccountAddress as `0x${string}`,
           })
-          setSmartAccountBalance(balance)
+          dispatch({ type: 'SET_SMART_ACCOUNT_BALANCE', payload: balance })
         } catch (error) {
           console.error('Failed to fetch smart account balance:', error)
         }
       } else {
-        setSmartAccountBalance(null)
+        dispatch({ type: 'SET_SMART_ACCOUNT_BALANCE', payload: null })
       }
     }
 
     fetchBalance()
     // Poll balance every 5 seconds when smart account is active
-    const interval = smartAccountAddress ? setInterval(fetchBalance, 5000) : null
+    const interval = ui.smartAccountAddress ? setInterval(fetchBalance, 5000) : null
 
     return () => {
       if (interval) clearInterval(interval)
     }
-  }, [smartAccountAddress, publicClient])
+  }, [ui.smartAccountAddress, publicClient])
 
   const handleRenew = () => {
-    if (!name) {
+    if (!ui.name) {
       alert('Please enter a name to renew')
       return
     }
@@ -123,98 +186,130 @@ function ENSRenewalExample() {
     modal.openModal()
   }
 
-  const handleStartTransaction = () => {
-    const cleanName = name.replace('.eth', '')
-    const durationInSeconds = BigInt(duration) * YEAR_IN_SECONDS
+  const handleStartTransaction = async () => {
+    if (!publicClient || !walletClient) {
+      console.error('Missing clients')
+      return
+    }
 
-    console.log('Starting transaction, current state:', state)
-    renewName(cleanName, durationInSeconds, {
-      description: `Renew ${cleanName}.eth for ${duration} year(s)`,
+    const cleanName = ui.name.replace('.eth', '')
+    const durationInSeconds = BigInt(ui.duration) * YEAR_IN_SECONDS
+
+    console.log('Starting transaction, current state:', machineState)
+
+    // Prepare ENS renewal using helper
+    const result = await prepareENSRenewal({
+      publicClient,
+      walletClient,
+      name: cleanName,
+      duration: durationInSeconds,
+      chainId: sepolia.id,
+      useSmartAccount: ui.useSmartAccount,
+      rhinestoneConfig: ui.useSmartAccount ? rhinestoneConfig : undefined,
+    })
+
+    // Handle Result type with helper
+    handleResult(result, {
+      onOk: ({ request, options }) => {
+        // Execute via transaction machine
+        send({
+          type: 'EXECUTE',
+          request,
+          options: {
+            ...options,
+            description: `Renew ${cleanName}.eth for ${ui.duration} year(s)`,
+          },
+        })
+      },
+      onErr: (error) => {
+        console.error('Failed to prepare renewal:', error)
+        alert(`Failed to prepare transaction: ${error.message}`)
+      },
     })
   }
 
   // Debug: Log state changes
   useEffect(() => {
-    console.log('Transaction state changed to:', state)
-  }, [state])
+    console.log('Transaction state changed to:', machineState)
+  }, [machineState])
 
   const handleFundSmartAccount = async () => {
-    if (!smartAccountAddress) {
+    if (!ui.smartAccountAddress) {
       alert('Smart account address not available')
       return
     }
 
     try {
-      const amount = parseFloat(fundingAmount)
+      const amount = parseFloat(ui.fundingAmount)
       if (isNaN(amount) || amount <= 0) {
         alert('Please enter a valid amount')
         return
       }
 
-      setIsFunding(true)
+      dispatch({ type: 'SET_FUNDING', payload: true })
 
       sendTransaction({
-        to: smartAccountAddress as `0x${string}`,
-        value: parseEther(fundingAmount),
+        to: ui.smartAccountAddress as `0x${string}`,
+        value: parseEther(ui.fundingAmount),
       })
 
       // Wait a bit for the transaction to be mined, then refresh balance
       setTimeout(() => {
-        setIsFunding(false)
+        dispatch({ type: 'SET_FUNDING', payload: false })
       }, 2000)
     } catch (error) {
       console.error('Failed to fund smart account:', error)
       alert('Failed to send transaction')
-      setIsFunding(false)
-    }
-  }
-
-  const handleDebugReport = () => {
-    const report = debugReport()
-    if (report) {
-      console.log('Debug Report:', report)
-      alert('Debug report logged to console')
+      dispatch({ type: 'SET_FUNDING', payload: false })
     }
   }
 
   return (
-    <div style={{
-      padding: '40px',
-      maxWidth: '600px',
-      margin: '0 auto',
-      fontFamily: 'system-ui'
-    }}>
+    <div
+      style={{
+        padding: '40px',
+        maxWidth: '600px',
+        margin: '0 auto',
+        fontFamily: 'system-ui',
+      }}
+    >
       <h1>🔧 ENS Renewal with Rhinestone</h1>
 
       {!isConnected ? (
-        <div style={{
-          padding: '20px',
-          background: '#fee',
-          borderRadius: '8px',
-          marginBottom: '20px'
-        }}>
+        <div
+          style={{
+            padding: '20px',
+            background: '#fee',
+            borderRadius: '8px',
+            marginBottom: '20px',
+          }}
+        >
           <p>Please connect your wallet to continue</p>
         </div>
       ) : (
         <>
-          <div style={{
-            padding: '20px',
-            background: '#f0f0f0',
-            borderRadius: '8px',
-            marginBottom: '20px'
-          }}>
-            <p><strong>Connected:</strong> {address}</p>
-            <p><strong>Network:</strong> Sepolia Testnet</p>
+          <div
+            style={{
+              padding: '20px',
+              background: '#f0f0f0',
+              borderRadius: '8px',
+              marginBottom: '20px',
+            }}
+          >
+            <p>
+              <strong>Connected:</strong> {address}
+            </p>
+            <p>
+              <strong>Network:</strong> Sepolia Testnet
+            </p>
           </div>
 
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '8px' }}>
-              ENS Name to Renew:
-            </label>
+            <label style={{ display: 'block', marginBottom: '8px' }}>ENS Name to Renew:</label>
             <input
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={ui.name}
+              onChange={(e) => dispatch({ type: 'SET_NAME', payload: e.target.value })}
               placeholder="myname.eth"
               style={{
                 width: '100%',
@@ -227,12 +322,10 @@ function ENSRenewalExample() {
           </div>
 
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '8px' }}>
-              Duration (years):
-            </label>
+            <label style={{ display: 'block', marginBottom: '8px' }}>Duration (years):</label>
             <select
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
+              value={ui.duration}
+              onChange={(e) => dispatch({ type: 'SET_DURATION', payload: e.target.value })}
               style={{
                 width: '100%',
                 padding: '10px',
@@ -248,17 +341,18 @@ function ENSRenewalExample() {
             </select>
           </div>
 
-          {renewalPrice && (
-            <div style={{
-              padding: '15px',
-              background: '#e3f2fd',
-              borderRadius: '8px',
-              marginBottom: '20px'
-            }}>
+          {ui.renewalPrice && (
+            <div
+              style={{
+                padding: '15px',
+                background: '#e3f2fd',
+                borderRadius: '8px',
+                marginBottom: '20px',
+              }}
+            >
               <p>
-                <strong>Renewal Cost:</strong>{' '}
-                {formatEther(renewalPrice)} ETH
-                {useSmartAccount && ' (+ gas will be sponsored)'}
+                <strong>Renewal Cost:</strong> {formatEther(ui.renewalPrice)} ETH
+                {ui.useSmartAccount && ' (+ gas will be sponsored)'}
               </p>
             </div>
           )}
@@ -267,59 +361,67 @@ function ENSRenewalExample() {
             <label style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <input
                 type="checkbox"
-                checked={useSmartAccount}
-                onChange={(e) => setUseSmartAccount(e.target.checked)}
+                checked={ui.useSmartAccount}
+                onChange={(e) =>
+                  dispatch({ type: 'SET_USE_SMART_ACCOUNT', payload: e.target.checked })
+                }
               />
               <span>
                 Use Rhinestone Smart Account
-                {useSmartAccount && ' (ERC-7579 compatible)'}
+                {ui.useSmartAccount && ' (ERC-7579 compatible)'}
               </span>
             </label>
           </div>
 
-          {useSmartAccount && smartAccountAddress && (
-            <div style={{
-              padding: '15px',
-              background: '#fff3e0',
-              borderRadius: '8px',
-              marginBottom: '20px',
-              border: '1px solid #ffb74d'
-            }}>
-              <p><strong>🔐 Smart Account Address:</strong></p>
-              <p style={{
-                fontFamily: 'monospace',
-                fontSize: '14px',
-                wordBreak: 'break-all',
-                background: '#fff',
-                padding: '8px',
-                borderRadius: '4px',
-                margin: '10px 0'
-              }}>
-                {smartAccountAddress}
+          {ui.useSmartAccount && ui.smartAccountAddress && (
+            <div
+              style={{
+                padding: '15px',
+                background: '#fff3e0',
+                borderRadius: '8px',
+                marginBottom: '20px',
+                border: '1px solid #ffb74d',
+              }}
+            >
+              <p>
+                <strong>🔐 Smart Account Address:</strong>
+              </p>
+              <p
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: '14px',
+                  wordBreak: 'break-all',
+                  background: '#fff',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  margin: '10px 0',
+                }}
+              >
+                {ui.smartAccountAddress}
               </p>
 
               <p style={{ marginTop: '10px' }}>
                 <strong>Balance:</strong>{' '}
-                {smartAccountBalance !== null
-                  ? `${formatEther(smartAccountBalance)} ETH`
+                {ui.smartAccountBalance !== null
+                  ? `${formatEther(ui.smartAccountBalance)} ETH`
                   : 'Loading...'}
               </p>
 
-              <div style={{
-                marginTop: '15px',
-                padding: '15px',
-                background: '#fff',
-                borderRadius: '8px',
-                border: '1px solid #e0e0e0'
-              }}>
-                <p style={{ marginBottom: '10px', fontWeight: 'bold' }}>
-                  💰 Fund Smart Account
-                </p>
+              <div
+                style={{
+                  marginTop: '15px',
+                  padding: '15px',
+                  background: '#fff',
+                  borderRadius: '8px',
+                  border: '1px solid #e0e0e0',
+                }}
+              >
+                <p style={{ marginBottom: '10px', fontWeight: 'bold' }}>💰 Fund Smart Account</p>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                   <input
                     type="number"
-                    value={fundingAmount}
-                    onChange={(e) => setFundingAmount(e.target.value)}
+                    value={ui.fundingAmount}
+                    onChange={(e) => dispatch({ type: 'SET_FUNDING_AMOUNT', payload: e.target.value })}
                     placeholder="0.5"
                     step="0.01"
                     min="0"
@@ -334,19 +436,19 @@ function ENSRenewalExample() {
                   <span>ETH</span>
                   <button
                     onClick={handleFundSmartAccount}
-                    disabled={isFunding || !fundingAmount}
+                    disabled={ui.isFunding || !ui.fundingAmount}
                     style={{
                       padding: '8px 16px',
                       fontSize: '14px',
-                      background: isFunding ? '#ccc' : '#2196F3',
+                      background: ui.isFunding ? '#ccc' : '#2196F3',
                       color: 'white',
                       border: 'none',
                       borderRadius: '4px',
-                      cursor: isFunding ? 'not-allowed' : 'pointer',
+                      cursor: ui.isFunding ? 'not-allowed' : 'pointer',
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {isFunding ? 'Sending...' : 'Send ETH'}
+                    {ui.isFunding ? 'Sending...' : 'Send ETH'}
                   </button>
                 </div>
                 <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
@@ -355,7 +457,8 @@ function ENSRenewalExample() {
               </div>
 
               <p style={{ fontSize: '14px', marginTop: '15px' }}>
-                <strong>💡 Tip:</strong> Alternatively, uncomment the <code>paymasterUrl</code> in the code for gasless transactions
+                <strong>💡 Tip:</strong> Alternatively, uncomment the <code>paymasterUrl</code> in
+                the code for gasless transactions
               </p>
             </div>
           )}
@@ -363,59 +466,36 @@ function ENSRenewalExample() {
           <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
             <button
               onClick={handleRenew}
-              disabled={isLoading || isPending || !name || isLoadingPrice}
+              disabled={transactionUI.buttonDisabled}
               style={{
                 padding: '10px 20px',
                 fontSize: '16px',
-                background: isLoading || isPending ? '#ccc' : '#4CAF50',
+                background: transactionUI.buttonColor,
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',
-                cursor: isLoading || isPending ? 'not-allowed' : 'pointer',
+                cursor: transactionUI.buttonDisabled ? 'not-allowed' : 'pointer',
                 flex: 1,
               }}
             >
-              {isLoading
-                ? 'Preparing...'
-                : isPending
-                ? 'Confirming...'
-                : `Renew ${name || 'Name'}`}
+              {transactionUI.buttonText}
             </button>
-
-            {(isSuccess || isError) && (
-              <button
-                onClick={handleDebugReport}
-                style={{
-                  padding: '10px 20px',
-                  fontSize: '16px',
-                  background: '#2196F3',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                }}
-              >
-                Debug Report
-              </button>
-            )}
           </div>
 
-          {/* Transaction Status */}
-          {state !== 'idle' && (
+          {/* Transaction Status - using ts-pattern for conditional rendering */}
+          {transactionUI.showStatus && (
             <div
               style={{
                 padding: '20px',
-                background: isSuccess
-                  ? '#e8f5e9'
-                  : isError
-                  ? '#ffebee'
-                  : '#fff3e0',
+                background: transactionUI.statusBackground,
                 borderRadius: '8px',
                 marginTop: '20px',
               }}
             >
               <h3>Transaction Status</h3>
-              <p><strong>State:</strong> {state}</p>
+              <p>
+                <strong>State:</strong> {machineState}
+              </p>
 
               {hash && (
                 <p>
@@ -431,26 +511,18 @@ function ENSRenewalExample() {
                 </p>
               )}
 
-              {isSuccess && (
-                <p style={{ color: '#4CAF50' }}>
-                  ✅ Renewal successful! Your name has been extended.
-                </p>
-              )}
-
-              {error && (
-                <p style={{ color: '#f44336' }}>
-                  ❌ Error: {error.message}
-                </p>
-              )}
+              {transactionUI.statusMessage && <p>{transactionUI.statusMessage}</p>}
             </div>
           )}
 
-          <div style={{
-            marginTop: '40px',
-            padding: '20px',
-            background: '#f5f5f5',
-            borderRadius: '8px'
-          }}>
+          <div
+            style={{
+              marginTop: '40px',
+              padding: '20px',
+              background: '#f5f5f5',
+              borderRadius: '8px',
+            }}
+          >
             <h3>How it works:</h3>
             <ol style={{ lineHeight: '1.8' }}>
               <li>Enter the ENS name you want to renew</li>
@@ -459,8 +531,8 @@ function ENSRenewalExample() {
                 Choose whether to use a Rhinestone Smart Account:
                 <ul>
                   <li>
-                    <strong>Smart Account:</strong> Uses ERC-7579 modular account,
-                    can enable gasless transactions
+                    <strong>Smart Account:</strong> Uses ERC-7579 modular account, can enable
+                    gasless transactions
                   </li>
                   <li>
                     <strong>Regular EOA:</strong> Standard wallet transaction
@@ -469,27 +541,34 @@ function ENSRenewalExample() {
               </li>
               <li>Click "Renew" to submit the transaction</li>
               <li>
-                The transaction manager will handle the renewal process with
-                automatic retry and fallback mechanisms
+                The transaction manager will handle the renewal process with automatic retry and
+                fallback mechanisms
               </li>
             </ol>
           </div>
 
-          <div style={{
-            marginTop: '20px',
-            padding: '15px',
-            background: '#fffde7',
-            borderRadius: '8px',
-            border: '1px solid #f0f4c3'
-          }}>
-            <p><strong>Note:</strong> This example works on Sepolia testnet.
-            Make sure you have:</p>
+          <div
+            style={{
+              marginTop: '20px',
+              padding: '15px',
+              background: '#fffde7',
+              borderRadius: '8px',
+              border: '1px solid #f0f4c3',
+            }}
+          >
+            <p>
+              <strong>Note:</strong> This example works on Sepolia testnet. Make sure you have:
+            </p>
             <ul style={{ marginTop: '10px' }}>
-              <li>Sepolia ETH for gas fees</li>
+              <li>Sepolia ETH for gas fees (or smart account balance if using smart account)</li>
               <li>An ENS name registered on Sepolia to renew</li>
               <li>
-                (Optional) A Pimlico API key for smart account functionality -
-                add to <code>.env</code> as <code>VITE_PIMLICO_API_KEY</code>
+                A Rhinestone API key for smart account functionality - add to{' '}
+                <code>.env</code> as <code>VITE_RHINESTONE_API_KEY</code>
+              </li>
+              <li>
+                (Optional) A Pimlico API key for gasless transactions - add to{' '}
+                <code>.env</code> as <code>VITE_PIMLICO_API_KEY</code>
               </li>
             </ul>
           </div>
@@ -499,11 +578,11 @@ function ENSRenewalExample() {
       {/* Transaction Modal */}
       <TransactionModal
         isOpen={modal.isOpen}
-        title={`Renew ${name || 'Name'}`}
-        ensName={name}
+        title={`Renew ${ui.name || 'Name'}`}
+        ensName={ui.name}
         network={modal.network}
         estimatedCost={modal.estimatedCost}
-        machineState={state}
+        machineState={machineState}
         onClose={modal.closeModal}
         onStart={handleStartTransaction}
         onDone={modal.closeModal}
