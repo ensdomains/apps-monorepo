@@ -34,7 +34,23 @@ export interface ERC4337UserOperation extends BaseTransactionRequest {
   entryPoint: Address
 }
 
-export type TransactionRequest = EOATransactionRequest | ERC4337UserOperation
+export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
+  type: 'rhinestone-intent'
+  rhinestoneParams?: {
+    name: string
+    duration: bigint
+  }
+}
+
+export type TransactionRequest = EOATransactionRequest | ERC4337UserOperation | RhinestoneTransactionRequest
+
+export interface RhinestoneConfig {
+  chain?: Chain
+  bundlerUrl?: string
+  paymasterUrl?: string
+  sponsorshipPolicyId?: string
+  rhinestoneApiKey?: string
+}
 
 export interface TransactionOptions {
   usePrivateMempool?: boolean
@@ -42,6 +58,8 @@ export interface TransactionOptions {
   timeout?: number
   retryCount?: number
   retryDelay?: number
+  rhinestoneConfig?: RhinestoneConfig
+  description?: string
 }
 
 export interface TransactionResult {

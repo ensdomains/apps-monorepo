@@ -35,7 +35,9 @@ function ENSRenewalExample() {
     debugReport,
   } = useENSRenewal({
     useSmartAccount,
-    // Add your Pimlico API key here or in .env
+    // Rhinestone API key (required)
+    rhinestoneApiKey: import.meta.env.VITE_RHINESTONE_API_KEY,
+    // Pimlico API key for bundler (required for smart accounts)
     bundlerUrl: `https://api.pimlico.io/v2/sepolia/rpc?apikey=${
       import.meta.env.VITE_PIMLICO_API_KEY || 'YOUR_API_KEY'
     }`,

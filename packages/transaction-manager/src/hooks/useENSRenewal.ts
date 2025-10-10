@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import React, { useCallback } from 'react'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { sepolia } from 'viem/chains'
 import { useTransaction } from './useTransaction'
@@ -10,6 +10,7 @@ export interface UseENSRenewalOptions {
   bundlerUrl?: string
   paymasterUrl?: string
   sponsorshipPolicyId?: string
+  rhinestoneApiKey?: string
 }
 
 export function useENSRenewal(options?: UseENSRenewalOptions) {
@@ -17,19 +18,40 @@ export function useENSRenewal(options?: UseENSRenewalOptions) {
   const { data: walletClient } = useWalletClient()
   const transaction = useTransaction()
 
+  // Cache smart account address to avoid recreating it on every call
+  const [cachedSmartAccountAddress, setCachedSmartAccountAddress] = React.useState<string | null>(null)
+
   const renewName = useCallback(
     async (
       name: string, // e.g., "myname" (without .eth)
       duration: bigint, // Duration in seconds (e.g., 31536000n for 1 year)
       transactionOptions?: TransactionOptions,
     ) => {
+      console.log('🔧 renewName called:', {
+        name,
+        duration: duration.toString(),
+        useSmartAccount: options?.useSmartAccount,
+        hasWalletClient: !!walletClient,
+        walletAddress: walletClient?.account?.address,
+        hasPublicClient: !!publicClient,
+        hasRhinestoneApiKey: !!options?.rhinestoneApiKey,
+        hasBundlerUrl: !!options?.bundlerUrl,
+      })
+
       if (!publicClient) {
-        console.error('No public client available')
+        console.error('❌ No public client available')
+        return
+      }
+
+      if (!walletClient) {
+        console.error('❌ No wallet client available - wallet may not be connected')
         return
       }
 
       if (options?.useSmartAccount) {
         // Use Rhinestone smart account for renewal via transaction manager
+        console.log('🚀 Using Rhinestone smart account for ENS renewal')
+
         const rhinestoneService = new RhinestoneAccountService(
           publicClient,
           walletClient || undefined,
@@ -38,6 +60,7 @@ export function useENSRenewal(options?: UseENSRenewalOptions) {
             bundlerUrl: options.bundlerUrl,
             paymasterUrl: options.paymasterUrl,
             sponsorshipPolicyId: options.sponsorshipPolicyId,
+            rhinestoneApiKey: options.rhinestoneApiKey,
           },
         )
 
@@ -48,26 +71,32 @@ export function useENSRenewal(options?: UseENSRenewalOptions) {
         })
 
         if (txResult.isErr()) {
-          console.error('Failed to prepare ENS renewal:', txResult.error)
+          console.error('❌ Failed to prepare ENS renewal:', txResult.error)
           return
         }
 
         const { to, data, value } = txResult.value
 
-        // Execute via transaction manager with smart account
+        // Execute via transaction manager with Rhinestone smart account
         transaction.execute(
           {
-            type: 'erc4337',
+            type: 'rhinestone-intent',
             to,
             data,
             value,
             from: walletClient?.account?.address,
+            chainId: sepolia.id,
+            rhinestoneParams: { name, duration },
           },
           {
             ...transactionOptions,
-            // Pass smart account service config
-            bundlerUrl: options.bundlerUrl,
-            paymasterUrl: options.paymasterUrl,
+            rhinestoneConfig: {
+              chain: sepolia,
+              bundlerUrl: options.bundlerUrl,
+              paymasterUrl: options.paymasterUrl,
+              sponsorshipPolicyId: options.sponsorshipPolicyId,
+              rhinestoneApiKey: options.rhinestoneApiKey,
+            },
           },
         )
       } else {
@@ -125,8 +154,25 @@ export function useENSRenewal(options?: UseENSRenewalOptions) {
 
   const getSmartAccountAddress = useCallback(
     async () => {
+      console.log('🔍 getSmartAccountAddress called:', {
+        hasPublicClient: !!publicClient,
+        hasWalletClient: !!walletClient,
+        walletAddress: walletClient?.account?.address,
+        hasRhinestoneApiKey: !!options?.rhinestoneApiKey,
+        hasCached: !!cachedSmartAccountAddress,
+      })
+
+      // Return cached address if available and wallet hasn't changed
+      if (cachedSmartAccountAddress && walletClient?.account?.address) {
+        console.log('✅ Returning cached smart account address:', cachedSmartAccountAddress)
+        return cachedSmartAccountAddress
+      }
+
       if (!publicClient || !walletClient) {
-        console.warn('Wallet not connected - cannot get smart account address')
+        console.warn('⚠️ Wallet not connected - cannot get smart account address', {
+          hasPublicClient: !!publicClient,
+          hasWalletClient: !!walletClient,
+        })
         return null
       }
 
@@ -138,6 +184,7 @@ export function useENSRenewal(options?: UseENSRenewalOptions) {
           bundlerUrl: options?.bundlerUrl,
           paymasterUrl: options?.paymasterUrl,
           sponsorshipPolicyId: options?.sponsorshipPolicyId,
+          rhinestoneApiKey: options?.rhinestoneApiKey,
         },
       )
 
@@ -148,10 +195,17 @@ export function useENSRenewal(options?: UseENSRenewalOptions) {
         return null
       }
 
-      return result.value
+      const address = result.value
+      setCachedSmartAccountAddress(address)
+      return address
     },
-    [publicClient, walletClient, options],
+    [publicClient, walletClient, options, cachedSmartAccountAddress],
   )
+
+  // Clear cache when wallet changes
+  React.useEffect(() => {
+    setCachedSmartAccountAddress(null)
+  }, [walletClient?.account?.address])
 
   return {
     renewName,

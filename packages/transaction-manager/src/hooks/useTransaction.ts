@@ -59,7 +59,12 @@ export function useTransaction(): UseTransactionReturn {
       return
     }
 
-    const transactionService = new TransactionService(publicClient, walletClient || undefined)
+    // Pass Rhinestone config to TransactionService if provided
+    const transactionService = new TransactionService(
+      publicClient,
+      walletClient || undefined,
+      options?.rhinestoneConfig
+    )
 
     const newActor = createActor(transactionMachine, {
       input: {

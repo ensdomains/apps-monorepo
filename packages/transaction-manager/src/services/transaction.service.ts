@@ -37,6 +37,10 @@ export class TransactionService {
       usePrivateMempool?: boolean
     }
   ): ResultAsync<Hash, TransactionSubmissionError | UserOperationError> {
+    if (request.type === 'rhinestone-intent') {
+      return this.submitRhinestoneIntent(request as any)
+    }
+
     if (request.type === 'erc4337') {
       return this.submitUserOperation(request)
     }
@@ -73,6 +77,38 @@ export class TransactionService {
         maxPriorityFeePerGas: request.maxPriorityFeePerGas,
         nonce: request.nonce,
         chain: this.walletClient.chain
+      }),
+      (error) => new TransactionSubmissionError(request, error)
+    )
+  }
+
+  private submitRhinestoneIntent(
+    request: any
+  ): ResultAsync<Hash, TransactionSubmissionError> {
+    console.log('📤 Submitting Rhinestone intent transaction...')
+
+    if (!this.rhinestoneService) {
+      console.error('❌ No Rhinestone service configured')
+      return err(new TransactionSubmissionError(
+        request,
+        new Error('Rhinestone service not configured. Please provide rhinestoneConfig.')
+      ))
+    }
+
+    if (!request.rhinestoneParams) {
+      console.error('❌ No Rhinestone params provided')
+      return err(new TransactionSubmissionError(
+        request,
+        new Error('rhinestoneParams required for Rhinestone transactions')
+      ))
+    }
+
+    return fromPromise(
+      this.rhinestoneService.executeENSRenewal(request.rhinestoneParams).then(result => {
+        if (result.isErr()) {
+          throw result.error
+        }
+        return result.value
       }),
       (error) => new TransactionSubmissionError(request, error)
     )

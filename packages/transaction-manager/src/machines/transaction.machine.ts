@@ -133,34 +133,36 @@ export const transactionMachine = setup({
     },
 
     logError: ({ context }, params: any) => {
+      const error = params?.error || params || 'Unknown error'
       if (context.auditService) {
         context.auditService.addAuditEntry(
           'error',
           'Transaction error occurred',
           {
-            error: params.error,
+            error,
             hash: context.hash,
             request: context.request
           }
         )
       }
-      console.error('Transaction error:', params.error)
+      console.error('Transaction error:', error)
     },
 
     logCritical: ({ context }, params: any) => {
+      const error = params?.error || params || 'Unknown critical error'
       if (context.auditService) {
         context.auditService.addAuditEntry(
           'critical',
           'Critical transaction failure',
           {
-            error: params.error,
+            error,
             hash: context.hash,
             request: context.request,
             retryCount: context.retryCount
           }
         )
       }
-      console.error('CRITICAL:', params.error)
+      console.error('CRITICAL:', error)
     }
   }
 }).createMachine({

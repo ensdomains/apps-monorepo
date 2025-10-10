@@ -61,18 +61,8 @@ var ImportError = class extends TransactionError {
 
 // src/services/rhinestone-account.service.ts
 import { err, ok } from "neverthrow";
+import { RhinestoneSDK, walletClientToAccount } from "@rhinestone/sdk";
 import {
-  createSmartAccountClient,
-  toOwner
-} from "permissionless";
-import {
-  toSafeSmartAccount
-} from "permissionless/accounts";
-import {
-  createPimlicoClient
-} from "permissionless/clients/pimlico";
-import {
-  http,
   encodeFunctionData
 } from "viem";
 import { sepolia } from "viem/chains";
@@ -80,17 +70,17 @@ import { sepolia } from "viem/chains";
 // src/contracts/ens-sepolia.ts
 var ENS_SEPOLIA_CONTRACTS = {
   // ENS Registry
-  registry: "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
+  Registry: "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
   // ETH Registrar Controller (for .eth domains)
-  ethRegistrarController: "0xfed6a969aaa60e4961fcd3ebf1a2e8913ac65b72",
+  ETHRegistrarController: "0xfed6a969aaa60e4961fcd3ebf1a2e8913ac65b72",
   // Base Registrar Implementation
-  baseRegistrar: "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85",
+  BaseRegistrar: "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85",
   // Public Resolver
-  publicResolver: "0x9010A27463717360cAD99CEA8bD39b8705CCA238",
+  PublicResolver: "0x9010A27463717360cAD99CEA8bD39b8705CCA238",
   // Reverse Registrar
-  reverseRegistrar: "0xa58e81fe9b61b5c3fe2afd33cf304c454abfc7cb",
+  ReverseRegistrar: "0xa58e81fe9b61b5c3fe2afd33cf304c454abfc7cb",
   // Name Wrapper
-  nameWrapper: "0x0635513f179d50a207757e05759cbd106d7dfce8"
+  NameWrapper: "0x0635513f179d50a207757e05759cbd106d7dfce8"
 };
 var ETH_REGISTRAR_CONTROLLER_ABI = [
   {
@@ -126,7 +116,6 @@ var ETH_REGISTRAR_CONTROLLER_ABI = [
 ];
 
 // src/services/rhinestone-account.service.ts
-var ENTRYPOINT_ADDRESS_V07 = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
 var RhinestoneAccountError = class extends Error {
   constructor(message) {
     super(message);
@@ -141,165 +130,156 @@ var RhinestoneAccountService = class {
       chain: config?.chain || sepolia,
       bundlerUrl: config?.bundlerUrl,
       paymasterUrl: config?.paymasterUrl,
-      sponsorshipPolicyId: config?.sponsorshipPolicyId
+      rhinestoneApiKey: config?.rhinestoneApiKey
     };
-    if (this.config.bundlerUrl) {
-      this.pimlicoClient = createPimlicoClient({
-        chain: this.config.chain,
-        transport: http(this.config.bundlerUrl),
-        entryPoint: {
-          address: ENTRYPOINT_ADDRESS_V07,
-          version: "0.7"
-        }
-      });
-    }
+    this.rhinestone = new RhinestoneSDK({
+      apiKey: config?.rhinestoneApiKey
+    });
   }
   async initializeSmartAccount() {
     try {
-      if (!this.walletClient) {
+      console.log("\u{1F510} Initializing Rhinestone smart account...", {
+        hasWalletClient: !!this.walletClient,
+        hasAccount: !!this.walletClient?.account,
+        accountAddress: this.walletClient?.account?.address,
+        hasApiKey: !!this.config.rhinestoneApiKey,
+        chain: this.config.chain?.name
+      });
+      if (!this.walletClient?.account) {
+        console.error("\u274C No wallet client available for smart account initialization");
         return err(new RhinestoneAccountError("No wallet client available"));
       }
-      const owner = await toOwner({
-        owner: this.walletClient
+      console.log("\u{1F4DD} Creating Rhinestone account with ECDSA owner...");
+      const account = walletClientToAccount(this.walletClient);
+      this.rhinestoneAccount = await this.rhinestone.createAccount({
+        owners: {
+          type: "ecdsa",
+          accounts: [account]
+        }
       });
-      const safeAccount = await toSafeSmartAccount({
-        client: this.publicClient,
-        owners: [owner],
-        entryPoint: {
-          address: ENTRYPOINT_ADDRESS_V07,
-          version: "0.7"
-        },
-        version: "1.4.1"
+      console.log("\u2705 Rhinestone account created successfully:", {
+        address: this.rhinestoneAccount?.getAddress?.()
       });
-      const clientConfig = {
-        account: safeAccount,
-        chain: this.config.chain,
-        bundlerTransport: http(this.config.bundlerUrl)
-      };
-      if (this.config.paymasterUrl) {
-        clientConfig.paymaster = this.pimlicoClient;
-        clientConfig.userOperation = {
-          estimateFeesPerGas: async () => {
-            const gasPrices = await this.pimlicoClient.getUserOperationGasPrice();
-            return gasPrices.fast;
-          }
-        };
-      }
-      this.smartAccountClient = createSmartAccountClient(clientConfig);
-      return ok(this.smartAccountClient);
+      return ok(this.rhinestoneAccount);
     } catch (error) {
+      console.error("\u274C Failed to initialize smart account:", error);
       return err(
         new RhinestoneAccountError(
-          `Failed to initialize smart account: ${error instanceof Error ? error.message : String(error)}`
+          `Failed to initialize smart account: ${error instanceof Error ? error.message : "Unknown error"}`
         )
       );
     }
   }
   async getSmartAccountAddress() {
-    if (!this.smartAccountClient) {
-      const initResult = await this.initializeSmartAccount();
-      if (initResult.isErr()) return err(initResult.error);
-    }
     try {
-      const address = this.smartAccountClient.account?.address;
-      if (!address) {
-        return err(new RhinestoneAccountError("No smart account address available"));
+      if (!this.rhinestoneAccount) {
+        const initResult = await this.initializeSmartAccount();
+        if (initResult.isErr()) {
+          return err(initResult.error);
+        }
       }
+      const address = this.rhinestoneAccount.getAddress();
       return ok(address);
     } catch (error) {
       return err(
-        new RhinestoneAccountError(`Failed to get smart account address: ${error instanceof Error ? error.message : String(error)}`)
+        new RhinestoneAccountError(
+          `Failed to get smart account address: ${error instanceof Error ? error.message : "Unknown error"}`
+        )
       );
     }
   }
   async getRenewalPrice(name, duration) {
     try {
       const price = await this.publicClient.readContract({
-        address: ENS_SEPOLIA_CONTRACTS.ethRegistrarController,
+        address: ENS_SEPOLIA_CONTRACTS.ETHRegistrarController,
         abi: ETH_REGISTRAR_CONTROLLER_ABI,
         functionName: "rentPrice",
         args: [name, duration]
       });
-      return ok(price.base + price.premium);
+      const totalPrice = price.base + price.premium;
+      return ok(totalPrice);
     } catch (error) {
       return err(
         new RhinestoneAccountError(
-          `Failed to get renewal price: ${error instanceof Error ? error.message : String(error)}`
+          `Failed to get renewal price: ${error instanceof Error ? error.message : "Unknown error"}`
         )
       );
     }
   }
   async prepareENSRenewalTransaction(params) {
     try {
-      const priceResult = await this.getRenewalPrice(params.name, params.duration);
-      if (priceResult.isErr()) return err(priceResult.error);
-      const price = priceResult.value;
-      const valueWithBuffer = price * 110n / 100n;
+      const { name, duration } = params;
+      console.log("\u{1F4CB} Preparing ENS renewal transaction...", { name, duration: duration.toString() });
+      const priceResult = await this.getRenewalPrice(name, duration);
+      if (priceResult.isErr()) {
+        console.error("\u274C Failed to get renewal price:", priceResult.error);
+        return err(priceResult.error);
+      }
+      const renewalPrice = priceResult.value;
+      console.log("\u{1F4B0} Renewal price:", renewalPrice.toString());
       const data = encodeFunctionData({
         abi: ETH_REGISTRAR_CONTROLLER_ABI,
         functionName: "renew",
-        args: [params.name, params.duration]
+        args: [name, duration]
       });
-      return ok({
-        to: ENS_SEPOLIA_CONTRACTS.ethRegistrarController,
+      const txData = {
+        to: ENS_SEPOLIA_CONTRACTS.ETHRegistrarController,
         data,
-        value: valueWithBuffer
+        value: renewalPrice
+      };
+      console.log("\u2705 Transaction prepared:", {
+        to: txData.to,
+        value: txData.value.toString(),
+        dataLength: txData.data.length
       });
+      return ok(txData);
     } catch (error) {
+      console.error("\u274C Failed to prepare ENS renewal transaction:", error);
       return err(
         new RhinestoneAccountError(
-          `Failed to prepare ENS renewal transaction: ${error instanceof Error ? error.message : String(error)}`
+          `Failed to prepare ENS renewal transaction: ${error instanceof Error ? error.message : "Unknown error"}`
         )
       );
     }
   }
   async executeENSRenewal(params) {
     try {
-      if (!this.pimlicoClient) {
-        return err(new RhinestoneAccountError("Bundler URL is required for smart account operations. Please provide bundlerUrl in the config."));
-      }
-      if (!this.smartAccountClient) {
+      console.log("\u{1F680} Executing ENS renewal...", params);
+      if (!this.rhinestoneAccount) {
+        console.log("\u2699\uFE0F Smart account not initialized, initializing now...");
         const initResult = await this.initializeSmartAccount();
-        if (initResult.isErr()) return err(initResult.error);
+        if (initResult.isErr()) {
+          return err(initResult.error);
+        }
       }
       const txResult = await this.prepareENSRenewalTransaction(params);
-      if (txResult.isErr()) return err(txResult.error);
-      const { to, data, value } = txResult.value;
-      const allGasPrices = await this.pimlicoClient.getUserOperationGasPrice();
-      const tier = params.gasPriceTier || "fast";
-      const gasPrices = allGasPrices[tier];
-      const userOpHash = await this.smartAccountClient.sendTransaction({
-        account: this.smartAccountClient.account,
-        to,
-        data,
-        value,
-        maxFeePerGas: gasPrices.maxFeePerGas,
-        maxPriorityFeePerGas: gasPrices.maxPriorityFeePerGas
-      });
-      return ok(userOpHash);
-    } catch (error) {
-      return err(
-        new RhinestoneAccountError(
-          `Failed to execute ENS renewal: ${error instanceof Error ? error.message : String(error)}`
-        )
-      );
-    }
-  }
-  async waitForUserOperationReceipt(hash) {
-    try {
-      if (!this.smartAccountClient) {
-        return err(new RhinestoneAccountError("Smart account not initialized"));
+      if (txResult.isErr()) {
+        return err(txResult.error);
       }
-      return ok({
-        userOpHash: hash,
-        success: true,
-        actualGasCost: 0n,
-        actualGasUsed: 0n
+      const { to, data, value } = txResult.value;
+      console.log("\u{1F4E4} Sending transaction via Rhinestone SDK...", {
+        targetChain: this.config.chain?.name || "sepolia",
+        to,
+        value: value.toString()
       });
+      const transaction = await this.rhinestoneAccount.sendTransaction({
+        sourceChains: [this.config.chain || sepolia],
+        targetChain: this.config.chain || sepolia,
+        calls: [
+          {
+            to,
+            data,
+            value
+          }
+        ]
+      });
+      console.log("\u2705 Transaction sent:", transaction.hash);
+      return ok(transaction.hash);
     } catch (error) {
+      console.error("\u274C Failed to execute ENS renewal:", error);
       return err(
         new RhinestoneAccountError(
-          `Failed to get user operation receipt: ${error instanceof Error ? error.message : String(error)}`
+          `Failed to execute ENS renewal: ${error instanceof Error ? error.message : "Unknown error"}`
         )
       );
     }
@@ -320,6 +300,9 @@ var TransactionService = class {
     }
   }
   submitTransaction(request, options) {
+    if (request.type === "rhinestone-intent") {
+      return this.submitRhinestoneIntent(request);
+    }
     if (request.type === "erc4337") {
       return this.submitUserOperation(request);
     }
@@ -347,6 +330,32 @@ var TransactionService = class {
         maxPriorityFeePerGas: request.maxPriorityFeePerGas,
         nonce: request.nonce,
         chain: this.walletClient.chain
+      }),
+      (error) => new TransactionSubmissionError(request, error)
+    );
+  }
+  submitRhinestoneIntent(request) {
+    console.log("\u{1F4E4} Submitting Rhinestone intent transaction...");
+    if (!this.rhinestoneService) {
+      console.error("\u274C No Rhinestone service configured");
+      return err2(new TransactionSubmissionError(
+        request,
+        new Error("Rhinestone service not configured. Please provide rhinestoneConfig.")
+      ));
+    }
+    if (!request.rhinestoneParams) {
+      console.error("\u274C No Rhinestone params provided");
+      return err2(new TransactionSubmissionError(
+        request,
+        new Error("rhinestoneParams required for Rhinestone transactions")
+      ));
+    }
+    return fromPromise(
+      this.rhinestoneService.executeENSRenewal(request.rhinestoneParams).then((result) => {
+        if (result.isErr()) {
+          throw result.error;
+        }
+        return result.value;
       }),
       (error) => new TransactionSubmissionError(request, error)
     );
@@ -743,33 +752,35 @@ var transactionMachine = setup({
       }
     },
     logError: ({ context }, params) => {
+      const error = params?.error || params || "Unknown error";
       if (context.auditService) {
         context.auditService.addAuditEntry(
           "error",
           "Transaction error occurred",
           {
-            error: params.error,
+            error,
             hash: context.hash,
             request: context.request
           }
         );
       }
-      console.error("Transaction error:", params.error);
+      console.error("Transaction error:", error);
     },
     logCritical: ({ context }, params) => {
+      const error = params?.error || params || "Unknown critical error";
       if (context.auditService) {
         context.auditService.addAuditEntry(
           "critical",
           "Critical transaction failure",
           {
-            error: params.error,
+            error,
             hash: context.hash,
             request: context.request,
             retryCount: context.retryCount
           }
         );
       }
-      console.error("CRITICAL:", params.error);
+      console.error("CRITICAL:", error);
     }
   }
 }).createMachine({
@@ -1054,7 +1065,11 @@ function useTransaction() {
       console.error("No public client available");
       return;
     }
-    const transactionService = new TransactionService(publicClient, walletClient || void 0);
+    const transactionService = new TransactionService(
+      publicClient,
+      walletClient || void 0,
+      options?.rhinestoneConfig
+    );
     const newActor = createActor(transactionMachine, {
       input: {
         request,
@@ -1165,20 +1180,36 @@ function useAuditTrail() {
 }
 
 // src/hooks/useENSRenewal.ts
-import { useCallback as useCallback3 } from "react";
+import React, { useCallback as useCallback3 } from "react";
 import { usePublicClient as usePublicClient2, useWalletClient as useWalletClient2 } from "wagmi";
 import { sepolia as sepolia2 } from "viem/chains";
 function useENSRenewal(options) {
   const publicClient = usePublicClient2({ chainId: sepolia2.id });
   const { data: walletClient } = useWalletClient2();
   const transaction = useTransaction();
+  const [cachedSmartAccountAddress, setCachedSmartAccountAddress] = React.useState(null);
   const renewName = useCallback3(
     async (name, duration, transactionOptions) => {
+      console.log("\u{1F527} renewName called:", {
+        name,
+        duration: duration.toString(),
+        useSmartAccount: options?.useSmartAccount,
+        hasWalletClient: !!walletClient,
+        walletAddress: walletClient?.account?.address,
+        hasPublicClient: !!publicClient,
+        hasRhinestoneApiKey: !!options?.rhinestoneApiKey,
+        hasBundlerUrl: !!options?.bundlerUrl
+      });
       if (!publicClient) {
-        console.error("No public client available");
+        console.error("\u274C No public client available");
+        return;
+      }
+      if (!walletClient) {
+        console.error("\u274C No wallet client available - wallet may not be connected");
         return;
       }
       if (options?.useSmartAccount) {
+        console.log("\u{1F680} Using Rhinestone smart account for ENS renewal");
         const rhinestoneService = new RhinestoneAccountService(
           publicClient,
           walletClient || void 0,
@@ -1186,7 +1217,8 @@ function useENSRenewal(options) {
             chain: sepolia2,
             bundlerUrl: options.bundlerUrl,
             paymasterUrl: options.paymasterUrl,
-            sponsorshipPolicyId: options.sponsorshipPolicyId
+            sponsorshipPolicyId: options.sponsorshipPolicyId,
+            rhinestoneApiKey: options.rhinestoneApiKey
           }
         );
         const txResult = await rhinestoneService.prepareENSRenewalTransaction({
@@ -1194,23 +1226,29 @@ function useENSRenewal(options) {
           duration
         });
         if (txResult.isErr()) {
-          console.error("Failed to prepare ENS renewal:", txResult.error);
+          console.error("\u274C Failed to prepare ENS renewal:", txResult.error);
           return;
         }
         const { to, data, value } = txResult.value;
         transaction.execute(
           {
-            type: "erc4337",
+            type: "rhinestone-intent",
             to,
             data,
             value,
-            from: walletClient?.account?.address
+            from: walletClient?.account?.address,
+            chainId: sepolia2.id,
+            rhinestoneParams: { name, duration }
           },
           {
             ...transactionOptions,
-            // Pass smart account service config
-            bundlerUrl: options.bundlerUrl,
-            paymasterUrl: options.paymasterUrl
+            rhinestoneConfig: {
+              chain: sepolia2,
+              bundlerUrl: options.bundlerUrl,
+              paymasterUrl: options.paymasterUrl,
+              sponsorshipPolicyId: options.sponsorshipPolicyId,
+              rhinestoneApiKey: options.rhinestoneApiKey
+            }
           }
         );
       } else {
@@ -1256,8 +1294,22 @@ function useENSRenewal(options) {
   );
   const getSmartAccountAddress = useCallback3(
     async () => {
+      console.log("\u{1F50D} getSmartAccountAddress called:", {
+        hasPublicClient: !!publicClient,
+        hasWalletClient: !!walletClient,
+        walletAddress: walletClient?.account?.address,
+        hasRhinestoneApiKey: !!options?.rhinestoneApiKey,
+        hasCached: !!cachedSmartAccountAddress
+      });
+      if (cachedSmartAccountAddress && walletClient?.account?.address) {
+        console.log("\u2705 Returning cached smart account address:", cachedSmartAccountAddress);
+        return cachedSmartAccountAddress;
+      }
       if (!publicClient || !walletClient) {
-        console.warn("Wallet not connected - cannot get smart account address");
+        console.warn("\u26A0\uFE0F Wallet not connected - cannot get smart account address", {
+          hasPublicClient: !!publicClient,
+          hasWalletClient: !!walletClient
+        });
         return null;
       }
       const rhinestoneService = new RhinestoneAccountService(
@@ -1267,7 +1319,8 @@ function useENSRenewal(options) {
           chain: sepolia2,
           bundlerUrl: options?.bundlerUrl,
           paymasterUrl: options?.paymasterUrl,
-          sponsorshipPolicyId: options?.sponsorshipPolicyId
+          sponsorshipPolicyId: options?.sponsorshipPolicyId,
+          rhinestoneApiKey: options?.rhinestoneApiKey
         }
       );
       const result = await rhinestoneService.getSmartAccountAddress();
@@ -1275,10 +1328,15 @@ function useENSRenewal(options) {
         console.error("Failed to get smart account address:", result.error);
         return null;
       }
-      return result.value;
+      const address = result.value;
+      setCachedSmartAccountAddress(address);
+      return address;
     },
-    [publicClient, walletClient, options]
+    [publicClient, walletClient, options, cachedSmartAccountAddress]
   );
+  React.useEffect(() => {
+    setCachedSmartAccountAddress(null);
+  }, [walletClient?.account?.address]);
   return {
     renewName,
     getRenewalPrice,
