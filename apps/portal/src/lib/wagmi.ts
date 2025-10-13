@@ -41,7 +41,7 @@ export const l1Devnet = defineChain({
   },
   contracts: {
     multicall3: {
-      address: '0x',
+      address: '0xcA11bde05977b3631167028862bE2a173976CA11',
     },
   },
   testnet: true,

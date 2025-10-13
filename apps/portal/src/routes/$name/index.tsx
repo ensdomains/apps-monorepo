@@ -22,7 +22,7 @@ const Owner = ({ name }: { name: string }) => {
     isLoading,
   } = useQuery(getEnsOwnerQueryOptions({ name }))
 
-  if (error) return <div>Error: {error.cause.message}</div>
+  if (error) return <div>Error: {error.cause?.message}</div>
   if (isLoading) return <div>Loading...</div>
   if (!owner) return null
 
