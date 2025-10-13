@@ -5,53 +5,15 @@ import {
   injectedWallet,
   metaMaskWallet,
 } from '@rainbow-me/rainbowkit/wallets'
-import { createClient, defineChain, type HttpTransport, http } from 'viem'
+import { createClient, type HttpTransport, http } from 'viem'
+import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
-
-export const l2Devnet = defineChain({
-  id: 15658734,
-  name: 'L2 Devnet',
-  nativeCurrency: {
-    decimals: 18,
-    name: 'Ether',
-    symbol: 'ETH',
-  },
-  rpcUrls: {
-    default: {
-      http: ['http://127.0.0.1:8546'],
-      webSocket: ['ws://127.0.0.1:8546'],
-    },
-  },
-  testnet: true,
-})
-
-export const l1Devnet = defineChain({
-  id: 15658733,
-  name: 'L1 Devnet',
-  nativeCurrency: {
-    decimals: 18,
-    name: 'Ether',
-    symbol: 'ETH',
-  },
-  rpcUrls: {
-    default: {
-      http: ['http://127.0.0.1:8545'],
-      webSocket: ['ws://127.0.0.1:8545'],
-    },
-  },
-  contracts: {
-    multicall3: {
-      address: '0xcA11bde05977b3631167028862bE2a173976CA11',
-    },
-  },
-  testnet: true,
-})
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: false,
   multiInjectedProviderDiscovery: true,
-  chains: [extendChainWithEns(l1Devnet)],
+  chains: [extendChainWithEns(sepolia)],
   connectors: connectorsForWallets(
     [
       {
