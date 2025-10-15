@@ -57,7 +57,7 @@
     "xstate": "catalog:"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.12.3",
+    "@cloudflare/vite-plugin": "^1.13.13",
     "@ensdomains/vite-plugin-i18next-loader": "^4.0.3",
     "@statelyai/inspect": "^0.4.0",
     "@tailwindcss/vite": "^4.1.13",
