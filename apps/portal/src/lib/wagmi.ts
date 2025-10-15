@@ -26,7 +26,7 @@ export const wagmiConfig = createConfig({
   client: ({ chain }) => {
     return createClient<HttpTransport, typeof chain>({
       chain,
-      transport: http(),
+      transport: http('https://sepolia.drpc.org'),
     })
   },
 })

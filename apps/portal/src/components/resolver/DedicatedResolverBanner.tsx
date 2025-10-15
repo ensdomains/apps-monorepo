@@ -26,7 +26,7 @@ export const DedicatedResolverBanner = ({
 
   if (isLoading) return <>Loading...</>
 
-  if (isDedicatedResolver)
+  if (isDedicatedResolver?.[0])
     return (
       <div className="flex flex-col p-6 gap-4 items-center rounded-2xl bg-secondary">
         <ShieldCheckIcon height={24} width={24} />

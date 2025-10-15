@@ -16,7 +16,7 @@
   "dependencies": {
     "@adraffy/ens-normalize": "^1.11.0",
     "@ens-apps/utils": "workspace:*",
-    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@e506221",
+    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@ec2091b",
     "@ensdomains/locales": "workspace:^",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-avatar": "^1.1.10",

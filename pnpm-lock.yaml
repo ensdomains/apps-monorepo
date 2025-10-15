@@ -265,8 +265,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/utils
       '@ensdomains/ensjs':
-        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@e506221
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@e506221(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))
+        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@ec2091b
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@ec2091b(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))
       '@ensdomains/locales':
         specifier: workspace:^
         version: link:../../packages/locales
@@ -832,8 +832,8 @@ packages:
     peerDependencies:
       viem: ^2.9.2
 
-  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@e506221':
-    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@e506221}
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@ec2091b':
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@ec2091b}
     version: 4.0.2
     engines: {node: '>=22'}
     peerDependencies:
@@ -6424,7 +6424,7 @@ snapshots:
       ts-pattern: 5.8.0
       viem: 2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76)
 
-  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@e506221(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))':
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@ec2091b(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 1.1.1
