@@ -1,4 +1,4 @@
-import { ResultAsync } from 'neverthrow'
+import { Result, ok, err } from 'neverthrow'
 import type {
   StateTransition,
   AuditEntry,
@@ -223,22 +223,18 @@ export function exportToJson(): string {
   }
 }
 
-export function importFromJson(json: string): ResultAsync<void, ImportError> {
-  return ResultAsync.fromPromise(
-    Promise.resolve().then(() => {
-      try {
-        const parsed = JSON.parse(json)
-        const data: AuditTrailData = {
-          transitions: parsed.transitions || [],
-          auditLog: parsed.auditLog || []
-        }
-        saveToStorage(data)
-      } catch (error) {
-        throw new ImportError({ cause: error })
-      }
-    }),
-    (error) => new ImportError({ cause: error })
-  )
+export function importFromJson(json: string): Result<void, ImportError> {
+  try {
+    const parsed = JSON.parse(json)
+    const data: AuditTrailData = {
+      transitions: parsed.transitions || [],
+      auditLog: parsed.auditLog || []
+    }
+    saveToStorage(data)
+    return ok(undefined)
+  } catch (error) {
+    return err(new ImportError({ cause: error }))
+  }
 }
 
 export function clearAuditTrail(): void {

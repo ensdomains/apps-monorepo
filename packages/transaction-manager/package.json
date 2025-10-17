@@ -19,6 +19,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ens-apps/utils": "workspace:*",
     "@rhinestone/module-sdk": "^0.4.0",
     "@rhinestone/sdk": "^1.0.2",
     "@xstate/react": "^4.0.0-beta.12",

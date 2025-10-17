@@ -1,4 +1,4 @@
-import { ResultAsync, ok, err, fromPromise } from 'neverthrow'
+import { ResultAsync, errAsync, fromPromise } from 'neverthrow'
 import type { Hash, PublicClient, WalletClient, TransactionReceipt } from 'viem'
 import type {
   TransactionRequest,
@@ -55,7 +55,7 @@ export class TransactionService {
     }
   ): ResultAsync<Hash, TransactionSubmissionError> {
     if (!this.walletClient) {
-      return err(new TransactionSubmissionError(
+      return errAsync(new TransactionSubmissionError(
         request,
         new Error('No wallet client available')
       ))
@@ -89,7 +89,7 @@ export class TransactionService {
 
     if (!this.rhinestoneService) {
       console.error('❌ No Rhinestone service configured')
-      return err(new TransactionSubmissionError(
+      return errAsync(new TransactionSubmissionError(
         request,
         new Error('Rhinestone service not configured. Please provide rhinestoneConfig.')
       ))
@@ -97,21 +97,17 @@ export class TransactionService {
 
     if (!request.rhinestoneParams) {
       console.error('❌ No Rhinestone params provided')
-      return err(new TransactionSubmissionError(
+      return errAsync(new TransactionSubmissionError(
         request,
         new Error('rhinestoneParams required for Rhinestone transactions')
       ))
     }
 
-    return fromPromise(
-      this.rhinestoneService.executeENSRenewal(request.rhinestoneParams).then(result => {
-        if (result.isErr()) {
-          throw result.error
-        }
-        return result.value
-      }),
-      (error) => new TransactionSubmissionError(request, error)
+    return ResultAsync.fromSafePromise(
+      this.rhinestoneService.executeENSRenewal(request.rhinestoneParams)
     )
+      .andThen(result => result)
+      .mapErr(error => new TransactionSubmissionError(request, error))
   }
 
   private submitUserOperation(
@@ -200,7 +196,7 @@ export class TransactionService {
   ): ResultAsync<{ wouldSucceed: boolean; result?: Hash }, EthCallFallbackError> {
     if (request.type === 'erc4337') {
       // For 4337, we'd simulate the user operation
-      return ok({ wouldSucceed: true })
+      return ResultAsync.fromSafePromise(Promise.resolve({ wouldSucceed: true }))
     }
 
     const eoaRequest = request as EOATransactionRequest

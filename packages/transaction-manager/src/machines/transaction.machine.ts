@@ -1,4 +1,5 @@
 import { setup, assign, fromPromise } from 'xstate'
+import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Hash, TransactionReceipt } from 'viem'
 import type { TransactionRequest, TransactionOptions, TransactionModalState } from '../types/transaction.types'
 import type { TransactionService } from '../services/transaction.service'
@@ -38,69 +39,45 @@ export const transactionMachine = setup({
       | { type: 'UPDATE_MODAL_DATA'; data: Partial<TransactionModalState> }
   },
   actors: {
-    submitTransaction: fromPromise(async ({ input }: {
-      input: {
+    submitTransaction: fromResultAsync(
+      ({ request, options, service }: {
         request?: TransactionRequest
         options?: TransactionOptions
         service: TransactionService
+      }) => {
+        if (!request) {
+          throw new Error('No transaction request provided')
+        }
+
+        return service.submitTransaction(request, options)
       }
-    }) => {
-      if (!input.request) {
-        throw new Error('No transaction request provided')
-      }
+    ),
 
-      const result = await input.service.submitTransaction(
-        input.request,
-        input.options
-      )
-
-      if (result.isErr()) {
-        throw result.error
-      }
-
-      return result.value
-    }),
-
-    waitForReceipt: fromPromise(async ({ input }: {
-      input: {
+    waitForReceipt: fromResultAsync(
+      ({ hash, options, service }: {
         hash: Hash
         options?: TransactionOptions
         service: TransactionService
+      }) => {
+        return service.waitForReceipt(hash, {
+          confirmations: options?.confirmations,
+          timeout: options?.timeout
+        })
       }
-    }) => {
-      const result = await input.service.waitForReceipt(
-        input.hash,
-        {
-          confirmations: input.options?.confirmations,
-          timeout: input.options?.timeout
-        }
-      )
+    ),
 
-      if (result.isErr()) {
-        throw result.error
-      }
-
-      return result.value
-    }),
-
-    checkWithEthCall: fromPromise(async ({ input }: {
-      input: {
+    checkWithEthCall: fromResultAsync(
+      ({ request, service }: {
         request?: TransactionRequest
         service: TransactionService
-      }
-    }) => {
-      if (!input.request) {
-        throw new Error('No transaction request provided')
-      }
+      }) => {
+        if (!request) {
+          throw new Error('No transaction request provided')
+        }
 
-      const result = await input.service.checkWithEthCall(input.request)
-
-      if (result.isErr()) {
-        throw result.error
+        return service.checkWithEthCall(request)
       }
-
-      return result.value
-    }),
+    ),
 
     wait: fromPromise(({ input }: { input: number }) =>
       new Promise(resolve => setTimeout(resolve, input))

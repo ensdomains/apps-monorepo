@@ -99,22 +99,10 @@ export async function getENSRenewalPrice(
   name: string,
   duration: bigint
 ): Promise<Result<bigint, Error>> {
-  try {
-    const rhinestoneService = new RhinestoneAccountService(publicClient)
-    const result = await rhinestoneService.getRenewalPrice(name, duration)
+  const rhinestoneService = new RhinestoneAccountService(publicClient)
+  const result = await rhinestoneService.getRenewalPrice(name, duration)
 
-    if (result.isErr()) {
-      return err(result.error)
-    }
-
-    return ok(result.value)
-  } catch (error) {
-    return err(
-      error instanceof Error
-        ? error
-        : new Error('Failed to get renewal price')
-    )
-  }
+  return result.mapErr(err => err as Error)
 }
 
 /**
@@ -125,25 +113,13 @@ export async function getRhinestoneSmartAccountAddress(
   walletClient: WalletClient,
   rhinestoneConfig?: RhinestoneAccountConfig
 ): Promise<Result<Hex, Error>> {
-  try {
-    const rhinestoneService = new RhinestoneAccountService(
-      publicClient,
-      walletClient,
-      rhinestoneConfig
-    )
+  const rhinestoneService = new RhinestoneAccountService(
+    publicClient,
+    walletClient,
+    rhinestoneConfig
+  )
 
-    const result = await rhinestoneService.getSmartAccountAddress()
+  const result = await rhinestoneService.getSmartAccountAddress()
 
-    if (result.isErr()) {
-      return err(result.error)
-    }
-
-    return ok(result.value)
-  } catch (error) {
-    return err(
-      error instanceof Error
-        ? error
-        : new Error('Failed to get smart account address')
-    )
-  }
+  return result.mapErr(err => err as Error)
 }
