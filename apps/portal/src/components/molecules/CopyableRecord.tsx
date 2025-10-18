@@ -10,7 +10,7 @@ export const CopyableRecord = ({
 }: {
   value: string | number
   className?: string
-  href?: string
+  href?: `https://${string}`
 }) => {
   const [copy, setCopy] = useState(false)
 
@@ -35,9 +35,7 @@ export const CopyableRecord = ({
           {value}
         </ExternalLink>
       ) : (
-        <span className="font-mono underline decoration-dashed underline-offset-4 truncate max-w-full">
-          {value}
-        </span>
+        <span className="font-mono truncate max-w-full">{value}</span>
       )}
       <button
         className="cursor-pointer"

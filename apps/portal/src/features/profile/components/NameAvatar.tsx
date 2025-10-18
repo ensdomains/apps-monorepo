@@ -1,6 +1,14 @@
 import { useEnsAvatar } from 'wagmi'
 
-export const NameAvatar = ({ name }: { name: string }) => {
+export const NameAvatar = ({
+  name,
+  height = '138px',
+  width = '138px',
+}: {
+  name: string
+  height?: string
+  width?: string
+}) => {
   const { data: avatar, error, isLoading } = useEnsAvatar({ name })
 
   if (error) return <div>Error: {error.message}</div>
@@ -11,7 +19,7 @@ export const NameAvatar = ({ name }: { name: string }) => {
       <img
         src={avatar}
         alt="avatar"
-        className="w-[138px] h-[138px] rounded-lg"
+        className={`w-[${width}] h-[${height}] rounded-lg`}
       />
     )
   return null
