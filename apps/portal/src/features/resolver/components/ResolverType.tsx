@@ -3,7 +3,6 @@ import { FocusIcon } from 'lucide-react'
 import type { Address } from 'viem/accounts'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
-import { wagmiConfig } from '@/lib/wagmi'
 
 const InterfaceCheck = ({ resolverAddress }: { resolverAddress: Address }) => {
   const {
@@ -17,7 +16,7 @@ const InterfaceCheck = ({ resolverAddress }: { resolverAddress: Address }) => {
     }),
   )
 
-  if (isLoading) return <>Loading...</>
+  if (isLoading) return 'Loading...'
 
   if (error) return <>{error.cause?.message}</>
 

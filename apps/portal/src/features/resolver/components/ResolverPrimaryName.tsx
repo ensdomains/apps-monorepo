@@ -12,7 +12,7 @@ export const ResolverPrimaryName = ({
     getResolverNameQueryOptions({ resolverAddress }),
   )
 
-  if (isLoading) return <>Loading...</>
+  if (isLoading) return 'Loading...'
 
   if (error) return <>{error.cause?.message}</>
 

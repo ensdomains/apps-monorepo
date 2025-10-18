@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { ShieldCheckIcon, ShieldIcon } from 'lucide-react'
+import { ShieldCheckIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
-import { CopyableRecord } from '../molecules/CopyableRecord'
 
 export const DedicatedResolverBanner = ({
   resolverAddress,
@@ -24,7 +23,7 @@ export const DedicatedResolverBanner = ({
 
   if (error) return <>{error.cause?.message}</>
 
-  if (isLoading) return <>Loading...</>
+  if (isLoading) return 'Loading...'
 
   if (isDedicatedResolver?.[0])
     return (
