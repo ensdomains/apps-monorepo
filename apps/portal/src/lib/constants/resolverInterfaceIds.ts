@@ -10,6 +10,7 @@ export const RESOLVER_INTERFACE_IDS = {
   ExtendedResolver: '0x9061b923',
   VersionableResolver: '0xd700ff33',
   DedicatedResolver: '0x92349baa',
+  CompositeExtendedResolver: '0xf686ea10',
 } as const
 export type ResolverInterfaceName = keyof typeof RESOLVER_INTERFACE_IDS
 export type ResolverInterfaceId =
@@ -23,4 +24,5 @@ export const RESOLVER_FEATURE_NAMES: Record<ResolverInterfaceName, string> = {
   AbiResolver: 'ABI resolution for contracts',
   TextResolver: 'Text records',
   DedicatedResolver: 'Dedicated resolver',
+  CompositeExtendedResolver: 'Composite',
 } as const

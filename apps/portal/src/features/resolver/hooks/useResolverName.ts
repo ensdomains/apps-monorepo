@@ -4,8 +4,8 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type {
   GetResolverNameErrorType,
   GetResolverNameParameters,
-} from '@ensdomains/ensjs/public'
-import { getResolverName as ensjs_getResolverName } from '@ensdomains/ensjs/public'
+} from '@ensdomains/ensjs/public/v2'
+import { getResolverName as ensjs_getResolverName } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import { getSupportsInterfaces } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'

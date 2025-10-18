@@ -35,7 +35,7 @@ const SupportedFeatures = ({
   return (
     <div className="flex flex-col gap-2 w-full">
       <span className="font-sans font-normal text-sm text-gray-500">
-        Supported features
+        Interfaces
       </span>
       <div className="flex flex-row flex-wrap gap-x-4 gap-y-2">
         {supportedInterfaceIds.map((feature) => (
@@ -78,10 +78,6 @@ export const ResolverDetails = ({
       <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ResolverField
           label="Mainnet contract address"
-          value={resolverAddress}
-        />
-        <ResolverField
-          label="Namechain contract address"
           value={resolverAddress}
         />
       </div>
