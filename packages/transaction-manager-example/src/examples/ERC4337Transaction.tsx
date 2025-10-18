@@ -69,7 +69,7 @@ export function ERC4337Example() {
         In production, you would need:
         <ul style={{ marginTop: '10px', marginLeft: '20px' }}>
           <li>A deployed smart account contract</li>
-          <li>A bundler service (like Pimlico, Alchemy, or Stackup)</li>
+          <li>A bundler service (like Alchemy or Stackup)</li>
           <li>Proper gas estimation from the bundler</li>
           <li>Account signature generation</li>
         </ul>

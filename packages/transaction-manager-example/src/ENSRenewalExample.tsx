@@ -605,10 +605,6 @@ function ENSRenewalWithMachine({
                 A Rhinestone API key for smart account functionality - add to{' '}
                 <code>.env</code> as <code>VITE_RHINESTONE_API_KEY</code>
               </li>
-              <li>
-                (Optional) A Pimlico API key for gasless transactions - add to{' '}
-                <code>.env</code> as <code>VITE_PIMLICO_API_KEY</code>
-              </li>
             </ul>
           </div>
         </>
