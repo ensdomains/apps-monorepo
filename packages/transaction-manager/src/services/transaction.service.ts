@@ -65,19 +65,27 @@ export class TransactionService {
       return this.submitToPrivateMempool(request)
     }
 
+    // Build transaction params - either legacy (gasPrice) or EIP-1559 (maxFeePerGas)
+    const txParams: any = {
+      account: request.from,
+      to: request.to,
+      value: request.value,
+      data: request.data,
+      gas: request.gas,
+      nonce: request.nonce,
+      chain: this.walletClient.chain
+    }
+
+    // Use either legacy or EIP-1559 gas pricing (not both)
+    if (request.maxFeePerGas !== undefined) {
+      txParams.maxFeePerGas = request.maxFeePerGas
+      txParams.maxPriorityFeePerGas = request.maxPriorityFeePerGas
+    } else if (request.gasPrice !== undefined) {
+      txParams.gasPrice = request.gasPrice
+    }
+
     return fromPromise(
-      this.walletClient.sendTransaction({
-        account: request.from,
-        to: request.to,
-        value: request.value,
-        data: request.data,
-        gas: request.gas,
-        gasPrice: request.gasPrice,
-        maxFeePerGas: request.maxFeePerGas,
-        maxPriorityFeePerGas: request.maxPriorityFeePerGas,
-        nonce: request.nonce,
-        chain: this.walletClient.chain
-      }),
+      this.walletClient.sendTransaction(txParams),
       (error) => new TransactionSubmissionError(request, error)
     )
   }
@@ -126,7 +134,8 @@ export class TransactionService {
     // 2. Submit the user operation
     // 3. Return the user operation hash
 
-    const bundlerUrl = process.env.VITE_BUNDLER_URL || 'http://localhost:4337'
+    // Fallback bundler URL - in production, pass this via RhinestoneConfig
+    const bundlerUrl = 'http://localhost:4337'
 
     const response = await fetch(`${bundlerUrl}/rpc`, {
       method: 'POST',
@@ -218,7 +227,8 @@ export class TransactionService {
 
   async getUserOperationReceipt(userOpHash: Hash): Promise<TransactionReceipt | null> {
     // Placeholder for 4337 receipt fetching
-    const bundlerUrl = process.env.VITE_BUNDLER_URL || 'http://localhost:4337'
+    // Fallback bundler URL - in production, pass this via RhinestoneConfig
+    const bundlerUrl = 'http://localhost:4337'
 
     const response = await fetch(`${bundlerUrl}/rpc`, {
       method: 'POST',

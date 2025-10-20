@@ -4,7 +4,6 @@ import { match, P } from 'ts-pattern'
 import { formatEther, parseEther } from 'viem'
 import {
   transactionMachine,
-  TransactionService,
   TransactionModal,
   prepareENSRenewal,
   getENSRenewalPrice,
@@ -37,22 +36,12 @@ function ENSRenewalWithMachine({
   // UI state
   const [ui, dispatch] = useReducer(uiStateReducer, initialUIState)
 
-  // Create transaction service with current clients
-  console.log('🔄 Creating TransactionService with walletClient:', {
-    hasWalletClient: !!walletClient,
-    walletAddress: walletClient?.account?.address
-  })
-
-  const transactionService = new TransactionService(
-    publicClient,
-    walletClient,
-    rhinestoneConfig
-  )
-
-  // Transaction state machine
+  // Transaction state machine - now passing clients directly
   const [state, send] = useMachine(transactionMachine, {
     input: {
-      transactionService,
+      publicClient,
+      walletClient,
+      rhinestoneConfig,
     },
   })
 
@@ -140,29 +129,43 @@ function ENSRenewalWithMachine({
 
   // Fetch renewal price when name or duration changes
   useEffect(() => {
+    let cancelled = false
+
     const fetchPrice = async () => {
       if (ui.name && ui.duration && publicClient) {
-        dispatch({ type: 'SET_LOADING_PRICE', payload: true })
+        if (!cancelled) {
+          dispatch({ type: 'SET_LOADING_PRICE', payload: true })
+        }
+
         const result = await getENSRenewalPrice(
           publicClient,
           ui.name.replace('.eth', ''),
           BigInt(ui.duration) * YEAR_IN_SECONDS
         )
 
-        // Handle Result type with helper
-        handleResult(result, {
-          onOk: (price: bigint) => dispatch({ type: 'SET_RENEWAL_PRICE', payload: price }),
-          onErr: (error: Error) => console.error('Failed to get price:', error),
-        })
+        // Only update state if not cancelled (handles Strict Mode cleanup)
+        if (!cancelled) {
+          // Handle Result type with helper
+          handleResult(result, {
+            onOk: (price: bigint) => dispatch({ type: 'SET_RENEWAL_PRICE', payload: price }),
+            onErr: (error: Error) => console.error('Failed to get price:', error),
+          })
 
-        dispatch({ type: 'SET_LOADING_PRICE', payload: false })
+          dispatch({ type: 'SET_LOADING_PRICE', payload: false })
+        }
       }
     }
     fetchPrice()
+
+    return () => {
+      cancelled = true
+    }
   }, [ui.name, ui.duration, publicClient])
 
   // Fetch smart account address when smart account is enabled
   useEffect(() => {
+    let cancelled = false
+
     const fetchAddress = async () => {
       if (ui.useSmartAccount && publicClient && walletClient && isConnected) {
         const result = await getRhinestoneSmartAccountAddress(
@@ -171,16 +174,25 @@ function ENSRenewalWithMachine({
           rhinestoneConfig
         )
 
-        // Handle Result type with helper
-        handleResult(result, {
-          onOk: (address: string) => dispatch({ type: 'SET_SMART_ACCOUNT_ADDRESS', payload: address }),
-          onErr: (error: Error) => console.error('Failed to get smart account:', error),
-        })
+        // Only update state if not cancelled (handles Strict Mode cleanup)
+        if (!cancelled) {
+          // Handle Result type with helper
+          handleResult(result, {
+            onOk: (address: string) => dispatch({ type: 'SET_SMART_ACCOUNT_ADDRESS', payload: address }),
+            onErr: (error: Error) => console.error('Failed to get smart account:', error),
+          })
+        }
       } else {
-        dispatch({ type: 'SET_SMART_ACCOUNT_ADDRESS', payload: null })
+        if (!cancelled) {
+          dispatch({ type: 'SET_SMART_ACCOUNT_ADDRESS', payload: null })
+        }
       }
     }
     fetchAddress()
+
+    return () => {
+      cancelled = true
+    }
   }, [ui.useSmartAccount, publicClient, walletClient, isConnected])
 
   // Clear smart account when wallet changes
@@ -674,7 +686,6 @@ function ENSRenewalExample() {
   }
 
   // Use wallet address as key to force remount when wallet changes
-  // This ensures the TransactionService is always created with the current walletClient
   const key = `${walletClient.account?.address}-${publicClient.chain?.id}`
 
   return (

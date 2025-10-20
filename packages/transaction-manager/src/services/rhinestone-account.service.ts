@@ -43,6 +43,7 @@ export class RhinestoneAccountService {
     publicClient: PublicClient,
     private walletClient?: WalletClient,
     config?: RhinestoneAccountConfig,
+    cachedAccount?: any // Accept pre-initialized account
   ) {
     this.publicClient = publicClient
     this.config = {
@@ -56,10 +57,30 @@ export class RhinestoneAccountService {
     this.rhinestone = new RhinestoneSDK({
       apiKey: config?.rhinestoneApiKey,
     })
+
+    // Use cached account if provided
+    if (cachedAccount) {
+      console.log('✅ Using cached Rhinestone account in constructor:', {
+        address: cachedAccount?.getAddress?.(),
+        hasCachedAccount: !!cachedAccount
+      })
+      this.rhinestoneAccount = cachedAccount
+    } else {
+      console.log('⚠️ No cached account provided to constructor')
+    }
   }
 
   async initializeSmartAccount(): Promise<Result<any, RhinestoneAccountError>> {
     try {
+      // Skip initialization if account is already cached
+
+      if (this.rhinestoneAccount) {
+        console.log('✅ Using existing Rhinestone account:', {
+          address: this.rhinestoneAccount?.getAddress?.(),
+        })
+        return ok(this.rhinestoneAccount)
+      }
+
       console.log('🔐 Initializing Rhinestone smart account...', {
         hasWalletClient: !!this.walletClient,
         hasAccount: !!this.walletClient?.account,
@@ -75,8 +96,10 @@ export class RhinestoneAccountService {
 
       // Create Rhinestone smart account with the wallet as owner
       // Convert wallet client to account using Rhinestone's helper for browser wallet support
-      console.log('📝 Creating Rhinestone account with ECDSA owner...')
+      console.log('📝 [SIGNATURE REQUEST 1?] Creating Rhinestone account with ECDSA owner - this may request a signature...')
       const account = walletClientToAccount(this.walletClient)
+
+      console.log('📝 [SIGNATURE REQUEST 2?] Calling rhinestone.createAccount() - this may request a signature...')
       this.rhinestoneAccount = await this.rhinestone.createAccount({
         owners: {
           type: 'ecdsa',
@@ -196,14 +219,16 @@ export class RhinestoneAccountService {
       console.log('🚀 Executing ENS renewal...', params)
 
       if (!this.rhinestoneAccount) {
-        console.log('⚙️ Smart account not initialized, initializing now...')
-        const initResult = await this.initializeSmartAccount()
-        if (initResult.isErr()) {
-          return err(initResult.error)
-        }
+        console.error('❌ Smart account not initialized!')
+        return err(new RhinestoneAccountError('Smart account must be initialized before executing transactions'))
       }
 
+      console.log('✅ Using cached Rhinestone account:', {
+        address: this.rhinestoneAccount.getAddress?.(),
+      })
+
       // Prepare the transaction
+      console.log('📋 Preparing ENS renewal transaction...')
       const txResult = await this.prepareENSRenewalTransaction(params)
       if (txResult.isErr()) {
         return err(txResult.error)
@@ -212,13 +237,13 @@ export class RhinestoneAccountService {
       const { to, data, value } = txResult.value
 
       // Execute via Rhinestone SDK
-      console.log('📤 Sending transaction via Rhinestone SDK...', {
+      console.log('📤 Calling rhinestoneAccount.sendTransaction()...', {
         targetChain: this.config.chain?.name || 'sepolia',
         to,
         value: value.toString(),
       })
 
-      const transaction = await this.rhinestoneAccount!.sendTransaction({
+      const transaction = await this.rhinestoneAccount.sendTransaction({
         sourceChains: [this.config.chain || sepolia],
         targetChain: this.config.chain || sepolia,
         calls: [
@@ -230,8 +255,26 @@ export class RhinestoneAccountService {
         ],
       })
 
-      console.log('✅ Transaction sent:', transaction.hash)
-      return ok(transaction.hash as Hex)
+      console.log('✅ Transaction response:', transaction)
+
+      // Rhinestone returns an "intent" object with an 'id' property, not 'hash'
+      const txHash = transaction.hash || transaction.id
+
+      console.log('✅ Transaction hash/id:', txHash)
+      console.log('✅ Transaction type:', transaction.type)
+
+      if (!transaction || (!transaction.hash && !transaction.id)) {
+        console.error('❌ No transaction hash or ID returned!', transaction)
+        return err(new RhinestoneAccountError('No transaction hash or ID returned from Rhinestone SDK'))
+      }
+
+      // Convert the bigint ID to a hex string if needed
+      const hashAsHex = typeof txHash === 'bigint'
+        ? `0x${txHash.toString(16).padStart(64, '0')}` as Hex
+        : txHash as Hex
+
+      console.log('✅ Final hash:', hashAsHex)
+      return ok(hashAsHex)
     } catch (error) {
       console.error('❌ Failed to execute ENS renewal:', error)
       return err(

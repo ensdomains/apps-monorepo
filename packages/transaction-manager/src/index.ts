@@ -33,15 +33,29 @@ export {
   clearAuditTrail
 } from './services/audit-trail.service'
 export {
-  RhinestoneAccountService,
+  initializeRhinestoneAccount,
+  executeENSRenewal,
+  getENSRenewalPrice as getRhinestoneRenewalPrice,
+  getRhinestoneAccountAddress,
+  prepareENSRenewalTransaction,
   RhinestoneAccountError,
   type RhinestoneAccountConfig,
   type ENSRenewalParams,
   type GasPriceTier
-} from './services/rhinestone-account.service'
+} from './helpers/rhinestone-account.helpers'
 
 // Machines
 export { transactionMachine } from './machines/transaction.machine'
+export { transactionRegistryMachine } from './machines/transaction-registry.machine'
+
+// Providers
+export {
+  TransactionRegistryProvider,
+  useTransactionRegistry,
+  useTransaction,
+  useActiveTransactions,
+  useRecoveredTransactions
+} from './providers/TransactionRegistryProvider'
 
 // Hooks
 // (None - use services directly)
@@ -71,6 +85,36 @@ export {
   type TransactionDetailsProps,
   type PaymentSelectorProps
 } from './components/TransactionModal'
+export {
+  TransactionRecoveryNotification,
+  type TransactionRecoveryNotificationProps
+} from './components/TransactionRecoveryNotification'
+export {
+  GlobalTransactionToasts,
+  type GlobalTransactionToastsProps,
+  type Toast
+} from './components/GlobalTransactionToasts'
+export {
+  TransactionStatusPanel,
+  type TransactionStatusPanelProps,
+  type TransactionStatus
+} from './components/TransactionStatusPanel'
+
+// Persistence
+export {
+  saveActiveTransaction,
+  getActiveTransactions,
+  getActiveTransaction,
+  removeActiveTransaction,
+  archiveTransaction,
+  getTransactionHistory,
+  clearActiveTransactions,
+  clearTransactionHistory,
+  getHistoryCount,
+  getActiveCount,
+  exportAllData,
+  type PersistedTransaction
+} from './helpers/transaction-persistence'
 
 // Errors
 export {

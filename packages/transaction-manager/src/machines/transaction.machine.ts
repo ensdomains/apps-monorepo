@@ -1,20 +1,26 @@
-import { setup, assign, fromPromise } from 'xstate'
+import { setup, assign, fromPromise, type ActorLogic } from 'xstate'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
-import type { Hash, TransactionReceipt } from 'viem'
-import type { TransactionRequest, TransactionOptions, TransactionModalState } from '../types/transaction.types'
-import type { TransactionService } from '../services/transaction.service'
+import { ResultAsync, errAsync, fromPromise as fromPromiseNT } from 'neverthrow'
+import type { Hash, TransactionReceipt, PublicClient, WalletClient } from 'viem'
+import type { TransactionRequest, TransactionOptions, TransactionModalState, RhinestoneConfig, EOATransactionRequest } from '../types/transaction.types'
+import { initializeRhinestoneAccount, executeENSRenewal } from '../helpers/rhinestone-account.helpers'
 import * as auditTrail from '../services/audit-trail.service'
 import {
   TransactionSubmissionError,
   TransactionTimeoutError,
   TransactionRevertedError,
   GasEstimationError,
-  UserOperationError
+  UserOperationError,
+  EthCallFallbackError
 } from '../errors/transaction.errors'
 
-export const transactionMachine = setup({
+export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
   types: {
     context: {} as {
+      publicClient: PublicClient
+      walletClient?: WalletClient
+      rhinestoneConfig?: RhinestoneConfig
+      rhinestoneAccount?: any // Cached Rhinestone account instance
       request?: TransactionRequest
       options: TransactionOptions
       hash?: Hash
@@ -23,11 +29,12 @@ export const transactionMachine = setup({
       error?: Error
       retryCount: number
       fallbackChecks: number
-      transactionService: TransactionService
       modal: TransactionModalState
     },
     input: {} as {
-      transactionService: TransactionService
+      publicClient: PublicClient
+      walletClient?: WalletClient
+      rhinestoneConfig?: RhinestoneConfig
     },
     events: {} as
       | { type: 'EXECUTE'; request: TransactionRequest; options?: TransactionOptions; modal?: Partial<TransactionModalState> }
@@ -39,43 +46,179 @@ export const transactionMachine = setup({
       | { type: 'UPDATE_MODAL_DATA'; data: Partial<TransactionModalState> }
   },
   actors: {
+    initializeRhinestoneAccount: fromResultAsync(
+      ({ walletClient, rhinestoneConfig }: {
+        walletClient?: WalletClient
+        rhinestoneConfig?: RhinestoneConfig
+      }): ResultAsync<any, Error> => {
+        if (!rhinestoneConfig) {
+          return errAsync(new Error('Rhinestone config required'))
+        }
+
+        if (!walletClient) {
+          return errAsync(new Error('Wallet client required'))
+        }
+
+        // initializeRhinestoneAccount returns Promise<Result>, so wrap it with ResultAsync.fromSafePromise
+        return ResultAsync.fromSafePromise(initializeRhinestoneAccount(walletClient, rhinestoneConfig))
+          .andThen(result => result) // Unwrap the Result from the Promise
+          .mapErr(error => error as Error)
+      }
+    ),
+
     submitTransaction: fromResultAsync(
-      ({ request, options, service }: {
+      ({ request, options, publicClient, walletClient, rhinestoneConfig, rhinestoneAccount }: {
         request?: TransactionRequest
         options?: TransactionOptions
-        service: TransactionService
-      }) => {
+        publicClient: PublicClient
+        walletClient?: WalletClient
+        rhinestoneConfig?: RhinestoneConfig
+        rhinestoneAccount?: any
+      }): ResultAsync<Hash, TransactionSubmissionError | UserOperationError> => {
+        console.log('🔧 [ACTOR] submitTransaction actor invoked with:', {
+          requestType: request?.type,
+          hasRhinestoneAccount: !!rhinestoneAccount,
+          rhinestoneAccountAddress: rhinestoneAccount?.getAddress?.(),
+          rhinestoneAccountType: typeof rhinestoneAccount
+        })
+
         if (!request) {
           throw new Error('No transaction request provided')
         }
 
-        return service.submitTransaction(request, options)
+        // Handle Rhinestone intent transactions
+        if (request.type === 'rhinestone-intent') {
+          console.log('🔧 [ACTOR] Handling rhinestone-intent transaction')
+
+          if (!rhinestoneConfig) {
+            return errAsync(new TransactionSubmissionError(
+              request,
+              new Error('Rhinestone config required for rhinestone-intent transactions')
+            ))
+          }
+          if (!request.rhinestoneParams) {
+            return errAsync(new TransactionSubmissionError(
+              request,
+              new Error('rhinestoneParams required for Rhinestone transactions')
+            ))
+          }
+
+          if (!rhinestoneAccount) {
+            return errAsync(new TransactionSubmissionError(
+              request,
+              new Error('Rhinestone account must be initialized before executing transactions')
+            ))
+          }
+
+          console.log('🔧 [ACTOR] Executing with cached Rhinestone account:', {
+            hasAccount: !!rhinestoneAccount,
+            accountAddress: rhinestoneAccount?.getAddress?.()
+          })
+
+          // executeENSRenewal returns Promise<Result>, so wrap it with ResultAsync.fromSafePromise
+          return ResultAsync.fromSafePromise(
+            executeENSRenewal(rhinestoneAccount, publicClient, request.rhinestoneParams, rhinestoneConfig)
+          )
+            .andThen(result => result) // Unwrap the Result from the Promise
+            .mapErr(error => {
+              console.error('❌ Rhinestone error:', error)
+              return new TransactionSubmissionError(request, error as Error)
+            })
+        }
+
+        // Handle EOA transactions
+        if (request.type === 'eoa') {
+          if (!walletClient) {
+            return errAsync(new TransactionSubmissionError(
+              request,
+              new Error('Wallet client required for EOA transactions')
+            ))
+          }
+
+          const eoaRequest = request as EOATransactionRequest
+
+          // Build transaction params - either legacy (gasPrice) or EIP-1559 (maxFeePerGas)
+          const txParams: any = {
+            account: eoaRequest.from,
+            to: eoaRequest.to,
+            value: eoaRequest.value,
+            data: eoaRequest.data,
+            gas: eoaRequest.gas,
+            nonce: eoaRequest.nonce,
+            chain: walletClient.chain
+          }
+
+          // Use either legacy or EIP-1559 gas pricing (not both)
+          if (eoaRequest.maxFeePerGas !== undefined) {
+            txParams.maxFeePerGas = eoaRequest.maxFeePerGas
+            txParams.maxPriorityFeePerGas = eoaRequest.maxPriorityFeePerGas
+          } else if (eoaRequest.gasPrice !== undefined) {
+            txParams.gasPrice = eoaRequest.gasPrice
+          }
+
+          return fromPromiseNT(
+            walletClient.sendTransaction(txParams),
+            (error) => new TransactionSubmissionError(request, error)
+          )
+        }
+
+        // ERC-4337 not fully implemented
+        return errAsync(new TransactionSubmissionError(
+          request,
+          new Error('ERC-4337 transactions not yet implemented')
+        ))
       }
     ),
 
     waitForReceipt: fromResultAsync(
-      ({ hash, options, service }: {
+      ({ hash, options, publicClient }: {
         hash: Hash
         options?: TransactionOptions
-        service: TransactionService
-      }) => {
-        return service.waitForReceipt(hash, {
-          confirmations: options?.confirmations,
-          timeout: options?.timeout
-        })
+        publicClient: PublicClient
+      }): ResultAsync<TransactionReceipt, TransactionTimeoutError> => {
+        const confirmations = options?.confirmations || 1
+        const timeout = options?.timeout || 60000
+
+        return fromPromiseNT(
+          publicClient.waitForTransactionReceipt({
+            hash,
+            confirmations,
+            timeout
+          }),
+          (error) => new TransactionTimeoutError(hash, timeout)
+        )
       }
     ),
 
     checkWithEthCall: fromResultAsync(
-      ({ request, service }: {
+      ({ request, publicClient }: {
         request?: TransactionRequest
-        service: TransactionService
-      }) => {
+        publicClient: PublicClient
+      }): ResultAsync<{ wouldSucceed: boolean; result?: Hash }, EthCallFallbackError> => {
         if (!request) {
           throw new Error('No transaction request provided')
         }
 
-        return service.checkWithEthCall(request)
+        if (request.type === 'erc4337') {
+          // For 4337, we'd simulate the user operation
+          return ResultAsync.fromSafePromise(Promise.resolve({ wouldSucceed: true }))
+        }
+
+        const eoaRequest = request as EOATransactionRequest
+
+        return fromPromiseNT(
+          publicClient.call({
+            account: eoaRequest.from,
+            to: eoaRequest.to,
+            data: eoaRequest.data,
+            value: eoaRequest.value,
+            gas: eoaRequest.gas
+          }).then(result => ({
+            wouldSucceed: !result.data?.includes('0x08c379a0'), // Check for revert
+            result: result.data
+          })),
+          (error) => new EthCallFallbackError(request, error)
+        )
       }
     ),
 
@@ -164,11 +307,13 @@ export const transactionMachine = setup({
   id: 'transaction',
   initial: 'idle',
   context: ({ input }) => ({
+    publicClient: input.publicClient,
+    walletClient: input.walletClient,
+    rhinestoneConfig: input.rhinestoneConfig,
     request: undefined,
     options: {},
     retryCount: 0,
     fallbackChecks: 0,
-    transactionService: input.transactionService,
     modal: {
       isOpen: false,
       flowType: 'single',
@@ -227,19 +372,137 @@ export const transactionMachine = setup({
     },
 
     preparing: {
-      entry: 'recordTransition',
-      always: 'submitting'
+      entry: [
+        'recordTransition',
+        ({ context }) => {
+          const isRhinestoneIntent = context.request?.type === 'rhinestone-intent'
+          const hasAccount = !!context.rhinestoneAccount
+          const hasConfig = !!context.rhinestoneConfig
+          const willInitialize = isRhinestoneIntent && !hasAccount && hasConfig
+
+          console.log('🔧 [STATE MACHINE] Entering preparing state', {
+            requestType: context.request?.type,
+            isRhinestoneIntent,
+            hasRhinestoneAccount: hasAccount,
+            rhinestoneAccountAddress: context.rhinestoneAccount?.getAddress?.(),
+            hasRhinestoneConfig: hasConfig,
+            willInitializeAccount: willInitialize,
+            nextState: willInitialize ? 'initializingSmartAccount' : 'submitting'
+          })
+        }
+      ],
+      always: [
+        {
+          // Initialize smart account first if using Rhinestone and account not cached
+          guard: ({ context }) =>
+            context.request?.type === 'rhinestone-intent' &&
+            !context.rhinestoneAccount &&
+            !!context.rhinestoneConfig,
+          target: 'initializingSmartAccount'
+        },
+        {
+          target: 'submitting'
+        }
+      ]
+    },
+
+    initializingSmartAccount: {
+      entry: [
+        'recordTransition',
+        ({ context }) => {
+          console.log('🔧 [STATE MACHINE] Entering initializingSmartAccount state', {
+            hasExistingAccount: !!context.rhinestoneAccount,
+            existingAccountAddress: context.rhinestoneAccount?.getAddress?.()
+          })
+        }
+      ],
+      invoke: {
+        src: 'initializeRhinestoneAccount',
+        input: ({ context }) => {
+          const inputData = {
+            walletClient: context.walletClient,
+            rhinestoneConfig: context.rhinestoneConfig,
+          }
+          console.log('🔧 [STATE MACHINE] Input to initializeRhinestoneAccount:', {
+            hasWalletClient: !!inputData.walletClient,
+            hasConfig: !!inputData.rhinestoneConfig
+          })
+          return inputData
+        },
+        onDone: {
+          target: 'submitting',
+          actions: [
+            ({ event }) => {
+              console.log('🔧 [STATE MACHINE] initializeRhinestoneAccount onDone - received account:', {
+                hasAccount: !!event.output,
+                accountAddress: event.output?.getAddress?.(),
+                accountType: typeof event.output
+              })
+            },
+            assign({
+              rhinestoneAccount: ({ event }) => {
+                const account = event.output
+                console.log('🔧 [STATE MACHINE] Assigning rhinestoneAccount to context:', {
+                  hasAccount: !!account,
+                  accountAddress: account?.getAddress?.()
+                })
+                return account
+              }
+            }),
+            ({ context }) => {
+              console.log('🔧 [STATE MACHINE] After assignment - context.rhinestoneAccount:', {
+                hasAccount: !!context.rhinestoneAccount,
+                accountAddress: context.rhinestoneAccount?.getAddress?.()
+              })
+            },
+            'recordTransition'
+          ]
+        },
+        onError: {
+          target: 'error.submission',
+          actions: [
+            ({ event }) => {
+              console.error('🔧 [STATE MACHINE] initializeRhinestoneAccount onError:', event.error)
+            },
+            assign({
+              error: ({ event }) => event.error as Error
+            }),
+            'logCritical',
+            'recordTransition'
+          ]
+        }
+      }
     },
 
     submitting: {
-      entry: 'recordTransition',
+      entry: [
+        'recordTransition',
+        ({ context }) => {
+          console.log('🔧 [STATE MACHINE] Entering submitting state', {
+            requestType: context.request?.type,
+            hasRhinestoneAccount: !!context.rhinestoneAccount,
+            rhinestoneAccountAddress: context.rhinestoneAccount?.getAddress?.()
+          })
+        }
+      ],
       invoke: {
         src: 'submitTransaction',
-        input: ({ context }) => ({
-          request: context.request,
-          options: context.options,
-          service: context.transactionService
-        }),
+        input: ({ context }) => {
+          const inputData = {
+            request: context.request,
+            options: context.options,
+            publicClient: context.publicClient,
+            walletClient: context.walletClient,
+            rhinestoneConfig: context.rhinestoneConfig,
+            rhinestoneAccount: context.rhinestoneAccount
+          }
+          console.log('🔧 [STATE MACHINE] Input to submitTransaction:', {
+            requestType: inputData.request?.type,
+            hasRhinestoneAccount: !!inputData.rhinestoneAccount,
+            rhinestoneAccountAddress: inputData.rhinestoneAccount?.getAddress?.()
+          })
+          return inputData
+        },
         onDone: {
           target: 'pending',
           actions: [
@@ -285,7 +548,9 @@ export const transactionMachine = setup({
         input: ({ context }) => ({
           hash: context.hash!,
           options: context.options,
-          service: context.transactionService
+          publicClient: context.publicClient,
+          walletClient: context.walletClient,
+          rhinestoneConfig: context.rhinestoneConfig
         }),
         onDone: [
           {
@@ -335,7 +600,9 @@ export const transactionMachine = setup({
         src: 'checkWithEthCall',
         input: ({ context }) => ({
           request: context.request,
-          service: context.transactionService
+          publicClient: context.publicClient,
+          walletClient: context.walletClient,
+          rhinestoneConfig: context.rhinestoneConfig
         }),
         onDone: [
           {

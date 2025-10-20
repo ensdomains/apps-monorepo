@@ -1,5 +1,5 @@
 // src/services/transaction.service.ts
-import { ok as ok2, err as err2, fromPromise } from "neverthrow";
+import { ResultAsync, errAsync, fromPromise } from "neverthrow";
 
 // src/errors/transaction.errors.ts
 var TransactionError = class extends Error {
@@ -123,7 +123,7 @@ var RhinestoneAccountError = class extends Error {
   }
 };
 var RhinestoneAccountService = class {
-  constructor(publicClient, walletClient, config) {
+  constructor(publicClient, walletClient, config, cachedAccount) {
     this.walletClient = walletClient;
     this.publicClient = publicClient;
     this.config = {
@@ -135,9 +135,24 @@ var RhinestoneAccountService = class {
     this.rhinestone = new RhinestoneSDK({
       apiKey: config?.rhinestoneApiKey
     });
+    if (cachedAccount) {
+      console.log("\u2705 Using cached Rhinestone account in constructor:", {
+        address: cachedAccount?.getAddress?.(),
+        hasCachedAccount: !!cachedAccount
+      });
+      this.rhinestoneAccount = cachedAccount;
+    } else {
+      console.log("\u26A0\uFE0F No cached account provided to constructor");
+    }
   }
   async initializeSmartAccount() {
     try {
+      if (this.rhinestoneAccount) {
+        console.log("\u2705 Using existing Rhinestone account:", {
+          address: this.rhinestoneAccount?.getAddress?.()
+        });
+        return ok(this.rhinestoneAccount);
+      }
       console.log("\u{1F510} Initializing Rhinestone smart account...", {
         hasWalletClient: !!this.walletClient,
         hasAccount: !!this.walletClient?.account,
@@ -149,8 +164,9 @@ var RhinestoneAccountService = class {
         console.error("\u274C No wallet client available for smart account initialization");
         return err(new RhinestoneAccountError("No wallet client available"));
       }
-      console.log("\u{1F4DD} Creating Rhinestone account with ECDSA owner...");
+      console.log("\u{1F4DD} [SIGNATURE REQUEST 1?] Creating Rhinestone account with ECDSA owner - this may request a signature...");
       const account = walletClientToAccount(this.walletClient);
+      console.log("\u{1F4DD} [SIGNATURE REQUEST 2?] Calling rhinestone.createAccount() - this may request a signature...");
       this.rhinestoneAccount = await this.rhinestone.createAccount({
         owners: {
           type: "ecdsa",
@@ -246,18 +262,19 @@ var RhinestoneAccountService = class {
     try {
       console.log("\u{1F680} Executing ENS renewal...", params);
       if (!this.rhinestoneAccount) {
-        console.log("\u2699\uFE0F Smart account not initialized, initializing now...");
-        const initResult = await this.initializeSmartAccount();
-        if (initResult.isErr()) {
-          return err(initResult.error);
-        }
+        console.error("\u274C Smart account not initialized!");
+        return err(new RhinestoneAccountError("Smart account must be initialized before executing transactions"));
       }
+      console.log("\u2705 Using cached Rhinestone account:", {
+        address: this.rhinestoneAccount.getAddress?.()
+      });
+      console.log("\u{1F4CB} Preparing ENS renewal transaction...");
       const txResult = await this.prepareENSRenewalTransaction(params);
       if (txResult.isErr()) {
         return err(txResult.error);
       }
       const { to, data, value } = txResult.value;
-      console.log("\u{1F4E4} Sending transaction via Rhinestone SDK...", {
+      console.log("\u{1F4E4} Calling rhinestoneAccount.sendTransaction()...", {
         targetChain: this.config.chain?.name || "sepolia",
         to,
         value: value.toString()
@@ -273,8 +290,17 @@ var RhinestoneAccountService = class {
           }
         ]
       });
-      console.log("\u2705 Transaction sent:", transaction.hash);
-      return ok(transaction.hash);
+      console.log("\u2705 Transaction response:", transaction);
+      const txHash = transaction.hash || transaction.id;
+      console.log("\u2705 Transaction hash/id:", txHash);
+      console.log("\u2705 Transaction type:", transaction.type);
+      if (!transaction || !transaction.hash && !transaction.id) {
+        console.error("\u274C No transaction hash or ID returned!", transaction);
+        return err(new RhinestoneAccountError("No transaction hash or ID returned from Rhinestone SDK"));
+      }
+      const hashAsHex = typeof txHash === "bigint" ? `0x${txHash.toString(16).padStart(64, "0")}` : txHash;
+      console.log("\u2705 Final hash:", hashAsHex);
+      return ok(hashAsHex);
     } catch (error) {
       console.error("\u274C Failed to execute ENS renewal:", error);
       return err(
@@ -310,7 +336,7 @@ var TransactionService = class {
   }
   submitEOATransaction(request, options) {
     if (!this.walletClient) {
-      return err2(new TransactionSubmissionError(
+      return errAsync(new TransactionSubmissionError(
         request,
         new Error("No wallet client available")
       ));
@@ -318,19 +344,23 @@ var TransactionService = class {
     if (options?.usePrivateMempool) {
       return this.submitToPrivateMempool(request);
     }
+    const txParams = {
+      account: request.from,
+      to: request.to,
+      value: request.value,
+      data: request.data,
+      gas: request.gas,
+      nonce: request.nonce,
+      chain: this.walletClient.chain
+    };
+    if (request.maxFeePerGas !== void 0) {
+      txParams.maxFeePerGas = request.maxFeePerGas;
+      txParams.maxPriorityFeePerGas = request.maxPriorityFeePerGas;
+    } else if (request.gasPrice !== void 0) {
+      txParams.gasPrice = request.gasPrice;
+    }
     return fromPromise(
-      this.walletClient.sendTransaction({
-        account: request.from,
-        to: request.to,
-        value: request.value,
-        data: request.data,
-        gas: request.gas,
-        gasPrice: request.gasPrice,
-        maxFeePerGas: request.maxFeePerGas,
-        maxPriorityFeePerGas: request.maxPriorityFeePerGas,
-        nonce: request.nonce,
-        chain: this.walletClient.chain
-      }),
+      this.walletClient.sendTransaction(txParams),
       (error) => new TransactionSubmissionError(request, error)
     );
   }
@@ -338,27 +368,21 @@ var TransactionService = class {
     console.log("\u{1F4E4} Submitting Rhinestone intent transaction...");
     if (!this.rhinestoneService) {
       console.error("\u274C No Rhinestone service configured");
-      return err2(new TransactionSubmissionError(
+      return errAsync(new TransactionSubmissionError(
         request,
         new Error("Rhinestone service not configured. Please provide rhinestoneConfig.")
       ));
     }
     if (!request.rhinestoneParams) {
       console.error("\u274C No Rhinestone params provided");
-      return err2(new TransactionSubmissionError(
+      return errAsync(new TransactionSubmissionError(
         request,
         new Error("rhinestoneParams required for Rhinestone transactions")
       ));
     }
-    return fromPromise(
-      this.rhinestoneService.executeENSRenewal(request.rhinestoneParams).then((result) => {
-        if (result.isErr()) {
-          throw result.error;
-        }
-        return result.value;
-      }),
-      (error) => new TransactionSubmissionError(request, error)
-    );
+    return ResultAsync.fromSafePromise(
+      this.rhinestoneService.executeENSRenewal(request.rhinestoneParams)
+    ).andThen((result) => result).mapErr((error) => new TransactionSubmissionError(request, error));
   }
   submitUserOperation(userOp) {
     return fromPromise(
@@ -367,7 +391,7 @@ var TransactionService = class {
     );
   }
   async submit4337Operation(userOp) {
-    const bundlerUrl = process.env.VITE_BUNDLER_URL || "http://localhost:4337";
+    const bundlerUrl = "http://localhost:4337";
     const response = await fetch(`${bundlerUrl}/rpc`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -417,7 +441,7 @@ var TransactionService = class {
   }
   checkWithEthCall(request) {
     if (request.type === "erc4337") {
-      return ok2({ wouldSucceed: true });
+      return ResultAsync.fromSafePromise(Promise.resolve({ wouldSucceed: true }));
     }
     const eoaRequest = request;
     return fromPromise(
@@ -436,7 +460,7 @@ var TransactionService = class {
     );
   }
   async getUserOperationReceipt(userOpHash) {
-    const bundlerUrl = process.env.VITE_BUNDLER_URL || "http://localhost:4337";
+    const bundlerUrl = "http://localhost:4337";
     const response = await fetch(`${bundlerUrl}/rpc`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -460,7 +484,7 @@ var TransactionService = class {
 };
 
 // src/services/audit-trail.service.ts
-import { ResultAsync as ResultAsync2 } from "neverthrow";
+import { ok as ok2, err as err2 } from "neverthrow";
 var MAX_TRANSITIONS = 1e3;
 var MAX_AGE = 24 * 60 * 60 * 1e3;
 var STORAGE_KEY = "@ens/audit-trail";
@@ -615,21 +639,17 @@ function exportToJson() {
   }
 }
 function importFromJson(json) {
-  return ResultAsync2.fromPromise(
-    Promise.resolve().then(() => {
-      try {
-        const parsed = JSON.parse(json);
-        const data = {
-          transitions: parsed.transitions || [],
-          auditLog: parsed.auditLog || []
-        };
-        saveToStorage(data);
-      } catch (error) {
-        throw new ImportError({ cause: error });
-      }
-    }),
-    (error) => new ImportError({ cause: error })
-  );
+  try {
+    const parsed = JSON.parse(json);
+    const data = {
+      transitions: parsed.transitions || [],
+      auditLog: parsed.auditLog || []
+    };
+    saveToStorage(data);
+    return ok2(void 0);
+  } catch (error) {
+    return err2(new ImportError({ cause: error }));
+  }
 }
 function clearAuditTrail() {
   try {
@@ -694,8 +714,176 @@ if (typeof window !== "undefined") {
   }, 60 * 60 * 1e3);
 }
 
+// src/helpers/rhinestone-account.helpers.ts
+import { err as err3, ok as ok3 } from "neverthrow";
+import { RhinestoneSDK as RhinestoneSDK2, walletClientToAccount as walletClientToAccount2 } from "@rhinestone/sdk";
+import {
+  encodeFunctionData as encodeFunctionData2
+} from "viem";
+import { sepolia as sepolia2 } from "viem/chains";
+var RhinestoneAccountError2 = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "RhinestoneAccountError";
+  }
+};
+async function initializeRhinestoneAccount(walletClient, config) {
+  try {
+    console.log("\u{1F510} Initializing Rhinestone smart account...", {
+      hasWalletClient: !!walletClient,
+      hasAccount: !!walletClient?.account,
+      accountAddress: walletClient?.account?.address,
+      hasApiKey: !!config.rhinestoneApiKey,
+      chain: config.chain?.name || sepolia2.name
+    });
+    if (!walletClient?.account) {
+      console.error("\u274C No wallet client available for smart account initialization");
+      return err3(new RhinestoneAccountError2("No wallet client available"));
+    }
+    const rhinestone = new RhinestoneSDK2({
+      apiKey: config.rhinestoneApiKey
+    });
+    console.log("\u{1F4DD} [SIGNATURE REQUEST 1/2] Creating Rhinestone account with ECDSA owner - this may request a signature...");
+    const account = walletClientToAccount2(walletClient);
+    console.log("\u{1F4DD} [SIGNATURE REQUEST 2/2] Calling rhinestone.createAccount() - this may request a signature...");
+    const rhinestoneAccount = await rhinestone.createAccount({
+      owners: {
+        type: "ecdsa",
+        accounts: [account]
+      }
+    });
+    console.log("\u2705 Rhinestone account created successfully:", {
+      address: rhinestoneAccount?.getAddress?.()
+    });
+    return ok3(rhinestoneAccount);
+  } catch (error) {
+    console.error("\u274C Failed to initialize smart account:", error);
+    return err3(
+      new RhinestoneAccountError2(
+        `Failed to initialize smart account: ${error instanceof Error ? error.message : "Unknown error"}`
+      )
+    );
+  }
+}
+function getRhinestoneAccountAddress(rhinestoneAccount) {
+  try {
+    const address = rhinestoneAccount.getAddress();
+    return ok3(address);
+  } catch (error) {
+    return err3(
+      new RhinestoneAccountError2(
+        `Failed to get smart account address: ${error instanceof Error ? error.message : "Unknown error"}`
+      )
+    );
+  }
+}
+async function getENSRenewalPrice(publicClient, name, duration) {
+  try {
+    const price = await publicClient.readContract({
+      address: ENS_SEPOLIA_CONTRACTS.ETHRegistrarController,
+      abi: ETH_REGISTRAR_CONTROLLER_ABI,
+      functionName: "rentPrice",
+      args: [name, duration]
+    });
+    const totalPrice = price.base + price.premium;
+    return ok3(totalPrice);
+  } catch (error) {
+    return err3(
+      new RhinestoneAccountError2(
+        `Failed to get renewal price: ${error instanceof Error ? error.message : "Unknown error"}`
+      )
+    );
+  }
+}
+async function prepareENSRenewalTransaction(publicClient, params) {
+  try {
+    const { name, duration } = params;
+    console.log("\u{1F4CB} Preparing ENS renewal transaction...", { name, duration: duration.toString() });
+    const priceResult = await getENSRenewalPrice(publicClient, name, duration);
+    if (priceResult.isErr()) {
+      console.error("\u274C Failed to get renewal price:", priceResult.error);
+      return err3(priceResult.error);
+    }
+    const renewalPrice = priceResult.value;
+    console.log("\u{1F4B0} Renewal price:", renewalPrice.toString());
+    const data = encodeFunctionData2({
+      abi: ETH_REGISTRAR_CONTROLLER_ABI,
+      functionName: "renew",
+      args: [name, duration]
+    });
+    const txData = {
+      to: ENS_SEPOLIA_CONTRACTS.ETHRegistrarController,
+      data,
+      value: renewalPrice
+    };
+    console.log("\u2705 Transaction prepared:", {
+      to: txData.to,
+      value: txData.value.toString(),
+      dataLength: txData.data.length
+    });
+    return ok3(txData);
+  } catch (error) {
+    console.error("\u274C Failed to prepare ENS renewal transaction:", error);
+    return err3(
+      new RhinestoneAccountError2(
+        `Failed to prepare ENS renewal transaction: ${error instanceof Error ? error.message : "Unknown error"}`
+      )
+    );
+  }
+}
+async function executeENSRenewal(rhinestoneAccount, publicClient, params, config) {
+  try {
+    console.log("\u{1F680} Executing ENS renewal...", params);
+    console.log("\u2705 Using Rhinestone account:", {
+      address: rhinestoneAccount.getAddress?.()
+    });
+    const txResult = await prepareENSRenewalTransaction(publicClient, params);
+    if (txResult.isErr()) {
+      return err3(txResult.error);
+    }
+    const { to, data, value } = txResult.value;
+    const chain = config.chain || sepolia2;
+    console.log("\u{1F4E4} Calling rhinestoneAccount.sendTransaction()...", {
+      targetChain: chain.name,
+      to,
+      value: value.toString()
+    });
+    const transaction = await rhinestoneAccount.sendTransaction({
+      sourceChains: [chain],
+      targetChain: chain,
+      calls: [
+        {
+          to,
+          data,
+          value
+        }
+      ]
+    });
+    console.log("\u2705 Transaction response:", transaction);
+    const txHash = transaction.hash || transaction.id;
+    console.log("\u2705 Transaction hash/id:", txHash);
+    console.log("\u2705 Transaction type:", transaction.type);
+    if (!transaction || !transaction.hash && !transaction.id) {
+      console.error("\u274C No transaction hash or ID returned!", transaction);
+      return err3(new RhinestoneAccountError2("No transaction hash or ID returned from Rhinestone SDK"));
+    }
+    const hashAsHex = typeof txHash === "bigint" ? `0x${txHash.toString(16).padStart(64, "0")}` : txHash;
+    console.log("\u2705 Final hash:", hashAsHex);
+    return ok3(hashAsHex);
+  } catch (error) {
+    console.error("\u274C Failed to execute ENS renewal:", error);
+    return err3(
+      new RhinestoneAccountError2(
+        `Failed to execute ENS renewal: ${error instanceof Error ? error.message : "Unknown error"}`
+      )
+    );
+  }
+}
+
 // src/machines/transaction.machine.ts
 import { setup, assign, fromPromise as fromPromise2 } from "xstate";
+import { fromResultAsync } from "@ens-apps/utils/xstate/neverthrow";
+import { ResultAsync as ResultAsync2, errAsync as errAsync2, fromPromise as fromPromiseNT } from "neverthrow";
 var transactionMachine = setup({
   types: {
     context: {},
@@ -703,42 +891,132 @@ var transactionMachine = setup({
     events: {}
   },
   actors: {
-    submitTransaction: fromPromise2(async ({ input }) => {
-      if (!input.request) {
-        throw new Error("No transaction request provided");
-      }
-      const result = await input.service.submitTransaction(
-        input.request,
-        input.options
-      );
-      if (result.isErr()) {
-        throw result.error;
-      }
-      return result.value;
-    }),
-    waitForReceipt: fromPromise2(async ({ input }) => {
-      const result = await input.service.waitForReceipt(
-        input.hash,
-        {
-          confirmations: input.options?.confirmations,
-          timeout: input.options?.timeout
+    initializeRhinestoneAccount: fromResultAsync(
+      ({ walletClient, rhinestoneConfig }) => {
+        if (!rhinestoneConfig) {
+          return errAsync2(new Error("Rhinestone config required"));
         }
-      );
-      if (result.isErr()) {
-        throw result.error;
+        if (!walletClient) {
+          return errAsync2(new Error("Wallet client required"));
+        }
+        return ResultAsync2.fromSafePromise(initializeRhinestoneAccount(walletClient, rhinestoneConfig)).andThen((result) => result).mapErr((error) => error);
       }
-      return result.value;
-    }),
-    checkWithEthCall: fromPromise2(async ({ input }) => {
-      if (!input.request) {
-        throw new Error("No transaction request provided");
+    ),
+    submitTransaction: fromResultAsync(
+      ({ request, options, publicClient, walletClient, rhinestoneConfig, rhinestoneAccount }) => {
+        console.log("\u{1F527} [ACTOR] submitTransaction actor invoked with:", {
+          requestType: request?.type,
+          hasRhinestoneAccount: !!rhinestoneAccount,
+          rhinestoneAccountAddress: rhinestoneAccount?.getAddress?.(),
+          rhinestoneAccountType: typeof rhinestoneAccount
+        });
+        if (!request) {
+          throw new Error("No transaction request provided");
+        }
+        if (request.type === "rhinestone-intent") {
+          console.log("\u{1F527} [ACTOR] Handling rhinestone-intent transaction");
+          if (!rhinestoneConfig) {
+            return errAsync2(new TransactionSubmissionError(
+              request,
+              new Error("Rhinestone config required for rhinestone-intent transactions")
+            ));
+          }
+          if (!request.rhinestoneParams) {
+            return errAsync2(new TransactionSubmissionError(
+              request,
+              new Error("rhinestoneParams required for Rhinestone transactions")
+            ));
+          }
+          if (!rhinestoneAccount) {
+            return errAsync2(new TransactionSubmissionError(
+              request,
+              new Error("Rhinestone account must be initialized before executing transactions")
+            ));
+          }
+          console.log("\u{1F527} [ACTOR] Executing with cached Rhinestone account:", {
+            hasAccount: !!rhinestoneAccount,
+            accountAddress: rhinestoneAccount?.getAddress?.()
+          });
+          return ResultAsync2.fromSafePromise(
+            executeENSRenewal(rhinestoneAccount, publicClient, request.rhinestoneParams, rhinestoneConfig)
+          ).andThen((result) => result).mapErr((error) => {
+            console.error("\u274C Rhinestone error:", error);
+            return new TransactionSubmissionError(request, error);
+          });
+        }
+        if (request.type === "eoa") {
+          if (!walletClient) {
+            return errAsync2(new TransactionSubmissionError(
+              request,
+              new Error("Wallet client required for EOA transactions")
+            ));
+          }
+          const eoaRequest = request;
+          const txParams = {
+            account: eoaRequest.from,
+            to: eoaRequest.to,
+            value: eoaRequest.value,
+            data: eoaRequest.data,
+            gas: eoaRequest.gas,
+            nonce: eoaRequest.nonce,
+            chain: walletClient.chain
+          };
+          if (eoaRequest.maxFeePerGas !== void 0) {
+            txParams.maxFeePerGas = eoaRequest.maxFeePerGas;
+            txParams.maxPriorityFeePerGas = eoaRequest.maxPriorityFeePerGas;
+          } else if (eoaRequest.gasPrice !== void 0) {
+            txParams.gasPrice = eoaRequest.gasPrice;
+          }
+          return fromPromiseNT(
+            walletClient.sendTransaction(txParams),
+            (error) => new TransactionSubmissionError(request, error)
+          );
+        }
+        return errAsync2(new TransactionSubmissionError(
+          request,
+          new Error("ERC-4337 transactions not yet implemented")
+        ));
       }
-      const result = await input.service.checkWithEthCall(input.request);
-      if (result.isErr()) {
-        throw result.error;
+    ),
+    waitForReceipt: fromResultAsync(
+      ({ hash, options, publicClient }) => {
+        const confirmations = options?.confirmations || 1;
+        const timeout = options?.timeout || 6e4;
+        return fromPromiseNT(
+          publicClient.waitForTransactionReceipt({
+            hash,
+            confirmations,
+            timeout
+          }),
+          (error) => new TransactionTimeoutError(hash, timeout)
+        );
       }
-      return result.value;
-    }),
+    ),
+    checkWithEthCall: fromResultAsync(
+      ({ request, publicClient }) => {
+        if (!request) {
+          throw new Error("No transaction request provided");
+        }
+        if (request.type === "erc4337") {
+          return ResultAsync2.fromSafePromise(Promise.resolve({ wouldSucceed: true }));
+        }
+        const eoaRequest = request;
+        return fromPromiseNT(
+          publicClient.call({
+            account: eoaRequest.from,
+            to: eoaRequest.to,
+            data: eoaRequest.data,
+            value: eoaRequest.value,
+            gas: eoaRequest.gas
+          }).then((result) => ({
+            wouldSucceed: !result.data?.includes("0x08c379a0"),
+            // Check for revert
+            result: result.data
+          })),
+          (error) => new EthCallFallbackError(request, error)
+        );
+      }
+    ),
     wait: fromPromise2(
       ({ input }) => new Promise((resolve) => setTimeout(resolve, input))
     )
@@ -812,11 +1090,13 @@ var transactionMachine = setup({
   id: "transaction",
   initial: "idle",
   context: ({ input }) => ({
+    publicClient: input.publicClient,
+    walletClient: input.walletClient,
+    rhinestoneConfig: input.rhinestoneConfig,
     request: void 0,
     options: {},
     retryCount: 0,
     fallbackChecks: 0,
-    transactionService: input.transactionService,
     modal: {
       isOpen: false,
       flowType: "single",
@@ -874,18 +1154,131 @@ var transactionMachine = setup({
       }
     },
     preparing: {
-      entry: "recordTransition",
-      always: "submitting"
+      entry: [
+        "recordTransition",
+        ({ context }) => {
+          const isRhinestoneIntent = context.request?.type === "rhinestone-intent";
+          const hasAccount = !!context.rhinestoneAccount;
+          const hasConfig = !!context.rhinestoneConfig;
+          const willInitialize = isRhinestoneIntent && !hasAccount && hasConfig;
+          console.log("\u{1F527} [STATE MACHINE] Entering preparing state", {
+            requestType: context.request?.type,
+            isRhinestoneIntent,
+            hasRhinestoneAccount: hasAccount,
+            rhinestoneAccountAddress: context.rhinestoneAccount?.getAddress?.(),
+            hasRhinestoneConfig: hasConfig,
+            willInitializeAccount: willInitialize,
+            nextState: willInitialize ? "initializingSmartAccount" : "submitting"
+          });
+        }
+      ],
+      always: [
+        {
+          // Initialize smart account first if using Rhinestone and account not cached
+          guard: ({ context }) => context.request?.type === "rhinestone-intent" && !context.rhinestoneAccount && !!context.rhinestoneConfig,
+          target: "initializingSmartAccount"
+        },
+        {
+          target: "submitting"
+        }
+      ]
+    },
+    initializingSmartAccount: {
+      entry: [
+        "recordTransition",
+        ({ context }) => {
+          console.log("\u{1F527} [STATE MACHINE] Entering initializingSmartAccount state", {
+            hasExistingAccount: !!context.rhinestoneAccount,
+            existingAccountAddress: context.rhinestoneAccount?.getAddress?.()
+          });
+        }
+      ],
+      invoke: {
+        src: "initializeRhinestoneAccount",
+        input: ({ context }) => {
+          const inputData = {
+            walletClient: context.walletClient,
+            rhinestoneConfig: context.rhinestoneConfig
+          };
+          console.log("\u{1F527} [STATE MACHINE] Input to initializeRhinestoneAccount:", {
+            hasWalletClient: !!inputData.walletClient,
+            hasConfig: !!inputData.rhinestoneConfig
+          });
+          return inputData;
+        },
+        onDone: {
+          target: "submitting",
+          actions: [
+            ({ event }) => {
+              console.log("\u{1F527} [STATE MACHINE] initializeRhinestoneAccount onDone - received account:", {
+                hasAccount: !!event.output,
+                accountAddress: event.output?.getAddress?.(),
+                accountType: typeof event.output
+              });
+            },
+            assign({
+              rhinestoneAccount: ({ event }) => {
+                const account = event.output;
+                console.log("\u{1F527} [STATE MACHINE] Assigning rhinestoneAccount to context:", {
+                  hasAccount: !!account,
+                  accountAddress: account?.getAddress?.()
+                });
+                return account;
+              }
+            }),
+            ({ context }) => {
+              console.log("\u{1F527} [STATE MACHINE] After assignment - context.rhinestoneAccount:", {
+                hasAccount: !!context.rhinestoneAccount,
+                accountAddress: context.rhinestoneAccount?.getAddress?.()
+              });
+            },
+            "recordTransition"
+          ]
+        },
+        onError: {
+          target: "error.submission",
+          actions: [
+            ({ event }) => {
+              console.error("\u{1F527} [STATE MACHINE] initializeRhinestoneAccount onError:", event.error);
+            },
+            assign({
+              error: ({ event }) => event.error
+            }),
+            "logCritical",
+            "recordTransition"
+          ]
+        }
+      }
     },
     submitting: {
-      entry: "recordTransition",
+      entry: [
+        "recordTransition",
+        ({ context }) => {
+          console.log("\u{1F527} [STATE MACHINE] Entering submitting state", {
+            requestType: context.request?.type,
+            hasRhinestoneAccount: !!context.rhinestoneAccount,
+            rhinestoneAccountAddress: context.rhinestoneAccount?.getAddress?.()
+          });
+        }
+      ],
       invoke: {
         src: "submitTransaction",
-        input: ({ context }) => ({
-          request: context.request,
-          options: context.options,
-          service: context.transactionService
-        }),
+        input: ({ context }) => {
+          const inputData = {
+            request: context.request,
+            options: context.options,
+            publicClient: context.publicClient,
+            walletClient: context.walletClient,
+            rhinestoneConfig: context.rhinestoneConfig,
+            rhinestoneAccount: context.rhinestoneAccount
+          };
+          console.log("\u{1F527} [STATE MACHINE] Input to submitTransaction:", {
+            requestType: inputData.request?.type,
+            hasRhinestoneAccount: !!inputData.rhinestoneAccount,
+            rhinestoneAccountAddress: inputData.rhinestoneAccount?.getAddress?.()
+          });
+          return inputData;
+        },
         onDone: {
           target: "pending",
           actions: [
@@ -929,7 +1322,9 @@ var transactionMachine = setup({
         input: ({ context }) => ({
           hash: context.hash,
           options: context.options,
-          service: context.transactionService
+          publicClient: context.publicClient,
+          walletClient: context.walletClient,
+          rhinestoneConfig: context.rhinestoneConfig
         }),
         onDone: [
           {
@@ -978,7 +1373,9 @@ var transactionMachine = setup({
         src: "checkWithEthCall",
         input: ({ context }) => ({
           request: context.request,
-          service: context.transactionService
+          publicClient: context.publicClient,
+          walletClient: context.walletClient,
+          rhinestoneConfig: context.rhinestoneConfig
         }),
         onDone: [
           {
@@ -1135,8 +1532,369 @@ var transactionMachine = setup({
   }
 });
 
+// src/machines/transaction-registry.machine.ts
+import { setup as setup2, assign as assign2, fromPromise as fromPromise3 } from "xstate";
+
+// src/helpers/transaction-persistence.ts
+import { openDB } from "idb";
+var DB_NAME = "ens-transaction-manager";
+var DB_VERSION = 1;
+var ACTIVE_STORE = "active-transactions";
+var HISTORY_STORE = "transaction-history";
+var MAX_HISTORY_SIZE = 1e3;
+async function initDB() {
+  return openDB(DB_NAME, DB_VERSION, {
+    upgrade(db) {
+      if (!db.objectStoreNames.contains(ACTIVE_STORE)) {
+        const activeStore = db.createObjectStore(ACTIVE_STORE, { keyPath: "id" });
+        activeStore.createIndex("status", "status");
+        activeStore.createIndex("timestamp", "timestamp");
+      }
+      if (!db.objectStoreNames.contains(HISTORY_STORE)) {
+        const historyStore = db.createObjectStore(HISTORY_STORE, { keyPath: "id" });
+        historyStore.createIndex("timestamp", "timestamp");
+        historyStore.createIndex("status", "status");
+      }
+    }
+  });
+}
+async function saveActiveTransaction(transaction) {
+  const db = await initDB();
+  await db.put(ACTIVE_STORE, {
+    ...transaction,
+    updatedAt: Date.now()
+  });
+}
+async function getActiveTransactions() {
+  const db = await initDB();
+  return db.getAll(ACTIVE_STORE);
+}
+async function getActiveTransaction(id) {
+  const db = await initDB();
+  return db.get(ACTIVE_STORE, id);
+}
+async function removeActiveTransaction(id) {
+  const db = await initDB();
+  await db.delete(ACTIVE_STORE, id);
+}
+async function archiveTransaction(transaction) {
+  const db = await initDB();
+  await db.put(HISTORY_STORE, {
+    ...transaction,
+    updatedAt: Date.now()
+  });
+  await db.delete(ACTIVE_STORE, transaction.id);
+  await pruneHistory(db);
+}
+async function pruneHistory(db) {
+  const tx = db.transaction(HISTORY_STORE, "readwrite");
+  const store = tx.objectStore(HISTORY_STORE);
+  const index = store.index("timestamp");
+  const allEntries = await index.getAll();
+  if (allEntries.length > MAX_HISTORY_SIZE) {
+    const entriesToDelete = allEntries.length - MAX_HISTORY_SIZE;
+    const sortedByTimestamp = allEntries.sort((a, b) => a.timestamp - b.timestamp);
+    for (let i = 0; i < entriesToDelete; i++) {
+      await store.delete(sortedByTimestamp[i].id);
+    }
+  }
+  await tx.done;
+}
+async function getTransactionHistory(limit) {
+  const db = await initDB();
+  const tx = db.transaction(HISTORY_STORE, "readonly");
+  const index = tx.objectStore(HISTORY_STORE).index("timestamp");
+  const allEntries = await index.getAll();
+  const sorted = allEntries.sort((a, b) => b.timestamp - a.timestamp);
+  return limit ? sorted.slice(0, limit) : sorted;
+}
+async function clearActiveTransactions() {
+  const db = await initDB();
+  await db.clear(ACTIVE_STORE);
+}
+async function clearTransactionHistory() {
+  const db = await initDB();
+  await db.clear(HISTORY_STORE);
+}
+async function getHistoryCount() {
+  const db = await initDB();
+  return db.count(HISTORY_STORE);
+}
+async function getActiveCount() {
+  const db = await initDB();
+  return db.count(ACTIVE_STORE);
+}
+async function exportAllData() {
+  const db = await initDB();
+  const [active, history] = await Promise.all([
+    db.getAll(ACTIVE_STORE),
+    db.getAll(HISTORY_STORE)
+  ]);
+  return { active, history };
+}
+
+// src/machines/transaction-registry.machine.ts
+var transactionRegistryMachine = setup2({
+  types: {
+    context: {},
+    events: {}
+  },
+  actors: {
+    /**
+     * Recover active transactions from IndexedDB
+     */
+    recoverTransactions: fromPromise3(async () => {
+      console.log("\u{1F504} [REGISTRY] Recovering transactions from IndexedDB...");
+      const transactions = await getActiveTransactions();
+      console.log(`\u2705 [REGISTRY] Found ${transactions.length} transactions to recover`);
+      return transactions;
+    }),
+    /**
+     * Transaction machine actor spawned for each transaction
+     */
+    transaction: transactionMachine
+  }
+}).createMachine({
+  id: "transactionRegistry",
+  initial: "recovering",
+  context: {
+    transactions: /* @__PURE__ */ new Map(),
+    recoveredTransactions: []
+  },
+  states: {
+    /**
+     * Recovery State
+     * Loads pending transactions from IndexedDB on startup
+     */
+    recovering: {
+      invoke: {
+        src: "recoverTransactions",
+        onDone: {
+          target: "idle",
+          actions: assign2({
+            recoveredTransactions: ({ event }) => event.output
+          })
+        },
+        onError: {
+          target: "idle",
+          actions: assign2({
+            error: ({ event }) => event.error
+          })
+        }
+      }
+    },
+    /**
+     * Idle State
+     * Ready to start or recover transactions
+     */
+    idle: {
+      on: {
+        START_TRANSACTION: {
+          actions: [
+            assign2({
+              transactions: ({ context, event, spawn }) => {
+                const newMap = new Map(context.transactions);
+                console.log("\u{1F680} [REGISTRY] Starting new transaction:", {
+                  id: event.id,
+                  type: event.request.type
+                });
+                const actor = spawn("transaction", {
+                  id: event.id,
+                  input: {
+                    request: event.request
+                  }
+                });
+                actor.subscribe((snapshot) => {
+                  const state = snapshot.value;
+                  const context2 = snapshot.context;
+                  console.log(`\u{1F4CA} [REGISTRY] Transaction ${event.id} state:`, state);
+                  const persisted = {
+                    id: event.id,
+                    request: event.request,
+                    hash: context2.hash,
+                    status: state,
+                    error: context2.error?.message,
+                    timestamp: Date.now(),
+                    updatedAt: Date.now()
+                  };
+                  if (state === "confirmed" || state === "failed") {
+                    console.log(`\u2705 [REGISTRY] Archiving ${state} transaction ${event.id}`);
+                    archiveTransaction(persisted).catch((err5) => {
+                      console.error("\u274C [REGISTRY] Failed to archive transaction:", err5);
+                    });
+                  } else {
+                    saveActiveTransaction(persisted).catch((err5) => {
+                      console.error("\u274C [REGISTRY] Failed to save transaction:", err5);
+                    });
+                  }
+                });
+                newMap.set(event.id, actor);
+                return newMap;
+              }
+            })
+          ]
+        },
+        CANCEL_TRANSACTION: {
+          actions: [
+            ({ context, event }) => {
+              const actor = context.transactions.get(event.id);
+              if (actor) {
+                console.log(`\u{1F6D1} [REGISTRY] Cancelling transaction ${event.id}`);
+                actor.send({ type: "CANCEL" });
+              }
+            },
+            assign2({
+              transactions: ({ context, event }) => {
+                const newMap = new Map(context.transactions);
+                newMap.delete(event.id);
+                return newMap;
+              }
+            }),
+            // Remove from IndexedDB
+            ({ event }) => {
+              removeActiveTransaction(event.id).catch((err5) => {
+                console.error("\u274C [REGISTRY] Failed to remove transaction from storage:", err5);
+              });
+            }
+          ]
+        },
+        RECOVER_TRANSACTIONS: {
+          actions: [
+            assign2({
+              transactions: ({ context, spawn }) => {
+                const newMap = new Map(context.transactions);
+                console.log(`\u{1F504} [REGISTRY] Recovering ${context.recoveredTransactions.length} transactions`);
+                context.recoveredTransactions.forEach((persisted) => {
+                  if (persisted.status === "pending" || persisted.status === "submitting" || persisted.status === "preparing") {
+                    console.log("\u267B\uFE0F [REGISTRY] Recovering transaction:", {
+                      id: persisted.id,
+                      status: persisted.status,
+                      hash: persisted.hash
+                    });
+                    const actor = spawn("transaction", {
+                      id: persisted.id,
+                      input: {
+                        request: persisted.request,
+                        hash: persisted.hash,
+                        resumeFromPending: persisted.status === "pending" && !!persisted.hash
+                      }
+                    });
+                    actor.subscribe((snapshot) => {
+                      const state = snapshot.value;
+                      const context2 = snapshot.context;
+                      const updated = {
+                        ...persisted,
+                        hash: context2.hash,
+                        status: state,
+                        error: context2.error?.message,
+                        updatedAt: Date.now()
+                      };
+                      if (state === "confirmed" || state === "failed") {
+                        archiveTransaction(updated).catch((err5) => {
+                          console.error("\u274C [REGISTRY] Failed to archive recovered transaction:", err5);
+                        });
+                      } else {
+                        saveActiveTransaction(updated).catch((err5) => {
+                          console.error("\u274C [REGISTRY] Failed to save recovered transaction:", err5);
+                        });
+                      }
+                    });
+                    newMap.set(persisted.id, actor);
+                  } else {
+                    console.log(`\u{1F4E6} [REGISTRY] Archiving completed transaction ${persisted.id}`);
+                    archiveTransaction(persisted).catch((err5) => {
+                      console.error("\u274C [REGISTRY] Failed to archive transaction:", err5);
+                    });
+                  }
+                });
+                return newMap;
+              }
+            })
+          ]
+        },
+        CLEAR_RECOVERED: {
+          actions: assign2({
+            recoveredTransactions: []
+          })
+        }
+      }
+    }
+  }
+});
+
+// src/providers/TransactionRegistryProvider.tsx
+import { createContext, useContext, useEffect, useState } from "react";
+import { useSelector } from "@xstate/react";
+import { createActor } from "xstate";
+import { jsx } from "react/jsx-runtime";
+var TransactionRegistryContext = createContext(null);
+function TransactionRegistryProvider({ children }) {
+  const [actor] = useState(() => {
+    console.log("\u{1F3D7}\uFE0F [PROVIDER] Creating transaction registry actor");
+    return createActor(transactionRegistryMachine);
+  });
+  const state = useSelector(actor, (snapshot) => snapshot);
+  useEffect(() => {
+    console.log("\u25B6\uFE0F [PROVIDER] Starting transaction registry actor");
+    actor.start();
+    return () => {
+      console.log("\u23F9\uFE0F [PROVIDER] Stopping transaction registry actor");
+      actor.stop();
+    };
+  }, [actor]);
+  useEffect(() => {
+    if (state.matches("idle") && state.context.recoveredTransactions.length > 0) {
+      console.log("\u{1F504} [PROVIDER] Auto-recovering transactions");
+      actor.send({ type: "RECOVER_TRANSACTIONS" });
+    }
+  }, [state, actor]);
+  const contextValue = {
+    actor,
+    state,
+    startTransaction: (request, id) => {
+      const txId = id || `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      console.log("\u{1F680} [PROVIDER] Starting transaction:", txId);
+      actor.send({ type: "START_TRANSACTION", request, id: txId });
+      return txId;
+    },
+    cancelTransaction: (id) => {
+      console.log("\u{1F6D1} [PROVIDER] Cancelling transaction:", id);
+      actor.send({ type: "CANCEL_TRANSACTION", id });
+    },
+    recoverTransactions: () => {
+      console.log("\u{1F504} [PROVIDER] Manually recovering transactions");
+      actor.send({ type: "RECOVER_TRANSACTIONS" });
+    },
+    clearRecovered: () => {
+      console.log("\u{1F9F9} [PROVIDER] Clearing recovered transactions list");
+      actor.send({ type: "CLEAR_RECOVERED" });
+    },
+    hasRecoveredTransactions: state.context.recoveredTransactions.length > 0
+  };
+  return /* @__PURE__ */ jsx(TransactionRegistryContext.Provider, { value: contextValue, children });
+}
+function useTransactionRegistry() {
+  const context = useContext(TransactionRegistryContext);
+  if (!context) {
+    throw new Error("useTransactionRegistry must be used within TransactionRegistryProvider");
+  }
+  return context;
+}
+function useTransaction(id) {
+  const { state } = useTransactionRegistry();
+  return state.context.transactions.get(id);
+}
+function useActiveTransactions() {
+  const { state } = useTransactionRegistry();
+  return state.context.transactions;
+}
+function useRecoveredTransactions() {
+  const { state } = useTransactionRegistry();
+  return state.context.recoveredTransactions;
+}
+
 // src/helpers/ens-renewal.helpers.ts
-import { ok as ok3, err as err3 } from "neverthrow";
+import { ok as ok4, err as err4 } from "neverthrow";
 async function prepareENSRenewal(params) {
   const {
     publicClient,
@@ -1148,27 +1906,26 @@ async function prepareENSRenewal(params) {
     rhinestoneConfig
   } = params;
   try {
-    const rhinestoneService = new RhinestoneAccountService(
-      publicClient,
-      walletClient,
-      rhinestoneConfig
-    );
-    const txResult = await rhinestoneService.prepareENSRenewalTransaction({
+    if (!walletClient?.account?.address) {
+      return err4(new Error("Wallet client with account address is required"));
+    }
+    const from = walletClient.account.address;
+    const txResult = await prepareENSRenewalTransaction(publicClient, {
       name,
       duration
     });
     if (txResult.isErr()) {
-      return txResult;
+      return err4(txResult.error);
     }
     const { to, data, value } = txResult.value;
     if (useSmartAccount && rhinestoneConfig) {
-      return ok3({
+      return ok4({
         request: {
           type: "rhinestone-intent",
           to,
           data,
           value,
-          from: walletClient?.account?.address,
+          from,
           chainId,
           rhinestoneParams: { name, duration }
         },
@@ -1177,61 +1934,43 @@ async function prepareENSRenewal(params) {
         }
       });
     } else {
-      return ok3({
+      return ok4({
         request: {
           type: "eoa",
           to,
           data,
           value,
-          from: walletClient?.account?.address,
+          from,
           chainId
         }
       });
     }
   } catch (error) {
-    return err3(
+    return err4(
       error instanceof Error ? error : new Error("Failed to prepare ENS renewal")
     );
   }
 }
-async function getENSRenewalPrice(publicClient, name, duration) {
-  try {
-    const rhinestoneService = new RhinestoneAccountService(publicClient);
-    const result = await rhinestoneService.getRenewalPrice(name, duration);
-    if (result.isErr()) {
-      return err3(result.error);
-    }
-    return ok3(result.value);
-  } catch (error) {
-    return err3(
-      error instanceof Error ? error : new Error("Failed to get renewal price")
-    );
-  }
+async function getENSRenewalPrice2(publicClient, name, duration) {
+  const result = await prepareENSRenewalTransaction(publicClient, { name, duration });
+  return result.map((tx) => tx.value).mapErr((err5) => err5);
 }
 async function getRhinestoneSmartAccountAddress(publicClient, walletClient, rhinestoneConfig) {
-  try {
-    const rhinestoneService = new RhinestoneAccountService(
-      publicClient,
-      walletClient,
-      rhinestoneConfig
-    );
-    const result = await rhinestoneService.getSmartAccountAddress();
-    if (result.isErr()) {
-      return err3(result.error);
-    }
-    return ok3(result.value);
-  } catch (error) {
-    return err3(
-      error instanceof Error ? error : new Error("Failed to get smart account address")
-    );
+  if (!rhinestoneConfig) {
+    return err4(new Error("Rhinestone config required"));
   }
+  const accountResult = await initializeRhinestoneAccount(walletClient, rhinestoneConfig);
+  if (accountResult.isErr()) {
+    return err4(accountResult.error);
+  }
+  return getRhinestoneAccountAddress(accountResult.value).mapErr((err5) => err5);
 }
 
 // src/components/TransactionModal/TransactionModal.tsx
-import { useEffect } from "react";
+import { useEffect as useEffect2 } from "react";
 
 // src/components/TransactionModal/TransactionModalHeader.tsx
-import { jsx, jsxs } from "react/jsx-runtime";
+import { jsx as jsx2, jsxs } from "react/jsx-runtime";
 function TransactionModalHeader({
   title,
   ensName,
@@ -1250,7 +1989,7 @@ function TransactionModalHeader({
   const statusLabel = getStatusLabel();
   return /* @__PURE__ */ jsxs("div", { style: { textAlign: "center" }, children: [
     ensName && /* @__PURE__ */ jsxs("div", { style: { marginBottom: "16px" }, children: [
-      avatarUrl ? /* @__PURE__ */ jsx(
+      avatarUrl ? /* @__PURE__ */ jsx2(
         "img",
         {
           src: avatarUrl,
@@ -1263,7 +2002,7 @@ function TransactionModalHeader({
             marginBottom: "12px"
           }
         }
-      ) : /* @__PURE__ */ jsx(
+      ) : /* @__PURE__ */ jsx2(
         "div",
         {
           style: {
@@ -1282,7 +2021,7 @@ function TransactionModalHeader({
           children: ensName.charAt(0).toUpperCase()
         }
       ),
-      /* @__PURE__ */ jsx(
+      /* @__PURE__ */ jsx2(
         "div",
         {
           style: {
@@ -1296,7 +2035,7 @@ function TransactionModalHeader({
       )
     ] }),
     title && /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginBottom: "8px" }, children: [
-      /* @__PURE__ */ jsx(
+      /* @__PURE__ */ jsx2(
         "span",
         {
           style: {
@@ -1309,7 +2048,7 @@ function TransactionModalHeader({
           children: "[title]"
         }
       ),
-      statusLabel && /* @__PURE__ */ jsx(
+      statusLabel && /* @__PURE__ */ jsx2(
         "span",
         {
           style: {
@@ -1327,10 +2066,10 @@ function TransactionModalHeader({
 }
 
 // src/components/TransactionModal/TransactionSteps.tsx
-import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
+import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
 function TransactionSteps({ steps, currentStepIndex }) {
   if (!steps || steps.length === 0) return null;
-  return /* @__PURE__ */ jsx2("div", { style: { marginTop: "20px" }, children: steps.map((step, index) => {
+  return /* @__PURE__ */ jsx3("div", { style: { marginTop: "20px" }, children: steps.map((step, index) => {
     const isActive = index === currentStepIndex;
     const isCompleted = step.status === "completed";
     const isFailed = step.status === "failed";
@@ -1355,7 +2094,7 @@ function TransactionSteps({ steps, currentStepIndex }) {
           borderLeft: `3px solid ${isCompleted ? "#4CAF50" : isFailed ? "#F44336" : isInProgress ? "#2196F3" : "#E0E0E0"}`
         },
         children: [
-          /* @__PURE__ */ jsx2(
+          /* @__PURE__ */ jsx3(
             "div",
             {
               style: {
@@ -1374,7 +2113,7 @@ function TransactionSteps({ steps, currentStepIndex }) {
             }
           ),
           /* @__PURE__ */ jsxs2("div", { style: { flex: 1 }, children: [
-            /* @__PURE__ */ jsx2(
+            /* @__PURE__ */ jsx3(
               "div",
               {
                 style: {
@@ -1386,8 +2125,8 @@ function TransactionSteps({ steps, currentStepIndex }) {
                 children: step.title
               }
             ),
-            step.description && /* @__PURE__ */ jsx2("div", { style: { fontSize: "12px", color: "#666" }, children: step.description }),
-            step.hash && /* @__PURE__ */ jsx2(
+            step.description && /* @__PURE__ */ jsx3("div", { style: { fontSize: "12px", color: "#666" }, children: step.description }),
+            step.hash && /* @__PURE__ */ jsx3(
               "a",
               {
                 href: `https://sepolia.etherscan.io/tx/${step.hash}`,
@@ -1403,7 +2142,7 @@ function TransactionSteps({ steps, currentStepIndex }) {
                 children: "View transaction \u2197"
               }
             ),
-            isFailed && step.error && /* @__PURE__ */ jsx2(
+            isFailed && step.error && /* @__PURE__ */ jsx3(
               "div",
               {
                 style: {
@@ -1426,7 +2165,7 @@ function TransactionSteps({ steps, currentStepIndex }) {
 }
 
 // src/components/TransactionModal/TransactionDetails.tsx
-import { jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
+import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
 function TransactionDetails({
   network,
   estimatedCost,
@@ -1453,9 +2192,9 @@ function TransactionDetails({
               marginBottom: estimatedCost ? "12px" : 0
             },
             children: [
-              /* @__PURE__ */ jsx3("span", { style: { fontSize: "14px", color: "#666" }, children: "Network" }),
+              /* @__PURE__ */ jsx4("span", { style: { fontSize: "14px", color: "#666" }, children: "Network" }),
               /* @__PURE__ */ jsxs3("div", { style: { display: "flex", alignItems: "center", gap: "6px" }, children: [
-                /* @__PURE__ */ jsx3(
+                /* @__PURE__ */ jsx4(
                   "div",
                   {
                     style: {
@@ -1466,7 +2205,7 @@ function TransactionDetails({
                     }
                   }
                 ),
-                /* @__PURE__ */ jsx3("span", { style: { fontSize: "14px", fontWeight: "500", color: "#333" }, children: network })
+                /* @__PURE__ */ jsx4("span", { style: { fontSize: "14px", fontWeight: "500", color: "#333" }, children: network })
               ] })
             ]
           }
@@ -1480,8 +2219,8 @@ function TransactionDetails({
               alignItems: "center"
             },
             children: [
-              /* @__PURE__ */ jsx3("span", { style: { fontSize: "14px", color: "#666" }, children: "Est. cost" }),
-              /* @__PURE__ */ jsx3("span", { style: { fontSize: "14px", fontWeight: "500", color: "#333" }, children: estimatedCost })
+              /* @__PURE__ */ jsx4("span", { style: { fontSize: "14px", color: "#666" }, children: "Est. cost" }),
+              /* @__PURE__ */ jsx4("span", { style: { fontSize: "14px", fontWeight: "500", color: "#333" }, children: estimatedCost })
             ]
           }
         )
@@ -1491,11 +2230,11 @@ function TransactionDetails({
 }
 
 // src/components/TransactionModal/PaymentSelector.tsx
-import { jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
+import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 function PaymentSelector({ options, selected, onSelect }) {
   if (!options || options.length === 0) return null;
   return /* @__PURE__ */ jsxs4("div", { style: { marginTop: "20px" }, children: [
-    /* @__PURE__ */ jsx4(
+    /* @__PURE__ */ jsx5(
       "h3",
       {
         style: {
@@ -1507,7 +2246,7 @@ function PaymentSelector({ options, selected, onSelect }) {
         children: "Choose payment"
       }
     ),
-    /* @__PURE__ */ jsx4("div", { style: { display: "flex", flexDirection: "column", gap: "8px" }, children: options.map((option) => {
+    /* @__PURE__ */ jsx5("div", { style: { display: "flex", flexDirection: "column", gap: "8px" }, children: options.map((option) => {
       const isSelected = selected === option.method;
       return /* @__PURE__ */ jsxs4(
         "button",
@@ -1526,7 +2265,7 @@ function PaymentSelector({ options, selected, onSelect }) {
           },
           children: [
             /* @__PURE__ */ jsxs4("div", { style: { display: "flex", alignItems: "center", gap: "12px" }, children: [
-              /* @__PURE__ */ jsx4(
+              /* @__PURE__ */ jsx5(
                 "div",
                 {
                   style: {
@@ -1538,7 +2277,7 @@ function PaymentSelector({ options, selected, onSelect }) {
                     alignItems: "center",
                     justifyContent: "center"
                   },
-                  children: isSelected && /* @__PURE__ */ jsx4(
+                  children: isSelected && /* @__PURE__ */ jsx5(
                     "div",
                     {
                       style: {
@@ -1551,7 +2290,7 @@ function PaymentSelector({ options, selected, onSelect }) {
                   )
                 }
               ),
-              /* @__PURE__ */ jsx4(
+              /* @__PURE__ */ jsx5(
                 "div",
                 {
                   style: {
@@ -1570,11 +2309,11 @@ function PaymentSelector({ options, selected, onSelect }) {
                 }
               ),
               /* @__PURE__ */ jsxs4("div", { children: [
-                /* @__PURE__ */ jsx4("div", { style: { fontSize: "14px", fontWeight: "500", color: "#333" }, children: option.label }),
-                option.network && /* @__PURE__ */ jsx4("div", { style: { fontSize: "12px", color: "#666" }, children: option.network })
+                /* @__PURE__ */ jsx5("div", { style: { fontSize: "14px", fontWeight: "500", color: "#333" }, children: option.label }),
+                option.network && /* @__PURE__ */ jsx5("div", { style: { fontSize: "12px", color: "#666" }, children: option.network })
               ] })
             ] }),
-            option.balance && /* @__PURE__ */ jsx4("div", { style: { fontSize: "14px", color: "#666" }, children: option.balance })
+            option.balance && /* @__PURE__ */ jsx5("div", { style: { fontSize: "14px", color: "#666" }, children: option.balance })
           ]
         },
         option.method
@@ -1584,7 +2323,7 @@ function PaymentSelector({ options, selected, onSelect }) {
 }
 
 // src/components/TransactionModal/TransactionModal.tsx
-import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
+import { jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
 function TransactionModal({
   isOpen,
   title,
@@ -1606,7 +2345,7 @@ function TransactionModal({
   onPaymentSelect,
   onBack
 }) {
-  useEffect(() => {
+  useEffect2(() => {
     const handleEscape = (e) => {
       if (e.key === "Escape" && isOpen) {
         onClose();
@@ -1615,7 +2354,7 @@ function TransactionModal({
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
-  useEffect(() => {
+  useEffect2(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
     } else {
@@ -1669,7 +2408,7 @@ function TransactionModal({
   };
   const buttonConfig = getButtonConfig();
   const showPaymentSelector = isIdle && paymentOptions && paymentOptions.length > 0;
-  return /* @__PURE__ */ jsx5(
+  return /* @__PURE__ */ jsx6(
     "div",
     {
       style: {
@@ -1701,7 +2440,7 @@ function TransactionModal({
           },
           onClick: (e) => e.stopPropagation(),
           children: [
-            /* @__PURE__ */ jsx5(
+            /* @__PURE__ */ jsx6(
               "button",
               {
                 onClick: onClose,
@@ -1722,7 +2461,7 @@ function TransactionModal({
               }
             ),
             /* @__PURE__ */ jsxs5("div", { style: { padding: "24px" }, children: [
-              /* @__PURE__ */ jsx5(
+              /* @__PURE__ */ jsx6(
                 TransactionModalHeader,
                 {
                   title,
@@ -1749,7 +2488,7 @@ function TransactionModal({
                   ]
                 }
               ),
-              isSuccess && /* @__PURE__ */ jsx5(
+              isSuccess && /* @__PURE__ */ jsx6(
                 "div",
                 {
                   style: {
@@ -1764,7 +2503,7 @@ function TransactionModal({
                   children: "\u2713 Transaction completed"
                 }
               ),
-              isError && /* @__PURE__ */ jsx5(
+              isError && /* @__PURE__ */ jsx6(
                 "div",
                 {
                   style: {
@@ -1779,7 +2518,7 @@ function TransactionModal({
                   children: "\u2717 Transaction failed"
                 }
               ),
-              /* @__PURE__ */ jsx5(
+              /* @__PURE__ */ jsx6(
                 TransactionDetails,
                 {
                   network: network || "Mainnet",
@@ -1787,14 +2526,14 @@ function TransactionModal({
                   status: machineState
                 }
               ),
-              steps && steps.length > 1 && /* @__PURE__ */ jsx5(
+              steps && steps.length > 1 && /* @__PURE__ */ jsx6(
                 TransactionSteps,
                 {
                   steps,
                   currentStepIndex
                 }
               ),
-              showPaymentSelector && /* @__PURE__ */ jsx5(
+              showPaymentSelector && /* @__PURE__ */ jsx6(
                 PaymentSelector,
                 {
                   options: paymentOptions,
@@ -1803,7 +2542,7 @@ function TransactionModal({
                 }
               ),
               /* @__PURE__ */ jsxs5("div", { style: { marginTop: "24px", display: "flex", gap: "12px" }, children: [
-                onBack && currentStepIndex > 0 && /* @__PURE__ */ jsx5(
+                onBack && currentStepIndex > 0 && /* @__PURE__ */ jsx6(
                   "button",
                   {
                     onClick: onBack,
@@ -1821,7 +2560,7 @@ function TransactionModal({
                     children: "\u2190 Back"
                   }
                 ),
-                buttonConfig.onClick && /* @__PURE__ */ jsx5(
+                buttonConfig.onClick && /* @__PURE__ */ jsx6(
                   "button",
                   {
                     onClick: buttonConfig.onClick,
@@ -1848,35 +2587,525 @@ function TransactionModal({
     }
   );
 }
+
+// src/components/TransactionRecoveryNotification.tsx
+import React3 from "react";
+import { Fragment, jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
+function TransactionRecoveryNotification({
+  render,
+  autoRecover = false
+}) {
+  const { recoverTransactions, clearRecovered } = useTransactionRegistry();
+  const recoveredTransactions = useRecoveredTransactions();
+  const [dismissed, setDismissed] = React3.useState(false);
+  React3.useEffect(() => {
+    if (autoRecover && recoveredTransactions.length > 0) {
+      recoverTransactions();
+    }
+  }, [autoRecover, recoveredTransactions.length, recoverTransactions]);
+  const handleRecover = () => {
+    recoverTransactions();
+    setDismissed(true);
+  };
+  const handleDismiss = () => {
+    clearRecovered();
+    setDismissed(true);
+  };
+  if (dismissed || recoveredTransactions.length === 0 || autoRecover) {
+    return null;
+  }
+  if (render) {
+    return /* @__PURE__ */ jsx7(Fragment, { children: render({
+      count: recoveredTransactions.length,
+      onRecover: handleRecover,
+      onDismiss: handleDismiss,
+      transactions: recoveredTransactions
+    }) });
+  }
+  return /* @__PURE__ */ jsxs6(
+    "div",
+    {
+      style: {
+        position: "fixed",
+        top: 20,
+        right: 20,
+        padding: "16px 24px",
+        background: "#fff",
+        border: "1px solid #ddd",
+        borderRadius: 8,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+        zIndex: 9999,
+        maxWidth: 400
+      },
+      children: [
+        /* @__PURE__ */ jsx7("h3", { style: { margin: "0 0 8px 0", fontSize: 16, fontWeight: 600 }, children: "Pending Transactions Found" }),
+        /* @__PURE__ */ jsxs6("p", { style: { margin: "0 0 16px 0", fontSize: 14, color: "#666" }, children: [
+          recoveredTransactions.length,
+          " pending transaction(s) were found from a previous session. Would you like to resume tracking them?"
+        ] }),
+        /* @__PURE__ */ jsxs6("div", { style: { display: "flex", gap: 8 }, children: [
+          /* @__PURE__ */ jsxs6(
+            "button",
+            {
+              onClick: handleRecover,
+              style: {
+                padding: "8px 16px",
+                background: "#4CAF50",
+                color: "#fff",
+                border: "none",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontSize: 14
+              },
+              children: [
+                "Resume (",
+                recoveredTransactions.length,
+                ")"
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsx7(
+            "button",
+            {
+              onClick: handleDismiss,
+              style: {
+                padding: "8px 16px",
+                background: "#fff",
+                color: "#666",
+                border: "1px solid #ddd",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontSize: 14
+              },
+              children: "Dismiss"
+            }
+          )
+        ] })
+      ]
+    }
+  );
+}
+
+// src/components/GlobalTransactionToasts.tsx
+import { useEffect as useEffect3, useState as useState2 } from "react";
+import { Fragment as Fragment2, jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
+function GlobalTransactionToasts({
+  render,
+  autoDismiss = 5e3,
+  maxToasts = 5,
+  enabled = true
+}) {
+  const transactions = useActiveTransactions();
+  const [toasts, setToasts] = useState2([]);
+  const [seenStates, setSeenStates] = useState2(/* @__PURE__ */ new Map());
+  useEffect3(() => {
+    if (!enabled) return;
+    const unsubscribes = [];
+    transactions.forEach((actor, txId) => {
+      const unsubscribe = actor.subscribe((snapshot) => {
+        const state = snapshot.value;
+        const context = snapshot.context;
+        const seen = seenStates.get(txId) || /* @__PURE__ */ new Set();
+        if (seen.has(state)) return;
+        let toast = null;
+        switch (state) {
+          case "submitting":
+            toast = {
+              id: `${txId}-submitting`,
+              type: "info",
+              message: "Submitting transaction...",
+              txId,
+              timestamp: Date.now()
+            };
+            break;
+          case "pending":
+            toast = {
+              id: `${txId}-pending`,
+              type: "info",
+              message: `Transaction pending: ${context.hash?.slice(0, 10)}...`,
+              txId,
+              timestamp: Date.now()
+            };
+            break;
+          case "confirmed":
+            toast = {
+              id: `${txId}-confirmed`,
+              type: "success",
+              message: "Transaction confirmed!",
+              txId,
+              timestamp: Date.now()
+            };
+            break;
+          case "failed":
+            toast = {
+              id: `${txId}-failed`,
+              type: "error",
+              message: `Transaction failed: ${context.error?.message || "Unknown error"}`,
+              txId,
+              timestamp: Date.now()
+            };
+            break;
+        }
+        if (toast) {
+          const updatedSeen = new Set(seen).add(state);
+          setSeenStates((prev) => new Map(prev).set(txId, updatedSeen));
+          setToasts((prev) => {
+            const newToasts = [...prev, toast];
+            return newToasts.slice(-maxToasts);
+          });
+          if (autoDismiss > 0) {
+            setTimeout(() => {
+              setToasts((prev) => prev.filter((t) => t.id !== toast.id));
+            }, autoDismiss);
+          }
+        }
+      });
+      unsubscribes.push(unsubscribe);
+    });
+    return () => {
+      unsubscribes.forEach((fn) => fn());
+    };
+  }, [transactions, enabled, autoDismiss, maxToasts, seenStates]);
+  const handleDismiss = (toastId) => {
+    setToasts((prev) => prev.filter((t) => t.id !== toastId));
+  };
+  if (!enabled || toasts.length === 0) {
+    return null;
+  }
+  if (render) {
+    return /* @__PURE__ */ jsx8(Fragment2, { children: render(toasts, handleDismiss) });
+  }
+  return /* @__PURE__ */ jsxs7(
+    "div",
+    {
+      style: {
+        position: "fixed",
+        bottom: 20,
+        right: 20,
+        zIndex: 9999,
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        maxWidth: 400
+      },
+      children: [
+        toasts.map((toast) => /* @__PURE__ */ jsxs7(
+          "div",
+          {
+            style: {
+              padding: "12px 16px",
+              background: getToastColor(toast.type),
+              color: "#fff",
+              borderRadius: 8,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              animation: "slideIn 0.3s ease-out"
+            },
+            children: [
+              /* @__PURE__ */ jsx8("span", { style: { flex: 1, fontSize: 14 }, children: toast.message }),
+              /* @__PURE__ */ jsx8(
+                "button",
+                {
+                  onClick: () => handleDismiss(toast.id),
+                  style: {
+                    background: "transparent",
+                    border: "none",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontSize: 20,
+                    padding: 0,
+                    lineHeight: 1
+                  },
+                  children: "\xD7"
+                }
+              )
+            ]
+          },
+          toast.id
+        )),
+        /* @__PURE__ */ jsx8("style", { children: `
+        @keyframes slideIn {
+          from {
+            transform: translateX(400px);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      ` })
+      ]
+    }
+  );
+}
+function getToastColor(type) {
+  switch (type) {
+    case "success":
+      return "#4CAF50";
+    case "error":
+      return "#f44336";
+    case "warning":
+      return "#ff9800";
+    case "info":
+    default:
+      return "#2196F3";
+  }
+}
+
+// src/components/TransactionStatusPanel.tsx
+import React5 from "react";
+import { Fragment as Fragment3, jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
+function TransactionStatusPanel({
+  render,
+  filter,
+  maxTransactions,
+  position = "bottom-left",
+  enabled = true
+}) {
+  const activeTransactions = useActiveTransactions();
+  const transactions = React5.useMemo(() => {
+    const txArray = [];
+    activeTransactions.forEach((actor, id) => {
+      const snapshot = actor.getSnapshot();
+      const state = snapshot.value;
+      const context = snapshot.context;
+      if (filter && !filter.includes(state)) {
+        return;
+      }
+      txArray.push({
+        id,
+        state,
+        hash: context.hash,
+        error: context.error?.message,
+        canCancel: state !== "confirmed" && state !== "failed"
+      });
+    });
+    const limited = maxTransactions ? txArray.slice(-maxTransactions) : txArray;
+    return limited;
+  }, [activeTransactions, filter, maxTransactions]);
+  const handleCancel = (id) => {
+    const actor = activeTransactions.get(id);
+    if (actor) {
+      actor.send({ type: "CANCEL" });
+    }
+  };
+  if (!enabled || transactions.length === 0) {
+    return null;
+  }
+  if (render) {
+    return /* @__PURE__ */ jsx9(Fragment3, { children: render(transactions, handleCancel) });
+  }
+  const positionStyles = getPositionStyles(position);
+  return /* @__PURE__ */ jsxs8(
+    "div",
+    {
+      style: {
+        position: "fixed",
+        ...positionStyles,
+        width: 320,
+        maxHeight: 400,
+        background: "#fff",
+        border: "1px solid #ddd",
+        borderRadius: 8,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+        zIndex: 9998,
+        overflow: "hidden"
+      },
+      children: [
+        /* @__PURE__ */ jsx9(
+          "div",
+          {
+            style: {
+              padding: "12px 16px",
+              borderBottom: "1px solid #ddd",
+              background: "#f5f5f5"
+            },
+            children: /* @__PURE__ */ jsxs8("h3", { style: { margin: 0, fontSize: 14, fontWeight: 600 }, children: [
+              "Active Transactions (",
+              transactions.length,
+              ")"
+            ] })
+          }
+        ),
+        /* @__PURE__ */ jsx9(
+          "div",
+          {
+            style: {
+              maxHeight: 350,
+              overflowY: "auto"
+            },
+            children: transactions.map((tx) => /* @__PURE__ */ jsxs8(
+              "div",
+              {
+                style: {
+                  padding: "12px 16px",
+                  borderBottom: "1px solid #eee"
+                },
+                children: [
+                  /* @__PURE__ */ jsxs8(
+                    "div",
+                    {
+                      style: {
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 8
+                      },
+                      children: [
+                        /* @__PURE__ */ jsx9(
+                          "span",
+                          {
+                            style: {
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: getStateColor(tx.state),
+                              textTransform: "uppercase"
+                            },
+                            children: tx.state
+                          }
+                        ),
+                        tx.canCancel && /* @__PURE__ */ jsx9(
+                          "button",
+                          {
+                            onClick: () => handleCancel(tx.id),
+                            style: {
+                              padding: "4px 8px",
+                              fontSize: 11,
+                              background: "transparent",
+                              color: "#999",
+                              border: "1px solid #ddd",
+                              borderRadius: 4,
+                              cursor: "pointer"
+                            },
+                            children: "Cancel"
+                          }
+                        )
+                      ]
+                    }
+                  ),
+                  tx.hash && /* @__PURE__ */ jsxs8(
+                    "div",
+                    {
+                      style: {
+                        fontSize: 11,
+                        color: "#666",
+                        fontFamily: "monospace",
+                        marginBottom: 4
+                      },
+                      children: [
+                        tx.hash.slice(0, 10),
+                        "...",
+                        tx.hash.slice(-8)
+                      ]
+                    }
+                  ),
+                  tx.error && /* @__PURE__ */ jsx9(
+                    "div",
+                    {
+                      style: {
+                        fontSize: 11,
+                        color: "#f44336",
+                        marginTop: 4
+                      },
+                      children: tx.error
+                    }
+                  )
+                ]
+              },
+              tx.id
+            ))
+          }
+        )
+      ]
+    }
+  );
+}
+function getPositionStyles(position) {
+  switch (position) {
+    case "top-left":
+      return { top: 20, left: 20 };
+    case "top-right":
+      return { top: 20, right: 20 };
+    case "bottom-left":
+      return { bottom: 20, left: 20 };
+    case "bottom-right":
+      return { bottom: 20, right: 20 };
+    default:
+      return { bottom: 20, left: 20 };
+  }
+}
+function getStateColor(state) {
+  switch (state) {
+    case "confirmed":
+      return "#4CAF50";
+    case "failed":
+      return "#f44336";
+    case "pending":
+      return "#ff9800";
+    case "submitting":
+    case "preparing":
+      return "#2196F3";
+    default:
+      return "#666";
+  }
+}
 export {
   ENS_SEPOLIA_CONTRACTS,
   ETH_REGISTRAR_CONTROLLER_ABI,
   EthCallFallbackError,
   GasEstimationError,
+  GlobalTransactionToasts,
   ImportError,
   PaymentSelector,
   PersistenceError,
-  RhinestoneAccountError,
-  RhinestoneAccountService,
+  RhinestoneAccountError2 as RhinestoneAccountError,
   TransactionDetails,
   TransactionModal,
   TransactionModalHeader,
+  TransactionRecoveryNotification,
+  TransactionRegistryProvider,
   TransactionRevertedError,
   TransactionService,
+  TransactionStatusPanel,
   TransactionSteps,
   TransactionSubmissionError,
   TransactionTimeoutError,
   UserOperationError,
   addAuditEntry,
+  archiveTransaction,
+  clearActiveTransactions,
   clearAuditTrail,
+  clearTransactionHistory,
+  executeENSRenewal,
+  exportAllData,
   exportToJson,
   generateDebugReport,
-  getENSRenewalPrice,
+  getActiveCount,
+  getActiveTransaction,
+  getActiveTransactions,
+  getENSRenewalPrice2 as getENSRenewalPrice,
+  getHistoryCount,
+  getRhinestoneAccountAddress,
+  getENSRenewalPrice as getRhinestoneRenewalPrice,
   getRhinestoneSmartAccountAddress,
+  getTransactionHistory,
   getTransitionHistory,
   importFromJson,
+  initializeRhinestoneAccount,
   prepareENSRenewal,
+  prepareENSRenewalTransaction,
   recordTransition,
-  transactionMachine
+  removeActiveTransaction,
+  saveActiveTransaction,
+  transactionMachine,
+  transactionRegistryMachine,
+  useActiveTransactions,
+  useRecoveredTransactions,
+  useTransaction,
+  useTransactionRegistry
 };
 //# sourceMappingURL=index.mjs.map

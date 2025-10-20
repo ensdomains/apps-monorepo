@@ -1,5 +1,4 @@
-import type { Hash, Hex, TransactionReceipt, Address } from 'viem'
-import type { Chain } from 'wagmi/chains'
+import type { Hash, Hex, TransactionReceipt, Address, Chain } from 'viem'
 
 export type TransactionType = 'eoa' | 'erc4337' | 'rhinestone-intent'
 
@@ -32,6 +31,7 @@ export interface ERC4337UserOperation extends BaseTransactionRequest {
   paymasterAndData?: Hex
   signature?: Hex
   entryPoint: Address
+  [key: string]: unknown // Index signature for bundler compatibility
 }
 
 export interface RhinestoneTransactionRequest extends BaseTransactionRequest {

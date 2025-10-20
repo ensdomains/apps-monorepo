@@ -1,6 +1,12 @@
 import { ok, err, type Result } from 'neverthrow'
 import type { PublicClient, WalletClient, Hex } from 'viem'
-import { RhinestoneAccountService, type RhinestoneAccountConfig, type ENSRenewalParams } from '../services/rhinestone-account.service'
+import {
+  prepareENSRenewalTransaction,
+  getRhinestoneAccountAddress,
+  initializeRhinestoneAccount,
+  type RhinestoneAccountConfig,
+  type ENSRenewalParams
+} from './rhinestone-account.helpers'
 import type { TransactionRequest, TransactionOptions, EOATransactionRequest } from '../types/transaction.types'
 
 export interface PrepareENSRenewalParams {
@@ -35,20 +41,20 @@ export async function prepareENSRenewal(
   } = params
 
   try {
-    const rhinestoneService = new RhinestoneAccountService(
-      publicClient,
-      walletClient,
-      rhinestoneConfig
-    )
+    if (!walletClient?.account?.address) {
+      return err(new Error('Wallet client with account address is required'))
+    }
 
-    // Get the renewal price and prepare transaction
-    const txResult = await rhinestoneService.prepareENSRenewalTransaction({
+    const from = walletClient.account.address
+
+    // Get the renewal price and prepare transaction using functional helper
+    const txResult = await prepareENSRenewalTransaction(publicClient, {
       name,
       duration,
     })
 
     if (txResult.isErr()) {
-      return txResult
+      return err(txResult.error as Error)
     }
 
     const { to, data, value } = txResult.value
@@ -61,7 +67,7 @@ export async function prepareENSRenewal(
           to,
           data,
           value,
-          from: walletClient?.account?.address,
+          from,
           chainId,
           rhinestoneParams: { name, duration },
         },
@@ -77,7 +83,7 @@ export async function prepareENSRenewal(
           to,
           data,
           value,
-          from: walletClient?.account?.address,
+          from,
           chainId,
         } as EOATransactionRequest,
       })
@@ -99,10 +105,8 @@ export async function getENSRenewalPrice(
   name: string,
   duration: bigint
 ): Promise<Result<bigint, Error>> {
-  const rhinestoneService = new RhinestoneAccountService(publicClient)
-  const result = await rhinestoneService.getRenewalPrice(name, duration)
-
-  return result.mapErr(err => err as Error)
+  const result = await prepareENSRenewalTransaction(publicClient, { name, duration })
+  return result.map(tx => tx.value).mapErr(err => err as Error)
 }
 
 /**
@@ -113,13 +117,14 @@ export async function getRhinestoneSmartAccountAddress(
   walletClient: WalletClient,
   rhinestoneConfig?: RhinestoneAccountConfig
 ): Promise<Result<Hex, Error>> {
-  const rhinestoneService = new RhinestoneAccountService(
-    publicClient,
-    walletClient,
-    rhinestoneConfig
-  )
+  if (!rhinestoneConfig) {
+    return err(new Error('Rhinestone config required'))
+  }
 
-  const result = await rhinestoneService.getSmartAccountAddress()
+  const accountResult = await initializeRhinestoneAccount(walletClient, rhinestoneConfig)
+  if (accountResult.isErr()) {
+    return err(accountResult.error as Error)
+  }
 
-  return result.mapErr(err => err as Error)
+  return getRhinestoneAccountAddress(accountResult.value).mapErr(err => err as Error)
 }
