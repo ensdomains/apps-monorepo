@@ -22,7 +22,6 @@ export type {
 } from './types/audit.types'
 
 // Services
-export { TransactionService } from './services/transaction.service'
 export {
   recordTransition,
   addAuditEntry,
