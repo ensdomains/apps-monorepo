@@ -29,13 +29,15 @@ export const CopyableRecord = ({
     >
       {href ? (
         <ExternalLink
-          className="font-mono underline decoration-dashed underline-offset-4 truncate max-w-full "
+          className="text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4 truncate max-w-full "
           href={href}
         >
           {value}
         </ExternalLink>
       ) : (
-        <span className="font-mono truncate max-w-full">{value}</span>
+        <span className="text-sm sm:text-base font-mono truncate max-w-full">
+          {value}
+        </span>
       )}
       <button
         className="cursor-pointer"
