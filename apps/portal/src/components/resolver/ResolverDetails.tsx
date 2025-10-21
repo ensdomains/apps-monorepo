@@ -1,5 +1,4 @@
 import type { Address } from 'viem'
-import { useChainId } from 'wagmi'
 import { useSupportsInterfaces } from '@/hooks/useSupportsInterfaces'
 import {
   RESOLVER_FEATURE_NAMES,
@@ -7,7 +6,6 @@ import {
   type ResolverInterfaceName,
 } from '@/lib/constants/resolverInterfaceIds'
 import { Datapoint, type DatapointProps } from '../molecules/Datapoint'
-import { ResolverField } from './ResolverField'
 
 const SupportedFeatures = ({
   resolverAddress,
