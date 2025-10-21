@@ -27,7 +27,7 @@ export const DedicatedResolverBanner = ({
 
   if (isDedicatedResolver?.[0])
     return (
-      <div className="flex flex-col p-6 gap-4 items-center rounded-2xl bg-secondary">
+      <div className="flex flex-col p-4 sm:p-6 gap-4 text-sm sm:text-base items-center rounded-2xl bg-secondary">
         <ShieldCheckIcon height={24} width={24} />
         <p>
           This resolver is an instance of the official{' '}
