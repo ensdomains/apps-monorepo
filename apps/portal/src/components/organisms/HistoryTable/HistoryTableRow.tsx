@@ -4,11 +4,7 @@ import { TableCell, TableRow } from '@/components/ui/table'
 import { AddressDisplay } from './AddressDisplay'
 import type { HistoryTransaction } from './columns'
 
-export const HistoryTableRow = ({
-  row,
-}: {
-  row: Row<HistoryTransaction>
-}) => {
+export const HistoryTableRow = ({ row }: { row: Row<HistoryTransaction> }) => {
   return (
     <>
       <TableRow className="hover:bg-gray-200">
