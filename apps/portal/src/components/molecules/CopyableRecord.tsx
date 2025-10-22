@@ -1,5 +1,6 @@
-import { CheckIcon, ClipboardCopyIcon, ExternalLink } from 'lucide-react'
+import { CheckIcon, ClipboardCopyIcon } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
+import { ExternalLink } from 'react-external-link'
 import { cn } from '@/lib/utils'
 
 export const CopyableRecord = ({
@@ -24,19 +25,19 @@ export const CopyableRecord = ({
   return (
     <div
       className={cn(
-        'flex gap-2 w-full items-center', // flex row
+        'inline-flex items-center gap-2 max-w-full', // inline-flex prevents full-width expansion
         className,
       )}
     >
       {href ? (
         <ExternalLink
-          className="flex-1 min-w-0 text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4 truncate"
+          className="text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4 truncate max-w-full"
           href={href}
         >
           {content}
         </ExternalLink>
       ) : (
-        <span className="flex-1 min-w-0 text-sm sm:text-base font-mono truncate">
+        <span className="text-sm sm:text-base font-mono truncate max-w-full">
           {content}
         </span>
       )}
