@@ -1,8 +1,8 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { CopyIcon } from 'lucide-react'
 import type { Address } from 'viem'
 import { useEnsAvatar, useEnsName } from 'wagmi'
 import { mainnet } from 'wagmi/chains'
+import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 
 export const AddressDisplay = ({ address }: { address: Address }) => {
   const { data: ensName, isLoading } = useEnsName({
@@ -55,19 +55,11 @@ export const AddressDisplay = ({ address }: { address: Address }) => {
           }}
         />
       )}
-      <span className="font-mono text-sm underline decoration-dashed underline-offset-4">
-        {displayName}
-      </span>
-      <button
-        type="button"
-        className="cursor-pointer hover:text-gray-600"
-        onClick={(e) => {
-          e.stopPropagation()
-          navigator.clipboard.writeText(ensName || address)
-        }}
-      >
-        <CopyIcon className="h-3 w-3" />
-      </button>
+      <CopyableRecord
+        value={ensName || address}
+        displayValue={<span>{displayName}</span>}
+        className="text-sm underline decoration-dashed underline-offset-4"
+      />
     </div>
   )
 }

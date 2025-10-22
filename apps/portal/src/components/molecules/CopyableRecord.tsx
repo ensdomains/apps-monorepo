@@ -1,5 +1,5 @@
 import { CheckIcon, ClipboardCopyIcon } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { cn } from '@/lib/utils'
 
@@ -7,10 +7,12 @@ export const CopyableRecord = ({
   value,
   className,
   href,
+  displayValue,
 }: {
   value: string | number
   className?: string
   href?: `https://${string}`
+  displayValue?: ReactNode
 }) => {
   const [copy, setCopy] = useState(false)
 
@@ -19,6 +21,8 @@ export const CopyableRecord = ({
       navigator.clipboard.writeText(value.toString())
     }
   }, [copy, value])
+
+  const content = displayValue || value
 
   return (
     <div
@@ -32,10 +36,10 @@ export const CopyableRecord = ({
           className="font-mono underline decoration-dashed underline-offset-4 truncate max-w-full "
           href={href}
         >
-          {value}
+          {content}
         </ExternalLink>
       ) : (
-        <span className="font-mono truncate max-w-full">{value}</span>
+        <span className="font-mono truncate max-w-full">{content}</span>
       )}
       <button
         className="cursor-pointer"

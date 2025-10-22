@@ -1,12 +1,12 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import {
-  ArrowLeftFromLine,
   ArrowUpDown,
   ChevronDown,
   ChevronUp,
-  CopyIcon,
+  PanelRightOpen,
 } from 'lucide-react'
 import type { Address } from 'viem'
+import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { Button } from '@/components/ui/button'
 import { AddressDisplay } from './AddressDisplay'
 
@@ -94,22 +94,13 @@ export const columns: ColumnDef<HistoryTransaction>[] = [
     ),
     cell: ({ row }) => {
       const txId = row.original.transactionID
+      const shortTxId = `${txId.slice(0, 6)}…${txId.slice(-4)}`
       return (
-        <div className="flex flex-row items-center gap-2">
-          <span className="font-mono text-sm underline decoration-dashed underline-offset-4">
-            {txId.slice(0, 6)}…{txId.slice(-4)}
-          </span>
-          <button
-            type="button"
-            className="cursor-pointer hover:text-gray-600"
-            onClick={(e) => {
-              e.stopPropagation()
-              navigator.clipboard.writeText(txId)
-            }}
-          >
-            <CopyIcon className="h-3 w-3" />
-          </button>
-        </div>
+        <CopyableRecord
+          value={txId}
+          displayValue={<span className="font-mono">{shortTxId}</span>}
+          className="text-sm underline decoration-dashed underline-offset-4"
+        />
       )
     },
   },
@@ -166,7 +157,7 @@ export const columns: ColumnDef<HistoryTransaction>[] = [
               meta?.onMoreClick?.(row)
             }}
           >
-            <ArrowLeftFromLine className="h-4 w-4" />
+            <PanelRightOpen className="h-4 w-4" />
             <span className="text-sm font-medium">More</span>
           </Button>
         </div>
