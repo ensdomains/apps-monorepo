@@ -3,18 +3,19 @@ import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import { SearchIcon, TrashIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
-import { useChainId, useEnsResolver } from 'wagmi'
+import { zeroAddress } from 'viem'
+import type { Address } from 'viem/accounts'
+import { useEnsResolver } from 'wagmi'
 import { DataTable } from '@/components/molecules/DataTable/DataTable'
-import {
-  CCIPGatewayURLView,
-  ResolverField,
-} from '@/components/resolver/ResolverField'
+import { ResolverField } from '@/components/resolver/ResolverField'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SheetHeader } from '@/components/ui/sheet'
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
 import { getRecordHistoryQueryOptions } from '@/features/profile/hooks/useRecordHistory'
+import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
+import { wagmiConfig } from '@/lib/wagmi'
 import { filterRecordHistoryByRecord } from '@/utils/subgraph/filterRecordHistoryByRecord'
 import { recordTypeToSubgraphKey } from '@/utils/subgraph/recordTypeToSubgraphKey'
 import type { NameRecord } from '../RecordsTable/columns'
@@ -113,38 +114,63 @@ const ContentHashValue = ({
   )
 }
 
+const UnderlyingResolver = ({
+  resolverAddress,
+  name,
+}: {
+  resolverAddress: Address
+  name: string
+}) => {
+  const { data, error, isLoading } = useQuery(
+    getUnderlyingAddressQueryOptions({ resolverAddress, name }),
+  )
+
+  if (error) return <div>Error: ${error.cause?.message}</div>
+  if (isLoading) return <div>Loading...</div>
+
+  if (!data || data[0] === zeroAddress) {
+    return (
+      <ResolverField
+        label="Universal Resolver address"
+        value={resolverAddress}
+      />
+    )
+  }
+
+  return (
+    <>
+      <ResolverField
+        label="Universal Resolver address"
+        value={resolverAddress}
+      />
+      <ResolverField
+        label={data[1] ? 'Namechain address' : 'Mainnet address'}
+        value={data[0]}
+      />
+    </>
+  )
+}
+
 const ResolverView = ({ name }: { name: string }) => {
-  const { data: resolverAddress, error, isLoading } = useEnsResolver({ name })
-  const chainId = useChainId()
+  const {
+    data: resolverAddress,
+    error,
+    isLoading,
+  } = useEnsResolver({
+    name,
+    universalResolverAddress:
+      wagmiConfig.chains[0].contracts.ensUniversalResolver.address,
+  })
 
   if (isLoading) return <div>Loading...</div>
   if (error) return <div>Error: {error.message}</div>
   if (!resolverAddress) return <div>No data</div>
 
-  if (chainId === 1) {
-    return (
-      <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg">
-        <h3 className="text-2xl font-medium">Resolver</h3>
-        <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ResolverField label="Resolver address" value={resolverAddress} />
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg">
       <h3 className="text-2xl font-medium">Resolver</h3>
       <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ResolverField
-          label="Mainnet contract address"
-          value={resolverAddress}
-        />
-        <ResolverField
-          label="Namechain contract address"
-          value={resolverAddress}
-        />
-        <CCIPGatewayURLView />
+        <UnderlyingResolver {...{ name, resolverAddress }} />
       </div>
     </div>
   )
@@ -204,13 +230,11 @@ const HistoryView = ({
     }),
   )
 
-  if (isLoading) return <div>Loading...</div>
-
   if (error) {
-    if (error._tag === 'Wagmi/ClientError')
-      return <div>Error connecting to Ethereum</div>
-    return <div>Error: {error.cause?.message}</div>
+    return <div>History Error: {error.cause?.message || error.message}</div>
   }
+
+  if (isLoading) return <div>Loading...</div>
 
   return (
     <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg overflow-y-scroll">
@@ -225,13 +249,11 @@ const HistoryView = ({
 
 const RecordDetailsView = ({
   record,
-  name,
+  canEditRecords,
 }: {
   record: NameRecord
-  name: string
+  canEditRecords?: boolean
 }) => {
-  const { data: canEditRecords } = useCanEditRecords({ name })
-
   switch (record.type) {
     case 'address':
       return <AddressRecordValue {...{ record, canEditRecords }} />
@@ -265,7 +287,7 @@ export const RecordDetails = ({
           </Button>
         )}
       </SheetHeader>
-      <RecordDetailsView {...{ record, name }} />
+      <RecordDetailsView {...{ record, canEditRecords }} />
       <ResolverView name={name} />
       <HistoryView {...{ name, record }} />
     </div>
