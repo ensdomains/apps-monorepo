@@ -1,12 +1,9 @@
-import { PopoverTrigger } from '@radix-ui/react-popover'
 import {
   flexRender,
   type Row,
   type Table as TableData,
 } from '@tanstack/react-table'
-import { SettingsIcon } from 'lucide-react'
 import { useState } from 'react'
-import { Popover, PopoverContent } from '@/components/ui/popover'
 import {
   Table,
   TableBody,
@@ -22,7 +19,6 @@ import {
 import { columns, type NameRecord } from './columns'
 import { RecordSidebar } from './RecordSidebar'
 import { RecordTableRow } from './RecordTableRow'
-import { TableViewSwitch } from './TableViewSwitch'
 
 export const RecordsTable = ({
   defaultTableSettings,
