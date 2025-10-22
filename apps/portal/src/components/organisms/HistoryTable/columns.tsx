@@ -152,7 +152,7 @@ export const columns: ColumnDef<HistoryTransaction>[] = [
   {
     id: 'more',
     header: () => null,
-    cell: ({ row }) => {
+    cell: ({ row, table }) => {
       return (
         <div className="flex justify-end pr-4">
           <Button
@@ -160,10 +160,10 @@ export const columns: ColumnDef<HistoryTransaction>[] = [
             size="sm"
             onClick={(e) => {
               e.stopPropagation()
-              console.log(
-                'More clicked for transaction:',
-                row.original.transactionID,
-              )
+              const meta = table.options.meta as {
+                onMoreClick?: (r: typeof row) => void
+              }
+              meta?.onMoreClick?.(row)
             }}
           >
             <ArrowLeftFromLine className="h-4 w-4" />
