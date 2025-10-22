@@ -12,7 +12,3 @@ export const ResolverField = ({
     <CopyableRecord value={value} />
   </div>
 )
-
-export const CCIPGatewayURLView = () => {
-  return <ResolverField label="CCIP gateway URLs" value="lol" />
-}

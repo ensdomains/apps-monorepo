@@ -1,5 +1,7 @@
 import type { Row } from '@tanstack/react-table'
-import { TableRow } from '@/components/ui/table'
+import { PanelRightOpenIcon } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { TableCell, TableRow } from '@/components/ui/table'
 import type { TableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
 import { ClickableCell } from './ClickableCell'
@@ -28,14 +30,18 @@ export const RecordTableRow = ({
       data-state={row.getIsSelected() && 'selected'}
     >
       {row.getVisibleCells().map((cell) => (
-        <ClickableCell
-          {...{ cell, setClickedRow, tableView }}
-          key={cell.id}
-          toggleSidebar={() => {
+        <ClickableCell {...{ cell, setClickedRow, tableView }} key={cell.id} />
+      ))}
+      <TableCell>
+        <Button
+          onClick={() => {
             setOpen(!open)
           }}
-        />
-      ))}
+          variant="secondary"
+        >
+          More <PanelRightOpenIcon height={12} width={12} />
+        </Button>
+      </TableCell>
     </TableRow>
   )
 }
