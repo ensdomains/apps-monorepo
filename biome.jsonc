@@ -12,7 +12,8 @@
       "packages/**",
       "!**/*.gen.ts",
       "!**/node_modules",
-      "!**/dist"
+      "!**/dist",
+      "!**/.wrangler"
     ]
   },
   "formatter": {

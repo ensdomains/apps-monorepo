@@ -16,7 +16,7 @@
   "dependencies": {
     "@adraffy/ens-normalize": "^1.11.0",
     "@ens-apps/utils": "workspace:*",
-    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@ccb69f6",
+    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@7c65c2b",
     "@ensdomains/locales": "workspace:^",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-avatar": "^1.1.10",
@@ -57,7 +57,7 @@
     "xstate": "catalog:"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.12.3",
+    "@cloudflare/vite-plugin": "^1.13.13",
     "@ensdomains/vite-plugin-i18next-loader": "^4.0.3",
     "@statelyai/inspect": "^0.4.0",
     "@tailwindcss/vite": "^4.1.13",
