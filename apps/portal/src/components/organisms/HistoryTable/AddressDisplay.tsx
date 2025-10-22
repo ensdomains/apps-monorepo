@@ -19,6 +19,9 @@ export const AddressDisplay = ({ address }: { address: Address }) => {
       chain: mainnet,
       contract: 'ensUniversalResolver',
     }),
+    query: {
+      enabled: !!ensName,
+    },
   })
 
   if (isLoading) {
