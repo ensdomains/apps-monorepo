@@ -6,27 +6,12 @@ import type { HistoryTransaction } from './columns'
 
 export const HistoryTableRow = ({
   row,
-  setOpen,
-  setClickedRow,
-  open,
 }: {
   row: Row<HistoryTransaction>
-  setOpen: (open: boolean) => void
-  setClickedRow: (row: Row<HistoryTransaction> | null) => void
-  open: boolean
 }) => {
-  const handleClick = () => {
-    setClickedRow(row)
-    setOpen(true)
-  }
-
   return (
     <>
-      <TableRow
-        onClick={handleClick}
-        className="hover:bg-gray-200"
-        data-state={open && 'selected'}
-      >
+      <TableRow className="hover:bg-gray-200">
         {row.getVisibleCells().map((cell) => (
           <TableCell key={cell.id} className="py-4">
             {flexRender(cell.column.columnDef.cell, cell.getContext())}

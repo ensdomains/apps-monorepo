@@ -60,12 +60,7 @@ export const HistoryTable = ({
           {table.getRowModel().rows?.length ? (
             table
               .getRowModel()
-              .rows.map((row) => (
-                <HistoryTableRow
-                  key={row.id}
-                  {...{ row, setOpen, setClickedRow, open }}
-                />
-              ))
+              .rows.map((row) => <HistoryTableRow key={row.id} row={row} />)
           ) : (
             <TableRow>
               <TableCell colSpan={columns.length} className="h-24 text-center">
