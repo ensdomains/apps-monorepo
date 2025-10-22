@@ -93,7 +93,7 @@ export const RecentActivity = ({ name }: { name: string }) => {
   }
 
   if (!events) {
-    return <div>No data</div>
+    return <div>No recent activity</div>
   }
 
   return (
