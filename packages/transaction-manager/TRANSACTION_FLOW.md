@@ -6,7 +6,7 @@ This document traces the exact code path a transaction takes from the moment you
 
 ## Step 1: Button Click → Send `PREPARE_AND_EXECUTE` Event
 
-**File**: `packages/transaction-manager-example/src/ENSRenewalExample.tsx:465-474`
+**File**: `packages/transaction-manager-example/src/ENSRenewalExample.tsx:437-446`
 
 ```typescript
 <button
