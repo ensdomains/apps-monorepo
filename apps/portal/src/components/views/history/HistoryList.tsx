@@ -15,29 +15,10 @@ import type { Address } from 'viem'
 import { columns } from '@/components/organisms/HistoryTable/columns'
 import { HistoryTable } from '@/components/organisms/HistoryTable/HistoryTable'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
-
-const extractFromAddress = (event: unknown): Address | null => {
-  const evt = event as Record<string, unknown>
-
-  if (evt.owner && typeof evt.owner === 'string') return evt.owner as Address
-  if (evt.registrant && typeof evt.registrant === 'string')
-    return evt.registrant as Address
-  if (evt.newOwner && typeof evt.newOwner === 'string')
-    return evt.newOwner as Address
-  if (evt.addr && typeof evt.addr === 'string') return evt.addr as Address
-
-  return null
-}
-
-const findTransactionFromAddress = (
-  events: Array<{ details: unknown }>,
-): Address | null => {
-  for (const event of events) {
-    const addr = extractFromAddress(event.details)
-    if (addr) return addr
-  }
-  return null
-}
+import {
+  extractEventAddress,
+  findAddressFromEvents,
+} from '@/utils/history/extractEventAddress'
 
 export const HistoryList = ({
   name,
@@ -74,14 +55,14 @@ export const HistoryList = ({
         transactionMap.set(event.transactionID, {
           transactionID: event.transactionID,
           blockNumber: event.blockNumber,
-          from: extractFromAddress(event),
+          from: extractEventAddress(event),
           events: [],
         })
       }
       const tx = transactionMap.get(event.transactionID)
       if (!tx) return
       if (!tx.from) {
-        tx.from = extractFromAddress(event)
+        tx.from = extractEventAddress(event)
       }
       tx.events.push({
         id: event.id,
@@ -96,14 +77,14 @@ export const HistoryList = ({
         transactionMap.set(event.transactionID, {
           transactionID: event.transactionID,
           blockNumber: event.blockNumber,
-          from: extractFromAddress(event),
+          from: extractEventAddress(event),
           events: [],
         })
       }
       const tx = transactionMap.get(event.transactionID)
       if (!tx) return
       if (!tx.from) {
-        tx.from = extractFromAddress(event)
+        tx.from = extractEventAddress(event)
       }
       tx.events.push({
         id: event.id,
@@ -118,14 +99,14 @@ export const HistoryList = ({
         transactionMap.set(event.transactionID, {
           transactionID: event.transactionID,
           blockNumber: event.blockNumber,
-          from: extractFromAddress(event),
+          from: extractEventAddress(event),
           events: [],
         })
       }
       const tx = transactionMap.get(event.transactionID)
       if (!tx) return
       if (!tx.from) {
-        tx.from = extractFromAddress(event)
+        tx.from = extractEventAddress(event)
       }
       tx.events.push({
         id: event.id,
@@ -138,7 +119,7 @@ export const HistoryList = ({
     return Array.from(transactionMap.values())
       .map((tx) => ({
         ...tx,
-        from: tx.from || findTransactionFromAddress(tx.events),
+        from: tx.from || findAddressFromEvents(tx.events),
       }))
       .sort((a, b) => b.blockNumber - a.blockNumber)
   }, [history])
@@ -182,7 +163,7 @@ export const HistoryList = ({
 
   if (timestampsLoading) return <div>Loading timestamps...</div>
   if (timestampsError)
-    return <div>Error loading timestamps: {timestampsError.message}</div>
+    return <div>Error loading timestamps: {timestampsError.cause?.message}</div>
 
   return (
     <>
