@@ -4,6 +4,7 @@ import { ResultAsync, errAsync, fromPromise as fromPromiseNT } from 'neverthrow'
 import type { Hash, TransactionReceipt, PublicClient, WalletClient } from 'viem'
 import type { TransactionRequest, TransactionOptions, TransactionModalState, RhinestoneConfig, EOATransactionRequest } from '../types/transaction.types'
 import { initializeRhinestoneAccount, executeENSRenewal } from '../helpers/rhinestone-account.helpers'
+import { prepareENSRenewal } from '../helpers/ens-renewal.helpers'
 import * as auditTrail from '../services/audit-trail.service'
 import {
   TransactionSubmissionError,
@@ -38,6 +39,7 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
     },
     events: {} as
       | { type: 'EXECUTE'; request: TransactionRequest; options?: TransactionOptions; modal?: Partial<TransactionModalState> }
+      | { type: 'PREPARE_AND_EXECUTE'; name: string; duration: string; useSmartAccount: boolean; renewalPrice?: bigint }
       | { type: 'RETRY' }
       | { type: 'CANCEL' }
       | { type: 'FORCE_SUCCESS' }
@@ -46,6 +48,55 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
       | { type: 'UPDATE_MODAL_DATA'; data: Partial<TransactionModalState> }
   },
   actors: {
+    prepareRenewal: fromResultAsync(
+      ({ name, duration, useSmartAccount, renewalPrice, publicClient, walletClient, chainId, rhinestoneConfig }: {
+        name: string
+        duration: string
+        useSmartAccount: boolean
+        renewalPrice?: bigint
+        publicClient: PublicClient
+        walletClient?: WalletClient
+        chainId: number
+        rhinestoneConfig?: RhinestoneConfig
+      }): ResultAsync<{ request: TransactionRequest; options: TransactionOptions; modal: Partial<TransactionModalState> }, Error> => {
+        if (!walletClient) {
+          return errAsync(new Error('Wallet client required'))
+        }
+
+        const YEAR_IN_SECONDS = 31536000n
+        const cleanName = name.replace('.eth', '')
+        const durationInSeconds = BigInt(duration) * YEAR_IN_SECONDS
+
+        // Call prepareENSRenewal helper
+        return ResultAsync.fromSafePromise(
+          prepareENSRenewal({
+            publicClient,
+            walletClient,
+            name: cleanName,
+            duration: durationInSeconds,
+            chainId,
+            useSmartAccount,
+            rhinestoneConfig: useSmartAccount ? rhinestoneConfig : undefined,
+          })
+        )
+          .andThen(result => result) // Unwrap the Result from the Promise
+          .map((data: any) => ({
+            request: data.request,
+            options: {
+              ...data.options,
+              description: `Renew ${cleanName}.eth for ${duration} year(s)`,
+            },
+            modal: {
+              title: `Renew ${name}`,
+              ensName: name,
+              network: 'Sepolia',
+              estimatedCost: renewalPrice ? `${renewalPrice.toString()} wei` : '0.0011 ETH',
+            },
+          }))
+          .mapErr(error => error as Error)
+      }
+    ),
+
     initializeRhinestoneAccount: fromResultAsync(
       ({ walletClient, rhinestoneConfig }: {
         walletClient?: WalletClient
@@ -359,6 +410,21 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
             })
           })
         },
+        PREPARE_AND_EXECUTE: {
+          target: 'preparingTransaction',
+          actions: assign({
+            retryCount: 0,
+            fallbackChecks: 0,
+            hash: undefined,
+            userOpHash: undefined,
+            receipt: undefined,
+            error: undefined,
+            modal: ({ context }) => ({
+              ...context.modal,
+              isOpen: true
+            })
+          })
+        },
         OPEN_MODAL: {
           actions: assign({
             modal: ({ event, context }) => ({
@@ -367,6 +433,51 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
               isOpen: true
             })
           })
+        }
+      }
+    },
+
+    preparingTransaction: {
+      entry: ['recordTransition'],
+      invoke: {
+        src: 'prepareRenewal',
+        input: ({ context, event }) => {
+          const prepareEvent = event as { type: 'PREPARE_AND_EXECUTE'; name: string; duration: string; useSmartAccount: boolean; renewalPrice?: bigint }
+          return {
+            name: prepareEvent.name,
+            duration: prepareEvent.duration,
+            useSmartAccount: prepareEvent.useSmartAccount,
+            renewalPrice: prepareEvent.renewalPrice,
+            publicClient: context.publicClient,
+            walletClient: context.walletClient,
+            chainId: context.publicClient.chain?.id || 11155111, // Default to Sepolia
+            rhinestoneConfig: context.rhinestoneConfig,
+          }
+        },
+        onDone: {
+          target: 'preparing',
+          actions: [
+            assign({
+              request: ({ event }) => event.output.request,
+              options: ({ event }) => event.output.options || {},
+              modal: ({ event, context }) => ({
+                ...context.modal,
+                ...event.output.modal,
+                isOpen: true
+              })
+            }),
+            'recordTransition'
+          ]
+        },
+        onError: {
+          target: 'error.validation',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error
+            }),
+            'logError',
+            'recordTransition'
+          ]
         }
       }
     },
@@ -718,6 +829,9 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
     error: {
       initial: 'unknown',
       states: {
+        validation: {
+          entry: 'recordTransition'
+        },
         submission: {
           entry: 'recordTransition'
         },
