@@ -58,7 +58,7 @@ const itemGroups = [
       url: '/$name/history',
       icon: ClockIcon,
     },
-  ]
+  ],
 ] as const
 
 export const ProfileSidebar = ({ name }: { name: string }) => {
