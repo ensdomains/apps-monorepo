@@ -1,5 +1,7 @@
 import { flexRender, type Row } from '@tanstack/react-table'
+import type { Address } from 'viem'
 import { TableCell, TableRow } from '@/components/ui/table'
+import { AddressDisplay } from './AddressDisplay'
 import type { HistoryTransaction } from './columns'
 
 export const HistoryTableRow = ({
@@ -33,22 +35,52 @@ export const HistoryTableRow = ({
       </TableRow>
       {row.getIsExpanded() && (
         <>
-          {row.original.events.map((event) => (
-            <TableRow
-              key={event.id}
-              className="bg-gray-50 hover:bg-gray-100 border-l-4 border-l-blue-200"
-            >
-              <TableCell />
-              <TableCell colSpan={4} className="pl-12">
-                <div className="flex flex-row items-center gap-3">
-                  <span className="font-medium">{event.type}</span>
-                  <span className="px-2 py-0.5 rounded-full text-xs bg-gray-200 capitalize">
-                    {event.category}
-                  </span>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
+          {row.original.events.map((event) => {
+            // Extract "from" address from event details
+            const eventDetails = event.details as Record<string, unknown>
+            let fromAddress: string | null = null
+
+            if (eventDetails.owner && typeof eventDetails.owner === 'string') {
+              fromAddress = eventDetails.owner
+            } else if (eventDetails.registrant && typeof eventDetails.registrant === 'string') {
+              fromAddress = eventDetails.registrant
+            } else if (eventDetails.newOwner && typeof eventDetails.newOwner === 'string') {
+              fromAddress = eventDetails.newOwner
+            }
+
+            return (
+              <TableRow
+                key={event.id}
+                className="hover:bg-gray-200"
+              >
+                {/* Empty expander column */}
+                <TableCell className="py-4" />
+
+                {/* Empty date column */}
+                <TableCell className="py-4" />
+
+                {/* Transaction column - show event type */}
+                <TableCell className="py-4">
+                  <span>{event.type}</span>
+                </TableCell>
+
+                {/* From column - show address/name */}
+                <TableCell className="py-4">
+                  {fromAddress ? (
+                    <AddressDisplay address={fromAddress as Address} />
+                  ) : (
+                    <span>-</span>
+                  )}
+                </TableCell>
+
+                {/* Empty network column */}
+                <TableCell className="py-4" />
+
+                {/* Empty more column */}
+                <TableCell className="py-4" />
+              </TableRow>
+            )
+          })}
         </>
       )}
     </>

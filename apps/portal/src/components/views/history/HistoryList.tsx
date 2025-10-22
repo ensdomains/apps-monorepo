@@ -27,23 +27,26 @@ export const HistoryList = ({
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [expanded, setExpanded] = useState<ExpandedState>({})
 
-  // Helper function to extract "from" address from an event
-  const extractFromAddress = (
-    event: unknown,
-  ): Address | null => {
+  const extractFromAddress = (event: unknown): Address | null => {
     const evt = event as Record<string, unknown>
-    
-    // Try to get owner, registrant, or newOwner
+
     if (evt.owner && typeof evt.owner === 'string') return evt.owner as Address
     if (evt.registrant && typeof evt.registrant === 'string')
       return evt.registrant as Address
     if (evt.newOwner && typeof evt.newOwner === 'string')
       return evt.newOwner as Address
-    if (evt.addr && typeof evt.addr === 'object' && evt.addr !== null) {
-      const addr = evt.addr as Record<string, unknown>
-      if (addr.id && typeof addr.id === 'string') return addr.id as Address
+    if (evt.addr && typeof evt.addr === 'string') return evt.addr as Address
+
+    return null
+  }
+
+  const findTransactionFromAddress = (
+    events: Array<{ details: unknown }>,
+  ): Address | null => {
+    for (const event of events) {
+      const addr = extractFromAddress(event.details)
+      if (addr) return addr
     }
-    
     return null
   }
 
@@ -66,7 +69,6 @@ export const HistoryList = ({
       }
     >()
 
-    // Add domain events
     history.domainEvents.forEach((event) => {
       if (!transactionMap.has(event.transactionID)) {
         transactionMap.set(event.transactionID, {
@@ -77,7 +79,6 @@ export const HistoryList = ({
         })
       }
       const tx = transactionMap.get(event.transactionID)!
-      // Update from address if we don't have one yet
       if (!tx.from) {
         tx.from = extractFromAddress(event)
       }
@@ -89,7 +90,6 @@ export const HistoryList = ({
       })
     })
 
-    // Add registration events
     history.registrationEvents?.forEach((event) => {
       if (!transactionMap.has(event.transactionID)) {
         transactionMap.set(event.transactionID, {
@@ -111,7 +111,6 @@ export const HistoryList = ({
       })
     })
 
-    // Add resolver events
     history.resolverEvents?.forEach((event) => {
       if (!transactionMap.has(event.transactionID)) {
         transactionMap.set(event.transactionID, {
@@ -133,13 +132,14 @@ export const HistoryList = ({
       })
     })
 
-    // Convert map to array and sort by block number (most recent first)
-    return Array.from(transactionMap.values()).sort(
-      (a, b) => b.blockNumber - a.blockNumber,
-    )
+    return Array.from(transactionMap.values())
+      .map((tx) => ({
+        ...tx,
+        from: tx.from || findTransactionFromAddress(tx.events),
+      }))
+      .sort((a, b) => b.blockNumber - a.blockNumber)
   }, [history])
 
-  // Fetch timestamps for all blocks
   const {
     data: timestamps,
     isLoading: timestampsLoading,
@@ -148,7 +148,6 @@ export const HistoryList = ({
     blocks: groupedEvents.map((tx) => BigInt(tx.blockNumber)),
   })
 
-  // Add timestamps to grouped events
   const groupedEventsWithTimestamps = useMemo(() => {
     if (!timestamps) return []
     return groupedEvents.map((tx) => ({
