@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import {
+  ClockIcon,
   CoinsIcon,
   FileCodeIcon,
   FileSpreadsheetIcon,
@@ -51,6 +52,13 @@ const itemGroups = [
       icon: CoinsIcon,
     },
   ],
+  [
+    {
+      title: 'History',
+      url: '/$name/history',
+      icon: ClockIcon,
+    },
+  ]
 ] as const
 
 export const ProfileSidebar = ({ name }: { name: string }) => {
