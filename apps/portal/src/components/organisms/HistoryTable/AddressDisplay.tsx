@@ -1,14 +1,14 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import type { Address } from 'viem'
 import { useEnsAvatar, useEnsName } from 'wagmi'
-import { mainnet } from 'wagmi/chains'
+import { sepolia } from 'wagmi/chains'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 
 export const AddressDisplay = ({ address }: { address: Address }) => {
   const { data: ensName, isLoading } = useEnsName({
     address,
     universalResolverAddress: getChainContractAddress({
-      chain: mainnet,
+      chain: sepolia,
       contract: 'ensUniversalResolver',
     }),
   })
@@ -16,7 +16,7 @@ export const AddressDisplay = ({ address }: { address: Address }) => {
   const { data: avatar } = useEnsAvatar({
     name: ensName || undefined,
     universalResolverAddress: getChainContractAddress({
-      chain: mainnet,
+      chain: sepolia,
       contract: 'ensUniversalResolver',
     }),
     query: {
