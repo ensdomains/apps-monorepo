@@ -3,6 +3,7 @@ import type { Address } from 'viem'
 import { useEnsAvatar, useEnsName } from 'wagmi'
 import { sepolia } from 'wagmi/chains'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { wagmiConfig } from '../../../lib/wagmi'
 
 export const AddressDisplay = ({ address }: { address: Address }) => {
   const { data: ensName, isLoading } = useEnsName({
@@ -15,10 +16,8 @@ export const AddressDisplay = ({ address }: { address: Address }) => {
 
   const { data: avatar } = useEnsAvatar({
     name: ensName || undefined,
-    universalResolverAddress: getChainContractAddress({
-      chain: sepolia,
-      contract: 'ensUniversalResolver',
-    }),
+    universalResolverAddress:
+      wagmiConfig.chains[0].contracts.ensUniversalResolver.address,
     query: {
       enabled: !!ensName,
     },
