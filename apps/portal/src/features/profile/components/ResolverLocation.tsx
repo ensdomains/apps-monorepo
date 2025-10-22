@@ -30,7 +30,7 @@ export const ResolverLocation = ({
       <div className="flex flex-row justify-between items-center">
         <div>
           <h3 className="font-medium text-2xl">
-            {data[1] ? 'Sepolia' : 'Namechain'}
+            {data[1] ? 'Namechain' : 'Sepolia'}
           </h3>
           <Label>Resolver location</Label>
         </div>

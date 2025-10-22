@@ -230,13 +230,11 @@ const HistoryView = ({
     }),
   )
 
-  if (isLoading) return <div>Loading...</div>
-
   if (error) {
-    if (error._tag === 'Wagmi/ClientError')
-      return <div>Error connecting to Ethereum</div>
-    return <div>Error: {error.cause?.message}</div>
+    return <div>History Error: {error.cause?.message || error.message}</div>
   }
+
+  if (isLoading) return <div>Loading...</div>
 
   return (
     <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg overflow-y-scroll">
@@ -251,13 +249,11 @@ const HistoryView = ({
 
 const RecordDetailsView = ({
   record,
-  name,
+  canEditRecords,
 }: {
   record: NameRecord
-  name: string
+  canEditRecords?: boolean
 }) => {
-  const { data: canEditRecords } = useCanEditRecords({ name })
-
   switch (record.type) {
     case 'address':
       return <AddressRecordValue {...{ record, canEditRecords }} />
@@ -291,7 +287,7 @@ export const RecordDetails = ({
           </Button>
         )}
       </SheetHeader>
-      <RecordDetailsView {...{ record, name }} />
+      <RecordDetailsView {...{ record, canEditRecords }} />
       <ResolverView name={name} />
       <HistoryView {...{ name, record }} />
     </div>

@@ -1,10 +1,9 @@
-import type { Row } from '@tanstack/react-table'
+import { flexRender, type Row } from '@tanstack/react-table'
 import { PanelRightOpenIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
 import type { TableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
-import { ClickableCell } from './ClickableCell'
 import type { NameRecord } from './columns'
 
 export const RecordTableRow = ({
@@ -30,14 +29,20 @@ export const RecordTableRow = ({
       data-state={row.getIsSelected() && 'selected'}
     >
       {row.getVisibleCells().map((cell) => (
-        <ClickableCell {...{ cell, setClickedRow, tableView }} key={cell.id} />
+        <TableCell
+          key={cell.id}
+          className={tableView.compact ? 'py-2' : 'py-4'}
+        >
+          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+        </TableCell>
       ))}
       <TableCell>
         <Button
+          variant="secondary"
           onClick={() => {
+            setClickedRow(row)
             setOpen(!open)
           }}
-          variant="secondary"
         >
           More <PanelRightOpenIcon height={12} width={12} />
         </Button>
