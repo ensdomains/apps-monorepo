@@ -1,8 +1,26 @@
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import type { Address } from 'viem'
 import { NamechainSVG } from '@/assets/chains'
 import { Label } from '@/components/ui/label'
+import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
 
-export const ResolverLocation = ({ name }: { name: string }) => {
+export const ResolverLocation = ({
+  name,
+  resolverAddress,
+}: {
+  name: string
+  resolverAddress: Address
+}) => {
+  const { data, isLoading, error } = useQuery(
+    getUnderlyingAddressQueryOptions({ resolverAddress, name }),
+  )
+
+  if (error) return <div>Error: {error.cause?.message}</div>
+  if (isLoading) return <div>Loading...</div>
+
+  if (!data) return <div>Could not find resolver location</div>
+
   return (
     <Link
       to="/$name/resolver"
@@ -11,8 +29,10 @@ export const ResolverLocation = ({ name }: { name: string }) => {
     >
       <div className="flex flex-row justify-between items-center">
         <div>
+          <h3 className="font-medium text-2xl">
+            {data[1] ? 'Sepolia' : 'Namechain'}
+          </h3>
           <Label>Resolver location</Label>
-          <h3 className="font-medium text-2xl">Mainnet</h3>
         </div>
         <NamechainSVG height={40} width={40} />
       </div>
