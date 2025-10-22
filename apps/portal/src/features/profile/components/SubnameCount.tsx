@@ -16,7 +16,7 @@ export const SubnameCount = ({ name }: { name: string }) => {
       to="/$name/records"
       search={{ view: 'list' }}
       params={{ name }}
-      className="w-full p-6 border border-gray-300 rounded-xl hover:bg-gray-100 duration-150 xl:col-span-2"
+      className="w-full p-6 border border-gray-300 rounded-xl hover:bg-gray-100 duration-150"
     >
       <div className="flex flex-row justify-between items-center">
         <div>

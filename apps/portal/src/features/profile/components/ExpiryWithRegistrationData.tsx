@@ -11,7 +11,7 @@ const Expiry = ({ name }: { name: string }) => {
   if (error) return <div>Error: {error.message}</div>
   if (isLoading) return <div>Loading...</div>
 
-  if (!data) return null
+  if (!data) return <div>No expiry data</div>
 
   if (data.status !== 'expired')
     return (
@@ -47,13 +47,13 @@ const RegistrationData = ({ name }: { name: string }) => {
   if (error) return <div>Error: {error.message}</div>
   if (isLoading) return <div>Loading...</div>
 
-  if (!data?.registrationEvents) return null
+  if (!data?.registrationEvents) return <div>No registration data</div>
 
   const registrationEvent = data.registrationEvents.find(
     (event) => event.type === 'NameRegistered',
   )
 
-  if (!registrationEvent) return null
+  if (!registrationEvent) return <div>No registration data</div>
 
   return (
     <div className="flex flex-col gap-1">
@@ -68,7 +68,7 @@ const RegistrationData = ({ name }: { name: string }) => {
 
 export const ExpiryWithRegistrationData = ({ name }: { name: string }) => {
   return (
-    <div className="w-full flex flex-col p-6 gap-4 rounded-lg border border-gray-300 lg:col-span-2">
+    <div className="w-full flex flex-col p-6 gap-4 rounded-lg border border-gray-300 lg:col-span-1">
       <Expiry name={name} />
       <RegistrationData name={name} />
     </div>
