@@ -1,46 +1,47 @@
-import { CheckIcon, ClipboardCopyIcon } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { ExternalLink } from 'react-external-link'
+import { CheckIcon, ClipboardCopyIcon, ExternalLink } from 'lucide-react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 export const CopyableRecord = ({
   value,
   className,
   href,
+  displayValue,
 }: {
   value: string | number
   className?: string
   href?: `https://${string}`
+  displayValue?: ReactNode
 }) => {
   const [copy, setCopy] = useState(false)
 
   useEffect(() => {
-    if (copy) {
-      navigator.clipboard.writeText(value.toString())
-    }
+    if (copy) navigator.clipboard.writeText(value.toString())
   }, [copy, value])
+
+  const content = displayValue || value
 
   return (
     <div
       className={cn(
-        'flex flex-row gap-2 w-full lg:w-max justify-between hover:text-gray-700',
+        'flex gap-2 w-full items-center', // flex row
         className,
       )}
     >
       {href ? (
         <ExternalLink
-          className="text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4 truncate max-w-full "
+          className="flex-1 min-w-0 text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4 truncate"
           href={href}
         >
-          {value}
+          {content}
         </ExternalLink>
       ) : (
-        <span className="text-sm sm:text-base font-mono truncate max-w-full">
-          {value}
+        <span className="flex-1 min-w-0 text-sm sm:text-base font-mono truncate">
+          {content}
         </span>
       )}
       <button
-        className="cursor-pointer"
+        className="flex-shrink-0 cursor-pointer"
         type="button"
         onClick={() => setCopy(true)}
       >
