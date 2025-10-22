@@ -42,17 +42,20 @@ export const HistoryTableRow = ({
 
             if (eventDetails.owner && typeof eventDetails.owner === 'string') {
               fromAddress = eventDetails.owner
-            } else if (eventDetails.registrant && typeof eventDetails.registrant === 'string') {
+            } else if (
+              eventDetails.registrant &&
+              typeof eventDetails.registrant === 'string'
+            ) {
               fromAddress = eventDetails.registrant
-            } else if (eventDetails.newOwner && typeof eventDetails.newOwner === 'string') {
+            } else if (
+              eventDetails.newOwner &&
+              typeof eventDetails.newOwner === 'string'
+            ) {
               fromAddress = eventDetails.newOwner
             }
 
             return (
-              <TableRow
-                key={event.id}
-                className="hover:bg-gray-200"
-              >
+              <TableRow key={event.id} className="hover:bg-gray-200">
                 {/* Empty expander column */}
                 <TableCell className="py-4" />
 
@@ -86,4 +89,3 @@ export const HistoryTableRow = ({
     </>
   )
 }
-

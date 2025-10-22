@@ -1,8 +1,8 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { CopyIcon } from 'lucide-react'
+import type { Address } from 'viem'
 import { useEnsAvatar, useEnsName } from 'wagmi'
 import { mainnet } from 'wagmi/chains'
-import type { Address } from 'viem'
 
 export const AddressDisplay = ({ address }: { address: Address }) => {
     const { data: ensName, isLoading } = useEnsName({
@@ -68,5 +68,7 @@ export const AddressDisplay = ({ address }: { address: Address }) => {
             </button>
         </div>
     )
-}
+  }
+
+  const displayName = ensName || `${address.slice(0, 6)}…${address.slice(-4)}`
 

@@ -1,5 +1,11 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { ArrowLeftFromLine, ArrowUpDown, ChevronDown, ChevronUp, CopyIcon } from 'lucide-react'
+import {
+  ArrowLeftFromLine,
+  ArrowUpDown,
+  ChevronDown,
+  ChevronUp,
+  CopyIcon,
+} from 'lucide-react'
 import type { Address } from 'viem'
 import { Button } from '@/components/ui/button'
 import { AddressDisplay } from './AddressDisplay'
@@ -41,7 +47,9 @@ export const columns: ColumnDef<HistoryTransaction>[] = [
           <Button
             variant="outline"
             size="sm"
-            aria-label={row.getIsExpanded() ? 'Collapse events' : 'Expand events'}
+            aria-label={
+              row.getIsExpanded() ? 'Collapse events' : 'Expand events'
+            }
             onClick={(e) => {
               e.stopPropagation()
               row.toggleExpanded()
@@ -50,7 +58,6 @@ export const columns: ColumnDef<HistoryTransaction>[] = [
             {row.getIsExpanded() ? <ChevronUp /> : <ChevronDown />}
             <span className="text-sm font-medium">{eventCount}</span>
           </Button>
-
         </div>
       )
     },
@@ -153,7 +160,10 @@ export const columns: ColumnDef<HistoryTransaction>[] = [
             size="sm"
             onClick={(e) => {
               e.stopPropagation()
-              console.log('More clicked for transaction:', row.original.transactionID)
+              console.log(
+                'More clicked for transaction:',
+                row.original.transactionID,
+              )
             }}
           >
             <ArrowLeftFromLine className="h-4 w-4" />
@@ -164,4 +174,3 @@ export const columns: ColumnDef<HistoryTransaction>[] = [
     },
   },
 ]
-
