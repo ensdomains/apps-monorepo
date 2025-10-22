@@ -3,6 +3,8 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import { BookIcon, CircleQuestionMarkIcon, SettingsIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import { LogoWithTextSVG } from '@/assets/logo'
+import { TableViewSwitch } from '../organisms/RecordsTable/TableViewSwitch'
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { SearchBar } from './SearchBar'
 
 export const NavBar = () => {
@@ -23,9 +25,15 @@ export const NavBar = () => {
         <Link className="flex flex-row items-center gap-1" to=".">
           <CircleQuestionMarkIcon height={16} width={16} />
         </Link>
-        <Link className="flex flex-row items-center gap-1" to=".">
-          <SettingsIcon height={16} width={16} />
-        </Link>
+
+        <Popover>
+          <PopoverTrigger className="cursor-pointer">
+            <SettingsIcon height={16} width={16} />
+          </PopoverTrigger>
+          <PopoverContent align="end">
+            <TableViewSwitch />
+          </PopoverContent>
+        </Popover>
         <ExternalLink
           className="flex flex-row items-center gap-1"
           href="https://docs.ens.domains"

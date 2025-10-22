@@ -42,14 +42,6 @@ export const RecordsTable = ({
   return (
     <RecordSidebar row={clickedRow} {...{ name, open, setOpen }}>
       <Table className="relative">
-        <Popover>
-          <PopoverTrigger className="hidden sm:block absolute right-8 top-4 cursor-pointer">
-            <SettingsIcon />
-          </PopoverTrigger>
-          <PopoverContent align="end">
-            <TableViewSwitch />
-          </PopoverContent>
-        </Popover>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
