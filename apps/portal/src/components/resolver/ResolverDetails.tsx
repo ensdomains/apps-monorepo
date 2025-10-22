@@ -1,12 +1,11 @@
 import type { Address } from 'viem'
-import { useChainId } from 'wagmi'
 import { useSupportsInterfaces } from '@/hooks/useSupportsInterfaces'
 import {
   RESOLVER_FEATURE_NAMES,
   RESOLVER_INTERFACE_IDS,
   type ResolverInterfaceName,
 } from '@/lib/constants/resolverInterfaceIds'
-import { ResolverField } from './ResolverField'
+import { Datapoint, type DatapointProps } from '../molecules/Datapoint'
 
 const SupportedFeatures = ({
   resolverAddress,
@@ -41,7 +40,7 @@ const SupportedFeatures = ({
         {supportedInterfaceIds.map((feature) => (
           <div
             key={feature}
-            className="text-base font-normal underline underline-offset-2 decoration-dotted cursor-pointer"
+            className="text-sm sm:text-base font-normal underline underline-offset-2 decoration-dotted cursor-pointer"
           >
             {feature}
           </div>
@@ -53,33 +52,17 @@ const SupportedFeatures = ({
 
 export const ResolverDetails = ({
   resolverAddress,
+  data,
 }: {
   resolverAddress: Address
+  data: DatapointProps[]
 }) => {
-  const chainId = useChainId()
-
-  if (chainId === 1) {
-    return (
-      <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg w-full">
-        <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ResolverField
-            label="Mainnet contract address"
-            value={resolverAddress}
-          />
-        </div>
-        <div className="border-t border-t-gray-200 h-[1px]"></div>
-        <SupportedFeatures resolverAddress={resolverAddress} />
-      </div>
-    )
-  }
-
   return (
     <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg w-full">
-      <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ResolverField
-          label="Mainnet contract address"
-          value={resolverAddress}
-        />
+      <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-y-1 sm:gap-y-4 gap-x-40">
+        {data.map((item) => (
+          <Datapoint key={item.label} {...item} />
+        ))}
       </div>
       <div className="border-t border-t-gray-200 h-[1px]"></div>
       <SupportedFeatures resolverAddress={resolverAddress} />

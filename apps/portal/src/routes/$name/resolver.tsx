@@ -1,11 +1,10 @@
-import { ensContracts, ensSubgraphs } from '@ensdomains/ensjs/chain'
+import { ensContracts } from '@ensdomains/ensjs/chain'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import { EditIcon, XIcon } from 'lucide-react'
 import { type Address, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useAccount, useEnsResolver } from 'wagmi'
 import { useQuery } from 'wagmi/query'
-import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { NameHistory } from '@/components/organisms/NameHistory/NameHistory'
 import { DedicatedResolverBanner } from '@/components/resolver/DedicatedResolverBanner'
 import { ResolverDetails } from '@/components/resolver/ResolverDetails'
@@ -45,21 +44,8 @@ const EditButtons = ({ address, name }: { address: Address; name: string }) => {
   )
 }
 
-const Datapoint = ({
-  label,
-  value,
-  href,
-}: {
-  label: string
-  value: string
-  info?: string
-  href?: `https://${string}`
-}) => (
-  <>
-    <span className="font-medium max-w-160">{label}</span>
-    <CopyableRecord value={value} href={href} />
-  </>
-)
+const sepoliaUrl = sepolia.blockExplorers.default.url
+const factoryAddress = ensContracts[11155111].ensVerifiableFactory.address
 
 const UnderlyingResolverInfo = ({
   name,
@@ -81,37 +67,39 @@ const UnderlyingResolverInfo = ({
     if (data[0] === zeroAddress) return <div>This name does not exist</div>
     // resolver is on L2
 
-    const sepoliaUrl = sepolia.blockExplorers.default.url
-    const factoryAddress = ensContracts[11155111].ensVerifiableFactory.address
     if (data[1]) {
       return (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4 sm:gap-6">
           <DedicatedResolverBanner resolverAddress={data[0]} />
           <h2 className="font-medium text-2xl">L2 Resolver</h2>
-          <div className="flex flex-row gap-6">
+          <div className="flex flex-row flex-wrap gap-y-4 gap-x-6">
             <ResolverPrimaryName resolverAddress={data[0]} />
             <ResolverType resolverAddress={data[0]} />
             <ResolverNetwork resolverAddress={data[0]} />
           </div>
-          <div className="border border-secondary rounded-2xl p-6 grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-y-4 gap-x-40">
-            <Datapoint label="Protocol" value="ENSv2" />
-            <Datapoint label="Chain ID" value="TBD" />
-            <Datapoint
-              label="Contract"
-              value={data[0]}
-              href={`${sepoliaUrl}/address/${data[0]}`}
-            />
-            <Datapoint
-              label="Factory"
-              href={`${sepoliaUrl}/address/${factoryAddress}`}
-              value={factoryAddress}
-            />
-            <Datapoint
-              label="Subgraph"
-              value={ensSubgraphs[11155111].ens.url}
-              href={ensSubgraphs[11155111].ens.url}
-            />
-          </div>
+          <ResolverDetails
+            resolverAddress={data[0]}
+            data={[
+              {
+                label: 'Chain ID',
+                value: 'TBD',
+              },
+              {
+                label: 'Protocol',
+                value: 'ENSv2',
+              },
+              {
+                label: 'Contract',
+                value: data[0],
+                href: `${sepoliaUrl}/address/${data[0]}`,
+              },
+              {
+                label: 'Factory',
+                value: factoryAddress,
+                href: `${sepoliaUrl}/address/${factoryAddress}`,
+              },
+            ]}
+          />
         </div>
       )
     } else {
@@ -122,20 +110,24 @@ const UnderlyingResolverInfo = ({
             <ResolverType resolverAddress={data[0]} />
             <ResolverNetwork resolverAddress={data[0]} />
           </div>
-          <div className="border border-secondary rounded-2xl p-6 grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-y-4 gap-x-40">
-            <Datapoint label="Protocol" value="ENSv2" />
-            <Datapoint label="Chain ID" value={`${11155111}`} />
-            <Datapoint
-              label="Contract"
-              value={data[0]}
-              href={`${sepoliaUrl}/address/${data[0]}`}
-            />
-            <Datapoint
-              label="Subgraph"
-              value={ensSubgraphs[11155111].ens.url}
-              href={ensSubgraphs[11155111].ens.url}
-            />
-          </div>
+          <ResolverDetails
+            resolverAddress={resolverAddress}
+            data={[
+              {
+                label: 'Chain ID',
+                value: '11155111',
+              },
+              {
+                label: 'Protocol',
+                value: 'ENSv1',
+              },
+              {
+                label: 'Contract',
+                value: data[0],
+                href: `${sepoliaUrl}/address/${data[0]}`,
+              },
+            ]}
+          />
         </div>
       )
     }
@@ -160,8 +152,21 @@ const ResolverView = ({
         {address && <EditButtons address={address} name={name} />}
       </div>
       <UnderlyingResolverInfo {...{ name, resolverAddress }} />
-      <h2 className="font-medium text-2xl">Universal Resolution</h2>
-      <ResolverDetails resolverAddress={resolverAddress} />
+      <h2 className="font-medium text-2xl">Universal Resolver</h2>
+      <ResolverDetails
+        resolverAddress={resolverAddress}
+        data={[
+          {
+            label: 'Contract',
+            value: resolverAddress,
+            href: `${sepoliaUrl}/address/${resolverAddress}`,
+          },
+          {
+            label: 'Chain ID',
+            value: '11155111',
+          },
+        ]}
+      />
       <NameHistory name={name} />
     </div>
   )
