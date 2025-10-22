@@ -16,6 +16,29 @@ import { columns } from '@/components/organisms/HistoryTable/columns'
 import { HistoryTable } from '@/components/organisms/HistoryTable/HistoryTable'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 
+const extractFromAddress = (event: unknown): Address | null => {
+  const evt = event as Record<string, unknown>
+
+  if (evt.owner && typeof evt.owner === 'string') return evt.owner as Address
+  if (evt.registrant && typeof evt.registrant === 'string')
+    return evt.registrant as Address
+  if (evt.newOwner && typeof evt.newOwner === 'string')
+    return evt.newOwner as Address
+  if (evt.addr && typeof evt.addr === 'string') return evt.addr as Address
+
+  return null
+}
+
+const findTransactionFromAddress = (
+  events: Array<{ details: unknown }>,
+): Address | null => {
+  for (const event of events) {
+    const addr = extractFromAddress(event.details)
+    if (addr) return addr
+  }
+  return null
+}
+
 export const HistoryList = ({
   name,
   history,
@@ -26,29 +49,6 @@ export const HistoryList = ({
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [expanded, setExpanded] = useState<ExpandedState>({})
-
-  const extractFromAddress = (event: unknown): Address | null => {
-    const evt = event as Record<string, unknown>
-
-    if (evt.owner && typeof evt.owner === 'string') return evt.owner as Address
-    if (evt.registrant && typeof evt.registrant === 'string')
-      return evt.registrant as Address
-    if (evt.newOwner && typeof evt.newOwner === 'string')
-      return evt.newOwner as Address
-    if (evt.addr && typeof evt.addr === 'string') return evt.addr as Address
-
-    return null
-  }
-
-  const findTransactionFromAddress = (
-    events: Array<{ details: unknown }>,
-  ): Address | null => {
-    for (const event of events) {
-      const addr = extractFromAddress(event.details)
-      if (addr) return addr
-    }
-    return null
-  }
 
   // Group all events by transaction ID
   const groupedEvents = useMemo(() => {
@@ -78,7 +78,8 @@ export const HistoryList = ({
           events: [],
         })
       }
-      const tx = transactionMap.get(event.transactionID)!
+      const tx = transactionMap.get(event.transactionID)
+      if (!tx) return
       if (!tx.from) {
         tx.from = extractFromAddress(event)
       }
@@ -99,7 +100,8 @@ export const HistoryList = ({
           events: [],
         })
       }
-      const tx = transactionMap.get(event.transactionID)!
+      const tx = transactionMap.get(event.transactionID)
+      if (!tx) return
       if (!tx.from) {
         tx.from = extractFromAddress(event)
       }
@@ -120,7 +122,8 @@ export const HistoryList = ({
           events: [],
         })
       }
-      const tx = transactionMap.get(event.transactionID)!
+      const tx = transactionMap.get(event.transactionID)
+      if (!tx) return
       if (!tx.from) {
         tx.from = extractFromAddress(event)
       }
@@ -205,4 +208,3 @@ export const HistoryList = ({
     </>
   )
 }
-
