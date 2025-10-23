@@ -1,18 +1,10 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
-import { sepolia } from 'wagmi/chains'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 
 export const AddressDisplay = ({ address }: { address: Address }) => {
-  const { data: ensName, isLoading } = useEnsName({
-    address,
-    universalResolverAddress: getChainContractAddress({
-      chain: sepolia,
-      contract: 'ensUniversalResolver',
-    }),
-  })
+  const { data: ensName, isLoading } = useEnsName({ address })
 
   if (isLoading) {
     return (
