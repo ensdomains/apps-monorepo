@@ -6,7 +6,7 @@ This document traces the exact code path a transaction takes from the moment you
 
 ## Step 1: Button Click → Send `PREPARE_AND_EXECUTE` Event
 
-**File**: `packages/transaction-manager-example/src/ENSRenewalExample.tsx:437-446`
+**File**: `packages/transaction-manager-example/src/ENSRenewalExample.tsx:485-508`
 
 ```typescript
 <button
@@ -20,23 +20,33 @@ This document traces the exact code path a transaction takes from the moment you
     })
   }
   disabled={transactionUI.buttonDisabled}
+  style={{
+    padding: '10px 20px',
+    fontSize: '16px',
+    background: transactionUI.buttonColor,
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: transactionUI.buttonDisabled ? 'not-allowed' : 'pointer',
+    flex: 1,
+  }}
 >
   {transactionUI.buttonText}
 </button>
 ```
 
 **What happens here:**
-- Button sends simple `PREPARE_AND_EXECUTE` event to state machine
+- Button **directly sends** `PREPARE_AND_EXECUTE` event to state machine
 - Event contains only form data (name, duration, smart account preference, price)
-- **No callbacks, no business logic** - just pure data
-- Machine will handle all validation, preparation, and execution
+- **No wrapper functions, no callbacks, no business logic** - just pure data
+- Machine handles all validation, preparation, and execution
 - Component is a pure view layer that reacts to machine state
 
-**Key Architecture Change**: This follows the "machine handles everything" pattern:
+**Key Architecture**: This follows the "Business Logic Outside React Components" principle:
 - ✅ Single source of truth (all logic in machine)
 - ✅ True reactivity (component just renders state)
 - ✅ Better error handling (explicit validation state)
-- ✅ Simpler component (~30 lines of callback wiring removed)
+- ✅ Simpler component (no business logic embedded)
 - ✅ More testable (test machine, not component)
 - ✅ Consistent pattern (all transitions declarative)
 
@@ -931,7 +941,7 @@ success: {
 
 ## Step 10: UI Updates → Modal Shows Success
 
-**File**: `packages/transaction-manager-example/src/ENSRenewalExample.tsx:83-90`
+**File**: `packages/transaction-manager-example/src/ENSRenewalExample.tsx:89-97`
 
 ```typescript
 // UI derives state from machine using ts-pattern
@@ -943,6 +953,7 @@ const transactionUI = match(state.value)
     showStatus: true,
     statusBackground: '#e8f5e9',
     statusMessage: '✅ Renewal successful! Your name has been extended.',
+    showTransactionHash: !!hash,
   }))
   // ... other states
 ```
@@ -1339,13 +1350,38 @@ expect(actor.getSnapshot().value).toBe('preparing')
 Test complete flow with real blockchain:
 
 ```typescript
-// Use testnet with funded account
-const result = await handleRenew()
+import { renderHook, act } from '@testing-library/react'
+import { useMachine } from '@xstate/react'
+import { transactionMachine } from '@ens-apps/transaction-manager'
 
-// Wait for transaction
-await waitFor(() => {
-  expect(state.value).toBe('success')
+// Test the complete flow with machine
+const { result } = renderHook(() =>
+  useMachine(transactionMachine, {
+    input: {
+      publicClient: testnetPublicClient,
+      walletClient: testnetWalletClient,
+      rhinestoneConfig: testConfig,
+    },
+  })
+)
+
+const [state, send] = result.current
+
+// Send PREPARE_AND_EXECUTE event
+act(() => {
+  send({
+    type: 'PREPARE_AND_EXECUTE',
+    name: 'test',
+    duration: '1',
+    useSmartAccount: false,
+    renewalPrice: parseEther('0.001'),
+  })
 })
+
+// Wait for transaction to complete
+await waitFor(() => {
+  expect(result.current[0].value).toBe('success')
+}, { timeout: 120000 })
 
 // Verify on-chain state changed
 const expiry = await ensContract.nameExpires('test')
