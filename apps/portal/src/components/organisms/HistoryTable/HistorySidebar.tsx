@@ -2,6 +2,7 @@ import type { Row } from '@tanstack/react-table'
 import type { FC, PropsWithChildren } from 'react'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { useIsMobile } from '@/hooks/use-mobile'
+import type { HistoryTransaction } from './columns'
 
 export const HistorySidebar: FC<
   PropsWithChildren<{
