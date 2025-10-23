@@ -2,6 +2,7 @@ import type { Row } from '@tanstack/react-table'
 import type { FC, PropsWithChildren } from 'react'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import type { HistoryTransaction } from './columns'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 export const HistorySidebar: FC<
   PropsWithChildren<{
@@ -11,10 +12,15 @@ export const HistorySidebar: FC<
     setOpen: React.Dispatch<React.SetStateAction<boolean>>
   }>
 > = ({ children, row, open, setOpen }) => {
+  const isMobile = useIsMobile()
+
   return (
     <Sheet open={open} onOpenChange={setOpen} defaultOpen={false}>
       {children}
-      <SheetContent side="right" className="sm:max-w-[880px] bg-white">
+      <SheetContent
+        side={isMobile ? 'bottom' : 'right'}
+        className="sm:max-w-[880px] bg-white"
+      >
         {row ? (
           <div className="flex flex-col gap-6 p-6">
             <h2 className="text-2xl font-bold">Transaction Details</h2>
