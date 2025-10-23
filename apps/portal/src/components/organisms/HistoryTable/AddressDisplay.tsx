@@ -1,9 +1,9 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import type { Address } from 'viem'
-import { useEnsAvatar, useEnsName } from 'wagmi'
+import { useEnsName } from 'wagmi'
 import { sepolia } from 'wagmi/chains'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
-import { wagmiConfig } from '../../../lib/wagmi'
+import { NameAvatar } from '@/features/profile/components/NameAvatar'
 
 export const AddressDisplay = ({ address }: { address: Address }) => {
   const { data: ensName, isLoading } = useEnsName({
@@ -14,23 +14,13 @@ export const AddressDisplay = ({ address }: { address: Address }) => {
     }),
   })
 
-  const { data: avatar } = useEnsAvatar({
-    name: ensName || undefined,
-    universalResolverAddress:
-      wagmiConfig.chains[0].contracts.ensUniversalResolver.address,
-    query: {
-      enabled: !!ensName,
-    },
-  })
-
   if (isLoading) {
     return (
       <div className="flex flex-row items-center gap-2">
         <div
           className="w-5 h-5 rounded-sm"
           style={{
-            background:
-              'linear-gradient(135deg, #EF7EB8 0%, #C6BEF2 50%, #D6D4F8 100%)',
+            background: 'var(--avatar-placeholder-gradient)',
           }}
         />
         <span className="text-sm text-gray-400">Loading...</span>
@@ -42,18 +32,13 @@ export const AddressDisplay = ({ address }: { address: Address }) => {
 
   return (
     <div className="flex flex-row items-center gap-2">
-      {avatar ? (
-        <img
-          src={avatar}
-          alt={displayName}
-          className="w-5 h-5 rounded-sm object-cover"
-        />
+      {ensName ? (
+        <NameAvatar name={ensName} height="20px" width="20px" rounded="rounded-sm" />
       ) : (
         <div
           className="w-5 h-5 rounded-sm"
           style={{
-            background:
-              'linear-gradient(135deg, #EF7EB8 0%, #C6BEF2 50%, #D6D4F8 100%)',
+            background: 'var(--avatar-placeholder-gradient)',
           }}
         />
       )}

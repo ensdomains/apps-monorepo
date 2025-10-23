@@ -36,18 +36,13 @@ export const HistoryTableRow = ({ row }: { row: Row<HistoryTransaction> }) => {
 
           return (
             <TableRow key={event.id} className="hover:bg-gray-200">
-              {/* Empty expander column */}
-              <TableCell className="py-4" />
-
-              {/* Empty date column */}
-              <TableCell className="py-4" />
+              <TableCell className="py-4" colSpan={2} />
 
               {/* Transaction column - show event type */}
               <TableCell className="py-4">
                 <span>{event.type}</span>
               </TableCell>
 
-              {/* From column - show address/name */}
               <TableCell className="py-4">
                 {fromAddress ? (
                   <AddressDisplay address={fromAddress as Address} />
@@ -56,11 +51,7 @@ export const HistoryTableRow = ({ row }: { row: Row<HistoryTransaction> }) => {
                 )}
               </TableCell>
 
-              {/* Empty network column */}
-              <TableCell className="py-4" />
-
-              {/* Empty more column */}
-              <TableCell className="py-4" />
+              <TableCell className="py-4" colSpan={2} />
             </TableRow>
           )
         })}

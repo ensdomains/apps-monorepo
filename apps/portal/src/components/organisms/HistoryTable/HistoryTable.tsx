@@ -3,7 +3,6 @@ import {
   type Row,
   type Table as TableData,
 } from '@tanstack/react-table'
-import { useState } from 'react'
 import {
   Table,
   TableBody,
@@ -19,24 +18,18 @@ import { HistoryTableRow } from './HistoryTableRow'
 export const HistoryTable = ({
   name,
   table,
+  sidebarOpen,
+  setSidebarOpen,
+  clickedRow,
 }: {
   name: string
   table: TableData<HistoryTransaction>
+  sidebarOpen: boolean
+  setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
+  clickedRow: Row<HistoryTransaction> | null
 }) => {
-  const [clickedRow, setClickedRow] = useState<Row<HistoryTransaction> | null>(
-    null,
-  )
-  const [open, setOpen] = useState(false)
-
-  table.options.meta = {
-    onMoreClick: (row: Row<HistoryTransaction>) => {
-      setClickedRow(row)
-      setOpen(true)
-    },
-  }
-
   return (
-    <HistorySidebar row={clickedRow} {...{ name, open, setOpen }}>
+    <HistorySidebar row={clickedRow} name={name} open={sidebarOpen} setOpen={setSidebarOpen}>
       <Table className="relative">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (

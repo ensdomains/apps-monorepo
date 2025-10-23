@@ -11,8 +11,9 @@ import {
 } from '@tanstack/react-table'
 import { SearchIcon } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
+import type { Row } from '@tanstack/react-table'
 import type { Address } from 'viem'
-import { columns } from '@/components/organisms/HistoryTable/columns'
+import { columns, type HistoryTransaction } from '@/components/organisms/HistoryTable/columns'
 import { HistoryTable } from '@/components/organisms/HistoryTable/HistoryTable'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import {
@@ -30,6 +31,8 @@ export const HistoryList = ({
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [expanded, setExpanded] = useState<ExpandedState>({})
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [clickedRow, setClickedRow] = useState<Row<HistoryTransaction> | null>(null)
 
   // Group all events by transaction ID
   const groupedEvents = useMemo(() => {
@@ -155,6 +158,12 @@ export const HistoryList = ({
     },
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
+    meta: {
+      onMoreClick: (row: Row<HistoryTransaction>) => {
+        setClickedRow(row)
+        setSidebarOpen(true)
+      },
+    },
   })
 
   const eventCount = groupedEvents.length
@@ -185,7 +194,13 @@ export const HistoryList = ({
           />
         </div>
       </header>
-      <HistoryTable name={name} table={table} />
+      <HistoryTable
+        name={name}
+        table={table}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        clickedRow={clickedRow}
+      />
     </>
   )
 }
