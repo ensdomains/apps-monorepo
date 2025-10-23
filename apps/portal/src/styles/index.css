@@ -23,7 +23,12 @@
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
 
-  --avatar-placeholder-gradient: linear-gradient(135deg, #EF7EB8 0%, #C6BEF2 50%, #D6D4F8 100%);
+  --avatar-placeholder-gradient: linear-gradient(
+    135deg,
+    #ef7eb8 0%,
+    #c6bef2 50%,
+    #d6d4f8 100%
+  );
 }
 
 @theme inline {
