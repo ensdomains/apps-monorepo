@@ -1,24 +1,23 @@
-import { flexRender, type Row } from '@tanstack/react-table'
+import { flexRender, type Row, type RowData } from '@tanstack/react-table'
 import { PanelRightOpenIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
 import type { TableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
-import type { NameRecord } from './columns'
 
-export const RecordTableRow = ({
+export function SidebarTriggerRow<T extends RowData = RowData>({
   row,
   tableView,
   setOpen,
   setClickedRow,
   open,
 }: {
-  row: Row<NameRecord>
+  row: Row<T>
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
-  setClickedRow: React.Dispatch<React.SetStateAction<Row<NameRecord> | null>>
+  setClickedRow: React.Dispatch<React.SetStateAction<Row<T> | null>>
   tableView: TableViewSettings
   open: boolean
-}) => {
+}) {
   return (
     <TableRow
       className={cn(

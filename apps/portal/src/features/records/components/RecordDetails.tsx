@@ -12,12 +12,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SheetHeader } from '@/components/ui/sheet'
-import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
-import { getRecordHistoryQueryOptions } from '@/features/profile/hooks/useRecordHistory'
+import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
+import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
 import { filterRecordHistoryByRecord } from '@/utils/subgraph/filterRecordHistoryByRecord'
 import { recordTypeToSubgraphKey } from '@/utils/subgraph/recordTypeToSubgraphKey'
-import type { NameRecord } from '../RecordsTable/columns'
+import type { NameRecord } from './RecordsTable/columns'
 
 const AddressRecordValue = ({
   record,

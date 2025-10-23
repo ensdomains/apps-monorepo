@@ -1,5 +1,5 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
-import { type Address, isAddress } from 'viem'
+import { createFileRoute } from '@tanstack/react-router'
+import type { Address } from 'viem'
 import { useAccount, useDisconnect, useEnsName } from 'wagmi'
 import { Owner } from '@/components/primary-name/Owner'
 import { Button } from '@/components/ui/button'
@@ -9,11 +9,6 @@ import { PrimaryNameLabel } from '@/features/profile/components/PrimaryNameLabel
 
 export const Route = createFileRoute('/addr/$addr/')({
   component: RouteComponent,
-  beforeLoad: (ctx) => {
-    if (!isAddress(ctx.params.addr, { strict: false })) {
-      throw redirect({ to: '/$name', params: { name: ctx.params.addr } })
-    }
-  },
 })
 
 const PrimaryName = ({ addr }: { addr: Address }) => {
