@@ -17,9 +17,7 @@ export const CopyableRecord = ({
   const [copy, setCopy] = useState(false)
 
   useEffect(() => {
-    if (copy) {
-      navigator.clipboard.writeText(value.toString())
-    }
+    if (copy) navigator.clipboard.writeText(value.toString())
   }, [copy, value])
 
   const content = displayValue || value
@@ -27,13 +25,13 @@ export const CopyableRecord = ({
   return (
     <div
       className={cn(
-        'flex flex-row gap-2 w-full lg:w-max justify-between hover:text-gray-700',
+        'inline-flex items-center gap-2 max-w-full', // inline-flex prevents full-width expansion
         className,
       )}
     >
       {href ? (
         <ExternalLink
-          className="text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4 truncate max-w-full "
+          className="text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4 truncate max-w-full"
           href={href}
         >
           {content}
@@ -44,7 +42,7 @@ export const CopyableRecord = ({
         </span>
       )}
       <button
-        className="cursor-pointer"
+        className="flex-shrink-0 cursor-pointer"
         type="button"
         onClick={() => setCopy(true)}
       >

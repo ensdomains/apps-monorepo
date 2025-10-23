@@ -21,7 +21,7 @@ export const getRecordHistory = ResultFn(async function* (
 ) {
   const client = yield* safeGetClient()
 
-  const events = yield* await fromPromise(
+  const events = yield* fromPromise(
     ensjs_getRecordHistory(client, params),
     (e) => {
       return new GetRecordHistoryError({
@@ -29,10 +29,10 @@ export const getRecordHistory = ResultFn(async function* (
       })
     },
   )
-  return ok(events)
+  return ok(events || [])
 })
 
-export const supportsInterfacesQueryKey = createQueryKey<
+export const getRecordHistoryQueryKey = createQueryKey<
   'get-record-history',
   GetRecordHistoryParameters
 >('get-record-history')
@@ -41,6 +41,6 @@ export const getRecordHistoryQueryOptions = (
   params: GetRecordHistoryParameters,
 ) =>
   resultQueryOptions({
-    queryKey: supportsInterfacesQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getRecordHistory(params),
+    queryKey: getRecordHistoryQueryKey(params),
+    queryFn: () => getRecordHistory(params),
   })
