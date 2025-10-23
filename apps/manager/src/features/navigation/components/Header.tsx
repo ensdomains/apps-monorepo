@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/popover'
 import { NotificationsDropdown } from '@/features/notifications/components'
 import { useTheme } from '@/hooks/use-theme'
+import { wagmiConfig } from '@/lib/wagmi'
 
 const ConnectedContent = () => {
   const { address } = useAccount()
@@ -34,6 +35,8 @@ const ConnectedContent = () => {
   const { data: ensName } = useEnsName({ address })
   const { data: ensAvatar } = useEnsAvatar({
     name: ensName ?? undefined,
+    universalResolverAddress:
+      wagmiConfig.chains[0].contracts.ensUniversalResolver.address,
     assetGatewayUrls: {
       ipfs: 'https://ipfs.euc.li',
     },

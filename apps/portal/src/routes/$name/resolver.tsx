@@ -13,7 +13,6 @@ import { ResolverNetwork } from '@/features/resolver/components/ResolverNetwork'
 import { ResolverPrimaryName } from '@/features/resolver/components/ResolverPrimaryName'
 import { ResolverType } from '@/features/resolver/components/ResolverType'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
-import { wagmiConfig } from '@/lib/wagmi'
 
 export const Route = createFileRoute('/$name/resolver')({
   component: RouteComponent,
@@ -181,8 +180,6 @@ function RouteComponent() {
     error,
   } = useEnsResolver({
     name,
-    universalResolverAddress:
-      wagmiConfig.chains[0].contracts.ensUniversalResolver.address,
   })
 
   // TODO: remove this hack for when devnet and namechain is ready

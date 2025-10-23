@@ -1,14 +1,15 @@
-import { useAccount, useEnsAddress } from 'wagmi'
+import type { Address } from 'viem'
+import { useEnsAddress } from 'wagmi'
 
 export const PrimaryNameLabel = ({
   name,
   text = 'Your primary name',
+  address,
 }: {
   name: string
   text?: string
+  address: Address | null | undefined
 }) => {
-  const { address } = useAccount()
-
   const { data: reverseAddress, error, isLoading } = useEnsAddress({ name })
 
   if (error) return <div>Error: {error.message}</div>

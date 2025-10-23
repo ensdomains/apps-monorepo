@@ -1,5 +1,4 @@
 import { useEnsAvatar } from 'wagmi'
-import { wagmiConfig } from '@/lib/wagmi'
 
 export const NameAvatar = ({
   name,
@@ -16,8 +15,6 @@ export const NameAvatar = ({
     isLoading,
   } = useEnsAvatar({
     name,
-    universalResolverAddress:
-      wagmiConfig.chains[0].contracts.ensUniversalResolver.address,
   })
 
   if (error) return <div>Error: {error.message}</div>

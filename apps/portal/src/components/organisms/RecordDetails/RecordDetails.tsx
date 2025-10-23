@@ -15,7 +15,6 @@ import { SheetHeader } from '@/components/ui/sheet'
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
 import { getRecordHistoryQueryOptions } from '@/features/profile/hooks/useRecordHistory'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
-import { wagmiConfig } from '@/lib/wagmi'
 import { filterRecordHistoryByRecord } from '@/utils/subgraph/filterRecordHistoryByRecord'
 import { recordTypeToSubgraphKey } from '@/utils/subgraph/recordTypeToSubgraphKey'
 import type { NameRecord } from '../RecordsTable/columns'
@@ -158,8 +157,6 @@ const ResolverView = ({ name }: { name: string }) => {
     isLoading,
   } = useEnsResolver({
     name,
-    universalResolverAddress:
-      wagmiConfig.chains[0].contracts.ensUniversalResolver.address,
   })
 
   if (isLoading) return <div>Loading...</div>

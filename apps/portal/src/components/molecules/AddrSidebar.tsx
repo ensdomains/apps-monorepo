@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { PersonStandingIcon } from 'lucide-react'
+import { PersonStandingIcon, WalletIcon } from 'lucide-react'
 import type { Address } from 'viem'
 import {
   Sidebar,
@@ -25,14 +25,17 @@ const itemGroups = [
 export const AddrSidebar = ({ addr }: { addr: Address }) => {
   return (
     <Sidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!">
-      <SidebarHeader>
-        <span className="text-lg font-mono font-medium w-full max-w-md overflow-hidden break-words">
-          {addr}
-        </span>
+      <SidebarHeader className="p-6">
+        <div className="flex flex-row gap-2 items-start">
+          <WalletIcon />
+          <span className="text-lg font-mono font-medium w-full max-w-md overflow-hidden break-words">
+            {addr}
+          </span>
+        </div>
       </SidebarHeader>
       <SidebarContent>
         {itemGroups.map((items) => (
-          <SidebarGroup key={items.join(',')}>
+          <SidebarGroup className="p-6" key={items.join(',')}>
             <SidebarGroupContent>
               <SidebarMenu>
                 {items.map((item) => (
