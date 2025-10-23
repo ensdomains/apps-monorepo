@@ -3,9 +3,34 @@
  * Direct, minimal approach without complex hooks
  */
 
-import { RhinestoneSDK, walletClientToAccount } from "@rhinestone/sdk";
+import { RhinestoneSDK } from "@rhinestone/sdk";
 import { customSepolia } from "@/lib/wagmi";
 import { type Account } from "viem";
+
+const createCustomAccount = (walletClient: any): Account => {
+  return {
+    address: walletClient.account.address,
+    type: 'json-rpc',
+    async signMessage({ message }: { message: any }) {
+      return await walletClient.signMessage({
+        account: walletClient.account,
+        message,
+      });
+    },
+    async signTypedData(typedData: any) {
+      return await walletClient.signTypedData({
+        account: walletClient.account,
+        ...typedData,
+      });
+    },
+    async signTransaction(transaction: any) {
+      return await walletClient.signTransaction({
+        account: walletClient.account,
+        ...transaction,
+      });
+    },
+  } as unknown as Account;
+};
 
 export interface RhinestoneTransactionResult {
   transaction: any;
@@ -21,43 +46,16 @@ export class RhinestoneService {
     try {
       console.log("🔧 Initializing Rhinestone SDK...");
 
-      // Convert wallet client to viem account
-      const viemAccount = walletClientToAccount(walletClient);
-
-      // Add missing methods that Rhinestone SDK requires
-      const enhancedViemAccount = {
-        ...viemAccount,
-        // Add the missing sign method
-        sign: async ({ hash }: { hash: `0x${string}` }) => {
-          if (!viemAccount.signMessage) {
-            throw new Error("signMessage method not available");
-          }
-          return await viemAccount.signMessage({ message: { raw: hash } });
-        },
-        // Add the missing signAuthorization method
-        signAuthorization: async (authorization: any) => {
-          if (authorization.typedData && viemAccount.signTypedData) {
-            return await viemAccount.signTypedData(authorization.typedData);
-          }
-          if (!viemAccount.signMessage) {
-            throw new Error("signMessage method not available");
-          }
-          return await viemAccount.signMessage({ message: authorization.message || authorization });
-        },
-      } as unknown as Account;
-
-      console.log("✅ Enhanced viem account created:", enhancedViemAccount.address);
-
-      // Initialize SDK instance (same as working snippet)
+      // Initialize SDK instance
       const sdk = new RhinestoneSDK({
         apiKey: import.meta.env.VITE_RHINESTONE_API_KEY,
       });
 
-      // Create Rhinestone account
+      // Create Rhinestone account using custom account
       this.rhinestoneAccount = await sdk.createAccount({
         owners: {
           type: "ecdsa",
-          accounts: [enhancedViemAccount],
+          accounts: [createCustomAccount(walletClient)],
         },
       });
 

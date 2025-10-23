@@ -1,18 +1,11 @@
 import { useNavigate } from '@tanstack/react-router'
-import { useMachine } from '@xstate/react'
-import { useEffect, useMemo } from 'react'
-import { useAccount } from 'wagmi'
 import { Button } from '@/components/ui/button'
-import { Autorenewal } from '../components/Autorenewal'
+import { ApprovalInProgress } from '../components/ApprovalInProgress'
 import { PaymentInProgress } from '../components/PaymentInProgress'
-import { PaymentSuccess } from '../components/PaymentSuccess'
 import { Pricing } from '../components/Pricing'
 import { RegistrationInProgress } from '../components/RegistrationInProgress'
 import { RegistrationSuccess } from '../components/RegistrationSuccess'
-import {
-  RegistrationStep,
-  searchMachine,
-} from '../machines/registrationMachineMock'
+import { useRegistration, RegistrationStep } from '../hooks/useRegistration'
 
 interface RegistrationProps {
   initialName?: string
@@ -20,98 +13,70 @@ interface RegistrationProps {
 
 export function Registration({ initialName }: RegistrationProps) {
   const navigate = useNavigate()
-  const { isConnected } = useAccount()
-  const [state, send] = useMachine(searchMachine)
-
-  useEffect(() => {
-    if (initialName) {
-      // Set domain name in context and prepare for pricing
-      send({ type: 'search', name: initialName })
-    }
-  }, [initialName, send])
-
-  const { step, name, domainName, duration, currencyType, selectedCrypto } =
-    state.context
-
-  // TODO: remove this once we have a real duration
-  const pricingDuration = Math.ceil(duration)
-
-  // TODO: remove this once we have a real estimation
-  const estimation = useMemo(() => {
-    if (!domainName && !name) return undefined
-
-    const baseYearlyFee = 5000000000000000n
-    const yearMultiplier = BigInt(Math.max(1, Math.floor(pricingDuration)))
-
-    return {
-      estimatedGasFee: 2000000000000000n,
-      estimatedGasLoading: false,
-      yearlyFee: baseYearlyFee,
-      totalDurationBasedFee: baseYearlyFee * yearMultiplier,
-      hasPremium: false,
-      premiumFee: 0n,
-      gasPrice: 20000000000n,
-      seconds: pricingDuration * 31536000,
-    }
-  }, [domainName, name, pricingDuration])
+  const {
+    step,
+    name: domainName,
+    duration,
+    selectedToken,
+    isConnected,
+    isCommitting: isCommitPending,
+    isApproving: isApprovePending,
+    isRegistering: isRegisterPending,
+    error,
+    setDuration,
+    startCommitment,
+    retry,
+    reset,
+  } = useRegistration(initialName)
 
   const handleBack = () => {
     if (step === RegistrationStep.PRICING) {
       navigate({ to: '/' })
-    } else if (step === RegistrationStep.REGISTRATION_IN_PROGRESS) {
-      // This step goes to PaymentSuccess, but we want Pricing
-      // So we go back twice: first to PaymentSuccess, then to Pricing
-      send({ type: 'back' })
-      setTimeout(() => send({ type: 'back' }), 0)
+    } else if (step === RegistrationStep.APPROVING || step === RegistrationStep.REGISTERING) {
+      // Don't allow going back during transactions
+      return
     } else {
       // All other steps go to pricing on 'back'
-      send({ type: 'back' })
+      reset()
     }
   }
 
   const handleSetDuration = (newDuration: number) => {
-    send({ type: 'setDuration', duration: newDuration })
+    setDuration(newDuration)
   }
 
-  const handleSetCurrency = (currency: 'ETH' | 'USD') => {
-    send({ type: 'setCurrency', currencyType: currency })
+  const handleSelectPayment = (_method: 'crypto' | 'credit-card') => {
+    // No-op for now - handled by payment drawer
   }
 
-  const handleSelectPayment = (method: 'crypto' | 'credit-card') => {
-    send({ type: 'selectPayment', method })
+  const handleSelectCrypto = (_cryptoId: string) => {
+    // No-op for now - handled by payment drawer
   }
 
-  const handleSelectCrypto = (cryptoId: string) => {
-    send({ type: 'selectCrypto', cryptoId })
-  }
-
-  const handleConfirmPayment = () => {
-    send({ type: 'confirmPayment' })
+  const handleConfirmPayment = (tokenPrice: bigint, selectedToken: string) => {
+    // Map selectedToken string to 'USDC' | 'DAI'
+    const token = selectedToken.toUpperCase() as 'USDC' | 'DAI'
+    startCommitment({
+      tokenPrice,
+      selectedToken: token
+    })
   }
 
   const handlePaymentSuccess = () => {
-    send({ type: 'paymentSuccess' })
-  }
-
-  const handleSkipNotifications = () => {
-    send({ type: 'skipNotifications' })
+    // Payment success is handled automatically by the state machine
   }
 
   const handleRegistrationSuccess = () => {
-    send({ type: 'registrationSuccess' })
+    // Registration success is handled automatically by the state machine
   }
 
   const handleSetupAutorenewal = () => {
-    send({ type: 'setupAutorenewal' })
-  }
-
-  const handleSkipAutorenewal = () => {
-    send({ type: 'skipAutorenewal' })
+    // TODO: Implement auto-renewal
+    reset()
   }
 
   // domainName already includes .eth from the state machine
-  const displayDomainName =
-    domainName || (name ? (name.endsWith('.eth') ? name : `${name}.eth`) : '')
+  const displayDomainName = domainName || ''
 
   return (
     <div className="mx-auto max-w-md">
@@ -126,11 +91,9 @@ export function Registration({ initialName }: RegistrationProps) {
           <Pricing
             domainName={displayDomainName}
             duration={duration}
-            currencyType={currencyType}
-            estimation={estimation}
             isConnected={isConnected}
+            isLoading={isCommitPending || isApprovePending || isRegisterPending}
             onSetDuration={handleSetDuration}
-            onSetCurrency={handleSetCurrency}
             onSelectPayment={handleSelectPayment}
             onSelectCrypto={handleSelectCrypto}
             onConfirmPayment={handleConfirmPayment}
@@ -138,41 +101,52 @@ export function Registration({ initialName }: RegistrationProps) {
         </div>
       )}
 
-      {step === RegistrationStep.PAYMENT_IN_PROGRESS && (
+      {step === RegistrationStep.COMMITTING && (
         <PaymentInProgress
           domainName={displayDomainName}
-          selectedCrypto={selectedCrypto}
+          selectedCrypto=""
           onPaymentSuccess={handlePaymentSuccess}
         />
       )}
 
-      {step === RegistrationStep.PAYMENT_SUCCESS && (
-        <PaymentSuccess
+      {step === RegistrationStep.APPROVING && (
+        <ApprovalInProgress
           domainName={displayDomainName}
-          onComplete={handleSkipNotifications}
+          selectedToken={selectedToken}
         />
       )}
 
-      {step === RegistrationStep.REGISTRATION_IN_PROGRESS && (
+      {step === RegistrationStep.REGISTERING && (
         <RegistrationInProgress
           domainName={displayDomainName}
           onRegistrationSuccess={handleRegistrationSuccess}
         />
       )}
 
-      {step === RegistrationStep.REGISTRATION_SUCCESS && (
+      {step === RegistrationStep.SUCCESS && (
         <RegistrationSuccess
           domainName={displayDomainName}
           onSetupAutorenewal={handleSetupAutorenewal}
         />
       )}
 
-      {step === RegistrationStep.AUTORENEWAL && (
-        <Autorenewal
-          domainName={displayDomainName}
-          duration={duration}
-          onSkipAutorenewal={handleSkipAutorenewal}
-        />
+      {step === RegistrationStep.ERROR && (
+        <div className="mx-auto max-w-md px-4 py-6">
+          <div className="text-center">
+            <h2 className="text-red-600 text-xl font-semibold mb-4">
+              Registration Error
+            </h2>
+            <p className="text-gray-600 mb-4 whitespace-pre-line">
+              {error || 'There was an error during the registration process.'}
+            </p>
+            <Button onClick={retry} className="mr-2">
+              Retry
+            </Button>
+            <Button variant="outline" onClick={reset}>
+              Start Over
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   )

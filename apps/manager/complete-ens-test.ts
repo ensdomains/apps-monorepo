@@ -60,8 +60,8 @@ const SUPPORTED_TOKENS = {
     DAI: "0x6630589c2e6364a96bb7acf0d9d64ac9c1dd3528" as `0x${string}`, // MockDAI
 }
 
-const RHINESTONE_API_KEY = 'rs_2fcz8PTz5A0vf1Z1HIG19qHxTd_NtCCJmRavTxtNL8'
-const PRIVATE_KEY = '0x9029f88e47bbb1afe70290ed1586350691d292b23e68e68078e3b851d71e15eb' as `0x${string}`
+const RHINESTONE_API_KEY = ''
+const PRIVATE_KEY = '' as `0x${string}`
 
 const SEPOLIA_RPC_URL = 'https://ethereum-sepolia-rpc.publicnode.com'
 
@@ -724,7 +724,6 @@ async function registerEnsDomain(
         console.log('✅ Commit transaction confirmed!')
         console.log('   Transaction hash:', commitTxHash || 'N/A')
 
-        // Ensure commitment age satisfies registrar requirements before register
         try {
             const minAge = await publicClient.readContract({
                 address: ENS_CONTRACTS.REGISTRAR_CONTROLLER,

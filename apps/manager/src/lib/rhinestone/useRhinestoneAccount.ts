@@ -3,7 +3,7 @@
 import { type RhinestoneAccount, RhinestoneSDK, walletClientToAccount } from "@rhinestone/sdk";
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from "react";
-import { formatUnits } from "viem";
+import { Account, formatUnits } from "viem";
 import { customSepolia } from "@/lib/wagmi";
 import { useWalletClient } from "wagmi";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
@@ -12,6 +12,36 @@ import { publicClient } from "@/lib/wagmi";
 import { ERC20_ABI } from "../ens.abi";
 import { getTxHashResult } from "./utils";
 
+const createCustomAccount = (viemAccount: Account, walletClient: any): Account => {
+  return {
+    ...viemAccount,
+    address: walletClient.account.address,
+    type: 'json-rpc',
+    async signMessage({ message }: { message: any }) {
+      // Use the wallet client's signMessage directly
+      console.log('signMessage', message);
+      return await walletClient.signMessage({
+        account: walletClient.account,
+        message,
+      });
+    },
+    async signTypedData(typedData: any) {
+      // Critical: Use wallet client's signTypedData directly
+      console.log('signTypedData', typedData);
+      return await walletClient.signTypedData({
+        account: walletClient.account,
+        ...typedData,
+      });
+    },
+    async signTransaction(transaction: any) {
+      console.log('signTransaction', transaction);
+      return await walletClient.signTransaction({
+        account: walletClient.account,
+        ...transaction,
+      });
+    },
+  } as unknown as Account;
+};
 export interface RhinestoneAccountState {
   rhinestoneAccount: RhinestoneAccount | null;
   accountAddress: string | null;
@@ -116,16 +146,17 @@ export function useRhinestoneAccount() {
       }
 
       const viemAccount = walletClientToAccount(walletClient);
+      const customAccount = createCustomAccount(viemAccount, walletClient);
 
       const sdk = new RhinestoneSDK({
         apiKey,
       });
 
-      // Use the enhanced viem account for Rhinestone SDK
+      // Use the custom account for Rhinestone SDK
       const rhinestoneAccount = await sdk.createAccount({
         owners: {
           type: "ecdsa" as const,
-          accounts: [viemAccount],
+          accounts: [customAccount],
         },
       });
 
