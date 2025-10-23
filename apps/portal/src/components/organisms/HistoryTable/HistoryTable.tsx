@@ -29,7 +29,12 @@ export const HistoryTable = ({
   clickedRow: Row<HistoryTransaction> | null
 }) => {
   return (
-    <HistorySidebar row={clickedRow} name={name} open={sidebarOpen} setOpen={setSidebarOpen}>
+    <HistorySidebar
+      row={clickedRow}
+      name={name}
+      open={sidebarOpen}
+      setOpen={setSidebarOpen}
+    >
       <Table className="relative">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
