@@ -1,0 +1,458 @@
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { err, fromPromise, ok, type Result } from 'neverthrow'
+import { encodeFunctionData, formatUnits, keccak256, toHex } from 'viem'
+import { ERC20_ABI, FASTTESTETHREGISTRAR_ABI } from '@/lib/ens.abi'
+import { type RhinestoneTransactionResult } from '@/lib/rhinestone/utils'
+import { publicClient } from '@/lib/wagmi'
+import { getTxHashResult } from '@/lib/rhinestone/utils'
+
+export class NameChainContractError extends TaggedError(
+  'NameChainContractError',
+)<{
+  cause: unknown
+}> { }
+
+
+export const EMPTY_ADDRESS = "0x0000000000000000000000000000000000000000" as `0x${string}`
+
+export const REFERER_ADDRESS = '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`
+
+// ENS Sepolia contract addresses (using FastTestETHRegistrar for 0 commitment time)
+export const ENS_SEPOLIA_CONTRACTS = {
+  REGISTRY: "0x5fb63bbd34de21688c8aa8131be1c3b4a477109c" as `0x${string}`, // ETHRegistry
+  REGISTRAR_CONTROLLER: "0xb08b6a514d54562ef3b7470bdb709c4eb135c535" as `0x${string}`, // FastTestETHRegistrar
+  PUBLIC_RESOLVER: "0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5" as `0x${string}`, // DedicatedResolverImpl
+}
+
+// Supported payment tokens on Sepolia ENS (from addresses.txt)
+export const SUPPORTED_TOKENS = {
+  USDC: "0x9028ab8e872af36c30c959a105cb86d1038412ae" as `0x${string}`, // MockUSDC
+  DAI: "0x6630589c2e6364a96bb7acf0d9d64ac9c1dd3528" as `0x${string}`, // MockDAI
+}
+
+// Real commitment generation using ENS contract on Sepolia
+export const generateCommitment = async (
+  name: string,
+  ownerAddress: string,
+  duration: number,
+  _paymentToken: `0x${string}` = SUPPORTED_TOKENS.USDC,
+): Promise<
+  Result<
+    { commitment: `0x${string}`; secret: `0x${string}` },
+    NameChainContractError
+  >
+> => {
+  try {
+    const cleanName = name.replace('.eth', '')
+    const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
+    const secret = keccak256(toHex(Math.random().toString()) as `0x${string}`)
+
+    const commitment = await publicClient.readContract({
+      address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+      abi: FASTTESTETHREGISTRAR_ABI,
+      functionName: 'makeCommitment',
+      args: [
+        cleanName,
+        ownerAddress as `0x${string}`,
+        secret,
+        ENS_SEPOLIA_CONTRACTS.REGISTRY,
+        ENS_SEPOLIA_CONTRACTS.PUBLIC_RESOLVER,
+        durationInSeconds,
+        REFERER_ADDRESS,
+      ],
+    })
+
+    return ok({ commitment: commitment as `0x${string}`, secret })
+  } catch (error) {
+    console.error('❌ Failed to generate commitment:', error)
+    return err(new NameChainContractError({ cause: error }))
+  }
+}
+
+// Real ENS registration functions using Rhinestone SDK
+export const commitToRegistration = async (
+  commitment: `0x${string}`,
+  sendTransaction: (calls: any[]) => Promise<RhinestoneTransactionResult>,
+  smartAccountAddress: `0x${string}`,
+): Promise<Result<`0x${string}`, NameChainContractError>> => {
+  try {
+    // Check smart account ETH balance before committing
+    const ethBalance = await publicClient.getBalance({
+      address: smartAccountAddress,
+    })
+
+    if (ethBalance === 0n) {
+      return err(
+        new NameChainContractError({
+          cause: `Smart account needs ETH for gas. Send Sepolia ETH to: ${smartAccountAddress}`,
+        }),
+      )
+    }
+
+    const commitData = encodeFunctionData({
+      abi: FASTTESTETHREGISTRAR_ABI,
+      functionName: 'commit',
+      args: [commitment],
+    })
+
+    const result = await sendTransaction([
+      {
+        to: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+        data: commitData,
+        value: 0n,
+      },
+    ])
+
+    const commitHash = getTxHashResult(result)
+
+    try {
+      const minAge = await publicClient.readContract({
+        address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+        abi: FASTTESTETHREGISTRAR_ABI,
+        functionName: 'MIN_COMMITMENT_AGE',
+      }) as bigint
+
+      if (minAge !== 0n) {
+        const committedAt = await publicClient.readContract({
+          address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+          abi: FASTTESTETHREGISTRAR_ABI,
+          functionName: 'commitmentAt',
+          args: [commitment],
+        }) as bigint
+
+        if (committedAt === 0n) {
+          await new Promise(resolve => setTimeout(resolve, 3000))
+        }
+
+        const latestBlock = await publicClient.getBlock()
+        const nowTs = latestBlock.timestamp as bigint
+        const elapsed = nowTs - committedAt
+        if (elapsed < minAge) {
+          const waitSeconds = Number(minAge - elapsed)
+          await new Promise(resolve => setTimeout(resolve, waitSeconds * 1000))
+        }
+      }
+    } catch (_ageErr) {
+      console.error('❌ Failed to check commitment age:', _ageErr)
+      return err(new NameChainContractError({ cause: _ageErr }))
+    }
+
+    return ok(commitHash as `0x${string}`)
+  } catch (error) {
+    console.error('❌ Failed to commit to registration:', error)
+    return err(new NameChainContractError({ cause: error }))
+  }
+}
+
+export const approveTokenForRegistration = async (
+  tokenAddress: `0x${string}`,
+  amount: bigint,
+  ownerAddress: `0x${string}`,
+  sendTransaction: (calls: any[]) => Promise<RhinestoneTransactionResult>,
+): Promise<Result<string, NameChainContractError>> => {
+  // Force token address to lowercase to avoid Rhinestone SDK validation issues
+  const normalizedTokenAddress = tokenAddress.toLowerCase() as `0x${string}`
+  console.log(`🔧 Token address normalization: ${tokenAddress} -> ${normalizedTokenAddress}`)
+
+  try {
+    const approveData = encodeFunctionData({
+      abi: ERC20_ABI,
+      functionName: 'approve',
+      args: [ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER, amount],
+    })
+
+    const result = await sendTransaction([
+      {
+        to: normalizedTokenAddress,
+        data: approveData,
+        value: 0n,
+      },
+    ])
+
+    const approveHash = getTxHashResult(result)
+
+    // Wait a bit for the approval to be processed
+    await new Promise(resolve => setTimeout(resolve, 2000))
+
+    // Verify allowance before proceeding (like in working snippet)
+    try {
+      const currentAllowance = await publicClient.readContract({
+        address: normalizedTokenAddress,
+        abi: ERC20_ABI,
+        functionName: 'allowance',
+        args: [ownerAddress, ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER],
+      })
+      console.log(`🔎 Allowance check: ${ownerAddress} -> ${ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER}`)
+      console.log(`🔎 Current allowance: ${currentAllowance.toString()} (required: ${amount.toString()})`)
+      if (currentAllowance < amount) {
+        // Re-approve with higher amount
+        const reApproveData = encodeFunctionData({
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER, amount * 2n], // Approve double the amount
+        })
+
+        const reApproveResult = await sendTransaction([
+          {
+            to: normalizedTokenAddress,
+            data: reApproveData,
+            value: 0n,
+          },
+        ])
+
+        const reApproveHash = getTxHashResult(reApproveResult)
+        return ok(reApproveHash)
+      }
+      return ok(approveHash)
+    } catch (error) {
+      console.error('❌ Failed to check allowance:', error)
+      return err(new NameChainContractError({ cause: error }))
+    }
+  } catch (error) {
+    console.error('❌ Failed to approve token:', error)
+    return err(new NameChainContractError({ cause: error }))
+  }
+}
+export const registerDomain = async (
+  name: string,
+  ownerAddress: string,
+  secret: string,
+  duration: number, // in years
+  paymentToken: `0x${string}` = SUPPORTED_TOKENS.USDC,
+  sendTransaction: (calls: any[]) => Promise<RhinestoneTransactionResult>,
+): Promise<Result<string, NameChainContractError>> => {
+  // Force payment token address to lowercase to avoid Rhinestone SDK validation issues
+  const normalizedPaymentToken = paymentToken.toLowerCase() as `0x${string}`
+  console.log(`🔧 Payment token normalization: ${paymentToken} -> ${normalizedPaymentToken}`)
+
+  try {
+    // Convert duration from years to seconds
+    const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
+    const cleanName = name.replace('.eth', '')
+
+    // Encode the register function call with the correct parameters
+    const registerData = encodeFunctionData({
+      abi: FASTTESTETHREGISTRAR_ABI,
+      functionName: 'register',
+      args: [
+        cleanName,
+        ownerAddress as `0x${string}`,
+        secret as `0x${string}`,
+        ENS_SEPOLIA_CONTRACTS.REGISTRY,
+        ENS_SEPOLIA_CONTRACTS.PUBLIC_RESOLVER,
+        durationInSeconds,
+        normalizedPaymentToken,
+        REFERER_ADDRESS,
+      ],
+    })
+
+    const result = await sendTransaction([
+      {
+        to: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+        data: registerData,
+        value: 0n,
+      },
+    ])
+
+    const registrationTxHash = getTxHashResult(result)
+
+    return ok(registrationTxHash as `0x${string}`)
+  } catch (error) {
+    console.error('❌ Failed to register domain:', error)
+    return err(new NameChainContractError({ cause: error as string }))
+  }
+}
+
+export const checkRealNameAvailability = ResultFn(async function* (
+  name: string,
+) {
+  const cleanName = name.replace('.eth', '')
+
+  try {
+    // First, let's test if the network is reachable
+    yield* await fromPromise(publicClient.getChainId(), (e) => {
+      return new NameChainContractError({
+        cause: `Network unreachable: ${e}`,
+      })
+    })
+
+    const availability = yield* await fromPromise(
+      publicClient.readContract({
+        address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+        abi: FASTTESTETHREGISTRAR_ABI,
+        functionName: 'isAvailable',
+        args: [cleanName],
+      }),
+      (e) => {
+        return new NameChainContractError({
+          cause: `Contract call failed: ${e}`,
+        })
+      },
+    )
+
+    return ok({
+      isAvailable: Boolean(availability),
+      name: `${cleanName}.eth`,
+    })
+  } catch (error) {
+    console.error('❌ Unexpected error in checkRealNameAvailability:', error)
+    throw new NameChainContractError({ cause: error })
+  }
+})
+
+// Get ENS name info including pricing for different tokens
+export const getENSNameInfo = ResultFn(async function* (
+  name: string,
+  duration: number = 1, // in years
+  paymentToken: `0x${string}` = SUPPORTED_TOKENS.USDC,
+  ownerAddress: `0x${string}` = EMPTY_ADDRESS,
+) {
+  const cleanName = name.replace('.eth', '')
+  const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
+
+  try {
+    // Check availability
+    const availability = yield* await fromPromise(
+      publicClient.readContract({
+        address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+        abi: FASTTESTETHREGISTRAR_ABI,
+        functionName: 'isAvailable',
+        args: [cleanName],
+      }),
+      (e) => new NameChainContractError({ cause: e }),
+    )
+
+    // Get pricing for the specific payment token
+    let _priceResult: any;
+    try {
+      _priceResult = yield* await fromPromise(
+        publicClient.readContract({
+          address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+          abi: FASTTESTETHREGISTRAR_ABI,
+          functionName: 'rentPrice',
+          args: [cleanName, ownerAddress, durationInSeconds, paymentToken],
+        }),
+        (e) => new NameChainContractError({ cause: e }),
+      )
+    } catch (_error) {
+      // Fallback to ETH pricing
+      _priceResult = yield* await fromPromise(
+        publicClient.readContract({
+          address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+          abi: FASTTESTETHREGISTRAR_ABI,
+          functionName: 'rentPrice',
+          args: [cleanName, ownerAddress, durationInSeconds, "0x0000000000000000000000000000000000000000"],
+        }),
+        (e) => new NameChainContractError({ cause: e }),
+      )
+    }
+
+    const basePrice = _priceResult[0];
+    const premium = _priceResult[1];
+    const total = basePrice + premium;
+
+    return ok({
+      name: `${cleanName}.eth`,
+      isAvailable: Boolean(availability),
+      price: {
+        base: basePrice,
+        premium: premium,
+        total: total,
+      },
+      duration: durationInSeconds,
+      paymentToken,
+    })
+  } catch (error) {
+    console.error('❌ Unexpected error in getENSNameInfo:', error)
+    throw new NameChainContractError({ cause: error })
+  }
+})
+
+// Get prices for all supported tokens
+export const getTokenPrices = ResultFn(async function* (
+  name: string,
+  duration: number = 1, // in years
+) {
+  const cleanName = name.replace('.eth', '')
+  const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
+
+  try {
+    const prices: Record<string, any> = {}
+
+    // Get prices for each supported token
+    for (const [tokenName, tokenAddress] of Object.entries(SUPPORTED_TOKENS)) {
+      try {
+        let priceResult: any;
+        try {
+          priceResult = yield* await fromPromise(
+            publicClient.readContract({
+              address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+              abi: FASTTESTETHREGISTRAR_ABI,
+              functionName: 'rentPrice',
+              args: [cleanName, EMPTY_ADDRESS, durationInSeconds, tokenAddress],
+            }),
+            (e) => new NameChainContractError({ cause: e }),
+          )
+        } catch (_error) {
+          // Fallback to ETH pricing
+          priceResult = yield* await fromPromise(
+            publicClient.readContract({
+              address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+              abi: FASTTESTETHREGISTRAR_ABI,
+              functionName: 'rentPrice',
+              args: [cleanName, EMPTY_ADDRESS, durationInSeconds, EMPTY_ADDRESS],
+            }),
+            (e) => new NameChainContractError({ cause: e }),
+          )
+        }
+
+        // Contract returns an array [base, premium], not an object
+        const priceArray = priceResult as unknown as [bigint, bigint];
+        const basePrice = priceArray[0];
+        const premium = priceArray[1];
+        const totalPrice = basePrice + premium;
+
+        // Get token info for formatting
+        const decimals = tokenName === 'USDC' ? 6 : 18 // USDC has 6 decimals, others have 18
+
+        prices[tokenName.toLowerCase()] = {
+          raw: totalPrice,
+          formatted: formatUnits(totalPrice, decimals),
+          address: tokenAddress,
+          symbol: tokenName,
+          decimals,
+        }
+      } catch (_error) {
+        // Continue with other tokens
+      }
+    }
+
+    return ok(prices)
+  } catch (error) {
+    console.error('❌ Unexpected error in getTokenPrices:', error)
+    throw new NameChainContractError({ cause: error })
+  }
+})
+
+// Check if a token is supported for payments
+export const isPaymentTokenSupported = ResultFn(async function* (
+  tokenAddress: `0x${string}`,
+) {
+  try {
+    const isSupported = yield* await fromPromise(
+      publicClient.readContract({
+        address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+        abi: FASTTESTETHREGISTRAR_ABI,
+        functionName: 'isPaymentToken',
+        args: [tokenAddress],
+      }),
+      (e) => new NameChainContractError({ cause: e }),
+    )
+
+    return ok(Boolean(isSupported))
+  } catch (error) {
+    console.error('❌ Unexpected error in isPaymentTokenSupported:', error)
+    throw new NameChainContractError({ cause: error })
+  }
+})
+
