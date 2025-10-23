@@ -41,7 +41,7 @@ export const ForwardNamesTable = ({
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => {
                 return (
-                  <TableHead key={header.id}>
+                  <TableHead className='px-6 py-2' key={header.id}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(
