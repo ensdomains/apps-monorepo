@@ -1,6 +1,7 @@
 import { ResultAsync, errAsync } from 'neverthrow'
 import type { Hash, PublicClient } from 'viem'
-import type { RhinestoneTransactionRequest, RhinestoneConfig } from '../types/transaction.types'
+import type { TransactionRequest, RhinestoneTransactionRequest } from '../types/transaction.types'
+import type { RhinestoneSigner } from '../types/signer.types'
 import { TransactionSubmissionError } from '../errors/transaction.errors'
 import { executeENSRenewal } from '../helpers/rhinestone-account.helpers'
 
@@ -11,40 +12,41 @@ import { executeENSRenewal } from '../helpers/rhinestone-account.helpers'
  * This is a pure actor function with no state - all inputs are explicit parameters.
  */
 export function submitRhinestoneTransaction(input: {
-  request: RhinestoneTransactionRequest
-  rhinestoneAccount: any
+  request: TransactionRequest
+  signer: RhinestoneSigner
   publicClient: PublicClient
-  rhinestoneConfig: RhinestoneConfig
 }): ResultAsync<Hash, TransactionSubmissionError> {
-  const { request, rhinestoneAccount, publicClient, rhinestoneConfig } = input
+  const { request, signer, publicClient } = input
+  const { account, config } = signer
+  const rhinestoneRequest = request as RhinestoneTransactionRequest
 
   console.log('🔧 [RHINESTONE TRANSPORT] Submitting Rhinestone intent transaction:', {
-    accountAddress: rhinestoneAccount?.getAddress?.(),
-    hasParams: !!request.rhinestoneParams,
+    accountAddress: account?.getAddress?.(),
+    hasParams: !!rhinestoneRequest.rhinestoneParams,
   })
 
-  if (!request.rhinestoneParams) {
+  if (!rhinestoneRequest.rhinestoneParams) {
     console.error('❌ [RHINESTONE TRANSPORT] Missing rhinestoneParams')
     return errAsync(
       new TransactionSubmissionError(
-        request,
+        rhinestoneRequest,
         new Error('rhinestoneParams required for Rhinestone transactions')
       )
     )
   }
 
   console.log('🔧 [RHINESTONE TRANSPORT] Executing with Rhinestone account:', {
-    accountAddress: rhinestoneAccount?.getAddress?.(),
-    targetChain: request.rhinestoneParams.chain?.id,
+    accountAddress: account?.getAddress?.(),
+    targetChain: rhinestoneRequest.rhinestoneParams.chain?.id,
   })
 
   // executeENSRenewal returns Promise<Result>, so wrap it with ResultAsync.fromSafePromise
   return ResultAsync.fromSafePromise(
-    executeENSRenewal(rhinestoneAccount, publicClient, request.rhinestoneParams, rhinestoneConfig)
+    executeENSRenewal(account, publicClient, rhinestoneRequest.rhinestoneParams, config)
   )
     .andThen(result => result) // Unwrap the Result from the Promise
     .mapErr(error => {
       console.error('❌ [RHINESTONE TRANSPORT] Transaction submission failed:', error)
-      return new TransactionSubmissionError(request, error as Error)
+      return new TransactionSubmissionError(rhinestoneRequest, error as Error)
     })
 }

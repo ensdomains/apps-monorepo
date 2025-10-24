@@ -1,7 +1,8 @@
 import { ResultAsync, errAsync } from 'neverthrow'
 import { fromPromise as fromPromiseNT } from 'neverthrow'
-import type { Hash, WalletClient } from 'viem'
-import type { EOATransactionRequest } from '../types/transaction.types'
+import type { Hash } from 'viem'
+import type { TransactionRequest, EOATransactionRequest } from '../types/transaction.types'
+import type { EOASigner } from '../types/signer.types'
 import { TransactionSubmissionError } from '../errors/transaction.errors'
 
 /**
@@ -11,35 +12,37 @@ import { TransactionSubmissionError } from '../errors/transaction.errors'
  * This is a pure actor function with no state - all inputs are explicit parameters.
  */
 export function submitEOATransaction(input: {
-  request: EOATransactionRequest
-  walletClient: WalletClient
+  request: TransactionRequest
+  signer: EOASigner
 }): ResultAsync<Hash, TransactionSubmissionError> {
-  const { request, walletClient } = input
+  const { request, signer } = input
+  const { walletClient } = signer
+  const eoaRequest = request as EOATransactionRequest
 
   console.log('🔧 [EOA TRANSPORT] Submitting EOA transaction:', {
-    from: request.from,
-    to: request.to,
-    value: request.value?.toString(),
-    hasData: !!request.data,
+    from: eoaRequest.from,
+    to: eoaRequest.to,
+    value: eoaRequest.value?.toString(),
+    hasData: !!eoaRequest.data,
   })
 
   // Build transaction params - either legacy (gasPrice) or EIP-1559 (maxFeePerGas)
   const txParams: any = {
-    account: request.from,
-    to: request.to,
-    value: request.value,
-    data: request.data,
-    gas: request.gas,
-    nonce: request.nonce,
+    account: eoaRequest.from,
+    to: eoaRequest.to,
+    value: eoaRequest.value,
+    data: eoaRequest.data,
+    gas: eoaRequest.gas,
+    nonce: eoaRequest.nonce,
     chain: walletClient.chain,
   }
 
   // Use either legacy or EIP-1559 gas pricing (not both)
-  if (request.maxFeePerGas !== undefined) {
-    txParams.maxFeePerGas = request.maxFeePerGas
-    txParams.maxPriorityFeePerGas = request.maxPriorityFeePerGas
-  } else if (request.gasPrice !== undefined) {
-    txParams.gasPrice = request.gasPrice
+  if (eoaRequest.maxFeePerGas !== undefined) {
+    txParams.maxFeePerGas = eoaRequest.maxFeePerGas
+    txParams.maxPriorityFeePerGas = eoaRequest.maxPriorityFeePerGas
+  } else if (eoaRequest.gasPrice !== undefined) {
+    txParams.gasPrice = eoaRequest.gasPrice
   }
 
   console.log('🔧 [EOA TRANSPORT] Transaction params prepared:', {
@@ -53,7 +56,7 @@ export function submitEOATransaction(input: {
     walletClient.sendTransaction(txParams),
     (error) => {
       console.error('❌ [EOA TRANSPORT] Transaction submission failed:', error)
-      return new TransactionSubmissionError(request, error)
+      return new TransactionSubmissionError(eoaRequest, error)
     }
   )
 }

@@ -2,14 +2,13 @@ import { setup, assign, fromPromise, type ActorLogic } from 'xstate'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import { ResultAsync, errAsync } from 'neverthrow'
 import { fromPromise as fromPromiseNT } from 'neverthrow'
-import type { Hash, TransactionReceipt, PublicClient, WalletClient } from 'viem'
+import type { Hash, TransactionReceipt, PublicClient } from 'viem'
 import type {
   TransactionRequest,
   TransactionOptions,
   TransactionModalState,
-  RhinestoneConfig,
-  EOATransactionRequest,
 } from '../types/transaction.types'
+import type { Signer } from '../types/signer.types'
 import { submitEOATransaction } from '../actors/eoa-transport.actor'
 import { submitRhinestoneTransaction } from '../actors/rhinestone-transport.actor'
 import * as auditTrail from '../services/audit-trail.service'
@@ -36,9 +35,7 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
   types: {
     context: {} as {
       publicClient: PublicClient
-      walletClient?: WalletClient
-      rhinestoneConfig?: RhinestoneConfig
-      rhinestoneAccount?: any
+      signer?: Signer
       request?: TransactionRequest
       options: TransactionOptions
       hash?: Hash
@@ -50,10 +47,8 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
       modal: TransactionModalState
     },
     input: {} as {
-      publicClient?: PublicClient
-      walletClient?: WalletClient
-      rhinestoneConfig?: RhinestoneConfig
-      rhinestoneAccount?: any
+      publicClient: PublicClient
+      signer?: Signer
       request?: TransactionRequest
       options?: TransactionOptions
     },
@@ -78,23 +73,16 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
     submitTransaction: fromResultAsync(
       ({
         request,
-        options,
+        signer,
         publicClient,
-        walletClient,
-        rhinestoneConfig,
-        rhinestoneAccount,
       }: {
         request?: TransactionRequest
-        options?: TransactionOptions
+        signer?: Signer
         publicClient: PublicClient
-        walletClient?: WalletClient
-        rhinestoneConfig?: RhinestoneConfig
-        rhinestoneAccount?: any
       }): ResultAsync<Hash, TransactionSubmissionError> => {
         console.log('🔧 [TRANSACTION] submitTransaction actor invoked:', {
           requestType: request?.type,
-          hasWalletClient: !!walletClient,
-          hasRhinestoneAccount: !!rhinestoneAccount,
+          signerType: signer?.type,
         })
 
         if (!request) {
@@ -106,42 +94,22 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
           )
         }
 
-        // Route to transport actor based on type
-        switch (request.type) {
-          case 'eoa':
-            if (!walletClient) {
-              return errAsync(
-                new TransactionSubmissionError(
-                  request,
-                  new Error('Wallet client required for EOA transactions')
-                )
-              )
-            }
-            return submitEOATransaction({ request: request as EOATransactionRequest, walletClient })
-
-          case 'rhinestone-intent':
-            if (!rhinestoneAccount) {
-              return errAsync(
-                new TransactionSubmissionError(
-                  request,
-                  new Error('Rhinestone account required for Rhinestone transactions')
-                )
-              )
-            }
-            if (!rhinestoneConfig) {
-              return errAsync(
-                new TransactionSubmissionError(
-                  request,
-                  new Error('Rhinestone config required for Rhinestone transactions')
-                )
-              )
-            }
-            return submitRhinestoneTransaction({
+        if (!signer) {
+          return errAsync(
+            new TransactionSubmissionError(
               request,
-              rhinestoneAccount,
-              publicClient,
-              rhinestoneConfig,
-            })
+              new Error('No signer provided')
+            )
+          )
+        }
+
+        // Route to transport actor based on signer type
+        switch (signer.type) {
+          case 'eoa':
+            return submitEOATransaction({ request, signer })
+
+          case 'rhinestone':
+            return submitRhinestoneTransaction({ request, signer, publicClient })
 
           case 'erc4337':
             return errAsync(
@@ -153,7 +121,7 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
 
           default:
             return errAsync(
-              new TransactionSubmissionError(request, new Error(`Unknown transaction type: ${(request as any).type}`))
+              new TransactionSubmissionError(request, new Error(`Unknown signer type: ${(signer as any).type}`))
             )
         }
       }
@@ -306,16 +274,13 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
     console.log('🏗️ [TRANSACTION] Initializing context:', {
       hasRequest: !!input.request,
       requestType: input.request?.type,
-      hasPublicClient: !!(input.publicClient || input.options?.publicClient),
-      hasWalletClient: !!(input.walletClient || input.options?.walletClient),
-      hasRhinestoneAccount: !!input.rhinestoneAccount,
+      hasPublicClient: !!input.publicClient,
+      signerType: input.signer?.type,
     })
 
     return {
-      publicClient: input.publicClient || input.options?.publicClient!,
-      walletClient: input.walletClient || input.options?.walletClient,
-      rhinestoneConfig: input.rhinestoneConfig || input.options?.rhinestoneConfig,
-      rhinestoneAccount: input.rhinestoneAccount,
+      publicClient: input.publicClient!,
+      signer: input.signer,
       request: input.request,
       options: input.options || {},
       retryCount: 0,
@@ -395,8 +360,7 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
         ({ context }) => {
           console.log('📤 [TRANSACTION] Submitting transaction:', {
             requestType: context.request?.type,
-            hasWalletClient: !!context.walletClient,
-            hasRhinestoneAccount: !!context.rhinestoneAccount,
+            signerType: context.signer?.type,
           })
         },
       ],
@@ -404,11 +368,8 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
         src: 'submitTransaction',
         input: ({ context }) => ({
           request: context.request,
-          options: context.options,
+          signer: context.signer,
           publicClient: context.publicClient,
-          walletClient: context.walletClient,
-          rhinestoneConfig: context.rhinestoneConfig,
-          rhinestoneAccount: context.rhinestoneAccount,
         }),
         onDone: {
           target: 'pending',

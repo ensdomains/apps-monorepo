@@ -74,6 +74,9 @@ __export(index_exports, {
   getTransitionHistory: () => getTransitionHistory,
   importFromJson: () => importFromJson,
   initializeRhinestoneAccount: () => initializeRhinestoneAccount,
+  isEOASigner: () => isEOASigner,
+  isERC4337Signer: () => isERC4337Signer,
+  isRhinestoneSigner: () => isRhinestoneSigner,
   prepareENSRenewal: () => prepareENSRenewal,
   prepareENSRenewalTransaction: () => prepareENSRenewalTransaction,
   recordTransition: () => recordTransition,
@@ -89,6 +92,17 @@ __export(index_exports, {
   useTransactionRegistry: () => useTransactionRegistry
 });
 module.exports = __toCommonJS(index_exports);
+
+// src/types/signer.types.ts
+function isEOASigner(signer) {
+  return signer.type === "eoa";
+}
+function isRhinestoneSigner(signer) {
+  return signer.type === "rhinestone";
+}
+function isERC4337Signer(signer) {
+  return signer.type === "erc4337";
+}
 
 // src/services/audit-trail.service.ts
 var import_neverthrow = require("neverthrow");
@@ -604,27 +618,29 @@ var import_neverthrow7 = require("neverthrow");
 // src/actors/eoa-transport.actor.ts
 var import_neverthrow3 = require("neverthrow");
 function submitEOATransaction(input) {
-  const { request, walletClient } = input;
+  const { request, signer } = input;
+  const { walletClient } = signer;
+  const eoaRequest = request;
   console.log("\u{1F527} [EOA TRANSPORT] Submitting EOA transaction:", {
-    from: request.from,
-    to: request.to,
-    value: request.value?.toString(),
-    hasData: !!request.data
+    from: eoaRequest.from,
+    to: eoaRequest.to,
+    value: eoaRequest.value?.toString(),
+    hasData: !!eoaRequest.data
   });
   const txParams = {
-    account: request.from,
-    to: request.to,
-    value: request.value,
-    data: request.data,
-    gas: request.gas,
-    nonce: request.nonce,
+    account: eoaRequest.from,
+    to: eoaRequest.to,
+    value: eoaRequest.value,
+    data: eoaRequest.data,
+    gas: eoaRequest.gas,
+    nonce: eoaRequest.nonce,
     chain: walletClient.chain
   };
-  if (request.maxFeePerGas !== void 0) {
-    txParams.maxFeePerGas = request.maxFeePerGas;
-    txParams.maxPriorityFeePerGas = request.maxPriorityFeePerGas;
-  } else if (request.gasPrice !== void 0) {
-    txParams.gasPrice = request.gasPrice;
+  if (eoaRequest.maxFeePerGas !== void 0) {
+    txParams.maxFeePerGas = eoaRequest.maxFeePerGas;
+    txParams.maxPriorityFeePerGas = eoaRequest.maxPriorityFeePerGas;
+  } else if (eoaRequest.gasPrice !== void 0) {
+    txParams.gasPrice = eoaRequest.gasPrice;
   }
   console.log("\u{1F527} [EOA TRANSPORT] Transaction params prepared:", {
     hasMaxFeePerGas: !!txParams.maxFeePerGas,
@@ -635,7 +651,7 @@ function submitEOATransaction(input) {
     walletClient.sendTransaction(txParams),
     (error) => {
       console.error("\u274C [EOA TRANSPORT] Transaction submission failed:", error);
-      return new TransactionSubmissionError(request, error);
+      return new TransactionSubmissionError(eoaRequest, error);
     }
   );
 }
@@ -643,29 +659,31 @@ function submitEOATransaction(input) {
 // src/actors/rhinestone-transport.actor.ts
 var import_neverthrow4 = require("neverthrow");
 function submitRhinestoneTransaction(input) {
-  const { request, rhinestoneAccount, publicClient, rhinestoneConfig } = input;
+  const { request, signer, publicClient } = input;
+  const { account, config } = signer;
+  const rhinestoneRequest = request;
   console.log("\u{1F527} [RHINESTONE TRANSPORT] Submitting Rhinestone intent transaction:", {
-    accountAddress: rhinestoneAccount?.getAddress?.(),
-    hasParams: !!request.rhinestoneParams
+    accountAddress: account?.getAddress?.(),
+    hasParams: !!rhinestoneRequest.rhinestoneParams
   });
-  if (!request.rhinestoneParams) {
+  if (!rhinestoneRequest.rhinestoneParams) {
     console.error("\u274C [RHINESTONE TRANSPORT] Missing rhinestoneParams");
     return (0, import_neverthrow4.errAsync)(
       new TransactionSubmissionError(
-        request,
+        rhinestoneRequest,
         new Error("rhinestoneParams required for Rhinestone transactions")
       )
     );
   }
   console.log("\u{1F527} [RHINESTONE TRANSPORT] Executing with Rhinestone account:", {
-    accountAddress: rhinestoneAccount?.getAddress?.(),
-    targetChain: request.rhinestoneParams.chain?.id
+    accountAddress: account?.getAddress?.(),
+    targetChain: rhinestoneRequest.rhinestoneParams.chain?.id
   });
   return import_neverthrow4.ResultAsync.fromSafePromise(
-    executeENSRenewal(rhinestoneAccount, publicClient, request.rhinestoneParams, rhinestoneConfig)
+    executeENSRenewal(account, publicClient, rhinestoneRequest.rhinestoneParams, config)
   ).andThen((result) => result).mapErr((error) => {
     console.error("\u274C [RHINESTONE TRANSPORT] Transaction submission failed:", error);
-    return new TransactionSubmissionError(request, error);
+    return new TransactionSubmissionError(rhinestoneRequest, error);
   });
 }
 
@@ -688,16 +706,12 @@ var transactionMachine = (0, import_xstate.setup)({
     submitTransaction: (0, import_neverthrow5.fromResultAsync)(
       ({
         request,
-        options,
-        publicClient,
-        walletClient,
-        rhinestoneConfig,
-        rhinestoneAccount
+        signer,
+        publicClient
       }) => {
         console.log("\u{1F527} [TRANSACTION] submitTransaction actor invoked:", {
           requestType: request?.type,
-          hasWalletClient: !!walletClient,
-          hasRhinestoneAccount: !!rhinestoneAccount
+          signerType: signer?.type
         });
         if (!request) {
           return (0, import_neverthrow6.errAsync)(
@@ -707,40 +721,19 @@ var transactionMachine = (0, import_xstate.setup)({
             )
           );
         }
-        switch (request.type) {
-          case "eoa":
-            if (!walletClient) {
-              return (0, import_neverthrow6.errAsync)(
-                new TransactionSubmissionError(
-                  request,
-                  new Error("Wallet client required for EOA transactions")
-                )
-              );
-            }
-            return submitEOATransaction({ request, walletClient });
-          case "rhinestone-intent":
-            if (!rhinestoneAccount) {
-              return (0, import_neverthrow6.errAsync)(
-                new TransactionSubmissionError(
-                  request,
-                  new Error("Rhinestone account required for Rhinestone transactions")
-                )
-              );
-            }
-            if (!rhinestoneConfig) {
-              return (0, import_neverthrow6.errAsync)(
-                new TransactionSubmissionError(
-                  request,
-                  new Error("Rhinestone config required for Rhinestone transactions")
-                )
-              );
-            }
-            return submitRhinestoneTransaction({
+        if (!signer) {
+          return (0, import_neverthrow6.errAsync)(
+            new TransactionSubmissionError(
               request,
-              rhinestoneAccount,
-              publicClient,
-              rhinestoneConfig
-            });
+              new Error("No signer provided")
+            )
+          );
+        }
+        switch (signer.type) {
+          case "eoa":
+            return submitEOATransaction({ request, signer });
+          case "rhinestone":
+            return submitRhinestoneTransaction({ request, signer, publicClient });
           case "erc4337":
             return (0, import_neverthrow6.errAsync)(
               new TransactionSubmissionError(
@@ -750,7 +743,7 @@ var transactionMachine = (0, import_xstate.setup)({
             );
           default:
             return (0, import_neverthrow6.errAsync)(
-              new TransactionSubmissionError(request, new Error(`Unknown transaction type: ${request.type}`))
+              new TransactionSubmissionError(request, new Error(`Unknown signer type: ${signer.type}`))
             );
         }
       }
@@ -881,15 +874,12 @@ var transactionMachine = (0, import_xstate.setup)({
     console.log("\u{1F3D7}\uFE0F [TRANSACTION] Initializing context:", {
       hasRequest: !!input.request,
       requestType: input.request?.type,
-      hasPublicClient: !!(input.publicClient || input.options?.publicClient),
-      hasWalletClient: !!(input.walletClient || input.options?.walletClient),
-      hasRhinestoneAccount: !!input.rhinestoneAccount
+      hasPublicClient: !!input.publicClient,
+      signerType: input.signer?.type
     });
     return {
-      publicClient: input.publicClient || input.options?.publicClient,
-      walletClient: input.walletClient || input.options?.walletClient,
-      rhinestoneConfig: input.rhinestoneConfig || input.options?.rhinestoneConfig,
-      rhinestoneAccount: input.rhinestoneAccount,
+      publicClient: input.publicClient,
+      signer: input.signer,
       request: input.request,
       options: input.options || {},
       retryCount: 0,
@@ -968,8 +958,7 @@ var transactionMachine = (0, import_xstate.setup)({
         ({ context }) => {
           console.log("\u{1F4E4} [TRANSACTION] Submitting transaction:", {
             requestType: context.request?.type,
-            hasWalletClient: !!context.walletClient,
-            hasRhinestoneAccount: !!context.rhinestoneAccount
+            signerType: context.signer?.type
           });
         }
       ],
@@ -977,11 +966,8 @@ var transactionMachine = (0, import_xstate.setup)({
         src: "submitTransaction",
         input: ({ context }) => ({
           request: context.request,
-          options: context.options,
-          publicClient: context.publicClient,
-          walletClient: context.walletClient,
-          rhinestoneConfig: context.rhinestoneConfig,
-          rhinestoneAccount: context.rhinestoneAccount
+          signer: context.signer,
+          publicClient: context.publicClient
         }),
         onDone: {
           target: "pending",
@@ -1316,7 +1302,10 @@ function removeTransaction(id) {
 // src/providers/TransactionActorManagerProvider.tsx
 var import_jsx_runtime = require("react/jsx-runtime");
 var TransactionActorManagerContext = (0, import_react.createContext)(null);
-function TransactionActorManagerProvider({ children }) {
+function TransactionActorManagerProvider({
+  children,
+  publicClient
+}) {
   const [transactions, setTransactions] = (0, import_react.useState)(
     /* @__PURE__ */ new Map()
   );
@@ -1335,20 +1324,19 @@ function TransactionActorManagerProvider({ children }) {
       });
     });
   }, []);
-  const startTransaction = (request, options) => {
+  const startTransaction = (request, signer, options) => {
     const txId = options?.id || `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     console.log("\u{1F680} [ACTOR MANAGER] Starting transaction:", {
       id: txId,
-      type: request.type
+      type: request.type,
+      signerType: signer.type
     });
     const actor = (0, import_xstate2.createActor)(transactionMachine, {
       input: {
         request,
-        options,
-        publicClient: options.publicClient,
-        walletClient: options.walletClient,
-        rhinestoneConfig: options.rhinestoneConfig,
-        rhinestoneAccount: options.rhinestoneAccount
+        signer,
+        publicClient,
+        options
       }
     });
     actor.start();
@@ -2806,6 +2794,9 @@ async function exportAllData() {
   getTransitionHistory,
   importFromJson,
   initializeRhinestoneAccount,
+  isEOASigner,
+  isERC4337Signer,
+  isRhinestoneSigner,
   prepareENSRenewal,
   prepareENSRenewalTransaction,
   recordTransition,

@@ -8,20 +8,23 @@ import {
   type PersistedTransaction,
 } from '../services/transaction-registry.service'
 import type { TransactionRequest, TransactionOptions } from '../types/transaction.types'
+import type { Signer } from '../types/signer.types'
+import type { PublicClient } from 'viem'
 
 interface TransactionActorManagerContextValue {
   transactions: Map<string, ActorRefFrom<typeof transactionMachine>>
   startTransaction: (
     request: TransactionRequest,
-    options: TransactionOptions & {
-      publicClient: any
-      walletClient?: any
-      rhinestoneConfig?: any
-      rhinestoneAccount?: any
-    }
+    signer: Signer,
+    options?: TransactionOptions
   ) => string
   cancelTransaction: (id: string) => void
   getTransaction: (id: string) => ActorRefFrom<typeof transactionMachine> | undefined
+}
+
+interface TransactionActorManagerProviderProps {
+  children: ReactNode
+  publicClient: PublicClient
 }
 
 const TransactionActorManagerContext = createContext<TransactionActorManagerContextValue | null>(null)
@@ -33,9 +36,13 @@ const TransactionActorManagerContext = createContext<TransactionActorManagerCont
  * - Spawns transaction actors for each transaction
  * - Persists transaction state to localStorage via registry service
  * - Recovers pending transactions on mount
+ * - Accepts any Signer type (EOA, Rhinestone, Privy, etc.)
  * - No complex state management needed!
  */
-export function TransactionActorManagerProvider({ children }: { children: ReactNode }) {
+export function TransactionActorManagerProvider({
+  children,
+  publicClient
+}: TransactionActorManagerProviderProps) {
   const [transactions, setTransactions] = useState<Map<string, ActorRefFrom<typeof transactionMachine>>>(
     new Map()
   )
@@ -63,29 +70,24 @@ export function TransactionActorManagerProvider({ children }: { children: ReactN
 
   const startTransaction = (
     request: TransactionRequest,
-    options: TransactionOptions & {
-      publicClient: any
-      walletClient?: any
-      rhinestoneConfig?: any
-      rhinestoneAccount?: any
-    }
+    signer: Signer,
+    options?: TransactionOptions
   ): string => {
     const txId = options?.id || `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 
     console.log('🚀 [ACTOR MANAGER] Starting transaction:', {
       id: txId,
       type: request.type,
+      signerType: signer.type,
     })
 
     // Create and start the transaction actor
     const actor = createActor(transactionMachine, {
       input: {
         request,
+        signer,
+        publicClient,
         options,
-        publicClient: options.publicClient,
-        walletClient: options.walletClient,
-        rhinestoneConfig: options.rhinestoneConfig,
-        rhinestoneAccount: options.rhinestoneAccount,
       },
     })
 

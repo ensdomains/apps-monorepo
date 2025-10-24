@@ -1,7 +1,7 @@
 import type { Result } from 'neverthrow'
 import type { PublicClient, WalletClient } from 'viem'
 import { formatEther } from 'viem'
-import { prepareENSRenewal } from '@ens-apps/transaction-manager'
+import { prepareENSRenewal, type Signer } from '@ens-apps/transaction-manager'
 
 const YEAR_IN_SECONDS = 31536000n
 
@@ -152,21 +152,21 @@ export async function handleRenewal(
 }
 
 /**
- * Pure function to handle renewal flow with TransactionRegistryProvider
+ * Pure function to handle renewal flow with TransactionManagerProvider
  *
- * This prepares the transaction and starts it through the registry.
+ * This prepares the transaction and starts it through the manager.
  * Returns the transaction ID for tracking, or null if validation fails.
  *
  * @param formData - User form input
  * @param params - Blockchain clients and configuration
- * @param startTransaction - Function from useTransactionRegistry to start transaction
+ * @param startTransaction - Function from useTransactionManager to start transaction
  * @param rhinestoneAccount - Optional Rhinestone account for smart account transactions
  * @returns Transaction ID if successful, null if validation failed
  */
 export async function handleRenewalWithRegistry(
   formData: RenewalFormData,
   params: RenewalExecuteParams,
-  startTransaction: (request: any, options?: any) => string,
+  startTransaction: (request: any, signer: Signer, options?: any) => string,
   rhinestoneAccount?: any
 ): Promise<{ txId: string | null; error?: string }> {
   // Validate form
@@ -195,14 +195,23 @@ export async function handleRenewalWithRegistry(
 
   const { request, options, modal } = result.value
 
-  // Start transaction through registry with modal data, clients, and account
-  const txId = startTransaction(request, {
+  // Create Signer based on account type
+  const signer: Signer = formData.useSmartAccount && rhinestoneAccount
+    ? {
+        type: 'rhinestone',
+        account: rhinestoneAccount,
+        publicClient: params.publicClient,
+        config: params.rhinestoneConfig!,
+      }
+    : {
+        type: 'eoa',
+        walletClient: params.walletClient!,
+      }
+
+  // Start transaction through manager with signer
+  const txId = startTransaction(request, signer, {
     ...options,
     modal,
-    publicClient: params.publicClient,
-    walletClient: params.walletClient,
-    rhinestoneConfig: params.rhinestoneConfig,
-    rhinestoneAccount,
   })
 
   return { txId }

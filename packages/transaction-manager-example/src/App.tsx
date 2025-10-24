@@ -33,7 +33,7 @@ function AppProviders({ children }: { children: React.ReactNode }) {
       publicClient={publicClient}
       walletClient={walletClient}
     >
-      <TransactionManagerProvider>
+      <TransactionManagerProvider publicClient={publicClient!}>
         {children}
       </TransactionManagerProvider>
     </AccountProvider>

@@ -14,6 +14,21 @@ export type {
 } from './types/transaction.types'
 
 export type {
+  Signer,
+  EOASigner,
+  RhinestoneSigner,
+  ERC4337Signer,
+  PrivySigner,
+  SafeSigner
+} from './types/signer.types'
+
+export {
+  isEOASigner,
+  isRhinestoneSigner,
+  isERC4337Signer
+} from './types/signer.types'
+
+export type {
   StateTransition,
   AuditEntry,
   DebugReport,
