@@ -43,6 +43,7 @@ export const HistoryList = ({
   )
   const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([])
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({})
+  const [globalFilter, setGlobalFilter] = useState('')
 
   // Group all events by transaction ID
   const groupedEvents = useMemo(() => {
@@ -217,10 +218,12 @@ export const HistoryList = ({
     getSortedRowModel: getSortedRowModel(),
     onExpandedChange: setExpanded,
     getExpandedRowModel: getExpandedRowModel(),
+    onGlobalFilterChange: setGlobalFilter,
     state: {
       sorting,
       columnFilters,
       expanded,
+      globalFilter,
     },
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
@@ -232,6 +235,8 @@ export const HistoryList = ({
 
       if (tx.events.some((e) => e.type.toLowerCase().includes(searchValue)))
         return true
+
+      if (tx.from && tx.from.toLowerCase().includes(searchValue)) return true
 
       return false
     },
