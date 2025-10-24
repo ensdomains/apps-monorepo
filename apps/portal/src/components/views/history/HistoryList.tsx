@@ -182,7 +182,9 @@ export const HistoryList = ({
 
     if (selectedEventTypes.length > 0) {
       data = data.filter((tx) => {
-        return tx.events.some((event) => selectedEventTypes.includes(event.type))
+        return tx.events.some((event) =>
+          selectedEventTypes.includes(event.type),
+        )
       })
     }
 
@@ -190,11 +192,9 @@ export const HistoryList = ({
       data = data.filter((tx) => {
         if (!tx.timestamp) return false
         const txDate = new Date(Number(tx.timestamp) * 1000)
-        
         if (dateRange.from && txDate < dateRange.from) {
           return false
         }
-        
         if (dateRange.to) {
           const toEndOfDay = new Date(dateRange.to)
           toEndOfDay.setHours(23, 59, 59, 999)
@@ -202,7 +202,6 @@ export const HistoryList = ({
             return false
           }
         }
-        
         return true
       })
     }
