@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { columns, type HistoryTransaction } from './columns'
+import type { HistoryTransaction } from './columns'
 import { HistorySidebar } from './HistorySidebar'
 import { HistoryTableRow } from './HistoryTableRow'
 
@@ -61,7 +61,10 @@ export const HistoryTable = ({
               .rows.map((row) => <HistoryTableRow key={row.id} row={row} />)
           ) : (
             <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center">
+              <TableCell
+                colSpan={table.getAllColumns().length}
+                className="h-24 text-center"
+              >
                 No history found.
               </TableCell>
             </TableRow>

@@ -19,6 +19,7 @@ import {
 } from '@/components/organisms/HistoryTable/columns'
 import { HistoryTable } from '@/components/organisms/HistoryTable/HistoryTable'
 import { CollapseAllButton } from '@/components/table/CollapseAllButton'
+import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
 import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import {
@@ -41,6 +42,7 @@ export const HistoryList = ({
     null,
   )
   const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([])
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({})
 
   // Group all events by transaction ID
   const groupedEvents = useMemo(() => {
@@ -176,14 +178,37 @@ export const HistoryList = ({
   }, [groupedEvents])
 
   const filteredData = useMemo(() => {
-    if (selectedEventTypes.length === 0) {
-      return groupedEventsWithTimestamps
+    let data = groupedEventsWithTimestamps
+
+    if (selectedEventTypes.length > 0) {
+      data = data.filter((tx) => {
+        return tx.events.some((event) => selectedEventTypes.includes(event.type))
+      })
     }
 
-    return groupedEventsWithTimestamps.filter((tx) => {
-      return tx.events.some((event) => selectedEventTypes.includes(event.type))
-    })
-  }, [groupedEventsWithTimestamps, selectedEventTypes])
+    if (dateRange.from || dateRange.to) {
+      data = data.filter((tx) => {
+        if (!tx.timestamp) return false
+        const txDate = new Date(Number(tx.timestamp) * 1000)
+        
+        if (dateRange.from && txDate < dateRange.from) {
+          return false
+        }
+        
+        if (dateRange.to) {
+          const toEndOfDay = new Date(dateRange.to)
+          toEndOfDay.setHours(23, 59, 59, 999)
+          if (txDate > toEndOfDay) {
+            return false
+          }
+        }
+        
+        return true
+      })
+    }
+
+    return data
+  }, [groupedEventsWithTimestamps, selectedEventTypes, dateRange])
 
   const table = useReactTable({
     data: filteredData,
@@ -264,6 +289,11 @@ export const HistoryList = ({
           <CollapseAllButton
             onToggle={handleCollapseAll}
             isCollapsed={isCollapsed}
+          />
+          <TableDateRangeFilter
+            label="Date"
+            dateRange={dateRange}
+            onChange={setDateRange}
           />
           <TableMultiSelectFilter
             label="Event"

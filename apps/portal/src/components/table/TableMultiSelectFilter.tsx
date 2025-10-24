@@ -67,11 +67,14 @@ export const TableMultiSelectFilter = ({
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant={variant} className="flex items-center gap-2">
-          {label}
-          {selectedCount > 0 && selectedCount < allValues.length && (
+        <Button
+          variant={variant}
+          className="flex items-center gap-2 focus-visible:outline-none"
+        >
+          {label}:
+          {selectedCount > 0 && selectedCount < allValues.length ? (
             <Badge className="ml-1">{selectedCount}</Badge>
-          )}
+          ) : ' All'}
           <ChevronDown className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
