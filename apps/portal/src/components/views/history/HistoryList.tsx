@@ -18,6 +18,8 @@ import {
   type HistoryTransaction,
 } from '@/components/organisms/HistoryTable/columns'
 import { HistoryTable } from '@/components/organisms/HistoryTable/HistoryTable'
+import { CollapseAllButton } from '@/components/table/CollapseAllButton'
+import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import {
   extractEventAddress,
@@ -38,6 +40,7 @@ export const HistoryList = ({
   const [clickedRow, setClickedRow] = useState<Row<HistoryTransaction> | null>(
     null,
   )
+  const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([])
 
   // Group all events by transaction ID
   const groupedEvents = useMemo(() => {
@@ -148,8 +151,42 @@ export const HistoryList = ({
     }))
   }, [groupedEvents, timestamps])
 
+  const eventTypesByCategory = useMemo(() => {
+    const domainEvents = new Set<string>()
+    const registrationEvents = new Set<string>()
+    const resolverEvents = new Set<string>()
+
+    groupedEvents.forEach((tx) => {
+      tx.events.forEach((event) => {
+        if (event.category === 'domain') {
+          domainEvents.add(event.type)
+        } else if (event.category === 'registration') {
+          registrationEvents.add(event.type)
+        } else if (event.category === 'resolver') {
+          resolverEvents.add(event.type)
+        }
+      })
+    })
+
+    return {
+      domain: Array.from(domainEvents).sort(),
+      registration: Array.from(registrationEvents).sort(),
+      resolver: Array.from(resolverEvents).sort(),
+    }
+  }, [groupedEvents])
+
+  const filteredData = useMemo(() => {
+    if (selectedEventTypes.length === 0) {
+      return groupedEventsWithTimestamps
+    }
+
+    return groupedEventsWithTimestamps.filter((tx) => {
+      return tx.events.some((event) => selectedEventTypes.includes(event.type))
+    })
+  }, [groupedEventsWithTimestamps, selectedEventTypes])
+
   const table = useReactTable({
-    data: groupedEventsWithTimestamps,
+    data: filteredData,
     columns,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
@@ -163,6 +200,17 @@ export const HistoryList = ({
     },
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const searchValue = filterValue.toLowerCase()
+      const tx = row.original
+
+      if (tx.transactionID.toLowerCase().includes(searchValue)) return true
+
+      if (tx.events.some((e) => e.type.toLowerCase().includes(searchValue)))
+        return true
+
+      return false
+    },
     meta: {
       onMoreClick: (row: Row<HistoryTransaction>) => {
         setClickedRow(row)
@@ -178,6 +226,20 @@ export const HistoryList = ({
   if (timestampsLoading) return <div>Loading timestamps...</div>
   if (timestampsError)
     return <div>Error loading timestamps: {timestampsError.cause?.message}</div>
+
+  const handleCollapseAll = () => {
+    if (Object.keys(expanded).length > 0) {
+      setExpanded({})
+    } else {
+      const allExpanded: ExpandedState = {}
+      filteredData.forEach((_, index) => {
+        allExpanded[index] = true
+      })
+      setExpanded(allExpanded)
+    }
+  }
+
+  const isCollapsed = Object.keys(expanded).length === 0
 
   return (
     <>
@@ -196,6 +258,40 @@ export const HistoryList = ({
             className="w-full"
             placeholder="Search transactions..."
             onChange={(event) => table.setGlobalFilter(event.target.value)}
+          />
+        </div>
+        <div className="flex flex-row gap-2 flex-wrap">
+          <CollapseAllButton
+            onToggle={handleCollapseAll}
+            isCollapsed={isCollapsed}
+          />
+          <TableMultiSelectFilter
+            label="Event"
+            groups={[
+              {
+                title: 'Domain events',
+                options: eventTypesByCategory.domain.map((type) => ({
+                  label: type,
+                  value: type,
+                })),
+              },
+              {
+                title: 'Registration events',
+                options: eventTypesByCategory.registration.map((type) => ({
+                  label: type,
+                  value: type,
+                })),
+              },
+              {
+                title: 'Resolver events',
+                options: eventTypesByCategory.resolver.map((type) => ({
+                  label: type,
+                  value: type,
+                })),
+              },
+            ].filter((group) => group.options.length > 0)}
+            selectedValues={selectedEventTypes}
+            onChange={setSelectedEventTypes}
           />
         </div>
       </header>
