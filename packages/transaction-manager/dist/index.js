@@ -30,6 +30,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/index.ts
 var index_exports = {};
 __export(index_exports, {
+  AccountProvider: () => AccountProvider,
   ENS_SEPOLIA_CONTRACTS: () => ENS_SEPOLIA_CONTRACTS,
   ETH_REGISTRAR_CONTROLLER_ABI: () => ETH_REGISTRAR_CONTROLLER_ABI,
   EthCallFallbackError: () => EthCallFallbackError,
@@ -39,11 +40,13 @@ __export(index_exports, {
   PaymentSelector: () => PaymentSelector,
   PersistenceError: () => PersistenceError,
   RhinestoneAccountError: () => RhinestoneAccountError,
+  TransactionActorManagerProvider: () => TransactionActorManagerProvider,
   TransactionDetails: () => TransactionDetails,
+  TransactionManagerProvider: () => TransactionActorManagerProvider,
   TransactionModal: () => TransactionModal,
   TransactionModalHeader: () => TransactionModalHeader,
   TransactionRecoveryNotification: () => TransactionRecoveryNotification,
-  TransactionRegistryProvider: () => TransactionRegistryProvider,
+  TransactionRegistryProvider: () => TransactionActorManagerProvider,
   TransactionRevertedError: () => TransactionRevertedError,
   TransactionStatusPanel: () => TransactionStatusPanel,
   TransactionSteps: () => TransactionSteps,
@@ -77,10 +80,12 @@ __export(index_exports, {
   removeActiveTransaction: () => removeActiveTransaction,
   saveActiveTransaction: () => saveActiveTransaction,
   transactionMachine: () => transactionMachine,
-  transactionRegistryMachine: () => transactionRegistryMachine,
+  useAccount: () => useAccount,
   useActiveTransactions: () => useActiveTransactions,
   useRecoveredTransactions: () => useRecoveredTransactions,
   useTransaction: () => useTransaction,
+  useTransactionActorManager: () => useTransactionActorManager,
+  useTransactionManager: () => useTransactionManager,
   useTransactionRegistry: () => useTransactionRegistry
 });
 module.exports = __toCommonJS(index_exports);
@@ -592,80 +597,76 @@ async function executeENSRenewal(rhinestoneAccount, publicClient, params, config
 
 // src/machines/transaction.machine.ts
 var import_xstate = require("xstate");
-var import_neverthrow4 = require("@ens-apps/utils/xstate/neverthrow");
-var import_neverthrow5 = require("neverthrow");
+var import_neverthrow5 = require("@ens-apps/utils/xstate/neverthrow");
+var import_neverthrow6 = require("neverthrow");
+var import_neverthrow7 = require("neverthrow");
 
-// src/helpers/ens-renewal.helpers.ts
+// src/actors/eoa-transport.actor.ts
 var import_neverthrow3 = require("neverthrow");
-async function prepareENSRenewal(params) {
-  const {
-    publicClient,
-    walletClient,
-    name,
-    duration,
-    chainId,
-    useSmartAccount,
-    rhinestoneConfig
-  } = params;
-  try {
-    if (!walletClient?.account?.address) {
-      return (0, import_neverthrow3.err)(new Error("Wallet client with account address is required"));
+function submitEOATransaction(input) {
+  const { request, walletClient } = input;
+  console.log("\u{1F527} [EOA TRANSPORT] Submitting EOA transaction:", {
+    from: request.from,
+    to: request.to,
+    value: request.value?.toString(),
+    hasData: !!request.data
+  });
+  const txParams = {
+    account: request.from,
+    to: request.to,
+    value: request.value,
+    data: request.data,
+    gas: request.gas,
+    nonce: request.nonce,
+    chain: walletClient.chain
+  };
+  if (request.maxFeePerGas !== void 0) {
+    txParams.maxFeePerGas = request.maxFeePerGas;
+    txParams.maxPriorityFeePerGas = request.maxPriorityFeePerGas;
+  } else if (request.gasPrice !== void 0) {
+    txParams.gasPrice = request.gasPrice;
+  }
+  console.log("\u{1F527} [EOA TRANSPORT] Transaction params prepared:", {
+    hasMaxFeePerGas: !!txParams.maxFeePerGas,
+    hasGasPrice: !!txParams.gasPrice,
+    gas: txParams.gas?.toString()
+  });
+  return (0, import_neverthrow3.fromPromise)(
+    walletClient.sendTransaction(txParams),
+    (error) => {
+      console.error("\u274C [EOA TRANSPORT] Transaction submission failed:", error);
+      return new TransactionSubmissionError(request, error);
     }
-    const from = walletClient.account.address;
-    const txResult = await prepareENSRenewalTransaction(publicClient, {
-      name,
-      duration
-    });
-    if (txResult.isErr()) {
-      return (0, import_neverthrow3.err)(txResult.error);
-    }
-    const { to, data, value } = txResult.value;
-    if (useSmartAccount && rhinestoneConfig) {
-      return (0, import_neverthrow3.ok)({
-        request: {
-          type: "rhinestone-intent",
-          to,
-          data,
-          value,
-          from,
-          chainId,
-          rhinestoneParams: { name, duration }
-        },
-        options: {
-          rhinestoneConfig
-        }
-      });
-    } else {
-      return (0, import_neverthrow3.ok)({
-        request: {
-          type: "eoa",
-          to,
-          data,
-          value,
-          from,
-          chainId
-        }
-      });
-    }
-  } catch (error) {
-    return (0, import_neverthrow3.err)(
-      error instanceof Error ? error : new Error("Failed to prepare ENS renewal")
+  );
+}
+
+// src/actors/rhinestone-transport.actor.ts
+var import_neverthrow4 = require("neverthrow");
+function submitRhinestoneTransaction(input) {
+  const { request, rhinestoneAccount, publicClient, rhinestoneConfig } = input;
+  console.log("\u{1F527} [RHINESTONE TRANSPORT] Submitting Rhinestone intent transaction:", {
+    accountAddress: rhinestoneAccount?.getAddress?.(),
+    hasParams: !!request.rhinestoneParams
+  });
+  if (!request.rhinestoneParams) {
+    console.error("\u274C [RHINESTONE TRANSPORT] Missing rhinestoneParams");
+    return (0, import_neverthrow4.errAsync)(
+      new TransactionSubmissionError(
+        request,
+        new Error("rhinestoneParams required for Rhinestone transactions")
+      )
     );
   }
-}
-async function getENSRenewalPrice2(publicClient, name, duration) {
-  const result = await prepareENSRenewalTransaction(publicClient, { name, duration });
-  return result.map((tx) => tx.value).mapErr((err4) => err4);
-}
-async function getRhinestoneSmartAccountAddress(publicClient, walletClient, rhinestoneConfig) {
-  if (!rhinestoneConfig) {
-    return (0, import_neverthrow3.err)(new Error("Rhinestone config required"));
-  }
-  const accountResult = await initializeRhinestoneAccount(walletClient, rhinestoneConfig);
-  if (accountResult.isErr()) {
-    return (0, import_neverthrow3.err)(accountResult.error);
-  }
-  return getRhinestoneAccountAddress(accountResult.value).mapErr((err4) => err4);
+  console.log("\u{1F527} [RHINESTONE TRANSPORT] Executing with Rhinestone account:", {
+    accountAddress: rhinestoneAccount?.getAddress?.(),
+    targetChain: request.rhinestoneParams.chain?.id
+  });
+  return import_neverthrow4.ResultAsync.fromSafePromise(
+    executeENSRenewal(rhinestoneAccount, publicClient, request.rhinestoneParams, rhinestoneConfig)
+  ).andThen((result) => result).mapErr((error) => {
+    console.error("\u274C [RHINESTONE TRANSPORT] Transaction submission failed:", error);
+    return new TransactionSubmissionError(request, error);
+  });
 }
 
 // src/machines/transaction.machine.ts
@@ -676,131 +677,101 @@ var transactionMachine = (0, import_xstate.setup)({
     events: {}
   },
   actors: {
-    prepareRenewal: (0, import_neverthrow4.fromResultAsync)(
-      ({ name, duration, useSmartAccount, renewalPrice, publicClient, walletClient, chainId, rhinestoneConfig }) => {
-        if (!walletClient) {
-          return (0, import_neverthrow5.errAsync)(new Error("Wallet client required"));
-        }
-        const YEAR_IN_SECONDS = 31536000n;
-        const cleanName = name.replace(".eth", "");
-        const durationInSeconds = BigInt(duration) * YEAR_IN_SECONDS;
-        return import_neverthrow5.ResultAsync.fromSafePromise(
-          prepareENSRenewal({
-            publicClient,
-            walletClient,
-            name: cleanName,
-            duration: durationInSeconds,
-            chainId,
-            useSmartAccount,
-            rhinestoneConfig: useSmartAccount ? rhinestoneConfig : void 0
-          })
-        ).andThen((result) => result).map((data) => ({
-          request: data.request,
-          options: {
-            ...data.options,
-            description: `Renew ${cleanName}.eth for ${duration} year(s)`
-          },
-          modal: {
-            title: `Renew ${name}`,
-            ensName: name,
-            network: "Sepolia",
-            estimatedCost: renewalPrice ? `${renewalPrice.toString()} wei` : "0.0011 ETH"
-          }
-        })).mapErr((error) => error);
-      }
-    ),
-    initializeRhinestoneAccount: (0, import_neverthrow4.fromResultAsync)(
-      ({ walletClient, rhinestoneConfig }) => {
-        if (!rhinestoneConfig) {
-          return (0, import_neverthrow5.errAsync)(new Error("Rhinestone config required"));
-        }
-        if (!walletClient) {
-          return (0, import_neverthrow5.errAsync)(new Error("Wallet client required"));
-        }
-        return import_neverthrow5.ResultAsync.fromSafePromise(initializeRhinestoneAccount(walletClient, rhinestoneConfig)).andThen((result) => result).mapErr((error) => error);
-      }
-    ),
-    submitTransaction: (0, import_neverthrow4.fromResultAsync)(
-      ({ request, options, publicClient, walletClient, rhinestoneConfig, rhinestoneAccount }) => {
-        console.log("\u{1F527} [ACTOR] submitTransaction actor invoked with:", {
+    /**
+     * Submit Transaction Actor
+     *
+     * Routes to the appropriate transport actor based on request.type:
+     * - eoa → submitEOATransaction
+     * - rhinestone-intent → submitRhinestoneTransaction
+     * - erc4337 → (not yet implemented)
+     */
+    submitTransaction: (0, import_neverthrow5.fromResultAsync)(
+      ({
+        request,
+        options,
+        publicClient,
+        walletClient,
+        rhinestoneConfig,
+        rhinestoneAccount
+      }) => {
+        console.log("\u{1F527} [TRANSACTION] submitTransaction actor invoked:", {
           requestType: request?.type,
-          hasRhinestoneAccount: !!rhinestoneAccount,
-          rhinestoneAccountAddress: rhinestoneAccount?.getAddress?.(),
-          rhinestoneAccountType: typeof rhinestoneAccount
+          hasWalletClient: !!walletClient,
+          hasRhinestoneAccount: !!rhinestoneAccount
         });
         if (!request) {
-          throw new Error("No transaction request provided");
-        }
-        if (request.type === "rhinestone-intent") {
-          console.log("\u{1F527} [ACTOR] Handling rhinestone-intent transaction");
-          if (!rhinestoneConfig) {
-            return (0, import_neverthrow5.errAsync)(new TransactionSubmissionError(
-              request,
-              new Error("Rhinestone config required for rhinestone-intent transactions")
-            ));
-          }
-          if (!request.rhinestoneParams) {
-            return (0, import_neverthrow5.errAsync)(new TransactionSubmissionError(
-              request,
-              new Error("rhinestoneParams required for Rhinestone transactions")
-            ));
-          }
-          if (!rhinestoneAccount) {
-            return (0, import_neverthrow5.errAsync)(new TransactionSubmissionError(
-              request,
-              new Error("Rhinestone account must be initialized before executing transactions")
-            ));
-          }
-          console.log("\u{1F527} [ACTOR] Executing with cached Rhinestone account:", {
-            hasAccount: !!rhinestoneAccount,
-            accountAddress: rhinestoneAccount?.getAddress?.()
-          });
-          return import_neverthrow5.ResultAsync.fromSafePromise(
-            executeENSRenewal(rhinestoneAccount, publicClient, request.rhinestoneParams, rhinestoneConfig)
-          ).andThen((result) => result).mapErr((error) => {
-            console.error("\u274C Rhinestone error:", error);
-            return new TransactionSubmissionError(request, error);
-          });
-        }
-        if (request.type === "eoa") {
-          if (!walletClient) {
-            return (0, import_neverthrow5.errAsync)(new TransactionSubmissionError(
-              request,
-              new Error("Wallet client required for EOA transactions")
-            ));
-          }
-          const eoaRequest = request;
-          const txParams = {
-            account: eoaRequest.from,
-            to: eoaRequest.to,
-            value: eoaRequest.value,
-            data: eoaRequest.data,
-            gas: eoaRequest.gas,
-            nonce: eoaRequest.nonce,
-            chain: walletClient.chain
-          };
-          if (eoaRequest.maxFeePerGas !== void 0) {
-            txParams.maxFeePerGas = eoaRequest.maxFeePerGas;
-            txParams.maxPriorityFeePerGas = eoaRequest.maxPriorityFeePerGas;
-          } else if (eoaRequest.gasPrice !== void 0) {
-            txParams.gasPrice = eoaRequest.gasPrice;
-          }
-          return (0, import_neverthrow5.fromPromise)(
-            walletClient.sendTransaction(txParams),
-            (error) => new TransactionSubmissionError(request, error)
+          return (0, import_neverthrow6.errAsync)(
+            new TransactionSubmissionError(
+              {},
+              new Error("No transaction request provided")
+            )
           );
         }
-        return (0, import_neverthrow5.errAsync)(new TransactionSubmissionError(
-          request,
-          new Error("ERC-4337 transactions not yet implemented")
-        ));
+        switch (request.type) {
+          case "eoa":
+            if (!walletClient) {
+              return (0, import_neverthrow6.errAsync)(
+                new TransactionSubmissionError(
+                  request,
+                  new Error("Wallet client required for EOA transactions")
+                )
+              );
+            }
+            return submitEOATransaction({ request, walletClient });
+          case "rhinestone-intent":
+            if (!rhinestoneAccount) {
+              return (0, import_neverthrow6.errAsync)(
+                new TransactionSubmissionError(
+                  request,
+                  new Error("Rhinestone account required for Rhinestone transactions")
+                )
+              );
+            }
+            if (!rhinestoneConfig) {
+              return (0, import_neverthrow6.errAsync)(
+                new TransactionSubmissionError(
+                  request,
+                  new Error("Rhinestone config required for Rhinestone transactions")
+                )
+              );
+            }
+            return submitRhinestoneTransaction({
+              request,
+              rhinestoneAccount,
+              publicClient,
+              rhinestoneConfig
+            });
+          case "erc4337":
+            return (0, import_neverthrow6.errAsync)(
+              new TransactionSubmissionError(
+                request,
+                new Error("ERC-4337 transactions not yet implemented")
+              )
+            );
+          default:
+            return (0, import_neverthrow6.errAsync)(
+              new TransactionSubmissionError(request, new Error(`Unknown transaction type: ${request.type}`))
+            );
+        }
       }
     ),
-    waitForReceipt: (0, import_neverthrow4.fromResultAsync)(
-      ({ hash, options, publicClient }) => {
+    /**
+     * Wait for Transaction Receipt
+     */
+    waitForReceipt: (0, import_neverthrow5.fromResultAsync)(
+      ({
+        hash,
+        options,
+        publicClient
+      }) => {
         const confirmations = options?.confirmations || 1;
         const timeout = options?.timeout || 6e4;
-        return (0, import_neverthrow5.fromPromise)(
+        console.log("\u23F3 [TRANSACTION] Waiting for receipt:", {
+          hash,
+          confirmations,
+          timeout
+        });
+        return (0, import_neverthrow7.fromPromise)(
           publicClient.waitForTransactionReceipt({
             hash,
             confirmations,
@@ -810,16 +781,22 @@ var transactionMachine = (0, import_xstate.setup)({
         );
       }
     ),
-    checkWithEthCall: (0, import_neverthrow4.fromResultAsync)(
-      ({ request, publicClient }) => {
+    /**
+     * Check transaction with eth_call fallback
+     */
+    checkWithEthCall: (0, import_neverthrow5.fromResultAsync)(
+      ({
+        request,
+        publicClient
+      }) => {
         if (!request) {
-          throw new Error("No transaction request provided");
+          return (0, import_neverthrow6.errAsync)(new EthCallFallbackError({}, new Error("No request provided")));
         }
-        if (request.type === "erc4337") {
-          return import_neverthrow5.ResultAsync.fromSafePromise(Promise.resolve({ wouldSucceed: true }));
+        if (request.type === "erc4337" || request.type === "rhinestone-intent") {
+          return import_neverthrow6.ResultAsync.fromSafePromise(Promise.resolve({ wouldSucceed: true }));
         }
         const eoaRequest = request;
-        return (0, import_neverthrow5.fromPromise)(
+        return (0, import_neverthrow7.fromPromise)(
           publicClient.call({
             account: eoaRequest.from,
             to: eoaRequest.to,
@@ -835,9 +812,10 @@ var transactionMachine = (0, import_xstate.setup)({
         );
       }
     ),
-    wait: (0, import_xstate.fromPromise)(
-      ({ input }) => new Promise((resolve) => setTimeout(resolve, input))
-    )
+    /**
+     * Wait utility actor
+     */
+    wait: (0, import_xstate.fromPromise)(({ input }) => new Promise((resolve) => setTimeout(resolve, input)))
   },
   guards: {
     canRetry: ({ context }) => context.retryCount < (context.options.retryCount || 3),
@@ -871,56 +849,59 @@ var transactionMachine = (0, import_xstate.setup)({
     logError: ({ context }, params) => {
       const error = params?.error || params || "Unknown error";
       try {
-        addAuditEntry(
-          "error",
-          "Transaction error occurred",
-          {
-            error,
-            hash: context.hash,
-            request: context.request
-          }
-        );
+        addAuditEntry("error", "Transaction error occurred", {
+          error,
+          hash: context.hash,
+          request: context.request
+        });
       } catch (auditError) {
         console.warn("Audit service error (non-fatal):", auditError);
       }
-      console.error("Transaction error:", error);
+      console.error("\u274C [TRANSACTION] Error:", error);
     },
     logCritical: ({ context }, params) => {
       const error = params?.error || params || "Unknown critical error";
       try {
-        addAuditEntry(
-          "critical",
-          "Critical transaction failure",
-          {
-            error,
-            hash: context.hash,
-            request: context.request,
-            retryCount: context.retryCount
-          }
-        );
+        addAuditEntry("critical", "Critical transaction failure", {
+          error,
+          hash: context.hash,
+          request: context.request,
+          retryCount: context.retryCount
+        });
       } catch (auditError) {
         console.warn("Audit service error (non-fatal):", auditError);
       }
-      console.error("CRITICAL:", error);
+      console.error("\u{1F525} [TRANSACTION] CRITICAL:", error);
     }
   }
 }).createMachine({
   id: "transaction",
   initial: "idle",
-  context: ({ input }) => ({
-    publicClient: input.publicClient,
-    walletClient: input.walletClient,
-    rhinestoneConfig: input.rhinestoneConfig,
-    request: void 0,
-    options: {},
-    retryCount: 0,
-    fallbackChecks: 0,
-    modal: {
-      isOpen: false,
-      flowType: "single",
-      currentStepIndex: 0
-    }
-  }),
+  context: ({ input }) => {
+    console.log("\u{1F3D7}\uFE0F [TRANSACTION] Initializing context:", {
+      hasRequest: !!input.request,
+      requestType: input.request?.type,
+      hasPublicClient: !!(input.publicClient || input.options?.publicClient),
+      hasWalletClient: !!(input.walletClient || input.options?.walletClient),
+      hasRhinestoneAccount: !!input.rhinestoneAccount
+    });
+    return {
+      publicClient: input.publicClient || input.options?.publicClient,
+      walletClient: input.walletClient || input.options?.walletClient,
+      rhinestoneConfig: input.rhinestoneConfig || input.options?.rhinestoneConfig,
+      rhinestoneAccount: input.rhinestoneAccount,
+      request: input.request,
+      options: input.options || {},
+      retryCount: 0,
+      fallbackChecks: 0,
+      modal: {
+        isOpen: false,
+        flowType: "single",
+        currentStepIndex: 0,
+        ...input.options?.modal || {}
+      }
+    };
+  },
   on: {
     CLOSE_MODAL: {
       actions: (0, import_xstate.assign)({
@@ -941,9 +922,19 @@ var transactionMachine = (0, import_xstate.setup)({
   },
   states: {
     idle: {
+      entry: ({ context }) => {
+        console.log("\u{1F535} [TRANSACTION] Entered idle state:", {
+          hasRequest: !!context.request,
+          requestType: context.request?.type
+        });
+      },
+      always: {
+        guard: ({ context }) => !!context.request && !!context.publicClient,
+        target: "submitting"
+      },
       on: {
         EXECUTE: {
-          target: "preparing",
+          target: "submitting",
           actions: (0, import_xstate.assign)({
             request: ({ event }) => event.request,
             options: ({ event }) => event.options || {},
@@ -960,21 +951,6 @@ var transactionMachine = (0, import_xstate.setup)({
             })
           })
         },
-        PREPARE_AND_EXECUTE: {
-          target: "preparingTransaction",
-          actions: (0, import_xstate.assign)({
-            retryCount: 0,
-            fallbackChecks: 0,
-            hash: void 0,
-            userOpHash: void 0,
-            receipt: void 0,
-            error: void 0,
-            modal: ({ context }) => ({
-              ...context.modal,
-              isOpen: true
-            })
-          })
-        },
         OPEN_MODAL: {
           actions: (0, import_xstate.assign)({
             modal: ({ event, context }) => ({
@@ -986,177 +962,27 @@ var transactionMachine = (0, import_xstate.setup)({
         }
       }
     },
-    preparingTransaction: {
-      entry: ["recordTransition"],
-      invoke: {
-        src: "prepareRenewal",
-        input: ({ context, event }) => {
-          const prepareEvent = event;
-          return {
-            name: prepareEvent.name,
-            duration: prepareEvent.duration,
-            useSmartAccount: prepareEvent.useSmartAccount,
-            renewalPrice: prepareEvent.renewalPrice,
-            publicClient: context.publicClient,
-            walletClient: context.walletClient,
-            chainId: context.publicClient.chain?.id || 11155111,
-            // Default to Sepolia
-            rhinestoneConfig: context.rhinestoneConfig
-          };
-        },
-        onDone: {
-          target: "preparing",
-          actions: [
-            (0, import_xstate.assign)({
-              request: ({ event }) => event.output.request,
-              options: ({ event }) => event.output.options || {},
-              modal: ({ event, context }) => ({
-                ...context.modal,
-                ...event.output.modal,
-                isOpen: true
-              })
-            }),
-            "recordTransition"
-          ]
-        },
-        onError: {
-          target: "error.validation",
-          actions: [
-            (0, import_xstate.assign)({
-              error: ({ event }) => event.error
-            }),
-            "logError",
-            "recordTransition"
-          ]
-        }
-      }
-    },
-    preparing: {
-      entry: [
-        "recordTransition",
-        ({ context }) => {
-          const isRhinestoneIntent = context.request?.type === "rhinestone-intent";
-          const hasAccount = !!context.rhinestoneAccount;
-          const hasConfig = !!context.rhinestoneConfig;
-          const willInitialize = isRhinestoneIntent && !hasAccount && hasConfig;
-          console.log("\u{1F527} [STATE MACHINE] Entering preparing state", {
-            requestType: context.request?.type,
-            isRhinestoneIntent,
-            hasRhinestoneAccount: hasAccount,
-            rhinestoneAccountAddress: context.rhinestoneAccount?.getAddress?.(),
-            hasRhinestoneConfig: hasConfig,
-            willInitializeAccount: willInitialize,
-            nextState: willInitialize ? "initializingSmartAccount" : "submitting"
-          });
-        }
-      ],
-      always: [
-        {
-          // Initialize smart account first if using Rhinestone and account not cached
-          guard: ({ context }) => context.request?.type === "rhinestone-intent" && !context.rhinestoneAccount && !!context.rhinestoneConfig,
-          target: "initializingSmartAccount"
-        },
-        {
-          target: "submitting"
-        }
-      ]
-    },
-    initializingSmartAccount: {
-      entry: [
-        "recordTransition",
-        ({ context }) => {
-          console.log("\u{1F527} [STATE MACHINE] Entering initializingSmartAccount state", {
-            hasExistingAccount: !!context.rhinestoneAccount,
-            existingAccountAddress: context.rhinestoneAccount?.getAddress?.()
-          });
-        }
-      ],
-      invoke: {
-        src: "initializeRhinestoneAccount",
-        input: ({ context }) => {
-          const inputData = {
-            walletClient: context.walletClient,
-            rhinestoneConfig: context.rhinestoneConfig
-          };
-          console.log("\u{1F527} [STATE MACHINE] Input to initializeRhinestoneAccount:", {
-            hasWalletClient: !!inputData.walletClient,
-            hasConfig: !!inputData.rhinestoneConfig
-          });
-          return inputData;
-        },
-        onDone: {
-          target: "submitting",
-          actions: [
-            ({ event }) => {
-              console.log("\u{1F527} [STATE MACHINE] initializeRhinestoneAccount onDone - received account:", {
-                hasAccount: !!event.output,
-                accountAddress: event.output?.getAddress?.(),
-                accountType: typeof event.output
-              });
-            },
-            (0, import_xstate.assign)({
-              rhinestoneAccount: ({ event }) => {
-                const account = event.output;
-                console.log("\u{1F527} [STATE MACHINE] Assigning rhinestoneAccount to context:", {
-                  hasAccount: !!account,
-                  accountAddress: account?.getAddress?.()
-                });
-                return account;
-              }
-            }),
-            ({ context }) => {
-              console.log("\u{1F527} [STATE MACHINE] After assignment - context.rhinestoneAccount:", {
-                hasAccount: !!context.rhinestoneAccount,
-                accountAddress: context.rhinestoneAccount?.getAddress?.()
-              });
-            },
-            "recordTransition"
-          ]
-        },
-        onError: {
-          target: "error.submission",
-          actions: [
-            ({ event }) => {
-              console.error("\u{1F527} [STATE MACHINE] initializeRhinestoneAccount onError:", event.error);
-            },
-            (0, import_xstate.assign)({
-              error: ({ event }) => event.error
-            }),
-            "logCritical",
-            "recordTransition"
-          ]
-        }
-      }
-    },
     submitting: {
       entry: [
         "recordTransition",
         ({ context }) => {
-          console.log("\u{1F527} [STATE MACHINE] Entering submitting state", {
+          console.log("\u{1F4E4} [TRANSACTION] Submitting transaction:", {
             requestType: context.request?.type,
-            hasRhinestoneAccount: !!context.rhinestoneAccount,
-            rhinestoneAccountAddress: context.rhinestoneAccount?.getAddress?.()
+            hasWalletClient: !!context.walletClient,
+            hasRhinestoneAccount: !!context.rhinestoneAccount
           });
         }
       ],
       invoke: {
         src: "submitTransaction",
-        input: ({ context }) => {
-          const inputData = {
-            request: context.request,
-            options: context.options,
-            publicClient: context.publicClient,
-            walletClient: context.walletClient,
-            rhinestoneConfig: context.rhinestoneConfig,
-            rhinestoneAccount: context.rhinestoneAccount
-          };
-          console.log("\u{1F527} [STATE MACHINE] Input to submitTransaction:", {
-            requestType: inputData.request?.type,
-            hasRhinestoneAccount: !!inputData.rhinestoneAccount,
-            rhinestoneAccountAddress: inputData.rhinestoneAccount?.getAddress?.()
-          });
-          return inputData;
-        },
+        input: ({ context }) => ({
+          request: context.request,
+          options: context.options,
+          publicClient: context.publicClient,
+          walletClient: context.walletClient,
+          rhinestoneConfig: context.rhinestoneConfig,
+          rhinestoneAccount: context.rhinestoneAccount
+        }),
         onDone: {
           target: "pending",
           actions: [
@@ -1164,7 +990,12 @@ var transactionMachine = (0, import_xstate.setup)({
               hash: ({ event }) => event.output,
               userOpHash: ({ event, context }) => context.request?.type === "erc4337" ? event.output : void 0
             }),
-            "recordTransition"
+            "recordTransition",
+            ({ event }) => {
+              console.log("\u2705 [TRANSACTION] Transaction submitted:", {
+                hash: event.output
+              });
+            }
           ]
         },
         onError: [
@@ -1194,27 +1025,30 @@ var transactionMachine = (0, import_xstate.setup)({
       }
     },
     pending: {
-      entry: "recordTransition",
+      entry: [
+        "recordTransition",
+        ({ context }) => {
+          console.log("\u23F3 [TRANSACTION] Transaction pending:", {
+            hash: context.hash
+          });
+        }
+      ],
       invoke: {
         src: "waitForReceipt",
         input: ({ context }) => ({
           hash: context.hash,
           options: context.options,
-          publicClient: context.publicClient,
-          walletClient: context.walletClient,
-          rhinestoneConfig: context.rhinestoneConfig
+          publicClient: context.publicClient
         }),
-        onDone: [
-          {
-            target: "confirming",
-            actions: [
-              (0, import_xstate.assign)({
-                receipt: ({ event }) => event.output
-              }),
-              "recordTransition"
-            ]
-          }
-        ],
+        onDone: {
+          target: "confirming",
+          actions: [
+            (0, import_xstate.assign)({
+              receipt: ({ event }) => event.output
+            }),
+            "recordTransition"
+          ]
+        },
         onError: [
           {
             guard: "shouldCheckFallback",
@@ -1246,14 +1080,17 @@ var transactionMachine = (0, import_xstate.setup)({
       }
     },
     checkingFallback: {
-      entry: "recordTransition",
+      entry: [
+        "recordTransition",
+        () => {
+          console.log("\u{1F50D} [TRANSACTION] Checking with eth_call fallback");
+        }
+      ],
       invoke: {
         src: "checkWithEthCall",
         input: ({ context }) => ({
           request: context.request,
-          publicClient: context.publicClient,
-          walletClient: context.walletClient,
-          rhinestoneConfig: context.rhinestoneConfig
+          publicClient: context.publicClient
         }),
         onDone: [
           {
@@ -1262,14 +1099,10 @@ var transactionMachine = (0, import_xstate.setup)({
             actions: [
               ({ context }) => {
                 try {
-                  addAuditEntry(
-                    "warning",
-                    "Transaction succeeded via eth_call fallback",
-                    {
-                      hash: context.hash,
-                      request: context.request
-                    }
-                  );
+                  addAuditEntry("warning", "Transaction succeeded via eth_call fallback", {
+                    hash: context.hash,
+                    request: context.request
+                  });
                 } catch (auditError) {
                   console.warn("Audit service error (non-fatal):", auditError);
                 }
@@ -1289,16 +1122,22 @@ var transactionMachine = (0, import_xstate.setup)({
       }
     },
     confirming: {
-      entry: "recordTransition",
+      entry: [
+        "recordTransition",
+        ({ context }) => {
+          console.log("\u2714\uFE0F [TRANSACTION] Confirming transaction:", {
+            hash: context.hash,
+            status: context.receipt?.status
+          });
+        }
+      ],
       always: [
         {
           guard: "isReverted",
           target: "error.reverted",
           actions: [
             (0, import_xstate.assign)({
-              error: ({ context }) => new TransactionRevertedError(
-                `Transaction ${context.hash} reverted`
-              )
+              error: ({ context }) => new TransactionRevertedError(`Transaction ${context.hash} reverted`)
             }),
             "logError",
             "recordTransition"
@@ -1311,7 +1150,12 @@ var transactionMachine = (0, import_xstate.setup)({
       ]
     },
     retrying: {
-      entry: "recordTransition",
+      entry: [
+        "recordTransition",
+        ({ context }) => {
+          console.log("\u{1F504} [TRANSACTION] Retrying transaction (attempt ${context.retryCount})");
+        }
+      ],
       invoke: {
         src: "wait",
         input: ({ context }) => context.options.retryDelay || 2e3,
@@ -1332,23 +1176,22 @@ var transactionMachine = (0, import_xstate.setup)({
         "recordTransition",
         ({ context }) => {
           try {
-            addAuditEntry(
-              "info",
-              "Transaction completed successfully",
-              {
-                hash: context.hash,
-                receipt: context.receipt,
-                gasUsed: context.receipt?.gasUsed?.toString()
-              }
-            );
+            addAuditEntry("info", "Transaction completed successfully", {
+              hash: context.hash,
+              receipt: context.receipt,
+              gasUsed: context.receipt?.gasUsed?.toString()
+            });
           } catch (auditError) {
             console.warn("Audit service error (non-fatal):", auditError);
           }
+          console.log("\u2705 [TRANSACTION] Transaction successful:", {
+            hash: context.hash
+          });
         }
       ],
       on: {
         EXECUTE: {
-          target: "preparing",
+          target: "submitting",
           actions: (0, import_xstate.assign)({
             request: ({ event }) => event.request,
             options: ({ event }) => event.options || {},
@@ -1396,7 +1239,7 @@ var transactionMachine = (0, import_xstate.setup)({
           ]
         },
         EXECUTE: {
-          target: "preparing",
+          target: "submitting",
           actions: (0, import_xstate.assign)({
             request: ({ event }) => event.request,
             options: ({ event }) => event.options || {},
@@ -1413,8 +1256,1412 @@ var transactionMachine = (0, import_xstate.setup)({
   }
 });
 
-// src/machines/transaction-registry.machine.ts
+// src/providers/TransactionActorManagerProvider.tsx
+var import_react = require("react");
 var import_xstate2 = require("xstate");
+
+// src/services/transaction-registry.service.ts
+var STORAGE_PREFIX = "tx-";
+function serializeTransaction(transaction) {
+  return JSON.stringify(transaction, (key, value) => {
+    if (typeof value === "bigint") {
+      return { __bigint: value.toString() };
+    }
+    return value;
+  });
+}
+function deserializeTransaction(json) {
+  return JSON.parse(json, (key, value) => {
+    if (value && typeof value === "object" && "__bigint" in value) {
+      return BigInt(value.__bigint);
+    }
+    return value;
+  });
+}
+function saveTransaction(id, transaction) {
+  try {
+    localStorage.setItem(`${STORAGE_PREFIX}${id}`, serializeTransaction(transaction));
+    console.log("\u{1F4BE} [REGISTRY] Saved transaction:", id);
+  } catch (error) {
+    console.error("\u274C [REGISTRY] Failed to save transaction:", error);
+  }
+}
+function getAllTransactions() {
+  try {
+    const keys = Object.keys(localStorage).filter((k) => k.startsWith(STORAGE_PREFIX));
+    return keys.map((k) => {
+      const data = localStorage.getItem(k);
+      return data ? deserializeTransaction(data) : null;
+    }).filter(Boolean);
+  } catch (error) {
+    console.error("\u274C [REGISTRY] Failed to get all transactions:", error);
+    return [];
+  }
+}
+function getPendingTransactions() {
+  const all = getAllTransactions();
+  return all.filter(
+    (tx) => tx.state === "pending" || tx.state === "submitting" || tx.state === "preparing"
+  );
+}
+function removeTransaction(id) {
+  try {
+    localStorage.removeItem(`${STORAGE_PREFIX}${id}`);
+    console.log("\u{1F5D1}\uFE0F [REGISTRY] Removed transaction:", id);
+  } catch (error) {
+    console.error("\u274C [REGISTRY] Failed to remove transaction:", error);
+  }
+}
+
+// src/providers/TransactionActorManagerProvider.tsx
+var import_jsx_runtime = require("react/jsx-runtime");
+var TransactionActorManagerContext = (0, import_react.createContext)(null);
+function TransactionActorManagerProvider({ children }) {
+  const [transactions, setTransactions] = (0, import_react.useState)(
+    /* @__PURE__ */ new Map()
+  );
+  (0, import_react.useEffect)(() => {
+    const pending = getPendingTransactions();
+    if (pending.length === 0) {
+      console.log("\u{1F535} [ACTOR MANAGER] No pending transactions to recover");
+      return;
+    }
+    console.log(`\u{1F504} [ACTOR MANAGER] Found ${pending.length} pending transactions to recover`);
+    pending.forEach((persisted) => {
+      console.log("\u{1F4E6} [ACTOR MANAGER] Pending transaction:", {
+        id: persisted.id,
+        state: persisted.state,
+        hash: persisted.hash
+      });
+    });
+  }, []);
+  const startTransaction = (request, options) => {
+    const txId = options?.id || `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    console.log("\u{1F680} [ACTOR MANAGER] Starting transaction:", {
+      id: txId,
+      type: request.type
+    });
+    const actor = (0, import_xstate2.createActor)(transactionMachine, {
+      input: {
+        request,
+        options,
+        publicClient: options.publicClient,
+        walletClient: options.walletClient,
+        rhinestoneConfig: options.rhinestoneConfig,
+        rhinestoneAccount: options.rhinestoneAccount
+      }
+    });
+    actor.start();
+    console.log("\u2705 [ACTOR MANAGER] Actor started:", txId);
+    actor.subscribe((snapshot) => {
+      const state = snapshot.value;
+      const ctx = snapshot.context;
+      console.log(`\u{1F4CA} [ACTOR MANAGER] Transaction ${txId} state:`, state);
+      const persisted = {
+        id: txId,
+        hash: ctx.hash,
+        state,
+        context: {
+          request,
+          error: ctx.error?.message
+        },
+        timestamp: Date.now(),
+        updatedAt: Date.now()
+      };
+      if (state === "success" || state === "error") {
+        console.log(`\u2705 [ACTOR MANAGER] Removing completed transaction ${txId}`);
+        removeTransaction(txId);
+      } else {
+        saveTransaction(txId, persisted);
+      }
+    });
+    setTransactions((prev) => {
+      const newMap = new Map(prev);
+      newMap.set(txId, actor);
+      return newMap;
+    });
+    return txId;
+  };
+  const cancelTransaction = (id) => {
+    console.log(`\u{1F6D1} [ACTOR MANAGER] Cancelling transaction ${id}`);
+    const actor = transactions.get(id);
+    if (actor) {
+      actor.send({ type: "CANCEL" });
+    }
+    setTransactions((prev) => {
+      const newMap = new Map(prev);
+      newMap.delete(id);
+      return newMap;
+    });
+    removeTransaction(id);
+  };
+  const getTransaction = (id) => {
+    return transactions.get(id);
+  };
+  const contextValue = {
+    transactions,
+    startTransaction,
+    cancelTransaction,
+    getTransaction
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TransactionActorManagerContext.Provider, { value: contextValue, children });
+}
+function useTransactionActorManager() {
+  const context = (0, import_react.useContext)(TransactionActorManagerContext);
+  if (!context) {
+    throw new Error("useTransactionActorManager must be used within TransactionActorManagerProvider");
+  }
+  return context;
+}
+function useTransactionManager() {
+  return useTransactionActorManager();
+}
+function useTransactionRegistry() {
+  return useTransactionActorManager();
+}
+function useTransaction(id) {
+  const { getTransaction } = useTransactionActorManager();
+  return getTransaction(id);
+}
+function useActiveTransactions() {
+  const { transactions } = useTransactionActorManager();
+  return transactions;
+}
+function useRecoveredTransactions() {
+  const [recovered, setRecovered] = (0, import_react.useState)([]);
+  (0, import_react.useEffect)(() => {
+    const pending = getPendingTransactions();
+    setRecovered(pending);
+  }, []);
+  return recovered;
+}
+
+// src/providers/AccountProvider.tsx
+var import_react2 = require("react");
+var import_jsx_runtime2 = require("react/jsx-runtime");
+var AccountContext = (0, import_react2.createContext)(null);
+function AccountProvider({
+  children,
+  walletClient,
+  publicClient,
+  address,
+  isConnected
+}) {
+  const [rhinestoneAccount, setRhinestoneAccount] = (0, import_react2.useState)(void 0);
+  const [isInitializingAccount, setIsInitializingAccount] = (0, import_react2.useState)(false);
+  const [accountError, setAccountError] = (0, import_react2.useState)(void 0);
+  (0, import_react2.useEffect)(() => {
+    if (!isConnected) {
+      setRhinestoneAccount(void 0);
+      setAccountError(void 0);
+    }
+  }, [isConnected]);
+  const initializeRhinestone = async (walletClient2, config) => {
+    if (rhinestoneAccount) {
+      console.log("\u{1F510} [ACCOUNT] Rhinestone account already initialized");
+      return;
+    }
+    setIsInitializingAccount(true);
+    setAccountError(void 0);
+    console.log("\u{1F510} [ACCOUNT] Initializing Rhinestone account...");
+    const result = await initializeRhinestoneAccount(walletClient2, config);
+    if (result.isErr()) {
+      console.error("\u274C [ACCOUNT] Failed to initialize Rhinestone account:", result.error);
+      setAccountError(result.error);
+      setIsInitializingAccount(false);
+      return;
+    }
+    console.log("\u2705 [ACCOUNT] Rhinestone account initialized:", {
+      address: result.value?.getAddress?.()
+    });
+    setRhinestoneAccount(result.value);
+    setIsInitializingAccount(false);
+  };
+  const clearAccount = () => {
+    console.log("\u{1F9F9} [ACCOUNT] Clearing Rhinestone account");
+    setRhinestoneAccount(void 0);
+    setAccountError(void 0);
+  };
+  const contextValue = {
+    address,
+    isConnected,
+    walletClient,
+    publicClient,
+    rhinestoneAccount,
+    isInitializingAccount,
+    accountError,
+    initializeRhinestone,
+    clearAccount
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(AccountContext.Provider, { value: contextValue, children });
+}
+function useAccount() {
+  const context = (0, import_react2.useContext)(AccountContext);
+  if (!context) {
+    throw new Error("useAccount must be used within AccountProvider");
+  }
+  return context;
+}
+
+// src/helpers/ens-renewal.helpers.ts
+var import_neverthrow8 = require("neverthrow");
+async function prepareENSRenewal(params) {
+  const {
+    publicClient,
+    walletClient,
+    name,
+    duration,
+    chainId,
+    useSmartAccount,
+    rhinestoneConfig
+  } = params;
+  try {
+    if (!walletClient?.account?.address) {
+      return (0, import_neverthrow8.err)(new Error("Wallet client with account address is required"));
+    }
+    const from = walletClient.account.address;
+    const txResult = await prepareENSRenewalTransaction(publicClient, {
+      name,
+      duration
+    });
+    if (txResult.isErr()) {
+      return (0, import_neverthrow8.err)(txResult.error);
+    }
+    const { to, data, value } = txResult.value;
+    if (useSmartAccount && rhinestoneConfig) {
+      return (0, import_neverthrow8.ok)({
+        request: {
+          type: "rhinestone-intent",
+          to,
+          data,
+          value,
+          from,
+          chainId,
+          rhinestoneParams: { name, duration }
+        },
+        options: {
+          rhinestoneConfig
+        }
+      });
+    } else {
+      return (0, import_neverthrow8.ok)({
+        request: {
+          type: "eoa",
+          to,
+          data,
+          value,
+          from,
+          chainId
+        }
+      });
+    }
+  } catch (error) {
+    return (0, import_neverthrow8.err)(
+      error instanceof Error ? error : new Error("Failed to prepare ENS renewal")
+    );
+  }
+}
+async function getENSRenewalPrice2(publicClient, name, duration) {
+  const result = await prepareENSRenewalTransaction(publicClient, { name, duration });
+  return result.map((tx) => tx.value).mapErr((err4) => err4);
+}
+async function getRhinestoneSmartAccountAddress(publicClient, walletClient, rhinestoneConfig) {
+  if (!rhinestoneConfig) {
+    return (0, import_neverthrow8.err)(new Error("Rhinestone config required"));
+  }
+  const accountResult = await initializeRhinestoneAccount(walletClient, rhinestoneConfig);
+  if (accountResult.isErr()) {
+    return (0, import_neverthrow8.err)(accountResult.error);
+  }
+  return getRhinestoneAccountAddress(accountResult.value).mapErr((err4) => err4);
+}
+
+// src/components/TransactionModal/TransactionModal.tsx
+var import_react3 = require("react");
+
+// src/components/TransactionModal/TransactionModalHeader.tsx
+var import_jsx_runtime3 = require("react/jsx-runtime");
+function TransactionModalHeader({
+  title,
+  ensName,
+  avatarUrl,
+  status
+}) {
+  const getStatusLabel = () => {
+    if (status === "success") return "Done";
+    if (status?.startsWith("error")) return "Failed";
+    if (status === "submitting" || status === "pending" || status === "retrying") {
+      return "In Progress";
+    }
+    if (status === "preparing" || status === "idle") return "Not started";
+    return status;
+  };
+  const statusLabel = getStatusLabel();
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { textAlign: "center" }, children: [
+    ensName && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { marginBottom: "16px" }, children: [
+      avatarUrl ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+        "img",
+        {
+          src: avatarUrl,
+          alt: ensName,
+          style: {
+            width: "80px",
+            height: "80px",
+            borderRadius: "50%",
+            objectFit: "cover",
+            marginBottom: "12px"
+          }
+        }
+      ) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+        "div",
+        {
+          style: {
+            width: "80px",
+            height: "80px",
+            borderRadius: "50%",
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "32px",
+            color: "white",
+            fontWeight: "bold",
+            marginBottom: "12px"
+          },
+          children: ensName.charAt(0).toUpperCase()
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+        "div",
+        {
+          style: {
+            fontSize: "20px",
+            fontWeight: "600",
+            color: "#333",
+            marginBottom: "4px"
+          },
+          children: ensName
+        }
+      )
+    ] }),
+    title && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginBottom: "8px" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+        "span",
+        {
+          style: {
+            fontSize: "14px",
+            color: "#666",
+            background: "#f5f5f5",
+            padding: "4px 8px",
+            borderRadius: "4px"
+          },
+          children: "[title]"
+        }
+      ),
+      statusLabel && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+        "span",
+        {
+          style: {
+            fontSize: "12px",
+            color: "#666",
+            padding: "2px 6px",
+            borderRadius: "4px",
+            background: "#f5f5f5"
+          },
+          children: statusLabel
+        }
+      )
+    ] })
+  ] });
+}
+
+// src/components/TransactionModal/TransactionSteps.tsx
+var import_jsx_runtime4 = require("react/jsx-runtime");
+function TransactionSteps({ steps, currentStepIndex }) {
+  if (!steps || steps.length === 0) return null;
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { marginTop: "20px" }, children: steps.map((step, index) => {
+    const isActive = index === currentStepIndex;
+    const isCompleted = step.status === "completed";
+    const isFailed = step.status === "failed";
+    const isInProgress = step.status === "in_progress";
+    const getStepIcon = () => {
+      if (isCompleted) return "\u2713";
+      if (isFailed) return "\u2717";
+      if (isInProgress) return "\u27F3";
+      return "\u2192";
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+      "div",
+      {
+        style: {
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "12px",
+          padding: "12px",
+          marginBottom: index < steps.length - 1 ? "8px" : 0,
+          background: isActive ? "#f5f5f5" : "transparent",
+          borderRadius: "8px",
+          borderLeft: `3px solid ${isCompleted ? "#4CAF50" : isFailed ? "#F44336" : isInProgress ? "#2196F3" : "#E0E0E0"}`
+        },
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+            "div",
+            {
+              style: {
+                width: "24px",
+                height: "24px",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "14px",
+                background: isCompleted ? "#4CAF50" : isFailed ? "#F44336" : isInProgress ? "#2196F3" : "#E0E0E0",
+                color: isCompleted || isFailed || isInProgress ? "white" : "#666",
+                flexShrink: 0
+              },
+              children: getStepIcon()
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { style: { flex: 1 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+              "div",
+              {
+                style: {
+                  fontSize: "14px",
+                  fontWeight: isActive ? "600" : "500",
+                  color: isFailed ? "#F44336" : "#333",
+                  marginBottom: step.description ? "4px" : 0
+                },
+                children: step.title
+              }
+            ),
+            step.description && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { fontSize: "12px", color: "#666" }, children: step.description }),
+            step.hash && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+              "a",
+              {
+                href: `https://sepolia.etherscan.io/tx/${step.hash}`,
+                target: "_blank",
+                rel: "noopener noreferrer",
+                style: {
+                  fontSize: "12px",
+                  color: "#2196F3",
+                  textDecoration: "none",
+                  display: "inline-block",
+                  marginTop: "4px"
+                },
+                children: "View transaction \u2197"
+              }
+            ),
+            isFailed && step.error && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+              "div",
+              {
+                style: {
+                  fontSize: "12px",
+                  color: "#F44336",
+                  marginTop: "4px",
+                  padding: "8px",
+                  background: "#FFEBEE",
+                  borderRadius: "4px"
+                },
+                children: step.error
+              }
+            )
+          ] })
+        ]
+      },
+      step.id
+    );
+  }) });
+}
+
+// src/components/TransactionModal/TransactionDetails.tsx
+var import_jsx_runtime5 = require("react/jsx-runtime");
+function TransactionDetails({
+  network,
+  estimatedCost,
+  status
+}) {
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+    "div",
+    {
+      style: {
+        marginTop: "20px",
+        padding: "16px",
+        background: "#f9f9f9",
+        borderRadius: "8px",
+        border: "1px solid #e0e0e0"
+      },
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+          "div",
+          {
+            style: {
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: estimatedCost ? "12px" : 0
+            },
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { fontSize: "14px", color: "#666" }, children: "Network" }),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "6px" }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                  "div",
+                  {
+                    style: {
+                      width: "16px",
+                      height: "16px",
+                      borderRadius: "50%",
+                      background: network.toLowerCase().includes("sepolia") ? "#FFA726" : "linear-gradient(135deg, #627EEA 0%, #8A92B2 100%)"
+                    }
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { fontSize: "14px", fontWeight: "500", color: "#333" }, children: network })
+              ] })
+            ]
+          }
+        ),
+        estimatedCost && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+          "div",
+          {
+            style: {
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center"
+            },
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { fontSize: "14px", color: "#666" }, children: "Est. cost" }),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { fontSize: "14px", fontWeight: "500", color: "#333" }, children: estimatedCost })
+            ]
+          }
+        )
+      ]
+    }
+  );
+}
+
+// src/components/TransactionModal/PaymentSelector.tsx
+var import_jsx_runtime6 = require("react/jsx-runtime");
+function PaymentSelector({ options, selected, onSelect }) {
+  if (!options || options.length === 0) return null;
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { marginTop: "20px" }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+      "h3",
+      {
+        style: {
+          fontSize: "16px",
+          fontWeight: "600",
+          color: "#333",
+          marginBottom: "12px"
+        },
+        children: "Choose payment"
+      }
+    ),
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: "8px" }, children: options.map((option) => {
+      const isSelected = selected === option.method;
+      return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+        "button",
+        {
+          onClick: () => onSelect?.(option.method),
+          style: {
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "12px 16px",
+            background: isSelected ? "#E3F2FD" : "white",
+            border: `2px solid ${isSelected ? "#2196F3" : "#E0E0E0"}`,
+            borderRadius: "8px",
+            cursor: "pointer",
+            transition: "all 0.2s"
+          },
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "12px" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+                "div",
+                {
+                  style: {
+                    width: "20px",
+                    height: "20px",
+                    borderRadius: "50%",
+                    border: `2px solid ${isSelected ? "#2196F3" : "#ccc"}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                  },
+                  children: isSelected && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+                    "div",
+                    {
+                      style: {
+                        width: "10px",
+                        height: "10px",
+                        borderRadius: "50%",
+                        background: "#2196F3"
+                      }
+                    }
+                  )
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+                "div",
+                {
+                  style: {
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "50%",
+                    background: option.method.includes("usdc") ? "#2775CA" : "linear-gradient(135deg, #627EEA 0%, #8A92B2 100%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "white",
+                    fontSize: "12px",
+                    fontWeight: "bold"
+                  },
+                  children: option.method.includes("usdc") ? "U" : "\u039E"
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { fontSize: "14px", fontWeight: "500", color: "#333" }, children: option.label }),
+                option.network && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { fontSize: "12px", color: "#666" }, children: option.network })
+              ] })
+            ] }),
+            option.balance && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { fontSize: "14px", color: "#666" }, children: option.balance })
+          ]
+        },
+        option.method
+      );
+    }) })
+  ] });
+}
+
+// src/components/TransactionModal/TransactionModal.tsx
+var import_jsx_runtime7 = require("react/jsx-runtime");
+function TransactionModal({
+  isOpen,
+  title,
+  ensName,
+  avatarUrl,
+  network,
+  estimatedCost,
+  steps,
+  currentStepIndex = 0,
+  flowType = "single",
+  selectedPayment,
+  paymentOptions,
+  machineState = "idle",
+  onClose,
+  onStart,
+  onContinue,
+  onDone,
+  onRetry,
+  onPaymentSelect,
+  onBack
+}) {
+  (0, import_react3.useEffect)(() => {
+    const handleEscape = (e) => {
+      if (e.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isOpen, onClose]);
+  (0, import_react3.useEffect)(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
+  if (!isOpen) return null;
+  const isIdle = machineState === "idle" || machineState === "preparing";
+  const isInProgress = machineState === "submitting" || machineState === "pending" || machineState === "confirming";
+  const isSuccess = machineState === "success";
+  const isError = machineState.startsWith("error");
+  const isRetrying = machineState === "retrying";
+  console.log("TransactionModal - machineState:", machineState, { isIdle, isInProgress, isSuccess, isError, isRetrying });
+  const getButtonConfig = () => {
+    if (isSuccess) {
+      return {
+        text: "Done",
+        onClick: onDone,
+        disabled: false
+      };
+    }
+    if (isError) {
+      return {
+        text: "Retry",
+        onClick: onRetry,
+        disabled: false
+      };
+    }
+    if (isInProgress || isRetrying) {
+      return {
+        text: isRetrying ? "Retrying..." : "Waiting...",
+        onClick: void 0,
+        disabled: true
+      };
+    }
+    if (steps && steps.length > 1 && currentStepIndex < steps.length - 1) {
+      return {
+        text: "Continue",
+        onClick: onContinue,
+        disabled: false
+      };
+    }
+    return {
+      text: "Start",
+      onClick: onStart,
+      disabled: false
+    };
+  };
+  const buttonConfig = getButtonConfig();
+  const showPaymentSelector = isIdle && paymentOptions && paymentOptions.length > 0;
+  return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+    "div",
+    {
+      style: {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1e3,
+        padding: "20px"
+      },
+      onClick: onClose,
+      children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+        "div",
+        {
+          style: {
+            backgroundColor: "white",
+            borderRadius: "12px",
+            maxWidth: "420px",
+            width: "100%",
+            maxHeight: "90vh",
+            overflow: "auto",
+            position: "relative",
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)"
+          },
+          onClick: (e) => e.stopPropagation(),
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+              "button",
+              {
+                onClick: onClose,
+                style: {
+                  position: "absolute",
+                  top: "16px",
+                  right: "16px",
+                  background: "transparent",
+                  border: "none",
+                  fontSize: "24px",
+                  cursor: "pointer",
+                  padding: "4px 8px",
+                  lineHeight: 1,
+                  color: "#666"
+                },
+                "aria-label": "Close modal",
+                children: "\xD7"
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { style: { padding: "24px" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                TransactionModalHeader,
+                {
+                  title,
+                  ensName,
+                  avatarUrl,
+                  status: machineState
+                }
+              ),
+              isInProgress && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+                "div",
+                {
+                  style: {
+                    marginTop: "16px",
+                    padding: "8px 12px",
+                    background: "#FFF3E0",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    color: "#F57C00",
+                    textAlign: "center"
+                  },
+                  children: [
+                    "\u23F3 ",
+                    isRetrying ? "Retrying transaction..." : "Transaction in progress..."
+                  ]
+                }
+              ),
+              isSuccess && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                "div",
+                {
+                  style: {
+                    marginTop: "16px",
+                    padding: "8px 12px",
+                    background: "#E8F5E9",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    color: "#2E7D32",
+                    textAlign: "center"
+                  },
+                  children: "\u2713 Transaction completed"
+                }
+              ),
+              isError && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                "div",
+                {
+                  style: {
+                    marginTop: "16px",
+                    padding: "8px 12px",
+                    background: "#FFEBEE",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    color: "#C62828",
+                    textAlign: "center"
+                  },
+                  children: "\u2717 Transaction failed"
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                TransactionDetails,
+                {
+                  network: network || "Mainnet",
+                  estimatedCost,
+                  status: machineState
+                }
+              ),
+              steps && steps.length > 1 && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                TransactionSteps,
+                {
+                  steps,
+                  currentStepIndex
+                }
+              ),
+              showPaymentSelector && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                PaymentSelector,
+                {
+                  options: paymentOptions,
+                  selected: selectedPayment,
+                  onSelect: onPaymentSelect
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { style: { marginTop: "24px", display: "flex", gap: "12px" }, children: [
+                onBack && currentStepIndex > 0 && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                  "button",
+                  {
+                    onClick: onBack,
+                    style: {
+                      flex: 1,
+                      padding: "12px 24px",
+                      fontSize: "16px",
+                      background: "#f5f5f5",
+                      color: "#333",
+                      border: "none",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      fontWeight: 500
+                    },
+                    children: "\u2190 Back"
+                  }
+                ),
+                buttonConfig.onClick && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                  "button",
+                  {
+                    onClick: buttonConfig.onClick,
+                    disabled: buttonConfig.disabled,
+                    style: {
+                      flex: 1,
+                      padding: "12px 24px",
+                      fontSize: "16px",
+                      background: buttonConfig.disabled ? "#ccc" : "#2196F3",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      cursor: buttonConfig.disabled ? "not-allowed" : "pointer",
+                      fontWeight: 500
+                    },
+                    children: buttonConfig.text
+                  }
+                )
+              ] })
+            ] })
+          ]
+        }
+      )
+    }
+  );
+}
+
+// src/components/TransactionRecoveryNotification.tsx
+var import_react4 = __toESM(require("react"));
+var import_jsx_runtime8 = require("react/jsx-runtime");
+function TransactionRecoveryNotification({
+  render,
+  autoRecover = false
+}) {
+  const recoveredTransactions = useRecoveredTransactions();
+  const [dismissed, setDismissed] = import_react4.default.useState(false);
+  import_react4.default.useEffect(() => {
+    if (autoRecover && recoveredTransactions.length > 0) {
+      console.log("\u{1F504} [RECOVERY] Auto-recover not yet implemented");
+    }
+  }, [autoRecover, recoveredTransactions.length]);
+  const handleRecover = () => {
+    console.log("\u{1F504} [RECOVERY] Manual recover not yet implemented");
+    setDismissed(true);
+  };
+  const handleDismiss = () => {
+    console.log("\u{1F504} [RECOVERY] Clear recovered not yet implemented");
+    setDismissed(true);
+  };
+  if (dismissed || recoveredTransactions.length === 0 || autoRecover) {
+    return null;
+  }
+  if (render) {
+    return /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_jsx_runtime8.Fragment, { children: render({
+      count: recoveredTransactions.length,
+      onRecover: handleRecover,
+      onDismiss: handleDismiss,
+      transactions: recoveredTransactions
+    }) });
+  }
+  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+    "div",
+    {
+      style: {
+        position: "fixed",
+        top: 20,
+        right: 20,
+        padding: "16px 24px",
+        background: "#fff",
+        border: "1px solid #ddd",
+        borderRadius: 8,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+        zIndex: 9999,
+        maxWidth: 400
+      },
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("h3", { style: { margin: "0 0 8px 0", fontSize: 16, fontWeight: 600 }, children: "Pending Transactions Found" }),
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("p", { style: { margin: "0 0 16px 0", fontSize: 14, color: "#666" }, children: [
+          recoveredTransactions.length,
+          " pending transaction(s) were found from a previous session. Would you like to resume tracking them?"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "button",
+            {
+              onClick: handleRecover,
+              style: {
+                padding: "8px 16px",
+                background: "#4CAF50",
+                color: "#fff",
+                border: "none",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontSize: 14
+              },
+              children: [
+                "Resume (",
+                recoveredTransactions.length,
+                ")"
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+            "button",
+            {
+              onClick: handleDismiss,
+              style: {
+                padding: "8px 16px",
+                background: "#fff",
+                color: "#666",
+                border: "1px solid #ddd",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontSize: 14
+              },
+              children: "Dismiss"
+            }
+          )
+        ] })
+      ]
+    }
+  );
+}
+
+// src/components/GlobalTransactionToasts.tsx
+var import_react5 = require("react");
+var import_jsx_runtime9 = require("react/jsx-runtime");
+function GlobalTransactionToasts({
+  render,
+  autoDismiss = 5e3,
+  maxToasts = 5,
+  enabled = true
+}) {
+  const transactions = useActiveTransactions();
+  const [toasts, setToasts] = (0, import_react5.useState)([]);
+  const [seenStates, setSeenStates] = (0, import_react5.useState)(/* @__PURE__ */ new Map());
+  (0, import_react5.useEffect)(() => {
+    if (!enabled) return;
+    const subscriptions = [];
+    transactions.forEach((actor, txId) => {
+      const subscription = actor.subscribe((snapshot) => {
+        const state = snapshot.value;
+        const context = snapshot.context;
+        const seen = seenStates.get(txId) || /* @__PURE__ */ new Set();
+        if (seen.has(state)) return;
+        let toast = null;
+        switch (state) {
+          case "submitting":
+            toast = {
+              id: `${txId}-submitting`,
+              type: "info",
+              message: "Submitting transaction...",
+              txId,
+              timestamp: Date.now()
+            };
+            break;
+          case "pending":
+            toast = {
+              id: `${txId}-pending`,
+              type: "info",
+              message: `Transaction pending: ${context.hash?.slice(0, 10)}...`,
+              txId,
+              timestamp: Date.now()
+            };
+            break;
+          case "confirmed":
+            toast = {
+              id: `${txId}-confirmed`,
+              type: "success",
+              message: "Transaction confirmed!",
+              txId,
+              timestamp: Date.now()
+            };
+            break;
+          case "failed":
+            toast = {
+              id: `${txId}-failed`,
+              type: "error",
+              message: `Transaction failed: ${context.error?.message || "Unknown error"}`,
+              txId,
+              timestamp: Date.now()
+            };
+            break;
+        }
+        if (toast) {
+          const updatedSeen = new Set(seen).add(state);
+          setSeenStates((prev) => new Map(prev).set(txId, updatedSeen));
+          setToasts((prev) => {
+            const newToasts = [...prev, toast];
+            return newToasts.slice(-maxToasts);
+          });
+          if (autoDismiss > 0) {
+            setTimeout(() => {
+              setToasts((prev) => prev.filter((t) => t.id !== toast.id));
+            }, autoDismiss);
+          }
+        }
+      });
+      subscriptions.push(subscription);
+    });
+    return () => {
+      subscriptions.forEach((sub) => sub.unsubscribe());
+    };
+  }, [transactions, enabled, autoDismiss, maxToasts, seenStates]);
+  const handleDismiss = (toastId) => {
+    setToasts((prev) => prev.filter((t) => t.id !== toastId));
+  };
+  if (!enabled || toasts.length === 0) {
+    return null;
+  }
+  if (render) {
+    return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_jsx_runtime9.Fragment, { children: render(toasts, handleDismiss) });
+  }
+  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
+    "div",
+    {
+      style: {
+        position: "fixed",
+        bottom: 20,
+        right: 20,
+        zIndex: 9999,
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        maxWidth: 400
+      },
+      children: [
+        toasts.map((toast) => /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
+          "div",
+          {
+            style: {
+              padding: "12px 16px",
+              background: getToastColor(toast.type),
+              color: "#fff",
+              borderRadius: 8,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              animation: "slideIn 0.3s ease-out"
+            },
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { style: { flex: 1, fontSize: 14 }, children: toast.message }),
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+                "button",
+                {
+                  onClick: () => handleDismiss(toast.id),
+                  style: {
+                    background: "transparent",
+                    border: "none",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontSize: 20,
+                    padding: 0,
+                    lineHeight: 1
+                  },
+                  children: "\xD7"
+                }
+              )
+            ]
+          },
+          toast.id
+        )),
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("style", { children: `
+        @keyframes slideIn {
+          from {
+            transform: translateX(400px);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      ` })
+      ]
+    }
+  );
+}
+function getToastColor(type) {
+  switch (type) {
+    case "success":
+      return "#4CAF50";
+    case "error":
+      return "#f44336";
+    case "warning":
+      return "#ff9800";
+    case "info":
+    default:
+      return "#2196F3";
+  }
+}
+
+// src/components/TransactionStatusPanel.tsx
+var import_react6 = __toESM(require("react"));
+var import_jsx_runtime10 = require("react/jsx-runtime");
+function TransactionStatusPanel({
+  render,
+  filter,
+  maxTransactions,
+  position = "bottom-left",
+  enabled = true
+}) {
+  const activeTransactions = useActiveTransactions();
+  const transactions = import_react6.default.useMemo(() => {
+    const txArray = [];
+    activeTransactions.forEach((actor, id) => {
+      const snapshot = actor.getSnapshot();
+      const state = snapshot.value;
+      const context = snapshot.context;
+      if (filter && !filter.includes(state)) {
+        return;
+      }
+      txArray.push({
+        id,
+        state,
+        hash: context.hash,
+        error: context.error?.message,
+        canCancel: state !== "confirmed" && state !== "failed"
+      });
+    });
+    const limited = maxTransactions ? txArray.slice(-maxTransactions) : txArray;
+    return limited;
+  }, [activeTransactions, filter, maxTransactions]);
+  const handleCancel = (id) => {
+    const actor = activeTransactions.get(id);
+    if (actor) {
+      actor.send({ type: "CANCEL" });
+    }
+  };
+  if (!enabled || transactions.length === 0) {
+    return null;
+  }
+  if (render) {
+    return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_jsx_runtime10.Fragment, { children: render(transactions, handleCancel) });
+  }
+  const positionStyles = getPositionStyles(position);
+  return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+    "div",
+    {
+      style: {
+        position: "fixed",
+        ...positionStyles,
+        width: 320,
+        maxHeight: 400,
+        background: "#fff",
+        border: "1px solid #ddd",
+        borderRadius: 8,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+        zIndex: 9998,
+        overflow: "hidden"
+      },
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+          "div",
+          {
+            style: {
+              padding: "12px 16px",
+              borderBottom: "1px solid #ddd",
+              background: "#f5f5f5"
+            },
+            children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("h3", { style: { margin: 0, fontSize: 14, fontWeight: 600 }, children: [
+              "Active Transactions (",
+              transactions.length,
+              ")"
+            ] })
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+          "div",
+          {
+            style: {
+              maxHeight: 350,
+              overflowY: "auto"
+            },
+            children: transactions.map((tx) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+              "div",
+              {
+                style: {
+                  padding: "12px 16px",
+                  borderBottom: "1px solid #eee"
+                },
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+                    "div",
+                    {
+                      style: {
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 8
+                      },
+                      children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                          "span",
+                          {
+                            style: {
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: getStateColor(tx.state),
+                              textTransform: "uppercase"
+                            },
+                            children: tx.state
+                          }
+                        ),
+                        tx.canCancel && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                          "button",
+                          {
+                            onClick: () => handleCancel(tx.id),
+                            style: {
+                              padding: "4px 8px",
+                              fontSize: 11,
+                              background: "transparent",
+                              color: "#999",
+                              border: "1px solid #ddd",
+                              borderRadius: 4,
+                              cursor: "pointer"
+                            },
+                            children: "Cancel"
+                          }
+                        )
+                      ]
+                    }
+                  ),
+                  tx.hash && /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+                    "div",
+                    {
+                      style: {
+                        fontSize: 11,
+                        color: "#666",
+                        fontFamily: "monospace",
+                        marginBottom: 4
+                      },
+                      children: [
+                        tx.hash.slice(0, 10),
+                        "...",
+                        tx.hash.slice(-8)
+                      ]
+                    }
+                  ),
+                  tx.error && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                    "div",
+                    {
+                      style: {
+                        fontSize: 11,
+                        color: "#f44336",
+                        marginTop: 4
+                      },
+                      children: tx.error
+                    }
+                  )
+                ]
+              },
+              tx.id
+            ))
+          }
+        )
+      ]
+    }
+  );
+}
+function getPositionStyles(position) {
+  switch (position) {
+    case "top-left":
+      return { top: 20, left: 20 };
+    case "top-right":
+      return { top: 20, right: 20 };
+    case "bottom-left":
+      return { bottom: 20, left: 20 };
+    case "bottom-right":
+      return { bottom: 20, right: 20 };
+    default:
+      return { bottom: 20, left: 20 };
+  }
+}
+function getStateColor(state) {
+  switch (state) {
+    case "confirmed":
+      return "#4CAF50";
+    case "failed":
+      return "#f44336";
+    case "pending":
+      return "#ff9800";
+    case "submitting":
+    case "preparing":
+      return "#2196F3";
+    default:
+      return "#666";
+  }
+}
 
 // src/helpers/transaction-persistence.ts
 var import_idb = require("idb");
@@ -1513,1356 +2760,9 @@ async function exportAllData() {
   ]);
   return { active, history };
 }
-
-// src/machines/transaction-registry.machine.ts
-var transactionRegistryMachine = (0, import_xstate2.setup)({
-  types: {
-    context: {},
-    events: {}
-  },
-  actors: {
-    /**
-     * Recover active transactions from IndexedDB
-     */
-    recoverTransactions: (0, import_xstate2.fromPromise)(async () => {
-      console.log("\u{1F504} [REGISTRY] Recovering transactions from IndexedDB...");
-      const transactions = await getActiveTransactions();
-      console.log(`\u2705 [REGISTRY] Found ${transactions.length} transactions to recover`);
-      return transactions;
-    }),
-    /**
-     * Transaction machine actor spawned for each transaction
-     */
-    transaction: transactionMachine
-  }
-}).createMachine({
-  id: "transactionRegistry",
-  initial: "recovering",
-  context: {
-    transactions: /* @__PURE__ */ new Map(),
-    recoveredTransactions: []
-  },
-  states: {
-    /**
-     * Recovery State
-     * Loads pending transactions from IndexedDB on startup
-     */
-    recovering: {
-      invoke: {
-        src: "recoverTransactions",
-        onDone: {
-          target: "idle",
-          actions: (0, import_xstate2.assign)({
-            recoveredTransactions: ({ event }) => event.output
-          })
-        },
-        onError: {
-          target: "idle",
-          actions: (0, import_xstate2.assign)({
-            error: ({ event }) => event.error
-          })
-        }
-      }
-    },
-    /**
-     * Idle State
-     * Ready to start or recover transactions
-     */
-    idle: {
-      on: {
-        START_TRANSACTION: {
-          actions: [
-            (0, import_xstate2.assign)({
-              transactions: ({ context, event, spawn }) => {
-                const newMap = new Map(context.transactions);
-                console.log("\u{1F680} [REGISTRY] Starting new transaction:", {
-                  id: event.id,
-                  type: event.request.type
-                });
-                const actor = spawn("transaction", {
-                  id: event.id,
-                  input: {
-                    request: event.request
-                  }
-                });
-                actor.subscribe((snapshot) => {
-                  const state = snapshot.value;
-                  const context2 = snapshot.context;
-                  console.log(`\u{1F4CA} [REGISTRY] Transaction ${event.id} state:`, state);
-                  const persisted = {
-                    id: event.id,
-                    request: event.request,
-                    hash: context2.hash,
-                    status: state,
-                    error: context2.error?.message,
-                    timestamp: Date.now(),
-                    updatedAt: Date.now()
-                  };
-                  if (state === "confirmed" || state === "failed") {
-                    console.log(`\u2705 [REGISTRY] Archiving ${state} transaction ${event.id}`);
-                    archiveTransaction(persisted).catch((err4) => {
-                      console.error("\u274C [REGISTRY] Failed to archive transaction:", err4);
-                    });
-                  } else {
-                    saveActiveTransaction(persisted).catch((err4) => {
-                      console.error("\u274C [REGISTRY] Failed to save transaction:", err4);
-                    });
-                  }
-                });
-                newMap.set(event.id, actor);
-                return newMap;
-              }
-            })
-          ]
-        },
-        CANCEL_TRANSACTION: {
-          actions: [
-            ({ context, event }) => {
-              const actor = context.transactions.get(event.id);
-              if (actor) {
-                console.log(`\u{1F6D1} [REGISTRY] Cancelling transaction ${event.id}`);
-                actor.send({ type: "CANCEL" });
-              }
-            },
-            (0, import_xstate2.assign)({
-              transactions: ({ context, event }) => {
-                const newMap = new Map(context.transactions);
-                newMap.delete(event.id);
-                return newMap;
-              }
-            }),
-            // Remove from IndexedDB
-            ({ event }) => {
-              removeActiveTransaction(event.id).catch((err4) => {
-                console.error("\u274C [REGISTRY] Failed to remove transaction from storage:", err4);
-              });
-            }
-          ]
-        },
-        RECOVER_TRANSACTIONS: {
-          actions: [
-            (0, import_xstate2.assign)({
-              transactions: ({ context, spawn }) => {
-                const newMap = new Map(context.transactions);
-                console.log(`\u{1F504} [REGISTRY] Recovering ${context.recoveredTransactions.length} transactions`);
-                context.recoveredTransactions.forEach((persisted) => {
-                  if (persisted.status === "pending" || persisted.status === "submitting" || persisted.status === "preparing") {
-                    console.log("\u267B\uFE0F [REGISTRY] Recovering transaction:", {
-                      id: persisted.id,
-                      status: persisted.status,
-                      hash: persisted.hash
-                    });
-                    const actor = spawn("transaction", {
-                      id: persisted.id,
-                      input: {
-                        request: persisted.request,
-                        hash: persisted.hash,
-                        resumeFromPending: persisted.status === "pending" && !!persisted.hash
-                      }
-                    });
-                    actor.subscribe((snapshot) => {
-                      const state = snapshot.value;
-                      const context2 = snapshot.context;
-                      const updated = {
-                        ...persisted,
-                        hash: context2.hash,
-                        status: state,
-                        error: context2.error?.message,
-                        updatedAt: Date.now()
-                      };
-                      if (state === "confirmed" || state === "failed") {
-                        archiveTransaction(updated).catch((err4) => {
-                          console.error("\u274C [REGISTRY] Failed to archive recovered transaction:", err4);
-                        });
-                      } else {
-                        saveActiveTransaction(updated).catch((err4) => {
-                          console.error("\u274C [REGISTRY] Failed to save recovered transaction:", err4);
-                        });
-                      }
-                    });
-                    newMap.set(persisted.id, actor);
-                  } else {
-                    console.log(`\u{1F4E6} [REGISTRY] Archiving completed transaction ${persisted.id}`);
-                    archiveTransaction(persisted).catch((err4) => {
-                      console.error("\u274C [REGISTRY] Failed to archive transaction:", err4);
-                    });
-                  }
-                });
-                return newMap;
-              }
-            })
-          ]
-        },
-        CLEAR_RECOVERED: {
-          actions: (0, import_xstate2.assign)({
-            recoveredTransactions: []
-          })
-        }
-      }
-    }
-  }
-});
-
-// src/providers/TransactionRegistryProvider.tsx
-var import_react = require("react");
-var import_react2 = require("@xstate/react");
-var import_xstate3 = require("xstate");
-var import_jsx_runtime = require("react/jsx-runtime");
-var TransactionRegistryContext = (0, import_react.createContext)(null);
-function TransactionRegistryProvider({ children }) {
-  const [actor] = (0, import_react.useState)(() => {
-    console.log("\u{1F3D7}\uFE0F [PROVIDER] Creating transaction registry actor");
-    return (0, import_xstate3.createActor)(transactionRegistryMachine);
-  });
-  const state = (0, import_react2.useSelector)(actor, (snapshot) => snapshot);
-  (0, import_react.useEffect)(() => {
-    console.log("\u25B6\uFE0F [PROVIDER] Starting transaction registry actor");
-    actor.start();
-    return () => {
-      console.log("\u23F9\uFE0F [PROVIDER] Stopping transaction registry actor");
-      actor.stop();
-    };
-  }, [actor]);
-  (0, import_react.useEffect)(() => {
-    if (state.matches("idle") && state.context.recoveredTransactions.length > 0) {
-      console.log("\u{1F504} [PROVIDER] Auto-recovering transactions");
-      actor.send({ type: "RECOVER_TRANSACTIONS" });
-    }
-  }, [state, actor]);
-  const contextValue = {
-    actor,
-    state,
-    startTransaction: (request, id) => {
-      const txId = id || `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      console.log("\u{1F680} [PROVIDER] Starting transaction:", txId);
-      actor.send({ type: "START_TRANSACTION", request, id: txId });
-      return txId;
-    },
-    cancelTransaction: (id) => {
-      console.log("\u{1F6D1} [PROVIDER] Cancelling transaction:", id);
-      actor.send({ type: "CANCEL_TRANSACTION", id });
-    },
-    recoverTransactions: () => {
-      console.log("\u{1F504} [PROVIDER] Manually recovering transactions");
-      actor.send({ type: "RECOVER_TRANSACTIONS" });
-    },
-    clearRecovered: () => {
-      console.log("\u{1F9F9} [PROVIDER] Clearing recovered transactions list");
-      actor.send({ type: "CLEAR_RECOVERED" });
-    },
-    hasRecoveredTransactions: state.context.recoveredTransactions.length > 0
-  };
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TransactionRegistryContext.Provider, { value: contextValue, children });
-}
-function useTransactionRegistry() {
-  const context = (0, import_react.useContext)(TransactionRegistryContext);
-  if (!context) {
-    throw new Error("useTransactionRegistry must be used within TransactionRegistryProvider");
-  }
-  return context;
-}
-function useTransaction(id) {
-  const { state } = useTransactionRegistry();
-  return state.context.transactions.get(id);
-}
-function useActiveTransactions() {
-  const { state } = useTransactionRegistry();
-  return state.context.transactions;
-}
-function useRecoveredTransactions() {
-  const { state } = useTransactionRegistry();
-  return state.context.recoveredTransactions;
-}
-
-// src/components/TransactionModal/TransactionModal.tsx
-var import_react3 = require("react");
-
-// src/components/TransactionModal/TransactionModalHeader.tsx
-var import_jsx_runtime2 = require("react/jsx-runtime");
-function TransactionModalHeader({
-  title,
-  ensName,
-  avatarUrl,
-  status
-}) {
-  const getStatusLabel = () => {
-    if (status === "success") return "Done";
-    if (status?.startsWith("error")) return "Failed";
-    if (status === "submitting" || status === "pending" || status === "retrying") {
-      return "In Progress";
-    }
-    if (status === "preparing" || status === "idle") return "Not started";
-    return status;
-  };
-  const statusLabel = getStatusLabel();
-  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { textAlign: "center" }, children: [
-    ensName && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { marginBottom: "16px" }, children: [
-      avatarUrl ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-        "img",
-        {
-          src: avatarUrl,
-          alt: ensName,
-          style: {
-            width: "80px",
-            height: "80px",
-            borderRadius: "50%",
-            objectFit: "cover",
-            marginBottom: "12px"
-          }
-        }
-      ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-        "div",
-        {
-          style: {
-            width: "80px",
-            height: "80px",
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "32px",
-            color: "white",
-            fontWeight: "bold",
-            marginBottom: "12px"
-          },
-          children: ensName.charAt(0).toUpperCase()
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-        "div",
-        {
-          style: {
-            fontSize: "20px",
-            fontWeight: "600",
-            color: "#333",
-            marginBottom: "4px"
-          },
-          children: ensName
-        }
-      )
-    ] }),
-    title && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginBottom: "8px" }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-        "span",
-        {
-          style: {
-            fontSize: "14px",
-            color: "#666",
-            background: "#f5f5f5",
-            padding: "4px 8px",
-            borderRadius: "4px"
-          },
-          children: "[title]"
-        }
-      ),
-      statusLabel && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-        "span",
-        {
-          style: {
-            fontSize: "12px",
-            color: "#666",
-            padding: "2px 6px",
-            borderRadius: "4px",
-            background: "#f5f5f5"
-          },
-          children: statusLabel
-        }
-      )
-    ] })
-  ] });
-}
-
-// src/components/TransactionModal/TransactionSteps.tsx
-var import_jsx_runtime3 = require("react/jsx-runtime");
-function TransactionSteps({ steps, currentStepIndex }) {
-  if (!steps || steps.length === 0) return null;
-  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { marginTop: "20px" }, children: steps.map((step, index) => {
-    const isActive = index === currentStepIndex;
-    const isCompleted = step.status === "completed";
-    const isFailed = step.status === "failed";
-    const isInProgress = step.status === "in_progress";
-    const getStepIcon = () => {
-      if (isCompleted) return "\u2713";
-      if (isFailed) return "\u2717";
-      if (isInProgress) return "\u27F3";
-      return "\u2192";
-    };
-    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-      "div",
-      {
-        style: {
-          display: "flex",
-          alignItems: "flex-start",
-          gap: "12px",
-          padding: "12px",
-          marginBottom: index < steps.length - 1 ? "8px" : 0,
-          background: isActive ? "#f5f5f5" : "transparent",
-          borderRadius: "8px",
-          borderLeft: `3px solid ${isCompleted ? "#4CAF50" : isFailed ? "#F44336" : isInProgress ? "#2196F3" : "#E0E0E0"}`
-        },
-        children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-            "div",
-            {
-              style: {
-                width: "24px",
-                height: "24px",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "14px",
-                background: isCompleted ? "#4CAF50" : isFailed ? "#F44336" : isInProgress ? "#2196F3" : "#E0E0E0",
-                color: isCompleted || isFailed || isInProgress ? "white" : "#666",
-                flexShrink: 0
-              },
-              children: getStepIcon()
-            }
-          ),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { flex: 1 }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-              "div",
-              {
-                style: {
-                  fontSize: "14px",
-                  fontWeight: isActive ? "600" : "500",
-                  color: isFailed ? "#F44336" : "#333",
-                  marginBottom: step.description ? "4px" : 0
-                },
-                children: step.title
-              }
-            ),
-            step.description && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { fontSize: "12px", color: "#666" }, children: step.description }),
-            step.hash && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-              "a",
-              {
-                href: `https://sepolia.etherscan.io/tx/${step.hash}`,
-                target: "_blank",
-                rel: "noopener noreferrer",
-                style: {
-                  fontSize: "12px",
-                  color: "#2196F3",
-                  textDecoration: "none",
-                  display: "inline-block",
-                  marginTop: "4px"
-                },
-                children: "View transaction \u2197"
-              }
-            ),
-            isFailed && step.error && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-              "div",
-              {
-                style: {
-                  fontSize: "12px",
-                  color: "#F44336",
-                  marginTop: "4px",
-                  padding: "8px",
-                  background: "#FFEBEE",
-                  borderRadius: "4px"
-                },
-                children: step.error
-              }
-            )
-          ] })
-        ]
-      },
-      step.id
-    );
-  }) });
-}
-
-// src/components/TransactionModal/TransactionDetails.tsx
-var import_jsx_runtime4 = require("react/jsx-runtime");
-function TransactionDetails({
-  network,
-  estimatedCost,
-  status
-}) {
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
-    "div",
-    {
-      style: {
-        marginTop: "20px",
-        padding: "16px",
-        background: "#f9f9f9",
-        borderRadius: "8px",
-        border: "1px solid #e0e0e0"
-      },
-      children: [
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
-          "div",
-          {
-            style: {
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: estimatedCost ? "12px" : 0
-            },
-            children: [
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { style: { fontSize: "14px", color: "#666" }, children: "Network" }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "6px" }, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-                  "div",
-                  {
-                    style: {
-                      width: "16px",
-                      height: "16px",
-                      borderRadius: "50%",
-                      background: network.toLowerCase().includes("sepolia") ? "#FFA726" : "linear-gradient(135deg, #627EEA 0%, #8A92B2 100%)"
-                    }
-                  }
-                ),
-                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { style: { fontSize: "14px", fontWeight: "500", color: "#333" }, children: network })
-              ] })
-            ]
-          }
-        ),
-        estimatedCost && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
-          "div",
-          {
-            style: {
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center"
-            },
-            children: [
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { style: { fontSize: "14px", color: "#666" }, children: "Est. cost" }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { style: { fontSize: "14px", fontWeight: "500", color: "#333" }, children: estimatedCost })
-            ]
-          }
-        )
-      ]
-    }
-  );
-}
-
-// src/components/TransactionModal/PaymentSelector.tsx
-var import_jsx_runtime5 = require("react/jsx-runtime");
-function PaymentSelector({ options, selected, onSelect }) {
-  if (!options || options.length === 0) return null;
-  return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { marginTop: "20px" }, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
-      "h3",
-      {
-        style: {
-          fontSize: "16px",
-          fontWeight: "600",
-          color: "#333",
-          marginBottom: "12px"
-        },
-        children: "Choose payment"
-      }
-    ),
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: "8px" }, children: options.map((option) => {
-      const isSelected = selected === option.method;
-      return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
-        "button",
-        {
-          onClick: () => onSelect?.(option.method),
-          style: {
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "12px 16px",
-            background: isSelected ? "#E3F2FD" : "white",
-            border: `2px solid ${isSelected ? "#2196F3" : "#E0E0E0"}`,
-            borderRadius: "8px",
-            cursor: "pointer",
-            transition: "all 0.2s"
-          },
-          children: [
-            /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "12px" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
-                "div",
-                {
-                  style: {
-                    width: "20px",
-                    height: "20px",
-                    borderRadius: "50%",
-                    border: `2px solid ${isSelected ? "#2196F3" : "#ccc"}`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center"
-                  },
-                  children: isSelected && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
-                    "div",
-                    {
-                      style: {
-                        width: "10px",
-                        height: "10px",
-                        borderRadius: "50%",
-                        background: "#2196F3"
-                      }
-                    }
-                  )
-                }
-              ),
-              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
-                "div",
-                {
-                  style: {
-                    width: "32px",
-                    height: "32px",
-                    borderRadius: "50%",
-                    background: option.method.includes("usdc") ? "#2775CA" : "linear-gradient(135deg, #627EEA 0%, #8A92B2 100%)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "white",
-                    fontSize: "12px",
-                    fontWeight: "bold"
-                  },
-                  children: option.method.includes("usdc") ? "U" : "\u039E"
-                }
-              ),
-              /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { fontSize: "14px", fontWeight: "500", color: "#333" }, children: option.label }),
-                option.network && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { fontSize: "12px", color: "#666" }, children: option.network })
-              ] })
-            ] }),
-            option.balance && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { fontSize: "14px", color: "#666" }, children: option.balance })
-          ]
-        },
-        option.method
-      );
-    }) })
-  ] });
-}
-
-// src/components/TransactionModal/TransactionModal.tsx
-var import_jsx_runtime6 = require("react/jsx-runtime");
-function TransactionModal({
-  isOpen,
-  title,
-  ensName,
-  avatarUrl,
-  network,
-  estimatedCost,
-  steps,
-  currentStepIndex = 0,
-  flowType = "single",
-  selectedPayment,
-  paymentOptions,
-  machineState = "idle",
-  onClose,
-  onStart,
-  onContinue,
-  onDone,
-  onRetry,
-  onPaymentSelect,
-  onBack
-}) {
-  (0, import_react3.useEffect)(() => {
-    const handleEscape = (e) => {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [isOpen, onClose]);
-  (0, import_react3.useEffect)(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [isOpen]);
-  if (!isOpen) return null;
-  const isIdle = machineState === "idle" || machineState === "preparing";
-  const isInProgress = machineState === "submitting" || machineState === "pending" || machineState === "confirming";
-  const isSuccess = machineState === "success";
-  const isError = machineState.startsWith("error");
-  const isRetrying = machineState === "retrying";
-  console.log("TransactionModal - machineState:", machineState, { isIdle, isInProgress, isSuccess, isError, isRetrying });
-  const getButtonConfig = () => {
-    if (isSuccess) {
-      return {
-        text: "Done",
-        onClick: onDone,
-        disabled: false
-      };
-    }
-    if (isError) {
-      return {
-        text: "Retry",
-        onClick: onRetry,
-        disabled: false
-      };
-    }
-    if (isInProgress || isRetrying) {
-      return {
-        text: isRetrying ? "Retrying..." : "Waiting...",
-        onClick: void 0,
-        disabled: true
-      };
-    }
-    if (steps && steps.length > 1 && currentStepIndex < steps.length - 1) {
-      return {
-        text: "Continue",
-        onClick: onContinue,
-        disabled: false
-      };
-    }
-    return {
-      text: "Start",
-      onClick: onStart,
-      disabled: false
-    };
-  };
-  const buttonConfig = getButtonConfig();
-  const showPaymentSelector = isIdle && paymentOptions && paymentOptions.length > 0;
-  return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-    "div",
-    {
-      style: {
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1e3,
-        padding: "20px"
-      },
-      onClick: onClose,
-      children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
-        "div",
-        {
-          style: {
-            backgroundColor: "white",
-            borderRadius: "12px",
-            maxWidth: "420px",
-            width: "100%",
-            maxHeight: "90vh",
-            overflow: "auto",
-            position: "relative",
-            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)"
-          },
-          onClick: (e) => e.stopPropagation(),
-          children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-              "button",
-              {
-                onClick: onClose,
-                style: {
-                  position: "absolute",
-                  top: "16px",
-                  right: "16px",
-                  background: "transparent",
-                  border: "none",
-                  fontSize: "24px",
-                  cursor: "pointer",
-                  padding: "4px 8px",
-                  lineHeight: 1,
-                  color: "#666"
-                },
-                "aria-label": "Close modal",
-                children: "\xD7"
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { padding: "24px" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-                TransactionModalHeader,
-                {
-                  title,
-                  ensName,
-                  avatarUrl,
-                  status: machineState
-                }
-              ),
-              isInProgress && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
-                "div",
-                {
-                  style: {
-                    marginTop: "16px",
-                    padding: "8px 12px",
-                    background: "#FFF3E0",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                    color: "#F57C00",
-                    textAlign: "center"
-                  },
-                  children: [
-                    "\u23F3 ",
-                    isRetrying ? "Retrying transaction..." : "Transaction in progress..."
-                  ]
-                }
-              ),
-              isSuccess && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-                "div",
-                {
-                  style: {
-                    marginTop: "16px",
-                    padding: "8px 12px",
-                    background: "#E8F5E9",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                    color: "#2E7D32",
-                    textAlign: "center"
-                  },
-                  children: "\u2713 Transaction completed"
-                }
-              ),
-              isError && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-                "div",
-                {
-                  style: {
-                    marginTop: "16px",
-                    padding: "8px 12px",
-                    background: "#FFEBEE",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                    color: "#C62828",
-                    textAlign: "center"
-                  },
-                  children: "\u2717 Transaction failed"
-                }
-              ),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-                TransactionDetails,
-                {
-                  network: network || "Mainnet",
-                  estimatedCost,
-                  status: machineState
-                }
-              ),
-              steps && steps.length > 1 && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-                TransactionSteps,
-                {
-                  steps,
-                  currentStepIndex
-                }
-              ),
-              showPaymentSelector && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-                PaymentSelector,
-                {
-                  options: paymentOptions,
-                  selected: selectedPayment,
-                  onSelect: onPaymentSelect
-                }
-              ),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { marginTop: "24px", display: "flex", gap: "12px" }, children: [
-                onBack && currentStepIndex > 0 && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-                  "button",
-                  {
-                    onClick: onBack,
-                    style: {
-                      flex: 1,
-                      padding: "12px 24px",
-                      fontSize: "16px",
-                      background: "#f5f5f5",
-                      color: "#333",
-                      border: "none",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      fontWeight: 500
-                    },
-                    children: "\u2190 Back"
-                  }
-                ),
-                buttonConfig.onClick && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-                  "button",
-                  {
-                    onClick: buttonConfig.onClick,
-                    disabled: buttonConfig.disabled,
-                    style: {
-                      flex: 1,
-                      padding: "12px 24px",
-                      fontSize: "16px",
-                      background: buttonConfig.disabled ? "#ccc" : "#2196F3",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "8px",
-                      cursor: buttonConfig.disabled ? "not-allowed" : "pointer",
-                      fontWeight: 500
-                    },
-                    children: buttonConfig.text
-                  }
-                )
-              ] })
-            ] })
-          ]
-        }
-      )
-    }
-  );
-}
-
-// src/components/TransactionRecoveryNotification.tsx
-var import_react4 = __toESM(require("react"));
-var import_jsx_runtime7 = require("react/jsx-runtime");
-function TransactionRecoveryNotification({
-  render,
-  autoRecover = false
-}) {
-  const { recoverTransactions, clearRecovered } = useTransactionRegistry();
-  const recoveredTransactions = useRecoveredTransactions();
-  const [dismissed, setDismissed] = import_react4.default.useState(false);
-  import_react4.default.useEffect(() => {
-    if (autoRecover && recoveredTransactions.length > 0) {
-      recoverTransactions();
-    }
-  }, [autoRecover, recoveredTransactions.length, recoverTransactions]);
-  const handleRecover = () => {
-    recoverTransactions();
-    setDismissed(true);
-  };
-  const handleDismiss = () => {
-    clearRecovered();
-    setDismissed(true);
-  };
-  if (dismissed || recoveredTransactions.length === 0 || autoRecover) {
-    return null;
-  }
-  if (render) {
-    return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_jsx_runtime7.Fragment, { children: render({
-      count: recoveredTransactions.length,
-      onRecover: handleRecover,
-      onDismiss: handleDismiss,
-      transactions: recoveredTransactions
-    }) });
-  }
-  return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
-    "div",
-    {
-      style: {
-        position: "fixed",
-        top: 20,
-        right: 20,
-        padding: "16px 24px",
-        background: "#fff",
-        border: "1px solid #ddd",
-        borderRadius: 8,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-        zIndex: 9999,
-        maxWidth: 400
-      },
-      children: [
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h3", { style: { margin: "0 0 8px 0", fontSize: 16, fontWeight: 600 }, children: "Pending Transactions Found" }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("p", { style: { margin: "0 0 16px 0", fontSize: 14, color: "#666" }, children: [
-          recoveredTransactions.length,
-          " pending transaction(s) were found from a previous session. Would you like to resume tracking them?"
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
-            "button",
-            {
-              onClick: handleRecover,
-              style: {
-                padding: "8px 16px",
-                background: "#4CAF50",
-                color: "#fff",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 14
-              },
-              children: [
-                "Resume (",
-                recoveredTransactions.length,
-                ")"
-              ]
-            }
-          ),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
-            "button",
-            {
-              onClick: handleDismiss,
-              style: {
-                padding: "8px 16px",
-                background: "#fff",
-                color: "#666",
-                border: "1px solid #ddd",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 14
-              },
-              children: "Dismiss"
-            }
-          )
-        ] })
-      ]
-    }
-  );
-}
-
-// src/components/GlobalTransactionToasts.tsx
-var import_react5 = require("react");
-var import_jsx_runtime8 = require("react/jsx-runtime");
-function GlobalTransactionToasts({
-  render,
-  autoDismiss = 5e3,
-  maxToasts = 5,
-  enabled = true
-}) {
-  const transactions = useActiveTransactions();
-  const [toasts, setToasts] = (0, import_react5.useState)([]);
-  const [seenStates, setSeenStates] = (0, import_react5.useState)(/* @__PURE__ */ new Map());
-  (0, import_react5.useEffect)(() => {
-    if (!enabled) return;
-    const unsubscribes = [];
-    transactions.forEach((actor, txId) => {
-      const unsubscribe = actor.subscribe((snapshot) => {
-        const state = snapshot.value;
-        const context = snapshot.context;
-        const seen = seenStates.get(txId) || /* @__PURE__ */ new Set();
-        if (seen.has(state)) return;
-        let toast = null;
-        switch (state) {
-          case "submitting":
-            toast = {
-              id: `${txId}-submitting`,
-              type: "info",
-              message: "Submitting transaction...",
-              txId,
-              timestamp: Date.now()
-            };
-            break;
-          case "pending":
-            toast = {
-              id: `${txId}-pending`,
-              type: "info",
-              message: `Transaction pending: ${context.hash?.slice(0, 10)}...`,
-              txId,
-              timestamp: Date.now()
-            };
-            break;
-          case "confirmed":
-            toast = {
-              id: `${txId}-confirmed`,
-              type: "success",
-              message: "Transaction confirmed!",
-              txId,
-              timestamp: Date.now()
-            };
-            break;
-          case "failed":
-            toast = {
-              id: `${txId}-failed`,
-              type: "error",
-              message: `Transaction failed: ${context.error?.message || "Unknown error"}`,
-              txId,
-              timestamp: Date.now()
-            };
-            break;
-        }
-        if (toast) {
-          const updatedSeen = new Set(seen).add(state);
-          setSeenStates((prev) => new Map(prev).set(txId, updatedSeen));
-          setToasts((prev) => {
-            const newToasts = [...prev, toast];
-            return newToasts.slice(-maxToasts);
-          });
-          if (autoDismiss > 0) {
-            setTimeout(() => {
-              setToasts((prev) => prev.filter((t) => t.id !== toast.id));
-            }, autoDismiss);
-          }
-        }
-      });
-      unsubscribes.push(unsubscribe);
-    });
-    return () => {
-      unsubscribes.forEach((fn) => fn());
-    };
-  }, [transactions, enabled, autoDismiss, maxToasts, seenStates]);
-  const handleDismiss = (toastId) => {
-    setToasts((prev) => prev.filter((t) => t.id !== toastId));
-  };
-  if (!enabled || toasts.length === 0) {
-    return null;
-  }
-  if (render) {
-    return /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_jsx_runtime8.Fragment, { children: render(toasts, handleDismiss) });
-  }
-  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
-    "div",
-    {
-      style: {
-        position: "fixed",
-        bottom: 20,
-        right: 20,
-        zIndex: 9999,
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-        maxWidth: 400
-      },
-      children: [
-        toasts.map((toast) => /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
-          "div",
-          {
-            style: {
-              padding: "12px 16px",
-              background: getToastColor(toast.type),
-              color: "#fff",
-              borderRadius: 8,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
-              animation: "slideIn 0.3s ease-out"
-            },
-            children: [
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { flex: 1, fontSize: 14 }, children: toast.message }),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
-                "button",
-                {
-                  onClick: () => handleDismiss(toast.id),
-                  style: {
-                    background: "transparent",
-                    border: "none",
-                    color: "#fff",
-                    cursor: "pointer",
-                    fontSize: 20,
-                    padding: 0,
-                    lineHeight: 1
-                  },
-                  children: "\xD7"
-                }
-              )
-            ]
-          },
-          toast.id
-        )),
-        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("style", { children: `
-        @keyframes slideIn {
-          from {
-            transform: translateX(400px);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-      ` })
-      ]
-    }
-  );
-}
-function getToastColor(type) {
-  switch (type) {
-    case "success":
-      return "#4CAF50";
-    case "error":
-      return "#f44336";
-    case "warning":
-      return "#ff9800";
-    case "info":
-    default:
-      return "#2196F3";
-  }
-}
-
-// src/components/TransactionStatusPanel.tsx
-var import_react6 = __toESM(require("react"));
-var import_jsx_runtime9 = require("react/jsx-runtime");
-function TransactionStatusPanel({
-  render,
-  filter,
-  maxTransactions,
-  position = "bottom-left",
-  enabled = true
-}) {
-  const activeTransactions = useActiveTransactions();
-  const transactions = import_react6.default.useMemo(() => {
-    const txArray = [];
-    activeTransactions.forEach((actor, id) => {
-      const snapshot = actor.getSnapshot();
-      const state = snapshot.value;
-      const context = snapshot.context;
-      if (filter && !filter.includes(state)) {
-        return;
-      }
-      txArray.push({
-        id,
-        state,
-        hash: context.hash,
-        error: context.error?.message,
-        canCancel: state !== "confirmed" && state !== "failed"
-      });
-    });
-    const limited = maxTransactions ? txArray.slice(-maxTransactions) : txArray;
-    return limited;
-  }, [activeTransactions, filter, maxTransactions]);
-  const handleCancel = (id) => {
-    const actor = activeTransactions.get(id);
-    if (actor) {
-      actor.send({ type: "CANCEL" });
-    }
-  };
-  if (!enabled || transactions.length === 0) {
-    return null;
-  }
-  if (render) {
-    return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_jsx_runtime9.Fragment, { children: render(transactions, handleCancel) });
-  }
-  const positionStyles = getPositionStyles(position);
-  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
-    "div",
-    {
-      style: {
-        position: "fixed",
-        ...positionStyles,
-        width: 320,
-        maxHeight: 400,
-        background: "#fff",
-        border: "1px solid #ddd",
-        borderRadius: 8,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-        zIndex: 9998,
-        overflow: "hidden"
-      },
-      children: [
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
-          "div",
-          {
-            style: {
-              padding: "12px 16px",
-              borderBottom: "1px solid #ddd",
-              background: "#f5f5f5"
-            },
-            children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("h3", { style: { margin: 0, fontSize: 14, fontWeight: 600 }, children: [
-              "Active Transactions (",
-              transactions.length,
-              ")"
-            ] })
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
-          "div",
-          {
-            style: {
-              maxHeight: 350,
-              overflowY: "auto"
-            },
-            children: transactions.map((tx) => /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
-              "div",
-              {
-                style: {
-                  padding: "12px 16px",
-                  borderBottom: "1px solid #eee"
-                },
-                children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
-                    "div",
-                    {
-                      style: {
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        marginBottom: 8
-                      },
-                      children: [
-                        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
-                          "span",
-                          {
-                            style: {
-                              fontSize: 12,
-                              fontWeight: 600,
-                              color: getStateColor(tx.state),
-                              textTransform: "uppercase"
-                            },
-                            children: tx.state
-                          }
-                        ),
-                        tx.canCancel && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
-                          "button",
-                          {
-                            onClick: () => handleCancel(tx.id),
-                            style: {
-                              padding: "4px 8px",
-                              fontSize: 11,
-                              background: "transparent",
-                              color: "#999",
-                              border: "1px solid #ddd",
-                              borderRadius: 4,
-                              cursor: "pointer"
-                            },
-                            children: "Cancel"
-                          }
-                        )
-                      ]
-                    }
-                  ),
-                  tx.hash && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
-                    "div",
-                    {
-                      style: {
-                        fontSize: 11,
-                        color: "#666",
-                        fontFamily: "monospace",
-                        marginBottom: 4
-                      },
-                      children: [
-                        tx.hash.slice(0, 10),
-                        "...",
-                        tx.hash.slice(-8)
-                      ]
-                    }
-                  ),
-                  tx.error && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
-                    "div",
-                    {
-                      style: {
-                        fontSize: 11,
-                        color: "#f44336",
-                        marginTop: 4
-                      },
-                      children: tx.error
-                    }
-                  )
-                ]
-              },
-              tx.id
-            ))
-          }
-        )
-      ]
-    }
-  );
-}
-function getPositionStyles(position) {
-  switch (position) {
-    case "top-left":
-      return { top: 20, left: 20 };
-    case "top-right":
-      return { top: 20, right: 20 };
-    case "bottom-left":
-      return { bottom: 20, left: 20 };
-    case "bottom-right":
-      return { bottom: 20, right: 20 };
-    default:
-      return { bottom: 20, left: 20 };
-  }
-}
-function getStateColor(state) {
-  switch (state) {
-    case "confirmed":
-      return "#4CAF50";
-    case "failed":
-      return "#f44336";
-    case "pending":
-      return "#ff9800";
-    case "submitting":
-    case "preparing":
-      return "#2196F3";
-    default:
-      return "#666";
-  }
-}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  AccountProvider,
   ENS_SEPOLIA_CONTRACTS,
   ETH_REGISTRAR_CONTROLLER_ABI,
   EthCallFallbackError,
@@ -2872,7 +2772,9 @@ function getStateColor(state) {
   PaymentSelector,
   PersistenceError,
   RhinestoneAccountError,
+  TransactionActorManagerProvider,
   TransactionDetails,
+  TransactionManagerProvider,
   TransactionModal,
   TransactionModalHeader,
   TransactionRecoveryNotification,
@@ -2910,10 +2812,12 @@ function getStateColor(state) {
   removeActiveTransaction,
   saveActiveTransaction,
   transactionMachine,
-  transactionRegistryMachine,
+  useAccount,
   useActiveTransactions,
   useRecoveredTransactions,
   useTransaction,
+  useTransactionActorManager,
+  useTransactionManager,
   useTransactionRegistry
 });
 //# sourceMappingURL=index.js.map

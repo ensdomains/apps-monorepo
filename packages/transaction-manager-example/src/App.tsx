@@ -1,12 +1,14 @@
 import React from 'react'
-import { WagmiProvider } from 'wagmi'
+import { WagmiProvider, useAccount as useWagmiAccount, usePublicClient, useWalletClient } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RainbowKitProvider, ConnectButton } from '@rainbow-me/rainbowkit'
 import { config } from './wagmi-config'
+import { sepolia } from 'viem/chains'
 import ENSRenewalExample from './ENSRenewalExample'
 import { AuditTrailDashboard } from './examples/AuditTrailDashboard'
 import {
-  TransactionRegistryProvider,
+  AccountProvider,
+  TransactionManagerProvider,
   TransactionRecoveryNotification,
   GlobalTransactionToasts,
   TransactionStatusPanel,
@@ -15,13 +17,36 @@ import '@rainbow-me/rainbowkit/styles.css'
 
 const queryClient = new QueryClient()
 
+/**
+ * Inner component that wraps children with AccountProvider
+ * This needs to be inside Wagmi/RainbowKit providers to access hooks
+ */
+function AppProviders({ children }: { children: React.ReactNode }) {
+  const { address, isConnected } = useWagmiAccount()
+  const publicClient = usePublicClient({ chainId: sepolia.id })
+  const { data: walletClient } = useWalletClient()
+
+  return (
+    <AccountProvider
+      address={address}
+      isConnected={isConnected}
+      publicClient={publicClient}
+      walletClient={walletClient}
+    >
+      <TransactionManagerProvider>
+        {children}
+      </TransactionManagerProvider>
+    </AccountProvider>
+  )
+}
+
 function App() {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
-          {/* Wrap app with TransactionRegistryProvider for multi-transaction support */}
-          <TransactionRegistryProvider>
+          {/* Wrap app with AccountProvider and TransactionManagerProvider */}
+          <AppProviders>
             <div style={{
               minHeight: '100vh',
               background: 'linear-gradient(to bottom, #f0f9ff, #e0f2fe)'
@@ -68,7 +93,7 @@ function App() {
               <GlobalTransactionToasts autoDismiss={5000} maxToasts={3} />
               <TransactionStatusPanel position="bottom-right" enabled={true} />
             </div>
-          </TransactionRegistryProvider>
+          </AppProviders>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

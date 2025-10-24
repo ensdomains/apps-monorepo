@@ -4,55 +4,192 @@
 
 This document traces the exact code path a transaction takes from the moment you click "Renew" in the example app until it completes successfully.
 
-## Step 1: Button Click → Send `PREPARE_AND_EXECUTE` Event
+## Integration Pattern: TransactionRegistryProvider (Recommended)
 
-**File**: `packages/transaction-manager-example/src/ENSRenewalExample.tsx:485-508`
+**The recommended way to use the transaction manager is through the global `TransactionRegistryProvider`.** This provides:
+- ✅ **Persistence**: Transactions saved to IndexedDB
+- ✅ **Recovery**: Resume interrupted transactions on page refresh
+- ✅ **Global UI**: Integration with toasts, status panel, recovery notifications
+- ✅ **Multi-transaction Support**: Manage multiple transactions concurrently
+- ✅ **No Remounting**: Wallet changes don't restart component
+
+### Setup: Wrap App with Provider
+
+**File**: `packages/transaction-manager-example/src/main.tsx` (or your app entry)
 
 ```typescript
-<button
-  onClick={() =>
-    send({
-      type: 'PREPARE_AND_EXECUTE',
-      name: ui.name,
-      duration: ui.duration,
+import { TransactionRegistryProvider } from '@ens-apps/transaction-manager'
+
+function App() {
+  return (
+    <TransactionRegistryProvider
+      publicClient={publicClient}
+      walletClient={walletClient}
+      rhinestoneConfig={rhinestoneConfig}
+    >
+      {/* Global UI Components */}
+      <GlobalTransactionToasts />
+      <TransactionRecoveryNotification />
+      <TransactionStatusPanel />
+
+      {/* Your app */}
+      <ENSRenewalExample />
+    </TransactionRegistryProvider>
+  )
+}
+```
+
+### Usage: Start Transactions via Registry
+
+**File**: `packages/transaction-manager-example/src/ENSRenewalExample.tsx:293-322, 563`
+
+```typescript
+import {
+  useTransactionRegistry,
+  useTransaction,
+  prepareENSRenewal,
+  type EOATransactionRequest
+} from '@ens-apps/transaction-manager'
+import { useSelector } from '@xstate/react'
+
+function ENSRenewalExample() {
+  // Get registry functions
+  const { startTransaction } = useTransactionRegistry()
+  const [currentTxId, setCurrentTxId] = useState<string | null>(null)
+
+  // Subscribe to specific transaction
+  const txActor = useTransaction(currentTxId || '')
+  const txState = useSelector(txActor, (snapshot) => snapshot)
+
+  // Handler: Prepare and start transaction
+  const handleRenewal = async () => {
+    if (!publicClient || !walletClient) {
+      console.error('Missing clients')
+      return
+    }
+
+    // 1. Prepare the renewal transaction data
+    const result = await prepareENSRenewal({
+      publicClient,
+      walletClient,
+      name: ui.name.replace('.eth', ''),
+      duration: BigInt(ui.duration) * YEAR_IN_SECONDS,
+      chainId: publicClient.chain?.id || 11155111,
       useSmartAccount: ui.useSmartAccount,
-      renewalPrice: ui.renewalPrice,
+      rhinestoneConfig: ui.useSmartAccount ? rhinestoneConfig : undefined,
     })
+
+    if (result.isErr()) {
+      alert(`Failed to prepare transaction: ${result.error.message}`)
+      return
+    }
+
+    const { request, options } = result.value
+
+    // 2. Start the transaction through the registry
+    const txId = startTransaction(request as EOATransactionRequest, undefined)
+    setCurrentTxId(txId)
+
+    console.log('🚀 Started transaction:', txId)
   }
-  disabled={transactionUI.buttonDisabled}
-  style={{
-    padding: '10px 20px',
-    fontSize: '16px',
-    background: transactionUI.buttonColor,
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: transactionUI.buttonDisabled ? 'not-allowed' : 'pointer',
-    flex: 1,
-  }}
->
-  {transactionUI.buttonText}
-</button>
+
+  // Button calls handler
+  return (
+    <button onClick={handleRenewal} disabled={transactionUI.buttonDisabled}>
+      {transactionUI.buttonText}
+    </button>
+  )
+}
 ```
 
 **What happens here:**
-- Button **directly sends** `PREPARE_AND_EXECUTE` event to state machine
-- Event contains only form data (name, duration, smart account preference, price)
-- **No wrapper functions, no callbacks, no business logic** - just pure data
-- Machine handles all validation, preparation, and execution
-- Component is a pure view layer that reacts to machine state
+- `useTransactionRegistry()`: Get `startTransaction` function from global registry
+- `useTransaction(txId)`: Subscribe to specific transaction actor
+- `useSelector()`: Extract state from actor (XState v5 pattern)
+- **Prepare first**: Call `prepareENSRenewal()` to validate and build transaction data
+- **Start transaction**: `startTransaction()` creates new actor in registry and returns ID
+- **Track ID**: Store transaction ID to subscribe to its state
+- **Global UI**: Registry automatically shows toasts, status, and recovery UI
+
+**Benefits Over Direct `useMachine`**:
+- ✅ **Persistence**: Transaction survives page refresh (saved to IndexedDB)
+- ✅ **Recovery**: User can resume interrupted transaction
+- ✅ **Global UI**: Automatic integration with toast notifications and status panel
+- ✅ **Multi-transaction**: Can have multiple renewals in progress
+- ✅ **No Remounting**: Wallet changes don't lose transaction state
 
 **Key Architecture**: This follows the "Business Logic Outside React Components" principle:
-- ✅ Single source of truth (all logic in machine)
-- ✅ True reactivity (component just renders state)
-- ✅ Better error handling (explicit validation state)
-- ✅ Simpler component (no business logic embedded)
-- ✅ More testable (test machine, not component)
-- ✅ Consistent pattern (all transitions declarative)
+- ✅ Business logic lives in `prepareENSRenewal()` helper (pure function)
+- ✅ Transaction orchestration lives in state machine (global registry)
+- ✅ Component just calls helper, starts transaction, and renders state
+- ✅ True reactivity (component subscribes to actor state)
+- ✅ Better error handling (Result types from helper, explicit validation state from machine)
 
 ---
 
-## Step 2: Machine Receives Event → `preparingTransaction` State
+## Alternative: Direct Machine Usage (Simple Cases)
+
+For simple, non-persistent use cases, you can use the machine directly with `useMachine`:
+
+**File**: Example of direct machine usage
+
+```typescript
+import { useMachine } from '@xstate/react'
+import { transactionMachine } from '@ens-apps/transaction-manager'
+
+function SimpleExample() {
+  const [state, send] = useMachine(transactionMachine, {
+    input: {
+      publicClient,
+      walletClient,
+      rhinestoneConfig,
+    },
+  })
+
+  return (
+    <button
+      onClick={() =>
+        send({
+          type: 'PREPARE_AND_EXECUTE',
+          name: ui.name,
+          duration: ui.duration,
+          useSmartAccount: ui.useSmartAccount,
+          renewalPrice: ui.renewalPrice,
+        })
+      }
+      disabled={state.matches('submitting') || state.matches('pending')}
+    >
+      Renew
+    </button>
+  )
+}
+```
+
+**When to use this pattern:**
+- Quick prototypes or demos
+- Simple flows that don't need persistence
+- Testing individual machine behavior
+- No need for global UI integration
+
+**When NOT to use this pattern:**
+- Production applications (use TransactionRegistryProvider instead)
+- Long-running transactions that should survive refresh
+- Multiple concurrent transactions
+- Need for global toast notifications or recovery UI
+
+---
+
+## Detailed Machine Flow
+
+The following sections describe the internal state machine flow. When using **TransactionRegistryProvider**, the preparation step happens externally via `prepareENSRenewal()`, and the machine starts at **Step 4: Preparing State** with an `EXECUTE` event containing the prepared transaction data.
+
+When using **Direct Machine Usage** (PREPARE_AND_EXECUTE pattern), the machine handles preparation internally via **Step 2** below.
+
+---
+
+## Step 2: Machine Receives PREPARE_AND_EXECUTE Event → `preparingTransaction` State
+
+**Note**: This step only applies when using the PREPARE_AND_EXECUTE pattern (direct machine usage). With TransactionRegistryProvider, preparation happens externally and the machine receives an EXECUTE event instead (skip to Step 4).
 
 **File**: `packages/transaction-manager/src/machines/transaction.machine.ts:440-483`
 
@@ -118,7 +255,9 @@ preparingTransaction: {
 
 ---
 
-## Step 2.1: Prepare Renewal Actor
+## Step 2.1: Prepare Renewal Actor (PREPARE_AND_EXECUTE Only)
+
+**Note**: This step only applies when using the PREPARE_AND_EXECUTE pattern. With TransactionRegistryProvider, this logic runs externally via `prepareENSRenewal()` helper before calling `startTransaction()`.
 
 **File**: `packages/transaction-manager/src/machines/transaction.machine.ts:51-98`
 
@@ -184,7 +323,11 @@ prepareRenewal: fromResultAsync(
 
 ---
 
-## Step 3: Prepare Transaction → `prepareENSRenewal()`
+## Step 3: Prepare Transaction Helper → `prepareENSRenewal()`
+
+**Note**: This helper is used by BOTH patterns:
+- **PREPARE_AND_EXECUTE**: Called by the `prepareRenewal` actor (Step 2.1)
+- **TransactionRegistryProvider**: Called externally in component before `startTransaction()`
 
 **File**: `packages/transaction-manager/src/helpers/ens-renewal.helpers.ts:30-98`
 
@@ -303,7 +446,11 @@ export async function prepareENSRenewalTransaction(
 
 ---
 
-## Step 3: State Machine Receives EXECUTE → `transactionMachine`
+## Step 4: Machine Receives EXECUTE Event (Both Patterns)
+
+**Note**: This is where both patterns converge:
+- **PREPARE_AND_EXECUTE**: Machine transitions here after successful preparation (Step 2)
+- **TransactionRegistryProvider**: `startTransaction()` directly sends EXECUTE event with prepared data
 
 **File**: `packages/transaction-manager/src/machines/transaction.machine.ts:344-371`
 
@@ -342,7 +489,7 @@ idle: {
 
 ---
 
-## Step 4: Preparing State → Decides Next Step
+## Step 5: Preparing State → Decides Next Step
 
 **File**: `packages/transaction-manager/src/machines/transaction.machine.ts:374-407`
 
@@ -385,7 +532,7 @@ preparing: {
 
 ---
 
-## Step 5a (Smart Account Only): Initialize Rhinestone Account
+## Step 6 (Smart Account Only): Initialize Rhinestone Account
 
 **File**: `packages/transaction-manager/src/machines/transaction.machine.ts:409-475`
 
@@ -431,7 +578,7 @@ initializingSmartAccount: {
 
 ---
 
-### Step 5a.1: Initialize Account Actor → `initializeRhinestoneAccount()`
+### Step 6.1: Initialize Account Actor → `initializeRhinestoneAccount()`
 
 **File**: `packages/transaction-manager/src/machines/transaction.machine.ts:49-67`
 
@@ -464,7 +611,7 @@ initializeRhinestoneAccount: fromResultAsync(
 
 ---
 
-### Step 5a.2: Rhinestone SDK Interaction
+### Step 6.2: Rhinestone SDK Interaction
 
 **File**: `packages/transaction-manager/src/helpers/rhinestone-account.helpers.ts:38-87`
 
@@ -520,7 +667,7 @@ export async function initializeRhinestoneAccount(
 
 ---
 
-## Step 6: Submitting State → Send Transaction
+## Step 7: Submitting State → Send Transaction
 
 **File**: `packages/transaction-manager/src/machines/transaction.machine.ts:477-542`
 
@@ -592,7 +739,7 @@ submitting: {
 
 ---
 
-### Step 6.1: Submit Transaction Actor
+### Step 7.1: Submit Transaction Actor
 
 **File**: `packages/transaction-manager/src/machines/transaction.machine.ts:69-171`
 
@@ -636,7 +783,7 @@ if (request.type === 'rhinestone-intent') {
 
 ---
 
-#### Step 6.1.1: Execute via Rhinestone
+#### Step 7.1.1: Execute via Rhinestone
 
 **File**: `packages/transaction-manager/src/helpers/rhinestone-account.helpers.ts:186-254`
 
@@ -748,7 +895,7 @@ if (request.type === 'eoa') {
 
 ---
 
-## Step 7: Pending State → Wait for Receipt
+## Step 8: Pending State → Wait for Receipt
 
 **File**: `packages/transaction-manager/src/machines/transaction.machine.ts:544-595`
 
@@ -815,7 +962,7 @@ pending: {
 
 ---
 
-### Step 7.1: Wait Actor
+### Step 8.1: Wait Actor
 
 **File**: `packages/transaction-manager/src/machines/transaction.machine.ts:173-191`
 
@@ -846,7 +993,7 @@ waitForReceipt: fromResultAsync(
 
 ---
 
-## Step 8: Confirming State → Check Success/Revert
+## Step 9: Confirming State → Check Success/Revert
 
 **File**: `packages/transaction-manager/src/machines/transaction.machine.ts:641-662`
 
@@ -890,7 +1037,7 @@ isReverted: ({ context }) =>
 
 ---
 
-## Step 9: Success State → Complete
+## Step 10: Success State → Complete
 
 **File**: `packages/transaction-manager/src/machines/transaction.machine.ts:682-716`
 
@@ -939,7 +1086,9 @@ success: {
 
 ---
 
-## Step 10: UI Updates → Modal Shows Success
+## Step 11: UI Updates → Component Shows Success
+
+**Note**: When using TransactionRegistryProvider, the global UI components (GlobalTransactionToasts, TransactionStatusPanel) automatically react to state changes. Individual components can also subscribe to state for custom UI updates.
 
 **File**: `packages/transaction-manager-example/src/ENSRenewalExample.tsx:89-97`
 
@@ -969,6 +1118,31 @@ const transactionUI = match(state.value)
 ---
 
 ## Complete Flow Diagram
+
+### With TransactionRegistryProvider (Recommended)
+
+```
+1. Click "Renew" button
+   ↓
+2. Button calls handleRenewal() function
+   (Calls prepareENSRenewal(), then startTransaction())
+   ↓
+3. prepareENSRenewal() validates and builds transaction data
+   ↓
+4. startTransaction() creates new actor in registry
+   (Returns transaction ID, actor is saved to IndexedDB)
+   ↓
+5. Component subscribes to transaction actor via useTransaction(txId)
+   ↓
+6. Actor starts in idle state, receives EXECUTE event from registry
+   ↓
+7. Machine: idle → preparing
+   (Transaction request/options stored in context, modal opened)
+   ↓
+   [Flow continues as shown in "Direct Machine Usage" diagram below]
+```
+
+### Direct Machine Usage (Simple Cases)
 
 ```
 1. Click "Renew" button
@@ -1347,14 +1521,119 @@ expect(actor.getSnapshot().value).toBe('preparing')
 ```
 
 ### E2E Tests
-Test complete flow with real blockchain:
+Test complete flow with real blockchain using TransactionRegistryProvider:
+
+```typescript
+import { render, screen, waitFor } from '@testing-library/react'
+import { userEvent } from '@testing-library/user-event'
+import {
+  TransactionRegistryProvider,
+  useTransactionRegistry,
+  useTransaction,
+  prepareENSRenewal,
+  type EOATransactionRequest
+} from '@ens-apps/transaction-manager'
+import { useSelector } from '@xstate/react'
+
+// Test component that uses the registry
+function TestRenewal() {
+  const { startTransaction } = useTransactionRegistry()
+  const [txId, setTxId] = useState<string | null>(null)
+  const txActor = useTransaction(txId || '')
+  const state = useSelector(txActor, (s) => s)
+
+  const handleRenew = async () => {
+    const result = await prepareENSRenewal({
+      publicClient: testnetPublicClient,
+      walletClient: testnetWalletClient,
+      name: 'test',
+      duration: 31536000n,
+      chainId: 11155111,
+      useSmartAccount: false,
+    })
+
+    if (result.isOk()) {
+      const id = startTransaction(result.value.request as EOATransactionRequest, undefined)
+      setTxId(id)
+    }
+  }
+
+  return (
+    <div>
+      <button onClick={handleRenew}>Renew</button>
+      <div data-testid="status">{state.value}</div>
+    </div>
+  )
+}
+
+// Test with provider wrapper
+test('complete renewal flow', async () => {
+  render(
+    <TransactionRegistryProvider
+      publicClient={testnetPublicClient}
+      walletClient={testnetWalletClient}
+    >
+      <TestRenewal />
+    </TransactionRegistryProvider>
+  )
+
+  // Click renew button
+  const button = screen.getByText('Renew')
+  await userEvent.click(button)
+
+  // Wait for success state
+  await waitFor(() => {
+    expect(screen.getByTestId('status')).toHaveTextContent('success')
+  }, { timeout: 120000 })
+
+  // Verify on-chain state changed
+  const expiry = await ensContract.nameExpires('test')
+  expect(expiry).toBeGreaterThan(previousExpiry)
+})
+
+// Test transaction persistence
+test('transaction survives page refresh', async () => {
+  const { rerender } = render(
+    <TransactionRegistryProvider
+      publicClient={testnetPublicClient}
+      walletClient={testnetWalletClient}
+    >
+      <TestRenewal />
+    </TransactionRegistryProvider>
+  )
+
+  // Start transaction
+  await userEvent.click(screen.getByText('Renew'))
+
+  // Verify transaction is pending
+  await waitFor(() => {
+    expect(screen.getByTestId('status')).toHaveTextContent('pending')
+  })
+
+  // Simulate page refresh
+  rerender(
+    <TransactionRegistryProvider
+      publicClient={testnetPublicClient}
+      walletClient={testnetWalletClient}
+    >
+      <TestRenewal />
+    </TransactionRegistryProvider>
+  )
+
+  // Transaction should be recovered
+  await waitFor(() => {
+    expect(screen.getByTestId('status')).toHaveTextContent('success')
+  }, { timeout: 120000 })
+})
+```
+
+**For Direct Machine Testing** (without registry):
 
 ```typescript
 import { renderHook, act } from '@testing-library/react'
 import { useMachine } from '@xstate/react'
 import { transactionMachine } from '@ens-apps/transaction-manager'
 
-// Test the complete flow with machine
 const { result } = renderHook(() =>
   useMachine(transactionMachine, {
     input: {
@@ -1367,7 +1646,6 @@ const { result } = renderHook(() =>
 
 const [state, send] = result.current
 
-// Send PREPARE_AND_EXECUTE event
 act(() => {
   send({
     type: 'PREPARE_AND_EXECUTE',
@@ -1378,14 +1656,9 @@ act(() => {
   })
 })
 
-// Wait for transaction to complete
 await waitFor(() => {
   expect(result.current[0].value).toBe('success')
 }, { timeout: 120000 })
-
-// Verify on-chain state changed
-const expiry = await ensContract.nameExpires('test')
-expect(expiry).toBeGreaterThan(previousExpiry)
 ```
 
 ---

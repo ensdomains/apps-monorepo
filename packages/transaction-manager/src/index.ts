@@ -45,16 +45,24 @@ export {
 
 // Machines
 export { transactionMachine } from './machines/transaction.machine'
-export { transactionRegistryMachine } from './machines/transaction-registry.machine'
 
 // Providers
 export {
-  TransactionRegistryProvider,
-  useTransactionRegistry,
+  TransactionActorManagerProvider,
+  useTransactionActorManager,
   useTransaction,
   useActiveTransactions,
-  useRecoveredTransactions
-} from './providers/TransactionRegistryProvider'
+  useRecoveredTransactions,
+  // Backward compatibility - deprecated
+  TransactionActorManagerProvider as TransactionManagerProvider,
+  TransactionActorManagerProvider as TransactionRegistryProvider,
+  useTransactionManager,
+  useTransactionRegistry,
+} from './providers/TransactionActorManagerProvider'
+export {
+  AccountProvider,
+  useAccount
+} from './providers/AccountProvider'
 
 // Hooks
 // (None - use services directly)

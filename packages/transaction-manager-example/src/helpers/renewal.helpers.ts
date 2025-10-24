@@ -109,7 +109,7 @@ export function hasRequiredClients(
 }
 
 /**
- * Pure function to handle the entire renewal flow
+ * Pure function to handle the entire renewal flow (callback pattern)
  *
  * This is a complete pure function that can be called from anywhere.
  * All side effects (alerts, sending to machine, logging) are passed as callbacks.
@@ -149,4 +149,61 @@ export async function handleRenewal(
   } else {
     onError(result.error)
   }
+}
+
+/**
+ * Pure function to handle renewal flow with TransactionRegistryProvider
+ *
+ * This prepares the transaction and starts it through the registry.
+ * Returns the transaction ID for tracking, or null if validation fails.
+ *
+ * @param formData - User form input
+ * @param params - Blockchain clients and configuration
+ * @param startTransaction - Function from useTransactionRegistry to start transaction
+ * @param rhinestoneAccount - Optional Rhinestone account for smart account transactions
+ * @returns Transaction ID if successful, null if validation failed
+ */
+export async function handleRenewalWithRegistry(
+  formData: RenewalFormData,
+  params: RenewalExecuteParams,
+  startTransaction: (request: any, options?: any) => string,
+  rhinestoneAccount?: any
+): Promise<{ txId: string | null; error?: string }> {
+  // Validate form
+  if (!canSubmitRenewal(formData)) {
+    return { txId: null, error: 'Please enter a name to renew' }
+  }
+
+  // Validate clients
+  const clientValidation = hasRequiredClients(params.publicClient, params.walletClient)
+  if (!clientValidation.valid) {
+    return { txId: null, error: clientValidation.error }
+  }
+
+  // Validate smart account if using smart account
+  if (formData.useSmartAccount && !rhinestoneAccount) {
+    return { txId: null, error: 'Rhinestone account not initialized. Please wait...' }
+  }
+
+  // Prepare renewal transaction
+  const result = await prepareRenewalTransaction(formData, params)
+
+  // Handle result
+  if (result.isErr()) {
+    return { txId: null, error: result.error.message }
+  }
+
+  const { request, options, modal } = result.value
+
+  // Start transaction through registry with modal data, clients, and account
+  const txId = startTransaction(request, {
+    ...options,
+    modal,
+    publicClient: params.publicClient,
+    walletClient: params.walletClient,
+    rhinestoneConfig: params.rhinestoneConfig,
+    rhinestoneAccount,
+  })
+
+  return { txId }
 }

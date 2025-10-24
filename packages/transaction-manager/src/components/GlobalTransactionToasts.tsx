@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useActiveTransactions } from '../providers/TransactionRegistryProvider'
+import { useActiveTransactions } from '../providers/TransactionActorManagerProvider'
 import { useSelector } from '@xstate/react'
 
 export interface Toast {
@@ -57,11 +57,11 @@ export function GlobalTransactionToasts({
   useEffect(() => {
     if (!enabled) return
 
-    const unsubscribes: Array<() => void> = []
+    const subscriptions: Array<{ unsubscribe: () => void }> = []
 
     // Subscribe to each transaction actor
     transactions.forEach((actor, txId) => {
-      const unsubscribe = actor.subscribe((snapshot) => {
+      const subscription = actor.subscribe((snapshot) => {
         const state = snapshot.value as string
         const context = snapshot.context
 
@@ -137,11 +137,11 @@ export function GlobalTransactionToasts({
         }
       })
 
-      unsubscribes.push(unsubscribe)
+      subscriptions.push(subscription)
     })
 
     return () => {
-      unsubscribes.forEach((fn) => fn())
+      subscriptions.forEach((sub) => sub.unsubscribe())
     }
   }, [transactions, enabled, autoDismiss, maxToasts, seenStates])
 

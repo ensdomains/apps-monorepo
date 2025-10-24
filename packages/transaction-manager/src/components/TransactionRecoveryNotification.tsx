@@ -1,5 +1,5 @@
 import React from 'react'
-import { useTransactionRegistry, useRecoveredTransactions } from '../providers/TransactionRegistryProvider'
+import { useTransactionActorManager, useRecoveredTransactions } from '../providers/TransactionActorManagerProvider'
 
 export interface TransactionRecoveryNotificationProps {
   /** Custom render function for the notification */
@@ -36,7 +36,8 @@ export function TransactionRecoveryNotification({
   render,
   autoRecover = false,
 }: TransactionRecoveryNotificationProps) {
-  const { recoverTransactions, clearRecovered } = useTransactionRegistry()
+  // TODO: Implement recovery methods in TransactionActorManagerProvider
+  // const { recoverTransactions, clearRecovered } = useTransactionActorManager()
   const recoveredTransactions = useRecoveredTransactions()
 
   const [dismissed, setDismissed] = React.useState(false)
@@ -44,17 +45,20 @@ export function TransactionRecoveryNotification({
   // Auto-recover if enabled
   React.useEffect(() => {
     if (autoRecover && recoveredTransactions.length > 0) {
-      recoverTransactions()
+      // TODO: Implement recoverTransactions()
+      console.log('🔄 [RECOVERY] Auto-recover not yet implemented')
     }
-  }, [autoRecover, recoveredTransactions.length, recoverTransactions])
+  }, [autoRecover, recoveredTransactions.length])
 
   const handleRecover = () => {
-    recoverTransactions()
+    // TODO: Implement recoverTransactions()
+    console.log('🔄 [RECOVERY] Manual recover not yet implemented')
     setDismissed(true)
   }
 
   const handleDismiss = () => {
-    clearRecovered()
+    // TODO: Implement clearRecovered()
+    console.log('🔄 [RECOVERY] Clear recovered not yet implemented')
     setDismissed(true)
   }
 

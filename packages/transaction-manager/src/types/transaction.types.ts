@@ -60,6 +60,10 @@ export interface TransactionOptions {
   retryDelay?: number
   rhinestoneConfig?: RhinestoneConfig
   description?: string
+  modal?: Partial<TransactionModalState>
+  id?: string
+  publicClient?: any // PublicClient from viem
+  walletClient?: any // WalletClient from viem
 }
 
 export interface TransactionResult {
