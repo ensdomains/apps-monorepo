@@ -1,11 +1,8 @@
 import React, { useReducer, useEffect, useState } from 'react'
-import { useSelector } from '@xstate/react'
 import { match, P } from 'ts-pattern'
 import { formatEther, parseEther } from 'viem'
 import {
-  useTransactionRegistry,
-  useTransaction,
-  TransactionModal,
+  useTransactionActorManager,
   getENSRenewalPrice,
   getRhinestoneSmartAccountAddress,
   useAccount as useAccountProvider,
@@ -22,10 +19,12 @@ function ENSRenewalExample() {
   const { address, isConnected } = useAccount()
   const publicClient = usePublicClient({ chainId: sepolia.id })
   const { data: walletClient } = useWalletClient()
+
+  // For funding the smart account with ETH (simple transfer, not managed by transaction manager)
   const { sendTransaction } = useSendTransaction()
 
-  // Use the global transaction registry
-  const { startTransaction } = useTransactionRegistry()
+  // Use the transaction actor manager
+  const { startTransaction } = useTransactionActorManager()
 
   // Use the account provider for Rhinestone account
   const {
@@ -35,14 +34,8 @@ function ENSRenewalExample() {
     initializeRhinestone,
   } = useAccountProvider()
 
-  // Track the current transaction ID
+  // Track the current transaction ID (for debugging/logging only)
   const [currentTxId, setCurrentTxId] = useState<string | null>(null)
-
-  // Get the transaction actor from the registry
-  const txActor = useTransaction(currentTxId || '')
-
-  // Subscribe to transaction state
-  const txState = useSelector(txActor, (snapshot) => snapshot)
 
   // UI state
   const [ui, dispatch] = useReducer(uiStateReducer, initialUIState)
@@ -79,96 +72,8 @@ function ENSRenewalExample() {
       canRender: true,
     }))
 
-  // Extract transaction data for UI
-  const hash = txState?.context?.hash
-  const machineState = txState?.value?.toString() || 'idle'
-
-  // Derive complete UI state from machine state using ts-pattern
-  const transactionUI = match(txState?.value || 'idle')
-    .with('idle', () => ({
-      buttonText: `Renew ${ui.name || 'Name'}`,
-      buttonDisabled: !ui.name || ui.isLoadingPrice,
-      buttonColor: '#4CAF50',
-      showStatus: false,
-      statusBackground: '',
-      statusMessage: null,
-      showTransactionHash: false,
-    }))
-    .with('preparingTransaction', 'preparing', 'submitting', () => ({
-      buttonText: 'Preparing...',
-      buttonDisabled: true,
-      buttonColor: '#ccc',
-      showStatus: true,
-      statusBackground: '#fff3e0',
-      statusMessage: 'Preparing transaction...',
-      showTransactionHash: false,
-    }))
-    .with('retrying', () => ({
-      buttonText: 'Retrying...',
-      buttonDisabled: true,
-      buttonColor: '#ccc',
-      showStatus: true,
-      statusBackground: '#fff3e0',
-      statusMessage: 'Retrying transaction...',
-      showTransactionHash: !!hash,
-    }))
-    .with('pending', 'confirming', 'checkingFallback', () => ({
-      buttonText: 'Confirming...',
-      buttonDisabled: true,
-      buttonColor: '#ccc',
-      showStatus: true,
-      statusBackground: '#fff3e0',
-      statusMessage: 'Waiting for confirmation...',
-      showTransactionHash: !!hash,
-    }))
-    .with('success', () => ({
-      buttonText: 'Renew Again',
-      buttonDisabled: false,
-      buttonColor: '#4CAF50',
-      showStatus: true,
-      statusBackground: '#e8f5e9',
-      statusMessage: '✅ Renewal successful! Your name has been extended.',
-      showTransactionHash: !!hash,
-    }))
-    .with(P.string.startsWith('error'), () => ({
-      buttonText: 'Retry',
-      buttonDisabled: false,
-      buttonColor: '#f44336',
-      showStatus: true,
-      statusBackground: '#ffebee',
-      statusMessage: `❌ Error: ${txState?.context?.error?.message || 'Unknown error'}`,
-      showTransactionHash: !!hash,
-    }))
-    .when((value) => typeof value === 'object' && 'error' in value, () => ({
-      buttonText: 'Retry',
-      buttonDisabled: false,
-      buttonColor: '#f44336',
-      showStatus: true,
-      statusBackground: '#ffebee',
-      statusMessage: `❌ Error: ${txState?.context?.error?.message || 'Unknown error'}`,
-      showTransactionHash: !!hash,
-    }))
-    .otherwise(() => ({
-      buttonText: 'Loading...',
-      buttonDisabled: true,
-      buttonColor: '#ccc',
-      showStatus: false,
-      statusBackground: '',
-      statusMessage: null,
-      showTransactionHash: false,
-    }))
-
-  // Update modal data when renewal price changes
-  useEffect(() => {
-    if (ui.renewalPrice && txActor) {
-      txActor.send({
-        type: 'UPDATE_MODAL_DATA',
-        data: {
-          estimatedCost: `${formatEther(ui.renewalPrice)} ETH`
-        }
-      })
-    }
-  }, [ui.renewalPrice, txActor])
+  // Simple button state - global components handle transaction state
+  const buttonDisabled = !ui.name || ui.isLoadingPrice
 
   // Fetch renewal price when name or duration changes
   useEffect(() => {
@@ -253,10 +158,6 @@ function ENSRenewalExample() {
     }
   }, [ui.smartAccountAddress, publicClient])
 
-  // Debug: Log state changes
-  useEffect(() => {
-    console.log('Transaction state changed to:', machineState)
-  }, [machineState])
 
   const handleFundSmartAccount = async () => {
     if (!ui.smartAccountAddress) {
@@ -557,65 +458,40 @@ function ENSRenewalExample() {
           <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
             <button
               onClick={handleRenewal}
-              disabled={transactionUI.buttonDisabled}
+              disabled={buttonDisabled}
               style={{
                 padding: '10px 20px',
                 fontSize: '16px',
-                background: transactionUI.buttonColor,
+                background: buttonDisabled ? '#ccc' : '#4CAF50',
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',
-                cursor: transactionUI.buttonDisabled ? 'not-allowed' : 'pointer',
+                cursor: buttonDisabled ? 'not-allowed' : 'pointer',
                 flex: 1,
               }}
             >
-              {transactionUI.buttonText}
+              Renew {ui.name || 'Name'}
             </button>
           </div>
 
-          {/* Transaction Status - derived from ts-pattern */}
-          {match({ showStatus: transactionUI.showStatus })
-            .with({ showStatus: true }, () => (
-              <div
-                style={{
-                  padding: '20px',
-                  background: transactionUI.statusBackground,
-                  borderRadius: '8px',
-                  marginTop: '20px',
-                }}
-              >
-                <h3>Transaction Status</h3>
-                <p>
-                  <strong>State:</strong> {machineState}
-                </p>
-                <p>
-                  <strong>Transaction ID:</strong> {currentTxId || 'None'}
-                </p>
-
-                {match({ showTransactionHash: transactionUI.showTransactionHash })
-                  .with({ showTransactionHash: true }, () => (
-                    <p>
-                      <strong>Transaction Hash:</strong>{' '}
-                      <a
-                        href={`https://sepolia.etherscan.io/tx/${hash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: '#2196F3', wordBreak: 'break-all' }}
-                      >
-                        {hash}
-                      </a>
-                    </p>
-                  ))
-                  .otherwise(() => null)}
-
-                {match({ statusMessage: transactionUI.statusMessage })
-                  .with({ statusMessage: P.not(P.nullish) }, ({ statusMessage }) => (
-                    <p>{statusMessage}</p>
-                  ))
-                  .otherwise(() => null)}
-              </div>
-            ))
-            .otherwise(() => null)}
+          {/* Transaction status shown by global components (toasts, status panel) */}
+          {currentTxId && (
+            <div
+              style={{
+                padding: '15px',
+                background: '#e3f2fd',
+                borderRadius: '8px',
+                marginTop: '20px',
+              }}
+            >
+              <p style={{ margin: 0 }}>
+                <strong>Transaction ID:</strong> {currentTxId}
+              </p>
+              <p style={{ margin: '10px 0 0 0', fontSize: '14px', color: '#666' }}>
+                Check the status panel in the bottom-right for updates →
+              </p>
+            </div>
+          )}
 
           <div
             style={{
@@ -674,15 +550,6 @@ function ENSRenewalExample() {
         ))
         .exhaustive()}
 
-      {/* Transaction Modal */}
-      {txState && (
-        <TransactionModal
-          {...txState.context.modal}
-          machineState={machineState}
-          onClose={() => txActor?.send({ type: 'CLOSE_MODAL' })}
-          onDone={() => txActor?.send({ type: 'CLOSE_MODAL' })}
-        />
-      )}
     </div>
   )
 }
