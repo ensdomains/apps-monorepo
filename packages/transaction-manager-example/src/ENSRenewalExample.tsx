@@ -6,7 +6,7 @@ import {
   getENSRenewalPrice,
   initializeRhinestoneAccount,
   transactionManager,
-  type ENSRenewalIntent,
+  type ENSRenewalTransactionIntent,
 } from '@ens-apps/transaction-manager'
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import { sepolia } from 'viem/chains'
@@ -545,8 +545,8 @@ function ENSRenewalExample() {
           <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
             <button
               onClick={() => {
-                // Create intent
-                const intent: ENSRenewalIntent = {
+                // Create transaction intent
+                const intent: ENSRenewalTransactionIntent = {
                   type: 'ens-renewal',
                   name: ui.name.replace('.eth', ''),
                   duration: BigInt(ui.duration) * YEAR_IN_SECONDS,
