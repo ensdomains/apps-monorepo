@@ -5,7 +5,7 @@ import {
   removeTransaction,
   type PersistedTransaction,
 } from './transaction-registry.service'
-import type { TransactionRequest, TransactionOptions } from '../types/transaction.types'
+import type { TransactionRequest, TransactionIntent, TransactionOptions } from '../types/transaction.types'
 import type { Signer } from '../types/signer.types'
 import type { PublicClient } from 'viem'
 
@@ -65,27 +65,36 @@ class TransactionManager {
    *
    * publicClient can be:
    * 1. Passed in options (takes priority)
-   * 2. Pre-configured via setPublicClient() - determined by request.chainId or options.chainId
+   * 2. Pre-configured via setPublicClient() - determined by intent/request chainId or options.chainId
    * 3. If neither, throws an error
    *
-   * @param request - Unsigned transaction request
+   * @param intentOrRequest - Transaction intent (high-level) or unsigned transaction request (pre-prepared)
    * @param signer - Signer capability (EOA, Rhinestone, etc.)
-   * @param options - Transaction options (modal, description, optional publicClient, optional chainId)
+   * @param options - Transaction options (modal, description, optional publicClient, optional chainId, optional useSmartAccount)
    * @returns Transaction ID
    */
   startTransaction(
-    request: TransactionRequest,
+    intentOrRequest: TransactionIntent | TransactionRequest,
     signer: Signer,
-    options: TransactionOptions & { publicClient?: PublicClient; chainId?: number }
+    options: TransactionOptions & { publicClient?: PublicClient; chainId?: number; useSmartAccount?: boolean }
   ): string {
-    const { publicClient: optionsPublicClient, chainId, ...transactionOptions } = options
+    const { publicClient: optionsPublicClient, chainId, useSmartAccount, ...transactionOptions } = options
+
+    // Determine if this is an intent or a pre-prepared request
+    const isIntent = 'type' in intentOrRequest &&
+      (intentOrRequest.type === 'ens-renewal' ||
+       intentOrRequest.type === 'eth-transfer' ||
+       intentOrRequest.type === 'custom')
+
+    const intent = isIntent ? (intentOrRequest as TransactionIntent) : undefined
+    const request = isIntent ? undefined : (intentOrRequest as TransactionRequest)
 
     // Determine which publicClient to use (priority: options > stored > error)
     let publicClient = optionsPublicClient
 
     if (!publicClient) {
       // Try to get from stored clients using chainId
-      const resolvedChainId = chainId || (request as any).chainId
+      const resolvedChainId = chainId || (request as any)?.chainId || (intent as any)?.chainId
       if (resolvedChainId) {
         publicClient = this.publicClients.get(resolvedChainId)
       }
@@ -101,17 +110,24 @@ class TransactionManager {
 
     console.log('🚀 [TRANSACTION MANAGER] Starting transaction:', {
       id: txId,
-      type: request.type,
+      isIntent,
+      intentType: intent?.type,
+      requestType: request?.type,
       signerType: signer.type,
+      chainId,
+      useSmartAccount,
     })
 
     // Create and start the transaction actor
     const actor = createActor(transactionMachine, {
       input: {
+        intent,
         request,
         signer,
-        publicClient,  // From options, not global state
+        publicClient,
         options: transactionOptions,
+        chainId,
+        useSmartAccount,
       },
     })
 

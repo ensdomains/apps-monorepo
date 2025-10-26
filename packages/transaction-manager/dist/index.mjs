@@ -15,7 +15,7 @@ import { createActor } from "xstate";
 // src/machines/transaction.machine.ts
 import { setup, assign, fromPromise } from "xstate";
 import { fromResultAsync } from "@ens-apps/utils/xstate/neverthrow";
-import { ResultAsync as ResultAsync2, errAsync as errAsync2 } from "neverthrow";
+import { ResultAsync as ResultAsync3, errAsync as errAsync3 } from "neverthrow";
 import { fromPromise as fromPromiseNT2 } from "neverthrow";
 
 // src/actors/eoa-transport.actor.ts
@@ -368,6 +368,129 @@ function submitRhinestoneTransaction(input) {
   });
 }
 
+// src/actors/prepare-transaction.actor.ts
+import { ResultAsync as ResultAsync2, errAsync as errAsync2 } from "neverthrow";
+var TransactionPreparationError = class extends Error {
+  constructor(intent, message, cause) {
+    super(message);
+    this.intent = intent;
+    this.cause = cause;
+    this.name = "TransactionPreparationError";
+  }
+};
+function prepareTransaction(input) {
+  const { intent, publicClient, chainId, useSmartAccount } = input;
+  console.log("\u{1F527} [PREPARE] Preparing transaction:", {
+    intentType: intent.type,
+    useSmartAccount,
+    chainId
+  });
+  switch (intent.type) {
+    case "ens-renewal":
+      return prepareENSRenewal(intent, publicClient, chainId, useSmartAccount);
+    case "eth-transfer":
+      return prepareETHTransfer(intent, publicClient, chainId, useSmartAccount);
+    case "custom":
+      return ResultAsync2.fromSafePromise(
+        Promise.resolve({
+          request: intent.request,
+          estimatedCost: intent.request.value || 0n
+        })
+      );
+    default:
+      return errAsync2(
+        new TransactionPreparationError(
+          intent,
+          `Unknown intent type: ${intent.type}`
+        )
+      );
+  }
+}
+function prepareENSRenewal(intent, publicClient, chainId, useSmartAccount) {
+  return ResultAsync2.fromPromise(
+    (async () => {
+      const { name, duration, from } = intent;
+      console.log("\u{1F4CB} [PREPARE] Preparing ENS renewal:", { name, duration: duration.toString() });
+      const txResult = await prepareENSRenewalTransaction(publicClient, {
+        name,
+        duration
+      });
+      if (txResult.isErr()) {
+        throw txResult.error;
+      }
+      const { to, data, value } = txResult.value;
+      const request = useSmartAccount ? {
+        type: "rhinestone-intent",
+        from,
+        to,
+        data,
+        value,
+        chainId,
+        rhinestoneParams: { name, duration }
+      } : {
+        type: "eoa",
+        from,
+        to,
+        data,
+        value,
+        chainId
+      };
+      console.log("\u2705 [PREPARE] Transaction prepared:", {
+        type: request.type,
+        to,
+        value: value.toString()
+      });
+      return {
+        request,
+        estimatedCost: value
+        // For ENS renewal, the cost is just the renewal price (gas will be added during execution)
+      };
+    })(),
+    (error) => new TransactionPreparationError(
+      intent,
+      `Failed to prepare ENS renewal: ${error instanceof Error ? error.message : "Unknown error"}`,
+      error instanceof Error ? error : void 0
+    )
+  );
+}
+function prepareETHTransfer(intent, publicClient, chainId, useSmartAccount) {
+  return ResultAsync2.fromPromise(
+    (async () => {
+      const { to, value, from, data } = intent;
+      console.log("\u{1F4CB} [PREPARE] Preparing ETH transfer:", {
+        to,
+        value: value.toString(),
+        from
+      });
+      const request = useSmartAccount ? {
+        type: "rhinestone-intent",
+        from,
+        to,
+        data: data || "0x",
+        value,
+        chainId
+      } : {
+        type: "eoa",
+        from,
+        to,
+        data: data || "0x",
+        value,
+        chainId
+      };
+      console.log("\u2705 [PREPARE] ETH transfer prepared");
+      return {
+        request,
+        estimatedCost: value
+      };
+    })(),
+    (error) => new TransactionPreparationError(
+      intent,
+      `Failed to prepare ETH transfer: ${error instanceof Error ? error.message : "Unknown error"}`,
+      error instanceof Error ? error : void 0
+    )
+  );
+}
+
 // src/services/audit-trail.service.ts
 import { ok as ok2, err as err2 } from "neverthrow";
 var MAX_TRANSITIONS = 1e3;
@@ -608,6 +731,34 @@ var transactionMachine = setup({
   },
   actors: {
     /**
+     * Prepare Transaction Actor
+     *
+     * Routes to the appropriate preparation logic based on intent.type:
+     * - ens-renewal → prepareENSRenewal
+     * - eth-transfer → prepareETHTransfer
+     * - custom → use provided request
+     */
+    prepareTransaction: fromResultAsync(
+      ({
+        intent,
+        publicClient,
+        chainId,
+        useSmartAccount
+      }) => {
+        console.log("\u{1F527} [TRANSACTION] prepareTransaction actor invoked:", {
+          intentType: intent.type,
+          useSmartAccount,
+          chainId
+        });
+        return prepareTransaction({
+          intent,
+          publicClient,
+          chainId,
+          useSmartAccount
+        });
+      }
+    ),
+    /**
      * Submit Transaction Actor
      *
      * Routes to the appropriate transport actor based on request.type:
@@ -626,7 +777,7 @@ var transactionMachine = setup({
           signerType: signer?.type
         });
         if (!request) {
-          return errAsync2(
+          return errAsync3(
             new TransactionSubmissionError(
               {},
               new Error("No transaction request provided")
@@ -634,7 +785,7 @@ var transactionMachine = setup({
           );
         }
         if (!signer) {
-          return errAsync2(
+          return errAsync3(
             new TransactionSubmissionError(
               request,
               new Error("No signer provided")
@@ -647,14 +798,14 @@ var transactionMachine = setup({
           case "rhinestone":
             return submitRhinestoneTransaction({ request, signer, publicClient });
           case "erc4337":
-            return errAsync2(
+            return errAsync3(
               new TransactionSubmissionError(
                 request,
                 new Error("ERC-4337 transactions not yet implemented")
               )
             );
           default:
-            return errAsync2(
+            return errAsync3(
               new TransactionSubmissionError(request, new Error(`Unknown signer type: ${signer.type}`))
             );
         }
@@ -695,10 +846,10 @@ var transactionMachine = setup({
         publicClient
       }) => {
         if (!request) {
-          return errAsync2(new EthCallFallbackError({}, new Error("No request provided")));
+          return errAsync3(new EthCallFallbackError({}, new Error("No request provided")));
         }
         if (request.type === "erc4337" || request.type === "rhinestone-intent") {
-          return ResultAsync2.fromSafePromise(Promise.resolve({ wouldSucceed: true }));
+          return ResultAsync3.fromSafePromise(Promise.resolve({ wouldSucceed: true }));
         }
         const eoaRequest = request;
         return fromPromiseNT2(
@@ -784,16 +935,23 @@ var transactionMachine = setup({
   initial: "idle",
   context: ({ input }) => {
     console.log("\u{1F3D7}\uFE0F [TRANSACTION] Initializing context:", {
+      hasIntent: !!input.intent,
+      intentType: input.intent?.type,
       hasRequest: !!input.request,
       requestType: input.request?.type,
       hasPublicClient: !!input.publicClient,
-      signerType: input.signer?.type
+      signerType: input.signer?.type,
+      chainId: input.chainId,
+      useSmartAccount: input.useSmartAccount
     });
     return {
       publicClient: input.publicClient,
       signer: input.signer,
+      intent: input.intent,
       request: input.request,
       options: input.options || {},
+      chainId: input.chainId,
+      useSmartAccount: input.useSmartAccount || false,
       retryCount: 0,
       fallbackChecks: 0,
       modal: {
@@ -826,14 +984,24 @@ var transactionMachine = setup({
     idle: {
       entry: ({ context }) => {
         console.log("\u{1F535} [TRANSACTION] Entered idle state:", {
+          hasIntent: !!context.intent,
+          intentType: context.intent?.type,
           hasRequest: !!context.request,
           requestType: context.request?.type
         });
       },
-      always: {
-        guard: ({ context }) => !!context.request && !!context.publicClient,
-        target: "submitting"
-      },
+      always: [
+        {
+          // If we have an intent, prepare the transaction first
+          guard: ({ context }) => !!context.intent && !!context.publicClient && !!context.chainId,
+          target: "preparing"
+        },
+        {
+          // If we have a pre-prepared request, skip to submitting
+          guard: ({ context }) => !!context.request && !!context.publicClient,
+          target: "submitting"
+        }
+      ],
       on: {
         EXECUTE: {
           target: "submitting",
@@ -862,6 +1030,56 @@ var transactionMachine = setup({
             })
           })
         }
+      }
+    },
+    preparing: {
+      entry: [
+        "recordTransition",
+        ({ context }) => {
+          console.log("\u{1F527} [TRANSACTION] Preparing transaction:", {
+            intentType: context.intent?.type,
+            chainId: context.chainId,
+            useSmartAccount: context.useSmartAccount
+          });
+        }
+      ],
+      invoke: {
+        src: "prepareTransaction",
+        input: ({ context }) => ({
+          intent: context.intent,
+          publicClient: context.publicClient,
+          chainId: context.chainId,
+          useSmartAccount: context.useSmartAccount
+        }),
+        onDone: {
+          target: "submitting",
+          actions: [
+            assign({
+              request: ({ event }) => event.output.request,
+              estimatedCost: ({ event }) => event.output.estimatedCost
+            }),
+            "recordTransition",
+            ({ event }) => {
+              console.log("\u2705 [TRANSACTION] Transaction prepared:", {
+                requestType: event.output.request.type,
+                estimatedCost: event.output.estimatedCost.toString()
+              });
+            }
+          ]
+        },
+        onError: {
+          target: "error.preparation",
+          actions: [
+            assign({
+              error: ({ event }) => event.error
+            }),
+            "logCritical",
+            "recordTransition"
+          ]
+        }
+      },
+      on: {
+        CANCEL: "error.cancelled"
       }
     },
     submitting: {
@@ -1106,6 +1324,9 @@ var transactionMachine = setup({
     error: {
       initial: "unknown",
       states: {
+        preparation: {
+          entry: "recordTransition"
+        },
         validation: {
           entry: "recordTransition"
         },
@@ -1242,19 +1463,22 @@ var TransactionManager = class {
    *
    * publicClient can be:
    * 1. Passed in options (takes priority)
-   * 2. Pre-configured via setPublicClient() - determined by request.chainId or options.chainId
+   * 2. Pre-configured via setPublicClient() - determined by intent/request chainId or options.chainId
    * 3. If neither, throws an error
    *
-   * @param request - Unsigned transaction request
+   * @param intentOrRequest - Transaction intent (high-level) or unsigned transaction request (pre-prepared)
    * @param signer - Signer capability (EOA, Rhinestone, etc.)
-   * @param options - Transaction options (modal, description, optional publicClient, optional chainId)
+   * @param options - Transaction options (modal, description, optional publicClient, optional chainId, optional useSmartAccount)
    * @returns Transaction ID
    */
-  startTransaction(request, signer, options) {
-    const { publicClient: optionsPublicClient, chainId, ...transactionOptions } = options;
+  startTransaction(intentOrRequest, signer, options) {
+    const { publicClient: optionsPublicClient, chainId, useSmartAccount, ...transactionOptions } = options;
+    const isIntent = "type" in intentOrRequest && (intentOrRequest.type === "ens-renewal" || intentOrRequest.type === "eth-transfer" || intentOrRequest.type === "custom");
+    const intent = isIntent ? intentOrRequest : void 0;
+    const request = isIntent ? void 0 : intentOrRequest;
     let publicClient = optionsPublicClient;
     if (!publicClient) {
-      const resolvedChainId = chainId || request.chainId;
+      const resolvedChainId = chainId || request?.chainId || intent?.chainId;
       if (resolvedChainId) {
         publicClient = this.publicClients.get(resolvedChainId);
       }
@@ -1267,16 +1491,22 @@ var TransactionManager = class {
     const txId = transactionOptions.id || `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     console.log("\u{1F680} [TRANSACTION MANAGER] Starting transaction:", {
       id: txId,
-      type: request.type,
-      signerType: signer.type
+      isIntent,
+      intentType: intent?.type,
+      requestType: request?.type,
+      signerType: signer.type,
+      chainId,
+      useSmartAccount
     });
     const actor = createActor(transactionMachine, {
       input: {
+        intent,
         request,
         signer,
         publicClient,
-        // From options, not global state
-        options: transactionOptions
+        options: transactionOptions,
+        chainId,
+        useSmartAccount
       }
     });
     actor.start();
@@ -1497,7 +1727,7 @@ function useAccount() {
 
 // src/helpers/ens-renewal.helpers.ts
 import { ok as ok3, err as err3 } from "neverthrow";
-async function prepareENSRenewal(params) {
+async function prepareENSRenewal2(params) {
   const {
     publicClient,
     from,
@@ -2796,7 +3026,7 @@ export {
   isEOASigner,
   isERC4337Signer,
   isRhinestoneSigner,
-  prepareENSRenewal,
+  prepareENSRenewal2 as prepareENSRenewal,
   prepareENSRenewalTransaction,
   recordTransition,
   removeActiveTransaction,

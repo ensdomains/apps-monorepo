@@ -2,12 +2,16 @@ import React, { useReducer, useEffect, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { formatEther } from 'viem'
 import { useSelector } from '@xstate/react'
-import { getENSRenewalPrice, initializeRhinestoneAccount, transactionManager } from '@ens-apps/transaction-manager'
+import {
+  getENSRenewalPrice,
+  initializeRhinestoneAccount,
+  transactionManager,
+  type ENSRenewalIntent,
+} from '@ens-apps/transaction-manager'
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import { sepolia } from 'viem/chains'
 import { handleResult } from './utils/result'
 import { uiStateReducer, initialUIState } from './reducers/uiState.reducer'
-import { startRenewalTransaction } from './helpers/renewal.helpers'
 import { startFundingTransaction } from './helpers/funding.helpers'
 
 const YEAR_IN_SECONDS = 31536000n
@@ -540,35 +544,45 @@ function ENSRenewalExample() {
 
           <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
             <button
-              onClick={async () => {
-                const result = await startRenewalTransaction(
-                  {
-                    name: ui.name,
-                    duration: ui.duration,
-                    renewalPrice: ui.renewalPrice,
-                  },
-                  ui.useSmartAccount
-                    ? {
-                        type: 'rhinestone',
-                        rhinestoneAccount,
-                        rhinestoneConfig,
-                        publicClient: publicClient!,
-                        chainId: sepolia.id,
-                      }
-                    : {
-                        type: 'eoa',
-                        walletClient: walletClient!,
-                        publicClient: publicClient!,
-                        chainId: sepolia.id,
-                      }
-                )
-
-                if (result.error) {
-                  alert(result.error)
-                } else if (result.txId) {
-                  console.log('🚀 Started renewal transaction:', result.txId)
-                  setCurrentTxId(result.txId)
+              onClick={() => {
+                // Create intent
+                const intent: ENSRenewalIntent = {
+                  type: 'ens-renewal',
+                  name: ui.name.replace('.eth', ''),
+                  duration: BigInt(ui.duration) * YEAR_IN_SECONDS,
+                  from: ui.useSmartAccount
+                    ? rhinestoneAccount.address
+                    : (address as `0x${string}`),
                 }
+
+                // Create signer
+                const signer = ui.useSmartAccount
+                  ? {
+                      type: 'rhinestone' as const,
+                      account: rhinestoneAccount,
+                      publicClient: publicClient!,
+                      config: rhinestoneConfig,
+                    }
+                  : {
+                      type: 'eoa' as const,
+                      walletClient: walletClient!,
+                    }
+
+                // Start transaction with intent
+                const txId = transactionManager.startTransaction(intent, signer, {
+                  chainId: sepolia.id,
+                  useSmartAccount: ui.useSmartAccount,
+                  modal: {
+                    title: `Renew ${ui.name}`,
+                    ensName: ui.name,
+                    network: 'Sepolia',
+                    estimatedCost: ui.renewalPrice ? `${formatEther(ui.renewalPrice)} ETH` : '~0.0011 ETH',
+                  },
+                  description: `Renew ${ui.name.replace('.eth', '')}.eth for ${ui.duration} year(s)`,
+                })
+
+                console.log('🚀 Started renewal transaction:', txId)
+                setCurrentTxId(txId)
               }}
               disabled={buttonDisabled}
               style={{

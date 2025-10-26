@@ -5,12 +5,14 @@ import { fromPromise as fromPromiseNT } from 'neverthrow'
 import type { Hash, TransactionReceipt, PublicClient } from 'viem'
 import type {
   TransactionRequest,
+  TransactionIntent,
   TransactionOptions,
   TransactionModalState,
 } from '../types/transaction.types'
 import type { Signer } from '../types/signer.types'
 import { submitEOATransaction } from '../actors/eoa-transport.actor'
 import { submitRhinestoneTransaction } from '../actors/rhinestone-transport.actor'
+import { prepareTransaction } from '../actors/prepare-transaction.actor'
 import * as auditTrail from '../services/audit-trail.service'
 import {
   TransactionSubmissionError,
@@ -36,8 +38,12 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
     context: {} as {
       publicClient: PublicClient
       signer?: Signer
+      intent?: TransactionIntent
       request?: TransactionRequest
       options: TransactionOptions
+      chainId?: number
+      useSmartAccount: boolean
+      estimatedCost?: bigint
       hash?: Hash
       userOpHash?: Hash
       receipt?: TransactionReceipt
@@ -49,8 +55,11 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
     input: {} as {
       publicClient: PublicClient
       signer?: Signer
+      intent?: TransactionIntent
       request?: TransactionRequest
       options?: TransactionOptions
+      chainId?: number
+      useSmartAccount?: boolean
     },
     events: {} as
       | { type: 'EXECUTE'; request: TransactionRequest; options?: TransactionOptions; modal?: Partial<TransactionModalState> }
@@ -62,6 +71,41 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
       | { type: 'UPDATE_MODAL_DATA'; data: Partial<TransactionModalState> },
   },
   actors: {
+    /**
+     * Prepare Transaction Actor
+     *
+     * Routes to the appropriate preparation logic based on intent.type:
+     * - ens-renewal → prepareENSRenewal
+     * - eth-transfer → prepareETHTransfer
+     * - custom → use provided request
+     */
+    prepareTransaction: fromResultAsync(
+      ({
+        intent,
+        publicClient,
+        chainId,
+        useSmartAccount,
+      }: {
+        intent: TransactionIntent
+        publicClient: PublicClient
+        chainId: number
+        useSmartAccount: boolean
+      }) => {
+        console.log('🔧 [TRANSACTION] prepareTransaction actor invoked:', {
+          intentType: intent.type,
+          useSmartAccount,
+          chainId,
+        })
+
+        return prepareTransaction({
+          intent,
+          publicClient,
+          chainId,
+          useSmartAccount,
+        })
+      }
+    ),
+
     /**
      * Submit Transaction Actor
      *
@@ -272,17 +316,24 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
   initial: 'idle',
   context: ({ input }) => {
     console.log('🏗️ [TRANSACTION] Initializing context:', {
+      hasIntent: !!input.intent,
+      intentType: input.intent?.type,
       hasRequest: !!input.request,
       requestType: input.request?.type,
       hasPublicClient: !!input.publicClient,
       signerType: input.signer?.type,
+      chainId: input.chainId,
+      useSmartAccount: input.useSmartAccount,
     })
 
     return {
       publicClient: input.publicClient!,
       signer: input.signer,
+      intent: input.intent,
       request: input.request,
       options: input.options || {},
+      chainId: input.chainId,
+      useSmartAccount: input.useSmartAccount || false,
       retryCount: 0,
       fallbackChecks: 0,
       modal: {
@@ -315,14 +366,24 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
     idle: {
       entry: ({ context }) => {
         console.log('🔵 [TRANSACTION] Entered idle state:', {
+          hasIntent: !!context.intent,
+          intentType: context.intent?.type,
           hasRequest: !!context.request,
           requestType: context.request?.type,
         })
       },
-      always: {
-        guard: ({ context }) => !!context.request && !!context.publicClient,
-        target: 'submitting',
-      },
+      always: [
+        {
+          // If we have an intent, prepare the transaction first
+          guard: ({ context }) => !!context.intent && !!context.publicClient && !!context.chainId,
+          target: 'preparing',
+        },
+        {
+          // If we have a pre-prepared request, skip to submitting
+          guard: ({ context }) => !!context.request && !!context.publicClient,
+          target: 'submitting',
+        },
+      ],
       on: {
         EXECUTE: {
           target: 'submitting',
@@ -351,6 +412,57 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
             }),
           }),
         },
+      },
+    },
+
+    preparing: {
+      entry: [
+        'recordTransition',
+        ({ context }) => {
+          console.log('🔧 [TRANSACTION] Preparing transaction:', {
+            intentType: context.intent?.type,
+            chainId: context.chainId,
+            useSmartAccount: context.useSmartAccount,
+          })
+        },
+      ],
+      invoke: {
+        src: 'prepareTransaction',
+        input: ({ context }) => ({
+          intent: context.intent!,
+          publicClient: context.publicClient,
+          chainId: context.chainId!,
+          useSmartAccount: context.useSmartAccount,
+        }),
+        onDone: {
+          target: 'submitting',
+          actions: [
+            assign({
+              request: ({ event }) => event.output.request,
+              estimatedCost: ({ event }) => event.output.estimatedCost,
+            }),
+            'recordTransition',
+            ({ event }) => {
+              console.log('✅ [TRANSACTION] Transaction prepared:', {
+                requestType: event.output.request.type,
+                estimatedCost: event.output.estimatedCost.toString(),
+              })
+            },
+          ],
+        },
+        onError: {
+          target: 'error.preparation',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+            }),
+            'logCritical',
+            'recordTransition',
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'error.cancelled',
       },
     },
 
@@ -604,6 +716,9 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
     error: {
       initial: 'unknown',
       states: {
+        preparation: {
+          entry: 'recordTransition',
+        },
         validation: {
           entry: 'recordTransition',
         },

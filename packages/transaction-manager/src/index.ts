@@ -2,6 +2,10 @@
 export type {
   TransactionType,
   TransactionRequest,
+  TransactionIntent,
+  ENSRenewalIntent,
+  ETHTransferIntent,
+  CustomTransactionIntent,
   EOATransactionRequest,
   ERC4337UserOperation,
   TransactionOptions,

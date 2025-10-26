@@ -77,7 +77,7 @@ __export(index_exports, {
   isEOASigner: () => isEOASigner,
   isERC4337Signer: () => isERC4337Signer,
   isRhinestoneSigner: () => isRhinestoneSigner,
-  prepareENSRenewal: () => prepareENSRenewal,
+  prepareENSRenewal: () => prepareENSRenewal2,
   prepareENSRenewalTransaction: () => prepareENSRenewalTransaction,
   recordTransition: () => recordTransition,
   removeActiveTransaction: () => removeActiveTransaction,
@@ -110,9 +110,9 @@ var import_xstate2 = require("xstate");
 
 // src/machines/transaction.machine.ts
 var import_xstate = require("xstate");
-var import_neverthrow5 = require("@ens-apps/utils/xstate/neverthrow");
-var import_neverthrow6 = require("neverthrow");
+var import_neverthrow6 = require("@ens-apps/utils/xstate/neverthrow");
 var import_neverthrow7 = require("neverthrow");
+var import_neverthrow8 = require("neverthrow");
 
 // src/actors/eoa-transport.actor.ts
 var import_neverthrow = require("neverthrow");
@@ -462,8 +462,131 @@ function submitRhinestoneTransaction(input) {
   });
 }
 
-// src/services/audit-trail.service.ts
+// src/actors/prepare-transaction.actor.ts
 var import_neverthrow4 = require("neverthrow");
+var TransactionPreparationError = class extends Error {
+  constructor(intent, message, cause) {
+    super(message);
+    this.intent = intent;
+    this.cause = cause;
+    this.name = "TransactionPreparationError";
+  }
+};
+function prepareTransaction(input) {
+  const { intent, publicClient, chainId, useSmartAccount } = input;
+  console.log("\u{1F527} [PREPARE] Preparing transaction:", {
+    intentType: intent.type,
+    useSmartAccount,
+    chainId
+  });
+  switch (intent.type) {
+    case "ens-renewal":
+      return prepareENSRenewal(intent, publicClient, chainId, useSmartAccount);
+    case "eth-transfer":
+      return prepareETHTransfer(intent, publicClient, chainId, useSmartAccount);
+    case "custom":
+      return import_neverthrow4.ResultAsync.fromSafePromise(
+        Promise.resolve({
+          request: intent.request,
+          estimatedCost: intent.request.value || 0n
+        })
+      );
+    default:
+      return (0, import_neverthrow4.errAsync)(
+        new TransactionPreparationError(
+          intent,
+          `Unknown intent type: ${intent.type}`
+        )
+      );
+  }
+}
+function prepareENSRenewal(intent, publicClient, chainId, useSmartAccount) {
+  return import_neverthrow4.ResultAsync.fromPromise(
+    (async () => {
+      const { name, duration, from } = intent;
+      console.log("\u{1F4CB} [PREPARE] Preparing ENS renewal:", { name, duration: duration.toString() });
+      const txResult = await prepareENSRenewalTransaction(publicClient, {
+        name,
+        duration
+      });
+      if (txResult.isErr()) {
+        throw txResult.error;
+      }
+      const { to, data, value } = txResult.value;
+      const request = useSmartAccount ? {
+        type: "rhinestone-intent",
+        from,
+        to,
+        data,
+        value,
+        chainId,
+        rhinestoneParams: { name, duration }
+      } : {
+        type: "eoa",
+        from,
+        to,
+        data,
+        value,
+        chainId
+      };
+      console.log("\u2705 [PREPARE] Transaction prepared:", {
+        type: request.type,
+        to,
+        value: value.toString()
+      });
+      return {
+        request,
+        estimatedCost: value
+        // For ENS renewal, the cost is just the renewal price (gas will be added during execution)
+      };
+    })(),
+    (error) => new TransactionPreparationError(
+      intent,
+      `Failed to prepare ENS renewal: ${error instanceof Error ? error.message : "Unknown error"}`,
+      error instanceof Error ? error : void 0
+    )
+  );
+}
+function prepareETHTransfer(intent, publicClient, chainId, useSmartAccount) {
+  return import_neverthrow4.ResultAsync.fromPromise(
+    (async () => {
+      const { to, value, from, data } = intent;
+      console.log("\u{1F4CB} [PREPARE] Preparing ETH transfer:", {
+        to,
+        value: value.toString(),
+        from
+      });
+      const request = useSmartAccount ? {
+        type: "rhinestone-intent",
+        from,
+        to,
+        data: data || "0x",
+        value,
+        chainId
+      } : {
+        type: "eoa",
+        from,
+        to,
+        data: data || "0x",
+        value,
+        chainId
+      };
+      console.log("\u2705 [PREPARE] ETH transfer prepared");
+      return {
+        request,
+        estimatedCost: value
+      };
+    })(),
+    (error) => new TransactionPreparationError(
+      intent,
+      `Failed to prepare ETH transfer: ${error instanceof Error ? error.message : "Unknown error"}`,
+      error instanceof Error ? error : void 0
+    )
+  );
+}
+
+// src/services/audit-trail.service.ts
+var import_neverthrow5 = require("neverthrow");
 var MAX_TRANSITIONS = 1e3;
 var MAX_AGE = 24 * 60 * 60 * 1e3;
 var STORAGE_KEY = "@ens/audit-trail";
@@ -625,9 +748,9 @@ function importFromJson(json) {
       auditLog: parsed.auditLog || []
     };
     saveToStorage(data);
-    return (0, import_neverthrow4.ok)(void 0);
+    return (0, import_neverthrow5.ok)(void 0);
   } catch (error) {
-    return (0, import_neverthrow4.err)(new ImportError({ cause: error }));
+    return (0, import_neverthrow5.err)(new ImportError({ cause: error }));
   }
 }
 function clearAuditTrail() {
@@ -702,6 +825,34 @@ var transactionMachine = (0, import_xstate.setup)({
   },
   actors: {
     /**
+     * Prepare Transaction Actor
+     *
+     * Routes to the appropriate preparation logic based on intent.type:
+     * - ens-renewal → prepareENSRenewal
+     * - eth-transfer → prepareETHTransfer
+     * - custom → use provided request
+     */
+    prepareTransaction: (0, import_neverthrow6.fromResultAsync)(
+      ({
+        intent,
+        publicClient,
+        chainId,
+        useSmartAccount
+      }) => {
+        console.log("\u{1F527} [TRANSACTION] prepareTransaction actor invoked:", {
+          intentType: intent.type,
+          useSmartAccount,
+          chainId
+        });
+        return prepareTransaction({
+          intent,
+          publicClient,
+          chainId,
+          useSmartAccount
+        });
+      }
+    ),
+    /**
      * Submit Transaction Actor
      *
      * Routes to the appropriate transport actor based on request.type:
@@ -709,7 +860,7 @@ var transactionMachine = (0, import_xstate.setup)({
      * - rhinestone-intent → submitRhinestoneTransaction
      * - erc4337 → (not yet implemented)
      */
-    submitTransaction: (0, import_neverthrow5.fromResultAsync)(
+    submitTransaction: (0, import_neverthrow6.fromResultAsync)(
       ({
         request,
         signer,
@@ -720,7 +871,7 @@ var transactionMachine = (0, import_xstate.setup)({
           signerType: signer?.type
         });
         if (!request) {
-          return (0, import_neverthrow6.errAsync)(
+          return (0, import_neverthrow7.errAsync)(
             new TransactionSubmissionError(
               {},
               new Error("No transaction request provided")
@@ -728,7 +879,7 @@ var transactionMachine = (0, import_xstate.setup)({
           );
         }
         if (!signer) {
-          return (0, import_neverthrow6.errAsync)(
+          return (0, import_neverthrow7.errAsync)(
             new TransactionSubmissionError(
               request,
               new Error("No signer provided")
@@ -741,14 +892,14 @@ var transactionMachine = (0, import_xstate.setup)({
           case "rhinestone":
             return submitRhinestoneTransaction({ request, signer, publicClient });
           case "erc4337":
-            return (0, import_neverthrow6.errAsync)(
+            return (0, import_neverthrow7.errAsync)(
               new TransactionSubmissionError(
                 request,
                 new Error("ERC-4337 transactions not yet implemented")
               )
             );
           default:
-            return (0, import_neverthrow6.errAsync)(
+            return (0, import_neverthrow7.errAsync)(
               new TransactionSubmissionError(request, new Error(`Unknown signer type: ${signer.type}`))
             );
         }
@@ -757,7 +908,7 @@ var transactionMachine = (0, import_xstate.setup)({
     /**
      * Wait for Transaction Receipt
      */
-    waitForReceipt: (0, import_neverthrow5.fromResultAsync)(
+    waitForReceipt: (0, import_neverthrow6.fromResultAsync)(
       ({
         hash,
         options,
@@ -770,7 +921,7 @@ var transactionMachine = (0, import_xstate.setup)({
           confirmations,
           timeout
         });
-        return (0, import_neverthrow7.fromPromise)(
+        return (0, import_neverthrow8.fromPromise)(
           publicClient.waitForTransactionReceipt({
             hash,
             confirmations,
@@ -783,19 +934,19 @@ var transactionMachine = (0, import_xstate.setup)({
     /**
      * Check transaction with eth_call fallback
      */
-    checkWithEthCall: (0, import_neverthrow5.fromResultAsync)(
+    checkWithEthCall: (0, import_neverthrow6.fromResultAsync)(
       ({
         request,
         publicClient
       }) => {
         if (!request) {
-          return (0, import_neverthrow6.errAsync)(new EthCallFallbackError({}, new Error("No request provided")));
+          return (0, import_neverthrow7.errAsync)(new EthCallFallbackError({}, new Error("No request provided")));
         }
         if (request.type === "erc4337" || request.type === "rhinestone-intent") {
-          return import_neverthrow6.ResultAsync.fromSafePromise(Promise.resolve({ wouldSucceed: true }));
+          return import_neverthrow7.ResultAsync.fromSafePromise(Promise.resolve({ wouldSucceed: true }));
         }
         const eoaRequest = request;
-        return (0, import_neverthrow7.fromPromise)(
+        return (0, import_neverthrow8.fromPromise)(
           publicClient.call({
             account: eoaRequest.from,
             to: eoaRequest.to,
@@ -878,16 +1029,23 @@ var transactionMachine = (0, import_xstate.setup)({
   initial: "idle",
   context: ({ input }) => {
     console.log("\u{1F3D7}\uFE0F [TRANSACTION] Initializing context:", {
+      hasIntent: !!input.intent,
+      intentType: input.intent?.type,
       hasRequest: !!input.request,
       requestType: input.request?.type,
       hasPublicClient: !!input.publicClient,
-      signerType: input.signer?.type
+      signerType: input.signer?.type,
+      chainId: input.chainId,
+      useSmartAccount: input.useSmartAccount
     });
     return {
       publicClient: input.publicClient,
       signer: input.signer,
+      intent: input.intent,
       request: input.request,
       options: input.options || {},
+      chainId: input.chainId,
+      useSmartAccount: input.useSmartAccount || false,
       retryCount: 0,
       fallbackChecks: 0,
       modal: {
@@ -920,14 +1078,24 @@ var transactionMachine = (0, import_xstate.setup)({
     idle: {
       entry: ({ context }) => {
         console.log("\u{1F535} [TRANSACTION] Entered idle state:", {
+          hasIntent: !!context.intent,
+          intentType: context.intent?.type,
           hasRequest: !!context.request,
           requestType: context.request?.type
         });
       },
-      always: {
-        guard: ({ context }) => !!context.request && !!context.publicClient,
-        target: "submitting"
-      },
+      always: [
+        {
+          // If we have an intent, prepare the transaction first
+          guard: ({ context }) => !!context.intent && !!context.publicClient && !!context.chainId,
+          target: "preparing"
+        },
+        {
+          // If we have a pre-prepared request, skip to submitting
+          guard: ({ context }) => !!context.request && !!context.publicClient,
+          target: "submitting"
+        }
+      ],
       on: {
         EXECUTE: {
           target: "submitting",
@@ -956,6 +1124,56 @@ var transactionMachine = (0, import_xstate.setup)({
             })
           })
         }
+      }
+    },
+    preparing: {
+      entry: [
+        "recordTransition",
+        ({ context }) => {
+          console.log("\u{1F527} [TRANSACTION] Preparing transaction:", {
+            intentType: context.intent?.type,
+            chainId: context.chainId,
+            useSmartAccount: context.useSmartAccount
+          });
+        }
+      ],
+      invoke: {
+        src: "prepareTransaction",
+        input: ({ context }) => ({
+          intent: context.intent,
+          publicClient: context.publicClient,
+          chainId: context.chainId,
+          useSmartAccount: context.useSmartAccount
+        }),
+        onDone: {
+          target: "submitting",
+          actions: [
+            (0, import_xstate.assign)({
+              request: ({ event }) => event.output.request,
+              estimatedCost: ({ event }) => event.output.estimatedCost
+            }),
+            "recordTransition",
+            ({ event }) => {
+              console.log("\u2705 [TRANSACTION] Transaction prepared:", {
+                requestType: event.output.request.type,
+                estimatedCost: event.output.estimatedCost.toString()
+              });
+            }
+          ]
+        },
+        onError: {
+          target: "error.preparation",
+          actions: [
+            (0, import_xstate.assign)({
+              error: ({ event }) => event.error
+            }),
+            "logCritical",
+            "recordTransition"
+          ]
+        }
+      },
+      on: {
+        CANCEL: "error.cancelled"
       }
     },
     submitting: {
@@ -1200,6 +1418,9 @@ var transactionMachine = (0, import_xstate.setup)({
     error: {
       initial: "unknown",
       states: {
+        preparation: {
+          entry: "recordTransition"
+        },
         validation: {
           entry: "recordTransition"
         },
@@ -1336,19 +1557,22 @@ var TransactionManager = class {
    *
    * publicClient can be:
    * 1. Passed in options (takes priority)
-   * 2. Pre-configured via setPublicClient() - determined by request.chainId or options.chainId
+   * 2. Pre-configured via setPublicClient() - determined by intent/request chainId or options.chainId
    * 3. If neither, throws an error
    *
-   * @param request - Unsigned transaction request
+   * @param intentOrRequest - Transaction intent (high-level) or unsigned transaction request (pre-prepared)
    * @param signer - Signer capability (EOA, Rhinestone, etc.)
-   * @param options - Transaction options (modal, description, optional publicClient, optional chainId)
+   * @param options - Transaction options (modal, description, optional publicClient, optional chainId, optional useSmartAccount)
    * @returns Transaction ID
    */
-  startTransaction(request, signer, options) {
-    const { publicClient: optionsPublicClient, chainId, ...transactionOptions } = options;
+  startTransaction(intentOrRequest, signer, options) {
+    const { publicClient: optionsPublicClient, chainId, useSmartAccount, ...transactionOptions } = options;
+    const isIntent = "type" in intentOrRequest && (intentOrRequest.type === "ens-renewal" || intentOrRequest.type === "eth-transfer" || intentOrRequest.type === "custom");
+    const intent = isIntent ? intentOrRequest : void 0;
+    const request = isIntent ? void 0 : intentOrRequest;
     let publicClient = optionsPublicClient;
     if (!publicClient) {
-      const resolvedChainId = chainId || request.chainId;
+      const resolvedChainId = chainId || request?.chainId || intent?.chainId;
       if (resolvedChainId) {
         publicClient = this.publicClients.get(resolvedChainId);
       }
@@ -1361,16 +1585,22 @@ var TransactionManager = class {
     const txId = transactionOptions.id || `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     console.log("\u{1F680} [TRANSACTION MANAGER] Starting transaction:", {
       id: txId,
-      type: request.type,
-      signerType: signer.type
+      isIntent,
+      intentType: intent?.type,
+      requestType: request?.type,
+      signerType: signer.type,
+      chainId,
+      useSmartAccount
     });
     const actor = (0, import_xstate2.createActor)(transactionMachine, {
       input: {
+        intent,
         request,
         signer,
         publicClient,
-        // From options, not global state
-        options: transactionOptions
+        options: transactionOptions,
+        chainId,
+        useSmartAccount
       }
     });
     actor.start();
@@ -1590,8 +1820,8 @@ function useAccount() {
 }
 
 // src/helpers/ens-renewal.helpers.ts
-var import_neverthrow8 = require("neverthrow");
-async function prepareENSRenewal(params) {
+var import_neverthrow9 = require("neverthrow");
+async function prepareENSRenewal2(params) {
   const {
     publicClient,
     from,
@@ -1607,11 +1837,11 @@ async function prepareENSRenewal(params) {
       duration
     });
     if (txResult.isErr()) {
-      return (0, import_neverthrow8.err)(txResult.error);
+      return (0, import_neverthrow9.err)(txResult.error);
     }
     const { to, data, value } = txResult.value;
     if (useSmartAccount && rhinestoneConfig) {
-      return (0, import_neverthrow8.ok)({
+      return (0, import_neverthrow9.ok)({
         request: {
           type: "rhinestone-intent",
           to,
@@ -1626,7 +1856,7 @@ async function prepareENSRenewal(params) {
         }
       });
     } else {
-      return (0, import_neverthrow8.ok)({
+      return (0, import_neverthrow9.ok)({
         request: {
           type: "eoa",
           to,
@@ -1638,7 +1868,7 @@ async function prepareENSRenewal(params) {
       });
     }
   } catch (error) {
-    return (0, import_neverthrow8.err)(
+    return (0, import_neverthrow9.err)(
       error instanceof Error ? error : new Error("Failed to prepare ENS renewal")
     );
   }
@@ -1649,11 +1879,11 @@ async function getENSRenewalPrice2(publicClient, name, duration) {
 }
 async function getRhinestoneSmartAccountAddress(publicClient, walletClient, rhinestoneConfig) {
   if (!rhinestoneConfig) {
-    return (0, import_neverthrow8.err)(new Error("Rhinestone config required"));
+    return (0, import_neverthrow9.err)(new Error("Rhinestone config required"));
   }
   const accountResult = await initializeRhinestoneAccount(walletClient, rhinestoneConfig);
   if (accountResult.isErr()) {
-    return (0, import_neverthrow8.err)(accountResult.error);
+    return (0, import_neverthrow9.err)(accountResult.error);
   }
   return getRhinestoneAccountAddress(accountResult.value).mapErr((err4) => err4);
 }
