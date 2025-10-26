@@ -22,7 +22,6 @@ export interface EOASigner {
 export interface RhinestoneSigner {
   type: 'rhinestone'
   account: any // RhinestoneAccount from @rhinestone/sdk
-  publicClient: PublicClient
   config: RhinestoneConfig
 }
 

@@ -560,7 +560,6 @@ function ENSRenewalExample() {
                   ? {
                       type: 'rhinestone' as const,
                       account: rhinestoneAccount,
-                      publicClient: publicClient!,
                       config: rhinestoneConfig,
                     }
                   : {
