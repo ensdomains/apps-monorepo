@@ -1,6 +1,7 @@
+import { useWallet } from '@getpara/react-sdk'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { useAccount } from 'wagmi'
+// import { useAccount } from 'wagmi'
 import { sectionsList } from '../../data/records'
 import { ownerQuery } from '../../service/profileOwner'
 import { profileRecordsQuery } from '../../service/profileRecords'
@@ -26,10 +27,10 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     // throwOnError: true,
   })
 
-  const { address } = useAccount()
+  const { data: wallet } = useWallet()
+  const address = wallet?.address
 
-  const isOwner =
-    address && owner.data?.registrant?.toLowerCase() === address.toLowerCase()
+  const isOwner = address?.toLowerCase() === owner.data
 
   if (records.isLoading) {
     return (

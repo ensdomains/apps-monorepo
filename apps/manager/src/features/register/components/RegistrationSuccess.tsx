@@ -1,7 +1,7 @@
 'use client'
 
-import { CheckCircleIcon } from 'lucide-react'
-import * as React from 'react'
+import { CheckCircleIcon, PlusIcon } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface RegistrationSuccessProps {
   domainName: string
@@ -12,14 +12,6 @@ export function RegistrationSuccess({
   domainName,
   onSetupAutorenewal,
 }: RegistrationSuccessProps) {
-  React.useEffect(() => {
-    // Auto-transition to autorenewal after 3 seconds
-    const timer = setTimeout(() => {
-      onSetupAutorenewal()
-    }, 3000)
-
-    return () => clearTimeout(timer)
-  }, [onSetupAutorenewal])
 
   return (
     <div className="mx-auto max-w-md space-y-8 p-6 text-center">
@@ -106,15 +98,36 @@ export function RegistrationSuccess({
       <div className="h-32" />
 
       {/* Registration success status */}
-      <div className="space-y-2">
+      <div className="space-y-4">
         <div className="flex items-center justify-center gap-2">
-          <CheckCircleIcon className="h-4 w-4 text-green-600" />
-          <span className="font-medium text-gray-900 text-sm">
-            Registration successful
+          <CheckCircleIcon className="h-5 w-5 text-green-600" />
+          <span className="font-semibold text-gray-900 text-lg">
+            Registration Successful!
           </span>
         </div>
+        
+        <div className="text-gray-600 text-sm">
+          Your domain has been successfully registered and is now active.
+        </div>
+
         <div className="h-1 w-full rounded-full bg-gray-200">
           <div className="h-1 w-full rounded-full bg-green-600"></div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="space-y-3">
+          <Button 
+            onClick={onSetupAutorenewal}
+            className="w-full"
+            size="lg"
+          >
+            <PlusIcon className="mr-2 h-4 w-4" />
+            Setup Auto-Renewal
+          </Button>
+          
+          <div className="text-gray-500 text-xs">
+            Automatically redirecting in 3 seconds...
+          </div>
         </div>
       </div>
     </div>

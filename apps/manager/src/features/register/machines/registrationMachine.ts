@@ -1,4 +1,4 @@
-import { assign, setup } from 'xstate'
+import { assign, setup, fromPromise } from 'xstate'
 import { SUPPORTED_TOKENS } from '../services/nameChainContractService'
 
 const STORAGE_KEYS = {
@@ -148,7 +148,14 @@ export const registrationMachine = setup({
     events: {} as RegistrationEvent,
   },
   actors: {
-    // Note: Pricing logic removed - now handled in UI components using getTokenPrices service
+    // Timer actor for auto-transition to autorenewal
+    autorenewalTimer: fromPromise(() => {
+      return new Promise<void>((resolve) => {
+        setTimeout(() => {
+          resolve()
+        }, 3000) // 3 second delay
+      })
+    }),
   },
   actions: {
     setName: assign({
@@ -467,6 +474,13 @@ export const registrationMachine = setup({
         }),
         'clearStateAfterSuccess', // Clear state immediately after success
       ],
+      invoke: {
+        id: 'autorenewalTimer',
+        src: 'autorenewalTimer',
+        onDone: {
+          target: 'autorenewal',
+        },
+      },
       on: {
         SETUP_AUTORENEWAL: {
           target: 'autorenewal',

@@ -13,6 +13,7 @@ import {
   registerDomain,
   SUPPORTED_TOKENS,
 } from '../services/nameChainContractService'
+import { RhinestoneTransactionResult } from '@/lib/rhinestone/utils'
 
 // ============================================================================
 // TYPES
@@ -24,6 +25,7 @@ export enum RegistrationStep {
   APPROVING = 'approving',
   REGISTERING = 'registering',
   SUCCESS = 'success',
+  AUTORENEWAL = 'autorenewal',
   ERROR = 'error',
 }
 
@@ -42,8 +44,8 @@ export function useRegistration(initialName?: string) {
   const [tokenPrice, setTokenPrice] = useState<bigint | null>(null)
   const [commitment, setCommitment] = useState<string | null>(null)
   const [secret, setSecret] = useState<string | null>(null)
-  const [commitTxHash, setCommitTxHash] = useState<string | null>(null)
-  const [registerTxHash, setRegisterTxHash] = useState<string | null>(null)
+  const [commitTxHash, setCommitTxHash] = useState<RhinestoneTransactionResult | null>(null)
+  const [registerTxHash, setRegisterTxHash] = useState<RhinestoneTransactionResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -254,14 +256,15 @@ export function useRegistration(initialName?: string) {
   ])
 
   const startCommitment = useCallback(
-    (params: { tokenPrice: bigint; selectedToken: `0x${string}` }) => {
+    (params: { tokenPrice: bigint; selectedToken?: `0x${string}` }) => {
       if (!accountAddress || !sendTransaction) {
         setError('Account not connected')
         return
       }
 
       setTokenPrice(params.tokenPrice)
-      setSelectedToken(params.selectedToken)
+      // Default to USDC if no token specified
+      setSelectedToken(params.selectedToken || SUPPORTED_TOKENS.USDC)
       setError(null)
       setStep(RegistrationStep.COMMITTING)
     },
@@ -286,6 +289,16 @@ export function useRegistration(initialName?: string) {
     setStep(RegistrationStep.PRICING)
   }, [])
 
+  const handleSetupAutorenewal = useCallback(() => {
+    // Move to autorenewal step after successful registration
+    setStep(RegistrationStep.AUTORENEWAL)
+  }, [])
+
+  const handleRegisterAnotherName = useCallback(() => {
+    // Reset the registration state to start over with a new name
+    reset()
+  }, [reset])
+
   return {
     step,
     name,
@@ -299,6 +312,7 @@ export function useRegistration(initialName?: string) {
     isApproving: step === RegistrationStep.APPROVING,
     isRegistering: step === RegistrationStep.REGISTERING,
     isSuccess: step === RegistrationStep.SUCCESS,
+    isAutorenewal: step === RegistrationStep.AUTORENEWAL,
     isError: step === RegistrationStep.ERROR,
     startCommitment,
     setDuration,
@@ -306,5 +320,7 @@ export function useRegistration(initialName?: string) {
     setSelectedToken,
     retry,
     reset,
+    handleSetupAutorenewal,
+    handleRegisterAnotherName,
   }
 }

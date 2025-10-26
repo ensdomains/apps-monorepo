@@ -2,7 +2,7 @@
 
 import { CreditCardIcon } from 'lucide-react'
 import * as React from 'react'
-import { useAccount } from 'wagmi'
+// import { useAccount } from 'wagmi'
 import { StablecoinItem } from '@/components/molecules/StablecoinList/StablecoinItem'
 import { Button } from '@/components/ui/button'
 import {
@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/drawer'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+import { useWallet } from '@getpara/react-sdk'
 
 interface PaymentDrawerProps {
   domainName?: string
@@ -30,8 +31,8 @@ interface PaymentDrawerProps {
   onPaymentSelect?: (method: 'crypto' | 'credit-card') => void
   onCryptoSelect?: (cryptoId: string) => void
   onConfirmPayment?: (
-    tokenPrice: number,
-    selectedToken: { address: string; symbol: string },
+    tokenPrice: bigint,
+    selectedToken: string,
   ) => void
   isUsingAA?: boolean
 }
@@ -133,11 +134,35 @@ export function CryptoPaymentDrawer({
   const [selectedCoin, setSelectedCoin] = React.useState<string>('')
 
   const isDesktop = useMediaQuery('(min-width: 768px)')
-  const { isConnected, chain } = useAccount()
+  const { data: wallet } = useWallet()
+  const isConnected = !!wallet?.address
   const { stablecoinBalances, isLoadingBalances } = useRhinestoneAccount()
 
   const hasBalances = (stablecoinBalances?.length || 0) > 0
   const stablecoinLoading = isLoadingBalances
+
+  // Auto-select first available token when balance is available
+  React.useEffect(() => {
+    if (hasBalances && stablecoinBalances?.length && stablecoinBalances.length > 0 && !selectedCoin) {
+      const firstBalance = stablecoinBalances[0]
+      if (firstBalance) {
+        console.log('🔧 Auto-selecting token:', firstBalance.symbol, firstBalance.address)
+        setSelectedCoin(firstBalance.address)
+      }
+    }
+  }, [hasBalances, stablecoinBalances, selectedCoin])
+
+  // Debug button state
+  React.useEffect(() => {
+    console.log('🔍 Button state:', {
+      isLoading,
+      stablecoinLoading,
+      selectedCoin,
+      hasBalances,
+      stablecoinBalances: stablecoinBalances?.length,
+      buttonDisabled: isLoading || stablecoinLoading || !selectedCoin || !hasBalances
+    })
+  }, [isLoading, stablecoinLoading, selectedCoin, hasBalances, stablecoinBalances])
 
   const triggerButton = (
     <Button className="h-12 flex-1 font-semibold text-base">
@@ -163,16 +188,16 @@ export function CryptoPaymentDrawer({
         )}
       </div>
 
-      <div className="text-center">
-        <h3 className="font-semibold text-gray-900 text-lg">
-          {isUsingAA ? 'Select coin from smart account' : 'Select coin'}
-        </h3>
-        <p className="text-gray-600 text-sm">
-          {isUsingAA
-            ? 'Using funds from your smart account for gasless transactions'
-            : 'Pay with any stablecoin on any chain'}
-        </p>
-      </div>
+             <div className="text-center">
+               <h3 className="font-semibold text-gray-900 text-lg">
+                 {isUsingAA ? 'Pay with stablecoins from smart account' : 'Pay with stablecoins'}
+               </h3>
+               <p className="text-gray-600 text-sm">
+                 {isUsingAA
+                   ? 'Using stablecoins from your smart account for gasless transactions'
+                   : 'Pay with USDC or DAI on Sepolia'}
+               </p>
+             </div>
 
       <div className="space-y-4">
         {(isLoading || stablecoinLoading) && (
@@ -194,7 +219,7 @@ export function CryptoPaymentDrawer({
                   You need to connect a wallet to see your stablecoin balances
                 </div>
               </>
-            ) : !chain ? (
+            ) : !wallet?.address ? (
               <>
                 <div className="mb-2 text-gray-500 text-sm">
                   Network not detected
@@ -209,7 +234,7 @@ export function CryptoPaymentDrawer({
                   No stablecoin balances found
                 </div>
                 <div className="text-gray-400 text-xs">
-                  Make sure you have USDC, USDT, or DAI on {chain.name}
+                  Make sure you have USDC or DAI on Sepolia
                 </div>
               </>
             )}
@@ -226,11 +251,9 @@ export function CryptoPaymentDrawer({
                   symbol: stablecoin.symbol,
                   formattedBalance: stablecoin.formattedBalance,
                 }}
-                selectable={true}
+                selectable={true} // Re-enabled: selectable
                 isSelected={selectedCoin === stablecoin.address}
-                onClick={(clickedStablecoin) =>
-                  setSelectedCoin(clickedStablecoin.address)
-                }
+                onClick={() => setSelectedCoin(stablecoin.address)}
               />
             ))}
           </div>
@@ -238,7 +261,7 @@ export function CryptoPaymentDrawer({
 
         <Button
           className="w-full"
-          disabled={isLoading || stablecoinLoading || !selectedCoin}
+          disabled={isLoading || stablecoinLoading || !selectedCoin || !hasBalances}
           onClick={() => {
             onPaymentSelect?.('crypto')
             if (selectedCoin) {
@@ -248,11 +271,9 @@ export function CryptoPaymentDrawer({
                 (c) => c.address === selectedCoin,
               )
               if (selectedCoinBalance && onConfirmPayment) {
-                // Convert balance to price (assuming 1:1 ratio for now, adjust as needed)
-                const tokenPrice = parseFloat(
-                  selectedCoinBalance.formattedBalance,
-                )
-                onConfirmPayment(tokenPrice, selectedCoinBalance)
+                // Use the raw balance (BigInt) and address directly
+                const tokenPrice = BigInt(selectedCoinBalance.balance)
+                onConfirmPayment(tokenPrice, selectedCoinBalance.address)
               }
             }
             setOpen(false)
@@ -261,9 +282,9 @@ export function CryptoPaymentDrawer({
           {isLoading || stablecoinLoading
             ? 'Processing...'
             : !selectedCoin
-              ? 'Select a coin first'
+              ? 'Select a token'
               : selectedCoin && hasBalances
-                ? `Continue with ${stablecoinBalances?.find((c) => c.address === selectedCoin)?.symbol}`
+                ? `Continue with ${stablecoinBalances?.find(c => c.address === selectedCoin)?.symbol || 'token'}`
                 : 'Continue with Payment'}
         </Button>
       </div>

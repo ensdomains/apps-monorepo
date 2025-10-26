@@ -1,19 +1,26 @@
 'use client'
 
+import { useNavigate } from '@tanstack/react-router'
+import { ArrowRightIcon, CheckCircleIcon } from 'lucide-react'
+import { useState } from 'react'
+import { QRPattern } from '@/components/atoms'
 import { Button } from '@/components/ui/button'
 
 interface AutorenewalProps {
   domainName: string
   duration: number
-  onSkipAutorenewal: () => void
+  onReset?: () => void
+  onCompleteFlow?: () => void
 }
 
 export function Autorenewal({
   domainName,
   duration,
-  onSkipAutorenewal,
+  onReset,
+  onCompleteFlow,
 }: AutorenewalProps) {
-  // Calculate expiry date based on actual duration selected
+  const navigate = useNavigate()
+  const [skipped, setSkipped] = useState(false)
   const currentDate = new Date()
   const expiryDate = new Date(
     currentDate.getTime() + duration * 365.25 * 24 * 60 * 60 * 1000,
@@ -24,113 +31,92 @@ export function Autorenewal({
     day: 'numeric',
   })
 
+  const handleSkipAutorenewal = () => {
+    setSkipped(true)
+  }
+
+  const handleNavigateAway = (to: string) => {
+    // Clear localStorage when user completes the flow
+    onCompleteFlow?.()
+    // Reset the registration state when navigating away
+    onReset?.()
+    navigate({ to })
+  }
+
   return (
     <div className="mx-auto max-w-md space-y-8 p-6 text-center">
-      {/* QR-like pattern placeholder - same as previous screens */}
       <div className="flex justify-center">
-        <div className="grid h-32 w-32 grid-cols-8 gap-1">
-          {/* Creating a QR-like pattern */}
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-          <div className="h-3 w-3 bg-gray-800" />
-          <div className="h-3 w-3 bg-gray-200" />
-        </div>
+        <QRPattern />
       </div>
 
-      {/* Domain name with expiry */}
-      <div className="space-y-2">
-        <div className="flex justify-center">
-          <div className="inline-flex items-center rounded bg-gray-800 px-4 py-2 font-medium font-mono text-white">
-            {domainName}
+      <div className="space-y-20">
+        {/* Domain name with expiry */}
+        <div className="space-y-2">
+          <div className="flex justify-center">
+            <div className="inline-flex items-center rounded bg-gray-800 px-4 py-2 font-medium font-mono text-white">
+              {domainName}
+            </div>
           </div>
+          <p className="text-gray-600 text-sm">expires {expiryDateString}</p>
         </div>
-        <p className="text-gray-600 text-sm">expires {expiryDateString}</p>
-      </div>
 
-      {/* Autorenewal card */}
-      <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 text-left">
-        <h3 className="font-medium text-gray-900">
-          Protect your name with autorenewal
-        </h3>
-        <p className="text-gray-600 text-sm">
-          Your name expires on {expiryDateString}. Add a credit card to renew it
-          automatically. You can pause or cancel anytime.
-        </p>
-      </div>
+        {skipped ? (
+          <div className="space-y-4">
+            <Button
+              className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-background px-4 py-4 text-foreground hover:text-white"
+              onClick={() => handleNavigateAway('/')}
+            >
+              Create profile
+              <ArrowRightIcon className="h-4 w-4" />
+            </Button>
+            <Button
+              className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-background px-4 py-4 text-foreground hover:text-white"
+              onClick={() => handleNavigateAway('/')}
+            >
+              Back to dashboard
+              <ArrowRightIcon className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 text-left">
+            <h3 className="font-medium text-gray-900">
+              Protect your name with autorenewal
+            </h3>
+            <p className="text-gray-600 text-sm">
+              Your name expires on {expiryDateString}. Add a credit card to
+              renew it automatically. You can pause or cancel anytime.
+            </p>
+          </div>
+        )}
 
-      {/* Action buttons */}
-      <div className="space-y-3">
-        <Button className="w-full bg-gray-900 text-white hover:bg-gray-800">
-          Add credit card
-        </Button>
-        <Button
-          onClick={onSkipAutorenewal}
-          variant="ghost"
-          className="w-full text-gray-600"
-        >
-          Skip →
-        </Button>
+        {!skipped && (
+          <div className="space-y-3">
+            <Button className="w-full bg-gray-900 text-white hover:bg-gray-800">
+              Add credit card
+            </Button>
+            <Button
+              onClick={handleSkipAutorenewal}
+              variant="ghost"
+              className="w-full text-gray-600"
+            >
+              Skip →
+            </Button>
+          </div>
+        )}
+
+        {skipped && (
+          <div className="space-y-2">
+            <div className="flex items-start justify-start gap-2">
+              <CheckCircleIcon className="h-4 w-4 text-gray-600" />
+              <span className="font-medium text-gray-900 text-sm">
+                Registration successful
+              </span>
+            </div>
+            <div className="h-1 w-full rounded-full bg-gray-200">
+              <div className="h-1 w-full rounded-full bg-gray-600"></div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

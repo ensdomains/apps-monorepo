@@ -1,11 +1,12 @@
 import { useNavigate } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import { ApprovalInProgress } from '../components/ApprovalInProgress'
+import { Autorenewal } from '../components/Autorenewal'
 import { PaymentInProgress } from '../components/PaymentInProgress'
 import { Pricing } from '../components/Pricing'
 import { RegistrationInProgress } from '../components/RegistrationInProgress'
 import { RegistrationSuccess } from '../components/RegistrationSuccess'
-import { useRegistration, RegistrationStep } from '../hooks/useRegistration'
+import { RegistrationStep, useRegistration } from '../hooks/useRegistration'
 
 interface RegistrationProps {
   initialName?: string
@@ -18,6 +19,8 @@ export function Registration({ initialName }: RegistrationProps) {
     name: domainName,
     duration,
     selectedToken,
+    commitTxHash,
+    registerTxHash,
     isConnected,
     isCommitting: isCommitPending,
     isApproving: isApprovePending,
@@ -27,12 +30,17 @@ export function Registration({ initialName }: RegistrationProps) {
     startCommitment,
     retry,
     reset,
+    handleSetupAutorenewal,
+    handleRegisterAnotherName,
   } = useRegistration(initialName)
 
   const handleBack = () => {
     if (step === RegistrationStep.PRICING) {
       navigate({ to: '/' })
-    } else if (step === RegistrationStep.APPROVING || step === RegistrationStep.REGISTERING) {
+    } else if (
+      step === RegistrationStep.APPROVING ||
+      step === RegistrationStep.REGISTERING
+    ) {
       // Don't allow going back during transactions
       return
     } else {
@@ -54,11 +62,11 @@ export function Registration({ initialName }: RegistrationProps) {
   }
 
   const handleConfirmPayment = (tokenPrice: bigint, selectedToken: string) => {
-    // Map selectedToken string to 'USDC' | 'DAI'
-    const token = selectedToken.toUpperCase() as 'USDC' | 'DAI'
+    // Use the centralized token configuration
+    // selectedToken is already the correct address from PaymentDrawer
     startCommitment({
       tokenPrice,
-      selectedToken: token
+      selectedToken: selectedToken as `0x${string}`,
     })
   }
 
@@ -66,14 +74,7 @@ export function Registration({ initialName }: RegistrationProps) {
     // Payment success is handled automatically by the state machine
   }
 
-  const handleRegistrationSuccess = () => {
-    // Registration success is handled automatically by the state machine
-  }
 
-  const handleSetupAutorenewal = () => {
-    // TODO: Implement auto-renewal
-    reset()
-  }
 
   // domainName already includes .eth from the state machine
   const displayDomainName = domainName || ''
@@ -113,13 +114,15 @@ export function Registration({ initialName }: RegistrationProps) {
         <ApprovalInProgress
           domainName={displayDomainName}
           selectedToken={selectedToken}
+          commitTxHash={commitTxHash}
         />
       )}
 
       {step === RegistrationStep.REGISTERING && (
         <RegistrationInProgress
           domainName={displayDomainName}
-          onRegistrationSuccess={handleRegistrationSuccess}
+          onRegistrationSuccess={() => {}} // No-op - handled by state machine
+          registerTxHash={registerTxHash}
         />
       )}
 
@@ -130,13 +133,22 @@ export function Registration({ initialName }: RegistrationProps) {
         />
       )}
 
+      {step === RegistrationStep.AUTORENEWAL && (
+        <Autorenewal
+          domainName={displayDomainName}
+          duration={duration}
+          onReset={handleRegisterAnotherName}
+          onCompleteFlow={handleRegisterAnotherName}
+        />
+      )}
+
       {step === RegistrationStep.ERROR && (
         <div className="mx-auto max-w-md px-4 py-6">
           <div className="text-center">
-            <h2 className="text-red-600 text-xl font-semibold mb-4">
+            <h2 className="mb-4 font-semibold text-red-600 text-xl">
               Registration Error
             </h2>
-            <p className="text-gray-600 mb-4 whitespace-pre-line">
+            <p className="mb-4 whitespace-pre-line text-gray-600">
               {error || 'There was an error during the registration process.'}
             </p>
             <Button onClick={retry} className="mr-2">

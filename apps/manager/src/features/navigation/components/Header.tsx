@@ -1,4 +1,3 @@
-import { usePrivy } from '@privy-io/react-auth'
 import { Link } from '@tanstack/react-router'
 import {
   Bell,
@@ -6,13 +5,13 @@ import {
   CreditCard,
   LayoutGrid,
   List,
-  Loader2,
   RefreshCcw,
   Unlink,
   User,
 } from 'lucide-react'
 import { useState } from 'react'
-import { useAccount, useBalance, useEnsAvatar, useEnsName } from 'wagmi'
+// import { useBalance, useEnsAvatar, useEnsName } from 'wagmi'
+import { useModal, useWallet } from '@getpara/react-sdk'
 import ensLogo from '@/assets/icons/ens.svg'
 import { Button } from '@/components/ui/button'
 import {
@@ -28,64 +27,67 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { NotificationsDropdown } from '@/features/notifications/components'
+import { useParaAccount } from '@/features/wallet/hooks/useParaAccount'
 import { useTheme } from '@/hooks/use-theme'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+// import { customSepolia } from '@/lib/wagmi'
 
 const ConnectedContent = () => {
-  const { address } = useAccount()
-  const { logout, user } = usePrivy()
+  const { data: wallet } = useWallet()
+  const { userProfile } = useParaAccount()
+  const { openModal } = useModal()
   const {
     rhinestoneAccount,
     accountAddress,
     isLoading,
     stablecoinBalances,
+    eoaEthBalance,
+    smartAccountEthBalance,
+    isLoadingEoaEth,
+    isLoadingSmartAccountEth,
     error,
   } = useRhinestoneAccount()
 
-  const { data: ensName } = useEnsName({ address })
-  const { data: ensAvatar } = useEnsAvatar({
-    name: ensName ?? undefined,
-    assetGatewayUrls: {
-      ipfs: 'https://ipfs.euc.li',
-    },
-  })
+  const address = wallet?.address
+  const ensName = wallet?.ensName
+  const ensAvatar = wallet?.ensAvatar
 
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [lastFetchTime, setLastFetchTime] = useState<number>(0)
+  // const [lastFetchTime, setLastFetchTime] = useState<number>(0)
 
   // Use wagmi hooks for balance fetching (more efficient and consistent)
-  const { data: eoaBalance, refetch: refetchEoaBalance } = useBalance({
-    address: address,
-    chainId: 11155111, // Sepolia chain ID
-  })
+  // const { data: eoaBalance, refetch: refetchEoaBalance } = useBalance({
+  //   address: address as `0x${string}`,
+  //   chainId: customSepolia.id,
+  // })
 
-  const { data: smartAccountBalance, refetch: refetchSmartAccountBalance } =
-    useBalance({
-      address: accountAddress as `0x${string}`,
-      chainId: 11155111, // Sepolia chain ID
-      query: {
-        enabled: !!accountAddress, // Only fetch if accountAddress exists
-      },
-    })
+  // const { data: smartAccountBalance, refetch: refetchSmartAccountBalance } =
+  //   useBalance({
+  //     address: accountAddress as `0x${string}`,
+  //     chainId: customSepolia.id,
+  //     query: {
+  //       enabled: !!accountAddress, // Only fetch if accountAddress exists
+  //     },
+  //   })
 
   // Manual refresh function with rate limiting
-  const refreshBalances = async () => {
-    const now = Date.now()
-    if (now - lastFetchTime < 5000) {
-      // 5 second cooldown
-      console.log('Rate limited: Please wait before refreshing again')
-      return
-    }
+  // const refreshBalances = async () => {
+  //   const now = Date.now()
+  //   if (now - lastFetchTime < 5000) {
+  //     // 5 second cooldown
+  //     console.log('Rate limited: Please wait before refreshing again')
+  //     return
+  //   }
 
-    setLastFetchTime(now)
+  //   setLastFetchTime(now)
 
-    try {
-      await Promise.all([refetchEoaBalance(), refetchSmartAccountBalance()])
-    } catch (error) {
-      console.error('Failed to refresh balances:', error)
-    }
-  }
+  //   try {
+  //     await Promise.all([refetchEoaBalance(), refetchSmartAccountBalance()])
+  //   } catch (error) {
+  //     console.error('Failed to refresh balances:', error)
+  //   }
+  // }
 
   const handleCopyAddress = async (addressToCopy: string) => {
     try {
@@ -103,9 +105,14 @@ const ConnectedContent = () => {
       return 'Initializing...'
     }
 
-    // Show user's email if available
-    if (user?.email?.address) {
-      return user.email.address
+    // Show user's email if available (highest priority)
+    if (userProfile?.email) {
+      return userProfile.email
+    }
+
+    // Show user's name if available
+    if (userProfile?.name) {
+      return userProfile.name
     }
 
     // Fallback to ENS name or wallet address
@@ -122,7 +129,7 @@ const ConnectedContent = () => {
     if (isLoading) {
       return 'Initializing Smart Account...'
     }
-    return 'Privy + Rhinestone'
+    return 'Para + Rhinestone'
   }
 
   return (
@@ -168,14 +175,14 @@ const ConnectedContent = () => {
                     Connected via {getConnectionMethod()}
                   </div>
                 </div>
-                <Button
+                {/* <Button
                   variant="ghost"
                   size="sm"
                   className="h-6 w-6 p-0"
                   onClick={refreshBalances}
                 >
                   <RefreshCcw className="size-3" />
-                </Button>
+                </Button> */}
               </div>
             </div>
 
@@ -186,14 +193,14 @@ const ConnectedContent = () => {
                   <div className="mb-1 font-medium text-muted-foreground text-xs">
                     EOA Address
                   </div>
-                  <Button
+                  {/* <Button
                     variant="ghost"
                     size="sm"
                     className="h-6 w-6 p-0"
                     onClick={refreshBalances}
                   >
                     <RefreshCcw className="size-3" />
-                  </Button>
+                  </Button> */}
                 </div>
 
                 <div className="flex items-center justify-between rounded bg-muted p-2 text-xs">
@@ -210,10 +217,14 @@ const ConnectedContent = () => {
                       <Copy className="size-3" />
                     </Button>
                   </div>
-                  {eoaBalance && (
+                  {eoaEthBalance && (
                     <span className="font-bold text-white">
-                      {parseFloat(eoaBalance.formatted).toFixed(4)}{' '}
-                      ETH
+                      {eoaEthBalance.formattedBalance}
+                    </span>
+                  )}
+                  {isLoadingEoaEth && (
+                    <span className="font-bold text-white">
+                      Loading...
                     </span>
                   )}
                 </div>
@@ -227,7 +238,7 @@ const ConnectedContent = () => {
                   <div className="mb-1 font-medium text-muted-foreground text-xs">
                     Smart Account Address
                   </div>
-                  {!isLoading && rhinestoneAccount && (
+                  {/* {!isLoading && rhinestoneAccount && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -236,7 +247,7 @@ const ConnectedContent = () => {
                     >
                       <RefreshCcw className="size-3" />
                     </Button>
-                  )}
+                  )} */}
                 </div>
 
                 {isLoading ? (
@@ -272,10 +283,14 @@ const ConnectedContent = () => {
                         <Copy className="size-3" />
                       </Button>
                     </div>
-                    {smartAccountBalance && (
+                    {smartAccountEthBalance && (
                       <span className="font-bold text-white">
-                        {parseFloat(smartAccountBalance.formatted).toFixed(4)}{' '}
-                        ETH
+                        {smartAccountEthBalance.formattedBalance}
+                      </span>
+                    )}
+                    {isLoadingSmartAccountEth && (
+                      <span className="font-bold text-white">
+                        Loading...
                       </span>
                     )}
                   </div>
@@ -292,8 +307,11 @@ const ConnectedContent = () => {
                     Token Balances
                   </div>
                   <div className="space-y-2">
-                    {stablecoinBalances.map((balance: any, index: number) => (
-                      <div key={index} className="relative">
+                    {stablecoinBalances.map((balance, index) => (
+                      <div
+                        key={`${balance.address}-${index}`}
+                        className="relative"
+                      >
                         {/* Token Container */}
                         <div className="flex items-center justify-between rounded bg-muted p-2 text-xs">
                           <div className="flex items-center gap-2">
@@ -347,8 +365,16 @@ const ConnectedContent = () => {
 
           <DropdownMenuSeparator />
 
+          {/* Manage Wallet */}
+          <DropdownMenuItem onClick={() => openModal()}>
+            <User className="mr-2 size-4" />
+            Manage Wallet
+          </DropdownMenuItem>
+
           {/* Disconnect */}
-          <DropdownMenuItem onClick={() => logout()}>
+          <DropdownMenuItem
+            onClick={() => openModal()}
+          >
             <Unlink className="mr-2 size-4" />
             Disconnect
           </DropdownMenuItem>
@@ -370,11 +396,26 @@ const ConnectedContent = () => {
 }
 
 const DisconnectedContent = () => {
-  const { login } = usePrivy()
+  const { openModal } = useModal()
+  const { isLoading: walletLoading } = useWallet()
+
+  const handleConnect = async () => {
+    try {
+      await openModal()
+    } catch (error) {
+      console.error('Failed to open Para modal:', error)
+    }
+  }
 
   return (
     <div className="mr-6 flex items-center gap-4">
-      <Button onClick={login}>Connect Wallet</Button>
+      <Button
+        onClick={handleConnect}
+        disabled={walletLoading}
+        size="lg"
+      >
+        {walletLoading ? 'Loading...' : 'Connect Wallet'}
+      </Button>
     </div>
   )
 }
@@ -399,32 +440,15 @@ const Menu = () => {
 }
 
 export const Header = () => {
-  const { ready, authenticated } = usePrivy()
-
-  // Show loading state while Privy initializes
-  if (!ready) {
-    return (
-      <nav className="sticky top-0 z-10 flex items-center justify-end bg-background p-8">
-        <Link to="/" className="mr-auto">
-          <img src={ensLogo} alt="ENS Logo" className="h-8" />
-        </Link>
-        <div className="mr-6 flex items-center gap-4">
-          <Button disabled>
-            <Loader2 className="size-4 animate-spin" />
-            Loading...
-          </Button>
-        </div>
-        <Menu />
-      </nav>
-    )
-  }
+  const { data: wallet, isLoading: walletLoading } = useWallet()
+  const isConnected = !!wallet && !walletLoading
 
   return (
     <nav className="sticky top-0 z-10 flex items-center justify-end bg-background p-8">
       <Link to="/" className="mr-auto">
         <img src={ensLogo} alt="ENS Logo" className="h-8" />
       </Link>
-      {authenticated ? <ConnectedContent /> : <DisconnectedContent />}
+      {isConnected ? <ConnectedContent /> : <DisconnectedContent />}
       <Menu />
     </nav>
   )

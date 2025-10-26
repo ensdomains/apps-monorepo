@@ -1,47 +1,36 @@
 "use client";
 
-import { type RhinestoneAccount, RhinestoneSDK, walletClientToAccount } from "@rhinestone/sdk";
+import { type RhinestoneAccount, RhinestoneSDK, wrapParaAccount } from "@rhinestone/sdk";
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from "react";
-import { Account, formatUnits } from "viem";
-import { customSepolia } from "@/lib/wagmi";
-import { useWalletClient } from "wagmi";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { formatUnits, createPublicClient, http } from "viem";
+import { sepolia } from "viem/chains";
+// import { useParaAccount } from "@/features/wallet/hooks/useParaAccount";
 import { SUPPORTED_TOKENS } from "@/features/register/services/nameChainContractService";
-import { publicClient } from "@/lib/wagmi";
 import { ERC20_ABI } from "../ens.abi";
 import { getTxHashResult } from "./utils";
+import { useWallet } from "@getpara/react-sdk";
+import { useViemAccount } from "@getpara/react-sdk/evm/hooks";
 
-const createCustomAccount = (viemAccount: Account, walletClient: any): Account => {
-  return {
-    ...viemAccount,
-    address: walletClient.account.address,
-    type: 'json-rpc',
-    async signMessage({ message }: { message: any }) {
-      // Use the wallet client's signMessage directly
-      console.log('signMessage', message);
-      return await walletClient.signMessage({
-        account: walletClient.account,
-        message,
-      });
+// Create standalone public client for balance fetching
+const SEPOLIA_RPC_URL = 'https://ethereum-sepolia-rpc.publicnode.com'
+
+export const customSepolia = {
+  ...sepolia,
+  rpcUrls: {
+    default: {
+      http: [SEPOLIA_RPC_URL],
     },
-    async signTypedData(typedData: any) {
-      // Critical: Use wallet client's signTypedData directly
-      console.log('signTypedData', typedData);
-      return await walletClient.signTypedData({
-        account: walletClient.account,
-        ...typedData,
-      });
+    public: {
+      http: [SEPOLIA_RPC_URL],
     },
-    async signTransaction(transaction: any) {
-      console.log('signTransaction', transaction);
-      return await walletClient.signTransaction({
-        account: walletClient.account,
-        ...transaction,
-      });
-    },
-  } as unknown as Account;
+  },
 };
+const publicClient = createPublicClient({
+  chain: customSepolia,
+  transport: http(SEPOLIA_RPC_URL),
+})
+
 export interface RhinestoneAccountState {
   rhinestoneAccount: RhinestoneAccount | null;
   accountAddress: string | null;
@@ -50,13 +39,10 @@ export interface RhinestoneAccountState {
 }
 
 export function useRhinestoneAccount() {
-  const { ready, authenticated } = usePrivy();
-  const { wallets } = useWallets();
-  const { data: walletClient } = useWalletClient();
+  const { data: wallet } = useWallet();
+  const { viemAccount } = useViemAccount();
 
-  const connectedWallet = wallets.find((wallet) => wallet.address);
-  const address = connectedWallet?.address;
-  const isConnected = authenticated && ready && !!address;
+  const isReady = !!viemAccount && !!wallet;
   const [state, setState] = useState<RhinestoneAccountState>({
     rhinestoneAccount: null,
     accountAddress: null,
@@ -64,69 +50,103 @@ export function useRhinestoneAccount() {
     error: null,
   });
 
+  // ETH Balance for EOA
+  const { data: eoaEthBalance, isLoading: isLoadingEoaEth } = useQuery({
+    queryKey: ['eoaEthBalance', wallet?.address],
+    queryFn: async () => {
+      if (!wallet?.address) return null
+      try {
+        const balance = await publicClient.getBalance({
+          address: wallet.address as `0x${string}`
+        })
+        return {
+          balance: balance.toString(),
+          formattedBalance: `${formatUnits(balance, 18)} ETH`,
+        }
+      } catch (_error) {
+        return null
+      }
+    },
+    enabled: isReady && !!wallet?.address,
+    refetchInterval: 30000,
+    retry: 1,
+    retryDelay: 5000,
+  })
+
+  // ETH Balance for Smart Account
+  const { data: smartAccountEthBalance, isLoading: isLoadingSmartAccountEth } = useQuery({
+    queryKey: ['smartAccountEthBalance', state.accountAddress],
+    queryFn: async () => {
+      if (!state.accountAddress) return null
+      try {
+        const balance = await publicClient.getBalance({
+          address: state.accountAddress as `0x${string}`
+        })
+        return {
+          balance: balance.toString(),
+          formattedBalance: `${formatUnits(balance, 18)} ETH`,
+        }
+      } catch (_error) {
+        return null
+      }
+    },
+    enabled: isReady && !!state.accountAddress,
+    refetchInterval: 30000,
+    retry: 1,
+    retryDelay: 5000,
+  })
+
   const { data: stablecoinBalances = [], isLoading: isLoadingBalances } = useQuery({
     queryKey: ['stablecoinBalances', state.accountAddress],
     queryFn: async () => {
       if (!state.accountAddress) return []
 
       try {
-        const balances = await Promise.all([
-          // USDC Balance
-          publicClient.readContract({
-            address: SUPPORTED_TOKENS.USDC,
-            abi: ERC20_ABI,
-            functionName: 'balanceOf',
-            args: [state.accountAddress as `0x${string}`]
-          }).then(async (balance: bigint) => {
-            const decimals = await publicClient.readContract({
-              address: SUPPORTED_TOKENS.USDC,
-              abi: ERC20_ABI,
-              functionName: 'decimals'
-            })
-            return {
-              address: SUPPORTED_TOKENS.USDC,
-              symbol: 'USDC',
-              balance: balance.toString(),
-              formattedBalance: `${formatUnits(balance, decimals)} USDC`,
-            }
-          }),
+        const balances = []
 
-          // DAI Balance
-          publicClient.readContract({
-            address: SUPPORTED_TOKENS.DAI,
-            abi: ERC20_ABI,
-            functionName: 'balanceOf',
-            args: [state.accountAddress as `0x${string}`]
-          }).then(async (balance: bigint) => {
+        // Fetch balances for all supported tokens
+        for (const [tokenName, tokenAddress] of Object.entries(SUPPORTED_TOKENS)) {
+          try {
+            const balance = await publicClient.readContract({
+              address: tokenAddress,
+              abi: ERC20_ABI,
+              functionName: 'balanceOf',
+              args: [state.accountAddress as `0x${string}`]
+            })
+
             const decimals = await publicClient.readContract({
-              address: SUPPORTED_TOKENS.DAI,
+              address: tokenAddress,
               abi: ERC20_ABI,
               functionName: 'decimals'
             })
-            return {
-              address: SUPPORTED_TOKENS.DAI,
-              symbol: 'DAI',
+
+            balances.push({
+              address: tokenAddress,
+              symbol: tokenName,
               balance: balance.toString(),
-              formattedBalance: `${formatUnits(balance, decimals)} DAI`,
-            }
-          })
-        ])
+              formattedBalance: `${formatUnits(balance, decimals)} ${tokenName}`,
+            })
+          } catch (_error) {
+            console.error(`Failed to fetch ${tokenName} balance:`, _error)
+            // Continue with other tokens
+          }
+        }
 
         return balances
       } catch (_error) {
         return []
       }
     },
-    enabled: isConnected && !!state.accountAddress,
+    enabled: isReady && !!state.accountAddress,
     refetchInterval: 30000,
     retry: 1,
     retryDelay: 5000,
   })
 
   const initializeRhinestoneAccount = useCallback(async () => {
-    // Check Privy connection
-    if (!ready || !isConnected || !address || !walletClient) {
-      console.log("❌ Rhinestone initialization skipped - Privy not connected or no wallet client");
+    // Check wallet connection
+    if (!isReady) {
+      console.log("❌ Rhinestone initialization skipped - wallet not connected");
       setState((prev) => ({
         ...prev,
         rhinestoneAccount: null,
@@ -145,18 +165,22 @@ export function useRhinestoneAccount() {
         throw new Error("❌ Rhinestone API key not configured in environment variables");
       }
 
-      const viemAccount = walletClientToAccount(walletClient);
-      const customAccount = createCustomAccount(viemAccount, walletClient);
+      // Convert wallet client to viem account first
+      const paraAccount = wrapParaAccount(viemAccount, wallet?.id);
 
       const sdk = new RhinestoneSDK({
         apiKey,
+        bundler: {
+          type: "pimlico",
+          apiKey: import.meta.env.VITE_PIMLICO_API_KEY,
+        }
       });
 
-      // Use the custom account for Rhinestone SDK
+      // Use the Para account for Rhinestone SDK
       const rhinestoneAccount = await sdk.createAccount({
         owners: {
           type: "ecdsa" as const,
-          accounts: [customAccount],
+          accounts: [paraAccount],
         },
       });
 
@@ -178,36 +202,56 @@ export function useRhinestoneAccount() {
         error: String(error),
       }));
     }
-  }, [ready, isConnected, address, walletClient, connectedWallet]);
+  }, [isReady, viemAccount, wallet]);
 
   const sendTransaction = useCallback(
     async (calls: any[]): Promise<any> => {
+      if (!state.rhinestoneAccount) {
+        throw new Error("Rhinestone account not initialized");
+      }
 
       try {
-        const txConfig = {
+        console.log("🚀 Sending transaction with calls:", calls);
+
+        // Use sendUserOperation like the working POC
+        const result = await state.rhinestoneAccount.sendUserOperation({
           chain: customSepolia,
           calls: calls
-        };
+        });
 
-        const transaction = await state.rhinestoneAccount?.sendTransaction(
-          txConfig
-        );
+        console.log("📋 Transaction result:", result);
+        console.log("📋 Result keys:", Object.keys(result || {}));
 
-        if (!transaction) {
-          throw new Error("Transaction failed");
+        // Handle null result
+        if (!result) {
+          throw new Error('Transaction returned null - transaction may have failed');
         }
 
-        const transactionResult = await state.rhinestoneAccount?.waitForExecution(transaction);
+        // Extract transaction hash using multiple fallback methods (like working POC)
+        const txHash =
+          (result as any).fillTransactionHash ||
+          (result as any).transaction?.hash ||
+          (result as any).hash ||
+          (result as any).txHash ||
+          (result as any).fill?.hash ||
+          getTxHashResult(result) ||
+          null;
 
-        if (!transactionResult) {
-          throw new Error("Transaction result failed");
+        console.log("✅ Transaction submitted:", txHash);
+
+        // Wait for transaction execution using Rhinestone's waitForExecution
+        console.log("⏳ Waiting for transaction execution...");
+        const executionResult = await state.rhinestoneAccount.waitForExecution(result);
+        console.log("✅ Transaction execution confirmed!", executionResult);
+
+        // Additional verification: Check if the transaction was actually successful
+        if (executionResult && (executionResult as any).status === 'reverted') {
+          throw new Error('Transaction was reverted');
         }
-
-        const txHash = getTxHashResult(transactionResult);
 
         return {
-          transaction,
-          result: transactionResult,
+          transaction: result,
+          result: executionResult,
           fillTransactionHash: txHash,
         };
       } catch (error) {
@@ -224,10 +268,14 @@ export function useRhinestoneAccount() {
 
   return {
     ...state,
-    address,
-    isConnected,
+    address: wallet?.address,
+    isConnected: !!wallet,
     sendTransaction,
     stablecoinBalances,
     isLoadingBalances,
+    eoaEthBalance,
+    smartAccountEthBalance,
+    isLoadingEoaEth,
+    isLoadingSmartAccountEth,
   };
 }

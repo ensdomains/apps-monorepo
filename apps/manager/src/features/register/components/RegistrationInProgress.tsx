@@ -1,16 +1,20 @@
 'use client'
 
-import { CheckCircleIcon } from 'lucide-react'
+import { CheckCircleIcon, ExternalLink } from 'lucide-react'
 import * as React from 'react'
+import { Button } from '@/components/ui/button'
+import type { RhinestoneTransactionResult } from '@/lib/rhinestone/utils'
 
 interface RegistrationInProgressProps {
   domainName: string
   onRegistrationSuccess: () => void
+  registerTxHash?: RhinestoneTransactionResult | null
 }
 
 export function RegistrationInProgress({
   domainName,
   onRegistrationSuccess,
+  registerTxHash,
 }: RegistrationInProgressProps) {
   React.useEffect(() => {
     // Mock registration process - simulate contract calls
@@ -121,6 +125,29 @@ export function RegistrationInProgress({
         <div className="h-1 w-full rounded-full bg-gray-200">
           <div className="h-1 w-2/3 animate-pulse rounded-full bg-gray-600"></div>
         </div>
+
+        {registerTxHash?.hash && (
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <span className="text-muted-foreground text-xs">TX:</span>
+            <span className="font-mono text-gray-700 text-xs">
+              {registerTxHash.hash.slice(0, 8)}...
+              {registerTxHash.hash.slice(-6)}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              onClick={() => {
+                window.open(
+                  `https://sepolia.etherscan.io/tx/${registerTxHash.hash}`,
+                  '_blank',
+                )
+              }}
+            >
+              <ExternalLink className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -14,7 +14,7 @@ import { customSepolia, SEPOLIA_RPC_URL } from './src/lib/wagmi';
 
 
 // Configuration
-const RHINESTONE_ACCOUNT: Address = '0x5a2f5820E2754d9d2C7b1fc4461715fFf58e2f9c';
+const RHINESTONE_ACCOUNT: Address = '' as `0x${string}`; // Replace with the actual Rhinestone account address
 const MINT_AMOUNT = parseUnits('1000', 18); // 1000 tokens (DAI has 18 decimals)
 const USDC_MINT_AMOUNT = parseUnits('1000', 6); // 1000 USDC (USDC has 6 decimals)
 

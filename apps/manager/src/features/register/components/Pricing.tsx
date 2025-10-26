@@ -12,7 +12,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 import {
   getTokenPrices,
-  SUPPORTED_TOKENS,
 } from '../services/nameChainContractService'
 import { CreditCardPaymentDrawer, CryptoPaymentDrawer } from './PaymentDrawer'
 
@@ -121,11 +120,23 @@ export const Pricing = ({
         })
         const result = await getTokenPrices(domainName, pricingDuration)
         if (result.isOk()) {
-          setUsdcPrice(parseFloat(result.value.usdc.formatted))
-          setDaiPrice(parseFloat(result.value.dai.formatted))
+          // Handle both USDC and DAI pricing
+          const usdcPrice = result.value.usdc
+          const daiPrice = result.value.dai
+
+          if (usdcPrice) {
+            setUsdcPrice(parseFloat(usdcPrice.formatted))
+          } else {
+            setUsdcPrice(0)
+          }
+
+          if (daiPrice) {
+            setDaiPrice(parseFloat(daiPrice.formatted))
+          } else {
+            setDaiPrice(0)
+          }
         } else {
           console.error('Failed to get token prices:', result.error)
-
           setUsdcPrice(0)
           setDaiPrice(0)
         }
@@ -147,42 +158,13 @@ export const Pricing = ({
   }, [duration])
 
   const handleConfirmPayment = (
-    _tokenPrice: number,
-    selectedToken: { address: string; symbol: string },
+    tokenPrice: bigint,
+    selectedToken: string,
   ) => {
-    if (!selectedToken) {
-      // Fallback to USDC if no token selected
-      const rawPrice = BigInt(Math.ceil(finalPrice * 1e6)) // USDC has 6 decimals
-      onConfirmPayment(rawPrice, SUPPORTED_TOKENS.USDC)
-      return
-    }
-
-    // Extract token address from the selected token object
-    const tokenAddress = selectedToken.address || selectedToken
-
-    // Use the final price (with discount applied) for the selected token
-    let finalTokenPrice: number
-    let finalTokenAddress: string
-    let decimals: number
-
-    if (tokenAddress === SUPPORTED_TOKENS.USDC) {
-      finalTokenPrice = finalPrice // Use discounted price
-      finalTokenAddress = SUPPORTED_TOKENS.USDC
-      decimals = 6 // USDC has 6 decimals
-    } else if (tokenAddress === SUPPORTED_TOKENS.DAI) {
-      finalTokenPrice = finalPrice // Use discounted price
-      finalTokenAddress = SUPPORTED_TOKENS.DAI
-      decimals = 18 // DAI has 18 decimals
-    } else {
-      // Fallback to USDC
-      finalTokenPrice = finalPrice // Use discounted price
-      finalTokenAddress = SUPPORTED_TOKENS.USDC
-      decimals = 6 // USDC has 6 decimals
-    }
-
-    // Calculate raw price with correct decimals for the selected token
-    const rawPrice = BigInt(Math.ceil(finalTokenPrice * 10 ** decimals))
-    onConfirmPayment(rawPrice, finalTokenAddress)
+    // selectedToken is now the address directly from PaymentDrawer
+    // tokenPrice is the raw balance from PaymentDrawer
+    // Just pass them through
+    onConfirmPayment(tokenPrice, selectedToken)
   }
 
   return (

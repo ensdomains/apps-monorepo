@@ -3,8 +3,15 @@ import { err, fromPromise, ok, type Result } from 'neverthrow'
 import { encodeFunctionData, formatUnits, keccak256, toHex } from 'viem'
 import { ERC20_ABI, FASTTESTETHREGISTRAR_ABI } from '@/lib/ens.abi'
 import { type RhinestoneTransactionResult } from '@/lib/rhinestone/utils'
-import { publicClient } from '@/lib/wagmi'
-import { getTxHashResult } from '@/lib/rhinestone/utils'
+import { createPublicClient, http } from 'viem'
+import { sepolia } from 'viem/chains'
+
+// Create standalone public client
+const SEPOLIA_RPC_URL = 'https://ethereum-sepolia-rpc.publicnode.com'
+const publicClient = createPublicClient({
+  chain: sepolia,
+  transport: http(SEPOLIA_RPC_URL),
+})
 
 export class NameChainContractError extends TaggedError(
   'NameChainContractError',
@@ -24,11 +31,14 @@ export const ENS_SEPOLIA_CONTRACTS = {
   PUBLIC_RESOLVER: "0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5" as `0x${string}`, // DedicatedResolverImpl
 }
 
-// Supported payment tokens on Sepolia ENS (from addresses.txt)
 export const SUPPORTED_TOKENS = {
   USDC: "0x9028ab8e872af36c30c959a105cb86d1038412ae" as `0x${string}`, // MockUSDC
   DAI: "0x6630589c2e6364a96bb7acf0d9d64ac9c1dd3528" as `0x${string}`, // MockDAI
-}
+  // ETH: "0x0000000000000000000000000000000000000000" as `0x${string}`, // ETH - not supported by FastTestETHRegistrar
+};
+
+// Default payment token - USDC
+export const DEFAULT_PAYMENT_TOKEN = SUPPORTED_TOKENS.USDC;
 
 // Real commitment generation using ENS contract on Sepolia
 export const generateCommitment = async (
@@ -74,7 +84,7 @@ export const commitToRegistration = async (
   commitment: `0x${string}`,
   sendTransaction: (calls: any[]) => Promise<RhinestoneTransactionResult>,
   smartAccountAddress: `0x${string}`,
-): Promise<Result<`0x${string}`, NameChainContractError>> => {
+): Promise<Result<RhinestoneTransactionResult, NameChainContractError>> => {
   try {
     // Check smart account ETH balance before committing
     const ethBalance = await publicClient.getBalance({
@@ -102,8 +112,6 @@ export const commitToRegistration = async (
         value: 0n,
       },
     ])
-
-    const commitHash = getTxHashResult(result)
 
     try {
       const minAge = await publicClient.readContract({
@@ -137,7 +145,7 @@ export const commitToRegistration = async (
       return err(new NameChainContractError({ cause: _ageErr }))
     }
 
-    return ok(commitHash as `0x${string}`)
+    return ok(result)
   } catch (error) {
     console.error('❌ Failed to commit to registration:', error)
     return err(new NameChainContractError({ cause: error }))
@@ -149,7 +157,7 @@ export const approveTokenForRegistration = async (
   amount: bigint,
   ownerAddress: `0x${string}`,
   sendTransaction: (calls: any[]) => Promise<RhinestoneTransactionResult>,
-): Promise<Result<string, NameChainContractError>> => {
+): Promise<Result<RhinestoneTransactionResult, NameChainContractError>> => {
   // Force token address to lowercase to avoid Rhinestone SDK validation issues
   const normalizedTokenAddress = tokenAddress.toLowerCase() as `0x${string}`
   console.log(`🔧 Token address normalization: ${tokenAddress} -> ${normalizedTokenAddress}`)
@@ -158,7 +166,7 @@ export const approveTokenForRegistration = async (
     const approveData = encodeFunctionData({
       abi: ERC20_ABI,
       functionName: 'approve',
-      args: [ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER, amount],
+      args: [ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER, amount * 2n],
     })
 
     const result = await sendTransaction([
@@ -169,12 +177,6 @@ export const approveTokenForRegistration = async (
       },
     ])
 
-    const approveHash = getTxHashResult(result)
-
-    // Wait a bit for the approval to be processed
-    await new Promise(resolve => setTimeout(resolve, 2000))
-
-    // Verify allowance before proceeding (like in working snippet)
     try {
       const currentAllowance = await publicClient.readContract({
         address: normalizedTokenAddress,
@@ -184,8 +186,7 @@ export const approveTokenForRegistration = async (
       })
       console.log(`🔎 Allowance check: ${ownerAddress} -> ${ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER}`)
       console.log(`🔎 Current allowance: ${currentAllowance.toString()} (required: ${amount.toString()})`)
-      if (currentAllowance < amount) {
-        // Re-approve with higher amount
+      if (currentAllowance <= amount) {
         const reApproveData = encodeFunctionData({
           abi: ERC20_ABI,
           functionName: 'approve',
@@ -200,10 +201,9 @@ export const approveTokenForRegistration = async (
           },
         ])
 
-        const reApproveHash = getTxHashResult(reApproveResult)
-        return ok(reApproveHash)
+        return ok(reApproveResult)
       }
-      return ok(approveHash)
+      return ok(result)
     } catch (error) {
       console.error('❌ Failed to check allowance:', error)
       return err(new NameChainContractError({ cause: error }))
@@ -220,12 +220,25 @@ export const registerDomain = async (
   duration: number, // in years
   paymentToken: `0x${string}` = SUPPORTED_TOKENS.USDC,
   sendTransaction: (calls: any[]) => Promise<RhinestoneTransactionResult>,
-): Promise<Result<string, NameChainContractError>> => {
+): Promise<Result<RhinestoneTransactionResult, NameChainContractError>> => {
   // Force payment token address to lowercase to avoid Rhinestone SDK validation issues
   const normalizedPaymentToken = paymentToken.toLowerCase() as `0x${string}`
   console.log(`🔧 Payment token normalization: ${paymentToken} -> ${normalizedPaymentToken}`)
 
   try {
+    // Check if the payment token is supported
+    const isSupported = await publicClient.readContract({
+      address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+      abi: FASTTESTETHREGISTRAR_ABI,
+      functionName: 'isPaymentToken',
+      args: [normalizedPaymentToken],
+    })
+
+    console.log(`🔍 Payment token ${normalizedPaymentToken} is supported:`, isSupported)
+
+    if (!isSupported) {
+      throw new Error(`Payment token ${normalizedPaymentToken} is not supported by the ENS registrar`)
+    }
     // Convert duration from years to seconds
     const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
     const cleanName = name.replace('.eth', '')
@@ -254,11 +267,24 @@ export const registerDomain = async (
       },
     ])
 
-    const registrationTxHash = getTxHashResult(result)
 
-    return ok(registrationTxHash as `0x${string}`)
+    return ok(result)
   } catch (error) {
     console.error('❌ Failed to register domain:', error)
+
+    // Handle specific error cases
+    if (error instanceof Error) {
+      if (error.message.includes('0x02e2ae9e')) {
+        console.error('❌ Payment token error detected. The token may not be supported or there may be insufficient balance.')
+      }
+      if (error.message.includes('UserOperation reverted')) {
+        console.error('❌ UserOperation reverted. This usually means the transaction would fail on-chain.')
+      }
+      if (error.message.includes('InsufficientValue')) {
+        console.error('❌ Insufficient value sent. The price may have changed or there may be insufficient token balance.')
+      }
+    }
+
     return err(new NameChainContractError({ cause: error as string }))
   }
 }
@@ -368,7 +394,7 @@ export const getENSNameInfo = ResultFn(async function* (
   }
 })
 
-// Get prices for all supported tokens
+// Single source of truth for pricing - USDC and DAI
 export const getTokenPrices = ResultFn(async function* (
   name: string,
   duration: number = 1, // in years
@@ -383,28 +409,15 @@ export const getTokenPrices = ResultFn(async function* (
     for (const [tokenName, tokenAddress] of Object.entries(SUPPORTED_TOKENS)) {
       try {
         let priceResult: any;
-        try {
-          priceResult = yield* await fromPromise(
-            publicClient.readContract({
-              address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
-              abi: FASTTESTETHREGISTRAR_ABI,
-              functionName: 'rentPrice',
-              args: [cleanName, EMPTY_ADDRESS, durationInSeconds, tokenAddress],
-            }),
-            (e) => new NameChainContractError({ cause: e }),
-          )
-        } catch (_error) {
-          // Fallback to ETH pricing
-          priceResult = yield* await fromPromise(
-            publicClient.readContract({
-              address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
-              abi: FASTTESTETHREGISTRAR_ABI,
-              functionName: 'rentPrice',
-              args: [cleanName, EMPTY_ADDRESS, durationInSeconds, EMPTY_ADDRESS],
-            }),
-            (e) => new NameChainContractError({ cause: e }),
-          )
-        }
+        priceResult = yield* await fromPromise(
+          publicClient.readContract({
+            address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+            abi: FASTTESTETHREGISTRAR_ABI,
+            functionName: 'rentPrice',
+            args: [cleanName, EMPTY_ADDRESS, durationInSeconds, tokenAddress],
+          }),
+          (e) => new NameChainContractError({ cause: e }),
+        )
 
         // Contract returns an array [base, premium], not an object
         const priceArray = priceResult as unknown as [bigint, bigint];
@@ -413,7 +426,7 @@ export const getTokenPrices = ResultFn(async function* (
         const totalPrice = basePrice + premium;
 
         // Get token info for formatting
-        const decimals = tokenName === 'USDC' ? 6 : 18 // USDC has 6 decimals, others have 18
+        const decimals = tokenName === 'USDC' ? 6 : 18 // USDC has 6 decimals, DAI has 18
 
         prices[tokenName.toLowerCase()] = {
           raw: totalPrice,
@@ -421,8 +434,12 @@ export const getTokenPrices = ResultFn(async function* (
           address: tokenAddress,
           symbol: tokenName,
           decimals,
+          base: basePrice,
+          premium: premium,
+          total: totalPrice,
         }
       } catch (_error) {
+        console.error(`❌ Failed to get ${tokenName} price:`, _error)
         // Continue with other tokens
       }
     }
@@ -432,6 +449,15 @@ export const getTokenPrices = ResultFn(async function* (
     console.error('❌ Unexpected error in getTokenPrices:', error)
     throw new NameChainContractError({ cause: error })
   }
+})
+
+// Convenience function to get USDC price only
+export const getUSDCPrice = ResultFn(async function* (
+  name: string,
+  duration: number = 1, // in years
+) {
+  const tokenPrices = yield* getTokenPrices(name, duration)
+  return ok(tokenPrices.usdc)
 })
 
 // Check if a token is supported for payments
