@@ -7,7 +7,6 @@ import { sepolia } from 'viem/chains'
 import ENSRenewalExample from './ENSRenewalExample'
 import { AuditTrailDashboard } from './examples/AuditTrailDashboard'
 import {
-  AccountProvider,
   TransactionManagerProvider,
   TransactionRecoveryNotification,
   GlobalTransactionToasts,
@@ -18,25 +17,16 @@ import '@rainbow-me/rainbowkit/styles.css'
 const queryClient = new QueryClient()
 
 /**
- * Inner component that wraps children with AccountProvider
+ * Inner component that wraps children with TransactionManagerProvider
  * This needs to be inside Wagmi/RainbowKit providers to access hooks
  */
 function AppProviders({ children }: { children: React.ReactNode }) {
-  const { address, isConnected } = useWagmiAccount()
   const publicClient = usePublicClient({ chainId: sepolia.id })
-  const { data: walletClient } = useWalletClient()
 
   return (
-    <AccountProvider
-      address={address}
-      isConnected={isConnected}
-      publicClient={publicClient}
-      walletClient={walletClient}
-    >
-      <TransactionManagerProvider publicClient={publicClient!}>
-        {children}
-      </TransactionManagerProvider>
-    </AccountProvider>
+    <TransactionManagerProvider publicClient={publicClient!}>
+      {children}
+    </TransactionManagerProvider>
   )
 }
 
@@ -45,7 +35,7 @@ function App() {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
-          {/* Wrap app with AccountProvider and TransactionManagerProvider */}
+          {/* Wrap app with TransactionManagerProvider */}
           <AppProviders>
             <div style={{
               minHeight: '100vh',

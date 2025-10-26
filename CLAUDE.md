@@ -150,6 +150,204 @@ import { P } from 'ts-pattern'
 
 See `packages/transaction-manager/TRANSACTION_FLOW.md` for a complete example.
 
+### 4. Component Organization: Extract Static Values and Side Effects
+
+**Principle**: React components should be clean and focused on rendering. Extract static values, pure functions, and complex side effects outside the component body.
+
+**What to Extract**:
+1. **Static constants** → Module-level constants
+2. **Pure helper functions** → Module-level functions
+3. **Complex useEffect logic** → Custom hooks
+
+**Why This Matters**:
+1. **Performance**: Static values aren't recreated on every render
+2. **Clarity**: Component body shows only UI-relevant logic
+3. **Testability**: Extracted functions/hooks are easier to test
+4. **Reusability**: Custom hooks can be shared across components
+
+#### Extract Static Constants
+
+```typescript
+// ❌ AVOID: Static values recreated on every render
+function MyComponent() {
+  const config = {
+    chain: sepolia,
+    apiKey: import.meta.env.VITE_API_KEY,
+  }
+
+  const YEAR_IN_SECONDS = 31536000n
+
+  return <div>...</div>
+}
+
+// ✅ CORRECT: Static values outside component
+const YEAR_IN_SECONDS = 31536000n
+
+const appConfig = {
+  chain: sepolia,
+  apiKey: import.meta.env.VITE_API_KEY,
+}
+
+function MyComponent() {
+  return <div>...</div>
+}
+```
+
+#### Extract Pure Helper Functions
+
+```typescript
+// ❌ AVOID: Helper function recreated on every render
+function MyComponent({ isConnected, publicClient }) {
+  const getLoadingState = () => {
+    return match({ isConnected })
+      .with({ isConnected: false }, () => ({
+        message: 'Please connect wallet',
+        canRender: false,
+      }))
+      .otherwise(() => ({ message: '', canRender: true }))
+  }
+
+  const loadingState = getLoadingState()
+  return <div>{loadingState.message}</div>
+}
+
+// ✅ CORRECT: Pure function outside component
+function getLoadingState(params: {
+  isConnected: boolean
+  publicClient: any
+}) {
+  return match(params)
+    .with({ isConnected: false }, () => ({
+      message: 'Please connect wallet',
+      canRender: false,
+    }))
+    .otherwise(() => ({ message: '', canRender: true }))
+}
+
+function MyComponent({ isConnected, publicClient }) {
+  const loadingState = getLoadingState({ isConnected, publicClient })
+  return <div>{loadingState.message}</div>
+}
+```
+
+#### Extract useEffect Logic into Custom Hooks
+
+**Principle**: Complex useEffect blocks should be extracted into named custom hooks **above the component**.
+
+**Benefits**:
+- Component body is easier to read
+- Side effects are named and self-documenting
+- Hooks can be tested independently
+- Hooks can be reused in other components
+
+```typescript
+// ❌ AVOID: Complex useEffect logic directly in component
+function MyComponent() {
+  const [price, setPrice] = useState<bigint | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const fetchPrice = async () => {
+      if (name && duration && publicClient) {
+        if (!cancelled) {
+          setLoading(true)
+        }
+
+        const result = await getPrice(publicClient, name, duration)
+
+        if (!cancelled) {
+          if (result.isOk()) {
+            setPrice(result.value)
+          } else {
+            console.error(result.error)
+          }
+          setLoading(false)
+        }
+      }
+    }
+
+    fetchPrice()
+    return () => { cancelled = true }
+  }, [name, duration, publicClient])
+
+  // More useEffect blocks...
+
+  return <div>...</div>
+}
+
+// ✅ CORRECT: Extract into named custom hook above component
+function useRenewalPrice(params: {
+  name: string
+  duration: string
+  publicClient: any
+  onPriceChange: (price: bigint) => void
+  onLoadingChange: (loading: boolean) => void
+}) {
+  const { name, duration, publicClient, onPriceChange, onLoadingChange } = params
+
+  useEffect(() => {
+    let cancelled = false
+
+    const fetchPrice = async () => {
+      if (name && duration && publicClient) {
+        if (!cancelled) {
+          onLoadingChange(true)
+        }
+
+        const result = await getPrice(publicClient, name, duration)
+
+        if (!cancelled) {
+          if (result.isOk()) {
+            onPriceChange(result.value)
+          } else {
+            console.error(result.error)
+          }
+          onLoadingChange(false)
+        }
+      }
+    }
+
+    fetchPrice()
+    return () => { cancelled = true }
+  }, [name, duration, publicClient, onPriceChange, onLoadingChange])
+}
+
+function MyComponent() {
+  const [price, setPrice] = useState<bigint | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  // Clean, self-documenting hook usage
+  useRenewalPrice({
+    name: ui.name,
+    duration: ui.duration,
+    publicClient,
+    onPriceChange: setPrice,
+    onLoadingChange: setLoading,
+  })
+
+  return <div>...</div>
+}
+```
+
+**When to Extract**:
+- ✅ useEffect has >10 lines of logic
+- ✅ useEffect contains async operations
+- ✅ useEffect logic could be reused elsewhere
+- ✅ useEffect has complex cleanup logic
+
+**When NOT to Extract**:
+- ❌ Simple 1-2 line effects (e.g., `useEffect(() => setOpen(false), [userId])`)
+- ❌ Effects that are tightly coupled to local component state
+
+**Real-World Example**: See `packages/transaction-manager-example/src/ENSRenewalExample.tsx` for a complete example with:
+- `useRenewalPrice` - Fetch ENS renewal price
+- `useRhinestoneAccountInit` - Initialize smart account
+- `useSmartAccountAddress` - Sync account address to UI
+- `useClearAccountOnWalletChange` - Clear account on wallet change
+- `useSmartAccountBalance` - Fetch and poll balance
+
 ## Package-Specific Documentation
 
 When working in specific packages, consult these design documents:
