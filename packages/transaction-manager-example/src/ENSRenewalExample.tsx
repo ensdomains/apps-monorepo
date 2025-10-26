@@ -218,8 +218,11 @@ function ENSRenewalExample() {
   const [isInitializingAccount, setIsInitializingAccount] = useState(false)
   const [accountError, setAccountError] = useState<Error | undefined>(undefined)
 
-  // Track the current transaction actor (no context needed!)
-  const [currentTxActor, setCurrentTxActor] = useState<any>(null)
+  // Track the current transaction ID (just store the ID, not the actor!)
+  const [currentTxId, setCurrentTxId] = useState<string | null>(null)
+
+  // Get the actor whenever we need it (no stale references!)
+  const currentTxActor = currentTxId ? transactionManager.getTransaction(currentTxId) : null
 
   // Subscribe to transaction state using XState's useSelector
   const txState = useSelector(currentTxActor, (snapshot) =>
@@ -262,57 +265,6 @@ function ENSRenewalExample() {
   useSmartAccountBalance({ smartAccountAddress: ui.smartAccountAddress, publicClient, dispatch })
 
 
-  const handleFundSmartAccount = async () => {
-    // Call external helper function (uses singleton transaction manager)
-    const result = await handleSmartAccountFunding(
-      {
-        smartAccountAddress: ui.smartAccountAddress!,
-        amount: ui.fundingAmount,
-      },
-      { walletClient, publicClient }
-    )
-
-    // Only UI concerns: show error and track transaction
-    if (result.error) {
-      alert(result.error)
-    } else if (result.txId) {
-      console.log('🚀 Started funding transaction:', result.txId)
-
-      // Get the actor for this transaction (no context needed!)
-      const actor = transactionManager.getTransaction(result.txId)
-      setCurrentTxActor(actor)
-    }
-  }
-
-  const handleRenewal = async () => {
-    // Call external helper function (uses singleton transaction manager)
-    const result = await handleRenewalWithRegistry(
-      {
-        name: ui.name,
-        duration: ui.duration,
-        useSmartAccount: ui.useSmartAccount,
-        renewalPrice: ui.renewalPrice,
-      },
-      {
-        publicClient,
-        walletClient,
-        chainId: publicClient?.chain?.id || 11155111,
-        rhinestoneConfig,
-      },
-      rhinestoneAccount // Pass the initialized Rhinestone account
-    )
-
-    // Only UI concerns: show error and track transaction
-    if (result.error) {
-      alert(result.error)
-    } else if (result.txId) {
-      console.log('🚀 Started renewal transaction:', result.txId)
-
-      // Get the actor for this transaction (no context needed!)
-      const actor = transactionManager.getTransaction(result.txId)
-      setCurrentTxActor(actor)
-    }
-  }
 
   // Wait for clients to be ready before rendering
   if (!loadingState.canRender) {
@@ -535,7 +487,22 @@ function ENSRenewalExample() {
                     />
                     <span>ETH</span>
                     <button
-                      onClick={handleFundSmartAccount}
+                      onClick={async () => {
+                        const result = await handleSmartAccountFunding(
+                          {
+                            smartAccountAddress: ui.smartAccountAddress!,
+                            amount: ui.fundingAmount,
+                          },
+                          { walletClient, publicClient }
+                        )
+
+                        if (result.error) {
+                          alert(result.error)
+                        } else if (result.txId) {
+                          console.log('🚀 Started funding transaction:', result.txId)
+                          setCurrentTxId(result.txId)
+                        }
+                      }}
                       disabled={!ui.fundingAmount}
                       style={{
                         padding: '8px 16px',
@@ -566,7 +533,30 @@ function ENSRenewalExample() {
 
           <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
             <button
-              onClick={handleRenewal}
+              onClick={async () => {
+                const result = await handleRenewalWithRegistry(
+                  {
+                    name: ui.name,
+                    duration: ui.duration,
+                    useSmartAccount: ui.useSmartAccount,
+                    renewalPrice: ui.renewalPrice,
+                  },
+                  {
+                    publicClient,
+                    walletClient,
+                    chainId: publicClient?.chain?.id || 11155111,
+                    rhinestoneConfig,
+                  },
+                  rhinestoneAccount
+                )
+
+                if (result.error) {
+                  alert(result.error)
+                } else if (result.txId) {
+                  console.log('🚀 Started renewal transaction:', result.txId)
+                  setCurrentTxId(result.txId)
+                }
+              }}
               disabled={buttonDisabled}
               style={{
                 padding: '10px 20px',
