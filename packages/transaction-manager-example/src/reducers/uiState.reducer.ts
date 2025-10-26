@@ -9,7 +9,6 @@ export interface UIState {
   smartAccountAddress: string | null
   smartAccountBalance: bigint | null
   fundingAmount: string
-  isFunding: boolean
 }
 
 export type UIAction =
@@ -21,7 +20,6 @@ export type UIAction =
   | { type: 'SET_SMART_ACCOUNT_ADDRESS'; payload: string | null }
   | { type: 'SET_SMART_ACCOUNT_BALANCE'; payload: bigint | null }
   | { type: 'SET_FUNDING_AMOUNT'; payload: string }
-  | { type: 'SET_FUNDING'; payload: boolean }
   | { type: 'CLEAR_SMART_ACCOUNT' }
 
 export const initialUIState: UIState = {
@@ -33,7 +31,6 @@ export const initialUIState: UIState = {
   smartAccountAddress: null,
   smartAccountBalance: null,
   fundingAmount: '0.5',
-  isFunding: false,
 }
 
 export function uiStateReducer(state: UIState, action: UIAction): UIState {
@@ -52,7 +49,6 @@ export function uiStateReducer(state: UIState, action: UIAction): UIState {
       smartAccountBalance: a.payload,
     }))
     .with({ type: 'SET_FUNDING_AMOUNT' }, (a) => ({ ...state, fundingAmount: a.payload }))
-    .with({ type: 'SET_FUNDING' }, (a) => ({ ...state, isFunding: a.payload }))
     .with({ type: 'CLEAR_SMART_ACCOUNT' }, () => ({
       ...state,
       smartAccountAddress: null,

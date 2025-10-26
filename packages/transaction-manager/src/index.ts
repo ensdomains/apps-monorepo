@@ -37,6 +37,7 @@ export type {
 } from './types/audit.types'
 
 // Services
+export { transactionManager } from './services/transactionManager'
 export {
   recordTransition,
   addAuditEntry,

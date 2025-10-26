@@ -1394,6 +1394,45 @@ error.submission: {
 }
 ```
 
+#### Rhinestone "Bundle simulation failed" Error
+
+This error occurs when using smart accounts (Rhinestone/ERC-4337) and the bundler cannot simulate the user operation. Common causes:
+
+**1. Insufficient Smart Account Balance**
+- The smart account doesn't have enough ETH to pay for gas
+- **Solution**: Fund the smart account before submitting transactions
+  ```typescript
+  // Use the funding helper
+  await handleSmartAccountFunding(
+    { smartAccountAddress, amount: '0.1' },
+    { walletClient, publicClient }
+  )
+  ```
+
+**2. No Paymaster Configured**
+- Gas sponsorship is not set up, so account needs self-funding
+- **Solution**: Either fund the account (option 1) OR configure a paymaster:
+  ```typescript
+  const rhinestoneConfig = {
+    chain: sepolia,
+    paymasterUrl: 'https://your-paymaster-url.com', // For gasless txs
+    rhinestoneApiKey: 'your-api-key',
+  }
+  ```
+
+**3. Contract Call Would Revert**
+- The underlying transaction (e.g., ENS renewal) would fail
+- **Solution**: Check transaction parameters:
+  - Is the ENS name actually owned by the account?
+  - Is the renewal price calculation correct?
+  - Does the contract allow the operation?
+
+**Debugging Steps:**
+1. Check smart account balance: `publicClient.getBalance({ address: smartAccountAddress })`
+2. Verify paymaster configuration in rhinestoneConfig
+3. Test the same transaction with EOA to isolate smart account issues
+4. Check browser console for detailed Rhinestone SDK logs
+
 ### Timeout Errors
 ```typescript
 error.timeout: {

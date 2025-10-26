@@ -9,8 +9,17 @@ function isERC4337Signer(signer) {
   return signer.type === "erc4337";
 }
 
-// src/services/audit-trail.service.ts
-import { ok, err } from "neverthrow";
+// src/services/transactionManager.ts
+import { createActor } from "xstate";
+
+// src/machines/transaction.machine.ts
+import { setup, assign, fromPromise } from "xstate";
+import { fromResultAsync } from "@ens-apps/utils/xstate/neverthrow";
+import { ResultAsync as ResultAsync2, errAsync as errAsync2 } from "neverthrow";
+import { fromPromise as fromPromiseNT2 } from "neverthrow";
+
+// src/actors/eoa-transport.actor.ts
+import { fromPromise as fromPromiseNT } from "neverthrow";
 
 // src/errors/transaction.errors.ts
 var TransactionError = class extends Error {
@@ -70,7 +79,297 @@ var ImportError = class extends TransactionError {
   }
 };
 
+// src/actors/eoa-transport.actor.ts
+function submitEOATransaction(input) {
+  const { request, signer } = input;
+  const { walletClient } = signer;
+  const eoaRequest = request;
+  console.log("\u{1F527} [EOA TRANSPORT] Submitting EOA transaction:", {
+    from: eoaRequest.from,
+    to: eoaRequest.to,
+    value: eoaRequest.value?.toString(),
+    hasData: !!eoaRequest.data
+  });
+  const txParams = {
+    account: eoaRequest.from,
+    to: eoaRequest.to,
+    value: eoaRequest.value,
+    data: eoaRequest.data,
+    gas: eoaRequest.gas,
+    nonce: eoaRequest.nonce,
+    chain: walletClient.chain
+  };
+  if (eoaRequest.maxFeePerGas !== void 0) {
+    txParams.maxFeePerGas = eoaRequest.maxFeePerGas;
+    txParams.maxPriorityFeePerGas = eoaRequest.maxPriorityFeePerGas;
+  } else if (eoaRequest.gasPrice !== void 0) {
+    txParams.gasPrice = eoaRequest.gasPrice;
+  }
+  console.log("\u{1F527} [EOA TRANSPORT] Transaction params prepared:", {
+    hasMaxFeePerGas: !!txParams.maxFeePerGas,
+    hasGasPrice: !!txParams.gasPrice,
+    gas: txParams.gas?.toString()
+  });
+  return fromPromiseNT(
+    walletClient.sendTransaction(txParams),
+    (error) => {
+      console.error("\u274C [EOA TRANSPORT] Transaction submission failed:", error);
+      return new TransactionSubmissionError(eoaRequest, error);
+    }
+  );
+}
+
+// src/actors/rhinestone-transport.actor.ts
+import { ResultAsync, errAsync } from "neverthrow";
+
+// src/helpers/rhinestone-account.helpers.ts
+import { err, ok } from "neverthrow";
+import { RhinestoneSDK, walletClientToAccount } from "@rhinestone/sdk";
+import {
+  encodeFunctionData
+} from "viem";
+import { sepolia } from "viem/chains";
+
+// src/contracts/ens-sepolia.ts
+var ENS_SEPOLIA_CONTRACTS = {
+  // ENS Registry
+  Registry: "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
+  // ETH Registrar Controller (for .eth domains)
+  ETHRegistrarController: "0xfed6a969aaa60e4961fcd3ebf1a2e8913ac65b72",
+  // Base Registrar Implementation
+  BaseRegistrar: "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85",
+  // Public Resolver
+  PublicResolver: "0x9010A27463717360cAD99CEA8bD39b8705CCA238",
+  // Reverse Registrar
+  ReverseRegistrar: "0xa58e81fe9b61b5c3fe2afd33cf304c454abfc7cb",
+  // Name Wrapper
+  NameWrapper: "0x0635513f179d50a207757e05759cbd106d7dfce8"
+};
+var ETH_REGISTRAR_CONTROLLER_ABI = [
+  {
+    inputs: [
+      { internalType: "string", name: "name", type: "string" },
+      { internalType: "uint256", name: "duration", type: "uint256" }
+    ],
+    name: "renew",
+    outputs: [{ internalType: "uint256", name: "cost", type: "uint256" }],
+    stateMutability: "payable",
+    type: "function"
+  },
+  {
+    inputs: [
+      { internalType: "string", name: "name", type: "string" },
+      { internalType: "uint256", name: "duration", type: "uint256" }
+    ],
+    name: "rentPrice",
+    outputs: [
+      {
+        components: [
+          { internalType: "uint256", name: "base", type: "uint256" },
+          { internalType: "uint256", name: "premium", type: "uint256" }
+        ],
+        internalType: "struct IPriceOracle.Price",
+        name: "price",
+        type: "tuple"
+      }
+    ],
+    stateMutability: "view",
+    type: "function"
+  }
+];
+
+// src/helpers/rhinestone-account.helpers.ts
+var RhinestoneAccountError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "RhinestoneAccountError";
+  }
+};
+async function initializeRhinestoneAccount(walletClient, config) {
+  try {
+    console.log("\u{1F510} Initializing Rhinestone smart account...", {
+      hasWalletClient: !!walletClient,
+      hasAccount: !!walletClient?.account,
+      accountAddress: walletClient?.account?.address,
+      hasApiKey: !!config.rhinestoneApiKey,
+      chain: config.chain?.name || sepolia.name
+    });
+    if (!walletClient?.account) {
+      console.error("\u274C No wallet client available for smart account initialization");
+      return err(new RhinestoneAccountError("No wallet client available"));
+    }
+    const rhinestone = new RhinestoneSDK({
+      apiKey: config.rhinestoneApiKey
+    });
+    console.log("\u{1F4DD} [SIGNATURE REQUEST 1/2] Creating Rhinestone account with ECDSA owner - this may request a signature...");
+    const account = walletClientToAccount(walletClient);
+    console.log("\u{1F4DD} [SIGNATURE REQUEST 2/2] Calling rhinestone.createAccount() - this may request a signature...");
+    const rhinestoneAccount = await rhinestone.createAccount({
+      owners: {
+        type: "ecdsa",
+        accounts: [account]
+      }
+    });
+    console.log("\u2705 Rhinestone account created successfully:", {
+      address: rhinestoneAccount?.getAddress?.()
+    });
+    return ok(rhinestoneAccount);
+  } catch (error) {
+    console.error("\u274C Failed to initialize smart account:", error);
+    return err(
+      new RhinestoneAccountError(
+        `Failed to initialize smart account: ${error instanceof Error ? error.message : "Unknown error"}`
+      )
+    );
+  }
+}
+function getRhinestoneAccountAddress(rhinestoneAccount) {
+  try {
+    const address = rhinestoneAccount.getAddress();
+    return ok(address);
+  } catch (error) {
+    return err(
+      new RhinestoneAccountError(
+        `Failed to get smart account address: ${error instanceof Error ? error.message : "Unknown error"}`
+      )
+    );
+  }
+}
+async function getENSRenewalPrice(publicClient, name, duration) {
+  try {
+    const price = await publicClient.readContract({
+      address: ENS_SEPOLIA_CONTRACTS.ETHRegistrarController,
+      abi: ETH_REGISTRAR_CONTROLLER_ABI,
+      functionName: "rentPrice",
+      args: [name, duration]
+    });
+    const totalPrice = price.base + price.premium;
+    return ok(totalPrice);
+  } catch (error) {
+    return err(
+      new RhinestoneAccountError(
+        `Failed to get renewal price: ${error instanceof Error ? error.message : "Unknown error"}`
+      )
+    );
+  }
+}
+async function prepareENSRenewalTransaction(publicClient, params) {
+  try {
+    const { name, duration } = params;
+    console.log("\u{1F4CB} Preparing ENS renewal transaction...", { name, duration: duration.toString() });
+    const priceResult = await getENSRenewalPrice(publicClient, name, duration);
+    if (priceResult.isErr()) {
+      console.error("\u274C Failed to get renewal price:", priceResult.error);
+      return err(priceResult.error);
+    }
+    const renewalPrice = priceResult.value;
+    console.log("\u{1F4B0} Renewal price:", renewalPrice.toString());
+    const data = encodeFunctionData({
+      abi: ETH_REGISTRAR_CONTROLLER_ABI,
+      functionName: "renew",
+      args: [name, duration]
+    });
+    const txData = {
+      to: ENS_SEPOLIA_CONTRACTS.ETHRegistrarController,
+      data,
+      value: renewalPrice
+    };
+    console.log("\u2705 Transaction prepared:", {
+      to: txData.to,
+      value: txData.value.toString(),
+      dataLength: txData.data.length
+    });
+    return ok(txData);
+  } catch (error) {
+    console.error("\u274C Failed to prepare ENS renewal transaction:", error);
+    return err(
+      new RhinestoneAccountError(
+        `Failed to prepare ENS renewal transaction: ${error instanceof Error ? error.message : "Unknown error"}`
+      )
+    );
+  }
+}
+async function executeENSRenewal(rhinestoneAccount, publicClient, params, config) {
+  try {
+    console.log("\u{1F680} Executing ENS renewal...", params);
+    console.log("\u2705 Using Rhinestone account:", {
+      address: rhinestoneAccount.getAddress?.()
+    });
+    const txResult = await prepareENSRenewalTransaction(publicClient, params);
+    if (txResult.isErr()) {
+      return err(txResult.error);
+    }
+    const { to, data, value } = txResult.value;
+    const chain = config.chain || sepolia;
+    console.log("\u{1F4E4} Calling rhinestoneAccount.sendTransaction()...", {
+      targetChain: chain.name,
+      to,
+      value: value.toString()
+    });
+    const transaction = await rhinestoneAccount.sendTransaction({
+      sourceChains: [chain],
+      targetChain: chain,
+      calls: [
+        {
+          to,
+          data,
+          value
+        }
+      ]
+    });
+    console.log("\u2705 Transaction response:", transaction);
+    const txHash = transaction.hash || transaction.id;
+    console.log("\u2705 Transaction hash/id:", txHash);
+    console.log("\u2705 Transaction type:", transaction.type);
+    if (!transaction || !transaction.hash && !transaction.id) {
+      console.error("\u274C No transaction hash or ID returned!", transaction);
+      return err(new RhinestoneAccountError("No transaction hash or ID returned from Rhinestone SDK"));
+    }
+    const hashAsHex = typeof txHash === "bigint" ? `0x${txHash.toString(16).padStart(64, "0")}` : txHash;
+    console.log("\u2705 Final hash:", hashAsHex);
+    return ok(hashAsHex);
+  } catch (error) {
+    console.error("\u274C Failed to execute ENS renewal:", error);
+    return err(
+      new RhinestoneAccountError(
+        `Failed to execute ENS renewal: ${error instanceof Error ? error.message : "Unknown error"}`
+      )
+    );
+  }
+}
+
+// src/actors/rhinestone-transport.actor.ts
+function submitRhinestoneTransaction(input) {
+  const { request, signer, publicClient } = input;
+  const { account, config } = signer;
+  const rhinestoneRequest = request;
+  console.log("\u{1F527} [RHINESTONE TRANSPORT] Submitting Rhinestone intent transaction:", {
+    accountAddress: account?.getAddress?.(),
+    hasParams: !!rhinestoneRequest.rhinestoneParams
+  });
+  if (!rhinestoneRequest.rhinestoneParams) {
+    console.error("\u274C [RHINESTONE TRANSPORT] Missing rhinestoneParams");
+    return errAsync(
+      new TransactionSubmissionError(
+        rhinestoneRequest,
+        new Error("rhinestoneParams required for Rhinestone transactions")
+      )
+    );
+  }
+  console.log("\u{1F527} [RHINESTONE TRANSPORT] Executing with Rhinestone account:", {
+    accountAddress: account?.getAddress?.(),
+    targetChain: rhinestoneRequest.rhinestoneParams.chain?.id
+  });
+  return ResultAsync.fromSafePromise(
+    executeENSRenewal(account, publicClient, rhinestoneRequest.rhinestoneParams, config)
+  ).andThen((result) => result).mapErr((error) => {
+    console.error("\u274C [RHINESTONE TRANSPORT] Transaction submission failed:", error);
+    return new TransactionSubmissionError(rhinestoneRequest, error);
+  });
+}
+
 // src/services/audit-trail.service.ts
+import { ok as ok2, err as err2 } from "neverthrow";
 var MAX_TRANSITIONS = 1e3;
 var MAX_AGE = 24 * 60 * 60 * 1e3;
 var STORAGE_KEY = "@ens/audit-trail";
@@ -232,9 +531,9 @@ function importFromJson(json) {
       auditLog: parsed.auditLog || []
     };
     saveToStorage(data);
-    return ok(void 0);
+    return ok2(void 0);
   } catch (error) {
-    return err(new ImportError({ cause: error }));
+    return err2(new ImportError({ cause: error }));
   }
 }
 function clearAuditTrail() {
@@ -298,300 +597,6 @@ if (typeof window !== "undefined") {
       console.warn("Audit cleanup error (non-fatal):", error);
     }
   }, 60 * 60 * 1e3);
-}
-
-// src/helpers/rhinestone-account.helpers.ts
-import { err as err2, ok as ok2 } from "neverthrow";
-import { RhinestoneSDK, walletClientToAccount } from "@rhinestone/sdk";
-import {
-  encodeFunctionData
-} from "viem";
-import { sepolia } from "viem/chains";
-
-// src/contracts/ens-sepolia.ts
-var ENS_SEPOLIA_CONTRACTS = {
-  // ENS Registry
-  Registry: "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
-  // ETH Registrar Controller (for .eth domains)
-  ETHRegistrarController: "0xfed6a969aaa60e4961fcd3ebf1a2e8913ac65b72",
-  // Base Registrar Implementation
-  BaseRegistrar: "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85",
-  // Public Resolver
-  PublicResolver: "0x9010A27463717360cAD99CEA8bD39b8705CCA238",
-  // Reverse Registrar
-  ReverseRegistrar: "0xa58e81fe9b61b5c3fe2afd33cf304c454abfc7cb",
-  // Name Wrapper
-  NameWrapper: "0x0635513f179d50a207757e05759cbd106d7dfce8"
-};
-var ETH_REGISTRAR_CONTROLLER_ABI = [
-  {
-    inputs: [
-      { internalType: "string", name: "name", type: "string" },
-      { internalType: "uint256", name: "duration", type: "uint256" }
-    ],
-    name: "renew",
-    outputs: [{ internalType: "uint256", name: "cost", type: "uint256" }],
-    stateMutability: "payable",
-    type: "function"
-  },
-  {
-    inputs: [
-      { internalType: "string", name: "name", type: "string" },
-      { internalType: "uint256", name: "duration", type: "uint256" }
-    ],
-    name: "rentPrice",
-    outputs: [
-      {
-        components: [
-          { internalType: "uint256", name: "base", type: "uint256" },
-          { internalType: "uint256", name: "premium", type: "uint256" }
-        ],
-        internalType: "struct IPriceOracle.Price",
-        name: "price",
-        type: "tuple"
-      }
-    ],
-    stateMutability: "view",
-    type: "function"
-  }
-];
-
-// src/helpers/rhinestone-account.helpers.ts
-var RhinestoneAccountError = class extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "RhinestoneAccountError";
-  }
-};
-async function initializeRhinestoneAccount(walletClient, config) {
-  try {
-    console.log("\u{1F510} Initializing Rhinestone smart account...", {
-      hasWalletClient: !!walletClient,
-      hasAccount: !!walletClient?.account,
-      accountAddress: walletClient?.account?.address,
-      hasApiKey: !!config.rhinestoneApiKey,
-      chain: config.chain?.name || sepolia.name
-    });
-    if (!walletClient?.account) {
-      console.error("\u274C No wallet client available for smart account initialization");
-      return err2(new RhinestoneAccountError("No wallet client available"));
-    }
-    const rhinestone = new RhinestoneSDK({
-      apiKey: config.rhinestoneApiKey
-    });
-    console.log("\u{1F4DD} [SIGNATURE REQUEST 1/2] Creating Rhinestone account with ECDSA owner - this may request a signature...");
-    const account = walletClientToAccount(walletClient);
-    console.log("\u{1F4DD} [SIGNATURE REQUEST 2/2] Calling rhinestone.createAccount() - this may request a signature...");
-    const rhinestoneAccount = await rhinestone.createAccount({
-      owners: {
-        type: "ecdsa",
-        accounts: [account]
-      }
-    });
-    console.log("\u2705 Rhinestone account created successfully:", {
-      address: rhinestoneAccount?.getAddress?.()
-    });
-    return ok2(rhinestoneAccount);
-  } catch (error) {
-    console.error("\u274C Failed to initialize smart account:", error);
-    return err2(
-      new RhinestoneAccountError(
-        `Failed to initialize smart account: ${error instanceof Error ? error.message : "Unknown error"}`
-      )
-    );
-  }
-}
-function getRhinestoneAccountAddress(rhinestoneAccount) {
-  try {
-    const address = rhinestoneAccount.getAddress();
-    return ok2(address);
-  } catch (error) {
-    return err2(
-      new RhinestoneAccountError(
-        `Failed to get smart account address: ${error instanceof Error ? error.message : "Unknown error"}`
-      )
-    );
-  }
-}
-async function getENSRenewalPrice(publicClient, name, duration) {
-  try {
-    const price = await publicClient.readContract({
-      address: ENS_SEPOLIA_CONTRACTS.ETHRegistrarController,
-      abi: ETH_REGISTRAR_CONTROLLER_ABI,
-      functionName: "rentPrice",
-      args: [name, duration]
-    });
-    const totalPrice = price.base + price.premium;
-    return ok2(totalPrice);
-  } catch (error) {
-    return err2(
-      new RhinestoneAccountError(
-        `Failed to get renewal price: ${error instanceof Error ? error.message : "Unknown error"}`
-      )
-    );
-  }
-}
-async function prepareENSRenewalTransaction(publicClient, params) {
-  try {
-    const { name, duration } = params;
-    console.log("\u{1F4CB} Preparing ENS renewal transaction...", { name, duration: duration.toString() });
-    const priceResult = await getENSRenewalPrice(publicClient, name, duration);
-    if (priceResult.isErr()) {
-      console.error("\u274C Failed to get renewal price:", priceResult.error);
-      return err2(priceResult.error);
-    }
-    const renewalPrice = priceResult.value;
-    console.log("\u{1F4B0} Renewal price:", renewalPrice.toString());
-    const data = encodeFunctionData({
-      abi: ETH_REGISTRAR_CONTROLLER_ABI,
-      functionName: "renew",
-      args: [name, duration]
-    });
-    const txData = {
-      to: ENS_SEPOLIA_CONTRACTS.ETHRegistrarController,
-      data,
-      value: renewalPrice
-    };
-    console.log("\u2705 Transaction prepared:", {
-      to: txData.to,
-      value: txData.value.toString(),
-      dataLength: txData.data.length
-    });
-    return ok2(txData);
-  } catch (error) {
-    console.error("\u274C Failed to prepare ENS renewal transaction:", error);
-    return err2(
-      new RhinestoneAccountError(
-        `Failed to prepare ENS renewal transaction: ${error instanceof Error ? error.message : "Unknown error"}`
-      )
-    );
-  }
-}
-async function executeENSRenewal(rhinestoneAccount, publicClient, params, config) {
-  try {
-    console.log("\u{1F680} Executing ENS renewal...", params);
-    console.log("\u2705 Using Rhinestone account:", {
-      address: rhinestoneAccount.getAddress?.()
-    });
-    const txResult = await prepareENSRenewalTransaction(publicClient, params);
-    if (txResult.isErr()) {
-      return err2(txResult.error);
-    }
-    const { to, data, value } = txResult.value;
-    const chain = config.chain || sepolia;
-    console.log("\u{1F4E4} Calling rhinestoneAccount.sendTransaction()...", {
-      targetChain: chain.name,
-      to,
-      value: value.toString()
-    });
-    const transaction = await rhinestoneAccount.sendTransaction({
-      sourceChains: [chain],
-      targetChain: chain,
-      calls: [
-        {
-          to,
-          data,
-          value
-        }
-      ]
-    });
-    console.log("\u2705 Transaction response:", transaction);
-    const txHash = transaction.hash || transaction.id;
-    console.log("\u2705 Transaction hash/id:", txHash);
-    console.log("\u2705 Transaction type:", transaction.type);
-    if (!transaction || !transaction.hash && !transaction.id) {
-      console.error("\u274C No transaction hash or ID returned!", transaction);
-      return err2(new RhinestoneAccountError("No transaction hash or ID returned from Rhinestone SDK"));
-    }
-    const hashAsHex = typeof txHash === "bigint" ? `0x${txHash.toString(16).padStart(64, "0")}` : txHash;
-    console.log("\u2705 Final hash:", hashAsHex);
-    return ok2(hashAsHex);
-  } catch (error) {
-    console.error("\u274C Failed to execute ENS renewal:", error);
-    return err2(
-      new RhinestoneAccountError(
-        `Failed to execute ENS renewal: ${error instanceof Error ? error.message : "Unknown error"}`
-      )
-    );
-  }
-}
-
-// src/machines/transaction.machine.ts
-import { setup, assign, fromPromise } from "xstate";
-import { fromResultAsync } from "@ens-apps/utils/xstate/neverthrow";
-import { ResultAsync as ResultAsync2, errAsync as errAsync2 } from "neverthrow";
-import { fromPromise as fromPromiseNT2 } from "neverthrow";
-
-// src/actors/eoa-transport.actor.ts
-import { fromPromise as fromPromiseNT } from "neverthrow";
-function submitEOATransaction(input) {
-  const { request, signer } = input;
-  const { walletClient } = signer;
-  const eoaRequest = request;
-  console.log("\u{1F527} [EOA TRANSPORT] Submitting EOA transaction:", {
-    from: eoaRequest.from,
-    to: eoaRequest.to,
-    value: eoaRequest.value?.toString(),
-    hasData: !!eoaRequest.data
-  });
-  const txParams = {
-    account: eoaRequest.from,
-    to: eoaRequest.to,
-    value: eoaRequest.value,
-    data: eoaRequest.data,
-    gas: eoaRequest.gas,
-    nonce: eoaRequest.nonce,
-    chain: walletClient.chain
-  };
-  if (eoaRequest.maxFeePerGas !== void 0) {
-    txParams.maxFeePerGas = eoaRequest.maxFeePerGas;
-    txParams.maxPriorityFeePerGas = eoaRequest.maxPriorityFeePerGas;
-  } else if (eoaRequest.gasPrice !== void 0) {
-    txParams.gasPrice = eoaRequest.gasPrice;
-  }
-  console.log("\u{1F527} [EOA TRANSPORT] Transaction params prepared:", {
-    hasMaxFeePerGas: !!txParams.maxFeePerGas,
-    hasGasPrice: !!txParams.gasPrice,
-    gas: txParams.gas?.toString()
-  });
-  return fromPromiseNT(
-    walletClient.sendTransaction(txParams),
-    (error) => {
-      console.error("\u274C [EOA TRANSPORT] Transaction submission failed:", error);
-      return new TransactionSubmissionError(eoaRequest, error);
-    }
-  );
-}
-
-// src/actors/rhinestone-transport.actor.ts
-import { ResultAsync, errAsync } from "neverthrow";
-function submitRhinestoneTransaction(input) {
-  const { request, signer, publicClient } = input;
-  const { account, config } = signer;
-  const rhinestoneRequest = request;
-  console.log("\u{1F527} [RHINESTONE TRANSPORT] Submitting Rhinestone intent transaction:", {
-    accountAddress: account?.getAddress?.(),
-    hasParams: !!rhinestoneRequest.rhinestoneParams
-  });
-  if (!rhinestoneRequest.rhinestoneParams) {
-    console.error("\u274C [RHINESTONE TRANSPORT] Missing rhinestoneParams");
-    return errAsync(
-      new TransactionSubmissionError(
-        rhinestoneRequest,
-        new Error("rhinestoneParams required for Rhinestone transactions")
-      )
-    );
-  }
-  console.log("\u{1F527} [RHINESTONE TRANSPORT] Executing with Rhinestone account:", {
-    accountAddress: account?.getAddress?.(),
-    targetChain: rhinestoneRequest.rhinestoneParams.chain?.id
-  });
-  return ResultAsync.fromSafePromise(
-    executeENSRenewal(account, publicClient, rhinestoneRequest.rhinestoneParams, config)
-  ).andThen((result) => result).mapErr((error) => {
-    console.error("\u274C [RHINESTONE TRANSPORT] Transaction submission failed:", error);
-    return new TransactionSubmissionError(rhinestoneRequest, error);
-  });
 }
 
 // src/machines/transaction.machine.ts
@@ -1149,10 +1154,6 @@ var transactionMachine = setup({
   }
 });
 
-// src/providers/TransactionActorManagerProvider.tsx
-import { createContext, useContext, useEffect, useState } from "react";
-import { createActor } from "xstate";
-
 // src/services/transaction-registry.service.ts
 var STORAGE_PREFIX = "tx-";
 function serializeTransaction(transaction) {
@@ -1206,34 +1207,29 @@ function removeTransaction(id) {
   }
 }
 
-// src/providers/TransactionActorManagerProvider.tsx
-import { jsx } from "react/jsx-runtime";
-var TransactionActorManagerContext = createContext(null);
-function TransactionActorManagerProvider({
-  children,
-  publicClient
-}) {
-  const [transactions, setTransactions] = useState(
-    /* @__PURE__ */ new Map()
-  );
-  useEffect(() => {
-    const pending = getPendingTransactions();
-    if (pending.length === 0) {
-      console.log("\u{1F535} [ACTOR MANAGER] No pending transactions to recover");
-      return;
+// src/services/transactionManager.ts
+var TransactionManager = class {
+  constructor() {
+    this.transactions = /* @__PURE__ */ new Map();
+    this.listeners = /* @__PURE__ */ new Set();
+  }
+  /**
+   * Start a new transaction
+   *
+   * SSR-safe: publicClient is passed per-transaction, not stored globally.
+   *
+   * @param request - Unsigned transaction request
+   * @param signer - Signer capability (EOA, Rhinestone, etc.)
+   * @param options - Transaction options (modal, description, publicClient, etc.)
+   * @returns Transaction ID
+   */
+  startTransaction(request, signer, options) {
+    const { publicClient, ...transactionOptions } = options;
+    if (!publicClient) {
+      throw new Error("publicClient is required in options");
     }
-    console.log(`\u{1F504} [ACTOR MANAGER] Found ${pending.length} pending transactions to recover`);
-    pending.forEach((persisted) => {
-      console.log("\u{1F4E6} [ACTOR MANAGER] Pending transaction:", {
-        id: persisted.id,
-        state: persisted.state,
-        hash: persisted.hash
-      });
-    });
-  }, []);
-  const startTransaction = (request, signer, options) => {
-    const txId = options?.id || `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    console.log("\u{1F680} [ACTOR MANAGER] Starting transaction:", {
+    const txId = transactionOptions.id || `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    console.log("\u{1F680} [TRANSACTION MANAGER] Starting transaction:", {
       id: txId,
       type: request.type,
       signerType: signer.type
@@ -1243,15 +1239,16 @@ function TransactionActorManagerProvider({
         request,
         signer,
         publicClient,
-        options
+        // From options, not global state
+        options: transactionOptions
       }
     });
     actor.start();
-    console.log("\u2705 [ACTOR MANAGER] Actor started:", txId);
+    console.log("\u2705 [TRANSACTION MANAGER] Actor started:", txId);
     actor.subscribe((snapshot) => {
       const state = snapshot.value;
       const ctx = snapshot.context;
-      console.log(`\u{1F4CA} [ACTOR MANAGER] Transaction ${txId} state:`, state);
+      console.log(`\u{1F4CA} [TRANSACTION MANAGER] Transaction ${txId} state:`, state);
       const persisted = {
         id: txId,
         hash: ctx.hash,
@@ -1264,40 +1261,105 @@ function TransactionActorManagerProvider({
         updatedAt: Date.now()
       };
       if (state === "success" || state === "error") {
-        console.log(`\u2705 [ACTOR MANAGER] Removing completed transaction ${txId}`);
+        console.log(`\u2705 [TRANSACTION MANAGER] Removing completed transaction ${txId}`);
         removeTransaction(txId);
       } else {
         saveTransaction(txId, persisted);
       }
     });
-    setTransactions((prev) => {
-      const newMap = new Map(prev);
-      newMap.set(txId, actor);
-      return newMap;
-    });
+    this.transactions.set(txId, actor);
+    this.notifyListeners();
     return txId;
-  };
-  const cancelTransaction = (id) => {
-    console.log(`\u{1F6D1} [ACTOR MANAGER] Cancelling transaction ${id}`);
-    const actor = transactions.get(id);
+  }
+  /**
+   * Cancel a transaction
+   */
+  cancelTransaction(id) {
+    console.log(`\u{1F6D1} [TRANSACTION MANAGER] Cancelling transaction ${id}`);
+    const actor = this.transactions.get(id);
     if (actor) {
       actor.send({ type: "CANCEL" });
     }
-    setTransactions((prev) => {
-      const newMap = new Map(prev);
-      newMap.delete(id);
-      return newMap;
-    });
+    this.transactions.delete(id);
+    this.notifyListeners();
     removeTransaction(id);
-  };
-  const getTransaction = (id) => {
-    return transactions.get(id);
-  };
+  }
+  /**
+   * Get a specific transaction actor by ID
+   */
+  getTransaction(id) {
+    return this.transactions.get(id);
+  }
+  /**
+   * Get all active transactions
+   */
+  getTransactions() {
+    return new Map(this.transactions);
+  }
+  /**
+   * Subscribe to transaction changes (for React integration)
+   *
+   * @param listener - Callback fired when transactions change
+   * @returns Unsubscribe function
+   */
+  onTransactionsChange(listener) {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+  /**
+   * Notify all listeners of transaction changes
+   */
+  notifyListeners() {
+    const txCopy = this.getTransactions();
+    this.listeners.forEach((listener) => listener(txCopy));
+  }
+  /**
+   * Clear all transactions (for testing)
+   */
+  clear() {
+    this.transactions.forEach((actor) => actor.stop());
+    this.transactions.clear();
+    this.notifyListeners();
+  }
+};
+var transactionManager = new TransactionManager();
+
+// src/providers/TransactionActorManagerProvider.tsx
+import { createContext, useContext, useEffect, useState } from "react";
+import { jsx } from "react/jsx-runtime";
+var TransactionActorManagerContext = createContext(null);
+function TransactionActorManagerProvider({
+  children,
+  publicClient
+}) {
+  const [transactions, setTransactions] = useState(
+    /* @__PURE__ */ new Map()
+  );
+  useEffect(() => {
+    const unsubscribe = transactionManager.onTransactionsChange((txMap) => {
+      setTransactions(txMap);
+    });
+    return unsubscribe;
+  }, []);
+  useEffect(() => {
+    const pending = getPendingTransactions();
+    if (pending.length === 0) {
+      console.log("\u{1F535} [PROVIDER] No pending transactions to recover");
+      return;
+    }
+    console.log(`\u{1F504} [PROVIDER] Found ${pending.length} pending transactions to recover`);
+    pending.forEach((persisted) => {
+      console.log("\u{1F4E6} [PROVIDER] Pending transaction:", {
+        id: persisted.id,
+        state: persisted.state,
+        hash: persisted.hash
+      });
+    });
+  }, []);
   const contextValue = {
-    transactions,
-    startTransaction,
-    cancelTransaction,
-    getTransaction
+    transactions
   };
   return /* @__PURE__ */ jsx(TransactionActorManagerContext.Provider, { value: contextValue, children });
 }
@@ -1315,8 +1377,7 @@ function useTransactionRegistry() {
   return useTransactionActorManager();
 }
 function useTransaction(id) {
-  const { getTransaction } = useTransactionActorManager();
-  return getTransaction(id);
+  return transactionManager.getTransaction(id);
 }
 function useActiveTransactions() {
   const { transactions } = useTransactionActorManager();
@@ -2709,6 +2770,7 @@ export {
   removeActiveTransaction,
   saveActiveTransaction,
   transactionMachine,
+  transactionManager,
   useAccount,
   useActiveTransactions,
   useRecoveredTransactions,

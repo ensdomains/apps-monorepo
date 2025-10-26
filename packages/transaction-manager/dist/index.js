@@ -83,6 +83,7 @@ __export(index_exports, {
   removeActiveTransaction: () => removeActiveTransaction,
   saveActiveTransaction: () => saveActiveTransaction,
   transactionMachine: () => transactionMachine,
+  transactionManager: () => transactionManager,
   useAccount: () => useAccount,
   useActiveTransactions: () => useActiveTransactions,
   useRecoveredTransactions: () => useRecoveredTransactions,
@@ -104,7 +105,16 @@ function isERC4337Signer(signer) {
   return signer.type === "erc4337";
 }
 
-// src/services/audit-trail.service.ts
+// src/services/transactionManager.ts
+var import_xstate2 = require("xstate");
+
+// src/machines/transaction.machine.ts
+var import_xstate = require("xstate");
+var import_neverthrow5 = require("@ens-apps/utils/xstate/neverthrow");
+var import_neverthrow6 = require("neverthrow");
+var import_neverthrow7 = require("neverthrow");
+
+// src/actors/eoa-transport.actor.ts
 var import_neverthrow = require("neverthrow");
 
 // src/errors/transaction.errors.ts
@@ -165,235 +175,48 @@ var ImportError = class extends TransactionError {
   }
 };
 
-// src/services/audit-trail.service.ts
-var MAX_TRANSITIONS = 1e3;
-var MAX_AGE = 24 * 60 * 60 * 1e3;
-var STORAGE_KEY = "@ens/audit-trail";
-function generateUUID() {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === "x" ? r : r & 3 | 8;
-    return v.toString(16);
+// src/actors/eoa-transport.actor.ts
+function submitEOATransaction(input) {
+  const { request, signer } = input;
+  const { walletClient } = signer;
+  const eoaRequest = request;
+  console.log("\u{1F527} [EOA TRANSPORT] Submitting EOA transaction:", {
+    from: eoaRequest.from,
+    to: eoaRequest.to,
+    value: eoaRequest.value?.toString(),
+    hasData: !!eoaRequest.data
   });
-}
-function getSessionId() {
-  if (typeof window === "undefined") return "server";
-  let sessionId = sessionStorage.getItem("ens-session-id");
-  if (!sessionId) {
-    sessionId = generateUUID();
-    sessionStorage.setItem("ens-session-id", sessionId);
-  }
-  return sessionId;
-}
-function loadFromStorage() {
-  if (typeof window === "undefined" || !localStorage) {
-    return { transitions: [], auditLog: [] };
-  }
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (!data) return { transitions: [], auditLog: [] };
-    const parsed = JSON.parse(data);
-    return {
-      transitions: parsed.transitions || [],
-      auditLog: parsed.auditLog || []
-    };
-  } catch (error) {
-    console.warn("Failed to load audit trail from storage:", error);
-    return { transitions: [], auditLog: [] };
-  }
-}
-function saveToStorage(data) {
-  if (typeof window === "undefined" || !localStorage) return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data, (key, value) => {
-      if (typeof value === "bigint") {
-        return value.toString();
-      }
-      return value;
-    }));
-  } catch (error) {
-    console.warn("Failed to save audit trail to storage:", error);
-  }
-}
-function recordTransition(transition) {
-  try {
-    const data = loadFromStorage();
-    const entry = {
-      ...transition,
-      id: generateUUID(),
-      timestamp: Date.now()
-    };
-    data.transitions.push(entry);
-    if (data.transitions.length > MAX_TRANSITIONS) {
-      data.transitions.shift();
-    }
-    saveToStorage(data);
-  } catch (error) {
-    console.warn("Audit service error (non-fatal):", error);
-  }
-}
-function addAuditEntry(level, message, details) {
-  try {
-    const data = loadFromStorage();
-    const entry = {
-      transitionId: data.transitions[data.transitions.length - 1]?.id || "unknown",
-      timestamp: Date.now(),
-      level,
-      message,
-      details,
-      stackTrace: level === "error" || level === "critical" ? new Error().stack : void 0
-    };
-    data.auditLog.push(entry);
-    if (level === "critical") {
-      console.error("[CRITICAL]", message, details);
-    }
-    saveToStorage(data);
-  } catch (error) {
-    console.warn("Audit service error (non-fatal):", error);
-  }
-}
-function getTransitionHistory(filters) {
-  try {
-    const data = loadFromStorage();
-    let history = [...data.transitions];
-    if (filters?.machineId) {
-      history = history.filter((t) => t.machineId === filters.machineId);
-    }
-    if (filters?.fromTime !== void 0) {
-      const fromTime = filters.fromTime;
-      history = history.filter((t) => t.timestamp >= fromTime);
-    }
-    if (filters?.toTime !== void 0) {
-      const toTime = filters.toTime;
-      history = history.filter((t) => t.timestamp <= toTime);
-    }
-    if (filters?.includeErrors === false) {
-      history = history.filter((t) => !t.error);
-    }
-    return history;
-  } catch (error) {
-    console.warn("Audit service error (non-fatal):", error);
-    return [];
-  }
-}
-function generateDebugReport(transactionId) {
-  try {
-    const data = loadFromStorage();
-    const relevantTransitions = transactionId ? data.transitions.filter(
-      (t) => t.metadata?.transactionHash === transactionId || t.context.transactionId === transactionId
-    ) : data.transitions.slice(-50);
-    const relevantAuditLog = transactionId ? data.auditLog.filter(
-      (entry) => relevantTransitions.some((t) => t.id === entry.transitionId)
-    ) : data.auditLog.slice(-100);
-    return {
-      generatedAt: Date.now(),
-      systemInfo: {
-        userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "Node.js",
-        timestamp: Date.now(),
-        sessionId: getSessionId()
-      },
-      transitions: relevantTransitions,
-      auditLog: relevantAuditLog,
-      errorSummary: generateErrorSummary(relevantTransitions),
-      stateDistribution: calculateStateDistribution(relevantTransitions),
-      performanceMetrics: calculatePerformanceMetrics(relevantTransitions)
-    };
-  } catch (error) {
-    console.warn("Audit service error (non-fatal):", error);
-    return null;
-  }
-}
-function exportToJson() {
-  try {
-    const data = loadFromStorage();
-    return JSON.stringify({
-      transitions: data.transitions,
-      auditLog: data.auditLog,
-      exported: Date.now()
-    }, null, 2);
-  } catch (error) {
-    console.warn("Audit service error (non-fatal):", error);
-    return JSON.stringify({ transitions: [], auditLog: [], exported: Date.now() }, null, 2);
-  }
-}
-function importFromJson(json) {
-  try {
-    const parsed = JSON.parse(json);
-    const data = {
-      transitions: parsed.transitions || [],
-      auditLog: parsed.auditLog || []
-    };
-    saveToStorage(data);
-    return (0, import_neverthrow.ok)(void 0);
-  } catch (error) {
-    return (0, import_neverthrow.err)(new ImportError({ cause: error }));
-  }
-}
-function clearAuditTrail() {
-  try {
-    if (typeof window !== "undefined" && localStorage) {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  } catch (error) {
-    console.warn("Audit service error (non-fatal):", error);
-  }
-}
-function calculateStateDistribution(transitions) {
-  return transitions.reduce((acc, t) => {
-    acc[t.toState] = (acc[t.toState] || 0) + 1;
-    return acc;
-  }, {});
-}
-function calculatePerformanceMetrics(transitions) {
-  if (transitions.length < 2) {
-    return {
-      avgTransitionTime: 0,
-      maxTransitionTime: 0,
-      minTransitionTime: 0,
-      totalTransitions: transitions.length
-    };
-  }
-  const durations = [];
-  for (let i = 1; i < transitions.length; i++) {
-    durations.push(transitions[i].timestamp - transitions[i - 1].timestamp);
-  }
-  return {
-    avgTransitionTime: durations.reduce((a, b) => a + b, 0) / durations.length,
-    maxTransitionTime: Math.max(...durations),
-    minTransitionTime: Math.min(...durations),
-    totalTransitions: transitions.length
+  const txParams = {
+    account: eoaRequest.from,
+    to: eoaRequest.to,
+    value: eoaRequest.value,
+    data: eoaRequest.data,
+    gas: eoaRequest.gas,
+    nonce: eoaRequest.nonce,
+    chain: walletClient.chain
   };
-}
-function generateErrorSummary(transitions) {
-  const errors = transitions.filter((t) => t.error);
-  const errorTypes = errors.reduce((acc, t) => {
-    const errorType = t.error?.name || "Unknown";
-    acc[errorType] = (acc[errorType] || 0) + 1;
-    return acc;
-  }, {});
-  return {
-    totalErrors: errors.length,
-    errorRate: transitions.length > 0 ? errors.length / transitions.length * 100 : 0,
-    errorTypes,
-    lastError: errors[errors.length - 1]?.error
-  };
-}
-if (typeof window !== "undefined") {
-  setInterval(() => {
-    try {
-      const data = loadFromStorage();
-      const cutoff = Date.now() - MAX_AGE;
-      data.transitions = data.transitions.filter((t) => t.timestamp > cutoff);
-      data.auditLog = data.auditLog.filter((e) => e.timestamp > cutoff);
-      saveToStorage(data);
-    } catch (error) {
-      console.warn("Audit cleanup error (non-fatal):", error);
+  if (eoaRequest.maxFeePerGas !== void 0) {
+    txParams.maxFeePerGas = eoaRequest.maxFeePerGas;
+    txParams.maxPriorityFeePerGas = eoaRequest.maxPriorityFeePerGas;
+  } else if (eoaRequest.gasPrice !== void 0) {
+    txParams.gasPrice = eoaRequest.gasPrice;
+  }
+  console.log("\u{1F527} [EOA TRANSPORT] Transaction params prepared:", {
+    hasMaxFeePerGas: !!txParams.maxFeePerGas,
+    hasGasPrice: !!txParams.gasPrice,
+    gas: txParams.gas?.toString()
+  });
+  return (0, import_neverthrow.fromPromise)(
+    walletClient.sendTransaction(txParams),
+    (error) => {
+      console.error("\u274C [EOA TRANSPORT] Transaction submission failed:", error);
+      return new TransactionSubmissionError(eoaRequest, error);
     }
-  }, 60 * 60 * 1e3);
+  );
 }
+
+// src/actors/rhinestone-transport.actor.ts
+var import_neverthrow3 = require("neverthrow");
 
 // src/helpers/rhinestone-account.helpers.ts
 var import_neverthrow2 = require("neverthrow");
@@ -609,55 +432,7 @@ async function executeENSRenewal(rhinestoneAccount, publicClient, params, config
   }
 }
 
-// src/machines/transaction.machine.ts
-var import_xstate = require("xstate");
-var import_neverthrow5 = require("@ens-apps/utils/xstate/neverthrow");
-var import_neverthrow6 = require("neverthrow");
-var import_neverthrow7 = require("neverthrow");
-
-// src/actors/eoa-transport.actor.ts
-var import_neverthrow3 = require("neverthrow");
-function submitEOATransaction(input) {
-  const { request, signer } = input;
-  const { walletClient } = signer;
-  const eoaRequest = request;
-  console.log("\u{1F527} [EOA TRANSPORT] Submitting EOA transaction:", {
-    from: eoaRequest.from,
-    to: eoaRequest.to,
-    value: eoaRequest.value?.toString(),
-    hasData: !!eoaRequest.data
-  });
-  const txParams = {
-    account: eoaRequest.from,
-    to: eoaRequest.to,
-    value: eoaRequest.value,
-    data: eoaRequest.data,
-    gas: eoaRequest.gas,
-    nonce: eoaRequest.nonce,
-    chain: walletClient.chain
-  };
-  if (eoaRequest.maxFeePerGas !== void 0) {
-    txParams.maxFeePerGas = eoaRequest.maxFeePerGas;
-    txParams.maxPriorityFeePerGas = eoaRequest.maxPriorityFeePerGas;
-  } else if (eoaRequest.gasPrice !== void 0) {
-    txParams.gasPrice = eoaRequest.gasPrice;
-  }
-  console.log("\u{1F527} [EOA TRANSPORT] Transaction params prepared:", {
-    hasMaxFeePerGas: !!txParams.maxFeePerGas,
-    hasGasPrice: !!txParams.gasPrice,
-    gas: txParams.gas?.toString()
-  });
-  return (0, import_neverthrow3.fromPromise)(
-    walletClient.sendTransaction(txParams),
-    (error) => {
-      console.error("\u274C [EOA TRANSPORT] Transaction submission failed:", error);
-      return new TransactionSubmissionError(eoaRequest, error);
-    }
-  );
-}
-
 // src/actors/rhinestone-transport.actor.ts
-var import_neverthrow4 = require("neverthrow");
 function submitRhinestoneTransaction(input) {
   const { request, signer, publicClient } = input;
   const { account, config } = signer;
@@ -668,7 +443,7 @@ function submitRhinestoneTransaction(input) {
   });
   if (!rhinestoneRequest.rhinestoneParams) {
     console.error("\u274C [RHINESTONE TRANSPORT] Missing rhinestoneParams");
-    return (0, import_neverthrow4.errAsync)(
+    return (0, import_neverthrow3.errAsync)(
       new TransactionSubmissionError(
         rhinestoneRequest,
         new Error("rhinestoneParams required for Rhinestone transactions")
@@ -679,12 +454,243 @@ function submitRhinestoneTransaction(input) {
     accountAddress: account?.getAddress?.(),
     targetChain: rhinestoneRequest.rhinestoneParams.chain?.id
   });
-  return import_neverthrow4.ResultAsync.fromSafePromise(
+  return import_neverthrow3.ResultAsync.fromSafePromise(
     executeENSRenewal(account, publicClient, rhinestoneRequest.rhinestoneParams, config)
   ).andThen((result) => result).mapErr((error) => {
     console.error("\u274C [RHINESTONE TRANSPORT] Transaction submission failed:", error);
     return new TransactionSubmissionError(rhinestoneRequest, error);
   });
+}
+
+// src/services/audit-trail.service.ts
+var import_neverthrow4 = require("neverthrow");
+var MAX_TRANSITIONS = 1e3;
+var MAX_AGE = 24 * 60 * 60 * 1e3;
+var STORAGE_KEY = "@ens/audit-trail";
+function generateUUID() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === "x" ? r : r & 3 | 8;
+    return v.toString(16);
+  });
+}
+function getSessionId() {
+  if (typeof window === "undefined") return "server";
+  let sessionId = sessionStorage.getItem("ens-session-id");
+  if (!sessionId) {
+    sessionId = generateUUID();
+    sessionStorage.setItem("ens-session-id", sessionId);
+  }
+  return sessionId;
+}
+function loadFromStorage() {
+  if (typeof window === "undefined" || !localStorage) {
+    return { transitions: [], auditLog: [] };
+  }
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (!data) return { transitions: [], auditLog: [] };
+    const parsed = JSON.parse(data);
+    return {
+      transitions: parsed.transitions || [],
+      auditLog: parsed.auditLog || []
+    };
+  } catch (error) {
+    console.warn("Failed to load audit trail from storage:", error);
+    return { transitions: [], auditLog: [] };
+  }
+}
+function saveToStorage(data) {
+  if (typeof window === "undefined" || !localStorage) return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data, (key, value) => {
+      if (typeof value === "bigint") {
+        return value.toString();
+      }
+      return value;
+    }));
+  } catch (error) {
+    console.warn("Failed to save audit trail to storage:", error);
+  }
+}
+function recordTransition(transition) {
+  try {
+    const data = loadFromStorage();
+    const entry = {
+      ...transition,
+      id: generateUUID(),
+      timestamp: Date.now()
+    };
+    data.transitions.push(entry);
+    if (data.transitions.length > MAX_TRANSITIONS) {
+      data.transitions.shift();
+    }
+    saveToStorage(data);
+  } catch (error) {
+    console.warn("Audit service error (non-fatal):", error);
+  }
+}
+function addAuditEntry(level, message, details) {
+  try {
+    const data = loadFromStorage();
+    const entry = {
+      transitionId: data.transitions[data.transitions.length - 1]?.id || "unknown",
+      timestamp: Date.now(),
+      level,
+      message,
+      details,
+      stackTrace: level === "error" || level === "critical" ? new Error().stack : void 0
+    };
+    data.auditLog.push(entry);
+    if (level === "critical") {
+      console.error("[CRITICAL]", message, details);
+    }
+    saveToStorage(data);
+  } catch (error) {
+    console.warn("Audit service error (non-fatal):", error);
+  }
+}
+function getTransitionHistory(filters) {
+  try {
+    const data = loadFromStorage();
+    let history = [...data.transitions];
+    if (filters?.machineId) {
+      history = history.filter((t) => t.machineId === filters.machineId);
+    }
+    if (filters?.fromTime !== void 0) {
+      const fromTime = filters.fromTime;
+      history = history.filter((t) => t.timestamp >= fromTime);
+    }
+    if (filters?.toTime !== void 0) {
+      const toTime = filters.toTime;
+      history = history.filter((t) => t.timestamp <= toTime);
+    }
+    if (filters?.includeErrors === false) {
+      history = history.filter((t) => !t.error);
+    }
+    return history;
+  } catch (error) {
+    console.warn("Audit service error (non-fatal):", error);
+    return [];
+  }
+}
+function generateDebugReport(transactionId) {
+  try {
+    const data = loadFromStorage();
+    const relevantTransitions = transactionId ? data.transitions.filter(
+      (t) => t.metadata?.transactionHash === transactionId || t.context.transactionId === transactionId
+    ) : data.transitions.slice(-50);
+    const relevantAuditLog = transactionId ? data.auditLog.filter(
+      (entry) => relevantTransitions.some((t) => t.id === entry.transitionId)
+    ) : data.auditLog.slice(-100);
+    return {
+      generatedAt: Date.now(),
+      systemInfo: {
+        userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "Node.js",
+        timestamp: Date.now(),
+        sessionId: getSessionId()
+      },
+      transitions: relevantTransitions,
+      auditLog: relevantAuditLog,
+      errorSummary: generateErrorSummary(relevantTransitions),
+      stateDistribution: calculateStateDistribution(relevantTransitions),
+      performanceMetrics: calculatePerformanceMetrics(relevantTransitions)
+    };
+  } catch (error) {
+    console.warn("Audit service error (non-fatal):", error);
+    return null;
+  }
+}
+function exportToJson() {
+  try {
+    const data = loadFromStorage();
+    return JSON.stringify({
+      transitions: data.transitions,
+      auditLog: data.auditLog,
+      exported: Date.now()
+    }, null, 2);
+  } catch (error) {
+    console.warn("Audit service error (non-fatal):", error);
+    return JSON.stringify({ transitions: [], auditLog: [], exported: Date.now() }, null, 2);
+  }
+}
+function importFromJson(json) {
+  try {
+    const parsed = JSON.parse(json);
+    const data = {
+      transitions: parsed.transitions || [],
+      auditLog: parsed.auditLog || []
+    };
+    saveToStorage(data);
+    return (0, import_neverthrow4.ok)(void 0);
+  } catch (error) {
+    return (0, import_neverthrow4.err)(new ImportError({ cause: error }));
+  }
+}
+function clearAuditTrail() {
+  try {
+    if (typeof window !== "undefined" && localStorage) {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  } catch (error) {
+    console.warn("Audit service error (non-fatal):", error);
+  }
+}
+function calculateStateDistribution(transitions) {
+  return transitions.reduce((acc, t) => {
+    acc[t.toState] = (acc[t.toState] || 0) + 1;
+    return acc;
+  }, {});
+}
+function calculatePerformanceMetrics(transitions) {
+  if (transitions.length < 2) {
+    return {
+      avgTransitionTime: 0,
+      maxTransitionTime: 0,
+      minTransitionTime: 0,
+      totalTransitions: transitions.length
+    };
+  }
+  const durations = [];
+  for (let i = 1; i < transitions.length; i++) {
+    durations.push(transitions[i].timestamp - transitions[i - 1].timestamp);
+  }
+  return {
+    avgTransitionTime: durations.reduce((a, b) => a + b, 0) / durations.length,
+    maxTransitionTime: Math.max(...durations),
+    minTransitionTime: Math.min(...durations),
+    totalTransitions: transitions.length
+  };
+}
+function generateErrorSummary(transitions) {
+  const errors = transitions.filter((t) => t.error);
+  const errorTypes = errors.reduce((acc, t) => {
+    const errorType = t.error?.name || "Unknown";
+    acc[errorType] = (acc[errorType] || 0) + 1;
+    return acc;
+  }, {});
+  return {
+    totalErrors: errors.length,
+    errorRate: transitions.length > 0 ? errors.length / transitions.length * 100 : 0,
+    errorTypes,
+    lastError: errors[errors.length - 1]?.error
+  };
+}
+if (typeof window !== "undefined") {
+  setInterval(() => {
+    try {
+      const data = loadFromStorage();
+      const cutoff = Date.now() - MAX_AGE;
+      data.transitions = data.transitions.filter((t) => t.timestamp > cutoff);
+      data.auditLog = data.auditLog.filter((e) => e.timestamp > cutoff);
+      saveToStorage(data);
+    } catch (error) {
+      console.warn("Audit cleanup error (non-fatal):", error);
+    }
+  }, 60 * 60 * 1e3);
 }
 
 // src/machines/transaction.machine.ts
@@ -1242,10 +1248,6 @@ var transactionMachine = (0, import_xstate.setup)({
   }
 });
 
-// src/providers/TransactionActorManagerProvider.tsx
-var import_react = require("react");
-var import_xstate2 = require("xstate");
-
 // src/services/transaction-registry.service.ts
 var STORAGE_PREFIX = "tx-";
 function serializeTransaction(transaction) {
@@ -1299,34 +1301,29 @@ function removeTransaction(id) {
   }
 }
 
-// src/providers/TransactionActorManagerProvider.tsx
-var import_jsx_runtime = require("react/jsx-runtime");
-var TransactionActorManagerContext = (0, import_react.createContext)(null);
-function TransactionActorManagerProvider({
-  children,
-  publicClient
-}) {
-  const [transactions, setTransactions] = (0, import_react.useState)(
-    /* @__PURE__ */ new Map()
-  );
-  (0, import_react.useEffect)(() => {
-    const pending = getPendingTransactions();
-    if (pending.length === 0) {
-      console.log("\u{1F535} [ACTOR MANAGER] No pending transactions to recover");
-      return;
+// src/services/transactionManager.ts
+var TransactionManager = class {
+  constructor() {
+    this.transactions = /* @__PURE__ */ new Map();
+    this.listeners = /* @__PURE__ */ new Set();
+  }
+  /**
+   * Start a new transaction
+   *
+   * SSR-safe: publicClient is passed per-transaction, not stored globally.
+   *
+   * @param request - Unsigned transaction request
+   * @param signer - Signer capability (EOA, Rhinestone, etc.)
+   * @param options - Transaction options (modal, description, publicClient, etc.)
+   * @returns Transaction ID
+   */
+  startTransaction(request, signer, options) {
+    const { publicClient, ...transactionOptions } = options;
+    if (!publicClient) {
+      throw new Error("publicClient is required in options");
     }
-    console.log(`\u{1F504} [ACTOR MANAGER] Found ${pending.length} pending transactions to recover`);
-    pending.forEach((persisted) => {
-      console.log("\u{1F4E6} [ACTOR MANAGER] Pending transaction:", {
-        id: persisted.id,
-        state: persisted.state,
-        hash: persisted.hash
-      });
-    });
-  }, []);
-  const startTransaction = (request, signer, options) => {
-    const txId = options?.id || `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    console.log("\u{1F680} [ACTOR MANAGER] Starting transaction:", {
+    const txId = transactionOptions.id || `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    console.log("\u{1F680} [TRANSACTION MANAGER] Starting transaction:", {
       id: txId,
       type: request.type,
       signerType: signer.type
@@ -1336,15 +1333,16 @@ function TransactionActorManagerProvider({
         request,
         signer,
         publicClient,
-        options
+        // From options, not global state
+        options: transactionOptions
       }
     });
     actor.start();
-    console.log("\u2705 [ACTOR MANAGER] Actor started:", txId);
+    console.log("\u2705 [TRANSACTION MANAGER] Actor started:", txId);
     actor.subscribe((snapshot) => {
       const state = snapshot.value;
       const ctx = snapshot.context;
-      console.log(`\u{1F4CA} [ACTOR MANAGER] Transaction ${txId} state:`, state);
+      console.log(`\u{1F4CA} [TRANSACTION MANAGER] Transaction ${txId} state:`, state);
       const persisted = {
         id: txId,
         hash: ctx.hash,
@@ -1357,40 +1355,105 @@ function TransactionActorManagerProvider({
         updatedAt: Date.now()
       };
       if (state === "success" || state === "error") {
-        console.log(`\u2705 [ACTOR MANAGER] Removing completed transaction ${txId}`);
+        console.log(`\u2705 [TRANSACTION MANAGER] Removing completed transaction ${txId}`);
         removeTransaction(txId);
       } else {
         saveTransaction(txId, persisted);
       }
     });
-    setTransactions((prev) => {
-      const newMap = new Map(prev);
-      newMap.set(txId, actor);
-      return newMap;
-    });
+    this.transactions.set(txId, actor);
+    this.notifyListeners();
     return txId;
-  };
-  const cancelTransaction = (id) => {
-    console.log(`\u{1F6D1} [ACTOR MANAGER] Cancelling transaction ${id}`);
-    const actor = transactions.get(id);
+  }
+  /**
+   * Cancel a transaction
+   */
+  cancelTransaction(id) {
+    console.log(`\u{1F6D1} [TRANSACTION MANAGER] Cancelling transaction ${id}`);
+    const actor = this.transactions.get(id);
     if (actor) {
       actor.send({ type: "CANCEL" });
     }
-    setTransactions((prev) => {
-      const newMap = new Map(prev);
-      newMap.delete(id);
-      return newMap;
-    });
+    this.transactions.delete(id);
+    this.notifyListeners();
     removeTransaction(id);
-  };
-  const getTransaction = (id) => {
-    return transactions.get(id);
-  };
+  }
+  /**
+   * Get a specific transaction actor by ID
+   */
+  getTransaction(id) {
+    return this.transactions.get(id);
+  }
+  /**
+   * Get all active transactions
+   */
+  getTransactions() {
+    return new Map(this.transactions);
+  }
+  /**
+   * Subscribe to transaction changes (for React integration)
+   *
+   * @param listener - Callback fired when transactions change
+   * @returns Unsubscribe function
+   */
+  onTransactionsChange(listener) {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+  /**
+   * Notify all listeners of transaction changes
+   */
+  notifyListeners() {
+    const txCopy = this.getTransactions();
+    this.listeners.forEach((listener) => listener(txCopy));
+  }
+  /**
+   * Clear all transactions (for testing)
+   */
+  clear() {
+    this.transactions.forEach((actor) => actor.stop());
+    this.transactions.clear();
+    this.notifyListeners();
+  }
+};
+var transactionManager = new TransactionManager();
+
+// src/providers/TransactionActorManagerProvider.tsx
+var import_react = require("react");
+var import_jsx_runtime = require("react/jsx-runtime");
+var TransactionActorManagerContext = (0, import_react.createContext)(null);
+function TransactionActorManagerProvider({
+  children,
+  publicClient
+}) {
+  const [transactions, setTransactions] = (0, import_react.useState)(
+    /* @__PURE__ */ new Map()
+  );
+  (0, import_react.useEffect)(() => {
+    const unsubscribe = transactionManager.onTransactionsChange((txMap) => {
+      setTransactions(txMap);
+    });
+    return unsubscribe;
+  }, []);
+  (0, import_react.useEffect)(() => {
+    const pending = getPendingTransactions();
+    if (pending.length === 0) {
+      console.log("\u{1F535} [PROVIDER] No pending transactions to recover");
+      return;
+    }
+    console.log(`\u{1F504} [PROVIDER] Found ${pending.length} pending transactions to recover`);
+    pending.forEach((persisted) => {
+      console.log("\u{1F4E6} [PROVIDER] Pending transaction:", {
+        id: persisted.id,
+        state: persisted.state,
+        hash: persisted.hash
+      });
+    });
+  }, []);
   const contextValue = {
-    transactions,
-    startTransaction,
-    cancelTransaction,
-    getTransaction
+    transactions
   };
   return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TransactionActorManagerContext.Provider, { value: contextValue, children });
 }
@@ -1408,8 +1471,7 @@ function useTransactionRegistry() {
   return useTransactionActorManager();
 }
 function useTransaction(id) {
-  const { getTransaction } = useTransactionActorManager();
-  return getTransaction(id);
+  return transactionManager.getTransaction(id);
 }
 function useActiveTransactions() {
   const { transactions } = useTransactionActorManager();
@@ -2803,6 +2865,7 @@ async function exportAllData() {
   removeActiveTransaction,
   saveActiveTransaction,
   transactionMachine,
+  transactionManager,
   useAccount,
   useActiveTransactions,
   useRecoveredTransactions,

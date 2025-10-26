@@ -232,13 +232,21 @@ function MyComponent({ isConnected, publicClient }) {
 
 #### Extract useEffect Logic into Custom Hooks
 
-**Principle**: Complex useEffect blocks should be extracted into named custom hooks **above the component**.
+**🚨 CRITICAL RULE: NO "NAKED" useEffect BLOCKS IN COMPONENTS**
 
-**Benefits**:
-- Component body is easier to read
-- Side effects are named and self-documenting
-- Hooks can be tested independently
+ALL useEffect calls must be extracted into named custom hooks above the component. No exceptions.
+
+**Principle**: There should be ZERO useEffect blocks inside component function bodies. ALL useEffect logic must be extracted into named custom hooks **above the component**.
+
+**Why This Matters**:
+- Component body shows **what** side effects occur, not **how** they work
+- Side effects are named and self-documenting (the hook name describes the purpose)
+- Hooks can be tested independently without React components
 - Hooks can be reused in other components
+- Easier to understand component dependencies at a glance
+- No mental overhead deciding "is this simple enough to inline?"
+
+**Example - Complex Effect:**
 
 ```typescript
 // ❌ AVOID: Complex useEffect logic directly in component
@@ -331,15 +339,41 @@ function MyComponent() {
 }
 ```
 
-**When to Extract**:
-- ✅ useEffect has >10 lines of logic
-- ✅ useEffect contains async operations
-- ✅ useEffect logic could be reused elsewhere
-- ✅ useEffect has complex cleanup logic
+**Rule: Extract ALL useEffects**
 
-**When NOT to Extract**:
-- ❌ Simple 1-2 line effects (e.g., `useEffect(() => setOpen(false), [userId])`)
-- ❌ Effects that are tightly coupled to local component state
+No exceptions - every useEffect should be in a custom hook, even simple ones:
+
+```typescript
+// ❌ AVOID: "Naked" useEffect in component
+function MyComponent() {
+  useEffect(() => {
+    setOpen(false)
+  }, [userId])
+
+  return <div>...</div>
+}
+
+// ✅ CORRECT: Extracted into named hook
+function useResetOpenOnUserChange(userId: string, setOpen: (open: boolean) => void) {
+  useEffect(() => {
+    setOpen(false)
+  }, [userId, setOpen])
+}
+
+function MyComponent() {
+  const [open, setOpen] = useState(true)
+
+  useResetOpenOnUserChange(userId, setOpen)
+
+  return <div>...</div>
+}
+```
+
+**Why extract even simple effects?**
+- The hook name documents **why** the effect exists (`useResetOpenOnUserChange` is clearer than inline logic)
+- Easy to add complexity later without touching component
+- Consistent pattern - no judgment calls about "is this simple enough?"
+- Component body stays focused on rendering
 
 **Real-World Example**: See `packages/transaction-manager-example/src/ENSRenewalExample.tsx` for a complete example with:
 - `useRenewalPrice` - Fetch ENS renewal price

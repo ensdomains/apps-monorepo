@@ -1,7 +1,7 @@
 import type { Result } from 'neverthrow'
 import type { PublicClient, WalletClient } from 'viem'
 import { formatEther } from 'viem'
-import { prepareENSRenewal, type Signer } from '@ens-apps/transaction-manager'
+import { prepareENSRenewal, transactionManager, type Signer } from '@ens-apps/transaction-manager'
 
 const YEAR_IN_SECONDS = 31536000n
 
@@ -152,21 +152,19 @@ export async function handleRenewal(
 }
 
 /**
- * Pure function to handle renewal flow with TransactionManagerProvider
+ * Pure function to handle renewal flow with Transaction Manager singleton
  *
- * This prepares the transaction and starts it through the manager.
+ * This prepares the transaction and starts it through the singleton manager.
  * Returns the transaction ID for tracking, or null if validation fails.
  *
  * @param formData - User form input
  * @param params - Blockchain clients and configuration
- * @param startTransaction - Function from useTransactionManager to start transaction
  * @param rhinestoneAccount - Optional Rhinestone account for smart account transactions
  * @returns Transaction ID if successful, null if validation failed
  */
 export async function handleRenewalWithRegistry(
   formData: RenewalFormData,
   params: RenewalExecuteParams,
-  startTransaction: (request: any, signer: Signer, options?: any) => string,
   rhinestoneAccount?: any
 ): Promise<{ txId: string | null; error?: string }> {
   // Validate form
@@ -208,10 +206,12 @@ export async function handleRenewalWithRegistry(
         walletClient: params.walletClient!,
       }
 
-  // Start transaction through manager with signer
-  const txId = startTransaction(request, signer, {
+  // Start transaction through singleton manager with signer
+  // Pass publicClient in options (SSR-safe - no global state)
+  const txId = transactionManager.startTransaction(request, signer, {
     ...options,
     modal,
+    publicClient: params.publicClient,
   })
 
   return { txId }

@@ -1,16 +1,14 @@
 import React, { useReducer, useEffect, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { formatEther, parseEther } from 'viem'
-import {
-  useTransactionActorManager,
-  getENSRenewalPrice,
-  initializeRhinestoneAccount,
-} from '@ens-apps/transaction-manager'
-import { useAccount, usePublicClient, useWalletClient, useSendTransaction } from 'wagmi'
+import { formatEther } from 'viem'
+import { useSelector } from '@xstate/react'
+import { getENSRenewalPrice, initializeRhinestoneAccount, transactionManager } from '@ens-apps/transaction-manager'
+import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import { sepolia } from 'viem/chains'
 import { handleResult } from './utils/result'
 import { uiStateReducer, initialUIState } from './reducers/uiState.reducer'
 import { handleRenewalWithRegistry } from './helpers/renewal.helpers'
+import { handleSmartAccountFunding } from './helpers/funding.helpers'
 
 const YEAR_IN_SECONDS = 31536000n
 
@@ -215,19 +213,24 @@ function ENSRenewalExample() {
   const publicClient = usePublicClient({ chainId: sepolia.id })
   const { data: walletClient } = useWalletClient()
 
-  // For funding the smart account with ETH (simple transfer, not managed by transaction manager)
-  const { sendTransaction } = useSendTransaction()
-
-  // Use the transaction actor manager
-  const { startTransaction } = useTransactionActorManager()
-
   // Manage Rhinestone account locally (not through transaction manager)
   const [rhinestoneAccount, setRhinestoneAccount] = useState<any>(undefined)
   const [isInitializingAccount, setIsInitializingAccount] = useState(false)
   const [accountError, setAccountError] = useState<Error | undefined>(undefined)
 
-  // Track the current transaction ID (for debugging/logging only)
-  const [currentTxId, setCurrentTxId] = useState<string | null>(null)
+  // Track the current transaction actor (no context needed!)
+  const [currentTxActor, setCurrentTxActor] = useState<any>(null)
+
+  // Subscribe to transaction state using XState's useSelector
+  const txState = useSelector(currentTxActor, (snapshot) =>
+    snapshot ? snapshot.value : null
+  )
+  const txHash = useSelector(currentTxActor, (snapshot) =>
+    snapshot?.context.hash || null
+  )
+  const txError = useSelector(currentTxActor, (snapshot) =>
+    snapshot?.context.error || null
+  )
 
   // UI state
   const [ui, dispatch] = useReducer(uiStateReducer, initialUIState)
@@ -260,38 +263,29 @@ function ENSRenewalExample() {
 
 
   const handleFundSmartAccount = async () => {
-    if (!ui.smartAccountAddress) {
-      alert('Smart account address not available')
-      return
-    }
+    // Call external helper function (uses singleton transaction manager)
+    const result = await handleSmartAccountFunding(
+      {
+        smartAccountAddress: ui.smartAccountAddress!,
+        amount: ui.fundingAmount,
+      },
+      { walletClient, publicClient }
+    )
 
-    try {
-      const amount = parseFloat(ui.fundingAmount)
-      if (isNaN(amount) || amount <= 0) {
-        alert('Please enter a valid amount')
-        return
-      }
+    // Only UI concerns: show error and track transaction
+    if (result.error) {
+      alert(result.error)
+    } else if (result.txId) {
+      console.log('🚀 Started funding transaction:', result.txId)
 
-      dispatch({ type: 'SET_FUNDING', payload: true })
-
-      sendTransaction({
-        to: ui.smartAccountAddress as `0x${string}`,
-        value: parseEther(ui.fundingAmount),
-      })
-
-      // Wait a bit for the transaction to be mined, then refresh balance
-      setTimeout(() => {
-        dispatch({ type: 'SET_FUNDING', payload: false })
-      }, 2000)
-    } catch (error) {
-      console.error('Failed to fund smart account:', error)
-      alert('Failed to send transaction')
-      dispatch({ type: 'SET_FUNDING', payload: false })
+      // Get the actor for this transaction (no context needed!)
+      const actor = transactionManager.getTransaction(result.txId)
+      setCurrentTxActor(actor)
     }
   }
 
   const handleRenewal = async () => {
-    // Call external helper function (all business logic lives there)
+    // Call external helper function (uses singleton transaction manager)
     const result = await handleRenewalWithRegistry(
       {
         name: ui.name,
@@ -305,16 +299,18 @@ function ENSRenewalExample() {
         chainId: publicClient?.chain?.id || 11155111,
         rhinestoneConfig,
       },
-      startTransaction,
       rhinestoneAccount // Pass the initialized Rhinestone account
     )
 
-    // Only UI concerns: show error and update transaction ID state
+    // Only UI concerns: show error and track transaction
     if (result.error) {
       alert(result.error)
     } else if (result.txId) {
-      setCurrentTxId(result.txId)
-      console.log('🚀 Started transaction:', result.txId)
+      console.log('🚀 Started renewal transaction:', result.txId)
+
+      // Get the actor for this transaction (no context needed!)
+      const actor = transactionManager.getTransaction(result.txId)
+      setCurrentTxActor(actor)
     }
   }
 
@@ -540,21 +536,19 @@ function ENSRenewalExample() {
                     <span>ETH</span>
                     <button
                       onClick={handleFundSmartAccount}
-                      disabled={ui.isFunding || !ui.fundingAmount}
+                      disabled={!ui.fundingAmount}
                       style={{
                         padding: '8px 16px',
                         fontSize: '14px',
-                        background: ui.isFunding ? '#ccc' : '#2196F3',
+                        background: !ui.fundingAmount ? '#ccc' : '#2196F3',
                         color: 'white',
                         border: 'none',
                         borderRadius: '4px',
-                        cursor: ui.isFunding ? 'not-allowed' : 'pointer',
+                        cursor: !ui.fundingAmount ? 'not-allowed' : 'pointer',
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {match({ isFunding: ui.isFunding })
-                        .with({ isFunding: true }, () => 'Sending...')
-                        .otherwise(() => 'Send ETH')}
+                      Send ETH
                     </button>
                   </div>
                   <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
@@ -589,21 +583,59 @@ function ENSRenewalExample() {
             </button>
           </div>
 
-          {/* Transaction status shown by global components (toasts, status panel) */}
-          {currentTxId && (
+          {/* Transaction status (no context needed - using useSelector!) */}
+          {txState && (
             <div
               style={{
                 padding: '15px',
-                background: '#e3f2fd',
+                background: match(txState)
+                  .with('submitting', () => '#fff3e0')
+                  .with('pending', () => '#e3f2fd')
+                  .with('success', () => '#e8f5e9')
+                  .with('error', () => '#ffebee')
+                  .otherwise(() => '#f5f5f5'),
                 borderRadius: '8px',
                 marginTop: '20px',
+                border: '1px solid',
+                borderColor: match(txState)
+                  .with('submitting', () => '#ffb74d')
+                  .with('pending', () => '#64b5f6')
+                  .with('success', () => '#81c784')
+                  .with('error', () => '#e57373')
+                  .otherwise(() => '#e0e0e0'),
               }}
             >
-              <p style={{ margin: 0 }}>
-                <strong>Transaction ID:</strong> {currentTxId}
+              <p style={{ margin: 0, fontWeight: 'bold' }}>
+                {match(txState)
+                  .with('submitting', () => '⏳ Submitting Transaction...')
+                  .with('pending', () => '⏱️ Transaction Pending')
+                  .with('success', () => '✅ Transaction Successful!')
+                  .with('error', () => '❌ Transaction Failed')
+                  .otherwise(() => `Status: ${txState}`)}
               </p>
-              <p style={{ margin: '10px 0 0 0', fontSize: '14px', color: '#666' }}>
-                Check the status panel in the bottom-right for updates →
+
+              {txHash && (
+                <p style={{ margin: '10px 0 0 0', fontSize: '14px', wordBreak: 'break-all' }}>
+                  <strong>Hash:</strong>{' '}
+                  <a
+                    href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: '#1976d2' }}
+                  >
+                    {txHash.slice(0, 10)}...{txHash.slice(-8)}
+                  </a>
+                </p>
+              )}
+
+              {txError && (
+                <p style={{ margin: '10px 0 0 0', fontSize: '14px', color: '#c62828' }}>
+                  <strong>Error:</strong> {txError.message || String(txError)}
+                </p>
+              )}
+
+              <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#666' }}>
+                Also check the status panel in the bottom-right for global view →
               </p>
             </div>
           )}

@@ -1,25 +1,12 @@
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { createActor, type ActorRefFrom } from 'xstate'
+import { type ActorRefFrom } from 'xstate'
 import { transactionMachine } from '../machines/transaction.machine'
-import {
-  saveTransaction,
-  getPendingTransactions,
-  removeTransaction,
-  type PersistedTransaction,
-} from '../services/transaction-registry.service'
-import type { TransactionRequest, TransactionOptions } from '../types/transaction.types'
-import type { Signer } from '../types/signer.types'
+import { getPendingTransactions, type PersistedTransaction } from '../services/transaction-registry.service'
+import { transactionManager } from '../services/transactionManager'
 import type { PublicClient } from 'viem'
 
 interface TransactionActorManagerContextValue {
   transactions: Map<string, ActorRefFrom<typeof transactionMachine>>
-  startTransaction: (
-    request: TransactionRequest,
-    signer: Signer,
-    options?: TransactionOptions
-  ) => string
-  cancelTransaction: (id: string) => void
-  getTransaction: (id: string) => ActorRefFrom<typeof transactionMachine> | undefined
 }
 
 interface TransactionActorManagerProviderProps {
@@ -32,12 +19,15 @@ const TransactionActorManagerContext = createContext<TransactionActorManagerCont
 /**
  * Transaction Actor Manager Provider
  *
- * Simple React Context (not a state machine) that:
- * - Spawns transaction actors for each transaction
- * - Persists transaction state to localStorage via registry service
- * - Recovers pending transactions on mount
- * - Accepts any Signer type (EOA, Rhinestone, Privy, etc.)
- * - No complex state management needed!
+ * React wrapper for the singleton TransactionManager.
+ * Provides:
+ * - React state subscriptions for UI components
+ * - Auto-recovery of pending transactions
+ *
+ * Note: startTransaction() should be called directly from the singleton,
+ * passing publicClient in options.
+ *
+ * SSR-safe: No global state stored in the provider.
  */
 export function TransactionActorManagerProvider({
   children,
@@ -47,20 +37,29 @@ export function TransactionActorManagerProvider({
     new Map()
   )
 
+  // Subscribe to singleton's transaction changes for React updates
+  useEffect(() => {
+    const unsubscribe = transactionManager.onTransactionsChange((txMap) => {
+      setTransactions(txMap)
+    })
+
+    return unsubscribe
+  }, [])
+
   // Auto-recover pending transactions on mount
   useEffect(() => {
     const pending = getPendingTransactions()
 
     if (pending.length === 0) {
-      console.log('🔵 [ACTOR MANAGER] No pending transactions to recover')
+      console.log('🔵 [PROVIDER] No pending transactions to recover')
       return
     }
 
-    console.log(`🔄 [ACTOR MANAGER] Found ${pending.length} pending transactions to recover`)
+    console.log(`🔄 [PROVIDER] Found ${pending.length} pending transactions to recover`)
 
     // For now, just log them - we'll implement auto-recovery when we have clients
     pending.forEach((persisted) => {
-      console.log('📦 [ACTOR MANAGER] Pending transaction:', {
+      console.log('📦 [PROVIDER] Pending transaction:', {
         id: persisted.id,
         state: persisted.state,
         hash: persisted.hash,
@@ -68,100 +67,8 @@ export function TransactionActorManagerProvider({
     })
   }, [])
 
-  const startTransaction = (
-    request: TransactionRequest,
-    signer: Signer,
-    options?: TransactionOptions
-  ): string => {
-    const txId = options?.id || `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-
-    console.log('🚀 [ACTOR MANAGER] Starting transaction:', {
-      id: txId,
-      type: request.type,
-      signerType: signer.type,
-    })
-
-    // Create and start the transaction actor
-    const actor = createActor(transactionMachine, {
-      input: {
-        request,
-        signer,
-        publicClient,
-        options,
-      },
-    })
-
-    actor.start()
-
-    console.log('✅ [ACTOR MANAGER] Actor started:', txId)
-
-    // Subscribe to actor state changes for persistence
-    actor.subscribe((snapshot) => {
-      const state = snapshot.value as string
-      const ctx = snapshot.context
-
-      console.log(`📊 [ACTOR MANAGER] Transaction ${txId} state:`, state)
-
-      // Persist transaction state
-      const persisted: PersistedTransaction = {
-        id: txId,
-        hash: ctx.hash,
-        state,
-        context: {
-          request,
-          error: ctx.error?.message,
-        },
-        timestamp: Date.now(),
-        updatedAt: Date.now(),
-      }
-
-      // Remove from localStorage when complete
-      if (state === 'success' || state === 'error') {
-        console.log(`✅ [ACTOR MANAGER] Removing completed transaction ${txId}`)
-        removeTransaction(txId)
-      } else {
-        saveTransaction(txId, persisted)
-      }
-    })
-
-    // Add to active transactions
-    setTransactions((prev) => {
-      const newMap = new Map(prev)
-      newMap.set(txId, actor)
-      return newMap
-    })
-
-    return txId
-  }
-
-  const cancelTransaction = (id: string) => {
-    console.log(`🛑 [ACTOR MANAGER] Cancelling transaction ${id}`)
-
-    const actor = transactions.get(id)
-    if (actor) {
-      actor.send({ type: 'CANCEL' })
-    }
-
-    // Remove from active transactions
-    setTransactions((prev) => {
-      const newMap = new Map(prev)
-      newMap.delete(id)
-      return newMap
-    })
-
-    // Remove from localStorage
-    removeTransaction(id)
-  }
-
-  const getTransaction = (id: string) => {
-    return transactions.get(id)
-  }
-
   const contextValue: TransactionActorManagerContextValue = {
     transactions,
-    startTransaction,
-    cancelTransaction,
-    getTransaction,
   }
 
   return (
@@ -172,7 +79,15 @@ export function TransactionActorManagerProvider({
 }
 
 /**
- * Hook to access the transaction actor manager
+ * Hook to access the transaction actor manager (for UI components only)
+ *
+ * Returns the transactions Map for React components to subscribe to updates.
+ *
+ * NOTE: To start transactions, import and use the singleton directly:
+ * ```
+ * import { transactionManager } from '@ens-apps/transaction-manager'
+ * transactionManager.startTransaction(request, signer, options)
+ * ```
  */
 export function useTransactionActorManager(): TransactionActorManagerContextValue {
   const context = useContext(TransactionActorManagerContext)
@@ -200,8 +115,7 @@ export function useTransactionRegistry(): TransactionActorManagerContextValue {
  * Hook to get a specific transaction actor by ID
  */
 export function useTransaction(id: string): ActorRefFrom<typeof transactionMachine> | undefined {
-  const { getTransaction } = useTransactionActorManager()
-  return getTransaction(id)
+  return transactionManager.getTransaction(id)
 }
 
 /**
