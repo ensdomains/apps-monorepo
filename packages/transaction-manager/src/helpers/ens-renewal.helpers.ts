@@ -11,7 +11,7 @@ import type { TransactionRequest, TransactionOptions, EOATransactionRequest } fr
 
 export interface PrepareENSRenewalParams {
   publicClient: PublicClient
-  walletClient?: WalletClient
+  from: Hex  // Address of the account (EOA or smart account)
   name: string
   duration: bigint
   chainId: number
@@ -32,7 +32,7 @@ export async function prepareENSRenewal(
 ): Promise<Result<ENSRenewalTransactionData, Error>> {
   const {
     publicClient,
-    walletClient,
+    from,
     name,
     duration,
     chainId,
@@ -41,11 +41,6 @@ export async function prepareENSRenewal(
   } = params
 
   try {
-    if (!walletClient?.account?.address) {
-      return err(new Error('Wallet client with account address is required'))
-    }
-
-    const from = walletClient.account.address
 
     // Get the renewal price and prepare transaction using functional helper
     const txResult = await prepareENSRenewalTransaction(publicClient, {

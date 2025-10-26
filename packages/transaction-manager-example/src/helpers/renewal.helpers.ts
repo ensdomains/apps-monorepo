@@ -8,19 +8,33 @@ const YEAR_IN_SECONDS = 31536000n
 export interface RenewalFormData {
   name: string
   duration: string // e.g., "1", "2", "3", "5"
-  useSmartAccount: boolean
   renewalPrice: bigint | null
 }
 
-export interface RenewalExecuteParams {
+// Base parameters needed for all renewal types
+interface BaseRenewalParams {
   publicClient: PublicClient
-  walletClient: WalletClient
   chainId: number
-  rhinestoneConfig?: {
+}
+
+// EOA-specific parameters
+export interface EOARenewalParams extends BaseRenewalParams {
+  type: 'eoa'
+  walletClient: WalletClient
+}
+
+// Rhinestone-specific parameters
+export interface RhinestoneRenewalParams extends BaseRenewalParams {
+  type: 'rhinestone'
+  rhinestoneAccount: any
+  rhinestoneConfig: {
     chain: any
     rhinestoneApiKey?: string
   }
 }
+
+// Union type for renewal parameters
+export type RenewalParams = EOARenewalParams | RhinestoneRenewalParams
 
 export interface RenewalTransactionData {
   request: any
@@ -41,71 +55,10 @@ export interface RenewalHandlers {
 }
 
 /**
- * Pure function to prepare and format renewal transaction data
- *
- * @param formData - User form input (name, duration, smart account preference, price)
- * @param params - Blockchain clients and configuration
- * @returns Result containing transaction data ready for machine execution
- */
-export async function prepareRenewalTransaction(
-  formData: RenewalFormData,
-  params: RenewalExecuteParams
-): Promise<Result<RenewalTransactionData, Error>> {
-  const { name, duration, useSmartAccount, renewalPrice } = formData
-  const { publicClient, walletClient, chainId, rhinestoneConfig } = params
-
-  // Clean the ENS name (remove .eth suffix if present)
-  const cleanName = name.replace('.eth', '')
-  const durationInSeconds = BigInt(duration) * YEAR_IN_SECONDS
-
-  // Prepare the renewal transaction
-  const result = await prepareENSRenewal({
-    publicClient,
-    walletClient,
-    name: cleanName,
-    duration: durationInSeconds,
-    chainId,
-    useSmartAccount,
-    rhinestoneConfig: useSmartAccount ? rhinestoneConfig : undefined,
-  })
-
-  // Transform the result to include modal data
-  return result.map((data: any) => ({
-    request: data.request,
-    options: {
-      ...data.options,
-      description: `Renew ${cleanName}.eth for ${duration} year(s)`,
-    },
-    modal: {
-      title: `Renew ${name}`,
-      ensName: name,
-      network: 'Sepolia',
-      estimatedCost: renewalPrice ? `${formatEther(renewalPrice)} ETH` : '0.0011 ETH',
-    },
-  }))
-}
-
-/**
  * Validation helper - checks if renewal form is ready to submit
  */
 export function canSubmitRenewal(formData: Pick<RenewalFormData, 'name'>): boolean {
   return !!formData.name && formData.name.trim().length > 0
-}
-
-/**
- * Validation helper - checks if clients are available
- */
-export function hasRequiredClients(
-  publicClient: PublicClient | undefined,
-  walletClient: WalletClient | undefined
-): { valid: boolean; error?: string } {
-  if (!publicClient) {
-    return { valid: false, error: 'Public client not available' }
-  }
-  if (!walletClient) {
-    return { valid: false, error: 'Wallet client not available' }
-  }
-  return { valid: true }
 }
 
 /**
@@ -152,66 +105,89 @@ export async function handleRenewal(
 }
 
 /**
- * Pure function to handle renewal flow with Transaction Manager singleton
+ * Start an ENS renewal transaction
  *
- * This prepares the transaction and starts it through the singleton manager.
- * Returns the transaction ID for tracking, or null if validation fails.
+ * Validates input, prepares the transaction, and starts it through the transaction manager.
+ * Returns the transaction ID for tracking, or an error if validation/preparation fails.
  *
- * @param formData - User form input
- * @param params - Blockchain clients and configuration
- * @param rhinestoneAccount - Optional Rhinestone account for smart account transactions
- * @returns Transaction ID if successful, null if validation failed
+ * @param formData - User form input (name, duration, price)
+ * @param params - Either EOA or Rhinestone parameters (discriminated union)
+ * @returns Transaction ID if successful, or error message
  */
-export async function handleRenewalWithRegistry(
+export async function startRenewalTransaction(
   formData: RenewalFormData,
-  params: RenewalExecuteParams,
-  rhinestoneAccount?: any
+  params: RenewalParams
 ): Promise<{ txId: string | null; error?: string }> {
   // Validate form
   if (!canSubmitRenewal(formData)) {
     return { txId: null, error: 'Please enter a name to renew' }
   }
 
-  // Validate clients
-  const clientValidation = hasRequiredClients(params.publicClient, params.walletClient)
-  if (!clientValidation.valid) {
-    return { txId: null, error: clientValidation.error }
+  // Validate based on type
+  if (params.type === 'eoa') {
+    if (!params.walletClient) {
+      return { txId: null, error: 'Wallet client is required for EOA transactions' }
+    }
+  } else {
+    if (!params.rhinestoneAccount) {
+      return { txId: null, error: 'Rhinestone account not initialized. Please wait...' }
+    }
   }
 
-  // Validate smart account if using smart account
-  if (formData.useSmartAccount && !rhinestoneAccount) {
-    return { txId: null, error: 'Rhinestone account not initialized. Please wait...' }
-  }
+  // Prepare renewal transaction based on type
+  const cleanName = formData.name.replace('.eth', '')
+  const durationInSeconds = BigInt(formData.duration) * YEAR_IN_SECONDS
 
-  // Prepare renewal transaction
-  const result = await prepareRenewalTransaction(formData, params)
+  // Get the "from" address based on account type
+  const from = params.type === 'eoa'
+    ? params.walletClient.account!.address
+    : params.rhinestoneAccount.address
+
+  const prepareResult = await prepareENSRenewal({
+    publicClient: params.publicClient,
+    from,
+    name: cleanName,
+    duration: durationInSeconds,
+    chainId: params.chainId,
+    useSmartAccount: params.type === 'rhinestone',
+    rhinestoneConfig: params.type === 'rhinestone' ? params.rhinestoneConfig : undefined,
+  })
 
   // Handle result
-  if (result.isErr()) {
-    return { txId: null, error: result.error.message }
+  if (prepareResult.isErr()) {
+    return { txId: null, error: prepareResult.error.message }
   }
 
-  const { request, options, modal } = result.value
+  const { request, options } = prepareResult.value
+
+  // Create modal data
+  const modal = {
+    title: `Renew ${formData.name}`,
+    ensName: formData.name,
+    network: 'Sepolia',
+    estimatedCost: formData.renewalPrice ? `${formatEther(formData.renewalPrice)} ETH` : '0.0011 ETH',
+  }
 
   // Create Signer based on account type
-  const signer: Signer = formData.useSmartAccount && rhinestoneAccount
+  const signer: Signer = params.type === 'rhinestone'
     ? {
         type: 'rhinestone',
-        account: rhinestoneAccount,
+        account: params.rhinestoneAccount,
         publicClient: params.publicClient,
-        config: params.rhinestoneConfig!,
+        config: params.rhinestoneConfig,
       }
     : {
         type: 'eoa',
-        walletClient: params.walletClient!,
+        walletClient: params.walletClient,
       }
 
   // Start transaction through singleton manager with signer
-  // Pass publicClient in options (SSR-safe - no global state)
+  // publicClient is retrieved from pre-configured storage via chainId
   const txId = transactionManager.startTransaction(request, signer, {
     ...options,
     modal,
-    publicClient: params.publicClient,
+    description: `Renew ${cleanName}.eth for ${formData.duration} year(s)`,
+    chainId: params.chainId,
   })
 
   return { txId }

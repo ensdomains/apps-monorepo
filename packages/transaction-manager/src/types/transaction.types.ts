@@ -44,6 +44,29 @@ export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
 
 export type TransactionRequest = EOATransactionRequest | ERC4337UserOperation | RhinestoneTransactionRequest
 
+// Transaction Intents - High-level descriptions of what the user wants to do
+export interface ENSRenewalIntent {
+  type: 'ens-renewal'
+  name: string  // ENS name without .eth (e.g., "leon")
+  duration: bigint  // Duration in seconds
+  from: Hex  // Address of the account (EOA or smart account)
+}
+
+export interface ETHTransferIntent {
+  type: 'eth-transfer'
+  to: Hex
+  value: bigint
+  from: Hex
+  data?: Hex
+}
+
+export interface CustomTransactionIntent {
+  type: 'custom'
+  request: TransactionRequest  // Escape hatch for pre-prepared transactions
+}
+
+export type TransactionIntent = ENSRenewalIntent | ETHTransferIntent | CustomTransactionIntent
+
 export interface RhinestoneConfig {
   chain?: Chain
   bundlerUrl?: string

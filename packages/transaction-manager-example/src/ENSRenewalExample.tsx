@@ -7,8 +7,8 @@ import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import { sepolia } from 'viem/chains'
 import { handleResult } from './utils/result'
 import { uiStateReducer, initialUIState } from './reducers/uiState.reducer'
-import { handleRenewalWithRegistry } from './helpers/renewal.helpers'
-import { handleSmartAccountFunding } from './helpers/funding.helpers'
+import { startRenewalTransaction } from './helpers/renewal.helpers'
+import { startFundingTransaction } from './helpers/funding.helpers'
 
 const YEAR_IN_SECONDS = 31536000n
 
@@ -243,6 +243,13 @@ function ENSRenewalExample() {
 
   // Simple button state - global components handle transaction state
   const buttonDisabled = !ui.name || ui.isLoadingPrice
+
+  // Configure publicClient in transaction manager (optional - makes calls less verbose)
+  useEffect(() => {
+    if (publicClient) {
+      transactionManager.setPublicClient(sepolia.id, publicClient)
+    }
+  }, [publicClient])
 
   // Custom hooks - Extract all useEffect logic
   useRenewalPrice({ name: ui.name, duration: ui.duration, publicClient, dispatch })
@@ -488,12 +495,12 @@ function ENSRenewalExample() {
                     <span>ETH</span>
                     <button
                       onClick={async () => {
-                        const result = await handleSmartAccountFunding(
+                        const result = await startFundingTransaction(
                           {
                             smartAccountAddress: ui.smartAccountAddress!,
                             amount: ui.fundingAmount,
                           },
-                          { walletClient, publicClient }
+                          { walletClient }
                         )
 
                         if (result.error) {
@@ -534,20 +541,26 @@ function ENSRenewalExample() {
           <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
             <button
               onClick={async () => {
-                const result = await handleRenewalWithRegistry(
+                const result = await startRenewalTransaction(
                   {
                     name: ui.name,
                     duration: ui.duration,
-                    useSmartAccount: ui.useSmartAccount,
                     renewalPrice: ui.renewalPrice,
                   },
-                  {
-                    publicClient,
-                    walletClient,
-                    chainId: publicClient?.chain?.id || 11155111,
-                    rhinestoneConfig,
-                  },
-                  rhinestoneAccount
+                  ui.useSmartAccount
+                    ? {
+                        type: 'rhinestone',
+                        rhinestoneAccount,
+                        rhinestoneConfig,
+                        publicClient: publicClient!,
+                        chainId: sepolia.id,
+                      }
+                    : {
+                        type: 'eoa',
+                        walletClient: walletClient!,
+                        publicClient: publicClient!,
+                        chainId: sepolia.id,
+                      }
                 )
 
                 if (result.error) {

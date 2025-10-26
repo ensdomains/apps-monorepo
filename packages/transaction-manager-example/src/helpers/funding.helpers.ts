@@ -3,19 +3,18 @@ import type { WalletClient } from 'viem'
 import { transactionManager, type Signer, type EOATransactionRequest } from '@ens-apps/transaction-manager'
 
 /**
- * Handle smart account funding through the transaction manager singleton
+ * Start a smart account funding transaction
  *
- * This function prepares an unsigned ETH transfer transaction and submits it
- * to the singleton transaction manager for orchestration.
+ * Prepares an unsigned ETH transfer transaction and starts it through the transaction manager.
+ * Returns the transaction ID for tracking, or an error if validation fails.
  */
-export async function handleSmartAccountFunding(
+export async function startFundingTransaction(
   formData: {
     smartAccountAddress: string
     amount: string
   },
   params: {
     walletClient: WalletClient | undefined
-    publicClient: any  // Required for transaction manager
   }
 ): Promise<{ txId?: string; error?: string }> {
   // Validation
@@ -48,14 +47,14 @@ export async function handleSmartAccountFunding(
   }
 
   // Start transaction through singleton manager
-  // Pass publicClient in options (SSR-safe - no global state)
+  // publicClient is retrieved from pre-configured storage via chainId
   const txId = transactionManager.startTransaction(request, signer, {
     modal: {
       title: 'Fund Smart Account',
       description: `Sending ${formData.amount} ETH to your smart account`,
       ctaLabel: 'Send ETH',
     },
-    publicClient: params.publicClient,
+    chainId: params.walletClient.chain?.id,  // Use wallet's current chain
   })
 
   return { txId }

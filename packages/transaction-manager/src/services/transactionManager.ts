@@ -18,7 +18,8 @@ type TransactionChangeListener = (transactions: Map<string, ActorRefFrom<typeof 
  * Can be called directly without React context.
  *
  * SSR Safety:
- * - No global publicClient state (passed per-transaction)
+ * - PublicClients are stored per-chain (safe to share - no user data)
+ * - Supports fallback to per-transaction publicClient if not pre-configured
  * - Safe to use in Next.js, Remix, etc.
  * - No data leaks between server requests
  *
@@ -27,31 +28,73 @@ type TransactionChangeListener = (transactions: Map<string, ActorRefFrom<typeof 
  * - Works outside React (Node.js, CLI, tests)
  * - Single source of truth for all transactions
  * - Supports multiple chains simultaneously
+ * - Optional publicClient pre-configuration (less verbose)
  * - Still supports React integration via change listeners
  */
 class TransactionManager {
   private transactions = new Map<string, ActorRefFrom<typeof transactionMachine>>()
   private listeners = new Set<TransactionChangeListener>()
+  private publicClients = new Map<number, PublicClient>()  // chainId -> PublicClient
+
+  /**
+   * Set a public client for a specific chain
+   *
+   * This is optional - if set, you don't need to pass publicClient in startTransaction options.
+   * Useful for reducing verbosity in single-chain or multi-chain apps.
+   *
+   * @param chainId - The chain ID (e.g., 1 for mainnet, 11155111 for sepolia)
+   * @param publicClient - The public client for this chain
+   */
+  setPublicClient(chainId: number, publicClient: PublicClient): void {
+    this.publicClients.set(chainId, publicClient)
+    console.log(`✅ [TRANSACTION MANAGER] Public client set for chain ${chainId}`)
+  }
+
+  /**
+   * Get a stored public client for a chain
+   *
+   * @param chainId - The chain ID
+   * @returns The public client if set, undefined otherwise
+   */
+  getPublicClient(chainId: number): PublicClient | undefined {
+    return this.publicClients.get(chainId)
+  }
 
   /**
    * Start a new transaction
    *
-   * SSR-safe: publicClient is passed per-transaction, not stored globally.
+   * publicClient can be:
+   * 1. Passed in options (takes priority)
+   * 2. Pre-configured via setPublicClient() - determined by request.chainId or options.chainId
+   * 3. If neither, throws an error
    *
    * @param request - Unsigned transaction request
    * @param signer - Signer capability (EOA, Rhinestone, etc.)
-   * @param options - Transaction options (modal, description, publicClient, etc.)
+   * @param options - Transaction options (modal, description, optional publicClient, optional chainId)
    * @returns Transaction ID
    */
   startTransaction(
     request: TransactionRequest,
     signer: Signer,
-    options: TransactionOptions & { publicClient: PublicClient }
+    options: TransactionOptions & { publicClient?: PublicClient; chainId?: number }
   ): string {
-    const { publicClient, ...transactionOptions } = options
+    const { publicClient: optionsPublicClient, chainId, ...transactionOptions } = options
+
+    // Determine which publicClient to use (priority: options > stored > error)
+    let publicClient = optionsPublicClient
 
     if (!publicClient) {
-      throw new Error('publicClient is required in options')
+      // Try to get from stored clients using chainId
+      const resolvedChainId = chainId || (request as any).chainId
+      if (resolvedChainId) {
+        publicClient = this.publicClients.get(resolvedChainId)
+      }
+    }
+
+    if (!publicClient) {
+      throw new Error(
+        'publicClient is required. Either pass it in options or pre-configure it with setPublicClient(chainId, client)'
+      )
     }
 
     const txId = transactionOptions.id || `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`

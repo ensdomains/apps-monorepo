@@ -1306,21 +1306,57 @@ var TransactionManager = class {
   constructor() {
     this.transactions = /* @__PURE__ */ new Map();
     this.listeners = /* @__PURE__ */ new Set();
+    this.publicClients = /* @__PURE__ */ new Map();
+  }
+  // chainId -> PublicClient
+  /**
+   * Set a public client for a specific chain
+   *
+   * This is optional - if set, you don't need to pass publicClient in startTransaction options.
+   * Useful for reducing verbosity in single-chain or multi-chain apps.
+   *
+   * @param chainId - The chain ID (e.g., 1 for mainnet, 11155111 for sepolia)
+   * @param publicClient - The public client for this chain
+   */
+  setPublicClient(chainId, publicClient) {
+    this.publicClients.set(chainId, publicClient);
+    console.log(`\u2705 [TRANSACTION MANAGER] Public client set for chain ${chainId}`);
+  }
+  /**
+   * Get a stored public client for a chain
+   *
+   * @param chainId - The chain ID
+   * @returns The public client if set, undefined otherwise
+   */
+  getPublicClient(chainId) {
+    return this.publicClients.get(chainId);
   }
   /**
    * Start a new transaction
    *
-   * SSR-safe: publicClient is passed per-transaction, not stored globally.
+   * publicClient can be:
+   * 1. Passed in options (takes priority)
+   * 2. Pre-configured via setPublicClient() - determined by request.chainId or options.chainId
+   * 3. If neither, throws an error
    *
    * @param request - Unsigned transaction request
    * @param signer - Signer capability (EOA, Rhinestone, etc.)
-   * @param options - Transaction options (modal, description, publicClient, etc.)
+   * @param options - Transaction options (modal, description, optional publicClient, optional chainId)
    * @returns Transaction ID
    */
   startTransaction(request, signer, options) {
-    const { publicClient, ...transactionOptions } = options;
+    const { publicClient: optionsPublicClient, chainId, ...transactionOptions } = options;
+    let publicClient = optionsPublicClient;
     if (!publicClient) {
-      throw new Error("publicClient is required in options");
+      const resolvedChainId = chainId || request.chainId;
+      if (resolvedChainId) {
+        publicClient = this.publicClients.get(resolvedChainId);
+      }
+    }
+    if (!publicClient) {
+      throw new Error(
+        "publicClient is required. Either pass it in options or pre-configure it with setPublicClient(chainId, client)"
+      );
     }
     const txId = transactionOptions.id || `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     console.log("\u{1F680} [TRANSACTION MANAGER] Starting transaction:", {
@@ -1558,7 +1594,7 @@ var import_neverthrow8 = require("neverthrow");
 async function prepareENSRenewal(params) {
   const {
     publicClient,
-    walletClient,
+    from,
     name,
     duration,
     chainId,
@@ -1566,10 +1602,6 @@ async function prepareENSRenewal(params) {
     rhinestoneConfig
   } = params;
   try {
-    if (!walletClient?.account?.address) {
-      return (0, import_neverthrow8.err)(new Error("Wallet client with account address is required"));
-    }
-    const from = walletClient.account.address;
     const txResult = await prepareENSRenewalTransaction(publicClient, {
       name,
       duration
