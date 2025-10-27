@@ -105,8 +105,8 @@ export interface EOASigner {
 export interface RhinestoneSigner {
   type: 'rhinestone'
   account: any // RhinestoneAccount from @rhinestone/sdk
-  publicClient: PublicClient
   config: RhinestoneConfig
+  // Note: publicClient is NOT in signer - it's in machine context
 }
 
 export interface ERC4337Signer {
@@ -200,8 +200,8 @@ const { request, options } = result.value
 const signer: Signer = {
   type: 'rhinestone',
   account: rhinestoneAccount,
-  publicClient,
   config: { chain: sepolia },
+  // publicClient is pre-configured in transactionManager
 }
 
 // 4. Start transaction (signing happens inside)
@@ -318,7 +318,8 @@ export function submitRhinestoneTransaction(input: {
 - A **reference** to a signing capability (wallet, account)
 - A **capability token** that grants access to signing operations
 - A **type-safe wrapper** around different signing methods
-- **Explicit about dependencies** - all required data is in the type
+- **Contains only what's needed to SIGN** (the account/wallet)
+- **NOT responsible for reads** (publicClient is in machine context)
 
 ### ❌ What the Signer is NOT:
 
@@ -380,9 +381,10 @@ if (request.type === 'eoa') {
 ```typescript
 // New: Transaction manager takes a Signer
 const signer: Signer = useSmartAccount
-  ? { type: 'rhinestone', account: rhinestoneAccount, publicClient, config }
+  ? { type: 'rhinestone', account: rhinestoneAccount, config }
   : { type: 'eoa', walletClient }
 
+// publicClient is pre-configured in transactionManager
 startTransaction(request, signer, options)
 
 // Transaction manager routes by signer.type
