@@ -18,6 +18,9 @@ import {
   type HistoryTransaction,
 } from '@/components/organisms/HistoryTable/columns'
 import { HistoryTable } from '@/components/organisms/HistoryTable/HistoryTable'
+import { CollapseAllButton } from '@/components/table/CollapseAllButton'
+import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
+import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import {
   extractEventAddress,
@@ -38,6 +41,9 @@ export const HistoryList = ({
   const [clickedRow, setClickedRow] = useState<Row<HistoryTransaction> | null>(
     null,
   )
+  const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([])
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({})
+  const [globalFilter, setGlobalFilter] = useState('')
 
   // Group all events by transaction ID
   const groupedEvents = useMemo(() => {
@@ -148,21 +154,92 @@ export const HistoryList = ({
     }))
   }, [groupedEvents, timestamps])
 
+  const eventTypesByCategory = useMemo(() => {
+    const domainEvents = new Set<string>()
+    const registrationEvents = new Set<string>()
+    const resolverEvents = new Set<string>()
+
+    groupedEvents.forEach((tx) => {
+      tx.events.forEach((event) => {
+        if (event.category === 'domain') {
+          domainEvents.add(event.type)
+        } else if (event.category === 'registration') {
+          registrationEvents.add(event.type)
+        } else if (event.category === 'resolver') {
+          resolverEvents.add(event.type)
+        }
+      })
+    })
+
+    return {
+      domain: Array.from(domainEvents).sort(),
+      registration: Array.from(registrationEvents).sort(),
+      resolver: Array.from(resolverEvents).sort(),
+    }
+  }, [groupedEvents])
+
+  const filteredData = useMemo(() => {
+    let data = groupedEventsWithTimestamps
+
+    if (selectedEventTypes.length > 0) {
+      data = data.filter((tx) => {
+        return tx.events.some((event) =>
+          selectedEventTypes.includes(event.type),
+        )
+      })
+    }
+
+    if (dateRange.from || dateRange.to) {
+      data = data.filter((tx) => {
+        if (!tx.timestamp) return false
+        const txDate = new Date(Number(tx.timestamp) * 1000)
+        if (dateRange.from && txDate < dateRange.from) {
+          return false
+        }
+        if (dateRange.to) {
+          const toEndOfDay = new Date(dateRange.to)
+          toEndOfDay.setHours(23, 59, 59, 999)
+          if (txDate > toEndOfDay) {
+            return false
+          }
+        }
+        return true
+      })
+    }
+
+    return data
+  }, [groupedEventsWithTimestamps, selectedEventTypes, dateRange])
+
   const table = useReactTable({
-    data: groupedEventsWithTimestamps,
+    data: filteredData,
     columns,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
     onExpandedChange: setExpanded,
     getExpandedRowModel: getExpandedRowModel(),
+    onGlobalFilterChange: setGlobalFilter,
     state: {
       sorting,
       columnFilters,
       expanded,
+      globalFilter,
     },
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const searchValue = filterValue.toLowerCase()
+      const tx = row.original
+
+      if (tx.transactionID.toLowerCase().includes(searchValue)) return true
+
+      if (tx.events.some((e) => e.type.toLowerCase().includes(searchValue)))
+        return true
+
+      if (tx.from && tx.from.toLowerCase().includes(searchValue)) return true
+
+      return false
+    },
     meta: {
       onMoreClick: (row: Row<HistoryTransaction>) => {
         setClickedRow(row)
@@ -178,6 +255,20 @@ export const HistoryList = ({
   if (timestampsLoading) return <div>Loading timestamps...</div>
   if (timestampsError)
     return <div>Error loading timestamps: {timestampsError.cause?.message}</div>
+
+  const handleCollapseAll = () => {
+    if (Object.keys(expanded).length > 0) {
+      setExpanded({})
+    } else {
+      const allExpanded: ExpandedState = {}
+      filteredData.forEach((_, index) => {
+        allExpanded[index] = true
+      })
+      setExpanded(allExpanded)
+    }
+  }
+
+  const isCollapsed = Object.keys(expanded).length === 0
 
   return (
     <>
@@ -196,6 +287,45 @@ export const HistoryList = ({
             className="w-full"
             placeholder="Search transactions..."
             onChange={(event) => table.setGlobalFilter(event.target.value)}
+          />
+        </div>
+        <div className="flex flex-row gap-2 flex-wrap">
+          <CollapseAllButton
+            onToggle={handleCollapseAll}
+            isCollapsed={isCollapsed}
+          />
+          <TableDateRangeFilter
+            label="Date"
+            dateRange={dateRange}
+            onChange={setDateRange}
+          />
+          <TableMultiSelectFilter
+            label="Event"
+            groups={[
+              {
+                title: 'Domain events',
+                options: eventTypesByCategory.domain.map((type) => ({
+                  label: type,
+                  value: type,
+                })),
+              },
+              {
+                title: 'Registration events',
+                options: eventTypesByCategory.registration.map((type) => ({
+                  label: type,
+                  value: type,
+                })),
+              },
+              {
+                title: 'Resolver events',
+                options: eventTypesByCategory.resolver.map((type) => ({
+                  label: type,
+                  value: type,
+                })),
+              },
+            ].filter((group) => group.options.length > 0)}
+            selectedValues={selectedEventTypes}
+            onChange={setSelectedEventTypes}
           />
         </div>
       </header>

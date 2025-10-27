@@ -1,4 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
+import { format } from 'date-fns'
 import {
   ArrowUpDown,
   ChevronDown,
@@ -39,25 +40,27 @@ const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
 export const columns: ColumnDef<HistoryTransaction>[] = [
   {
     id: 'expander',
-    header: () => null,
+    header: () => <div className="pl-4 pr-2" />,
     cell: ({ row }) => {
       const eventCount = row.original.events.length
       return (
         <div className="pl-4 pr-2 flex flex-row items-center gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label={
-              row.getIsExpanded() ? 'Collapse events' : 'Expand events'
-            }
-            onClick={(e) => {
-              e.stopPropagation()
-              row.toggleExpanded()
-            }}
-          >
-            {row.getIsExpanded() ? <ChevronUp /> : <ChevronDown />}
-            <span className="text-sm font-medium">{eventCount}</span>
-          </Button>
+          {eventCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label={
+                row.getIsExpanded() ? 'Collapse events' : 'Expand events'
+              }
+              onClick={(e) => {
+                e.stopPropagation()
+                row.toggleExpanded()
+              }}
+            >
+              {row.getIsExpanded() ? <ChevronUp /> : <ChevronDown />}
+              <span className="text-sm font-medium">{eventCount}</span>
+            </Button>
+          )}
         </div>
       )
     },
@@ -76,11 +79,7 @@ export const columns: ColumnDef<HistoryTransaction>[] = [
       if (!timestamp) return <div>-</div>
 
       const date = new Date(Number(timestamp) * 1000)
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const day = String(date.getDate()).padStart(2, '0')
-
-      return <div>{`${year}/${month}/${day}`}</div>
+      return <div>{format(date, 'yyyy/MM/dd')}</div>
     },
   },
   {
@@ -147,7 +146,7 @@ export const columns: ColumnDef<HistoryTransaction>[] = [
       return (
         <div className="flex justify-end pr-4">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={(e) => {
               e.stopPropagation()
