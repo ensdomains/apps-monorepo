@@ -4,6 +4,7 @@ import {
   type Table as TableData,
 } from '@tanstack/react-table'
 import { useState } from 'react'
+import { SidebarTriggerRow } from '@/components/molecules/SidebarTriggerRow'
 import {
   Table,
   TableBody,
@@ -18,7 +19,6 @@ import {
 } from '@/features/profile/hooks/useTableViewSettings'
 import { columns, type ForwardName } from './columns'
 import { ForwardNamesSidebar } from './ForwardNamesSidebar'
-import { SidebarTriggerRow } from '@/components/molecules/SidebarTriggerRow'
 
 export const ForwardNamesTable = ({
   defaultTableSettings,
@@ -41,7 +41,7 @@ export const ForwardNamesTable = ({
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => {
                 return (
-                  <TableHead className='px-6 py-2' key={header.id}>
+                  <TableHead className="px-6 py-2" key={header.id}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(
