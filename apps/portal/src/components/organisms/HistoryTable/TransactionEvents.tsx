@@ -29,7 +29,6 @@ const EventData = ({ event, txHash }: { event: Event; txHash: Hash }) => {
   })
 
   // Find the matching log for this event by matching the log index from the event ID
-  // Event ID format is typically: blockNumber-logIndex or blockNumber-logIndex-subIndex
   const eventLogIndex = event.id.split('-')[1]
   const parsedLogIndex = Number.parseInt(eventLogIndex, 10)
 
@@ -174,7 +173,6 @@ export const TransactionEvents = ({
   events: Event[]
   txHash: Hash
 }) => {
-  console.log('🚀 ~ TransactionEvents ~ events:', events)
   if (events.length === 0) {
     return <div className="text-gray-400 text-center py-6">No events found</div>
   }
