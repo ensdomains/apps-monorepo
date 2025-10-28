@@ -43,7 +43,7 @@ const EVENT_SIGNATURES: Record<EventKey, string> = {
   AuthorisationChanged:
     'AuthorisationChanged (bytes32 indexed node, address indexed owner, address indexed target, bool isAuthorised)',
   VersionChanged: 'VersionChanged (bytes32 indexed node, uint64 newVersion)',
-}
+} as const
 
 // Type mapping for decoded data based on ENS subgraph types
 const TYPE_MAPPING: Record<EventKey, Record<string, string>> = {
@@ -78,14 +78,14 @@ const TYPE_MAPPING: Record<EventKey, Record<string, string>> = {
     isAuthorized: 'bool',
   },
   VersionChanged: { version: 'uint64' },
-}
+} as const
 
 /**
  * Get the event signature for a given event type
  * @param eventType - The event type key (e.g., 'NameWrapped', 'AddrChanged')
  * @returns The full event signature or the event type if not found
  */
-export const getEventSignature = (eventType: string): string => {
+export const getEventSignature = (eventType: EventKey | string): string => {
   return EVENT_SIGNATURES[eventType as EventKey] || eventType
 }
 
@@ -96,7 +96,7 @@ export const getEventSignature = (eventType: string): string => {
  * @returns The Solidity type or 'unknown' if not found
  */
 export const getEventFieldType = (
-  eventType: string,
+  eventType: EventKey | string,
   fieldKey: string,
 ): string => {
   const mapping = TYPE_MAPPING[eventType as EventKey]
@@ -109,7 +109,7 @@ export const getEventFieldType = (
  * @returns Record of field names to their Solidity types
  */
 export const getEventFieldTypes = (
-  eventType: string,
+  eventType: EventKey | string,
 ): Record<string, string> | undefined => {
   return TYPE_MAPPING[eventType as EventKey]
 }
