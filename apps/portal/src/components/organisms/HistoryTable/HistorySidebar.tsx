@@ -29,20 +29,28 @@ const DetailRow = ({ label, value }: { label: string; value: ReactNode }) => {
 }
 
 const NameDisplay = ({ name }: { name: string }) => {
-  const { data: address, isLoading } = useEnsAddress({
+  const { isLoading, error } = useEnsAddress({
     name,
   })
 
   if (isLoading) {
     return (
       <div className="flex flex-row items-center gap-2">
-        <div
-          className="w-5 h-5 rounded-sm"
-          style={{
-            background: 'var(--avatar-placeholder-gradient)',
-          }}
-        />
+        <div className="w-5 h-5 rounded-sm [background:var(--avatar-placeholder-gradient)]" />
         <span className="text-sm text-gray-400">Loading...</span>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-row items-center gap-2">
+        <div className="w-5 h-5 rounded-sm [background:var(--avatar-placeholder-gradient)]" />
+        <CopyableRecord
+          value={name}
+          displayValue={<span className="text-sm">{name}</span>}
+          className="text-sm underline decoration-dashed underline-offset-4"
+        />
       </div>
     )
   }
@@ -51,7 +59,7 @@ const NameDisplay = ({ name }: { name: string }) => {
     <div className="flex flex-row items-center gap-2">
       <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
       <CopyableRecord
-        value={address || name}
+        value={name}
         displayValue={<span>{name}</span>}
         className="text-sm underline decoration-dashed underline-offset-4"
       />
@@ -75,7 +83,11 @@ const TransactionDetails = ({
     details: Record<string, unknown>
   }>
 }) => {
-  const { data: transaction, isLoading: txLoading } = useTransaction({
+  const {
+    data: transaction,
+    isLoading: txLoading,
+    error: txError,
+  } = useTransaction({
     hash: txHash,
   })
 
@@ -85,6 +97,16 @@ const TransactionDetails = ({
         <Skeleton className="h-16 w-full" />
         <Skeleton className="h-16 w-full" />
         <Skeleton className="h-16 w-full" />
+      </div>
+    )
+  }
+
+  if (txError) {
+    return (
+      <div className="p-6 flex flex-col gap-4">
+        <div className="text-sm text-red-500">
+          Error loading transaction: {txError.message}
+        </div>
       </div>
     )
   }

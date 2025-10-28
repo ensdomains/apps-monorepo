@@ -1,4 +1,3 @@
-import { format } from 'date-fns'
 import { ScrollTextIcon } from 'lucide-react'
 import { useState } from 'react'
 import type { Hash } from 'viem'
@@ -13,6 +12,7 @@ import {
   getEventFieldType,
   getEventSignature,
 } from '@/utils/ens/eventSignatures'
+import { formatEventValue } from '@/utils/ens/formatEventValue'
 
 type Event = {
   id: string
@@ -39,26 +39,6 @@ const EventData = ({ event, txHash }: { event: Event; txHash: Hash }) => {
   const dataFields = Object.entries(event.details).filter(
     ([key]) => !['id', 'blockNumber', 'transactionID', 'type'].includes(key),
   )
-
-  const formatValue = (key: string, value: unknown): string => {
-    if (value === null || value === undefined) return '-'
-
-    if (key.includes('Date') || key.includes('expiry')) {
-      const timestamp =
-        typeof value === 'string'
-          ? Number.parseInt(value, 10)
-          : (value as number)
-      if (timestamp > 1000000000) {
-        return format(new Date(timestamp * 1000), 'yyyy/MM/dd HH:mm:ss')
-      }
-    }
-
-    return String(value)
-  }
-
-  const getType = (key: string): string => {
-    return getEventFieldType(event.type, key)
-  }
 
   return (
     <div>
@@ -101,14 +81,14 @@ const EventData = ({ event, txHash }: { event: Event; txHash: Hash }) => {
                   <td className="px-4 py-3 text-sm text-gray-600">{index}</td>
                   <td className="px-4 py-3 text-sm font-medium">{key}</td>
                   <td className="px-4 py-3 text-sm font-mono text-gray-600">
-                    {getType(key)}
+                    {getEventFieldType(event.type, key)}
                   </td>
                   <td className="px-4 py-3 text-sm">
                     <CopyableRecord
                       value={String(value)}
                       displayValue={
                         <span className="break-all">
-                          {formatValue(key, value)}
+                          {formatEventValue(key, value)}
                         </span>
                       }
                     />

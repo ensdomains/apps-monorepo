@@ -9,12 +9,7 @@ export const AddressDisplay = ({ address }: { address: Address }) => {
   if (isLoading) {
     return (
       <div className="flex flex-row items-center gap-2">
-        <div
-          className="w-5 h-5 rounded-sm"
-          style={{
-            background: 'var(--avatar-placeholder-gradient)',
-          }}
-        />
+        <div className="w-5 h-5 rounded-sm [background:var(--avatar-placeholder-gradient)]" />
         <span className="text-sm text-gray-400">Loading...</span>
       </div>
     )
@@ -32,12 +27,7 @@ export const AddressDisplay = ({ address }: { address: Address }) => {
           rounded="rounded-sm"
         />
       ) : (
-        <div
-          className="w-5 h-5 rounded-sm"
-          style={{
-            background: 'var(--avatar-placeholder-gradient)',
-          }}
-        />
+        <div className="w-5 h-5 rounded-sm [background:var(--avatar-placeholder-gradient)]" />
       )}
       <CopyableRecord
         value={ensName || address}
