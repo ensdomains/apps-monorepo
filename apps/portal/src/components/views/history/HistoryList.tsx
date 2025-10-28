@@ -59,7 +59,7 @@ export const HistoryList = ({
           id: string
           type: string
           category: 'domain' | 'registration' | 'resolver'
-          details: unknown
+          details: Record<string, unknown>
         }>
       }
     >()

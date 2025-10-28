@@ -20,7 +20,7 @@ export type HistoryTransaction = {
     id: string
     type: string
     category: 'domain' | 'registration' | 'resolver'
-    details: unknown
+    details: Record<string, unknown>
   }>
 }
 
@@ -131,9 +131,7 @@ export const columns: ColumnDef<HistoryTransaction>[] = [
     cell: () => {
       return (
         <div className="flex flex-row items-center gap-2">
-          <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-            <span className="text-white text-xs font-bold">S</span>
-          </div>
+          <img src="/icons/eth.svg" alt="Sepolia" className="w-4 h-4" />
           <span>Sepolia</span>
         </div>
       )
