@@ -1,5 +1,4 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { format } from 'date-fns'
 import {
   ArrowUpDown,
   ChevronDown,
@@ -78,8 +77,11 @@ export const columns: ColumnDef<HistoryTransaction>[] = [
       const timestamp = row.original.timestamp
       if (!timestamp) return <div>-</div>
 
-      const date = new Date(Number(timestamp) * 1000)
-      return <div>{format(date, 'yyyy/MM/dd')}</div>
+      const formatted = new Date(Number(timestamp) * 1000)
+        .toISOString()
+        .slice(0, 10)
+        .replace(/-/g, '/')
+      return <div>{formatted}</div>
     },
   },
   {

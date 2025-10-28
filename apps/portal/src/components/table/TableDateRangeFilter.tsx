@@ -1,4 +1,3 @@
-import { format } from 'date-fns'
 import { ChevronDown, XIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -40,10 +39,8 @@ export const TableDateRangeFilter = ({
     setOpen(false)
   }
 
-  const formatDate = (date?: Date) => {
-    if (!date) return undefined
-    return format(date, 'yyyy/MM/dd')
-  }
+  const formatDate = (date?: Date) =>
+    date ? date.toISOString().slice(0, 10).replace(/-/g, '/') : undefined
 
   const getDisplayLabel = () => {
     if (dateRange.from && dateRange.to) {

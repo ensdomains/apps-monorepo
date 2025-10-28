@@ -78,9 +78,9 @@ const EventData = ({ event, txHash }: { event: Event; txHash: Hash }) => {
             <tbody>
               {dataFields.map(([key, value], index) => (
                 <tr key={key} className="border-t">
-                  <td className="px-4 py-3 text-sm text-gray-600">{index}</td>
-                  <td className="px-4 py-3 text-sm font-medium">{key}</td>
-                  <td className="px-4 py-3 text-sm font-mono text-gray-600">
+                  <td className="px-4 py-3 text-sm">{index}</td>
+                  <td className="px-4 py-3 text-sm">{key}</td>
+                  <td className="px-4 py-3 text-sm">
                     {getEventFieldType(event.type, key)}
                   </td>
                   <td className="px-4 py-3 text-sm">
@@ -205,13 +205,21 @@ export const TransactionEvents = ({
                       </Button>
                     </div>
                     <div className="flex flex-row gap-6 items-center">
-                      <span className="text-sm text-black font-medium sm:min-w-[160px]">
-                        From
+                      <span className="text-base font-semibold text-black sm:min-w-[160px]">
+                        Transaction
                       </span>
-                      <CopyableRecord value={event.id} className="text-sm " />
+                      <CopyableRecord
+                        value={txHash}
+                        displayValue={
+                          <span className="flex items-center gap-1">
+                            {txHash.slice(0, 10)}...{txHash.slice(-8)}
+                          </span>
+                        }
+                        className="text-sm"
+                      />
                     </div>
                     <div className="flex flex-row gap-6 items-center">
-                      <span className="text-sm text-black font-medium sm:min-w-[160px]">
+                      <span className="text-base font-semibold text-black sm:min-w-[160px]">
                         Event
                       </span>
                       <CopyableRecord

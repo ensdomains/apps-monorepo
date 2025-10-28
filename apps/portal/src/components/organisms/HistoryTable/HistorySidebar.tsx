@@ -1,8 +1,7 @@
 import type { Row } from '@tanstack/react-table'
-import { format } from 'date-fns'
 import type { FC, PropsWithChildren, ReactNode } from 'react'
 import type { Hash } from 'viem'
-import { useEnsAddress, useTransaction } from 'wagmi'
+import { useTransaction } from 'wagmi'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { AddressDisplay } from '@/components/organisms/HistoryTable/AddressDisplay'
 import {
@@ -20,48 +19,20 @@ import { TransactionEvents } from './TransactionEvents'
 const DetailRow = ({ label, value }: { label: string; value: ReactNode }) => {
   return (
     <div className="flex flex-row gap-6 items-center">
-      <span className="text-sm text-black font-medium sm:min-w-[160px]">
-        {label}
-      </span>
+      <span className="text-black font-medium sm:min-w-[160px]">{label}</span>
       <div className="flex-1">{value}</div>
     </div>
   )
 }
 
 const NameDisplay = ({ name }: { name: string }) => {
-  const { isLoading, error } = useEnsAddress({
-    name,
-  })
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-row items-center gap-2">
-        <div className="w-5 h-5 rounded-sm [background:var(--avatar-placeholder-gradient)]" />
-        <span className="text-sm text-gray-400">Loading...</span>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-row items-center gap-2">
-        <div className="w-5 h-5 rounded-sm [background:var(--avatar-placeholder-gradient)]" />
-        <CopyableRecord
-          value={name}
-          displayValue={<span className="text-sm">{name}</span>}
-          className="text-sm underline decoration-dashed underline-offset-4"
-        />
-      </div>
-    )
-  }
-
   return (
     <div className="flex flex-row items-center gap-2">
       <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
       <CopyableRecord
         value={name}
         displayValue={<span>{name}</span>}
-        className="text-sm underline decoration-dashed underline-offset-4"
+        className="underline decoration-dashed underline-offset-4"
       />
     </div>
   )
@@ -83,15 +54,19 @@ const TransactionDetails = ({
     details: Record<string, unknown>
   }>
 }) => {
-  const {
-    data: transaction,
-    isLoading: txLoading,
-    error: txError,
-  } = useTransaction({
+  const { data, isLoading, error } = useTransaction({
     hash: txHash,
   })
 
-  if (txLoading) {
+  const formattedTimestamp = timestamp
+    ? new Date(Number(timestamp) * 1000)
+        .toISOString()
+        .replace('T', ' ')
+        .replace(/\..+/, '')
+        .replace(/-/g, '/')
+    : null
+
+  if (isLoading) {
     return (
       <div className="p-6 flex flex-col gap-4">
         <Skeleton className="h-16 w-full" />
@@ -101,11 +76,11 @@ const TransactionDetails = ({
     )
   }
 
-  if (txError) {
+  if (error) {
     return (
       <div className="p-6 flex flex-col gap-4">
-        <div className="text-sm text-red-500">
-          Error loading transaction: {txError.message}
+        <div className="text-red-500">
+          Error loading transaction: {error.message}
         </div>
       </div>
     )
@@ -121,7 +96,6 @@ const TransactionDetails = ({
           value={
             <CopyableRecord
               value={txHash}
-              className="text-sm"
               displayValue={
                 <span className="flex items-center gap-1">
                   {txHash.slice(0, 10)}...{txHash.slice(-8)}
@@ -131,42 +105,34 @@ const TransactionDetails = ({
           }
         />
 
-        {timestamp && (
+        {formattedTimestamp && (
           <DetailRow
             label="Timestamp"
             value={
-              <span className="text-sm">
-                {format(
-                  new Date(Number(timestamp) * 1000),
-                  'yyyy/MM/dd HH:mm:ss',
-                )}{' '}
-                UTC
-              </span>
+              <CopyableRecord
+                value={txHash}
+                displayValue={<span>{formattedTimestamp} UTC</span>}
+              />
             }
           />
         )}
 
-        {transaction && (
+        {data && (
           <>
-            <DetailRow
-              label="Network"
-              value={<span className="text-sm">Sepolia</span>}
-            />
+            <DetailRow label="Network" value={<span>Sepolia</span>} />
 
             <DetailRow
               label="From"
-              value={<AddressDisplay address={transaction.from} />}
+              value={<AddressDisplay address={data.from} />}
             />
 
             <DetailRow
               label="To"
               value={
-                transaction.to ? (
-                  <AddressDisplay address={transaction.to} />
+                data.to ? (
+                  <AddressDisplay address={data.to} />
                 ) : (
-                  <span className="text-sm text-gray-500">
-                    Contract Creation
-                  </span>
+                  <span className="text-gray-500">Contract Creation</span>
                 )
               }
             />
