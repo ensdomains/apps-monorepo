@@ -1,24 +1,17 @@
 import type { Row } from '@tanstack/react-table'
 import { format } from 'date-fns'
-import { type FC, type PropsWithChildren, type ReactNode } from 'react'
+import type { FC, PropsWithChildren, ReactNode } from 'react'
 import type { Hash } from 'viem'
 import { useEnsAddress, useTransaction } from 'wagmi'
-import { AddressDisplay } from '@/components/organisms/HistoryTable/AddressDisplay'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { AddressDisplay } from '@/components/organisms/HistoryTable/AddressDisplay'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { HistoryTransaction } from './columns'
 import { TransactionEvents } from './TransactionEvents'
 
-const DetailRow = ({
-  label,
-  value,
-}: {
-  label: string
-  value: ReactNode
-}) => {
+const DetailRow = ({ label, value }: { label: string; value: ReactNode }) => {
   return (
     <div className="flex flex-row gap-6 items-center">
       <span className="text-sm text-black font-medium sm:min-w-[160px]">
@@ -31,7 +24,7 @@ const DetailRow = ({
 
 const NameDisplay = ({ name }: { name: string }) => {
   const { data: address, isLoading } = useEnsAddress({
-    name
+    name,
   })
 
   if (isLoading) {
@@ -129,9 +122,7 @@ const TransactionDetails = ({
           <>
             <DetailRow
               label="Network"
-              value={
-                <span className="text-sm">Sepolia</span>
-              }
+              value={<span className="text-sm">Sepolia</span>}
             />
 
             <DetailRow
@@ -145,7 +136,9 @@ const TransactionDetails = ({
                 transaction.to ? (
                   <AddressDisplay address={transaction.to} />
                 ) : (
-                  <span className="text-sm text-gray-500">Contract Creation</span>
+                  <span className="text-sm text-gray-500">
+                    Contract Creation
+                  </span>
                 )
               }
             />
