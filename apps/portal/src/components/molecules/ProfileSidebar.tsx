@@ -68,8 +68,8 @@ export const ProfileSidebar = ({ name }: { name: string }) => {
         <span className="text-lg font-bold break-words">{name}</span>
       </SidebarHeader>
       <SidebarContent>
-        {itemGroups.map((items) => (
-          <SidebarGroup key={items.join(',')}>
+        {itemGroups.map((items, i) => (
+          <SidebarGroup key={items.join(',') + i.toString()}>
             <SidebarGroupContent>
               <SidebarMenu>
                 {items.map((item) => (
