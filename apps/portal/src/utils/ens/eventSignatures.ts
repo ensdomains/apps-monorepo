@@ -7,7 +7,7 @@ import type {
 export type EventKey = DomainEventKey | RegistrationEventKey | ResolverEventKey
 
 // Event signatures mapping based on ENS subgraph types
-const EVENT_SIGNATURES: Record<EventKey, string> = {
+const EVENT_SIGNATURES = {
   // Domain Events
   Transfer: 'Transfer (bytes32 indexed node, address owner)',
   NewOwner:
@@ -43,10 +43,10 @@ const EVENT_SIGNATURES: Record<EventKey, string> = {
   AuthorisationChanged:
     'AuthorisationChanged (bytes32 indexed node, address indexed owner, address indexed target, bool isAuthorised)',
   VersionChanged: 'VersionChanged (bytes32 indexed node, uint64 newVersion)',
-} as const
+} as const satisfies Record<EventKey, string>
 
 // Type mapping for decoded data based on ENS subgraph types
-const TYPE_MAPPING: Record<EventKey, Record<string, string>> = {
+const TYPE_MAPPING = {
   Transfer: { owner: 'address' },
   NewOwner: { owner: 'address' },
   NewResolver: { resolver: 'address' },
@@ -78,15 +78,25 @@ const TYPE_MAPPING: Record<EventKey, Record<string, string>> = {
     isAuthorized: 'bool',
   },
   VersionChanged: { version: 'uint64' },
-} as const
+} as const satisfies Record<EventKey, Record<string, string>>
+
+type EventFieldTypes<T extends EventKey> = (typeof TYPE_MAPPING)[T]
+
+function isEventKey(k: string): k is EventKey {
+  return k in TYPE_MAPPING
+}
 
 /**
  * Get the event signature for a given event type
  * @param eventType - The event type key (e.g., 'NameWrapped', 'AddrChanged')
  * @returns The full event signature or the event type if not found
  */
-export const getEventSignature = (eventType: EventKey | string): string => {
-  return EVENT_SIGNATURES[eventType as EventKey] || eventType
+export function getEventSignature<T extends EventKey>(
+  eventType: T,
+): (typeof EVENT_SIGNATURES)[T]
+export function getEventSignature(eventType: string): string
+export function getEventSignature(eventType: EventKey | string): string {
+  return isEventKey(eventType) ? EVENT_SIGNATURES[eventType] : eventType
 }
 
 /**
@@ -95,12 +105,19 @@ export const getEventSignature = (eventType: EventKey | string): string => {
  * @param fieldKey - The field name
  * @returns The Solidity type or 'unknown' if not found
  */
-export const getEventFieldType = (
+export function getEventFieldType<
+  T extends EventKey,
+  K extends keyof EventFieldTypes<T>,
+>(eventType: T, fieldKey: K): EventFieldTypes<T>[K]
+export function getEventFieldType(eventType: string, fieldKey: string): string
+export function getEventFieldType(
   eventType: EventKey | string,
   fieldKey: string,
-): string => {
-  const mapping = TYPE_MAPPING[eventType as EventKey]
-  return mapping?.[fieldKey] || 'unknown'
+): string {
+  if (!isEventKey(eventType)) return 'unknown'
+  // fieldKey is a generic in the typed overload, but a string here at runtime
+  const mapping = TYPE_MAPPING[eventType] as Record<string, string>
+  return mapping[fieldKey] ?? 'unknown'
 }
 
 /**
@@ -108,8 +125,14 @@ export const getEventFieldType = (
  * @param eventType - The event type key
  * @returns Record of field names to their Solidity types
  */
-export const getEventFieldTypes = (
+export function getEventFieldTypes<T extends EventKey>(
+  eventType: T,
+): EventFieldTypes<T>
+export function getEventFieldTypes(
+  eventType: string,
+): Record<string, string> | undefined
+export function getEventFieldTypes(
   eventType: EventKey | string,
-): Record<string, string> | undefined => {
-  return TYPE_MAPPING[eventType as EventKey]
+): Record<string, string> | undefined {
+  return isEventKey(eventType) ? TYPE_MAPPING[eventType] : undefined
 }
