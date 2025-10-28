@@ -4,10 +4,12 @@ export const NameAvatar = ({
   name,
   height = '138px',
   width = '138px',
+  rounded = 'rounded-lg',
 }: {
   name: string
   height?: string
   width?: string
+  rounded?: string
 }) => {
   const {
     data: avatar,
@@ -25,7 +27,7 @@ export const NameAvatar = ({
       <img
         src={avatar}
         alt="avatar"
-        className={`rounded-lg`}
+        className={rounded}
         height={height}
         width={width}
       />

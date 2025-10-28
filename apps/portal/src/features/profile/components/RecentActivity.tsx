@@ -41,11 +41,14 @@ const columns: ColumnDef<
     header: 'Transaction',
     cell({ column, row }) {
       const value = row.getValue(column.id) as string
+      const displayName = `${value.slice(0, 6)}…${value.slice(-4)}`
+
       return (
         <CopyableRecord
           href={`https://etherscan.io/tx/${value}`}
           className="w-full max-w-72 lg:max-w-80 xl:max-w-max"
           value={value}
+          displayValue={<span>{displayName}</span>}
         />
       )
     },
