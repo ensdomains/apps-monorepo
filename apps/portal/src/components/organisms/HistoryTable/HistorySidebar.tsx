@@ -5,7 +5,12 @@ import type { Hash } from 'viem'
 import { useEnsAddress, useTransaction } from 'wagmi'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { AddressDisplay } from '@/components/organisms/HistoryTable/AddressDisplay'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { HistoryTransaction } from './columns'
@@ -13,14 +18,14 @@ import { TransactionEvents } from './TransactionEvents'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 
 const DetailRow = ({ label, value }: { label: string; value: ReactNode }) => {
-    return (
-        <div className="flex flex-row gap-6 items-center">
-            <span className="text-sm text-black font-medium sm:min-w-[160px]">
-                {label}
-            </span>
-            <div className="flex-1">{value}</div>
-        </div>
-    )
+  return (
+    <div className="flex flex-row gap-6 items-center">
+      <span className="text-sm text-black font-medium sm:min-w-[160px]">
+        {label}
+      </span>
+      <div className="flex-1">{value}</div>
+    </div>
+  )
 }
 
 const NameDisplay = ({ name }: { name: string }) => {
@@ -155,43 +160,45 @@ const TransactionDetails = ({
 }
 
 export const HistorySidebar: FC<
-    PropsWithChildren<{
-        row: Row<HistoryTransaction> | null
-        name: string
-        open: boolean
-        setOpen: React.Dispatch<React.SetStateAction<boolean>>
-    }>
+  PropsWithChildren<{
+    row: Row<HistoryTransaction> | null
+    name: string
+    open: boolean
+    setOpen: React.Dispatch<React.SetStateAction<boolean>>
+  }>
 > = ({ children, row, name, open, setOpen }) => {
-    const isMobile = useIsMobile()
+  const isMobile = useIsMobile()
 
-    return (
-        <Sheet open={open} onOpenChange={setOpen} defaultOpen={false}>
-            {children}
-            <SheetContent
-                side={isMobile ? 'bottom' : 'right'}
-                className="sm:max-w-[880px] bg-white overflow-y-auto"
-            >
-                <div className="p-6 flex flex-col gap-6 h-screen">
-                    <SheetHeader>
-                        <SheetTitle className="font-sans text-[28px] font-medium">Transaction</SheetTitle>
-                    </SheetHeader>
+  return (
+    <Sheet open={open} onOpenChange={setOpen} defaultOpen={false}>
+      {children}
+      <SheetContent
+        side={isMobile ? 'bottom' : 'right'}
+        className="sm:max-w-[880px] bg-white overflow-y-auto"
+      >
+        <div className="p-6 flex flex-col gap-6 h-screen">
+          <SheetHeader>
+            <SheetTitle className="font-sans text-[28px] font-medium">
+              Transaction
+            </SheetTitle>
+          </SheetHeader>
 
-                    {row ? (
-                        <div className="flex flex-col gap-6">
-                            <TransactionDetails
-                                txHash={row.original.transactionID as Hash}
-                                name={name}
-                                timestamp={row.original.timestamp}
-                                events={row.original.events}
-                            />
-                        </div>
-                    ) : (
-                        <div className="text-gray-400 text-center py-12">
-                            No transaction selected
-                        </div>
-                    )}
-                </div>
-            </SheetContent>
-        </Sheet>
-    )
+          {row ? (
+            <div className="flex flex-col gap-6">
+              <TransactionDetails
+                txHash={row.original.transactionID as Hash}
+                name={name}
+                timestamp={row.original.timestamp}
+                events={row.original.events}
+              />
+            </div>
+          ) : (
+            <div className="text-gray-400 text-center py-12">
+              No transaction selected
+            </div>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
 }

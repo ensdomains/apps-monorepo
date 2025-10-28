@@ -278,7 +278,9 @@ export const RecordDetails = ({
   return (
     <div className="p-6 flex flex-col gap-6 h-screen">
       <SheetHeader className="flex flex-row justify-between">
-        <SheetTitle className="font-sans text-[28px] font-medium capitalize">{record.type} record</SheetTitle>
+        <SheetTitle className="font-sans text-[28px] font-medium capitalize">
+          {record.type} record
+        </SheetTitle>
         {canEditRecords && (
           <Button variant="secondary" type="button" className="bg-gray-200">
             <TrashIcon /> Delete record
