@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { HistoryTransaction } from './columns'
 import { TransactionEvents } from './TransactionEvents'
+import { NameAvatar } from '@/features/profile/components/NameAvatar'
 
 const DetailRow = ({ label, value }: { label: string; value: ReactNode }) => {
   return (
