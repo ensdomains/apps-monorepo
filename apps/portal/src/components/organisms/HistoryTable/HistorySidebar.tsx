@@ -12,10 +12,10 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
+import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { HistoryTransaction } from './columns'
 import { TransactionEvents } from './TransactionEvents'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
 
 const DetailRow = ({ label, value }: { label: string; value: ReactNode }) => {
   return (
@@ -29,134 +29,134 @@ const DetailRow = ({ label, value }: { label: string; value: ReactNode }) => {
 }
 
 const NameDisplay = ({ name }: { name: string }) => {
-    const { data: address, isLoading } = useEnsAddress({
-        name,
-    })
+  const { data: address, isLoading } = useEnsAddress({
+    name,
+  })
 
-    if (isLoading) {
-        return (
-            <div className="flex flex-row items-center gap-2">
-                <div
-                    className="w-5 h-5 rounded-sm"
-                    style={{
-                        background: 'var(--avatar-placeholder-gradient)',
-                    }}
-                />
-                <span className="text-sm text-gray-400">Loading...</span>
-            </div>
-        )
-    }
-
+  if (isLoading) {
     return (
-        <div className="flex flex-row items-center gap-2">
-            <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
-            <CopyableRecord
-                value={address || name}
-                displayValue={<span>{name}</span>}
-                className="text-sm underline decoration-dashed underline-offset-4"
-            />
-        </div>
+      <div className="flex flex-row items-center gap-2">
+        <div
+          className="w-5 h-5 rounded-sm"
+          style={{
+            background: 'var(--avatar-placeholder-gradient)',
+          }}
+        />
+        <span className="text-sm text-gray-400">Loading...</span>
+      </div>
     )
+  }
+
+  return (
+    <div className="flex flex-row items-center gap-2">
+      <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
+      <CopyableRecord
+        value={address || name}
+        displayValue={<span>{name}</span>}
+        className="text-sm underline decoration-dashed underline-offset-4"
+      />
+    </div>
+  )
 }
 
 const TransactionDetails = ({
-    txHash,
-    name,
-    timestamp,
-    events,
+  txHash,
+  name,
+  timestamp,
+  events,
 }: {
-    txHash: Hash
-    name: string
-    timestamp?: bigint
-    events: Array<{
-        id: string
-        type: string
-        category: 'domain' | 'registration' | 'resolver'
-        details: Record<string, unknown>
-    }>
+  txHash: Hash
+  name: string
+  timestamp?: bigint
+  events: Array<{
+    id: string
+    type: string
+    category: 'domain' | 'registration' | 'resolver'
+    details: Record<string, unknown>
+  }>
 }) => {
-    const { data: transaction, isLoading: txLoading } = useTransaction({
-        hash: txHash,
-    })
+  const { data: transaction, isLoading: txLoading } = useTransaction({
+    hash: txHash,
+  })
 
-    if (txLoading) {
-        return (
-            <div className="p-6 flex flex-col gap-4">
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
-            </div>
-        )
-    }
-
+  if (txLoading) {
     return (
-        <div className="p-6 flex flex-col gap-6 h-screen">
-            <div className="flex flex-col gap-4">
-                <DetailRow label="Name" value={<NameDisplay name={name} />} />
-
-                <DetailRow
-                    label="Tx Hash"
-                    value={
-                        <CopyableRecord
-                            value={txHash}
-                            className="text-sm"
-                            displayValue={
-                                <span className="flex items-center gap-1">
-                                    {txHash.slice(0, 10)}...{txHash.slice(-8)}
-                                </span>
-                            }
-                        />
-                    }
-                />
-
-                {timestamp && (
-                    <DetailRow
-                        label="Timestamp"
-                        value={
-                            <span className="text-sm">
-                                {format(
-                                    new Date(Number(timestamp) * 1000),
-                                    'yyyy/MM/dd HH:mm:ss',
-                                )}{' '}
-                                UTC
-                            </span>
-                        }
-                    />
-                )}
-
-                {transaction && (
-                    <>
-                        <DetailRow
-                            label="Network"
-                            value={<span className="text-sm">Sepolia</span>}
-                        />
-
-                        <DetailRow
-                            label="From"
-                            value={<AddressDisplay address={transaction.from} />}
-                        />
-
-                        <DetailRow
-                            label="To"
-                            value={
-                                transaction.to ? (
-                                    <AddressDisplay address={transaction.to} />
-                                ) : (
-                                    <span className="text-sm text-gray-500">
-                                        Contract Creation
-                                    </span>
-                                )
-                            }
-                        />
-                    </>
-                )}
-            </div>
-
-            <div className="pt-6">
-                <TransactionEvents events={events} txHash={txHash} />
-            </div>
-        </div>
+      <div className="p-6 flex flex-col gap-4">
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-16 w-full" />
+      </div>
     )
+  }
+
+  return (
+    <div className="p-6 flex flex-col gap-6 h-screen">
+      <div className="flex flex-col gap-4">
+        <DetailRow label="Name" value={<NameDisplay name={name} />} />
+
+        <DetailRow
+          label="Tx Hash"
+          value={
+            <CopyableRecord
+              value={txHash}
+              className="text-sm"
+              displayValue={
+                <span className="flex items-center gap-1">
+                  {txHash.slice(0, 10)}...{txHash.slice(-8)}
+                </span>
+              }
+            />
+          }
+        />
+
+        {timestamp && (
+          <DetailRow
+            label="Timestamp"
+            value={
+              <span className="text-sm">
+                {format(
+                  new Date(Number(timestamp) * 1000),
+                  'yyyy/MM/dd HH:mm:ss',
+                )}{' '}
+                UTC
+              </span>
+            }
+          />
+        )}
+
+        {transaction && (
+          <>
+            <DetailRow
+              label="Network"
+              value={<span className="text-sm">Sepolia</span>}
+            />
+
+            <DetailRow
+              label="From"
+              value={<AddressDisplay address={transaction.from} />}
+            />
+
+            <DetailRow
+              label="To"
+              value={
+                transaction.to ? (
+                  <AddressDisplay address={transaction.to} />
+                ) : (
+                  <span className="text-sm text-gray-500">
+                    Contract Creation
+                  </span>
+                )
+              }
+            />
+          </>
+        )}
+      </div>
+
+      <div className="pt-6">
+        <TransactionEvents events={events} txHash={txHash} />
+      </div>
+    </div>
+  )
 }
 
 export const HistorySidebar: FC<
