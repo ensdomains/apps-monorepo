@@ -1,8 +1,46 @@
+import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
+import { useQuery } from '@tanstack/react-query'
+import type { ColumnDef } from '@tanstack/react-table'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { DataTable } from '@/components/molecules/DataTable/DataTable'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
 import { fromCoinType } from '@/lib/utils'
 import { CoinTypeLabel } from './CoinTypeLabel'
 import type { ForwardName } from './ForwardNamesTable/columns'
+
+const columns: ColumnDef<ReturnResolverEvent>[] = [
+  {
+    accessorKey: 'transactionID',
+    header: 'Transaction',
+  },
+]
+
+const HistoryView = ({ name }: { name: string }) => {
+  const {
+    data: history,
+    isLoading,
+    error,
+  } = useQuery(
+    getRecordHistoryQueryOptions({
+      name,
+      key: 'coins',
+    }),
+  )
+
+  if (error) {
+    return <div>History Error: {error.cause?.message || error.message}</div>
+  }
+
+  if (isLoading) return <div>Loading...</div>
+
+  return (
+    <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg overflow-y-scroll">
+      <h3 className="text-2xl font-medium">History</h3>
+      <DataTable data={history || []} columns={columns} />
+    </div>
+  )
+}
 
 export const ForwardNameDetails = ({ name, coinTypes }: ForwardName) => {
   const coins = coinTypes.map((coin) =>
@@ -28,6 +66,7 @@ export const ForwardNameDetails = ({ name, coinTypes }: ForwardName) => {
             ))}
           </div>
         </div>
+        <HistoryView name={name} />
       </div>
     </div>
   )
