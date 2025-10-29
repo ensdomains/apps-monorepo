@@ -38,12 +38,14 @@ export function SidebarTriggerRow<T extends RowData = RowData>({
       <TableCell>
         <Button
           variant="secondary"
+          size="sm"
           onClick={() => {
             setClickedRow(row)
             setOpen(!open)
           }}
         >
-          More <PanelRightOpenIcon height={12} width={12} />
+          <PanelRightOpenIcon className="h-4 w-4" />
+          <span className="text-sm font-medium">More</span>
         </Button>
       </TableCell>
     </TableRow>
