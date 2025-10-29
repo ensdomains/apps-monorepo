@@ -1,7 +1,10 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import type { GetResolvedNamesForAddressParameters } from '@ensdomains/ensjs/subgraph'
+import type {
+  GetResolvedNamesForAddressErrorType,
+  GetResolvedNamesForAddressParameters,
+} from '@ensdomains/ensjs/subgraph'
 import { getResolvedNamesForAddress as ensjs_getResolvedNamesForAddress } from '@ensdomains/ensjs/subgraph'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -9,7 +12,7 @@ import { safeGetClient } from '@/lib/wagmi/helpers'
 export class GetResolvedNamesForAddressError extends TaggedError(
   'GetResolvedNamesForAddressError',
 )<{
-  cause: unknown
+  cause: GetResolvedNamesForAddressErrorType
 }> {}
 
 export const getResolvedNamesForAddress = ResultFn(async function* (
@@ -21,11 +24,11 @@ export const getResolvedNamesForAddress = ResultFn(async function* (
     ensjs_getResolvedNamesForAddress(client, params),
     (e) =>
       new GetResolvedNamesForAddressError({
-        cause: e,
+        cause: e as GetResolvedNamesForAddressErrorType,
       }),
   )
 
-  return ok(result || [])
+  return ok(result)
 })
 
 export const getResolvedNamesForAddressQueryKey = createQueryKey<

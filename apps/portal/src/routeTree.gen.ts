@@ -19,7 +19,7 @@ import { Route as NameRecordsRouteImport } from './routes/$name/records'
 import { Route as NameOwnershipRouteImport } from './routes/$name/ownership'
 import { Route as NameHistoryRouteImport } from './routes/$name/history'
 import { Route as AddrAddrIndexRouteImport } from './routes/addr/$addr/index'
-import { Route as AddrAddrForwardRouteImport } from './routes/addr/$addr/forward'
+import { Route as AddrAddrResolutionRouteImport } fro./routes/addr/$addr/resolutionlution'
 
 const NameRoute = NameRouteImport.update({
   id: '/$name',
@@ -71,9 +71,9 @@ const AddrAddrIndexRoute = AddrAddrIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AddrAddrRoute,
 } as any)
-const AddrAddrForwardRoute = AddrAddrForwardRouteImport.update({
-  id: '/forward',
-  path: '/forward',
+const AddrAddrResolutionRoute = AddrAddrResolutionRouteImport.update({
+  id: '/resolution',
+  path: '/resolution',
   getParentRoute: () => AddrAddrRoute,
 } as any)
 
@@ -87,7 +87,7 @@ export interface FileRoutesByFullPath {
   '/$name/token': typeof NameTokenRoute
   '/addr/$addr': typeof AddrAddrRouteWithChildren
   '/$name/': typeof NameIndexRoute
-  '/addr/$addr/forward': typeof AddrAddrForwardRoute
+  '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
   '/addr/$addr/': typeof AddrAddrIndexRoute
 }
 export interface FileRoutesByTo {
@@ -98,7 +98,7 @@ export interface FileRoutesByTo {
   '/$name/resolver': typeof NameResolverRoute
   '/$name/token': typeof NameTokenRoute
   '/$name': typeof NameIndexRoute
-  '/addr/$addr/forward': typeof AddrAddrForwardRoute
+  '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
   '/addr/$addr': typeof AddrAddrIndexRoute
 }
 export interface FileRoutesById {
@@ -112,7 +112,7 @@ export interface FileRoutesById {
   '/$name/token': typeof NameTokenRoute
   '/addr/$addr': typeof AddrAddrRouteWithChildren
   '/$name/': typeof NameIndexRoute
-  '/addr/$addr/forward': typeof AddrAddrForwardRoute
+  '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
   '/addr/$addr/': typeof AddrAddrIndexRoute
 }
 export interface FileRouteTypes {
@@ -127,7 +127,7 @@ export interface FileRouteTypes {
     | '/$name/token'
     | '/addr/$addr'
     | '/$name/'
-    | '/addr/$addr/forward'
+    | '/addr/$addr/resolution'
     | '/addr/$addr/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -138,7 +138,7 @@ export interface FileRouteTypes {
     | '/$name/resolver'
     | '/$name/token'
     | '/$name'
-    | '/addr/$addr/forward'
+    | '/addr/$addr/resolution'
     | '/addr/$addr'
   id:
     | '__root__'
@@ -151,7 +151,7 @@ export interface FileRouteTypes {
     | '/$name/token'
     | '/addr/$addr'
     | '/$name/'
-    | '/addr/$addr/forward'
+    | '/addr/$addr/resolution'
     | '/addr/$addr/'
   fileRoutesById: FileRoutesById
 }
@@ -233,11 +233,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AddrAddrIndexRouteImport
       parentRoute: typeof AddrAddrRoute
     }
-    '/addr/$addr/forward': {
-      id: '/addr/$addr/forward'
-      path: '/forward'
-      fullPath: '/addr/$addr/forward'
-      preLoaderRoute: typeof AddrAddrForwardRouteImport
+    '/addr/$addr/resolution': {
+      id: '/addr/$addr/resolution'
+      path: '/resolution'
+      fullPath: '/addr/$addr/resolution'
+      preLoaderRoute: typeof AddrAddrResolutionRouteImport
       parentRoute: typeof AddrAddrRoute
     }
   }
@@ -264,12 +264,12 @@ const NameRouteChildren: NameRouteChildren = {
 const NameRouteWithChildren = NameRoute._addFileChildren(NameRouteChildren)
 
 interface AddrAddrRouteChildren {
-  AddrAddrForwardRoute: typeof AddrAddrForwardRoute
+  AddrAddrResolutionRoute: typeof AddrAddrResolutionRoute
   AddrAddrIndexRoute: typeof AddrAddrIndexRoute
 }
 
 const AddrAddrRouteChildren: AddrAddrRouteChildren = {
-  AddrAddrForwardRoute: AddrAddrForwardRoute,
+  AddrAddrResolutionRoute: AddrAddrResolutionRoute,
   AddrAddrIndexRoute: AddrAddrIndexRoute,
 }
 
