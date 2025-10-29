@@ -1,8 +1,151 @@
 import type { Row } from '@tanstack/react-table'
-import type { FC, PropsWithChildren } from 'react'
-import { Sheet, SheetContent } from '@/components/ui/sheet'
+import type { FC, PropsWithChildren, ReactNode } from 'react'
+import type { Hash } from 'viem'
+import { useTransaction } from 'wagmi'
+import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { AddressDisplay } from '@/components/organisms/HistoryTable/AddressDisplay'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { Skeleton } from '@/components/ui/skeleton'
+import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { HistoryTransaction } from './columns'
+import { TransactionEvents } from './TransactionEvents'
+
+const DetailRow = ({ label, value }: { label: string; value: ReactNode }) => {
+  return (
+    <div className="flex flex-row gap-6 items-center">
+      <span className="text-black font-medium sm:min-w-[160px]">{label}</span>
+      <div className="flex-1">{value}</div>
+    </div>
+  )
+}
+
+const NameDisplay = ({ name }: { name: string }) => {
+  return (
+    <div className="flex flex-row items-center gap-2">
+      <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
+      <CopyableRecord
+        value={name}
+        displayValue={<span>{name}</span>}
+        className="underline decoration-dashed underline-offset-4"
+      />
+    </div>
+  )
+}
+
+const TransactionDetails = ({
+  txHash,
+  name,
+  timestamp,
+  events,
+}: {
+  txHash: Hash
+  name: string
+  timestamp?: bigint
+  events: Array<{
+    id: string
+    type: string
+    category: 'domain' | 'registration' | 'resolver'
+    details: Record<string, unknown>
+  }>
+}) => {
+  const { data, isLoading, error } = useTransaction({
+    hash: txHash,
+  })
+
+  const formattedTimestamp = timestamp
+    ? new Date(Number(timestamp) * 1000)
+        .toISOString()
+        .replace('T', ' ')
+        .replace(/\..+/, '')
+        .replace(/-/g, '/')
+    : null
+
+  if (isLoading) {
+    return (
+      <div className="p-6 flex flex-col gap-4">
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-16 w-full" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 flex flex-col gap-4">
+        <div className="text-red-500">
+          Error loading transaction: {error.message}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-6 flex flex-col gap-6 h-screen">
+      <div className="flex flex-col gap-4">
+        <DetailRow label="Name" value={<NameDisplay name={name} />} />
+
+        <DetailRow
+          label="Tx Hash"
+          value={
+            <CopyableRecord
+              value={txHash}
+              displayValue={
+                <span className="flex items-center gap-1">
+                  {txHash.slice(0, 10)}...{txHash.slice(-8)}
+                </span>
+              }
+            />
+          }
+        />
+
+        {formattedTimestamp && (
+          <DetailRow
+            label="Timestamp"
+            value={
+              <CopyableRecord
+                value={txHash}
+                displayValue={<span>{formattedTimestamp} UTC</span>}
+              />
+            }
+          />
+        )}
+
+        {data && (
+          <>
+            <DetailRow label="Network" value={<span>Sepolia</span>} />
+
+            <DetailRow
+              label="From"
+              value={<AddressDisplay address={data.from} />}
+            />
+
+            <DetailRow
+              label="To"
+              value={
+                data.to ? (
+                  <AddressDisplay address={data.to} />
+                ) : (
+                  <span className="text-gray-500">Contract Creation</span>
+                )
+              }
+            />
+          </>
+        )}
+      </div>
+
+      <div className="pt-6">
+        <TransactionEvents events={events} txHash={txHash} />
+      </div>
+    </div>
+  )
+}
 
 export const HistorySidebar: FC<
   PropsWithChildren<{
@@ -11,7 +154,7 @@ export const HistorySidebar: FC<
     open: boolean
     setOpen: React.Dispatch<React.SetStateAction<boolean>>
   }>
-> = ({ children, row, open, setOpen }) => {
+> = ({ children, row, name, open, setOpen }) => {
   const isMobile = useIsMobile()
 
   return (
@@ -19,37 +162,30 @@ export const HistorySidebar: FC<
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-white"
+        className="sm:max-w-[880px] bg-white overflow-y-auto"
       >
-        {row ? (
-          <div className="flex flex-col gap-6 p-6">
-            <h2 className="text-2xl font-bold">Transaction Details</h2>
-            <div className="flex flex-col gap-4">
-              <div>
-                <span className="text-sm text-gray-500">Transaction ID</span>
-                <p className="font-mono text-sm break-all">
-                  {row.original.transactionID}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-500">Block Number</span>
-                <p className="font-mono">{row.original.blockNumber}</p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-500">Events</span>
-                <p>{row.original.events.length} event(s)</p>
-              </div>
+        <div className="p-6 flex flex-col gap-6 h-screen">
+          <SheetHeader>
+            <SheetTitle className="font-sans text-[28px] font-medium">
+              Transaction
+            </SheetTitle>
+          </SheetHeader>
+
+          {row ? (
+            <div className="flex flex-col gap-6">
+              <TransactionDetails
+                txHash={row.original.transactionID as Hash}
+                name={name}
+                timestamp={row.original.timestamp}
+                events={row.original.events}
+              />
             </div>
-            {/* TODO: Add detailed transaction information here */}
+          ) : (
             <div className="text-gray-400 text-center py-12">
-              Transaction details coming soon...
+              No transaction selected
             </div>
-          </div>
-        ) : (
-          <div className="text-gray-400 text-center py-12">
-            No transaction selected
-          </div>
-        )}
+          )}
+        </div>
       </SheetContent>
     </Sheet>
   )

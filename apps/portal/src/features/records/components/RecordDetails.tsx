@@ -11,9 +11,9 @@ import { ResolverField } from '@/components/resolver/ResolverField'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { SheetHeader } from '@/components/ui/sheet'
-import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
-import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
+import { SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
+import { getRecordHistoryQueryOptions } from '@/features/profile/hooks/useRecordHistory'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
 import { filterRecordHistoryByRecord } from '@/utils/subgraph/filterRecordHistoryByRecord'
 import { recordTypeToSubgraphKey } from '@/utils/subgraph/recordTypeToSubgraphKey'
@@ -273,11 +273,11 @@ export const RecordDetails = ({
   const { data: canEditRecords } = useCanEditRecords({ name })
 
   return (
-    <div className="py-6 px-8 flex flex-col gap-6 h-screen">
+    <div className="p-6 flex flex-col gap-6 h-screen">
       <SheetHeader className="flex flex-row justify-between">
-        <h2 className="font-sans text-[28px] font-medium">
-          <span className="capitalize">{record.type}</span> record
-        </h2>
+        <SheetTitle className="font-sans text-[28px] font-medium capitalize">
+          {record.type} record
+        </SheetTitle>
         {canEditRecords && (
           <Button variant="secondary" type="button" className="bg-gray-200">
             <TrashIcon /> Delete record

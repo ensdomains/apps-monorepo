@@ -37,9 +37,9 @@ export const CopyableRecord = ({
           {content}
         </ExternalLink>
       ) : (
-        <span className="text-sm sm:text-base font-mono truncate max-w-full">
+        <div className="text-sm sm:text-base font-mono max-w-full">
           {content}
-        </span>
+        </div>
       )}
       <button
         className="flex-shrink-0 cursor-pointer"
