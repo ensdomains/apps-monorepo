@@ -218,13 +218,17 @@ export const TransactionEvents = ({
                         className="text-sm"
                       />
                     </div>
-                    <div className="flex flex-row gap-6 items-center w-full overflow-auto">
+                    <div className="flex flex-row gap-6 items-center">
                       <span className="text-base font-semibold text-black sm:min-w-[160px]">
                         Event
                       </span>
                       <CopyableRecord
                         value={getEventSignature(event.type)}
-                        displayValue={getEventSignature(event.type)}
+                        displayValue={
+                          <div className="w-full max-w-110 truncate">
+                            {getEventSignature(event.type)}
+                          </div>
+                        }
                       />
                     </div>
                   </div>

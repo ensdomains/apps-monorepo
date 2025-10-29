@@ -14,6 +14,10 @@ const columns: ColumnDef<ReturnResolverEvent>[] = [
     accessorKey: 'transactionID',
     header: 'Transaction',
   },
+  {
+    accessorKey: 'type',
+    header: 'Type',
+  },
 ]
 
 const HistoryView = ({ name }: { name: string }) => {
