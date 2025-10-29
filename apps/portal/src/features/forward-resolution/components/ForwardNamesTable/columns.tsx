@@ -1,11 +1,11 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { ArrowUpDown } from 'lucide-react'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
-import { cn } from '@/lib/utils'
+import { cn, fromCoinType } from '@/lib/utils'
 
 export type ForwardName = {
   name: string
-  coinTypes: number[]
+  coinTypes: string[]
 }
 
 const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
@@ -21,6 +21,10 @@ const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
   )
 }
 
+const icons = {
+  1: '/icons/eth.svg',
+}
+
 export const columns: ColumnDef<ForwardName>[] = [
   {
     accessorKey: 'name',
@@ -33,7 +37,7 @@ export const columns: ColumnDef<ForwardName>[] = [
     ),
   },
   {
-    accessorKey: 'Networks',
+    accessorKey: 'coinTypes',
     header: ({ column }) => {
       return (
         <SortButton
@@ -44,7 +48,9 @@ export const columns: ColumnDef<ForwardName>[] = [
       )
     },
     cell: ({ column, row }) => {
-      const value = row.getValue(column.id) as ForwardName['coinTypes']
+      const coins = row
+        .getValue<string[]>(column.id)
+        .map((coin) => fromCoinType(BigInt(Number.parseInt(coin, 10))))
 
       const [settings] = useTableViewSettings()
 
@@ -55,7 +61,19 @@ export const columns: ColumnDef<ForwardName>[] = [
             settings.wrapText ? 'break-all whitespace-normal' : 'truncate',
           )}
         >
-          <span>{value.join(', ')}</span>
+          {coins.map((coin) =>
+            icons[coin] ? (
+              <img
+                key={coin}
+                height={24}
+                width={24}
+                alt={coin}
+                src={icons[coin]}
+              />
+            ) : (
+              coin
+            ),
+          )}
         </div>
       )
     },

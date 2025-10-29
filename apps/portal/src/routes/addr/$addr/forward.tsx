@@ -23,8 +23,14 @@ function RouteComponent() {
 
   const [sorting, setSorting] = useState<SortingState>([])
 
+  const { data, error, isLoading } = useQuery(
+    getResolvedNamesForAddressQueryOptions({
+      address: address.toLowerCase(),
+    }),
+  )
+
   const table = useReactTable({
-    data: [],
+    data: data || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
@@ -38,15 +44,8 @@ function RouteComponent() {
 
   const searchNamesId = useId()
 
-  const { data, error, isLoading } = useQuery(
-    getResolvedNamesForAddressQueryOptions({
-      address,
-    }),
-  )
-
   if (isLoading) return <div>Loading</div>
   if (error) return <div>{error.message}</div>
-  if (data) return <div>{JSON.stringify(data)}</div>
 
   return (
     <>

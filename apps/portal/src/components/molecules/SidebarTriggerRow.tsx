@@ -30,7 +30,7 @@ export function SidebarTriggerRow<T extends RowData = RowData>({
       {row.getVisibleCells().map((cell) => (
         <TableCell
           key={cell.id}
-          className={tableView.compact ? 'py-2' : 'py-4'}
+          className={cn('px-6', tableView.compact ? 'py-2' : 'py-4')}
         >
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
         </TableCell>
