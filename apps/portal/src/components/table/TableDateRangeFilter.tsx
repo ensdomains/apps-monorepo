@@ -1,4 +1,3 @@
-import { format } from 'date-fns'
 import { ChevronDown, XIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -42,7 +41,13 @@ export const TableDateRangeFilter = ({
 
   const formatDate = (date?: Date) => {
     if (!date) return undefined
-    return format(date, 'yyyy/MM/dd')
+    return new Intl.DateTimeFormat(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+      .format(date)
+      .replace(/-/g, '/')
   }
 
   const getDisplayLabel = () => {
