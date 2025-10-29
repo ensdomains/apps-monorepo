@@ -77,9 +77,13 @@ export const columns: ColumnDef<HistoryTransaction>[] = [
       const timestamp = row.original.timestamp
       if (!timestamp) return <div>-</div>
 
-      const formatted = new Date(Number(timestamp) * 1000)
-        .toISOString()
-        .slice(0, 10)
+      const date = new Date(Number(timestamp) * 1000)
+      const formatted = new Intl.DateTimeFormat('en-CA', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      })
+        .format(date)
         .replace(/-/g, '/')
       return <div>{formatted}</div>
     },

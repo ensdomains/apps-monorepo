@@ -39,8 +39,16 @@ export const TableDateRangeFilter = ({
     setOpen(false)
   }
 
-  const formatDate = (date?: Date) =>
-    date ? date.toISOString().slice(0, 10).replace(/-/g, '/') : undefined
+  const formatDate = (date?: Date) => {
+    if (!date) return undefined
+    return new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+      .format(date)
+      .replace(/-/g, '/')
+  }
 
   const getDisplayLabel = () => {
     if (dateRange.from && dateRange.to) {
