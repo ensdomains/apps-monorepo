@@ -1,7 +1,6 @@
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import type {
   ApiMethods as ApiMethodsF,
-  ApiResponse,
   InlineKeyboardMarkup,
   Opts as OptsF,
   ReplyKeyboardMarkup,
@@ -53,34 +52,6 @@ const ApiResponseSchema = v.variant('ok', [
   ApiSuccessResponseSchema,
   ApiErrorResponseSchema,
 ])
-
-// Core request function
-// export const makeTelegramRequest = async <TMethod extends keyof Opts>(
-//   token: string,
-//   method: TMethod,
-//   body: Opts[TMethod],
-// ): Promise<ApiResponse<ReturnType<ApiMethods[TMethod]>>>  => {
-//   const url = new URL(`${BASE_URL}/bot${token}/${method}`)
-//   const response = await fetch(url, {
-//     method: 'POST',
-//     headers: {
-//       'Content-Type': 'application/json',
-//     },
-//     body: JSON.stringify(body),
-//   })
-//   const json = await response.json()
-//   const parseResult = v.safeParse(ApiResponseSchema, json)
-
-//   if (!parseResult.success) {
-//     return error({
-//       code: 'TELEGRAM_API_RESPONSE_PARSE_ERROR',
-//       message: 'Failed to parse Telegram API response',
-//       output: parseResult.output,
-//       issues: parseResult.issues,
-//     })
-//   }
-
-// }
 
 export const makeTelegramRequest = ResultFn(async function* <
   TMethod extends keyof Opts,

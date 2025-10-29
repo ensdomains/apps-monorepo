@@ -22,7 +22,7 @@ type CreateNotificationContext = {
 
 class NotificationCreationError extends TaggedError(
   'NOTIFICATION_CREATION_ERROR',
-)<{}> {}
+) {}
 
 export const createNotification = ResultFn(async function* <
   K extends NotificationKind,

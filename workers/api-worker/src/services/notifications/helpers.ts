@@ -1,8 +1,4 @@
-import type {
-  AnyChannelData,
-  ChannelData,
-  UserChannel,
-} from '#types/notifications.js'
+import type { ChannelData, UserChannel } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
 
 const channelSanitizers = {
@@ -44,9 +40,3 @@ export const sanitizeChannel = <T extends UserChannel>(
     data as ChannelData[UserChannel],
   ) as ReturnType<(typeof channelSanitizers)[T]>
 }
-
-const test = sanitizeChannel('push', null, {
-  token: 'test',
-})
-
-console.log(test)
