@@ -41,7 +41,7 @@ export const TableDateRangeFilter = ({
 
   const formatDate = (date?: Date) => {
     if (!date) return undefined
-    return new Intl.DateTimeFormat('en-CA', {
+    return new Intl.DateTimeFormat(undefined, {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',

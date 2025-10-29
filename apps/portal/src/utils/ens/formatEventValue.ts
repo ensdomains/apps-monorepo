@@ -8,7 +8,7 @@
 export const formatEventValue = (key: string, value: unknown): string => {
   if (value === null || value === undefined) return '-'
 
-  // Detect likely timestamp fields
+  // Detect likely timestamp fields (case-insensitive)
   if (/date|expiry/i.test(key)) {
     const timestamp =
       typeof value === 'bigint'
@@ -20,26 +20,26 @@ export const formatEventValue = (key: string, value: unknown): string => {
     // Only format if it looks like a Unix timestamp (in seconds)
     if (timestamp > 1_000_000_000) {
       const date = new Date(timestamp * 1000)
-      const datePart = new Intl.DateTimeFormat('en-CA', {
+
+      // Format according to the user's locale
+      const datePart = new Intl.DateTimeFormat(undefined, {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
-        timeZone: 'UTC',
       })
         .format(date)
         .replace(/-/g, '/')
 
-      const timePart = new Intl.DateTimeFormat('en-GB', {
+      const timePart = new Intl.DateTimeFormat(undefined, {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
         hour12: false,
-        timeZone: 'UTC',
       })
         .format(date)
         .replace(',', '') // remove potential comma from some locales
 
-      return `${datePart} ${timePart} UTC`
+      return `${datePart} ${timePart}`
     }
   }
 

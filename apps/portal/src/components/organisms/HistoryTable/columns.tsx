@@ -78,7 +78,7 @@ export const columns: ColumnDef<HistoryTransaction>[] = [
       if (!timestamp) return <div>-</div>
 
       const date = new Date(Number(timestamp) * 1000)
-      const formatted = new Intl.DateTimeFormat('en-CA', {
+      const formatted = new Intl.DateTimeFormat(undefined, {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
