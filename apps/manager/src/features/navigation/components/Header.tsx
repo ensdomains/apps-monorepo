@@ -1,3 +1,5 @@
+// import { useBalance, useEnsAvatar, useEnsName } from 'wagmi'
+import { useModal, useWallet } from '@getpara/react-sdk'
 import { Link } from '@tanstack/react-router'
 import {
   Bell,
@@ -10,8 +12,6 @@ import {
   User,
 } from 'lucide-react'
 import { useState } from 'react'
-// import { useBalance, useEnsAvatar, useEnsName } from 'wagmi'
-import { useModal, useWallet } from '@getpara/react-sdk'
 import ensLogo from '@/assets/icons/ens.svg'
 import { Button } from '@/components/ui/button'
 import {
@@ -30,6 +30,7 @@ import { NotificationsDropdown } from '@/features/notifications/components'
 import { useParaAccount } from '@/features/wallet/hooks/useParaAccount'
 import { useTheme } from '@/hooks/use-theme'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+
 // import { customSepolia } from '@/lib/wagmi'
 
 const ConnectedContent = () => {
@@ -218,12 +219,12 @@ const ConnectedContent = () => {
                     </Button>
                   </div>
                   {eoaEthBalance && (
-                    <span className="font-bold text-white">
+                    <span className="font-bold text-foreground">
                       {eoaEthBalance.formattedBalance}
                     </span>
                   )}
                   {isLoadingEoaEth && (
-                    <span className="font-bold text-white">
+                    <span className="font-bold text-foreground">
                       Loading...
                     </span>
                   )}
@@ -284,12 +285,12 @@ const ConnectedContent = () => {
                       </Button>
                     </div>
                     {smartAccountEthBalance && (
-                      <span className="font-bold text-white">
+                      <span className="font-bold text-foreground">
                         {smartAccountEthBalance.formattedBalance}
                       </span>
                     )}
                     {isLoadingSmartAccountEth && (
-                      <span className="font-bold text-white">
+                      <span className="font-bold text-foreground">
                         Loading...
                       </span>
                     )}
@@ -320,7 +321,7 @@ const ConnectedContent = () => {
                             </span>
                           </div>
                           {balance.formattedBalance && (
-                            <span className="font-bold text-white">
+                            <span className="font-bold text-foreground">
                               {balance.formattedBalance}
                             </span>
                           )}
@@ -372,9 +373,7 @@ const ConnectedContent = () => {
           </DropdownMenuItem>
 
           {/* Disconnect */}
-          <DropdownMenuItem
-            onClick={() => openModal()}
-          >
+          <DropdownMenuItem onClick={() => openModal()}>
             <Unlink className="mr-2 size-4" />
             Disconnect
           </DropdownMenuItem>
@@ -409,11 +408,7 @@ const DisconnectedContent = () => {
 
   return (
     <div className="mr-6 flex items-center gap-4">
-      <Button
-        onClick={handleConnect}
-        disabled={walletLoading}
-        size="lg"
-      >
+      <Button onClick={handleConnect} disabled={walletLoading} size="lg">
         {walletLoading ? 'Loading...' : 'Connect Wallet'}
       </Button>
     </div>

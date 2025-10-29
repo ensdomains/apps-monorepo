@@ -1,16 +1,17 @@
 "use client";
 
-import { type RhinestoneAccount, RhinestoneSDK, wrapParaAccount } from "@rhinestone/sdk";
+import { useWallet } from "@getpara/react-sdk";
+import { useViemAccount } from "@getpara/react-sdk/evm/hooks";
+import { type RhinestoneAccount, RhinestoneSDK, walletClientToAccount, wrapParaAccount } from "@rhinestone/sdk";
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from "react";
-import { formatUnits, createPublicClient, http } from "viem";
+import { type Account, createPublicClient, formatUnits, http } from "viem";
 import { sepolia } from "viem/chains";
+import { useWalletClient } from "wagmi";
 // import { useParaAccount } from "@/features/wallet/hooks/useParaAccount";
 import { SUPPORTED_TOKENS } from "@/features/register/services/nameChainContractService";
 import { ERC20_ABI } from "../ens.abi";
 import { getTxHashResult } from "./utils";
-import { useWallet } from "@getpara/react-sdk";
-import { useViemAccount } from "@getpara/react-sdk/evm/hooks";
 
 // Create standalone public client for balance fetching
 const SEPOLIA_RPC_URL = 'https://ethereum-sepolia-rpc.publicnode.com'
@@ -41,8 +42,8 @@ export interface RhinestoneAccountState {
 export function useRhinestoneAccount() {
   const { data: wallet } = useWallet();
   const { viemAccount } = useViemAccount();
-
-  const isReady = !!viemAccount && !!wallet;
+  const { data: wagmiWalletClient } = useWalletClient();
+  const isReady = !!viemAccount || !!wallet || !!wagmiWalletClient;
   const [state, setState] = useState<RhinestoneAccountState>({
     rhinestoneAccount: null,
     accountAddress: null,
@@ -61,7 +62,7 @@ export function useRhinestoneAccount() {
         })
         return {
           balance: balance.toString(),
-          formattedBalance: `${formatUnits(balance, 18)} ETH`,
+          formattedBalance: `${parseFloat(formatUnits(balance, 18)).toFixed(4)} ETH`,
         }
       } catch (_error) {
         return null
@@ -84,7 +85,7 @@ export function useRhinestoneAccount() {
         })
         return {
           balance: balance.toString(),
-          formattedBalance: `${formatUnits(balance, 18)} ETH`,
+          formattedBalance: `${parseFloat(formatUnits(balance, 18)).toFixed(4)} ETH`,
         }
       } catch (_error) {
         return null
@@ -165,8 +166,16 @@ export function useRhinestoneAccount() {
         throw new Error("❌ Rhinestone API key not configured in environment variables");
       }
 
-      // Convert wallet client to viem account first
-      const paraAccount = wrapParaAccount(viemAccount, wallet?.id);
+      let accountToUse: Account;
+
+      if (viemAccount) {
+        accountToUse = wrapParaAccount(viemAccount, wallet?.id);
+      } else if (wagmiWalletClient) {
+
+        accountToUse = walletClientToAccount(wagmiWalletClient);
+      } else {
+        throw new Error("❌ No wallet client available");
+      }
 
       const sdk = new RhinestoneSDK({
         apiKey,
@@ -176,11 +185,22 @@ export function useRhinestoneAccount() {
         }
       });
 
-      // Use the Para account for Rhinestone SDK
+      // const sessionOwnerAccount = privateKeyToAccount(generatePrivateKey())
+
+      // // create session owner account
+      // const session: Session = {
+      //   owners: {
+      //     type: 'ecdsa',
+      //     accounts: [sessionOwnerAccount],
+      //   }
+
+      // }
+
+      // Create smart account with the appropriate account (Para wrapped or direct)
       const rhinestoneAccount = await sdk.createAccount({
         owners: {
           type: "ecdsa" as const,
-          accounts: [paraAccount],
+          accounts: [accountToUse],
         },
       });
 
@@ -202,7 +222,7 @@ export function useRhinestoneAccount() {
         error: String(error),
       }));
     }
-  }, [isReady, viemAccount, wallet]);
+  }, [isReady, viemAccount, wallet, wagmiWalletClient]);
 
   const sendTransaction = useCallback(
     async (calls: any[]): Promise<any> => {
