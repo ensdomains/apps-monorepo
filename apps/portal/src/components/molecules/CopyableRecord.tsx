@@ -11,7 +11,7 @@ export const CopyableRecord = ({
 }: {
   value: string | number
   className?: string
-  href?: `https://${string}`
+  href?: string
   displayValue?: ReactNode
 }) => {
   const [copy, setCopy] = useState(false)

@@ -19,7 +19,7 @@ import { Route as NameRecordsRouteImport } from './routes/$name/records'
 import { Route as NameOwnershipRouteImport } from './routes/$name/ownership'
 import { Route as NameHistoryRouteImport } from './routes/$name/history'
 import { Route as AddrAddrIndexRouteImport } from './routes/addr/$addr/index'
-import { Route as AddrAddrResolutionRouteImport } fro./routes/addr/$addr/resolutionlution'
+import { Route as AddrAddrResolutionRouteImport } from './routes/addr/$addr/resolution'
 
 const NameRoute = NameRouteImport.update({
   id: '/$name',
