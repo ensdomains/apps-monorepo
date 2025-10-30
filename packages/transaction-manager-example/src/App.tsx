@@ -5,7 +5,7 @@ import { RainbowKitProvider, ConnectButton } from '@rainbow-me/rainbowkit'
 import { config } from './wagmi-config'
 import { sepolia } from 'viem/chains'
 import ENSRenewalExample from './ENSRenewalExample'
-import { AuditTrailDashboard } from './examples/AuditTrailDashboard'
+import { AuditTrailDashboard } from './AuditTrailDashboard'
 import {
   TransactionManagerProvider,
   TransactionRecoveryNotification,
