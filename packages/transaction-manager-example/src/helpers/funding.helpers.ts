@@ -1,11 +1,11 @@
 import { parseEther } from 'viem'
 import type { WalletClient } from 'viem'
-import { transactionManager, type Signer, type EOATransactionRequest } from '@ens-apps/transaction-manager'
+import { transactionManager, type Signer, type ETHTransferTransactionIntent } from '@ens-apps/transaction-manager'
 
 /**
  * Start a smart account funding transaction
  *
- * Prepares an unsigned ETH transfer transaction and starts it through the transaction manager.
+ * Creates an ETH transfer intent and starts it through the transaction manager.
  * Returns the transaction ID for tracking, or an error if validation fails.
  */
 export async function startFundingTransaction(
@@ -31,9 +31,9 @@ export async function startFundingTransaction(
     return { error: 'Wallet not connected' }
   }
 
-  // Prepare unsigned transaction (simple ETH transfer)
-  const request: EOATransactionRequest = {
-    type: 'eoa',
+  // Create ETH transfer intent
+  const intent: ETHTransferTransactionIntent = {
+    type: 'eth-transfer',
     from: params.walletClient.account!.address,
     to: formData.smartAccountAddress as `0x${string}`,
     value: parseEther(formData.amount),
@@ -48,7 +48,7 @@ export async function startFundingTransaction(
 
   // Start transaction through singleton manager
   // publicClient is retrieved from pre-configured storage via chainId
-  const txId = transactionManager.startTransaction(request, signer, {
+  const txId = transactionManager.startTransaction(intent, signer, {
     modal: {
       title: 'Fund Smart Account',
       description: `Sending ${formData.amount} ETH to your smart account`,
