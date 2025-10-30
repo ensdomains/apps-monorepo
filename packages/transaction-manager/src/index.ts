@@ -79,10 +79,6 @@ export {
   useTransactionManager,
   useTransactionRegistry,
 } from './providers/TransactionActorManagerProvider'
-export {
-  AccountProvider,
-  useAccount
-} from './providers/AccountProvider'
 
 // Hooks
 // (None - use services directly)
@@ -142,11 +138,4 @@ export {
 // Errors
 export {
   TransactionSubmissionError,
-  TransactionTimeoutError,
-  TransactionRevertedError,
-  GasEstimationError,
-  EthCallFallbackError,
-  UserOperationError,
-  PersistenceError,
-  ImportError
 } from './errors/transaction.errors'
