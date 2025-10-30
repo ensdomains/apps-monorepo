@@ -1,4 +1,4 @@
-# Current Architecture Overview
+# Architecture Overview
 
 **Last Updated**: 2025-10-26
 
@@ -195,7 +195,7 @@ packages/transaction-manager/
 │
 ├── docs/
 │   ├── README.md                    # Documentation index
-│   ├── CURRENT_ARCHITECTURE.md      # This file
+│   ├── ARCHITECTURE.md      # This file
 │   ├── PREPARATION.md               # Why preparation is needed
 │   ├── SIGNER_ARCHITECTURE.md       # Signer abstraction
 │   ├── SIGNER_REFACTOR.md          # Migration history

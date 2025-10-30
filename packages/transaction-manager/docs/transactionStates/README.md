@@ -283,7 +283,7 @@ console.log(report)
 
 ## Related Documentation
 
-- [CURRENT_ARCHITECTURE.md](../CURRENT_ARCHITECTURE.md) - Overall system architecture
+- [ARCHITECTURE.md](../ARCHITECTURE.md) - Overall system architecture
 - [TRANSACTION_FLOW.md](../TRANSACTION_FLOW.md) - Complete transaction lifecycle
 - [SIGNER_ARCHITECTURE.md](../SIGNER_ARCHITECTURE.md) - How signing works
 - [README.md](../README.md) - Main documentation index
@@ -327,4 +327,4 @@ When adding new states or modifying existing ones:
 2. Update this README with the new state
 3. Update state flow diagrams
 4. Add testing examples
-5. Update related documentation (TRANSACTION_FLOW.md, CURRENT_ARCHITECTURE.md)
+5. Update related documentation (TRANSACTION_FLOW.md, ARCHITECTURE.md)

@@ -167,5 +167,5 @@ test('START event transitions to preparing', () => {
 
 ## Related Documentation
 
-- [CURRENT_ARCHITECTURE.md](../CURRENT_ARCHITECTURE.md) - Overall system architecture
+- [ARCHITECTURE.md](../ARCHITECTURE.md) - Overall system architecture
 - [TRANSACTION_FLOW.md](../TRANSACTION_FLOW.md) - Complete transaction lifecycle

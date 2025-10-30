@@ -444,7 +444,7 @@ inspect({ iframe: false })
 ## Related Documentation
 
 - [transactionStates/README.md](./transactionStates/README.md) - Detailed state documentation
-- [CURRENT_ARCHITECTURE.md](./CURRENT_ARCHITECTURE.md) - Architecture overview
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - Architecture overview
 - [SIGNER_ARCHITECTURE.md](./SIGNER_ARCHITECTURE.md) - How signing works
 - [README.md](./README.md) - Quick start and API reference
 
@@ -452,4 +452,4 @@ inspect({ iframe: false })
 
 1. **Read state documentation** - Deep dive into each state in [transactionStates/](./transactionStates/)
 2. **Understand signers** - Learn about different account types in [SIGNER_ARCHITECTURE.md](./SIGNER_ARCHITECTURE.md)
-3. **See complete architecture** - Read the full system design in [CURRENT_ARCHITECTURE.md](./CURRENT_ARCHITECTURE.md)
+3. **See complete architecture** - Read the full system design in [ARCHITECTURE.md](./ARCHITECTURE.md)

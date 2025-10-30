@@ -454,4 +454,4 @@ useEffect(() => {
 ## Related Documentation
 
 - [TRANSACTION_FLOW.md](../TRANSACTION_FLOW.md) - Complete transaction lifecycle
-- [CURRENT_ARCHITECTURE.md](../CURRENT_ARCHITECTURE.md) - System overview
+- [ARCHITECTURE.md](../ARCHITECTURE.md) - System overview
