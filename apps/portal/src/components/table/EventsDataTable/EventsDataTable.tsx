@@ -65,11 +65,9 @@ export const EventsDataTable = <TEvent extends BaseEvent = BaseEvent>({
     }))
   }, [data])
 
-  // Apply filters
   const filteredData = useMemo(() => {
     let filtered = data
 
-    // Filter by event types
     if (selectedEventTypes.length > 0) {
       filtered = filtered.filter((tx) => {
         return tx.events.some((event) =>
@@ -78,7 +76,6 @@ export const EventsDataTable = <TEvent extends BaseEvent = BaseEvent>({
       })
     }
 
-    // Filter by date range
     if (dateRange.from || dateRange.to) {
       filtered = filtered.filter((tx) => {
         if (!tx.timestamp) return false
@@ -131,14 +128,11 @@ export const EventsDataTable = <TEvent extends BaseEvent = BaseEvent>({
       const searchValue = filterValue.toLowerCase()
       const tx = row.original
 
-      // Search in transaction ID
       if (tx.transactionID.toLowerCase().includes(searchValue)) return true
 
-      // Search in event types
       if (tx.events.some((e) => e.type.toLowerCase().includes(searchValue)))
         return true
 
-      // Search in from address
       if (tx.from?.toLowerCase().includes(searchValue)) return true
 
       return false
