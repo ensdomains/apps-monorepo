@@ -11,7 +11,6 @@ import {
 } from '@ens-apps/transaction-manager'
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import { sepolia } from 'viem/chains'
-import { handleResult } from './utils/result'
 import { uiStateReducer, initialUIState } from './reducers/uiState.reducer'
 
 const YEAR_IN_SECONDS = 31536000n
@@ -76,10 +75,10 @@ function useRenewalPrice(params: {
         )
 
         if (!cancelled) {
-          handleResult(result, {
-            onOk: (price: bigint) => dispatch({ type: 'SET_RENEWAL_PRICE', payload: price }),
-            onErr: (error: Error) => console.error('Failed to get price:', error),
-          })
+          result.match(
+            (price) => dispatch({ type: 'SET_RENEWAL_PRICE', payload: price }),
+            (error) => console.error('Failed to get price:', error)
+          )
 
           dispatch({ type: 'SET_LOADING_PRICE', payload: false })
         }
