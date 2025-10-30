@@ -260,5 +260,5 @@ See `SIMULATION.md` for full simulation architecture (TODO).
 ## Related Documentation
 
 - [Transaction Flow](./TRANSACTION_FLOW.md) - Complete transaction lifecycle
-- [Signer Architecture](./SIGNER_ARCHITECTURE.md) - How different account types work
+- [Signers](./SIGNERS.md) - How different account types work
 - [Intent System](./INTENTS.md) - High-level transaction descriptions (TODO)

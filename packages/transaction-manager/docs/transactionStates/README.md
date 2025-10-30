@@ -285,7 +285,7 @@ console.log(report)
 
 - [ARCHITECTURE.md](../ARCHITECTURE.md) - Overall system architecture
 - [TRANSACTION_FLOW.md](../TRANSACTION_FLOW.md) - Complete transaction lifecycle
-- [SIGNER_ARCHITECTURE.md](../SIGNER_ARCHITECTURE.md) - How signing works
+- [SIGNERS.md](../SIGNERS.md) - How signing works
 - [README.md](../README.md) - Main documentation index
 
 ## State Machine Visualization

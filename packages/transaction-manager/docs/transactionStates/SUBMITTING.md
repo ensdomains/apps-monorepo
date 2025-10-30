@@ -394,5 +394,5 @@ invoke: {
 
 ## Related Documentation
 
-- [SIGNER_ARCHITECTURE.md](../SIGNER_ARCHITECTURE.md) - How different signers work
+- [SIGNERS.md](../SIGNERS.md) - How different signers work
 - [TRANSACTION_FLOW.md](../TRANSACTION_FLOW.md) - Complete transaction lifecycle

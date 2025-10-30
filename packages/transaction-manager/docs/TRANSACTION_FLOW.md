@@ -445,11 +445,11 @@ inspect({ iframe: false })
 
 - [transactionStates/README.md](./transactionStates/README.md) - Detailed state documentation
 - [ARCHITECTURE.md](./ARCHITECTURE.md) - Architecture overview
-- [SIGNER_ARCHITECTURE.md](./SIGNER_ARCHITECTURE.md) - How signing works
+- [SIGNERS.md](./SIGNERS.md) - How signing works
 - [README.md](./README.md) - Quick start and API reference
 
 ## Next Steps
 
 1. **Read state documentation** - Deep dive into each state in [transactionStates/](./transactionStates/)
-2. **Understand signers** - Learn about different account types in [SIGNER_ARCHITECTURE.md](./SIGNER_ARCHITECTURE.md)
+2. **Understand signers** - Learn about different account types in [SIGNERS.md](./SIGNERS.md)
 3. **See complete architecture** - Read the full system design in [ARCHITECTURE.md](./ARCHITECTURE.md)

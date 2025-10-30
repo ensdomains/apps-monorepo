@@ -197,7 +197,7 @@ packages/transaction-manager/
 │   ├── README.md                    # Documentation index
 │   ├── ARCHITECTURE.md      # This file
 │   ├── PREPARATION.md               # Why preparation is needed
-│   ├── SIGNER_ARCHITECTURE.md       # Signer abstraction
+│   ├── SIGNERS.md       # Signer abstraction
 │   ├── SIGNER_REFACTOR.md          # Migration history
 │   └── TRANSACTION_FLOW.md         # Detailed flow (needs update)
 │
@@ -290,7 +290,7 @@ const intent = { type: 'ens-renewal', name, duration, from }
 
 - [README.md](./README.md) - Documentation index and quick start
 - [TRANSACTION_FLOW.md](./TRANSACTION_FLOW.md) - Complete transaction lifecycle
-- [SIGNER_ARCHITECTURE.md](./SIGNER_ARCHITECTURE.md) - Signer abstraction details
+- [SIGNERS.md](./SIGNERS.md) - Signer abstraction details
 - [SIGNER_REFACTOR.md](./SIGNER_REFACTOR.md) - Historical refactoring notes
 
 ### Transaction States Documentation

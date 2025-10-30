@@ -116,7 +116,7 @@ This ensures:
 |----------|-------------|--------|
 | [Architecture](./ARCHITECTURE.md) | Up-to-date overview of the intent-based architecture | ✅ Complete |
 | [Transaction Flow](./TRANSACTION_FLOW.md) | Complete transaction lifecycle and state machine design | ✅ Complete |
-| [Signer Architecture](./SIGNER_ARCHITECTURE.md) | How different account types work (EOA, Rhinestone, Safe, etc.) | ✅ Complete |
+| [Signers](./SIGNERS.md) | How different account types work (EOA, Rhinestone, Safe, etc.) | ✅ Complete |
 | [Signer Refactor](./SIGNER_REFACTOR.md) | Migration from tightly coupled design to Signer abstraction | ✅ Complete |
 
 ### Transaction States

@@ -1,4 +1,4 @@
-# Signer Architecture
+# Signers
 
 This document explains the Signer abstraction pattern used in the transaction manager and how transaction preparation and signing works.
 
