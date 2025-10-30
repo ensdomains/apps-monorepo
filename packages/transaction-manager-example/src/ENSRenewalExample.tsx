@@ -11,7 +11,7 @@ import {
 } from '@ens-apps/transaction-manager'
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import { sepolia } from 'viem/chains'
-import { uiStateReducer, initialUIState } from './reducers/uiState.reducer'
+import { uiStateReducer, initialUIState } from './uiState.reducer'
 
 const YEAR_IN_SECONDS = 31536000n
 
