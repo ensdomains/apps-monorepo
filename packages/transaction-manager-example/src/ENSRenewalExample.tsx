@@ -1,18 +1,18 @@
 import React, { useReducer, useEffect, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { formatEther } from 'viem'
+import { formatEther, parseEther } from 'viem'
 import { useSelector } from '@xstate/react'
 import {
   getENSRenewalPrice,
   initializeRhinestoneAccount,
   transactionManager,
   type ENSRenewalTransactionIntent,
+  type ETHTransferTransactionIntent,
 } from '@ens-apps/transaction-manager'
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import { sepolia } from 'viem/chains'
 import { handleResult } from './utils/result'
 import { uiStateReducer, initialUIState } from './reducers/uiState.reducer'
-import { startFundingTransaction } from './helpers/funding.helpers'
 
 const YEAR_IN_SECONDS = 31536000n
 
@@ -498,21 +498,49 @@ function ENSRenewalExample() {
                     />
                     <span>ETH</span>
                     <button
-                      onClick={async () => {
-                        const result = await startFundingTransaction(
+                      onClick={() => {
+                        // Validation
+                        const amount = parseFloat(ui.fundingAmount)
+                        if (isNaN(amount) || amount <= 0) {
+                          alert('Please enter a valid amount')
+                          return
+                        }
+
+                        if (!ui.smartAccountAddress) {
+                          alert('Smart account address not available')
+                          return
+                        }
+
+                        if (!walletClient) {
+                          alert('Wallet not connected')
+                          return
+                        }
+
+                        // Create ETH transfer intent
+                        const intent: ETHTransferTransactionIntent = {
+                          type: 'eth-transfer',
+                          from: walletClient.account!.address,
+                          to: ui.smartAccountAddress as `0x${string}`,
+                          value: parseEther(ui.fundingAmount),
+                          data: '0x' as `0x${string}`,
+                        }
+
+                        // Start transaction
+                        const txId = transactionManager.startTransaction(
+                          intent,
+                          { type: 'eoa', walletClient },
                           {
-                            smartAccountAddress: ui.smartAccountAddress!,
-                            amount: ui.fundingAmount,
-                          },
-                          { walletClient }
+                            modal: {
+                              title: 'Fund Smart Account',
+                              description: `Sending ${ui.fundingAmount} ETH to your smart account`,
+                              ctaLabel: 'Send ETH',
+                            },
+                            chainId: walletClient.chain?.id,
+                          }
                         )
 
-                        if (result.error) {
-                          alert(result.error)
-                        } else if (result.txId) {
-                          console.log('🚀 Started funding transaction:', result.txId)
-                          setCurrentTxId(result.txId)
-                        }
+                        console.log('🚀 Started funding transaction:', txId)
+                        setCurrentTxId(txId)
                       }}
                       disabled={!ui.fundingAmount}
                       style={{
