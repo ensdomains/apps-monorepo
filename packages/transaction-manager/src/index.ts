@@ -89,11 +89,7 @@ export {
 
 // Helpers
 export {
-  prepareENSRenewal,
   getENSRenewalPrice,
-  getRhinestoneSmartAccountAddress,
-  type PrepareENSRenewalParams,
-  type ENSRenewalTransactionData,
 } from './helpers/ens-renewal.helpers'
 
 // Contracts
