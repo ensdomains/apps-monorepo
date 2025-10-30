@@ -236,7 +236,7 @@ export const HistoryList = ({
       if (tx.events.some((e) => e.type.toLowerCase().includes(searchValue)))
         return true
 
-      if (tx.from && tx.from.toLowerCase().includes(searchValue)) return true
+      if (tx.from?.toLowerCase().includes(searchValue)) return true
 
       return false
     },

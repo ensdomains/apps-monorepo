@@ -12,11 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as NameRouteImport } from './routes/$name'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as NameIndexRouteImport } from './routes/$name/index'
+import { Route as AddrAddrRouteImport } from './routes/addr/$addr'
 import { Route as NameTokenRouteImport } from './routes/$name/token'
 import { Route as NameResolverRouteImport } from './routes/$name/resolver'
 import { Route as NameRecordsRouteImport } from './routes/$name/records'
 import { Route as NameOwnershipRouteImport } from './routes/$name/ownership'
 import { Route as NameHistoryRouteImport } from './routes/$name/history'
+import { Route as AddrAddrIndexRouteImport } from './routes/addr/$addr/index'
+import { Route as AddrAddrResolutionRouteImport } from './routes/addr/$addr/resolution'
 
 const NameRoute = NameRouteImport.update({
   id: '/$name',
@@ -32,6 +35,11 @@ const NameIndexRoute = NameIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => NameRoute,
+} as any)
+const AddrAddrRoute = AddrAddrRouteImport.update({
+  id: '/addr/$addr',
+  path: '/addr/$addr',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const NameTokenRoute = NameTokenRouteImport.update({
   id: '/token',
@@ -58,6 +66,16 @@ const NameHistoryRoute = NameHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => NameRoute,
 } as any)
+const AddrAddrIndexRoute = AddrAddrIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AddrAddrRoute,
+} as any)
+const AddrAddrResolutionRoute = AddrAddrResolutionRouteImport.update({
+  id: '/resolution',
+  path: '/resolution',
+  getParentRoute: () => AddrAddrRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -67,7 +85,10 @@ export interface FileRoutesByFullPath {
   '/$name/records': typeof NameRecordsRoute
   '/$name/resolver': typeof NameResolverRoute
   '/$name/token': typeof NameTokenRoute
+  '/addr/$addr': typeof AddrAddrRouteWithChildren
   '/$name/': typeof NameIndexRoute
+  '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
+  '/addr/$addr/': typeof AddrAddrIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -77,6 +98,8 @@ export interface FileRoutesByTo {
   '/$name/resolver': typeof NameResolverRoute
   '/$name/token': typeof NameTokenRoute
   '/$name': typeof NameIndexRoute
+  '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
+  '/addr/$addr': typeof AddrAddrIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -87,7 +110,10 @@ export interface FileRoutesById {
   '/$name/records': typeof NameRecordsRoute
   '/$name/resolver': typeof NameResolverRoute
   '/$name/token': typeof NameTokenRoute
+  '/addr/$addr': typeof AddrAddrRouteWithChildren
   '/$name/': typeof NameIndexRoute
+  '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
+  '/addr/$addr/': typeof AddrAddrIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -99,7 +125,10 @@ export interface FileRouteTypes {
     | '/$name/records'
     | '/$name/resolver'
     | '/$name/token'
+    | '/addr/$addr'
     | '/$name/'
+    | '/addr/$addr/resolution'
+    | '/addr/$addr/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -109,6 +138,8 @@ export interface FileRouteTypes {
     | '/$name/resolver'
     | '/$name/token'
     | '/$name'
+    | '/addr/$addr/resolution'
+    | '/addr/$addr'
   id:
     | '__root__'
     | '/'
@@ -118,12 +149,16 @@ export interface FileRouteTypes {
     | '/$name/records'
     | '/$name/resolver'
     | '/$name/token'
+    | '/addr/$addr'
     | '/$name/'
+    | '/addr/$addr/resolution'
+    | '/addr/$addr/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   NameRoute: typeof NameRouteWithChildren
+  AddrAddrRoute: typeof AddrAddrRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -148,6 +183,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/$name/'
       preLoaderRoute: typeof NameIndexRouteImport
       parentRoute: typeof NameRoute
+    }
+    '/addr/$addr': {
+      id: '/addr/$addr'
+      path: '/addr/$addr'
+      fullPath: '/addr/$addr'
+      preLoaderRoute: typeof AddrAddrRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/$name/token': {
       id: '/$name/token'
@@ -184,6 +226,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NameHistoryRouteImport
       parentRoute: typeof NameRoute
     }
+    '/addr/$addr/': {
+      id: '/addr/$addr/'
+      path: '/'
+      fullPath: '/addr/$addr/'
+      preLoaderRoute: typeof AddrAddrIndexRouteImport
+      parentRoute: typeof AddrAddrRoute
+    }
+    '/addr/$addr/resolution': {
+      id: '/addr/$addr/resolution'
+      path: '/resolution'
+      fullPath: '/addr/$addr/resolution'
+      preLoaderRoute: typeof AddrAddrResolutionRouteImport
+      parentRoute: typeof AddrAddrRoute
+    }
   }
 }
 
@@ -207,9 +263,24 @@ const NameRouteChildren: NameRouteChildren = {
 
 const NameRouteWithChildren = NameRoute._addFileChildren(NameRouteChildren)
 
+interface AddrAddrRouteChildren {
+  AddrAddrResolutionRoute: typeof AddrAddrResolutionRoute
+  AddrAddrIndexRoute: typeof AddrAddrIndexRoute
+}
+
+const AddrAddrRouteChildren: AddrAddrRouteChildren = {
+  AddrAddrResolutionRoute: AddrAddrResolutionRoute,
+  AddrAddrIndexRoute: AddrAddrIndexRoute,
+}
+
+const AddrAddrRouteWithChildren = AddrAddrRoute._addFileChildren(
+  AddrAddrRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   NameRoute: NameRouteWithChildren,
+  AddrAddrRoute: AddrAddrRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

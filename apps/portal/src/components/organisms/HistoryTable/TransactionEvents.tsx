@@ -57,7 +57,7 @@ const EventData = ({ event, txHash }: { event: Event; txHash: Hash }) => {
       </div>
 
       {showDecoded ? (
-        <div className="border rounded-lg overflow-hidden">
+        <div className="border rounded-lg overflow-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
@@ -225,10 +225,8 @@ export const TransactionEvents = ({
                       <CopyableRecord
                         value={getEventSignature(event.type)}
                         displayValue={
-                          <div>
-                            <p className="text-sm break-all font-mono">
-                              {getEventSignature(event.type)}
-                            </p>
+                          <div className="w-full max-w-110 truncate">
+                            {getEventSignature(event.type)}
                           </div>
                         }
                       />

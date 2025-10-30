@@ -4,6 +4,7 @@ import {
   type Table as TableData,
 } from '@tanstack/react-table'
 import { useState } from 'react'
+import { SidebarTriggerRow } from '@/components/molecules/SidebarTriggerRow'
 import {
   Table,
   TableBody,
@@ -18,7 +19,6 @@ import {
 } from '@/features/profile/hooks/useTableViewSettings'
 import { columns, type NameRecord } from './columns'
 import { RecordSidebar } from './RecordSidebar'
-import { RecordTableRow } from './RecordTableRow'
 
 export const RecordsTable = ({
   defaultTableSettings,
@@ -61,7 +61,7 @@ export const RecordsTable = ({
             table
               .getRowModel()
               .rows.map((row) => (
-                <RecordTableRow
+                <SidebarTriggerRow
                   key={row.id}
                   {...{ row, tableView, setOpen, setClickedRow, open }}
                 />
