@@ -25,14 +25,6 @@ export default defineConfig({
     tailwindcss(),
     cloudflare(),
   ],
-  test: {
-    globals: true,
-    environment: 'happy-dom',
-    coverage: {
-      provider: 'v8',
-      reporter: ['lcovonly', 'text', 'html'],
-    },
-  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

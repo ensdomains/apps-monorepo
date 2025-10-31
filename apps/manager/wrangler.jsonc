@@ -1,10 +1,8 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
+  "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "manager-app-v4",
-  "main": ".output/server/index.mjs",
-  "compatibility_date": "2025-07-27",
+  "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
-  "assets": {
-    "directory": ".output/public"
-  }
+  "main": "@tanstack/react-start/server-entry",
+  "preview_urls": true
 }

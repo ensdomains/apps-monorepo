@@ -46,7 +46,7 @@ const OwnerInfo = ({ name }: { name: string }) => {
   }
 
   return (
-    <div className="flex flex-row gap-4">
+    <div className="flex flex-col lg:flex-row gap-4">
       <div className="p-6 rounded-lg gap-4 flex flex-col border border-secondary w-full">
         <h2 className="text-2xl font-medium">Current Owner</h2>
         <div>
@@ -74,7 +74,7 @@ const ParentInfo = ({ name }: { name: string }) => {
 function RouteComponent() {
   const { name } = useParams({ from: '/$name/ownership' })
   return (
-    <div className="max-w-5xl w-full mx-auto flex flex-col gap-6 m-6">
+    <div className="max-w-5xl w-full mx-auto flex flex-col gap-6 m-6 px-4">
       <div className="flex flex-row justify-between">
         <h1 className="font-medium text-[28px]">Ownership</h1>
         <a

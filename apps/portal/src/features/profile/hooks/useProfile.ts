@@ -15,7 +15,6 @@ class RecordsError extends TaggedError('RecordsError')<{
 }> {}
 
 export const getProfile = ResultFn(async function* (name: string) {
-  // const client = yield* fromSync(() => getClient(wagmiConfig), ClientError.from)
   const client = yield* safeGetClient()
 
   const subgraphRecords = yield* await fromPromise(

@@ -111,6 +111,6 @@ export function TaggedError<const Tag extends string>(tag: Tag) {
   return class Base<A extends { cause?: unknown }> extends DataError<A> {
     readonly _tag = tag
     name = `TaggedError#${tag}`
-    cause?: A['cause']
+    declare cause?: A['cause']
   }
 }

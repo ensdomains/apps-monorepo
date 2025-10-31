@@ -151,7 +151,7 @@ function MyComponent() {
 }
 ```
 
-### 2. Pattern Matching Over Conditional Operators
+### 3. Pattern Matching Over Conditional Operators
 
 **Principle**: Use `ts-pattern` for conditional rendering instead of `&&` operators or ternaries. This provides type-safe, explicit, and composable conditional logic.
 
@@ -185,7 +185,7 @@ import { P } from 'ts-pattern'
   .otherwise(() => null)}
 ```
 
-### 3. State Machines for Complex Flows
+### 4. State Machines for Complex Flows
 
 **Principle**: Use XState for managing complex multi-step flows, especially those involving async operations, retries, or state dependencies.
 
@@ -202,7 +202,7 @@ import { P } from 'ts-pattern'
 
 See `packages/transaction-manager/TRANSACTION_FLOW.md` for a complete example.
 
-### 4. Component Organization: Extract Static Values and Side Effects
+### 5. Component Organization: Extract Static Values and Side Effects
 
 **Principle**: React components should be clean and focused on rendering. Extract static values, pure functions, and complex side effects outside the component body.
 

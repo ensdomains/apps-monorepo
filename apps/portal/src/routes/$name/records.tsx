@@ -1,6 +1,6 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, useParams, useSearch } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { RecordEdit } from '@/components/views/records/RecordEdit'
 import { RecordList } from '@/components/views/records/RecordList'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
@@ -37,10 +37,10 @@ const RecordView = ({
 }
 
 function App() {
-  const { name } = useParams({ from: '/$name/records' })
+  const { name } = Route.useParams()
   const { data, isLoading, error } = useQuery(getProfileQueryOptions(name))
 
-  const { view } = useSearch({ from: '/$name/records' })
+  const { view } = Route.useSearch()
 
   if (isLoading) return <div>Loading...</div>
   if (error || !data) {

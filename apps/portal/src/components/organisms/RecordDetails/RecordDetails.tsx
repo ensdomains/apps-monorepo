@@ -1,21 +1,30 @@
+import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
+import { useQuery } from '@tanstack/react-query'
+import type { ColumnDef } from '@tanstack/react-table'
 import { SearchIcon, TrashIcon } from 'lucide-react'
-import { useChainId, useEnsResolver } from 'wagmi'
-import {
-  CCIPGatewayURLView,
-  ResolverField,
-} from '@/components/resolver/ResolverField'
+import { ExternalLink } from 'react-external-link'
+import { zeroAddress } from 'viem'
+import type { Address } from 'viem/accounts'
+import { useEnsResolver } from 'wagmi'
+import { DataTable } from '@/components/molecules/DataTable/DataTable'
+import { ResolverField } from '@/components/resolver/ResolverField'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { SheetHeader } from '@/components/ui/sheet'
+import { SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
-import type { Record } from '../RecordsTable/columns'
+import { getRecordHistoryQueryOptions } from '@/features/profile/hooks/useRecordHistory'
+import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
+import { wagmiConfig } from '@/lib/wagmi'
+import { filterRecordHistoryByRecord } from '@/utils/subgraph/filterRecordHistoryByRecord'
+import { recordTypeToSubgraphKey } from '@/utils/subgraph/recordTypeToSubgraphKey'
+import type { NameRecord } from '../RecordsTable/columns'
 
 const AddressRecordValue = ({
   record,
   canEditRecords,
 }: {
-  record: Extract<Record, { type: 'address' }>
+  record: Extract<NameRecord, { type: 'address' }>
   canEditRecords?: boolean
 }) => {
   return (
@@ -55,7 +64,7 @@ const TextRecordValue = ({
   record,
   canEditRecords,
 }: {
-  record: Extract<Record, { type: 'text' }>
+  record: Extract<NameRecord, { type: 'text' }>
   canEditRecords?: boolean
 }) => {
   return (
@@ -82,7 +91,7 @@ const ContentHashValue = ({
   record,
   canEditRecords,
 }: {
-  record: Extract<Record, { type: 'contentHash' }>
+  record: Extract<NameRecord, { type: 'contentHash' }>
   canEditRecords?: boolean
 }) => {
   return (
@@ -105,61 +114,146 @@ const ContentHashValue = ({
   )
 }
 
+const UnderlyingResolver = ({
+  resolverAddress,
+  name,
+}: {
+  resolverAddress: Address
+  name: string
+}) => {
+  const { data, error, isLoading } = useQuery(
+    getUnderlyingAddressQueryOptions({ resolverAddress, name }),
+  )
+
+  if (error) return <div>Error: ${error.cause?.message}</div>
+  if (isLoading) return <div>Loading...</div>
+
+  if (!data || data[0] === zeroAddress) {
+    return (
+      <ResolverField
+        label="Universal Resolver address"
+        value={resolverAddress}
+      />
+    )
+  }
+
+  return (
+    <>
+      <ResolverField
+        label="Universal Resolver address"
+        value={resolverAddress}
+      />
+      <ResolverField
+        label={data[1] ? 'Namechain address' : 'Mainnet address'}
+        value={data[0]}
+      />
+    </>
+  )
+}
+
 const ResolverView = ({ name }: { name: string }) => {
-  const { data: resolverAddress, error, isLoading } = useEnsResolver({ name })
-  const chainId = useChainId()
+  const {
+    data: resolverAddress,
+    error,
+    isLoading,
+  } = useEnsResolver({
+    name,
+    universalResolverAddress:
+      wagmiConfig.chains[0].contracts.ensUniversalResolver.address,
+  })
 
   if (isLoading) return <div>Loading...</div>
   if (error) return <div>Error: {error.message}</div>
   if (!resolverAddress) return <div>No data</div>
 
-  if (chainId === 1) {
-    return (
-      <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg">
-        <h3 className="text-2xl font-medium">Resolver</h3>
-        <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ResolverField label="Resolver address" value={resolverAddress} />
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg">
       <h3 className="text-2xl font-medium">Resolver</h3>
       <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ResolverField
-          label="Mainnet contract address"
-          value={resolverAddress}
-        />
-        <ResolverField
-          label="Namechain contract address"
-          value={resolverAddress}
-        />
-        <CCIPGatewayURLView />
+        <UnderlyingResolver {...{ name, resolverAddress }} />
       </div>
     </div>
   )
 }
 
-const HistoryView = ({ name }: { name: string }) => {
+const columns: ColumnDef<ReturnResolverEvent>[] = [
+  {
+    header: 'Block',
+    accessorKey: 'blockNumber',
+    cell({ column, row }) {
+      const value = row.getValue(column.id) as number
+
+      return (
+        <ExternalLink href={`https://etherscan.io/block/${value}`}>
+          <span className="font-mono underline decoration-dashed underline-offset-4 hover:text-gray-600">
+            {value}
+          </span>
+        </ExternalLink>
+      )
+    },
+  },
+  {
+    accessorFn: (val) => {
+      switch (val.type) {
+        case 'ContenthashChanged':
+          return val.contentHash
+        case 'TextChanged':
+          return `${val.key}: ${val.value ?? 'null'}`
+        case 'AddrChanged':
+        case 'MulticoinAddrChanged':
+          return val.addr
+      }
+    },
+    header: 'Value',
+    cell({ column, row }) {
+      const value = row.getValue(column.id) as string
+      return <span className="font-mono">{value}</span>
+    },
+  },
+]
+
+const HistoryView = ({
+  name,
+  record,
+}: {
+  name: string
+  record: NameRecord
+}) => {
+  const {
+    data: history,
+    isLoading,
+    error,
+  } = useQuery(
+    getRecordHistoryQueryOptions({
+      name,
+      key: recordTypeToSubgraphKey(record.type),
+    }),
+  )
+
+  if (error) {
+    return <div>History Error: {error.cause?.message || error.message}</div>
+  }
+
+  if (isLoading) return <div>Loading...</div>
+
   return (
-    <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg">
+    <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg overflow-y-scroll">
       <h3 className="text-2xl font-medium">History</h3>
-      {name}
+      <DataTable
+        data={filterRecordHistoryByRecord(history || [], record)}
+        columns={columns}
+      />
     </div>
   )
 }
 
 const RecordDetailsView = ({
   record,
-  name,
+  canEditRecords,
 }: {
-  record: Record
-  name: string
+  record: NameRecord
+  canEditRecords?: boolean
 }) => {
-  const { data: canEditRecords } = useCanEditRecords({ name })
-
   switch (record.type) {
     case 'address':
       return <AddressRecordValue {...{ record, canEditRecords }} />
@@ -176,26 +270,26 @@ export const RecordDetails = ({
   record,
   name,
 }: {
-  record: Record
+  record: NameRecord
   name: string
 }) => {
   const { data: canEditRecords } = useCanEditRecords({ name })
 
   return (
-    <div className="py-6 px-8 flex flex-col gap-6">
+    <div className="p-6 flex flex-col gap-6 h-screen">
       <SheetHeader className="flex flex-row justify-between">
-        <h2 className="font-sans text-[28px] font-medium">
-          <span className="capitalize">{record.type}</span> record
-        </h2>
+        <SheetTitle className="font-sans text-[28px] font-medium capitalize">
+          {record.type} record
+        </SheetTitle>
         {canEditRecords && (
           <Button variant="secondary" type="button" className="bg-gray-200">
             <TrashIcon /> Delete record
           </Button>
         )}
       </SheetHeader>
-      <RecordDetailsView {...{ record, name }} />
+      <RecordDetailsView {...{ record, canEditRecords }} />
       <ResolverView name={name} />
-      <HistoryView name={name} />
+      <HistoryView {...{ name, record }} />
     </div>
   )
 }

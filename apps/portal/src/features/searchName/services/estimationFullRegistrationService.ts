@@ -50,7 +50,9 @@ export const getEstimationFullRegistrationQueryOptions = (
   seconds: number,
 ) =>
   resultQueryOptions({
-    queryKey: ['estimationFullRegistration', { name, seconds }],
-    queryFn: ({ queryKey: [, { name, seconds }] }) =>
-      estimateFullRegistration({ name, seconds }),
+    queryKey: ['estimationFullRegistration', { name, seconds }] as const,
+    queryFn: ({ queryKey: [, params] }) => {
+      const { name, seconds } = params as { name: string; seconds: number }
+      return estimateFullRegistration({ name, seconds })
+    },
   })
