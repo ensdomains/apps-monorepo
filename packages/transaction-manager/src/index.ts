@@ -91,6 +91,24 @@ export {
 // Contracts
 export { ENS_SEPOLIA_CONTRACTS, ETH_REGISTRAR_CONTROLLER_ABI } from './contracts/ens-sepolia'
 
+// Persistence
+export {
+  saveTransaction,
+  getTransaction,
+  getAllTransactions,
+  getPendingTransactions,
+  removeTransaction,
+  clearAllTransactions,
+  archiveTransaction,
+  getArchivedTransactions,
+  getTransactionHistory,
+  clearTransactionHistory,
+  getHistoryCount,
+  getActiveCount,
+  exportAllData,
+  type PersistedTransaction
+} from './helpers/transaction-persistence'
+
 // Components
 export {
   TransactionModal,

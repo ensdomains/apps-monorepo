@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { type ActorRefFrom } from 'xstate'
 import { transactionMachine } from '../machines/transaction.machine'
-import { getPendingTransactions, type PersistedTransaction } from '../services/transaction-registry.service'
+import { getPendingTransactions, type PersistedTransaction } from '../helpers/transaction-persistence'
 import { transactionManager } from '../services/transactionManager'
 import type { PublicClient } from 'viem'
 
@@ -48,23 +48,27 @@ export function TransactionActorManagerProvider({
 
   // Auto-recover pending transactions on mount
   useEffect(() => {
-    const pending = getPendingTransactions()
+    getPendingTransactions()
+      .then((pending) => {
+        if (pending.length === 0) {
+          console.log('🔵 [PROVIDER] No pending transactions to recover')
+          return
+        }
 
-    if (pending.length === 0) {
-      console.log('🔵 [PROVIDER] No pending transactions to recover')
-      return
-    }
+        console.log(`🔄 [PROVIDER] Found ${pending.length} pending transactions to recover`)
 
-    console.log(`🔄 [PROVIDER] Found ${pending.length} pending transactions to recover`)
-
-    // For now, just log them - we'll implement auto-recovery when we have clients
-    pending.forEach((persisted) => {
-      console.log('📦 [PROVIDER] Pending transaction:', {
-        id: persisted.id,
-        state: persisted.state,
-        hash: persisted.hash,
+        // For now, just log them - we'll implement auto-recovery when we have clients
+        pending.forEach((persisted) => {
+          console.log('📦 [PROVIDER] Pending transaction:', {
+            id: persisted.id,
+            state: persisted.state,
+            hash: persisted.hash,
+          })
+        })
       })
-    })
+      .catch((error) => {
+        console.error('❌ [PROVIDER] Failed to recover pending transactions:', error)
+      })
   }, [])
 
   const contextValue: TransactionActorManagerContextValue = {
@@ -127,14 +131,19 @@ export function useActiveTransactions(): Map<string, ActorRefFrom<typeof transac
 }
 
 /**
- * Hook to get recovered transactions (pending transactions from localStorage)
+ * Hook to get recovered transactions (pending transactions from IndexedDB)
  */
 export function useRecoveredTransactions(): PersistedTransaction[] {
   const [recovered, setRecovered] = useState<PersistedTransaction[]>([])
 
   useEffect(() => {
-    const pending = getPendingTransactions()
-    setRecovered(pending)
+    getPendingTransactions()
+      .then((pending) => {
+        setRecovered(pending)
+      })
+      .catch((error) => {
+        console.error('❌ [HOOK] Failed to get recovered transactions:', error)
+      })
   }, [])
 
   return recovered

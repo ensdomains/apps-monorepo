@@ -37,7 +37,7 @@ export function submitRhinestoneTransaction(input: {
 
   console.log('🔧 [RHINESTONE TRANSPORT] Executing with Rhinestone account:', {
     accountAddress: account?.getAddress?.(),
-    targetChain: rhinestoneRequest.rhinestoneParams.chain?.id,
+    params: rhinestoneRequest.rhinestoneParams,
   })
 
   // executeENSRenewal returns Promise<Result>, so wrap it with ResultAsync.fromSafePromise

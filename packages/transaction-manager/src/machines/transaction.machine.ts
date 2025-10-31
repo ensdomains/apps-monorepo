@@ -5,6 +5,7 @@ import { fromPromise as fromPromiseNT } from 'neverthrow'
 import type { Hash, TransactionReceipt, PublicClient } from 'viem'
 import type {
   TransactionRequest,
+  EOATransactionRequest,
   TransactionIntent,
   TransactionOptions,
   TransactionModalState,

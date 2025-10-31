@@ -4,7 +4,7 @@ import {
   saveTransaction,
   removeTransaction,
   type PersistedTransaction,
-} from './transaction-registry.service'
+} from '../helpers/transaction-persistence'
 import type { TransactionRequest, TransactionIntent, TransactionOptions } from '../types/transaction.types'
 import type { Signer } from '../types/signer.types'
 import type { PublicClient } from 'viem'
@@ -155,12 +155,16 @@ class TransactionManager {
         updatedAt: Date.now(),
       }
 
-      // Remove from localStorage when complete
+      // Remove from IndexedDB when complete
       if (state === 'success' || state === 'error') {
         console.log(`✅ [TRANSACTION MANAGER] Removing completed transaction ${txId}`)
-        removeTransaction(txId)
+        removeTransaction(txId).catch(err =>
+          console.error(`❌ [TRANSACTION MANAGER] Failed to remove transaction ${txId}:`, err)
+        )
       } else {
-        saveTransaction(txId, persisted)
+        saveTransaction(txId, persisted).catch(err =>
+          console.error(`❌ [TRANSACTION MANAGER] Failed to save transaction ${txId}:`, err)
+        )
       }
     })
 
@@ -186,8 +190,10 @@ class TransactionManager {
     this.transactions.delete(id)
     this.notifyListeners()
 
-    // Remove from localStorage
-    removeTransaction(id)
+    // Remove from IndexedDB
+    removeTransaction(id).catch(err =>
+      console.error(`❌ [TRANSACTION MANAGER] Failed to remove cancelled transaction ${id}:`, err)
+    )
   }
 
   /**
