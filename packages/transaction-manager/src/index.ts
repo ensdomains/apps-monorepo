@@ -119,22 +119,6 @@ export {
   type TransactionStatus
 } from './components/TransactionStatusPanel'
 
-// Persistence
-export {
-  saveActiveTransaction,
-  getActiveTransactions,
-  getActiveTransaction,
-  removeActiveTransaction,
-  archiveTransaction,
-  getTransactionHistory,
-  clearActiveTransactions,
-  clearTransactionHistory,
-  getHistoryCount,
-  getActiveCount,
-  exportAllData,
-  type PersistedTransaction
-} from './helpers/transaction-persistence'
-
 // Errors
 export {
   TransactionSubmissionError,
