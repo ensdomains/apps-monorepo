@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useActiveTransactions } from '../providers/TransactionActorManagerProvider'
+import { useActiveTransactions } from '../providers/TransactionManagerProvider'
 import { useSelector } from '@xstate/react'
 
 export interface Toast {

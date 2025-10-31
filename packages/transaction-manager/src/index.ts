@@ -68,17 +68,16 @@ export { transactionMachine } from './machines/transaction.machine'
 
 // Providers
 export {
-  TransactionActorManagerProvider,
-  useTransactionActorManager,
+  TransactionManagerProvider,
+  useTransactionManager,
   useTransaction,
   useActiveTransactions,
   useRecoveredTransactions,
   // Backward compatibility - deprecated
-  TransactionActorManagerProvider as TransactionManagerProvider,
-  TransactionActorManagerProvider as TransactionRegistryProvider,
-  useTransactionManager,
+  useTransactionActorManager,
   useTransactionRegistry,
-} from './providers/TransactionActorManagerProvider'
+  TransactionManagerProvider as TransactionRegistryProvider,
+} from './providers/TransactionManagerProvider'
 
 // Hooks
 // (None - use services directly)

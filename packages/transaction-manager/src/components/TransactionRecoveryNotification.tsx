@@ -1,5 +1,5 @@
 import React from 'react'
-import { useTransactionActorManager, useRecoveredTransactions } from '../providers/TransactionActorManagerProvider'
+import { useTransactionActorManager, useRecoveredTransactions } from '../providers/TransactionManagerProvider'
 
 export interface TransactionRecoveryNotificationProps {
   /** Custom render function for the notification */
@@ -36,7 +36,7 @@ export function TransactionRecoveryNotification({
   render,
   autoRecover = false,
 }: TransactionRecoveryNotificationProps) {
-  // TODO: Implement recovery methods in TransactionActorManagerProvider
+  // TODO: Implement recovery methods in TransactionManagerProvider
   // const { recoverTransactions, clearRecovered } = useTransactionActorManager()
   const recoveredTransactions = useRecoveredTransactions()
 

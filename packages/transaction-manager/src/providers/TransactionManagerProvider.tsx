@@ -5,19 +5,19 @@ import { getPendingTransactions, type PersistedTransaction } from '../helpers/tr
 import { transactionManager } from '../services/transactionManager'
 import type { PublicClient } from 'viem'
 
-interface TransactionActorManagerContextValue {
+interface TransactionManagerContextValue {
   transactions: Map<string, ActorRefFrom<typeof transactionMachine>>
 }
 
-interface TransactionActorManagerProviderProps {
+interface TransactionManagerProviderProps {
   children: ReactNode
   publicClient: PublicClient
 }
 
-const TransactionActorManagerContext = createContext<TransactionActorManagerContextValue | null>(null)
+const TransactionManagerContext = createContext<TransactionManagerContextValue | null>(null)
 
 /**
- * Transaction Actor Manager Provider
+ * Transaction Manager Provider
  *
  * React wrapper for the singleton TransactionManager.
  * Provides:
@@ -29,10 +29,10 @@ const TransactionActorManagerContext = createContext<TransactionActorManagerCont
  *
  * SSR-safe: No global state stored in the provider.
  */
-export function TransactionActorManagerProvider({
+export function TransactionManagerProvider({
   children,
   publicClient
-}: TransactionActorManagerProviderProps) {
+}: TransactionManagerProviderProps) {
   const [transactions, setTransactions] = useState<Map<string, ActorRefFrom<typeof transactionMachine>>>(
     new Map()
   )
@@ -71,19 +71,19 @@ export function TransactionActorManagerProvider({
       })
   }, [])
 
-  const contextValue: TransactionActorManagerContextValue = {
+  const contextValue: TransactionManagerContextValue = {
     transactions,
   }
 
   return (
-    <TransactionActorManagerContext.Provider value={contextValue}>
+    <TransactionManagerContext.Provider value={contextValue}>
       {children}
-    </TransactionActorManagerContext.Provider>
+    </TransactionManagerContext.Provider>
   )
 }
 
 /**
- * Hook to access the transaction actor manager (for UI components only)
+ * Hook to access the transaction manager (for UI components only)
  *
  * Returns the transactions Map for React components to subscribe to updates.
  *
@@ -93,26 +93,26 @@ export function TransactionActorManagerProvider({
  * transactionManager.startTransaction(request, signer, options)
  * ```
  */
-export function useTransactionActorManager(): TransactionActorManagerContextValue {
-  const context = useContext(TransactionActorManagerContext)
+export function useTransactionManager(): TransactionManagerContextValue {
+  const context = useContext(TransactionManagerContext)
   if (!context) {
-    throw new Error('useTransactionActorManager must be used within TransactionActorManagerProvider')
+    throw new Error('useTransactionManager must be used within TransactionManagerProvider')
   }
   return context
 }
 
 /**
- * @deprecated Use useTransactionActorManager instead
+ * @deprecated Use useTransactionManager instead
  */
-export function useTransactionManager(): TransactionActorManagerContextValue {
-  return useTransactionActorManager()
+export function useTransactionActorManager(): TransactionManagerContextValue {
+  return useTransactionManager()
 }
 
 /**
- * @deprecated Use useTransactionActorManager instead
+ * @deprecated Use useTransactionManager instead
  */
-export function useTransactionRegistry(): TransactionActorManagerContextValue {
-  return useTransactionActorManager()
+export function useTransactionRegistry(): TransactionManagerContextValue {
+  return useTransactionManager()
 }
 
 /**
@@ -126,7 +126,7 @@ export function useTransaction(id: string): ActorRefFrom<typeof transactionMachi
  * Hook to get all active transactions
  */
 export function useActiveTransactions(): Map<string, ActorRefFrom<typeof transactionMachine>> {
-  const { transactions } = useTransactionActorManager()
+  const { transactions } = useTransactionManager()
   return transactions
 }
 

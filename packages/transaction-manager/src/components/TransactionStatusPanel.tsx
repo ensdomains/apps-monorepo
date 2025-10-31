@@ -1,6 +1,6 @@
 import React from 'react'
 import { useSelector } from '@xstate/react'
-import { useActiveTransactions } from '../providers/TransactionActorManagerProvider'
+import { useActiveTransactions } from '../providers/TransactionManagerProvider'
 
 export interface TransactionStatus {
   id: string
