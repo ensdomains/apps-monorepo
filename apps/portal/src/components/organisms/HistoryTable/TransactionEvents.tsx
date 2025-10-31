@@ -13,15 +13,9 @@ import {
   getEventSignature,
 } from '@/utils/ens/eventSignatures'
 import { formatEventValue } from '@/utils/ens/formatEventValue'
+import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
 
-type Event = {
-  id: string
-  type: string
-  category: 'domain' | 'registration' | 'resolver'
-  details: Record<string, unknown>
-}
-
-const EventData = ({ event, txHash }: { event: Event; txHash: Hash }) => {
+const EventData = ({ event, txHash }: { event: ENSEvent; txHash: Hash }) => {
   const [showDecoded, setShowDecoded] = useState(true)
 
   const { data: receipt } = useTransactionReceipt({
@@ -150,7 +144,7 @@ export const TransactionEvents = ({
   events,
   txHash,
 }: {
-  events: Event[]
+  events: ENSEvent[]
   txHash: Hash
 }) => {
   if (events.length === 0) {

@@ -1,10 +1,14 @@
 import { flexRender, type Row } from '@tanstack/react-table'
 import type { Address } from 'viem'
+import { AddressDisplay } from '@/components/organisms/HistoryTable/AddressDisplay'
 import { TableCell, TableRow } from '@/components/ui/table'
-import { AddressDisplay } from './AddressDisplay'
-import type { HistoryTransaction } from './columns'
+import type { BaseEvent, EventsTableData } from './types'
 
-export const HistoryTableRow = ({ row }: { row: Row<HistoryTransaction> }) => {
+export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
+  row,
+}: {
+  row: Row<EventsTableData<TEvent>>
+}) => {
   return (
     <>
       <TableRow className="hover:bg-gray-200">
