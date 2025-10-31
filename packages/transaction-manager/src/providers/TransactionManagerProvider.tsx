@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, type ReactNode }
 import { type ActorRefFrom } from 'xstate'
 import { transactionMachine } from '../machines/transaction.machine'
 import { getPendingTransactions, type PersistedTransaction } from '../helpers/transaction-persistence'
-import { transactionManager } from '../services/transactionManager'
+import { transactionManager } from './transactionManager'
 import type { PublicClient } from 'viem'
 
 interface TransactionManagerContextValue {
