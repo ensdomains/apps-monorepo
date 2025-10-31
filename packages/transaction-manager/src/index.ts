@@ -106,6 +106,7 @@ export {
   getHistoryCount,
   getActiveCount,
   exportAllData,
+  getStorageType,
   type PersistedTransaction
 } from './helpers/transaction-persistence'
 
