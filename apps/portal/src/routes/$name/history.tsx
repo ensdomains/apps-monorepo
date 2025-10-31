@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { HistoryList } from '@/components/views/history/HistoryList'
+import { HistoryDataTable } from '@/components/views/history/HistoryDataTable'
 import { getNameHistoryQueryOptions } from '@/features/profile/hooks/useNameHistory'
 import { queryClient } from '@/utils/queryClient'
 
@@ -26,5 +26,5 @@ function RouteComponent() {
     return <div>Could not load history</div>
   }
 
-  return <HistoryList name={name} history={data} />
+  return <HistoryDataTable name={name} history={data} />
 }

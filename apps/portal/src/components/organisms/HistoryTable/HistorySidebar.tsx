@@ -4,6 +4,7 @@ import type { Hash } from 'viem'
 import { useTransaction } from 'wagmi'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { AddressDisplay } from '@/components/organisms/HistoryTable/AddressDisplay'
+import type { EventsTableData } from '@/components/table/EventsDataTable'
 import {
   Sheet,
   SheetContent,
@@ -13,8 +14,10 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useIsMobile } from '@/hooks/use-mobile'
-import type { HistoryTransaction } from './columns'
+import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
 import { TransactionEvents } from './TransactionEvents'
+
+type ENSTransaction = EventsTableData<ENSEvent>
 
 const DetailRow = ({ label, value }: { label: string; value: ReactNode }) => {
   return (
@@ -47,12 +50,7 @@ const TransactionDetails = ({
   txHash: Hash
   name: string
   timestamp?: bigint
-  events: Array<{
-    id: string
-    type: string
-    category: 'domain' | 'registration' | 'resolver'
-    details: Record<string, unknown>
-  }>
+  events: ENSEvent[]
 }) => {
   const { data, isLoading, error } = useTransaction({
     hash: txHash,
@@ -149,7 +147,7 @@ const TransactionDetails = ({
 
 export const HistorySidebar: FC<
   PropsWithChildren<{
-    row: Row<HistoryTransaction> | null
+    row: Row<ENSTransaction> | null
     name: string
     open: boolean
     setOpen: React.Dispatch<React.SetStateAction<boolean>>
