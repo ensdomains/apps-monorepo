@@ -57,6 +57,7 @@ export {
   getENSRenewalPrice as getRhinestoneRenewalPrice,
   getRhinestoneAccountAddress,
   prepareENSRenewalTransaction,
+  getENSRenewalPrice,
   RhinestoneAccountError,
   type RhinestoneAccountConfig,
   type ENSRenewalParams,
@@ -78,14 +79,6 @@ export {
   useTransactionRegistry,
   TransactionManagerProvider as TransactionRegistryProvider,
 } from './providers/TransactionManagerProvider'
-
-// Hooks
-// (None - use services directly)
-
-// Helpers
-export {
-  getENSRenewalPrice,
-} from './helpers/ens-renewal.helpers'
 
 // Contracts
 export { ENS_SEPOLIA_CONTRACTS, ETH_REGISTRAR_CONTROLLER_ABI } from './contracts/ens-sepolia'

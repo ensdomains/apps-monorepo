@@ -252,3 +252,7 @@ export async function executeENSRenewal(
     )
   }
 }
+
+/**
+ * Gets the renewal price for an ENS name
+ */

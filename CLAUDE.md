@@ -2,7 +2,59 @@
 
 ## Core Design Principles
 
-### 1. Business Logic Outside React Components
+### 1. Code Co-location
+
+**Principle**: Code should be co-located next to where it is used, not grouped by technical type.
+
+**Guidelines**:
+- ✅ **DO**: Place code files next to the single file that uses them
+- ❌ **DON'T**: Create shared folders (`helpers/`, `utils/`, `services/`) for single-use code
+- ✅ **DO**: Only use shared folders when code is used by **2 or more files**
+- ❌ **DON'T**: Prematurely abstract code into shared locations "just in case"
+
+**Why This Matters**:
+1. **Easier to find**: Code is where you expect it to be
+2. **Easier to change**: Changes are localized, no unexpected side effects
+3. **Easier to delete**: When removing a feature, all related code is together
+4. **Clearer dependencies**: It's obvious what code depends on what
+
+**Examples**:
+
+```typescript
+// ❌ AVOID: Single-use helper in shared folder
+src/
+├── helpers/
+│   └── formatUserName.ts  // Only used by UserProfile.tsx
+└── components/
+    └── UserProfile.tsx
+
+// ✅ CORRECT: Co-located next to usage
+src/
+└── components/
+    ├── UserProfile.tsx
+    └── UserProfile.helpers.ts  // formatUserName lives here
+```
+
+```typescript
+// ✅ CORRECT: Shared helper used by multiple files
+src/
+├── helpers/
+│   └── formatCurrency.ts  // Used by 5+ components
+└── components/
+    ├── InvoiceList.tsx
+    ├── PaymentForm.tsx
+    └── Dashboard.tsx
+```
+
+**Folder Structure Guidelines**:
+- `helpers/` - Only for code used by 2+ files
+- `utils/` - Only for code used by 2+ files
+- `services/` - Only for code used by 2+ files
+- Otherwise, keep code next to its single usage point
+
+---
+
+### 2. Business Logic Outside React Components
 
 **General Principle**: Business logic should live **outside** React components, not embedded within them. Components should primarily contain UI state and rendering logic.
 
