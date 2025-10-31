@@ -1,5 +1,7 @@
-import React from 'react'
-import type { PaymentOption, PaymentMethod } from '../../types/transaction.types'
+import type {
+  PaymentMethod,
+  PaymentOption,
+} from '../../types/transaction.types'
 
 export interface PaymentSelectorProps {
   options: PaymentOption[]
@@ -7,7 +9,11 @@ export interface PaymentSelectorProps {
   onSelect?: (method: string) => void
 }
 
-export function PaymentSelector({ options, selected, onSelect }: PaymentSelectorProps) {
+export function PaymentSelector({
+  options,
+  selected,
+  onSelect,
+}: PaymentSelectorProps) {
   if (!options || options.length === 0) return null
 
   return (
@@ -43,7 +49,9 @@ export function PaymentSelector({ options, selected, onSelect }: PaymentSelector
                 transition: 'all 0.2s',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '12px' }}
+              >
                 {/* Radio button */}
                 <div
                   style={{
@@ -90,7 +98,13 @@ export function PaymentSelector({ options, selected, onSelect }: PaymentSelector
 
                 {/* Label and network */}
                 <div>
-                  <div style={{ fontSize: '14px', fontWeight: '500', color: '#333' }}>
+                  <div
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#333',
+                    }}
+                  >
                     {option.label}
                   </div>
                   {option.network && (
@@ -103,7 +117,9 @@ export function PaymentSelector({ options, selected, onSelect }: PaymentSelector
 
               {/* Balance */}
               {option.balance && (
-                <div style={{ fontSize: '14px', color: '#666' }}>{option.balance}</div>
+                <div style={{ fontSize: '14px', color: '#666' }}>
+                  {option.balance}
+                </div>
               )}
             </button>
           )

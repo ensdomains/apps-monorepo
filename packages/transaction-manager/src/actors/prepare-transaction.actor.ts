@@ -1,13 +1,16 @@
-import { ResultAsync, errAsync } from 'neverthrow'
-import type { PublicClient, Hex } from 'viem'
-import type { TransactionIntent, TransactionRequest } from '../types/transaction.types'
+import { errAsync, ResultAsync } from 'neverthrow'
+import type { Hex, PublicClient } from 'viem'
 import { prepareENSRenewalTransaction } from '../helpers/rhinestone-account.helpers'
+import type {
+  TransactionIntent,
+  TransactionRequest,
+} from '../types/transaction.types'
 
 export class TransactionPreparationError extends Error {
   constructor(
     public intent: TransactionIntent,
     message: string,
-    public cause?: Error
+    public cause?: Error,
   ) {
     super(message)
     this.name = 'TransactionPreparationError'
@@ -53,15 +56,15 @@ export function prepareTransaction(input: {
         Promise.resolve({
           request: intent.request,
           estimatedCost: intent.request.value || 0n,
-        })
+        }),
       )
 
     default:
       return errAsync(
         new TransactionPreparationError(
           intent,
-          `Unknown intent type: ${(intent as any).type}`
-        )
+          `Unknown intent type: ${(intent as any).type}`,
+        ),
       )
   }
 }
@@ -73,13 +76,16 @@ function prepareENSRenewal(
   intent: Extract<TransactionIntent, { type: 'ens-renewal' }>,
   publicClient: PublicClient,
   chainId: number,
-  useSmartAccount: boolean
+  useSmartAccount: boolean,
 ): ResultAsync<PreparedTransactionData, TransactionPreparationError> {
   return ResultAsync.fromPromise(
     (async () => {
       const { name, duration, from } = intent
 
-      console.log('📋 [PREPARE] Preparing ENS renewal:', { name, duration: duration.toString() })
+      console.log('📋 [PREPARE] Preparing ENS renewal:', {
+        name,
+        duration: duration.toString(),
+      })
 
       // Use the existing helper to prepare the transaction
       const txResult = await prepareENSRenewalTransaction(publicClient, {
@@ -128,8 +134,8 @@ function prepareENSRenewal(
       new TransactionPreparationError(
         intent,
         `Failed to prepare ENS renewal: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        error instanceof Error ? error : undefined
-      )
+        error instanceof Error ? error : undefined,
+      ),
   )
 }
 
@@ -138,9 +144,9 @@ function prepareENSRenewal(
  */
 function prepareETHTransfer(
   intent: Extract<TransactionIntent, { type: 'eth-transfer' }>,
-  publicClient: PublicClient,
+  _publicClient: PublicClient,
   chainId: number,
-  useSmartAccount: boolean
+  useSmartAccount: boolean,
 ): ResultAsync<PreparedTransactionData, TransactionPreparationError> {
   return ResultAsync.fromPromise(
     (async () => {
@@ -182,7 +188,7 @@ function prepareETHTransfer(
       new TransactionPreparationError(
         intent,
         `Failed to prepare ETH transfer: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        error instanceof Error ? error : undefined
-      )
+        error instanceof Error ? error : undefined,
+      ),
   )
 }

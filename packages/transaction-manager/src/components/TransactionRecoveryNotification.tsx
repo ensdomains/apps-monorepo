@@ -1,5 +1,5 @@
 import React from 'react'
-import { useTransactionActorManager, useRecoveredTransactions } from '../providers/TransactionManagerProvider'
+import { useRecoveredTransactions } from '../providers/TransactionManagerProvider'
 
 export interface TransactionRecoveryNotificationProps {
   /** Custom render function for the notification */
@@ -101,8 +101,8 @@ export function TransactionRecoveryNotification({
         Pending Transactions Found
       </h3>
       <p style={{ margin: '0 0 16px 0', fontSize: 14, color: '#666' }}>
-        {recoveredTransactions.length} pending transaction(s) were found from a previous session.
-        Would you like to resume tracking them?
+        {recoveredTransactions.length} pending transaction(s) were found from a
+        previous session. Would you like to resume tracking them?
       </p>
       <div style={{ display: 'flex', gap: 8 }}>
         <button

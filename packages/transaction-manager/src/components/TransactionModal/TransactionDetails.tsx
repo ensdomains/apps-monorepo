@@ -1,5 +1,3 @@
-import React from 'react'
-
 export interface TransactionDetailsProps {
   network: string
   estimatedCost?: string

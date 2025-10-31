@@ -37,9 +37,18 @@ export function uiStateReducer(state: UIState, action: UIAction): UIState {
   return match(action)
     .with({ type: 'SET_NAME' }, (a) => ({ ...state, name: a.payload }))
     .with({ type: 'SET_DURATION' }, (a) => ({ ...state, duration: a.payload }))
-    .with({ type: 'SET_USE_SMART_ACCOUNT' }, (a) => ({ ...state, useSmartAccount: a.payload }))
-    .with({ type: 'SET_RENEWAL_PRICE' }, (a) => ({ ...state, renewalPrice: a.payload }))
-    .with({ type: 'SET_LOADING_PRICE' }, (a) => ({ ...state, isLoadingPrice: a.payload }))
+    .with({ type: 'SET_USE_SMART_ACCOUNT' }, (a) => ({
+      ...state,
+      useSmartAccount: a.payload,
+    }))
+    .with({ type: 'SET_RENEWAL_PRICE' }, (a) => ({
+      ...state,
+      renewalPrice: a.payload,
+    }))
+    .with({ type: 'SET_LOADING_PRICE' }, (a) => ({
+      ...state,
+      isLoadingPrice: a.payload,
+    }))
     .with({ type: 'SET_SMART_ACCOUNT_ADDRESS' }, (a) => ({
       ...state,
       smartAccountAddress: a.payload,
@@ -48,7 +57,10 @@ export function uiStateReducer(state: UIState, action: UIAction): UIState {
       ...state,
       smartAccountBalance: a.payload,
     }))
-    .with({ type: 'SET_FUNDING_AMOUNT' }, (a) => ({ ...state, fundingAmount: a.payload }))
+    .with({ type: 'SET_FUNDING_AMOUNT' }, (a) => ({
+      ...state,
+      fundingAmount: a.payload,
+    }))
     .with({ type: 'CLEAR_SMART_ACCOUNT' }, () => ({
       ...state,
       smartAccountAddress: null,

@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react'
-import type { TransactionModalState, TransactionStep } from '../../types/transaction.types'
+import { useEffect } from 'react'
+import type { TransactionModalState } from '../../types/transaction.types'
+import { PaymentSelector } from './PaymentSelector'
+import { TransactionDetails } from './TransactionDetails'
 import { TransactionModalHeader } from './TransactionModalHeader'
 import { TransactionSteps } from './TransactionSteps'
-import { TransactionDetails } from './TransactionDetails'
-import { PaymentSelector } from './PaymentSelector'
 
 export interface TransactionModalProps extends TransactionModalState {
   onClose: () => void
@@ -66,13 +66,22 @@ export function TransactionModal({
 
   // Determine modal state based on machine state
   const isIdle = machineState === 'idle' || machineState === 'preparing'
-  const isInProgress = machineState === 'submitting' || machineState === 'pending' || machineState === 'confirming'
+  const isInProgress =
+    machineState === 'submitting' ||
+    machineState === 'pending' ||
+    machineState === 'confirming'
   const isSuccess = machineState === 'success'
   const isError = machineState.startsWith('error')
   const isRetrying = machineState === 'retrying'
 
   // Debug logging
-  console.log('TransactionModal - machineState:', machineState, { isIdle, isInProgress, isSuccess, isError, isRetrying })
+  console.log('TransactionModal - machineState:', machineState, {
+    isIdle,
+    isInProgress,
+    isSuccess,
+    isError,
+    isRetrying,
+  })
 
   // Determine button state
   const getButtonConfig = () => {
@@ -116,7 +125,8 @@ export function TransactionModal({
   }
 
   const buttonConfig = getButtonConfig()
-  const showPaymentSelector = isIdle && paymentOptions && paymentOptions.length > 0
+  const showPaymentSelector =
+    isIdle && paymentOptions && paymentOptions.length > 0
 
   return (
     <div
@@ -191,7 +201,10 @@ export function TransactionModal({
                 textAlign: 'center',
               }}
             >
-              ⏳ {isRetrying ? 'Retrying transaction...' : 'Transaction in progress...'}
+              ⏳{' '}
+              {isRetrying
+                ? 'Retrying transaction...'
+                : 'Transaction in progress...'}
             </div>
           )}
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuditTrailService } from './audit-trail.service'
 
 describe('AuditTrailService', () => {
@@ -12,7 +12,7 @@ describe('AuditTrailService', () => {
       removeItem: vi.fn(),
       clear: vi.fn(),
       length: 0,
-      key: vi.fn()
+      key: vi.fn(),
     } as unknown as Storage
 
     service = new AuditTrailService(mockStorage, false)
@@ -25,7 +25,7 @@ describe('AuditTrailService', () => {
         fromState: 'idle',
         toState: 'loading',
         event: 'START',
-        context: { data: 'test' }
+        context: { data: 'test' },
       }
 
       service.recordTransition(transition)
@@ -45,7 +45,7 @@ describe('AuditTrailService', () => {
           fromState: 'state1',
           toState: 'state2',
           event: `EVENT_${i}`,
-          context: {}
+          context: {},
         })
       }
 
@@ -65,7 +65,7 @@ describe('AuditTrailService', () => {
       expect(report.auditLog[0]).toMatchObject({
         level: 'info',
         message: 'Test message',
-        details: { detail: 'test' }
+        details: { detail: 'test' },
       })
     })
 
@@ -90,7 +90,7 @@ describe('AuditTrailService', () => {
         toState: 'loading',
         event: 'START',
         context: {},
-        error: undefined
+        error: undefined,
       })
 
       service.recordTransition({
@@ -99,7 +99,7 @@ describe('AuditTrailService', () => {
         toState: 'error',
         event: 'FAIL',
         context: {},
-        error: new Error('Test error')
+        error: new Error('Test error'),
       })
 
       service.recordTransition({
@@ -107,27 +107,27 @@ describe('AuditTrailService', () => {
         fromState: 'loading',
         toState: 'success',
         event: 'DONE',
-        context: {}
+        context: {},
       })
     })
 
     it('should filter by machineId', () => {
       const history = service.getTransitionHistory({ machineId: 'machine1' })
       expect(history).toHaveLength(2)
-      expect(history.every(t => t.machineId === 'machine1')).toBe(true)
+      expect(history.every((t) => t.machineId === 'machine1')).toBe(true)
     })
 
     it('should filter by includeErrors', () => {
       const history = service.getTransitionHistory({ includeErrors: false })
       expect(history).toHaveLength(2)
-      expect(history.every(t => !t.error)).toBe(true)
+      expect(history.every((t) => !t.error)).toBe(true)
     })
 
     it('should filter by time range', () => {
       const now = Date.now()
       const history = service.getTransitionHistory({
         fromTime: now - 1000,
-        toTime: now + 1000
+        toTime: now + 1000,
       })
       expect(history).toHaveLength(3)
     })
@@ -141,7 +141,7 @@ describe('AuditTrailService', () => {
         fromState: 'idle',
         toState: 'loading',
         event: 'START',
-        context: {}
+        context: {},
       })
 
       service.recordTransition({
@@ -150,7 +150,7 @@ describe('AuditTrailService', () => {
         toState: 'error',
         event: 'FAIL',
         context: {},
-        error: new Error('Network error')
+        error: new Error('Network error'),
       })
 
       service.recordTransition({
@@ -158,7 +158,7 @@ describe('AuditTrailService', () => {
         fromState: 'error',
         toState: 'success',
         event: 'RETRY',
-        context: {}
+        context: {},
       })
     })
 
@@ -180,7 +180,7 @@ describe('AuditTrailService', () => {
       expect(report.errorSummary.totalErrors).toBe(1)
       expect(report.errorSummary.errorRate).toBeCloseTo(33.33, 1)
       expect(report.errorSummary.errorTypes).toEqual({
-        'Error': 1
+        Error: 1,
       })
     })
 
@@ -188,9 +188,9 @@ describe('AuditTrailService', () => {
       const report = service.generateDebugReport()
 
       expect(report.stateDistribution).toEqual({
-        'loading': 1,
-        'error': 1,
-        'success': 1
+        loading: 1,
+        error: 1,
+        success: 1,
       })
     })
 
@@ -198,9 +198,15 @@ describe('AuditTrailService', () => {
       const report = service.generateDebugReport()
 
       expect(report.performanceMetrics.totalTransitions).toBe(3)
-      expect(report.performanceMetrics.avgTransitionTime).toBeGreaterThanOrEqual(0)
-      expect(report.performanceMetrics.maxTransitionTime).toBeGreaterThanOrEqual(0)
-      expect(report.performanceMetrics.minTransitionTime).toBeGreaterThanOrEqual(0)
+      expect(
+        report.performanceMetrics.avgTransitionTime,
+      ).toBeGreaterThanOrEqual(0)
+      expect(
+        report.performanceMetrics.maxTransitionTime,
+      ).toBeGreaterThanOrEqual(0)
+      expect(
+        report.performanceMetrics.minTransitionTime,
+      ).toBeGreaterThanOrEqual(0)
     })
   })
 
@@ -211,7 +217,7 @@ describe('AuditTrailService', () => {
         fromState: 'idle',
         toState: 'loading',
         event: 'START',
-        context: {}
+        context: {},
       })
 
       service.addAuditEntry('info', 'Test entry', {})
@@ -228,22 +234,26 @@ describe('AuditTrailService', () => {
 
     it('should import from JSON', async () => {
       const importData = {
-        transitions: [{
-          id: 'test-id',
-          timestamp: Date.now(),
-          machineId: 'imported',
-          fromState: 'a',
-          toState: 'b',
-          event: 'TEST',
-          context: {}
-        }],
-        auditLog: [{
-          transitionId: 'test-id',
-          timestamp: Date.now(),
-          level: 'info' as const,
-          message: 'Imported',
-          details: {}
-        }]
+        transitions: [
+          {
+            id: 'test-id',
+            timestamp: Date.now(),
+            machineId: 'imported',
+            fromState: 'a',
+            toState: 'b',
+            event: 'TEST',
+            context: {},
+          },
+        ],
+        auditLog: [
+          {
+            transitionId: 'test-id',
+            timestamp: Date.now(),
+            level: 'info' as const,
+            message: 'Imported',
+            details: {},
+          },
+        ],
       }
 
       const result = await service.importFromJson(JSON.stringify(importData))
@@ -272,27 +282,29 @@ describe('AuditTrailService', () => {
         fromState: 'idle',
         toState: 'loading',
         event: 'START',
-        context: {}
+        context: {},
       })
 
       expect(mockStorage.setItem).toHaveBeenCalledWith(
         '@ens/audit-trail',
-        expect.any(String)
+        expect.any(String),
       )
     })
 
     it('should load from storage on initialization', () => {
       const storedData = {
-        transitions: [{
-          id: 'stored-id',
-          timestamp: Date.now(),
-          machineId: 'stored',
-          fromState: 'x',
-          toState: 'y',
-          event: 'STORED',
-          context: {}
-        }],
-        auditLog: []
+        transitions: [
+          {
+            id: 'stored-id',
+            timestamp: Date.now(),
+            machineId: 'stored',
+            fromState: 'x',
+            toState: 'y',
+            event: 'STORED',
+            context: {},
+          },
+        ],
+        auditLog: [],
       }
 
       mockStorage.getItem = vi.fn().mockReturnValue(JSON.stringify(storedData))

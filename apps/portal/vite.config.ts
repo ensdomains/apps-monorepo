@@ -28,7 +28,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
-      '@ens-apps/utils': fileURLToPath(new URL('../../packages/utils/src', import.meta.url)),
+      '@ens-apps/utils': fileURLToPath(
+        new URL('../../packages/utils/src', import.meta.url),
+      ),
     },
   },
 })

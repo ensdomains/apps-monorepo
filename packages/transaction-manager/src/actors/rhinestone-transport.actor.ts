@@ -1,9 +1,12 @@
-import { ResultAsync, errAsync } from 'neverthrow'
+import { errAsync, ResultAsync } from 'neverthrow'
 import type { Hash, PublicClient } from 'viem'
-import type { TransactionRequest, RhinestoneTransactionRequest } from '../types/transaction.types'
-import type { RhinestoneSigner } from '../types/signer.types'
 import { TransactionSubmissionError } from '../errors/transaction.errors'
 import { executeENSRenewal } from '../helpers/rhinestone-account.helpers'
+import type { RhinestoneSigner } from '../types/signer.types'
+import type {
+  RhinestoneTransactionRequest,
+  TransactionRequest,
+} from '../types/transaction.types'
 
 /**
  * Rhinestone Transport Actor
@@ -20,18 +23,21 @@ export function submitRhinestoneTransaction(input: {
   const { account, config } = signer
   const rhinestoneRequest = request as RhinestoneTransactionRequest
 
-  console.log('🔧 [RHINESTONE TRANSPORT] Submitting Rhinestone intent transaction:', {
-    accountAddress: account?.getAddress?.(),
-    hasParams: !!rhinestoneRequest.rhinestoneParams,
-  })
+  console.log(
+    '🔧 [RHINESTONE TRANSPORT] Submitting Rhinestone intent transaction:',
+    {
+      accountAddress: account?.getAddress?.(),
+      hasParams: !!rhinestoneRequest.rhinestoneParams,
+    },
+  )
 
   if (!rhinestoneRequest.rhinestoneParams) {
     console.error('❌ [RHINESTONE TRANSPORT] Missing rhinestoneParams')
     return errAsync(
       new TransactionSubmissionError(
         rhinestoneRequest,
-        new Error('rhinestoneParams required for Rhinestone transactions')
-      )
+        new Error('rhinestoneParams required for Rhinestone transactions'),
+      ),
     )
   }
 
@@ -42,11 +48,19 @@ export function submitRhinestoneTransaction(input: {
 
   // executeENSRenewal returns Promise<Result>, so wrap it with ResultAsync.fromSafePromise
   return ResultAsync.fromSafePromise(
-    executeENSRenewal(account, publicClient, rhinestoneRequest.rhinestoneParams, config)
+    executeENSRenewal(
+      account,
+      publicClient,
+      rhinestoneRequest.rhinestoneParams,
+      config,
+    ),
   )
-    .andThen(result => result) // Unwrap the Result from the Promise
-    .mapErr(error => {
-      console.error('❌ [RHINESTONE TRANSPORT] Transaction submission failed:', error)
+    .andThen((result) => result) // Unwrap the Result from the Promise
+    .mapErr((error) => {
+      console.error(
+        '❌ [RHINESTONE TRANSPORT] Transaction submission failed:',
+        error,
+      )
       return new TransactionSubmissionError(rhinestoneRequest, error as Error)
     })
 }

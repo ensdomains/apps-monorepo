@@ -1,4 +1,4 @@
-import { openDB, type IDBPDatabase } from 'idb'
+import { type IDBPDatabase, openDB } from 'idb'
 import type { Hash } from 'viem'
 
 const DB_NAME = 'ens-transaction-manager'
@@ -48,21 +48,27 @@ class StorageManager {
     const existingType = this.getStorageTypeMarker()
     if (existingType) {
       this.storageType = existingType
-      console.log(`💾 [PERSISTENCE] Using existing storage type: ${existingType}`)
+      console.log(
+        `💾 [PERSISTENCE] Using existing storage type: ${existingType}`,
+      )
 
       if (existingType === 'indexeddb') {
         try {
           this.db = await this.initIndexedDB()
           return 'indexeddb'
-        } catch (error) {
-          console.error('❌ [PERSISTENCE] IndexedDB marked but unavailable, migrating...')
+        } catch (_error) {
+          console.error(
+            '❌ [PERSISTENCE] IndexedDB marked but unavailable, migrating...',
+          )
           // Fall through to try other storage
         }
       } else if (existingType === 'localstorage') {
         if (this.isLocalStorageAvailable()) {
           return 'localstorage'
         }
-        console.error('❌ [PERSISTENCE] localStorage marked but unavailable, migrating...')
+        console.error(
+          '❌ [PERSISTENCE] localStorage marked but unavailable, migrating...',
+        )
       }
     }
 
@@ -89,7 +95,9 @@ class StorageManager {
 
     // Fall back to memory storage
     this.storageType = 'memory'
-    console.warn('⚠️ [PERSISTENCE] Using in-memory storage (data will not persist)')
+    console.warn(
+      '⚠️ [PERSISTENCE] Using in-memory storage (data will not persist)',
+    )
     return 'memory'
   }
 
@@ -101,14 +109,18 @@ class StorageManager {
       upgrade(db) {
         // Store for active/pending transactions
         if (!db.objectStoreNames.contains(ACTIVE_STORE)) {
-          const activeStore = db.createObjectStore(ACTIVE_STORE, { keyPath: 'id' })
+          const activeStore = db.createObjectStore(ACTIVE_STORE, {
+            keyPath: 'id',
+          })
           activeStore.createIndex('state', 'state')
           activeStore.createIndex('timestamp', 'timestamp')
         }
 
         // Store for transaction history
         if (!db.objectStoreNames.contains(HISTORY_STORE)) {
-          const historyStore = db.createObjectStore(HISTORY_STORE, { keyPath: 'id' })
+          const historyStore = db.createObjectStore(HISTORY_STORE, {
+            keyPath: 'id',
+          })
           historyStore.createIndex('timestamp', 'timestamp')
           historyStore.createIndex('state', 'state')
         }
@@ -181,9 +193,12 @@ class StorageManager {
         break
 
       case 'localstorage':
-        localStorage.setItem(`tx-${id}`, JSON.stringify(data, (key, value) =>
-          typeof value === 'bigint' ? { __bigint: value.toString() } : value
-        ))
+        localStorage.setItem(
+          `tx-${id}`,
+          JSON.stringify(data, (_key, value) =>
+            typeof value === 'bigint' ? { __bigint: value.toString() } : value,
+          ),
+        )
         break
 
       case 'memory':
@@ -205,11 +220,13 @@ class StorageManager {
 
       case 'localstorage': {
         const data = localStorage.getItem(`tx-${id}`)
-        return data ? JSON.parse(data, (key, value) =>
-          value && typeof value === 'object' && '__bigint' in value
-            ? BigInt(value.__bigint)
-            : value
-        ) : null
+        return data
+          ? JSON.parse(data, (_key, value) =>
+              value && typeof value === 'object' && '__bigint' in value
+                ? BigInt(value.__bigint)
+                : value,
+            )
+          : null
       }
 
       case 'memory':
@@ -232,15 +249,21 @@ class StorageManager {
         return await this.db.getAll(ACTIVE_STORE)
 
       case 'localstorage': {
-        const keys = Object.keys(localStorage).filter(k => k.startsWith('tx-'))
-        return keys.map(k => {
-          const data = localStorage.getItem(k)
-          return data ? JSON.parse(data, (key, value) =>
-            value && typeof value === 'object' && '__bigint' in value
-              ? BigInt(value.__bigint)
-              : value
-          ) : null
-        }).filter(Boolean) as PersistedTransaction[]
+        const keys = Object.keys(localStorage).filter((k) =>
+          k.startsWith('tx-'),
+        )
+        return keys
+          .map((k) => {
+            const data = localStorage.getItem(k)
+            return data
+              ? JSON.parse(data, (_key, value) =>
+                  value && typeof value === 'object' && '__bigint' in value
+                    ? BigInt(value.__bigint)
+                    : value,
+                )
+              : null
+          })
+          .filter(Boolean) as PersistedTransaction[]
       }
 
       case 'memory':
@@ -288,14 +311,14 @@ class StorageManager {
         await this.pruneHistoryIndexedDB()
         break
 
-      case 'localstorage':
+      case 'localstorage': {
         // Get existing history
         const historyData = localStorage.getItem('tx-history')
         const history: PersistedTransaction[] = historyData
-          ? JSON.parse(historyData, (key, value) =>
+          ? JSON.parse(historyData, (_key, value) =>
               value && typeof value === 'object' && '__bigint' in value
                 ? BigInt(value.__bigint)
-                : value
+                : value,
             )
           : []
 
@@ -304,13 +327,17 @@ class StorageManager {
 
         // Keep only last 100
         const recent = history.slice(-100)
-        localStorage.setItem('tx-history', JSON.stringify(recent, (key, value) =>
-          typeof value === 'bigint' ? { __bigint: value.toString() } : value
-        ))
+        localStorage.setItem(
+          'tx-history',
+          JSON.stringify(recent, (_key, value) =>
+            typeof value === 'bigint' ? { __bigint: value.toString() } : value,
+          ),
+        )
 
         // Remove from active
         localStorage.removeItem(`tx-${transaction.id}`)
         break
+      }
 
       case 'memory':
         memoryStorage.history.set(transaction.id, data)
@@ -341,7 +368,9 @@ class StorageManager {
 
     if (allEntries.length > MAX_HISTORY_SIZE) {
       const entriesToDelete = allEntries.length - MAX_HISTORY_SIZE
-      const sortedByTimestamp = allEntries.sort((a, b) => a.timestamp - b.timestamp)
+      const sortedByTimestamp = allEntries.sort(
+        (a, b) => a.timestamp - b.timestamp,
+      )
 
       for (let i = 0; i < entriesToDelete; i++) {
         await store.delete(sortedByTimestamp[i].id)
@@ -358,27 +387,29 @@ class StorageManager {
     const type = await this.getStorageType()
 
     switch (type) {
-      case 'indexeddb':
+      case 'indexeddb': {
         if (!this.db) return []
         const tx = this.db.transaction(HISTORY_STORE, 'readonly')
         const index = tx.objectStore(HISTORY_STORE).index('timestamp')
         const allEntries = await index.getAll()
         return allEntries.sort((a, b) => b.timestamp - a.timestamp)
+      }
 
       case 'localstorage': {
         const data = localStorage.getItem('tx-history')
         return data
-          ? JSON.parse(data, (key, value) =>
+          ? JSON.parse(data, (_key, value) =>
               value && typeof value === 'object' && '__bigint' in value
                 ? BigInt(value.__bigint)
-                : value
+                : value,
             )
           : []
       }
 
       case 'memory':
-        return Array.from(memoryStorage.history.values())
-          .sort((a, b) => b.timestamp - a.timestamp)
+        return Array.from(memoryStorage.history.values()).sort(
+          (a, b) => b.timestamp - a.timestamp,
+        )
 
       default:
         return []
@@ -398,8 +429,10 @@ class StorageManager {
         break
 
       case 'localstorage': {
-        const keys = Object.keys(localStorage).filter(k => k.startsWith('tx-'))
-        keys.forEach(k => localStorage.removeItem(k))
+        const keys = Object.keys(localStorage).filter((k) =>
+          k.startsWith('tx-'),
+        )
+        keys.forEach((k) => localStorage.removeItem(k))
         break
       }
 
@@ -438,7 +471,10 @@ const storage = new StorageManager()
 /**
  * Save a transaction
  */
-export async function saveTransaction(id: string, transaction: PersistedTransaction): Promise<void> {
+export async function saveTransaction(
+  id: string,
+  transaction: PersistedTransaction,
+): Promise<void> {
   try {
     await storage.save(id, transaction)
     console.log('💾 [PERSISTENCE] Saved transaction:', id)
@@ -451,7 +487,9 @@ export async function saveTransaction(id: string, transaction: PersistedTransact
 /**
  * Get a transaction
  */
-export async function getTransaction(id: string): Promise<PersistedTransaction | null> {
+export async function getTransaction(
+  id: string,
+): Promise<PersistedTransaction | null> {
   try {
     return await storage.get(id)
   } catch (error) {
@@ -475,13 +513,16 @@ export async function getAllTransactions(): Promise<PersistedTransaction[]> {
 /**
  * Get pending transactions (to recover on app load)
  */
-export async function getPendingTransactions(): Promise<PersistedTransaction[]> {
+export async function getPendingTransactions(): Promise<
+  PersistedTransaction[]
+> {
   try {
     const all = await storage.getAll()
-    return all.filter(tx =>
-      tx.state === 'pending' ||
-      tx.state === 'submitting' ||
-      tx.state === 'preparing'
+    return all.filter(
+      (tx) =>
+        tx.state === 'pending' ||
+        tx.state === 'submitting' ||
+        tx.state === 'preparing',
     )
   } catch (error) {
     console.error('❌ [PERSISTENCE] Failed to get pending transactions:', error)
@@ -518,7 +559,9 @@ export async function clearAllTransactions(): Promise<void> {
 /**
  * Archive a completed transaction
  */
-export async function archiveTransaction(transaction: PersistedTransaction): Promise<void> {
+export async function archiveTransaction(
+  transaction: PersistedTransaction,
+): Promise<void> {
   try {
     await storage.archive(transaction)
     console.log('📦 [PERSISTENCE] Archived transaction:', transaction.id)
@@ -531,11 +574,16 @@ export async function archiveTransaction(transaction: PersistedTransaction): Pro
 /**
  * Get archived transactions
  */
-export async function getArchivedTransactions(): Promise<PersistedTransaction[]> {
+export async function getArchivedTransactions(): Promise<
+  PersistedTransaction[]
+> {
   try {
     return await storage.getHistory()
   } catch (error) {
-    console.error('❌ [PERSISTENCE] Failed to get archived transactions:', error)
+    console.error(
+      '❌ [PERSISTENCE] Failed to get archived transactions:',
+      error,
+    )
     return []
   }
 }
@@ -543,7 +591,9 @@ export async function getArchivedTransactions(): Promise<PersistedTransaction[]>
 /**
  * Get transaction history (most recent first)
  */
-export async function getTransactionHistory(limit?: number): Promise<PersistedTransaction[]> {
+export async function getTransactionHistory(
+  limit?: number,
+): Promise<PersistedTransaction[]> {
   const archived = await getArchivedTransactions()
   return limit ? archived.slice(0, limit) : archived
 }
@@ -610,6 +660,8 @@ export async function exportAllData(): Promise<{
 /**
  * Get the current storage type being used
  */
-export async function getStorageType(): Promise<'indexeddb' | 'localstorage' | 'memory'> {
+export async function getStorageType(): Promise<
+  'indexeddb' | 'localstorage' | 'memory'
+> {
   return await storage.getStorageType()
 }

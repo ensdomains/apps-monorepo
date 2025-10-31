@@ -1,4 +1,4 @@
-import type { WalletClient, PublicClient } from 'viem'
+import type { WalletClient } from 'viem'
 import type { RhinestoneConfig } from './transaction.types'
 
 /**

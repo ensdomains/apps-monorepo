@@ -1,5 +1,3 @@
-import React from 'react'
-
 export interface TransactionModalHeaderProps {
   title?: string
   ensName?: string
@@ -17,7 +15,11 @@ export function TransactionModalHeader({
   const getStatusLabel = () => {
     if (status === 'success') return 'Done'
     if (status?.startsWith('error')) return 'Failed'
-    if (status === 'submitting' || status === 'pending' || status === 'retrying') {
+    if (
+      status === 'submitting' ||
+      status === 'pending' ||
+      status === 'retrying'
+    ) {
       return 'In Progress'
     }
     if (status === 'preparing' || status === 'idle') return 'Not started'
@@ -77,7 +79,15 @@ export function TransactionModalHeader({
 
       {/* Title with status tag */}
       {title && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            marginBottom: '8px',
+          }}
+        >
           <span
             style={{
               fontSize: '14px',

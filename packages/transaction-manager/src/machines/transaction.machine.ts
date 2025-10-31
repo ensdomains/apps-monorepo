@@ -1,26 +1,25 @@
-import { setup, assign, fromPromise, type ActorLogic } from 'xstate'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
-import { ResultAsync, errAsync } from 'neverthrow'
-import { fromPromise as fromPromiseNT } from 'neverthrow'
-import type { Hash, TransactionReceipt, PublicClient } from 'viem'
-import type {
-  TransactionRequest,
-  EOATransactionRequest,
-  TransactionIntent,
-  TransactionOptions,
-  TransactionModalState,
-} from '../types/transaction.types'
-import type { Signer } from '../types/signer.types'
+import { errAsync, fromPromise as fromPromiseNT, ResultAsync } from 'neverthrow'
+import type { Hash, PublicClient, TransactionReceipt } from 'viem'
+import { type ActorLogic, assign, fromPromise, setup } from 'xstate'
 import { submitEOATransaction } from '../actors/eoa-transport.actor'
-import { submitRhinestoneTransaction } from '../actors/rhinestone-transport.actor'
 import { prepareTransaction } from '../actors/prepare-transaction.actor'
-import * as auditTrail from '../services/audit-trail.service'
+import { submitRhinestoneTransaction } from '../actors/rhinestone-transport.actor'
 import {
+  EthCallFallbackError,
+  TransactionRevertedError,
   TransactionSubmissionError,
   TransactionTimeoutError,
-  TransactionRevertedError,
-  EthCallFallbackError,
 } from '../errors/transaction.errors'
+import * as auditTrail from '../services/audit-trail.service'
+import type { Signer } from '../types/signer.types'
+import type {
+  EOATransactionRequest,
+  TransactionIntent,
+  TransactionModalState,
+  TransactionOptions,
+  TransactionRequest,
+} from '../types/transaction.types'
 
 /**
  * Base Transaction Machine
@@ -63,7 +62,12 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
       useSmartAccount?: boolean
     },
     events: {} as
-      | { type: 'EXECUTE'; request: TransactionRequest; options?: TransactionOptions; modal?: Partial<TransactionModalState> }
+      | {
+          type: 'EXECUTE'
+          request: TransactionRequest
+          options?: TransactionOptions
+          modal?: Partial<TransactionModalState>
+        }
       | { type: 'RETRY' }
       | { type: 'CANCEL' }
       | { type: 'FORCE_SUCCESS' }
@@ -104,7 +108,7 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
           chainId,
           useSmartAccount,
         })
-      }
+      },
     ),
 
     /**
@@ -134,8 +138,8 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
           return errAsync(
             new TransactionSubmissionError(
               {} as TransactionRequest,
-              new Error('No transaction request provided')
-            )
+              new Error('No transaction request provided'),
+            ),
           )
         }
 
@@ -143,8 +147,8 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
           return errAsync(
             new TransactionSubmissionError(
               request,
-              new Error('No signer provided')
-            )
+              new Error('No signer provided'),
+            ),
           )
         }
 
@@ -154,22 +158,29 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
             return submitEOATransaction({ request, signer })
 
           case 'rhinestone':
-            return submitRhinestoneTransaction({ request, signer, publicClient })
+            return submitRhinestoneTransaction({
+              request,
+              signer,
+              publicClient,
+            })
 
           case 'erc4337':
             return errAsync(
               new TransactionSubmissionError(
                 request,
-                new Error('ERC-4337 transactions not yet implemented')
-              )
+                new Error('ERC-4337 transactions not yet implemented'),
+              ),
             )
 
           default:
             return errAsync(
-              new TransactionSubmissionError(request, new Error(`Unknown signer type: ${(signer as any).type}`))
+              new TransactionSubmissionError(
+                request,
+                new Error(`Unknown signer type: ${(signer as any).type}`),
+              ),
             )
         }
-      }
+      },
     ),
 
     /**
@@ -200,9 +211,9 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
             confirmations,
             timeout,
           }),
-          (error) => new TransactionTimeoutError(hash, timeout)
+          (_error) => new TransactionTimeoutError(hash, timeout),
         )
-      }
+      },
     ),
 
     /**
@@ -215,14 +226,27 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
       }: {
         request?: TransactionRequest
         publicClient: PublicClient
-      }): ResultAsync<{ wouldSucceed: boolean; result?: Hash }, EthCallFallbackError> => {
+      }): ResultAsync<
+        { wouldSucceed: boolean; result?: Hash },
+        EthCallFallbackError
+      > => {
         if (!request) {
-          return errAsync(new EthCallFallbackError({} as TransactionRequest, new Error('No request provided')))
+          return errAsync(
+            new EthCallFallbackError(
+              {} as TransactionRequest,
+              new Error('No request provided'),
+            ),
+          )
         }
 
-        if (request.type === 'erc4337' || request.type === 'rhinestone-intent') {
+        if (
+          request.type === 'erc4337' ||
+          request.type === 'rhinestone-intent'
+        ) {
           // For 4337 and Rhinestone, we'd need different simulation methods
-          return ResultAsync.fromSafePromise(Promise.resolve({ wouldSucceed: true }))
+          return ResultAsync.fromSafePromise(
+            Promise.resolve({ wouldSucceed: true }),
+          )
         }
 
         const eoaRequest = request as EOATransactionRequest
@@ -240,18 +264,22 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
               wouldSucceed: !result.data?.includes('0x08c379a0'), // Check for revert
               result: result.data,
             })),
-          (error) => new EthCallFallbackError(request, error)
+          (error) => new EthCallFallbackError(request, error),
         )
-      }
+      },
     ),
 
     /**
      * Wait utility actor
      */
-    wait: fromPromise(({ input }: { input: number }) => new Promise((resolve) => setTimeout(resolve, input))),
+    wait: fromPromise(
+      ({ input }: { input: number }) =>
+        new Promise((resolve) => setTimeout(resolve, input)),
+    ),
   },
   guards: {
-    canRetry: ({ context }) => context.retryCount < (context.options.retryCount || 3),
+    canRetry: ({ context }) =>
+      context.retryCount < (context.options.retryCount || 3),
 
     shouldCheckFallback: ({ context }) => context.fallbackChecks < 3,
 
@@ -265,7 +293,8 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
         const state = self.getSnapshot()
         auditTrail.recordTransition({
           machineId: 'transaction',
-          fromState: state.status === 'active' ? String(state.value) : 'unknown',
+          fromState:
+            state.status === 'active' ? String(state.value) : 'unknown',
           toState: String(state.value),
           event: event?.type || 'unknown',
           context: {
@@ -376,7 +405,8 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
       always: [
         {
           // If we have an intent, prepare the transaction first
-          guard: ({ context }) => !!context.intent && !!context.publicClient && !!context.chainId,
+          guard: ({ context }) =>
+            !!context.intent && !!context.publicClient && !!context.chainId,
           target: 'preparing',
         },
         {
@@ -603,10 +633,14 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
             actions: [
               ({ context }) => {
                 try {
-                  auditTrail.addAuditEntry('warning', 'Transaction succeeded via eth_call fallback', {
-                    hash: context.hash,
-                    request: context.request,
-                  })
+                  auditTrail.addAuditEntry(
+                    'warning',
+                    'Transaction succeeded via eth_call fallback',
+                    {
+                      hash: context.hash,
+                      request: context.request,
+                    },
+                  )
                 } catch (auditError) {
                   console.warn('Audit service error (non-fatal):', auditError)
                 }
@@ -643,7 +677,9 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
           actions: [
             assign({
               error: ({ context }) =>
-                new TransactionRevertedError(`Transaction ${context.hash} reverted`),
+                new TransactionRevertedError(
+                  `Transaction ${context.hash} reverted`,
+                ),
             }),
             'logError',
             'recordTransition',
@@ -660,7 +696,9 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
       entry: [
         'recordTransition',
         ({ context }) => {
-          console.log('🔄 [TRANSACTION] Retrying transaction (attempt ${context.retryCount})')
+          console.log(
+            '🔄 [TRANSACTION] Retrying transaction (attempt ${context.retryCount})',
+          )
         },
       ],
       invoke: {
@@ -684,11 +722,15 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
         'recordTransition',
         ({ context }) => {
           try {
-            auditTrail.addAuditEntry('info', 'Transaction completed successfully', {
-              hash: context.hash,
-              receipt: context.receipt,
-              gasUsed: context.receipt?.gasUsed?.toString(),
-            })
+            auditTrail.addAuditEntry(
+              'info',
+              'Transaction completed successfully',
+              {
+                hash: context.hash,
+                receipt: context.receipt,
+                gasUsed: context.receipt?.gasUsed?.toString(),
+              },
+            )
           } catch (auditError) {
             console.warn('Audit service error (non-fatal):', auditError)
           }

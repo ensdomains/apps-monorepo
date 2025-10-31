@@ -1,14 +1,17 @@
-import { err, ok, Result } from 'neverthrow'
 import { RhinestoneSDK, walletClientToAccount } from '@rhinestone/sdk'
+import { err, ok, type Result } from 'neverthrow'
 import {
-  type PublicClient,
-  type WalletClient,
-  type Hex,
   type Chain,
   encodeFunctionData,
+  type Hex,
+  type PublicClient,
+  type WalletClient,
 } from 'viem'
 import { sepolia } from 'viem/chains'
-import { ENS_SEPOLIA_CONTRACTS, ETH_REGISTRAR_CONTROLLER_ABI } from '../contracts/ens-sepolia'
+import {
+  ENS_SEPOLIA_CONTRACTS,
+  ETH_REGISTRAR_CONTROLLER_ABI,
+} from '../contracts/ens-sepolia'
 
 export class RhinestoneAccountError extends Error {
   constructor(message: string) {
@@ -27,8 +30,8 @@ export interface RhinestoneAccountConfig {
 export type GasPriceTier = 'slow' | 'standard' | 'fast'
 
 export interface ENSRenewalParams {
-  name: string  // e.g., "myname" (without .eth)
-  duration: bigint  // Duration in seconds (e.g., 31536000n for 1 year)
+  name: string // e.g., "myname" (without .eth)
+  duration: bigint // Duration in seconds (e.g., 31536000n for 1 year)
   gasPriceTier?: GasPriceTier
 }
 
@@ -37,7 +40,7 @@ export interface ENSRenewalParams {
  */
 export async function initializeRhinestoneAccount(
   walletClient: WalletClient,
-  config: RhinestoneAccountConfig
+  config: RhinestoneAccountConfig,
 ): Promise<Result<any, RhinestoneAccountError>> {
   try {
     console.log('🔐 Initializing Rhinestone smart account...', {
@@ -49,7 +52,9 @@ export async function initializeRhinestoneAccount(
     })
 
     if (!walletClient?.account) {
-      console.error('❌ No wallet client available for smart account initialization')
+      console.error(
+        '❌ No wallet client available for smart account initialization',
+      )
       return err(new RhinestoneAccountError('No wallet client available'))
     }
 
@@ -60,10 +65,14 @@ export async function initializeRhinestoneAccount(
 
     // Create Rhinestone smart account with the wallet as owner
     // Convert wallet client to account using Rhinestone's helper for browser wallet support
-    console.log('📝 [SIGNATURE REQUEST 1/2] Creating Rhinestone account with ECDSA owner - this may request a signature...')
+    console.log(
+      '📝 [SIGNATURE REQUEST 1/2] Creating Rhinestone account with ECDSA owner - this may request a signature...',
+    )
     const account = walletClientToAccount(walletClient)
 
-    console.log('📝 [SIGNATURE REQUEST 2/2] Calling rhinestone.createAccount() - this may request a signature...')
+    console.log(
+      '📝 [SIGNATURE REQUEST 2/2] Calling rhinestone.createAccount() - this may request a signature...',
+    )
     const rhinestoneAccount = await rhinestone.createAccount({
       owners: {
         type: 'ecdsa',
@@ -80,8 +89,8 @@ export async function initializeRhinestoneAccount(
     console.error('❌ Failed to initialize smart account:', error)
     return err(
       new RhinestoneAccountError(
-        `Failed to initialize smart account: ${error instanceof Error ? error.message : 'Unknown error'}`
-      )
+        `Failed to initialize smart account: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      ),
     )
   }
 }
@@ -89,15 +98,17 @@ export async function initializeRhinestoneAccount(
 /**
  * Get the address of a Rhinestone account
  */
-export function getRhinestoneAccountAddress(rhinestoneAccount: any): Result<Hex, RhinestoneAccountError> {
+export function getRhinestoneAccountAddress(
+  rhinestoneAccount: any,
+): Result<Hex, RhinestoneAccountError> {
   try {
     const address = rhinestoneAccount.getAddress()
     return ok(address as Hex)
   } catch (error) {
     return err(
       new RhinestoneAccountError(
-        `Failed to get smart account address: ${error instanceof Error ? error.message : 'Unknown error'}`
-      )
+        `Failed to get smart account address: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      ),
     )
   }
 }
@@ -111,20 +122,20 @@ export async function getENSRenewalPrice(
   duration: bigint,
 ): Promise<Result<bigint, RhinestoneAccountError>> {
   try {
-    const price = await publicClient.readContract({
+    const price = (await publicClient.readContract({
       address: ENS_SEPOLIA_CONTRACTS.ETHRegistrarController,
       abi: ETH_REGISTRAR_CONTROLLER_ABI,
       functionName: 'rentPrice',
       args: [name, duration],
-    }) as { base: bigint; premium: bigint }
+    })) as { base: bigint; premium: bigint }
 
     const totalPrice = price.base + price.premium
     return ok(totalPrice)
   } catch (error) {
     return err(
       new RhinestoneAccountError(
-        `Failed to get renewal price: ${error instanceof Error ? error.message : 'Unknown error'}`
-      )
+        `Failed to get renewal price: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      ),
     )
   }
 }
@@ -134,11 +145,16 @@ export async function getENSRenewalPrice(
  */
 export async function prepareENSRenewalTransaction(
   publicClient: PublicClient,
-  params: ENSRenewalParams
-): Promise<Result<{ to: Hex; data: Hex; value: bigint }, RhinestoneAccountError>> {
+  params: ENSRenewalParams,
+): Promise<
+  Result<{ to: Hex; data: Hex; value: bigint }, RhinestoneAccountError>
+> {
   try {
     const { name, duration } = params
-    console.log('📋 Preparing ENS renewal transaction...', { name, duration: duration.toString() })
+    console.log('📋 Preparing ENS renewal transaction...', {
+      name,
+      duration: duration.toString(),
+    })
 
     // Get the renewal price
     const priceResult = await getENSRenewalPrice(publicClient, name, duration)
@@ -174,8 +190,8 @@ export async function prepareENSRenewalTransaction(
     console.error('❌ Failed to prepare ENS renewal transaction:', error)
     return err(
       new RhinestoneAccountError(
-        `Failed to prepare ENS renewal transaction: ${error instanceof Error ? error.message : 'Unknown error'}`
-      )
+        `Failed to prepare ENS renewal transaction: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      ),
     )
   }
 }
@@ -187,7 +203,7 @@ export async function executeENSRenewal(
   rhinestoneAccount: any,
   publicClient: PublicClient,
   params: ENSRenewalParams,
-  config: RhinestoneAccountConfig
+  config: RhinestoneAccountConfig,
 ): Promise<Result<Hex, RhinestoneAccountError>> {
   try {
     console.log('🚀 Executing ENS renewal...', params)
@@ -233,13 +249,18 @@ export async function executeENSRenewal(
 
     if (!transaction || (!transaction.hash && !transaction.id)) {
       console.error('❌ No transaction hash or ID returned!', transaction)
-      return err(new RhinestoneAccountError('No transaction hash or ID returned from Rhinestone SDK'))
+      return err(
+        new RhinestoneAccountError(
+          'No transaction hash or ID returned from Rhinestone SDK',
+        ),
+      )
     }
 
     // Convert the bigint ID to a hex string if needed
-    const hashAsHex = typeof txHash === 'bigint'
-      ? `0x${txHash.toString(16).padStart(64, '0')}` as Hex
-      : txHash as Hex
+    const hashAsHex =
+      typeof txHash === 'bigint'
+        ? (`0x${txHash.toString(16).padStart(64, '0')}` as Hex)
+        : (txHash as Hex)
 
     console.log('✅ Final hash:', hashAsHex)
     return ok(hashAsHex)
@@ -247,8 +268,8 @@ export async function executeENSRenewal(
     console.error('❌ Failed to execute ENS renewal:', error)
     return err(
       new RhinestoneAccountError(
-        `Failed to execute ENS renewal: ${error instanceof Error ? error.message : 'Unknown error'}`
-      )
+        `Failed to execute ENS renewal: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      ),
     )
   }
 }

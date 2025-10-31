@@ -1,4 +1,4 @@
-import type { Hash, Hex, TransactionReceipt, Address, Chain } from 'viem'
+import type { Address, Chain, Hash, Hex, TransactionReceipt } from 'viem'
 
 export type TransactionType = 'eoa' | 'erc4337' | 'rhinestone-intent'
 
@@ -42,15 +42,18 @@ export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
   }
 }
 
-export type TransactionRequest = EOATransactionRequest | ERC4337UserOperation | RhinestoneTransactionRequest
+export type TransactionRequest =
+  | EOATransactionRequest
+  | ERC4337UserOperation
+  | RhinestoneTransactionRequest
 
 // Transaction Intents - High-level descriptions of what the user wants to do
 // (Distinct from Rhinestone intents, which are chain abstraction intents)
 export interface ENSRenewalTransactionIntent {
   type: 'ens-renewal'
-  name: string  // ENS name without .eth (e.g., "leon")
-  duration: bigint  // Duration in seconds
-  from: Hex  // Address of the account (EOA or smart account)
+  name: string // ENS name without .eth (e.g., "leon")
+  duration: bigint // Duration in seconds
+  from: Hex // Address of the account (EOA or smart account)
 }
 
 export interface ETHTransferTransactionIntent {
@@ -63,10 +66,13 @@ export interface ETHTransferTransactionIntent {
 
 export interface CustomTransactionIntent {
   type: 'custom'
-  request: TransactionRequest  // Escape hatch for pre-prepared transactions
+  request: TransactionRequest // Escape hatch for pre-prepared transactions
 }
 
-export type TransactionIntent = ENSRenewalTransactionIntent | ETHTransferTransactionIntent | CustomTransactionIntent
+export type TransactionIntent =
+  | ENSRenewalTransactionIntent
+  | ETHTransferTransactionIntent
+  | CustomTransactionIntent
 
 export interface RhinestoneConfig {
   chain?: Chain
@@ -99,7 +105,12 @@ export interface TransactionResult {
 }
 
 // Modal-related types
-export type PaymentMethod = 'eth' | 'namechain-eth' | 'usdc' | 'mainnet-usdc' | 'base-usdc'
+export type PaymentMethod =
+  | 'eth'
+  | 'namechain-eth'
+  | 'usdc'
+  | 'mainnet-usdc'
+  | 'base-usdc'
 
 export interface PaymentOption {
   method: PaymentMethod

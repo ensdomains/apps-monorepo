@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import type {
+  DebugReport,
+  StateTransition,
+} from '@ens-apps/transaction-manager'
 import * as auditTrail from '@ens-apps/transaction-manager'
-import type { StateTransition, DebugReport } from '@ens-apps/transaction-manager'
+import type React from 'react'
+import { useEffect, useState } from 'react'
 
 export function AuditTrailDashboard() {
   const [history, setHistory] = useState<StateTransition[]>([])
@@ -14,12 +18,12 @@ export function AuditTrailDashboard() {
       }, 2000)
       return () => clearInterval(interval)
     }
-  }, [autoRefresh])
+  }, [autoRefresh, handleViewHistory])
 
   const handleViewHistory = () => {
     const transitions = auditTrail.getTransitionHistory({
       fromTime: Date.now() - 3600000, // Last hour
-      includeErrors: true
+      includeErrors: true,
     })
     setHistory(transitions)
   }
@@ -54,22 +58,18 @@ export function AuditTrailDashboard() {
 
         alert('Audit data imported successfully')
         handleViewHistory()
-      } catch (error) {
+      } catch (_error) {
         alert('Failed to import audit data')
       }
     }
   }
 
   const handleAddCustomEntry = () => {
-    auditTrail.addAuditEntry(
-      'info',
-      'Manual audit entry added',
-      {
-        timestamp: Date.now(),
-        source: 'manual',
-        action: 'user_interaction'
-      }
-    )
+    auditTrail.addAuditEntry('info', 'Manual audit entry added', {
+      timestamp: Date.now(),
+      source: 'manual',
+      action: 'user_interaction',
+    })
     handleViewHistory()
   }
 
@@ -87,7 +87,10 @@ export function AuditTrailDashboard() {
 
       <div className="status-box info">
         <strong>ℹ️ About Audit Trail:</strong>
-        <p>The audit trail records all state transitions from transactions, providing:</p>
+        <p>
+          The audit trail records all state transitions from transactions,
+          providing:
+        </p>
         <ul style={{ marginTop: '10px', marginLeft: '20px' }}>
           <li>Complete history of state changes</li>
           <li>Performance metrics and error tracking</li>
@@ -138,15 +141,21 @@ export function AuditTrailDashboard() {
           <div className="metrics-grid">
             <div className="metric-card">
               <h4>Total Transitions</h4>
-              <div className="value">{report.performanceMetrics.totalTransitions}</div>
+              <div className="value">
+                {report.performanceMetrics.totalTransitions}
+              </div>
             </div>
             <div className="metric-card">
               <h4>Error Rate</h4>
-              <div className="value">{report.errorSummary.errorRate.toFixed(1)}%</div>
+              <div className="value">
+                {report.errorSummary.errorRate.toFixed(1)}%
+              </div>
             </div>
             <div className="metric-card">
               <h4>Avg Transition Time</h4>
-              <div className="value">{report.performanceMetrics.avgTransitionTime.toFixed(0)}ms</div>
+              <div className="value">
+                {report.performanceMetrics.avgTransitionTime.toFixed(0)}ms
+              </div>
             </div>
             <div className="metric-card">
               <h4>Total Errors</h4>
@@ -158,11 +167,13 @@ export function AuditTrailDashboard() {
             <>
               <h4 style={{ marginTop: '20px' }}>❌ Error Types</h4>
               <div className="status-box error">
-                {Object.entries(report.errorSummary.errorTypes).map(([type, count]) => (
-                  <div key={type}>
-                    <strong>{type}:</strong> {count} occurrences
-                  </div>
-                ))}
+                {Object.entries(report.errorSummary.errorTypes).map(
+                  ([type, count]) => (
+                    <div key={type}>
+                      <strong>{type}:</strong> {count} occurrences
+                    </div>
+                  ),
+                )}
               </div>
             </>
           )}
@@ -185,27 +196,30 @@ export function AuditTrailDashboard() {
             📜 Recent Transitions ({history.length})
           </h4>
           <div className="history-list">
-            {history.slice(-20).reverse().map((transition, index) => (
-              <div
-                key={transition.id || index}
-                className={`history-item ${transition.error ? 'error' : ''}`}
-              >
-                <div>
-                  <div className="state-change">
-                    {transition.fromState} → {transition.toState}
+            {history
+              .slice(-20)
+              .reverse()
+              .map((transition, index) => (
+                <div
+                  key={transition.id || index}
+                  className={`history-item ${transition.error ? 'error' : ''}`}
+                >
+                  <div>
+                    <div className="state-change">
+                      {transition.fromState} → {transition.toState}
+                    </div>
+                    <div className="time">
+                      {new Date(transition.timestamp).toLocaleTimeString()}
+                    </div>
                   </div>
-                  <div className="time">
-                    {new Date(transition.timestamp).toLocaleTimeString()}
+                  <div>
+                    <span style={{ fontSize: '11px', color: '#666' }}>
+                      {transition.machineId} | {transition.event}
+                    </span>
+                    {transition.error && <span> ❌</span>}
                   </div>
                 </div>
-                <div>
-                  <span style={{ fontSize: '11px', color: '#666' }}>
-                    {transition.machineId} | {transition.event}
-                  </span>
-                  {transition.error && <span> ❌</span>}
-                </div>
-              </div>
-            ))}
+              ))}
           </div>
         </>
       )}

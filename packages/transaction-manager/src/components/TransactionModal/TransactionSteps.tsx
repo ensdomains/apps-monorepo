@@ -1,4 +1,3 @@
-import React from 'react'
 import type { TransactionStep } from '../../types/transaction.types'
 
 export interface TransactionStepsProps {
@@ -6,7 +5,10 @@ export interface TransactionStepsProps {
   currentStepIndex: number
 }
 
-export function TransactionSteps({ steps, currentStepIndex }: TransactionStepsProps) {
+export function TransactionSteps({
+  steps,
+  currentStepIndex,
+}: TransactionStepsProps) {
   if (!steps || steps.length === 0) return null
 
   return (
@@ -37,7 +39,13 @@ export function TransactionSteps({ steps, currentStepIndex }: TransactionStepsPr
               background: isActive ? '#f5f5f5' : 'transparent',
               borderRadius: '8px',
               borderLeft: `3px solid ${
-                isCompleted ? '#4CAF50' : isFailed ? '#F44336' : isInProgress ? '#2196F3' : '#E0E0E0'
+                isCompleted
+                  ? '#4CAF50'
+                  : isFailed
+                    ? '#F44336'
+                    : isInProgress
+                      ? '#2196F3'
+                      : '#E0E0E0'
               }`,
             }}
           >
@@ -54,11 +62,12 @@ export function TransactionSteps({ steps, currentStepIndex }: TransactionStepsPr
                 background: isCompleted
                   ? '#4CAF50'
                   : isFailed
-                  ? '#F44336'
-                  : isInProgress
-                  ? '#2196F3'
-                  : '#E0E0E0',
-                color: isCompleted || isFailed || isInProgress ? 'white' : '#666',
+                    ? '#F44336'
+                    : isInProgress
+                      ? '#2196F3'
+                      : '#E0E0E0',
+                color:
+                  isCompleted || isFailed || isInProgress ? 'white' : '#666',
                 flexShrink: 0,
               }}
             >

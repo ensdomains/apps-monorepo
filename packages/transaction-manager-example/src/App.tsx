@@ -1,17 +1,17 @@
-import React from 'react'
-import { WagmiProvider, useAccount as useWagmiAccount, usePublicClient, useWalletClient } from 'wagmi'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { RainbowKitProvider, ConnectButton } from '@rainbow-me/rainbowkit'
-import { config } from './wagmi-config'
-import { sepolia } from 'viem/chains'
-import ENSRenewalExample from './ENSRenewalExample'
-import { AuditTrailDashboard } from './AuditTrailDashboard'
 import {
+  GlobalTransactionToasts,
   TransactionManagerProvider,
   TransactionRecoveryNotification,
-  GlobalTransactionToasts,
   TransactionStatusPanel,
 } from '@ens-apps/transaction-manager'
+import { ConnectButton, RainbowKitProvider } from '@rainbow-me/rainbowkit'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type React from 'react'
+import { sepolia } from 'viem/chains'
+import { usePublicClient, WagmiProvider } from 'wagmi'
+import { AuditTrailDashboard } from './AuditTrailDashboard'
+import ENSRenewalExample from './ENSRenewalExample'
+import { config } from './wagmi-config'
 import '@rainbow-me/rainbowkit/styles.css'
 
 const queryClient = new QueryClient()
@@ -37,23 +37,29 @@ function App() {
         <RainbowKitProvider>
           {/* Wrap app with TransactionManagerProvider */}
           <AppProviders>
-            <div style={{
-              minHeight: '100vh',
-              background: 'linear-gradient(to bottom, #f0f9ff, #e0f2fe)'
-            }}>
-              <header style={{
-                padding: '20px',
-                background: 'white',
-                borderBottom: '1px solid #e5e7eb',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-              }}>
-                <div style={{
-                  maxWidth: '1200px',
-                  margin: '0 auto',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
+            <div
+              style={{
+                minHeight: '100vh',
+                background: 'linear-gradient(to bottom, #f0f9ff, #e0f2fe)',
+              }}
+            >
+              <header
+                style={{
+                  padding: '20px',
+                  background: 'white',
+                  borderBottom: '1px solid #e5e7eb',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                }}
+              >
+                <div
+                  style={{
+                    maxWidth: '1200px',
+                    margin: '0 auto',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
                   <h2 style={{ margin: 0, color: '#1e293b' }}>
                     ENS Transaction Manager
                   </h2>
@@ -61,19 +67,23 @@ function App() {
                 </div>
               </header>
 
-              <main style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '20px',
-                paddingBottom: '40px'
-              }}>
+              <main
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '20px',
+                  paddingBottom: '40px',
+                }}
+              >
                 <ENSRenewalExample />
-                <div style={{
-                  padding: '40px',
-                  maxWidth: '1200px',
-                  margin: '0 auto',
-                  width: '100%'
-                }}>
+                <div
+                  style={{
+                    padding: '40px',
+                    maxWidth: '1200px',
+                    margin: '0 auto',
+                    width: '100%',
+                  }}
+                >
                   <AuditTrailDashboard />
                 </div>
               </main>

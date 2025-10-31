@@ -7,5 +7,5 @@ export default defineConfig({
   splitting: false,
   sourcemap: true,
   clean: true,
-  external: ['react', 'wagmi', '@tanstack/react-query']
+  external: ['react', 'wagmi', '@tanstack/react-query'],
 })

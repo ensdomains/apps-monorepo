@@ -4,6 +4,7 @@
   "scripts": {
     "check": "biome check",
     "check:fix": "biome check --fix",
+    "prepare": "lefthook install",
     "test:all": "pnpm -r test",
     "test:all:cov": "pnpm -r test:coverage",
     "test:portal": "pnpm -r --filter=portal test",
@@ -19,6 +20,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.2.3",
     "knip": "^5.63.1",
+    "lefthook": "^2.0.2",
     "wrangler": "^4.43.0"
   },
   "pnpm": {

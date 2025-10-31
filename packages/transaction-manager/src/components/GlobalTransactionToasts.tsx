@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import type React from 'react'
+import { useEffect, useState } from 'react'
 import { useActiveTransactions } from '../providers/TransactionManagerProvider'
-import { useSelector } from '@xstate/react'
 
 export interface Toast {
   id: string
@@ -52,7 +52,9 @@ export function GlobalTransactionToasts({
 }: GlobalTransactionToastsProps) {
   const transactions = useActiveTransactions()
   const [toasts, setToasts] = useState<Toast[]>([])
-  const [seenStates, setSeenStates] = useState<Map<string, Set<string>>>(new Map())
+  const [seenStates, setSeenStates] = useState<Map<string, Set<string>>>(
+    new Map(),
+  )
 
   useEffect(() => {
     if (!enabled) return
@@ -131,7 +133,7 @@ export function GlobalTransactionToasts({
           // Auto-dismiss if enabled
           if (autoDismiss > 0) {
             setTimeout(() => {
-              setToasts((prev) => prev.filter((t) => t.id !== toast!.id))
+              setToasts((prev) => prev.filter((t) => t.id !== toast?.id))
             }, autoDismiss)
           }
         }
@@ -229,7 +231,6 @@ function getToastColor(type: Toast['type']): string {
       return '#f44336'
     case 'warning':
       return '#ff9800'
-    case 'info':
     default:
       return '#2196F3'
   }

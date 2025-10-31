@@ -1,15 +1,21 @@
-import { createActor, type ActorRefFrom } from 'xstate'
-import { transactionMachine } from '../machines/transaction.machine'
-import {
-  saveTransaction,
-  removeTransaction,
-  type PersistedTransaction,
-} from '../helpers/transaction-persistence'
-import type { TransactionRequest, TransactionIntent, TransactionOptions } from '../types/transaction.types'
-import type { Signer } from '../types/signer.types'
 import type { PublicClient } from 'viem'
+import { type ActorRefFrom, createActor } from 'xstate'
+import {
+  type PersistedTransaction,
+  removeTransaction,
+  saveTransaction,
+} from '../helpers/transaction-persistence'
+import { transactionMachine } from '../machines/transaction.machine'
+import type { Signer } from '../types/signer.types'
+import type {
+  TransactionIntent,
+  TransactionOptions,
+  TransactionRequest,
+} from '../types/transaction.types'
 
-type TransactionChangeListener = (transactions: Map<string, ActorRefFrom<typeof transactionMachine>>) => void
+type TransactionChangeListener = (
+  transactions: Map<string, ActorRefFrom<typeof transactionMachine>>,
+) => void
 
 /**
  * Transaction Manager Singleton
@@ -32,9 +38,12 @@ type TransactionChangeListener = (transactions: Map<string, ActorRefFrom<typeof 
  * - Still supports React integration via change listeners
  */
 class TransactionManager {
-  private transactions = new Map<string, ActorRefFrom<typeof transactionMachine>>()
+  private transactions = new Map<
+    string,
+    ActorRefFrom<typeof transactionMachine>
+  >()
   private listeners = new Set<TransactionChangeListener>()
-  private publicClients = new Map<number, PublicClient>()  // chainId -> PublicClient
+  private publicClients = new Map<number, PublicClient>() // chainId -> PublicClient
 
   /**
    * Set a public client for a specific chain
@@ -47,7 +56,9 @@ class TransactionManager {
    */
   setPublicClient(chainId: number, publicClient: PublicClient): void {
     this.publicClients.set(chainId, publicClient)
-    console.log(`✅ [TRANSACTION MANAGER] Public client set for chain ${chainId}`)
+    console.log(
+      `✅ [TRANSACTION MANAGER] Public client set for chain ${chainId}`,
+    )
   }
 
   /**
@@ -76,25 +87,38 @@ class TransactionManager {
   startTransaction(
     intentOrRequest: TransactionIntent | TransactionRequest,
     signer: Signer,
-    options: TransactionOptions & { publicClient?: PublicClient; chainId?: number; useSmartAccount?: boolean }
+    options: TransactionOptions & {
+      publicClient?: PublicClient
+      chainId?: number
+      useSmartAccount?: boolean
+    },
   ): string {
-    const { publicClient: optionsPublicClient, chainId, useSmartAccount, ...transactionOptions } = options
+    const {
+      publicClient: optionsPublicClient,
+      chainId,
+      useSmartAccount,
+      ...transactionOptions
+    } = options
 
     // Determine if this is an intent or a pre-prepared request
-    const isIntent = 'type' in intentOrRequest &&
+    const isIntent =
+      'type' in intentOrRequest &&
       (intentOrRequest.type === 'ens-renewal' ||
-       intentOrRequest.type === 'eth-transfer' ||
-       intentOrRequest.type === 'custom')
+        intentOrRequest.type === 'eth-transfer' ||
+        intentOrRequest.type === 'custom')
 
     const intent = isIntent ? (intentOrRequest as TransactionIntent) : undefined
-    const request = isIntent ? undefined : (intentOrRequest as TransactionRequest)
+    const request = isIntent
+      ? undefined
+      : (intentOrRequest as TransactionRequest)
 
     // Determine which publicClient to use (priority: options > stored > error)
     let publicClient = optionsPublicClient
 
     if (!publicClient) {
       // Try to get from stored clients using chainId
-      const resolvedChainId = chainId || (request as any)?.chainId || (intent as any)?.chainId
+      const resolvedChainId =
+        chainId || (request as any)?.chainId || (intent as any)?.chainId
       if (resolvedChainId) {
         publicClient = this.publicClients.get(resolvedChainId)
       }
@@ -102,11 +126,13 @@ class TransactionManager {
 
     if (!publicClient) {
       throw new Error(
-        'publicClient is required. Either pass it in options or pre-configure it with setPublicClient(chainId, client)'
+        'publicClient is required. Either pass it in options or pre-configure it with setPublicClient(chainId, client)',
       )
     }
 
-    const txId = transactionOptions.id || `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+    const txId =
+      transactionOptions.id ||
+      `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 
     console.log('🚀 [TRANSACTION MANAGER] Starting transaction:', {
       id: txId,
@@ -157,13 +183,21 @@ class TransactionManager {
 
       // Remove from IndexedDB when complete
       if (state === 'success' || state === 'error') {
-        console.log(`✅ [TRANSACTION MANAGER] Removing completed transaction ${txId}`)
-        removeTransaction(txId).catch(err =>
-          console.error(`❌ [TRANSACTION MANAGER] Failed to remove transaction ${txId}:`, err)
+        console.log(
+          `✅ [TRANSACTION MANAGER] Removing completed transaction ${txId}`,
+        )
+        removeTransaction(txId).catch((err) =>
+          console.error(
+            `❌ [TRANSACTION MANAGER] Failed to remove transaction ${txId}:`,
+            err,
+          ),
         )
       } else {
-        saveTransaction(txId, persisted).catch(err =>
-          console.error(`❌ [TRANSACTION MANAGER] Failed to save transaction ${txId}:`, err)
+        saveTransaction(txId, persisted).catch((err) =>
+          console.error(
+            `❌ [TRANSACTION MANAGER] Failed to save transaction ${txId}:`,
+            err,
+          ),
         )
       }
     })
@@ -191,15 +225,20 @@ class TransactionManager {
     this.notifyListeners()
 
     // Remove from IndexedDB
-    removeTransaction(id).catch(err =>
-      console.error(`❌ [TRANSACTION MANAGER] Failed to remove cancelled transaction ${id}:`, err)
+    removeTransaction(id).catch((err) =>
+      console.error(
+        `❌ [TRANSACTION MANAGER] Failed to remove cancelled transaction ${id}:`,
+        err,
+      ),
     )
   }
 
   /**
    * Get a specific transaction actor by ID
    */
-  getTransaction(id: string): ActorRefFrom<typeof transactionMachine> | undefined {
+  getTransaction(
+    id: string,
+  ): ActorRefFrom<typeof transactionMachine> | undefined {
     return this.transactions.get(id)
   }
 

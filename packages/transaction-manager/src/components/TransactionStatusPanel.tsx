@@ -1,5 +1,4 @@
 import React from 'react'
-import { useSelector } from '@xstate/react'
 import { useActiveTransactions } from '../providers/TransactionManagerProvider'
 
 export interface TransactionStatus {
@@ -12,7 +11,10 @@ export interface TransactionStatus {
 
 export interface TransactionStatusPanelProps {
   /** Custom render function for the panel */
-  render?: (transactions: TransactionStatus[], onCancel: (id: string) => void) => React.ReactNode
+  render?: (
+    transactions: TransactionStatus[],
+    onCancel: (id: string) => void,
+  ) => React.ReactNode
   /** Show only specific states */
   filter?: string[]
   /** Maximum number of transactions to show */

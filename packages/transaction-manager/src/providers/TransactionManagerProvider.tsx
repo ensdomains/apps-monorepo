@@ -1,9 +1,18 @@
-import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { type ActorRefFrom } from 'xstate'
-import { transactionMachine } from '../machines/transaction.machine'
-import { getPendingTransactions, type PersistedTransaction } from '../helpers/transaction-persistence'
-import { transactionManager } from './transactionManager'
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from 'react'
 import type { PublicClient } from 'viem'
+import type { ActorRefFrom } from 'xstate'
+import {
+  getPendingTransactions,
+  type PersistedTransaction,
+} from '../helpers/transaction-persistence'
+import type { transactionMachine } from '../machines/transaction.machine'
+import { transactionManager } from './transactionManager'
 
 interface TransactionManagerContextValue {
   transactions: Map<string, ActorRefFrom<typeof transactionMachine>>
@@ -14,7 +23,8 @@ interface TransactionManagerProviderProps {
   publicClient: PublicClient
 }
 
-const TransactionManagerContext = createContext<TransactionManagerContextValue | null>(null)
+const TransactionManagerContext =
+  createContext<TransactionManagerContextValue | null>(null)
 
 /**
  * Transaction Manager Provider
@@ -31,11 +41,11 @@ const TransactionManagerContext = createContext<TransactionManagerContextValue |
  */
 export function TransactionManagerProvider({
   children,
-  publicClient
+  publicClient,
 }: TransactionManagerProviderProps) {
-  const [transactions, setTransactions] = useState<Map<string, ActorRefFrom<typeof transactionMachine>>>(
-    new Map()
-  )
+  const [transactions, setTransactions] = useState<
+    Map<string, ActorRefFrom<typeof transactionMachine>>
+  >(new Map())
 
   // Subscribe to singleton's transaction changes for React updates
   useEffect(() => {
@@ -55,7 +65,9 @@ export function TransactionManagerProvider({
           return
         }
 
-        console.log(`🔄 [PROVIDER] Found ${pending.length} pending transactions to recover`)
+        console.log(
+          `🔄 [PROVIDER] Found ${pending.length} pending transactions to recover`,
+        )
 
         // For now, just log them - we'll implement auto-recovery when we have clients
         pending.forEach((persisted) => {
@@ -67,7 +79,10 @@ export function TransactionManagerProvider({
         })
       })
       .catch((error) => {
-        console.error('❌ [PROVIDER] Failed to recover pending transactions:', error)
+        console.error(
+          '❌ [PROVIDER] Failed to recover pending transactions:',
+          error,
+        )
       })
   }, [])
 
@@ -96,7 +111,9 @@ export function TransactionManagerProvider({
 export function useTransactionManager(): TransactionManagerContextValue {
   const context = useContext(TransactionManagerContext)
   if (!context) {
-    throw new Error('useTransactionManager must be used within TransactionManagerProvider')
+    throw new Error(
+      'useTransactionManager must be used within TransactionManagerProvider',
+    )
   }
   return context
 }
@@ -118,14 +135,19 @@ export function useTransactionRegistry(): TransactionManagerContextValue {
 /**
  * Hook to get a specific transaction actor by ID
  */
-export function useTransaction(id: string): ActorRefFrom<typeof transactionMachine> | undefined {
+export function useTransaction(
+  id: string,
+): ActorRefFrom<typeof transactionMachine> | undefined {
   return transactionManager.getTransaction(id)
 }
 
 /**
  * Hook to get all active transactions
  */
-export function useActiveTransactions(): Map<string, ActorRefFrom<typeof transactionMachine>> {
+export function useActiveTransactions(): Map<
+  string,
+  ActorRefFrom<typeof transactionMachine>
+> {
   const { transactions } = useTransactionManager()
   return transactions
 }
