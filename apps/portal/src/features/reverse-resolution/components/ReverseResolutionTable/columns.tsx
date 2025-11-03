@@ -93,6 +93,20 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
     cell: ({ row }) => {
       const name = row.original.name
       const forwardMatch = row.original.forwardMatch
+      const defaultName = row.original.defaultName
+      const isDefaultCoin = row.original.coinType === 60
+
+      if (!name && defaultName && !isDefaultCoin) {
+        return (
+          <div className="flex flex-row items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-green-600" />
+            <span>True</span>
+            <Badge variant="default" className="text-xs">
+              Default
+            </Badge>
+          </div>
+        )
+      }
 
       if (!name) {
         return (
