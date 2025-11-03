@@ -29,7 +29,7 @@ export const transformHistoryToEvents = (
       transactionID: string
       blockNumber: number
       from: Address | null
-      events: ENSEvent[]
+      events: BaseEvent[]
     }
   >()
 

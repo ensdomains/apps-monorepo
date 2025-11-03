@@ -1,12 +1,21 @@
 import type { Address } from 'viem'
 
+export type BaseEventCategory =
+  | 'domain'
+  | 'registration'
+  | 'resolver'
+  | (string & {})
+
 /**
  * Base event structure that all events must follow
  */
-export type BaseEvent<TDetails = Record<string, unknown>> = {
+export type BaseEvent<
+  TDetails = Record<string, unknown>,
+  TCategory extends BaseEventCategory = BaseEventCategory,
+> = {
   id: string
   type: string
-  category: 'domain' | 'registration' | 'resolver' | string
+  category: TCategory
   details: TDetails
 }
 
