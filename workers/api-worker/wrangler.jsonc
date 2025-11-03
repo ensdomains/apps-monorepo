@@ -22,13 +22,13 @@
 
   "queues": {
     "producers": [
-      { 
-        "binding": "TELEGRAM_QUEUE", 
+      {
+        "binding": "TELEGRAM_QUEUE",
         "queue": "api-worker-telegram-delivery"
       },
-      { 
-        "binding": "EMAIL_QUEUE", 
-        "queue": "api-worker-email-delivery" 
+      {
+        "binding": "EMAIL_QUEUE",
+        "queue": "api-worker-email-delivery"
       }
     ],
     "consumers": [
@@ -42,7 +42,7 @@
       {
         "queue": "api-worker-email-delivery",
         "max_batch_size": 50,
-        "max_batch_timeout": 30,
+        "max_batch_timeout": 3,
         "max_retries": 3,
         "dead_letter_queue": "api-worker-email-delivery-dlq"
       }
@@ -51,6 +51,8 @@
 
   "vars": {
     "CHAIN": "mainnet",
-    "BASE_URL": "https://notifications.ens.domains"
+    "BASE_URL": "https://notifications.ens.domains",
+    "EMAIL_FROM_ADDRESS": "notifications@ens.domains",
+    "MANAGER_APP_URL": "http://localhost:3000"
   }
 }

@@ -12,6 +12,7 @@ import {
 } from '#config/notifications.js'
 import { type Database, intoDbResult, TABLE } from '#core/database/index.js'
 import type { EmailDeliveryJob, TelegramDeliveryJob } from '#types/delivery.js'
+import { AnyUserNotificationPayload } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
 
 type CreateNotificationContext = {
@@ -41,7 +42,7 @@ export const createNotification = ResultFn(async function* <
       .values({
         user_id: ctx.userId,
         kind: ctx.kind,
-        payload: ctx.payload as any,
+        payload: ctx.payload,
         idempotency_key: ctx.idempotencyKey,
       })
       .returning(),

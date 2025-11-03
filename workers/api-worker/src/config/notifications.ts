@@ -6,6 +6,7 @@ const notificationConfigs = {
     schema: v.object({
       name: v.string(),
       expiryDate: v.number(),
+      isOwner: v.boolean(),
     }),
     metadata: {
       category: 'Domain Lifecycle',

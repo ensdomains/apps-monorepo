@@ -41,6 +41,7 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.12.3",
     "@grammyjs/types": "^3.22.2",
+    "@sendgrid/helpers": "^8.0.0",
     "@types/node": "^24.3.1",
     "@types/pg": "^8.15.5",
     "concurrently": "^9.2.1",

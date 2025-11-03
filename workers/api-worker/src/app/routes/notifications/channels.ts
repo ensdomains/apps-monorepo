@@ -5,6 +5,7 @@ import { requireAuth } from '#app/middleware/auth.js'
 import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
 import { Database, TABLE } from '#core/database/index.js'
+import { sendVerificationEmail } from '#services/email/verification.js'
 import { sanitizeChannel } from '#services/notifications/helpers.js'
 import {
   TelegramAuthSchema,
@@ -132,13 +133,28 @@ const emailRoutes = createApp()
         }
       })
 
-      // TODO: Send verification email here
-      // For now, we'll just return the token (in production, this should be sent via email)
-      logger.info('Email verification token generated', {
-        channelId: result.channel.id,
+      // Send verification email
+      const emailResult = await sendVerificationEmail(
+        c.env.SENDGRID_API_KEY,
+        c.env.EMAIL_FROM_ADDRESS,
         email,
-        token: result.verification.token,
-      })
+        result.verification.token,
+        c.env.MANAGER_APP_URL,
+      )
+
+      if (emailResult.isErr()) {
+        // Log error but don't fail the request - user can resend
+        logger.error('Failed to send verification email', {
+          channelId: result.channel.id,
+          email,
+          error: emailResult.error.message,
+        })
+      } else {
+        logger.info('Verification email sent', {
+          channelId: result.channel.id,
+          email,
+        })
+      }
 
       return c.json({
         message: 'Verification email sent',
@@ -351,12 +367,28 @@ const idRoutes = createApp()
       })
       .where(eq(TABLE.userChannels.id, channelId))
 
-    // TODO: Send verification email/notification
-    logger.info('Verification resent', {
-      channelId,
-      channel: channel.channel,
-      token: verification.token,
-    })
+    // Send verification email
+    const emailResult = await sendVerificationEmail(
+      c.env.SENDGRID_API_KEY,
+      c.env.EMAIL_FROM_ADDRESS,
+      channel.target!,
+      verification.token,
+      c.env.MANAGER_APP_URL,
+    )
+
+    if (emailResult.isErr()) {
+      // Log error but don't fail the request - user can resend
+      logger.error('Failed to send verification email', {
+        channelId,
+        email: channel.target,
+        error: emailResult.error.message,
+      })
+    } else {
+      logger.info('Verification email resent', {
+        channelId,
+        email: channel.target,
+      })
+    }
 
     return c.json({ message: 'Verification sent successfully' })
   })
