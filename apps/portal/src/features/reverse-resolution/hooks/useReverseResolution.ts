@@ -39,12 +39,10 @@ export const getReverseResolution = ResultFn(async function* ({
   const reversePromises = networks.map(async (network) => {
     try {
       const isDefault = network.coinType === 60
-     
       const nameResult: GetNameReturnType = await getName(client, {
         address,
         ...(isDefault ? { coinType: 60 } : { chainId: network.coinType }),
       })
-      
 
       if (!nameResult) {
         return {
