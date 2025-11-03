@@ -15,7 +15,7 @@ import { ReverseResolutionTable } from '@/features/reverse-resolution/components
 import { REVERSE_RESOLUTION_NETWORKS } from '@/features/reverse-resolution/config'
 import { getReverseResolutionQueryOptions } from '@/features/reverse-resolution/hooks/useReverseResolution'
 
-export const Route = createFileRoute('/addr/$addr/name-resolution')({
+export const Route = createFileRoute('/addr/$addr/reverse-resolution')({
   component: RouteComponent,
 })
 
@@ -55,7 +55,7 @@ function RouteComponent() {
     <>
       <header className="bg-gray-100 p-6 pb-4 pt-12 flex flex-col gap-4">
         <div className="flex flex-row justify-between">
-          <h1 className="text-[28px] font-medium">Name resolution</h1>
+          <h1 className="text-[28px] font-medium">Reverse resolution</h1>
         </div>
         <div className="flex flex-row gap-2 w-full bg-white rounded-sm p-2 h-10">
           <label htmlFor={searchId} aria-label="Search resolution">

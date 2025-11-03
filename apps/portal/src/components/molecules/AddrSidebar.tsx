@@ -32,8 +32,8 @@ const itemGroups = [
       icon: CopyIcon,
     },
     {
-      title: 'Name Resolution',
-      url: '/addr/$addr/name-resolution',
+      title: 'Reverse Resolution',
+      url: '/addr/$addr/reverse-resolution',
       icon: CopySlashIcon,
     },
   ],

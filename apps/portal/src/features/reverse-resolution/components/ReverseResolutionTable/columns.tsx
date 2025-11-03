@@ -1,5 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { ArrowUpDown, CheckCircle2, XCircle } from 'lucide-react'
+import { ArrowUpDown, CheckCircle2, SquareUser, XCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
 
@@ -58,7 +58,7 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
         return (
           <div className="flex flex-row items-center gap-2">
             <span>{defaultName}</span>
-            <Badge variant="default" className="text-xs">
+            <Badge variant="outline" className="text-xs">
               Default
             </Badge>
           </div>
@@ -99,12 +99,15 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
       if (!name && defaultName && !isDefaultCoin) {
         return (
           <div className="flex flex-row items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-green-600" />
-            <span>True</span>
-            <Badge variant="default" className="text-xs">
-              Primary name
+            <Badge variant="outline" className="text-xs">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>True</span>
             </Badge>
-            <Badge variant="default" className="text-xs">
+            <Badge variant="outline" className="text-xs">
+              <SquareUser className="w-4 h-4" />
+              <span>Primary name</span>
+            </Badge>
+            <Badge variant="outline" className="text-xs">
               Default
             </Badge>
           </div>
@@ -114,8 +117,10 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
       if (!name) {
         return (
           <div className="flex flex-row items-center gap-2 text-gray-400">
-            <XCircle className="w-4 h-4" />
-            <span>False</span>
+            <Badge variant="outline" className="text-xs">
+              <XCircle className="w-4 h-4" />
+              <span>False</span>
+            </Badge>
           </div>
         )
       }
@@ -124,17 +129,20 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
         <div className="flex flex-row items-center gap-2">
           {forwardMatch ? (
             <>
-              <CheckCircle2 className="w-4 h-4 text-green-600" />
-              <span>True</span>
-              <Badge variant="default" className="text-xs">
-                Primary name
+              <Badge variant="outline" className="text-xs">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>True</span>
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                <SquareUser className="w-4 h-4" />
+                <span>Primary name</span>
               </Badge>
             </>
           ) : (
-            <>
-              <XCircle className="w-4 h-4 text-red-600" />
+            <Badge variant="outline" className="text-xs">
+              <XCircle className="w-4 h-4" />
               <span>False</span>
-            </>
+            </Badge>
           )}
         </div>
       )
