@@ -19,6 +19,7 @@ export type ReverseResolutionResult = {
   resolverAddress: Address | null
   normalized: boolean
   forwardMatch: boolean
+  defaultName: string | null
 }
 
 export class GetReverseResolutionError extends TaggedError(
@@ -54,6 +55,7 @@ export const getReverseResolution = ResultFn(async function* ({
           resolverAddress: null,
           normalized: true,
           forwardMatch: false,
+          defaultName: null,
         }
       }
 
@@ -68,6 +70,7 @@ export const getReverseResolution = ResultFn(async function* ({
         resolverAddress: nameResult.resolverAddress,
         normalized: nameResult.normalized,
         forwardMatch,
+        defaultName: null,
       }
     } catch (error) {
       // Log error to see what's failing
@@ -81,6 +84,7 @@ export const getReverseResolution = ResultFn(async function* ({
         resolverAddress: null,
         normalized: true,
         forwardMatch: false,
+        defaultName: null,
       }
     }
   })
@@ -102,11 +106,20 @@ export const getReverseResolution = ResultFn(async function* ({
         resolverAddress: null,
         normalized: true,
         forwardMatch: false,
+        defaultName: null,
       }
     },
   )
 
-  return ok(resolvedResults)
+  const defaultResult = resolvedResults.find((r) => r.coinType === 60)
+  const defaultName = defaultResult?.name ?? null
+
+  const resultsWithDefault = resolvedResults.map((result) => ({
+    ...result,
+    defaultName,
+  }))
+
+  return ok(resultsWithDefault)
 })
 
 export const getReverseResolutionQueryKey = createQueryKey<

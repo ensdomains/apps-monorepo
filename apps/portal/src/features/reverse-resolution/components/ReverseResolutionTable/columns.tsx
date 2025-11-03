@@ -50,6 +50,20 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
     ),
     cell: ({ row }) => {
       const name = row.original.name
+      const defaultName = row.original.defaultName
+      const isDefaultCoin = row.original.coinType === 60
+
+      // If no name but has defaultName and is not the default coin itself
+      if (!name && defaultName && !isDefaultCoin) {
+        return (
+          <div className="flex flex-row items-center gap-2">
+            <span>{defaultName}</span>
+            <Badge variant="default" className="text-xs">
+              Default
+            </Badge>
+          </div>
+        )
+      }
 
       if (!name) {
         return <span className="text-gray-400">null</span>
