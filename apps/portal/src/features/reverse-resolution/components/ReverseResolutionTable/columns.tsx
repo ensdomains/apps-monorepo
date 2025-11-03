@@ -1,0 +1,112 @@
+import type { ColumnDef } from '@tanstack/react-table'
+import { ArrowUpDown, CheckCircle2, XCircle } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
+
+const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
+  return (
+    <button
+      className="p-0 flex flex-row items-center cursor-pointer"
+      type="button"
+      {...props}
+    >
+      {children}
+      <ArrowUpDown className="ml-2 h-4 w-4" />
+    </button>
+  )
+}
+
+export const columns: ColumnDef<ReverseResolutionResult>[] = [
+  {
+    accessorKey: 'label',
+    header: ({ column }) => (
+      <SortButton
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      >
+        Network
+      </SortButton>
+    ),
+    cell: ({ row }) => {
+      const label = row.original.label
+      const icon = row.original.icon
+      const isDefault = row.original.coinType === 60
+
+      return (
+        <div className="flex flex-row items-center gap-2">
+          {icon && <img src={icon} alt={label} className="w-5 h-5" />}
+          <span className={isDefault ? 'font-medium' : ''}>{label}</span>
+        </div>
+      )
+    },
+  },
+  {
+    accessorKey: 'name',
+    header: ({ column }) => (
+      <SortButton
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      >
+        Name
+      </SortButton>
+    ),
+    cell: ({ row }) => {
+      const name = row.original.name
+
+      if (!name) {
+        return <span className="text-gray-400">null</span>
+      }
+
+      return (
+        <div className="flex flex-row items-center gap-2">
+          <span>{name}</span>
+          {!row.original.normalized && (
+            <Badge variant="secondary" className="text-xs">
+              Not normalized
+            </Badge>
+          )}
+        </div>
+      )
+    },
+  },
+  {
+    accessorKey: 'forwardMatch',
+    header: ({ column }) => (
+      <SortButton
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      >
+        Forward match
+      </SortButton>
+    ),
+    cell: ({ row }) => {
+      const name = row.original.name
+      const forwardMatch = row.original.forwardMatch
+
+      if (!name) {
+        return (
+          <div className="flex flex-row items-center gap-2 text-gray-400">
+            <XCircle className="w-4 h-4" />
+            <span>False</span>
+          </div>
+        )
+      }
+
+      return (
+        <div className="flex flex-row items-center gap-2">
+          {forwardMatch ? (
+            <>
+              <CheckCircle2 className="w-4 h-4 text-green-600" />
+              <span>True</span>
+              <Badge variant="default" className="text-xs">
+                Primary name
+              </Badge>
+            </>
+          ) : (
+            <>
+              <XCircle className="w-4 h-4 text-red-600" />
+              <span>False</span>
+            </>
+          )}
+        </div>
+      )
+    },
+  },
+]
