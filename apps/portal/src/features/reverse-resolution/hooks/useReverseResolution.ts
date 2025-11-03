@@ -87,22 +87,24 @@ export const getReverseResolution = ResultFn(async function* ({
 
   const results = await Promise.allSettled(reversePromises)
 
-  const resolvedResults: ReverseResolutionResult[] = results.map((result, index) => {
-    if (result.status === 'fulfilled') {
-      return result.value
-    }
-    const network = networks[index]
-    return {
-      coinType: network.coinType,
-      label: network.label,
-      icon: network.icon,
-      name: null,
-      reverseResolverAddress: null,
-      resolverAddress: null,
-      normalized: true,
-      forwardMatch: false,
-    }
-  })
+  const resolvedResults: ReverseResolutionResult[] = results.map(
+    (result, index) => {
+      if (result.status === 'fulfilled') {
+        return result.value
+      }
+      const network = networks[index]
+      return {
+        coinType: network.coinType,
+        label: network.label,
+        icon: network.icon,
+        name: null,
+        reverseResolverAddress: null,
+        resolverAddress: null,
+        normalized: true,
+        forwardMatch: false,
+      }
+    },
+  )
 
   return ok(resolvedResults)
 })
