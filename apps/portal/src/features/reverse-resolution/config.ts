@@ -1,5 +1,5 @@
-import type { CoinType, SepoliaChainId } from '../../lib/coinType'
-import { icons, names, sepoliaIcons, sepoliaNames } from '../../lib/coinType'
+import type { CoinType } from '../../lib/coinType'
+import { icons, names } from '../../lib/coinType'
 
 /**
  * Configuration for reverse resolution (ENSIP-23)
@@ -35,9 +35,9 @@ const DEFAULT_REVERSE_RECORD: ReverseResolutionNetwork = {
 }
 
 /**
- * Create mainnet reverse resolution networks from coinType data
+ * Create reverse resolution networks from coinType data
  */
-function createMainnetNetworks(): ReverseResolutionNetwork[] {
+function createReverseResolutionNetworks(): ReverseResolutionNetwork[] {
   const networks: ReverseResolutionNetwork[] = [DEFAULT_REVERSE_RECORD]
 
   for (const coinType of Object.keys(icons) as unknown as CoinType[]) {
@@ -52,41 +52,9 @@ function createMainnetNetworks(): ReverseResolutionNetwork[] {
 }
 
 /**
- * Create Sepolia testnet networks from coinType data
- */
-function createSepoliaNetworks(): ReverseResolutionNetwork[] {
-  const networks: ReverseResolutionNetwork[] = [DEFAULT_REVERSE_RECORD]
-
-  for (const chainId of Object.keys(
-    sepoliaNames,
-  ) as unknown as SepoliaChainId[]) {
-    networks.push({
-      coinType: chainId,
-      label: sepoliaNames[chainId],
-      icon: sepoliaIcons[chainId],
-    })
-  }
-
-  return networks
-}
-
-/**
- * Mainnet networks for reverse resolution
+ * Reverse resolution networks
  * - coinType 60: Default reverse record (addr.reverse namespace)
- * - Chain IDs: Mainnet L2 chain IDs via ENSIP-23
+ * - Chain IDs: L2 chain IDs via ENSIP-23
  */
-export const MAINNET_REVERSE_RESOLUTION_NETWORKS: ReverseResolutionNetwork[] =
-  createMainnetNetworks()
-
-/**
- * Sepolia testnet networks for reverse resolution
- * - coinType 60: Default reverse record (addr.reverse namespace)
- * - Chain IDs: Sepolia L2 testnet chain IDs via ENSIP-23
- */
-export const SEPOLIA_REVERSE_RESOLUTION_NETWORKS: ReverseResolutionNetwork[] =
-  createSepoliaNetworks()
-
-/**
- * Get networks based on environment
- */
-export const REVERSE_RESOLUTION_NETWORKS = MAINNET_REVERSE_RESOLUTION_NETWORKS
+export const REVERSE_RESOLUTION_NETWORKS: ReverseResolutionNetwork[] =
+  createReverseResolutionNetworks()

@@ -14,12 +14,10 @@ export type ReverseResolutionResult = {
   coinType: number
   label: string
   icon: string
-  // Reverse resolution result
   name: string | null
   reverseResolverAddress: Address | null
   resolverAddress: Address | null
   normalized: boolean
-  // Forward resolution result - does this name resolve back to the address?
   forwardMatch: boolean
 }
 
@@ -38,43 +36,15 @@ export const getReverseResolution = ResultFn(async function* ({
 }) {
   const client = yield* safeGetClient()
 
-  console.log('[getReverseResolution] Client chain:', client.chain.id, client.chain.name)
-  console.log('[getReverseResolution] Address:', address)
-  console.log('[getReverseResolution] Networks to query:', networks.length)
-
-  // TEST: Try with a hardcoded test to see if getName works at all
-  try {
-    const testResult = await getName(client, {
-      address: '0xb8c2C29ee19D8307cb7255e1Cd9CbDE883A267d5' as Address, // nick.eth on mainnet, likely won't work on sepolia
-      coinType: 60,
-    })
-    console.log('[TEST] getName test with random address:', testResult)
-  } catch (error) {
-    console.log('[TEST] getName test failed (expected on Sepolia):', error)
-  }
-
-  // Fetch reverse resolution for all networks in parallel
   const reversePromises = networks.map(async (network) => {
     try {
-      // Use getName with appropriate parameter:
-      // - coinType 60 for default reverse record (addr.reverse)
-      // - chainId for L2-specific reverse records
       const isDefault = network.coinType === 60
-      
-      console.log(`[getName] Calling with:`, {
-        address,
-        ...(isDefault ? { coinType: 60 } : { chainId: network.coinType }),
-        label: network.label,
-      })
-      
+     
       const nameResult: GetNameReturnType = await getName(client, {
         address,
         ...(isDefault ? { coinType: 60 } : { chainId: network.coinType }),
-        // Try with allowMismatch to see if there's a reverse record but forward doesn't match
-        allowMismatch: true,
       })
       
-      console.log(`[getName] Result for ${network.label}:`, nameResult)
 
       if (!nameResult) {
         return {
@@ -89,8 +59,6 @@ export const getReverseResolution = ResultFn(async function* ({
         }
       }
 
-      // Check forward match: does this name's match property indicate it resolves back?
-      // The 'match' property from getName already does the forward resolution check
       const forwardMatch = nameResult.match
 
       return {
@@ -121,13 +89,10 @@ export const getReverseResolution = ResultFn(async function* ({
 
   const results = await Promise.allSettled(reversePromises)
 
-  // Convert PromiseSettledResults to our result type
   const resolvedResults: ReverseResolutionResult[] = results.map((result, index) => {
     if (result.status === 'fulfilled') {
       return result.value
     }
-    // If promise was rejected, return a null result
-    // This shouldn't happen since we're catching errors inside the promise
     const network = networks[index]
     return {
       coinType: network.coinType,

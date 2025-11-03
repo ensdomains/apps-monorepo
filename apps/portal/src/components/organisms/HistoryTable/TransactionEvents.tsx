@@ -151,7 +151,7 @@ export const TransactionEvents = ({
     return <div className="text-gray-400 text-center py-6">No events found</div>
   }
 
-  const firstEventType = events[0].type
+  const firstEventId = events[0].id
 
   return (
     <div className="flex flex-col gap-4">
@@ -159,23 +159,26 @@ export const TransactionEvents = ({
 
       <Card>
         <CardContent className="p-0">
-          <Tabs defaultValue={firstEventType} className="w-full">
+          <Tabs defaultValue={firstEventId} className="w-full">
             <div className="overflow-x-auto">
               <TabsList className="w-full justify-start rounded-none p-0 inline-flex">
-                {events.map((event) => (
+                {events.map((event, index) => (
                   <TabsTrigger
                     key={event.id}
-                    value={event.type}
+                    value={event.id}
                     className="whitespace-nowrap"
                   >
-                    {event.type}
+                    {event.type}{' '}
+                    {events.filter((e) => e.type === event.type).length > 1
+                      ? `#${index + 1}`
+                      : ''}
                   </TabsTrigger>
                 ))}
               </TabsList>
             </div>
 
             {events.map((event) => (
-              <TabsContent key={event.id} value={event.type} className="p-6">
+              <TabsContent key={event.id} value={event.id} className="p-6">
                 <div className="flex flex-col gap-8">
                   <div className="flex flex-col gap-4 w-full">
                     <div className="flex items-center justify-between gap-2 w-full">
@@ -219,10 +222,11 @@ export const TransactionEvents = ({
                       <CopyableRecord
                         value={getEventSignature(event.type)}
                         displayValue={
-                          <div className="w-full max-w-110 truncate">
+                          <div className="w-full max-w-110">
                             {getEventSignature(event.type)}
                           </div>
                         }
+                        truncate={false}
                       />
                     </div>
                   </div>

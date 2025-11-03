@@ -1,5 +1,10 @@
 import { Link } from '@tanstack/react-router'
-import { CopyIcon, PersonStandingIcon, WalletIcon } from 'lucide-react'
+import {
+  CopyIcon,
+  CopySlashIcon,
+  PersonStandingIcon,
+  WalletIcon,
+} from 'lucide-react'
 import type { Address } from 'viem'
 import {
   Sidebar,
@@ -25,6 +30,11 @@ const itemGroups = [
       title: 'Address Resolution',
       url: '/addr/$addr/resolution',
       icon: CopyIcon,
+    },
+    {
+      title: 'Name Resolution',
+      url: '/addr/$addr/name-resolution',
+      icon: CopySlashIcon,
     },
   ],
 ] as const
