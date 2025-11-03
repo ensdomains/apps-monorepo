@@ -1,26 +1,19 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getRecords } from '@ensdomains/ensjs/public'
-import { getSubgraphRecords } from '@ensdomains/ensjs/subgraph'
+import { type GetRecordsErrorType, getRecords } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-
-class SubgraphError extends TaggedError('SubgraphError')<{
-  cause: unknown
-}> {}
+import { getSubgraphRecords } from './useSubgraphRecords'
 
 class RecordsError extends TaggedError('RecordsError')<{
-  cause: unknown
+  cause: GetRecordsErrorType
 }> {}
 
 export const getProfile = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
 
-  const subgraphRecords = yield* await fromPromise(
-    getSubgraphRecords(client, { name }),
-    (e) => new SubgraphError({ cause: e }),
-  )
+  const subgraphRecords = yield* getSubgraphRecords(name)
 
   const records = yield* await fromPromise(
     getRecords(client, {
@@ -29,7 +22,7 @@ export const getProfile = ResultFn(async function* (name: string) {
       contentHash: true,
       abi: true,
     }),
-    (e) => new RecordsError({ cause: e }),
+    (e) => new RecordsError({ cause: e as GetRecordsErrorType }),
   )
 
   return ok({
