@@ -102,6 +102,9 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
             <CheckCircle2 className="w-4 h-4 text-green-600" />
             <span>True</span>
             <Badge variant="default" className="text-xs">
+              Primary name
+            </Badge>
+            <Badge variant="default" className="text-xs">
               Default
             </Badge>
           </div>
