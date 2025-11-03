@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import {
   CopyIcon,
   CopySlashIcon,
-  PersonStandingIcon,
+  IdCardLanyard,
   WalletIcon,
 } from 'lucide-react'
 import type { Address } from 'viem'
@@ -22,7 +22,7 @@ const itemGroups = [
     {
       title: 'Overview',
       url: '/addr/$addr',
-      icon: PersonStandingIcon,
+      icon: IdCardLanyard,
     },
   ],
   [
