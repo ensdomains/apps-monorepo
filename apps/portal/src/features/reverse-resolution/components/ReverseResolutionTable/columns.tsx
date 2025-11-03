@@ -1,6 +1,7 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { ArrowUpDown, CheckCircle2, SquareUser, XCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
 
 const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
@@ -17,6 +18,28 @@ const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
 }
 
 export const columns: ColumnDef<ReverseResolutionResult>[] = [
+  {
+    id: 'select',
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && 'indeterminate')
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
   {
     accessorKey: 'label',
     header: ({ column }) => (
