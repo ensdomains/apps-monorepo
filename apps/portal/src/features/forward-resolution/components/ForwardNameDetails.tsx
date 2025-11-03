@@ -1,24 +1,48 @@
 import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
-import type { ColumnDef } from '@tanstack/react-table'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
-import { DataTable } from '@/components/molecules/DataTable/DataTable'
+import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
 import { fromCoinType } from '@/lib/utils'
+import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import { CoinTypeLabel } from './CoinTypeLabel'
 import type { ForwardName } from './ForwardNamesTable/columns'
 
-const columns: ColumnDef<ReturnResolverEvent>[] = [
-  {
-    accessorKey: 'transactionID',
-    header: 'Transaction',
-  },
-  {
-    accessorKey: 'type',
-    header: 'Type',
-  },
-]
+const AddressHistory = ({
+  history,
+  name,
+}: {
+  history: ReturnResolverEvent[]
+  name: string
+}) => {
+  const {
+    data: timestamps,
+    isLoading,
+    error,
+  } = useBlockTimestamps({
+    blocks: history.map((item) => BigInt(item.blockNumber)),
+  })
+
+  if (error) return <div>Error loading timestamps: {error.cause?.message}</div>
+  if (isLoading) return <div>Loading...</div>
+
+  const data = groupEventsByTransactionId(
+    history.map((item) => ({
+      ...item,
+      timestamp: timestamps?.get(BigInt(item.blockNumber)),
+    })),
+    'resolver',
+  )
+
+  return (
+    <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg overflow-y-scroll">
+      <h3 className="text-2xl font-medium">History</h3>
+      <EventsDataTable name={name} data={data} />
+    </div>
+  )
+}
 
 const HistoryView = ({ name }: { name: string }) => {
   const {
@@ -38,12 +62,9 @@ const HistoryView = ({ name }: { name: string }) => {
 
   if (isLoading) return <div>Loading...</div>
 
-  return (
-    <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg overflow-y-scroll">
-      <h3 className="text-2xl font-medium">History</h3>
-      <DataTable data={history || []} columns={columns} />
-    </div>
-  )
+  if (!history) return <div>No history</div>
+
+  return <AddressHistory history={history} name={name} />
 }
 
 export const ForwardNameDetails = ({ name, coinTypes }: ForwardName) => {

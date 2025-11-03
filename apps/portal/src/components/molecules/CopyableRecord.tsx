@@ -31,15 +31,13 @@ export const CopyableRecord = ({
     >
       {href ? (
         <ExternalLink
-          className="text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4 truncate flex-1"
+          className="text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4 truncate"
           href={href}
         >
           {content}
         </ExternalLink>
       ) : (
-        <div className="text-sm sm:text-base font-mono truncate flex-1">
-          {content}
-        </div>
+        <div className="text-sm sm:text-base font-mono truncate">{content}</div>
       )}
       <button
         className="flex-shrink-0 cursor-pointer"
