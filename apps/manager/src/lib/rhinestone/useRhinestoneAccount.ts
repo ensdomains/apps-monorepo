@@ -1,14 +1,12 @@
 "use client";
 
-import { useWallet } from "@getpara/react-sdk";
-import { useViemAccount } from "@getpara/react-sdk/evm/hooks";
-import { type RhinestoneAccount, RhinestoneSDK, walletClientToAccount, wrapParaAccount } from "@rhinestone/sdk";
+import { useAccount, useWalletClient } from "wagmi";
+import { type RhinestoneAccount, RhinestoneSDK } from "@rhinestone/sdk";
+import { walletClientToAccount, wrapParaAccount } from "./rhinestone-utils";
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from "react";
-import { type Account, createPublicClient, formatUnits, http } from "viem";
+import { createPublicClient, formatUnits, http } from "viem";
 import { sepolia } from "viem/chains";
-import { useWalletClient } from "wagmi";
-// import { useParaAccount } from "@/features/wallet/hooks/useParaAccount";
 import { SUPPORTED_TOKENS } from "@/features/register/services/nameChainContractService";
 import { ERC20_ABI } from "../ens.abi";
 import { getTxHashResult } from "./utils";
@@ -40,10 +38,9 @@ export interface RhinestoneAccountState {
 }
 
 export function useRhinestoneAccount() {
-  const { data: wallet } = useWallet();
-  const { viemAccount } = useViemAccount();
-  const { data: wagmiWalletClient } = useWalletClient();
-  const isReady = !!viemAccount || !!wallet || !!wagmiWalletClient;
+  const account = useAccount();
+  const { data: walletClient } = useWalletClient();
+
   const [state, setState] = useState<RhinestoneAccountState>({
     rhinestoneAccount: null,
     accountAddress: null,
@@ -53,12 +50,12 @@ export function useRhinestoneAccount() {
 
   // ETH Balance for EOA
   const { data: eoaEthBalance, isLoading: isLoadingEoaEth } = useQuery({
-    queryKey: ['eoaEthBalance', wallet?.address],
+    queryKey: ['eoaEthBalance', account.address],
     queryFn: async () => {
-      if (!wallet?.address) return null
+      if (!account.address) return null
       try {
         const balance = await publicClient.getBalance({
-          address: wallet.address as `0x${string}`
+          address: account.address as `0x${string}`
         })
         return {
           balance: balance.toString(),
@@ -68,7 +65,7 @@ export function useRhinestoneAccount() {
         return null
       }
     },
-    enabled: isReady && !!wallet?.address,
+    enabled: account.isConnected && !!account.address,
     refetchInterval: 30000,
     retry: 1,
     retryDelay: 5000,
@@ -91,7 +88,7 @@ export function useRhinestoneAccount() {
         return null
       }
     },
-    enabled: isReady && !!state.accountAddress,
+    enabled: account.isConnected && !!state.accountAddress,
     refetchInterval: 30000,
     retry: 1,
     retryDelay: 5000,
@@ -138,15 +135,16 @@ export function useRhinestoneAccount() {
         return []
       }
     },
-    enabled: isReady && !!state.accountAddress,
+    enabled: account.isConnected && !!state.accountAddress,
     refetchInterval: 30000,
     retry: 1,
     retryDelay: 5000,
   })
 
   const initializeRhinestoneAccount = useCallback(async () => {
-    // Check wallet connection
-    if (!isReady) {
+    // Check wallet connection and availability of a signing wallet client
+    const hasWagmiAccount = Boolean((walletClient as any)?.account)
+    if (!account.isConnected || !walletClient || !hasWagmiAccount) {
       console.log("❌ Rhinestone initialization skipped - wallet not connected");
       setState((prev) => ({
         ...prev,
@@ -166,16 +164,11 @@ export function useRhinestoneAccount() {
         throw new Error("❌ Rhinestone API key not configured in environment variables");
       }
 
-      let accountToUse: Account;
+      // Convert walletClient to account (guaranteed present above)
+      const account = walletClientToAccount(walletClient);
 
-      if (viemAccount) {
-        accountToUse = wrapParaAccount(viemAccount, wallet?.id);
-      } else if (wagmiWalletClient) {
-
-        accountToUse = walletClientToAccount(wagmiWalletClient);
-      } else {
-        throw new Error("❌ No wallet client available");
-      }
+      // Wrap the account for Para compatibility
+      const wrappedAccount = wrapParaAccount(account);
 
       const sdk = new RhinestoneSDK({
         apiKey,
@@ -200,7 +193,7 @@ export function useRhinestoneAccount() {
       const rhinestoneAccount = await sdk.createAccount({
         owners: {
           type: "ecdsa" as const,
-          accounts: [accountToUse],
+          accounts: [wrappedAccount],
         },
       });
 
@@ -222,7 +215,7 @@ export function useRhinestoneAccount() {
         error: String(error),
       }));
     }
-  }, [isReady, viemAccount, wallet, wagmiWalletClient]);
+  }, [account.isConnected, walletClient]);
 
   const sendTransaction = useCallback(
     async (calls: any[]): Promise<any> => {
@@ -288,8 +281,8 @@ export function useRhinestoneAccount() {
 
   return {
     ...state,
-    address: wallet?.address,
-    isConnected: !!wallet,
+    address: state.accountAddress, // Smart account address (primary address for Rhinestone)
+    isConnected: account.isConnected && !!state.accountAddress && !!state.rhinestoneAccount, // Smart account is connected
     sendTransaction,
     stablecoinBalances,
     isLoadingBalances,

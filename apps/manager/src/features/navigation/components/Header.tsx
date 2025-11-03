@@ -1,4 +1,3 @@
-// import { useBalance, useEnsAvatar, useEnsName } from 'wagmi'
 import { useModal, useWallet } from '@getpara/react-sdk'
 import { Link } from '@tanstack/react-router'
 import {
@@ -27,15 +26,13 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { NotificationsDropdown } from '@/features/notifications/components'
-import { useParaAccount } from '@/features/wallet/hooks/useParaAccount'
 import { useTheme } from '@/hooks/use-theme'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
-
-// import { customSepolia } from '@/lib/wagmi'
+import { useAccount } from '@getpara/react-sdk'
 
 const ConnectedContent = () => {
   const { data: wallet } = useWallet()
-  const { userProfile } = useParaAccount()
+  const account = useAccount()
   const { openModal } = useModal()
   const {
     rhinestoneAccount,
@@ -55,40 +52,7 @@ const ConnectedContent = () => {
 
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [copied, setCopied] = useState(false)
-  // const [lastFetchTime, setLastFetchTime] = useState<number>(0)
-
-  // Use wagmi hooks for balance fetching (more efficient and consistent)
-  // const { data: eoaBalance, refetch: refetchEoaBalance } = useBalance({
-  //   address: address as `0x${string}`,
-  //   chainId: customSepolia.id,
-  // })
-
-  // const { data: smartAccountBalance, refetch: refetchSmartAccountBalance } =
-  //   useBalance({
-  //     address: accountAddress as `0x${string}`,
-  //     chainId: customSepolia.id,
-  //     query: {
-  //       enabled: !!accountAddress, // Only fetch if accountAddress exists
-  //     },
-  //   })
-
-  // Manual refresh function with rate limiting
-  // const refreshBalances = async () => {
-  //   const now = Date.now()
-  //   if (now - lastFetchTime < 5000) {
-  //     // 5 second cooldown
-  //     console.log('Rate limited: Please wait before refreshing again')
-  //     return
-  //   }
-
-  //   setLastFetchTime(now)
-
-  //   try {
-  //     await Promise.all([refetchEoaBalance(), refetchSmartAccountBalance()])
-  //   } catch (error) {
-  //     console.error('Failed to refresh balances:', error)
-  //   }
-  // }
+  
 
   const handleCopyAddress = async (addressToCopy: string) => {
     try {
@@ -100,26 +64,73 @@ const ConnectedContent = () => {
     }
   }
 
+  const getAuthTypeLabel = (): string => {
+    if (!account?.embedded?.authType) {
+      return 'Para + Rhinestone'
+    }
+
+    const authType = account.embedded.authType
+    switch (authType) {
+      case 'email':
+        return 'Email'
+      case 'phone':
+        return 'Phone'
+      case 'farcaster':
+        return 'X (Farcaster)'
+      case 'telegram':
+        return 'Telegram'
+      case 'externalWallet':
+        return 'External Wallet'
+      default:
+        return 'Para + Rhinestone'
+    }
+  }
+
   const getDisplayName = () => {
     // Show loading state while Rhinestone account is being created
     if (isLoading) {
       return 'Initializing...'
     }
 
-    // Show user's email if available (highest priority)
-    if (userProfile?.email) {
-      return userProfile.email
-    }
+    // Check embedded account with auth type
+    if (account?.embedded?.isConnected && account.embedded.authType) {
+      const authType = account.embedded.authType
 
-    // Show user's name if available
-    if (userProfile?.name) {
-      return userProfile.name
+      switch (authType) {
+        case 'email':
+          if (account.embedded.email) {
+            return account.embedded.email
+          }
+          break
+        case 'phone':
+          if (account.embedded.phone) {
+            return account.embedded.phone
+          }
+          break
+        case 'farcaster':
+          if (account.embedded.farcasterUsername) {
+            return `@${account.embedded.farcasterUsername}`
+          }
+          break
+        case 'telegram':
+          if (account.embedded.telegramUserId) {
+            return `Telegram: ${account.embedded.telegramUserId}`
+          }
+          break
+        case 'externalWallet':
+          if (account.embedded.externalWalletAddress) {
+            const addr = account.embedded.externalWalletAddress
+            return `${addr.slice(0, 6)}...${addr.slice(-4)}`
+          }
+          break
+      }
     }
 
     // Fallback to ENS name or wallet address
     if (ensName) {
       return ensName
     }
+    
     if (address) {
       return `${address.slice(0, 6)}...${address.slice(-4)}`
     }
@@ -130,7 +141,9 @@ const ConnectedContent = () => {
     if (isLoading) {
       return 'Initializing Smart Account...'
     }
-    return 'Para + Rhinestone'
+    
+    const authTypeLabel = getAuthTypeLabel()
+    return `Para + Rhinestone (${authTypeLabel})`
   }
 
   return (

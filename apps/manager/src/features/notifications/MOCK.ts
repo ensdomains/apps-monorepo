@@ -28,7 +28,7 @@ const names = [
   '0xtestwallet.base.eth',
 ]
 
-const postSlugs = await fetch('https://ens.domains/blog/search.json')
+const postSlugs = await fetch('https://6709d36e.ensdomains-v2.pages.dev/blog/search.json')
   // biome-ignore lint/suspicious/noExplicitAny: Quick mock
   .then((res) => res.json() as any)
   .then((data) => data.map((post: { slug: string }) => post.slug))
