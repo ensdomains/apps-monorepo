@@ -7,9 +7,14 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { SearchIcon } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useId, useState } from 'react'
 import type { Address } from 'viem'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group'
 import { columns } from '@/features/forward-resolution/components/ForwardNamesTable/columns'
 import { ForwardNamesTable } from '@/features/forward-resolution/components/ForwardNamesTable/ForwardNamesTable'
 import { getResolvedNamesForAddressQueryOptions } from '@/features/forward-resolution/components/hooks/useNamesForResolvedAddress'
@@ -55,17 +60,17 @@ function RouteComponent() {
         <div className="flex flex-row justify-between">
           <h1 className="text-[28px] font-medium">Address Resolution</h1>
         </div>
-        <div className="flex flex-row gap-2 w-full bg-white  rounded-sm p-2 h-10">
-          <label htmlFor={searchNamesId} aria-label="Search records">
-            <SearchIcon />
-          </label>
-          <input
+        <InputGroup className="bg-white rounded-sm">
+          <InputGroupInput
             id={searchNamesId}
-            className="w-full "
-            placeholder="Search records..."
+            className="w-full"
+            placeholder="Search..."
             onChange={(event) => table.setGlobalFilter(event.target.value)}
           />
-        </div>
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+        </InputGroup>
       </header>
       <ForwardNamesTable table={table} />
     </>

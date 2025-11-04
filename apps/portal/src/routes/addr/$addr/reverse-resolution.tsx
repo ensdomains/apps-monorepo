@@ -8,10 +8,14 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { SearchIcon, SquarePen, Trash2Icon, XIcon } from 'lucide-react'
+import { Search, SquarePen, Trash2Icon, XIcon } from 'lucide-react'
 import { useId, useState } from 'react'
 import type { Address } from 'viem'
-import { Input } from '@/components/ui/input'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group"
 import { Button } from '@/components/ui/button'
 import { columns } from '@/features/reverse-resolution/components/ReverseResolutionTable/columns'
 import { ReverseResolutionTable } from '@/features/reverse-resolution/components/ReverseResolutionTable/ReverseResolutionTable'
@@ -78,17 +82,15 @@ function RouteComponent() {
         <div className="flex flex-row justify-between">
           <h1 className="text-[28px] font-medium">Reverse resolution</h1>
         </div>
-        <div className="flex flex-row gap-2 w-full bg-white rounded-sm p-2 h-10">
-          <label htmlFor={searchId} aria-label="Search resolution">
-            <SearchIcon />
-          </label>
-          <Input
-            id={searchId}
-            className="w-full"
-            placeholder="Search..."
-            onChange={(event) => table.setGlobalFilter(event.target.value)}
-          />
-        </div>
+        <InputGroup className='bg-white rounded-sm'>
+          <InputGroupInput id={searchId}
+              className="w-full"
+              placeholder="Search..."
+              onChange={(event) => table.setGlobalFilter(event.target.value)} />
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+        </InputGroup>
         {selectedRowsCount > 0 && (
           <div className="flex flex-row justify-between items-center">
             <div className="flex flex-row items-center gap-2">

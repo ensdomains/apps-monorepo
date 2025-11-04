@@ -9,12 +9,17 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { SearchIcon } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { HistorySidebar } from '@/components/organisms/HistoryTable/HistorySidebar'
 import { CollapseAllButton } from '@/components/table/CollapseAllButton'
 import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
 import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group'
 import { createEventsColumns } from './createEventsColumns'
 import { EventsTable } from './EventsTable'
 import type { BaseEvent, EventsTableConfig, EventsTableData } from './types'
@@ -175,17 +180,17 @@ export const EventsDataTable = <TEvent extends BaseEvent = BaseEvent>({
         </div>
 
         {enableSearch && (
-          <div className="flex flex-row gap-2 w-full bg-white rounded-sm p-2 h-10">
-            <label htmlFor={searchId} aria-label="Search history">
-              <SearchIcon />
-            </label>
-            <input
+          <InputGroup className="bg-white rounded-sm">
+            <InputGroupInput
               id={searchId}
               className="w-full"
-              placeholder="Search transactions..."
+              placeholder="Search..."
               onChange={(event) => table.setGlobalFilter(event.target.value)}
             />
-          </div>
+            <InputGroupAddon>
+              <Search />
+            </InputGroupAddon>
+          </InputGroup>
         )}
 
         {enableFilters && (
