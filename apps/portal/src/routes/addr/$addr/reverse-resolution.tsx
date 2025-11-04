@@ -11,12 +11,12 @@ import {
 import { Search, SquarePen, Trash2Icon, XIcon } from 'lucide-react'
 import { useId, useState } from 'react'
 import type { Address } from 'viem'
+import { Button } from '@/components/ui/button'
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-} from "@/components/ui/input-group"
-import { Button } from '@/components/ui/button'
+} from '@/components/ui/input-group'
 import { columns } from '@/features/reverse-resolution/components/ReverseResolutionTable/columns'
 import { ReverseResolutionTable } from '@/features/reverse-resolution/components/ReverseResolutionTable/ReverseResolutionTable'
 import { REVERSE_RESOLUTION_NETWORKS } from '@/features/reverse-resolution/config'
@@ -82,11 +82,13 @@ function RouteComponent() {
         <div className="flex flex-row justify-between">
           <h1 className="text-[28px] font-medium">Reverse resolution</h1>
         </div>
-        <InputGroup className='bg-white rounded-sm'>
-          <InputGroupInput id={searchId}
-              className="w-full"
-              placeholder="Search..."
-              onChange={(event) => table.setGlobalFilter(event.target.value)} />
+        <InputGroup className="bg-white rounded-sm">
+          <InputGroupInput
+            id={searchId}
+            className="w-full"
+            placeholder="Search..."
+            onChange={(event) => table.setGlobalFilter(event.target.value)}
+          />
           <InputGroupAddon>
             <Search />
           </InputGroupAddon>
