@@ -1,5 +1,6 @@
 import { SearchIcon } from 'lucide-react'
 import { useId } from 'react'
+import { Input } from '@/components/ui/input'
 
 export const SearchBar = () => {
   const id = useId()
@@ -9,7 +10,7 @@ export const SearchBar = () => {
       <label htmlFor="search" aria-label="Search">
         <SearchIcon height={16} width={16} />
       </label>
-      <input
+      <Input
         id={id}
         className="w-full appearance-none border-none outline-none"
         placeholder="Search..."

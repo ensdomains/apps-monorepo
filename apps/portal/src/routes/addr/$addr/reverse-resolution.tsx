@@ -11,6 +11,7 @@ import {
 import { SearchIcon, SquarePen, Trash2Icon, XIcon } from 'lucide-react'
 import { useId, useState } from 'react'
 import type { Address } from 'viem'
+import { Input } from "@/components/ui/input"
 import { Button } from '@/components/ui/button'
 import { columns } from '@/features/reverse-resolution/components/ReverseResolutionTable/columns'
 import { ReverseResolutionTable } from '@/features/reverse-resolution/components/ReverseResolutionTable/ReverseResolutionTable'
@@ -81,7 +82,7 @@ function RouteComponent() {
           <label htmlFor={searchId} aria-label="Search resolution">
             <SearchIcon />
           </label>
-          <input
+          <Input
             id={searchId}
             className="w-full"
             placeholder="Search..."
@@ -126,7 +127,7 @@ function RouteComponent() {
           </div>
         )}
       </header>
-      <ReverseResolutionTable table={table} />
+      <ReverseResolutionTable table={table} address={address} />
     </>
   )
 }

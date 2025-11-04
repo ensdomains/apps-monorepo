@@ -4,6 +4,7 @@ import {
   type Table as TableData,
 } from '@tanstack/react-table'
 import { useState } from 'react'
+import type { Address } from 'viem'
 import { SidebarTriggerRow } from '@/components/molecules/SidebarTriggerRow'
 import {
   Table,
@@ -24,9 +25,11 @@ import { ReverseResolutionSidebar } from './ReverseResolutionSidebar'
 export const ReverseResolutionTable = ({
   defaultTableSettings,
   table,
+  address,
 }: {
   defaultTableSettings?: TableViewSettings
   table: TableData<ReverseResolutionResult>
+  address: Address
 }) => {
   const [clickedRow, setClickedRow] =
     useState<Row<ReverseResolutionResult> | null>(null)
@@ -36,7 +39,11 @@ export const ReverseResolutionTable = ({
   const [tableView] = useTableViewSettings(defaultTableSettings)
 
   return (
-    <ReverseResolutionSidebar row={clickedRow} {...{ open, setOpen }}>
+    <ReverseResolutionSidebar
+      row={clickedRow}
+      address={address}
+      {...{ open, setOpen }}
+    >
       <Table className="relative">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
