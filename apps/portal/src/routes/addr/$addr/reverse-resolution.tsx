@@ -4,14 +4,12 @@ import {
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
-  type RowSelectionState,
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { Search, SquarePen, Trash2Icon, XIcon } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useId, useState } from 'react'
 import type { Address } from 'viem'
-import { Button } from '@/components/ui/button'
 import {
   InputGroup,
   InputGroupAddon,
@@ -29,7 +27,6 @@ export const Route = createFileRoute('/addr/$addr/reverse-resolution')({
 function RouteComponent() {
   const { addr: address } = Route.useParams() as { addr: Address }
   const [sorting, setSorting] = useState<SortingState>([])
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
   const { data, error, isLoading } = useQuery(
     getReverseResolutionQueryOptions({
@@ -44,10 +41,8 @@ function RouteComponent() {
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
-    onRowSelectionChange: setRowSelection,
     state: {
       sorting,
-      rowSelection,
     },
     getFilteredRowModel: getFilteredRowModel(),
     globalFilterFn: 'includesString',
@@ -59,22 +54,6 @@ function RouteComponent() {
   if (error) return <div>Error: {error.cause?.message}</div>
 
   if (!data) return <div>No data</div>
-
-  const selectedRowsCount = table.getFilteredSelectedRowModel().rows.length
-
-  const handleClearSelection = () => {
-    table.resetRowSelection()
-  }
-
-  const handleEdit = () => {
-    // TODO: Implement edit action
-    console.log('Edit selected rows:', table.getSelectedRowModel().rows)
-  }
-
-  const handleClear = () => {
-    // TODO: Implement clear action
-    console.log('Clear selected rows:', table.getSelectedRowModel().rows)
-  }
 
   return (
     <>
@@ -93,43 +72,6 @@ function RouteComponent() {
             <Search />
           </InputGroupAddon>
         </InputGroup>
-        {selectedRowsCount > 0 && (
-          <div className="flex flex-row justify-between items-center">
-            <div className="flex flex-row items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleClearSelection}
-                className="flex items-center gap-2"
-              >
-                <XIcon className="w-4 h-4" />
-              </Button>
-              <span className="text-sm font-medium">
-                {selectedRowsCount} selected
-              </span>
-            </div>
-            <div className="flex flex-row gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleEdit}
-                className="flex items-center gap-2"
-              >
-                <SquarePen className="w-4 h-4" />
-                Edit
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleClear}
-                className="flex items-center gap-2"
-              >
-                <Trash2Icon className="w-4 h-4" />
-                Clear
-              </Button>
-            </div>
-          </div>
-        )}
       </header>
       <ReverseResolutionTable table={table} address={address} />
     </>
