@@ -28,54 +28,31 @@ const names = [
   '0xtestwallet.base.eth',
 ]
 
-const postSlugs = await fetch('https://ens.domains/blog/search.json')
-  // biome-ignore lint/suspicious/noExplicitAny: Quick mock
-  .then((res) => res.json() as any)
-  .then((data) => data.map((post: { slug: string }) => post.slug))
-
-const getPostMetadata = async (slug: string) => {
-  const post = await fetch(
-    `https://ens.domains/blog/post/${slug}/metadata.json`,
-  ).then((res) => res.json())
-  return post as {
-    slug: string
-    title: string
-
-    assets: {
-      post: {
-        'cover-thumb'?: {
-          src: string
-        }
-        cover?: {
-          src: string
-        }
-      }
-    }
-  }
-}
-
 type PostData = {
   slug: string
   title: string
   cover: string
 }
 
-const postCache: Record<string, PostData> = {}
-
-const getRandomPost = async () => {
-  const slug = postSlugs[Math.floor(Math.random() * postSlugs.length)]
-  if (!postCache[slug]) {
-    const post = await getPostMetadata(slug)
-    postCache[slug] = {
-      slug,
-      title: post.title,
-      cover: `https://ens.domains${post.assets?.post?.['cover-thumb']?.src || post.assets?.post?.cover?.src}`,
-    }
+const posts: PostData[] = [
+  {
+    slug: "d3-doma",
+    title: "Tokenized DNS Domains with Doma and ENS",
+    cover: "https://6709d36e.ensdomains-v2.pages.dev/_next/static/media/cover-thumb.748d28f1.webp"
+  },
+  {
+    slug: "locker-domains",
+    title: "Orange Domains brings .locker domains to Ethereum with ENS",
+    cover: "https://6709d36e.ensdomains-v2.pages.dev/_next/static/media/cover-thumb.bbc33b3d.webp"
+  },
+  {
+    slug: "l2-primary-names",
+    title: "How Primary Names Work Today & What L2 Primary Names Fix",
+    cover: "https://6709d36e.ensdomains-v2.pages.dev/_next/static/media/cover-thumb.89fd1e07.webp"
   }
-  return postCache[slug]
-}
+]
 
-export const generateRandomNotification = async (): Promise<Notification> => {
+export const generateRandomNotification = (): Notification => {
   const type = types[Math.floor(Math.random() * types.length)]
   const name = names[Math.floor(Math.random() * names.length)] ?? 'default.eth'
 
@@ -98,7 +75,8 @@ export const generateRandomNotification = async (): Promise<Notification> => {
         unread: Math.random() < 0.5,
       }
     case 'blog-post': {
-      const post = await getRandomPost()
+      const post = posts[Math.floor(Math.random() * posts.length)]!
+
       return {
         type,
         title: post.title,
@@ -113,6 +91,4 @@ export const generateRandomNotification = async (): Promise<Notification> => {
   }
 }
 
-export const MOCK_NOTIFICATIONS: Notification[] = (
-  await Promise.all(Array.from({ length: 10 }).map(generateRandomNotification))
-).sort((a, b) => b.timestamp - a.timestamp)
+export const MOCK_NOTIFICATIONS: Notification[] = Array.from({ length: 10 }).map(generateRandomNotification).sort((a, b) => b.timestamp - a.timestamp)
