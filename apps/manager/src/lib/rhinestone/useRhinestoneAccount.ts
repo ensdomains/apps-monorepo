@@ -11,7 +11,6 @@ import { SUPPORTED_TOKENS } from "@/features/register/services/nameChainContract
 import { ERC20_ABI } from "../ens.abi";
 import { getTxHashResult } from "./utils";
 
-// Create standalone public client for balance fetching
 const SEPOLIA_RPC_URL = 'https://ethereum-sepolia-rpc.publicnode.com'
 
 export const customSepolia = {
@@ -226,7 +225,6 @@ export function useRhinestoneAccount() {
       try {
         console.log("🚀 Sending transaction with calls:", calls);
 
-        // Use sendUserOperation like the working POC
         const result = await state.rhinestoneAccount.sendUserOperation({
           chain: customSepolia,
           calls: calls
@@ -235,29 +233,18 @@ export function useRhinestoneAccount() {
         console.log("📋 Transaction result:", result);
         console.log("📋 Result keys:", Object.keys(result || {}));
 
-        // Handle null result
         if (!result) {
           throw new Error('Transaction returned null - transaction may have failed');
         }
 
-        // Extract transaction hash using multiple fallback methods (like working POC)
-        const txHash =
-          (result as any).fillTransactionHash ||
-          (result as any).transaction?.hash ||
-          (result as any).hash ||
-          (result as any).txHash ||
-          (result as any).fill?.hash ||
-          getTxHashResult(result) ||
-          null;
+        const txHash = getTxHashResult(result);
 
         console.log("✅ Transaction submitted:", txHash);
 
-        // Wait for transaction execution using Rhinestone's waitForExecution
         console.log("⏳ Waiting for transaction execution...");
         const executionResult = await state.rhinestoneAccount.waitForExecution(result);
         console.log("✅ Transaction execution confirmed!", executionResult);
 
-        // Additional verification: Check if the transaction was actually successful
         if (executionResult && (executionResult as any).status === 'reverted') {
           throw new Error('Transaction was reverted');
         }
@@ -281,8 +268,8 @@ export function useRhinestoneAccount() {
 
   return {
     ...state,
-    address: state.accountAddress, // Smart account address (primary address for Rhinestone)
-    isConnected: account.isConnected && !!state.accountAddress && !!state.rhinestoneAccount, // Smart account is connected
+    address: state.accountAddress,
+    isConnected: account.isConnected && !!state.accountAddress && !!state.rhinestoneAccount,
     sendTransaction,
     stablecoinBalances,
     isLoadingBalances,

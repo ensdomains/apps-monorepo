@@ -1,13 +1,11 @@
 export const getTxHashResult = (result: any) => {
-    // Extract transaction hash if available
     if (result && typeof result === "object") {
-        // New structure: { fill: { hash: "0x...", chainId: 11155111 }, claims: [] }
         if ("fill" in result && result.fill && typeof result.fill === "object") {
             if ("hash" in result.fill) {
                 return result.fill.hash;
             }
         }
-        // Legacy structure: direct properties
+        // legacy structure
         if ("fillTransactionHash" in result) {
             return result.fillTransactionHash;
         } else if ("transactionHash" in result) {
