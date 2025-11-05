@@ -1,0 +1,42 @@
+{
+  "name": "@ens-apps/abis",
+  "version": "1.0.0",
+  "description": "Shared ABIs for ENS apps",
+  "main": "./src/index.ts",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./hooks": "./src/hooks/index.ts",
+    "./chains": "./src/chains.ts",
+    "./L2ReverseRegistrar": "./src/L2ReverseRegistrar.ts"
+  },
+  "scripts": {
+    "test": "echo \"No tests for abis package\""
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  },
+  "keywords": [],
+  "dependencies": {
+    "viem": "^2.37.4",
+    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@16ab3ad"
+  },
+  "peerDependencies": {
+    "wagmi": "^2.16.9",
+    "react": "^19.1.1",
+    "@tanstack/react-query": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "wagmi": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "@tanstack/react-query": {
+      "optional": true
+    }
+  }
+}
+

@@ -6,7 +6,14 @@ import {
   metaMaskWallet,
 } from '@rainbow-me/rainbowkit/wallets'
 import { createClient, type HttpTransport, http } from 'viem'
-import { sepolia } from 'viem/chains'
+import {
+  arbitrumSepolia,
+  baseSepolia,
+  lineaSepolia,
+  optimismSepolia,
+  scrollSepolia,
+  sepolia,
+} from 'viem/chains'
 import { createConfig } from 'wagmi'
 
 export const wagmiConfig = createConfig({
@@ -22,6 +29,11 @@ export const wagmiConfig = createConfig({
         },
       },
     },
+    optimismSepolia,
+    arbitrumSepolia,
+    baseSepolia,
+    lineaSepolia,
+    scrollSepolia,
   ],
   connectors: connectorsForWallets(
     [

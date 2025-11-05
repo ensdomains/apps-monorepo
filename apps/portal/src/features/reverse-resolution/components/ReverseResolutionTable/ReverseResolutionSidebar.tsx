@@ -1,9 +1,10 @@
+import type { CoinType } from '@ens-apps/abis/chains'
 import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
 import { ArrowLeftRight, CheckCircle2, XCircle } from 'lucide-react'
-import { type FC, type PropsWithChildren, useEffect, useState } from 'react'
+import type { FC, PropsWithChildren } from 'react'
 import type { Address } from 'viem'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
@@ -22,6 +23,9 @@ import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecord
 import { useIsMobile } from '@/hooks/use-mobile'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
+import { useNameValidation } from './hooks/useNameValidation'
+import { useNetworkSwitching } from './hooks/useNetworkSwitching'
+import { useReverseResolutionMutations } from './hooks/useReverseResolutionMutations'
 
 const AddressHistory = ({
   history,
@@ -98,15 +102,42 @@ export const ReverseResolutionSidebar: FC<
   }>
 > = ({ children, row, address, open, setOpen }) => {
   const isMobile = useIsMobile()
-  const [nameInput, setNameInput] = useState('')
-  const [nameError, setNameError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!open || !row) {
-      setNameInput('')
-      setNameError(null)
-    }
-  }, [open, row])
+  const rowData = row?.original
+  const coinType = rowData?.coinType ?? 60
+  const name = rowData?.name
+  const defaultName = rowData?.defaultName
+  const label = rowData?.label ?? ''
+  const icon = rowData?.icon
+  const forwardMatch = rowData?.forwardMatch ?? false
+
+  const displayName =
+    name || (defaultName && coinType !== 60 ? defaultName : null)
+  const isInheritingDefault = !name && defaultName && coinType !== 60
+  const isPrimaryName = forwardMatch || isInheritingDefault
+  const showSetPrimaryButton = displayName && !isPrimaryName && name !== null
+
+  const isTestnet = true // TODO: Set based on environment
+
+  const { nameInput, nameError, handleNameChange, validateName } =
+    useNameValidation(open, !row)
+
+  const { isWrongNetwork, isSwitchingChain, switchToRequiredNetwork } =
+    useNetworkSwitching({
+      coinType: coinType as CoinType,
+      isTestnet,
+    })
+
+  const {
+    isPendingUpdate,
+    isSettingForward,
+    setReverseNameMutation,
+    setForwardResolutionMutation,
+  } = useReverseResolutionMutations({
+    coinType: coinType as CoinType,
+    isTestnet,
+    displayName,
+  })
 
   if (!row) {
     return (
@@ -126,49 +157,24 @@ export const ReverseResolutionSidebar: FC<
     )
   }
 
-  const { name, defaultName, coinType, label, icon, forwardMatch } =
-    row.original
-
-  const displayName =
-    name || (defaultName && coinType !== 60 ? defaultName : null)
-  const isInheritingDefault = !name && defaultName && coinType !== 60
-
-  const isPrimaryName = forwardMatch || isInheritingDefault
-
-  // Show "Set primary name" button when name exists but isn't primary yet
-  const showSetPrimaryButton = displayName && !isPrimaryName && name !== null
-
-  const validateName = (value: string): boolean => {
-    if (!value) {
-      setNameError(null)
-      return true
-    }
-
-    if (!value.endsWith('.eth')) {
-      setNameError('Name must end with .eth')
-      return false
-    }
-
-    setNameError(null)
-    return true
-  }
-
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    setNameInput(value)
-    validateName(value)
-  }
-
   const handleUpdate = () => {
     if (validateName(nameInput) && nameInput) {
-      // TODO: Implement setName for specific coinType
-      console.log('Update name for coinType', coinType, 'to', nameInput)
+      if (isWrongNetwork) {
+        switchToRequiredNetwork()
+      } else {
+        setReverseNameMutation(nameInput)
+      }
     }
   }
 
   const handleSetPrimaryName = () => {
-    // TODO: Implement setPrimaryName - set forward resolution
-    console.log('Set primary name for', displayName, 'on coinType', coinType)
+    if (displayName) {
+      if (isWrongNetwork) {
+        switchToRequiredNetwork()
+      } else {
+        setForwardResolutionMutation(address)
+      }
+    }
   }
 
   return (
@@ -185,8 +191,18 @@ export const ReverseResolutionSidebar: FC<
                 {label} resolution
               </SheetTitle>
               {showSetPrimaryButton && (
-                <Button onClick={handleSetPrimaryName} variant="default">
-                  Set primary name
+                <Button
+                  onClick={handleSetPrimaryName}
+                  variant="default"
+                  disabled={isSettingForward || isSwitchingChain}
+                >
+                  {isSwitchingChain
+                    ? 'Switching...'
+                    : isSettingForward
+                      ? 'Setting...'
+                      : isWrongNetwork
+                        ? 'Switch Network'
+                        : 'Set primary name'}
                 </Button>
               )}
             </div>
@@ -238,14 +254,26 @@ export const ReverseResolutionSidebar: FC<
                     type="text"
                     value={nameInput}
                     onChange={handleNameChange}
+                    disabled={isPendingUpdate || isSwitchingChain}
                   />
                   <Button
                     variant="secondary"
                     onClick={handleUpdate}
-                    disabled={!nameInput || !!nameError}
+                    disabled={
+                      !nameInput ||
+                      !!nameError ||
+                      isPendingUpdate ||
+                      isSwitchingChain
+                    }
                     size="sm"
                   >
-                    Update
+                    {isSwitchingChain
+                      ? 'Switching...'
+                      : isPendingUpdate
+                        ? 'Setting...'
+                        : isWrongNetwork
+                          ? 'Switch Network'
+                          : 'Update'}
                   </Button>
                 </div>
                 {nameError && (
