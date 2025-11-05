@@ -1,4 +1,4 @@
-import type { NameRecord } from '@/components/organisms/RecordsTable/columns'
+import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
 
 export const recordTypeToSubgraphKey = (type: NameRecord['type']) => {
   switch (type) {

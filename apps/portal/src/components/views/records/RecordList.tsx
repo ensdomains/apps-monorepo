@@ -17,10 +17,10 @@ import {
   XIcon,
 } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
-import { columns } from '@/components/organisms/RecordsTable/columns'
-import { RecordsTable } from '@/components/organisms/RecordsTable/RecordsTable'
 import { Button } from '@/components/ui/button'
-import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
+import { columns } from '@/features/records/components/RecordsTable/columns'
+import { RecordsTable } from '@/features/records/components/RecordsTable/RecordsTable'
+import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
 export const RecordList = ({
