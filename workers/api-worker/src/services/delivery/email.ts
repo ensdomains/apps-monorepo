@@ -6,10 +6,16 @@ import { TABLE } from '#core/database/index.js'
 import { sendMailV3 } from '#services/email/utils.js'
 import type { EmailDeliveryJob } from '#types/delivery.js'
 import { logger } from '#utils/logger.js'
-import { emailTemplates } from './templates/email.js'
+import { EmailTemplate, emailTemplates } from './templates/email.js'
+import { NotificationKind, NotificationPayloads } from '#config/notifications.js'
+import { AnyUserNotificationPayload } from '#types/notifications.js'
 
 class UnsupportedNotificationTypeError extends TaggedError(
   'UNSUPPORTED_NOTIFICATION_TYPE',
+) {}
+
+class NotificationDeliveryNotFoundError extends TaggedError(
+  'NOTIFICATION_DELIVERY_NOT_FOUND',
 ) {}
 
 export const deliverEmailNotification = ResultFn(async function* (
@@ -18,8 +24,27 @@ export const deliverEmailNotification = ResultFn(async function* (
   db: Database,
   job: EmailDeliveryJob,
 ) {
+  const deliveryJob = await db.query.notificationDeliveries.findFirst({
+    where: eq(TABLE.notificationDeliveries.id, job.id),
+    columns: {
+target: true,
+    },
+    with: {
+      notification: {
+        columns: {
+          payload: true,
+        },
+      }
+    }
+  })
+  if (!deliveryJob) {
+    return yield* new NotificationDeliveryNotFoundError({
+      message: `Delivery job not found: ${job.id}`,
+    })
+  }
+
   // Get the template function
-  const template = emailTemplates[job.kind as keyof typeof emailTemplates]
+  const template = emailTemplates[job.kind] as EmailTemplate<typeof job.kind>
   if (!template) {
     return yield* new UnsupportedNotificationTypeError({
       message: `No Email template for: ${job.kind}`,
@@ -27,7 +52,7 @@ export const deliverEmailNotification = ResultFn(async function* (
   }
 
   // Generate the template data
-  const templateData = template(job.payload as any)
+  const templateData = template(deliveryJob.notification.payload as AnyUserNotificationPayload)
 
   // Send via SendGrid API
   const result = yield* sendMailV3(apiKey, {
@@ -35,7 +60,7 @@ export const deliverEmailNotification = ResultFn(async function* (
       {
         to: [
           {
-            email: job.target,
+            email: deliveryJob.target,
           },
         ],
         dynamic_template_data: templateData.dynamicData,
@@ -64,7 +89,7 @@ export const deliverEmailNotification = ResultFn(async function* (
     jobId: job.id,
     kind: job.kind,
     templateId: templateData.templateId,
-    to: job.target,
+    to: deliveryJob.target,
   })
 
   return ok(undefined)
@@ -72,7 +97,7 @@ export const deliverEmailNotification = ResultFn(async function* (
 
 export const handleEmailDeliveryFailure = async (
   db: Database,
-  job: EmailDeliveryJob,
+  job: Message<EmailDeliveryJob>,
   errorMessage: string,
 ): Promise<void> => {
   await db
@@ -86,8 +111,8 @@ export const handleEmailDeliveryFailure = async (
     .where(eq(TABLE.notificationDeliveries.id, job.id))
 
   logger.error('Email notification failed', {
-    jobId: job.id,
-    kind: job.kind,
+    jobId: job.body.id,
+    kind: job.body.kind,
     attempts: job.attempts + 1,
     error: errorMessage,
   })

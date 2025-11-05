@@ -7,13 +7,13 @@ import type { EmailDeliveryJob } from '#types/delivery.js'
 import { logger } from '#utils/logger.js'
 
 export const handleEmailQueue = async (
-  batch: MessageBatch,
+  batch: MessageBatch<EmailDeliveryJob>,
   env: CloudflareBindings,
 ): Promise<void> => {
   const db = getDatabase(env)
 
   for (const message of batch.messages) {
-    const job = message.body as EmailDeliveryJob
+    const job = message.body
 
     logger.info('Processing email delivery', {
       jobId: job.id,
@@ -29,21 +29,8 @@ export const handleEmailQueue = async (
     )
 
     if (result.isErr()) {
-      // Handle failure
-      if (job.attempts < job.maxAttempts) {
-        // Retry with exponential backoff
-        const delaySeconds = Math.pow(2, job.attempts) * 60
-        logger.info('Retrying email delivery', {
-          jobId: job.id,
-          attempt: job.attempts + 1,
-          delaySeconds,
-        })
-        await message.retry({ delaySeconds })
-      } else {
-        // Max attempts reached
-        await handleEmailDeliveryFailure(db, job, result.error.message)
-        message.ack()
-      }
+      await handleEmailDeliveryFailure(db, message, result.error.message)
+      message.retry()
     } else {
       // Success
       message.ack()

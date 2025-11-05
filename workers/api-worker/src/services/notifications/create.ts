@@ -124,12 +124,7 @@ export const createNotification = ResultFn(async function* <
           id: delivery.id,
           notificationId: notification.id,
           userId: ctx.userId,
-          channel: 'telegram',
-          target: channel.target!,
           kind: ctx.kind,
-          payload: ctx.payload,
-          attempts: 0,
-          maxAttempts: 3,
         }
         await ctx.env.TELEGRAM_QUEUE.send(job)
         break
@@ -140,12 +135,7 @@ export const createNotification = ResultFn(async function* <
           id: delivery.id,
           notificationId: notification.id,
           userId: ctx.userId,
-          channel: 'email',
-          target: channel.target!,
           kind: ctx.kind,
-          payload: ctx.payload,
-          attempts: 0,
-          maxAttempts: 3,
         }
         await ctx.env.EMAIL_QUEUE.send(job)
         break

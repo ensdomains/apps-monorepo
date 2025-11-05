@@ -3,7 +3,7 @@ import type {
   SupportedNotifications,
 } from '#config/notifications.js'
 
-type EmailTemplate<K extends SupportedNotifications<'email'>> = (
+export type EmailTemplate<K extends SupportedNotifications<'email'>> = (
   payload: NotificationPayloads[K],
 ) => {
   templateId: string

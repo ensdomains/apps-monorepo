@@ -5,32 +5,19 @@ import type {
 } from '#config/notifications.js'
 
 // Base delivery job
-export type BaseDeliveryJob<C extends ChannelType> = {
+export type BaseDeliveryJob = {
   id: string
   notificationId: string
   userId: string
-  channel: C
-  target: string
-  attempts: number
-  maxAttempts: number
+  kind: NotificationKind
 }
 
 // Channel-specific delivery jobs
-export type TelegramDeliveryJob = BaseDeliveryJob<'telegram'> & {
-  kind: NotificationKind
-  payload: NotificationPayloads[NotificationKind]
-}
+export type TelegramDeliveryJob = BaseDeliveryJob
 
-export type EmailDeliveryJob<K extends NotificationKind = NotificationKind> =
-  BaseDeliveryJob<'email'> & {
-    kind: K
-    payload: NotificationPayloads[K]
-  }
+export type EmailDeliveryJob = BaseDeliveryJob
 
-export type PushDeliveryJob = BaseDeliveryJob<'push'> & {
-  kind: NotificationKind
-  payload: NotificationPayloads[NotificationKind]
-}
+export type PushDeliveryJob = BaseDeliveryJob
 
 export type AnyDeliveryJob =
   | TelegramDeliveryJob

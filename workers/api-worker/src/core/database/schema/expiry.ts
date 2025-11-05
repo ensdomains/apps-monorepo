@@ -1,6 +1,5 @@
 import { relations } from 'drizzle-orm'
-import { pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
-import { randomUUIDv7 } from '../utils/schemaHelpers'
+import { pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { users } from './core'
 
 export const ensNames = pgTable('ens_names', {
@@ -43,7 +42,6 @@ export const ensEvalPointerRelations = relations(
 export const ensWatchers = pgTable(
   'ens_watchers',
   {
-    id: uuid('id').primaryKey().default(randomUUIDv7),
     user_id: uuid('user_id')
       .notNull()
       .references(() => users.id, {
@@ -55,12 +53,20 @@ export const ensWatchers = pgTable(
         onDelete: 'cascade',
       }),
   },
-  (table) => [unique('ens_watcher_unique').on(table.user_id, table.name)],
+  (table) => [
+    primaryKey({
+      columns: [table.user_id, table.name],
+    }),
+  ],
 )
 
 export const ensWatcherRelations = relations(ensWatchers, ({ one }) => ({
   ensName: one(ensNames, {
     fields: [ensWatchers.name],
     references: [ensNames.name],
+  }),
+  user: one(users, {
+    fields: [ensWatchers.user_id],
+    references: [users.id],
   }),
 }))

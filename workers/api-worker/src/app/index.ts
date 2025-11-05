@@ -5,6 +5,7 @@ import authApp from './routes/auth'
 import expiryApp from './routes/expiry'
 import favoritesApp from './routes/favorites'
 import notificationsApp from './routes/notifications'
+import watchersApp from './routes/watchers'
 import webhookApp from './routes/webhook'
 
 const app = createApp()
@@ -13,6 +14,7 @@ const app = createApp()
   .route('/', notificationsApp)
   .route('/', webhookApp)
   .route('/', expiryApp)
+  .route('/', watchersApp)
   .onError((err, c) => {
     if (err instanceof HTTPException) {
       // Get the custom response
