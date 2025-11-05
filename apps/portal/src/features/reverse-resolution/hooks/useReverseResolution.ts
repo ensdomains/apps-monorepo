@@ -47,9 +47,7 @@ export const getReverseResolution = ResultFn(async function* ({
 
       if (!nameResult) {
         return {
-          coinType: network.coinType,
-          label: network.label,
-          icon: network.icon,
+          ...network,
           name: null,
           reverseResolverAddress: null,
           resolverAddress: null,
@@ -62,9 +60,7 @@ export const getReverseResolution = ResultFn(async function* ({
       const forwardMatch = nameResult.match
 
       return {
-        coinType: network.coinType,
-        label: network.label,
-        icon: network.icon,
+        ...network,
         name: nameResult.name,
         reverseResolverAddress: nameResult.reverseResolverAddress,
         resolverAddress: nameResult.resolverAddress,
@@ -76,9 +72,7 @@ export const getReverseResolution = ResultFn(async function* ({
       // Log error to see what's failing
       console.error(`[getName] Error for ${network.label}:`, error)
       return {
-        coinType: network.coinType,
-        label: network.label,
-        icon: network.icon,
+        ...network,
         name: null,
         reverseResolverAddress: null,
         resolverAddress: null,
@@ -98,9 +92,7 @@ export const getReverseResolution = ResultFn(async function* ({
       }
       const network = networks[index]
       return {
-        coinType: network.coinType,
-        label: network.label,
-        icon: network.icon,
+        ...network,
         name: null,
         reverseResolverAddress: null,
         resolverAddress: null,

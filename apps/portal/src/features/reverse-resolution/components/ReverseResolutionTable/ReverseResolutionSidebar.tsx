@@ -249,14 +249,19 @@ export const ReverseResolutionSidebar: FC<
                     )}
                   </div>
                 )}
-                <div className="flex gap-2">
+                <form onSubmit={handleUpdate} className="flex gap-2">
                   <Input
                     type="text"
+                    name="name"
                     value={nameInput}
                     onChange={handleNameChange}
                     disabled={isPendingUpdate || isSwitchingChain}
+                    pattern=".*\.eth$"
+                    title="Name must end with .eth"
+                    required
                   />
                   <Button
+                    type="submit"
                     variant="secondary"
                     onClick={handleUpdate}
                     disabled={
@@ -275,10 +280,7 @@ export const ReverseResolutionSidebar: FC<
                           ? 'Switch Network'
                           : 'Update'}
                   </Button>
-                </div>
-                {nameError && (
-                  <span className="text-xs text-red-600">{nameError}</span>
-                )}
+                </form>
               </div>
             </div>
 

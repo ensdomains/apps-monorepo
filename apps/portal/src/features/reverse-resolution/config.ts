@@ -40,7 +40,8 @@ const DEFAULT_REVERSE_RECORD: ReverseResolutionNetwork = {
 function createReverseResolutionNetworks(): ReverseResolutionNetwork[] {
   const networks: ReverseResolutionNetwork[] = [DEFAULT_REVERSE_RECORD]
 
-  for (const coinType of Object.keys(icons) as unknown as CoinType[]) {
+  for (const coinTypeKey of Object.keys(icons)) {
+    const coinType = Number(coinTypeKey) as CoinType
     networks.push({
       coinType,
       label: names[coinType],

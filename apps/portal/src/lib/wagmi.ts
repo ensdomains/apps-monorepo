@@ -21,14 +21,7 @@ export const wagmiConfig = createConfig({
   ssr: false,
   multiInjectedProviderDiscovery: true,
   chains: [
-    {
-      ...extendChainWithEns(sepolia),
-      subgraphs: {
-        ens: {
-          url: 'https://api.sepolia.ensnode.io/subgraph',
-        },
-      },
-    },
+    extendChainWithEns(sepolia),
     optimismSepolia,
     arbitrumSepolia,
     baseSepolia,
