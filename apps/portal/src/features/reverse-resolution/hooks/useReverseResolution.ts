@@ -47,9 +47,7 @@ export const getReverseResolution = ResultFn(async function* ({
 
       if (!nameResult) {
         return {
-          coinType: network.coinType,
-          label: network.label,
-          icon: network.icon,
+          ...network
           name: null,
           reverseResolverAddress: null,
           resolverAddress: null,
