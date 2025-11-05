@@ -92,7 +92,7 @@ export const RecentActivity = ({ name }: { name: string }) => {
   }
 
   if (error) {
-    return <div>Error: {error.cause?.message}</div>
+    return <div>Name History Error: {error.cause?.message}</div>
   }
 
   if (!events) {

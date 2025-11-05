@@ -16,7 +16,13 @@ export const ResolverLocation = ({
     getUnderlyingAddressQueryOptions({ resolverAddress, name }),
   )
 
-  if (error) return <div>Error: {error.cause?.message}</div>
+  if (error)
+    return (
+      <div>
+        Failed to get underlying resolver:{' '}
+        {error.cause?.message || error.message || JSON.stringify(error)}
+      </div>
+    )
   if (isLoading) return <div>Loading...</div>
 
   if (!data) return <div>Could not find resolver location</div>

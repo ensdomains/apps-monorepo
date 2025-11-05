@@ -1,22 +1,22 @@
-import { useQuery } from '@tanstack/react-query'
+import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
 import { useMemo } from 'react'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
-import { getProfileQueryOptions } from '../hooks/useProfile'
 
-export const RecordCount = ({ name }: { name: string }) => {
-  const { data, isLoading, error } = useQuery(getProfileQueryOptions(name))
-
+export const RecordCount = ({
+  name,
+  records,
+}: {
+  name: string
+  records?: GetRecordsReturnType
+}) => {
   const recordCount = useMemo(() => {
-    if (data) return recordsToTableData(data.records).length
+    if (records) return recordsToTableData(records).length
     else return 0
-  }, [data])
+  }, [records])
 
-  if (error) return <div>Error: {error.message}</div>
-  if (isLoading) return <div>Loading...</div>
-
-  if (!data) return null
+  if (!records) return null
 
   return (
     <Link

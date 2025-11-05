@@ -1,29 +1,26 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { type GetRecordsErrorType, getRecords } from '@ensdomains/ensjs/public'
-import { fromPromise, ok } from 'neverthrow'
-import { safeGetClient } from '@/lib/wagmi/helpers'
+import type { GetRecordsErrorType } from '@ensdomains/ensjs/public'
+import type { GetSubgraphRecordsErrorType } from '@ensdomains/ensjs/subgraph'
+import { ok } from 'neverthrow'
+import { getRecords } from './useRecords'
 import { getSubgraphRecords } from './useSubgraphRecords'
 
-class RecordsError extends TaggedError('RecordsError')<{
-  cause: GetRecordsErrorType
+export class GetProfileError extends TaggedError('RecordsError')<{
+  cause: GetRecordsErrorType | GetSubgraphRecordsErrorType
 }> {}
 
 export const getProfile = ResultFn(async function* (name: string) {
-  const client = yield* safeGetClient()
-
   const subgraphRecords = yield* getSubgraphRecords(name)
 
-  const records = yield* await fromPromise(
-    getRecords(client, {
-      name,
-      ...subgraphRecords,
-      contentHash: true,
-      abi: true,
-    }),
-    (e) => new RecordsError({ cause: e as GetRecordsErrorType }),
-  )
+  const records = yield* getRecords({
+    name,
+    ...subgraphRecords,
+    contentHash: true,
+    abi: true,
+    ignoreInvalidCoinTypes: true,
+  })
 
   return ok({
     records,
