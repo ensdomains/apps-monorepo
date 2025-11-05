@@ -1,3 +1,4 @@
+// @ts-expect-error - defineNitroConfig is globally available but not typed
 export default defineNitroConfig({
   rollupConfig: {
     external: [

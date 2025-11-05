@@ -16,14 +16,13 @@ function RouteComponent() {
       <Button
         className="mt-5 w-full"
         onClick={() => {
-          generateRandomNotification().then((notification) => {
-            notificationsStore.trigger.addNotification({
-              notification,
-              sorted: true,
-            })
-
-            console.log('Added notification', notification)
+          const notification = generateRandomNotification()
+          notificationsStore.trigger.addNotification({
+            notification,
+            sorted: true,
           })
+
+          console.log('Added notification', notification)
         }}
       >
         Add random notification
