@@ -36,20 +36,23 @@ type PostData = {
 
 const posts: PostData[] = [
   {
-    slug: "d3-doma",
-    title: "Tokenized DNS Domains with Doma and ENS",
-    cover: "https://6709d36e.ensdomains-v2.pages.dev/_next/static/media/cover-thumb.748d28f1.webp"
+    slug: 'd3-doma',
+    title: 'Tokenized DNS Domains with Doma and ENS',
+    cover:
+      'https://6709d36e.ensdomains-v2.pages.dev/_next/static/media/cover-thumb.748d28f1.webp',
   },
   {
-    slug: "locker-domains",
-    title: "Orange Domains brings .locker domains to Ethereum with ENS",
-    cover: "https://6709d36e.ensdomains-v2.pages.dev/_next/static/media/cover-thumb.bbc33b3d.webp"
+    slug: 'locker-domains',
+    title: 'Orange Domains brings .locker domains to Ethereum with ENS',
+    cover:
+      'https://6709d36e.ensdomains-v2.pages.dev/_next/static/media/cover-thumb.bbc33b3d.webp',
   },
   {
-    slug: "l2-primary-names",
-    title: "How Primary Names Work Today & What L2 Primary Names Fix",
-    cover: "https://6709d36e.ensdomains-v2.pages.dev/_next/static/media/cover-thumb.89fd1e07.webp"
-  }
+    slug: 'l2-primary-names',
+    title: 'How Primary Names Work Today & What L2 Primary Names Fix',
+    cover:
+      'https://6709d36e.ensdomains-v2.pages.dev/_next/static/media/cover-thumb.89fd1e07.webp',
+  },
 ]
 
 export const generateRandomNotification = (): Notification => {
@@ -91,4 +94,6 @@ export const generateRandomNotification = (): Notification => {
   }
 }
 
-export const MOCK_NOTIFICATIONS: Notification[] = Array.from({ length: 10 }).map(generateRandomNotification).sort((a, b) => b.timestamp - a.timestamp)
+export const MOCK_NOTIFICATIONS: Notification[] = Array.from({ length: 10 })
+  .map(generateRandomNotification)
+  .sort((a, b) => b.timestamp - a.timestamp)
