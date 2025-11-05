@@ -99,12 +99,10 @@ export const ReverseResolutionSidebar: FC<
 > = ({ children, row, address, open, setOpen }) => {
   const isMobile = useIsMobile()
   const [nameInput, setNameInput] = useState('')
-  const [nameError, setNameError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open || !row) {
       setNameInput('')
-      setNameError(null)
     }
   }, [open, row])
 
@@ -138,29 +136,12 @@ export const ReverseResolutionSidebar: FC<
   // Show "Set primary name" button when name exists but isn't primary yet
   const showSetPrimaryButton = displayName && !isPrimaryName && name !== null
 
-  const validateName = (value: string): boolean => {
-    if (!value) {
-      setNameError(null)
-      return true
-    }
+  const handleUpdate = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const form = e.currentTarget
+    const input = form.elements.namedItem('name') as HTMLInputElement
 
-    if (!value.endsWith('.eth')) {
-      setNameError('Name must end with .eth')
-      return false
-    }
-
-    setNameError(null)
-    return true
-  }
-
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    setNameInput(value)
-    validateName(value)
-  }
-
-  const handleUpdate = () => {
-    if (validateName(nameInput) && nameInput) {
+    if (input.reportValidity() && nameInput) {
       // TODO: Implement setName for specific coinType
       console.log('Update name for coinType', coinType, 'to', nameInput)
     }
@@ -233,24 +214,25 @@ export const ReverseResolutionSidebar: FC<
                     )}
                   </div>
                 )}
-                <div className="flex gap-2">
+                <form onSubmit={handleUpdate} className="flex gap-2">
                   <Input
                     type="text"
+                    name="name"
                     value={nameInput}
-                    onChange={handleNameChange}
+                    onChange={(e) => setNameInput(e.target.value)}
+                    pattern=".*\.eth$"
+                    title="Name must end with .eth"
+                    required
                   />
                   <Button
+                    type="submit"
                     variant="secondary"
-                    onClick={handleUpdate}
-                    disabled={!nameInput || !!nameError}
+                    disabled={!nameInput}
                     size="sm"
                   >
                     Update
                   </Button>
-                </div>
-                {nameError && (
-                  <span className="text-xs text-red-600">{nameError}</span>
-                )}
+                </form>
               </div>
             </div>
 
