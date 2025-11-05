@@ -92,9 +92,7 @@ export const getReverseResolution = ResultFn(async function* ({
       }
       const network = networks[index]
       return {
-        coinType: network.coinType,
-        label: network.label,
-        icon: network.icon,
+        ...network,
         name: null,
         reverseResolverAddress: null,
         resolverAddress: null,
