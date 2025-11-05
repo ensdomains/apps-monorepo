@@ -2,3 +2,4 @@ node_modules
 coverage
 .claude/
 dist
+.DS_Store

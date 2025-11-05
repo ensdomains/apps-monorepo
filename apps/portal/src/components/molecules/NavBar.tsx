@@ -3,7 +3,7 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import { BookIcon, CircleQuestionMarkIcon, SettingsIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import { LogoWithTextSVG } from '@/assets/logo'
-import { TableViewSwitch } from '../organisms/RecordsTable/TableViewSwitch'
+import { TableViewSwitch } from '@/features/records/components/RecordsTable/TableViewSwitch'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { SearchBar } from './SearchBar'
 

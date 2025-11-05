@@ -13,15 +13,9 @@ import {
   getEventSignature,
 } from '@/utils/ens/eventSignatures'
 import { formatEventValue } from '@/utils/ens/formatEventValue'
+import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
 
-type Event = {
-  id: string
-  type: string
-  category: 'domain' | 'registration' | 'resolver'
-  details: Record<string, unknown>
-}
-
-const EventData = ({ event, txHash }: { event: Event; txHash: Hash }) => {
+const EventData = ({ event, txHash }: { event: ENSEvent; txHash: Hash }) => {
   const [showDecoded, setShowDecoded] = useState(true)
 
   const { data: receipt } = useTransactionReceipt({
@@ -57,7 +51,7 @@ const EventData = ({ event, txHash }: { event: Event; txHash: Hash }) => {
       </div>
 
       {showDecoded ? (
-        <div className="border rounded-lg overflow-hidden">
+        <div className="border rounded-lg overflow-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
@@ -150,7 +144,7 @@ export const TransactionEvents = ({
   events,
   txHash,
 }: {
-  events: Event[]
+  events: ENSEvent[]
   txHash: Hash
 }) => {
   if (events.length === 0) {
@@ -225,10 +219,8 @@ export const TransactionEvents = ({
                       <CopyableRecord
                         value={getEventSignature(event.type)}
                         displayValue={
-                          <div>
-                            <p className="text-sm break-all font-mono">
-                              {getEventSignature(event.type)}
-                            </p>
+                          <div className="w-full max-w-110 truncate">
+                            {getEventSignature(event.type)}
                           </div>
                         }
                       />

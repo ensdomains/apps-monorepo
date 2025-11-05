@@ -11,7 +11,7 @@ export const CopyableRecord = ({
 }: {
   value: string | number
   className?: string
-  href?: `https://${string}`
+  href?: string
   displayValue?: ReactNode
 }) => {
   const [copy, setCopy] = useState(false)
@@ -25,21 +25,19 @@ export const CopyableRecord = ({
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-2 max-w-full', // inline-flex prevents full-width expansion
+        'flex items-center gap-2 w-full', // changed inline-flex → flex, ensure full width
         className,
       )}
     >
       {href ? (
         <ExternalLink
-          className="text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4 truncate max-w-full"
+          className="text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4 truncate"
           href={href}
         >
           {content}
         </ExternalLink>
       ) : (
-        <div className="text-sm sm:text-base font-mono max-w-full">
-          {content}
-        </div>
+        <div className="text-sm sm:text-base font-mono truncate">{content}</div>
       )}
       <button
         className="flex-shrink-0 cursor-pointer"

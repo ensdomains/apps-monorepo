@@ -3,6 +3,8 @@ import {
   type Row,
   type Table as TableData,
 } from '@tanstack/react-table'
+import { useState } from 'react'
+import { SidebarTriggerRow } from '@/components/molecules/SidebarTriggerRow'
 import {
   Table,
   TableBody,
@@ -11,30 +13,30 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import type { HistoryTransaction } from './columns'
-import { HistorySidebar } from './HistorySidebar'
-import { HistoryTableRow } from './HistoryTableRow'
+import {
+  type TableViewSettings,
+  useTableViewSettings,
+} from '@/features/profile/hooks/useTableViewSettings'
+import { columns, type NameRecord } from './columns'
+import { RecordSidebar } from './RecordSidebar'
 
-export const HistoryTable = ({
+export const RecordsTable = ({
+  defaultTableSettings,
   name,
   table,
-  sidebarOpen,
-  setSidebarOpen,
-  clickedRow,
 }: {
   name: string
-  table: TableData<HistoryTransaction>
-  sidebarOpen: boolean
-  setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>
-  clickedRow: Row<HistoryTransaction> | null
+  defaultTableSettings?: TableViewSettings
+  table: TableData<NameRecord>
 }) => {
+  const [clickedRow, setClickedRow] = useState<Row<NameRecord> | null>(null)
+
+  const [open, setOpen] = useState(false)
+
+  const [tableView] = useTableViewSettings(defaultTableSettings)
+
   return (
-    <HistorySidebar
-      row={clickedRow}
-      name={name}
-      open={sidebarOpen}
-      setOpen={setSidebarOpen}
-    >
+    <RecordSidebar row={clickedRow} {...{ name, open, setOpen }}>
       <Table className="relative">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -58,19 +60,21 @@ export const HistoryTable = ({
           {table.getRowModel().rows?.length ? (
             table
               .getRowModel()
-              .rows.map((row) => <HistoryTableRow key={row.id} row={row} />)
+              .rows.map((row) => (
+                <SidebarTriggerRow
+                  key={row.id}
+                  {...{ row, tableView, setOpen, setClickedRow, open }}
+                />
+              ))
           ) : (
             <TableRow>
-              <TableCell
-                colSpan={table.getAllColumns().length}
-                className="h-24 text-center"
-              >
-                No history found.
+              <TableCell colSpan={columns.length} className="h-24 text-center">
+                No results.
               </TableCell>
             </TableRow>
           )}
         </TableBody>
       </Table>
-    </HistorySidebar>
+    </RecordSidebar>
   )
 }

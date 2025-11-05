@@ -4,6 +4,7 @@ import {
   type Table as TableData,
 } from '@tanstack/react-table'
 import { useState } from 'react'
+import { SidebarTriggerRow } from '@/components/molecules/SidebarTriggerRow'
 import {
   Table,
   TableBody,
@@ -16,34 +17,31 @@ import {
   type TableViewSettings,
   useTableViewSettings,
 } from '@/features/profile/hooks/useTableViewSettings'
-import { columns, type NameRecord } from './columns'
-import { RecordSidebar } from './RecordSidebar'
-import { RecordTableRow } from './RecordTableRow'
+import { columns, type ForwardName } from './columns'
+import { ForwardNamesSidebar } from './ForwardNamesSidebar'
 
-export const RecordsTable = ({
+export const ForwardNamesTable = ({
   defaultTableSettings,
-  name,
   table,
 }: {
-  name: string
   defaultTableSettings?: TableViewSettings
-  table: TableData<NameRecord>
+  table: TableData<ForwardName>
 }) => {
-  const [clickedRow, setClickedRow] = useState<Row<NameRecord> | null>(null)
+  const [clickedRow, setClickedRow] = useState<Row<ForwardName> | null>(null)
 
   const [open, setOpen] = useState(false)
 
   const [tableView] = useTableViewSettings(defaultTableSettings)
 
   return (
-    <RecordSidebar row={clickedRow} {...{ name, open, setOpen }}>
+    <ForwardNamesSidebar row={clickedRow} {...{ open, setOpen }}>
       <Table className="relative">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => {
                 return (
-                  <TableHead key={header.id}>
+                  <TableHead className="px-6 py-2" key={header.id}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -61,7 +59,7 @@ export const RecordsTable = ({
             table
               .getRowModel()
               .rows.map((row) => (
-                <RecordTableRow
+                <SidebarTriggerRow
                   key={row.id}
                   {...{ row, tableView, setOpen, setClickedRow, open }}
                 />
@@ -75,6 +73,6 @@ export const RecordsTable = ({
           )}
         </TableBody>
       </Table>
-    </RecordSidebar>
+    </ForwardNamesSidebar>
   )
 }
