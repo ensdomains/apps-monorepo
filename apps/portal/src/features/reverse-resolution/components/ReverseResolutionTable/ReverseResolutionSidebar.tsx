@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
 import { ArrowLeftRight, CheckCircle2, XCircle } from 'lucide-react'
-import type { FC, PropsWithChildren } from 'react'
+import { useEffect, useState, type FC, type PropsWithChildren } from 'react'
 import type { Address } from 'viem'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
@@ -23,7 +23,6 @@ import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecord
 import { useIsMobile } from '@/hooks/use-mobile'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
-import { useNameValidation } from './hooks/useNameValidation'
 import { useReverseResolutionMutations } from './hooks/useReverseResolutionMutations'
 import { useSwitchToRequiredNetwork } from './hooks/useSwitchToRequiredNetwork'
 
@@ -121,8 +120,18 @@ export const ReverseResolutionSidebar: FC<
 
   const isTestnet = true // TODO: Set based on environment
 
-  const { nameInput, nameError, handleNameChange, validateName } =
-    useNameValidation(open, !row)
+  const [nameInput, setNameInput] = useState('')
+
+  // Reset input when sidebar closes or row changes
+  useEffect(() => {
+    if (!open || !row) {
+      setNameInput('')
+    }
+  }, [open, row])
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNameInput(e.target.value)
+  }
 
   const { isWrongNetwork, isSwitchingChain, switchToRequiredNetwork } =
     useSwitchToRequiredNetwork({
@@ -159,13 +168,24 @@ export const ReverseResolutionSidebar: FC<
     )
   }
 
-  const handleUpdate = (e?: React.FormEvent) => {
-    e?.preventDefault()
+  const handleUpdate = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const form = e.currentTarget
+    const input = form.querySelector<HTMLInputElement>('input[name="name"]')
+    
+    if (!input) return
+    
+    // Use HTML5 validation
+    if (!input.reportValidity()) {
+      return
+    }
+    
     if (isWrongNetwork) {
       switchToRequiredNetwork()
       return
     }
-    if (validateName(nameInput) && nameInput) {
+    
+    if (nameInput) {
       setReverseNameMutation(nameInput)
     }
   }
@@ -268,7 +288,6 @@ export const ReverseResolutionSidebar: FC<
                     variant="secondary"
                     disabled={
                       !nameInput ||
-                      !!nameError ||
                       isPendingUpdate ||
                       isSwitchingChain
                     }
