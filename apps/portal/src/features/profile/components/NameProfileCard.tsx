@@ -1,6 +1,12 @@
+import {
+  coinNameToTypeMap,
+  evmCoinNameToTypeMap,
+  evmCoinTypeToNameMap,
+} from '@ensdomains/address-encoder'
 import { useQuery } from '@tanstack/react-query'
 import { getRecordsQueryOptions } from '../hooks/useRecords'
 import { NameAvatar } from './NameAvatar'
+import { SocialRecord } from './SocialRecord'
 
 export const NameProfileCard = ({ name }: { name: string }) => {
   const [labels, parent] = ((p) => [p.slice(0, -1), p.at(-1)])(name.split('.'))
@@ -12,12 +18,31 @@ export const NameProfileCard = ({ name }: { name: string }) => {
   } = useQuery(
     getRecordsQueryOptions({
       name,
-      texts: ['name', 'description', 'com.twitter'],
+      texts: ['name', 'description', 'com.twitter', 'org.telegram'],
+      coins: [
+        // EVM
+        coinNameToTypeMap.eth,
+        coinNameToTypeMap.arb1,
+        coinNameToTypeMap.op,
+        coinNameToTypeMap.base,
+
+        // Non-EVM
+        coinNameToTypeMap.btc,
+        coinNameToTypeMap.sol,
+        coinNameToTypeMap.strk,
+      ],
     }),
   )
 
   const texts = Object.fromEntries(
     (records?.texts || []).map(({ key, value }) => [key, value]),
+  )
+
+  const coins = Object.fromEntries(
+    (records?.coins || []).map(({ symbol, value, coinType }) => [
+      symbol,
+      { value, coinType },
+    ]),
   )
 
   if (error) return <div>Failed to fetch records: {error.cause?.message}</div>
@@ -38,21 +63,14 @@ export const NameProfileCard = ({ name }: { name: string }) => {
           {texts.description && <span>{texts.description}</span>}
         </span>
         <div className="flex flex-row gap-x-2 gap-y-1">
-          {texts['com.twitter'] && (
-            <span>
-              <span className="decoration-dotted decoration-2 underline flex flex-row gap-1 items-center">
-                <img
-                  src="/icons/X.png"
-                  alt="X"
-                  height={16}
-                  width={16}
-                  className="rounded-[2px] h-[16px] w-[16px]"
-                />{' '}
-                {texts['com.twitter']}
-              </span>
-            </span>
-          )}
+          <SocialRecord
+            record={{ key: 'com.twitter', value: texts['com.twitter'] }}
+          />
+          <SocialRecord
+            record={{ key: 'org.telegram', value: texts['org.telegram'] }}
+          />
         </div>
+        <div className="flex flex-row gap-x-2 gap-y-1"></div>
       </div>
     </div>
   )
