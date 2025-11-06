@@ -35,10 +35,8 @@ export const ResolverLocation = ({
     >
       <div className="flex flex-row justify-between items-center">
         <div>
-          <h3 className="font-medium text-2xl">
-            {data[1] ? 'Namechain' : 'Sepolia'}
-          </h3>
-          <Label>Resolver location</Label>
+          <span className="font-medium">Network</span>
+          <h3>{data[1] ? 'Namechain' : 'Sepolia'}</h3>
         </div>
         <NamechainSVG height={40} width={40} />
       </div>

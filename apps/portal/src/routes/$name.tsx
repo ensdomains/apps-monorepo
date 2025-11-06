@@ -10,18 +10,16 @@ export const Route = createFileRoute('/$name')({
 function RouteComponent() {
   const { name } = useParams({ from: '/$name' })
   return (
-    <>
+    <div className="[--header-height:calc(--spacing(16))]">
       <NavBar />
-      <div className="[--header-height:calc(--spacing(16))]">
-        <SidebarProvider className="flex flex-col">
-          <div className="flex flex-1">
-            <ProfileSidebar name={name} />
-            <SidebarInset className="w-full">
-              <Outlet />
-            </SidebarInset>
-          </div>
-        </SidebarProvider>
-      </div>
-    </>
+      <SidebarProvider className="flex flex-col">
+        <div className="flex flex-1">
+          <ProfileSidebar name={name} />
+          <SidebarInset className="w-full">
+            <Outlet />
+          </SidebarInset>
+        </div>
+      </SidebarProvider>
+    </div>
   )
 }

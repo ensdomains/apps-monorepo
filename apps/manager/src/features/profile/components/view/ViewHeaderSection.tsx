@@ -120,7 +120,7 @@ export const ViewHeaderSection = ({
         <Highlight className="text-lg md:text-2xl">{name}</Highlight>
         <div className="flex items-center whitespace-pre-wrap">
           <Wallet className="mr-2 size-5" />
-          Owned by <OwnerLink address={owner} profileName={name} />
+          Owned by  Link address={owner} profileName={name} />
         </div>
         <div className="flex items-center whitespace-pre-wrap">
           <Calendar className="mr-2 size-5" />

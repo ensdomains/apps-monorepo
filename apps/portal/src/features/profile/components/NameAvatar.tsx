@@ -1,4 +1,6 @@
+import type { CSSProperties } from 'react'
 import { useEnsAvatar } from 'wagmi'
+import { cn } from '@/lib/utils'
 
 export const NameAvatar = ({
   name,
@@ -17,6 +19,9 @@ export const NameAvatar = ({
     isLoading,
   } = useEnsAvatar({
     name,
+    query: {
+      enabled: name.endsWith('.eth'),
+    },
   })
 
   if (error) return <div>Error: {error.message}</div>
@@ -32,5 +37,19 @@ export const NameAvatar = ({
         width={width}
       />
     )
-  return null
+  return (
+    <div
+      style={
+        {
+          '--height': height,
+          '--width': width,
+        } as CSSProperties
+      }
+      className={cn(
+        '[background:var(--avatar-placeholder-gradient)]',
+        rounded,
+        `w-[var(--width)] h-[var(--height)]`,
+      )}
+    />
+  )
 }

@@ -5,6 +5,7 @@ import { useEnsResolver } from 'wagmi'
 import { Owner } from '@/components/primary-name/Owner'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
+import { ParentName } from '@/features/profile/components/ParentName'
 import { RecentActivity } from '@/features/profile/components/RecentActivity'
 import { RecordCount } from '@/features/profile/components/RecordCount'
 import { ResolverLocation } from '@/features/profile/components/ResolverLocation'
@@ -34,8 +35,8 @@ const Profile = ({
         <NameProfileCard name={name} />
       </div>
       <ExpiryWithRegistrationData name={name} />
-      <RolesCount name={name} />
-      <RolesCount name={name} />
+      <Owner name={name} />
+      <ParentName name={name} />
       <ResolverLocation name={name} resolverAddress={resolverAddress} />
 
       <RecordCount name={name} records={data?.records} />
