@@ -31,7 +31,7 @@ export const ResolverLocation = ({
     <Link
       to="/$name/resolver"
       params={{ name }}
-      className="w-full p-6 border border-gray-300 rounded-xl hover:bg-gray-100 duration-150 xl:col-span-3"
+      className="w-full p-6 border border-gray-300 rounded-xl hover:bg-gray-100 duration-150"
     >
       <div className="flex flex-row justify-between items-center">
         <div>

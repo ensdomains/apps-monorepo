@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useEnsResolver } from 'wagmi'
+import { Owner } from '@/components/primary-name/Owner'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
 import { RecentActivity } from '@/features/profile/components/RecentActivity'
@@ -33,7 +34,10 @@ const Profile = ({
         <NameProfileCard name={name} />
       </div>
       <ExpiryWithRegistrationData name={name} />
+      <RolesCount name={name} />
+      <RolesCount name={name} />
       <ResolverLocation name={name} resolverAddress={resolverAddress} />
+
       <RecordCount name={name} records={data?.records} />
       <SubnameCount name={name} />
       <RolesCount name={name} />

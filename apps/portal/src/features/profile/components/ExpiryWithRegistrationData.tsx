@@ -41,7 +41,7 @@ const RegistrationDate = ({ event }: { event: { blockNumber: number } }) => {
 
 const RegistrationData = ({ name }: { name: string }) => {
   const { data, isLoading, error } = useQuery(
-    getNameHistoryQueryOptions({ name }),
+    getNameHistoryQueryOptions({ name, orderDirection: 'asc', first: 1 }),
   )
 
   if (error) return <div>Error: {error.cause?.message}</div>
