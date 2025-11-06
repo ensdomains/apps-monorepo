@@ -64,6 +64,17 @@ export {
   removeTransaction,
   saveTransaction,
 } from './helpers/transaction-persistence'
+// Hooks
+export {
+  type UseENSRegistrationOptions,
+  useENSRegistration,
+} from './hooks/useENSRegistration'
+export type {
+  CommitmentData,
+  ENSRegistrationParams,
+  RegistrationPricing,
+} from './machines/ens-registration.helpers'
+export { ensRegistrationMachine } from './machines/ens-registration.machine'
 // Machines
 export { transactionMachine } from './machines/transaction.machine'
 // Providers
@@ -111,6 +122,7 @@ export {
 } from './types/signer.types'
 export type {
   CustomTransactionIntent,
+  ENSRegistrationTransactionIntent,
   ENSRenewalTransactionIntent,
   EOATransactionRequest,
   ERC4337UserOperation,

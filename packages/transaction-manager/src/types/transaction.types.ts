@@ -56,6 +56,17 @@ export interface ENSRenewalTransactionIntent {
   from: Hex // Address of the account (EOA or smart account)
 }
 
+export interface ENSRegistrationTransactionIntent {
+  type: 'ens-registration'
+  name: string // ENS name without .eth (e.g., "vitalik")
+  duration: bigint // Duration in seconds
+  owner: Address
+  resolver: Address
+  paymentToken: Address // ERC20 token or 0x0000000000000000000000000000000000000000 for ETH
+  registrarAddress: Address
+  registryAddress: Address // Subregistry address (usually 0x0 for default)
+}
+
 export interface ETHTransferTransactionIntent {
   type: 'eth-transfer'
   to: Hex
@@ -71,6 +82,7 @@ export interface CustomTransactionIntent {
 
 export type TransactionIntent =
   | ENSRenewalTransactionIntent
+  | ENSRegistrationTransactionIntent
   | ETHTransferTransactionIntent
   | CustomTransactionIntent
 

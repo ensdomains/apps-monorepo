@@ -21,6 +21,7 @@
     "@biomejs/biome": "^2.2.3",
     "knip": "^5.63.1",
     "lefthook": "^2.0.2",
+    "tsx": "^4.20.6",
     "wrangler": "^4.43.0"
   },
   "pnpm": {
