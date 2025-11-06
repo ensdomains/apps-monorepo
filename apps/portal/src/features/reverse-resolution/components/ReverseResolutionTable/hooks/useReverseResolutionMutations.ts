@@ -6,7 +6,7 @@ import {
 import type { ChainWithEns } from '@ensdomains/ensjs/chain'
 import { setPrimaryName } from '@ensdomains/ensjs/wallet'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useCallback } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import {
@@ -18,7 +18,7 @@ import { wagmiConfig } from '@/lib/wagmi'
 
 export type UseReverseResolutionMutationsParams = {
   coinType: CoinType
-  isTestnet: boolean 
+  isTestnet: boolean
   displayName: string | null
 }
 
@@ -46,7 +46,8 @@ export function useReverseResolutionMutations({
 
   const l1SetPrimaryNameMutation = useMutation({
     mutationFn: async (name: string) => {
-      if (!l1WalletClient) throw new Error('Sepolia wallet client not available')
+      if (!l1WalletClient)
+        throw new Error('Sepolia wallet client not available')
       if (!l1WalletClient.account) throw new Error('No connected account')
       if (!ensEnabledChain) throw new Error('Sepolia chain missing in config')
 
@@ -118,7 +119,8 @@ export function useReverseResolutionMutations({
 
   const setForwardResolution = useCallback(
     (address: Address) => {
-      if (!isL1) throw new Error('Forward resolution is only for Ethereum (coinType 60)')
+      if (!isL1)
+        throw new Error('Forward resolution is only for Ethereum (coinType 60)')
       if (!resolverAddress) throw new Error('Resolver not found for this name')
 
       const request = getSetAddressRequest(address)
