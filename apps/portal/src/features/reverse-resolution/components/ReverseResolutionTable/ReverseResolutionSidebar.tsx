@@ -4,7 +4,13 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
 import { ArrowLeftRight, CheckCircle2, XCircle } from 'lucide-react'
-import { type FC, type PropsWithChildren, useEffect, useState } from 'react'
+import {
+  type FC,
+  type PropsWithChildren,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import type { Address } from 'viem'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
@@ -102,13 +108,24 @@ export const ReverseResolutionSidebar: FC<
 > = ({ children, row, address, open, setOpen }) => {
   const isMobile = useIsMobile()
 
-  const rowData = row?.original
-  const coinType = rowData?.coinType ?? 60
-  const name = rowData?.name
-  const defaultName = rowData?.defaultName
-  const label = rowData?.label ?? ''
-  const icon = rowData?.icon
-  const forwardMatch = rowData?.forwardMatch ?? false
+  const {
+    coinType,
+    name,
+    defaultName,
+    label = '',
+    icon,
+    forwardMatch = false,
+  } = useMemo(() => {
+    const r = row?.original
+    return {
+      coinType: (r?.coinType ?? 60) as number,
+      name: r?.name ?? null,
+      defaultName: r?.defaultName ?? null,
+      label: r?.label ?? '',
+      icon: r?.icon,
+      forwardMatch: r?.forwardMatch ?? false,
+    }
+  }, [row])
 
   const displayName =
     name || (defaultName && coinType !== 60 ? defaultName : null)
