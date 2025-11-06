@@ -30,6 +30,11 @@ export default defineConfig({
       '@': new URL('./src', import.meta.url).pathname,
       '@ens-apps/utils': new URL('../../packages/utils/src', import.meta.url)
         .pathname,
+      '@ens-apps/abis': new URL('../../packages/abis/src', import.meta.url)
+        .pathname,
     },
+  },
+  optimizeDeps: {
+    exclude: ['@ens-apps/abis'],
   },
 })
