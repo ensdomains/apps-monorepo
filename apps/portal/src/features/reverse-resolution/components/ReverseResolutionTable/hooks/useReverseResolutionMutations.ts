@@ -1,12 +1,14 @@
-import type { CoinType } from '@ens-apps/abis/chains'
+import type { CoinType } from '@ens-apps/l2-primary/chains'
 import {
   useSetForwardResolution,
   useSetReverseName,
-} from '@ens-apps/abis/hooks'
+} from '@ens-apps/l2-primary/hooks'
 import { setPrimaryName } from '@ensdomains/ensjs/wallet'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
+import type { Client } from 'viem'
 import { useWalletClient } from 'wagmi'
+import { wagmiConfig } from '@/lib/wagmi'
 
 export type UseReverseResolutionMutationsParams = {
   coinType: CoinType
@@ -21,14 +23,13 @@ export function useReverseResolutionMutations({
 }: UseReverseResolutionMutationsParams) {
   const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient()
-
+  const client: Client = wagmiConfig.getClient()
   const isL1 = Number(coinType) === 60 || Number(coinType) === 1
 
   const l1SetPrimaryNameMutation = useMutation({
     mutationFn: async (name: string) => {
       if (!walletClient) throw new Error('Wallet client not found')
-      // biome-ignore lint/suspicious/noExplicitAny: walletClient type needs to be cast for ENS.js setPrimaryName
-      return setPrimaryName(walletClient as any, { name })
+      return setPrimaryName(client, { name })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['getReverseResolution'] })

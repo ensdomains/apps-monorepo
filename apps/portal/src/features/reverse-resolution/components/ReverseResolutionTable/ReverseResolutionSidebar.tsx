@@ -1,4 +1,4 @@
-import type { CoinType } from '@ens-apps/abis/chains'
+import type { CoinType } from '@ens-apps/l2-primary/chains'
 import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -24,8 +24,8 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
 import { useNameValidation } from './hooks/useNameValidation'
-import { useNetworkSwitching } from './hooks/useNetworkSwitching'
 import { useReverseResolutionMutations } from './hooks/useReverseResolutionMutations'
+import { useSwitchToRequiredNetwork } from './hooks/useSwitchToRequiredNetwork'
 
 const AddressHistory = ({
   history,
@@ -123,7 +123,7 @@ export const ReverseResolutionSidebar: FC<
     useNameValidation(open, !row)
 
   const { isWrongNetwork, isSwitchingChain, switchToRequiredNetwork } =
-    useNetworkSwitching({
+    useSwitchToRequiredNetwork({
       coinType: coinType as CoinType,
       isTestnet,
     })

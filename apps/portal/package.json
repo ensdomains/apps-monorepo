@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@adraffy/ens-normalize": "^1.11.0",
-    "@ens-apps/abis": "workspace:*",
+    "@ens-apps/l2-primary": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/address-encoder": "^1.1.2",
     "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f1fef23",

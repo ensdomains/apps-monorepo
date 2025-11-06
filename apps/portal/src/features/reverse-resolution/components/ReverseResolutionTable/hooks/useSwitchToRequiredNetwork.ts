@@ -1,5 +1,5 @@
-import type { CoinType } from '@ens-apps/abis/chains'
-import { getChainIdForCoinType } from '@ens-apps/abis/chains'
+import type { CoinType } from '@ens-apps/l2-primary/chains'
+import { getChainIdForCoinType } from '@ens-apps/l2-primary/chains'
 import { useAccount, useSwitchChain } from 'wagmi'
 
 export type UseNetworkSwitchingParams = {
@@ -7,7 +7,7 @@ export type UseNetworkSwitchingParams = {
   isTestnet: boolean
 }
 
-export function useNetworkSwitching({
+export function useSwitchToRequiredNetwork({
   coinType,
   isTestnet,
 }: UseNetworkSwitchingParams) {

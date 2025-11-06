@@ -80,9 +80,9 @@ importers:
 
   apps/manager:
     dependencies:
-      '@ens-apps/abis':
+      '@ens-apps/l2-primary':
         specifier: workspace:*
-        version: link:../../packages/abis
+        version: link:../../packages/l2-primary
       '@ens-apps/utils':
         specifier: workspace:*
         version: link:../../packages/utils
@@ -264,9 +264,9 @@ importers:
       '@adraffy/ens-normalize':
         specifier: ^1.11.0
         version: 1.11.0
-      '@ens-apps/abis':
+      '@ens-apps/l2-primary':
         specifier: workspace:*
-        version: link:../../packages/abis
+        version: link:../../packages/l2-primary
       '@ens-apps/utils':
         specifier: workspace:*
         version: link:../../packages/utils
@@ -455,18 +455,24 @@ importers:
         specifier: ^5.1.0
         version: 5.1.0
 
-  packages/abis:
+  packages/l2-primary:
     dependencies:
       '@ensdomains/ensjs':
         specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@16ab3ad
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@16ab3ad(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))
-      viem:
-        specifier: ^2.37.4
-        version: 2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76)
     devDependencies:
+      '@tanstack/react-query':
+        specifier: ^5.0.0
+        version: 5.90.2(react@19.1.1)
+      react:
+        specifier: ^19.1.1
+        version: 19.1.1
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
+      viem:
+        specifier: ^2.37.4
+        version: 2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76)
       wagmi:
         specifier: ^2.16.9
         version: 2.16.9(@tanstack/query-core@5.90.2)(@tanstack/react-query@5.90.2(react@19.1.1))(bufferutil@4.0.9)(react@19.1.1)(typescript@5.9.2)(utf-8-validate@5.0.10)(viem@2.37.4(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))(zod@3.25.76)

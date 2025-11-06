@@ -68,18 +68,28 @@ export const L2_REVERSE_REGISTRARS: Record<
     mainnet: '0x0000000000D8e504002cC26E3Ec46D81971C1664',
     sepolia: '0x00000BeEF055f7934784D6d81b6BC86665630dbA',
   },
-}
-
+} as const satisfies Record<CoinType, { mainnet?: Address; sepolia?: Address }>
 /**
  * Get L2 Reverse Registrar address for a coin type
  * Returns undefined for coinType 60/1 (use ENS.js setPrimaryName instead)
+ *
+ * @example
+ * const address = getRegistrarAddress(10, false) // Type: '0x0000000000D8e504002cC26E3Ec46D81971C1664'
+ * const testAddress = getRegistrarAddress(10, true) // Type: '0x00000BeEF055f7934784D6d81b6BC86665630dbA'
  */
-export function getRegistrarAddress(
-  coinType: CoinType,
-  isTestnet = false,
-): Address | undefined {
-  const network = isTestnet ? 'sepolia' : 'mainnet'
-  return L2_REVERSE_REGISTRARS[coinType]?.[network]
+export function getRegistrarAddress<
+  CT extends CoinType,
+  IsTestnet extends boolean = false,
+>(
+  coinType: CT,
+  isTestnet?: IsTestnet,
+): (typeof L2_REVERSE_REGISTRARS)[CT][IsTestnet extends true
+  ? 'sepolia'
+  : 'mainnet'] {
+  const network = (isTestnet ? 'sepolia' : 'mainnet') as IsTestnet extends true
+    ? 'sepolia'
+    : 'mainnet'
+  return L2_REVERSE_REGISTRARS[coinType][network]
 }
 
 /**

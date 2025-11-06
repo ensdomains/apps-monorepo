@@ -1,5 +1,5 @@
 {
-  "name": "@ens-apps/abis",
+  "name": "@ens-apps/l2-primary",
   "version": "1.0.0",
   "description": "Shared ABIs for ENS apps",
   "main": "./src/index.ts",
@@ -12,7 +12,7 @@
     "./L2ReverseRegistrar": "./src/L2ReverseRegistrar.ts"
   },
   "scripts": {
-    "test": "echo \"No tests for abis package\""
+    "test": "echo \"No tests for l2-primary package\""
   },
   "devDependencies": {
     "typescript": "^5.9.2",
