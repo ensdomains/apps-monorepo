@@ -115,7 +115,9 @@ export const ReverseResolutionSidebar: FC<
     name || (defaultName && coinType !== 60 ? defaultName : null)
   const isInheritingDefault = !name && defaultName && coinType !== 60
   const isPrimaryName = forwardMatch || isInheritingDefault
-  const showSetPrimaryButton = displayName && !isPrimaryName && name !== null
+  const isL1 = Number(coinType) === 60 || Number(coinType) === 1
+  // Only show "Set primary name" button for L1 chains (L2 doesn't need forward resolution)
+  const showSetPrimaryButton = isL1 && displayName && !isPrimaryName && name !== null
 
   const isTestnet = true // TODO: Set based on environment
 
@@ -130,9 +132,9 @@ export const ReverseResolutionSidebar: FC<
 
   const {
     isPendingUpdate,
-    isSettingForward,
+    isPendingForward,
     setReverseNameMutation,
-    setForwardResolutionMutation,
+    setForwardResolution,
   } = useReverseResolutionMutations({
     coinType: coinType as CoinType,
     isTestnet,
@@ -157,23 +159,24 @@ export const ReverseResolutionSidebar: FC<
     )
   }
 
-  const handleUpdate = () => {
+  const handleUpdate = (e?: React.FormEvent) => {
+    e?.preventDefault()
+    if (isWrongNetwork) {
+      switchToRequiredNetwork()
+      return
+    }
     if (validateName(nameInput) && nameInput) {
-      if (isWrongNetwork) {
-        switchToRequiredNetwork()
-      } else {
-        setReverseNameMutation(nameInput)
-      }
+      setReverseNameMutation(nameInput)
     }
   }
 
   const handleSetPrimaryName = () => {
+    if (isWrongNetwork) {
+      switchToRequiredNetwork()
+      return
+    }
     if (displayName) {
-      if (isWrongNetwork) {
-        switchToRequiredNetwork()
-      } else {
-        setForwardResolutionMutation(address)
-      }
+      setForwardResolution(address)
     }
   }
 
@@ -194,11 +197,11 @@ export const ReverseResolutionSidebar: FC<
                 <Button
                   onClick={handleSetPrimaryName}
                   variant="default"
-                  disabled={isSettingForward || isSwitchingChain}
+                  disabled={isPendingForward || isSwitchingChain}
                 >
                   {isSwitchingChain
                     ? 'Switching...'
-                    : isSettingForward
+                    : isPendingForward
                       ? 'Setting...'
                       : isWrongNetwork
                         ? 'Switch Network'
@@ -263,7 +266,6 @@ export const ReverseResolutionSidebar: FC<
                   <Button
                     type="submit"
                     variant="secondary"
-                    onClick={handleUpdate}
                     disabled={
                       !nameInput ||
                       !!nameError ||
