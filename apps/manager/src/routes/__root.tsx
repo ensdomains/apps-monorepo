@@ -35,7 +35,7 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
         }}
         externalWalletConfig={{
           wallets: ['METAMASK', 'WALLETCONNECT'],
-          createLinkedEmbeddedForExternalWallets: ['METAMASK'],
+          // createLinkedEmbeddedForExternalWallets: ['METAMASK'],
           evmConnector: {
             config: {
               chains: [customSepolia],
@@ -48,9 +48,11 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
         paraModalConfig={{
           disableEmailLogin: false,
           disablePhoneLogin: true,
-          authLayout: ['AUTH:FULL'],
-          oAuthMethods: [],
-          onRampTestMode: false,
+          onRampTestMode: true,
+          oAuthMethods: ['GOOGLE', 'TWITTER', 'TELEGRAM'],
+          authLayout: ['AUTH:FULL', 'EXTERNAL:FULL'],
+          recoverySecretStepEnabled: true,
+
           theme: {
             foregroundColor: '#2D3648',
             backgroundColor: '#FFFFFF',
@@ -62,7 +64,6 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
             borderRadius: 'lg',
             font: 'Inter',
           },
-          recoverySecretStepEnabled: true,
           twoFactorAuthEnabled: false,
         }}
       >
