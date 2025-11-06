@@ -2,8 +2,8 @@ import { useEnsAvatar } from 'wagmi'
 
 export const NameAvatar = ({
   name,
-  height = '138px',
-  width = '138px',
+  height = '142px',
+  width = '142px',
   rounded = 'rounded-lg',
 }: {
   name: string

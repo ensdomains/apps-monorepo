@@ -44,7 +44,7 @@ const RegistrationData = ({ name }: { name: string }) => {
     getNameHistoryQueryOptions({ name }),
   )
 
-  if (error) return <div>Error: {error.message}</div>
+  if (error) return <div>Error: {error.cause?.message}</div>
   if (isLoading) return <div>Loading...</div>
 
   if (!data?.registrationEvents) return <div>No registration data</div>

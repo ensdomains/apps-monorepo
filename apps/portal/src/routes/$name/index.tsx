@@ -30,7 +30,7 @@ const Profile = ({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
       <div className="lg:col-span-2 xl:col-span-2">
-        <NameProfileCard name={name} records={data?.records} />
+        <NameProfileCard name={name} />
       </div>
       <ExpiryWithRegistrationData name={name} />
       <ResolverLocation name={name} resolverAddress={resolverAddress} />
