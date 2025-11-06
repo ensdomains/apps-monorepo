@@ -36,7 +36,6 @@ export function useReverseResolutionMutations({
     mutationFn: async (name: string) => {
       if (!walletClient) throw new Error('Wallet client not found')
       if (!walletClient.account) throw new Error('No connected account')
-      
       const ensChain = wagmiConfig.chains.find((c) => c.id === sepolia.id)
       if (!ensChain) {
         throw new Error(
@@ -44,15 +43,16 @@ export function useReverseResolutionMutations({
         )
       }
       const ensEnabledChain = ensChain as ChainWithEns<typeof sepolia>
-      
-      const clientToUse = walletClient.chain?.id === sepolia.id
-        ? { ...walletClient, chain: ensEnabledChain }
-        : createWalletClient({
-            account: walletClient.account as Account,
-            chain: ensEnabledChain,
-            transport: walletClient.transport as unknown as Transport,
-          })
-      
+
+      const clientToUse =
+        walletClient.chain?.id === sepolia.id
+          ? { ...walletClient, chain: ensEnabledChain }
+          : createWalletClient({
+              account: walletClient.account as Account,
+              chain: ensEnabledChain,
+              transport: walletClient.transport as unknown as Transport,
+            })
+
       return setPrimaryName(clientToUse as any, { name })
     },
     onSuccess: () => {
