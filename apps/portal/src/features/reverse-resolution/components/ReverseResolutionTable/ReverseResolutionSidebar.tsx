@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
 import { ArrowLeftRight, CheckCircle2, XCircle } from 'lucide-react'
-import { useEffect, useState, type FC, type PropsWithChildren } from 'react'
+import { type FC, type PropsWithChildren, useEffect, useState } from 'react'
 import type { Address } from 'viem'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
@@ -116,7 +116,8 @@ export const ReverseResolutionSidebar: FC<
   const isPrimaryName = forwardMatch || isInheritingDefault
   const isL1 = Number(coinType) === 60 || Number(coinType) === 1
   // Only show "Set primary name" button for L1 chains (L2 doesn't need forward resolution)
-  const showSetPrimaryButton = isL1 && displayName && !isPrimaryName && name !== null
+  const showSetPrimaryButton =
+    isL1 && displayName && !isPrimaryName && name !== null
 
   const isTestnet = true // TODO: Set based on environment
 
@@ -172,19 +173,15 @@ export const ReverseResolutionSidebar: FC<
     e.preventDefault()
     const form = e.currentTarget
     const input = form.querySelector<HTMLInputElement>('input[name="name"]')
-    
     if (!input) return
-    
     // Use HTML5 validation
     if (!input.reportValidity()) {
       return
     }
-    
     if (isWrongNetwork) {
       switchToRequiredNetwork()
       return
     }
-    
     if (nameInput) {
       setReverseNameMutation(nameInput)
     }
@@ -286,11 +283,7 @@ export const ReverseResolutionSidebar: FC<
                   <Button
                     type="submit"
                     variant="secondary"
-                    disabled={
-                      !nameInput ||
-                      isPendingUpdate ||
-                      isSwitchingChain
-                    }
+                    disabled={!nameInput || isPendingUpdate || isSwitchingChain}
                     size="sm"
                   >
                     {isSwitchingChain
