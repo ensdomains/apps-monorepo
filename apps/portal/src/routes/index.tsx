@@ -1,13 +1,11 @@
-import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ChevronRight, SearchIcon } from 'lucide-react'
 import { useId } from 'react'
 import { ExternalLink } from 'react-external-link'
-import type { Address } from 'viem'
 import { useAccount, useDisconnect, useEnsName } from 'wagmi'
 import { NavBar } from '@/components/molecules/NavBar'
 import { Button } from '@/components/ui/button'
-import { getNamesForAddressQueryOptions } from '@/features/dashboard/hooks/useNamesForAddress'
+import { NameCount } from '@/features/dashboard/components/NameCount'
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,
@@ -51,36 +49,16 @@ const ExampleName = ({
   </Link>
 )
 
-const NameCount = ({ address }: { address: Address }) => {
-  const {
-    data: names,
-    isLoading,
-    error,
-  } = useQuery(getNamesForAddressQueryOptions({ address }))
-
-  if (error) {
-    if (error._tag === 'Wagmi/ClientError')
-      return <div>Error connecting to Ethereum</div>
-    return <div>Error: {error.cause?.message}</div>
-  }
-  if (isLoading) return <div>Loading...</div>
-  return (
-    <div className="flex flex-row justify-between items-center w-full p-6 rounded-lg border border-gray-300 hover:bg-gray-100 duration-150">
-      <div className="flex flex-col w-full">
-        <div className="font-medium text-[26px]">{names?.length}</div>
-        <div className="leading-none">names owned</div>
-      </div>
-      <div className="h-8 w-8 p-2 rounded-sm bg-gray-100 flex items-center justify-center">
-        <ChevronRight height={16} width={16} />
-      </div>
-    </div>
-  )
-}
-
 const ConnectedWithENSName = () => {
   const { address } = useAccount()
   const { disconnect } = useDisconnect()
-  const { data: ensName, isLoading, error } = useEnsName({ address })
+  const {
+    data: ensName,
+    isLoading,
+    error,
+  } = useEnsName({
+    address,
+  })
 
   if (error)
     return (
@@ -101,9 +79,11 @@ const ConnectedWithENSName = () => {
                 <h3 className="text-[28px] font-bold">{ensName}</h3>
               </Link>
             )}
-            <span className="font-mono text-gray-500 font-medium">
-              {address?.slice(0, 6)}...{address?.slice(-4)}
-            </span>
+            <Link to="/addr/$addr" params={{ addr: address }}>
+              <span className="font-mono text-gray-500 font-medium">
+                {address?.slice(0, 6)}...{address?.slice(-4)}
+              </span>
+            </Link>
           </div>
           <Button
             onClick={() => disconnect()}

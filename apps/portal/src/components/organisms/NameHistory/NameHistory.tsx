@@ -1,4 +1,3 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import type {
   DomainEvent,
   RegistrationEvent,
@@ -7,7 +6,6 @@ import type {
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { Address } from 'viem/accounts'
-import { mainnet } from 'viem/chains'
 import { useEnsName } from 'wagmi'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { DataTable } from '@/components/molecules/DataTable/DataTable'
@@ -64,10 +62,6 @@ const resolverColumns: ColumnDef<WithTimestamp<ResolverEvent>>[] = [
 const OwnerTableDisplay = ({ owner }: { owner: Address }) => {
   const { data: ensName, isLoading } = useEnsName({
     address: owner,
-    universalResolverAddress: getChainContractAddress({
-      chain: mainnet,
-      contract: 'ensUniversalResolver',
-    }),
   })
 
   if (isLoading) return <div>Loading...</div>

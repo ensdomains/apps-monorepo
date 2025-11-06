@@ -19,7 +19,7 @@ export const getNameHistory = ResultFn(async function* (
 ) {
   const client = yield* safeGetClient()
 
-  const events = yield* await fromPromise(
+  const events = yield* fromPromise(
     ensjs_getNameHistory(client, params),
     (e) =>
       new GetNameHistoryError({
@@ -29,13 +29,13 @@ export const getNameHistory = ResultFn(async function* (
   return ok(events)
 })
 
-export const supportsInterfacesQueryKey = createQueryKey<
+export const getNameHistoryQueryKey = createQueryKey<
   'get-name-history',
   GetNameHistoryParameters
 >('get-name-history')
 
 export const getNameHistoryQueryOptions = (params: GetNameHistoryParameters) =>
   resultQueryOptions({
-    queryKey: supportsInterfacesQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getNameHistory(params),
+    queryKey: getNameHistoryQueryKey(params),
+    queryFn: () => getNameHistory(params),
   })

@@ -1,8 +1,6 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import type { Address } from 'viem/accounts'
-import { mainnet } from 'viem/chains'
 import { useEnsName } from 'wagmi'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { NameHistory } from '@/components/organisms/NameHistory/NameHistory'
@@ -16,10 +14,6 @@ export const Route = createFileRoute('/$name/ownership')({
 const OwnerDisplay = ({ owner }: { owner: Address }) => {
   const { data: ensName, isLoading } = useEnsName({
     address: owner,
-    universalResolverAddress: getChainContractAddress({
-      chain: mainnet,
-      contract: 'ensUniversalResolver',
-    }),
   })
 
   if (isLoading) return <div>Loading...</div>

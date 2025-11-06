@@ -12,7 +12,8 @@
       "packages/**",
       "!**/*.gen.ts",
       "!**/node_modules",
-      "!**/dist"
+      "!**/dist",
+      "!**/.wrangler"
     ]
   },
   "formatter": {
@@ -25,7 +26,23 @@
     "rules": {
       "recommended": true,
       "suspicious": {
-        "noUnknownAtRules": "off"
+        "noUnknownAtRules": "off",
+        "noExplicitAny": "warn"
+      },
+      "style": {
+        "noNonNullAssertion": "warn"
+      },
+      "a11y": {
+        "noLabelWithoutControl": "warn",
+        "noStaticElementInteractions": "warn",
+        "useButtonType": "warn",
+        "useKeyWithClickEvents": "warn"
+      },
+      "complexity": {
+        "noUselessSwitchCase": "off"
+      },
+      "correctness": {
+        "noNestedComponentDefinitions": "warn"
       }
     }
   },
