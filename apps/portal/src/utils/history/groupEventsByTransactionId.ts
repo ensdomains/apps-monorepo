@@ -11,6 +11,7 @@ type SubgraphEvent = {
   blockNumber: number
   id: ENSEvent['id']
   type: ENSEvent['type']
+  timestamp?: bigint
 }
 
 export const groupEventsByTransactionId = (
@@ -22,6 +23,7 @@ export const groupEventsByTransactionId = (
     {
       transactionID: string
       blockNumber: number
+      timestamp?: bigint
       from: Address | null
       events: ENSEvent[]
     }
@@ -32,6 +34,7 @@ export const groupEventsByTransactionId = (
       transactionMap.set(event.transactionID, {
         transactionID: event.transactionID,
         blockNumber: event.blockNumber,
+        timestamp: event.timestamp,
         from: extractEventAddress(event),
         events: [],
       })

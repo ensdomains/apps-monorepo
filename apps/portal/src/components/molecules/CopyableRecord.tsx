@@ -8,11 +8,13 @@ export const CopyableRecord = ({
   className,
   href,
   displayValue,
+  truncate = true,
 }: {
   value: string | number
   className?: string
   href?: string
   displayValue?: ReactNode
+  truncate?: boolean
 }) => {
   const [copy, setCopy] = useState(false)
 
@@ -31,13 +33,23 @@ export const CopyableRecord = ({
     >
       {href ? (
         <ExternalLink
-          className="text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4 truncate"
+          className={cn(
+            'text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4 flex-1',
+            truncate && 'truncate',
+          )}
           href={href}
         >
           {content}
         </ExternalLink>
       ) : (
-        <div className="text-sm sm:text-base font-mono truncate">{content}</div>
+        <div
+          className={cn(
+            'text-sm sm:text-base font-mono',
+            truncate && 'truncate',
+          )}
+        >
+          {content}
+        </div>
       )}
       <button
         className="flex-shrink-0 cursor-pointer"
