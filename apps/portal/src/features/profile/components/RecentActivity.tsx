@@ -6,14 +6,13 @@ import type {
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
-import { DataTable } from '@/components/molecules/DataTable/DataTable'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import type { WithTimestamp } from '@/utils/types'
 import { useBlockTimestamps } from '../hooks/useBlockTimestamps'
 import { getNameHistoryQueryOptions } from '../hooks/useNameHistory'
 
-const columns: ColumnDef<
+const _columns: ColumnDef<
   WithTimestamp<BaseResolverEvent | BaseDomainEvent | BaseRegistrationEvent>
 >[] = [
   {
@@ -74,15 +73,14 @@ const RecentActivityTable = ({
   if (error || !timestamps)
     return <div>Failed to fetch block timestamps: {error?.message}</div>
 
-  const data = groupEventsByTransactionId(
-    events.map((item) => ({
-      ...item,
-      timestamp: timestamps?.get(BigInt(item.blockNumber)),
-    })),
-    'resolver',
-  )
+  const groupedData = groupEventsByTransactionId(events, 'resolver')
 
-  return <EventsDataTable name={name} data={data} />
+  const dataWithTimestamps = groupedData.map((tx) => ({
+    ...tx,
+    timestamp: timestamps.get(BigInt(tx.blockNumber)),
+  }))
+
+  return <EventsDataTable name={name} data={dataWithTimestamps} />
 }
 
 export const RecentActivity = ({ name }: { name: string }) => {
