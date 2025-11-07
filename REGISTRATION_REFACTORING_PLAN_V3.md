@@ -2,12 +2,13 @@
 
 ## Executive Summary
 
-Refactor ENS registration using XState machines in `@ens-apps/transaction-manager`. **No custom hooks** - team uses XState directly via `useMachine` and `useSelector`.
+Refactor ENS registration in the **manager app** using XState machines in `@ens-apps/transaction-manager`. **No custom hooks** - team uses XState directly via `useMachine` and `useSelector`.
 
 **Current State**: Manager uses React useState + useEffect
 **Target State**: XState machines, no abstraction layers
+**Scope**: Manager app only (portal later)
 **Team Context**: Internal monorepo, everyone learns XState
-**Estimated Effort**: 3-4 days
+**Estimated Effort**: 2-3 days
 
 ---
 
@@ -38,35 +39,39 @@ export { registrationMachine } from './machines/registration.machine'
 ```
 packages/transaction-manager/src/
 ├── machines/
-│   ├── transaction.machine.ts          ← Generic tx lifecycle
-│   ├── registration.machine.ts         ← ENS registration
-│   ├── renewal.machine.ts              ← ENS renewal
-│   └── transfer.machine.ts             ← ENS transfer
+│   ├── registration/                   ← Registration machine + co-located code
+│   │   ├── registration.machine.ts
+│   │   ├── registration.actors.ts      ← Only used by registration.machine.ts
+│   │   └── registration.helpers.ts     ← Only used by registration.machine.ts
+│   │
+│   ├── renewal/                        ← Renewal machine + co-located code
+│   │   ├── renewal.machine.ts
+│   │   ├── renewal.actors.ts
+│   │   └── renewal.helpers.ts
+│   │
+│   ├── transfer/                       ← Transfer machine + co-located code
+│   │   ├── transfer.machine.ts
+│   │   ├── transfer.actors.ts
+│   │   └── transfer.helpers.ts
+│   │
+│   └── transaction/                    ← Transaction machine + co-located code
+│       ├── transaction.machine.ts
+│       ├── transaction.actors.ts       ← EOA/Rhinestone submission actors
+│       └── transaction.helpers.ts
 │
-├── actors/
-│   ├── transaction/
-│   │   ├── eoa-submission.actor.ts
-│   │   └── rhinestone-submission.actor.ts
-│   ├── registration/
-│   │   ├── commitment.actor.ts
-│   │   ├── approval.actor.ts
-│   │   └── registration.actor.ts
-│   └── renewal/
-│       └── renewal.actor.ts
+├── shared/                             ← ONLY code used by 2+ machines
+│   ├── rhinestone.helpers.ts           ← Used by all ENS operations
+│   ├── persistence.helpers.ts          ← Used by all machines
+│   ├── pricing.helpers.ts              ← Used by registration + renewal
+│   └── ens-contracts.ts                ← Contract ABIs/addresses
 │
 ├── services/
-│   └── transactionManager.ts           ← Manages individual transactions
-│
-├── helpers/
-│   ├── registration.helpers.ts
-│   ├── renewal.helpers.ts
-│   ├── persistence.helpers.ts
-│   └── rhinestone.helpers.ts
+│   └── transactionManager.ts           ← Manages standalone transactions
 │
 └── types/
     ├── transaction.types.ts
-    ├── registration.types.ts
-    └── signer.types.ts
+    ├── signer.types.ts
+    └── operations.types.ts
 ```
 
 ---
@@ -77,29 +82,27 @@ packages/transaction-manager/src/
 // packages/transaction-manager/src/index.ts
 
 // === Machines (use with useMachine) ===
-export { transactionMachine } from './machines/transaction.machine'
-export { registrationMachine } from './machines/registration.machine'
-export { renewalMachine } from './machines/renewal.machine'
-export { transferMachine } from './machines/transfer.machine'
+export { transactionMachine } from './machines/transaction/transaction.machine'
+export { registrationMachine } from './machines/registration/registration.machine'
+export { renewalMachine } from './machines/renewal/renewal.machine'
+export { transferMachine } from './machines/transfer/transfer.machine'
 
 // === Services ===
 export { transactionManager } from './services/transactionManager'
 
-// === Helpers ===
-export { getENSPrice } from './helpers/pricing.helpers'
-export { initializeRhinestoneAccount } from './helpers/rhinestone.helpers'
-export {
-  saveRegistrationState,
-  loadRegistrationState,
-  clearRegistrationState
-} from './helpers/persistence.helpers'
+// === Shared Helpers (used by 2+ machines) ===
+// Only export if apps need them. Otherwise they're internal to machines.
+// export { getENSPrice } from './shared/pricing.helpers'
+// export { initializeRhinestoneAccount } from './shared/rhinestone.helpers'
 
 // === Types ===
 export type {
+  Signer,
+  TransactionIntent,
+  TransactionRequest,
   RegistrationParams,
   RenewalParams,
-  Signer,
-  TransactionIntent
+  TransferParams
 } from './types'
 ```
 
@@ -165,10 +168,13 @@ export type {
          console.log('[Registration] State transition:', context)
        },
 
-       saveState: ({ context }) => {
-         saveRegistrationState(context)
+       clearSnapshot: async () => {
+         await persistenceService.clearRegistrationSnapshot()
        }
      }
+
+     // Note: Persistence is handled via inspect option (see below)
+     // No need for saveState action - inspect auto-saves on every transition
 
    }).createMachine({
      id: 'registration',
@@ -199,7 +205,7 @@ export type {
        },
 
        preparingCommitment: {
-         entry: ['logTransition', 'saveState'],
+         entry: 'logTransition',
          invoke: {
            src: 'generateCommitment',
            input: ({ context }) => ({
@@ -218,7 +224,7 @@ export type {
        },
 
        committingTransaction: {
-         entry: ['logTransition', 'saveState'],
+         entry: 'logTransition',
          invoke: {
            src: 'submitCommitment',
            input: ({ context }) => ({
@@ -238,7 +244,7 @@ export type {
        },
 
        waitingForCommitment: {
-         entry: ['logTransition', 'saveState'],
+         entry: 'logTransition',
          invoke: {
            src: 'pollTransactionStatus',
            input: ({ context }) => ({ txId: context.commitmentTxId! }),
@@ -248,7 +254,7 @@ export type {
        },
 
        approvingToken: {
-         entry: ['logTransition', 'saveState'],
+         entry: 'logTransition',
          invoke: {
            src: 'submitApproval',
            input: ({ context }) => ({
@@ -267,7 +273,7 @@ export type {
        },
 
        waitingForApproval: {
-         entry: ['logTransition', 'saveState'],
+         entry: 'logTransition',
          invoke: {
            src: 'pollTransactionStatus',
            input: ({ context }) => ({ txId: context.approvalTxId! }),
@@ -277,7 +283,7 @@ export type {
        },
 
        registeringDomain: {
-         entry: ['logTransition', 'saveState'],
+         entry: 'logTransition',
          invoke: {
            src: 'submitRegistration',
            input: ({ context }) => ({
@@ -296,7 +302,7 @@ export type {
        },
 
        waitingForRegistration: {
-         entry: ['logTransition', 'saveState'],
+         entry: 'logTransition',
          invoke: {
            src: 'pollTransactionStatus',
            input: ({ context }) => ({ txId: context.registrationTxId! }),
@@ -307,13 +313,11 @@ export type {
 
        success: {
          type: 'final',
-         entry: ['logTransition', ({ context }) => {
-           clearRegistrationState(context.name)
-         }]
+         entry: ['logTransition', 'clearSnapshot']
        },
 
        error: {
-         entry: ['logTransition', 'saveState'],
+         entry: 'logTransition',
          on: {
            RETRY: 'preparingCommitment',
            CANCEL: 'idle'
@@ -403,38 +407,68 @@ export type {
    }
    ```
 
-3. **Create persistence helpers**
+3. **Update persistence service to handle machine snapshots**
+
+   The transaction-manager already has IndexedDB persistence. Extend it to handle registration machine snapshots:
 
    ```typescript
-   // packages/transaction-manager/src/helpers/persistence.helpers.ts
+   // packages/transaction-manager/src/services/persistence.service.ts
+   // (existing service - add new methods)
 
-   const STORAGE_KEY = 'ens-registration-state'
-   const EXPIRY_MS = 3600000 // 1 hour
-
-   export function saveRegistrationState(context: any) {
-     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-       context,
-       timestamp: Date.now()
-     }))
+   interface MachineSnapshot {
+     machineType: 'registration' | 'renewal' | 'transfer'
+     context: any
+     state: any
+     timestamp: number
    }
 
-   export function loadRegistrationState() {
-     const saved = localStorage.getItem(STORAGE_KEY)
-     if (!saved) return null
+   export class PersistenceService {
+     // ... existing transaction persistence methods
 
-     const parsed = JSON.parse(saved)
-     if (Date.now() - parsed.timestamp > EXPIRY_MS) {
-       localStorage.removeItem(STORAGE_KEY)
-       return null
+     /**
+      * Save registration machine snapshot
+      */
+     async saveRegistrationSnapshot(snapshot: {
+       context: any
+       value: any
+     }): Promise<void> {
+       const data: MachineSnapshot = {
+         machineType: 'registration',
+         context: snapshot.context,
+         state: snapshot.value,
+         timestamp: Date.now()
+       }
+
+       await this.db.put('machineSnapshots', data, 'registration')
      }
 
-     return parsed.context
+     /**
+      * Load registration machine snapshot
+      */
+     async loadRegistrationSnapshot(): Promise<MachineSnapshot | null> {
+       const snapshot = await this.db.get('machineSnapshots', 'registration')
+
+       if (!snapshot) return null
+
+       // Check expiry (1 hour)
+       if (Date.now() - snapshot.timestamp > 3600000) {
+         await this.clearRegistrationSnapshot()
+         return null
+       }
+
+       return snapshot
+     }
+
+     /**
+      * Clear registration machine snapshot
+      */
+     async clearRegistrationSnapshot(): Promise<void> {
+       await this.db.delete('machineSnapshots', 'registration')
+     }
    }
 
-   export function clearRegistrationState(name: string) {
-     localStorage.removeItem(STORAGE_KEY)
-     console.log(`[Registration] Cleared state for ${name}`)
-   }
+   // Export singleton instance
+   export const persistenceService = new PersistenceService()
    ```
 
 **Deliverables:**
@@ -457,40 +491,20 @@ export type {
    // apps/manager/src/features/register/RegistrationPage.tsx
 
    import { useMachine } from '@xstate/react'
-   import { fromSnapshot } from 'xstate'
-   import {
-     registrationMachine,
-     loadRegistrationState,
-     clearRegistrationState
-   } from '@ens-apps/transaction-manager'
+   import { registrationMachine } from '@ens-apps/transaction-manager'
    import { match } from 'ts-pattern'
 
    export function RegistrationPage({ name }: { name: string }) {
      const { rhinestoneAccount, accountAddress } = useRhinestoneAccount()
 
-     // Load saved state if exists
-     const savedContext = loadRegistrationState()
-     const initialSnapshot = savedContext
-       ? fromSnapshot({ value: 'preparingCommitment', context: savedContext })
-       : undefined
-
+     // ✅ No persistence code! Machine handles it internally
      const [state, send] = useMachine(registrationMachine, {
-       snapshot: initialSnapshot,
        input: {
          rhinestoneAccount,
          accountAddress,
          chainId: sepolia.id
        }
      })
-
-     // Auto-clear on unmount if successful
-     useEffect(() => {
-       return () => {
-         if (state.matches('success')) {
-           clearRegistrationState(name)
-         }
-       }
-     }, [state, name])
 
      const handleStart = (params: {
        duration: bigint
@@ -560,30 +574,7 @@ export type {
 
 ---
 
-### Phase 3: Update Portal App (Day 3)
-
-**Goal**: Portal uses same machine
-
-```typescript
-// apps/portal/src/features/register/RegistrationPage.tsx
-
-import { useMachine } from '@xstate/react'
-import { registrationMachine } from '@ens-apps/transaction-manager'
-
-// Same pattern as manager!
-export function RegistrationPage({ name }: { name: string }) {
-  const [state, send] = useMachine(registrationMachine, { input: { ... } })
-  return <div>...</div>
-}
-```
-
-**Deliverables:**
-- [ ] Portal registration working
-- [ ] Both apps tested
-
----
-
-### Phase 4: Documentation (Day 4)
+### Phase 3: Documentation & Cleanup (Day 3)
 
 **Goal**: Document XState usage patterns
 
@@ -625,20 +616,75 @@ function RegistrationPage({ name }) {
 
 ### Persistence
 
-The machine automatically persists state to localStorage. To restore:
+The machine **automatically persists and restores** via the `inspect` option:
 
 \`\`\`typescript
-import { fromSnapshot } from 'xstate'
-import { loadRegistrationState } from '@ens-apps/transaction-manager'
+import { useMachine } from '@xstate/react'
+import { registrationMachine } from '@ens-apps/transaction-manager'
 
-const savedContext = loadRegistrationState()
-const initialSnapshot = savedContext
-  ? fromSnapshot({ value: 'preparingCommitment', context: savedContext })
-  : undefined
-
+// ✅ Completely automatic - no persistence code needed
 const [state, send] = useMachine(registrationMachine, {
-  snapshot: initialSnapshot
+  input: {
+    rhinestoneAccount,
+    accountAddress,
+    chainId: sepolia.id
+  }
 })
+
+// The machine automatically:
+// 1. Loads saved state on mount (if exists)
+// 2. Resumes from exact state (e.g., 'waitingForCommitment')
+// 3. Saves state on every transition
+// 4. Clears state on success/cancel
+\`\`\`
+
+**How it works internally:**
+
+The machine uses XState's `inspect` option to persist snapshots to IndexedDB:
+
+\`\`\`typescript
+// packages/transaction-manager/src/machines/registration/registration.machine.ts
+
+import { persistenceService } from '../../services/persistence.service'
+
+export const registrationMachine = setup({
+  // ... actors, actions, guards
+}).createMachine({
+  // ... states
+}, {
+  // Automatic persistence via inspect
+  inspect: {
+    next: (snapshot) => {
+      // Auto-save to IndexedDB on every transition
+      if (snapshot.status === 'active') {
+        persistenceService.saveRegistrationSnapshot({
+          context: snapshot.context,
+          value: snapshot.value
+        })
+      }
+    }
+  }
+})
+
+// On module load, check IndexedDB for saved state
+const savedSnapshot = await persistenceService.loadRegistrationSnapshot()
+
+export const registrationMachine = savedSnapshot
+  ? baseMachine.provide({
+      snapshot: {
+        value: savedSnapshot.state,
+        context: savedSnapshot.context
+      }
+    })
+  : baseMachine
+\`\`\`
+
+**Usage:** Apps just import the machine with restore built-in:
+\`\`\`typescript
+import { registrationMachine } from '@ens-apps/transaction-manager'
+
+// It's already wrapped with restore logic from IndexedDB
+const [state, send] = useMachine(registrationMachine, { input })
 \`\`\`
 
 ### Events
@@ -716,55 +762,16 @@ function RegistrationFlow({ name }) {
 }
 ```
 
-### Pattern 3: Persistence
+### Pattern 3: Persistence (Automatic)
 
 ```typescript
-const savedContext = loadRegistrationState()
-const initialSnapshot = savedContext ? fromSnapshot({ ... }) : undefined
-const [state, send] = useMachine(registrationMachine, { snapshot: initialSnapshot })
-```
+// ✅ No persistence code needed - machine handles it internally
+const [state, send] = useMachine(registrationMachine, { input: { ... } })
 
----
-
-## Testing Strategy
-
-### Unit Tests (Actors)
-
-```typescript
-describe('generateCommitmentActor', () => {
-  it('generates valid commitment', async () => {
-    const result = await generateCommitmentActor({
-      name: 'leon',
-      owner: '0x123...'
-    })
-    expect(result.isOk()).toBe(true)
-  })
-})
-```
-
-### Machine Tests
-
-```typescript
-describe('registrationMachine', () => {
-  it('transitions through states', () => {
-    const actor = createActor(registrationMachine)
-    actor.start()
-
-    actor.send({ type: 'START_REGISTRATION', ... })
-    expect(actor.getSnapshot().value).toBe('preparingCommitment')
-  })
-})
-```
-
-### Integration Tests
-
-```typescript
-describe('RegistrationPage', () => {
-  it('completes registration', async () => {
-    render(<RegistrationPage name="test" />)
-    // ... test full flow
-  })
-})
+// The machine automatically:
+// - Restores state from localStorage on mount
+// - Saves state on every transition
+// - Clears state on success/cancel
 ```
 
 ---
@@ -772,11 +779,19 @@ describe('RegistrationPage', () => {
 ## Success Criteria
 
 - [ ] registrationMachine in transaction-manager
-- [ ] Both apps use useMachine directly
+- [ ] Manager app uses useMachine directly
 - [ ] Zero custom hooks
-- [ ] Complete documentation
-- [ ] All tests passing
+- [ ] IndexedDB persistence working (auto-save/restore)
 - [ ] XState Inspector working
+- [ ] Old manager code deleted
+- [ ] Registration flow working end-to-end
+
+## Future Work
+
+**Portal App Integration:**
+- Portal can use the same `registrationMachine` when needed
+- Same pattern: `import { registrationMachine }` + `useMachine`
+- No additional work needed in transaction-manager package
 
 ---
 
