@@ -8,13 +8,15 @@ export const handleScheduled: ExportedHandlerScheduledHandler<
     `Scheduled event triggered: ${controller.cron} at ${new Date(controller.scheduledTime).toISOString()}`,
   )
 
-  try {
-    const db = getDatabase(env)
-    await evaluateExpiringNames(env, db)
-    console.log('Scheduled expiry evaluation completed successfully')
-  } catch (error) {
-    console.error('Scheduled expiry evaluation failed:', error)
+  const db = getDatabase(env)
+  const result = await evaluateExpiringNames(env, db)
+
+  if (result.isErr()) {
+    console.error('Scheduled expiry evaluation failed:', result.error)
     // Don't throw - we don't want to retry the entire cron job
     // Individual name processing errors are handled in the evaluation service
+    return
   }
+
+  console.log('Scheduled expiry evaluation completed successfully')
 }

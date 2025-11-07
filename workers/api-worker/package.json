@@ -34,12 +34,14 @@
     "neverthrow": "^8.2.0",
     "pg": "^8.16.3",
     "ts-pattern": "^5.8.0",
+    "uuid": "^13.0.0",
     "valibot": "^1.1.0",
     "viem": "^2.37.4",
     "workers-og": "^0.0.27"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.12.3",
+    "@cloudflare/vitest-pool-workers": "^0.10.5",
     "@grammyjs/types": "^3.22.2",
     "@sendgrid/helpers": "^8.0.0",
     "@types/node": "^24.3.1",
@@ -47,7 +49,8 @@
     "concurrently": "^9.2.1",
     "dotenv": "^17.2.2",
     "drizzle-kit": "^0.31.4",
-    "vite": "^7.1.5"
+    "vite": "^7.1.5",
+    "vitest": "^3.2.4"
   },
   "imports": {
     "#*": "./src/*"

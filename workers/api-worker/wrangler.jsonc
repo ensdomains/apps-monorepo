@@ -49,6 +49,10 @@
     ]
   },
 
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  },
+
   "vars": {
     "CHAIN": "mainnet",
     "BASE_URL": "https://notifications.ens.domains",
