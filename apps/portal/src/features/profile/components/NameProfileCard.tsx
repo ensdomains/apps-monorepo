@@ -6,6 +6,7 @@ import {
   nonEvmCoinNameToTypeMap,
 } from '@ensdomains/address-encoder'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { getRecordsQueryOptions } from '../hooks/useRecords'
 import { CoinRecord, type CoinTypeWithIcon } from './CoinRecord'
 import { NameAvatar } from './NameAvatar'
@@ -98,7 +99,12 @@ export const NameProfileCard = ({ name }: { name: string }) => {
             />
           </div>
         </div>
-        <div className="flex flex-row gap-x-2 gap-y-1">
+        <Link
+          search={{ view: 'list' }}
+          to="/$name/records"
+          params={{ name }}
+          className="flex flex-row gap-x-2 gap-y-1"
+        >
           <div className="flex flex-row">
             {Object.entries(evmChains).map(([k, v]) => (
               <CoinRecord
@@ -114,7 +120,7 @@ export const NameProfileCard = ({ name }: { name: string }) => {
               <CoinRecord key={k} coinType={k as CoinTypeWithIcon} value={v} />
             ))}
           </div>
-        </div>
+        </Link>
       </div>
     </div>
   )

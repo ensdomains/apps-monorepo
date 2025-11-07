@@ -39,7 +39,11 @@ const Profile = ({
       <ParentName name={name} />
       <ResolverLocation name={name} resolverAddress={resolverAddress} />
 
-      <RecordCount name={name} records={data?.records} />
+      <RecordCount
+        name={name}
+        records={data?.records}
+        resolverAddress={resolverAddress}
+      />
       <SubnameCount name={name} />
       <RolesCount name={name} />
     </div>
