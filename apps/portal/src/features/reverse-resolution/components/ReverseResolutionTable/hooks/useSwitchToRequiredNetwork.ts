@@ -17,16 +17,15 @@ export function useSwitchToRequiredNetwork({
   const requiredChainId = getChainIdForCoinType(coinType, isTestnet)
   const isWrongNetwork = chain?.id !== requiredChainId
 
-  const switchToRequiredNetwork = () => {
-    if (isWrongNetwork) {
-      switchChain({ chainId: requiredChainId })
-    }
-  }
+  const getSwitchToRequiredNetworkRequest = () => ({
+    chainId: requiredChainId,
+  })
 
   return {
     isWrongNetwork,
     isSwitchingChain,
     requiredChainId,
-    switchToRequiredNetwork,
+    switchChain,
+    getSwitchToRequiredNetworkRequest,
   }
 }

@@ -11,7 +11,8 @@ import {
   useMemo,
   useState,
 } from 'react'
-import type { Address } from 'viem'
+import type { Address, Hash } from 'viem'
+import { useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { Badge } from '@/components/ui/badge'
@@ -151,22 +152,54 @@ export const ReverseResolutionSidebar: FC<
     setNameInput(e.target.value)
   }
 
-  const { isWrongNetwork, isSwitchingChain, switchToRequiredNetwork } =
-    useSwitchToRequiredNetwork({
-      coinType: coinType as CoinType,
-      isTestnet,
-    })
+  const {
+    isWrongNetwork,
+    isSwitchingChain,
+    switchChain,
+    getSwitchToRequiredNetworkRequest,
+  } = useSwitchToRequiredNetwork({
+    coinType: coinType as CoinType,
+    isTestnet,
+  })
 
   const {
-    isPendingUpdate,
-    isPendingForward,
-    setReverseNameMutation,
-    setForwardResolution,
+    getReverseResolutionRequest,
+    getForwardResolutionRequest,
+    invalidateReverseResolutionQuery,
   } = useReverseResolutionMutations({
     coinType: coinType as CoinType,
     isTestnet,
     displayName,
   })
+
+  const { writeContractAsync } = useWriteContract()
+
+  const [reverseHash, setReverseHash] = useState<Hash | undefined>(undefined)
+  const [forwardHash, setForwardHash] = useState<Hash | undefined>(undefined)
+  const [isWritingReverse, setIsWritingReverse] = useState(false)
+  const [isWritingForward, setIsWritingForward] = useState(false)
+
+  const { isLoading: isConfirmingReverse, isSuccess: isReverseSuccess } =
+    useWaitForTransactionReceipt({ hash: reverseHash })
+  const { isLoading: isConfirmingForward, isSuccess: isForwardSuccess } =
+    useWaitForTransactionReceipt({ hash: forwardHash })
+
+  useEffect(() => {
+    setReverseHash(undefined)
+    setForwardHash(undefined)
+    setIsWritingReverse(false)
+    setIsWritingForward(false)
+  }, [])
+
+  useEffect(() => {
+    if (isReverseSuccess || isForwardSuccess) {
+      invalidateReverseResolutionQuery()
+    }
+  }, [invalidateReverseResolutionQuery, isForwardSuccess, isReverseSuccess])
+
+  const isPendingReverse = isWritingReverse || isConfirmingReverse
+  const isPendingForward = isWritingForward || isConfirmingForward
+  const isPendingUpdate = isPendingReverse
 
   if (!row) {
     return (
@@ -186,7 +219,7 @@ export const ReverseResolutionSidebar: FC<
     )
   }
 
-  const handleUpdate = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = e.currentTarget
     const input = form.querySelector<HTMLInputElement>('input[name="name"]')
@@ -196,21 +229,60 @@ export const ReverseResolutionSidebar: FC<
       return
     }
     if (isWrongNetwork) {
-      switchToRequiredNetwork()
+      try {
+        switchChain(getSwitchToRequiredNetworkRequest())
+      } catch (error) {
+        console.error('Failed to switch network', error)
+      }
       return
     }
     if (nameInput) {
-      setReverseNameMutation(nameInput)
+      try {
+        const reverseRequest = getReverseResolutionRequest(nameInput)
+        setIsWritingReverse(true)
+        const hash =
+          reverseRequest.kind === 'l1'
+            ? await writeContractAsync(
+                reverseRequest.request as Parameters<
+                  typeof writeContractAsync
+                >[0],
+              )
+            : await writeContractAsync(
+                reverseRequest.request as Parameters<
+                  typeof writeContractAsync
+                >[0],
+              )
+        setReverseHash(hash)
+      } catch (error) {
+        console.error('Failed to set reverse resolution', error)
+      } finally {
+        setIsWritingReverse(false)
+      }
     }
   }
 
-  const handleSetPrimaryName = () => {
+  const handleSetPrimaryName = async () => {
     if (isWrongNetwork) {
-      switchToRequiredNetwork()
+      try {
+        switchChain(getSwitchToRequiredNetworkRequest())
+      } catch (error) {
+        console.error('Failed to switch network', error)
+      }
       return
     }
     if (displayName) {
-      setForwardResolution(address)
+      try {
+        const request = getForwardResolutionRequest(address)
+        setIsWritingForward(true)
+        const hash = await writeContractAsync(
+          request as Parameters<typeof writeContractAsync>[0],
+        )
+        setForwardHash(hash)
+      } catch (error) {
+        console.error('Failed to set forward resolution', error)
+      } finally {
+        setIsWritingForward(false)
+      }
     }
   }
 

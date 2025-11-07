@@ -3,17 +3,20 @@ import {
   useSetForwardResolution,
   useSetReverseName,
 } from '@ens-apps/l2-primary/hooks'
+import type {
+  SetForwardResolutionRequest,
+  SetReverseNameRequest,
+} from '@ens-apps/l2-primary/hooks'
 import type { ChainWithEns } from '@ensdomains/ensjs/chain'
-import { setPrimaryName } from '@ensdomains/ensjs/wallet'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useMemo } from 'react'
+import {
+  type SetPrimaryNameWriteParametersReturnType,
+  setPrimaryNameWriteParameters,
+} from '@ensdomains/ensjs/wallet'
+import { useQueryClient } from '@tanstack/react-query'
+import { useCallback, useMemo } from 'react'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
-import {
-  useWaitForTransactionReceipt,
-  useWalletClient,
-  useWriteContract,
-} from 'wagmi'
+import { useWalletClient } from 'wagmi'
 import { wagmiConfig } from '@/lib/wagmi'
 
 export type UseReverseResolutionMutationsParams = {
@@ -21,6 +24,16 @@ export type UseReverseResolutionMutationsParams = {
   isTestnet: boolean
   displayName: string | null
 }
+
+export type ReverseResolutionWriteRequest =
+  | {
+      kind: 'l1'
+      request: SetPrimaryNameWriteParametersReturnType
+    }
+  | {
+      kind: 'l2'
+      request: SetReverseNameRequest
+    }
 
 export function useReverseResolutionMutations({
   coinType,
@@ -44,21 +57,6 @@ export function useReverseResolutionMutations({
     const ensEnabledChain = ensChain as ChainWithEns<typeof l1ChainBase>
   */
 
-  const l1SetPrimaryNameMutation = useMutation({
-    mutationFn: async (name: string) => {
-      if (!l1WalletClient)
-        throw new Error('Sepolia wallet client not available')
-      if (!l1WalletClient.account) throw new Error('No connected account')
-      if (!ensEnabledChain) throw new Error('Sepolia chain missing in config')
-
-      const client = { ...l1WalletClient, chain: ensEnabledChain }
-      return setPrimaryName(client, { name })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['getReverseResolution'] })
-    },
-  })
-
   // L2 Reverse Name (address -> name)
   const { getSetReverseNameRequest } = useSetReverseName({
     coinType,
@@ -71,93 +69,53 @@ export function useReverseResolutionMutations({
     coinType,
   })
 
-  const {
-    data: reverseHashSetName,
-    writeContract: writeReverseSetName,
-    isPending: isWritingReverseSetName,
-    error: reverseErrorSetName,
-  } = useWriteContract()
+  const invalidateReverseResolutionQuery = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['getReverseResolution'] })
+  }, [queryClient])
 
-  const {
-    data: reverseHashSetNameForAddr,
-    writeContract: writeReverseSetNameForAddr,
-    isPending: isWritingReverseSetNameForAddr,
-    error: reverseErrorSetNameForAddr,
-  } = useWriteContract()
+  const getReverseResolutionRequest = useCallback(
+    (name: string): ReverseResolutionWriteRequest => {
+      if (isL1) {
+        if (!l1WalletClient)
+          throw new Error('Sepolia wallet client not available')
+        if (!l1WalletClient.account) throw new Error('No connected account')
+        if (!ensEnabledChain) throw new Error('Sepolia chain missing in config')
 
-  const reverseHash = reverseHashSetName ?? reverseHashSetNameForAddr
-  const reverseError = reverseErrorSetName ?? reverseErrorSetNameForAddr
-  const isWritingReverse =
-    isWritingReverseSetName || isWritingReverseSetNameForAddr
+        const client = {
+          ...l1WalletClient,
+          chain: ensEnabledChain,
+        }
 
-  const { isLoading: isConfirmingReverse, isSuccess: isReverseSuccess } =
-    useWaitForTransactionReceipt({ hash: reverseHash })
+        return {
+          kind: 'l1',
+          request: setPrimaryNameWriteParameters(client, { name }),
+        }
+      }
 
-  const {
-    data: forwardHash,
-    writeContract: writeForwardContract,
-    isPending: isWritingForward,
-    error: forwardError,
-  } = useWriteContract()
-
-  const { isLoading: isConfirmingForward, isSuccess: isForwardSuccess } =
-    useWaitForTransactionReceipt({ hash: forwardHash })
-
-  const setReverseResolution = useCallback(
-    (name: string) => {
-      const request = getSetReverseNameRequest(name)
-      if (request.functionName === 'setName') {
-        writeReverseSetName(request)
-      } else if (request.functionName === 'setNameForAddr') {
-        writeReverseSetNameForAddr(request)
-      } else {
-        throw new Error('Unsupported reverse function')
+      return {
+        kind: 'l2',
+        request: getSetReverseNameRequest(name),
       }
     },
-    [getSetReverseNameRequest, writeReverseSetName, writeReverseSetNameForAddr],
+    [ensEnabledChain, getSetReverseNameRequest, isL1, l1WalletClient],
   )
 
-  const setForwardResolution = useCallback(
-    (address: Address) => {
+  const getForwardResolutionRequest = useCallback(
+    (address: Address): SetForwardResolutionRequest => {
       if (!isL1)
         throw new Error('Forward resolution is only for Ethereum (coinType 60)')
       if (!resolverAddress) throw new Error('Resolver not found for this name')
 
-      const request = getSetAddressRequest(address)
-      writeForwardContract(request)
+      return getSetAddressRequest(address)
     },
-    [getSetAddressRequest, isL1, resolverAddress, writeForwardContract],
-  )
-
-  const isPendingL1 = l1SetPrimaryNameMutation.isPending
-  const isPendingReverse = isWritingReverse || isConfirmingReverse
-  const isPendingUpdate = isL1 ? isPendingL1 : isPendingReverse
-  const isPendingForward = isWritingForward || isConfirmingForward
-
-  useEffect(() => {
-    if (isReverseSuccess || isForwardSuccess) {
-      queryClient.invalidateQueries({ queryKey: ['getReverseResolution'] })
-    }
-  }, [isReverseSuccess, isForwardSuccess, queryClient])
-
-  const setReverseNameMutation = useCallback(
-    (name: string) => {
-      if (isL1) l1SetPrimaryNameMutation.mutate(name)
-      else setReverseResolution(name)
-    },
-    [isL1, l1SetPrimaryNameMutation, setReverseResolution],
+    [getSetAddressRequest, isL1, resolverAddress],
   )
 
   return {
     isL1,
-    isPendingUpdate,
-    isPendingForward,
-    setReverseNameMutation,
-    setForwardResolution,
-    reverseHash,
-    reverseError,
-    forwardHash,
-    forwardError,
     resolverAddress,
+    getReverseResolutionRequest,
+    getForwardResolutionRequest,
+    invalidateReverseResolutionQuery,
   }
 }
