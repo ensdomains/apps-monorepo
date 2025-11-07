@@ -64,6 +64,12 @@ export {
   removeTransaction,
   saveTransaction,
 } from './helpers/transaction-persistence'
+export type {
+  RegistrationContext,
+  RegistrationEvent,
+  RegistrationInput,
+} from './machines/registration/registration.machine'
+export { registrationMachine } from './machines/registration/registration.machine'
 // Machines
 export { transactionMachine } from './machines/transaction.machine'
 // Providers
