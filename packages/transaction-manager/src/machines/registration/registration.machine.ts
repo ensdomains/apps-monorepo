@@ -74,12 +74,68 @@ export const registrationMachine: ActorLogic<any, any, any, any, any> = setup({
   },
 
   actors: {
-    // TODO: Implement these actors in registration.actors.ts
-    // generateCommitment: fromResultAsync(generateCommitmentActor),
-    // submitCommitment: fromResultAsync(submitCommitmentActor),
-    // submitApproval: fromResultAsync(submitApprovalActor),
-    // submitRegistration: fromResultAsync(submitRegistrationActor),
-    // pollTransactionStatus: fromResultAsync(pollTransactionStatusActor),
+    generateCommitment: fromResultAsync(
+      ({
+        name,
+        owner,
+        duration,
+        publicClient,
+        selectedToken,
+      }: {
+        name: string
+        owner: Address
+        duration: bigint
+        publicClient: PublicClient
+        selectedToken: 'USDC' | 'DAI'
+      }) => {
+        const { generateCommitmentActor } = require('./registration.actors')
+        return generateCommitmentActor({
+          name,
+          owner,
+          duration,
+          publicClient,
+          selectedToken,
+        })
+      },
+    ),
+    submitCommitment: fromResultAsync(
+      (input: {
+        commitment: CommitmentData
+        rhinestoneAccount: RhinestoneAccount
+        name: string
+        duration: bigint
+      }) => {
+        const { submitCommitmentActor } = require('./registration.actors')
+        return submitCommitmentActor(input)
+      },
+    ),
+    submitApproval: fromResultAsync(
+      (input: {
+        tokenPrice: bigint
+        selectedToken: 'USDC' | 'DAI'
+        rhinestoneAccount: RhinestoneAccount
+      }) => {
+        const { submitApprovalActor } = require('./registration.actors')
+        return submitApprovalActor(input)
+      },
+    ),
+    submitRegistration: fromResultAsync(
+      (input: {
+        name: string
+        commitment: CommitmentData
+        rhinestoneAccount: RhinestoneAccount
+        duration: bigint
+        selectedToken: 'USDC' | 'DAI'
+        owner: Address
+      }) => {
+        const { submitRegistrationActor } = require('./registration.actors')
+        return submitRegistrationActor(input)
+      },
+    ),
+    pollTransactionStatus: fromResultAsync((input: { txId: string }) => {
+      const { pollTransactionStatusActor } = require('./registration.actors')
+      return pollTransactionStatusActor(input)
+    }),
   },
 
   actions: {
@@ -159,26 +215,28 @@ export const registrationMachine: ActorLogic<any, any, any, any, any> = setup({
 
     preparingCommitment: {
       entry: ['logTransition', 'recordTransition'],
-      // TODO: Invoke generateCommitment actor
-      // invoke: {
-      //   src: 'generateCommitment',
-      //   input: ({ context }) => ({
-      //     name: context.name,
-      //     owner: context.accountAddress!,
-      //   }),
-      //   onDone: {
-      //     target: 'committingTransaction',
-      //     actions: assign({
-      //       commitment: ({ event }) => event.output,
-      //     }),
-      //   },
-      //   onError: {
-      //     target: 'error',
-      //     actions: assign({
-      //       error: ({ event }) => event.error as Error,
-      //     }),
-      //   },
-      // },
+      invoke: {
+        src: 'generateCommitment',
+        input: ({ context }) => ({
+          name: context.name,
+          owner: context.accountAddress!,
+          duration: context.duration,
+          publicClient: context.publicClient!,
+          selectedToken: context.selectedToken,
+        }),
+        onDone: {
+          target: 'committingTransaction',
+          actions: assign({
+            commitment: ({ event }) => event.output,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+          }),
+        },
+      },
       on: {
         CANCEL: 'idle',
       },
@@ -186,7 +244,27 @@ export const registrationMachine: ActorLogic<any, any, any, any, any> = setup({
 
     committingTransaction: {
       entry: ['logTransition', 'recordTransition'],
-      // TODO: Invoke submitCommitment actor
+      invoke: {
+        src: 'submitCommitment',
+        input: ({ context }) => ({
+          commitment: context.commitment!,
+          rhinestoneAccount: context.rhinestoneAccount!,
+          name: context.name,
+          duration: context.duration,
+        }),
+        onDone: {
+          target: 'waitingForCommitment',
+          actions: assign({
+            commitmentTxId: ({ event }) => event.output,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+          }),
+        },
+      },
       on: {
         CANCEL: 'idle',
       },
@@ -194,7 +272,17 @@ export const registrationMachine: ActorLogic<any, any, any, any, any> = setup({
 
     waitingForCommitment: {
       entry: ['logTransition', 'recordTransition'],
-      // TODO: Invoke pollTransactionStatus actor
+      invoke: {
+        src: 'pollTransactionStatus',
+        input: ({ context }) => ({ txId: context.commitmentTxId! }),
+        onDone: 'approvingToken',
+        onError: {
+          target: 'error',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+          }),
+        },
+      },
       on: {
         CANCEL: 'idle',
       },
@@ -202,7 +290,26 @@ export const registrationMachine: ActorLogic<any, any, any, any, any> = setup({
 
     approvingToken: {
       entry: ['logTransition', 'recordTransition'],
-      // TODO: Invoke submitApproval actor
+      invoke: {
+        src: 'submitApproval',
+        input: ({ context }) => ({
+          tokenPrice: context.tokenPrice,
+          selectedToken: context.selectedToken,
+          rhinestoneAccount: context.rhinestoneAccount!,
+        }),
+        onDone: {
+          target: 'waitingForApproval',
+          actions: assign({
+            approvalTxId: ({ event }) => event.output,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+          }),
+        },
+      },
       on: {
         CANCEL: 'idle',
       },
@@ -210,7 +317,17 @@ export const registrationMachine: ActorLogic<any, any, any, any, any> = setup({
 
     waitingForApproval: {
       entry: ['logTransition', 'recordTransition'],
-      // TODO: Invoke pollTransactionStatus actor
+      invoke: {
+        src: 'pollTransactionStatus',
+        input: ({ context }) => ({ txId: context.approvalTxId! }),
+        onDone: 'registeringDomain',
+        onError: {
+          target: 'error',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+          }),
+        },
+      },
       on: {
         CANCEL: 'idle',
       },
@@ -218,7 +335,29 @@ export const registrationMachine: ActorLogic<any, any, any, any, any> = setup({
 
     registeringDomain: {
       entry: ['logTransition', 'recordTransition'],
-      // TODO: Invoke submitRegistration actor
+      invoke: {
+        src: 'submitRegistration',
+        input: ({ context }) => ({
+          name: context.name,
+          commitment: context.commitment!,
+          rhinestoneAccount: context.rhinestoneAccount!,
+          duration: context.duration,
+          selectedToken: context.selectedToken,
+          owner: context.accountAddress!,
+        }),
+        onDone: {
+          target: 'waitingForRegistration',
+          actions: assign({
+            registrationTxId: ({ event }) => event.output,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+          }),
+        },
+      },
       on: {
         CANCEL: 'idle',
       },
@@ -226,7 +365,17 @@ export const registrationMachine: ActorLogic<any, any, any, any, any> = setup({
 
     waitingForRegistration: {
       entry: ['logTransition', 'recordTransition'],
-      // TODO: Invoke pollTransactionStatus actor
+      invoke: {
+        src: 'pollTransactionStatus',
+        input: ({ context }) => ({ txId: context.registrationTxId! }),
+        onDone: 'success',
+        onError: {
+          target: 'error',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+          }),
+        },
+      },
       on: {
         CANCEL: 'idle',
       },
