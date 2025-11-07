@@ -5,7 +5,7 @@ import {
   injectedWallet,
   metaMaskWallet,
 } from '@rainbow-me/rainbowkit/wallets'
-import { createClient, type HttpTransport, http } from 'viem'
+import { createClient, http } from 'viem'
 import {
   arbitrumSepolia,
   baseSepolia,
@@ -16,12 +16,14 @@ import {
 } from 'viem/chains'
 import { createConfig } from 'wagmi'
 
+export const sepoliaWithEns = extendChainWithEns(sepolia)
+
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: false,
   multiInjectedProviderDiscovery: true,
   chains: [
-    extendChainWithEns(sepolia),
+    sepoliaWithEns,
     optimismSepolia,
     arbitrumSepolia,
     baseSepolia,
@@ -37,14 +39,13 @@ export const wagmiConfig = createConfig({
     ],
     { projectId: 'YOUR_PROJECT_ID', appName: 'demo' },
   ),
-  client: ({ chain }) => {
-    return createClient<HttpTransport, typeof chain>({
+  client: ({ chain }) =>
+    createClient({
       chain,
       transport: http(
         `https://lb.drpc.live/${chain.name.toLowerCase()}/AgBISc2US0WgjMYhz9MRMJbJzb3Frm0R8LnzQrxF2MGT`,
       ),
-    })
-  },
+    }),
 })
 
 export type ClientType = ReturnType<typeof wagmiConfig.getClient>
