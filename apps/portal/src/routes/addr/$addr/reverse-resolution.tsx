@@ -15,22 +15,23 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
-import { columns } from '@/features/forward-resolution/components/ForwardNamesTable/columns'
-import { ForwardNamesTable } from '@/features/forward-resolution/components/ForwardNamesTable/ForwardNamesTable'
-import { getResolvedNamesForAddressQueryOptions } from '@/features/forward-resolution/components/hooks/useNamesForResolvedAddress'
+import { columns } from '@/features/reverse-resolution/components/ReverseResolutionTable/columns'
+import { ReverseResolutionTable } from '@/features/reverse-resolution/components/ReverseResolutionTable/ReverseResolutionTable'
+import { REVERSE_RESOLUTION_NETWORKS } from '@/features/reverse-resolution/config'
+import { getReverseResolutionQueryOptions } from '@/features/reverse-resolution/hooks/useReverseResolution'
 
-export const Route = createFileRoute('/addr/$addr/resolution')({
+export const Route = createFileRoute('/addr/$addr/reverse-resolution')({
   component: RouteComponent,
 })
 
 function RouteComponent() {
   const { addr: address } = Route.useParams() as { addr: Address }
-
   const [sorting, setSorting] = useState<SortingState>([])
 
   const { data, error, isLoading } = useQuery(
-    getResolvedNamesForAddressQueryOptions({
+    getReverseResolutionQueryOptions({
       address,
+      networks: REVERSE_RESOLUTION_NETWORKS,
     }),
   )
 
@@ -47,9 +48,9 @@ function RouteComponent() {
     globalFilterFn: 'includesString',
   })
 
-  const searchNamesId = useId()
+  const searchId = useId()
 
-  if (isLoading) return <div>Loading</div>
+  if (isLoading) return <div>Loading...</div>
   if (error) return <div>Error: {error.cause?.message}</div>
 
   if (!data) return <div>No data</div>
@@ -58,11 +59,11 @@ function RouteComponent() {
     <>
       <header className="bg-gray-100 p-6 pb-4 pt-12 flex flex-col gap-4">
         <div className="flex flex-row justify-between">
-          <h1 className="text-[28px] font-medium">Address Resolution</h1>
+          <h1 className="text-[28px] font-medium">Reverse resolution</h1>
         </div>
         <InputGroup className="bg-white rounded-sm">
           <InputGroupInput
-            id={searchNamesId}
+            id={searchId}
             className="w-full"
             placeholder="Search..."
             onChange={(event) => table.setGlobalFilter(event.target.value)}
@@ -72,7 +73,7 @@ function RouteComponent() {
           </InputGroupAddon>
         </InputGroup>
       </header>
-      <ForwardNamesTable table={table} />
+      <ReverseResolutionTable table={table} address={address} />
     </>
   )
 }

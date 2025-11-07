@@ -12,12 +12,17 @@ import {
 import {
   FileInputIcon,
   PencilLineIcon,
-  SearchIcon,
+  Search,
   TrashIcon,
   XIcon,
 } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group'
 import { columns } from '@/features/records/components/RecordsTable/columns'
 import { RecordsTable } from '@/features/records/components/RecordsTable/RecordsTable'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
@@ -105,17 +110,17 @@ export const RecordList = ({
             </div>
           </div>
         ) : (
-          <div className="flex flex-row gap-2 w-full bg-white  rounded-sm p-2 h-10">
-            <label htmlFor={searchRecordsId} aria-label="Search records">
-              <SearchIcon />
-            </label>
-            <input
+          <InputGroup className="bg-white rounded-sm">
+            <InputGroupInput
               id={searchRecordsId}
-              className="w-full "
+              className="w-full"
               placeholder="Search records..."
               onChange={(event) => table.setGlobalFilter(event.target.value)}
             />
-          </div>
+            <InputGroupAddon>
+              <Search />
+            </InputGroupAddon>
+          </InputGroup>
         )}
       </header>
       <RecordsTable
