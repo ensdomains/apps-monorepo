@@ -162,6 +162,7 @@ export function submitCommitmentActor(input: {
   name: string
   duration: bigint
   publicClient: PublicClient
+  rhinestoneConfig: any
 }): ResultAsync<string, Error> {
   return ResultAsync.fromPromise(
     (async () => {
@@ -204,11 +205,21 @@ export function submitCommitmentActor(input: {
             data: commitmentData,
             value: 0n,
             chainId: 11155111, // Sepolia
+            rhinestoneParams: {
+              calls: [
+                {
+                  to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+                  data: commitmentData,
+                  value: 0n,
+                },
+              ],
+            },
           },
         },
         {
           type: 'rhinestone',
           account: input.rhinestoneAccount,
+          config: input.rhinestoneConfig,
         },
         {
           description: `Commit to register ${input.name}.eth`,
@@ -231,6 +242,7 @@ export function submitApprovalActor(input: {
   selectedToken: 'USDC' | 'DAI'
   rhinestoneAccount: RhinestoneAccount
   publicClient: PublicClient
+  rhinestoneConfig: any
 }): ResultAsync<string, Error> {
   try {
     const tokenAddress = getPaymentTokenAddress(input.selectedToken)
@@ -252,11 +264,21 @@ export function submitApprovalActor(input: {
           data: approvalData,
           value: 0n,
           chainId: 11155111, // Sepolia
+          rhinestoneParams: {
+            calls: [
+              {
+                to: normalizedTokenAddress,
+                data: approvalData,
+                value: 0n,
+              },
+            ],
+          },
         },
       },
       {
         type: 'rhinestone',
         account: input.rhinestoneAccount,
+        config: input.rhinestoneConfig,
       },
       {
         description: `Approve ${input.selectedToken} for registration`,
@@ -282,6 +304,7 @@ export function submitRegistrationActor(input: {
   selectedToken: 'USDC' | 'DAI'
   owner: Address
   publicClient: PublicClient
+  rhinestoneConfig: any
 }): ResultAsync<string, Error> {
   return ResultAsync.fromPromise(
     (async () => {
@@ -329,11 +352,21 @@ export function submitRegistrationActor(input: {
             data: registrationData,
             value: 0n,
             chainId: 11155111, // Sepolia
+            rhinestoneParams: {
+              calls: [
+                {
+                  to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+                  data: registrationData,
+                  value: 0n,
+                },
+              ],
+            },
           },
         },
         {
           type: 'rhinestone',
           account: input.rhinestoneAccount,
+          config: input.rhinestoneConfig,
         },
         {
           description: `Register ${input.name}.eth`,

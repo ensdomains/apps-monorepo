@@ -63,7 +63,7 @@ function mapMachineStateToStep(machineState: string): RegistrationStep {
 // ============================================================================
 
 export function useRegistration(initialName?: string) {
-  const { rhinestoneAccount, accountAddress, isConnected } =
+  const { rhinestoneAccount, accountAddress, isConnected, rhinestoneConfig } =
     useRhinestoneAccount()
 
   // UI state (not in machine) - used for pricing page
@@ -74,7 +74,9 @@ export function useRegistration(initialName?: string) {
   )
 
   // Wait for account to be ready before initializing machine
-  const isAccountReady = Boolean(rhinestoneAccount && accountAddress)
+  const isAccountReady = Boolean(
+    rhinestoneAccount && accountAddress && rhinestoneConfig,
+  )
 
   // Initialize machine with minimal input
   // Account details will be sent via UPDATE_ACCOUNT event when ready
@@ -102,20 +104,34 @@ export function useRegistration(initialName?: string) {
 
   // Update machine context when account becomes ready
   useEffect(() => {
-    if (isAccountReady && rhinestoneAccount && accountAddress) {
+    if (
+      isAccountReady &&
+      rhinestoneAccount &&
+      accountAddress &&
+      rhinestoneConfig
+    ) {
       console.log('📤 Sending UPDATE_ACCOUNT event to machine', {
         accountAddress,
         hasRhinestoneAccount: !!rhinestoneAccount,
         hasPublicClient: !!publicClient,
+        hasRhinestoneConfig: !!rhinestoneConfig,
       })
       send({
         type: 'UPDATE_ACCOUNT',
         rhinestoneAccount,
         accountAddress: accountAddress as `0x${string}`,
         publicClient,
+        rhinestoneConfig,
       } as RegistrationEvent)
     }
-  }, [isAccountReady, rhinestoneAccount, accountAddress, publicClient, send])
+  }, [
+    isAccountReady,
+    rhinestoneAccount,
+    accountAddress,
+    publicClient,
+    rhinestoneConfig,
+    send,
+  ])
 
   // Handlers
   const startCommitment = useCallback(

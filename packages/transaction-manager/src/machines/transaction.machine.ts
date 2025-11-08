@@ -356,11 +356,16 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
       useSmartAccount: input.useSmartAccount,
     })
 
+    // Extract request from custom intent if applicable
+    const request =
+      input.request ||
+      (input.intent?.type === 'custom' ? input.intent.request : undefined)
+
     return {
       publicClient: input.publicClient!,
       signer: input.signer,
       intent: input.intent,
-      request: input.request,
+      request,
       options: input.options || {},
       chainId: input.chainId,
       useSmartAccount: input.useSmartAccount || false,

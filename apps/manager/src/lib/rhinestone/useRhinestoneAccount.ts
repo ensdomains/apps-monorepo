@@ -34,6 +34,7 @@ export interface RhinestoneAccountState {
   accountAddress: string | null
   isLoading: boolean
   error: string | null
+  rhinestoneConfig: any | null
 }
 
 export function useRhinestoneAccount() {
@@ -45,6 +46,7 @@ export function useRhinestoneAccount() {
     accountAddress: null,
     isLoading: false,
     error: null,
+    rhinestoneConfig: null,
   })
 
   // ETH Balance for EOA
@@ -153,6 +155,7 @@ export function useRhinestoneAccount() {
         ...prev,
         rhinestoneAccount: null,
         accountAddress: null,
+        rhinestoneConfig: null,
         error: null,
       }))
       return
@@ -204,10 +207,19 @@ export function useRhinestoneAccount() {
 
       const accountAddress = rhinestoneAccount.getAddress()
 
+      const rhinestoneConfig = {
+        chain: customSepolia,
+        bundlerUrl: undefined, // Pimlico URL managed internally by SDK
+        paymasterUrl: undefined,
+        sponsorshipPolicyId: undefined,
+        rhinestoneApiKey: apiKey,
+      }
+
       setState((prev) => ({
         ...prev,
         rhinestoneAccount,
         accountAddress,
+        rhinestoneConfig,
         isLoading: false,
         error: null,
       }))

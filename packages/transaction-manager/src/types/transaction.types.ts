@@ -34,11 +34,16 @@ export interface ERC4337UserOperation extends BaseTransactionRequest {
   [key: string]: unknown // Index signature for bundler compatibility
 }
 
+export interface RhinestoneCall {
+  to: Address
+  data: Hex
+  value: bigint
+}
+
 export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
   type: 'rhinestone-intent'
-  rhinestoneParams?: {
-    name: string
-    duration: bigint
+  rhinestoneParams: {
+    calls: RhinestoneCall[]
   }
 }
 
