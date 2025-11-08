@@ -182,10 +182,24 @@ export function submitCommitmentActor(input: {
         address: smartAccountAddress,
       })
 
+      console.log(`💰 [REGISTRATION ACTOR] Smart account ETH balance:`, {
+        address: smartAccountAddress,
+        balance: ethBalance.toString(),
+        balanceInEth: (Number(ethBalance) / 1e18).toFixed(6),
+      })
+
       if (ethBalance === 0n) {
         throw new Error(
           `Smart account needs ETH for gas. Send Sepolia ETH to: ${smartAccountAddress}`,
         )
+      }
+
+      // Warn if balance is very low (less than 0.001 ETH)
+      if (ethBalance < 1000000000000000n) {
+        console.warn(`⚠️ [REGISTRATION ACTOR] Low ETH balance - may fail:`, {
+          balance: (Number(ethBalance) / 1e18).toFixed(6),
+          recommended: '0.001 ETH or more',
+        })
       }
 
       const commitmentData = encodeCommitmentData(input.commitment.commitment)

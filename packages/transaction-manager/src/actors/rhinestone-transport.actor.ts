@@ -68,14 +68,19 @@ export function submitRhinestoneTransaction(input: {
   // Execute the transaction through Rhinestone SDK
   return ResultAsync.fromPromise(
     (async () => {
-      console.log('📤 Calling rhinestoneAccount.sendTransaction()...', {
-        targetChain: chain.name,
+      console.log('📤 Calling rhinestoneAccount.sendUserOperation()...', {
+        chain: chain.name,
+        chainId: chain.id,
         callCount: rhinestoneRequest.rhinestoneParams.calls.length,
+        calls: rhinestoneRequest.rhinestoneParams.calls.map((call) => ({
+          to: call.to,
+          data: call.data,
+          value: call.value.toString(),
+        })),
       })
 
-      const transaction = await account.sendTransaction({
-        sourceChains: [chain],
-        targetChain: chain,
+      const transaction = await account.sendUserOperation({
+        chain: chain,
         calls: rhinestoneRequest.rhinestoneParams.calls,
       })
 
@@ -108,6 +113,12 @@ export function submitRhinestoneTransaction(input: {
         '❌ [RHINESTONE TRANSPORT] Transaction submission failed:',
         error,
       )
+      console.error('❌ [RHINESTONE TRANSPORT] Error details:', {
+        name: error?.name,
+        message: error?.message,
+        cause: error?.cause,
+        stack: error?.stack,
+      })
       return new TransactionSubmissionError(rhinestoneRequest, error as Error)
     },
   )
