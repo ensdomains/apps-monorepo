@@ -1,19 +1,21 @@
 /**
- * ENS Registration Hook - Following POC Pattern
- * - Uses useEffect to respond to step changes (like your working POC)
- * - Clean separation between commitment and registration steps
- * - Proper state management with step-based flow control
+ * ENS Registration Hook - XState Machine Integration
+ *
+ * Wraps the registration state machine from transaction-manager
+ * and exposes a compatible API for the RegistrationPage component.
  */
-import { useCallback, useEffect, useState } from 'react'
+
+// @ts-expect-error - Type imports not available due to dts generation being disabled
+import type {
+  RegistrationContext,
+  RegistrationEvent,
+} from '@ens-apps/transaction-manager'
+import { registrationMachine } from '@ens-apps/transaction-manager'
+import { useMachine } from '@xstate/react'
+import React, { useCallback, useEffect, useMemo } from 'react'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
-import {
-  approveTokenForRegistration,
-  commitToRegistration,
-  generateCommitment,
-  registerDomain,
-  SUPPORTED_TOKENS,
-} from '../services/nameChainContractService'
-import { RhinestoneTransactionResult } from '@/lib/rhinestone/utils'
+import { publicClient } from '@/lib/wagmi'
+import { SUPPORTED_TOKENS } from '../services/nameChainContractService'
 
 // ============================================================================
 // TYPES
@@ -30,283 +32,179 @@ export enum RegistrationStep {
 }
 
 // ============================================================================
-// HOOK (Following your POC pattern with useEffect step handlers)
+// HELPER: Map machine state to RegistrationStep
+// ============================================================================
+
+function mapMachineStateToStep(machineState: string): RegistrationStep {
+  switch (machineState) {
+    case 'idle':
+      return RegistrationStep.PRICING
+    case 'preparingCommitment':
+    case 'committingTransaction':
+    case 'waitingForCommitment':
+      return RegistrationStep.COMMITTING
+    case 'approvingToken':
+    case 'waitingForApproval':
+      return RegistrationStep.APPROVING
+    case 'registeringDomain':
+    case 'waitingForRegistration':
+      return RegistrationStep.REGISTERING
+    case 'success':
+      return RegistrationStep.SUCCESS
+    case 'error':
+      return RegistrationStep.ERROR
+    default:
+      return RegistrationStep.PRICING
+  }
+}
+
+// ============================================================================
+// HOOK
 // ============================================================================
 
 export function useRegistration(initialName?: string) {
-  const { accountAddress, sendTransaction, isConnected } = useRhinestoneAccount()
+  const { rhinestoneAccount, accountAddress, isConnected } =
+    useRhinestoneAccount()
 
-  // State management
-  const [step, setStep] = useState<RegistrationStep>(RegistrationStep.PRICING)
-  const [name, setName] = useState(initialName || '')
-  const [duration, setDuration] = useState(1)
-  const [selectedToken, setSelectedToken] = useState<`0x${string}`>(SUPPORTED_TOKENS.USDC)
-  const [tokenPrice, setTokenPrice] = useState<bigint | null>(null)
-  const [commitment, setCommitment] = useState<string | null>(null)
-  const [secret, setSecret] = useState<string | null>(null)
-  const [commitTxHash, setCommitTxHash] = useState<RhinestoneTransactionResult | null>(null)
-  const [registerTxHash, setRegisterTxHash] = useState<RhinestoneTransactionResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  // UI state (not in machine) - used for pricing page
+  const [uiName, setUiName] = React.useState(initialName || '')
+  const [uiDuration, setUiDuration] = React.useState(1) // years
+  const [uiSelectedToken, setUiSelectedToken] = React.useState<`0x${string}`>(
+    SUPPORTED_TOKENS.USDC,
+  )
 
-  useEffect(() => {
-    if (initialName && initialName !== name) {
-      setName(initialName)
+  // Wait for account to be ready before initializing machine
+  const isAccountReady = Boolean(rhinestoneAccount && accountAddress)
+
+  // Initialize machine with minimal input
+  // Account details will be sent via UPDATE_ACCOUNT event when ready
+  const [state, send] = useMachine(registrationMachine, {
+    input: {
+      chainId: 11155111, // Sepolia
+    },
+  })
+
+  // Map machine state to RegistrationStep
+  const step = useMemo(() => {
+    // If account not ready, stay on pricing step
+    if (!isAccountReady) {
+      return RegistrationStep.PRICING
     }
-  }, [initialName, name])
+    return mapMachineStateToStep(String(state.value))
+  }, [state.value, isAccountReady])
 
+  // Sync initial name to UI state
   useEffect(() => {
-    if (
-      step === RegistrationStep.COMMITTING &&
-      name &&
-      accountAddress &&
-      duration > 0 &&
-      tokenPrice &&
-      selectedToken
-    ) {
-      const handleCommitment = async () => {
-        try {
-          console.log('🔄 Starting commitment process...')
-
-          // Step 1: Generate commitment
-          // selectedToken is already an address
-          const commitmentResult = await generateCommitment(
-            name,
-            accountAddress,
-            duration,
-            selectedToken,
-          )
-
-          if (commitmentResult.isErr()) {
-            throw new Error(`Commitment generation failed: ${commitmentResult.error.message}`)
-          }
-
-          const { commitment: newCommitment, secret: newSecret } = commitmentResult.value
-
-          // Step 2: Send commit transaction
-          console.log('🔄 About to send commit transaction...')
-          console.log('🔍 Commitment details:', {
-            commitment: newCommitment,
-            secret: newSecret,
-            name,
-            duration,
-            selectedToken,
-            accountAddress,
-          })
-
-          console.log('🔍 About to commit with hash:', newCommitment)
-          console.log('🔍 Secret being used:', newSecret)
-          console.log('🔍 Verifying commitment hash matches...')
-
-          const commitResult = await commitToRegistration(
-            newCommitment,
-            sendTransaction,
-            accountAddress as `0x${string}`
-          )
-          console.log('🔄 Commit result received:', commitResult)
-
-          if (commitResult.isErr()) {
-            console.error('❌ Commit failed:', commitResult.error)
-            throw new Error(`Commitment failed: ${commitResult.error.message}`)
-          }
-
-          console.log('✅ Commit transaction successful!')
-          setCommitment(newCommitment)
-          setSecret(newSecret)
-          setCommitTxHash(commitResult.value)
-
-          // Move to approval step (if token needs approval)
-          console.log('✅ Commitment successful, proceeding to token approval...')
-          setStep(RegistrationStep.APPROVING)
-        } catch (error) {
-          console.error('❌ Error during commitment:', error)
-          setError(error instanceof Error ? error.message : 'Commitment failed')
-          setStep(RegistrationStep.ERROR)
-        }
-      }
-
-      handleCommitment()
+    if (initialName && initialName !== uiName) {
+      setUiName(initialName)
     }
-  }, [
-    step,
-    name,
-    accountAddress,
-    duration,
-    tokenPrice,
-    selectedToken,
-    sendTransaction,
-  ])
+  }, [initialName, uiName])
 
-  // Handle approval step - triggered when step changes to APPROVING
+  // Update machine context when account becomes ready
   useEffect(() => {
-    if (
-      step === RegistrationStep.APPROVING &&
-      tokenPrice &&
-      selectedToken
-    ) {
-      const handleApproval = async () => {
-        try {
-          // selectedToken is already an address
-
-          // Only approve if not using ETH
-          if (selectedToken !== '0x0000000000000000000000000000000000000000') {
-            console.log('🔐 Approving token for registration...')
-            console.log('🔍 About to call approveTokenForRegistration with:', {
-              tokenAddress: selectedToken,
-              amount: tokenPrice.toString(),
-              ownerAddress: accountAddress,
-              accountAddressType: typeof accountAddress,
-              isAccountAddressValid: accountAddress?.startsWith('0x'),
-            })
-
-            const approveResult = await approveTokenForRegistration(
-              selectedToken,
-              tokenPrice,
-              accountAddress as `0x${string}`,
-              sendTransaction
-            )
-
-            if (approveResult.isErr()) {
-              console.error('❌ Token approval failed:', approveResult.error)
-              throw new Error(`Token approval failed: ${approveResult.error.message}`)
-            }
-
-            console.log('✅ Token approval successful:', approveResult.value)
-          } else {
-            console.log('⚡ Using ETH - no approval needed')
-          }
-
-          // Move to registration step after approval
-          console.log('✅ Approval complete, proceeding to registration...')
-          setStep(RegistrationStep.REGISTERING)
-        } catch (error) {
-          console.error('❌ Error during token approval:', error)
-          setError(error instanceof Error ? error.message : 'Token approval failed')
-          setStep(RegistrationStep.ERROR)
-        }
-      }
-
-      handleApproval()
+    if (isAccountReady && rhinestoneAccount && accountAddress) {
+      console.log('📤 Sending UPDATE_ACCOUNT event to machine', {
+        accountAddress,
+        hasRhinestoneAccount: !!rhinestoneAccount,
+        hasPublicClient: !!publicClient,
+      })
+      send({
+        type: 'UPDATE_ACCOUNT',
+        rhinestoneAccount,
+        accountAddress: accountAddress as `0x${string}`,
+        publicClient,
+      } as RegistrationEvent)
     }
-  }, [step, tokenPrice, selectedToken, accountAddress, sendTransaction])
+  }, [isAccountReady, rhinestoneAccount, accountAddress, publicClient, send])
 
-  // Handle registration step - triggered when step changes to REGISTERING
-  useEffect(() => {
-    if (
-      step === RegistrationStep.REGISTERING &&
-      name &&
-      accountAddress &&
-      commitment &&
-      secret &&
-      tokenPrice &&
-      selectedToken
-    ) {
-      const handleRegistration = async () => {
-        try {
-          console.log('🚀 Starting registration process...')
-
-          // selectedToken is already an address
-
-          // Step 4: Register domain - approval already done in previous step
-          console.log('🚀 Registering domain...')
-          console.log('🔍 Registration details:', {
-            name,
-            accountAddress,
-            secret,
-            duration,
-            selectedToken,
-            commitment
-          })
-
-          const registerResult = await registerDomain(
-            name,
-            accountAddress,
-            secret as `0x${string}`,
-            duration,
-            selectedToken,
-            sendTransaction,
-          )
-
-          if (registerResult.isErr()) {
-            console.error('❌ Domain registration failed:', registerResult.error)
-            throw new Error(`Domain registration failed: ${registerResult.error.message}`)
-          }
-
-          console.log('✅ Domain registration successful:', registerResult.value)
-          setRegisterTxHash(registerResult.value)
-          setStep(RegistrationStep.SUCCESS)
-        } catch (error) {
-          console.error('❌ Error during registration:', error)
-          setError(error instanceof Error ? error.message : 'Registration failed')
-          setStep(RegistrationStep.ERROR)
-        }
-      }
-
-      handleRegistration()
-    }
-  }, [
-    step,
-    name,
-    accountAddress,
-    commitment,
-    secret,
-    tokenPrice,
-    selectedToken,
-    duration,
-    sendTransaction,
-  ])
-
+  // Handlers
   const startCommitment = useCallback(
     (params: { tokenPrice: bigint; selectedToken?: `0x${string}` }) => {
-      if (!accountAddress || !sendTransaction) {
-        setError('Account not connected')
+      console.log('🔍 startCommitment called with:', {
+        accountAddress,
+        rhinestoneAccount: !!rhinestoneAccount,
+        params,
+      })
+
+      if (!accountAddress || !rhinestoneAccount) {
+        console.error('❌ Account not connected or not initialized', {
+          accountAddress,
+          hasRhinestoneAccount: !!rhinestoneAccount,
+        })
+        alert('Account not ready. Please wait for wallet to connect.')
         return
       }
 
-      setTokenPrice(params.tokenPrice)
-      // Default to USDC if no token specified
-      setSelectedToken(params.selectedToken || SUPPORTED_TOKENS.USDC)
-      setError(null)
-      setStep(RegistrationStep.COMMITTING)
+      const token =
+        params.selectedToken === SUPPORTED_TOKENS.DAI ? 'DAI' : 'USDC'
+      const durationInSeconds = BigInt(uiDuration * 365 * 24 * 60 * 60) // Convert years to seconds
+
+      console.log('✅ Sending START_REGISTRATION event:', {
+        name: uiName,
+        duration: durationInSeconds,
+        token,
+        price: params.tokenPrice,
+      })
+
+      send({
+        type: 'START_REGISTRATION',
+        name: uiName,
+        duration: durationInSeconds,
+        token,
+        price: params.tokenPrice,
+      } as RegistrationEvent)
     },
-    [accountAddress, sendTransaction],
+    [accountAddress, rhinestoneAccount, uiName, uiDuration, send],
   )
 
   const retry = useCallback(() => {
-    setError(null)
-    setStep(RegistrationStep.PRICING)
-  }, [])
+    send({ type: 'RETRY' } as RegistrationEvent)
+  }, [send])
 
   const reset = useCallback(() => {
-    setName('')
-    setDuration(1)
-    setSelectedToken(SUPPORTED_TOKENS.USDC)
-    setTokenPrice(null)
-    setCommitment(null)
-    setSecret(null)
-    setCommitTxHash(null)
-    setRegisterTxHash(null)
-    setError(null)
-    setStep(RegistrationStep.PRICING)
-  }, [])
+    send({ type: 'CANCEL' } as RegistrationEvent)
+    // Also reset UI state
+    setUiName(initialName || '')
+    setUiDuration(1)
+    setUiSelectedToken(SUPPORTED_TOKENS.USDC)
+  }, [send, initialName])
 
   const handleSetupAutorenewal = useCallback(() => {
-    // Move to autorenewal step after successful registration
-    setStep(RegistrationStep.AUTORENEWAL)
+    // TODO: Implement autorenewal flow
+    // For now, this is a no-op
   }, [])
 
   const handleRegisterAnotherName = useCallback(() => {
-    // Reset the registration state to start over with a new name
     reset()
   }, [reset])
 
+  const setDuration = useCallback((duration: number) => {
+    setUiDuration(duration)
+  }, [])
+
+  const setName = useCallback((name: string) => {
+    setUiName(name)
+  }, [])
+
+  const setSelectedToken = useCallback((token: `0x${string}`) => {
+    setUiSelectedToken(token)
+  }, [])
+
+  // @ts-expect-error - Context types not available due to dts generation being disabled
+  const context = state.context as RegistrationContext
+
   return {
     step,
-    name,
-    duration,
-    selectedToken,
-    commitTxHash,
-    registerTxHash,
-    error,
+    name: context.name || uiName, // Use machine context name if available, otherwise UI name
+    duration: uiDuration,
+    selectedToken: uiSelectedToken, // Use UI token for consistency
+    commitTxHash: context.commitmentTxId
+      ? { hash: context.commitmentTxId as `0x${string}` }
+      : null,
+    registerTxHash: context.registrationTxId
+      ? { hash: context.registrationTxId as `0x${string}` }
+      : null,
+    error: context.error?.message || null,
     isConnected,
     isCommitting: step === RegistrationStep.COMMITTING,
     isApproving: step === RegistrationStep.APPROVING,

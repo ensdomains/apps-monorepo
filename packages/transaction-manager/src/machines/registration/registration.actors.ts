@@ -28,13 +28,15 @@ type CommitmentData = {
 
 /**
  * Generate commitment hash via contract call
+ * Note: Uses makeCommitment (NOT makeCommitmentWithToken)
+ * Payment token is specified during registration, not commitment
  */
 async function generateCommitment(
   publicClient: PublicClient,
   name: string,
   ownerAddress: Address,
   duration: bigint,
-  paymentToken: Address = SUPPORTED_TOKENS.USDC,
+  _paymentToken: Address = SUPPORTED_TOKENS.USDC, // Not used in commitment
 ): Promise<Result<CommitmentData, Error>> {
   try {
     const cleanName = name.replace('.eth', '')
@@ -43,7 +45,7 @@ async function generateCommitment(
     const commitment = (await publicClient.readContract({
       address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
       abi: FAST_TEST_ETH_REGISTRAR_ABI,
-      functionName: 'makeCommitmentWithToken',
+      functionName: 'makeCommitment',
       args: [
         cleanName,
         ownerAddress,
@@ -51,7 +53,6 @@ async function generateCommitment(
         ENS_SEPOLIA_CONTRACTS.ETHRegistry,
         ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl,
         duration,
-        paymentToken,
         REFERER_ADDRESS,
       ],
     })) as Hash
@@ -153,53 +154,92 @@ export function generateCommitmentActor(input: {
 
 /**
  * Submit commitment transaction via transaction manager
+ * Note: Includes ETH balance check (smart account needs ETH for gas)
  */
 export function submitCommitmentActor(input: {
   commitment: CommitmentData
   rhinestoneAccount: RhinestoneAccount
   name: string
   duration: bigint
+  publicClient: PublicClient
 }): ResultAsync<string, Error> {
-  try {
-    const commitmentData = encodeCommitmentData(input.commitment.commitment)
-
-    const txId = transactionManager.startTransaction(
-      {
-        type: 'custom',
-        request: {
-          type: 'rhinestone-intent',
-          from: input.rhinestoneAccount.getAddress(),
-          to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
-          data: commitmentData,
-          value: 0n,
-          chainId: 11155111, // Sepolia
+  return ResultAsync.fromPromise(
+    (async () => {
+      console.log(
+        `🔧 [REGISTRATION ACTOR] submitCommitmentActor called with:`,
+        {
+          hasPublicClient: !!input.publicClient,
+          hasRhinestoneAccount: !!input.rhinestoneAccount,
+          name: input.name,
         },
-      },
-      {
-        type: 'rhinestone',
-        account: input.rhinestoneAccount,
-      },
-      {
-        description: `Commit to register ${input.name}.eth`,
-      },
-    )
+      )
 
-    return ResultAsync.fromSafePromise(Promise.resolve(txId))
-  } catch (error) {
-    return errAsync(new Error(`Failed to submit commitment: ${error}`))
-  }
+      // Check smart account ETH balance before committing
+      const smartAccountAddress =
+        input.rhinestoneAccount.getAddress() as Address
+      const ethBalance = await input.publicClient.getBalance({
+        address: smartAccountAddress,
+      })
+
+      if (ethBalance === 0n) {
+        throw new Error(
+          `Smart account needs ETH for gas. Send Sepolia ETH to: ${smartAccountAddress}`,
+        )
+      }
+
+      const commitmentData = encodeCommitmentData(input.commitment.commitment)
+
+      console.log(
+        `🔧 [REGISTRATION ACTOR] About to call startTransaction with publicClient:`,
+        !!input.publicClient,
+      )
+
+      const txId = transactionManager.startTransaction(
+        {
+          type: 'custom',
+          request: {
+            type: 'rhinestone-intent',
+            from: smartAccountAddress,
+            to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+            data: commitmentData,
+            value: 0n,
+            chainId: 11155111, // Sepolia
+          },
+        },
+        {
+          type: 'rhinestone',
+          account: input.rhinestoneAccount,
+        },
+        {
+          description: `Commit to register ${input.name}.eth`,
+          publicClient: input.publicClient, // Pass publicClient directly
+        },
+      )
+
+      return txId
+    })(),
+    (error) => error as Error,
+  )
 }
 
 /**
  * Submit token approval transaction via transaction manager
+ * Note: Normalizes token address to lowercase for Rhinestone SDK compatibility
  */
 export function submitApprovalActor(input: {
   tokenPrice: bigint
   selectedToken: 'USDC' | 'DAI'
   rhinestoneAccount: RhinestoneAccount
+  publicClient: PublicClient
 }): ResultAsync<string, Error> {
   try {
     const tokenAddress = getPaymentTokenAddress(input.selectedToken)
+    // Normalize to lowercase to avoid Rhinestone SDK validation issues
+    const normalizedTokenAddress = tokenAddress.toLowerCase() as Address
+    console.log(
+      `🔧 Token address normalization: ${tokenAddress} -> ${normalizedTokenAddress}`,
+    )
+
     const approvalData = encodeTokenApprovalData(input.tokenPrice)
 
     const txId = transactionManager.startTransaction(
@@ -208,7 +248,7 @@ export function submitApprovalActor(input: {
         request: {
           type: 'rhinestone-intent',
           from: input.rhinestoneAccount.getAddress(),
-          to: tokenAddress,
+          to: normalizedTokenAddress,
           data: approvalData,
           value: 0n,
           chainId: 11155111, // Sepolia
@@ -220,6 +260,7 @@ export function submitApprovalActor(input: {
       },
       {
         description: `Approve ${input.selectedToken} for registration`,
+        publicClient: input.publicClient, // Pass publicClient directly
       },
     )
 
@@ -231,6 +272,7 @@ export function submitApprovalActor(input: {
 
 /**
  * Submit registration transaction via transaction manager
+ * Note: Normalizes payment token address to lowercase for Rhinestone SDK compatibility
  */
 export function submitRegistrationActor(input: {
   name: string
@@ -239,42 +281,70 @@ export function submitRegistrationActor(input: {
   duration: bigint
   selectedToken: 'USDC' | 'DAI'
   owner: Address
+  publicClient: PublicClient
 }): ResultAsync<string, Error> {
-  try {
-    const paymentToken = getPaymentTokenAddress(input.selectedToken)
-    const registrationData = encodeRegistrationData(
-      input.name,
-      input.owner,
-      input.commitment.secret,
-      input.duration,
-      paymentToken,
-    )
+  return ResultAsync.fromPromise(
+    (async () => {
+      const paymentToken = getPaymentTokenAddress(input.selectedToken)
+      // Normalize to lowercase to avoid Rhinestone SDK validation issues
+      const normalizedPaymentToken = paymentToken.toLowerCase() as Address
+      console.log(
+        `🔧 Payment token normalization: ${paymentToken} -> ${normalizedPaymentToken}`,
+      )
 
-    const txId = transactionManager.startTransaction(
-      {
-        type: 'custom',
-        request: {
-          type: 'rhinestone-intent',
-          from: input.rhinestoneAccount.getAddress(),
-          to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
-          data: registrationData,
-          value: 0n,
-          chainId: 11155111, // Sepolia
+      // Check if the payment token is supported
+      const isSupported = await input.publicClient.readContract({
+        address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+        abi: FAST_TEST_ETH_REGISTRAR_ABI,
+        functionName: 'isPaymentToken',
+        args: [normalizedPaymentToken],
+      })
+
+      console.log(
+        `🔍 Payment token ${normalizedPaymentToken} is supported:`,
+        isSupported,
+      )
+
+      if (!isSupported) {
+        throw new Error(
+          `Payment token ${normalizedPaymentToken} is not supported by the ENS registrar`,
+        )
+      }
+
+      const registrationData = encodeRegistrationData(
+        input.name,
+        input.owner,
+        input.commitment.secret,
+        input.duration,
+        normalizedPaymentToken,
+      )
+
+      const txId = transactionManager.startTransaction(
+        {
+          type: 'custom',
+          request: {
+            type: 'rhinestone-intent',
+            from: input.rhinestoneAccount.getAddress(),
+            to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+            data: registrationData,
+            value: 0n,
+            chainId: 11155111, // Sepolia
+          },
         },
-      },
-      {
-        type: 'rhinestone',
-        account: input.rhinestoneAccount,
-      },
-      {
-        description: `Register ${input.name}.eth`,
-      },
-    )
+        {
+          type: 'rhinestone',
+          account: input.rhinestoneAccount,
+        },
+        {
+          description: `Register ${input.name}.eth`,
+          publicClient: input.publicClient, // Pass publicClient directly
+        },
+      )
 
-    return ResultAsync.fromSafePromise(Promise.resolve(txId))
-  } catch (error) {
-    return errAsync(new Error(`Failed to submit registration: ${error}`))
-  }
+      return txId
+    })(),
+    (error) => error as Error,
+  )
 }
 
 /**

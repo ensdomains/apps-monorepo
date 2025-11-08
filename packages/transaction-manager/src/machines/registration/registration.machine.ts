@@ -56,17 +56,23 @@ export type RegistrationEvent =
       token: 'USDC' | 'DAI'
       price: bigint
     }
+  | {
+      type: 'UPDATE_ACCOUNT'
+      rhinestoneAccount: RhinestoneAccount
+      accountAddress: Address
+      publicClient: PublicClient
+    }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
 
 export type RegistrationInput = {
-  rhinestoneAccount: RhinestoneAccount
-  accountAddress: Address
-  publicClient: PublicClient
+  rhinestoneAccount?: RhinestoneAccount
+  accountAddress?: Address
+  publicClient?: PublicClient
   chainId: number
 }
 
-export const registrationMachine: ActorLogic<any, any, any, any, any> = setup({
+export const registrationMachine = setup({
   types: {
     context: {} as RegistrationContext,
     events: {} as RegistrationEvent,
@@ -104,6 +110,7 @@ export const registrationMachine: ActorLogic<any, any, any, any, any> = setup({
         rhinestoneAccount: RhinestoneAccount
         name: string
         duration: bigint
+        publicClient: PublicClient
       }) => {
         const { submitCommitmentActor } = require('./registration.actors')
         return submitCommitmentActor(input)
@@ -114,6 +121,7 @@ export const registrationMachine: ActorLogic<any, any, any, any, any> = setup({
         tokenPrice: bigint
         selectedToken: 'USDC' | 'DAI'
         rhinestoneAccount: RhinestoneAccount
+        publicClient: PublicClient
       }) => {
         const { submitApprovalActor } = require('./registration.actors')
         return submitApprovalActor(input)
@@ -127,6 +135,7 @@ export const registrationMachine: ActorLogic<any, any, any, any, any> = setup({
         duration: bigint
         selectedToken: 'USDC' | 'DAI'
         owner: Address
+        publicClient: PublicClient
       }) => {
         const { submitRegistrationActor } = require('./registration.actors')
         return submitRegistrationActor(input)
@@ -201,6 +210,13 @@ export const registrationMachine: ActorLogic<any, any, any, any, any> = setup({
   states: {
     idle: {
       on: {
+        UPDATE_ACCOUNT: {
+          actions: assign({
+            rhinestoneAccount: ({ event }) => event.rhinestoneAccount,
+            accountAddress: ({ event }) => event.accountAddress,
+            publicClient: ({ event }) => event.publicClient,
+          }),
+        },
         START_REGISTRATION: {
           target: 'preparingCommitment',
           actions: assign({
@@ -251,6 +267,7 @@ export const registrationMachine: ActorLogic<any, any, any, any, any> = setup({
           rhinestoneAccount: context.rhinestoneAccount!,
           name: context.name,
           duration: context.duration,
+          publicClient: context.publicClient!,
         }),
         onDone: {
           target: 'waitingForCommitment',
@@ -296,6 +313,7 @@ export const registrationMachine: ActorLogic<any, any, any, any, any> = setup({
           tokenPrice: context.tokenPrice,
           selectedToken: context.selectedToken,
           rhinestoneAccount: context.rhinestoneAccount!,
+          publicClient: context.publicClient!,
         }),
         onDone: {
           target: 'waitingForApproval',
@@ -344,6 +362,7 @@ export const registrationMachine: ActorLogic<any, any, any, any, any> = setup({
           duration: context.duration,
           selectedToken: context.selectedToken,
           owner: context.accountAddress!,
+          publicClient: context.publicClient!,
         }),
         onDone: {
           target: 'waitingForRegistration',
@@ -405,4 +424,3 @@ export const registrationMachine: ActorLogic<any, any, any, any, any> = setup({
 // const savedSnapshot = await persistenceService.loadRegistrationSnapshot()
 // export const registrationMachine = savedSnapshot
 //   ? baseMachine.provide({ snapshot: savedSnapshot })
-//   : baseMachine
