@@ -5,6 +5,7 @@
  */
 
 import type { registrationMachine } from '@ens-apps/transaction-manager'
+import type { PublicClient } from 'viem'
 import type { ActorRefFrom } from 'xstate'
 import { SUPPORTED_TOKENS } from '../services/nameChainContractService'
 
@@ -15,24 +16,27 @@ export interface StartRegistrationParams {
   tokenPrice: bigint
 }
 
-export interface AccountReadiness {
+export interface AccountInfo {
   rhinestoneAccount: any
   accountAddress: string | null
+  rhinestoneConfig: any
+  publicClient: PublicClient
 }
 
 /**
  * Handle starting the registration flow
  *
- * Validates account readiness, creates the registration event, and sends it to the machine.
+ * Validates account readiness, creates the Signer, and sends START_REGISTRATION event to the machine.
  * Shows an alert if validation fails.
  */
 export function handleStartRegistration(
   params: StartRegistrationParams,
-  account: AccountReadiness,
+  account: AccountInfo,
   actor: ActorRefFrom<typeof registrationMachine>,
 ): void {
   const { name, duration, selectedToken, tokenPrice } = params
-  const { rhinestoneAccount, accountAddress } = account
+  const { rhinestoneAccount, accountAddress, rhinestoneConfig, publicClient } =
+    account
 
   console.log('🔍 handleStartRegistration called with:', {
     accountAddress,
@@ -41,13 +45,21 @@ export function handleStartRegistration(
   })
 
   // Validation
-  if (!accountAddress || !rhinestoneAccount) {
+  if (!accountAddress || !rhinestoneAccount || !rhinestoneConfig) {
     console.error('❌ Account not connected or not initialized', {
       accountAddress,
       hasRhinestoneAccount: !!rhinestoneAccount,
+      hasRhinestoneConfig: !!rhinestoneConfig,
     })
     alert('Account not ready. Please wait for wallet to connect.')
     return
+  }
+
+  // Create Signer from Rhinestone account
+  const signer: import('@ens-apps/transaction-manager').Signer = {
+    type: 'rhinestone',
+    account: rhinestoneAccount,
+    config: rhinestoneConfig,
   }
 
   // Map token address to token name
@@ -61,14 +73,19 @@ export function handleStartRegistration(
     duration: durationInSeconds,
     token,
     price: tokenPrice,
+    hasSigner: !!signer,
+    hasPublicClient: !!publicClient,
   })
 
-  // Send event to machine
+  // Send event to machine with all necessary data
   actor.send({
     type: 'START_REGISTRATION',
     name,
     duration: durationInSeconds,
     token,
     price: tokenPrice,
+    signer,
+    accountAddress: accountAddress as `0x${string}`,
+    publicClient,
   })
 }

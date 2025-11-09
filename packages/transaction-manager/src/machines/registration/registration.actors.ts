@@ -158,11 +158,10 @@ export function generateCommitmentActor(input: {
  */
 export function submitCommitmentActor(input: {
   commitment: CommitmentData
-  rhinestoneAccount: RhinestoneAccount
+  signer: import('../..').Signer
   name: string
   duration: bigint
   publicClient: PublicClient
-  rhinestoneConfig: any
 }): ResultAsync<string, Error> {
   return ResultAsync.fromPromise(
     (async () => {
@@ -170,14 +169,21 @@ export function submitCommitmentActor(input: {
         `🔧 [REGISTRATION ACTOR] submitCommitmentActor called with:`,
         {
           hasPublicClient: !!input.publicClient,
-          hasRhinestoneAccount: !!input.rhinestoneAccount,
+          hasSigner: !!input.signer,
+          signerType: input.signer?.type,
           name: input.name,
         },
       )
 
+      // Get account address from signer
+      let smartAccountAddress: Address
+      if (input.signer.type === 'rhinestone') {
+        smartAccountAddress = input.signer.account.getAddress() as Address
+      } else {
+        throw new Error('Only Rhinestone signer is supported for registration')
+      }
+
       // Check smart account ETH balance before committing
-      const smartAccountAddress =
-        input.rhinestoneAccount.getAddress() as Address
       const ethBalance = await input.publicClient.getBalance({
         address: smartAccountAddress,
       })
@@ -230,14 +236,10 @@ export function submitCommitmentActor(input: {
             },
           },
         },
-        {
-          type: 'rhinestone',
-          account: input.rhinestoneAccount,
-          config: input.rhinestoneConfig,
-        },
+        input.signer,
         {
           description: `Commit to register ${input.name}.eth`,
-          publicClient: input.publicClient, // Pass publicClient directly
+          publicClient: input.publicClient,
         },
       )
 
@@ -254,11 +256,18 @@ export function submitCommitmentActor(input: {
 export function submitApprovalActor(input: {
   tokenPrice: bigint
   selectedToken: 'USDC' | 'DAI'
-  rhinestoneAccount: RhinestoneAccount
+  signer: import('../..').Signer
   publicClient: PublicClient
-  rhinestoneConfig: any
 }): ResultAsync<string, Error> {
   try {
+    // Get account address from signer
+    let smartAccountAddress: Address
+    if (input.signer.type === 'rhinestone') {
+      smartAccountAddress = input.signer.account.getAddress() as Address
+    } else {
+      throw new Error('Only Rhinestone signer is supported for registration')
+    }
+
     const tokenAddress = getPaymentTokenAddress(input.selectedToken)
     // Normalize to lowercase to avoid Rhinestone SDK validation issues
     const normalizedTokenAddress = tokenAddress.toLowerCase() as Address
@@ -273,7 +282,7 @@ export function submitApprovalActor(input: {
         type: 'custom',
         request: {
           type: 'rhinestone-intent',
-          from: input.rhinestoneAccount.getAddress(),
+          from: smartAccountAddress,
           to: normalizedTokenAddress,
           data: approvalData,
           value: 0n,
@@ -289,14 +298,10 @@ export function submitApprovalActor(input: {
           },
         },
       },
-      {
-        type: 'rhinestone',
-        account: input.rhinestoneAccount,
-        config: input.rhinestoneConfig,
-      },
+      input.signer,
       {
         description: `Approve ${input.selectedToken} for registration`,
-        publicClient: input.publicClient, // Pass publicClient directly
+        publicClient: input.publicClient,
       },
     )
 
@@ -313,15 +318,22 @@ export function submitApprovalActor(input: {
 export function submitRegistrationActor(input: {
   name: string
   commitment: CommitmentData
-  rhinestoneAccount: RhinestoneAccount
+  signer: import('../..').Signer
   duration: bigint
   selectedToken: 'USDC' | 'DAI'
   owner: Address
   publicClient: PublicClient
-  rhinestoneConfig: any
 }): ResultAsync<string, Error> {
   return ResultAsync.fromPromise(
     (async () => {
+      // Get account address from signer
+      let smartAccountAddress: Address
+      if (input.signer.type === 'rhinestone') {
+        smartAccountAddress = input.signer.account.getAddress() as Address
+      } else {
+        throw new Error('Only Rhinestone signer is supported for registration')
+      }
+
       const paymentToken = getPaymentTokenAddress(input.selectedToken)
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
       const normalizedPaymentToken = paymentToken.toLowerCase() as Address
@@ -361,7 +373,7 @@ export function submitRegistrationActor(input: {
           type: 'custom',
           request: {
             type: 'rhinestone-intent',
-            from: input.rhinestoneAccount.getAddress(),
+            from: smartAccountAddress,
             to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
             data: registrationData,
             value: 0n,
@@ -377,14 +389,10 @@ export function submitRegistrationActor(input: {
             },
           },
         },
-        {
-          type: 'rhinestone',
-          account: input.rhinestoneAccount,
-          config: input.rhinestoneConfig,
-        },
+        input.signer,
         {
           description: `Register ${input.name}.eth`,
-          publicClient: input.publicClient, // Pass publicClient directly
+          publicClient: input.publicClient,
         },
       )
 

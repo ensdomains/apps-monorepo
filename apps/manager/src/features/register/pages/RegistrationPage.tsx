@@ -1,3 +1,4 @@
+import type { RegistrationEvent } from '@ens-apps/transaction-manager'
 import { registrationMachine } from '@ens-apps/transaction-manager'
 import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
@@ -11,7 +12,6 @@ import { PaymentInProgress } from '../components/PaymentInProgress'
 import { Pricing } from '../components/Pricing'
 import { RegistrationInProgress } from '../components/RegistrationInProgress'
 import { RegistrationSuccess } from '../components/RegistrationSuccess'
-import { useUpdateAccountOnReady } from '../hooks/useUpdateAccountOnReady'
 import { handleStartRegistration } from './RegistrationPage.handlers'
 import {
   createInitialUIState,
@@ -80,14 +80,6 @@ export function Registration({ initialName }: RegistrationProps) {
   // Account state
   const { rhinestoneAccount, accountAddress, isConnected, rhinestoneConfig } =
     useRhinestoneAccount()
-
-  // Sync account to machine when ready
-  useUpdateAccountOnReady(actor, {
-    rhinestoneAccount,
-    accountAddress,
-    rhinestoneConfig,
-    publicClient,
-  })
 
   // Local UI state
   const [ui, dispatch] = useReducer(
@@ -204,6 +196,8 @@ export function Registration({ initialName }: RegistrationProps) {
                 {
                   rhinestoneAccount,
                   accountAddress,
+                  rhinestoneConfig,
+                  publicClient,
                 },
                 actor,
               )

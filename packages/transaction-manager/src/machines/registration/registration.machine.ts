@@ -26,12 +26,11 @@ type CommitmentData = {
 }
 
 export type RegistrationContext = {
-  // Input params
-  rhinestoneAccount?: RhinestoneAccount
+  // Account & client
+  signer?: Signer
   accountAddress?: Address
   publicClient?: PublicClient
   chainId: number
-  rhinestoneConfig?: any
 
   // Registration params
   name: string
@@ -56,23 +55,15 @@ export type RegistrationEvent =
       duration: bigint
       token: 'USDC' | 'DAI'
       price: bigint
-    }
-  | {
-      type: 'UPDATE_ACCOUNT'
-      rhinestoneAccount: RhinestoneAccount
+      signer: Signer
       accountAddress: Address
       publicClient: PublicClient
-      rhinestoneConfig: any
     }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
 
 export type RegistrationInput = {
-  rhinestoneAccount?: RhinestoneAccount
-  accountAddress?: Address
-  publicClient?: PublicClient
   chainId: number
-  rhinestoneConfig?: any
 }
 
 export const registrationMachine = setup({
@@ -110,11 +101,10 @@ export const registrationMachine = setup({
     submitCommitment: fromResultAsync(
       (input: {
         commitment: CommitmentData
-        rhinestoneAccount: RhinestoneAccount
+        signer: Signer
         name: string
         duration: bigint
         publicClient: PublicClient
-        rhinestoneConfig: any
       }) => {
         const { submitCommitmentActor } = require('./registration.actors')
         return submitCommitmentActor(input)
@@ -124,9 +114,8 @@ export const registrationMachine = setup({
       (input: {
         tokenPrice: bigint
         selectedToken: 'USDC' | 'DAI'
-        rhinestoneAccount: RhinestoneAccount
+        signer: Signer
         publicClient: PublicClient
-        rhinestoneConfig: any
       }) => {
         const { submitApprovalActor } = require('./registration.actors')
         return submitApprovalActor(input)
@@ -136,12 +125,11 @@ export const registrationMachine = setup({
       (input: {
         name: string
         commitment: CommitmentData
-        rhinestoneAccount: RhinestoneAccount
+        signer: Signer
         duration: bigint
         selectedToken: 'USDC' | 'DAI'
         owner: Address
         publicClient: PublicClient
-        rhinestoneConfig: any
       }) => {
         const { submitRegistrationActor } = require('./registration.actors')
         return submitRegistrationActor(input)
@@ -203,11 +191,10 @@ export const registrationMachine = setup({
   initial: 'idle',
 
   context: ({ input }) => ({
-    rhinestoneAccount: input.rhinestoneAccount,
-    accountAddress: input.accountAddress,
-    publicClient: input.publicClient,
+    signer: undefined,
+    accountAddress: undefined,
+    publicClient: undefined,
     chainId: input.chainId,
-    rhinestoneConfig: input.rhinestoneConfig,
     name: '',
     duration: 0n,
     selectedToken: 'USDC',
@@ -217,23 +204,32 @@ export const registrationMachine = setup({
   states: {
     idle: {
       on: {
-        UPDATE_ACCOUNT: {
-          actions: assign({
-            rhinestoneAccount: ({ event }) => event.rhinestoneAccount,
-            accountAddress: ({ event }) => event.accountAddress,
-            publicClient: ({ event }) => event.publicClient,
-            rhinestoneConfig: ({ event }) => event.rhinestoneConfig,
-          }),
-        },
         START_REGISTRATION: {
-          target: 'preparingCommitment',
+          target: 'settingUpRegistration',
           actions: assign({
             name: ({ event }) => event.name,
             duration: ({ event }) => event.duration,
             selectedToken: ({ event }) => event.token,
             tokenPrice: ({ event }) => event.price,
+            signer: ({ event }) => event.signer,
+            accountAddress: ({ event }) => event.accountAddress,
+            publicClient: ({ event }) => event.publicClient,
           }),
         },
+      },
+    },
+
+    settingUpRegistration: {
+      entry: ({ context }) => {
+        console.log('📝 [REGISTRATION] Setup complete, context populated:', {
+          hasPublicClient: !!context.publicClient,
+          hasAccountAddress: !!context.accountAddress,
+          hasSigner: !!context.signer,
+          name: context.name,
+        })
+      },
+      always: {
+        target: 'preparingCommitment',
       },
     },
 
@@ -241,13 +237,21 @@ export const registrationMachine = setup({
       entry: ['logTransition', 'recordTransition'],
       invoke: {
         src: 'generateCommitment',
-        input: ({ context }) => ({
-          name: context.name,
-          owner: context.accountAddress!,
-          duration: context.duration,
-          publicClient: context.publicClient!,
-          selectedToken: context.selectedToken,
-        }),
+        input: ({ context }) => {
+          console.log('🔍 [REGISTRATION] preparingCommitment invoke input:', {
+            hasPublicClient: !!context.publicClient,
+            hasAccountAddress: !!context.accountAddress,
+            name: context.name,
+          })
+
+          return {
+            name: context.name,
+            owner: context.accountAddress!,
+            duration: context.duration,
+            publicClient: context.publicClient!,
+            selectedToken: context.selectedToken,
+          }
+        },
         onDone: {
           target: 'committingTransaction',
           actions: assign({
@@ -272,11 +276,10 @@ export const registrationMachine = setup({
         src: 'submitCommitment',
         input: ({ context }) => ({
           commitment: context.commitment!,
-          rhinestoneAccount: context.rhinestoneAccount!,
+          signer: context.signer!,
           name: context.name,
           duration: context.duration,
           publicClient: context.publicClient!,
-          rhinestoneConfig: context.rhinestoneConfig!,
         }),
         onDone: {
           target: 'waitingForCommitment',
@@ -321,9 +324,8 @@ export const registrationMachine = setup({
         input: ({ context }) => ({
           tokenPrice: context.tokenPrice,
           selectedToken: context.selectedToken,
-          rhinestoneAccount: context.rhinestoneAccount!,
+          signer: context.signer!,
           publicClient: context.publicClient!,
-          rhinestoneConfig: context.rhinestoneConfig!,
         }),
         onDone: {
           target: 'waitingForApproval',
@@ -368,12 +370,11 @@ export const registrationMachine = setup({
         input: ({ context }) => ({
           name: context.name,
           commitment: context.commitment!,
-          rhinestoneAccount: context.rhinestoneAccount!,
+          signer: context.signer!,
           duration: context.duration,
           selectedToken: context.selectedToken,
           owner: context.accountAddress!,
           publicClient: context.publicClient!,
-          rhinestoneConfig: context.rhinestoneConfig!,
         }),
         onDone: {
           target: 'waitingForRegistration',
