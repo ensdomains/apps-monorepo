@@ -1,39 +1,137 @@
+import { registrationMachine } from '@ens-apps/transaction-manager'
 import { useNavigate } from '@tanstack/react-router'
+import { useActorRef, useSelector } from '@xstate/react'
+import { useReducer } from 'react'
 import { Button } from '@/components/ui/button'
+import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+import { publicClient } from '@/lib/wagmi'
 import { ApprovalInProgress } from '../components/ApprovalInProgress'
 import { Autorenewal } from '../components/Autorenewal'
 import { PaymentInProgress } from '../components/PaymentInProgress'
 import { Pricing } from '../components/Pricing'
 import { RegistrationInProgress } from '../components/RegistrationInProgress'
 import { RegistrationSuccess } from '../components/RegistrationSuccess'
-import { RegistrationStep, useRegistration } from '../hooks/useRegistration'
+import { useUpdateAccountOnReady } from '../hooks/useUpdateAccountOnReady'
+import { handleStartRegistration } from './RegistrationPage.handlers'
+import {
+  createInitialUIState,
+  registrationUIReducer,
+} from './RegistrationPage.reducer'
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+export enum RegistrationStep {
+  PRICING = 'pricing',
+  COMMITTING = 'committing',
+  APPROVING = 'approving',
+  REGISTERING = 'registering',
+  SUCCESS = 'success',
+  AUTORENEWAL = 'autorenewal',
+  ERROR = 'error',
+}
 
 interface RegistrationProps {
   initialName?: string
 }
 
+// ============================================================================
+// HELPER: Map machine state to RegistrationStep
+// ============================================================================
+
+function mapMachineStateToStep(machineState: string): RegistrationStep {
+  switch (machineState) {
+    case 'idle':
+      return RegistrationStep.PRICING
+    case 'preparingCommitment':
+    case 'committingTransaction':
+    case 'waitingForCommitment':
+      return RegistrationStep.COMMITTING
+    case 'approvingToken':
+    case 'waitingForApproval':
+      return RegistrationStep.APPROVING
+    case 'registeringDomain':
+    case 'waitingForRegistration':
+      return RegistrationStep.REGISTERING
+    case 'success':
+      return RegistrationStep.SUCCESS
+    case 'error':
+      return RegistrationStep.ERROR
+    default:
+      return RegistrationStep.PRICING
+  }
+}
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
+
 export function Registration({ initialName }: RegistrationProps) {
   const navigate = useNavigate()
-  const {
-    step,
-    name: domainName,
-    duration,
-    selectedToken,
-    commitTxHash,
-    registerTxHash,
-    isConnected,
-    isCommitting: isCommitPending,
-    isApproving: isApprovePending,
-    isRegistering: isRegisterPending,
-    error,
-    setDuration,
-    startCommitment,
-    retry,
-    reset,
-    handleSetupAutorenewal,
-    handleRegisterAnotherName,
-  } = useRegistration(initialName)
 
+  // Machine actor
+  const actor = useActorRef(registrationMachine, {
+    input: {
+      chainId: 11155111, // Sepolia
+    },
+  })
+
+  // Account state
+  const { rhinestoneAccount, accountAddress, isConnected, rhinestoneConfig } =
+    useRhinestoneAccount()
+
+  // Sync account to machine when ready
+  useUpdateAccountOnReady(actor, {
+    rhinestoneAccount,
+    accountAddress,
+    rhinestoneConfig,
+    publicClient,
+  })
+
+  // Local UI state
+  const [ui, dispatch] = useReducer(
+    registrationUIReducer,
+    createInitialUIState(initialName),
+  )
+
+  // Selectors - directly select from machine state
+  const isAccountReady = Boolean(
+    rhinestoneAccount && accountAddress && rhinestoneConfig,
+  )
+
+  const step = useSelector(actor, (state) => {
+    if (!isAccountReady) return RegistrationStep.PRICING
+    return mapMachineStateToStep(String(state.value))
+  })
+
+  const domainName = useSelector(
+    actor,
+    (state) => state.context.name || ui.name,
+  )
+
+  const error = useSelector(
+    actor,
+    (state) => state.context.error?.message || null,
+  )
+
+  const commitTxId = useSelector(actor, (state) => state.context.commitmentTxId)
+
+  const registerTxId = useSelector(
+    actor,
+    (state) => state.context.registrationTxId,
+  )
+
+  // Derived state
+  const commitTxHash = commitTxId ? { hash: commitTxId as `0x${string}` } : null
+  const registerTxHash = registerTxId
+    ? { hash: registerTxId as `0x${string}` }
+    : null
+  const isCommitPending = step === RegistrationStep.COMMITTING
+  const isApprovePending = step === RegistrationStep.APPROVING
+  const isRegisterPending = step === RegistrationStep.REGISTERING
+
+  // Handlers
   const handleBack = () => {
     if (step === RegistrationStep.PRICING) {
       navigate({ to: '/' })
@@ -45,12 +143,13 @@ export function Registration({ initialName }: RegistrationProps) {
       return
     } else {
       // All other steps go to pricing on 'back'
-      reset()
+      actor.send({ type: 'CANCEL' })
+      dispatch({ type: 'RESET', initialName })
     }
   }
 
   const handleSetDuration = (newDuration: number) => {
-    setDuration(newDuration)
+    dispatch({ type: 'SET_DURATION', duration: newDuration })
   }
 
   const handleSelectPayment = (_method: 'crypto' | 'credit-card') => {
@@ -62,21 +161,41 @@ export function Registration({ initialName }: RegistrationProps) {
   }
 
   const handleConfirmPayment = (tokenPrice: bigint, selectedToken: string) => {
-    // Use the centralized token configuration
-    // selectedToken is already the correct address from PaymentDrawer
-    startCommitment({
-      tokenPrice,
-      selectedToken: selectedToken as `0x${string}`,
-    })
+    handleStartRegistration(
+      {
+        name: ui.name,
+        duration: ui.duration,
+        selectedToken: selectedToken as `0x${string}`,
+        tokenPrice,
+      },
+      {
+        rhinestoneAccount,
+        accountAddress,
+      },
+      {
+        onSuccess: (event) => actor.send(event),
+        onError: (message) => alert(message),
+      },
+    )
   }
 
   const handlePaymentSuccess = () => {
     // Payment success is handled automatically by the state machine
   }
 
+  const handleRetry = () => {
+    actor.send({ type: 'RETRY' })
+  }
 
+  const handleReset = () => {
+    actor.send({ type: 'CANCEL' })
+    dispatch({ type: 'RESET', initialName })
+  }
 
-  // domainName already includes .eth from the state machine
+  const handleSetupAutorenewal = () => {
+    // TODO: Implement autorenewal flow
+  }
+
   const displayDomainName = domainName || ''
 
   return (
@@ -91,7 +210,7 @@ export function Registration({ initialName }: RegistrationProps) {
         <div className="mx-auto max-w-md px-4 py-6">
           <Pricing
             domainName={displayDomainName}
-            duration={duration}
+            duration={ui.duration}
             isConnected={isConnected}
             isLoading={isCommitPending || isApprovePending || isRegisterPending}
             onSetDuration={handleSetDuration}
@@ -113,7 +232,7 @@ export function Registration({ initialName }: RegistrationProps) {
       {step === RegistrationStep.APPROVING && (
         <ApprovalInProgress
           domainName={displayDomainName}
-          selectedToken={selectedToken}
+          selectedToken={ui.selectedToken}
           commitTxHash={commitTxHash}
         />
       )}
@@ -136,9 +255,9 @@ export function Registration({ initialName }: RegistrationProps) {
       {step === RegistrationStep.AUTORENEWAL && (
         <Autorenewal
           domainName={displayDomainName}
-          duration={duration}
-          onReset={handleRegisterAnotherName}
-          onCompleteFlow={handleRegisterAnotherName}
+          duration={ui.duration}
+          onReset={handleReset}
+          onCompleteFlow={handleReset}
         />
       )}
 
@@ -151,10 +270,10 @@ export function Registration({ initialName }: RegistrationProps) {
             <p className="mb-4 whitespace-pre-line text-gray-600">
               {error || 'There was an error during the registration process.'}
             </p>
-            <Button onClick={retry} className="mr-2">
+            <Button onClick={handleRetry} className="mr-2">
               Retry
             </Button>
-            <Button variant="outline" onClick={reset}>
+            <Button variant="outline" onClick={handleReset}>
               Start Over
             </Button>
           </div>
