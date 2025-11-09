@@ -160,29 +160,6 @@ export function Registration({ initialName }: RegistrationProps) {
     // No-op for now - handled by payment drawer
   }
 
-  const handleConfirmPayment = (tokenPrice: bigint, selectedToken: string) => {
-    handleStartRegistration(
-      {
-        name: ui.name,
-        duration: ui.duration,
-        selectedToken: selectedToken as `0x${string}`,
-        tokenPrice,
-      },
-      {
-        rhinestoneAccount,
-        accountAddress,
-      },
-      {
-        onSuccess: (event) => actor.send(event),
-        onError: (message) => alert(message),
-      },
-    )
-  }
-
-  const handlePaymentSuccess = () => {
-    // Payment success is handled automatically by the state machine
-  }
-
   const handleRetry = () => {
     actor.send({ type: 'RETRY' })
   }
@@ -216,7 +193,21 @@ export function Registration({ initialName }: RegistrationProps) {
             onSetDuration={handleSetDuration}
             onSelectPayment={handleSelectPayment}
             onSelectCrypto={handleSelectCrypto}
-            onConfirmPayment={handleConfirmPayment}
+            onConfirmPayment={(tokenPrice, selectedToken) =>
+              handleStartRegistration(
+                {
+                  name: ui.name,
+                  duration: ui.duration,
+                  selectedToken: selectedToken as `0x${string}`,
+                  tokenPrice,
+                },
+                {
+                  rhinestoneAccount,
+                  accountAddress,
+                },
+                actor,
+              )
+            }
           />
         </div>
       )}
@@ -225,7 +216,7 @@ export function Registration({ initialName }: RegistrationProps) {
         <PaymentInProgress
           domainName={displayDomainName}
           selectedCrypto=""
-          onPaymentSuccess={handlePaymentSuccess}
+          onPaymentSuccess={() => {}} // No-op - handled by state machine
         />
       )}
 

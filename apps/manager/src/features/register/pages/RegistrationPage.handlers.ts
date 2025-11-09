@@ -4,7 +4,8 @@
  * Business logic extracted outside React components for testability.
  */
 
-import type { RegistrationEvent } from '@ens-apps/transaction-manager'
+import type { registrationMachine } from '@ens-apps/transaction-manager'
+import type { ActorRefFrom } from 'xstate'
 import { SUPPORTED_TOKENS } from '../services/nameChainContractService'
 
 export interface StartRegistrationParams {
@@ -19,22 +20,19 @@ export interface AccountReadiness {
   accountAddress: string | null
 }
 
-export interface StartRegistrationHandlers {
-  onSuccess: (event: RegistrationEvent) => void
-  onError: (message: string) => void
-}
-
 /**
  * Handle starting the registration flow
+ *
+ * Validates account readiness, creates the registration event, and sends it to the machine.
+ * Shows an alert if validation fails.
  */
 export function handleStartRegistration(
   params: StartRegistrationParams,
   account: AccountReadiness,
-  handlers: StartRegistrationHandlers,
+  actor: ActorRefFrom<typeof registrationMachine>,
 ): void {
   const { name, duration, selectedToken, tokenPrice } = params
   const { rhinestoneAccount, accountAddress } = account
-  const { onSuccess, onError } = handlers
 
   console.log('🔍 handleStartRegistration called with:', {
     accountAddress,
@@ -48,7 +46,7 @@ export function handleStartRegistration(
       accountAddress,
       hasRhinestoneAccount: !!rhinestoneAccount,
     })
-    onError('Account not ready. Please wait for wallet to connect.')
+    alert('Account not ready. Please wait for wallet to connect.')
     return
   }
 
@@ -58,21 +56,19 @@ export function handleStartRegistration(
   // Convert years to seconds
   const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
 
-  console.log('✅ Sending START_REGISTRATION event:', {
+  console.log('✅ Creating START_REGISTRATION event:', {
     name,
     duration: durationInSeconds,
     token,
     price: tokenPrice,
   })
 
-  // Create event
-  const event: RegistrationEvent = {
+  // Send event to machine
+  actor.send({
     type: 'START_REGISTRATION',
     name,
     duration: durationInSeconds,
     token,
     price: tokenPrice,
-  }
-
-  onSuccess(event)
+  })
 }
