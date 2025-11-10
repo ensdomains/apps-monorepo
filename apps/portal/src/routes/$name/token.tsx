@@ -66,7 +66,9 @@ function RouteComponent() {
         </header>
         <div className="flex border border-gray-200 rounded-lg w-full p-6 gap-6 flex-wrap">
           <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
-            <Label>Contract</Label>
+            <Label info="The address of the contract that owns the name">
+              Contract
+            </Label>
             <CopyableRecord value={contractAddress} />
           </div>
           <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
