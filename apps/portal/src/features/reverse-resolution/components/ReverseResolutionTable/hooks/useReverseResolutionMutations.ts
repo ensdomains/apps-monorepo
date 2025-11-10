@@ -17,6 +17,7 @@ import { useCallback, useMemo } from 'react'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useWalletClient } from 'wagmi'
+import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { wagmiConfig } from '@/lib/wagmi'
 
 export type UseReverseResolutionMutationsParams = {
@@ -40,9 +41,9 @@ export function useReverseResolutionMutations({
 }: UseReverseResolutionMutationsParams) {
   const queryClient = useQueryClient()
 
-  // L1 means Ethereum (reverseRegistrarChainId 60). We only use Sepolia for L1 here.
+  // L1 means Ethereum (reverseRegistrarChainId 1 or 60). We only use Sepolia for L1 here.
   const isL1 = useMemo(
-    () => Number(reverseRegistrarChainId) === 60,
+    () => isL1ReverseRegistrarChainId(reverseRegistrarChainId),
     [reverseRegistrarChainId],
   )
 

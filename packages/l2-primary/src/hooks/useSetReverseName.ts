@@ -16,12 +16,12 @@ import {
 } from '../L2ReverseRegistrar'
 import {
   getRegistrarAddress,
-  type ReverseRegistrarCoinId,
+  type ReverseRegistrarChainId,
   resolveNetworkFromChain,
-} from '../reverseRegistrarCoinIds'
+} from '../reverseRegistrarChainIds'
 
 export type UseSetReverseNameParameters = {
-  reverseRegistrarCoinId: ReverseRegistrarCoinId
+  reverseRegistrarChainId: ReverseRegistrarChainId
   /**
    * Chain used to resolve which registrar deployment to use.
    * If omitted or unknown, we default to 'sepolia' (current app default).
@@ -62,11 +62,11 @@ export type UseSetReverseNameReturnType = {
 }
 
 export function useSetReverseName({
-  reverseRegistrarCoinId,
+  reverseRegistrarChainId,
   chain,
 }: UseSetReverseNameParameters): UseSetReverseNameReturnType {
   const network = resolveNetworkFromChain(chain)
-  const registrarAddress = getRegistrarAddress(reverseRegistrarCoinId, network)
+  const registrarAddress = getRegistrarAddress(reverseRegistrarChainId, network)
 
   const getSetReverseNameRequest = (
     name: string,
@@ -74,7 +74,7 @@ export function useSetReverseName({
   ): SetReverseNameRequest => {
     if (!registrarAddress) {
       throw new Error(
-        `No registrar found for coin type ${reverseRegistrarCoinId} on ${network}`,
+        `No registrar found for coin type ${reverseRegistrarChainId} on ${network}`,
       )
     }
 

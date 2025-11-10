@@ -20,4 +20,11 @@ const names = {
   534352: 'Scroll',
 } as const satisfies Record<ReverseRegistrarChainId, string>
 
-export { icons, names }
+function isL1ReverseRegistrarChainId(
+  chainId: number | ReverseRegistrarChainId,
+): chainId is 1 | 60 {
+  const numeric = Number(chainId)
+  return numeric === 1 || numeric === 60
+}
+
+export { icons, isL1ReverseRegistrarChainId, names }
