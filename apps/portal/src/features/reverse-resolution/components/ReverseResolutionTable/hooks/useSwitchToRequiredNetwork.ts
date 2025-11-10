@@ -1,22 +1,26 @@
 import type { ReverseRegistrarCoinId } from '@ens-apps/l2-primary/reverseRegistrarCoinIds'
-import { getChainIdForReverseRegistrarCoinId } from '@ens-apps/l2-primary/reverseRegistrarCoinIds'
+import {
+  getChainIdForReverseRegistrarCoinId,
+  type NetworkKey,
+} from '@ens-apps/l2-primary/reverseRegistrarCoinIds'
 import { useAccount, useSwitchChain } from 'wagmi'
 
 export type UseNetworkSwitchingParams = {
   reverseRegistrarCoinId: ReverseRegistrarCoinId
-  isTestnet: boolean
+  /** Target deployment; defaults to 'sepolia' */
+  network?: NetworkKey // 'mainnet' | 'sepolia'
 }
 
 export function useSwitchToRequiredNetwork({
   reverseRegistrarCoinId,
-  isTestnet,
+  network = 'sepolia',
 }: UseNetworkSwitchingParams) {
   const { chain } = useAccount()
   const { switchChain, isPending: isSwitchingChain } = useSwitchChain()
 
   const requiredChainId = getChainIdForReverseRegistrarCoinId(
     reverseRegistrarCoinId,
-    isTestnet,
+    network,
   )
   const isWrongNetwork = chain?.id !== requiredChainId
 

@@ -21,7 +21,6 @@ import { wagmiConfig } from '@/lib/wagmi'
 
 export type UseReverseResolutionMutationsParams = {
   reverseRegistrarCoinId: ReverseRegistrarCoinId
-  isTestnet: boolean
   displayName: string | null
 }
 
@@ -37,7 +36,6 @@ export type ReverseResolutionWriteRequest =
 
 export function useReverseResolutionMutations({
   reverseRegistrarCoinId,
-  isTestnet: _isTestnet, // not needed for now until we enable mainnet
   displayName,
 }: UseReverseResolutionMutationsParams) {
   const queryClient = useQueryClient()
@@ -49,21 +47,13 @@ export function useReverseResolutionMutations({
   )
 
   const { data: l1WalletClient } = useWalletClient({ chainId: sepolia.id })
-
   const ensChain = wagmiConfig.chains.find((c) => c.id === sepolia.id)
   const ensEnabledChain = ensChain as ChainWithEns<typeof sepolia>
-
-  /*
-    // If we enable mainnet we reintroduce this code
-    const l1ChainBase = isTestnet ? sepolia : mainnet
-    const { data: l1WalletClient } = useWalletClient({ chainId: l1ChainBase.id })
-    const ensEnabledChain = ensChain as ChainWithEns<typeof l1ChainBase>
-  */
 
   // L2 Reverse Name (address -> name)
   const { getSetReverseNameRequest } = useSetReverseName({
     reverseRegistrarCoinId,
-    isTestnet: true, // if you’re sep only, it’s testnet by definition
+    chain: ensEnabledChain, // pass ENS-enabled chain instead of isTestnet
   })
 
   // Forward Resolution (name -> address) on L1 only
