@@ -28,6 +28,7 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
 import { useReverseResolutionMutations } from './hooks/useReverseResolutionMutations'
@@ -129,14 +130,10 @@ export const ReverseResolutionSidebar: FC<
     }
   }, [row])
 
-  const displayName =
-    name || (defaultName && reverseRegistrarChainId !== 60 ? defaultName : null)
-  const isInheritingDefault =
-    !name && defaultName && reverseRegistrarChainId !== 60
+  const isL1 = isL1ReverseRegistrarChainId(reverseRegistrarChainId)
+  const displayName = name || (defaultName && !isL1 ? defaultName : null)
+  const isInheritingDefault = !name && defaultName && !isL1
   const isPrimaryName = forwardMatch || isInheritingDefault
-  const isL1 =
-    Number(reverseRegistrarChainId) === 60 ||
-    Number(reverseRegistrarChainId) === 1
   // Only show "Set primary name" button for L1 chains (L2 doesn't need forward resolution)
   const showSetPrimaryButton =
     isL1 && displayName && !isPrimaryName && name !== null
