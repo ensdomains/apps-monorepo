@@ -1,8 +1,4 @@
 import type { CoinType } from '@ens-apps/l2-primary/chains'
-import {
-  useSetForwardResolution,
-  useSetReverseName,
-} from '@ens-apps/l2-primary/hooks'
 import type {
   SetForwardResolutionRequest,
   SetReverseNameRequest,
