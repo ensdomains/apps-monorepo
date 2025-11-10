@@ -59,7 +59,11 @@ const resolverColumns: ColumnDef<WithTimestamp<ResolverEvent>>[] = [
   },
 ]
 
-const OwnerTableDisplay = ({ owner }: { owner: Address }) => {
+interface OwnerTableDisplayProps {
+  owner: Address
+}
+
+const OwnerTableDisplay = ({ owner }: OwnerTableDisplayProps) => {
   const { data: ensName, isLoading } = useEnsName({
     address: owner,
   })
@@ -134,13 +138,15 @@ type EventType = {
   registrationEvents: RegistrationEvent
 }
 
+interface EventTableProps<T extends keyof EventType> {
+  events: EventType[T][]
+  eventType: T
+}
+
 function EventTable<T extends keyof EventType>({
   events,
   eventType,
-}: {
-  events: EventType[T][]
-  eventType: T
-}) {
+}: EventTableProps<T>) {
   const {
     data: timestamps,
     isLoading,
@@ -170,13 +176,15 @@ function EventTable<T extends keyof EventType>({
   }
 }
 
+interface NameHistoryProps {
+  name: string
+  eventType?: keyof EventType
+}
+
 export const NameHistory = ({
   name,
   eventType = 'resolverEvents',
-}: {
-  name: string
-  eventType?: keyof EventType
-}) => {
+}: NameHistoryProps) => {
   const { data, isLoading, error } = useQuery(
     getNameHistoryQueryOptions({ name }),
   )

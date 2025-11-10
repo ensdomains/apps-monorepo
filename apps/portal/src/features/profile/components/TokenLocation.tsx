@@ -2,7 +2,11 @@ import { Link } from '@tanstack/react-router'
 import { NamechainSVG } from '@/assets/chains'
 import { Label } from '@/components/ui/label'
 
-export const TokenLocation = ({ name }: { name: string }) => {
+interface TokenLocationProps {
+  name: string
+}
+
+export const TokenLocation = ({ name }: TokenLocationProps) => {
   return (
     <Link
       to="/$name/resolver"

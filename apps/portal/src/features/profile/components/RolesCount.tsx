@@ -1,7 +1,11 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
 
-export const RolesCount = ({ name }: { name: string }) => {
+interface RolesCountProps {
+  name: string
+}
+
+export const RolesCount = ({ name }: RolesCountProps) => {
   return (
     <Link
       to="/$name/records"

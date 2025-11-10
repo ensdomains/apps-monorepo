@@ -19,7 +19,11 @@ const copyToClipboard = async (value: string) => {
   }
 }
 
-const DynamicRecord = ({ record }: { record: TextRecordValue }) => {
+interface DynamicRecordProps {
+  record: TextRecordValue
+}
+
+const DynamicRecord = ({ record }: DynamicRecordProps) => {
   const recordDef = getRecordDef(record.key)
   if (!record.value) {
     return null

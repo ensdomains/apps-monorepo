@@ -3,7 +3,11 @@ import { Link } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
 import { getSubnamesQueryOptions } from '../hooks/useSubnames'
 
-export const SubnameCount = ({ name }: { name: string }) => {
+interface SubnameCountProps {
+  name: string
+}
+
+export const SubnameCount = ({ name }: SubnameCountProps) => {
   const { data, isLoading, error } = useQuery(getSubnamesQueryOptions({ name }))
 
   if (error) return <div>Error: {error.message}</div>

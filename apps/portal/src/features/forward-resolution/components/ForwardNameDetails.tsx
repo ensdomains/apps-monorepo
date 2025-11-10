@@ -10,13 +10,12 @@ import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransac
 import { CoinTypeLabel } from './CoinTypeLabel'
 import type { ForwardName } from './ForwardNamesTable/columns'
 
-const AddressHistory = ({
-  history,
-  name,
-}: {
+interface AddressHistoryProps {
   history: ReturnResolverEvent[]
   name: string
-}) => {
+}
+
+const AddressHistory = ({ history, name }: AddressHistoryProps) => {
   const {
     data: timestamps,
     isLoading,
@@ -44,7 +43,11 @@ const AddressHistory = ({
   )
 }
 
-const HistoryView = ({ name }: { name: string }) => {
+interface HistoryViewProps {
+  name: string
+}
+
+const HistoryView = ({ name }: HistoryViewProps) => {
   const {
     data: history,
     isLoading,

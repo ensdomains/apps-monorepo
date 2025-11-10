@@ -19,7 +19,12 @@ import { TransactionEvents } from './TransactionEvents'
 
 type ENSTransaction = EventsTableData<ENSEvent>
 
-const DetailRow = ({ label, value }: { label: string; value: ReactNode }) => {
+interface DetailRowProps {
+  label: string
+  value: ReactNode
+}
+
+const DetailRow = ({ label, value }: DetailRowProps) => {
   return (
     <div className="flex flex-row gap-6 items-center">
       <span className="text-black font-medium sm:min-w-[160px]">{label}</span>
@@ -28,7 +33,11 @@ const DetailRow = ({ label, value }: { label: string; value: ReactNode }) => {
   )
 }
 
-const NameDisplay = ({ name }: { name: string }) => {
+interface NameDisplayProps {
+  name: string
+}
+
+const NameDisplay = ({ name }: NameDisplayProps) => {
   return (
     <div className="flex flex-row items-center gap-2">
       <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
@@ -41,17 +50,19 @@ const NameDisplay = ({ name }: { name: string }) => {
   )
 }
 
+interface TransactionDetailsProps {
+  txHash: Hash
+  name: string
+  timestamp?: bigint
+  events: ENSEvent[]
+}
+
 const TransactionDetails = ({
   txHash,
   name,
   timestamp,
   events,
-}: {
-  txHash: Hash
-  name: string
-  timestamp?: bigint
-  events: ENSEvent[]
-}) => {
+}: TransactionDetailsProps) => {
   const { data, isLoading, error } = useTransaction({
     hash: txHash,
   })
@@ -145,14 +156,20 @@ const TransactionDetails = ({
   )
 }
 
-export const HistorySidebar: FC<
-  PropsWithChildren<{
-    row: Row<ENSTransaction> | null
-    name: string
-    open: boolean
-    setOpen: React.Dispatch<React.SetStateAction<boolean>>
-  }>
-> = ({ children, row, name, open, setOpen }) => {
+interface HistorySidebarProps extends PropsWithChildren {
+  row: Row<ENSTransaction> | null
+  name: string
+  open: boolean
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>
+}
+
+export const HistorySidebar: FC<HistorySidebarProps> = ({
+  children,
+  row,
+  name,
+  open,
+  setOpen,
+}) => {
   const isMobile = useIsMobile()
 
   return (

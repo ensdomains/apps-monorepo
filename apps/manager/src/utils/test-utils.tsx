@@ -51,7 +51,11 @@ const queryClient = new QueryClient({
 
 beforeEach(() => queryClient.clear())
 
-const AllTheProviders = ({ children }: { children: React.ReactNode }) => (
+interface AllTheProvidersProps {
+  children: React.ReactNode
+}
+
+const AllTheProviders = ({ children }: AllTheProvidersProps) => (
   <WagmiProvider config={wagmiConfig}>
     <QueryClientProvider client={queryClient}>
       <RainbowKitProvider>{children}</RainbowKitProvider>

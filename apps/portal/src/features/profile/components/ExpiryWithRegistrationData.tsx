@@ -5,7 +5,11 @@ import { Label } from '@/components/ui/label'
 import { getExpiryQueryOptions } from '../hooks/useExpiryData'
 import { getNameHistoryQueryOptions } from '../hooks/useNameHistory'
 
-const Expiry = ({ name }: { name: string }) => {
+interface ExpiryProps {
+  name: string
+}
+
+const Expiry = ({ name }: ExpiryProps) => {
   const { data, isLoading, error } = useQuery(getExpiryQueryOptions({ name }))
 
   if (error) return <div>Error: {error.message}</div>
@@ -26,7 +30,11 @@ const Expiry = ({ name }: { name: string }) => {
   return null
 }
 
-const RegistrationDate = ({ event }: { event: { blockNumber: number } }) => {
+interface RegistrationDateProps {
+  event: { blockNumber: number }
+}
+
+const RegistrationDate = ({ event }: RegistrationDateProps) => {
   const { data, isLoading, error } = useBlock({
     blockNumber: BigInt(event.blockNumber),
   })
@@ -39,7 +47,11 @@ const RegistrationDate = ({ event }: { event: { blockNumber: number } }) => {
   return new Date(Number(data.timestamp) * 1000).toUTCString()
 }
 
-const RegistrationData = ({ name }: { name: string }) => {
+interface RegistrationDataProps {
+  name: string
+}
+
+const RegistrationData = ({ name }: RegistrationDataProps) => {
   const { data, isLoading, error } = useQuery(
     getNameHistoryQueryOptions({ name }),
   )
@@ -66,7 +78,13 @@ const RegistrationData = ({ name }: { name: string }) => {
   )
 }
 
-export const ExpiryWithRegistrationData = ({ name }: { name: string }) => {
+interface ExpiryWithRegistrationDataProps {
+  name: string
+}
+
+export const ExpiryWithRegistrationData = ({
+  name,
+}: ExpiryWithRegistrationDataProps) => {
   return (
     <div className="w-full flex flex-col p-6 gap-4 rounded-lg border border-gray-300 lg:col-span-1">
       <Expiry name={name} />

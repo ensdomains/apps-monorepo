@@ -46,7 +46,11 @@ export type SocialRecords = {
   email?: string
 }
 
-export const AvatarCard = ({ src }: { src?: string }) => {
+interface AvatarCardProps {
+  src?: string
+}
+
+export const AvatarCard = ({ src }: AvatarCardProps) => {
   if (!src) {
     return null
   }
@@ -75,15 +79,17 @@ export const AvatarCard = ({ src }: { src?: string }) => {
   )
 }
 
+interface NameHeadlineProps {
+  text: string
+  fontSizePx: number
+  maxWidthPx: number
+}
+
 export const NameHeadline = ({
   text,
   fontSizePx,
   maxWidthPx,
-}: {
-  text: string
-  fontSizePx: number
-  maxWidthPx: number
-}) => (
+}: NameHeadlineProps) => (
   <div
     style={{
       fontSize: `${fontSizePx}px`,
@@ -110,7 +116,11 @@ export const NameHeadline = ({
   </div>
 )
 
-export const DescriptionBlock = ({ text }: { text: string }) => (
+interface DescriptionBlockProps {
+  text: string
+}
+
+export const DescriptionBlock = ({ text }: DescriptionBlockProps) => (
   <div
     style={{
       fontSize: '28px',
@@ -124,13 +134,12 @@ export const DescriptionBlock = ({ text }: { text: string }) => (
   </div>
 )
 
-export const SocialPill = ({
-  iconNode,
-  text,
-}: {
+interface SocialPillProps {
   iconNode: IconNode
   text: string
-}) => (
+}
+
+export const SocialPill = ({ iconNode, text }: SocialPillProps) => (
   <div
     style={{
       fontSize: '24px',
@@ -144,7 +153,11 @@ export const SocialPill = ({
   </div>
 )
 
-export const SocialRow = ({ socials }: { socials: SocialRecords }) => (
+interface SocialRowProps {
+  socials: SocialRecords
+}
+
+export const SocialRow = ({ socials }: SocialRowProps) => (
   <div
     style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }}
   >
@@ -162,13 +175,12 @@ export const SocialRow = ({ socials }: { socials: SocialRecords }) => (
   </div>
 )
 
-export const HeaderBar = ({
-  label,
-  address,
-}: {
+interface HeaderBarProps {
   label: string
   address?: string
-}) => (
+}
+
+export const HeaderBar = ({ label, address }: HeaderBarProps) => (
   <div
     style={{
       width: '100%',

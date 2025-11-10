@@ -15,20 +15,26 @@ import type {
 import { groupNotificationsByTime } from '../utils'
 
 // Shared UI components
-const NotificationWrapper = ({ children }: { children: React.ReactNode }) => (
+interface NotificationWrapperProps {
+  children: React.ReactNode
+}
+
+const NotificationWrapper = ({ children }: NotificationWrapperProps) => (
   <div className="space-y-2 border-gray-200 border-b px-4 py-6">{children}</div>
 )
+
+interface NotificationHeaderProps {
+  children?: React.ReactNode
+  timestamp: number
+  onMarkAsRead?: () => void
+  onRemove?: () => void
+}
 
 const NotificationHeader = ({
   children,
   timestamp,
   onRemove,
-}: {
-  children?: React.ReactNode
-  timestamp: number
-  onMarkAsRead?: () => void
-  onRemove?: () => void
-}) => (
+}: NotificationHeaderProps) => (
   <div className="flex items-center gap-2">
     {children}
     <span className="ml-auto text-gray-500 text-sm">
@@ -43,27 +49,37 @@ const NotificationHeader = ({
   </div>
 )
 
-const NameDisplay = ({ name }: { name: string }) => (
+interface NameDisplayProps {
+  name: string
+}
+
+const NameDisplay = ({ name }: NameDisplayProps) => (
   <div className="wrap-anywhere w-fit max-w-3/4 rounded-md bg-gray-800 p-1.5 font-mono text-sm text-white leading-ens-none">
     {name}
   </div>
 )
 
-const ActionRow = ({ children }: { children: React.ReactNode }) => (
+interface ActionRowProps {
+  children: React.ReactNode
+}
+
+const ActionRow = ({ children }: ActionRowProps) => (
   <div className="flex justify-end">{children}</div>
 )
 
 // Notification type components
-const NameTransferredNotificationComponent = ({
-  notification,
-  onMarkAsRead,
-  onRemove,
-}: {
+interface NameTransferredNotificationComponentProps {
   notification: NameTransferredNotification
   onAction?: () => void
   onMarkAsRead?: () => void
   onRemove?: () => void
-}) => (
+}
+
+const NameTransferredNotificationComponent = ({
+  notification,
+  onMarkAsRead,
+  onRemove,
+}: NameTransferredNotificationComponentProps) => (
   <NotificationWrapper>
     <NotificationHeader
       timestamp={notification.timestamp}
@@ -88,17 +104,19 @@ const NameTransferredNotificationComponent = ({
   </NotificationWrapper>
 )
 
+interface NameExpiryNotificationComponentProps {
+  notification: NameExpiryNotification
+  onAction?: () => void
+  onMarkAsRead?: () => void
+  onRemove?: () => void
+}
+
 const NameExpiryNotificationComponent = ({
   notification,
   onAction,
   onMarkAsRead,
   onRemove,
-}: {
-  notification: NameExpiryNotification
-  onAction?: () => void
-  onMarkAsRead?: () => void
-  onRemove?: () => void
-}) => {
+}: NameExpiryNotificationComponentProps) => {
   const { text: expiryText, isExpired } = formatExpiryTime(
     notification.expiryDate,
   )
@@ -124,17 +142,19 @@ const NameExpiryNotificationComponent = ({
   )
 }
 
+interface BlogPostNotificationComponentProps {
+  notification: BlogPostNotification
+  onAction?: () => void
+  onMarkAsRead?: () => void
+  onRemove?: () => void
+}
+
 const BlogPostNotificationComponent = ({
   notification,
   onAction,
   onMarkAsRead,
   onRemove,
-}: {
-  notification: BlogPostNotification
-  onAction?: () => void
-  onMarkAsRead?: () => void
-  onRemove?: () => void
-}) => (
+}: BlogPostNotificationComponentProps) => (
   <NotificationWrapper>
     <NotificationHeader
       timestamp={notification.timestamp}
@@ -169,13 +189,15 @@ const BlogPostNotificationComponent = ({
   </NotificationWrapper>
 )
 
+interface NotificationItemProps {
+  notification: NotificationWithId
+  onAction?: () => void
+}
+
 const NotificationItem = ({
   notification,
   onAction,
-}: {
-  notification: NotificationWithId
-  onAction?: () => void
-}) => {
+}: NotificationItemProps) => {
   const handleMarkAsRead = () => {
     if (notification.unread) {
       notificationsStore.trigger.markAsRead({ notificationId: notification.id })
@@ -221,11 +243,13 @@ const NotificationItem = ({
   }
 }
 
+interface NotificationsDropdownProps {
+  onAction?: () => void
+}
+
 export const NotificationsDropdown = ({
   onAction,
-}: {
-  onAction?: () => void
-}) => {
+}: NotificationsDropdownProps) => {
   const notifications = useSelector(
     notificationsStore,
     (state) => state.context.notifications,
@@ -279,15 +303,17 @@ export const NotificationsDropdown = ({
   )
 }
 
+interface NotificationGroupProps {
+  title: string
+  notifications: NotificationWithId[]
+  onAction?: () => void
+}
+
 const NotificationGroup = ({
   title,
   notifications,
   onAction,
-}: {
-  title: string
-  notifications: NotificationWithId[]
-  onAction?: () => void
-}) => {
+}: NotificationGroupProps) => {
   if (notifications.length === 0) return null
 
   return (
@@ -306,7 +332,11 @@ const NotificationGroup = ({
   )
 }
 
-export const AllNotifications = ({ onAction }: { onAction?: () => void }) => {
+interface AllNotificationsProps {
+  onAction?: () => void
+}
+
+export const AllNotifications = ({ onAction }: AllNotificationsProps) => {
   const notifications = useSelector(
     notificationsStore,
     (state) => state.context.notifications,

@@ -11,7 +11,11 @@ export const Route = createFileRoute('/addr/$addr/')({
   component: RouteComponent,
 })
 
-const PrimaryName = ({ addr }: { addr: Address }) => {
+interface PrimaryNameProps {
+  addr: Address
+}
+
+const PrimaryName = ({ addr }: PrimaryNameProps) => {
   const {
     data: name,
     isLoading,
