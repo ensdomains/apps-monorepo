@@ -26,7 +26,7 @@ const InterfaceCheck = ({ resolverAddress }: { resolverAddress: Address }) => {
   if (supportsInterfaces[0]) {
     return (
       <div className="flex flex-row p-4 sm:p-6 gap-4 sm:gap-6 rounded-2xl border border-secondary w-full flex-1 items-center">
-        <FocusIcon height={40} width={40} />
+        <FocusIcon className="size-10" />
         <div className="flex flex-col">
           <span className="font-medium">Type</span>
           <span>DedicatedResolver</span>
@@ -45,7 +45,7 @@ export const ResolverType = ({
   if (resolverAddress === '0x0e14eE0592da66Bb4c8a8090066BC8A5Af15f3E6') {
     return (
       <div className="flex flex-row p-6 gap-6 rounded-2xl border border-secondary w-full flex-1 items-center">
-        <FocusIcon height={40} width={40} />
+        <FocusIcon className="size-10" />
         <div className="flex flex-col">
           <span className="font-medium">Type</span>
           <span>PublicResolver</span>

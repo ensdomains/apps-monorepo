@@ -57,9 +57,9 @@ export const CopyableRecord = ({
         onClick={() => setCopy(true)}
       >
         {copy ? (
-          <CheckIcon height={16} width={16} />
+          <CheckIcon className="size-4" />
         ) : (
-          <ClipboardCopyIcon height={16} width={16} />
+          <ClipboardCopyIcon className="size-4" />
         )}
       </button>
     </div>

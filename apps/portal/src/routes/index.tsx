@@ -30,7 +30,7 @@ const LinkBlock = ({
         <p className="text-sm">{description}</p>
       </div>
       <div className="h-8 w-8 p-2 rounded-sm bg-gray-100 flex items-center justify-center">
-        <ChevronRight height={16} width={16} />
+        <ChevronRight className="size-4" />
       </div>
     </div>
   </ExternalLink>
@@ -126,11 +126,7 @@ function RouteComponent() {
             className="w-full flex flex-row gap-4 items-center border border-border rounded-sm"
           >
             <label htmlFor="search" aria-label="Search">
-              <SearchIcon
-                className="text-gray-600 ml-4 w-8"
-                height={32}
-                width={32}
-              />
+              <SearchIcon className="text-gray-600 ml-4 size-8" />
             </label>
             <input
               name="search"
