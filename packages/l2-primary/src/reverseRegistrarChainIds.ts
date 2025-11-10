@@ -122,10 +122,10 @@ export function getRegistrarAddress<
  * Get the chain ID for a coin type on a given network
  *
  * @example
- * const id = getChainIdForreverseRegistrarChainId(8453)            // -> sepolia id
- * const idMain = getChainIdForreverseRegistrarChainId(8453, 'mainnet')
+ * const id = getChainIdForReverseRegistrarChainId(8453)            // -> sepolia id
+ * const idMain = getChainIdForReverseRegistrarChainId(8453, 'mainnet')
  */
-export function getChainIdForreverseRegistrarChainId<
+export function getChainIdForReverseRegistrarChainId<
   CT extends ReverseRegistrarChainId,
   N extends NetworkKey = 'sepolia',
 >(coinType: CT, network?: N): (typeof REVERSE_REGISTRAR_CHAIN_IDS)[CT][N] {

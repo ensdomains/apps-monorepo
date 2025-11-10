@@ -1,6 +1,6 @@
 import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
 import {
-  getChainIdForreverseRegistrarChainId,
+  getChainIdForReverseRegistrarChainId,
   type NetworkKey,
 } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
 import { useAccount, useSwitchChain } from 'wagmi'
@@ -18,7 +18,7 @@ export function useSwitchToRequiredNetwork({
   const { chain } = useAccount()
   const { switchChain, isPending: isSwitchingChain } = useSwitchChain()
 
-  const requiredChainId = getChainIdForreverseRegistrarChainId(
+  const requiredChainId = getChainIdForReverseRegistrarChainId(
     reverseRegistrarChainId,
     network,
   )
