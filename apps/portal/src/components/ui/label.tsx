@@ -1,21 +1,35 @@
 import * as LabelPrimitive from '@radix-ui/react-label'
+import { InfoIcon } from 'lucide-react'
 import type * as React from 'react'
-
 import { cn } from '@/lib/utils'
+import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip'
 
-function Label({
-  className,
-  ...props
-}: React.ComponentProps<typeof LabelPrimitive.Root>) {
+interface LabelProps extends React.ComponentProps<typeof LabelPrimitive.Root> {
+  info?: string
+}
+
+function Label({ info, className, ...props }: LabelProps) {
   return (
-    <LabelPrimitive.Root
-      data-slot="label"
-      className={cn(
-        'flex items-center gap-2 text-sm text-gray-500 leading-none font-normal select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50',
-        className,
+    <div className="flex items-center gap-2">
+      {info && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <InfoIcon className="size-3 text-gray-500" />
+          </TooltipTrigger>
+          <TooltipContent side="top" align="center">
+            {info}
+          </TooltipContent>
+        </Tooltip>
       )}
-      {...props}
-    />
+      <LabelPrimitive.Root
+        data-slot="label"
+        className={cn(
+          'flex items-center gap-2 text-sm text-gray-500 leading-none font-normal select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50',
+          className,
+        )}
+        {...props}
+      />
+    </div>
   )
 }
 
