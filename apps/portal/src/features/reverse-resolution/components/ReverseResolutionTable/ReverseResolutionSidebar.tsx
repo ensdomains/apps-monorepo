@@ -189,7 +189,7 @@ export const ReverseResolutionSidebar: FC<
     setForwardHash(undefined)
     setIsWritingReverse(false)
     setIsWritingForward(false)
-  }, [])
+  }, [row, open])
 
   useEffect(() => {
     if (isReverseSuccess || isForwardSuccess) {
@@ -238,18 +238,9 @@ export const ReverseResolutionSidebar: FC<
       try {
         const reverseRequest = getReverseResolutionRequest(nameInput)
         setIsWritingReverse(true)
-        const hash =
-          reverseRequest.kind === 'l1'
-            ? await writeContractAsync(
-                reverseRequest.request as Parameters<
-                  typeof writeContractAsync
-                >[0],
-              )
-            : await writeContractAsync(
-                reverseRequest.request as Parameters<
-                  typeof writeContractAsync
-                >[0],
-              )
+        const hash = await writeContractAsync(
+          reverseRequest.request as Parameters<typeof writeContractAsync>[0],
+        )
         setReverseHash(hash)
       } catch (error) {
         console.error('Failed to set reverse resolution', error)
