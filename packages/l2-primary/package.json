@@ -9,7 +9,8 @@
     ".": "./src/index.ts",
     "./hooks": "./src/hooks/index.ts",
     "./chains": "./src/chains.ts",
-    "./L2ReverseRegistrar": "./src/L2ReverseRegistrar.ts"
+    "./L2ReverseRegistrar": "./src/L2ReverseRegistrar.ts",
+    "./reverseRegistrarCoinIds": "./src/reverseRegistrarCoinIds.ts"
   },
   "scripts": {
     "test": "echo \"No tests for l2-primary package\""

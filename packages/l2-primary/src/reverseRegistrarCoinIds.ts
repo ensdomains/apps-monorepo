@@ -8,17 +8,21 @@
 import type { Address } from 'viem'
 
 /**
- * Supported coin types (ENSIP-23)
- * These are the same for mainnet and Sepolia
+ * ReverseRegistrarCoinId
+ *
+ * Derived from SLIP-44 coin types (ENSIP-23). For L2s, this corresponds to the EIP-155 chain ID.
+ * Example:
+ *  - Ethereum: coinType = 60 (not chainId 1)
+ *  - Arbitrum: coinType = 42161 (same as chainId)
  */
-export type CoinType = 1 | 60 | 10 | 42161 | 8453 | 59144 | 534352
+export type ReverseRegistrarCoinId = 1 | 60 | 10 | 42161 | 8453 | 59144 | 534352
 
 /**
  * Map coin types to chain IDs for network switching
- * Note: CoinType 60 maps to Ethereum mainnet (1) or Sepolia (11155111)
+ * Note: ReverseRegistrarCoinId 60 maps to Ethereum mainnet (1) or Sepolia (11155111)
  */
-export const COIN_TYPE_TO_CHAIN_ID: Record<
-  CoinType,
+export const REVERSE_REGISTRAR_CHAIN_IDS: Record<
+  ReverseRegistrarCoinId,
   { mainnet: number; sepolia: number }
 > = {
   1: { mainnet: 1, sepolia: 11155111 }, // Ethereum
@@ -33,10 +37,10 @@ export const COIN_TYPE_TO_CHAIN_ID: Record<
 /**
  * L2 Reverse Registrar contract addresses
  * Indexed by coin type, with mainnet and sepolia addresses
- * Note: CoinType 60 and 1 (Ethereum) use ENS.js setPrimaryName instead
+ * Note: ReverseRegistrarCoinId 60 and 1 (Ethereum) use ENS.js setPrimaryName instead
  */
 export const L2_REVERSE_REGISTRARS: Record<
-  CoinType,
+  ReverseRegistrarCoinId,
   { mainnet?: Address; sepolia?: Address }
 > = {
   // Ethereum - uses ENS.js setPrimaryName
@@ -68,7 +72,10 @@ export const L2_REVERSE_REGISTRARS: Record<
     mainnet: '0x0000000000D8e504002cC26E3Ec46D81971C1664',
     sepolia: '0x00000BeEF055f7934784D6d81b6BC86665630dbA',
   },
-} as const satisfies Record<CoinType, { mainnet?: Address; sepolia?: Address }>
+} as const satisfies Record<
+  ReverseRegistrarCoinId,
+  { mainnet?: Address; sepolia?: Address }
+>
 /**
  * Get L2 Reverse Registrar address for a coin type
  * Returns undefined for coinType 60/1 (use ENS.js setPrimaryName instead)
@@ -78,7 +85,7 @@ export const L2_REVERSE_REGISTRARS: Record<
  * const testAddress = getRegistrarAddress(10, true) // Type: '0x00000BeEF055f7934784D6d81b6BC86665630dbA'
  */
 export function getRegistrarAddress<
-  CT extends CoinType,
+  CT extends ReverseRegistrarCoinId,
   IsTestnet extends boolean = false,
 >(
   coinType: CT,
@@ -95,10 +102,10 @@ export function getRegistrarAddress<
 /**
  * Get the chain ID for a coin type
  */
-export function getChainIdForCoinType(
-  coinType: CoinType,
+export function getChainIdForReverseRegistrarCoinId(
+  coinType: ReverseRegistrarCoinId,
   isTestnet = false,
 ): number {
   const network = isTestnet ? 'sepolia' : 'mainnet'
-  return COIN_TYPE_TO_CHAIN_ID[coinType][network]
+  return REVERSE_REGISTRAR_CHAIN_IDS[coinType][network]
 }

@@ -9,14 +9,17 @@
  */
 
 import type { Address } from 'viem'
-import { type CoinType, getRegistrarAddress } from '../chains'
 import {
   l2ReverseRegistrarSetNameForAddrSnippet,
   l2ReverseRegistrarSetNameSnippet,
 } from '../L2ReverseRegistrar'
+import {
+  getRegistrarAddress,
+  type ReverseRegistrarCoinId,
+} from '../reverseRegistrarCoinIds'
 
 export type UseSetReverseNameParams = {
-  coinType: CoinType
+  reverseRegistrarCoinId: ReverseRegistrarCoinId
   isTestnet?: boolean
 }
 
@@ -53,17 +56,22 @@ export type UseSetReverseNameReturn = {
 }
 
 export function useSetReverseName({
-  coinType,
+  reverseRegistrarCoinId,
   isTestnet = false,
 }: UseSetReverseNameParams): UseSetReverseNameReturn {
-  const registrarAddress = getRegistrarAddress(coinType, isTestnet)
+  const registrarAddress = getRegistrarAddress(
+    reverseRegistrarCoinId,
+    isTestnet,
+  )
 
   const getSetReverseNameRequest = (
     name: string,
     address?: Address,
   ): SetReverseNameRequest => {
     if (!registrarAddress) {
-      throw new Error(`No registrar found for coin type ${coinType}`)
+      throw new Error(
+        `No registrar found for coin type ${reverseRegistrarCoinId}`,
+      )
     }
 
     if (address) {

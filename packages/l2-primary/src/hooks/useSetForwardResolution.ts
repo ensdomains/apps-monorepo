@@ -14,11 +14,11 @@ import type { Address } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
 import { namehash } from 'viem/ens'
 import { useAccount, useEnsResolver } from 'wagmi'
-import type { CoinType } from '../chains'
+import type { ReverseRegistrarCoinId } from '../reverseRegistrarCoinIds'
 
 export type UseSetForwardResolutionParams = {
   name: string
-  coinType: CoinType
+  reverseRegistrarCoinId: ReverseRegistrarCoinId
   enabled?: boolean
 }
 
@@ -26,7 +26,11 @@ export type SetForwardResolutionRequest = {
   address: Address
   abi: typeof publicResolverSetAddrSnippet
   functionName: 'setAddr'
-  args: readonly [node: `0x${string}`, coinType: bigint, address: Address]
+  args: readonly [
+    node: `0x${string}`,
+    reverseRegistrarCoinId: bigint,
+    address: Address,
+  ]
 }
 
 export type UseSetForwardResolutionReturn = {
@@ -49,7 +53,7 @@ export type UseSetForwardResolutionReturn = {
 
 export function useSetForwardResolution({
   name,
-  coinType,
+  reverseRegistrarCoinId,
   enabled = true,
 }: UseSetForwardResolutionParams): UseSetForwardResolutionReturn {
   const { chain } = useAccount()
@@ -73,7 +77,7 @@ export function useSetForwardResolution({
       address: resolverAddress,
       abi: publicResolverSetAddrSnippet,
       functionName: 'setAddr',
-      args: [namehash(name), BigInt(coinType), address] as const,
+      args: [namehash(name), BigInt(reverseRegistrarCoinId), address] as const,
     }
   }
 
