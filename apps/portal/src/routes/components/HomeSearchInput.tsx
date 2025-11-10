@@ -63,22 +63,23 @@ export function HomeSearchInput() {
     (value: string): Suggestion[] => {
       if (!value) return []
       const items: Suggestion[] = []
-      if (
-        isAddress(value, { strict: false }) &&
-        /^0x[0-9a-fA-F]{40}$/.test(value)
-      ) {
-        const checksum = checksumAddress(value as Address)
-        items.push({
-          id: `address:${checksum}`,
-          label: checksum,
-          description: 'View address details',
-          inputValue: checksum,
-          action: () =>
-            navigate({
-              to: '/addr/$addr',
-              params: { addr: checksum },
-            }),
-        })
+      if (isAddress(value, { strict: false })) {
+        try {
+          const checksum = checksumAddress(value as Address)
+          items.push({
+            id: `address:${checksum}`,
+            label: checksum,
+            description: 'View address details',
+            inputValue: checksum,
+            action: () =>
+              navigate({
+                to: '/addr/$addr',
+                params: { addr: checksum },
+              }),
+          })
+        } catch {
+          return []
+        }
       }
       const normalizedName = (
         value.includes('.') ? value : `${value}.eth`
