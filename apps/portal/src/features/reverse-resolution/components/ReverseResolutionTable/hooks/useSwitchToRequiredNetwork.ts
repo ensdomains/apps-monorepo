@@ -1,20 +1,23 @@
-import type { CoinType } from '@ens-apps/l2-primary/chains'
-import { getChainIdForCoinType } from '@ens-apps/l2-primary/chains'
+import type { ReverseRegistrarCoinId } from '@ens-apps/l2-primary/reverseRegistrarCoinIds'
+import { getChainIdForReverseRegistrarCoinId } from '@ens-apps/l2-primary/reverseRegistrarCoinIds'
 import { useAccount, useSwitchChain } from 'wagmi'
 
 export type UseNetworkSwitchingParams = {
-  coinType: CoinType
+  reverseRegistrarCoinId: ReverseRegistrarCoinId
   isTestnet: boolean
 }
 
 export function useSwitchToRequiredNetwork({
-  coinType,
+  reverseRegistrarCoinId,
   isTestnet,
 }: UseNetworkSwitchingParams) {
   const { chain } = useAccount()
   const { switchChain, isPending: isSwitchingChain } = useSwitchChain()
 
-  const requiredChainId = getChainIdForCoinType(coinType, isTestnet)
+  const requiredChainId = getChainIdForReverseRegistrarCoinId(
+    reverseRegistrarCoinId,
+    isTestnet,
+  )
   const isWrongNetwork = chain?.id !== requiredChainId
 
   const getSwitchToRequiredNetworkRequest = () => ({

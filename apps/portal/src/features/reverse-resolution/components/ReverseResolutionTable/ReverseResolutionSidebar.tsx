@@ -1,4 +1,4 @@
-import type { CoinType } from '@ens-apps/l2-primary/chains'
+import type { ReverseRegistrarCoinId } from '@ens-apps/l2-primary/reverseRegistrarCoinIds'
 import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -110,7 +110,7 @@ export const ReverseResolutionSidebar: FC<
   const isMobile = useIsMobile()
 
   const {
-    coinType,
+    reverseRegistrarCoinId,
     name,
     defaultName,
     label = '',
@@ -119,7 +119,7 @@ export const ReverseResolutionSidebar: FC<
   } = useMemo(() => {
     const r = row?.original
     return {
-      coinType: (r?.coinType ?? 60) as number,
+      reverseRegistrarCoinId: (r?.reverseRegistrarCoinId ?? 60) as number,
       name: r?.name ?? null,
       defaultName: r?.defaultName ?? null,
       label: r?.label ?? '',
@@ -129,10 +129,13 @@ export const ReverseResolutionSidebar: FC<
   }, [row])
 
   const displayName =
-    name || (defaultName && coinType !== 60 ? defaultName : null)
-  const isInheritingDefault = !name && defaultName && coinType !== 60
+    name || (defaultName && reverseRegistrarCoinId !== 60 ? defaultName : null)
+  const isInheritingDefault =
+    !name && defaultName && reverseRegistrarCoinId !== 60
   const isPrimaryName = forwardMatch || isInheritingDefault
-  const isL1 = Number(coinType) === 60 || Number(coinType) === 1
+  const isL1 =
+    Number(reverseRegistrarCoinId) === 60 ||
+    Number(reverseRegistrarCoinId) === 1
   // Only show "Set primary name" button for L1 chains (L2 doesn't need forward resolution)
   const showSetPrimaryButton =
     isL1 && displayName && !isPrimaryName && name !== null
@@ -158,7 +161,7 @@ export const ReverseResolutionSidebar: FC<
     switchChain,
     getSwitchToRequiredNetworkRequest,
   } = useSwitchToRequiredNetwork({
-    coinType: coinType as CoinType,
+    reverseRegistrarCoinId: reverseRegistrarCoinId as ReverseRegistrarCoinId,
     isTestnet,
   })
 
@@ -167,7 +170,7 @@ export const ReverseResolutionSidebar: FC<
     getForwardResolutionRequest,
     invalidateReverseResolutionQuery,
   } = useReverseResolutionMutations({
-    coinType: coinType as CoinType,
+    reverseRegistrarCoinId: reverseRegistrarCoinId as ReverseRegistrarCoinId,
     isTestnet,
     displayName,
   })
