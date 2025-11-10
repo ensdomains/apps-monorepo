@@ -87,11 +87,12 @@ export function Registration({ initialName }: RegistrationProps) {
     createInitialUIState(initialName),
   )
 
-  // Selectors - directly select from machine state
+  // Derived state
   const isAccountReady = Boolean(
     rhinestoneAccount && accountAddress && rhinestoneConfig,
   )
 
+  // Selectors - directly select from machine state
   const step = useSelector(actor, (state) => {
     if (!isAccountReady) return RegistrationStep.PRICING
     return mapMachineStateToStep(String(state.value))

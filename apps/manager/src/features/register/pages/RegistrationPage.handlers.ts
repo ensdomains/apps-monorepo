@@ -4,7 +4,7 @@
  * Business logic extracted outside React components for testability.
  */
 
-import type { registrationMachine } from '@ens-apps/transaction-manager'
+import type { registrationMachine, Signer } from '@ens-apps/transaction-manager'
 import type { PublicClient } from 'viem'
 import type { ActorRefFrom } from 'xstate'
 import { SUPPORTED_TOKENS } from '../services/nameChainContractService'
@@ -56,7 +56,7 @@ export function handleStartRegistration(
   }
 
   // Create Signer from Rhinestone account
-  const signer: import('@ens-apps/transaction-manager').Signer = {
+  const signer: Signer = {
     type: 'rhinestone',
     account: rhinestoneAccount,
     config: rhinestoneConfig,
