@@ -6,11 +6,9 @@ import {
   Grid3x3,
   PaintRoller,
   Repeat,
-  Search,
   UserLock,
   Users,
 } from 'lucide-react'
-import { useId } from 'react'
 import { ExternalLink } from 'react-external-link'
 import {
   ExampleNameCard,
@@ -19,20 +17,13 @@ import {
   WhatsNewItem,
 } from '@/components/homepage'
 import { NavBar } from '@/components/molecules/NavBar'
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from '@/components/ui/input-group'
+import { HomeSearchInput } from '@/routes/components/HomeSearchInput'
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,
 })
 
 function RouteComponent() {
-  const searchNamesAndAddressesId = useId()
-  const navigate = Route.useNavigate()
-
   return (
     <>
       <NavBar />
@@ -42,20 +33,7 @@ function RouteComponent() {
             <h1 className="text-[40px] font-bold">ENS Explorer</h1>
             <p className="text-gray-600">The definitive ENS name explorer.</p>
           </div>
-          <InputGroup className="bg-white rounded-sm max-w-3xl">
-            <InputGroupInput
-              id={searchNamesAndAddressesId}
-              className="w-full"
-              placeholder="Search name or address..."
-              onChange={(event) => {
-                const search = event.target.value as string
-                navigate({ to: '/$name', params: { name: search } })
-              }}
-            />
-            <InputGroupAddon align="inline-end">
-              <Search />
-            </InputGroupAddon>
-          </InputGroup>
+          <HomeSearchInput />
         </header>
 
         <section className="bg-gray-100 border-x-0 border-y border-gray-200 p-8 -mx-6">

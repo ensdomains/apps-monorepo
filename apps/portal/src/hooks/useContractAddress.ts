@@ -1,9 +1,10 @@
 import { getChainContractAddress } from 'viem'
 import { useClient } from 'wagmi'
-import type { ChainType } from '@/lib/wagmi'
+import { sepoliaWithEns } from '@/lib/wagmi'
 
+type SepoliaWithEns = typeof sepoliaWithEns
 export const useContractAddress = <
-  TContractName extends keyof ChainType['contracts'],
+  TContractName extends keyof SepoliaWithEns['contracts'],
 >({
   contract,
   blockNumber,
@@ -11,10 +12,10 @@ export const useContractAddress = <
   contract: TContractName
   blockNumber?: bigint
 }) => {
-  const client = useClient()
+  const client = useClient({ chainId: sepoliaWithEns.id })
 
   return getChainContractAddress({
-    chain: client?.chain as ChainType,
+    chain: client?.chain as SepoliaWithEns,
     contract,
     blockNumber,
   })

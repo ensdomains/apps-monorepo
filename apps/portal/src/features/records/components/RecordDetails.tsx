@@ -40,7 +40,7 @@ const AddressRecordValue = ({
             </span>
           </div>
           <Button variant="input" className="p-3 w-max">
-            <SearchIcon height={24} width={24} />
+            <SearchIcon className="size-6" />
           </Button>
         </div>
       </div>

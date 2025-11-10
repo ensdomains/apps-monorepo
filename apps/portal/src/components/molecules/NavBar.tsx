@@ -23,12 +23,12 @@ export const NavBar = () => {
       )}
       <div className="flex gap-2 flex-row justify-end w-full">
         <Link className="flex flex-row items-center gap-1" to=".">
-          <CircleQuestionMarkIcon height={16} width={16} />
+          <CircleQuestionMarkIcon className="size-4" />
         </Link>
 
         <Popover>
           <PopoverTrigger className="cursor-pointer">
-            <SettingsIcon height={16} width={16} />
+            <SettingsIcon className="size-4" />
           </PopoverTrigger>
           <PopoverContent align="end">
             <TableViewSwitch />
@@ -38,7 +38,7 @@ export const NavBar = () => {
           className="flex flex-row items-center gap-1"
           href="https://docs.ens.domains"
         >
-          <BookIcon height={16} width={16} />
+          <BookIcon className="size-4" />
         </ExternalLink>
         <ConnectButton showBalance={false} accountStatus="avatar" />
       </div>

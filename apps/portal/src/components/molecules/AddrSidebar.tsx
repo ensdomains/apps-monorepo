@@ -63,7 +63,7 @@ export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
                       <Link params={{ addr }} to={item.url}>
-                        <item.icon height={24} width={24} />
+                        <item.icon className="size-6" />
                         <span className="text-sm font-medium">
                           {item.title}
                         </span>

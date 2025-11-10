@@ -8,7 +8,7 @@ export const SearchBar = () => {
   return (
     <div className="max-w-[800px] w-full flex flex-row gap-1 items-center border border-border rounded-sm p-1 pl-2">
       <label htmlFor={id} aria-label="Search">
-        <SearchIcon height={16} width={16} />
+        <SearchIcon className="size-4" />
       </label>
       <Input
         id={id}

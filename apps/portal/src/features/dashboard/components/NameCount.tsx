@@ -27,7 +27,7 @@ export const NameCount = ({ address }: NameCountProps) => {
         <div className="leading-none">names owned</div>
       </div>
       <div className="h-8 w-8 p-2 rounded-sm bg-gray-100 flex items-center justify-center">
-        <ChevronRightIcon height={16} width={16} />
+        <ChevronRightIcon className="size-4" />
       </div>
     </div>
   )
