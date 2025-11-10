@@ -119,7 +119,8 @@ export const ReverseResolutionSidebar: FC<
   } = useMemo(() => {
     const r = row?.original
     return {
-      reverseRegistrarChainId: (r?.reverseRegistrarChainId ?? 60) as number,
+      reverseRegistrarChainId: (r?.reverseRegistrarChainId ??
+        60) as ReverseRegistrarChainId,
       name: r?.name ?? null,
       defaultName: r?.defaultName ?? null,
       label: r?.label ?? '',
@@ -159,7 +160,7 @@ export const ReverseResolutionSidebar: FC<
     switchChain,
     getSwitchToRequiredNetworkRequest,
   } = useSwitchToRequiredNetwork({
-    reverseRegistrarChainId: reverseRegistrarChainId as ReverseRegistrarChainId,
+    reverseRegistrarChainId: reverseRegistrarChainId,
   })
 
   const {
@@ -167,7 +168,7 @@ export const ReverseResolutionSidebar: FC<
     getForwardResolutionRequest,
     invalidateReverseResolutionQuery,
   } = useReverseResolutionMutations({
-    reverseRegistrarChainId: reverseRegistrarChainId as ReverseRegistrarChainId,
+    reverseRegistrarChainId: reverseRegistrarChainId,
     displayName,
   })
 
