@@ -160,7 +160,7 @@ export const ReverseResolutionSidebar: FC<
     switchChain,
     getSwitchToRequiredNetworkRequest,
   } = useSwitchToRequiredNetwork({
-    reverseRegistrarChainId: reverseRegistrarChainId,
+    reverseRegistrarChainId,
   })
 
   const {
@@ -168,7 +168,7 @@ export const ReverseResolutionSidebar: FC<
     getForwardResolutionRequest,
     invalidateReverseResolutionQuery,
   } = useReverseResolutionMutations({
-    reverseRegistrarChainId: reverseRegistrarChainId,
+    reverseRegistrarChainId,
     displayName,
   })
 
