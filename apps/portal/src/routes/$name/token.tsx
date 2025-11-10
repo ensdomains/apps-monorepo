@@ -117,7 +117,7 @@ function RouteComponent() {
                       normalized ? 'bg-green-200' : 'bg-red-200',
                     )}
                   >
-                    <CheckCircleIcon width={16} height={16} />
+                    <CheckCircleIcon className="size-4" />
                     <div>{normalized ? 'Normalized' : 'Not Normalized'}</div>
                   </div>
                   <div>{hasEmoji ? `${encoding} + Emoji` : encoding}</div>

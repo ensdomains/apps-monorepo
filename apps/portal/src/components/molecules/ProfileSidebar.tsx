@@ -76,7 +76,7 @@ export const ProfileSidebar = ({ name }: { name: string }) => {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
                       <Link params={{ name }} to={item.url}>
-                        <item.icon height={24} width={24} />
+                        <item.icon className="size-6" />
                         <span className="text-sm font-medium">
                           {item.title}
                         </span>

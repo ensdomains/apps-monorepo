@@ -22,7 +22,7 @@ export const CoinTypeLabel = ({ coin }: { coin: number }) =>
       className="flex flex-row gap-1 p-0.5 pr-2 bg-secondary rounded-2xl items-center"
       key={coin}
     >
-      <LinkIcon height={16} width={16} />
+      <LinkIcon className="size-4" />
       <span>Default</span>
     </span>
   ) : (
