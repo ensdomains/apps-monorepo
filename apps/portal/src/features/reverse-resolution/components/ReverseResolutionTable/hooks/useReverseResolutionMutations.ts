@@ -6,7 +6,7 @@ import {
   useSetForwardResolution,
   useSetReverseName,
 } from '@ens-apps/l2-primary/hooks'
-import type { ReverseRegistrarCoinId } from '@ens-apps/l2-primary/reverseRegistrarCoinIds'
+import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
 import type { ChainWithEns } from '@ensdomains/ensjs/chain'
 import {
   type SetPrimaryNameWriteParametersReturnType,
@@ -20,7 +20,7 @@ import { useWalletClient } from 'wagmi'
 import { wagmiConfig } from '@/lib/wagmi'
 
 export type UseReverseResolutionMutationsParams = {
-  reverseRegistrarCoinId: ReverseRegistrarCoinId
+  reverseRegistrarChainId: ReverseRegistrarChainId
   displayName: string | null
 }
 
@@ -35,15 +35,15 @@ export type ReverseResolutionWriteRequest =
     }
 
 export function useReverseResolutionMutations({
-  reverseRegistrarCoinId,
+  reverseRegistrarChainId,
   displayName,
 }: UseReverseResolutionMutationsParams) {
   const queryClient = useQueryClient()
 
-  // L1 means Ethereum (reverseRegistrarCoinId 60). We only use Sepolia for L1 here.
+  // L1 means Ethereum (reverseRegistrarChainId 60). We only use Sepolia for L1 here.
   const isL1 = useMemo(
-    () => Number(reverseRegistrarCoinId) === 60,
-    [reverseRegistrarCoinId],
+    () => Number(reverseRegistrarChainId) === 60,
+    [reverseRegistrarChainId],
   )
 
   const { data: l1WalletClient } = useWalletClient({ chainId: sepolia.id })
@@ -52,14 +52,14 @@ export function useReverseResolutionMutations({
 
   // L2 Reverse Name (address -> name)
   const { getSetReverseNameRequest } = useSetReverseName({
-    reverseRegistrarCoinId,
+    reverseRegistrarChainId,
     chain: ensEnabledChain, // pass ENS-enabled chain instead of isTestnet
   })
 
   // Forward Resolution (name -> address) on L1 only
   const { getSetAddressRequest, resolverAddress } = useSetForwardResolution({
     name: displayName || '',
-    reverseRegistrarCoinId,
+    reverseRegistrarChainId,
   })
 
   const invalidateReverseResolutionQuery = useCallback(() => {
@@ -97,7 +97,7 @@ export function useReverseResolutionMutations({
     (address: Address): SetForwardResolutionRequest => {
       if (!isL1)
         throw new Error(
-          'Forward resolution is only for Ethereum (reverseRegistrarCoinId 60)',
+          'Forward resolution is only for Ethereum (reverseRegistrarChainId 60)',
         )
       if (!resolverAddress) throw new Error('Resolver not found for this name')
 

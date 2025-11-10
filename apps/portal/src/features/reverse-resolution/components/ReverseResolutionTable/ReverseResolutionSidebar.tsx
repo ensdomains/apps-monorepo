@@ -1,4 +1,4 @@
-import type { ReverseRegistrarCoinId } from '@ens-apps/l2-primary/reverseRegistrarCoinIds'
+import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
 import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -110,7 +110,7 @@ export const ReverseResolutionSidebar: FC<
   const isMobile = useIsMobile()
 
   const {
-    reverseRegistrarCoinId,
+    reverseRegistrarChainId,
     name,
     defaultName,
     label = '',
@@ -119,7 +119,7 @@ export const ReverseResolutionSidebar: FC<
   } = useMemo(() => {
     const r = row?.original
     return {
-      reverseRegistrarCoinId: (r?.reverseRegistrarCoinId ?? 60) as number,
+      reverseRegistrarChainId: (r?.reverseRegistrarChainId ?? 60) as number,
       name: r?.name ?? null,
       defaultName: r?.defaultName ?? null,
       label: r?.label ?? '',
@@ -129,13 +129,13 @@ export const ReverseResolutionSidebar: FC<
   }, [row])
 
   const displayName =
-    name || (defaultName && reverseRegistrarCoinId !== 60 ? defaultName : null)
+    name || (defaultName && reverseRegistrarChainId !== 60 ? defaultName : null)
   const isInheritingDefault =
-    !name && defaultName && reverseRegistrarCoinId !== 60
+    !name && defaultName && reverseRegistrarChainId !== 60
   const isPrimaryName = forwardMatch || isInheritingDefault
   const isL1 =
-    Number(reverseRegistrarCoinId) === 60 ||
-    Number(reverseRegistrarCoinId) === 1
+    Number(reverseRegistrarChainId) === 60 ||
+    Number(reverseRegistrarChainId) === 1
   // Only show "Set primary name" button for L1 chains (L2 doesn't need forward resolution)
   const showSetPrimaryButton =
     isL1 && displayName && !isPrimaryName && name !== null
@@ -159,7 +159,7 @@ export const ReverseResolutionSidebar: FC<
     switchChain,
     getSwitchToRequiredNetworkRequest,
   } = useSwitchToRequiredNetwork({
-    reverseRegistrarCoinId: reverseRegistrarCoinId as ReverseRegistrarCoinId,
+    reverseRegistrarChainId: reverseRegistrarChainId as ReverseRegistrarChainId,
   })
 
   const {
@@ -167,7 +167,7 @@ export const ReverseResolutionSidebar: FC<
     getForwardResolutionRequest,
     invalidateReverseResolutionQuery,
   } = useReverseResolutionMutations({
-    reverseRegistrarCoinId: reverseRegistrarCoinId as ReverseRegistrarCoinId,
+    reverseRegistrarChainId: reverseRegistrarChainId as ReverseRegistrarChainId,
     displayName,
   })
 

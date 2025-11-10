@@ -1,6 +1,6 @@
-import type { ReverseRegistrarCoinId } from '@ens-apps/l2-primary/reverseRegistrarCoinIds'
+import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
 import { LinkIcon } from 'lucide-react'
-import { icons, names } from '@/lib/reverseRegistrarCoinId'
+import { icons, names } from '@/lib/reverseRegistrarChainId'
 
 export const CoinTypeLabel = ({ coin }: { coin: number }) =>
   coin in icons && coin in names ? (
@@ -13,9 +13,9 @@ export const CoinTypeLabel = ({ coin }: { coin: number }) =>
         height={24}
         width={24}
         alt={coin.toString()}
-        src={icons[coin as ReverseRegistrarCoinId]}
+        src={icons[coin as ReverseRegistrarChainId]}
       />{' '}
-      {names[coin as ReverseRegistrarCoinId]}
+      {names[coin as ReverseRegistrarChainId]}
     </span>
   ) : coin === 0 ? (
     <span

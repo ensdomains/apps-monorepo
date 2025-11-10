@@ -11,7 +11,7 @@ import type { Address } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 export type ReverseResolutionResult = {
-  reverseRegistrarCoinId: number
+  reverseRegistrarChainId: number
   label: string
   icon: string
   name: string | null
@@ -34,7 +34,7 @@ export const getReverseResolution = ResultFn(async function* ({
 }: {
   address: Address
   networks: Array<{
-    reverseRegistrarCoinId: number
+    reverseRegistrarChainId: number
     label: string
     icon: string
   }>
@@ -43,12 +43,12 @@ export const getReverseResolution = ResultFn(async function* ({
 
   const reversePromises = networks.map(async (network) => {
     try {
-      const isDefault = network.reverseRegistrarCoinId === 60
+      const isDefault = network.reverseRegistrarChainId === 60
       const nameResult: GetNameReturnType = await getName(client, {
         address,
         ...(isDefault
-          ? { reverseRegistrarCoinId: 60 }
-          : { chainId: network.reverseRegistrarCoinId }),
+          ? { reverseRegistrarChainId: 60 }
+          : { chainId: network.reverseRegistrarChainId }),
       })
 
       if (!nameResult) {
@@ -110,7 +110,7 @@ export const getReverseResolution = ResultFn(async function* ({
   )
 
   const defaultResult = resolvedResults.find(
-    (r) => r.reverseRegistrarCoinId === 60,
+    (r) => r.reverseRegistrarChainId === 60,
   )
   const defaultName = defaultResult?.name ?? null
 
@@ -130,7 +130,7 @@ export const getReverseResolutionQueryKey = createQueryKey<
 export const getReverseResolutionQueryOptions = (params: {
   address: Address
   networks: Array<{
-    reverseRegistrarCoinId: number
+    reverseRegistrarChainId: number
     label: string
     icon: string
   }>

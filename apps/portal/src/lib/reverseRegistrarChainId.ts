@@ -1,4 +1,4 @@
-import type { ReverseRegistrarCoinId } from '@ens-apps/l2-primary/reverseRegistrarCoinIds'
+import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
 
 const icons = {
   1: '/icons/eth.svg',
@@ -8,7 +8,7 @@ const icons = {
   8453: '/icons/base.svg',
   59144: '/icons/linea.svg',
   534352: '/icons/scroll.svg',
-} as const satisfies Record<ReverseRegistrarCoinId, string>
+} as const satisfies Record<ReverseRegistrarChainId, string>
 
 const names = {
   1: 'Ethereum',
@@ -18,6 +18,6 @@ const names = {
   8453: 'Base',
   59144: 'Linea',
   534352: 'Scroll',
-} as const satisfies Record<ReverseRegistrarCoinId, string>
+} as const satisfies Record<ReverseRegistrarChainId, string>
 
 export { icons, names }
