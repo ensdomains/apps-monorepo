@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { NamechainSVG } from '@/assets/chains'
-import { Label } from '@/components/ui/label'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
 
 export const ResolverLocation = ({
