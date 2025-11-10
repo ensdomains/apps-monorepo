@@ -140,8 +140,6 @@ export const ReverseResolutionSidebar: FC<
   const showSetPrimaryButton =
     isL1 && displayName && !isPrimaryName && name !== null
 
-  const isTestnet = true // TODO: Set based on environment
-
   const [nameInput, setNameInput] = useState('')
 
   // Reset input when sidebar closes or row changes
@@ -162,7 +160,6 @@ export const ReverseResolutionSidebar: FC<
     getSwitchToRequiredNetworkRequest,
   } = useSwitchToRequiredNetwork({
     reverseRegistrarCoinId: reverseRegistrarCoinId as ReverseRegistrarCoinId,
-    isTestnet,
   })
 
   const {
@@ -171,7 +168,6 @@ export const ReverseResolutionSidebar: FC<
     invalidateReverseResolutionQuery,
   } = useReverseResolutionMutations({
     reverseRegistrarCoinId: reverseRegistrarCoinId as ReverseRegistrarCoinId,
-    isTestnet,
     displayName,
   })
 
