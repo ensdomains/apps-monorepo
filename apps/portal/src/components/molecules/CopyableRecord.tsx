@@ -1,4 +1,4 @@
-import { CheckIcon, ClipboardCopyIcon } from 'lucide-react'
+import { CheckIcon, CopyIcon } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { cn } from '@/lib/utils'
@@ -57,9 +57,9 @@ export const CopyableRecord = ({
         onClick={() => setCopy(true)}
       >
         {copy ? (
-          <CheckIcon height={16} width={16} />
+          <CheckIcon className="size-3" />
         ) : (
-          <ClipboardCopyIcon height={16} width={16} />
+          <CopyIcon className="size-3" />
         )}
       </button>
     </div>
