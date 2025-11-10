@@ -29,7 +29,7 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
     cell: ({ row }) => {
       const label = row.original.label
       const icon = row.original.icon
-      const isDefault = row.original.coinType === 60
+      const isDefault = row.original.reverseRegistrarChainId === 60
 
       return (
         <div className="flex flex-row items-center gap-2">
@@ -51,7 +51,7 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
     cell: ({ row }) => {
       const name = row.original.name
       const defaultName = row.original.defaultName
-      const isDefaultCoin = row.original.coinType === 60
+      const isDefaultCoin = row.original.reverseRegistrarChainId === 60
 
       // If no name but has defaultName and is not the default coin itself
       if (!name && defaultName && !isDefaultCoin) {
@@ -94,7 +94,7 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
       const name = row.original.name
       const forwardMatch = row.original.forwardMatch
       const defaultName = row.original.defaultName
-      const isDefaultCoin = row.original.coinType === 60
+      const isDefaultCoin = row.original.reverseRegistrarChainId === 60
 
       if (!name && defaultName && !isDefaultCoin) {
         return (
