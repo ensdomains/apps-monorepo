@@ -66,7 +66,9 @@ function RouteComponent() {
         </header>
         <div className="flex border border-gray-200 rounded-lg w-full p-6 gap-6 flex-wrap">
           <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
-            <Label>Contract</Label>
+            <Label info="The address of the contract that owns the name">
+              Contract
+            </Label>
             <CopyableRecord value={contractAddress} />
           </div>
           <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
@@ -115,7 +117,7 @@ function RouteComponent() {
                       normalized ? 'bg-green-200' : 'bg-red-200',
                     )}
                   >
-                    <CheckCircleIcon width={16} height={16} />
+                    <CheckCircleIcon className="size-4" />
                     <div>{normalized ? 'Normalized' : 'Not Normalized'}</div>
                   </div>
                   <div>{hasEmoji ? `${encoding} + Emoji` : encoding}</div>

@@ -36,7 +36,7 @@ export const wagmiConfig = createConfig({
     return createClient<HttpTransport, typeof chain>({
       chain,
       transport: http(
-        'https://lb.drpc.org/ogrpc?network=ethereum&dkey=AgBISc2US0WgjMYhz9MRMJZsJaE8hzcR76fgOpXEh2H0',
+        `https://lb.drpc.live/${chain.name.toLowerCase()}/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j`,
       ),
     })
   },
