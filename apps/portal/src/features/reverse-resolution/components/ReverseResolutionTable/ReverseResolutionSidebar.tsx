@@ -150,11 +150,11 @@ export const ReverseResolutionSidebar: FC<
   }, [open, row])
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setNameInput(e.target.value)
+    setNameInput(e.currentTarget.value)
   }
 
   const {
-    isWrongNetwork,
+    isWrongChain,
     isSwitchingChain,
     switchChain,
     getSwitchToRequiredNetworkRequest,
@@ -222,12 +222,10 @@ export const ReverseResolutionSidebar: FC<
     e.preventDefault()
     const form = e.currentTarget
     const input = form.querySelector<HTMLInputElement>('input[name="name"]')
-    if (!input) return
-    // Use HTML5 validation
-    if (!input.reportValidity()) {
+    if (!input?.reportValidity()) {
       return
     }
-    if (isWrongNetwork) {
+    if (isWrongChain) {
       try {
         switchChain(getSwitchToRequiredNetworkRequest())
       } catch (error) {
@@ -261,7 +259,7 @@ export const ReverseResolutionSidebar: FC<
   }
 
   const handleSetPrimaryName = async () => {
-    if (isWrongNetwork) {
+    if (isWrongChain) {
       try {
         switchChain(getSwitchToRequiredNetworkRequest())
       } catch (error) {
@@ -308,7 +306,7 @@ export const ReverseResolutionSidebar: FC<
                     ? 'Switching...'
                     : isPendingForward
                       ? 'Setting...'
-                      : isWrongNetwork
+                      : isWrongChain
                         ? 'Switch Network'
                         : 'Set primary name'}
                 </Button>
@@ -378,7 +376,7 @@ export const ReverseResolutionSidebar: FC<
                       ? 'Switching...'
                       : isPendingUpdate
                         ? 'Setting...'
-                        : isWrongNetwork
+                        : isWrongChain
                           ? 'Switch Network'
                           : 'Update'}
                   </Button>

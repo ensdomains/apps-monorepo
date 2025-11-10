@@ -22,14 +22,14 @@ export function useSwitchToRequiredNetwork({
     reverseRegistrarChainId,
     network,
   )
-  const isWrongNetwork = chain?.id !== requiredChainId
+  const isWrongChain = chain?.id !== requiredChainId
 
   const getSwitchToRequiredNetworkRequest = () => ({
     chainId: requiredChainId,
   })
 
   return {
-    isWrongNetwork,
+    isWrongChain,
     isSwitchingChain,
     requiredChainId,
     switchChain,

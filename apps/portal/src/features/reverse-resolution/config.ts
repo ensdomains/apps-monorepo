@@ -18,7 +18,7 @@ export type ReverseResolutionNetwork = {
    * - 60: Default reverse record (uses reverseRegistrarChainId parameter)
    * - Other values: Chain IDs (uses chainId parameter)
    */
-  reverseRegistrarChainId: number
+  reverseRegistrarChainId: ReverseRegistrarChainId
   /** Display label */
   label: string
   /** Icon path */
