@@ -18,7 +18,7 @@ const Expiry = ({ name }: { name: string }) => {
       <div className="flex flex-col gap-1">
         <Label>Expires</Label>
         <span className="flex flex-row gap-1 items-center h-[38px]">
-          <ClockIcon height={14} width={14} />
+          <ClockIcon className="size-3.5" />
           {new Date(Number(data.expiry) * 1000).toUTCString()}
         </span>
       </div>
@@ -59,7 +59,7 @@ const RegistrationData = ({ name }: { name: string }) => {
     <div className="flex flex-col gap-1">
       <Label>Registered</Label>
       <span className="flex flex-row gap-1 items-center h-[38px]">
-        <CalendarIcon height={14} width={14} />
+        <CalendarIcon className="size-3.5" />
         <RegistrationDate event={registrationEvent} />
       </span>
     </div>

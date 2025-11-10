@@ -199,6 +199,13 @@ function ENSRenewal() {
 }
 ```
 
+## UI & Icons
+
+### Lucide Icons
+- Size lucide icons with Tailwind’s `size-*` class via `className`.
+- Don’t pass `width`, `height`, or `size` props to lucide icons.
+- Example: `<CalendarIcon className="size-3.5" />` (replaces `<CalendarIcon height={14} width={14} />`).
+
 ## Benefits of This Approach
 
 ### ✅ Testability

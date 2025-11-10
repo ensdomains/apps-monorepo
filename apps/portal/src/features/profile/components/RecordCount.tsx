@@ -31,7 +31,7 @@ export const RecordCount = ({ name }: { name: string }) => {
           <p className="text-sm">records set</p>
         </div>
         <div className="h-8 w-8 p-2 rounded-sm bg-gray-100 flex items-center justify-center">
-          <ChevronRight height={16} width={16} />
+          <ChevronRight className="size-4" />
         </div>
       </div>
     </Link>
