@@ -102,10 +102,17 @@ export function getRegistrarAddress<
 /**
  * Get the chain ID for a coin type
  */
-export function getChainIdForReverseRegistrarCoinId(
-  coinType: ReverseRegistrarCoinId,
-  isTestnet = false,
-): number {
-  const network = isTestnet ? 'sepolia' : 'mainnet'
+export function getChainIdForReverseRegistrarCoinId<
+  CT extends ReverseRegistrarCoinId,
+  IsTestnet extends boolean = false,
+>(
+  coinType: CT,
+  isTestnet?: IsTestnet,
+): (typeof REVERSE_REGISTRAR_CHAIN_IDS)[CT][IsTestnet extends true
+  ? 'sepolia'
+  : 'mainnet'] {
+  const network = (isTestnet ? 'sepolia' : 'mainnet') as IsTestnet extends true
+    ? 'sepolia'
+    : 'mainnet'
   return REVERSE_REGISTRAR_CHAIN_IDS[coinType][network]
 }

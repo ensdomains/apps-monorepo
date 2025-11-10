@@ -18,7 +18,7 @@ import {
   type ReverseRegistrarCoinId,
 } from '../reverseRegistrarCoinIds'
 
-export type UseSetReverseNameParams = {
+export type UseSetReverseNameParameters = {
   reverseRegistrarCoinId: ReverseRegistrarCoinId
   isTestnet?: boolean
 }
@@ -37,7 +37,7 @@ export type SetReverseNameRequest =
       args: readonly [name: string]
     }
 
-export type UseSetReverseNameReturn = {
+export type UseSetReverseNameReturnType = {
   /**
    * Get contract call parameters for setting the reverse name
    * @param name - The ENS name to set
@@ -58,7 +58,7 @@ export type UseSetReverseNameReturn = {
 export function useSetReverseName({
   reverseRegistrarCoinId,
   isTestnet = false,
-}: UseSetReverseNameParams): UseSetReverseNameReturn {
+}: UseSetReverseNameParameters): UseSetReverseNameReturnType {
   const registrarAddress = getRegistrarAddress(
     reverseRegistrarCoinId,
     isTestnet,
