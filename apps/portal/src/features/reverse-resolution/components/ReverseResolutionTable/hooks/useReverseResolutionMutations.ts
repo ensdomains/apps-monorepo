@@ -3,6 +3,10 @@ import type {
   SetForwardResolutionRequest,
   SetReverseNameRequest,
 } from '@ens-apps/l2-primary/hooks'
+import {
+  useSetForwardResolution,
+  useSetReverseName,
+} from '@ens-apps/l2-primary/hooks'
 import type { ChainWithEns } from '@ensdomains/ensjs/chain'
 import {
   type SetPrimaryNameWriteParametersReturnType,
