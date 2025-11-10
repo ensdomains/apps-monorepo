@@ -5,6 +5,7 @@
  * Coin types are the same across mainnet and testnet (e.g., 42161 for Arbitrum).
  */
 
+import type { ChainWithEns } from '@ensdomains/ensjs/chain'
 import type { Address } from 'viem'
 
 /**
@@ -16,6 +17,22 @@ import type { Address } from 'viem'
  *  - Arbitrum: coinType = 42161 (same as chainId)
  */
 export type ReverseRegistrarCoinId = 1 | 60 | 10 | 42161 | 8453 | 59144 | 534352
+
+/** The two deployment environments we currently support. */
+export type NetworkKey = 'mainnet' | 'sepolia'
+
+/** Map ChainWithEns → NetworkKey, defaulting to 'sepolia' */
+export function resolveNetworkFromChain(chain?: ChainWithEns): NetworkKey {
+  switch (chain?.id) {
+    case 1:
+      return 'mainnet'
+    case 11155111:
+      return 'sepolia'
+    default:
+      // Fallback until more networks (e.g., namechain) are added
+      return 'sepolia'
+  }
+}
 
 /**
  * Map coin types to chain IDs for network switching
@@ -76,43 +93,34 @@ export const L2_REVERSE_REGISTRARS: Record<
   ReverseRegistrarCoinId,
   { mainnet?: Address; sepolia?: Address }
 >
+
 /**
- * Get L2 Reverse Registrar address for a coin type
- * Returns undefined for coinType 60/1 (use ENS.js setPrimaryName instead)
+ * Get L2 Reverse Registrar address for a coin type.
+ * Returns undefined for coin types 60/1 (use ENS.js setPrimaryName instead).
  *
  * @example
- * const address = getRegistrarAddress(10, false) // Type: '0x0000000000D8e504002cC26E3Ec46D81971C1664'
- * const testAddress = getRegistrarAddress(10, true) // Type: '0x00000BeEF055f7934784D6d81b6BC86665630dbA'
+ * const addr = getRegistrarAddress(10)                // defaults to 'sepolia'
+ * const addrMainnet = getRegistrarAddress(10, 'mainnet')
  */
 export function getRegistrarAddress<
   CT extends ReverseRegistrarCoinId,
-  IsTestnet extends boolean = false,
->(
-  coinType: CT,
-  isTestnet?: IsTestnet,
-): (typeof L2_REVERSE_REGISTRARS)[CT][IsTestnet extends true
-  ? 'sepolia'
-  : 'mainnet'] {
-  const network = (isTestnet ? 'sepolia' : 'mainnet') as IsTestnet extends true
-    ? 'sepolia'
-    : 'mainnet'
-  return L2_REVERSE_REGISTRARS[coinType][network]
+  N extends NetworkKey = 'sepolia',
+>(coinType: CT, network?: N): (typeof L2_REVERSE_REGISTRARS)[CT][N] {
+  const net = (network ?? 'sepolia') as N
+  return L2_REVERSE_REGISTRARS[coinType][net]
 }
 
 /**
- * Get the chain ID for a coin type
+ * Get the chain ID for a coin type on a given network
+ *
+ * @example
+ * const id = getChainIdForReverseRegistrarCoinId(8453)            // -> sepolia id
+ * const idMain = getChainIdForReverseRegistrarCoinId(8453, 'mainnet')
  */
 export function getChainIdForReverseRegistrarCoinId<
   CT extends ReverseRegistrarCoinId,
-  IsTestnet extends boolean = false,
->(
-  coinType: CT,
-  isTestnet?: IsTestnet,
-): (typeof REVERSE_REGISTRAR_CHAIN_IDS)[CT][IsTestnet extends true
-  ? 'sepolia'
-  : 'mainnet'] {
-  const network = (isTestnet ? 'sepolia' : 'mainnet') as IsTestnet extends true
-    ? 'sepolia'
-    : 'mainnet'
-  return REVERSE_REGISTRAR_CHAIN_IDS[coinType][network]
+  N extends NetworkKey = 'sepolia',
+>(coinType: CT, network?: N): (typeof REVERSE_REGISTRAR_CHAIN_IDS)[CT][N] {
+  const net = (network ?? 'sepolia') as N
+  return REVERSE_REGISTRAR_CHAIN_IDS[coinType][net]
 }

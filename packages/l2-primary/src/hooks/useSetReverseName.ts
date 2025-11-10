@@ -8,6 +8,7 @@
  * an address to resolve to an ENS name on that chain/network.
  */
 
+import type { ChainWithEns } from '@ensdomains/ensjs/chain'
 import type { Address } from 'viem'
 import {
   l2ReverseRegistrarSetNameForAddrSnippet,
@@ -16,11 +17,16 @@ import {
 import {
   getRegistrarAddress,
   type ReverseRegistrarCoinId,
+  resolveNetworkFromChain,
 } from '../reverseRegistrarCoinIds'
 
 export type UseSetReverseNameParameters = {
   reverseRegistrarCoinId: ReverseRegistrarCoinId
-  isTestnet?: boolean
+  /**
+   * Chain used to resolve which registrar deployment to use.
+   * If omitted or unknown, we default to 'sepolia' (current app default).
+   */
+  chain?: ChainWithEns
 }
 
 export type SetReverseNameRequest =
@@ -57,12 +63,10 @@ export type UseSetReverseNameReturnType = {
 
 export function useSetReverseName({
   reverseRegistrarCoinId,
-  isTestnet = false,
+  chain,
 }: UseSetReverseNameParameters): UseSetReverseNameReturnType {
-  const registrarAddress = getRegistrarAddress(
-    reverseRegistrarCoinId,
-    isTestnet,
-  )
+  const network = resolveNetworkFromChain(chain)
+  const registrarAddress = getRegistrarAddress(reverseRegistrarCoinId, network)
 
   const getSetReverseNameRequest = (
     name: string,
@@ -70,7 +74,7 @@ export function useSetReverseName({
   ): SetReverseNameRequest => {
     if (!registrarAddress) {
       throw new Error(
-        `No registrar found for coin type ${reverseRegistrarCoinId}`,
+        `No registrar found for coin type ${reverseRegistrarCoinId} on ${network}`,
       )
     }
 
