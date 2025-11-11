@@ -3,7 +3,7 @@ import { useId } from 'react'
 import { Label } from '@/components/ui/label'
 import { SidebarInput } from '@/components/ui/sidebar'
 
-export function SearchForm({ ...props }: React.ComponentProps<'form'>) {
+export const SearchForm = ({ ...props }: React.ComponentProps<'form'>) => {
   const searchId = useId()
   return (
     <form {...props}>

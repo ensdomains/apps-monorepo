@@ -8,11 +8,11 @@ interface AutorenewalProps {
   onSkipAutorenewal: () => void
 }
 
-export function Autorenewal({
+export const Autorenewal = ({
   domainName,
   duration,
   onSkipAutorenewal,
-}: AutorenewalProps) {
+}: AutorenewalProps) => {
   // Calculate expiry date based on actual duration selected
   const currentDate = new Date()
   const expiryDate = new Date(

@@ -32,7 +32,7 @@ type Suggestion = {
   inputValue: string
 }
 
-export function HomeSearchInput() {
+export const HomeSearchInput = () => {
   const searchNamesAndAddressesId = useId()
   const navigate = useNavigate({ from: '/' })
   const [searchValue, setSearchValue] = useState('')

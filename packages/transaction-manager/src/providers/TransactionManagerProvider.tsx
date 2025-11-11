@@ -39,10 +39,10 @@ const TransactionManagerContext =
  *
  * SSR-safe: No global state stored in the provider.
  */
-export function TransactionManagerProvider({
+export const TransactionManagerProvider = ({
   children,
   publicClient,
-}: TransactionManagerProviderProps) {
+}: TransactionManagerProviderProps) => {
   const [transactions, setTransactions] = useState<
     Map<string, ActorRefFrom<typeof transactionMachine>>
   >(new Map())

@@ -5,12 +5,12 @@ export interface TransactionModalHeaderProps {
   status?: string
 }
 
-export function TransactionModalHeader({
+export const TransactionModalHeader = ({
   title,
   ensName,
   avatarUrl,
   status,
-}: TransactionModalHeaderProps) {
+}: TransactionModalHeaderProps) => {
   // Determine status label
   const getStatusLabel = () => {
     if (status === 'success') return 'Done'
