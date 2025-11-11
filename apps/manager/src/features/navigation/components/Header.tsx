@@ -51,7 +51,7 @@ const ConnectedContent = () => {
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="flex items-center gap-2 rounded-md hover:bg-gray-100"
+            className="flex items-center gap-2 rounded-md p-2 hover:bg-gray-100"
           >
             {ensAvatar ? (
               <img
