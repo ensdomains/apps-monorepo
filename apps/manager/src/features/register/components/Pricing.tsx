@@ -246,7 +246,7 @@ export const Pricing = ({
               type="button"
               onClick={() => onSetCurrency('USD')}
               className={cn(
-                'px-3 py-1 font-medium text-sm transition-colors',
+                'rounded-l-md px-3 py-1 font-medium text-sm transition-colors',
                 currencyType === 'USD'
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:text-foreground',
@@ -258,7 +258,7 @@ export const Pricing = ({
               type="button"
               onClick={() => onSetCurrency('ETH')}
               className={cn(
-                'px-3 py-1 font-medium text-sm transition-colors',
+                'rounded-r-md px-3 py-1 font-medium text-sm transition-colors',
                 currencyType === 'ETH'
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:text-foreground',
