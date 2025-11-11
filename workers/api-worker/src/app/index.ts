@@ -9,7 +9,7 @@ import watchersApp from './routes/watchers'
 import webhookApp from './routes/webhook'
 
 const app = createApp()
-  .route('/', authApp)
+  .route('/auth', authApp)
   .route('/', favoritesApp)
   .route('/', notificationsApp)
   .route('/', webhookApp)
