@@ -88,7 +88,7 @@ export const DomainResultCard = ({
         <div className="flex-shrink-0">{getStatusIcon()}</div>
 
         {/* Domain info */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col items-start gap-1">
           {/* Domain name in badge style with less rounded corners */}
           <div className="inline-flex items-center">
             <span className="rounded-sm bg-primary px-1 py-1 font-bold text-primary-foreground text-sm">
@@ -97,7 +97,7 @@ export const DomainResultCard = ({
           </div>
 
           {/* Status text in light gray */}
-          <span className="px-1 text-muted-foreground text-sm">
+          <span className="text-muted-foreground text-sm">
             {getStatusText()}
           </span>
         </div>

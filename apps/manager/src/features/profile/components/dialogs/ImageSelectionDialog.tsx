@@ -28,6 +28,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { cn } from '@/lib/utils'
 import { inspect } from '@/utils/xstate'
 
 export type ImageType = 'avatar' | 'header'
@@ -249,7 +250,10 @@ export const ImageSelectionDialog = ({
               />
               <ImageFallback.Fallback>
                 <div
-                  className={`${getImageStyles('small')} flex items-center justify-center bg-gray-200`}
+                  className={cn(
+                    getImageStyles('small'),
+                    'flex items-center justify-center bg-gray-200',
+                  )}
                 >
                   <Image className="size-8 text-gray-400" />
                 </div>

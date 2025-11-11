@@ -20,7 +20,7 @@ interface NotificationWrapperProps {
 }
 
 const NotificationWrapper = ({ children }: NotificationWrapperProps) => (
-  <div className="space-y-2 border-gray-200 border-b px-4 py-6">{children}</div>
+  <div className="space-y-2 border-gray-200 border-b py-6">{children}</div>
 )
 
 interface NotificationHeaderProps {
@@ -263,7 +263,7 @@ export const NotificationsDropdown = ({
   }
 
   return (
-    <div className="">
+    <div>
       <div className="flex items-center justify-between pl-4">
         <h1 className="font-normal text-2xl">Notifications</h1>
         {unreadCount > 0 && (
@@ -277,7 +277,7 @@ export const NotificationsDropdown = ({
         )}
       </div>
 
-      <div>
+      <div className="px-4">
         {displayedNotifications.map((notification) => (
           <NotificationItem
             key={notification.id}
@@ -317,8 +317,8 @@ const NotificationGroup = ({
   if (notifications.length === 0) return null
 
   return (
-    <div className="">
-      <h2 className="mb-2 px-4 font-medium text-gray-900 text-lg">{title}</h2>
+    <div>
+      <h2 className="mb-2 font-medium text-gray-900 text-lg">{title}</h2>
       <div>
         {notifications.map((notification) => (
           <NotificationItem
