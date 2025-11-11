@@ -31,12 +31,12 @@ interface PaymentDrawerProps {
 }
 
 // Credit Card Payment Drawer Component
-export function CreditCardPaymentDrawer({
+export const CreditCardPaymentDrawer = ({
   domainName = 'example.eth',
   duration = 25,
   priceUSD = 2800,
   onPaymentSelect,
-}: PaymentDrawerProps) {
+}: PaymentDrawerProps) => {
   const [open, setOpen] = React.useState(false)
   const isDesktop = useMediaQuery('(min-width: 768px)')
 
@@ -113,14 +113,14 @@ export function CreditCardPaymentDrawer({
 }
 
 // Crypto Payment Drawer Component
-export function CryptoPaymentDrawer({
+export const CryptoPaymentDrawer = ({
   domainName = 'example.eth',
   duration = 25,
   priceUSD = 2800,
   onPaymentSelect,
   onCryptoSelect,
   onConfirmPayment,
-}: PaymentDrawerProps) {
+}: PaymentDrawerProps) => {
   const [open, setOpen] = React.useState(false)
   const [selectedCoin, setSelectedCoin] = React.useState<string>('')
   const isDesktop = useMediaQuery('(min-width: 768px)')
@@ -271,11 +271,11 @@ export function CryptoPaymentDrawer({
 }
 
 // Main Payment Drawer Component (for backward compatibility)
-export function PaymentDrawer({
+export const PaymentDrawer = ({
   domainName = 'example.eth',
   duration = 25,
   priceUSD = 2800,
-}: PaymentDrawerProps) {
+}: PaymentDrawerProps) => {
   return (
     <div className="space-y-3">
       <h3 className="font-medium text-lg">Select payment method</h3>

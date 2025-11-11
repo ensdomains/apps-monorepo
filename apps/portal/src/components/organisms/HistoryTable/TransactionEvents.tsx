@@ -15,7 +15,12 @@ import {
 import { formatEventValue } from '@/utils/ens/formatEventValue'
 import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
 
-const EventData = ({ event, txHash }: { event: ENSEvent; txHash: Hash }) => {
+interface EventDataProps {
+  event: ENSEvent
+  txHash: Hash
+}
+
+const EventData = ({ event, txHash }: EventDataProps) => {
   const [showDecoded, setShowDecoded] = useState(true)
 
   const { data: receipt } = useTransactionReceipt({
@@ -140,13 +145,15 @@ const EventData = ({ event, txHash }: { event: ENSEvent; txHash: Hash }) => {
   )
 }
 
+interface TransactionEventsProps {
+  events: ENSEvent[]
+  txHash: Hash
+}
+
 export const TransactionEvents = ({
   events,
   txHash,
-}: {
-  events: ENSEvent[]
-  txHash: Hash
-}) => {
+}: TransactionEventsProps) => {
   if (events.length === 0) {
     return <div className="text-gray-400 text-center py-6">No events found</div>
   }

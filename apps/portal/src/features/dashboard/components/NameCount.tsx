@@ -3,7 +3,11 @@ import { ChevronRightIcon } from 'lucide-react'
 import type { Address } from 'viem/accounts'
 import { getNamesForAddressQueryOptions } from '../hooks/useNamesForAddress'
 
-export const NameCount = ({ address }: { address: Address }) => {
+interface NameCountProps {
+  address: Address
+}
+
+export const NameCount = ({ address }: NameCountProps) => {
   const {
     data: names,
     isLoading,

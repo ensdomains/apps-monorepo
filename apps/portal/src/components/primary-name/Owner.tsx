@@ -5,7 +5,11 @@ import { CopyableRecord } from '../molecules/CopyableRecord'
 
 const sepoliaUrl = sepolia.blockExplorers.default.url
 
-export const Owner = ({ name }: { name: string }) => {
+interface OwnerProps {
+  name: string
+}
+
+export const Owner = ({ name }: OwnerProps) => {
   const { data, error, isLoading } = useQuery(getEnsOwnerQueryOptions({ name }))
 
   if (error) return <div>Error: {error.cause?.message}</div>

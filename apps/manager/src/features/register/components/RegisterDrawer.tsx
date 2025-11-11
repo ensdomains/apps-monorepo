@@ -36,12 +36,12 @@ interface RegisterDrawerProps {
   priceUSD?: number
 }
 
-export function RegisterDrawer({
+export const RegisterDrawer = ({
   children,
   domainName = 'example.eth',
   duration = 25,
   priceUSD = 2800,
-}: RegisterDrawerProps) {
+}: RegisterDrawerProps) => {
   const [open, setOpen] = React.useState(false)
   const [selectedWallet, setSelectedWallet] = React.useState<string>('coinbase')
   const [_emailPhone, setEmailPhone] = React.useState('')

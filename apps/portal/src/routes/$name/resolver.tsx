@@ -18,7 +18,12 @@ export const Route = createFileRoute('/$name/resolver')({
   component: RouteComponent,
 })
 
-const EditButtons = ({ address, name }: { address: Address; name: string }) => {
+interface EditButtonsProps {
+  address: Address
+  name: string
+}
+
+const EditButtons = ({ address, name }: EditButtonsProps) => {
   const { data: owner } = useQuery(getEnsOwnerQueryOptions({ name }))
 
   if (owner?.owner !== address) return null
@@ -46,13 +51,15 @@ const EditButtons = ({ address, name }: { address: Address; name: string }) => {
 const sepoliaUrl = sepolia.blockExplorers.default.url
 const factoryAddress = ensContracts[11155111].ensVerifiableFactory.address
 
+interface UnderlyingResolverInfoProps {
+  resolverAddress: Address
+  name: string
+}
+
 const UnderlyingResolverInfo = ({
   name,
   resolverAddress,
-}: {
-  resolverAddress: Address
-  name: string
-}) => {
+}: UnderlyingResolverInfoProps) => {
   const { data, isLoading, error } = useQuery(
     getUnderlyingAddressQueryOptions({ resolverAddress, name }),
   )
@@ -135,13 +142,12 @@ const UnderlyingResolverInfo = ({
   return null
 }
 
-const ResolverView = ({
-  name,
-  resolverAddress,
-}: {
+interface ResolverViewProps {
   name: string
   resolverAddress: Address
-}) => {
+}
+
+const ResolverView = ({ name, resolverAddress }: ResolverViewProps) => {
   const { address } = useAccount()
 
   return (

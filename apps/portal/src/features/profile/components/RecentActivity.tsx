@@ -55,11 +55,11 @@ const columns: ColumnDef<
   },
 ]
 
-const RecentActivityTable = ({
-  events,
-}: {
+interface RecentActivityTableProps {
   events: (BaseResolverEvent | BaseRegistrationEvent | BaseDomainEvent)[]
-}) => {
+}
+
+const RecentActivityTable = ({ events }: RecentActivityTableProps) => {
   const {
     data: timestamps,
     isLoading,
@@ -78,7 +78,11 @@ const RecentActivityTable = ({
   return <DataTable data={data} columns={columns} />
 }
 
-export const RecentActivity = ({ name }: { name: string }) => {
+interface RecentActivityProps {
+  name: string
+}
+
+export const RecentActivity = ({ name }: RecentActivityProps) => {
   const {
     data: events,
     isLoading,

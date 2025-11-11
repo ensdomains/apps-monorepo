@@ -50,13 +50,13 @@ export interface TransactionStatusPanelProps {
  * />
  * ```
  */
-export function TransactionStatusPanel({
+export const TransactionStatusPanel = ({
   render,
   filter,
   maxTransactions,
   position = 'bottom-left',
   enabled = true,
-}: TransactionStatusPanelProps) {
+}: TransactionStatusPanelProps) => {
   const activeTransactions = useActiveTransactions()
 
   // Convert Map to array of transaction statuses
