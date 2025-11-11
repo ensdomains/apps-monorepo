@@ -4,7 +4,7 @@ import * as v from 'valibot'
 import { requireAuth } from '#app/middleware/auth.js'
 import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
-import { Database, TABLE } from '#core/database/index.js'
+import { TABLE } from '#core/database/index.js'
 import { sendVerificationEmail } from '#services/email/verification.js'
 import { sanitizeChannel } from '#services/notifications/helpers.js'
 import {
@@ -12,7 +12,6 @@ import {
   verifyTelegramAuth,
 } from '#services/telegram/auth.js'
 import { makeTelegramRequest } from '#services/telegram/utils.js'
-import { UserChannel } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
 
 // Generate a random token that's somewhat user readable
@@ -24,7 +23,6 @@ const generateToken = () => {
 }
 
 const emailRoutes = createApp()
-  .basePath('/email')
   .post(
     '/',
     ...requireAuth,
@@ -403,7 +401,6 @@ const idRoutes = createApp()
  * - Marking notifications as read/unread and archived
  */
 export default createApp()
-  .basePath('/channels')
   /**
    * GET /notifications
    *
@@ -439,7 +436,6 @@ export default createApp()
 
     return c.json(sanitizedChannels)
   })
-  .route('/', emailRoutes)
   .post(
     '/telegram',
     ...requireAuth,
@@ -522,4 +518,5 @@ export default createApp()
       return c.json({ ok: true })
     },
   )
+  .route('/email', emailRoutes)
   .route('/', idRoutes)

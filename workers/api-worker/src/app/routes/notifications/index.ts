@@ -6,7 +6,7 @@ import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
 import { createNotification } from '#services/notifications/create.js'
-import type { DiscriminatedPayloadMapper, Prettify } from '#types/helpers.js'
+import type { DiscriminatedPayloadMapper } from '#types/helpers.js'
 import type {
   Broadcasts,
   NotificationKind,
@@ -26,9 +26,8 @@ import preferences from './preferences.js'
  * - Marking notifications as read/unread and archived
  */
 export default createApp()
-  .basePath('/notifications')
-  .route('/', channels)
-  .route('/', preferences)
+  .route('/channels', channels)
+  .route('/preferences', preferences)
   /**
    * GET /notifications
    *

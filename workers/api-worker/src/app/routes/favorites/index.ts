@@ -6,7 +6,6 @@ import { schema } from '#core/database/index.js'
 import { logger } from '#utils/logger.js'
 
 export default createApp()
-  .basePath('/favorites')
   .get('/', ...requireAuth, injectDb, async (c) => {
     const favorites = await c.var.db.query.favorites.findMany({
       where: eq(schema.favorites.user_id, c.var.user_id),
@@ -34,7 +33,6 @@ export default createApp()
 
     return c.json({ message: 'Favorite added' }, 200)
   })
-
   .delete('/:name', ...requireAuth, injectDb, async (c) => {
     const { name } = c.req.param()
     const { user_id } = c.var

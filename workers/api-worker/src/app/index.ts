@@ -11,8 +11,8 @@ import webhookApp from './routes/webhook'
 const app = createApp()
   .route('/auth', authApp)
   .route('/expiry', expiryApp)
-  .route('/', favoritesApp)
-  .route('/', notificationsApp)
+  .route('/favorites', favoritesApp)
+  .route('/notifications', notificationsApp)
   .route('/', webhookApp)
   .route('/', watchersApp)
   .onError((err, c) => {

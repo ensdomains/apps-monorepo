@@ -23,7 +23,6 @@ import { logger } from '#utils/logger.js'
  * - Batch updating multiple preferences
  */
 export default createApp()
-  .basePath('/preferences')
   /**
    * GET /preferences
    *
