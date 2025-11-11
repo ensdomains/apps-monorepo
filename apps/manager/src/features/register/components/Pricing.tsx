@@ -155,11 +155,12 @@ export const Pricing = ({
                   key={yearOption.years}
                   type="button"
                   onClick={() => onSetDuration(yearOption.years)}
-                  className={`relative rounded-lg border p-4 text-left transition-colors ${
+                  className={cn(
+                    'relative rounded-lg border p-4 text-left transition-colors',
                     duration === yearOption.years
                       ? 'border-primary bg-primary/5 text-primary'
-                      : 'border-border bg-card hover:border-muted-foreground'
-                  }`}
+                      : 'border-border bg-card hover:border-muted-foreground',
+                  )}
                 >
                   <div className="font-medium">
                     {yearOption.years} year{yearOption.years > 1 ? 's' : ''}
@@ -306,9 +307,10 @@ export const Pricing = ({
                   Price breakdown
                 </span>
                 <ChevronDownIcon
-                  className={`h-4 w-4 text-muted-foreground transition-transform ${
-                    isBreakdownOpen ? 'rotate-180' : ''
-                  }`}
+                  className={cn(
+                    'h-4 w-4 text-muted-foreground transition-transform',
+                    isBreakdownOpen && 'rotate-180',
+                  )}
                 />
               </Button>
             </CollapsibleTrigger>
