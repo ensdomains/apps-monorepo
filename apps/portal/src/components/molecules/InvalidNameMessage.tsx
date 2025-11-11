@@ -1,8 +1,7 @@
 import { AlertTriangle } from 'lucide-react'
-import type * as React from 'react'
 import { MessageCard } from '@/components/ui/message-card'
 
-export type InvalidNameMessageProps = {
+export interface InvalidNameMessageProps {
   title?: string
   description?: React.ReactNode
 }

@@ -1,6 +1,6 @@
 import { Spinner } from '@/components/ui/spinner'
 
-export type LoadingSpinnerProps = {
+export interface LoadingSpinnerProps {
   title?: string
 }
 

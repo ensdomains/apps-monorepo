@@ -29,26 +29,22 @@ export function MessageCard({
     <div
       data-slot="message-card"
       className={cn(
-        'bg-gray-100 rounded-lg p-8 sm:min-w-96 flex flex-col items-center gap-4 relative max-w-2xl mx-auto my-4',
+        'bg-gray-100 rounded-lg p-8 sm:min-w-96 xl:min-w-[640px] flex flex-col items-center gap-4 relative max-w-2xl mx-auto my-4',
         className,
       )}
     >
       {badge && (
-        <Badge variant="secondary" className="absolute top-4 right-4">
+        <Badge variant="outline" className="absolute top-4 right-4 text-xs">
           {badge}
         </Badge>
       )}
 
       <div className="flex flex-col items-center gap-4 text-center w-full">
-        <div className="flex items-center justify-center text-black">
-          {icon}
-        </div>
+        <div className="flex items-center justify-center">{icon}</div>
 
-        <h2 className="text-2xl font-bold text-black">{title}</h2>
+        <h2 className="text-2xl font-bold">{title}</h2>
 
-        <div className="text-base text-black max-w-md leading-relaxed">
-          {description}
-        </div>
+        <div className="text-base leading-relaxed">{description}</div>
       </div>
 
       {actionButton && (

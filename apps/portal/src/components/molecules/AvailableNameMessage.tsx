@@ -1,4 +1,4 @@
-import { CheckCircle2 } from 'lucide-react'
+import { BadgeCheck } from 'lucide-react'
 import type * as React from 'react'
 import { MessageCard } from '@/components/ui/message-card'
 
@@ -20,14 +20,13 @@ export function AvailableNameMessage({
   actionButton,
 }: AvailableNameMessageProps) {
   const defaultDescription = (
-    <>
-      You're using an early version of the new ENS Explorer! This Alpha is in
-      active development, and registration is coming soon. Instead, you can{' '}
-      <a href="https://app.ens.domains" className="underline decoration-dotted">
-        register this name in the new Manager Alpha
-      </a>
-      .
-    </>
+    <div className="text-base">
+      <p>
+        You're using an early version of the new ENS Explorer! This Alpha is in
+        active development, and registration is coming soon.
+      </p>
+      <p> Instead, you can register this name in the new Manager Alpha. </p>
+    </div>
   )
 
   const defaultActionButton = {
@@ -37,7 +36,7 @@ export function AvailableNameMessage({
 
   return (
     <MessageCard
-      icon={<CheckCircle2 size={30} strokeWidth={1.5} />}
+      icon={<BadgeCheck size={30} strokeWidth={1.5} />}
       title={`${name} is available!`}
       description={description || defaultDescription}
       badge={badge}

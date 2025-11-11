@@ -1,8 +1,7 @@
 import { HelpCircle } from 'lucide-react'
-import type * as React from 'react'
 import { MessageCard } from '@/components/ui/message-card'
 
-export type NotFoundMessageProps = {
+export interface NotFoundMessageProps {
   title?: string
   description?: React.ReactNode
 }
