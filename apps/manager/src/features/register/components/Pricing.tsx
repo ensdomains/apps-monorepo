@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 import { CreditCardPaymentDrawer, CryptoPaymentDrawer } from './PaymentDrawer'
 import { RegisterDrawer } from './RegisterDrawer'
 
@@ -244,22 +245,24 @@ export const Pricing = ({
             <button
               type="button"
               onClick={() => onSetCurrency('USD')}
-              className={`px-3 py-1 font-medium text-sm transition-colors ${
+              className={cn(
+                'px-3 py-1 font-medium text-sm transition-colors',
                 currencyType === 'USD'
                   ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
             >
               USD
             </button>
             <button
               type="button"
               onClick={() => onSetCurrency('ETH')}
-              className={`px-3 py-1 font-medium text-sm transition-colors ${
+              className={cn(
+                'px-3 py-1 font-medium text-sm transition-colors',
                 currencyType === 'ETH'
                   ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
             >
               ETH
             </button>
