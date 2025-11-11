@@ -17,7 +17,6 @@ const app = createApp()
   .route('/', watchersApp)
   .onError((err, c) => {
     if (err instanceof HTTPException) {
-      // Get the custom response
       return err.getResponse()
     }
 
