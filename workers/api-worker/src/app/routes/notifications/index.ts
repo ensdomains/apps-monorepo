@@ -14,7 +14,7 @@ import type {
   UserNotifications,
 } from '#types/notifications.js'
 import channels from './channels.js'
-import preferences from './preferences.js'
+import preferences from './preferences/index.js'
 
 /**
  * Notification routes for managing user notifications and broadcasts.
