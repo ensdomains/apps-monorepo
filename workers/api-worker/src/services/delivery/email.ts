@@ -1,22 +1,17 @@
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
 import { ok } from 'neverthrow'
 import type { Database } from '#core/database/index.js'
 import { TABLE } from '#core/database/index.js'
 import { sendMailV3 } from '#services/email/utils.js'
 import type { EmailDeliveryJob } from '#types/delivery.js'
+import type { AnyUserNotificationPayload } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
-import { EmailTemplate, emailTemplates } from './templates/email.js'
-import { NotificationKind, NotificationPayloads } from '#config/notifications.js'
-import { AnyUserNotificationPayload } from '#types/notifications.js'
-
-class UnsupportedNotificationTypeError extends TaggedError(
-  'UNSUPPORTED_NOTIFICATION_TYPE',
-) {}
-
-class NotificationDeliveryNotFoundError extends TaggedError(
-  'NOTIFICATION_DELIVERY_NOT_FOUND',
-) {}
+import {
+  NotificationDeliveryNotFoundError,
+  UnsupportedNotificationTypeError,
+} from './errors.js'
+import { type EmailTemplate, emailTemplates } from './templates/email.js'
 
 export const deliverEmailNotification = ResultFn(async function* (
   apiKey: string,
@@ -27,15 +22,15 @@ export const deliverEmailNotification = ResultFn(async function* (
   const deliveryJob = await db.query.notificationDeliveries.findFirst({
     where: eq(TABLE.notificationDeliveries.id, job.id),
     columns: {
-target: true,
+      target: true,
     },
     with: {
       notification: {
         columns: {
           payload: true,
         },
-      }
-    }
+      },
+    },
   })
   if (!deliveryJob) {
     return yield* new NotificationDeliveryNotFoundError({
@@ -52,7 +47,9 @@ target: true,
   }
 
   // Generate the template data
-  const templateData = template(deliveryJob.notification.payload as AnyUserNotificationPayload)
+  const templateData = template(
+    deliveryJob.notification.payload as AnyUserNotificationPayload,
+  )
 
   // Send via SendGrid API
   const result = yield* sendMailV3(apiKey, {

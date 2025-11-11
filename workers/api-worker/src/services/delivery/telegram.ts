@@ -8,8 +8,13 @@ import {
   makeTelegramRequest,
 } from '#services/telegram/utils.js'
 import type { TelegramDeliveryJob } from '#types/delivery.js'
+import type { AnyUserNotificationPayload } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
-import { telegramTemplates } from './templates/telegram.js'
+import { NotificationDeliveryNotFoundError } from './errors.js'
+import {
+  type TelegramTemplate,
+  telegramTemplates,
+} from './templates/telegram.js'
 
 class UnsupportedNotificationTypeError extends TaggedError(
   'UNSUPPORTED_NOTIFICATION_TYPE',
@@ -20,8 +25,29 @@ export const deliverTelegramNotification = ResultFn(async function* (
   db: Database,
   job: TelegramDeliveryJob,
 ) {
+  const deliveryJob = await db.query.notificationDeliveries.findFirst({
+    where: eq(TABLE.notificationDeliveries.id, job.id),
+    columns: {
+      target: true,
+    },
+    with: {
+      notification: {
+        columns: {
+          payload: true,
+        },
+      },
+    },
+  })
+
+  if (!deliveryJob) {
+    return yield* new NotificationDeliveryNotFoundError({
+      message: `Delivery job not found: ${job.id}`,
+    })
+  }
   // Get the template function
-  const template = telegramTemplates[job.kind as keyof typeof telegramTemplates]
+  const template = telegramTemplates[job.kind] as TelegramTemplate<
+    typeof job.kind
+  >
   if (!template) {
     return yield* new UnsupportedNotificationTypeError({
       message: `No Telegram template for: ${job.kind}`,
@@ -29,7 +55,9 @@ export const deliverTelegramNotification = ResultFn(async function* (
   }
 
   // Generate the message
-  const message = template(job.payload as any)
+  const message = template(
+    deliveryJob.notification.payload as AnyUserNotificationPayload,
+  )
 
   // Create keyboard if buttons exist
   const replyMarkup = message.buttons
@@ -38,7 +66,7 @@ export const deliverTelegramNotification = ResultFn(async function* (
 
   // Send via Telegram API
   const result = yield* makeTelegramRequest(botToken, 'sendMessage', {
-    chat_id: job.target,
+    chat_id: deliveryJob.target,
     text: message.text,
     parse_mode: message.parseMode,
     reply_markup: replyMarkup,
@@ -65,7 +93,7 @@ export const deliverTelegramNotification = ResultFn(async function* (
 
 export const handleTelegramDeliveryFailure = async (
   db: Database,
-  job: TelegramDeliveryJob,
+  job: Message<TelegramDeliveryJob>,
   errorMessage: string,
 ): Promise<void> => {
   await db
@@ -80,7 +108,7 @@ export const handleTelegramDeliveryFailure = async (
 
   logger.error('Telegram notification failed', {
     jobId: job.id,
-    kind: job.kind,
+    kind: job.body.kind,
     attempts: job.attempts + 1,
     error: errorMessage,
   })

@@ -16,7 +16,7 @@ type TelegramMessage = {
 }
 
 // Template function type
-type TelegramTemplate<K extends SupportedNotifications<'telegram'>> = (
+export type TelegramTemplate<K extends SupportedNotifications<'telegram'>> = (
   payload: NotificationPayloads[K],
 ) => TelegramMessage
 
