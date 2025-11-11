@@ -1,4 +1,4 @@
-import { createApp } from '../../middleware/hono'
+import { createApp } from '#app/middleware/hono.js'
 import loginRoute from './login.js'
 import meRoute from './me.js'
 import nonceRoute from './nonce.js'

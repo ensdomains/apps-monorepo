@@ -1,11 +1,11 @@
 import { vValidator } from '@hono/valibot-validator'
 import { match, P } from 'ts-pattern'
 import * as v from 'valibot'
+import { injectDb } from '#app/middleware/database.js'
+import { injectEthClient } from '#app/middleware/eth.js'
+import { createApp, internalServerError } from '#app/middleware/hono.js'
 import { createJWT } from '#services/auth/index.js'
 import { ethAddress, hex } from '#utils/validation.js'
-import { injectDb } from '../../middleware/database'
-import { injectEthClient } from '../../middleware/eth'
-import { createApp, internalServerError } from '../../middleware/hono'
 
 export default createApp().post(
   '/',
