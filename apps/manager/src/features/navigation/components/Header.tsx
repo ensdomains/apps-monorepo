@@ -139,8 +139,8 @@ const Menu = () => {
 export const Header = () => {
   const { isConnected, status } = useAccount()
   return (
-    <nav className="sticky top-0 z-10 flex items-center justify-end bg-background p-8">
-      <Link to="/" className="mr-auto">
+    <nav className="sticky top-0 z-10 flex items-center justify-end bg-background px-10 py-7">
+      <Link to="/" className="mr-auto py-2">
         <img src={ensLogo} alt="ENS Logo" className="h-8" />
       </Link>
       {status !== 'connecting' && status !== 'reconnecting' ? (
