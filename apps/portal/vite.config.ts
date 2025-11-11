@@ -25,19 +25,19 @@ export default defineConfig({
     tailwindcss(),
     cloudflare(),
   ],
-  test: {
-    globals: true,
-    environment: 'happy-dom',
-    coverage: {
-      provider: 'v8',
-      reporter: ['lcovonly', 'text', 'html'],
-    },
-  },
   resolve: {
     alias: {
-      '@': new URL('./src', import.meta.url).pathname,
-      '@ens-apps/utils': new URL('../../packages/utils/src', import.meta.url)
-        .pathname,
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@ens-apps/utils': fileURLToPath(
+        new URL('../../packages/utils/src', import.meta.url),
+      ),
+      '@ens-apps/l2-primary': new URL(
+        '../../packages/l2-primary/src',
+        import.meta.url,
+      ).pathname,
     },
+  },
+  optimizeDeps: {
+    exclude: ['@ens-apps/l2-primary'],
   },
 })

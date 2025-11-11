@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import {
+  ClockIcon,
   CoinsIcon,
   FileCodeIcon,
   FileSpreadsheetIcon,
@@ -51,24 +52,35 @@ const itemGroups = [
       icon: CoinsIcon,
     },
   ],
+  [
+    {
+      title: 'History',
+      url: '/$name/history',
+      icon: ClockIcon,
+    },
+  ],
 ] as const
 
-export const ProfileSidebar = ({ name }: { name: string }) => {
+interface ProfileSidebarProps {
+  name: string
+}
+
+export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
   return (
     <Sidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!">
       <SidebarHeader>
-        <span className="text-lg font-bold">{name}</span>
+        <span className="text-lg font-bold break-words">{name}</span>
       </SidebarHeader>
       <SidebarContent>
-        {itemGroups.map((items) => (
-          <SidebarGroup key={items.join(',')}>
+        {itemGroups.map((items, i) => (
+          <SidebarGroup key={items.join(',') + i.toString()}>
             <SidebarGroupContent>
               <SidebarMenu>
                 {items.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
                       <Link params={{ name }} to={item.url}>
-                        <item.icon height={24} width={24} />
+                        <item.icon className="size-6" />
                         <span className="text-sm font-medium">
                           {item.title}
                         </span>

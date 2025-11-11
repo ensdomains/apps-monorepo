@@ -17,7 +17,11 @@ import { Layout } from '@/components/Layout'
 import { wagmiConfig } from '@/lib/wagmi'
 import appCss from '@/styles/index.css?url'
 
-const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
+interface ProvidersWrapperProps {
+  children: React.ReactNode
+}
+
+const ProvidersWrapper = ({ children }: ProvidersWrapperProps) => {
   return (
     <WagmiProvider config={wagmiConfig}>
       <RainbowKitProvider>{children}</RainbowKitProvider>

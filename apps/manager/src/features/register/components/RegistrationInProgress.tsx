@@ -8,10 +8,10 @@ interface RegistrationInProgressProps {
   onRegistrationSuccess: () => void
 }
 
-export function RegistrationInProgress({
+export const RegistrationInProgress = ({
   domainName,
   onRegistrationSuccess,
-}: RegistrationInProgressProps) {
+}: RegistrationInProgressProps) => {
   React.useEffect(() => {
     // Mock registration process - simulate contract calls
     const processRegistration = async () => {

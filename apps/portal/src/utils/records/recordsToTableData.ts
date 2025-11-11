@@ -1,5 +1,5 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
-import type { NameRecord } from '@/components/organisms/RecordsTable/columns'
+import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
 
 type Entries<T> = {
   [K in keyof T]-?: [K, T[K]]

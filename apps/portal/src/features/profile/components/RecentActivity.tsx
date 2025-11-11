@@ -41,22 +41,25 @@ const columns: ColumnDef<
     header: 'Transaction',
     cell({ column, row }) {
       const value = row.getValue(column.id) as string
+      const displayName = `${value.slice(0, 6)}…${value.slice(-4)}`
+
       return (
         <CopyableRecord
           href={`https://etherscan.io/tx/${value}`}
           className="w-full max-w-72 lg:max-w-80 xl:max-w-max"
           value={value}
+          displayValue={<span>{displayName}</span>}
         />
       )
     },
   },
 ]
 
-const RecentActivityTable = ({
-  events,
-}: {
+interface RecentActivityTableProps {
   events: (BaseResolverEvent | BaseRegistrationEvent | BaseDomainEvent)[]
-}) => {
+}
+
+const RecentActivityTable = ({ events }: RecentActivityTableProps) => {
   const {
     data: timestamps,
     isLoading,
@@ -75,7 +78,11 @@ const RecentActivityTable = ({
   return <DataTable data={data} columns={columns} />
 }
 
-export const RecentActivity = ({ name }: { name: string }) => {
+interface RecentActivityProps {
+  name: string
+}
+
+export const RecentActivity = ({ name }: RecentActivityProps) => {
   const {
     data: events,
     isLoading,
@@ -93,7 +100,7 @@ export const RecentActivity = ({ name }: { name: string }) => {
   }
 
   if (!events) {
-    return <div>No data</div>
+    return <div>No recent activity</div>
   }
 
   return (

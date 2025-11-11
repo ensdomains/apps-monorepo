@@ -1,196 +1,246 @@
-import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { ChevronRight, SearchIcon } from 'lucide-react'
-import { useId } from 'react'
+import { createFileRoute } from '@tanstack/react-router'
+import {
+  Clock,
+  Eye,
+  FileText,
+  Grid3x3,
+  PaintRoller,
+  Repeat,
+  UserLock,
+  Users,
+} from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
-import type { Address } from 'viem'
-import { useAccount, useDisconnect, useEnsName } from 'wagmi'
+import {
+  ExampleNameCard,
+  LinkBlock,
+  UpNextItem,
+  WhatsNewItem,
+} from '@/components/homepage'
 import { NavBar } from '@/components/molecules/NavBar'
-import { Button } from '@/components/ui/button'
-import { getNamesForAddressQueryOptions } from '@/features/dashboard/hooks/useNamesForAddress'
+import { HomeSearchInput } from '@/routes/components/HomeSearchInput'
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,
 })
 
-const LinkBlock = ({
-  title,
-  description,
-  href,
-}: {
-  title: string
-  description: string
-  href: string
-}) => (
-  <ExternalLink
-    href={href}
-    className="w-full sm:w-[312px] p-6 rounded-md border border-gray-300 hover:bg-gray-100 duration-150"
-  >
-    <div className="flex flex-row justify-between items-center">
-      <div>
-        <h3 className="font-medium">{title}</h3>
-        <p className="text-sm">{description}</p>
-      </div>
-      <div className="h-8 w-8 p-2 rounded-sm bg-gray-100 flex items-center justify-center">
-        <ChevronRight height={16} width={16} />
-      </div>
-    </div>
-  </ExternalLink>
-)
-
-const ExampleName = ({
-  name,
-  category,
-}: {
-  name: string
-  category: string
-}) => (
-  <Link to="/$name" params={{ name }} className="px-6 py-4">
-    <h4 className="font-mono font-medium">{name}</h4>
-    <p>{category}</p>
-  </Link>
-)
-
-const NameCount = ({ address }: { address: Address }) => {
-  const {
-    data: names,
-    isLoading,
-    error,
-  } = useQuery(getNamesForAddressQueryOptions({ address }))
-
-  if (error) {
-    if (error._tag === 'Wagmi/ClientError')
-      return <div>Error connecting to Ethereum</div>
-    return <div>Error: {error.cause?.message}</div>
-  }
-  if (isLoading) return <div>Loading...</div>
-  return (
-    <div className="flex flex-row justify-between items-center w-full p-6 rounded-lg border border-gray-300 hover:bg-gray-100 duration-150">
-      <div className="flex flex-col w-full">
-        <div className="font-medium text-[26px]">{names?.length}</div>
-        <div className="leading-none">names owned</div>
-      </div>
-      <div className="h-8 w-8 p-2 rounded-sm bg-gray-100 flex items-center justify-center">
-        <ChevronRight height={16} width={16} />
-      </div>
-    </div>
-  )
-}
-
-const ConnectedWithENSName = () => {
-  const { address } = useAccount()
-  const { disconnect } = useDisconnect()
-  const { data: ensName, isLoading, error } = useEnsName({ address })
-
-  if (error)
-    return (
-      <div>
-        Failed to fetch ENS for address {address}: {error.message}
-      </div>
-    )
-
-  if (isLoading) return <div>Loading...</div>
-
-  if (address) {
-    return (
-      <section className="flex flex-col gap-6">
-        <div className="flex flex-row justify-between items-center">
-          <div className="w-full flex flex-row gap-2 items-baseline">
-            {ensName && (
-              <Link to="/$name" params={{ name: ensName }}>
-                <h3 className="text-[28px] font-bold">{ensName}</h3>
-              </Link>
-            )}
-            <span className="font-mono text-gray-500 font-medium">
-              {address?.slice(0, 6)}...{address?.slice(-4)}
-            </span>
-          </div>
-          <Button
-            onClick={() => disconnect()}
-            variant="secondary"
-            className="w-max hover:bg-red-300 hover:text-primary-foreground"
-          >
-            Disconnect
-          </Button>
-        </div>
-        <div className="w-full flex justify-between gap-6 flex-wrap sm:flex-nowrap">
-          <NameCount address={address} />
-        </div>
-      </section>
-    )
-  } else return null
-}
-
 function RouteComponent() {
-  const id = useId()
-
-  const navigate = Route.useNavigate()
-
   return (
     <>
       <NavBar />
-      <main className="mx-auto max-w-5xl py-10 flex flex-col gap-12 p-6">
+      <main className="mx-auto py-10 flex flex-col gap-12 px-6">
         <header className="flex flex-col gap-6">
           <div>
             <h1 className="text-[40px] font-bold">ENS Explorer</h1>
-            <p>The definitive ENS name explorer.</p>
+            <p className="text-gray-600">The definitive ENS name explorer.</p>
           </div>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              const fd = new FormData(e.currentTarget)
-              const search = fd.get('search') as string
-
-              navigate({ from: '/$name', params: { name: search } })
-            }}
-            className="w-full flex flex-row gap-4 items-center border border-border rounded-sm"
-          >
-            <label htmlFor="search" aria-label="Search">
-              <SearchIcon
-                className="text-gray-600 ml-4 w-8"
-                height={32}
-                width={32}
-              />
-            </label>
-            <input
-              name="search"
-              id={id}
-              className="w-full appearance-none border-none outline-none text-2xl p-4 pl-0"
-              placeholder="Search..."
-            />
-          </form>
+          <HomeSearchInput />
         </header>
-        <ConnectedWithENSName />
-        <section className="flex flex-col gap-6">
-          <h2 className="text-2xl font-medium">Learn about ENS development</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-6">
-            <div className="flex flex-row flex-wrap gap-4 w-full">
-              <LinkBlock
-                title="ENS Docs"
-                description="The official documentation."
-                href="https://docs.ens.domains"
-              />
-              <LinkBlock
-                title="Namechain"
-                description="ENSv2 contracts."
-                href="https://github.com/ensdomains/namechain"
-              />
-              <LinkBlock
-                title="Developer Telegram"
-                description="Get help with development."
-                href="https://t.me/ensdomains"
-              />
+
+        <section className="bg-gray-100 border-x-0 border-y border-gray-200 p-8 -mx-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8">
+            <div className="flex flex-col gap-4 items-start">
+              <h2 className="text-2xl font-bold">
+                Welcome to the ENS Explorer Alpha
+              </h2>
+              <p className="text-gray-700">
+                You're using an early version of the new ENS Explorer — our new
+                source of truth for the ENS protocol. This Alpha is in active
+                development, and new features will roll out regularly as we
+                expand functionality.
+              </p>
             </div>
-            <div className="flex flex-col gap-4 w-full sm:w-90">
-              <h3 className="font-medium">Examples</h3>
-              <div className="flex flex-col border border-gray-300 rounded-lg divide-y divide-gray-300">
-                <ExampleName name="vitalik.eth" category="Standard setup" />
-                <ExampleName name="😵💫😵💫😵💫.eth" category="Emojis" />
-                <ExampleName name="öbb.eth" category="Mixed characters" />
+            <div className="flex flex-col gap-3 text-sm">
+              <div>
+                <span className="font-medium text-gray-700 mr-2">
+                  Need an ENSv2 name?
+                </span>
+                <ExternalLink
+                  href="https://app.ens.domains"
+                  className="underline hover:no-underline"
+                >
+                  Register one in the new Manager →
+                </ExternalLink>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700 mr-2">
+                  Deep dive into the new contracts?
+                </span>
+                <ExternalLink
+                  href="https://ens.domains/ensv2"
+                  className="underline hover:no-underline"
+                >
+                  Read the ENSv2 design doc →
+                </ExternalLink>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700 mr-2">
+                  Want to learn more about ENSv2?
+                </span>
+                <ExternalLink
+                  href="https://docs.ens.domains"
+                  className="underline hover:no-underline"
+                >
+                  Visit our info hub →
+                </ExternalLink>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700 mr-2">
+                  Want to share feedback on the Alpha?
+                </span>
+                <ExternalLink
+                  href="https://t.me/ensdomains"
+                  className="underline hover:no-underline"
+                >
+                  Join our Alpha TG group →
+                </ExternalLink>
               </div>
             </div>
           </div>
         </section>
+
+        {/* Connected with ENS component to show name and address */}
+
+        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-12">
+          <section className="flex flex-col gap-6">
+            <h2 className="text-2xl font-bold">ENSv2 name examples</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <ExampleNameCard
+                name="example.eth"
+                description="Name with records on the new Dedicated Resolver"
+              />
+              <ExampleNameCard
+                name="example.eth"
+                description="Name with subnames on the new Registry contract"
+              />
+              <ExampleNameCard
+                name="sub.example.eth"
+                description="Subname on the new Registry contract"
+              />
+              <ExampleNameCard
+                name="example.eth"
+                description="Name with custom Roles created"
+              />
+              <ExampleNameCard
+                name="example.eth"
+                description="Name migrated to ENSv2"
+              />
+              <ExampleNameCard
+                name="example.eth"
+                description="Name with multiple L2 Primary set"
+              />
+            </div>
+          </section>
+
+          <section className="flex flex-col gap-6">
+            <h2 className="text-2xl font-bold">What's new</h2>
+            <div className="flex flex-col gap-4">
+              <WhatsNewItem
+                icon={Clock}
+                to="/$name/history"
+                params={{ name: 'example.eth' }}
+                title="Transaction history"
+                description="View renewals and ownership changes over time."
+              />
+              <WhatsNewItem
+                icon={Repeat}
+                to="/$name/resolver"
+                params={{ name: 'example.eth' }}
+                title="Dedicated resolvers"
+                description="Each name now supports its own resolver."
+              />
+              <WhatsNewItem
+                icon={Users}
+                to="/$name"
+                params={{ name: 'example.eth' }}
+                title="Roles"
+                description="See which accounts hold key permissions."
+              />
+              <WhatsNewItem
+                icon={Grid3x3}
+                to="/addr/$addr/reverse-resolution"
+                params={{
+                  addr: '0xA6362Dcb7Db14C357E788C876eE99e1f982f1115',
+                }}
+                title="L2 Primary Names"
+                description="Set and view primary names on other networks."
+              />
+            </div>
+          </section>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-12">
+          <section className="flex flex-col gap-6">
+            <h2 className="text-2xl font-bold">Learn about ENS development</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <LinkBlock
+                title="ENS Docs"
+                description="Official docs for ENS and its integrations."
+                href="https://docs.ens.domains"
+              />
+              <LinkBlock
+                title="ENS Contracts"
+                description="View core ENS smart contracts."
+                href="https://github.com/ensdomains/ens-contracts"
+              />
+              <LinkBlock
+                title="CCIP Read"
+                description="How ENS resolves data across chains."
+                href="https://eips.ethereum.org/EIPS/eip-3668"
+              />
+              <LinkBlock
+                title="ENSv2 Design Doc"
+                description="Architecture overview of ENSv2 and Namechain."
+                href="https://docs.ens.domains/ensv2"
+              />
+              <LinkBlock
+                title="Unruggable Gateway"
+                description="Censorship-resistant ENS resolution."
+                href="https://github.com/ensdomains/evmgateway"
+              />
+              <LinkBlock
+                title="Developer Telegram"
+                description="Join the ENS dev chat."
+                href="https://t.me/ensdomains"
+              />
+            </div>
+          </section>
+
+          <section className="flex flex-col gap-6">
+            <h2 className="text-2xl font-bold">Up next in Alpha</h2>
+            <div className="flex flex-col gap-4">
+              <UpNextItem
+                icon={Grid3x3}
+                title="Managing names"
+                description="Browse, filter, organize and manage ENS names in one place."
+                status="Up next"
+              />
+              <UpNextItem
+                icon={FileText}
+                title="Advanced record editing"
+                description="Edit and manage your records with higher precision."
+                status="In progress"
+              />
+              <UpNextItem
+                icon={Eye}
+                title="Deep name info"
+                description="Drill into registration data, expiry, and contract state for any name."
+                status="In progress"
+              />
+              <UpNextItem
+                icon={UserLock}
+                title="Ownership control"
+                description="See who owns a name, how it's controlled, and when it changes hands."
+                status="In progress"
+              />
+              <UpNextItem
+                icon={PaintRoller}
+                title="High fidelity redesign"
+                description="A visual refresh for clarity, functionality, and beauty."
+                status="Coming soon"
+              />
+            </div>
+          </section>
+        </div>
       </main>
     </>
   )

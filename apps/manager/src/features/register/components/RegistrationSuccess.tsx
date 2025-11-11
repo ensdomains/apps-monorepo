@@ -8,10 +8,10 @@ interface RegistrationSuccessProps {
   onSetupAutorenewal: () => void
 }
 
-export function RegistrationSuccess({
+export const RegistrationSuccess = ({
   domainName,
   onSetupAutorenewal,
-}: RegistrationSuccessProps) {
+}: RegistrationSuccessProps) => {
   React.useEffect(() => {
     // Auto-transition to autorenewal after 3 seconds
     const timer = setTimeout(() => {

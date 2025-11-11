@@ -5,24 +5,30 @@ import {
   injectedWallet,
   metaMaskWallet,
 } from '@rainbow-me/rainbowkit/wallets'
-import { createClient, type HttpTransport, http } from 'viem'
-import { mainnet } from 'viem/chains'
+import { createClient, http } from 'viem'
+import {
+  arbitrumSepolia,
+  baseSepolia,
+  lineaSepolia,
+  optimismSepolia,
+  scrollSepolia,
+  sepolia,
+} from 'viem/chains'
 import { createConfig } from 'wagmi'
 
-const mainnetWithEns = extendChainWithEns(mainnet)
+export const sepoliaWithEns = extendChainWithEns(sepolia)
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: false,
   multiInjectedProviderDiscovery: true,
   chains: [
-    {
-      ...mainnetWithEns,
-      subgraphs: {
-        ...mainnetWithEns.subgraphs,
-        ens: { url: 'https://api.alpha.blue.ensnode.io/subgraph' },
-      },
-    },
+    sepoliaWithEns,
+    optimismSepolia,
+    arbitrumSepolia,
+    baseSepolia,
+    lineaSepolia,
+    scrollSepolia,
   ],
   connectors: connectorsForWallets(
     [
@@ -33,12 +39,13 @@ export const wagmiConfig = createConfig({
     ],
     { projectId: 'YOUR_PROJECT_ID', appName: 'demo' },
   ),
-  client: ({ chain }) => {
-    return createClient<HttpTransport, typeof chain>({
+  client: ({ chain }) =>
+    createClient({
       chain,
-      transport: http(),
-    })
-  },
+      transport: http(
+        `https://lb.drpc.live/${chain.name.toLowerCase()}/AgBISc2US0WgjMYhz9MRMJbJzb3Frm0R8LnzQrxF2MGT`,
+      ),
+    }),
 })
 
 export type ClientType = ReturnType<typeof wagmiConfig.getClient>

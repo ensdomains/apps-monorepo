@@ -9,11 +9,11 @@ interface PaymentInProgressProps {
   onPaymentSuccess: () => void
 }
 
-export function PaymentInProgress({
+export const PaymentInProgress = ({
   domainName,
   selectedCrypto = 'USDC',
   onPaymentSuccess,
-}: PaymentInProgressProps) {
+}: PaymentInProgressProps) => {
   React.useEffect(() => {
     // Mock contract call - simulate payment processing
     const processPayment = async () => {

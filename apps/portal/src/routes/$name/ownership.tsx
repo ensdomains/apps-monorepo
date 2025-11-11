@@ -1,8 +1,6 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import type { Address } from 'viem/accounts'
-import { mainnet } from 'viem/chains'
 import { useEnsName } from 'wagmi'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { NameHistory } from '@/components/organisms/NameHistory/NameHistory'
@@ -13,13 +11,13 @@ export const Route = createFileRoute('/$name/ownership')({
   component: RouteComponent,
 })
 
-const OwnerDisplay = ({ owner }: { owner: Address }) => {
+interface OwnerDisplayProps {
+  owner: Address
+}
+
+const OwnerDisplay = ({ owner }: OwnerDisplayProps) => {
   const { data: ensName, isLoading } = useEnsName({
     address: owner,
-    universalResolverAddress: getChainContractAddress({
-      chain: mainnet,
-      contract: 'ensUniversalResolver',
-    }),
   })
 
   if (isLoading) return <div>Loading...</div>
@@ -36,7 +34,11 @@ const OwnerDisplay = ({ owner }: { owner: Address }) => {
   }
 }
 
-const OwnerInfo = ({ name }: { name: string }) => {
+interface OwnerInfoProps {
+  name: string
+}
+
+const OwnerInfo = ({ name }: OwnerInfoProps) => {
   const { data, isLoading, error } = useQuery(getEnsOwnerQueryOptions({ name }))
 
   if (isLoading) return <div>Loading...</div>
@@ -58,7 +60,11 @@ const OwnerInfo = ({ name }: { name: string }) => {
   )
 }
 
-const ParentInfo = ({ name }: { name: string }) => {
+interface ParentInfoProps {
+  name: string
+}
+
+const ParentInfo = ({ name }: ParentInfoProps) => {
   const parent = parentName(name)
 
   return (

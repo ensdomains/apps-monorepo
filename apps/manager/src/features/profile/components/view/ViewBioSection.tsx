@@ -19,7 +19,11 @@ interface ViewBioSectionProps {
   records: ProfileRecords
 }
 
-const ContactItem = ({ record }: { record: TextRecordValue }) => {
+interface ContactItemProps {
+  record: TextRecordValue
+}
+
+const ContactItem = ({ record }: ContactItemProps) => {
   const recordDef = getRecordDef(record.key)
   const displayValue = getRecordDisplayValue(recordDef, record.value || '')
   const href = getRecordHref(recordDef, displayValue)

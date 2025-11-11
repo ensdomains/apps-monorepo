@@ -12,15 +12,20 @@ import {
 import {
   FileInputIcon,
   PencilLineIcon,
-  SearchIcon,
+  Search,
   TrashIcon,
   XIcon,
 } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
-import { columns } from '@/components/organisms/RecordsTable/columns'
-import { RecordsTable } from '@/components/organisms/RecordsTable/RecordsTable'
 import { Button } from '@/components/ui/button'
-import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group'
+import { columns } from '@/features/records/components/RecordsTable/columns'
+import { RecordsTable } from '@/features/records/components/RecordsTable/RecordsTable'
+import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
 export const RecordList = ({
@@ -74,7 +79,7 @@ export const RecordList = ({
           {canEditRecords && (
             <Link from="/$name/records" search={{ view: 'edit' }}>
               <Button variant="secondary" disabled={rowCount > 0} type="button">
-                <PencilLineIcon height={24} width={24} />
+                <PencilLineIcon className="size-6" />
                 Records
               </Button>
             </Link>
@@ -88,34 +93,34 @@ export const RecordList = ({
                 className="cursor-pointer"
                 onClick={() => setRowSelection({})}
               >
-                <XIcon height={24} width={24} />
+                <XIcon className="size-6" />
               </button>
               {rowCount} selected
             </span>
             <div className="flex flex-row gap-2">
               <Button variant="secondary">
-                <PencilLineIcon height={24} width={24} /> Edit
+                <PencilLineIcon className="size-6" /> Edit
               </Button>
               <Button variant="secondary">
-                <FileInputIcon height={24} width={24} /> Export
+                <FileInputIcon className="size-6" /> Export
               </Button>
               <Button variant="secondary">
-                <TrashIcon height={24} width={24} /> Delete
+                <TrashIcon className="size-6" /> Delete
               </Button>
             </div>
           </div>
         ) : (
-          <div className="flex flex-row gap-2 w-full bg-white  rounded-sm p-2 h-10">
-            <label htmlFor={searchRecordsId} aria-label="Search records">
-              <SearchIcon />
-            </label>
-            <input
+          <InputGroup className="bg-white rounded-sm">
+            <InputGroupInput
               id={searchRecordsId}
-              className="w-full "
+              className="w-full"
               placeholder="Search records..."
               onChange={(event) => table.setGlobalFilter(event.target.value)}
             />
-          </div>
+            <InputGroupAddon>
+              <Search />
+            </InputGroupAddon>
+          </InputGroup>
         )}
       </header>
       <RecordsTable
