@@ -1,4 +1,5 @@
 import { useTheme } from '@/hooks/use-theme'
+import { cn } from '@/lib/utils'
 
 export const ThemeToggle = () => {
   const { theme, toggleTheme } = useTheme()
@@ -13,9 +14,10 @@ export const ThemeToggle = () => {
       <div className="relative h-6 w-6">
         {/* Sun Icon */}
         <svg
-          className={`absolute inset-0 h-6 w-6 transition-all duration-300 ${
-            theme === 'light' ? 'rotate-0 scale-100' : 'rotate-90 scale-0'
-          }`}
+          className={cn(
+            'absolute inset-0 h-6 w-6 transition-all duration-300',
+            theme === 'light' ? 'rotate-0 scale-100' : 'rotate-90 scale-0',
+          )}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -32,9 +34,10 @@ export const ThemeToggle = () => {
 
         {/* Moon Icon */}
         <svg
-          className={`absolute inset-0 h-6 w-6 transition-all duration-300 ${
-            theme === 'dark' ? 'rotate-0 scale-100' : '-rotate-90 scale-0'
-          }`}
+          className={cn(
+            'absolute inset-0 h-6 w-6 transition-all duration-300',
+            theme === 'dark' ? 'rotate-0 scale-100' : '-rotate-90 scale-0',
+          )}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

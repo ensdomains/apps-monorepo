@@ -4,7 +4,11 @@ import type { Address } from 'viem/accounts'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { getNamesForAddressQueryOptions } from '../hooks/useNamesForAddress'
 
-export const NameCount = ({ address }: { address: Address }) => {
+interface NameCountProps {
+  address: Address
+}
+
+export const NameCount = ({ address }: NameCountProps) => {
   const {
     data: names,
     isLoading,

@@ -15,7 +15,11 @@ export const Route = createFileRoute('/addr/$addr/')({
   notFoundComponent: () => <NotFoundMessage />,
 })
 
-const PrimaryName = ({ addr }: { addr: Address }) => {
+interface PrimaryNameProps {
+  addr: Address
+}
+
+const PrimaryName = ({ addr }: PrimaryNameProps) => {
   const {
     data: name,
     isLoading,

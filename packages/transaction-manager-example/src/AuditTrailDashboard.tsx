@@ -6,7 +6,7 @@ import * as auditTrail from '@ens-apps/transaction-manager'
 import type React from 'react'
 import { useEffect, useState } from 'react'
 
-export function AuditTrailDashboard() {
+export const AuditTrailDashboard = () => {
   const [history, setHistory] = useState<StateTransition[]>([])
   const [report, setReport] = useState<DebugReport | null>(null)
   const [autoRefresh, setAutoRefresh] = useState(false)

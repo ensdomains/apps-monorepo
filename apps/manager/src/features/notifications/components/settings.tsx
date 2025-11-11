@@ -40,7 +40,7 @@ const NOTIFICATION_OPTIONS: {
 
 export const NotificationSettings = () => {
   return (
-    <div className="">
+    <div>
       <h1 className="font-normal text-2xl">Notification Settings</h1>
       <p>
         Manage your notification preferences for your name(s) and ENS-related

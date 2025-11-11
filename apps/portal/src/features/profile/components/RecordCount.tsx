@@ -6,7 +6,11 @@ import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 import { getProfileQueryOptions } from '../hooks/useProfile'
 
-export const RecordCount = ({ name }: { name: string }) => {
+interface RecordCountProps {
+  name: string
+}
+
+export const RecordCount = ({ name }: RecordCountProps) => {
   const { data, isLoading, error } = useQuery(getProfileQueryOptions(name))
 
   const recordCount = useMemo(() => {

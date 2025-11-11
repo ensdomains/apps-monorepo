@@ -20,13 +20,15 @@ import { filterRecordHistoryByRecord } from '@/utils/subgraph/filterRecordHistor
 import { recordTypeToSubgraphKey } from '@/utils/subgraph/recordTypeToSubgraphKey'
 import type { NameRecord } from './RecordsTable/columns'
 
+interface AddressRecordValueProps {
+  record: Extract<NameRecord, { type: 'address' }>
+  canEditRecords?: boolean
+}
+
 const AddressRecordValue = ({
   record,
   canEditRecords,
-}: {
-  record: Extract<NameRecord, { type: 'address' }>
-  canEditRecords?: boolean
-}) => {
+}: AddressRecordValueProps) => {
   return (
     <div className="flex flex-row gap-4 p-6 border border-gray-200 rounded-lg w-full items-end">
       <div className="flex flex-col gap-1">
@@ -60,13 +62,12 @@ const AddressRecordValue = ({
   )
 }
 
-const TextRecordValue = ({
-  record,
-  canEditRecords,
-}: {
+interface TextRecordValueProps {
   record: Extract<NameRecord, { type: 'text' }>
   canEditRecords?: boolean
-}) => {
+}
+
+const TextRecordValue = ({ record, canEditRecords }: TextRecordValueProps) => {
   return (
     <div className="flex flex-row gap-4 p-6 border border-gray-200 rounded-lg w-full items-end">
       <div className="flex flex-col gap-1 w-full">
@@ -87,13 +88,15 @@ const TextRecordValue = ({
   )
 }
 
+interface ContentHashValueProps {
+  record: Extract<NameRecord, { type: 'contentHash' }>
+  canEditRecords?: boolean
+}
+
 const ContentHashValue = ({
   record,
   canEditRecords,
-}: {
-  record: Extract<NameRecord, { type: 'contentHash' }>
-  canEditRecords?: boolean
-}) => {
+}: ContentHashValueProps) => {
   return (
     <div className="flex flex-row gap-4 p-6 border border-gray-200 rounded-lg w-full items-end">
       <div className="flex flex-col gap-1 w-full">
@@ -114,13 +117,15 @@ const ContentHashValue = ({
   )
 }
 
+interface UnderlyingResolverProps {
+  resolverAddress: Address
+  name: string
+}
+
 const UnderlyingResolver = ({
   resolverAddress,
   name,
-}: {
-  resolverAddress: Address
-  name: string
-}) => {
+}: UnderlyingResolverProps) => {
   const { data, error, isLoading } = useQuery(
     getUnderlyingAddressQueryOptions({ resolverAddress, name }),
   )
@@ -151,7 +156,11 @@ const UnderlyingResolver = ({
   )
 }
 
-const ResolverView = ({ name }: { name: string }) => {
+interface ResolverViewProps {
+  name: string
+}
+
+const ResolverView = ({ name }: ResolverViewProps) => {
   const {
     data: resolverAddress,
     error,
@@ -210,13 +219,12 @@ const columns: ColumnDef<ReturnResolverEvent>[] = [
   },
 ]
 
-const HistoryView = ({
-  name,
-  record,
-}: {
+interface HistoryViewProps {
   name: string
   record: NameRecord
-}) => {
+}
+
+const HistoryView = ({ name, record }: HistoryViewProps) => {
   const {
     data: history,
     isLoading,
@@ -245,13 +253,15 @@ const HistoryView = ({
   )
 }
 
+interface RecordDetailsViewProps {
+  record: NameRecord
+  canEditRecords?: boolean
+}
+
 const RecordDetailsView = ({
   record,
   canEditRecords,
-}: {
-  record: NameRecord
-  canEditRecords?: boolean
-}) => {
+}: RecordDetailsViewProps) => {
   switch (record.type) {
     case 'address':
       return <AddressRecordValue {...{ record, canEditRecords }} />
@@ -264,13 +274,12 @@ const RecordDetailsView = ({
   }
 }
 
-export const RecordDetails = ({
-  record,
-  name,
-}: {
+interface RecordDetailsProps {
   record: NameRecord
   name: string
-}) => {
+}
+
+export const RecordDetails = ({ record, name }: RecordDetailsProps) => {
   const { data: canEditRecords } = useCanEditRecords({ name })
 
   return (

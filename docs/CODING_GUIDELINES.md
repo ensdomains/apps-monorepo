@@ -353,6 +353,19 @@ auditTrail.recordTransition(transition)
 - Complex object hierarchies with inheritance
 - Encapsulation with private state that truly benefits from OOP
 
+## Component Props
+
+- Use arrow functions for React components: `export const Component = (props) => { ... }`.
+- Use a named props interface per component: `<ComponentName>Props`.
+- Define it next to the component; export only if reused elsewhere.
+
+Example:
+
+```tsx
+interface NameCountProps { address: Address }
+export const NameCount = ({ address }: NameCountProps) => { /* ... */ }
+```
+
 ## Summary
 
 **Golden Rules:**

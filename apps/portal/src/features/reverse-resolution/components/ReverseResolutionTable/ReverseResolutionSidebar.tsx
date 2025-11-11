@@ -35,13 +35,12 @@ import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
 import { useReverseResolutionMutations } from './hooks/useReverseResolutionMutations'
 import { useSwitchToRequiredNetwork } from './hooks/useSwitchToRequiredNetwork'
 
-const AddressHistory = ({
-  history,
-  name,
-}: {
+interface AddressHistoryProps {
   history: ReturnResolverEvent[]
   name: string
-}) => {
+}
+
+const AddressHistory = ({ history, name }: AddressHistoryProps) => {
   const {
     data: timestamps,
     isLoading,
@@ -76,7 +75,11 @@ const AddressHistory = ({
   )
 }
 
-const HistoryView = ({ name }: { name: string }) => {
+interface HistoryViewProps {
+  name: string
+}
+
+const HistoryView = ({ name }: HistoryViewProps) => {
   const {
     data: history,
     isLoading,
@@ -101,14 +104,20 @@ const HistoryView = ({ name }: { name: string }) => {
   return <AddressHistory history={history} name={name} />
 }
 
-export const ReverseResolutionSidebar: FC<
-  PropsWithChildren<{
-    row: Row<ReverseResolutionResult> | null
-    address: Address
-    open: boolean
-    setOpen: React.Dispatch<React.SetStateAction<boolean>>
-  }>
-> = ({ children, row, address, open, setOpen }) => {
+interface ReverseResolutionSidebarProps extends PropsWithChildren {
+  row: Row<ReverseResolutionResult> | null
+  address: Address
+  open: boolean
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>
+}
+
+export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
+  children,
+  row,
+  address,
+  open,
+  setOpen,
+}) => {
   const isMobile = useIsMobile()
 
   const {

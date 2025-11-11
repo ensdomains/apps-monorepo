@@ -14,7 +14,11 @@ export const Route = createFileRoute('/$name/ownership')({
   notFoundComponent: () => <NotFoundMessage />,
 })
 
-const OwnerDisplay = ({ owner }: { owner: Address }) => {
+interface OwnerDisplayProps {
+  owner: Address
+}
+
+const OwnerDisplay = ({ owner }: OwnerDisplayProps) => {
   const { data: ensName, isLoading } = useEnsName({
     address: owner,
   })
@@ -33,7 +37,11 @@ const OwnerDisplay = ({ owner }: { owner: Address }) => {
   }
 }
 
-const OwnerInfo = ({ name }: { name: string }) => {
+interface OwnerInfoProps {
+  name: string
+}
+
+const OwnerInfo = ({ name }: OwnerInfoProps) => {
   const { data, isLoading, error } = useQuery(getEnsOwnerQueryOptions({ name }))
 
   if (isLoading) return <LoadingSpinner title="Loading owner" />
@@ -55,7 +63,11 @@ const OwnerInfo = ({ name }: { name: string }) => {
   )
 }
 
-const ParentInfo = ({ name }: { name: string }) => {
+interface ParentInfoProps {
+  name: string
+}
+
+const ParentInfo = ({ name }: ParentInfoProps) => {
   const parent = parentName(name)
 
   return (

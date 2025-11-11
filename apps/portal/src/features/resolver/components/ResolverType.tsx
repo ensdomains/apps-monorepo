@@ -5,7 +5,11 @@ import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 
-const InterfaceCheck = ({ resolverAddress }: { resolverAddress: Address }) => {
+interface InterfaceCheckProps {
+  resolverAddress: Address
+}
+
+const InterfaceCheck = ({ resolverAddress }: InterfaceCheckProps) => {
   const {
     data: supportsInterfaces,
     isLoading,
@@ -37,11 +41,11 @@ const InterfaceCheck = ({ resolverAddress }: { resolverAddress: Address }) => {
   }
 }
 
-export const ResolverType = ({
-  resolverAddress,
-}: {
+interface ResolverTypeProps {
   resolverAddress: Address
-}) => {
+}
+
+export const ResolverType = ({ resolverAddress }: ResolverTypeProps) => {
   // TODO: temp hardcoded PublicResolver address
   if (resolverAddress === '0x0e14eE0592da66Bb4c8a8090066BC8A5Af15f3E6') {
     return (

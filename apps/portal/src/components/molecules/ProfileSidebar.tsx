@@ -61,7 +61,11 @@ const itemGroups = [
   ],
 ] as const
 
-export const ProfileSidebar = ({ name }: { name: string }) => {
+interface ProfileSidebarProps {
+  name: string
+}
+
+export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
   return (
     <Sidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!">
       <SidebarHeader>

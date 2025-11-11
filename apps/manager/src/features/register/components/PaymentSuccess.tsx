@@ -11,10 +11,10 @@ interface PaymentSuccessProps {
   onComplete: () => void
 }
 
-export function PaymentSuccess({
+export const PaymentSuccess = ({
   domainName: _domainName,
   onComplete,
-}: PaymentSuccessProps) {
+}: PaymentSuccessProps) => {
   const [email, setEmail] = useState('')
   const [nameExpiryReminders, setNameExpiryReminders] = useState(true)
 
