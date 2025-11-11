@@ -27,6 +27,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useMediaQuery } from '@/hooks/use-media-query'
+import { cn } from '@/lib/utils'
 
 interface RegisterDrawerProps {
   children: React.ReactNode
@@ -183,11 +184,12 @@ export function RegisterDrawer({
                 key={wallet.id}
                 type="button"
                 onClick={() => handleWalletSelect(wallet.id)}
-                className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-all ${
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-all',
                   selectedWallet === wallet.id
                     ? 'border-blue-500'
-                    : 'border-border hover:border-blue-300'
-                }`}
+                    : 'border-border hover:border-blue-300',
+                )}
               >
                 <span className="text-lg">{wallet.icon}</span>
                 <span className="font-medium">{wallet.name}</span>

@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 import { CreditCardPaymentDrawer, CryptoPaymentDrawer } from './PaymentDrawer'
 import { RegisterDrawer } from './RegisterDrawer'
 
@@ -154,11 +155,12 @@ export const Pricing = ({
                   key={yearOption.years}
                   type="button"
                   onClick={() => onSetDuration(yearOption.years)}
-                  className={`relative rounded-lg border p-4 text-left transition-colors ${
+                  className={cn(
+                    'relative rounded-lg border p-4 text-left transition-colors',
                     duration === yearOption.years
                       ? 'border-primary bg-primary/5 text-primary'
-                      : 'border-border bg-card hover:border-muted-foreground'
-                  }`}
+                      : 'border-border bg-card hover:border-muted-foreground',
+                  )}
                 >
                   <div className="font-medium">
                     {yearOption.years} year{yearOption.years > 1 ? 's' : ''}
@@ -244,22 +246,24 @@ export const Pricing = ({
             <button
               type="button"
               onClick={() => onSetCurrency('USD')}
-              className={`px-3 py-1 font-medium text-sm transition-colors ${
+              className={cn(
+                'rounded-l-md px-3 py-1 font-medium text-sm transition-colors',
                 currencyType === 'USD'
                   ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
             >
               USD
             </button>
             <button
               type="button"
               onClick={() => onSetCurrency('ETH')}
-              className={`px-3 py-1 font-medium text-sm transition-colors ${
+              className={cn(
+                'rounded-r-md px-3 py-1 font-medium text-sm transition-colors',
                 currencyType === 'ETH'
                   ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
             >
               ETH
             </button>
@@ -303,9 +307,10 @@ export const Pricing = ({
                   Price breakdown
                 </span>
                 <ChevronDownIcon
-                  className={`h-4 w-4 text-muted-foreground transition-transform ${
-                    isBreakdownOpen ? 'rotate-180' : ''
-                  }`}
+                  className={cn(
+                    'h-4 w-4 text-muted-foreground transition-transform',
+                    isBreakdownOpen && 'rotate-180',
+                  )}
                 />
               </Button>
             </CollapsibleTrigger>

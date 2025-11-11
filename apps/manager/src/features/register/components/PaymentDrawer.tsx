@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
 import { useMediaQuery } from '@/hooks/use-media-query'
+import { cn } from '@/lib/utils'
 
 interface PaymentDrawerProps {
   domainName?: string
@@ -202,11 +203,12 @@ export function CryptoPaymentDrawer({
                   {coin.balance}
                 </span>
                 <div
-                  className={`h-4 w-4 rounded-full border-2 ${
+                  className={cn(
+                    'h-4 w-4 rounded-full border-2',
                     selectedCoin === coin.id
                       ? 'border-blue-500 bg-blue-500'
-                      : 'border-gray-300'
-                  }`}
+                      : 'border-gray-300',
+                  )}
                 >
                   {selectedCoin === coin.id && (
                     <div className="h-full w-full rounded-full bg-blue-500"></div>
