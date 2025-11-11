@@ -10,6 +10,9 @@ import {
 import { Search } from 'lucide-react'
 import { useId, useState } from 'react'
 import type { Address } from 'viem'
+import { InvalidNameMessage } from '@/components/molecules/InvalidNameMessage'
+import { LoadingMessage } from '@/components/molecules/LoadingMessage'
+import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
 import {
   InputGroup,
   InputGroupAddon,
@@ -22,6 +25,7 @@ import { getReverseResolutionQueryOptions } from '@/features/reverse-resolution/
 
 export const Route = createFileRoute('/addr/$addr/reverse-resolution')({
   component: RouteComponent,
+  notFoundComponent: () => <NotFoundMessage />,
 })
 
 function RouteComponent() {
@@ -50,8 +54,29 @@ function RouteComponent() {
 
   const searchId = useId()
 
-  if (isLoading) return <div>Loading...</div>
-  if (error) return <div>Error: {error.cause?.message}</div>
+  if (isLoading) return <LoadingMessage />
+  if (error)
+    return (
+      <InvalidNameMessage
+        title="Error loading reverse resolution"
+        description={
+          <>
+            {error.cause?.message ||
+              error.message ||
+              'An error occurred while loading reverse resolution data.'}
+            <br />
+            You can search for a name or address, or{' '}
+            <a
+              href="https://docs.ens.domains"
+              className="underline decoration-dotted"
+            >
+              visit our support
+            </a>{' '}
+            for further help.
+          </>
+        }
+      />
+    )
 
   if (!data) return <div>No data</div>
 

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
 import { useMemo } from 'react'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 import { getProfileQueryOptions } from '../hooks/useProfile'
 
@@ -14,7 +15,7 @@ export const RecordCount = ({ name }: { name: string }) => {
   }, [data])
 
   if (error) return <div>Error: {error.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!data) return null
 

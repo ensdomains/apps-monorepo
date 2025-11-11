@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { CalendarIcon, ClockIcon } from 'lucide-react'
 import { useBlock } from 'wagmi'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { Label } from '@/components/ui/label'
 import { getExpiryQueryOptions } from '../hooks/useExpiryData'
 import { getNameHistoryQueryOptions } from '../hooks/useNameHistory'
@@ -9,7 +10,7 @@ const Expiry = ({ name }: { name: string }) => {
   const { data, isLoading, error } = useQuery(getExpiryQueryOptions({ name }))
 
   if (error) return <div>Error: {error.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!data) return <div>No expiry data</div>
 
@@ -32,7 +33,7 @@ const RegistrationDate = ({ event }: { event: { blockNumber: number } }) => {
   })
 
   if (error) return <div>Error: {error.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!data) return null
 
@@ -45,7 +46,7 @@ const RegistrationData = ({ name }: { name: string }) => {
   )
 
   if (error) return <div>Error: {error.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!data?.registrationEvents) return <div>No registration data</div>
 

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { FocusIcon } from 'lucide-react'
 import type { Address } from 'viem/accounts'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 
@@ -16,7 +17,7 @@ const InterfaceCheck = ({ resolverAddress }: { resolverAddress: Address }) => {
     }),
   )
 
-  if (isLoading) return 'Loading...'
+  if (isLoading) <LoadingSpinner title="Loading..." />
 
   if (error) return <>{error.cause?.message}</>
 

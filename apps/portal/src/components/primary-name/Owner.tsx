@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { sepolia } from 'viem/chains'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { CopyableRecord } from '../molecules/CopyableRecord'
 
@@ -9,7 +10,7 @@ export const Owner = ({ name }: { name: string }) => {
   const { data, error, isLoading } = useQuery(getEnsOwnerQueryOptions({ name }))
 
   if (error) return <div>Error: {error.cause?.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
   if (!data) return null
 
   return (

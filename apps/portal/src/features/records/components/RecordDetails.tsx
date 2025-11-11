@@ -7,6 +7,7 @@ import { zeroAddress } from 'viem'
 import type { Address } from 'viem/accounts'
 import { useEnsResolver } from 'wagmi'
 import { DataTable } from '@/components/molecules/DataTable/DataTable'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { ResolverField } from '@/components/resolver/ResolverField'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -125,7 +126,7 @@ const UnderlyingResolver = ({
   )
 
   if (error) return <div>Error: ${error.cause?.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!data || data[0] === zeroAddress) {
     return (
@@ -159,7 +160,7 @@ const ResolverView = ({ name }: { name: string }) => {
     name,
   })
 
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
   if (error) return <div>Error: {error.message}</div>
   if (!resolverAddress) return <div>No data</div>
 
@@ -231,7 +232,7 @@ const HistoryView = ({
     return <div>History Error: {error.cause?.message || error.message}</div>
   }
 
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   return (
     <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg overflow-y-scroll">

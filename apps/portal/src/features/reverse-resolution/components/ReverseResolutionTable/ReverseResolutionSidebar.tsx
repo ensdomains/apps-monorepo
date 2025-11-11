@@ -14,6 +14,7 @@ import {
 import type { Address, Hash } from 'viem'
 import { useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -50,7 +51,7 @@ const AddressHistory = ({
   })
 
   if (error) return <div>Error loading timestamps: {error.cause?.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   const data = groupEventsByTransactionId(
     history.map((item) => ({
@@ -186,7 +187,7 @@ export const ReverseResolutionSidebar: FC<
     setForwardHash(undefined)
     setIsWritingReverse(false)
     setIsWritingForward(false)
-  }, [row, open])
+  }, [])
 
   useEffect(() => {
     if (isReverseSuccess || isForwardSuccess) {

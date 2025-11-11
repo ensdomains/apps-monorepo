@@ -3,6 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { WagmiProvider } from 'wagmi'
+import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
 import { wagmiConfig } from '@/lib/wagmi'
 import { queryClient } from '@/utils/queryClient'
 
@@ -22,4 +23,5 @@ export const Route = createRootRoute({
       </>
     )
   },
+  notFoundComponent: () => <NotFoundMessage />,
 })
