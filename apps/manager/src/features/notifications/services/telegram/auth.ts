@@ -2,10 +2,13 @@ import type { TelegramAuthData, TelegramLoginOptions } from './types'
 
 const TELEGRAM_ORIGIN = 'https://oauth.telegram.org'
 
-export const TELEGRAM_BOT_ID = import.meta.env.VITE_TELEGRAM_BOT_ID as string
+export const TELEGRAM_BOT_ID: string | undefined =
+  import.meta.env.VITE_TELEGRAM_BOT_ID || undefined
 
 if (!TELEGRAM_BOT_ID) {
-  throw new Error('TELEGRAM_BOT_ID is not set')
+  console.error(
+    'TELEGRAM_BOT_ID is not set, telegram authentication will not work',
+  )
 }
 
 /**
@@ -15,6 +18,12 @@ if (!TELEGRAM_BOT_ID) {
 export async function loginWithTelegramPopup(
   options: TelegramLoginOptions,
 ): Promise<TelegramAuthData> {
+  if (!TELEGRAM_BOT_ID) {
+    throw new Error(
+      'TELEGRAM_BOT_ID is not set, telegram authentication will not work',
+    )
+  }
+
   const { botId = TELEGRAM_BOT_ID, requestAccess, lang } = options
 
   const origin = window.location.origin
