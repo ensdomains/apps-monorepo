@@ -19,5 +19,4 @@ export const usersRelations = relations(users, ({ many }) => ({
   favorites: many(favorites),
   notifications: many(notifications),
   userChannels: many(userChannels),
-  
 }))

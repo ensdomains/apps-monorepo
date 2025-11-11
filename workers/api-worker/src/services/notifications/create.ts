@@ -4,21 +4,16 @@ import {
   TaggedError,
 } from '@ens-apps/utils/neverthrow'
 import { and, eq, inArray } from 'drizzle-orm'
-import { err, ok } from 'neverthrow'
+import { ok } from 'neverthrow'
 import { v7 as uuidv7 } from 'uuid'
 import {
-  channelSupportsNotification,
   type ChannelType,
+  channelSupportsNotification,
   type NotificationKind,
   type NotificationPayloads,
 } from '#config/notifications.js'
 import { type Database, intoDbResult, TABLE } from '#core/database/index.js'
-import type {
-  BaseDeliveryJob,
-  EmailDeliveryJob,
-  TelegramDeliveryJob,
-} from '#types/delivery.js'
-import { AnyUserNotificationPayload } from '#types/notifications.js'
+import type { BaseDeliveryJob } from '#types/delivery.js'
 import { chunk } from '#utils/chunk.js'
 import { logger } from '#utils/logger.js'
 
@@ -35,11 +30,12 @@ import { logger } from '#utils/logger.js'
  * 3. Add an entry here mapping channel -> queue binding name
  * 4. Add the queue handler in queues/index.ts
  */
-const CHANNEL_TO_QUEUE: Partial<Record<ChannelType, keyof CloudflareBindings>> = {
-  telegram: 'TELEGRAM_QUEUE',
-  email: 'EMAIL_QUEUE',
-  // push: 'PUSH_QUEUE', // Uncomment when push queue is implemented
-} as const
+const CHANNEL_TO_QUEUE: Partial<Record<ChannelType, keyof CloudflareBindings>> =
+  {
+    telegram: 'TELEGRAM_QUEUE',
+    email: 'EMAIL_QUEUE',
+    // push: 'PUSH_QUEUE', // Uncomment when push queue is implemented
+  } as const
 
 /**
  * Gets the queue for a given channel type.
@@ -244,17 +240,15 @@ export const createBatchNotifications = ResultFn(async function* <
 
   // Batch insert all notifications in a single database query
   yield* intoDbResult(
-    ctx.db
-      .insert(TABLE.notifications)
-      .values(
-        notificationsWithIds.map((notification) => ({
-          id: notification.id,
-          user_id: notification.userId,
-          kind: notification.kind,
-          payload: notification.payload,
-          idempotency_key: notification.idempotencyKey,
-        })),
-      ),
+    ctx.db.insert(TABLE.notifications).values(
+      notificationsWithIds.map((notification) => ({
+        id: notification.id,
+        user_id: notification.userId,
+        kind: notification.kind,
+        payload: notification.payload,
+        idempotency_key: notification.idempotencyKey,
+      })),
+    ),
   )
 
   // Extract unique user IDs to fetch channels and preferences in batch
@@ -282,7 +276,10 @@ export const createBatchNotifications = ResultFn(async function* <
 
   // Group channels by userId for efficient lookup
   // Map.groupBy creates a Map<userId, Channel[]> structure
-  const channelsByUserId = Map.groupBy(allChannels, (channel) => channel.user_id)
+  const channelsByUserId = Map.groupBy(
+    allChannels,
+    (channel) => channel.user_id,
+  )
 
   // Batch fetch all notification preferences for all users and this notification kind
   // Using ctx.kind ensures all notifications in the batch are the same kind
@@ -403,7 +400,7 @@ export const createBatchNotifications = ResultFn(async function* <
       if (!jobsByChannel.has(channel.channel)) {
         jobsByChannel.set(channel.channel, [])
       }
-      jobsByChannel.get(channel.channel)!.push(job)
+      jobsByChannel.get(channel.channel)?.push(job)
     }
   }
 

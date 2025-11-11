@@ -1,6 +1,6 @@
 import { ok } from 'neverthrow'
 import * as v from 'valibot'
-import { error, GenericError } from './result'
+import { error, type GenericError } from './result'
 export const coerceNumber = v.pipe(
   v.union([v.string(), v.number()]),
   v.transform((val) => Number(val)),

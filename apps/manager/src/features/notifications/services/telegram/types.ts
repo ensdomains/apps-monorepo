@@ -6,4 +6,4 @@ export interface TelegramLoginOptions {
   lang?: string
 }
 
-export { TelegramAuthData }
+export type { TelegramAuthData }

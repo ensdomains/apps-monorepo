@@ -1,14 +1,14 @@
-import { describe, it, expect, vi, assert } from 'vitest'
 import { err, ok } from 'neverthrow'
-import { 
-  createIntoResult, 
-  asyncRes, 
-  getFirstOrFallback, 
-  serializeResult, 
-  deserializeResult,
-  type SerializedResult 
-} from '../result-helpers'
+import { assert, describe, expect, it } from 'vitest'
 import { TaggedError } from '../error-classes'
+import {
+  asyncRes,
+  createIntoResult,
+  deserializeResult,
+  getFirstOrFallback,
+  type SerializedResult,
+  serializeResult,
+} from '../result-helpers'
 
 describe('createIntoResult', () => {
   it('should wrap successful promise', async () => {
@@ -78,7 +78,7 @@ describe('asyncRes', () => {
 
   it('should handle async operations', async () => {
     const delayedOperation = async (value: string) => {
-      await new Promise(resolve => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 10))
       return value ? ok(value.toUpperCase()) : err('Empty value')
     }
 
@@ -108,8 +108,8 @@ describe('getFirstOrFallback', () => {
   })
 
   it('should use fallback function', () => {
-    const getFirst = getFirstOrFallback((items) => 
-      err(`Expected items but got ${items.length}`)
+    const getFirst = getFirstOrFallback((items) =>
+      err(`Expected items but got ${items.length}`),
     )
 
     const result = getFirst([])
@@ -134,7 +134,7 @@ describe('serializeResult', () => {
 
     expect(serialized).toEqual({
       ok: true,
-      data: { id: 1, name: 'John' }
+      data: { id: 1, name: 'John' },
     })
   })
 
@@ -145,7 +145,7 @@ describe('serializeResult', () => {
 
     expect(serialized).toEqual({
       ok: false,
-      error: { code: 'NOT_FOUND', message: 'User not found' }
+      error: { code: 'NOT_FOUND', message: 'User not found' },
     })
   })
 
@@ -153,14 +153,14 @@ describe('serializeResult', () => {
     const complexData = {
       user: { id: 1, name: 'John' },
       posts: [{ id: 1, title: 'Post 1' }],
-      metadata: { createdAt: new Date('2023-01-01') }
+      metadata: { createdAt: new Date('2023-01-01') },
     }
     const result = ok(complexData)
     const serialized = serializeResult(result)
 
     expect(serialized).toEqual({
       ok: true,
-      data: complexData
+      data: complexData,
     })
   })
 })
@@ -169,7 +169,7 @@ describe('deserializeResult', () => {
   it('should deserialize successful result', () => {
     const serialized: SerializedResult<{ id: number }, never> = {
       ok: true,
-      data: { id: 1 }
+      data: { id: 1 },
     }
     const result = deserializeResult(serialized)
 
@@ -180,7 +180,7 @@ describe('deserializeResult', () => {
   it('should deserialize error result', () => {
     const serialized: SerializedResult<never, { code: string }> = {
       ok: false,
-      error: { code: 'NOT_FOUND' }
+      error: { code: 'NOT_FOUND' },
     }
     const result = deserializeResult(serialized)
 

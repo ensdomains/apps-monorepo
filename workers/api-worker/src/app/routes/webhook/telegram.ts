@@ -1,4 +1,4 @@
-import { Update } from '@grammyjs/types'
+import type { Update } from '@grammyjs/types'
 import { createApp } from '#app/middleware/hono.js'
 
 export default createApp()
@@ -14,7 +14,7 @@ export default createApp()
       return c.json({ message: 'Unauthorized' }, 401)
     }
 
-    const update = (await c.req.json()) as Update
+    const _update = (await c.req.json()) as Update
 
     return c.json({ message: 'OK' })
   })

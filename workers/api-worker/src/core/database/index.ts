@@ -3,7 +3,6 @@ import { DrizzleError, DrizzleQueryError } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import type { AnyPgTable } from 'drizzle-orm/pg-core'
 import { fromPromise, type ResultAsync } from 'neverthrow'
-import { rawError } from '#utils/result.js'
 import * as schema from './schema'
 
 export const getDatabase = (env: CloudflareBindings) => {

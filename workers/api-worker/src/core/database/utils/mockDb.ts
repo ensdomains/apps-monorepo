@@ -1,7 +1,7 @@
-import { QueryPromise, QueryWithTypings, SQLWrapper } from 'drizzle-orm'
+import type { QueryPromise, QueryWithTypings, SQLWrapper } from 'drizzle-orm'
 import { PgDialect } from 'drizzle-orm/pg-core/dialect'
-import { Mock, vi } from 'vitest'
-import { Database } from '..'
+import { vi } from 'vitest'
+import type { Database } from '..'
 
 type SqlMatcher = (query: QueryWithTypings) => boolean
 
