@@ -8,8 +8,6 @@ import { TABLE } from '#core/database/index.js'
 import { getExpiry } from '#services/expiry/index.js'
 
 export default createApp()
-  .basePath('/watchers')
-
   // List watched names for the authenticated user
   .get('/', injectDb, ...requireAuth, async (c) => {
     const watchers = await c.var.db

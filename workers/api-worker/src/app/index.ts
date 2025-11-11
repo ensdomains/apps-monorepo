@@ -13,8 +13,8 @@ const app = createApp()
   .route('/expiry', expiryApp)
   .route('/favorites', favoritesApp)
   .route('/notifications', notificationsApp)
-  .route('/', webhookApp)
-  .route('/', watchersApp)
+  .route('/webhook', webhookApp)
+  .route('/watchers', watchersApp)
   .onError((err, c) => {
     if (err instanceof HTTPException) {
       // Get the custom response
