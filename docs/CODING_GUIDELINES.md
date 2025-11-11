@@ -355,6 +355,7 @@ auditTrail.recordTransition(transition)
 
 ## Component Props
 
+- Use arrow functions for React components: `export const Component = (props) => { ... }`.
 - Use a named props interface per component: `<ComponentName>Props`.
 - Define it next to the component; export only if reused elsewhere.
 
