@@ -17,11 +17,9 @@ const app = createApp()
   .route('/watchers', watchersApp)
   .onError((err, c) => {
     if (err instanceof HTTPException) {
-      // Get the custom response
       return err.getResponse()
     }
 
-    console.log('err', err)
     logger.error('Internal server error', {
       path: c.req.path,
       method: c.req.method,
