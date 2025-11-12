@@ -4,6 +4,7 @@ import { ChevronRight, FileCodeIcon, ListIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import type { Address } from 'viem'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
 export const RecordCount = ({

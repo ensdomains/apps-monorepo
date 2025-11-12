@@ -5,6 +5,10 @@ import { type Address, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useAccount, useEnsResolver } from 'wagmi'
 import { useQuery } from 'wagmi/query'
+import { ErrorMessage } from '@/components/molecules/ErrorMessage'
+import { LoadingMessage } from '@/components/molecules/LoadingMessage'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
 import { NameHistory } from '@/components/organisms/NameHistory/NameHistory'
 import { DedicatedResolverBanner } from '@/components/resolver/DedicatedResolverBanner'
 import { ResolverDetails } from '@/components/resolver/ResolverDetails'
@@ -16,6 +20,7 @@ import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useU
 
 export const Route = createFileRoute('/$name/resolver')({
   component: RouteComponent,
+  notFoundComponent: () => <NotFoundMessage />,
 })
 
 interface EditButtonsProps {
@@ -65,7 +70,7 @@ const UnderlyingResolverInfo = ({
   )
 
   if (error) return <div>Error: {error.cause?.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!data) {
     return <div>Introspection of non .eth names is not supported yet</div>
@@ -195,14 +200,24 @@ function RouteComponent() {
       : tempResolverAddress
 
   if (error) {
+    const message =
+      (error.cause as Error | undefined)?.message ||
+      (error as Error).message ||
+      null
     if (error.name === 'ChainDoesNotSupportContract')
-      return <div>Chain does not have UniversalResolver</div>
-    return <div>{error.message}</div>
+      return <ErrorMessage title="Chain does not have UniversalResolver" />
+    return <ErrorMessage title="Error loading resolver" description={message} />
   }
 
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingMessage />
 
-  if (!resolverAddress) return <div>Resolver not found</div>
+  if (!resolverAddress)
+    return (
+      <ErrorMessage
+        title="Resolver not found"
+        description="Could not find resolver address."
+      />
+    )
 
   return <ResolverView {...{ name, resolverAddress }} />
 }

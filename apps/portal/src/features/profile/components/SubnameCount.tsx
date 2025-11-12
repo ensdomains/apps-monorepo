@@ -1,8 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ChevronRight, ListIcon, ListStartIcon } from 'lucide-react'
+import {
+  ChevronRight,
+  ChevronRight,
+  ListIcon,
+  ListStartIcon,
+} from 'lucide-react'
 import { zeroAddress } from 'viem'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistries'
 import { getSubnamesQueryOptions } from '../hooks/useSubnames'
 
@@ -43,6 +49,7 @@ export const SubnameCount = ({ name }: { name: string }) => {
 
   if (error) return <div>Error: {error.cause?.message}</div>
   if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!data) return null
 

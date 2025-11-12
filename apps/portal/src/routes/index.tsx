@@ -19,11 +19,13 @@ import {
   WhatsNewItem,
 } from '@/components/homepage'
 import { NavBar } from '@/components/molecules/NavBar'
+import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
 import { HomeSearchInput } from '@/routes/components/HomeSearchInput'
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,
+  notFoundComponent: () => <NotFoundMessage />,
 })
 
 const ProfilePreview = ({ address }: { address: Address }) => {

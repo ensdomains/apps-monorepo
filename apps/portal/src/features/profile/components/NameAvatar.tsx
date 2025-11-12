@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { useEnsAvatar } from 'wagmi'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { cn } from '@/lib/utils'
 
 export const NameAvatar = ({
@@ -25,7 +26,7 @@ export const NameAvatar = ({
   })
 
   if (error) return <div>Error: {error.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (avatar)
     return (
