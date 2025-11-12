@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { DataTable } from '@/components/molecules/DataTable/DataTable'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import type { WithTimestamp } from '@/utils/types'
 import { useBlockTimestamps } from '../hooks/useBlockTimestamps'
 import { getNameHistoryQueryOptions } from '../hooks/useNameHistory'
@@ -92,7 +93,7 @@ export const RecentActivity = ({ name }: RecentActivityProps) => {
   )
 
   if (isLoading) {
-    return <div>Loading...</div>
+    return <LoadingSpinner title="Loading..." />
   }
 
   if (error) {

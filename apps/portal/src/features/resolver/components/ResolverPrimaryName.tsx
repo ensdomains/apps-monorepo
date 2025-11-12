@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem/accounts'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getResolverNameQueryOptions } from '../hooks/useResolverName'
 
@@ -12,7 +13,7 @@ export const ResolverPrimaryName = ({
     getResolverNameQueryOptions({ resolverAddress }),
   )
 
-  if (isLoading) return 'Loading...'
+  if (isLoading) <LoadingSpinner title="Loading..." />
 
   if (error) return <>{error.cause?.message}</>
 

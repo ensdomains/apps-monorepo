@@ -1,4 +1,5 @@
 import { useEnsAvatar } from 'wagmi'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 
 export const NameAvatar = ({
   name,
@@ -20,7 +21,7 @@ export const NameAvatar = ({
   })
 
   if (error) return <div>Error: {error.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (avatar)
     return (

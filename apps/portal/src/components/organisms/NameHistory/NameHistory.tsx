@@ -9,6 +9,7 @@ import type { Address } from 'viem/accounts'
 import { useEnsName } from 'wagmi'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { DataTable } from '@/components/molecules/DataTable/DataTable'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import {
   type GetNameHistoryError,
@@ -68,7 +69,7 @@ const OwnerTableDisplay = ({ owner }: OwnerTableDisplayProps) => {
     address: owner,
   })
 
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (ensName) {
     return <CopyableRecord value={ensName} />

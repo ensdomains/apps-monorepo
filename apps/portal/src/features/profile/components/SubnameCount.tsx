@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { getSubnamesQueryOptions } from '../hooks/useSubnames'
 
 interface SubnameCountProps {
@@ -11,7 +12,7 @@ export const SubnameCount = ({ name }: SubnameCountProps) => {
   const { data, isLoading, error } = useQuery(getSubnamesQueryOptions({ name }))
 
   if (error) return <div>Error: {error.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!data) return null
 
