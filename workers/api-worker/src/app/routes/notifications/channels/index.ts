@@ -4,8 +4,8 @@ import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
 import { sanitizeChannel } from '#services/notifications/helpers.js'
+import idRoutes from './$id.js'
 import emailRoutes from './email/index.js'
-import idRoutes from './id.js'
 import telegramRoutes from './telegram.js'
 
 export default createApp()
