@@ -10,11 +10,13 @@ import {
 } from '../../queries/notifications'
 import { NotificationItem } from './notification-items'
 
+interface NotificationsDropdownProps {
+  onAction?: () => void
+}
+
 export const NotificationsDropdown = ({
   onAction,
-}: {
-  onAction?: () => void
-}) => {
+}: NotificationsDropdownProps) => {
   const isAuthed = useAtom(isBackendAuthed)
 
   if (!isAuthed) {
@@ -24,7 +26,11 @@ export const NotificationsDropdown = ({
   return <AuthenticatedContent onAction={onAction} />
 }
 
-const UnauthenticatedContent = ({ onAction }: { onAction?: () => void }) => {
+interface UnauthenticatedContentProps {
+  onAction?: () => void
+}
+
+const UnauthenticatedContent = ({ onAction }: UnauthenticatedContentProps) => {
   const signIn = useMutation(signInBackendMutation)
 
   const handleSignIn = async () => {
@@ -72,7 +78,11 @@ const UnauthenticatedContent = ({ onAction }: { onAction?: () => void }) => {
   )
 }
 
-const AuthenticatedContent = ({ onAction }: { onAction?: () => void }) => {
+interface AuthenticatedContentProps {
+  onAction?: () => void
+}
+
+const AuthenticatedContent = ({ onAction }: AuthenticatedContentProps) => {
   const { data, isLoading, isError } = useInfiniteQuery(
     notificationsInfiniteQuery,
   )
@@ -144,13 +154,15 @@ const AuthenticatedContent = ({ onAction }: { onAction?: () => void }) => {
             <div className="text-muted-foreground text-sm">All caught up!</div>
           </div>
         ) : (
-          displayedNotifications.map((notification) => (
-            <NotificationItem
-              key={`${notification.kind}-${notification.timestamp}`}
-              notification={notification}
-              onAction={onAction}
-            />
-          ))
+          <div className="mt-5 divide-y divide-gray-200">
+            {displayedNotifications.map((notification) => (
+              <NotificationItem
+                key={`${notification.kind}-${notification.timestamp}`}
+                notification={notification}
+                onAction={onAction}
+              />
+            ))}
+          </div>
         )}
       </div>
 
