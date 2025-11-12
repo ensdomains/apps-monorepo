@@ -4,6 +4,7 @@ import {
   CoinsIcon,
   FileCodeIcon,
   FileSpreadsheetIcon,
+  Network,
   PersonStandingIcon,
   UserLockIcon,
 } from 'lucide-react'
@@ -16,6 +17,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarSeparator,
 } from '../ui/sidebar'
 
 const itemGroups = [
@@ -47,6 +49,13 @@ const itemGroups = [
   ],
   [
     {
+      title: 'Registry',
+      url: '/$name/registry',
+      icon: Network,
+    },
+  ],
+  [
+    {
       title: 'Token info',
       url: '/$name/token',
       icon: CoinsIcon,
@@ -72,26 +81,34 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
         <span className="text-lg font-bold break-words">{name}</span>
       </SidebarHeader>
       <SidebarContent>
-        {itemGroups.map((items, i) => (
-          <SidebarGroup key={items.join(',') + i.toString()}>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild>
-                      <Link params={{ name }} to={item.url}>
-                        <item.icon className="size-6" />
-                        <span className="text-sm font-medium">
-                          {item.title}
-                        </span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
+        {itemGroups.map((items, i) => {
+          const groupKey = items.join(',') + i.toString()
+          return (
+            <div key={groupKey}>
+              <SidebarGroup>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {items.map((item) => (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton asChild>
+                          <Link params={{ name }} to={item.url}>
+                            <item.icon className="size-6" />
+                            <span className="text-sm font-medium">
+                              {item.title}
+                            </span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+              {i < itemGroups.length - 1 && (
+                <SidebarSeparator className="mr-2" />
+              )}
+            </div>
+          )
+        })}
       </SidebarContent>
     </Sidebar>
   )
