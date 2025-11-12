@@ -30,7 +30,7 @@ export const LinksSection = withForm({
               }}
             </form.Field>
           ))}
-          <div className="flex justify-end">
+          <div className="mt-4 flex justify-end">
             <Button
               variant="secondary"
               size="sm"

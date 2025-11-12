@@ -32,7 +32,7 @@ export const SocialLinksSection = withForm({
               }}
             </form.Field>
           ))}
-          <div className="flex justify-end">
+          <div className="mt-4 flex justify-end">
             <AddTextRecordsDialog
               buttonLabel="Add Social Link"
               title="Add Social Link"
