@@ -64,7 +64,6 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
         records={records.data}
         owner={owner.data?.owner}
       />
-
       <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
         {/* Left/main column */}
         <div className="space-y-4 md:col-span-7 lg:col-span-8">

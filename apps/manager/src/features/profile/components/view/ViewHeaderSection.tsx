@@ -1,14 +1,13 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { Calendar, Wallet } from 'lucide-react'
 import type { Address } from 'viem'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
-import { Highlight } from '@/components/atoms/Highlight'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { parseAvatarQuery } from '../../service/profileAvatar'
 import { reverseNameQuery } from '../../service/profileReverseName'
 import type { ProfileRecords } from '../../types'
+import { ProfileHeaderInfo } from '../common/ProfileHeaderInfo'
 
 interface OwnerLinkProps {
   address?: Address
@@ -116,22 +115,10 @@ export const ViewHeaderSection = ({
 
       {/* Main info */}
       <div className="flex w-full flex-col items-start gap-3 bg-gray-100 px-4 pt-16 pb-4 text-center md:px-6 md:pt-16 md:pb-6 md:text-left">
-        <Highlight className="text-lg md:text-2xl">{name}</Highlight>
-        <div className="flex items-center whitespace-pre-wrap">
-          <Wallet className="mr-2 size-5" />
-          Owned by <OwnerLink address={owner} profileName={name} />
-        </div>
-        <div className="flex items-center whitespace-pre-wrap">
-          <Calendar className="mr-2 size-5" />
-          Expires <span className="font-medium">August 28, 2027</span>
-        </div>
-        <Link
-          to="/p/$name"
-          params={{ name }}
-          className="underline underline-offset-2"
-        >
-          app.ens.domains/p/{name}
-        </Link>
+        <ProfileHeaderInfo
+          name={name}
+          ownerNode={<OwnerLink address={owner} profileName={name} />}
+        />
       </div>
     </div>
   )

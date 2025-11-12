@@ -1,8 +1,5 @@
-import { Link } from '@tanstack/react-router'
-import { Calendar, Wallet } from 'lucide-react'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
-import { CopyToClipboard } from '@/components/atoms/CopyToClipboard'
-import { Highlight } from '@/components/atoms/Highlight'
+import { ProfileHeaderInfo } from '@/features/profile/components/common/ProfileHeaderInfo'
 import { ImageSelectionDialog } from '@/features/profile/components/dialogs/ImageSelectionDialog'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 
@@ -59,28 +56,10 @@ export const HeaderSection = withForm({
 
       {/* Main info */}
       <div className="flex w-full flex-col items-start gap-3 bg-gray-100 px-4 pt-16 pb-4 text-center md:px-6 md:pt-16 md:pb-6 md:text-left">
-        <Highlight className="text-lg md:text-2xl">{name}</Highlight>
-        <div className="flex items-center gap-x-2 whitespace-pre-wrap">
-          <Wallet className="size-5" />
-          Owned by <span className="font-medium">{name}</span>
-        </div>
-        <div className="flex items-center gap-x-2 whitespace-pre-wrap">
-          <Calendar className="size-5" />
-          Expires <span className="font-medium">August 28, 2027</span>
-        </div>
-        <div className="flex items-center gap-x-2">
-          <Link
-            to="/p/$name"
-            params={{ name }}
-            className="underline underline-offset-2"
-          >
-            app.ens.domains/p/{name}
-          </Link>
-          <CopyToClipboard
-            value={`app.ens.domains/p/${name}`}
-            className="size-4"
-          />
-        </div>
+        <ProfileHeaderInfo
+          name={name}
+          ownerNode={<span className="font-medium">{name}</span>}
+        />
       </div>
     </div>
   ),
