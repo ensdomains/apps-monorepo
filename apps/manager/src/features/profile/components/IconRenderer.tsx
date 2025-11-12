@@ -9,5 +9,6 @@ export const IconRenderer = ({ icon: Icon, className }: IconRendererProps) => {
   if (typeof Icon === 'string') {
     return <img src={Icon} alt="icon" className={className} />
   }
+
   return <Icon className={className} />
 }
