@@ -6,9 +6,7 @@ export const NotificationWrapper = ({
   children,
 }: {
   children: React.ReactNode
-}) => (
-  <div className="space-y-3 border-gray-200 border-b px-4 py-5">{children}</div>
-)
+}) => <div className="space-y-3 border-gray-200 border-b py-4">{children}</div>
 
 export const NotificationHeader = ({
   children,

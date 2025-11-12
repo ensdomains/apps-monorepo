@@ -98,16 +98,16 @@ export const BlogPostBroadcastItem = ({
       onMarkAsRead={onMarkAsRead}
       onRemove={onRemove}
     />
-    <div className="flex gap-3">
-      <div className="h-16 w-16 flex-shrink-0">
+    <div className="flex items-center gap-4">
+      <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded">
         <img
           src={payload.imageUrl}
           alt={payload.title}
-          className="h-full w-full rounded object-cover"
+          className="h-full w-full object-cover"
         />
       </div>
       <div className="flex flex-col justify-center space-y-1">
-        <h3 className="line-clamp-2 font-medium text-gray-900">
+        <h3 className="line-clamp-2 font-medium text-gray-900 leading-tight">
           {payload.title}
         </h3>
         <div className="flex items-center gap-2">

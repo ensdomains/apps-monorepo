@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store/react'
-import { ArrowUpRight, SmileIcon } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, SmileIcon } from 'lucide-react'
 import { Button, LinkButton } from '@/components/ui/button'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { signInBackendMutation } from '../../queries/auth'
@@ -20,17 +20,13 @@ export const NotificationsDropdown = ({
   const isAuthed = useAtom(isBackendAuthed)
 
   if (!isAuthed) {
-    return <UnauthenticatedContent onAction={onAction} />
+    return <UnauthenticatedContent />
   }
 
   return <AuthenticatedContent onAction={onAction} />
 }
 
-interface UnauthenticatedContentProps {
-  onAction?: () => void
-}
-
-const UnauthenticatedContent = ({ onAction }: UnauthenticatedContentProps) => {
+const UnauthenticatedContent = () => {
   const signIn = useMutation(signInBackendMutation)
 
   const handleSignIn = async () => {
@@ -43,7 +39,7 @@ const UnauthenticatedContent = ({ onAction }: UnauthenticatedContentProps) => {
 
   return (
     <div className="">
-      <div className="flex items-center justify-between pl-4">
+      <div className="flex items-center justify-between px-4 py-3">
         <h1 className="font-normal text-2xl">Notifications</h1>
       </div>
       <div className="px-4 py-6">
@@ -98,7 +94,7 @@ const AuthenticatedContent = ({ onAction }: AuthenticatedContentProps) => {
   if (isLoading) {
     return (
       <div className="">
-        <div className="flex items-center justify-between pl-4">
+        <div className="flex items-center justify-between px-4 py-3">
           <h1 className="font-normal text-2xl">Notifications</h1>
         </div>
         <div className="px-4 py-6 text-center text-muted-foreground text-sm">
@@ -111,7 +107,7 @@ const AuthenticatedContent = ({ onAction }: AuthenticatedContentProps) => {
   if (isError) {
     return (
       <div className="">
-        <div className="flex items-center justify-between pl-4">
+        <div className="flex items-center justify-between px-4 py-3">
           <h1 className="font-normal text-2xl">Notifications</h1>
         </div>
         <div className="px-4 py-6 text-center text-destructive text-sm">
@@ -122,39 +118,51 @@ const AuthenticatedContent = ({ onAction }: AuthenticatedContentProps) => {
   }
 
   return (
-    <div>
+    <div className="p-2">
       <div className="flex items-center justify-between">
         <h1 className="font-normal text-2xl">Notifications</h1>
         {unreadCount > 0 ? (
-          <Button
-            variant="ghost"
-            className="font-normal"
+          <button
+            type="button"
+            className="text-sm"
             onClick={() => {
               // TODO: Implement mark all as read
               console.log('Mark all as read')
             }}
           >
             Mark all as read
-            <span className="ml-2 text-muted-foreground text-xs">
+            <span className="ml-2 rounded-md bg-gray-200 px-1.5 py-0.5 text-gray-900 text-xs">
               {unreadCount}
             </span>
-          </Button>
+          </button>
         ) : (
-          <div className="flex items-start justify-center space-x-1 text-muted-foreground text-sm">
-            <div>What's new at ENS</div>
-            <ArrowUpRight className="size-4" />
-          </div>
+          <a
+            className="inline-flex items-center gap-1 text-muted-foreground text-sm hover:underline"
+            href="https://ens.domains/blog"
+            target="_blank"
+            rel="noreferrer"
+          >
+            what's new at ENS <ArrowUpRight className="size-3.5" />
+          </a>
         )}
       </div>
 
       <div>
         {displayedNotifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center space-y-2 pt-5">
+          <div className="flex flex-col items-center justify-center space-y-2 pt-6">
             <SmileIcon className="size-10" />
             <div className="text-muted-foreground text-sm">All caught up!</div>
+            <LinkButton
+              to="/notifications/all"
+              variant="ghost"
+              className="mt-1 inline-flex items-center gap-2"
+              onClick={onAction}
+            >
+              View all notifications <ArrowRight className="size-4" />
+            </LinkButton>
           </div>
         ) : (
-          <div className="mt-5 divide-y divide-gray-200">
+          <div className="mt-1">
             {displayedNotifications.map((notification) => (
               <NotificationItem
                 key={`${notification.kind}-${notification.timestamp}`}
@@ -167,14 +175,14 @@ const AuthenticatedContent = ({ onAction }: AuthenticatedContentProps) => {
       </div>
 
       {allNotifications.length > 3 && (
-        <div className="border-gray-200 border-t px-4 py-3">
+        <div className="pt-5">
           <LinkButton
             to="/notifications/all"
             variant="ghost"
-            className="w-full"
+            className="inline-flex w-full items-center justify-center gap-2"
             onClick={onAction}
           >
-            View all notifications
+            View all notifications <ArrowRight className="size-4" />
           </LinkButton>
         </div>
       )}
