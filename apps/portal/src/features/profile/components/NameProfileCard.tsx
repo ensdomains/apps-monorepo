@@ -33,6 +33,8 @@ export const NameProfileCard = ({ name }: { name: string }) => {
         coinNameToTypeMap.arb1,
         coinNameToTypeMap.op,
         coinNameToTypeMap.base,
+        coinNameToTypeMap.scr,
+        coinNameToTypeMap.linea,
 
         // Non-EVM
         coinNameToTypeMap.btc,

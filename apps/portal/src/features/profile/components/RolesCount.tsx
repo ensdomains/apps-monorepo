@@ -45,7 +45,7 @@ export const RolesCount = ({
           className="p-2 w-8 h-8 rounded-4xl bg-secondary"
         />
         <div className="flex-1">
-          <div className="font-medium">Network</div>
+          <div className="font-medium">Protocol</div>
           <div>{data[0] !== zeroAddress && data[1] ? 'ENSv2' : 'ENSv1'}</div>
         </div>
         <Link

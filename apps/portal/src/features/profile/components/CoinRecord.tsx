@@ -14,10 +14,14 @@ const icons: Partial<Record<CoinType, string>> = {
   [coinNameToTypeMap.base]: '/icons/base.svg',
   [coinNameToTypeMap.linea]: '/icons/linea.svg',
   [coinNameToTypeMap.scr]: '/icons/scroll.svg',
+  [coinNameToTypeMap.mantle]: '/icons/mantle.svg',
+  [coinNameToTypeMap.bnb]: '/icons/bnb.svg',
 
   // non-EVM
   [coinNameToTypeMap.btc]: '/icons/btc.svg',
   [coinNameToTypeMap.doge]: '/icons/doge.svg',
+  [coinNameToTypeMap.sol]: '/icons/sol.svg',
+  [coinNameToTypeMap.strk]: '/icons/strk.svg',
 } as const
 
 export type CoinTypeWithIcon = keyof typeof icons
