@@ -13,7 +13,7 @@ export const BioSection = withForm({
       <div>
         <form.Field name="base.description">
           {(field) => (
-            <>
+            <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <span className="font-medium">Bio</span>
                 <button type="button" onClick={() => field.handleChange('')}>
@@ -28,14 +28,14 @@ export const BioSection = withForm({
                   field.handleChange(e.target.value)
                 }}
               />
-            </>
+            </div>
           )}
         </form.Field>
       </div>
 
-      <div>
+      <div className="space-y-1">
+        <div>Add link to bio</div>
         <div className="flex items-center gap-2">
-          <span className="font-medium">Link</span>
           <form.Field name="base.url">
             {(field) => (
               <>
@@ -47,7 +47,7 @@ export const BioSection = withForm({
                     field.handleChange(e.target.value)
                   }}
                 />
-                <button type="button" className="ml-auto">
+                <button type="button" onClick={() => field.handleChange('')}>
                   <X className="size-4" />
                 </button>
               </>
