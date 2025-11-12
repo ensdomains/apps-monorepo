@@ -31,7 +31,7 @@ export const Route = createFileRoute('/')({
 const ProfilePreview = ({ address }: { address: Address }) => {
   const { data: name, isLoading, error } = useEnsName({ address })
 
-  if (error) return <div>Error loading profile: {error.cause?.message}</div>
+  if (error) return <div>Error loading profile: {error.message}</div>
   if (isLoading) return <div>Loading...</div>
 
   if (!name) return null
@@ -120,7 +120,7 @@ function RouteComponent() {
           </div>
         </section>
 
-        {isConnected && <ProfilePreview address={address} />}
+        {isConnected && address && <ProfilePreview address={address} />}
 
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-12">
           <section className="flex flex-col gap-6">

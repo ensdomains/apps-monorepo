@@ -6,27 +6,23 @@ import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useU
 
 interface RolesCountProps {
   name: string
-  resolverAddress: Address
+  resolverAddress?: Address
 }
 
-export const RolesCount = ({ name, resolverAddress }: RolesCountProps) => {
-  const { data, isLoading, error } = useQuery(
-    getUnderlyingAddressQueryOptions({ resolverAddress, name }),
-  )
+export const RolesCount = ({
+  name,
+  resolverAddress = zeroAddress,
+}: RolesCountProps) => {
+  const { data, isLoading, error } = useQuery({
+    ...getUnderlyingAddressQueryOptions({ resolverAddress, name }),
+    enabled: Boolean(resolverAddress && resolverAddress !== zeroAddress),
+  })
 
   if (error)
-    return (
-      <div>
-        Failed to get underlying resolver:{' '}
-        {error.cause?.message || error.message || JSON.stringify(error)}
-      </div>
-    )
+    return <div>Failed to get underlying resolver: {error.cause?.message}</div>
   if (isLoading) return <div>Loading...</div>
 
   if (!data) return <div>Could not find resolver location</div>
-
-  if (error) return <div>Error: {error.cause?.message}</div>
-  if (isLoading) return <div>Loading...</div>
 
   if (!data) return null
 

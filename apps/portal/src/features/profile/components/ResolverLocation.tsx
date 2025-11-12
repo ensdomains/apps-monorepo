@@ -3,7 +3,6 @@ import { Link } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { NamechainSVG } from '@/assets/chains'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
-import { Label } from '@/components/ui/label'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
 
 export const ResolverLocation = ({

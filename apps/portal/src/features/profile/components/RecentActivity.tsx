@@ -6,7 +6,6 @@ import type {
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
-import { DataTable } from '@/components/molecules/DataTable/DataTable'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'

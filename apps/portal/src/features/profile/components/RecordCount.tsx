@@ -4,7 +4,6 @@ import { ChevronRight, FileCodeIcon, ListIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import type { Address } from 'viem'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
-import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
 export const RecordCount = ({
@@ -14,7 +13,7 @@ export const RecordCount = ({
 }: {
   name: string
   records?: GetRecordsReturnType
-  resolverAddress: Address
+  resolverAddress?: Address
 }) => {
   const recordCount = useMemo(() => {
     if (records) return recordsToTableData(records).length
@@ -43,10 +42,14 @@ export const RecordCount = ({
         />
         <div className="flex-1">
           <span className="font-medium">Resolver</span>
-          <CopyableRecord
-            displayValue={`${resolverAddress.slice(0, 6)}...${resolverAddress.slice(-4)}`}
-            value={resolverAddress}
-          />
+          {resolverAddress ? (
+            <CopyableRecord
+              displayValue={`${resolverAddress.slice(0, 6)}...${resolverAddress.slice(-4)}`}
+              value={resolverAddress}
+            />
+          ) : (
+            <span>No resolver found</span>
+          )}
         </div>
         <Link
           to="/$name/records"
