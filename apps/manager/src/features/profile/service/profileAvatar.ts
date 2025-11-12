@@ -15,7 +15,6 @@ export const parseAvatar = ResultFn(async function* (
   record: string,
   gatewayUrls?: AssetGatewayUrls,
 ) {
-  console.log({ record, gatewayUrls })
   const client = yield* safeGetClient()
 
   const url = yield* await fromPromise(
