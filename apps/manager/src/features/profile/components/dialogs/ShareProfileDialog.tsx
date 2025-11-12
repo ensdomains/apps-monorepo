@@ -98,7 +98,7 @@ export const ShareProfileDialog = ({
             </div>
           </div>
         </div>
-        <DialogFooter className="grid grid-cols-3 gap-2">
+        <DialogFooter className="mx-auto grid grid-cols-2 gap-2">
           <Button variant="outline" onClick={handleNativeShare}>
             <ShareIcon className="mr-2 size-4" />
             Share
