@@ -81,7 +81,16 @@ const RecentActivityTable = ({
     timestamp: timestamps.get(BigInt(tx.blockNumber)),
   }))
 
-  return <EventsDataTable name={name} data={dataWithTimestamps} />
+  return (
+    <EventsDataTable
+      enableTransactionCount={false}
+      enableFilters={false}
+      enableSearch={false}
+      enableSidebar={false}
+      name={name}
+      data={dataWithTimestamps}
+    />
+  )
 }
 
 interface RecentActivityProps {
@@ -110,16 +119,18 @@ export const RecentActivity = ({ name }: RecentActivityProps) => {
   }
 
   return (
-    <div className="flex flex-col border border-gray-300 p-6 gap-6 rounded-lg">
-      <h3 className="font-medium text-2xl">Recent Activity</h3>
-      <RecentActivityTable
-        name={name}
-        events={[
-          ...events.domainEvents,
-          ...(events.registrationEvents || []),
-          ...(events.resolverEvents || []),
-        ]}
-      />
+    <div className="flex flex-col  gap-6">
+      <h3 className="font-medium text-2xl">History</h3>
+      <div className="border border-gray-300 p-6 rounded-lg">
+        <RecentActivityTable
+          name={name}
+          events={[
+            ...events.domainEvents,
+            ...(events.registrationEvents || []),
+            ...(events.resolverEvents || []),
+          ]}
+        />
+      </div>
     </div>
   )
 }

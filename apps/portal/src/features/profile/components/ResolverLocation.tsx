@@ -29,12 +29,12 @@ export const ResolverLocation = ({
       params={{ name }}
       className="w-full p-6 border border-gray-300 rounded-xl hover:bg-gray-100 duration-150"
     >
-      <div className="flex flex-row justify-between items-center">
+      <div className="flex flex-row gap-6 items-center">
+        <NamechainSVG height={40} width={40} />
         <div>
           <span className="font-medium">Network</span>
           <h3>{data[1] ? 'Namechain' : 'Sepolia'}</h3>
         </div>
-        <NamechainSVG height={40} width={40} />
       </div>
     </Link>
   )
