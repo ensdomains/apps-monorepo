@@ -46,7 +46,7 @@ export const AddTextRecordsDialog = ({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="soft" size="sm" className="rounded-full">
+        <Button variant="secondary" size="sm" className="rounded-full">
           <Plus className="size-5" />
           {buttonLabel}
         </Button>
@@ -62,7 +62,7 @@ export const AddTextRecordsDialog = ({
               return (
                 <Button
                   key={record.key}
-                  variant={isSelected ? 'default' : 'soft'}
+                  variant={isSelected ? 'default' : 'secondary'}
                   onClick={() => handleToggle(record.key)}
                   className="flex items-center gap-2 rounded-full"
                 >

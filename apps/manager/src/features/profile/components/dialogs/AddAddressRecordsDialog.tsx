@@ -46,7 +46,7 @@ export const AddAddressRecordsDialog = ({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="soft" size="sm" className="rounded-full">
+        <Button variant="secondary" size="sm" className="rounded-full">
           <Plus className="size-5" />
           {buttonLabel}
         </Button>

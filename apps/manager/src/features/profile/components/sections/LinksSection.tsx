@@ -32,7 +32,7 @@ export const LinksSection = withForm({
           ))}
           <div className="flex justify-end">
             <Button
-              variant="soft"
+              variant="secondary"
               size="sm"
               className="rounded-full"
               onClick={() => {
