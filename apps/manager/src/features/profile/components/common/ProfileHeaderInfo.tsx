@@ -75,7 +75,7 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
           app.ens.domains/p/{name}
         </Link>
         <CopyToClipboard
-          value={`app.ens.domains/p/${name}`}
+          value={`https://app.ens.domains/p/${name}`}
           className="size-4"
         />
       </div>
