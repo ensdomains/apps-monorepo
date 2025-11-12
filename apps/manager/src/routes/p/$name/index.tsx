@@ -15,13 +15,10 @@ export const Route = createFileRoute('/p/$name/')({
       (r) => r.key === 'description',
     )?.value
 
-    return {
-      description,
-    }
+    return { description }
   },
   head: ({ params: { name }, loaderData }) => {
     const { description } = loaderData || {}
-
     const metaDescription = description || `View the ENS profile for ${name}`
 
     return {

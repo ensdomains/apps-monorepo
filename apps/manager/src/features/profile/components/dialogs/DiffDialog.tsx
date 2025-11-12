@@ -14,7 +14,7 @@ import {
 import type { ProfileRecords } from '@/features/profile/types'
 import { createDiff } from '@/features/profile/utils/createDiff'
 
-export type DiffDialogProps = {
+interface DiffDialogProps {
   originalData: ProfileRecords
   currentData: ProfileRecords
   onSave: () => void

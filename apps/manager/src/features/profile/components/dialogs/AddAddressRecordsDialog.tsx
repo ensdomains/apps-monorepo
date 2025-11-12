@@ -12,7 +12,7 @@ import {
 import type { AddressRecordDef } from '../../data/records/types'
 import { IconRenderer } from '../IconRenderer'
 
-export type AddAddressRecordsDialogProps = {
+interface AddAddressRecordsDialogProps {
   buttonLabel: string
   title: string
   records: AddressRecordDef[]
@@ -46,7 +46,10 @@ export const AddAddressRecordsDialog = ({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>{buttonLabel}</Button>
+        <Button variant="secondary" size="sm" className="rounded-full">
+          <Plus className="size-5" />
+          {buttonLabel}
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
