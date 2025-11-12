@@ -18,7 +18,9 @@ export const CheckAvailability = ({
     isPricingLoading,
     hasResult,
     hasError,
+    hasValidationError,
     searchName,
+    clearValidationError,
   } = useCheckAvailability()
 
   const [inputValue, setInputValue] = useState(context.searchQuery)
@@ -44,23 +46,35 @@ export const CheckAvailability = ({
   ])
 
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setInputValue(event.target.value)
+    const newValue = event.target.value
+    setInputValue(newValue)
+    // Clear validation error when user starts typing (but don't validate yet)
+    if (hasValidationError) {
+      clearValidationError()
+    }
   }
 
   const handleSearch = (value: string) => {
     searchName(value)
   }
 
-  const errorMessage =
-    hasError && context.error ? String(getErrorMessage(context.error)) : null
-
-  const successMessage =
-    context.registrationSuccess && context.selectedName
-      ? `${context.selectedName} has been registered successfully.`
+  // Prioritize validation errors over API errors
+  const errorMessage = hasValidationError
+    ? (context.validationError?.message ?? null)
+    : hasError && context.error
+      ? String(getErrorMessage(context.error))
       : null
 
   // Get the per-year price from pricing options (1 year base price)
   const pricePerYear = context.pricing[1]?.price ?? 0
+
+  const shouldShowResult =
+    hasResult &&
+    context.selectedName &&
+    !hasError &&
+    !hasValidationError &&
+    inputValue.trim().toLowerCase() ===
+      context.selectedName.trim().toLowerCase()
 
   return (
     <div className="relative space-y-4">
@@ -73,7 +87,7 @@ export const CheckAvailability = ({
           disabled={isPricingLoading || isSearching}
           className="w-full"
         />
-        {(!hasResult || hasError) && (
+        {!shouldShowResult && !hasValidationError && !hasError && (
           <p className="subtitle-search-field">
             Start typing to check if your perfect name is available 🕵️‍♀️
           </p>
@@ -86,7 +100,7 @@ export const CheckAvailability = ({
         </Alert>
       )}
 
-      {hasResult && context.selectedName && !hasError && (
+      {shouldShowResult && (
         <DomainResultCard
           domainName={context.selectedName}
           status={context.isAvailable ? 'available' : 'unavailable'}
@@ -104,12 +118,6 @@ export const CheckAvailability = ({
               : undefined
           }
         />
-      )}
-
-      {successMessage && (
-        <Alert className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700">
-          <AlertDescription>{successMessage}</AlertDescription>
-        </Alert>
       )}
     </div>
   )
