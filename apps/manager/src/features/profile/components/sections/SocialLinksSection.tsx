@@ -32,19 +32,21 @@ export const SocialLinksSection = withForm({
               }}
             </form.Field>
           ))}
-          <AddTextRecordsDialog
-            buttonLabel="Add Social Link"
-            title="Add Social Link"
-            records={getAvailableRecords(
-              socialField.state.value.map(({ key }) => key),
-              'social',
-            )}
-            onAdd={(keys) => {
-              keys.forEach((key) => {
-                socialField.pushValue({ key, value: '' })
-              })
-            }}
-          />
+          <div className="flex justify-end">
+            <AddTextRecordsDialog
+              buttonLabel="Add Social Link"
+              title="Add Social Link"
+              records={getAvailableRecords(
+                socialField.state.value.map(({ key }) => key),
+                'social',
+              )}
+              onAdd={(keys) => {
+                keys.forEach((key) => {
+                  socialField.pushValue({ key, value: '' })
+                })
+              }}
+            />
+          </div>
         </div>
       )}
     </form.Field>

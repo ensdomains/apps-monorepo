@@ -86,19 +86,23 @@ export const BioSection = withForm({
                 </form.Field>
               ),
             )}
-            <AddTextRecordsDialog
-              buttonLabel="Add Contact Information"
-              title="Add Contact Information"
-              records={getAvailableRecords(
-                contactField.state.value.map(({ key }: { key: string }) => key),
-                'contact',
-              )}
-              onAdd={(keys) => {
-                keys.forEach((key) => {
-                  contactField.pushValue({ key, value: '' })
-                })
-              }}
-            />
+            <div className="flex justify-end">
+              <AddTextRecordsDialog
+                buttonLabel="Add Contact Information"
+                title="Add Contact Information"
+                records={getAvailableRecords(
+                  contactField.state.value.map(
+                    ({ key }: { key: string }) => key,
+                  ),
+                  'contact',
+                )}
+                onAdd={(keys) => {
+                  keys.forEach((key) => {
+                    contactField.pushValue({ key, value: '' })
+                  })
+                }}
+              />
+            </div>
           </div>
         )}
       </form.Field>

@@ -30,21 +30,23 @@ export const LinksSection = withForm({
               }}
             </form.Field>
           ))}
-          <Button
-            variant="soft"
-            size="sm"
-            className="rounded-full"
-            onClick={() => {
-              // ask for link name
-              const name = prompt('Enter link name')
-              if (name) {
-                linksField.pushValue({ name, url: '' })
-              }
-            }}
-          >
-            <Plus className="size-5" />
-            Add Link
-          </Button>
+          <div className="flex justify-end">
+            <Button
+              variant="soft"
+              size="sm"
+              className="rounded-full"
+              onClick={() => {
+                // ask for link name
+                const name = prompt('Enter link name')
+                if (name) {
+                  linksField.pushValue({ name, url: '' })
+                }
+              }}
+            >
+              <Plus className="size-5" />
+              Add Link
+            </Button>
+          </div>
         </div>
       )}
     </form.Field>

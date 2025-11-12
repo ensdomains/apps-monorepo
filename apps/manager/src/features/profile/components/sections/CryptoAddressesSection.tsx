@@ -47,20 +47,22 @@ export const CryptoAddressesSection = withForm({
               </form.Field>
             ),
           )}
-          <AddAddressRecordsDialog
-            buttonLabel="Add Crypto Address"
-            title="Add Crypto Address"
-            records={getAvailableAddressRecords(
-              addressField.state.value.map(
-                ({ coinType }: { coinType: number }) => coinType,
-              ),
-            )}
-            onAdd={(coinTypes) => {
-              coinTypes.forEach((coinType) => {
-                addressField.pushValue({ coinType, value: '' })
-              })
-            }}
-          />
+          <div className="flex justify-end">
+            <AddAddressRecordsDialog
+              buttonLabel="Add Crypto Address"
+              title="Add Crypto Address"
+              records={getAvailableAddressRecords(
+                addressField.state.value.map(
+                  ({ coinType }: { coinType: number }) => coinType,
+                ),
+              )}
+              onAdd={(coinTypes) => {
+                coinTypes.forEach((coinType) => {
+                  addressField.pushValue({ coinType, value: '' })
+                })
+              }}
+            />
+          </div>
         </div>
       )}
     </form.Field>
