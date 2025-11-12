@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
@@ -30,6 +31,9 @@ export const LinksSection = withForm({
             </form.Field>
           ))}
           <Button
+            variant="soft"
+            size="sm"
+            className="rounded-full"
             onClick={() => {
               // ask for link name
               const name = prompt('Enter link name')
@@ -38,6 +42,7 @@ export const LinksSection = withForm({
               }
             }}
           >
+            <Plus className="size-5" />
             Add Link
           </Button>
         </div>
