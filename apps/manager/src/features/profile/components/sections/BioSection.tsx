@@ -4,10 +4,6 @@ import { AddTextRecordsDialog } from '@/features/profile/components/dialogs/AddT
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
 import { getAvailableRecords, getRecordDef } from '../../data/records'
-// import {
-//   getAvailableContactRecords,
-//   getContactRecord,
-// } from '@/features/profile/data/records'
 
 export const BioSection = withForm({
   ...sharedOptions,

@@ -13,7 +13,7 @@ export const CryptoAddressesSection = withForm({
     <form.Field name="addresses" mode="array">
       {(addressField) => (
         <div className="space-y-2">
-          <h3>Crypto Addresses</h3>
+          <h3 className="text-lg">Crypto Addresses</h3>
           <p>
             Add your wallet addresses to receive payments. All addresses will be
             publicly visible on your profile.
