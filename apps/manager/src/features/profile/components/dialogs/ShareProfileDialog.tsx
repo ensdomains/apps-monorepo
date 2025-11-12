@@ -1,4 +1,4 @@
-import { Download, Link as LinkIcon, Share as ShareIcon } from 'lucide-react'
+import { Link as LinkIcon, Share as ShareIcon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import QRCode from 'react-qr-code'
 import ensLogo from '@/assets/icons/ens.svg'
