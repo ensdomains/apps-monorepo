@@ -563,7 +563,10 @@ export const ImageSelectionDialog = ({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="group relative block w-full cursor-pointer overflow-hidden rounded-md"
+          className={clsx(
+            'group relative block w-full cursor-pointer overflow-hidden rounded-md',
+            type === 'header' && 'aspect-[3/1] md:aspect-[4/1]'
+          )}
           title={`Change ${type}`}
         >
           <div className="absolute inset-0 flex items-center justify-center rounded-md bg-transparent transition-all duration-200 group-hover:bg-black/20">
@@ -585,7 +588,13 @@ export const ImageSelectionDialog = ({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className={clsx('h-48 w-full bg-gray-200 md:h-64')} />
+                <div
+                  className={clsx(
+                    type === 'header'
+                      ? 'h-full w-full bg-gray-200'
+                      : 'h-48 w-full bg-gray-200 md:h-64',
+                  )}
+                />
               )}
             </ImageFallback.Fallback>
           </ImageFallback.Root>

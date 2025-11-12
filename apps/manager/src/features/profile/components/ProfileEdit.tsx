@@ -51,7 +51,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-md space-y-4">
+      <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]">
         <div className="flex items-center justify-center py-8">
           <div className="text-gray-600">Loading profile...</div>
         </div>
@@ -61,7 +61,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-md space-y-4">
+      <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]">
         <div className="flex items-center justify-center py-8">
           <div className="text-red-600">
             Error loading profile: {error.message}
@@ -72,30 +72,44 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   }
 
   return (
-    <form className="mx-auto max-w-md space-y-4" onSubmit={handleSubmit}>
+    <form
+      className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]"
+      onSubmit={handleSubmit}
+    >
+      {/* Header */}
       <HeaderSection form={form} name={name} />
-      <BioSection form={form} />
 
-      {/* Divider */}
-      <div className="h-px w-full bg-gray-200" />
+      {/* Content */}
+      <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
+        {/* Left/main column */}
+        <div className="space-y-4 md:col-span-7 lg:col-span-8">
+          <BioSection form={form} />
 
-      <SocialLinksSection form={form} />
-      <CryptoAddressesSection form={form} />
+          {/* Divider */}
+          <div className="h-px w-full bg-gray-200" />
 
-      <LinksSection form={form} />
+          <SocialLinksSection form={form} />
+          <LinksSection form={form} />
+        </div>
 
-      {/* Save Button */}
-      <div className="pt-4">
-        <form.Subscribe selector={(state) => state.values}>
-          {(currentData) => (
-            <DiffDialog
-              originalData={defaultValues}
-              currentData={currentData}
-              onSave={handleSave}
-              onCancel={handleCancel}
-            />
-          )}
-        </form.Subscribe>
+        {/* Right/side column */}
+        <div className="space-y-4 md:col-span-5 lg:col-span-4">
+          <CryptoAddressesSection form={form} />
+
+          {/* Save Button */}
+          <div className="pt-2">
+            <form.Subscribe selector={(state) => state.values}>
+              {(currentData) => (
+                <DiffDialog
+                  originalData={defaultValues}
+                  currentData={currentData}
+                  onSave={handleSave}
+                  onCancel={handleCancel}
+                />
+              )}
+            </form.Subscribe>
+          </div>
+        </div>
       </div>
     </form>
   )

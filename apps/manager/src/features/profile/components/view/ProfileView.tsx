@@ -29,7 +29,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   const { address } = useAccount()
 
   const isOwner =
-    address && owner.data?.registrant?.toLowerCase() === address.toLowerCase()
+    address && owner.data?.owner?.toLowerCase() === address.toLowerCase()
 
   if (records.isLoading) {
     return (
