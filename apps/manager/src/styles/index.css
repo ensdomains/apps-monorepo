@@ -19,4 +19,91 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  :root {
+    --lapis-core: #0080bc;
+    --lapis-core-rgb: 0, 128, 188;
+    --lapis-dust: #cee1e8;
+    --primary-dark-blue: #011a25;
+    --primary-midnight-blue: #093c52;
+    --availability-green: #00a63e;
+    --lapis-surface: #79b1d0;
+    --light-grey-two: #e5e5e5;
+    --light-white: #f6f6f6;
+    --lapis-shadow-rgb: 14, 61, 104;
+  }
+}
+
+@layer utilities {
+  .leading-zero {
+    line-height: 0.5;
+  }
+
+  .text-primary-dark-blue {
+    color: var(--primary-dark-blue);
+  }
+
+  .text-primary-midnight-blue {
+    color: var(--primary-midnight-blue);
+  }
+}
+
+@layer components {
+  .subtitle-search-field {
+    color: var(--lapis-surface);
+    font-family: 'ABC Monument Grotesk', sans-serif;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: normal;
+    letter-spacing: 0.28px;
+  }
+
+  .search-field-input {
+    border-radius: 4px;
+    border: 0.25px solid var(--light-grey-two);
+    background: var(--light-white);
+    box-shadow: 0 9px 17px 0 rgba(var(--lapis-shadow-rgb), 0.1);
+    align-self: stretch;
+    width: 100%;
+    height: 100%;
+    padding: 21px 28px 21px 52px;
+    font-family: 'ABC Monument Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 110%;
+    letter-spacing: -0.4px;
+    color: var(--lapis-core);
+    background-color: var(--light-white);
+    transition: all 0.2s ease-in-out;
+  }
+
+  .search-field-input::placeholder {
+    color: var(--lapis-dust);
+  }
+
+  .search-field-input:focus {
+    outline: none;
+    border-color: transparent;
+    box-shadow:
+      0 9px 17px 0 rgba(var(--lapis-shadow-rgb), 0.1),
+      0 0 0 2px rgba(var(--lapis-core-rgb), 0.2);
+  }
+
+  .search-field {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+
+  .search-field__icon {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 26px;
+    height: 26px;
+    color: var(--lapis-dust);
+  }
 }

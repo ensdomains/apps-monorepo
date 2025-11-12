@@ -3,12 +3,13 @@ import { Registration } from '@/features/register/pages/RegistrationPage'
 
 interface RegisterSearch {
   name?: string
+  duration?: number
 }
 
 function RegisterPage() {
-  const { name } = Route.useSearch()
+  const { name, duration } = Route.useSearch()
 
-  return <Registration initialName={name} />
+  return <Registration initialName={name} initialDuration={duration} />
 }
 
 export const Route = createFileRoute('/register')({
@@ -16,6 +17,12 @@ export const Route = createFileRoute('/register')({
   validateSearch: (search: Record<string, unknown>): RegisterSearch => {
     return {
       name: typeof search.name === 'string' ? search.name : undefined,
+      duration:
+        typeof search.duration === 'number'
+          ? search.duration
+          : typeof search.duration === 'string'
+            ? Number.parseInt(search.duration, 10) || undefined
+            : undefined,
     }
   },
 })

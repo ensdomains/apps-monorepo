@@ -1,4 +1,4 @@
-import { Mic, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { forwardRef } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -35,19 +35,8 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
       onKeyDown?.(event)
     }
 
-    const handleSearchClick = () => {
-      if (onSearch && ref && 'current' in ref && ref.current) {
-        onSearch(ref.current.value)
-      }
-    }
-
-    const handleMicClick = () => {
-      // Mic functionality placeholder - does nothing for now
-      console.log('Mic clicked - functionality not implemented yet')
-    }
-
     return (
-      <div className={cn('relative w-full', className)}>
+      <div className={cn('search-field', className)}>
         <input
           ref={ref}
           type="text"
@@ -57,47 +46,10 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
           onChange={onChange}
           onKeyDown={handleKeyDown}
           disabled={disabled}
-          className={cn(
-            'w-full rounded-lg border border-border px-4 py-4 pr-20 text-base',
-            'focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ring',
-            'bg-background text-foreground placeholder:text-muted-foreground',
-            disabled && 'cursor-not-allowed bg-muted',
-            'transition-all duration-200',
-          )}
+          className={cn('search-field-input', disabled && 'cursor-not-allowed')}
         />
 
-        {/* Right side icons container */}
-        <div className="-translate-y-1/2 absolute top-1/2 right-3 flex transform items-center gap-2">
-          {/* Microphone icon */}
-          <button
-            type="button"
-            onClick={handleMicClick}
-            disabled={disabled}
-            className={cn(
-              'rounded-full p-2 transition-colors hover:bg-muted',
-              'text-muted-foreground hover:text-foreground',
-              disabled && 'cursor-not-allowed opacity-50',
-            )}
-            aria-label="Voice search"
-          >
-            <Mic className="h-5 w-5" />
-          </button>
-
-          {/* Search icon */}
-          <button
-            type="button"
-            onClick={handleSearchClick}
-            disabled={disabled}
-            className={cn(
-              'rounded-full p-2 transition-colors hover:bg-muted',
-              'text-muted-foreground hover:text-foreground',
-              disabled && 'cursor-not-allowed opacity-50',
-            )}
-            aria-label="Search"
-          >
-            <Search className="h-5 w-5" />
-          </button>
-        </div>
+        <Search aria-hidden className="search-field__icon" strokeWidth={1.5} />
       </div>
     )
   },

@@ -6,6 +6,8 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+import type { RhinestoneTransactionResult } from '@/lib/rhinestone/utils'
+import { sanitizePricingDuration } from '../constants/pricing'
 import {
   approveTokenForRegistration,
   commitToRegistration,
@@ -13,7 +15,6 @@ import {
   registerDomain,
   SUPPORTED_TOKENS,
 } from '../services/nameChainContractService'
-import { RhinestoneTransactionResult } from '@/lib/rhinestone/utils'
 
 // ============================================================================
 // TYPES
@@ -33,19 +34,29 @@ export enum RegistrationStep {
 // HOOK (Following your POC pattern with useEffect step handlers)
 // ============================================================================
 
-export function useRegistration(initialName?: string) {
-  const { accountAddress, sendTransaction, isConnected } = useRhinestoneAccount()
+export function useRegistration(
+  initialName?: string,
+  initialDuration?: number,
+) {
+  const { accountAddress, sendTransaction, isConnected } =
+    useRhinestoneAccount()
 
   // State management
   const [step, setStep] = useState<RegistrationStep>(RegistrationStep.PRICING)
   const [name, setName] = useState(initialName || '')
-  const [duration, setDuration] = useState(1)
-  const [selectedToken, setSelectedToken] = useState<`0x${string}`>(SUPPORTED_TOKENS.USDC)
+  const [duration, setDuration] = useState<number>(
+    sanitizePricingDuration(initialDuration),
+  )
+  const [selectedToken, setSelectedToken] = useState<`0x${string}`>(
+    SUPPORTED_TOKENS.USDC,
+  )
   const [tokenPrice, setTokenPrice] = useState<bigint | null>(null)
   const [commitment, setCommitment] = useState<string | null>(null)
   const [secret, setSecret] = useState<string | null>(null)
-  const [commitTxHash, setCommitTxHash] = useState<RhinestoneTransactionResult | null>(null)
-  const [registerTxHash, setRegisterTxHash] = useState<RhinestoneTransactionResult | null>(null)
+  const [commitTxHash, setCommitTxHash] =
+    useState<RhinestoneTransactionResult | null>(null)
+  const [registerTxHash, setRegisterTxHash] =
+    useState<RhinestoneTransactionResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -53,6 +64,15 @@ export function useRegistration(initialName?: string) {
       setName(initialName)
     }
   }, [initialName, name])
+
+  useEffect(() => {
+    if (initialDuration == null) return
+
+    const sanitized = sanitizePricingDuration(initialDuration)
+    if (sanitized !== duration) {
+      setDuration(sanitized)
+    }
+  }, [initialDuration, duration])
 
   useEffect(() => {
     if (
@@ -77,10 +97,13 @@ export function useRegistration(initialName?: string) {
           )
 
           if (commitmentResult.isErr()) {
-            throw new Error(`Commitment generation failed: ${commitmentResult.error.message}`)
+            throw new Error(
+              `Commitment generation failed: ${commitmentResult.error.message}`,
+            )
           }
 
-          const { commitment: newCommitment, secret: newSecret } = commitmentResult.value
+          const { commitment: newCommitment, secret: newSecret } =
+            commitmentResult.value
 
           // Step 2: Send commit transaction
           console.log('🔄 About to send commit transaction...')
@@ -100,7 +123,7 @@ export function useRegistration(initialName?: string) {
           const commitResult = await commitToRegistration(
             newCommitment,
             sendTransaction,
-            accountAddress as `0x${string}`
+            accountAddress as `0x${string}`,
           )
           console.log('🔄 Commit result received:', commitResult)
 
@@ -115,7 +138,9 @@ export function useRegistration(initialName?: string) {
           setCommitTxHash(commitResult.value)
 
           // Move to approval step (if token needs approval)
-          console.log('✅ Commitment successful, proceeding to token approval...')
+          console.log(
+            '✅ Commitment successful, proceeding to token approval...',
+          )
           setStep(RegistrationStep.APPROVING)
         } catch (error) {
           console.error('❌ Error during commitment:', error)
@@ -138,11 +163,7 @@ export function useRegistration(initialName?: string) {
 
   // Handle approval step - triggered when step changes to APPROVING
   useEffect(() => {
-    if (
-      step === RegistrationStep.APPROVING &&
-      tokenPrice &&
-      selectedToken
-    ) {
+    if (step === RegistrationStep.APPROVING && tokenPrice && selectedToken) {
       const handleApproval = async () => {
         try {
           // selectedToken is already an address
@@ -162,12 +183,14 @@ export function useRegistration(initialName?: string) {
               selectedToken,
               tokenPrice,
               accountAddress as `0x${string}`,
-              sendTransaction
+              sendTransaction,
             )
 
             if (approveResult.isErr()) {
               console.error('❌ Token approval failed:', approveResult.error)
-              throw new Error(`Token approval failed: ${approveResult.error.message}`)
+              throw new Error(
+                `Token approval failed: ${approveResult.error.message}`,
+              )
             }
 
             console.log('✅ Token approval successful:', approveResult.value)
@@ -180,7 +203,9 @@ export function useRegistration(initialName?: string) {
           setStep(RegistrationStep.REGISTERING)
         } catch (error) {
           console.error('❌ Error during token approval:', error)
-          setError(error instanceof Error ? error.message : 'Token approval failed')
+          setError(
+            error instanceof Error ? error.message : 'Token approval failed',
+          )
           setStep(RegistrationStep.ERROR)
         }
       }
@@ -214,7 +239,7 @@ export function useRegistration(initialName?: string) {
             secret,
             duration,
             selectedToken,
-            commitment
+            commitment,
           })
 
           const registerResult = await registerDomain(
@@ -227,16 +252,26 @@ export function useRegistration(initialName?: string) {
           )
 
           if (registerResult.isErr()) {
-            console.error('❌ Domain registration failed:', registerResult.error)
-            throw new Error(`Domain registration failed: ${registerResult.error.message}`)
+            console.error(
+              '❌ Domain registration failed:',
+              registerResult.error,
+            )
+            throw new Error(
+              `Domain registration failed: ${registerResult.error.message}`,
+            )
           }
 
-          console.log('✅ Domain registration successful:', registerResult.value)
+          console.log(
+            '✅ Domain registration successful:',
+            registerResult.value,
+          )
           setRegisterTxHash(registerResult.value)
           setStep(RegistrationStep.SUCCESS)
         } catch (error) {
           console.error('❌ Error during registration:', error)
-          setError(error instanceof Error ? error.message : 'Registration failed')
+          setError(
+            error instanceof Error ? error.message : 'Registration failed',
+          )
           setStep(RegistrationStep.ERROR)
         }
       }
