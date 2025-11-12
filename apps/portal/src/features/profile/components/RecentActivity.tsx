@@ -4,58 +4,11 @@ import type {
   BaseResolverEvent,
 } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
-import type { ColumnDef } from '@tanstack/react-table'
-import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
-import type { WithTimestamp } from '@/utils/types'
 import { useBlockTimestamps } from '../hooks/useBlockTimestamps'
 import { getNameHistoryQueryOptions } from '../hooks/useNameHistory'
-
-const _columns: ColumnDef<
-  WithTimestamp<BaseResolverEvent | BaseDomainEvent | BaseRegistrationEvent>
->[] = [
-  {
-    accessorKey: 'timestamp',
-    cell({ column, row }) {
-      const value = row.getValue(column.id) as bigint
-
-      const date = new Date(Number(value) * 1000)
-
-      return (
-        <span>
-          {date.toLocaleDateString(undefined, {
-            month: 'long',
-            day: '2-digit',
-            year: 'numeric',
-          })}
-        </span>
-      )
-    },
-  },
-  {
-    accessorKey: 'type',
-    header: 'Type',
-  },
-  {
-    accessorKey: 'transactionID',
-    header: 'Transaction',
-    cell({ column, row }) {
-      const value = row.getValue(column.id) as string
-      const displayName = `${value.slice(0, 6)}…${value.slice(-4)}`
-
-      return (
-        <CopyableRecord
-          href={`https://etherscan.io/tx/${value}`}
-          className="w-full max-w-72 lg:max-w-80 xl:max-w-max"
-          value={value}
-          displayValue={<span>{displayName}</span>}
-        />
-      )
-    },
-  },
-]
 
 const RecentActivityTable = ({
   events,
