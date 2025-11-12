@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { AddTextRecordsDialog } from '@/features/profile/components/dialogs/AddTextRecordsDialog'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
@@ -19,7 +20,7 @@ export const BioSection = withForm({
                   <X className="size-4" />
                 </button>
               </div>
-              <Input
+              <Textarea
                 className="w-full"
                 placeholder="add a bio to your profile"
                 value={field.state.value}
@@ -34,7 +35,7 @@ export const BioSection = withForm({
 
       <div>
         <div className="flex items-center gap-2">
-          <span className="font-medium">Add a link to bio</span>
+          <span className="font-medium">Link</span>
           <form.Field name="base.url">
             {(field) => (
               <>
