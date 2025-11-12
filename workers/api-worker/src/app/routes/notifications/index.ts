@@ -13,30 +13,12 @@ import type {
   NotificationPayloads,
   UserNotifications,
 } from '#types/notifications.js'
-import channels from './channels.js'
+import channels from './channels/index.js'
 import preferences from './preferences/index.js'
 
-/**
- * Notification routes for managing user notifications and broadcasts.
- *
- * This module handles:
- * - Personal notifications (user-specific events like name expiry, transfers)
- * - Broadcast notifications (system-wide announcements like blog posts)
- * - Pagination using cursor-based approach with UUIDv7 timestamps
- * - Marking notifications as read/unread and archived
- */
 export default createApp()
   .route('/channels', channels)
   .route('/preferences', preferences)
-  /**
-   * GET /notifications
-   *
-   * Retrieves a paginated list of notifications for the authenticated user.
-   * Combines personal notifications and broadcast notifications, sorted by creation time.
-   *
-   * @param cursor - Optional cursor for pagination (UUIDv7 timestamp)
-   * @returns Paginated list of notifications with next cursor
-   */
   .get(
     '/',
     ...requireAuth,

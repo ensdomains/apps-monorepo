@@ -14,7 +14,7 @@ import {
 import { logger } from '#utils/logger.js'
 
 export default createApp().patch(
-  '/batch',
+  '/',
   ...requireAuth,
   injectDb,
   vValidator(

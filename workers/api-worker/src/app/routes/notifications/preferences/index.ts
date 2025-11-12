@@ -11,9 +11,10 @@ import {
   UserNotificationKindSchema,
 } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
-import batchRoute from './batch.js'
+import batchRoutes from './batch.js'
 
 export default createApp()
+  .route('/batch', batchRoutes)
   .get('/', ...requireAuth, injectDb, async (c) => {
     const userId = c.var.user_id
 
@@ -136,4 +137,3 @@ export default createApp()
       return c.json({ kind, channel, enabled })
     },
   )
-  .route('/batch', batchRoute)
