@@ -12,7 +12,7 @@ import {
 import type { AddressRecordDef } from '../../data/records/types'
 import { IconRenderer } from '../IconRenderer'
 
-export type AddAddressRecordsDialogProps = {
+interface AddAddressRecordsDialogProps {
   buttonLabel: string
   title: string
   records: AddressRecordDef[]

@@ -10,19 +10,12 @@ import { parseAvatarQuery } from '../../service/profileAvatar'
 import { reverseNameQuery } from '../../service/profileReverseName'
 import type { ProfileRecords } from '../../types'
 
-interface ViewHeaderSectionProps {
-  name: string
-  records: ProfileRecords
-  owner?: Address
-}
-
-const OwnerLink = ({
-  address,
-  profileName,
-}: {
+interface OwnerLinkProps {
   address?: Address
   profileName: string
-}) => {
+}
+
+const OwnerLink = ({ address, profileName }: OwnerLinkProps) => {
   const ownerName = useQuery({
     ...reverseNameQuery(address),
   })
@@ -58,6 +51,12 @@ const OwnerLink = ({
       {ownerName.data.name}
     </Link>
   )
+}
+
+interface ViewHeaderSectionProps {
+  name: string
+  records: ProfileRecords
+  owner?: Address
 }
 
 export const ViewHeaderSection = ({

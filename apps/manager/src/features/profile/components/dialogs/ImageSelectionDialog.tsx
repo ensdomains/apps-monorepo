@@ -31,9 +31,9 @@ import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { cn } from '@/lib/utils'
 import { inspect } from '@/utils/xstate'
 
-export type ImageType = 'avatar' | 'header'
+type ImageType = 'avatar' | 'header'
 
-export type ImageSelectionDialogProps = {
+interface ImageSelectionDialogProps {
   currentImage?: string
   defaultImage?: string
   onImageChange: (imageUrl: string) => void

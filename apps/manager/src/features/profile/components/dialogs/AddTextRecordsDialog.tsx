@@ -12,7 +12,7 @@ import {
 import type { TextRecordDef } from '../../data/records/types'
 import { IconRenderer } from '../IconRenderer'
 
-export type AddTextRecordsDialogProps = {
+interface AddTextRecordsDialogProps {
   buttonLabel: string
   title: string
   records: TextRecordDef[]

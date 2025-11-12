@@ -15,10 +15,6 @@ const copyToClipboard = async (value: string) => {
   }
 }
 
-interface ViewBioSectionProps {
-  records: ProfileRecords
-}
-
 interface ContactItemProps {
   record: TextRecordValue
 }
@@ -67,6 +63,10 @@ const ContactItem = ({ record }: ContactItemProps) => {
       {inner}
     </button>
   )
+}
+
+interface ViewBioSectionProps {
+  records: ProfileRecords
 }
 
 export const ViewBioSection = ({ records }: ViewBioSectionProps) => {

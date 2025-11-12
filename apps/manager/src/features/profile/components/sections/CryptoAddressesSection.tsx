@@ -35,12 +35,8 @@ export const CryptoAddressesSection = withForm({
                       }
                       placeholder="Enter wallet address"
                       value={field.state.value}
-                      onChange={(value) => {
-                        field.handleChange(value)
-                      }}
-                      onRemove={() => {
-                        addressField.removeValue(i)
-                      }}
+                      onChange={(value) => field.handleChange(value)}
+                      onRemove={() => addressField.removeValue(i)}
                     />
                   )
                 }}

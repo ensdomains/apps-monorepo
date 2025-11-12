@@ -4,9 +4,6 @@ import { getAddressRecordDef } from '../../data/records'
 import type { ProfileRecords } from '../../types'
 import { IconRenderer } from '../IconRenderer'
 
-interface ViewCryptoSectionProps {
-  records: ProfileRecords
-}
 const copyToClipboard = async (value: string) => {
   try {
     await navigator.clipboard.writeText(value)
@@ -16,11 +13,11 @@ const copyToClipboard = async (value: string) => {
   }
 }
 
-const CryptoAddress = ({
-  address,
-}: {
+interface CryptoAddressProps {
   address: ProfileRecords['addresses'][number]
-}) => {
+}
+
+const CryptoAddress = ({ address }: CryptoAddressProps) => {
   const record = getAddressRecordDef(address.coinType)
   return (
     <Button
@@ -43,6 +40,10 @@ const CryptoAddress = ({
       {address.value && <Copy className="size-3.5" />}
     </Button>
   )
+}
+
+interface ViewCryptoSectionProps {
+  records: ProfileRecords
 }
 
 export const ViewCryptoSection = ({ records }: ViewCryptoSectionProps) => {

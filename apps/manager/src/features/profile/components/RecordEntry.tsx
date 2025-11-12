@@ -2,7 +2,7 @@ import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Input } from '@/components/ui/input'
 
-export type RecordEntryProps = {
+interface RecordEntryProps {
   name: string
   placeholder?: string
   badge?: ReactNode
