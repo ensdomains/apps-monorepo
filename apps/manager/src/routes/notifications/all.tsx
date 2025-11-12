@@ -68,7 +68,7 @@ function RouteComponent() {
   }
 
   return (
-    <div className="mx-auto my-5 max-w-4xl">
+    <div className="mx-auto my-5 max-w-md">
       <AllNotifications />
     </div>
   )

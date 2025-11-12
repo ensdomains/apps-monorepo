@@ -32,7 +32,7 @@ const UnauthenticatedContent = () => {
 
   return (
     <div className="">
-      <div className="px-4 py-6">
+      <div className="mx-auto max-w-md px-4 py-6">
         <div className="space-y-4 text-center">
           <div className="space-y-2">
             <h3 className="font-medium text-lg">Connect your wallet</h3>

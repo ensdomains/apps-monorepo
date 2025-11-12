@@ -6,9 +6,7 @@ export const NotificationWrapper = ({
   children,
 }: {
   children: React.ReactNode
-}) => (
-  <div className="space-y-2 border-gray-200 border-b px-4 py-6">{children}</div>
-)
+}) => <div className="space-y-3 border-gray-200 border-b py-4">{children}</div>
 
 export const NotificationHeader = ({
   children,
@@ -25,7 +23,6 @@ export const NotificationHeader = ({
     <span className="ml-auto text-gray-500 text-sm">
       {formatRelativeTime(timestamp)}
     </span>
-
     {onRemove && (
       <button type="button" onClick={onRemove} className="cursor-pointer">
         <X className="size-5 text-gray-500" />
@@ -35,11 +32,11 @@ export const NotificationHeader = ({
 )
 
 export const NameDisplay = ({ name }: { name: string }) => (
-  <div className="wrap-anywhere w-fit max-w-3/4 rounded-md bg-gray-800 p-1.5 font-mono text-sm text-white leading-ens-none">
+  <div className="wrap-anywhere w-fit max-w-3/4 rounded-md bg-gray-900 px-2 py-1 font-mono text-sm text-white leading-ens-none">
     {name}
   </div>
 )
 
 export const ActionRow = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex justify-end">{children}</div>
+  <div className="mt-3 flex justify-end">{children}</div>
 )

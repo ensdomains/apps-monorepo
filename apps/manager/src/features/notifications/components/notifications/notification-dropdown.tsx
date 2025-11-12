@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store/react'
+import { ArrowRight, ArrowUpRight, SmileIcon } from 'lucide-react'
 import { Button, LinkButton } from '@/components/ui/button'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { signInBackendMutation } from '../../queries/auth'
@@ -9,21 +10,23 @@ import {
 } from '../../queries/notifications'
 import { NotificationItem } from './notification-items'
 
+interface NotificationsDropdownProps {
+  onAction?: () => void
+}
+
 export const NotificationsDropdown = ({
   onAction,
-}: {
-  onAction?: () => void
-}) => {
+}: NotificationsDropdownProps) => {
   const isAuthed = useAtom(isBackendAuthed)
 
   if (!isAuthed) {
-    return <UnauthenticatedContent onAction={onAction} />
+    return <UnauthenticatedContent />
   }
 
   return <AuthenticatedContent onAction={onAction} />
 }
 
-const UnauthenticatedContent = ({ onAction }: { onAction?: () => void }) => {
+const UnauthenticatedContent = () => {
   const signIn = useMutation(signInBackendMutation)
 
   const handleSignIn = async () => {
@@ -36,10 +39,9 @@ const UnauthenticatedContent = ({ onAction }: { onAction?: () => void }) => {
 
   return (
     <div className="">
-      <div className="flex items-center justify-between pl-4">
+      <div className="flex items-center justify-between px-4 py-3">
         <h1 className="font-normal text-2xl">Notifications</h1>
       </div>
-
       <div className="px-4 py-6">
         <div className="space-y-4 text-center">
           <div className="space-y-2">
@@ -72,7 +74,11 @@ const UnauthenticatedContent = ({ onAction }: { onAction?: () => void }) => {
   )
 }
 
-const AuthenticatedContent = ({ onAction }: { onAction?: () => void }) => {
+interface AuthenticatedContentProps {
+  onAction?: () => void
+}
+
+const AuthenticatedContent = ({ onAction }: AuthenticatedContentProps) => {
   const { data, isLoading, isError } = useInfiniteQuery(
     notificationsInfiniteQuery,
   )
@@ -88,7 +94,7 @@ const AuthenticatedContent = ({ onAction }: { onAction?: () => void }) => {
   if (isLoading) {
     return (
       <div className="">
-        <div className="flex items-center justify-between pl-4">
+        <div className="flex items-center justify-between px-4 py-3">
           <h1 className="font-normal text-2xl">Notifications</h1>
         </div>
         <div className="px-4 py-6 text-center text-muted-foreground text-sm">
@@ -101,7 +107,7 @@ const AuthenticatedContent = ({ onAction }: { onAction?: () => void }) => {
   if (isError) {
     return (
       <div className="">
-        <div className="flex items-center justify-between pl-4">
+        <div className="flex items-center justify-between px-4 py-3">
           <h1 className="font-normal text-2xl">Notifications</h1>
         </div>
         <div className="px-4 py-6 text-center text-destructive text-sm">
@@ -112,51 +118,71 @@ const AuthenticatedContent = ({ onAction }: { onAction?: () => void }) => {
   }
 
   return (
-    <div className="">
-      <div className="flex items-center justify-between pl-4">
+    <div className="p-2">
+      <div className="flex items-center justify-between">
         <h1 className="font-normal text-2xl">Notifications</h1>
-        {unreadCount > 0 && (
-          <Button
-            variant="ghost"
-            className="font-normal"
+        {unreadCount > 0 ? (
+          <button
+            type="button"
+            className="text-sm"
             onClick={() => {
               // TODO: Implement mark all as read
               console.log('Mark all as read')
             }}
           >
             Mark all as read
-            <span className="ml-2 text-muted-foreground text-xs">
+            <span className="ml-2 rounded-md bg-gray-200 px-1.5 py-0.5 text-gray-900 text-xs">
               {unreadCount}
             </span>
-          </Button>
+          </button>
+        ) : (
+          <a
+            className="inline-flex items-center gap-1 text-muted-foreground text-sm hover:underline"
+            href="https://ens.domains/blog"
+            target="_blank"
+            rel="noreferrer"
+          >
+            what's new at ENS <ArrowUpRight className="size-3.5" />
+          </a>
         )}
       </div>
 
       <div>
         {displayedNotifications.length === 0 ? (
-          <div className="px-4 py-6 text-center text-muted-foreground text-sm">
-            No notifications yet
+          <div className="flex flex-col items-center justify-center space-y-2 pt-6">
+            <SmileIcon className="size-10" />
+            <div className="text-muted-foreground text-sm">All caught up!</div>
+            <LinkButton
+              to="/notifications/all"
+              variant="ghost"
+              className="mt-1 inline-flex items-center gap-2"
+              onClick={onAction}
+            >
+              View all notifications <ArrowRight className="size-4" />
+            </LinkButton>
           </div>
         ) : (
-          displayedNotifications.map((notification) => (
-            <NotificationItem
-              key={`${notification.kind}-${notification.timestamp}`}
-              notification={notification}
-              onAction={onAction}
-            />
-          ))
+          <div className="mt-1">
+            {displayedNotifications.map((notification) => (
+              <NotificationItem
+                key={`${notification.kind}-${notification.timestamp}`}
+                notification={notification}
+                onAction={onAction}
+              />
+            ))}
+          </div>
         )}
       </div>
 
       {allNotifications.length > 3 && (
-        <div className="border-gray-200 border-t px-4 py-3">
+        <div className="pt-5">
           <LinkButton
             to="/notifications/all"
             variant="ghost"
-            className="w-full"
+            className="inline-flex w-full items-center justify-center gap-2"
             onClick={onAction}
           >
-            View all notifications
+            View all notifications <ArrowRight className="size-4" />
           </LinkButton>
         </div>
       )}

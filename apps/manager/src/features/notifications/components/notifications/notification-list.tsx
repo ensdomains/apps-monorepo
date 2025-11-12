@@ -20,7 +20,7 @@ const NotificationGroup = ({
 
   return (
     <div className="">
-      <h2 className="mb-2 px-4 font-medium text-gray-900 text-lg">{title}</h2>
+      <h2 className="mb-2 font-medium text-gray-900 text-lg">{title}</h2>
       <div>
         {notifications.map((notification, index) => (
           <NotificationItem
