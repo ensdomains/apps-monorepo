@@ -11,15 +11,17 @@ import {
 } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
-import { useAccount, useEnsName } from 'wagmi'
+import { useAccount, useDisconnect, useEnsName } from 'wagmi'
 import {
   ExampleNameCard,
   LinkBlock,
   UpNextItem,
   WhatsNewItem,
 } from '@/components/homepage'
+import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { NavBar } from '@/components/molecules/NavBar'
 import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
+import { Button } from '@/components/ui/button'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
 import { HomeSearchInput } from '@/routes/components/HomeSearchInput'
 
@@ -30,6 +32,7 @@ export const Route = createFileRoute('/')({
 
 const ProfilePreview = ({ address }: { address: Address }) => {
   const { data: name, isLoading, error } = useEnsName({ address })
+  const { disconnect } = useDisconnect()
 
   if (error) return <div>Error loading profile: {error.message}</div>
   if (isLoading) return <div>Loading...</div>
@@ -37,7 +40,20 @@ const ProfilePreview = ({ address }: { address: Address }) => {
   if (!name) return null
 
   return (
-    <div>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-row gap-4">
+        <h2 className="font-medium text-[26px] flex flex-row w-max gap-1 items-baseline">
+          <span className="w-full">Connected as </span>
+          <CopyableRecord
+            value={address}
+            displayValue={`${address.slice(0, 6)}...${address.slice(-4)}`}
+            href={`/adddr/${address}`}
+          />
+        </h2>
+        <Button variant="secondary" onClick={() => disconnect()}>
+          Disconnect
+        </Button>
+      </div>
       <NameProfileCard name={name} />
     </div>
   )
@@ -120,10 +136,9 @@ function RouteComponent() {
           </div>
         </section>
 
-        {isConnected && address && <ProfilePreview address={address} />}
-
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-12">
           <section className="flex flex-col gap-6">
+            {isConnected && address && <ProfilePreview address={address} />}
             <h2 className="text-2xl font-bold">ENSv2 name examples</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <ExampleNameCard
