@@ -564,12 +564,18 @@ export const ImageSelectionDialog = ({
         <button
           type="button"
           className={clsx(
-            'group relative block w-full cursor-pointer overflow-hidden rounded-md',
-            type === 'header' && 'aspect-[3/1] md:aspect-[4/1]'
+            'group relative block w-full cursor-pointer overflow-hidden',
+            type === 'avatar' && 'rounded-md',
+            type === 'header' && 'aspect-[3/1] md:aspect-[4/1]',
           )}
           title={`Change ${type}`}
         >
-          <div className="absolute inset-0 flex items-center justify-center rounded-md bg-transparent transition-all duration-200 group-hover:bg-black/20">
+          <div
+            className={clsx(
+              'absolute inset-0 flex items-center justify-center bg-transparent transition-all duration-200 group-hover:bg-black/20',
+              type === 'avatar' && 'rounded-md',
+            )}
+          >
             <div className="opacity-0 transition-opacity duration-200 group-hover:opacity-100">
               <Image className="size-6 text-white" />
             </div>
