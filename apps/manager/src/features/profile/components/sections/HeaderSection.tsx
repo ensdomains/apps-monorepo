@@ -1,14 +1,18 @@
+import type { Address } from 'viem'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import { ProfileHeaderInfo } from '@/features/profile/components/common/ProfileHeaderInfo'
 import { ImageSelectionDialog } from '@/features/profile/components/dialogs/ImageSelectionDialog'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 
+interface HeaderSectionProps {
+  name: string
+  owner: Address | undefined
+}
+
 export const HeaderSection = withForm({
   ...sharedOptions,
-  props: {
-    name: '',
-  },
-  render: ({ form, name }) => (
+  props: { name: '', owner: undefined } as HeaderSectionProps,
+  render: ({ form, name, owner }) => (
     <div className="overflow-hidden md:rounded-xl">
       {/* Header BG */}
       <div className="relative w-full">
@@ -53,7 +57,7 @@ export const HeaderSection = withForm({
           </div>
         </div>
       </div>
-      <ProfileHeaderInfo name={name} />
+      <ProfileHeaderInfo name={name} owner={owner as Address} />
     </div>
   ),
 })

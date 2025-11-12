@@ -1,4 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
+import type { Address } from 'viem'
+import { ownerQuery } from '../service/profileOwner'
 import { profileRecordsQuery } from '../service/profileRecords'
 import {
   defaultProfileRecords,
@@ -24,6 +26,10 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   } = useQuery({
     ...profileRecordsQuery(name),
     select: transformProfileRecords,
+  })
+
+  const owner = useQuery({
+    ...ownerQuery(name),
   })
 
   const defaultValues = recordsData ?? defaultProfileRecords
@@ -77,17 +83,17 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       onSubmit={handleSubmit}
     >
       {/* Header */}
-      <HeaderSection form={form} name={name} />
+      <HeaderSection
+        form={form}
+        name={name}
+        owner={owner.data?.owner as Address}
+      />
 
-      {/* Content */}
       <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
         {/* Left/main column */}
         <div className="space-y-4 md:col-span-7 lg:col-span-8">
           <BioSection form={form} />
-
-          {/* Divider */}
           <div className="h-px w-full bg-gray-200" />
-
           <SocialLinksSection form={form} />
           <LinksSection form={form} />
         </div>
