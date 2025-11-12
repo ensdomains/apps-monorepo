@@ -18,7 +18,7 @@ interface RegistrationProps {
   initialName?: string
 }
 
-export function Registration({ initialName }: RegistrationProps) {
+export const Registration = ({ initialName }: RegistrationProps) => {
   const navigate = useNavigate()
   const { isConnected } = useAccount()
   const [state, send] = useMachine(searchMachine)

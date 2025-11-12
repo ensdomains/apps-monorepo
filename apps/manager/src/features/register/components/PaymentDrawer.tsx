@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
 import { useMediaQuery } from '@/hooks/use-media-query'
+import { cn } from '@/lib/utils'
 
 interface PaymentDrawerProps {
   domainName?: string
@@ -30,12 +31,12 @@ interface PaymentDrawerProps {
 }
 
 // Credit Card Payment Drawer Component
-export function CreditCardPaymentDrawer({
+export const CreditCardPaymentDrawer = ({
   domainName = 'example.eth',
   duration = 25,
   priceUSD = 2800,
   onPaymentSelect,
-}: PaymentDrawerProps) {
+}: PaymentDrawerProps) => {
   const [open, setOpen] = React.useState(false)
   const isDesktop = useMediaQuery('(min-width: 768px)')
 
@@ -112,14 +113,14 @@ export function CreditCardPaymentDrawer({
 }
 
 // Crypto Payment Drawer Component
-export function CryptoPaymentDrawer({
+export const CryptoPaymentDrawer = ({
   domainName = 'example.eth',
   duration = 25,
   priceUSD = 2800,
   onPaymentSelect,
   onCryptoSelect,
   onConfirmPayment,
-}: PaymentDrawerProps) {
+}: PaymentDrawerProps) => {
   const [open, setOpen] = React.useState(false)
   const [selectedCoin, setSelectedCoin] = React.useState<string>('')
   const isDesktop = useMediaQuery('(min-width: 768px)')
@@ -202,11 +203,12 @@ export function CryptoPaymentDrawer({
                   {coin.balance}
                 </span>
                 <div
-                  className={`h-4 w-4 rounded-full border-2 ${
+                  className={cn(
+                    'h-4 w-4 rounded-full border-2',
                     selectedCoin === coin.id
                       ? 'border-blue-500 bg-blue-500'
-                      : 'border-gray-300'
-                  }`}
+                      : 'border-gray-300',
+                  )}
                 >
                   {selectedCoin === coin.id && (
                     <div className="h-full w-full rounded-full bg-blue-500"></div>
@@ -269,11 +271,11 @@ export function CryptoPaymentDrawer({
 }
 
 // Main Payment Drawer Component (for backward compatibility)
-export function PaymentDrawer({
+export const PaymentDrawer = ({
   domainName = 'example.eth',
   duration = 25,
   priceUSD = 2800,
-}: PaymentDrawerProps) {
+}: PaymentDrawerProps) => {
   return (
     <div className="space-y-3">
       <h3 className="font-medium text-lg">Select payment method</h3>

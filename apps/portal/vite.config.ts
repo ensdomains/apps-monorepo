@@ -31,6 +31,13 @@ export default defineConfig({
       '@ens-apps/utils': fileURLToPath(
         new URL('../../packages/utils/src', import.meta.url),
       ),
+      '@ens-apps/l2-primary': new URL(
+        '../../packages/l2-primary/src',
+        import.meta.url,
+      ).pathname,
     },
+  },
+  optimizeDeps: {
+    exclude: ['@ens-apps/l2-primary'],
   },
 })

@@ -28,11 +28,12 @@ import {
 import { Input } from '@/components/ui/input'
 import { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { cn } from '@/lib/utils'
 import { inspect } from '@/utils/xstate'
 
-export type ImageType = 'avatar' | 'header'
+type ImageType = 'avatar' | 'header'
 
-export type ImageSelectionDialogProps = {
+interface ImageSelectionDialogProps {
   currentImage?: string
   defaultImage?: string
   onImageChange: (imageUrl: string) => void
@@ -249,7 +250,10 @@ export const ImageSelectionDialog = ({
               />
               <ImageFallback.Fallback>
                 <div
-                  className={`${getImageStyles('small')} flex items-center justify-center bg-gray-200`}
+                  className={cn(
+                    getImageStyles('small'),
+                    'flex items-center justify-center bg-gray-200',
+                  )}
                 >
                   <Image className="size-8 text-gray-400" />
                 </div>
@@ -559,10 +563,19 @@ export const ImageSelectionDialog = ({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="group relative block w-full cursor-pointer overflow-hidden rounded-md"
+          className={clsx(
+            'group relative block w-full cursor-pointer overflow-hidden',
+            type === 'avatar' && 'rounded-md',
+            type === 'header' && 'aspect-[3/1] md:aspect-[5/1]',
+          )}
           title={`Change ${type}`}
         >
-          <div className="absolute inset-0 flex items-center justify-center rounded-md bg-transparent transition-all duration-200 group-hover:bg-black/20">
+          <div
+            className={clsx(
+              'absolute inset-0 flex items-center justify-center bg-transparent transition-all duration-200 group-hover:bg-black/20',
+              type === 'avatar' && 'rounded-md',
+            )}
+          >
             <div className="opacity-0 transition-opacity duration-200 group-hover:opacity-100">
               <Image className="size-6 text-white" />
             </div>
@@ -581,7 +594,13 @@ export const ImageSelectionDialog = ({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className={clsx('h-48 w-full bg-gray-200 md:h-64')} />
+                <div
+                  className={clsx(
+                    type === 'header'
+                      ? 'h-full w-full bg-gray-200'
+                      : 'h-48 w-full bg-gray-200 md:h-64',
+                  )}
+                />
               )}
             </ImageFallback.Fallback>
           </ImageFallback.Root>

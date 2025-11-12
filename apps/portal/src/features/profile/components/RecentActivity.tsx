@@ -83,7 +83,11 @@ const RecentActivityTable = ({
   return <EventsDataTable name={name} data={dataWithTimestamps} />
 }
 
-export const RecentActivity = ({ name }: { name: string }) => {
+interface RecentActivityProps {
+  name: string
+}
+
+export const RecentActivity = ({ name }: RecentActivityProps) => {
   const {
     data: events,
     isLoading,

@@ -44,12 +44,12 @@ export interface GlobalTransactionToastsProps {
  * />
  * ```
  */
-export function GlobalTransactionToasts({
+export const GlobalTransactionToasts = ({
   render,
   autoDismiss = 5000,
   maxToasts = 5,
   enabled = true,
-}: GlobalTransactionToastsProps) {
+}: GlobalTransactionToastsProps) => {
   const transactions = useActiveTransactions()
   const [toasts, setToasts] = useState<Toast[]>([])
   const [seenStates, setSeenStates] = useState<Map<string, Set<string>>>(

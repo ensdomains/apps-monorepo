@@ -32,10 +32,10 @@ export interface TransactionRecoveryNotificationProps {
  * />
  * ```
  */
-export function TransactionRecoveryNotification({
+export const TransactionRecoveryNotification = ({
   render,
   autoRecover = false,
-}: TransactionRecoveryNotificationProps) {
+}: TransactionRecoveryNotificationProps) => {
   // TODO: Implement recovery methods in TransactionManagerProvider
   // const { recoverTransactions, clearRecovered } = useTransactionActorManager()
   const recoveredTransactions = useRecoveredTransactions()

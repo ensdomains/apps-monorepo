@@ -16,7 +16,7 @@ export interface TransactionModalProps extends TransactionModalState {
   machineState?: string
 }
 
-export function TransactionModal({
+export const TransactionModal = ({
   isOpen,
   title,
   ensName,
@@ -36,7 +36,7 @@ export function TransactionModal({
   onRetry,
   onPaymentSelect,
   onBack,
-}: TransactionModalProps) {
+}: TransactionModalProps) => {
   // Close modal on ESC key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {

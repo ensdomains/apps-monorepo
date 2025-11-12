@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { useSidebar } from '@/components/ui/sidebar'
 
-export function SiteHeader() {
+export const SiteHeader = () => {
   const { toggleSidebar } = useSidebar()
 
   return (

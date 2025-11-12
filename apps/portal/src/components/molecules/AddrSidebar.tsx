@@ -39,7 +39,11 @@ const itemGroups = [
   ],
 ] as const
 
-export const AddrSidebar = ({ addr }: { addr: Address }) => {
+interface AddrSidebarProps {
+  addr: Address
+}
+
+export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
   return (
     <Sidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!">
       <SidebarHeader className="p-6">
@@ -59,7 +63,7 @@ export const AddrSidebar = ({ addr }: { addr: Address }) => {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
                       <Link params={{ addr }} to={item.url}>
-                        <item.icon height={24} width={24} />
+                        <item.icon className="size-6" />
                         <span className="text-sm font-medium">
                           {item.title}
                         </span>

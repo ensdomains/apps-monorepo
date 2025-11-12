@@ -1,10 +1,18 @@
+import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
 import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
 import { ArrowLeftRight, CheckCircle2, XCircle } from 'lucide-react'
-import { type FC, type PropsWithChildren, useEffect, useState } from 'react'
-import type { Address } from 'viem'
+import {
+  type FC,
+  type PropsWithChildren,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
+import type { Address, Hash } from 'viem'
+import { useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { Badge } from '@/components/ui/badge'
@@ -20,16 +28,18 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
+import { useReverseResolutionMutations } from './hooks/useReverseResolutionMutations'
+import { useSwitchToRequiredNetwork } from './hooks/useSwitchToRequiredNetwork'
 
-const AddressHistory = ({
-  history,
-  name,
-}: {
+interface AddressHistoryProps {
   history: ReturnResolverEvent[]
   name: string
-}) => {
+}
+
+const AddressHistory = ({ history, name }: AddressHistoryProps) => {
   const {
     data: timestamps,
     isLoading,
@@ -64,7 +74,11 @@ const AddressHistory = ({
   )
 }
 
-const HistoryView = ({ name }: { name: string }) => {
+interface HistoryViewProps {
+  name: string
+}
+
+const HistoryView = ({ name }: HistoryViewProps) => {
   const {
     data: history,
     isLoading,
@@ -89,22 +103,109 @@ const HistoryView = ({ name }: { name: string }) => {
   return <AddressHistory history={history} name={name} />
 }
 
-export const ReverseResolutionSidebar: FC<
-  PropsWithChildren<{
-    row: Row<ReverseResolutionResult> | null
-    address: Address
-    open: boolean
-    setOpen: React.Dispatch<React.SetStateAction<boolean>>
-  }>
-> = ({ children, row, address, open, setOpen }) => {
+interface ReverseResolutionSidebarProps extends PropsWithChildren {
+  row: Row<ReverseResolutionResult> | null
+  address: Address
+  open: boolean
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>
+}
+
+export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
+  children,
+  row,
+  address,
+  open,
+  setOpen,
+}) => {
   const isMobile = useIsMobile()
+
+  const {
+    reverseRegistrarChainId,
+    name,
+    defaultName,
+    label = '',
+    icon,
+    forwardMatch = false,
+  } = useMemo(() => {
+    const r = row?.original
+    return {
+      reverseRegistrarChainId: (r?.reverseRegistrarChainId ??
+        60) as ReverseRegistrarChainId,
+      name: r?.name ?? null,
+      defaultName: r?.defaultName ?? null,
+      label: r?.label ?? '',
+      icon: r?.icon,
+      forwardMatch: r?.forwardMatch ?? false,
+    }
+  }, [row])
+
+  const isL1 = isL1ReverseRegistrarChainId(reverseRegistrarChainId)
+  const displayName = name || (defaultName && !isL1 ? defaultName : null)
+  const isInheritingDefault = !name && defaultName && !isL1
+  const isPrimaryName = forwardMatch || isInheritingDefault
+  // Only show "Set primary name" button for L1 chains (L2 doesn't need forward resolution)
+  const showSetPrimaryButton =
+    isL1 && displayName && !isPrimaryName && name !== null
+
   const [nameInput, setNameInput] = useState('')
 
+  // Reset input when sidebar closes or row changes
   useEffect(() => {
     if (!open || !row) {
       setNameInput('')
     }
   }, [open, row])
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNameInput(e.currentTarget.value)
+  }
+
+  const {
+    isWrongChain,
+    isSwitchingChain,
+    switchChain,
+    getSwitchToRequiredNetworkRequest,
+  } = useSwitchToRequiredNetwork({
+    reverseRegistrarChainId,
+  })
+
+  const {
+    getReverseResolutionRequest,
+    getForwardResolutionRequest,
+    invalidateReverseResolutionQuery,
+  } = useReverseResolutionMutations({
+    reverseRegistrarChainId,
+    displayName,
+  })
+
+  const { writeContractAsync } = useWriteContract()
+
+  const [reverseHash, setReverseHash] = useState<Hash | undefined>(undefined)
+  const [forwardHash, setForwardHash] = useState<Hash | undefined>(undefined)
+  const [isWritingReverse, setIsWritingReverse] = useState(false)
+  const [isWritingForward, setIsWritingForward] = useState(false)
+
+  const { isLoading: isConfirmingReverse, isSuccess: isReverseSuccess } =
+    useWaitForTransactionReceipt({ hash: reverseHash })
+  const { isLoading: isConfirmingForward, isSuccess: isForwardSuccess } =
+    useWaitForTransactionReceipt({ hash: forwardHash })
+
+  useEffect(() => {
+    setReverseHash(undefined)
+    setForwardHash(undefined)
+    setIsWritingReverse(false)
+    setIsWritingForward(false)
+  }, [row, open])
+
+  useEffect(() => {
+    if (isReverseSuccess || isForwardSuccess) {
+      invalidateReverseResolutionQuery()
+    }
+  }, [invalidateReverseResolutionQuery, isForwardSuccess, isReverseSuccess])
+
+  const isPendingReverse = isWritingReverse || isConfirmingReverse
+  const isPendingForward = isWritingForward || isConfirmingForward
+  const isPendingUpdate = isPendingReverse
 
   if (!row) {
     return (
@@ -124,32 +225,60 @@ export const ReverseResolutionSidebar: FC<
     )
   }
 
-  const { name, defaultName, coinType, label, icon, forwardMatch } =
-    row.original
-
-  const displayName =
-    name || (defaultName && coinType !== 60 ? defaultName : null)
-  const isInheritingDefault = !name && defaultName && coinType !== 60
-
-  const isPrimaryName = forwardMatch || isInheritingDefault
-
-  // Show "Set primary name" button when name exists but isn't primary yet
-  const showSetPrimaryButton = displayName && !isPrimaryName && name !== null
-
-  const handleUpdate = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = e.currentTarget
-    const input = form.elements.namedItem('name') as HTMLInputElement
-
-    if (input.reportValidity() && nameInput) {
-      // TODO: Implement setName for specific coinType
-      console.log('Update name for coinType', coinType, 'to', nameInput)
+    const input = form.querySelector<HTMLInputElement>('input[name="name"]')
+    if (!input?.reportValidity()) {
+      return
+    }
+    if (isWrongChain) {
+      try {
+        switchChain(getSwitchToRequiredNetworkRequest())
+      } catch (error) {
+        console.error('Failed to switch network', error)
+      }
+      return
+    }
+    if (nameInput) {
+      try {
+        const reverseRequest = getReverseResolutionRequest(nameInput)
+        setIsWritingReverse(true)
+        const hash = await writeContractAsync(
+          reverseRequest.request as Parameters<typeof writeContractAsync>[0],
+        )
+        setReverseHash(hash)
+      } catch (error) {
+        console.error('Failed to set reverse resolution', error)
+      } finally {
+        setIsWritingReverse(false)
+      }
     }
   }
 
-  const handleSetPrimaryName = () => {
-    // TODO: Implement setPrimaryName - set forward resolution
-    console.log('Set primary name for', displayName, 'on coinType', coinType)
+  const handleSetPrimaryName = async () => {
+    if (isWrongChain) {
+      try {
+        switchChain(getSwitchToRequiredNetworkRequest())
+      } catch (error) {
+        console.error('Failed to switch network', error)
+      }
+      return
+    }
+    if (displayName) {
+      try {
+        const request = getForwardResolutionRequest(address)
+        setIsWritingForward(true)
+        const hash = await writeContractAsync(
+          request as Parameters<typeof writeContractAsync>[0],
+        )
+        setForwardHash(hash)
+      } catch (error) {
+        console.error('Failed to set forward resolution', error)
+      } finally {
+        setIsWritingForward(false)
+      }
+    }
   }
 
   return (
@@ -166,8 +295,18 @@ export const ReverseResolutionSidebar: FC<
                 {label} resolution
               </SheetTitle>
               {showSetPrimaryButton && (
-                <Button onClick={handleSetPrimaryName} variant="default">
-                  Set primary name
+                <Button
+                  onClick={handleSetPrimaryName}
+                  variant="default"
+                  disabled={isPendingForward || isSwitchingChain}
+                >
+                  {isSwitchingChain
+                    ? 'Switching...'
+                    : isPendingForward
+                      ? 'Setting...'
+                      : isWrongChain
+                        ? 'Switch Network'
+                        : 'Set primary name'}
                 </Button>
               )}
             </div>
@@ -219,7 +358,8 @@ export const ReverseResolutionSidebar: FC<
                     type="text"
                     name="name"
                     value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
+                    onChange={handleNameChange}
+                    disabled={isPendingUpdate || isSwitchingChain}
                     pattern=".*\.eth$"
                     title="Name must end with .eth"
                     required
@@ -227,10 +367,16 @@ export const ReverseResolutionSidebar: FC<
                   <Button
                     type="submit"
                     variant="secondary"
-                    disabled={!nameInput}
+                    disabled={!nameInput || isPendingUpdate || isSwitchingChain}
                     size="sm"
                   >
-                    Update
+                    {isSwitchingChain
+                      ? 'Switching...'
+                      : isPendingUpdate
+                        ? 'Setting...'
+                        : isWrongChain
+                          ? 'Switch Network'
+                          : 'Update'}
                   </Button>
                 </form>
               </div>

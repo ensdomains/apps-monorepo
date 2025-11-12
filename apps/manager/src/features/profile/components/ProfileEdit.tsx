@@ -1,16 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
+import type { Address } from 'viem'
+import { ownerQuery } from '../service/profileOwner'
 import { profileRecordsQuery } from '../service/profileRecords'
 import {
   defaultProfileRecords,
   transformProfileRecords,
 } from '../utils/transformRecords'
-import { DiffDialog } from './dialogs/DiffDialog'
 import { useAppForm } from './form'
+import { SaveChanges } from './SaveChanges'
 import { BioSection } from './sections/BioSection'
-import { CryptoAddressesSection } from './sections/CryptoAddressesSection'
 import { HeaderSection } from './sections/HeaderSection'
 import { LinksSection } from './sections/LinksSection'
 import { SocialLinksSection } from './sections/SocialLinksSection'
+import { WalletAddressesSection } from './sections/WalletAddressesSection'
 
 interface ProfileEditProps {
   name: string
@@ -24,6 +26,10 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   } = useQuery({
     ...profileRecordsQuery(name),
     select: transformProfileRecords,
+  })
+
+  const owner = useQuery({
+    ...ownerQuery(name),
   })
 
   const defaultValues = recordsData ?? defaultProfileRecords
@@ -51,7 +57,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-md space-y-4">
+      <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]">
         <div className="flex items-center justify-center py-8">
           <div className="text-gray-600">Loading profile...</div>
         </div>
@@ -61,7 +67,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-md space-y-4">
+      <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]">
         <div className="flex items-center justify-center py-8">
           <div className="text-red-600">
             Error loading profile: {error.message}
@@ -72,30 +78,40 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   }
 
   return (
-    <form className="mx-auto max-w-md space-y-4" onSubmit={handleSubmit}>
-      <HeaderSection form={form} name={name} />
-      <BioSection form={form} />
+    <form
+      className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]"
+      onSubmit={handleSubmit}
+    >
+      {/* Header */}
+      <HeaderSection
+        form={form}
+        name={name}
+        owner={owner.data?.owner as Address}
+      />
 
-      {/* Divider */}
-      <div className="h-px w-full bg-gray-200" />
+      <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
+        {/* Left/main column */}
+        <div className="space-y-4 md:col-span-7 lg:col-span-8">
+          <BioSection form={form} />
+          <div className="h-px w-full bg-gray-200" />
+          <SocialLinksSection form={form} />
+          <LinksSection form={form} />
+        </div>
 
-      <SocialLinksSection form={form} />
-      <CryptoAddressesSection form={form} />
+        {/* Right/side column */}
+        <div className="space-y-4 md:col-span-5 lg:col-span-4">
+          <WalletAddressesSection form={form} />
 
-      <LinksSection form={form} />
-
-      {/* Save Button */}
-      <div className="pt-4">
-        <form.Subscribe selector={(state) => state.values}>
-          {(currentData) => (
-            <DiffDialog
+          {/* Save Button */}
+          <div className="pt-2">
+            <SaveChanges
+              form={form}
               originalData={defaultValues}
-              currentData={currentData}
               onSave={handleSave}
               onCancel={handleCancel}
             />
-          )}
-        </form.Subscribe>
+          </div>
+        </div>
       </div>
     </form>
   )

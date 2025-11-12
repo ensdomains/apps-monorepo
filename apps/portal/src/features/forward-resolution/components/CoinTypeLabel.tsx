@@ -1,8 +1,12 @@
+import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
 import { LinkIcon } from 'lucide-react'
-import type { CoinType } from '@/lib/coinType'
-import { icons, names } from '@/lib/coinType'
+import { icons, names } from '@/lib/reverseRegistrarChainId'
 
-export const CoinTypeLabel = ({ coin }: { coin: number }) =>
+interface CoinTypeLabelProps {
+  coin: number
+}
+
+export const CoinTypeLabel = ({ coin }: CoinTypeLabelProps) =>
   coin in icons && coin in names ? (
     <span
       className="flex flex-row gap-1 p-0.5 pr-2 bg-secondary rounded-2xl"
@@ -13,16 +17,16 @@ export const CoinTypeLabel = ({ coin }: { coin: number }) =>
         height={24}
         width={24}
         alt={coin.toString()}
-        src={icons[coin as CoinType]}
+        src={icons[coin as ReverseRegistrarChainId]}
       />{' '}
-      {names[coin as CoinType]}
+      {names[coin as ReverseRegistrarChainId]}
     </span>
   ) : coin === 0 ? (
     <span
       className="flex flex-row gap-1 p-0.5 pr-2 bg-secondary rounded-2xl items-center"
       key={coin}
     >
-      <LinkIcon height={16} width={16} />
+      <LinkIcon className="size-4" />
       <span>Default</span>
     </span>
   ) : (

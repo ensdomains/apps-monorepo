@@ -199,6 +199,13 @@ function ENSRenewal() {
 }
 ```
 
+## UI & Icons
+
+### Lucide Icons
+- Size lucide icons with Tailwind’s `size-*` class via `className`.
+- Don’t pass `width`, `height`, or `size` props to lucide icons.
+- Example: `<CalendarIcon className="size-3.5" />` (replaces `<CalendarIcon height={14} width={14} />`).
+
 ## Benefits of This Approach
 
 ### ✅ Testability
@@ -345,6 +352,19 @@ auditTrail.recordTransition(transition)
 - Third-party library requirements
 - Complex object hierarchies with inheritance
 - Encapsulation with private state that truly benefits from OOP
+
+## Component Props
+
+- Use arrow functions for React components: `export const Component = (props) => { ... }`.
+- Use a named props interface per component: `<ComponentName>Props`.
+- Define it next to the component; export only if reused elsewhere.
+
+Example:
+
+```tsx
+interface NameCountProps { address: Address }
+export const NameCount = ({ address }: NameCountProps) => { /* ... */ }
+```
 
 ## Summary
 
