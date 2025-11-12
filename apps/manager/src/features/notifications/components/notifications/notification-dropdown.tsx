@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store/react'
+import { ArrowUpRight, SmileIcon } from 'lucide-react'
 import { Button, LinkButton } from '@/components/ui/button'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { signInBackendMutation } from '../../queries/auth'
@@ -39,7 +40,6 @@ const UnauthenticatedContent = ({ onAction }: { onAction?: () => void }) => {
       <div className="flex items-center justify-between pl-4">
         <h1 className="font-normal text-2xl">Notifications</h1>
       </div>
-
       <div className="px-4 py-6">
         <div className="space-y-4 text-center">
           <div className="space-y-2">
@@ -112,10 +112,10 @@ const AuthenticatedContent = ({ onAction }: { onAction?: () => void }) => {
   }
 
   return (
-    <div className="">
-      <div className="flex items-center justify-between pl-4">
+    <div>
+      <div className="flex items-center justify-between">
         <h1 className="font-normal text-2xl">Notifications</h1>
-        {unreadCount > 0 && (
+        {unreadCount > 0 ? (
           <Button
             variant="ghost"
             className="font-normal"
@@ -129,13 +129,19 @@ const AuthenticatedContent = ({ onAction }: { onAction?: () => void }) => {
               {unreadCount}
             </span>
           </Button>
+        ) : (
+          <div className="flex items-start justify-center space-x-1 text-muted-foreground text-sm">
+            <div>What's new at ENS</div>
+            <ArrowUpRight className="size-4" />
+          </div>
         )}
       </div>
 
       <div>
         {displayedNotifications.length === 0 ? (
-          <div className="px-4 py-6 text-center text-muted-foreground text-sm">
-            No notifications yet
+          <div className="flex flex-col items-center justify-center space-y-2 pt-5">
+            <SmileIcon className="size-10" />
+            <div className="text-muted-foreground text-sm">All caught up!</div>
           </div>
         ) : (
           displayedNotifications.map((notification) => (
