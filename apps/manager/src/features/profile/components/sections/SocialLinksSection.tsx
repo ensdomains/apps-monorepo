@@ -9,7 +9,7 @@ export const SocialLinksSection = withForm({
     <form.Field name="social" mode="array">
       {(socialField) => (
         <div className="space-y-2">
-          <h3 className="text-lg">Social Links</h3>
+          <h3 className="font-medium">Social Links</h3>
           {socialField.state.value.map(({ key }, i: number) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
             <form.Field key={i} name={`social[${i}].value`}>
@@ -30,7 +30,7 @@ export const SocialLinksSection = withForm({
               }}
             </form.Field>
           ))}
-          <div className="mt-4 flex justify-end">
+          <div className="mt-3 flex justify-end">
             <AddTextRecordsDialog
               buttonLabel="Add Social Link"
               title="Add Social Link"

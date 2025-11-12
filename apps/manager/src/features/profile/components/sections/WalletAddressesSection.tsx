@@ -13,8 +13,8 @@ export const WalletAddressesSection = withForm({
     <form.Field name="addresses" mode="array">
       {(addressField) => (
         <div className="space-y-2">
-          <h3 className="text-lg">Crypto Addresses</h3>
-          <p className="text-muted-foreground">
+          <h3 className="font-medium">Wallet Addresses</h3>
+          <p className="mb-5 text-muted-foreground text-sm">
             Add your wallet addresses to receive payments. All addresses will be
             publicly visible on your profile.
           </p>
@@ -43,7 +43,7 @@ export const WalletAddressesSection = withForm({
               </form.Field>
             ),
           )}
-          <div className="mt-4 flex justify-end">
+          <div className="mt-3 flex justify-end">
             <AddAddressRecordsDialog
               buttonLabel="Add Crypto Address"
               title="Add Crypto Address"

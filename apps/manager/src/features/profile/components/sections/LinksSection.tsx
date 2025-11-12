@@ -9,7 +9,7 @@ export const LinksSection = withForm({
     <form.Field name="links" mode="array">
       {(linksField) => (
         <div className="space-y-2">
-          <h3 className="text-lg">Links</h3>
+          <h3 className="font-medium">Links</h3>
           {linksField.state.value.map(({ name }, i: number) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
             <form.Field key={i} name={`links[${i}].url`}>
@@ -28,7 +28,7 @@ export const LinksSection = withForm({
               }}
             </form.Field>
           ))}
-          <div className="mt-4 flex justify-end">
+          <div className="mt-3 flex justify-end">
             <Button
               variant="secondary"
               size="sm"

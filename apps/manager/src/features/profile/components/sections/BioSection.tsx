@@ -21,7 +21,7 @@ export const BioSection = withForm({
               </div>
               <Textarea
                 className="w-full"
-                placeholder="add a bio to your profile"
+                placeholder="Add a short bio to your profile"
                 value={field.state.value}
                 onChange={(e) => {
                   field.handleChange(e.target.value)
@@ -36,7 +36,7 @@ export const BioSection = withForm({
         <form.Field name="base.url">
           {(field) => (
             <RecordEntry
-              name="Link"
+              name="Add a link to bio"
               placeholder="https://example.com"
               value={field.state.value}
               onChange={field.handleChange}
@@ -71,7 +71,7 @@ export const BioSection = withForm({
                 </form.Field>
               ),
             )}
-            <div className="mt-4 flex justify-end">
+            <div className="mt-3 flex justify-end">
               <AddTextRecordsDialog
                 buttonLabel="Add Contact Information"
                 title="Add Contact Information"
