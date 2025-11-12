@@ -45,7 +45,7 @@ const Profile = ({
         resolverAddress={resolverAddress}
       />
       <SubnameCount name={name} />
-      <RolesCount name={name} />
+      <RolesCount name={name} resolverAddress={resolverAddress} />
     </div>
   )
 }

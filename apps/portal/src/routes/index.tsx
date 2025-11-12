@@ -10,6 +10,8 @@ import {
   Users,
 } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
+import type { Address } from 'viem'
+import { useAccount, useEnsName } from 'wagmi'
 import {
   ExampleNameCard,
   LinkBlock,
@@ -17,13 +19,31 @@ import {
   WhatsNewItem,
 } from '@/components/homepage'
 import { NavBar } from '@/components/molecules/NavBar'
+import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
 import { HomeSearchInput } from '@/routes/components/HomeSearchInput'
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,
 })
 
+const ProfilePreview = ({ address }: { address: Address }) => {
+  const { data: name, isLoading, error } = useEnsName({ address })
+
+  if (error) return <div>Error loading profile: {error.cause?.message}</div>
+  if (isLoading) return <div>Loading...</div>
+
+  if (!name) return null
+
+  return (
+    <div>
+      <NameProfileCard name={name} />
+    </div>
+  )
+}
+
 function RouteComponent() {
+  const { isConnected, address } = useAccount()
+
   return (
     <>
       <NavBar />
@@ -98,7 +118,7 @@ function RouteComponent() {
           </div>
         </section>
 
-        {/* Connected with ENS component to show name and address */}
+        {isConnected && <ProfilePreview address={address} />}
 
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-12">
           <section className="flex flex-col gap-6">

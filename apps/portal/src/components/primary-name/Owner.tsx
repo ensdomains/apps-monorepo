@@ -41,7 +41,10 @@ export const Owner = ({ name }: OwnerProps) => {
 
   if (error) return <div>Error: {error.cause?.message}</div>
   if (isLoading) return <div>Loading...</div>
-  if (!data?.owner) return null
+  if (!data?.owner)
+    return (
+      <div className="p-6 rounded-2xl border border-gray-300">No owner</div>
+    )
 
   return <OwnerWithENS owner={data.owner} />
 }

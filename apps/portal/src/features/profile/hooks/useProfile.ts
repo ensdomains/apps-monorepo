@@ -14,9 +14,12 @@ export class GetProfileError extends TaggedError('RecordsError')<{
 export const getProfile = ResultFn(async function* (name: string) {
   const subgraphRecords = yield* getSubgraphRecords(name)
 
+  const coins = [...(subgraphRecords?.coins || []), 60] // always include ETH
+
   const records = yield* getRecords({
     name,
     ...subgraphRecords,
+    coins,
     contentHash: true,
     abi: true,
     ignoreInvalidCoinTypes: true,

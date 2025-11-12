@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, ListIcon, ListStartIcon } from 'lucide-react'
+import { zeroAddress } from 'viem'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistries'
 import { getSubnamesQueryOptions } from '../hooks/useSubnames'
@@ -15,13 +16,24 @@ const RegistryLocation = ({ name }: { name: string }) => {
 
   if (!data) return null
 
+  const [root, eth, ...labels] = data.toReversed()
+
+  const lastLabel = labels.at(-1)
+
+  const hasSubregistry = lastLabel && lastLabel !== zeroAddress
+
   return (
     <div className="flex-1">
       <span className="font-medium">Subregistry</span>
-      <CopyableRecord
-        displayValue={`${data[1].slice(0, 6)}...${data[1].slice(-4)}`}
-        value={data[1]}
-      />
+
+      {hasSubregistry ? (
+        <CopyableRecord
+          displayValue={`${lastLabel.slice(0, 6)}...${lastLabel.slice(-4)}`}
+          value={lastLabel}
+        />
+      ) : (
+        <div>None deployed</div>
+      )}
     </div>
   )
 }
