@@ -21,9 +21,7 @@ export const SocialLinksSection = withForm({
                     name={record.name}
                     placeholder={record.placeholder}
                     value={field.state.value}
-                    onChange={(value) => {
-                      field.handleChange(value)
-                    }}
+                    onChange={field.handleChange}
                     onRemove={() => {
                       socialField.removeValue(i)
                     }}

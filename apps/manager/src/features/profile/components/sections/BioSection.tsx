@@ -1,5 +1,4 @@
 import { X } from 'lucide-react'
-import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { AddTextRecordsDialog } from '@/features/profile/components/dialogs/AddTextRecordsDialog'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
@@ -34,26 +33,17 @@ export const BioSection = withForm({
       </div>
 
       <div className="space-y-1">
-        <div>Add link to bio</div>
-        <div className="flex items-center gap-2">
-          <form.Field name="base.url">
-            {(field) => (
-              <>
-                <Input
-                  className="w-full"
-                  placeholder="https://example.com"
-                  value={field.state.value}
-                  onChange={(e) => {
-                    field.handleChange(e.target.value)
-                  }}
-                />
-                <button type="button" onClick={() => field.handleChange('')}>
-                  <X className="size-4" />
-                </button>
-              </>
-            )}
-          </form.Field>
-        </div>
+        <form.Field name="base.url">
+          {(field) => (
+            <RecordEntry
+              name="Link"
+              placeholder="https://example.com"
+              value={field.state.value}
+              onChange={field.handleChange}
+              onRemove={() => field.handleChange('')}
+            />
+          )}
+        </form.Field>
       </div>
 
       <form.Field name="contact" mode="array">
@@ -71,9 +61,7 @@ export const BioSection = withForm({
                         name={record.name}
                         placeholder={record.placeholder}
                         value={field.state.value}
-                        onChange={(value) => {
-                          field.handleChange(value)
-                        }}
+                        onChange={field.handleChange}
                         onRemove={() => {
                           contactField.removeValue(i)
                         }}

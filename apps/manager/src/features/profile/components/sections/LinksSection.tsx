@@ -19,9 +19,7 @@ export const LinksSection = withForm({
                     name={name}
                     placeholder="https://example.com"
                     value={field.state.value}
-                    onChange={(value) => {
-                      field.handleChange(value)
-                    }}
+                    onChange={field.handleChange}
                     onRemove={() => {
                       linksField.removeValue(i)
                     }}

@@ -35,7 +35,7 @@ export const WalletAddressesSection = withForm({
                       }
                       placeholder="Enter wallet address"
                       value={field.state.value}
-                      onChange={(value) => field.handleChange(value)}
+                      onChange={field.handleChange}
                       onRemove={() => addressField.removeValue(i)}
                     />
                   )

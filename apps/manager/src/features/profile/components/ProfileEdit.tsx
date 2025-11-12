@@ -6,7 +6,7 @@ import {
   defaultProfileRecords,
   transformProfileRecords,
 } from '../utils/transformRecords'
-import { DiffDialog } from './dialogs/DiffDialog'
+import { SaveChanges } from './SaveChanges'
 import { useAppForm } from './form'
 import { BioSection } from './sections/BioSection'
 import { HeaderSection } from './sections/HeaderSection'
@@ -104,16 +104,12 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
           {/* Save Button */}
           <div className="pt-2">
-            <form.Subscribe selector={(state) => state.values}>
-              {(currentData) => (
-                <DiffDialog
-                  originalData={defaultValues}
-                  currentData={currentData}
-                  onSave={handleSave}
-                  onCancel={handleCancel}
-                />
-              )}
-            </form.Subscribe>
+            <SaveChanges
+              form={form}
+              originalData={defaultValues}
+              onSave={handleSave}
+              onCancel={handleCancel}
+            />
           </div>
         </div>
       </div>
