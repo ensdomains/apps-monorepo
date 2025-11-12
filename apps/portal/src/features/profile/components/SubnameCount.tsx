@@ -10,7 +10,7 @@ const RegistryLocation = ({ name }: { name: string }) => {
     getNameRegistriesQueryOptions({ name }),
   )
 
-  if (error) return <div>Some stupid error</div>
+  if (error) return <div>{error.cause?.message}</div>
   if (isLoading) return <div>Loading...</div>
 
   if (!data) return null
