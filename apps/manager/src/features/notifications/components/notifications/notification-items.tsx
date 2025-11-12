@@ -146,7 +146,6 @@ export const NotificationItem = ({
   onRemove?: () => void
 }) => {
   const Item = NotificationItems[notification.kind]
-  console.log(notification)
   return (
     <Item
       payload={notification.payload as any}
