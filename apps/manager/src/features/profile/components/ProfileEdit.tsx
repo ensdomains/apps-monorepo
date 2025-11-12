@@ -7,10 +7,10 @@ import {
 import { DiffDialog } from './dialogs/DiffDialog'
 import { useAppForm } from './form'
 import { BioSection } from './sections/BioSection'
-import { CryptoAddressesSection } from './sections/CryptoAddressesSection'
 import { HeaderSection } from './sections/HeaderSection'
 import { LinksSection } from './sections/LinksSection'
 import { SocialLinksSection } from './sections/SocialLinksSection'
+import { WalletAddressesSection } from './sections/WalletAddressesSection'
 
 interface ProfileEditProps {
   name: string
@@ -94,7 +94,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
         {/* Right/side column */}
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
-          <CryptoAddressesSection form={form} />
+          <WalletAddressesSection form={form} />
 
           {/* Save Button */}
           <div className="pt-2">

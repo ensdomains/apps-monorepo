@@ -7,7 +7,7 @@ import {
   getAvailableAddressRecords,
 } from '../../data/records'
 
-export const CryptoAddressesSection = withForm({
+export const WalletAddressesSection = withForm({
   ...sharedOptions,
   render: ({ form }) => (
     <form.Field name="addresses" mode="array">
