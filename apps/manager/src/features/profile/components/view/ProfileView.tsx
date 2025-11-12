@@ -1,4 +1,5 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import type { Address } from 'viem'
 import { useAccount } from 'wagmi'
 import { LinkButton } from '@/components/ui/button'
 import { sectionsList } from '../../data/records'
@@ -62,7 +63,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
       <ViewHeaderSection
         name={name}
         records={records.data}
-        owner={owner.data?.owner}
+        owner={owner.data?.owner as Address}
       />
       <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
         {/* Left/main column */}

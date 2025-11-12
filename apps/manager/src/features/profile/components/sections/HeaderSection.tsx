@@ -53,14 +53,7 @@ export const HeaderSection = withForm({
           </div>
         </div>
       </div>
-
-      {/* Main info */}
-      <div className="flex w-full flex-col items-start gap-3 bg-gray-100 px-4 pt-16 pb-4 text-center md:px-6 md:pt-16 md:pb-6 md:text-left">
-        <ProfileHeaderInfo
-          name={name}
-          ownerNode={<span className="font-medium">{name}</span>}
-        />
-      </div>
+      <ProfileHeaderInfo name={name} />
     </div>
   ),
 })
