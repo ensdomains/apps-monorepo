@@ -1,18 +1,10 @@
 import { Link } from '@tanstack/react-router'
-import { Calendar, CopyIcon, Wallet } from 'lucide-react'
+import { Calendar, Wallet } from 'lucide-react'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
+import { CopyToClipboard } from '@/components/atoms/CopyToClipboard'
 import { Highlight } from '@/components/atoms/Highlight'
 import { ImageSelectionDialog } from '@/features/profile/components/dialogs/ImageSelectionDialog'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
-
-const copyToClipboard = async (value: string) => {
-  try {
-    await navigator.clipboard.writeText(value)
-    alert('Copied to clipboard')
-  } catch {
-    // noop
-  }
-}
 
 export const HeaderSection = withForm({
   ...sharedOptions,
@@ -84,12 +76,10 @@ export const HeaderSection = withForm({
           >
             app.ens.domains/p/{name}
           </Link>
-          <button
-            type="button"
-            onClick={() => copyToClipboard(`app.ens.domains/p/${name}`)}
-          >
-            <CopyIcon className="size-4" />
-          </button>
+          <CopyToClipboard
+            value={`app.ens.domains/p/${name}`}
+            className="size-4"
+          />
         </div>
       </div>
     </div>
