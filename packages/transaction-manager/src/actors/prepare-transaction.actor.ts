@@ -108,7 +108,15 @@ function prepareENSRenewal(
             data,
             value,
             chainId,
-            rhinestoneParams: { name, duration },
+            rhinestoneParams: {
+              calls: [
+                {
+                  to,
+                  data,
+                  value,
+                },
+              ],
+            },
           }
         : {
             type: 'eoa',
@@ -167,6 +175,15 @@ function prepareETHTransfer(
             data: data || ('0x' as Hex),
             value,
             chainId,
+            rhinestoneParams: {
+              calls: [
+                {
+                  to,
+                  data: data || ('0x' as Hex),
+                  value,
+                },
+              ],
+            },
           }
         : {
             type: 'eoa',
