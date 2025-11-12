@@ -6,8 +6,8 @@ import {
   defaultProfileRecords,
   transformProfileRecords,
 } from '../utils/transformRecords'
-import { SaveChanges } from './SaveChanges'
 import { useAppForm } from './form'
+import { SaveChanges } from './SaveChanges'
 import { BioSection } from './sections/BioSection'
 import { HeaderSection } from './sections/HeaderSection'
 import { LinksSection } from './sections/LinksSection'

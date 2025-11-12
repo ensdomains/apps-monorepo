@@ -2,6 +2,7 @@ import type { Address } from 'viem'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import { ProfileHeaderInfo } from '@/features/profile/components/common/ProfileHeaderInfo'
 import { ImageSelectionDialog } from '@/features/profile/components/dialogs/ImageSelectionDialog'
+import { ShareProfileDialog } from '@/features/profile/components/dialogs/ShareProfileDialog'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 
 interface HeaderSectionProps {
@@ -34,6 +35,22 @@ export const HeaderSection = withForm({
             />
           )}
         </form.Field>
+        {/* Share button overlay */}
+        <div className="absolute top-2 right-2 z-10">
+          <form.Subscribe selector={(state) => state.values.base.avatar}>
+            {(avatarUrl) => (
+              <ShareProfileDialog
+                name={name}
+                avatarUrl={avatarUrl}
+                url={`${
+                  typeof window !== 'undefined'
+                    ? window.location.origin
+                    : 'https://app.ens.domains'
+                }/p/${name}`}
+              />
+            )}
+          </form.Subscribe>
+        </div>
         <div className="-bottom-10 max-md:-translate-x-1/2 absolute left-1/2 size-24 md:left-6 md:size-36 lg:size-40">
           <div className="size-full overflow-hidden rounded-xl bg-gray-200 shadow-md ring-2 ring-white">
             <form.Field name="base.avatar">

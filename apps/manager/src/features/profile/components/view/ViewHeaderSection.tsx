@@ -6,6 +6,7 @@ import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { parseAvatarQuery } from '../../service/profileAvatar'
 import type { ProfileRecords } from '../../types'
 import { ProfileHeaderInfo } from '../common/ProfileHeaderInfo'
+import { ShareProfileDialog } from '../dialogs/ShareProfileDialog'
 
 interface ViewHeaderSectionProps {
   name: string
@@ -24,6 +25,12 @@ export const ViewHeaderSection = ({
       parseAvatarQuery(records.base.header),
     ],
   })
+
+  const url = `${
+    typeof window !== 'undefined'
+      ? window.location.origin
+      : 'https://app.ens.domains'
+  }/p/${name}`
 
   return (
     <div className="overflow-hidden md:rounded-xl">
@@ -44,7 +51,9 @@ export const ViewHeaderSection = ({
             />
           </ImageFallback.Fallback>
         </ImageFallback.Root>
-
+        <div className="absolute top-4 right-4 z-10">
+          <ShareProfileDialog name={name} url={url} avatarUrl={avatar.data} />
+        </div>
         <div className="-bottom-10 max-md:-translate-x-1/2 absolute left-1/2 size-24 md:left-6 md:size-36 lg:size-40">
           <div className="size-full overflow-hidden rounded-xl bg-gray-200 shadow-md ring-2 ring-white">
             <ImageFallback.Root className="contents">
