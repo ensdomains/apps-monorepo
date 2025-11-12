@@ -1,4 +1,4 @@
-import { Check, Plus } from 'lucide-react'
+import { CircleCheck, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -62,14 +62,14 @@ export const AddTextRecordsDialog = ({
               return (
                 <Button
                   key={record.key}
-                  variant={isSelected ? 'default' : 'outline'}
+                  variant={isSelected ? 'default' : 'soft'}
                   onClick={() => handleToggle(record.key)}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 rounded-full"
                 >
                   <IconRenderer icon={record.icon} className="size-4" />
                   <span>{record.name}</span>
                   {isSelected ? (
-                    <Check className="size-4" />
+                    <CircleCheck className="size-4" />
                   ) : (
                     <Plus className="size-4" />
                   )}
