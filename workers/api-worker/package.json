@@ -20,7 +20,6 @@
     "build:tsc": "tsc -p tsconfig.build.json",
     "build": "pnpm build:vite && pnpm build:tsc",
     "deploy": "pnpm build:vite && wrangler deploy",
-    "seed:notifications": "node scripts/seed-notifications.mjs",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings worker-configuration.gen.d.ts"
   },
   "dependencies": {
