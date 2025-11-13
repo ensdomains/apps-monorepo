@@ -26,7 +26,7 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
   })
 
   if (error) return <div>Error loading timestamps: {error.cause?.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   const data = groupEventsByTransactionId(
     history.map((item) => ({
