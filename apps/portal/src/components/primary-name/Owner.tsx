@@ -1,10 +1,37 @@
 import { useQuery } from '@tanstack/react-query'
-import { sepolia } from 'viem/chains'
-import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { Link } from '@tanstack/react-router'
+import type { Address } from 'viem'
+import { useEnsName } from 'wagmi'
+import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { CopyableRecord } from '../molecules/CopyableRecord'
+import { LoadingSpinner } from '../molecules/LoadingSpinner'
 
-const sepoliaUrl = sepolia.blockExplorers.default.url
+const OwnerWithENS = ({ owner }: { owner: Address }) => {
+  const { data: ownerName, error, isLoading } = useEnsName({ address: owner })
+
+  if (error) return <div>{error.message}</div>
+  if (isLoading) return <div>Loading</div>
+
+  const shortenedAddress = `${owner.slice(0, 6)}...${owner.slice(-4)}`
+
+  return (
+    <Link
+      to="/addr/$addr"
+      params={{ addr: owner }}
+      className="p-6 flex flex-row rounded-2xl gap-6 items-center border border-gray-300 hover:bg-gray-100"
+    >
+      <NameAvatar
+        width="40px"
+        height="40px"
+        name={ownerName || shortenedAddress}
+      />
+      <div className="flex flex-col">
+        <span className="font-medium">Owner</span>
+        <span>{ownerName || shortenedAddress}</span>
+      </div>
+    </Link>
+  )
+}
 
 interface OwnerProps {
   name: string
@@ -15,16 +42,13 @@ export const Owner = ({ name }: OwnerProps) => {
 
   if (error) return <div>Error: {error.cause?.message}</div>
   if (isLoading) return <LoadingSpinner title="Loading..." />
-  if (!data) return null
+  if (!data?.owner)
+    return (
+      <div className="flex flex-col p-6 rounded-2xl border border-gray-300">
+        <span className="font-medium">Owner</span>
+        <span>No owner data (WIP)</span>
+      </div>
+    )
 
-  return (
-    <span className="flex flex-row gap-1 items-baseline">
-      <span>Owned by</span>
-      <CopyableRecord
-        className="max-w-40 sm:max-w-54 xl:max-w-80"
-        value={data.owner}
-        href={`${sepoliaUrl}/address/${data.owner}`}
-      />
-    </span>
-  )
+  return <OwnerWithENS owner={data.owner} />
 }

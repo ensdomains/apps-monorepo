@@ -190,7 +190,7 @@ export const NameHistory = ({
     getNameHistoryQueryOptions({ name }),
   )
 
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
   if (error)
     return <div>Error: {(error as GetNameHistoryError).cause?.message}</div>
 

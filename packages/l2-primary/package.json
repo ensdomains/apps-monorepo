@@ -2,7 +2,6 @@
   "name": "@ens-apps/l2-primary",
   "version": "1.0.0",
   "description": "Shared ABIs for ENS apps",
-  "main": "./src/index.ts",
   "type": "module",
   "private": true,
   "exports": {
@@ -24,7 +23,7 @@
   },
   "keywords": [],
   "dependencies": {
-    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@16ab3ad"
+    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@69d9a4a"
   },
   "peerDependencies": {
     "wagmi": "^2.16.9",

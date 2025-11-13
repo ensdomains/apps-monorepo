@@ -30,6 +30,7 @@ export const EventsDataTable = <TEvent extends BaseEvent = BaseEvent>({
   enableSidebar = true,
   enableFilters = true,
   enableSearch = true,
+  enableTransactionCount = true,
   defaultNetwork = { name: 'Sepolia', icon: '/icons/eth.svg' },
   onTransactionClick,
 }: EventsTableConfig<TEvent>) => {
@@ -172,49 +173,53 @@ export const EventsDataTable = <TEvent extends BaseEvent = BaseEvent>({
 
   return (
     <>
-      <header className="bg-gray-100 px-8 pb-4 pt-12 flex flex-col gap-4">
-        <div className="flex flex-row justify-between">
-          <h1 className="text-[28px] font-medium">
-            {eventCount} Transaction{eventCount !== 1 ? 's' : ''}
-          </h1>
-        </div>
+      {enableTransactionCount || enableSearch || enableFilters ? (
+        <header className="bg-gray-100 px-8 pb-4 pt-12 flex flex-col gap-4">
+          {enableTransactionCount && (
+            <div className="flex flex-row justify-between">
+              <h1 className="text-[28px] font-medium">
+                {eventCount} Transaction{eventCount !== 1 ? 's' : ''}
+              </h1>
+            </div>
+          )}
 
-        {enableSearch && (
-          <InputGroup className="bg-white rounded-sm">
-            <InputGroupInput
-              id={searchId}
-              className="w-full"
-              placeholder="Search..."
-              onChange={(event) => table.setGlobalFilter(event.target.value)}
-            />
-            <InputGroupAddon>
-              <Search />
-            </InputGroupAddon>
-          </InputGroup>
-        )}
-
-        {enableFilters && (
-          <div className="flex flex-row gap-2 flex-wrap">
-            <CollapseAllButton
-              onToggle={handleCollapseAll}
-              isCollapsed={isCollapsed}
-            />
-            <TableDateRangeFilter
-              label="Date"
-              dateRange={dateRange}
-              onChange={setDateRange}
-            />
-            {eventTypesByCategory.length > 0 && (
-              <TableMultiSelectFilter
-                label="Event"
-                groups={eventTypesByCategory}
-                selectedValues={selectedEventTypes}
-                onChange={setSelectedEventTypes}
+          {enableSearch && (
+            <InputGroup className="bg-white rounded-sm">
+              <InputGroupInput
+                id={searchId}
+                className="w-full"
+                placeholder="Search..."
+                onChange={(event) => table.setGlobalFilter(event.target.value)}
               />
-            )}
-          </div>
-        )}
-      </header>
+              <InputGroupAddon>
+                <Search />
+              </InputGroupAddon>
+            </InputGroup>
+          )}
+
+          {enableFilters && (
+            <div className="flex flex-row gap-2 flex-wrap">
+              <CollapseAllButton
+                onToggle={handleCollapseAll}
+                isCollapsed={isCollapsed}
+              />
+              <TableDateRangeFilter
+                label="Date"
+                dateRange={dateRange}
+                onChange={setDateRange}
+              />
+              {eventTypesByCategory.length > 0 && (
+                <TableMultiSelectFilter
+                  label="Event"
+                  groups={eventTypesByCategory}
+                  selectedValues={selectedEventTypes}
+                  onChange={setSelectedEventTypes}
+                />
+              )}
+            </div>
+          )}
+        </header>
+      ) : null}
 
       {enableSidebar ? (
         <HistorySidebar

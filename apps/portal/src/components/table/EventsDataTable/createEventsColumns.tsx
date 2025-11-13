@@ -37,11 +37,11 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
   const baseColumns: ColumnDef<EventsTableData<TEvent>>[] = [
     {
       id: 'expander',
-      header: () => <div className="pl-4 pr-2" />,
+      header: () => <div />,
       cell: ({ row }) => {
         const eventCount = row.original.events.length
         return (
-          <div className="pl-4 pr-2 flex flex-row items-center gap-1">
+          <div className="flex flex-row items-center gap-1">
             {eventCount > 0 && (
               <Button
                 variant="outline"
