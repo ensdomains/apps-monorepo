@@ -75,7 +75,7 @@ const UnderlyingResolverInfo = ({
   if (!data) {
     return <div>Introspection of non .eth names is not supported yet</div>
   } else if (Array.isArray(data)) {
-    if (data[0] === zeroAddress) return <div>This name does not exist</div>
+    if (data[0] === zeroAddress) return <div>This name has no resolver set</div>
     // resolver is on L2
 
     if (data[1]) {

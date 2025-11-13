@@ -63,28 +63,21 @@ function App() {
 
   const {
     data: tempResolverAddress,
-    isLoading: isResolverLoading,
+    isLoading,
     error,
   } = useEnsResolver({
     name,
   })
-
-  const {
-    data: address,
-    isLoading: isAddressLoading,
-    error: addressError,
-  } = useEnsAddress({ name })
 
   const resolverAddress =
     tempResolverAddress === '0xb5c0FF6c84d352e896d1026193809b8FF248dCdF'
       ? '0x352d7aA7a8bd0F6f31635BE5ceCb6Cebb6929A15'
       : tempResolverAddress
 
-  if (error || addressError) {
+  if (error) {
     const message =
       (error?.cause as Error | undefined)?.message ||
       (error as Error | undefined)?.message ||
-      addressError?.message ||
       'Could not load data.'
 
     if (error && error.name === 'ChainDoesNotSupportContract')
@@ -97,11 +90,7 @@ function App() {
     return <ErrorMessage title="Error loading data" description={message} />
   }
 
-  if (isResolverLoading || isAddressLoading) return <LoadingMessage />
-
-  if (!address) {
-    return <AvailableNameMessage name={name} />
-  }
+  if (isLoading) return <LoadingMessage />
 
   return (
     <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl lg:gap-6 xl:max-w-5xl mx-auto">
