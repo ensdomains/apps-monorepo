@@ -6,6 +6,38 @@
 
   --leading-ens-tight: 112%;
   --leading-ens-none: 96%;
+
+  /* Custom colors - these will be available as Tailwind utilities */
+  --color-lapis-core: #0080bc;
+  --color-lapis-dust: #cee1e8;
+  --color-primary-dark-blue: #011a25;
+  --color-primary-midnight-blue: #093c52;
+  --color-availability-green: #00a63e;
+  --color-lapis-surface: #79b1d0;
+  --color-light-grey-two: #e5e5e5;
+  --color-light-white: #f6f6f6;
+  --color-primary-magenta: #f53293;
+  --color-garnet-surface: #f886b6;
+
+  /* Brand colors */
+  --color-brand-blue: oklch(57.2% 0.13 240deg);
+  --color-brand-blue-hover: oklch(51.9% 0.117 239deg);
+  --color-brand-blue-light: oklch(89.8% 0.0225 222deg);
+  --color-brand-blue-dark: oklch(20.4% 0.0388 229deg);
+  --color-brand-grey: oklch(46.2% 0.0248 223deg);
+  --color-brand-grey-2: oklch(92.2% 0.000000000000000749 0deg);
+  --color-brand-grey-border: oklch(83.5% 0.006 220deg);
+  --color-brand-grey-text: oklch(64.5% 0.008 220deg);
+  --color-brand-magenta: oklch(65.1% 0.238 356deg);
+  --color-brand-magenta-light: oklch(86.7% 0.0594 348deg);
+  --color-brand-green: oklch(51% 0.157 146deg);
+  --color-brand-green-light: oklch(87.5% 0.0345 155deg);
+  --color-brand-green-dark: oklch(45% 0.14 146deg);
+  --color-brand-lapise-dense: oklch(33.6% 0.0634 233deg);
+  --color-brand-lapise-surface: oklch(73.3% 0.0738 233deg);
+  --color-brand-dust: oklch(97.5% 0.0172 220deg);
+  --color-brand-background-light: oklch(98% 0.003 220deg);
+  --color-brand-background-medium: oklch(96% 0.005 220deg);
 }
 
 /* ===============================

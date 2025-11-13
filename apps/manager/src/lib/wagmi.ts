@@ -1,3 +1,4 @@
+import { addEnsContracts } from '@ensdomains/ensjs'
 import { injected } from '@wagmi/core'
 import { createPublicClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
@@ -22,6 +23,13 @@ export const customSepolia = {
 
 export const publicClient = createPublicClient({
   chain: customSepolia,
+  transport: http(SEPOLIA_RPC_URL),
+})
+
+export const sepoliaWithEns = addEnsContracts(customSepolia)
+// TODO: Not sure if this is needed separately from the publicClient
+export const ensPublicClient = createPublicClient({
+  chain: sepoliaWithEns,
   transport: http(SEPOLIA_RPC_URL),
 })
 

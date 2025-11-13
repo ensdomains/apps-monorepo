@@ -9,8 +9,7 @@ export type DomainAttributePillProps = {
 }
 
 const variantStyles: Record<DomainAttributePillVariant, string> = {
-  available:
-    'bg-[rgba(0,166,62,0.12)] text-[color:var(--availability-green)] font-medium',
+  available: 'bg-brand-green-light text-brand-green font-medium',
   'premium-3':
     'bg-[linear-gradient(94deg,_#AE9582_3.56%,_#6F4C05_264.96%)] text-white font-medium',
   'premium-4': 'bg-[#C4C7C8] text-[#515151] font-medium',

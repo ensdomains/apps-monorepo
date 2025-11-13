@@ -51,7 +51,7 @@ export const RegistrationPanel = ({
   return (
     <RegistrationSummaryCard header={header}>
       {registrationSuccess && (
-        <Alert className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700">
+        <Alert className="border-brand-green/30 bg-brand-green-light text-brand-green-dark">
           <AlertDescription>
             Registration successful! You&apos;ll receive a confirmation shortly.
           </AlertDescription>
@@ -66,7 +66,7 @@ export const RegistrationPanel = ({
 
       {!isAvailable && (
         <div className="py-4 text-center">
-          <p className="text-slate-600">
+          <p className="text-brand-grey-text">
             This name is already registered or not available for registration.
           </p>
         </div>

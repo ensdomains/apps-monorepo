@@ -1,7 +1,12 @@
+import { useQuery } from '@tanstack/react-query'
 import { type ChangeEvent, useEffect, useRef, useState } from 'react'
-import { DomainResultCard } from '@/components/molecules/DomainResultCard'
+import {
+  DomainProfileCard,
+  DomainResultCard,
+} from '@/components/molecules/DomainResultCard'
 import { SearchField } from '@/components/molecules/SearchField'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
 import { getErrorMessage } from '../../utils'
 import { useCheckAvailability } from './hooks/useCheckAvailability'
 
@@ -100,25 +105,46 @@ export const CheckAvailability = ({
         </Alert>
       )}
 
-      {shouldShowResult && (
+      {shouldShowResult && context.isAvailable && (
         <DomainResultCard
           domainName={context.selectedName}
-          status={context.isAvailable ? 'available' : 'unavailable'}
+          status="available"
           isPremium={context.isPremium}
-          price={
-            context.isAvailable && !isPricingLoading ? pricePerYear : undefined
-          }
+          price={!isPricingLoading ? pricePerYear : undefined}
           priceLabel="USD/year"
-          link={
-            context.isAvailable
-              ? {
-                  to: '/register',
-                  search: { name: context.selectedName, duration: 1 },
-                }
-              : undefined
-          }
+          link={{
+            to: '/register',
+            search: { name: context.selectedName, duration: 1 },
+          }}
         />
       )}
+
+      {shouldShowResult && !context.isAvailable && (
+        <DomainProfileCardWithData domainName={context.selectedName} />
+      )}
     </div>
+  )
+}
+
+// Component to fetch and display profile data for unavailable domains
+const DomainProfileCardWithData = ({ domainName }: { domainName: string }) => {
+  const { data: metadata } = useQuery(profileMetadataQuery(domainName))
+
+  // Extract dates and avatar (resultQueryOptions unwraps the Result type automatically)
+  const registeredDate = metadata?.registeredDate ?? undefined
+  const expiryDate = metadata?.expiryDate ?? undefined
+  const avatarUrl = metadata?.avatarUrl ?? undefined
+
+  return (
+    <DomainProfileCard
+      domainName={domainName}
+      avatarUrl={avatarUrl}
+      registeredDate={registeredDate}
+      expiryDate={expiryDate}
+      link={{
+        to: '/p/$name',
+        params: { name: domainName },
+      }}
+    />
   )
 }

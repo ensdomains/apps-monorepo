@@ -45,8 +45,8 @@ const DurationCardContent = ({
         'px-6',
         'text-center',
         'transition-colors',
-        isSelected ? 'border-[#0080bc]' : 'border-[#d4d9db]',
-        !isSelected && !disabled && 'group-hover:border-[#0080bc]',
+        isSelected ? 'border-brand-blue' : 'border-brand-grey-border',
+        !isSelected && !disabled && 'group-hover:border-brand-blue',
         className,
       )}
     >
@@ -57,7 +57,7 @@ const DurationCardContent = ({
             '-top-3',
             'right-0',
             'rounded-full',
-            'bg-[#0080bc]',
+            'bg-brand-blue',
             'px-3',
             'py-1',
             'text-xs',
@@ -104,7 +104,7 @@ const DurationCardContent = ({
             'text-[12px]',
             'font-normal',
             'tracking-[-0.223px]',
-            'text-[#A0A4A6]',
+            'text-brand-grey-text',
           )}
         >
           per year
@@ -143,12 +143,12 @@ export const DurationSelector = ({
               'items-stretch',
               'focus-visible:outline-2',
               'focus-visible:outline-offset-2',
-              'focus-visible:outline-[#0080bc]',
+              'focus-visible:outline-brand-blue',
               isBest
                 ? cn(
                     'gap-3',
                     'rounded-sm',
-                    'bg-gray-200',
+                    'bg-brand-background-medium',
                     'px-[4px]',
                     'py-1',
                     'text-left',
@@ -162,7 +162,7 @@ export const DurationSelector = ({
                 className={cn(
                   'text-sm',
                   'font-semibold',
-                  'text-[#011a25]',
+                  'text-primary-dark-blue',
                   'text-center',
                 )}
               >

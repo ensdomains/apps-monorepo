@@ -31,6 +31,8 @@
     --light-grey-two: #e5e5e5;
     --light-white: #f6f6f6;
     --lapis-shadow-rgb: 14, 61, 104;
+    --primary-magenta: #f53293;
+    --garnet-surface: #f886b6;
   }
 }
 
@@ -38,31 +40,24 @@
   .leading-zero {
     line-height: 0.5;
   }
-
-  .text-primary-dark-blue {
-    color: var(--primary-dark-blue);
-  }
-
-  .text-primary-midnight-blue {
-    color: var(--primary-midnight-blue);
-  }
 }
 
 @layer components {
   .subtitle-search-field {
-    color: var(--lapis-surface);
+    color: var(--color-brand-lapise-surface);
     font-family: 'ABC Monument Grotesk', sans-serif;
-    font-size: 14px;
+    font-size: 12px;
     font-style: normal;
     font-weight: 500;
     line-height: normal;
+    padding-left:4px;
     letter-spacing: 0.28px;
   }
 
   .search-field-input {
     border-radius: 4px;
-    border: 0.25px solid var(--light-grey-two);
-    background: var(--light-white);
+    border: 0.25px solid var(--color-brand-grey-2);
+    background: var(--color-brand-dust);
     box-shadow: 0 9px 17px 0 rgba(var(--lapis-shadow-rgb), 0.1);
     align-self: stretch;
     width: 100%;
@@ -73,13 +68,13 @@
     font-size: 18px;
     line-height: 110%;
     letter-spacing: -0.4px;
-    color: var(--lapis-core);
-    background-color: var(--light-white);
+    color: var(--color-brand-blue);
+    background-color: var(--color-brand-dust);
     transition: all 0.2s ease-in-out;
   }
 
   .search-field-input::placeholder {
-    color: var(--lapis-dust);
+    color: var(--color-brand-grey);
   }
 
   .search-field-input:focus {
@@ -87,7 +82,7 @@
     border-color: transparent;
     box-shadow:
       0 9px 17px 0 rgba(var(--lapis-shadow-rgb), 0.1),
-      0 0 0 2px rgba(var(--lapis-core-rgb), 0.2);
+      0 0 0 2px oklch(57.2% 0.13 240deg / 0.2);
   }
 
   .search-field {
@@ -104,6 +99,6 @@
     transform: translateY(-50%);
     width: 26px;
     height: 26px;
-    color: var(--lapis-dust);
+    color: var(--color-brand-grey);
   }
 }
