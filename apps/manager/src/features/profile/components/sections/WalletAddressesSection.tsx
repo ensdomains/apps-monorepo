@@ -7,14 +7,14 @@ import {
   getAvailableAddressRecords,
 } from '../../data/records'
 
-export const CryptoAddressesSection = withForm({
+export const WalletAddressesSection = withForm({
   ...sharedOptions,
   render: ({ form }) => (
     <form.Field name="addresses" mode="array">
       {(addressField) => (
         <div className="space-y-2">
-          <h3>Crypto Addresses</h3>
-          <p>
+          <h3 className="font-medium">Wallet Addresses</h3>
+          <p className="mb-5 text-muted-foreground text-sm">
             Add your wallet addresses to receive payments. All addresses will be
             publicly visible on your profile.
           </p>
@@ -35,32 +35,30 @@ export const CryptoAddressesSection = withForm({
                       }
                       placeholder="Enter wallet address"
                       value={field.state.value}
-                      onChange={(value) => {
-                        field.handleChange(value)
-                      }}
-                      onRemove={() => {
-                        addressField.removeValue(i)
-                      }}
+                      onChange={field.handleChange}
+                      onRemove={() => addressField.removeValue(i)}
                     />
                   )
                 }}
               </form.Field>
             ),
           )}
-          <AddAddressRecordsDialog
-            buttonLabel="Add Crypto Address"
-            title="Add Crypto Address"
-            records={getAvailableAddressRecords(
-              addressField.state.value.map(
-                ({ coinType }: { coinType: number }) => coinType,
-              ),
-            )}
-            onAdd={(coinTypes) => {
-              coinTypes.forEach((coinType) => {
-                addressField.pushValue({ coinType, value: '' })
-              })
-            }}
-          />
+          <div className="mt-3 flex justify-end">
+            <AddAddressRecordsDialog
+              buttonLabel="Add Crypto Address"
+              title="Add Crypto Address"
+              records={getAvailableAddressRecords(
+                addressField.state.value.map(
+                  ({ coinType }: { coinType: number }) => coinType,
+                ),
+              )}
+              onAdd={(coinTypes) => {
+                coinTypes.forEach((coinType) => {
+                  addressField.pushValue({ coinType, value: '' })
+                })
+              }}
+            />
+          </div>
         </div>
       )}
     </form.Field>

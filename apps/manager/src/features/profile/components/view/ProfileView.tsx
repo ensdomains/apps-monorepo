@@ -1,6 +1,7 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
+import type { Address } from 'viem'
 import { useAccount } from 'wagmi'
+import { LinkButton } from '@/components/ui/button'
 import { sectionsList } from '../../data/records'
 import { ownerQuery } from '../../service/profileOwner'
 import { profileRecordsQuery } from '../../service/profileRecords'
@@ -29,7 +30,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   const { address } = useAccount()
 
   const isOwner =
-    address && owner.data?.registrant?.toLowerCase() === address.toLowerCase()
+    address && owner.data?.owner?.toLowerCase() === address.toLowerCase()
 
   if (records.isLoading) {
     return (
@@ -62,9 +63,8 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
       <ViewHeaderSection
         name={name}
         records={records.data}
-        owner={owner.data?.owner}
+        owner={owner.data?.owner as Address}
       />
-
       <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
         {/* Left/main column */}
         <div className="space-y-4 md:col-span-7 lg:col-span-8">
@@ -86,13 +86,13 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
           {/* Edit Button */}
           {isOwner && (
             <div>
-              <Link
+              <LinkButton
                 to="/p/$name/edit"
                 params={{ name }}
-                className="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2 font-medium text-sm text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 md:w-auto"
+                className="w-full md:w-auto"
               >
                 Edit Profile
-              </Link>
+              </LinkButton>
             </div>
           )}
         </div>

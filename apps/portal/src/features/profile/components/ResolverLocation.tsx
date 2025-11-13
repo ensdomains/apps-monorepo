@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { NamechainSVG } from '@/assets/chains'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { Label } from '@/components/ui/label'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
 
@@ -17,7 +18,7 @@ export const ResolverLocation = ({
   )
 
   if (error) return <div>Error: {error.cause?.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!data) return <div>Could not find resolver location</div>
 

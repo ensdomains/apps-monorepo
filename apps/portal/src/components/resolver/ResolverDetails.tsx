@@ -1,4 +1,5 @@
 import type { Address } from 'viem'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { useSupportsInterfaces } from '@/hooks/useSupportsInterfaces'
 import {
   RESOLVER_FEATURE_NAMES,
@@ -27,7 +28,7 @@ const SupportedFeatures = ({
       (name) => RESOLVER_FEATURE_NAMES[name as ResolverInterfaceName] || name,
     )
 
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
   if (error) return <div>Error: {error.message}</div>
   if (!supportsInterfaces) return <div>No data</div>
 

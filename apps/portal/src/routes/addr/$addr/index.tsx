@@ -1,6 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useAccount, useDisconnect, useEnsName } from 'wagmi'
+import { ErrorMessage } from '@/components/molecules/ErrorMessage'
+import { LoadingMessage } from '@/components/molecules/LoadingMessage'
+import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
 import { Owner } from '@/components/primary-name/Owner'
 import { Button } from '@/components/ui/button'
 import { NameCount } from '@/features/dashboard/components/NameCount'
@@ -9,6 +12,7 @@ import { PrimaryNameLabel } from '@/features/profile/components/PrimaryNameLabel
 
 export const Route = createFileRoute('/addr/$addr/')({
   component: RouteComponent,
+  notFoundComponent: () => <NotFoundMessage />,
 })
 
 interface PrimaryNameProps {
@@ -24,8 +28,15 @@ const PrimaryName = ({ addr }: PrimaryNameProps) => {
     address: addr as Address,
   })
 
-  if (error) return <div>Error: {error.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (error) {
+    const message =
+      (error.cause as Error | undefined)?.message ||
+      (error as Error).message ||
+      'Could not load data.'
+    return <ErrorMessage title="Error loading data" description={message} />
+  }
+
+  if (isLoading) return <LoadingMessage />
 
   if (name)
     return (

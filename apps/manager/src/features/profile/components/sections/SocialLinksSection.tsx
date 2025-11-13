@@ -9,7 +9,7 @@ export const SocialLinksSection = withForm({
     <form.Field name="social" mode="array">
       {(socialField) => (
         <div className="space-y-2">
-          <h3>Social Links</h3>
+          <h3 className="font-medium">Social Links</h3>
           {socialField.state.value.map(({ key }, i: number) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
             <form.Field key={i} name={`social[${i}].value`}>
@@ -21,9 +21,7 @@ export const SocialLinksSection = withForm({
                     name={record.name}
                     placeholder={record.placeholder}
                     value={field.state.value}
-                    onChange={(value) => {
-                      field.handleChange(value)
-                    }}
+                    onChange={field.handleChange}
                     onRemove={() => {
                       socialField.removeValue(i)
                     }}
@@ -32,19 +30,21 @@ export const SocialLinksSection = withForm({
               }}
             </form.Field>
           ))}
-          <AddTextRecordsDialog
-            buttonLabel="Add Social Link"
-            title="Add Social Link"
-            records={getAvailableRecords(
-              socialField.state.value.map(({ key }) => key),
-              'social',
-            )}
-            onAdd={(keys) => {
-              keys.forEach((key) => {
-                socialField.pushValue({ key, value: '' })
-              })
-            }}
-          />
+          <div className="mt-3 flex justify-end">
+            <AddTextRecordsDialog
+              buttonLabel="Add Social Link"
+              title="Add Social Link"
+              records={getAvailableRecords(
+                socialField.state.value.map(({ key }) => key),
+                'social',
+              )}
+              onAdd={(keys) => {
+                keys.forEach((key) => {
+                  socialField.pushValue({ key, value: '' })
+                })
+              }}
+            />
+          </div>
         </div>
       )}
     </form.Field>
