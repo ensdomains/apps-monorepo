@@ -1,6 +1,7 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { coinNameToTypeMap } from '@ensdomains/address-encoder'
 import { type GetRecordsReturnType, getRecords } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -14,10 +15,38 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
   const subgraphRecords = yield* getSubgraphRecords(name)
 
+  const coins = Array.from(
+    new Set([
+      ...(subgraphRecords?.coins.map((coin) => Number(coin)) || []),
+      // EVM
+      coinNameToTypeMap.eth,
+      coinNameToTypeMap.arb1,
+      coinNameToTypeMap.op,
+      coinNameToTypeMap.base,
+      // Non-EVM
+      coinNameToTypeMap.btc,
+      coinNameToTypeMap.doge,
+      coinNameToTypeMap.sol,
+      coinNameToTypeMap.strk,
+    ]),
+  )
+
+  const texts = Array.from(
+    new Set([
+      ...(subgraphRecords?.texts || []),
+      'name',
+      'description',
+      'com.twitter',
+      'org.telegram',
+    ]),
+  )
+
   const records = yield* await fromPromise(
     getRecords(client, {
-      name,
       ...subgraphRecords,
+      name,
+      coins,
+      texts,
       contentHash: true,
       abi: true,
     }),

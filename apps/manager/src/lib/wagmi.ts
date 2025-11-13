@@ -13,16 +13,7 @@ export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: true,
   multiInjectedProviderDiscovery: true,
-  chains: [
-    {
-      ...extendChainWithEns(sepolia),
-      subgraphs: {
-        ens: {
-          url: 'https://api.alpha.ensnode.io/subgraph',
-        },
-      },
-    },
-  ],
+  chains: [extendChainWithEns(sepolia)],
   connectors: connectorsForWallets(
     [
       {
