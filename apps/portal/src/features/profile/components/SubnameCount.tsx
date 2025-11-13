@@ -13,7 +13,7 @@ const RegistryLocation = ({ name }: { name: string }) => {
   )
 
   if (error) return <div>{error.cause?.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!data) return null
 
@@ -41,7 +41,7 @@ export const SubnameCount = ({ name }: { name: string }) => {
   const { data, isLoading, error } = useQuery(getSubnamesQueryOptions({ name }))
 
   if (error) return <div>Error: {error.cause?.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
   if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!data) return null

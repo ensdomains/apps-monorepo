@@ -18,7 +18,7 @@ export const ResolverLocation = ({
 
   if (error)
     return <div>Failed to get underlying resolver: {error.cause?.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
   if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!data) return <div>Could not find resolver location</div>

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, HashIcon, ListIcon } from 'lucide-react'
 import { type Address, zeroAddress } from 'viem'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
 
 interface RolesCountProps {
@@ -20,7 +21,7 @@ export const RolesCount = ({
 
   if (error)
     return <div>Failed to get underlying resolver: {error.cause?.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!data) return <div>Could not find resolver location</div>
 

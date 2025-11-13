@@ -4,6 +4,7 @@ import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { LoadingSpinner } from '../molecules/LoadingSpinner'
 
 const OwnerWithENS = ({ owner }: { owner: Address }) => {
   const { data: ownerName, error, isLoading } = useEnsName({ address: owner })
@@ -40,7 +41,7 @@ export const Owner = ({ name }: OwnerProps) => {
   const { data, error, isLoading } = useQuery(getEnsOwnerQueryOptions({ name }))
 
   if (error) return <div>Error: {error.cause?.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
   if (!data?.owner)
     return (
       <div className="flex flex-col p-6 rounded-2xl border border-gray-300">

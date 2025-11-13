@@ -19,6 +19,7 @@ import {
   WhatsNewItem,
 } from '@/components/homepage'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { NavBar } from '@/components/molecules/NavBar'
 import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
 import { Button } from '@/components/ui/button'
@@ -35,7 +36,7 @@ const ProfilePreview = ({ address }: { address: Address }) => {
   const { disconnect } = useDisconnect()
 
   if (error) return <div>Error loading profile: {error.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!name) return null
 

@@ -5,6 +5,7 @@ import { useEnsAddress, useEnsResolver } from 'wagmi'
 import { AvailableNameMessage } from '@/components/molecules/AvailableNameMessage'
 import { ErrorMessage } from '@/components/molecules/ErrorMessage'
 import { LoadingMessage } from '@/components/molecules/LoadingMessage'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
 import { Owner } from '@/components/primary-name/Owner'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
@@ -32,7 +33,7 @@ const Profile = ({
   const { data, isLoading, error } = useQuery(getProfileQueryOptions(name))
 
   if (error) return <div>Error: {error.cause?.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">

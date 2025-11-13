@@ -7,6 +7,7 @@ import {
 } from '@ensdomains/address-encoder'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { getRecordsQueryOptions } from '../hooks/useRecords'
 import { CoinRecord, type CoinTypeWithIcon } from './CoinRecord'
 import { NameAvatar } from './NameAvatar'
@@ -76,7 +77,7 @@ export const NameProfileCard = ({ name }: { name: string }) => {
 
   if (error) return <div>Failed to fetch records: {error.cause?.message}</div>
 
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   return (
     <div className="flex flex-col sm:flex-row p-6 items-center gap-6 rounded-lg border border-gray-300">
