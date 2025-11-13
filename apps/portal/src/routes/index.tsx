@@ -48,7 +48,7 @@ const ProfilePreview = ({ address }: { address: Address }) => {
           <CopyableRecord
             value={address}
             displayValue={`${address.slice(0, 6)}...${address.slice(-4)}`}
-            href={`/adddr/${address}`}
+            href={`/addr/${address}`}
           />
         </h2>
         <Button variant="secondary" onClick={() => disconnect()}>
