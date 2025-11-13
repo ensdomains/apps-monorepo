@@ -4,6 +4,13 @@ import type { Address, Hash, PublicClient } from 'viem'
 import { type ActorLogic, assign, setup } from 'xstate'
 import * as auditTrail from '../../services/audit-trail.service'
 import type { Signer } from '../../types/signer.types'
+import {
+  generateCommitmentActor,
+  pollTransactionStatusActor,
+  submitApprovalActor,
+  submitCommitmentActor,
+  submitRegistrationActor,
+} from './registration.actors'
 
 /**
  * Registration Machine
@@ -88,7 +95,6 @@ export const registrationMachine = setup({
         publicClient: PublicClient
         selectedToken: 'USDC' | 'DAI'
       }) => {
-        const { generateCommitmentActor } = require('./registration.actors')
         return generateCommitmentActor({
           name,
           owner,
@@ -106,7 +112,6 @@ export const registrationMachine = setup({
         duration: bigint
         publicClient: PublicClient
       }) => {
-        const { submitCommitmentActor } = require('./registration.actors')
         return submitCommitmentActor(input)
       },
     ),
@@ -117,7 +122,6 @@ export const registrationMachine = setup({
         signer: Signer
         publicClient: PublicClient
       }) => {
-        const { submitApprovalActor } = require('./registration.actors')
         return submitApprovalActor(input)
       },
     ),
@@ -131,12 +135,10 @@ export const registrationMachine = setup({
         owner: Address
         publicClient: PublicClient
       }) => {
-        const { submitRegistrationActor } = require('./registration.actors')
         return submitRegistrationActor(input)
       },
     ),
     pollTransactionStatus: fromResultAsync((input: { txId: string }) => {
-      const { pollTransactionStatusActor } = require('./registration.actors')
       return pollTransactionStatusActor(input)
     }),
   },
