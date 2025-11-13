@@ -17,7 +17,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
 
   const coins = Array.from(
     new Set([
-      ...(subgraphRecords?.coins.map((coin) => Number(coin)) || []),
+      // ...(subgraphRecords?.coins.map((coin) => Number(coin)) || []),
       // EVM
       coinNameToTypeMap.eth,
       coinNameToTypeMap.arb1,
@@ -52,6 +52,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     }),
     (e) => new RecordsError({ cause: e }),
   )
+  console.log('records', records)
 
   return ok({
     ...records,
