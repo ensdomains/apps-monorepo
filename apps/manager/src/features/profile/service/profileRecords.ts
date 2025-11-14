@@ -6,7 +6,6 @@ import { type GetRecordsReturnType, getRecords } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { addressRecords, staticTextRecords, textRecords } from '../data/records'
-import { getSubgraphRecords } from './getSubgraphRecords'
 
 class RecordsError extends TaggedError('RecordsError')<{
   cause: unknown
@@ -14,11 +13,11 @@ class RecordsError extends TaggedError('RecordsError')<{
 
 export const getProfileRecords = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
-  const subgraphRecords = yield* getSubgraphRecords(name)
+  // const subgraphRecords = yield* getSubgraphRecords(name)
 
   const coins = Array.from(
     new Set([
-      ...(subgraphRecords?.coins.map((coin) => Number(coin)) || []),
+      // ...(subgraphRecords?.coins.map((coin) => Number(coin)) || []),
       // EVM
       coinNameToTypeMap.eth,
       coinNameToTypeMap.arb1,
@@ -39,7 +38,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
 
   const texts = Array.from(
     new Set([
-      ...(subgraphRecords?.texts || []),
+      // ...(subgraphRecords?.texts || []),
       ...staticTextRecords,
       ...textRecords.map((r) => r.key),
     ]),
@@ -47,7 +46,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
 
   const records = yield* await fromPromise(
     getRecords(client, {
-      ...subgraphRecords,
+      // ...subgraphRecords,
       name,
       resolver: { address: '0x55265fad0129f9d57d4e1b0a4d083bd192ab0716' },
       coins,
@@ -59,10 +58,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     (e) => new RecordsError({ cause: e }),
   )
 
-  return ok({
-    ...records,
-    subgraphRecords,
-  })
+  return ok(records)
 })
 
 export type ProfileRecordsResult = GetRecordsReturnType<

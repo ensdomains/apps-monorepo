@@ -2,7 +2,7 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
-  getOwner as ensjsGetOwner,
+  getOwner as ensjs_GetOwner,
   type GetOwnerErrorType,
 } from '@ensdomains/ensjs/public'
 import { skipToken } from '@tanstack/react-query'
@@ -19,9 +19,7 @@ export const getOwner = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
 
   const result = yield* await fromPromise(
-    ensjsGetOwner(client, {
-      name,
-    }),
+    ensjs_GetOwner(client, { name }),
     (e) => new GetOwnerError({ cause: e as GetOwnerErrorType }),
   )
 

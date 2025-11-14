@@ -19,9 +19,7 @@ export const getAddress = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
 
   const result = yield* await fromPromise(
-    getAddressRecord(client, {
-      name,
-    }),
+    getAddressRecord(client, { name }),
     (e) => new GetAddressError({ cause: e as GetAddressRecordErrorType }),
   )
 
