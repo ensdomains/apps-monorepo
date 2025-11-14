@@ -1,10 +1,10 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { coinNameToTypeMap } from '@ensdomains/address-encoder'
 import { type GetRecordsReturnType, getRecords } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { addressRecords, staticTextRecords, textRecords } from '../data/records'
 import { getSubgraphRecords } from './getSubgraphRecords'
 
 class RecordsError extends TaggedError('RecordsError')<{
@@ -18,26 +18,15 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   const coins = Array.from(
     new Set([
       ...(subgraphRecords?.coins.map((coin) => Number(coin)) || []),
-      // EVM
-      coinNameToTypeMap.eth,
-      coinNameToTypeMap.arb1,
-      coinNameToTypeMap.op,
-      coinNameToTypeMap.base,
-      // Non-EVM
-      coinNameToTypeMap.btc,
-      coinNameToTypeMap.doge,
-      coinNameToTypeMap.sol,
-      coinNameToTypeMap.strk,
+      ...addressRecords.map((r) => r.coinType),
     ]),
   )
 
   const texts = Array.from(
     new Set([
       ...(subgraphRecords?.texts || []),
-      'name',
-      'description',
-      'com.twitter',
-      'org.telegram',
+      ...staticTextRecords,
+      ...textRecords.map((r) => r.key),
     ]),
   )
 
@@ -45,6 +34,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     getRecords(client, {
       ...subgraphRecords,
       name,
+      resolver: { address: '0x55265fad0129f9d57d4e1b0a4d083bd192ab0716' },
       coins,
       texts,
       contentHash: true,
@@ -53,7 +43,6 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     }),
     (e) => new RecordsError({ cause: e }),
   )
-  console.log('records', records)
 
   return ok({
     ...records,
