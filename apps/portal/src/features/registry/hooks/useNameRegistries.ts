@@ -13,9 +13,6 @@ class NameRegistriesError extends TaggedError('NameRegistriesError')<{
   cause: GetNameRegistriesErrorType
 }> {}
 
-/**
- * Fetches ENS name registries for a given list of names.
- */
 export const getNameRegistries = ResultFn(async function* (
   params: GetNameRegistriesParameters,
 ) {
@@ -29,13 +26,11 @@ export const getNameRegistries = ResultFn(async function* (
   return ok(registries)
 })
 
-// Query key factory
 export const nameRegistriesQueryKey = createQueryKey<
   'nameRegistries',
   GetNameRegistriesParameters
 >('nameRegistries')
 
-// React Query options for fetching name registries
 export const getNameRegistriesQueryOptions = (
   params: GetNameRegistriesParameters,
 ) =>

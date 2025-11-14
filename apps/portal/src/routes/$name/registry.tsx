@@ -1,8 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
-import type { Address } from 'viem'
+import { zeroAddress } from 'viem'
+import { sepolia } from 'viem/chains'
 import { NoRegistryCard } from '@/features/registry/components/NoRegistryCard'
-import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistries'
+import { ParentRegistrySection } from '@/features/registry/components/ParentRegistrySection'
+import { RegistryCard } from '@/features/registry/components/RegistryCard'
+import { VerifiedRegistryCard } from '@/features/registry/components/VerifiedRegistryCard'
+import { getNameChainLocationQueryOptions } from '@/features/registry/hooks/useNameChainLocation'
+import { useRegistryCards } from '@/features/registry/hooks/useRegistryCards'
+import { getParentName, splitLabels } from '@/features/registry/utils/nameUtils'
+import { RegistryHeaderCards } from '../../features/registry/components/RegistryHeaderCards'
+import { getNetworkMetaFromChainId } from '../../features/registry/utils/network'
 
 export const Route = createFileRoute('/$name/registry')({
   component: RouteComponent,
@@ -11,15 +19,43 @@ export const Route = createFileRoute('/$name/registry')({
 function RouteComponent() {
   const { name } = useParams({ from: '/$name/registry' })
 
-  const { data, isLoading, error } = useQuery(
-    getNameRegistriesQueryOptions({ name }),
+  const labels = splitLabels(name)
+
+  // ⚠️ Important: we want the *registrable* label (2LD), not the left-most.
+  // flo.eth        -> "flo"
+  // test.flo.eth   -> "flo"
+  const registrableLabel =
+    labels.length >= 2 ? labels[labels.length - 2] : labels[0]
+
+  // Determine which chain this name's *registry* lives on (L1/L2)
+  const { data: chainLocation, isLoading: isLoadingChainLocation } = useQuery(
+    getNameChainLocationQueryOptions({ label: registrableLabel }),
   )
 
-  if (isLoading) {
+  const { current, parent, isLoading, error } = useRegistryCards({
+    name,
+    chainLocation: chainLocation?.location,
+    // registryAddress is ignored by the hook logic now, but we keep the arg
+    // so callers don’t break.
+    registryAddress: chainLocation?.registryAddress ?? null,
+  })
+
+  const isL2 = chainLocation?.location === 'L2'
+  const showVerifiedBanner = !!current.hasCurrentRegistry && isL2
+
+  const parentNetworkName = sepolia.name
+  const parentChainId = sepolia.id
+
+  if (isLoading || isLoadingChainLocation) {
     return (
       <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
         <h1 className="text-[28px] font-medium leading-[1]">Registry</h1>
         <div>Loading...</div>
+        {chainLocation && (
+          <div className="text-sm text-gray-600">
+            Detected chain: {chainLocation.chainName} ({chainLocation.location})
+          </div>
+        )}
       </div>
     )
   }
@@ -33,61 +69,139 @@ function RouteComponent() {
     )
   }
 
-  if (!data || !Array.isArray(data)) {
+  // ─────────────────────────────
+  // Case 1: No registry for this name
+  // ─────────────────────────────
+  if (!current.hasCurrentRegistry) {
+    const parentNetwork = getNetworkMetaFromChainId(chainLocation?.chainId)
+
     return (
-      <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
+      <div className="flex flex-col gap-6 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
         <h1 className="text-[28px] font-medium leading-[1]">Registry</h1>
-        <div>No data</div>
+
+        <NoRegistryCard />
+
+        {parent.registry && (
+          <>
+            <ParentRegistrySection
+              parent={{
+                name: getParentName(name) || 'eth',
+                address: parent.registry,
+              }}
+              owner={{
+                address:
+                  parent.owner ||
+                  ('0x0000000000000000000000000000000000000000' as `0x${string}`),
+              }}
+              network={parentNetwork}
+            />
+
+            <RegistryCard
+              registry={{
+                address: parent.registry,
+                owner: {
+                  address:
+                    parent.owner ||
+                    ('0x0000000000000000000000000000000000000000' as `0x${string}`),
+                },
+                network: {
+                  name: parentNetworkName,
+                  chainId: parentChainId,
+                },
+                protocol: 'ENSv2',
+              }}
+            />
+          </>
+        )}
       </div>
     )
   }
 
-  // Drop the root registry (last element)
-  const allRegistries = data as readonly Address[]
-  const registriesWithoutRoot = allRegistries.slice(0, -1)
+  // ─────────────────────────────
+  // Case 2: Name HAS a registry
+  //   - If showVerifiedBanner = true -> "Verified subregistry" screen
+  //   - Else -> "Unverified subregistry" screen
+  // ─────────────────────────────
 
-  // Check if this name has a registry (first element after removing root)
-  const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Address
-  const thisNameRegistry = registriesWithoutRoot[0]
-  const hasOwnRegistry = thisNameRegistry && thisNameRegistry !== ZERO_ADDRESS
+  const currentNetwork = getNetworkMetaFromChainId(
+    chainLocation?.chainId ?? current.chainId,
+  )
+  const parentNetwork = getNetworkMetaFromChainId(parent.chainId)
 
-  // Parent registries are all the others (excluding the name's own registry if it has one)
-  const parentRegistries = hasOwnRegistry
-    ? registriesWithoutRoot.slice(1)
-    : registriesWithoutRoot.slice(1)
+  const ownerAddress = current.owner
+  const hasOwner = !!ownerAddress && ownerAddress !== zeroAddress
 
   return (
     <div className="flex flex-col gap-6 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
       <h1 className="text-[28px] font-medium leading-[1]">Registry</h1>
 
-      {!hasOwnRegistry ? (
-        <NoRegistryCard />
-      ) : (
-        <div className="flex flex-col gap-2">
-          <div className="p-4 border border-gray-300 rounded-lg">
-            <h2 className="font-semibold mb-2">This name's registry</h2>
-            <p className="text-sm text-gray-600">Address: {thisNameRegistry}</p>
-            <p className="text-sm text-gray-600 mt-2">
-              TODO: Fetch owner, verification status, and other details
-            </p>
-          </div>
+      {showVerifiedBanner && <VerifiedRegistryCard />}
 
-          {parentRegistries.length > 0 && (
-            <div className="mt-4">
-              <h2 className="text-xl font-semibold mb-2">Parent registries</h2>
-              {parentRegistries.map((registry: Address, idx: number) => (
-                <div
-                  key={registry}
-                  className="p-4 border border-gray-300 rounded-lg mb-2"
-                >
-                  <p className="text-sm text-gray-600">
-                    Parent {idx + 1}: {registry}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      {current.registry && (
+        <>
+          <RegistryHeaderCards
+            owner={{
+              // we don’t have a primary name yet, so just let the card
+              // shorten the address as it already does
+              name: undefined,
+              address: hasOwner ? ownerAddress! : zeroAddress,
+            }}
+            network={{
+              name: chainLocation?.chainName || 'Unknown',
+              location: chainLocation?.location ?? 'unknown',
+            }}
+          />
+
+          <RegistryCard
+            registry={{
+              address: current.registry,
+              owner: {
+                address:
+                  current.owner ||
+                  ('0x0000000000000000000000000000000000000000' as `0x${string}`),
+              },
+              network: {
+                name: currentNetwork.name,
+                chainId: chainLocation?.chainId || current.chainId || 11155111,
+              },
+              protocol: 'ENSv2',
+              factory: current.registry,
+            }}
+          />
+        </>
+      )}
+
+      {parent.registry && (
+        <>
+          <ParentRegistrySection
+            parent={{
+              name: getParentName(name) || 'eth',
+              address: parent.registry,
+            }}
+            owner={{
+              address:
+                parent.owner ||
+                ('0x0000000000000000000000000000000000000000' as `0x${string}`),
+            }}
+            network={parentNetwork}
+          />
+
+          <RegistryCard
+            registry={{
+              address: parent.registry,
+              owner: {
+                address:
+                  parent.owner ||
+                  ('0x0000000000000000000000000000000000000000' as `0x${string}`),
+              },
+              network: {
+                name: parentNetworkName,
+                chainId: parentChainId,
+              },
+              protocol: 'ENSv2',
+            }}
+          />
+        </>
       )}
     </div>
   )

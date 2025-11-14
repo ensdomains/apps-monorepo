@@ -103,9 +103,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
-              {i < itemGroups.length - 1 && (
-                <SidebarSeparator className="mr-2" />
-              )}
+              {i < itemGroups.length - 1 && <SidebarSeparator />}
             </div>
           )
         })}

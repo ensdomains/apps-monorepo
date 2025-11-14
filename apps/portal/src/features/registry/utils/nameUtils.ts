@@ -1,0 +1,50 @@
+import type { Hex } from 'viem'
+import { namehash } from 'viem/ens'
+
+/**
+ * Split a name into labels from left to right (deepest to root)
+ * @param name - ENS name like "domico.eth"
+ * @returns Array of labels like ["domico", "eth"]
+ */
+export function splitLabels(name: string): string[] {
+  return name.split('.')
+}
+
+/**
+ * Build namehashes for each suffix of the name
+ * @param labels - Array of labels from splitLabels
+ * @returns Array of objects with label, full name, and namehash
+ * @example
+ * suffixNamehashes(["domico", "eth"]) =>
+ * [
+ *   { label: "domico", full: "domico.eth", node: namehash("domico.eth") },
+ *   { label: "eth", full: "eth", node: namehash("eth") }
+ * ]
+ */
+export function suffixNamehashes(
+  labels: string[],
+): Array<{ label: string; full: string; node: Hex }> {
+  const result: Array<{ label: string; full: string; node: Hex }> = []
+
+  for (let i = 0; i < labels.length; i++) {
+    const suffix = labels.slice(i).join('.')
+    result.push({
+      label: labels[i],
+      full: suffix,
+      node: namehash(suffix),
+    })
+  }
+
+  return result
+}
+
+/**
+ * Get the parent name by removing the leftmost label
+ * @param name - ENS name like "domico.eth"
+ * @returns Parent name like "eth", or empty string if no parent
+ */
+export function getParentName(name: string): string {
+  const labels = splitLabels(name)
+  if (labels.length <= 1) return ''
+  return labels.slice(1).join('.')
+}
