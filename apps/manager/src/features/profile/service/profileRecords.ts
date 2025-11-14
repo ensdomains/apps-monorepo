@@ -5,7 +5,7 @@ import { coinNameToTypeMap } from '@ensdomains/address-encoder'
 import { type GetRecordsReturnType, getRecords } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { addressRecords, staticTextRecords, textRecords } from '../data/records'
+import { staticTextRecords, textRecords } from '../data/records'
 
 class RecordsError extends TaggedError('RecordsError')<{
   cause: unknown
@@ -29,11 +29,6 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
       coinNameToTypeMap.sol,
       coinNameToTypeMap.strk,
     ]),
-  )
-
-  console.log(
-    'coins',
-    addressRecords.map((r) => r.coinType),
   )
 
   const texts = Array.from(

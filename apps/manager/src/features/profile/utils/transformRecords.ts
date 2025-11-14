@@ -41,6 +41,18 @@ export const transformProfileRecords = (
     return newEmptyProfileRecords()
   }
 
+  const baseRecords = newEmptyProfileRecords()
+  const withAddresses = { ...baseRecords, addresses: profile.coins }
+
+  const safeParseLinks = (value: string) => {
+    try {
+      const parsed = JSON.parse(value)
+      return v.parse(LinksSchema, parsed)
+    } catch {
+      return null
+    }
+  }
+
   const processTextRecord = (
     acc: ProfileRecords,
     { key, value }: { key: string; value: string },
@@ -62,10 +74,17 @@ export const transformProfileRecords = (
     }
 
     if (key === 'links') {
-      const links = v.parse(LinksSchema, JSON.parse(value))
+      const links = safeParseLinks(value)
+      if (links) {
+        return {
+          ...acc,
+          links: [...acc.links, ...links],
+        }
+      }
+
       return {
         ...acc,
-        links: [...acc.links, ...links],
+        unknown: [...acc.unknown, { key, value }],
       }
     }
 
@@ -74,9 +93,6 @@ export const transformProfileRecords = (
       unknown: [...acc.unknown, { key, value }],
     }
   }
-
-  const baseRecords = newEmptyProfileRecords()
-  const withAddresses = { ...baseRecords, addresses: profile.coins }
 
   return profile.texts.reduce(processTextRecord, withAddresses)
 }

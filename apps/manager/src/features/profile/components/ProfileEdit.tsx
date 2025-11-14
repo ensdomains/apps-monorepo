@@ -86,7 +86,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       <HeaderSection
         form={form}
         name={name}
-        owner={owner.data?.owner as Address}
+        owner={owner.data?.owner as Address | undefined}
       />
 
       <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">

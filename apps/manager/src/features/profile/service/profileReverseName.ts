@@ -11,9 +11,9 @@ class GetNameError extends TaggedError('GetNameError')<{
   cause: GetNameErrorType
 }> {}
 
-class MissingReverseNameError extends TaggedError(
-  'MissingReverseNameError',
-)<{}> {}
+class MissingReverseNameError extends TaggedError('MissingReverseNameError')<
+  Record<string, never>
+> {}
 
 export const getReverseName = ResultFn(async function* (address: Address) {
   const client = yield* safeGetClient()
@@ -24,7 +24,7 @@ export const getReverseName = ResultFn(async function* (address: Address) {
   )
 
   if (!result) {
-    return yield* new MissingReverseNameError()
+    return yield* new MissingReverseNameError({})
   }
 
   return ok(result)

@@ -29,8 +29,11 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
 
   const { address } = useAccount()
 
-  const isOwner =
-    address && owner.data?.owner?.toLowerCase() === address.toLowerCase()
+  const isOwner = Boolean(
+    address &&
+      owner.data?.owner &&
+      owner.data.owner.toLowerCase() === address.toLowerCase(),
+  )
 
   if (records.isLoading) {
     return (
@@ -63,7 +66,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
       <ViewHeaderSection
         name={name}
         records={records.data}
-        owner={owner.data?.owner as Address}
+        owner={owner.data?.owner as Address | undefined}
       />
       <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
         {/* Left/main column */}

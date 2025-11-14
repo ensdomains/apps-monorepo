@@ -13,7 +13,9 @@ class GetOwnerError extends TaggedError('GetOwnerError')<{
   cause: GetOwnerErrorType
 }> {}
 
-class MissingOwnerError extends TaggedError('MissingOwnerError')<{}> {}
+class MissingOwnerError extends TaggedError('MissingOwnerError')<
+  Record<string, never>
+> {}
 
 export const getOwner = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
@@ -24,7 +26,7 @@ export const getOwner = ResultFn(async function* (name: string) {
   )
 
   if (!result) {
-    return yield* new MissingOwnerError()
+    return yield* new MissingOwnerError({})
   }
 
   return ok(result)

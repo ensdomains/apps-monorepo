@@ -51,7 +51,7 @@ const OwnerLink = ({ address, profileName }: OwnerLinkProps) => {
 
 interface ProfileHeaderInfoProps {
   name: string
-  owner: Address
+  owner?: Address
 }
 
 export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
