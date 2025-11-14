@@ -54,10 +54,10 @@ interface RegistrationDataProps {
 
 const RegistrationData = ({ name }: RegistrationDataProps) => {
   const { data, isLoading, error } = useQuery(
-    getNameHistoryQueryOptions({ name }),
+    getNameHistoryQueryOptions({ name, orderDirection: 'asc', first: 1 }),
   )
 
-  if (error) return <div>Error: {error.message}</div>
+  if (error) return <div>Error: {error.cause?.message}</div>
   if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!data?.registrationEvents) return <div>No registration data</div>

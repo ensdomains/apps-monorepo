@@ -2,7 +2,6 @@
   "name": "@ens-apps/l2-primary",
   "version": "1.0.0",
   "description": "Shared ABIs for ENS apps",
-  "main": "./src/index.ts",
   "type": "module",
   "private": true,
   "exports": {

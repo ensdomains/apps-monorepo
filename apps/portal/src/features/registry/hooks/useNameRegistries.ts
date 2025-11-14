@@ -9,12 +9,13 @@ import {
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class GetNameRegistriesError extends TaggedError(
-  'GetNameRegistriesError',
-)<{
+class NameRegistriesError extends TaggedError('NameRegistriesError')<{
   cause: GetNameRegistriesErrorType
 }> {}
 
+/**
+ * Fetches ENS name registries for a given list of names.
+ */
 export const getNameRegistries = ResultFn(async function* (
   params: GetNameRegistriesParameters,
 ) {
@@ -22,28 +23,23 @@ export const getNameRegistries = ResultFn(async function* (
 
   const registries = yield* await fromPromise(
     ensjs_getNameRegistries(client, params),
-    (e) =>
-      new GetNameRegistriesError({
-        cause: e as GetNameRegistriesErrorType,
-      }),
+    (e) => new NameRegistriesError({ cause: e as GetNameRegistriesErrorType }),
   )
-  console.log('🚀 ~ registries:', registries)
+
   return ok(registries)
 })
 
-export const getNameRegistriesQueryKey = createQueryKey<
-  'get-name-registries',
+// Query key factory
+export const nameRegistriesQueryKey = createQueryKey<
+  'nameRegistries',
   GetNameRegistriesParameters
->('get-name-registries')
+>('nameRegistries')
 
+// React Query options for fetching name registries
 export const getNameRegistriesQueryOptions = (
   params: GetNameRegistriesParameters,
 ) =>
   resultQueryOptions({
-    queryKey: getNameRegistriesQueryKey(params),
-    queryFn: ({
-      queryKey: [, params],
-    }: {
-      queryKey: readonly [string, GetNameRegistriesParameters]
-    }) => getNameRegistries(params),
+    queryKey: nameRegistriesQueryKey(params),
+    queryFn: ({ queryKey: [, params] }) => getNameRegistries(params),
   })

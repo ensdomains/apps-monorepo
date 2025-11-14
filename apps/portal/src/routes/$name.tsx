@@ -13,8 +13,8 @@ function RouteComponent() {
   const { name } = useParams({ from: '/$name' })
   return (
     <div className="[--header-height:calc(--spacing(16))]">
+      <NavBar />
       <SidebarProvider className="flex flex-col">
-        <NavBar />
         <div className="flex flex-1">
           <ProfileSidebar name={name} />
           <SidebarInset className="w-full">
