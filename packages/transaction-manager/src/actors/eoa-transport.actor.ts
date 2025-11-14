@@ -1,4 +1,4 @@
-import { fromPromise as fromPromiseNT, type ResultAsync } from 'neverthrow'
+import { fromPromise, type ResultAsync } from 'neverthrow'
 import type { Hash } from 'viem'
 import { TransactionSubmissionError } from '../errors/transaction.errors'
 import type { EOASigner } from '../types/signer.types'
@@ -54,7 +54,7 @@ export function submitEOATransaction(input: {
   })
 
   // Submit transaction and return ResultAsync
-  return fromPromiseNT(walletClient.sendTransaction(txParams), (error) => {
+  return fromPromise(walletClient.sendTransaction(txParams), (error) => {
     console.error('❌ [EOA TRANSPORT] Transaction submission failed:', error)
     return new TransactionSubmissionError(eoaRequest, error)
   })

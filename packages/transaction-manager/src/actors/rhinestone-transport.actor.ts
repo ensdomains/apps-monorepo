@@ -1,4 +1,4 @@
-import { errAsync, ok, ResultAsync } from 'neverthrow'
+import { errAsync, fromPromise, ok, type ResultAsync } from 'neverthrow'
 import type { Hash, Hex, PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import { TransactionSubmissionError } from '../errors/transaction.errors'
@@ -66,7 +66,7 @@ export function submitRhinestoneTransaction(input: {
   const chain = config.chain || sepolia
 
   // Execute the transaction through Rhinestone SDK
-  return ResultAsync.fromPromise(
+  return fromPromise(
     (async () => {
       console.log('📤 Calling rhinestoneAccount.sendUserOperation()...', {
         chain: chain.name,

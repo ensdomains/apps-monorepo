@@ -491,10 +491,77 @@ When testing components that use queries:
 
 ## Other Project Conventions
 
-### Error Handling
+### Error Handling with neverthrow
+
+**Core Requirements:**
 - Use `neverthrow` Result types for all async operations
 - Create specific error classes extending `TaggedError`
 - Always handle both success and error cases explicitly
+- **NEVER mix Result with try-catch** - choose one approach
+
+**See [/Volumes/My Shared Files/ENS/CLAUDE.md](../../CLAUDE.md#neverthrow---functional-error-handling) for complete neverthrow patterns and API reference.**
+
+#### Critical Anti-Patterns to Avoid
+
+**❌ NEVER manually unwrap Results with throw:**
+```typescript
+// ❌ WRONG - defeats neverthrow's purpose
+ResultAsync.fromPromise(
+  helper(...).then((result) => {
+    if (result.isErr()) throw result.error  // BAD!
+    return result.value
+  }),
+  (error) => error
+)
+
+// ✅ CORRECT - chain Results directly
+return helper(...)  // Just return the ResultAsync
+```
+
+**❌ NEVER mix try-catch with ResultAsync:**
+```typescript
+// ❌ WRONG
+try {
+  const data = processSync()
+  return ResultAsync.fromSafePromise(Promise.resolve(data))
+} catch (error) {
+  return errAsync(new Error(error))
+}
+
+// ✅ CORRECT
+return ResultAsync.fromSafePromise(
+  Promise.resolve().then(() => processSync())
+).mapErr((error) => new Error(error))
+```
+
+**❌ NEVER use try-catch in async helpers:**
+```typescript
+// ❌ WRONG
+async function fetchData(): Promise<Result<Data, Error>> {
+  try {
+    const result = await api.fetch()
+    return ok(result)
+  } catch (error) {
+    return err(new Error(error))
+  }
+}
+
+// ✅ CORRECT
+function fetchData(): ResultAsync<Data, Error> {
+  return ResultAsync.fromPromise(
+    api.fetch(),
+    (error) => new Error(error)
+  )
+}
+```
+
+**Quick Reference:**
+- `ok()` / `err()` → for `Result<T, E>` (sync)
+- `okAsync()` / `errAsync()` → for `ResultAsync<T, E>` (async)
+- `ResultAsync.fromPromise(promise, errorFn)` → wrap Promises
+- `.andThen(fn)` → chain Results
+- `.map(fn)` / `.mapErr(fn)` → transform values/errors
+- `fromResultAsync(fn)` → integrate with XState actors (from `@ens-apps/utils/xstate/neverthrow`)
 
 ### TypeScript
 - Strict mode is enabled

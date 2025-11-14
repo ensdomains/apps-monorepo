@@ -5,7 +5,14 @@
  */
 
 import type { RhinestoneAccount } from '@rhinestone/sdk'
-import { err, errAsync, ok, type Result, ResultAsync } from 'neverthrow'
+import {
+  err,
+  errAsync,
+  fromPromise,
+  ok,
+  type Result,
+  ResultAsync,
+} from 'neverthrow'
 import type { Address, Hash, PublicClient } from 'viem'
 import { encodeFunctionData, keccak256, toHex } from 'viem'
 import {
@@ -31,37 +38,39 @@ type CommitmentData = {
  * Note: Uses makeCommitment (NOT makeCommitmentWithToken)
  * Payment token is specified during registration, not commitment
  */
-async function generateCommitment(
+function generateCommitment(
   publicClient: PublicClient,
   name: string,
   ownerAddress: Address,
   duration: bigint,
   _paymentToken: Address = SUPPORTED_TOKENS.USDC, // Not used in commitment
-): Promise<Result<CommitmentData, Error>> {
-  try {
-    const cleanName = name.replace('.eth', '')
-    const secret = keccak256(toHex(Math.random().toString()) as Hash)
+): ResultAsync<CommitmentData, Error> {
+  const cleanName = name.replace('.eth', '')
+  const secret = keccak256(toHex(Math.random().toString()) as Hash)
 
-    const commitment = (await publicClient.readContract({
-      address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
-      abi: FAST_TEST_ETH_REGISTRAR_ABI,
-      functionName: 'makeCommitment',
-      args: [
-        cleanName,
-        ownerAddress,
-        secret,
-        ENS_SEPOLIA_CONTRACTS.ETHRegistry,
-        ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl,
-        duration,
-        REFERER_ADDRESS,
-      ],
-    })) as Hash
-
-    return ok({ commitment, secret })
-  } catch (error) {
-    console.error('❌ Failed to generate commitment:', error)
-    return err(new Error(`Failed to generate commitment: ${error}`))
-  }
+  return fromPromise(
+    (async () => {
+      const commitment = await publicClient.readContract({
+        address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+        abi: FAST_TEST_ETH_REGISTRAR_ABI,
+        functionName: 'makeCommitment',
+        args: [
+          cleanName,
+          ownerAddress,
+          secret,
+          ENS_SEPOLIA_CONTRACTS.ETHRegistry,
+          ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl,
+          duration,
+          REFERER_ADDRESS,
+        ],
+      })
+      return { commitment: commitment as Hash, secret }
+    })(),
+    (error) => {
+      console.error('❌ Failed to generate commitment:', error)
+      return new Error(`Failed to generate commitment: ${error}`)
+    },
+  )
 }
 
 /**
@@ -137,18 +146,12 @@ export function generateCommitmentActor(input: {
 }): ResultAsync<CommitmentData, Error> {
   const paymentToken = getPaymentTokenAddress(input.selectedToken)
 
-  return ResultAsync.fromPromise(
-    generateCommitment(
-      input.publicClient,
-      input.name,
-      input.owner,
-      input.duration,
-      paymentToken,
-    ).then((result) => {
-      if (result.isErr()) throw result.error
-      return result.value
-    }),
-    (error) => error as Error,
+  return generateCommitment(
+    input.publicClient,
+    input.name,
+    input.owner,
+    input.duration,
+    paymentToken,
   )
 }
 
@@ -163,7 +166,7 @@ export function submitCommitmentActor(input: {
   duration: bigint
   publicClient: PublicClient
 }): ResultAsync<string, Error> {
-  return ResultAsync.fromPromise(
+  return fromPromise(
     (async () => {
       console.log(
         `🔧 [REGISTRATION ACTOR] submitCommitmentActor called with:`,
@@ -259,56 +262,56 @@ export function submitApprovalActor(input: {
   signer: import('../..').Signer
   publicClient: PublicClient
 }): ResultAsync<string, Error> {
-  try {
-    // Get account address from signer
-    let smartAccountAddress: Address
-    if (input.signer.type === 'rhinestone') {
-      smartAccountAddress = input.signer.account.getAddress() as Address
-    } else {
-      throw new Error('Only Rhinestone signer is supported for registration')
-    }
+  return ResultAsync.fromSafePromise(
+    Promise.resolve().then(() => {
+      // Get account address from signer
+      let smartAccountAddress: Address
+      if (input.signer.type === 'rhinestone') {
+        smartAccountAddress = input.signer.account.getAddress() as Address
+      } else {
+        throw new Error('Only Rhinestone signer is supported for registration')
+      }
 
-    const tokenAddress = getPaymentTokenAddress(input.selectedToken)
-    // Normalize to lowercase to avoid Rhinestone SDK validation issues
-    const normalizedTokenAddress = tokenAddress.toLowerCase() as Address
-    console.log(
-      `🔧 Token address normalization: ${tokenAddress} -> ${normalizedTokenAddress}`,
-    )
+      const tokenAddress = getPaymentTokenAddress(input.selectedToken)
+      // Normalize to lowercase to avoid Rhinestone SDK validation issues
+      const normalizedTokenAddress = tokenAddress.toLowerCase() as Address
+      console.log(
+        `🔧 Token address normalization: ${tokenAddress} -> ${normalizedTokenAddress}`,
+      )
 
-    const approvalData = encodeTokenApprovalData(input.tokenPrice)
+      const approvalData = encodeTokenApprovalData(input.tokenPrice)
 
-    const txId = transactionManager.startTransaction(
-      {
-        type: 'custom',
-        request: {
-          type: 'rhinestone-intent',
-          from: smartAccountAddress,
-          to: normalizedTokenAddress,
-          data: approvalData,
-          value: 0n,
-          chainId: 11155111, // Sepolia
-          rhinestoneParams: {
-            calls: [
-              {
-                to: normalizedTokenAddress,
-                data: approvalData,
-                value: 0n,
-              },
-            ],
+      const txId = transactionManager.startTransaction(
+        {
+          type: 'custom',
+          request: {
+            type: 'rhinestone-intent',
+            from: smartAccountAddress,
+            to: normalizedTokenAddress,
+            data: approvalData,
+            value: 0n,
+            chainId: 11155111, // Sepolia
+            rhinestoneParams: {
+              calls: [
+                {
+                  to: normalizedTokenAddress,
+                  data: approvalData,
+                  value: 0n,
+                },
+              ],
+            },
           },
         },
-      },
-      input.signer,
-      {
-        description: `Approve ${input.selectedToken} for registration`,
-        publicClient: input.publicClient,
-      },
-    )
+        input.signer,
+        {
+          description: `Approve ${input.selectedToken} for registration`,
+          publicClient: input.publicClient,
+        },
+      )
 
-    return ResultAsync.fromSafePromise(Promise.resolve(txId))
-  } catch (error) {
-    return errAsync(new Error(`Failed to submit approval: ${error}`))
-  }
+      return txId
+    }),
+  ).mapErr((error) => new Error(`Failed to submit approval: ${error}`))
 }
 
 /**
@@ -324,7 +327,7 @@ export function submitRegistrationActor(input: {
   owner: Address
   publicClient: PublicClient
 }): ResultAsync<string, Error> {
-  return ResultAsync.fromPromise(
+  return fromPromise(
     (async () => {
       // Get account address from signer
       let smartAccountAddress: Address
@@ -414,7 +417,7 @@ export function pollTransactionStatusActor(input: {
     return errAsync(new Error(`Transaction ${input.txId} not found`))
   }
 
-  return ResultAsync.fromPromise(
+  return fromPromise(
     new Promise<void>((resolve, reject) => {
       const subscription = txActor.subscribe((snapshot) => {
         if (snapshot.matches('success')) {
