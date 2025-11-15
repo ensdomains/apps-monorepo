@@ -3,6 +3,7 @@ import type { Address } from 'viem'
 import { Button } from '@/components/ui/button'
 import { profileOwnerQuery } from '../service/profileOwner'
 import { profileRecordsQuery } from '../service/profileRecords'
+import { createDiff } from '../utils/createDiff'
 import {
   defaultProfileRecords,
   transformProfileRecords,
@@ -104,14 +105,22 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
           {/* Reset & Save Buttons */}
           <div className="space-y-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={handleReset}
+            <form.Subscribe
+              selector={(state) => createDiff(defaultValues, state.values)}
             >
-              Reset Changes
-            </Button>
+              {(diff) =>
+                Object.keys(diff).length > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleReset}
+                  >
+                    Reset Changes
+                  </Button>
+                )
+              }
+            </form.Subscribe>
             <SaveChanges
               form={form}
               originalData={defaultValues}
