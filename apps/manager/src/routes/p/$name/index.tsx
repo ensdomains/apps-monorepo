@@ -10,7 +10,7 @@ import { seo } from '@/utils/seo'
 
 export const Route = createFileRoute('/p/$name/')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
-    const [profileRecords, _] = await Promise.all([
+    const [profileRecords] = await Promise.all([
       queryClient.ensureQueryData(profileRecordsQuery(name)),
       queryClient.prefetchQuery(profileOwnerQuery(name)),
       queryClient.prefetchQuery(profileExpiryQuery(name)),
