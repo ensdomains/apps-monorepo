@@ -21,16 +21,12 @@ interface ProfileEditProps {
 }
 
 export const ProfileEdit = ({ name }: ProfileEditProps) => {
-  const {
-    data: recordsData,
-    isLoading,
-    error,
-  } = useSuspenseQuery({
+  const { data: recordsData } = useSuspenseQuery({
     ...profileRecordsQuery(name),
     select: transformProfileRecords,
   })
 
-  const owner = useSuspenseQuery({
+  const { data: ownerData } = useSuspenseQuery({
     ...profileOwnerQuery(name),
   })
 
@@ -56,28 +52,6 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     form.reset()
   }
 
-  if (isLoading) {
-    return (
-      <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]">
-        <div className="flex items-center justify-center py-8">
-          <div className="text-gray-600">Loading profile...</div>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]">
-        <div className="flex items-center justify-center py-8">
-          <div className="text-red-600">
-            Error loading profile: {error.message}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <form
       className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]"
@@ -87,7 +61,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       <HeaderSection
         form={form}
         name={name}
-        owner={owner.data?.owner as Address | undefined}
+        owner={ownerData?.owner as Address | undefined}
       />
 
       <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">

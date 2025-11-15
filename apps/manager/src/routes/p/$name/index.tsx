@@ -1,3 +1,4 @@
+import type { ErrorComponentProps } from '@tanstack/react-router'
 import { createFileRoute } from '@tanstack/react-router'
 import { Suspense } from 'react'
 import { ProfileView } from '@/features/profile/components/view/ProfileView'
@@ -33,7 +34,20 @@ export const Route = createFileRoute('/p/$name/')({
     }
   },
   component: RouteComponent,
+  errorComponent: ProfileRouteError,
 })
+
+function ProfileRouteError({ error }: ErrorComponentProps) {
+  return (
+    <div className="mx-auto max-w-md space-y-4">
+      <div className="flex items-center justify-center py-8">
+        <div className="text-red-600">
+          Error loading profile: {error.message}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function RouteComponent() {
   const { name } = Route.useParams()

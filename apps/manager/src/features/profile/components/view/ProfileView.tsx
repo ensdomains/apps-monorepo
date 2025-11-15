@@ -17,12 +17,12 @@ interface ProfileViewProps {
 }
 
 export const ProfileView = ({ name }: ProfileViewProps) => {
-  const records = useSuspenseQuery({
+  const { data: records } = useSuspenseQuery({
     ...profileRecordsQuery(name),
     select: transformProfileRecords,
   })
 
-  const owner = useSuspenseQuery({
+  const { data: ownerData } = useSuspenseQuery({
     ...profileOwnerQuery(name),
   })
 
@@ -30,36 +30,11 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
 
   const isOwner = Boolean(
     address &&
-      owner.data?.owner &&
-      owner.data.owner.toLowerCase() === address.toLowerCase(),
+      ownerData?.owner &&
+      ownerData.owner.toLowerCase() === address.toLowerCase(),
   )
 
-  const loading = records.isLoading || owner.isLoading
-  const error = records.error || owner.error
-
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-md space-y-4">
-        <div className="flex items-center justify-center py-8">
-          <div className="text-gray-600">Loading profile...</div>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="mx-auto max-w-md space-y-4">
-        <div className="flex items-center justify-center py-8">
-          <div className="text-red-600">
-            Error loading profile: {error.message}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!records.data) {
+  if (!records) {
     return null
   }
 
@@ -67,17 +42,17 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)] md:space-y-4">
       <ViewHeaderSection
         name={name}
-        records={records.data}
-        owner={owner.data?.owner as Address | undefined}
+        records={records}
+        owner={ownerData?.owner as Address | undefined}
       />
       <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
         {/* Left/main column */}
         <div className="space-y-4 md:col-span-7 lg:col-span-8">
-          <ViewBioSection records={records.data} />
+          <ViewBioSection records={records} />
           {sectionsList.map((section) => (
             <ViewDynamicSection
               key={section}
-              records={records.data}
+              records={records}
               section={section}
             />
           ))}
@@ -85,8 +60,8 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
 
         {/* Right/side column */}
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
-          <ViewCryptoSection records={records.data} />
-          <ViewLinksSection records={records.data} />
+          <ViewCryptoSection records={records} />
+          <ViewLinksSection records={records} />
 
           {/* Edit Button */}
           {isOwner && (
