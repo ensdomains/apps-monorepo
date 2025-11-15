@@ -1,3 +1,4 @@
+import type { GetExpiryReturnType } from '@ensdomains/ensjs/public'
 import { useQueries } from '@tanstack/react-query'
 import clsx from 'clsx'
 import type { Address } from 'viem'
@@ -11,6 +12,7 @@ import { ShareProfileDialog } from '../dialogs/ShareProfileDialog'
 interface ViewHeaderSectionProps {
   name: string
   records: ProfileRecords
+  expiry?: GetExpiryReturnType
   owner?: Address
 }
 
@@ -18,6 +20,7 @@ export const ViewHeaderSection = ({
   name,
   records,
   owner,
+  expiry,
 }: ViewHeaderSectionProps) => {
   const [avatar, header] = useQueries({
     queries: [
@@ -76,7 +79,7 @@ export const ViewHeaderSection = ({
           </div>
         </div>
       </div>
-      <ProfileHeaderInfo name={name} owner={owner} />
+      <ProfileHeaderInfo name={name} owner={owner} expiry={expiry} />
     </div>
   )
 }

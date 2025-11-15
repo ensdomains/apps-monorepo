@@ -1,3 +1,4 @@
+import type { GetExpiryReturnType } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Calendar, Wallet } from 'lucide-react'
@@ -49,22 +50,38 @@ const OwnerLink = ({ address, profileName }: OwnerLinkProps) => {
   )
 }
 
+const formatDate = (date: Date) => {
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+
 interface ProfileHeaderInfoProps {
   name: string
   owner?: Address
+  expiry?: GetExpiryReturnType
 }
 
-export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
+export const ProfileHeaderInfo = ({
+  name,
+  owner,
+  expiry,
+}: ProfileHeaderInfoProps) => {
   return (
     <div className="flex w-full flex-col items-start gap-3 bg-gray-100 px-4 pt-16 pb-4 text-center md:px-6 md:pt-16 md:pb-6 md:text-left">
       <Highlight className="text-lg md:text-2xl">{name}</Highlight>
-      <div className="flex items-center gap-x-2 whitespace-pre-wrap">
+      <div className="flex items-center gap-x-1 whitespace-pre-wrap">
         <Wallet className="size-5" />
         Owned by <OwnerLink address={owner} profileName={name} />
       </div>
-      <div className="flex items-center gap-x-2 whitespace-pre-wrap">
+      <div className="flex items-center gap-x-1 whitespace-pre-wrap">
         <Calendar className="size-5" />
-        Expires <span className="font-medium">August 15, 2026</span>
+        Expires{' '}
+        <span className="font-medium">
+          {formatDate(new Date(Number(expiry?.expiry) * 1000))}
+        </span>
       </div>
       <div className="flex items-center gap-x-2">
         <Link

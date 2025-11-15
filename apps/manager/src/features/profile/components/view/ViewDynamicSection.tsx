@@ -69,7 +69,6 @@ export const ViewDynamicSection = ({
   section,
 }: ViewDynamicSectionProps) => {
   const sectionData = sections[section]
-
   const sectionRecords = records[section]
 
   if (sectionRecords.length === 0) {
