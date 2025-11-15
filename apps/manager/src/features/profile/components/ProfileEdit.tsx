@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
-import { ownerQuery } from '../service/profileOwner'
+import { profileOwnerQuery } from '../service/profileOwner'
 import { profileRecordsQuery } from '../service/profileRecords'
 import {
   defaultProfileRecords,
@@ -29,7 +29,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   })
 
   const owner = useQuery({
-    ...ownerQuery(name),
+    ...profileOwnerQuery(name),
   })
 
   const defaultValues = recordsData ?? defaultProfileRecords

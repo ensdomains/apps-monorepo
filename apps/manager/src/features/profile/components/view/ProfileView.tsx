@@ -4,7 +4,7 @@ import { useAccount } from 'wagmi'
 import { LinkButton } from '@/components/ui/button'
 import { sectionsList } from '../../data/records'
 import { profileExpiryQuery } from '../../service/profileExpiry'
-import { ownerQuery } from '../../service/profileOwner'
+import { profileOwnerQuery } from '../../service/profileOwner'
 import { profileRecordsQuery } from '../../service/profileRecords'
 import { transformProfileRecords } from '../../utils/transformRecords'
 import { ViewBioSection } from './ViewBioSection'
@@ -28,7 +28,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   })
 
   const owner = useQuery({
-    ...ownerQuery(name),
+    ...profileOwnerQuery(name),
     // throwOnError: true,
   })
 

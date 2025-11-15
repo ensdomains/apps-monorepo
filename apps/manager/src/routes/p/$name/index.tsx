@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { ProfileView } from '@/features/profile/components/view/ProfileView'
-import { ownerQuery } from '@/features/profile/service/profileOwner'
+import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { seo } from '@/utils/seo'
 
@@ -8,7 +8,7 @@ export const Route = createFileRoute('/p/$name/')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
     const [profileRecords, _] = await Promise.all([
       queryClient.ensureQueryData(profileRecordsQuery(name)),
-      queryClient.prefetchQuery(ownerQuery(name)),
+      queryClient.prefetchQuery(profileOwnerQuery(name)),
     ])
 
     const description = profileRecords.texts.find(

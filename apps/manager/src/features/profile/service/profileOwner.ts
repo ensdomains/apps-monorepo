@@ -32,7 +32,7 @@ export const getOwner = ResultFn(async function* (name: string) {
   return ok(result)
 })
 
-export const ownerQuery = (name: string | undefined) =>
+export const profileOwnerQuery = (name: string | undefined) =>
   resultQueryOptions({
     queryKey: qk('profile', 'owner', { name }),
     queryFn: name
