@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { Suspense } from 'react'
 import { ProfileView } from '@/features/profile/components/view/ProfileView'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
@@ -35,5 +36,18 @@ export const Route = createFileRoute('/p/$name/')({
 function RouteComponent() {
   const { name } = Route.useParams()
 
-  return <ProfileView name={name} />
+  return (
+    <Suspense
+      fallback={
+        // TODO: Add a proper loading state
+        <div className="mx-auto max-w-md space-y-4">
+          <div className="flex items-center justify-center py-8">
+            <div className="text-gray-600">Loading profile...</div>
+          </div>
+        </div>
+      }
+    >
+      <ProfileView name={name} />
+    </Suspense>
+  )
 }

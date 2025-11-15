@@ -1,9 +1,8 @@
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { useSuspenseQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useAccount } from 'wagmi'
 import { LinkButton } from '@/components/ui/button'
 import { sectionsList } from '../../data/records'
-import { profileExpiryQuery } from '../../service/profileExpiry'
 import { profileOwnerQuery } from '../../service/profileOwner'
 import { profileRecordsQuery } from '../../service/profileRecords'
 import { transformProfileRecords } from '../../utils/transformRecords'
@@ -23,13 +22,8 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     select: transformProfileRecords,
   })
 
-  const expiry = useQuery({
-    ...profileExpiryQuery(name),
-  })
-
-  const owner = useQuery({
+  const owner = useSuspenseQuery({
     ...profileOwnerQuery(name),
-    // throwOnError: true,
   })
 
   const { address } = useAccount()
@@ -40,8 +34,8 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
       owner.data.owner.toLowerCase() === address.toLowerCase(),
   )
 
-  const loading = records.isLoading || expiry.isLoading || owner.isLoading
-  const error = records.error || expiry.error || owner.error
+  const loading = records.isLoading || owner.isLoading
+  const error = records.error || owner.error
 
   if (loading) {
     return (
@@ -75,7 +69,6 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
         name={name}
         records={records.data}
         owner={owner.data?.owner as Address | undefined}
-        expiry={expiry.data}
       />
       <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
         {/* Left/main column */}

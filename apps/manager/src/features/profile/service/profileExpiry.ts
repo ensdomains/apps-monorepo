@@ -5,7 +5,6 @@ import {
   getExpiry as ensjs_GetExpiry,
   type GetExpiryErrorType,
 } from '@ensdomains/ensjs/public'
-import { skipToken } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
@@ -24,12 +23,8 @@ export const getExpiry = ResultFn(async function* (name: string) {
   return ok(result)
 })
 
-export const profileExpiryQuery = (name: string | undefined) =>
+export const profileExpiryQuery = (name: string) =>
   resultQueryOptions({
     queryKey: qk('profile', 'expiry', { name }),
-    queryFn: name
-      ? ({ queryKey: [{ name }] }) =>
-          // biome-ignore lint/style/noNonNullAssertion: Null assertion is covered by the skipToken
-          getExpiry(name!)
-      : skipToken,
+    queryFn: ({ queryKey: [{ name }] }) => getExpiry(name),
   })

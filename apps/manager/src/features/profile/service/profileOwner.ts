@@ -5,7 +5,6 @@ import {
   getOwner as ensjs_GetOwner,
   type GetOwnerErrorType,
 } from '@ensdomains/ensjs/public'
-import { skipToken } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
@@ -32,12 +31,8 @@ export const getOwner = ResultFn(async function* (name: string) {
   return ok(result)
 })
 
-export const profileOwnerQuery = (name: string | undefined) =>
+export const profileOwnerQuery = (name: string) =>
   resultQueryOptions({
     queryKey: qk('profile', 'owner', { name }),
-    queryFn: name
-      ? ({ queryKey: [{ name }] }) =>
-          // biome-ignore lint/style/noNonNullAssertion: Null assertion is covered by the skipToken
-          getOwner(name!)
-      : skipToken,
+    queryFn: ({ queryKey: [{ name }] }) => getOwner(name),
   })
