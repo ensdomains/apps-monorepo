@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useSuspenseQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { Button } from '@/components/ui/button'
 import { profileOwnerQuery } from '../service/profileOwner'
@@ -25,12 +25,12 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     data: recordsData,
     isLoading,
     error,
-  } = useQuery({
+  } = useSuspenseQuery({
     ...profileRecordsQuery(name),
     select: transformProfileRecords,
   })
 
-  const owner = useQuery({
+  const owner = useSuspenseQuery({
     ...profileOwnerQuery(name),
   })
 
