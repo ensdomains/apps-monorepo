@@ -51,8 +51,8 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   }
 
   const handleCancel = () => {
-    // Reset form to original values
-    form.reset()
+    // Intentionally left blank: cancelling the review
+    // dialog should not reset the form values
   }
 
   if (isLoading) {
