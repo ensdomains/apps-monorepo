@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
+import { Button } from '@/components/ui/button'
 import { profileOwnerQuery } from '../service/profileOwner'
 import { profileRecordsQuery } from '../service/profileRecords'
 import {
@@ -50,9 +51,8 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     // Here you would typically call an API to save the changes
   }
 
-  const handleCancel = () => {
-    // Intentionally left blank: cancelling the review
-    // dialog should not reset the form values
+  const handleReset = () => {
+    form.reset()
   }
 
   if (isLoading) {
@@ -102,13 +102,20 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
           <WalletAddressesSection form={form} />
 
-          {/* Save Button */}
-          <div className="pt-2">
+          {/* Reset & Save Buttons */}
+          <div className="space-y-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleReset}
+            >
+              Reset Changes
+            </Button>
             <SaveChanges
               form={form}
               originalData={defaultValues}
               onSave={handleSave}
-              onCancel={handleCancel}
             />
           </div>
         </div>
