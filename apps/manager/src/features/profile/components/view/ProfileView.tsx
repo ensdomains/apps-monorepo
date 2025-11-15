@@ -3,6 +3,7 @@ import type { Address } from 'viem'
 import { useAccount } from 'wagmi'
 import { LinkButton } from '@/components/ui/button'
 import { sectionsList } from '../../data/records'
+import { profileExpiryQuery } from '../../service/profileExpiry'
 import { ownerQuery } from '../../service/profileOwner'
 import { profileRecordsQuery } from '../../service/profileRecords'
 import { transformProfileRecords } from '../../utils/transformRecords'
@@ -22,6 +23,10 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     select: transformProfileRecords,
   })
 
+  const expiry = useQuery({
+    ...profileExpiryQuery(name),
+  })
+
   const owner = useQuery({
     ...ownerQuery(name),
     // throwOnError: true,
@@ -35,7 +40,10 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
       owner.data.owner.toLowerCase() === address.toLowerCase(),
   )
 
-  if (records.isLoading) {
+  const loading = records.isLoading || expiry.isLoading || owner.isLoading
+  const error = records.error || expiry.error || owner.error
+
+  if (loading) {
     return (
       <div className="mx-auto max-w-md space-y-4">
         <div className="flex items-center justify-center py-8">
@@ -45,12 +53,12 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     )
   }
 
-  if (records.error) {
+  if (error) {
     return (
       <div className="mx-auto max-w-md space-y-4">
         <div className="flex items-center justify-center py-8">
           <div className="text-red-600">
-            Error loading profile: {records.error.message}
+            Error loading profile: {error.message}
           </div>
         </div>
       </div>
@@ -67,6 +75,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
         name={name}
         records={records.data}
         owner={owner.data?.owner as Address | undefined}
+        expiry={expiry.data}
       />
       <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
         {/* Left/main column */}
