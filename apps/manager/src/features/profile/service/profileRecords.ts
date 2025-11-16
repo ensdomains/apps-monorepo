@@ -26,8 +26,6 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
   const subgraphRecords = yield* getSubgraphRecords(name)
 
-  console.log('subgraphRecords', subgraphRecords)
-
   const coins = subgraphRecords
     ? [
         ...subgraphRecords.coins.filter(
@@ -53,9 +51,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
       coins,
       texts,
       resolver: { address: '0x55265fad0129f9d57d4e1b0a4d083bd192ab0716' },
-      contentHash: true,
       ignoreInvalidCoinTypes: true,
-      abi: true,
     }),
     (e) => new RecordsError({ cause: e }),
   )
