@@ -5,6 +5,7 @@ import { ok } from 'neverthrow'
 
 // biome-ignore lint/correctness/useYield: stubbed implementation does not need to yield
 export const getSubgraphRecords = ResultFn(async function* (_name: string) {
+  // TODO: Remove this once we have a real subgraph records from ensjs
   const subgraphRecords = {
     isMigrated: true,
     createdAt: { date: new Date(), value: Date.now() },
