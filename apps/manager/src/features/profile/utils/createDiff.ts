@@ -2,26 +2,23 @@ import { allSections, getAddressRecordDef } from '../data/records'
 import type { ProfileRecords } from '../types'
 
 type DiffEntry = {
-  original?: string
-  current?: string
+  original?: any
+  current?: any
   type: 'added' | 'removed' | 'modified'
 }
 
 type Diff = Record<string, DiffEntry>
 
 // Pure utility functions
-const isEmptyValue = (value: string | undefined): boolean => {
+const isEmptyValue = (value: any): boolean => {
   if (value === undefined || value === null) return true
-  const str = value.trim()
+  const str = String(value).trim()
   return str === '' || str === 'undefined' || str === 'null'
 }
 
-const hasValueChanged = (
-  oldVal: string | undefined,
-  newVal: string | undefined,
-): boolean => {
-  const oldStr = (oldVal ?? '').trim()
-  const newStr = (newVal ?? '').trim()
+const hasValueChanged = (oldVal: any, newVal: any): boolean => {
+  const oldStr = String(oldVal || '').trim()
+  const newStr = String(newVal || '').trim()
   return oldStr !== newStr
 }
 
@@ -40,8 +37,8 @@ const getBioDisplayName = (key: string): string => {
 
 // Pure function to create a diff entry
 const createDiffEntry = (
-  originalValue: string | undefined,
-  currentValue: string | undefined,
+  originalValue: any,
+  currentValue: any,
 ): DiffEntry | null => {
   const originalEmpty = isEmptyValue(originalValue)
   const currentEmpty = isEmptyValue(currentValue)
@@ -67,52 +64,44 @@ const createDiffEntry = (
 
 // Pure function to compare maps and generate diffs
 const compareKeyValuePairs = (
-  originalMap: Map<string, string>,
-  currentMap: Map<string, string>,
+  originalMap: Map<string, any>,
+  currentMap: Map<string, any>,
   section: string,
   getDisplayName: (key: string) => string = (key) => key,
 ): Diff => {
   const allKeys = new Set([...originalMap.keys(), ...currentMap.keys()])
 
-  const result: Diff = {}
-
-  for (const key of allKeys) {
+  return Array.from(allKeys).reduce((acc, key) => {
     const originalValue = originalMap.get(key)
     const currentValue = currentMap.get(key)
     const diffEntry = createDiffEntry(originalValue, currentValue)
 
     if (diffEntry) {
       const displayName = getDisplayName(key)
-      result[`${section}.${displayName}`] = diffEntry
+      return { ...acc, [`${section}.${displayName}`]: diffEntry }
     }
-  }
 
-  return result
+    return acc
+  }, {} as Diff)
 }
 
 // Pure function to convert records to map
-const recordsToMap = <T extends { key: string; value: string }>(
+const recordsToMap = <T extends { key: string; value: any }>(
   records: T[],
-): Map<string, string> => new Map(records.map((r) => [r.key, r.value]))
+): Map<string, any> => new Map(records.map((r) => [r.key, r.value]))
 
 const addressesToMap = (
   addresses: Array<{ coinType: number; value: string }>,
-): Map<string, string> =>
+): Map<string, any> =>
   new Map(addresses.map((a) => [String(a.coinType), a.value]))
 
-const baseToMap = (
-  base: Record<string, string | undefined>,
-): Map<string, string> =>
-  new Map(
-    Object.entries(base).filter(
-      ([, value]) => !isEmptyValue(value ?? undefined),
-    ) as Array<[string, string]>,
-  )
+const baseToMap = (base: Record<string, any>): Map<string, any> =>
+  new Map(Object.entries(base).filter(([, value]) => !isEmptyValue(value)))
 
 // Pure function to create links diff
 const createLinksDiff = (
-  originalLinks: Array<unknown> | undefined,
-  currentLinks: Array<unknown> | undefined,
+  originalLinks: any[] | undefined,
+  currentLinks: any[] | undefined,
 ): DiffEntry | null => {
   const original = originalLinks || []
   const current = currentLinks || []
@@ -121,7 +110,7 @@ const createLinksDiff = (
     return null
   }
 
-  const formatLinkCount = (links: Array<unknown>) =>
+  const formatLinkCount = (links: any[]) =>
     `${links.length} link${links.length !== 1 ? 's' : ''}`
 
   if (original.length === 0 && current.length > 0) {
@@ -168,15 +157,17 @@ export const createDiff = (
   )
 
   // Process all sections
-  const sectionDiffs: Diff = {}
-  for (const section of allSections) {
-    const sectionDiff = compareKeyValuePairs(
-      recordsToMap(original[section]),
-      recordsToMap(current[section]),
-      section,
-    )
-    Object.assign(sectionDiffs, sectionDiff)
-  }
+  const sectionDiffs = allSections.reduce(
+    (acc, section) => ({
+      ...acc,
+      ...compareKeyValuePairs(
+        recordsToMap(original[section]),
+        recordsToMap(current[section]),
+        section,
+      ),
+    }),
+    {} as Diff,
+  )
 
   // Process links
   const linksDiffEntry = createLinksDiff(original.links, current.links)
