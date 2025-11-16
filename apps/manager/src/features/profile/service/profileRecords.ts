@@ -43,7 +43,6 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     getRecords(client, {
       // ...subgraphRecords,
       name,
-      resolver: { address: '0x55265fad0129f9d57d4e1b0a4d083bd192ab0716' },
       coins,
       texts,
       contentHash: true,
