@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useAccount } from 'wagmi'
 import { LinkButton } from '@/components/ui/button'
@@ -22,7 +22,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     select: transformProfileRecords,
   })
 
-  const { data: ownerData } = useSuspenseQuery({
+  const { data: ownerData } = useQuery({
     ...profileOwnerQuery(name),
   })
 
