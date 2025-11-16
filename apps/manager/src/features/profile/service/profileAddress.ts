@@ -13,9 +13,7 @@ class GetAddressError extends TaggedError('GetAddressError')<{
   cause: GetAddressRecordErrorType
 }> {}
 
-class MissingProfileError extends TaggedError('MissingProfileError')<
-  Record<string, never>
-> {}
+class MissingProfileError extends TaggedError('MissingProfileError')<{}> {}
 
 export const getAddress = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
