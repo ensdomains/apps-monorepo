@@ -46,7 +46,6 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
 
   const records = yield* await fromPromise(
     getRecords(client, {
-      // ...subgraphRecords,
       name,
       coins,
       texts,
