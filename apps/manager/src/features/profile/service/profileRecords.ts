@@ -26,15 +26,6 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
   const subgraphRecords = yield* getSubgraphRecords(name)
 
-  const coins = subgraphRecords
-    ? [
-        ...subgraphRecords.coins.filter(
-          (c) => !alwaysProbeAddressRecords.includes(c),
-        ),
-        ...alwaysProbeAddressRecords,
-      ]
-    : alwaysProbeAddressRecords
-
   const texts = [
     ...forceFetchRecords.always,
     ...(subgraphRecords
@@ -43,6 +34,15 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
         )
       : forceFetchRecords.whenNotIndexed),
   ]
+
+  const coins = subgraphRecords
+    ? [
+        ...subgraphRecords.coins.filter(
+          (c) => !alwaysProbeAddressRecords.includes(c),
+        ),
+        ...alwaysProbeAddressRecords,
+      ]
+    : alwaysProbeAddressRecords
 
   const records = yield* await fromPromise(
     getRecords(client, {
