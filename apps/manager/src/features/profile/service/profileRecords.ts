@@ -49,7 +49,6 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
       name,
       coins,
       texts,
-      resolver: { address: '0x55265fad0129f9d57d4e1b0a4d083bd192ab0716' },
       ignoreInvalidCoinTypes: true,
     }),
     (e) => new RecordsError({ cause: e }),
