@@ -11,7 +11,7 @@ import { ShareProfileDialog } from '../dialogs/ShareProfileDialog'
 interface ViewHeaderSectionProps {
   name: string
   records: ProfileRecords
-  owner: Address
+  owner?: Address
 }
 
 export const ViewHeaderSection = ({

@@ -6,23 +6,14 @@ import {
   metaMaskWallet,
 } from '@rainbow-me/rainbowkit/wallets'
 import { createClient, type HttpTransport, http } from 'viem'
-import { mainnet } from 'viem/chains'
+import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: true,
   multiInjectedProviderDiscovery: true,
-  chains: [
-    {
-      ...extendChainWithEns(mainnet),
-      subgraphs: {
-        ens: {
-          url: 'https://api.alpha.ensnode.io/subgraph',
-        },
-      },
-    },
-  ],
+  chains: [extendChainWithEns(sepolia)],
   connectors: connectorsForWallets(
     [
       {

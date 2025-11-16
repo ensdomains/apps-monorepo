@@ -2,18 +2,11 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { type GetRecordsReturnType, getRecords } from '@ensdomains/ensjs/public'
-import { getSubgraphRecords } from '@ensdomains/ensjs/subgraph'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import {
-  alwaysProbeAddressRecords,
-  forceFetchRecords,
-} from '../data/records/utils'
+import { alwaysProbeAddressRecords, forceFetchRecords } from '../data/records'
 import { DEBUG_PROFILE } from '../MOCK'
-
-class SubgraphError extends TaggedError('SubgraphError')<{
-  cause: unknown
-}> {}
+import { getSubgraphRecords } from './getSubgraphRecords'
 
 class RecordsError extends TaggedError('RecordsError')<{
   cause: unknown
@@ -29,13 +22,10 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
       } as unknown as NonNullable<typeof subgraphRecords>,
     })
   }
-  const client = yield* safeGetClient()
 
-  const subgraphRecords = yield* await fromPromise(
-    // biome-ignore lint/suspicious/noExplicitAny: ENSJS client types are not updated for subgraph actions yet
-    getSubgraphRecords(client as any, { name }),
-    (e) => new SubgraphError({ cause: e }),
-  )
+  const client = yield* safeGetClient()
+  const subgraphRecords = yield* getSubgraphRecords(name)
+
   const texts = [
     ...forceFetchRecords.always,
     ...(subgraphRecords
@@ -57,16 +47,14 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   const records = yield* await fromPromise(
     getRecords(client, {
       name,
-      texts,
       coins,
+      texts,
+      ignoreInvalidCoinTypes: true,
     }),
     (e) => new RecordsError({ cause: e }),
   )
 
-  return ok({
-    ...records,
-    _rawSubgraphRecords: subgraphRecords,
-  })
+  return ok(records)
 })
 
 export type ProfileRecordsResult = GetRecordsReturnType<

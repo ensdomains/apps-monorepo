@@ -31,6 +31,21 @@ import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { cn } from '@/lib/utils'
 import { inspect } from '@/utils/xstate'
 
+interface ErrorDisplayProps {
+  error: string | null
+}
+
+const ErrorDisplay = ({ error }: ErrorDisplayProps) => {
+  if (!error) return null
+
+  return (
+    <Alert variant="destructive" className="mb-4">
+      <AlertCircle className="h-4 w-4" />
+      <AlertDescription>{error}</AlertDescription>
+    </Alert>
+  )
+}
+
 type ImageType = 'avatar' | 'header'
 
 interface ImageSelectionDialogProps {
@@ -117,18 +132,6 @@ export const ImageSelectionDialog = ({
     }
   }
 
-  // Error display component
-  const ErrorDisplay = () => {
-    if (!state.context.error) return null
-
-    return (
-      <Alert variant="destructive" className="mb-4">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{state.context.error}</AlertDescription>
-      </Alert>
-    )
-  }
-
   // Get appropriate dimensions and styling based on type
   const getImageStyles = (size: 'small' | 'medium' | 'large' = 'medium') => {
     const baseClasses = 'mx-auto rounded-md object-cover'
@@ -158,7 +161,7 @@ export const ImageSelectionDialog = ({
         {description && <p className="text-gray-600 text-sm">{description}</p>}
       </DialogHeader>
 
-      <ErrorDisplay />
+      <ErrorDisplay error={state.context.error} />
 
       <div className="space-y-4">
         <Button
@@ -301,7 +304,7 @@ export const ImageSelectionDialog = ({
         </div>
       </DialogHeader>
 
-      <ErrorDisplay />
+      <ErrorDisplay error={state.context.error} />
 
       <div className="space-y-4">
         <div className="relative">
@@ -402,7 +405,7 @@ export const ImageSelectionDialog = ({
         </p>
       </DialogHeader>
 
-      <ErrorDisplay />
+      <ErrorDisplay error={state.context.error} />
 
       <div className="space-y-4">
         <div className="text-center">
@@ -456,7 +459,7 @@ export const ImageSelectionDialog = ({
         </p>
       </DialogHeader>
 
-      <ErrorDisplay />
+      <ErrorDisplay error={state.context.error} />
 
       <div className="space-y-4">
         <Input
@@ -498,7 +501,7 @@ export const ImageSelectionDialog = ({
         </div>
       </DialogHeader>
 
-      <ErrorDisplay />
+      <ErrorDisplay error={state.context.error} />
 
       <div className="space-y-4">
         <div className="text-center">

@@ -7,7 +7,7 @@ import { sharedOptions, withForm } from '@/features/profile/components/form'
 
 interface HeaderSectionProps {
   name: string
-  owner: Address | undefined
+  owner?: Address
 }
 
 export const HeaderSection = withForm({
@@ -74,7 +74,7 @@ export const HeaderSection = withForm({
           </div>
         </div>
       </div>
-      <ProfileHeaderInfo name={name} owner={owner as Address} />
+      <ProfileHeaderInfo name={name} owner={owner} />
     </div>
   ),
 })

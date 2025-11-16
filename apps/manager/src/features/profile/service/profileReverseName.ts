@@ -19,20 +19,18 @@ export const getReverseName = ResultFn(async function* (address: Address) {
   const client = yield* safeGetClient()
 
   const result = yield* await fromPromise(
-    getName(client, {
-      address,
-    }),
+    getName(client, { address }),
     (e) => new GetNameError({ cause: e as GetNameErrorType }),
   )
 
   if (!result) {
-    return yield* new MissingReverseNameError()
+    return yield* new MissingReverseNameError({})
   }
 
   return ok(result)
 })
 
-export const reverseNameQuery = (address: Address | undefined) =>
+export const profileReverseNameQuery = (address: Address | undefined) =>
   resultQueryOptions({
     queryKey: qk('profile', 'reverse_name', { address }),
     queryFn: address

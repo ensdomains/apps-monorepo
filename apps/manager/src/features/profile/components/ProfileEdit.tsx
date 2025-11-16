@@ -1,7 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
+import { useSuspenseQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
-import { ownerQuery } from '../service/profileOwner'
+import { Button } from '@/components/ui/button'
+import { profileOwnerQuery } from '../service/profileOwner'
 import { profileRecordsQuery } from '../service/profileRecords'
+import { createDiff } from '../utils/createDiff'
 import {
   defaultProfileRecords,
   transformProfileRecords,
@@ -19,17 +21,13 @@ interface ProfileEditProps {
 }
 
 export const ProfileEdit = ({ name }: ProfileEditProps) => {
-  const {
-    data: recordsData,
-    isLoading,
-    error,
-  } = useQuery({
+  const { data: recordsData } = useSuspenseQuery({
     ...profileRecordsQuery(name),
     select: transformProfileRecords,
   })
 
-  const owner = useQuery({
-    ...ownerQuery(name),
+  const { data: ownerData } = useSuspenseQuery({
+    ...profileOwnerQuery(name),
   })
 
   const defaultValues = recordsData ?? defaultProfileRecords
@@ -50,31 +48,8 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     // Here you would typically call an API to save the changes
   }
 
-  const handleCancel = () => {
-    // Reset form to original values
+  const handleReset = () => {
     form.reset()
-  }
-
-  if (isLoading) {
-    return (
-      <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]">
-        <div className="flex items-center justify-center py-8">
-          <div className="text-gray-600">Loading profile...</div>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]">
-        <div className="flex items-center justify-center py-8">
-          <div className="text-red-600">
-            Error loading profile: {error.message}
-          </div>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -86,7 +61,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       <HeaderSection
         form={form}
         name={name}
-        owner={owner.data?.owner as Address}
+        owner={ownerData?.owner as Address | undefined}
       />
 
       <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
@@ -102,13 +77,28 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
           <WalletAddressesSection form={form} />
 
-          {/* Save Button */}
-          <div className="pt-2">
+          {/* Reset & Save Buttons */}
+          <div className="space-y-2 pt-2">
+            <form.Subscribe
+              selector={(state) => createDiff(defaultValues, state.values)}
+            >
+              {(diff) =>
+                Object.keys(diff).length > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleReset}
+                  >
+                    Reset Changes
+                  </Button>
+                )
+              }
+            </form.Subscribe>
             <SaveChanges
               form={form}
               originalData={defaultValues}
               onSave={handleSave}
-              onCancel={handleCancel}
             />
           </div>
         </div>
