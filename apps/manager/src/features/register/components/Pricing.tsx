@@ -1,18 +1,32 @@
-import { ChevronDownIcon } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Calendar } from '@/components/ui/calendar'
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
-import { Input } from '@/components/ui/input'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+  INITIAL_PRICING_OPTIONS,
+  PRICING_DURATIONS,
+  sanitizePricingDuration,
+} from '@/features/register/constants/pricing'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 import { cn } from '@/lib/utils'
 import { getTokenPrices } from '../services/nameChainContractService'
+import { DurationSelector } from './CheckAvailability/components/DurationSelector'
+import type { PricingDuration, PricingOptions } from './CheckAvailability/types'
 import { CreditCardPaymentDrawer, CryptoPaymentDrawer } from './PaymentDrawer'
+import { RegistrationSummaryCard } from './RegistrationSummaryCard'
+
+type PricingQuote = {
+  usdc?: number
+  dai?: number
+}
+
+type PricingQuoteMap = Record<PricingDuration, PricingQuote>
+
+const createEmptyPricingQuoteMap = (): PricingQuoteMap => ({
+  1: {},
+  2: {},
+  3: {},
+  4: {},
+  5: {},
+})
 
 type PricingProps = {
   domainName: string
@@ -35,361 +49,189 @@ export const Pricing = ({
   onSelectCrypto,
   onConfirmPayment,
 }: PricingProps) => {
-  const [activeTab, setActiveTab] = useState<'years' | 'date'>('years')
-  const [customYears, setCustomYears] = useState('')
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
-  const [isBreakdownOpen, setIsBreakdownOpen] = useState(false)
-  const [priceLoading, setPriceLoading] = useState(false)
-  const [usdcPrice, setUsdcPrice] = useState<number | undefined>(undefined)
-  const [daiPrice, setDaiPrice] = useState<number | undefined>(undefined)
-  const [pricingDuration, setPricingDuration] = useState(duration)
+  const [pricingOptions, setPricingOptions] = useState<PricingOptions>(
+    INITIAL_PRICING_OPTIONS,
+  )
+  const [selectedDuration, setSelectedDuration] = useState<PricingDuration>(
+    sanitizePricingDuration(duration),
+  )
+  const [isPricingLoading, setIsPricingLoading] = useState(false)
+  const [pricingQuotes, setPricingQuotes] = useState<PricingQuoteMap>(
+    createEmptyPricingQuoteMap,
+  )
+  const [basePricePerYear, setBasePricePerYear] = useState<number | null>(null)
 
   // Check if AA is available (Rhinestone SDK provides AA by default)
   const { rhinestoneAccount } = useRhinestoneAccount()
   const isUsingAA = !!rhinestoneAccount
 
-  // Year options for quick selection
-  const yearOptions = [
-    { years: 1, discount: 0 },
-    { years: 2, discount: 0 },
-    { years: 3, discount: 10 },
-    { years: 5, discount: 20 },
-    { years: 10, discount: 30 },
-    { years: 25, discount: 30 },
-  ]
+  const isPremium = useMemo(() => determinePremium(domainName), [domainName])
 
-  // Calculate discount based on duration (using real contract prices)
-  const getDiscountInfo = () => {
-    if (!usdcPrice)
-      return { discountPercentage: 0, discountAmount: 0, finalPrice: 0 }
-
-    // Find the discount for the selected duration
-    const selectedYearOption = yearOptions.find(
-      (option) => option.years === pricingDuration,
-    )
-    const discountPercentage = selectedYearOption
-      ? selectedYearOption.discount
+  // Use the original base price (before any discounts) for calculations
+  const basePerYear = basePricePerYear ?? 0
+  const selectedOption = pricingOptions[selectedDuration]
+  const selectedQuote = pricingQuotes[selectedDuration]
+  const fallbackTotal =
+    selectedOption?.total ??
+    (selectedOption ? selectedOption.price * selectedDuration : 0)
+  const finalPrice = selectedQuote?.usdc ?? fallbackTotal
+  const theoreticalTotal = basePerYear > 0 ? basePerYear * selectedDuration : 0
+  const discountAmount =
+    finalPrice && theoreticalTotal > 0
+      ? Math.max(0, theoreticalTotal - finalPrice)
       : 0
+  const discountPercentage =
+    theoreticalTotal > 0 && finalPrice
+      ? Math.max(0, Math.round((discountAmount / theoreticalTotal) * 100))
+      : (selectedOption?.discount ?? 0)
 
-    // Calculate discount amount based on real contract price
-    const discountAmount = (usdcPrice * discountPercentage) / 100
-    const finalPrice = usdcPrice - discountAmount
+  const expirationDate = useMemo(() => {
+    const next = new Date()
+    next.setFullYear(next.getFullYear() + selectedDuration)
+    return next
+  }, [selectedDuration])
 
-    return { discountPercentage, discountAmount, finalPrice }
-  }
+  const formattedExpiration = useMemo(
+    () =>
+      expirationDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }),
+    [expirationDate],
+  )
 
-  const { discountPercentage, discountAmount, finalPrice } = getDiscountInfo()
+  const paddedDuration = useMemo(
+    () => selectedDuration.toString().padStart(2, '0'),
+    [selectedDuration],
+  )
 
-  const calculateDurationFromDate = (endDate: Date) => {
-    const now = new Date()
-    const diffInMs = endDate.getTime() - now.getTime()
-    const diffInYears = diffInMs / (1000 * 60 * 60 * 24 * 365.25)
-    return Math.max(1, Math.round(diffInYears * 100) / 100)
-  }
-
-  const handleDateSelect = (date: Date | undefined) => {
-    if (date) {
-      setSelectedDate(date)
-      const calculatedDuration = calculateDurationFromDate(date)
-      onSetDuration(calculatedDuration)
-    }
-  }
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    })
-  }
-
-  const minDate = new Date()
-  minDate.setDate(minDate.getDate() + 1)
-
-  // Fetch token prices when duration changes
+  // Fetch pricing for all durations when domain or connection changes
   useEffect(() => {
-    const fetchPrices = async () => {
+    let isCancelled = false
+
+    const fetchPricingOptions = async () => {
       if (!domainName || !isConnected) return
 
-      setPriceLoading(true)
+      setIsPricingLoading(true)
       try {
-        console.log('💰 Fetching prices for:', {
-          domainName,
-          duration: pricingDuration,
-        })
-        const result = await getTokenPrices(domainName, pricingDuration)
-        if (result.isOk()) {
-          // Handle both USDC and DAI pricing
-          const usdcPrice = result.value.usdc
-          const daiPrice = result.value.dai
+        // Fetch only 1-year price to use as base
+        const baseResult = await getTokenPrices(domainName, 1)
 
-          if (usdcPrice) {
-            setUsdcPrice(parseFloat(usdcPrice.formatted))
-          } else {
-            setUsdcPrice(0)
-          }
+        if (isCancelled) return
 
-          if (daiPrice) {
-            setDaiPrice(parseFloat(daiPrice.formatted))
-          } else {
-            setDaiPrice(0)
-          }
+        if (baseResult.isOk() && baseResult.value.usdc) {
+          const basePerYear = parseFloat(baseResult.value.usdc.formatted)
+          setBasePricePerYear(basePerYear)
+
+          const updatedOptions: PricingOptions = { ...INITIAL_PRICING_OPTIONS }
+          const updatedQuotes: PricingQuoteMap = createEmptyPricingQuoteMap()
+
+          // Calculate prices with client-side discounts
+          PRICING_DURATIONS.forEach((duration) => {
+            const discount = INITIAL_PRICING_OPTIONS[duration].discount
+            const discountMultiplier = 1 - discount / 100
+            const perYearPrice = basePerYear * discountMultiplier
+            const totalPrice = perYearPrice * duration
+
+            updatedOptions[duration] = {
+              ...INITIAL_PRICING_OPTIONS[duration],
+              price: perYearPrice,
+              discount,
+              total: totalPrice,
+            }
+
+            updatedQuotes[duration] = {
+              usdc: totalPrice,
+              dai: baseResult.value.dai
+                ? parseFloat(baseResult.value.dai.formatted) *
+                  discountMultiplier *
+                  duration
+                : undefined,
+            }
+          })
+
+          setPricingOptions(updatedOptions)
+          setPricingQuotes(updatedQuotes)
         } else {
-          console.error('Failed to get token prices:', result.error)
-          setUsdcPrice(0)
-          setDaiPrice(0)
+          setBasePricePerYear(null)
+          setPricingOptions(INITIAL_PRICING_OPTIONS)
+          setPricingQuotes(createEmptyPricingQuoteMap())
         }
       } catch (error) {
-        console.error('Failed to get token prices:', error)
-        setUsdcPrice(0)
-        setDaiPrice(0)
+        if (!isCancelled) {
+          console.error('Failed to get pricing options:', error)
+          setPricingOptions(INITIAL_PRICING_OPTIONS)
+          setBasePricePerYear(null)
+          setPricingQuotes(createEmptyPricingQuoteMap())
+        }
       } finally {
-        setPriceLoading(false)
+        if (!isCancelled) {
+          setIsPricingLoading(false)
+        }
       }
     }
 
-    fetchPrices()
-  }, [domainName, pricingDuration, isConnected])
+    fetchPricingOptions()
 
-  // Update pricing duration when duration prop changes
-  useEffect(() => {
-    setPricingDuration(duration)
-  }, [duration])
+    return () => {
+      isCancelled = true
+    }
+  }, [domainName, isConnected])
 
   const handleConfirmPayment = (tokenPrice: bigint, selectedToken: string) => {
-    // selectedToken is now the address directly from PaymentDrawer
-    // tokenPrice is the raw balance from PaymentDrawer
-    // Just pass them through
     onConfirmPayment(tokenPrice, selectedToken)
   }
 
-  return (
-    <div className="space-y-4">
-      <div className="inline-flex items-center rounded bg-foreground px-2 py-1 font-bold text-background text-lg">
-        {domainName}
-      </div>
+  const handleSelectDuration = (newDuration: PricingDuration) => {
+    setSelectedDuration(newDuration)
+    onSetDuration(newDuration)
+  }
 
-      <h2 className="font-bold text-foreground text-xl">
+  const isPriceLoading =
+    isPricingLoading ||
+    pricingQuotes[selectedDuration]?.usdc === undefined ||
+    pricingQuotes[selectedDuration]?.usdc === null
+  const finalDaiPrice = pricingQuotes[selectedDuration]?.dai
+
+  const header = (
+    <div className="space-y-4 text-center">
+      <h2 className="font-semibold text-3xl text-slate-900">
         Choose registration length
       </h2>
+      <div className="flex items-center justify-center gap-3">
+        <span className="rounded-xl border border-slate-200 bg-white px-4 py-2 font-semibold text-lg text-slate-900">
+          {domainName}
+        </span>
+        {isPremium && (
+          <span className="rounded-full bg-slate-200 px-3 py-1 font-medium text-slate-600 text-xs uppercase tracking-wide">
+            Premium name
+          </span>
+        )}
+      </div>
+    </div>
+  )
 
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) => setActiveTab(value as 'years' | 'date')}
-      >
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="years">Select by Years</TabsTrigger>
-          <TabsTrigger value="date">Choose End Date</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="years" className="space-y-4">
-          <div className="mb-4">
-            <h3 className="mb-3 font-medium text-foreground text-sm">
-              Quick select
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              {yearOptions.map((yearOption) => (
-                <button
-                  key={yearOption.years}
-                  type="button"
-                  onClick={() => onSetDuration(yearOption.years)}
-                  className={cn(
-                    'relative rounded-lg border p-4 text-left transition-colors',
-                    duration === yearOption.years
-                      ? 'border-primary bg-primary/5 text-primary'
-                      : 'border-border bg-card hover:border-muted-foreground',
-                  )}
-                >
-                  <div className="font-medium">
-                    {yearOption.years} year{yearOption.years > 1 ? 's' : ''}
-                  </div>
-                  <div className="text-muted-foreground text-sm">
-                    {yearOption.discount > 0
-                      ? `${yearOption.discount}% off`
-                      : ''}
-                  </div>
-                  {yearOption.years === 5 && (
-                    <div className="-top-2 -right-2 absolute rounded bg-primary px-2 py-1 text-primary-foreground text-xs">
-                      Best value
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label
-              htmlFor="custom-years"
-              className="mb-2 block font-medium text-foreground text-sm"
-            >
-              Or enter custom duration
-            </label>
-            <div className="flex w-full items-center space-x-2">
-              {/** biome-ignore lint/correctness/useUniqueElementIds: <explanation> */}
-              <Input
-                id="custom-years"
-                type="number"
-                placeholder="Enter years (1-999)"
-                value={customYears}
-                onChange={(e) => {
-                  setCustomYears(e.target.value)
-                  const years = parseInt(e.target.value, 10)
-                  if (years >= 1 && years <= 999) {
-                    onSetDuration(years)
-                  }
-                }}
-                min="1"
-                max="999"
-                className="flex-1"
-              />
-              <span className="text-muted-foreground">years</span>
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="date" className="space-y-4">
-          <div>
-            <h3 className="mb-3 font-medium text-foreground text-sm">
-              Select registration end date
-            </h3>
-            <div className="rounded-lg border border-border p-4">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={handleDateSelect}
-                disabled={(date) => date < minDate}
-                className="w-full"
-              />
-            </div>
-            {selectedDate && (
-              <div className="mt-3 rounded-lg bg-muted p-3">
-                <p className="text-muted-foreground text-sm">
-                  Registration will end on:{' '}
-                  <span className="font-medium text-foreground">
-                    {formatDate(selectedDate)}
-                  </span>
-                </p>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-foreground text-lg">
-            Order Summary
-          </h3>
-          <div className="text-muted-foreground text-sm">
-            Prices in USD (stablecoins)
-          </div>
-        </div>
-
-        <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="rounded bg-foreground px-2 py-1 font-bold text-background text-sm">
-                {domainName}
-              </div>
-              <span className="text-muted-foreground text-sm">
-                •{' '}
-                {duration === Math.floor(duration)
-                  ? duration
-                  : duration.toFixed(2)}{' '}
-                year{duration !== 1 ? 's' : ''}
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="font-bold text-foreground text-lg">Total</span>
-              <span className="font-bold text-primary">●</span>
-            </div>
-          </div>
-
-          <div className="text-right">
-            <div className="font-bold text-2xl text-foreground">
-              ${priceLoading ? '...' : finalPrice.toFixed(2)} USD
-            </div>
-            {usdcPrice && daiPrice && (
-              <div className="text-muted-foreground text-sm">
-                {usdcPrice.toFixed(2)} USDC or {daiPrice.toFixed(2)} DAI
-              </div>
-            )}
-          </div>
-
-          <Collapsible open={isBreakdownOpen} onOpenChange={setIsBreakdownOpen}>
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                className="flex h-auto w-full items-center justify-between p-0 hover:bg-transparent"
-              >
-                <span className="text-muted-foreground text-sm">
-                  Price breakdown
-                </span>
-                <ChevronDownIcon
-                  className={cn(
-                    'h-4 w-4 text-muted-foreground transition-transform',
-                    isBreakdownOpen && 'rotate-180',
-                  )}
-                />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-2 pt-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">
-                  ({pricingDuration} year{pricingDuration !== 1 ? 's' : ''} × $
-                  {usdcPrice
-                    ? (usdcPrice / pricingDuration).toFixed(2)
-                    : '0.00'}{' '}
-                  USD/year)
-                  {pricingDuration !== duration && (
-                    <span className="block text-muted-foreground/70 text-xs">
-                      (Rounded up from {duration.toFixed(2)} years)
-                    </span>
-                  )}
-                </span>
-                <span className="text-foreground">
-                  ${usdcPrice ? usdcPrice.toFixed(2) : '0.00'}
-                </span>
-              </div>
-              {discountPercentage > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-green-600">
-                    ({discountPercentage}% off)
-                  </span>
-                  <span className="text-green-600">
-                    -${discountAmount.toFixed(2)}
-                  </span>
-                </div>
-              )}
-              <div className="border-border border-t pt-2">
-                <div className="flex justify-between font-medium text-sm">
-                  <span className="text-foreground">Total</span>
-                  <span className="text-foreground">
-                    ${finalPrice.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
-
-        {!isConnected ? (
+  return (
+    <RegistrationSummaryCard
+      header={header}
+      footer={
+        !isConnected ? (
           <Button className="h-12 w-full font-semibold text-base">
             Connect Wallet to Register
           </Button>
         ) : (
-          <div className="flex space-x-3">
+          <div className="flex flex-col gap-3 md:flex-row md:gap-4">
             <CreditCardPaymentDrawer
               domainName={domainName}
-              duration={duration}
-              priceUSD={finalPrice}
+              duration={selectedDuration}
+              priceUSD={isPriceLoading ? 0 : finalPrice}
               onPaymentSelect={onSelectPayment}
             />
             <CryptoPaymentDrawer
               domainName={domainName}
-              duration={duration}
-              priceUSD={finalPrice}
+              duration={selectedDuration}
+              priceUSD={isPriceLoading ? 0 : finalPrice}
               isLoading={isLoading}
               onPaymentSelect={onSelectPayment}
               onCryptoSelect={onSelectCrypto}
@@ -397,8 +239,71 @@ export const Pricing = ({
               isUsingAA={isUsingAA}
             />
           </div>
+        )
+      }
+    >
+      <div className="space-y-6">
+        <DurationSelector
+          pricing={pricingOptions}
+          selectedDuration={selectedDuration}
+          onSelect={handleSelectDuration}
+          disabled={isPricingLoading || isLoading}
+        />
+        {isPricingLoading && (
+          <div className="text-center">
+            <p className="text-slate-500 text-sm">Loading prices...</p>
+          </div>
         )}
       </div>
-    </div>
+
+      <div
+        className={cn(
+          'rounded-lg border border-slate-200 bg-white p-6',
+          'space-y-4',
+        )}
+      >
+        <div className={cn('flex flex-col items-center text-center', 'gap-2')}>
+          <span className="text-slate-500 text-sm">Total in USD</span>
+          {!isPriceLoading &&
+            discountPercentage > 0 &&
+            theoreticalTotal > finalPrice && (
+              <div className="text-slate-400 text-sm">
+                <span className="line-through">
+                  ${theoreticalTotal.toFixed(2)} USD
+                </span>
+              </div>
+            )}
+          <div className="font-semibold text-3xl text-slate-900">
+            ${isPriceLoading ? '...' : finalPrice.toFixed(2)}
+          </div>
+          {!isPriceLoading && finalDaiPrice !== undefined && (
+            <div className="text-slate-500 text-sm">
+              {finalPrice.toFixed(2)} USDC or {finalDaiPrice.toFixed(2)} DAI
+            </div>
+          )}
+          {!isPriceLoading && discountPercentage > 0 && discountAmount > 0 && (
+            <span className="font-medium text-emerald-600 text-sm">
+              Save ${discountAmount.toFixed(2)} ({discountPercentage}% off)
+            </span>
+          )}
+        </div>
+
+        <div className="rounded-md bg-slate-100 px-4 py-3 text-center text-slate-600 text-sm">
+          Registering for {paddedDuration} year
+          {selectedDuration > 1 ? 's' : ''} • Expiring on{' '}
+          <span className="font-medium text-slate-900">
+            {formattedExpiration}
+          </span>
+        </div>
+      </div>
+    </RegistrationSummaryCard>
   )
+}
+
+function determinePremium(name: string) {
+  const normalized = name.trim().toLowerCase()
+  const label = normalized.endsWith('.eth')
+    ? normalized.replace('.eth', '')
+    : normalized
+  return label.length > 0 && label.length <= 4
 }

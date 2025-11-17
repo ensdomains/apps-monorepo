@@ -33,6 +33,7 @@ export enum RegistrationStep {
 
 interface RegistrationProps {
   initialName?: string
+  initialDuration?: number
 }
 
 // ============================================================================
@@ -168,7 +169,7 @@ export function Registration({ initialName }: RegistrationProps) {
   const displayDomainName = domainName || ''
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="mx-auto max-w-4xl">
       <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={handleBack} className="h-auto p-2">
           ← Back
@@ -176,7 +177,7 @@ export function Registration({ initialName }: RegistrationProps) {
       </div>
 
       {step === RegistrationStep.PRICING && displayDomainName && (
-        <div className="mx-auto max-w-md px-4 py-6">
+        <div className="mx-auto max-w-4xl px-4 py-6">
           <Pricing
             domainName={displayDomainName}
             duration={ui.duration}
