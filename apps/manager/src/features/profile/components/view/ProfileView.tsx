@@ -6,6 +6,7 @@ import { sectionsList } from '../../data/records'
 import { profileOwnerQuery } from '../../service/profileOwner'
 import { profileRecordsQuery } from '../../service/profileRecords'
 import { transformProfileRecords } from '../../utils/transformRecords'
+import { ProfileLoading } from '../common/ProfileLoading'
 import { ViewBioSection } from './ViewBioSection'
 import { ViewCryptoSection } from './ViewCryptoSection'
 import { ViewDynamicSection } from './ViewDynamicSection'
@@ -17,16 +18,22 @@ interface ProfileViewProps {
 }
 
 export const ProfileView = ({ name }: ProfileViewProps) => {
-  const { data: records } = useSuspenseQuery({
+  const { data: records, isLoading: isRecordsLoading } = useSuspenseQuery({
     ...profileRecordsQuery(name),
     select: transformProfileRecords,
   })
 
-  const { data: ownerData } = useQuery({
+  const { data: ownerData, isLoading: isOwnerLoading } = useQuery({
     ...profileOwnerQuery(name),
   })
 
   const { address } = useAccount()
+
+  const isLoading = isRecordsLoading || isOwnerLoading
+
+  if (isLoading) {
+    return <ProfileLoading />
+  }
 
   const isOwner = Boolean(
     address &&
