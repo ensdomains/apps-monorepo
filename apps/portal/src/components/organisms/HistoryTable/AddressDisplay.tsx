@@ -3,7 +3,11 @@ import { useEnsName } from 'wagmi'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 
-export const AddressDisplay = ({ address }: { address: Address }) => {
+interface AddressDisplayProps {
+  address: Address
+}
+
+export const AddressDisplay = ({ address }: AddressDisplayProps) => {
   const { data: ensName, isLoading } = useEnsName({ address })
 
   if (isLoading) {

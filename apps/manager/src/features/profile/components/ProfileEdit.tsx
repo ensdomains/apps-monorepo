@@ -1,29 +1,33 @@
-import { useQuery } from '@tanstack/react-query'
+import { useSuspenseQuery } from '@tanstack/react-query'
+import type { Address } from 'viem'
+import { Button } from '@/components/ui/button'
+import { profileOwnerQuery } from '../service/profileOwner'
 import { profileRecordsQuery } from '../service/profileRecords'
+import { createDiff } from '../utils/createDiff'
 import {
   defaultProfileRecords,
   transformProfileRecords,
 } from '../utils/transformRecords'
-import { DiffDialog } from './dialogs/DiffDialog'
 import { useAppForm } from './form'
+import { SaveChanges } from './SaveChanges'
 import { BioSection } from './sections/BioSection'
-import { CryptoAddressesSection } from './sections/CryptoAddressesSection'
 import { HeaderSection } from './sections/HeaderSection'
 import { LinksSection } from './sections/LinksSection'
 import { SocialLinksSection } from './sections/SocialLinksSection'
+import { WalletAddressesSection } from './sections/WalletAddressesSection'
 
 interface ProfileEditProps {
   name: string
 }
 
 export const ProfileEdit = ({ name }: ProfileEditProps) => {
-  const {
-    data: recordsData,
-    isLoading,
-    error,
-  } = useQuery({
+  const { data: recordsData } = useSuspenseQuery({
     ...profileRecordsQuery(name),
     select: transformProfileRecords,
+  })
+
+  const { data: ownerData } = useSuspenseQuery({
+    ...profileOwnerQuery(name),
   })
 
   const defaultValues = recordsData ?? defaultProfileRecords
@@ -44,58 +48,60 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     // Here you would typically call an API to save the changes
   }
 
-  const handleCancel = () => {
-    // Reset form to original values
+  const handleReset = () => {
     form.reset()
   }
 
-  if (isLoading) {
-    return (
-      <div className="mx-auto max-w-md space-y-4">
-        <div className="flex items-center justify-center py-8">
-          <div className="text-gray-600">Loading profile...</div>
-        </div>
-      </div>
-    )
-  }
+  return (
+    <form
+      className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]"
+      onSubmit={handleSubmit}
+    >
+      {/* Header */}
+      <HeaderSection
+        form={form}
+        name={name}
+        owner={ownerData?.owner as Address | undefined}
+      />
 
-  if (error) {
-    return (
-      <div className="mx-auto max-w-md space-y-4">
-        <div className="flex items-center justify-center py-8">
-          <div className="text-red-600">
-            Error loading profile: {error.message}
+      <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
+        {/* Left/main column */}
+        <div className="space-y-4 md:col-span-7 lg:col-span-8">
+          <BioSection form={form} />
+          <div className="h-px w-full bg-gray-200" />
+          <SocialLinksSection form={form} />
+          <LinksSection form={form} />
+        </div>
+
+        {/* Right/side column */}
+        <div className="space-y-4 md:col-span-5 lg:col-span-4">
+          <WalletAddressesSection form={form} />
+
+          {/* Reset & Save Buttons */}
+          <div className="space-y-2 pt-2">
+            <form.Subscribe
+              selector={(state) => createDiff(defaultValues, state.values)}
+            >
+              {(diff) =>
+                Object.keys(diff).length > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleReset}
+                  >
+                    Reset Changes
+                  </Button>
+                )
+              }
+            </form.Subscribe>
+            <SaveChanges
+              form={form}
+              originalData={defaultValues}
+              onSave={handleSave}
+            />
           </div>
         </div>
-      </div>
-    )
-  }
-
-  return (
-    <form className="mx-auto max-w-md space-y-4" onSubmit={handleSubmit}>
-      <HeaderSection form={form} name={name} />
-      <BioSection form={form} />
-
-      {/* Divider */}
-      <div className="h-px w-full bg-gray-200" />
-
-      <SocialLinksSection form={form} />
-      <CryptoAddressesSection form={form} />
-
-      <LinksSection form={form} />
-
-      {/* Save Button */}
-      <div className="pt-4">
-        <form.Subscribe selector={(state) => state.values}>
-          {(currentData) => (
-            <DiffDialog
-              originalData={defaultValues}
-              currentData={currentData}
-              onSave={handleSave}
-              onCancel={handleCancel}
-            />
-          )}
-        </form.Subscribe>
       </div>
     </form>
   )

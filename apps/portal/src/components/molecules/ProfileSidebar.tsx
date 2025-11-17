@@ -61,7 +61,11 @@ const itemGroups = [
   ],
 ] as const
 
-export const ProfileSidebar = ({ name }: { name: string }) => {
+interface ProfileSidebarProps {
+  name: string
+}
+
+export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
   return (
     <Sidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!">
       <SidebarHeader>
@@ -76,7 +80,7 @@ export const ProfileSidebar = ({ name }: { name: string }) => {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
                       <Link params={{ name }} to={item.url}>
-                        <item.icon height={24} width={24} />
+                        <item.icon className="size-6" />
                         <span className="text-sm font-medium">
                           {item.title}
                         </span>

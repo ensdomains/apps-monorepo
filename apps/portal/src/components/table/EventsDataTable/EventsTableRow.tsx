@@ -2,6 +2,8 @@ import { flexRender, type Row } from '@tanstack/react-table'
 import type { Address } from 'viem'
 import { AddressDisplay } from '@/components/organisms/HistoryTable/AddressDisplay'
 import { TableCell, TableRow } from '@/components/ui/table'
+import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
+import { cn } from '@/lib/utils'
 import type { BaseEvent, EventsTableData } from './types'
 
 export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
@@ -9,11 +11,21 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
 }: {
   row: Row<EventsTableData<TEvent>>
 }) => {
+  const [tableView] = useTableViewSettings()
+
   return (
     <>
-      <TableRow className="hover:bg-gray-200">
+      <TableRow
+        className={cn(
+          'hover:bg-gray-200',
+          tableView.strippedRows && 'even:bg-gray-100',
+        )}
+      >
         {row.getVisibleCells().map((cell) => (
-          <TableCell key={cell.id} className="py-4">
+          <TableCell
+            key={cell.id}
+            className={cn('px-6', tableView.compact ? 'py-2' : 'py-4')}
+          >
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
           </TableCell>
         ))}
@@ -40,14 +52,14 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
 
           return (
             <TableRow key={event.id} className="hover:bg-gray-200">
-              <TableCell className="py-4" colSpan={2} />
+              <TableCell colSpan={2} />
 
               {/* Transaction column - show event type */}
-              <TableCell className="py-4">
+              <TableCell>
                 <span>{event.type}</span>
               </TableCell>
 
-              <TableCell className="py-4">
+              <TableCell>
                 {fromAddress ? (
                   <AddressDisplay address={fromAddress as Address} />
                 ) : (
@@ -55,7 +67,7 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
                 )}
               </TableCell>
 
-              <TableCell className="py-4" colSpan={2} />
+              <TableCell colSpan={2} />
             </TableRow>
           )
         })}

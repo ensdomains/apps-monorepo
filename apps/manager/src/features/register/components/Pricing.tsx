@@ -10,9 +10,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
-import {
-  getTokenPrices,
-} from '../services/nameChainContractService'
+import { cn } from '@/lib/utils'
+import { getTokenPrices } from '../services/nameChainContractService'
 import { CreditCardPaymentDrawer, CryptoPaymentDrawer } from './PaymentDrawer'
 
 type PricingProps = {
@@ -157,10 +156,7 @@ export const Pricing = ({
     setPricingDuration(duration)
   }, [duration])
 
-  const handleConfirmPayment = (
-    tokenPrice: bigint,
-    selectedToken: string,
-  ) => {
+  const handleConfirmPayment = (tokenPrice: bigint, selectedToken: string) => {
     // selectedToken is now the address directly from PaymentDrawer
     // tokenPrice is the raw balance from PaymentDrawer
     // Just pass them through
@@ -197,11 +193,12 @@ export const Pricing = ({
                   key={yearOption.years}
                   type="button"
                   onClick={() => onSetDuration(yearOption.years)}
-                  className={`relative rounded-lg border p-4 text-left transition-colors ${
+                  className={cn(
+                    'relative rounded-lg border p-4 text-left transition-colors',
                     duration === yearOption.years
                       ? 'border-primary bg-primary/5 text-primary'
-                      : 'border-border bg-card hover:border-muted-foreground'
-                  }`}
+                      : 'border-border bg-card hover:border-muted-foreground',
+                  )}
                 >
                   <div className="font-medium">
                     {yearOption.years} year{yearOption.years > 1 ? 's' : ''}
@@ -330,9 +327,10 @@ export const Pricing = ({
                   Price breakdown
                 </span>
                 <ChevronDownIcon
-                  className={`h-4 w-4 text-muted-foreground transition-transform ${
-                    isBreakdownOpen ? 'rotate-180' : ''
-                  }`}
+                  className={cn(
+                    'h-4 w-4 text-muted-foreground transition-transform',
+                    isBreakdownOpen && 'rotate-180',
+                  )}
                 />
               </Button>
             </CollapsibleTrigger>

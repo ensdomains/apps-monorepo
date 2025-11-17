@@ -1,4 +1,4 @@
-import { Check, Plus } from 'lucide-react'
+import { CircleCheck, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,7 +12,7 @@ import {
 import type { TextRecordDef } from '../../data/records/types'
 import { IconRenderer } from '../IconRenderer'
 
-export type AddTextRecordsDialogProps = {
+interface AddTextRecordsDialogProps {
   buttonLabel: string
   title: string
   records: TextRecordDef[]
@@ -46,7 +46,10 @@ export const AddTextRecordsDialog = ({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>{buttonLabel}</Button>
+        <Button variant="secondary" size="sm" className="rounded-full">
+          <Plus className="size-5" />
+          {buttonLabel}
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -59,14 +62,14 @@ export const AddTextRecordsDialog = ({
               return (
                 <Button
                   key={record.key}
-                  variant={isSelected ? 'default' : 'outline'}
+                  variant={isSelected ? 'default' : 'secondary'}
                   onClick={() => handleToggle(record.key)}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 rounded-full"
                 >
                   <IconRenderer icon={record.icon} className="size-4" />
                   <span>{record.name}</span>
                   {isSelected ? (
-                    <Check className="size-4" />
+                    <CircleCheck className="size-4" />
                   ) : (
                     <Plus className="size-4" />
                   )}

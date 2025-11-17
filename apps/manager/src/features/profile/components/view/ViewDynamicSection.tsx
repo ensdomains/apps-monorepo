@@ -1,4 +1,4 @@
-import { Copy } from 'lucide-react'
+import { CopyableButton } from '@/components/atoms/CopyableButton'
 import { Button } from '@/components/ui/button'
 import {
   getRecordDef,
@@ -10,16 +10,11 @@ import type { Section } from '../../data/records/types'
 import type { ProfileRecords, TextRecordValue } from '../../types'
 import { IconRenderer } from '../IconRenderer'
 
-const copyToClipboard = async (value: string) => {
-  try {
-    await navigator.clipboard.writeText(value)
-    alert('Copied to clipboard')
-  } catch {
-    // noop
-  }
+interface DynamicRecordProps {
+  record: TextRecordValue
 }
 
-const DynamicRecord = ({ record }: { record: TextRecordValue }) => {
+const DynamicRecord = ({ record }: DynamicRecordProps) => {
   const recordDef = getRecordDef(record.key)
   if (!record.value) {
     return null
@@ -34,7 +29,9 @@ const DynamicRecord = ({ record }: { record: TextRecordValue }) => {
       <Button asChild variant="outline" size="sm" className="justify-start">
         <a href={href} target="_blank" rel="noopener noreferrer">
           <IconRenderer icon={recordDef?.icon} className="size-3.5" />
-          <span className="select-none text-gray-700">{recordDef?.name}</span>
+          <span className="select-none text-gray-700">
+            {recordDef?.name ?? record.key}
+          </span>
           <span className="text-gray-500">
             {recordDef?.displayPrefix}
             {displayValue}
@@ -45,22 +42,20 @@ const DynamicRecord = ({ record }: { record: TextRecordValue }) => {
   }
 
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
+    <CopyableButton
+      value={displayValue}
       className="justify-start"
-      onClick={() => copyToClipboard(displayValue)}
       title={record.value}
     >
       <IconRenderer icon={recordDef?.icon} className="size-3.5" />
-      <span className="select-none text-gray-700">{recordDef?.name}</span>
+      <span className="select-none text-gray-700">
+        {recordDef?.name ?? record.key}
+      </span>
       <span className="text-gray-500">
         {recordDef?.displayPrefix}
         {displayValue}
       </span>
-      <Copy className="ml-2 size-3.5" />
-    </Button>
+    </CopyableButton>
   )
 }
 
@@ -74,7 +69,6 @@ export const ViewDynamicSection = ({
   section,
 }: ViewDynamicSectionProps) => {
   const sectionData = sections[section]
-
   const sectionRecords = records[section]
 
   if (sectionRecords.length === 0) {

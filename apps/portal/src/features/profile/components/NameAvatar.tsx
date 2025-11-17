@@ -1,9 +1,12 @@
+import type { CSSProperties } from 'react'
 import { useEnsAvatar } from 'wagmi'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { cn } from '@/lib/utils'
 
 export const NameAvatar = ({
   name,
-  height = '138px',
-  width = '138px',
+  height = '142px',
+  width = '142px',
   rounded = 'rounded-lg',
 }: {
   name: string
@@ -17,10 +20,13 @@ export const NameAvatar = ({
     isLoading,
   } = useEnsAvatar({
     name,
+    query: {
+      enabled: name.endsWith('.eth'),
+    },
   })
 
   if (error) return <div>Error: {error.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (avatar)
     return (
@@ -32,5 +38,19 @@ export const NameAvatar = ({
         width={width}
       />
     )
-  return null
+  return (
+    <div
+      style={
+        {
+          '--height': height,
+          '--width': width,
+        } as CSSProperties
+      }
+      className={cn(
+        '[background:var(--avatar-placeholder-gradient)]',
+        rounded,
+        `w-[var(--width)] h-[var(--height)]`,
+      )}
+    />
+  )
 }

@@ -3,20 +3,27 @@ import { createFileRoute, useParams } from '@tanstack/react-router'
 import type { Address } from 'viem/accounts'
 import { useEnsName } from 'wagmi'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
 import { NameHistory } from '@/components/organisms/NameHistory/NameHistory'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { parentName } from '@/lib/parent'
+import { LoadingSpinner } from '../../components/molecules/LoadingSpinner'
 
 export const Route = createFileRoute('/$name/ownership')({
   component: RouteComponent,
+  notFoundComponent: () => <NotFoundMessage />,
 })
 
-const OwnerDisplay = ({ owner }: { owner: Address }) => {
+interface OwnerDisplayProps {
+  owner: Address
+}
+
+const OwnerDisplay = ({ owner }: OwnerDisplayProps) => {
   const { data: ensName, isLoading } = useEnsName({
     address: owner,
   })
 
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading owner" />
 
   if (ensName) {
     return (
@@ -30,10 +37,14 @@ const OwnerDisplay = ({ owner }: { owner: Address }) => {
   }
 }
 
-const OwnerInfo = ({ name }: { name: string }) => {
+interface OwnerInfoProps {
+  name: string
+}
+
+const OwnerInfo = ({ name }: OwnerInfoProps) => {
   const { data, isLoading, error } = useQuery(getEnsOwnerQueryOptions({ name }))
 
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading owner" />
   if (error || !data) {
     if (error) return <div>Error: {(error.cause as Error).message}</div>
     return <div>Could not load owner</div>
@@ -52,7 +63,11 @@ const OwnerInfo = ({ name }: { name: string }) => {
   )
 }
 
-const ParentInfo = ({ name }: { name: string }) => {
+interface ParentInfoProps {
+  name: string
+}
+
+const ParentInfo = ({ name }: ParentInfoProps) => {
   const parent = parentName(name)
 
   return (

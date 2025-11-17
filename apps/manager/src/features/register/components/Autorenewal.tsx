@@ -13,12 +13,12 @@ interface AutorenewalProps {
   onCompleteFlow?: () => void
 }
 
-export function Autorenewal({
+export const Autorenewal = ({
   domainName,
   duration,
   onReset,
   onCompleteFlow,
-}: AutorenewalProps) {
+}: AutorenewalProps) => {
   const navigate = useNavigate()
   const [skipped, setSkipped] = useState(false)
   const currentDate = new Date()

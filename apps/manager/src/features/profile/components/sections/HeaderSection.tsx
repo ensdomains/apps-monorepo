@@ -1,17 +1,20 @@
-import { Link } from '@tanstack/react-router'
-import { Calendar, Wallet } from 'lucide-react'
+import type { Address } from 'viem'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
-import { Highlight } from '@/components/atoms/Highlight'
+import { ProfileHeaderInfo } from '@/features/profile/components/common/ProfileHeaderInfo'
 import { ImageSelectionDialog } from '@/features/profile/components/dialogs/ImageSelectionDialog'
+import { ShareProfileDialog } from '@/features/profile/components/dialogs/ShareProfileDialog'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
+
+interface HeaderSectionProps {
+  name: string
+  owner?: Address
+}
 
 export const HeaderSection = withForm({
   ...sharedOptions,
-  props: {
-    name: '',
-  },
-  render: ({ form, name }) => (
-    <div>
+  props: { name: '', owner: undefined } as HeaderSectionProps,
+  render: ({ form, name, owner }) => (
+    <div className="overflow-hidden md:rounded-xl">
       {/* Header BG */}
       <div className="relative w-full">
         <form.Field name="base.header">
@@ -32,47 +35,46 @@ export const HeaderSection = withForm({
             />
           )}
         </form.Field>
-        <div className="-bottom-6 -translate-x-1/2 absolute left-1/2 size-32">
-          <form.Field name="base.avatar">
-            {(field) => (
-              <ImageSelectionDialog
-                currentImage={field.state.value}
-                defaultImage={placeholderAvatar}
-                onImageChange={(url) => {
-                  field.handleChange(url)
-                }}
-                onImageRemove={() => {
-                  field.handleChange('')
-                }}
-                title="Change Avatar"
-                description="Choose an avatar for your profile"
-                type="avatar"
+        {/* Share button overlay */}
+        <div className="absolute top-2 right-2 z-10">
+          <form.Subscribe selector={(state) => state.values.base.avatar}>
+            {(avatarUrl) => (
+              <ShareProfileDialog
                 name={name}
+                avatarUrl={avatarUrl}
+                url={`${
+                  typeof window !== 'undefined'
+                    ? window.location.origin
+                    : 'https://app.ens.domains'
+                }/p/${name}`}
               />
             )}
-          </form.Field>
+          </form.Subscribe>
+        </div>
+        <div className="-bottom-10 max-md:-translate-x-1/2 absolute left-1/2 size-24 md:left-6 md:size-36 lg:size-40">
+          <div className="size-full overflow-hidden rounded-xl bg-gray-200 shadow-md ring-2 ring-white">
+            <form.Field name="base.avatar">
+              {(field) => (
+                <ImageSelectionDialog
+                  currentImage={field.state.value}
+                  defaultImage={placeholderAvatar}
+                  onImageChange={(url) => {
+                    field.handleChange(url)
+                  }}
+                  onImageRemove={() => {
+                    field.handleChange('')
+                  }}
+                  title="Change Avatar"
+                  description="Choose an avatar for your profile"
+                  type="avatar"
+                  name={name}
+                />
+              )}
+            </form.Field>
+          </div>
         </div>
       </div>
-
-      {/* Main info */}
-      <div className="flex w-full flex-col gap-1 bg-gray-100 px-4 pt-8 pb-4">
-        <Highlight>{name}</Highlight>
-        <div className="flex items-center whitespace-pre-wrap">
-          <Wallet className="mr-2 size-5" />
-          Owned by <span className="font-medium">{name}</span>
-        </div>
-        <div className="flex items-center whitespace-pre-wrap">
-          <Calendar className="mr-2 size-5" />
-          Expires <span className="font-medium">August 28, 2027</span>
-        </div>
-        <Link
-          to="/p/$name"
-          params={{ name }}
-          className="underline underline-offset-2"
-        >
-          app.ens.domains/p/{name}
-        </Link>
-      </div>
+      <ProfileHeaderInfo name={name} owner={owner} />
     </div>
   ),
 })

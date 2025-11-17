@@ -368,7 +368,6 @@ const ConnectedContent = () => {
           </DropdownMenuItem>
 
           <DropdownMenuItem asChild>
-            {/* @ts-expect-error route doesn't exist yet */}
             <Link to="/transactions">
               <List className="mr-2 size-4" />
               All Transactions
@@ -450,11 +449,21 @@ export const Header = () => {
   const isConnected = !!wallet && !walletLoading
 
   return (
-    <nav className="sticky top-0 z-10 flex items-center justify-end bg-background p-8">
-      <Link to="/" className="mr-auto">
+    <nav className="sticky top-0 z-10 flex items-center justify-end bg-background px-10 py-7">
+      <Link to="/" className="mr-auto py-2">
         <img src={ensLogo} alt="ENS Logo" className="h-8" />
       </Link>
-      {isConnected ? <ConnectedContent /> : <DisconnectedContent />}
+      {status !== 'connecting' && status !== 'reconnecting' ? (
+        isConnected ? (
+          <ConnectedContent />
+        ) : (
+          <DisconnectedContent />
+        )
+      ) : (
+        <div className="mr-6 flex items-center gap-4">
+          <div className="h-8 w-28 animate-pulse rounded bg-gray-200" />
+        </div>
+      )}
       <Menu />
     </nav>
   )

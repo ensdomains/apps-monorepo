@@ -79,7 +79,7 @@ export const RecordList = ({
           {canEditRecords && (
             <Link from="/$name/records" search={{ view: 'edit' }}>
               <Button variant="secondary" disabled={rowCount > 0} type="button">
-                <PencilLineIcon height={24} width={24} />
+                <PencilLineIcon className="size-6" />
                 Records
               </Button>
             </Link>
@@ -93,19 +93,19 @@ export const RecordList = ({
                 className="cursor-pointer"
                 onClick={() => setRowSelection({})}
               >
-                <XIcon height={24} width={24} />
+                <XIcon className="size-6" />
               </button>
               {rowCount} selected
             </span>
             <div className="flex flex-row gap-2">
               <Button variant="secondary">
-                <PencilLineIcon height={24} width={24} /> Edit
+                <PencilLineIcon className="size-6" /> Edit
               </Button>
               <Button variant="secondary">
-                <FileInputIcon height={24} width={24} /> Export
+                <FileInputIcon className="size-6" /> Export
               </Button>
               <Button variant="secondary">
-                <TrashIcon height={24} width={24} /> Delete
+                <TrashIcon className="size-6" /> Delete
               </Button>
             </div>
           </div>

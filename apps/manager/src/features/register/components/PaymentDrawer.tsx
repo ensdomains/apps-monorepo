@@ -1,8 +1,8 @@
 'use client'
 
+import { useWallet } from '@getpara/react-sdk'
 import { CreditCardIcon } from 'lucide-react'
 import * as React from 'react'
-// import { useAccount } from 'wagmi'
 import { StablecoinItem } from '@/components/molecules/StablecoinList/StablecoinItem'
 import { Button } from '@/components/ui/button'
 import {
@@ -21,7 +21,6 @@ import {
 } from '@/components/ui/drawer'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
-import { useWallet } from '@getpara/react-sdk'
 
 interface PaymentDrawerProps {
   domainName?: string
@@ -30,20 +29,17 @@ interface PaymentDrawerProps {
   isLoading?: boolean
   onPaymentSelect?: (method: 'crypto' | 'credit-card') => void
   onCryptoSelect?: (cryptoId: string) => void
-  onConfirmPayment?: (
-    tokenPrice: bigint,
-    selectedToken: string,
-  ) => void
+  onConfirmPayment?: (tokenPrice: bigint, selectedToken: string) => void
   isUsingAA?: boolean
 }
 
 // Credit Card Payment Drawer Component
-export function CreditCardPaymentDrawer({
+export const CreditCardPaymentDrawer = ({
   domainName = 'example.eth',
   duration = 25,
   priceUSD = 2800,
   onPaymentSelect,
-}: PaymentDrawerProps) {
+}: PaymentDrawerProps) => {
   const [open, setOpen] = React.useState(false)
   const isDesktop = useMediaQuery('(min-width: 768px)')
 
@@ -120,7 +116,7 @@ export function CreditCardPaymentDrawer({
 }
 
 // Crypto Payment Drawer Component
-export function CryptoPaymentDrawer({
+export const CryptoPaymentDrawer = ({
   domainName = 'example.eth',
   duration = 25,
   priceUSD = 2800,
@@ -129,7 +125,7 @@ export function CryptoPaymentDrawer({
   onCryptoSelect,
   onConfirmPayment,
   isUsingAA = false,
-}: PaymentDrawerProps) {
+}: PaymentDrawerProps) => {
   const [open, setOpen] = React.useState(false)
   const [selectedCoin, setSelectedCoin] = React.useState<string>('')
 
@@ -143,10 +139,19 @@ export function CryptoPaymentDrawer({
 
   // Auto-select first available token when balance is available
   React.useEffect(() => {
-    if (hasBalances && stablecoinBalances?.length && stablecoinBalances.length > 0 && !selectedCoin) {
+    if (
+      hasBalances &&
+      stablecoinBalances?.length &&
+      stablecoinBalances.length > 0 &&
+      !selectedCoin
+    ) {
       const firstBalance = stablecoinBalances[0]
       if (firstBalance) {
-        console.log('🔧 Auto-selecting token:', firstBalance.symbol, firstBalance.address)
+        console.log(
+          '🔧 Auto-selecting token:',
+          firstBalance.symbol,
+          firstBalance.address,
+        )
         setSelectedCoin(firstBalance.address)
       }
     }
@@ -160,9 +165,16 @@ export function CryptoPaymentDrawer({
       selectedCoin,
       hasBalances,
       stablecoinBalances: stablecoinBalances?.length,
-      buttonDisabled: isLoading || stablecoinLoading || !selectedCoin || !hasBalances
+      buttonDisabled:
+        isLoading || stablecoinLoading || !selectedCoin || !hasBalances,
     })
-  }, [isLoading, stablecoinLoading, selectedCoin, hasBalances, stablecoinBalances])
+  }, [
+    isLoading,
+    stablecoinLoading,
+    selectedCoin,
+    hasBalances,
+    stablecoinBalances,
+  ])
 
   const triggerButton = (
     <Button className="h-12 flex-1 font-semibold text-base">
@@ -188,16 +200,18 @@ export function CryptoPaymentDrawer({
         )}
       </div>
 
-             <div className="text-center">
-               <h3 className="font-semibold text-gray-900 text-lg">
-                 {isUsingAA ? 'Pay with stablecoins from smart account' : 'Pay with stablecoins'}
-               </h3>
-               <p className="text-gray-600 text-sm">
-                 {isUsingAA
-                   ? 'Using stablecoins from your smart account for gasless transactions'
-                   : 'Pay with USDC or DAI on Sepolia'}
-               </p>
-             </div>
+      <div className="text-center">
+        <h3 className="font-semibold text-gray-900 text-lg">
+          {isUsingAA
+            ? 'Pay with stablecoins from smart account'
+            : 'Pay with stablecoins'}
+        </h3>
+        <p className="text-gray-600 text-sm">
+          {isUsingAA
+            ? 'Using stablecoins from your smart account for gasless transactions'
+            : 'Pay with USDC or DAI on Sepolia'}
+        </p>
+      </div>
 
       <div className="space-y-4">
         {(isLoading || stablecoinLoading) && (
@@ -261,7 +275,9 @@ export function CryptoPaymentDrawer({
 
         <Button
           className="w-full"
-          disabled={isLoading || stablecoinLoading || !selectedCoin || !hasBalances}
+          disabled={
+            isLoading || stablecoinLoading || !selectedCoin || !hasBalances
+          }
           onClick={() => {
             onPaymentSelect?.('crypto')
             if (selectedCoin) {
@@ -284,7 +300,7 @@ export function CryptoPaymentDrawer({
             : !selectedCoin
               ? 'Select a token'
               : selectedCoin && hasBalances
-                ? `Continue with ${stablecoinBalances?.find(c => c.address === selectedCoin)?.symbol || 'token'}`
+                ? `Continue with ${stablecoinBalances?.find((c) => c.address === selectedCoin)?.symbol || 'token'}`
                 : 'Continue with Payment'}
         </Button>
       </div>
@@ -321,7 +337,7 @@ export function CryptoPaymentDrawer({
 }
 
 // Main Payment Drawer Component (for backward compatibility)
-export function PaymentDrawer({
+export const PaymentDrawer = ({
   domainName = 'example.eth',
   duration = 25,
   priceUSD = 2800,
@@ -329,7 +345,7 @@ export function PaymentDrawer({
   onPaymentSelect,
   onCryptoSelect,
   onConfirmPayment,
-}: PaymentDrawerProps) {
+}: PaymentDrawerProps) => {
   return (
     <div className="space-y-3">
       <h3 className="font-medium text-lg">Select payment method</h3>

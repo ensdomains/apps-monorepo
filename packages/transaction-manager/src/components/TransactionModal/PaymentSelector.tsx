@@ -9,11 +9,11 @@ export interface PaymentSelectorProps {
   onSelect?: (method: string) => void
 }
 
-export function PaymentSelector({
+export const PaymentSelector = ({
   options,
   selected,
   onSelect,
-}: PaymentSelectorProps) {
+}: PaymentSelectorProps) => {
   if (!options || options.length === 0) return null
 
   return (

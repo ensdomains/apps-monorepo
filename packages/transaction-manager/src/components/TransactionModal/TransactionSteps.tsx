@@ -5,10 +5,10 @@ export interface TransactionStepsProps {
   currentStepIndex: number
 }
 
-export function TransactionSteps({
+export const TransactionSteps = ({
   steps,
   currentStepIndex,
-}: TransactionStepsProps) {
+}: TransactionStepsProps) => {
   if (!steps || steps.length === 0) return null
 
   return (

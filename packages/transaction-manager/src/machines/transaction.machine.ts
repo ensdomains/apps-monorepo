@@ -202,7 +202,7 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
         publicClient: PublicClient
       }): ResultAsync<TransactionReceipt, TransactionTimeoutError> => {
         const confirmations = options?.confirmations || 1
-        const timeout = options?.timeout || 60000
+        const timeout = options?.timeout || 3000
 
         console.log('⏳ [TRANSACTION] Waiting for receipt:', {
           hash,

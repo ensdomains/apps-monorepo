@@ -4,11 +4,11 @@ export interface TransactionDetailsProps {
   status?: string
 }
 
-export function TransactionDetails({
+export const TransactionDetails = ({
   network,
   estimatedCost,
   status,
-}: TransactionDetailsProps) {
+}: TransactionDetailsProps) => {
   return (
     <div
       style={{

@@ -1,4 +1,3 @@
-import type { RegistrationEvent } from '@ens-apps/transaction-manager'
 import { registrationMachine } from '@ens-apps/transaction-manager'
 import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'

@@ -14,7 +14,8 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "lint": "biome check",
-    "lint:fix": "biome check --fix"
+    "lint:fix": "biome check --fix",
+    "postinstall": "setup-para"
   },
   "dependencies": {
     "@cosmjs/cosmwasm-stargate": "0.31.3",
@@ -22,9 +23,6 @@
     "@cosmjs/stargate": "0.31.3",
     "@cosmjs/tendermint-rpc": "0.31.3",
     "@ens-apps/transaction-manager": "workspace:*",
-    "@ens-apps/utils": "workspace:*",
-    "@ensdomains/address-encoder": "^1.1.2",
-    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@7109549",
     "@getpara/graz": "2.0.0-alpha.20",
     "@getpara/react-sdk": "2.0.0-alpha.64",
     "@getpara/viem-v2-integration": "2.0.0-alpha.64",
@@ -32,6 +30,10 @@
     "@getpara/web-sdk": "2.0.0-alpha.63",
     "@privy-io/react-auth": "^2.21.2",
     "@privy-io/wagmi": "^1.0.6",
+    "@ens-apps/l2-primary": "workspace:*",
+    "@ens-apps/utils": "workspace:*",
+    "@ensdomains/address-encoder": "^1.1.2",
+    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@69d9a4a",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
@@ -73,6 +75,7 @@
     "react": "^19.1.1",
     "react-day-picker": "^9.9.0",
     "react-dom": "^19.1.1",
+    "react-qr-code": "^2.0.18",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.13",
     "ts-pattern": "^5.8.0",

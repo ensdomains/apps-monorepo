@@ -8,11 +8,10 @@ interface RegistrationSuccessProps {
   onSetupAutorenewal: () => void
 }
 
-export function RegistrationSuccess({
+export const RegistrationSuccess = ({
   domainName,
   onSetupAutorenewal,
-}: RegistrationSuccessProps) {
-
+}: RegistrationSuccessProps) => {
   return (
     <div className="mx-auto max-w-md space-y-8 p-6 text-center">
       {/* QR-like pattern placeholder - same as registration in progress */}
@@ -105,7 +104,7 @@ export function RegistrationSuccess({
             Registration Successful!
           </span>
         </div>
-        
+
         <div className="text-gray-600 text-sm">
           Your domain has been successfully registered and is now active.
         </div>
@@ -116,18 +115,10 @@ export function RegistrationSuccess({
 
         {/* Action buttons */}
         <div className="space-y-3">
-          <Button 
-            onClick={onSetupAutorenewal}
-            className="w-full"
-            size="lg"
-          >
+          <Button onClick={onSetupAutorenewal} className="w-full" size="lg">
             <PlusIcon className="mr-2 h-4 w-4" />
             Setup Auto-Renewal
           </Button>
-          
-          <div className="text-gray-500 text-xs">
-            Automatically redirecting in 3 seconds...
-          </div>
         </div>
       </div>
     </div>

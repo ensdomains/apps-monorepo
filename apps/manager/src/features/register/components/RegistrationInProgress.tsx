@@ -11,11 +11,11 @@ interface RegistrationInProgressProps {
   registerTxHash?: RhinestoneTransactionResult | null
 }
 
-export function RegistrationInProgress({
+export const RegistrationInProgress = ({
   domainName,
   onRegistrationSuccess,
   registerTxHash,
-}: RegistrationInProgressProps) {
+}: RegistrationInProgressProps) => {
   React.useEffect(() => {
     // Mock registration process - simulate contract calls
     const processRegistration = async () => {

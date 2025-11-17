@@ -1,6 +1,7 @@
 import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
@@ -10,13 +11,12 @@ import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransac
 import { CoinTypeLabel } from './CoinTypeLabel'
 import type { ForwardName } from './ForwardNamesTable/columns'
 
-const AddressHistory = ({
-  history,
-  name,
-}: {
+interface AddressHistoryProps {
   history: ReturnResolverEvent[]
   name: string
-}) => {
+}
+
+const AddressHistory = ({ history, name }: AddressHistoryProps) => {
   const {
     data: timestamps,
     isLoading,
@@ -26,7 +26,7 @@ const AddressHistory = ({
   })
 
   if (error) return <div>Error loading timestamps: {error.cause?.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   const data = groupEventsByTransactionId(
     history.map((item) => ({
@@ -44,7 +44,11 @@ const AddressHistory = ({
   )
 }
 
-const HistoryView = ({ name }: { name: string }) => {
+interface HistoryViewProps {
+  name: string
+}
+
+const HistoryView = ({ name }: HistoryViewProps) => {
   const {
     data: history,
     isLoading,
@@ -60,7 +64,7 @@ const HistoryView = ({ name }: { name: string }) => {
     return <div>History Error: {error.cause?.message || error.message}</div>
   }
 
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!history) return <div>No history</div>
 

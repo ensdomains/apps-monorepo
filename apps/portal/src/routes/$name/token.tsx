@@ -4,6 +4,10 @@ import { createFileRoute } from '@tanstack/react-router'
 import { CheckCircleIcon } from 'lucide-react'
 import { labelhash, namehash } from 'viem/ens'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { ErrorMessage } from '@/components/molecules/ErrorMessage'
+import { LoadingMessage } from '@/components/molecules/LoadingMessage'
+import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
+
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
@@ -16,6 +20,7 @@ import { isNormalized } from '@/utils/token/isNormalized'
 
 export const Route = createFileRoute('/$name/token')({
   component: RouteComponent,
+  notFoundComponent: () => <NotFoundMessage />,
 })
 
 function RouteComponent() {
@@ -31,9 +36,15 @@ function RouteComponent() {
     isLoading,
   } = useQuery(getWrapperDataQueryOptions({ name }))
 
-  if (isWrappedError) return <div>Error: {isWrappedError.message}</div>
+  if (isWrappedError)
+    return (
+      <ErrorMessage
+        title="Error loading data"
+        description={isWrappedError.cause?.message || isWrappedError.message}
+      />
+    )
 
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingMessage />
 
   const isWrapped = Boolean(wrapperData)
 
@@ -66,7 +77,9 @@ function RouteComponent() {
         </header>
         <div className="flex border border-gray-200 rounded-lg w-full p-6 gap-6 flex-wrap">
           <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
-            <Label>Contract</Label>
+            <Label info="The address of the contract that owns the name">
+              Contract
+            </Label>
             <CopyableRecord value={contractAddress} />
           </div>
           <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
@@ -115,7 +128,7 @@ function RouteComponent() {
                       normalized ? 'bg-green-200' : 'bg-red-200',
                     )}
                   >
-                    <CheckCircleIcon width={16} height={16} />
+                    <CheckCircleIcon className="size-4" />
                     <div>{normalized ? 'Normalized' : 'Not Normalized'}</div>
                   </div>
                   <div>{hasEmoji ? `${encoding} + Emoji` : encoding}</div>

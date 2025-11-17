@@ -1,3 +1,4 @@
+import { copyToClipboard } from '@/lib/clipboard'
 import {
   getRecordDef,
   getRecordDisplayValue,
@@ -6,20 +7,11 @@ import {
 import type { ProfileRecords, TextRecordValue } from '../../types'
 import { IconRenderer } from '../IconRenderer'
 
-const copyToClipboard = async (value: string) => {
-  try {
-    await navigator.clipboard.writeText(value)
-    alert('Copied to clipboard')
-  } catch {
-    // noop
-  }
+interface ContactItemProps {
+  record: TextRecordValue
 }
 
-interface ViewBioSectionProps {
-  records: ProfileRecords
-}
-
-const ContactItem = ({ record }: { record: TextRecordValue }) => {
+const ContactItem = ({ record }: ContactItemProps) => {
   const recordDef = getRecordDef(record.key)
   const displayValue = getRecordDisplayValue(recordDef, record.value || '')
   const href = getRecordHref(recordDef, displayValue)
@@ -63,6 +55,10 @@ const ContactItem = ({ record }: { record: TextRecordValue }) => {
       {inner}
     </button>
   )
+}
+
+interface ViewBioSectionProps {
+  records: ProfileRecords
 }
 
 export const ViewBioSection = ({ records }: ViewBioSectionProps) => {

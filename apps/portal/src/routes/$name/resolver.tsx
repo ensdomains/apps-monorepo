@@ -5,6 +5,10 @@ import { type Address, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useAccount, useEnsResolver } from 'wagmi'
 import { useQuery } from 'wagmi/query'
+import { ErrorMessage } from '@/components/molecules/ErrorMessage'
+import { LoadingMessage } from '@/components/molecules/LoadingMessage'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
 import { NameHistory } from '@/components/organisms/NameHistory/NameHistory'
 import { DedicatedResolverBanner } from '@/components/resolver/DedicatedResolverBanner'
 import { ResolverDetails } from '@/components/resolver/ResolverDetails'
@@ -16,9 +20,15 @@ import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useU
 
 export const Route = createFileRoute('/$name/resolver')({
   component: RouteComponent,
+  notFoundComponent: () => <NotFoundMessage />,
 })
 
-const EditButtons = ({ address, name }: { address: Address; name: string }) => {
+interface EditButtonsProps {
+  address: Address
+  name: string
+}
+
+const EditButtons = ({ address, name }: EditButtonsProps) => {
   const { data: owner } = useQuery(getEnsOwnerQueryOptions({ name }))
 
   if (owner?.owner !== address) return null
@@ -46,24 +56,26 @@ const EditButtons = ({ address, name }: { address: Address; name: string }) => {
 const sepoliaUrl = sepolia.blockExplorers.default.url
 const factoryAddress = ensContracts[11155111].ensVerifiableFactory.address
 
+interface UnderlyingResolverInfoProps {
+  resolverAddress: Address
+  name: string
+}
+
 const UnderlyingResolverInfo = ({
   name,
   resolverAddress,
-}: {
-  resolverAddress: Address
-  name: string
-}) => {
+}: UnderlyingResolverInfoProps) => {
   const { data, isLoading, error } = useQuery(
     getUnderlyingAddressQueryOptions({ resolverAddress, name }),
   )
 
   if (error) return <div>Error: {error.cause?.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!data) {
     return <div>Introspection of non .eth names is not supported yet</div>
   } else if (Array.isArray(data)) {
-    if (data[0] === zeroAddress) return <div>This name does not exist</div>
+    if (data[0] === zeroAddress) return <div>This name has no resolver set</div>
     // resolver is on L2
 
     if (data[1]) {
@@ -135,13 +147,12 @@ const UnderlyingResolverInfo = ({
   return null
 }
 
-const ResolverView = ({
-  name,
-  resolverAddress,
-}: {
+interface ResolverViewProps {
   name: string
   resolverAddress: Address
-}) => {
+}
+
+const ResolverView = ({ name, resolverAddress }: ResolverViewProps) => {
   const { address } = useAccount()
 
   return (
@@ -189,14 +200,24 @@ function RouteComponent() {
       : tempResolverAddress
 
   if (error) {
+    const message =
+      (error.cause as Error | undefined)?.message ||
+      (error as Error).message ||
+      null
     if (error.name === 'ChainDoesNotSupportContract')
-      return <div>Chain does not have UniversalResolver</div>
-    return <div>{error.message}</div>
+      return <ErrorMessage title="Chain does not have UniversalResolver" />
+    return <ErrorMessage title="Error loading resolver" description={message} />
   }
 
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingMessage />
 
-  if (!resolverAddress) return <div>Resolver not found</div>
+  if (!resolverAddress)
+    return (
+      <ErrorMessage
+        title="Resolver not found"
+        description="Could not find resolver address."
+      />
+    )
 
   return <ResolverView {...{ name, resolverAddress }} />
 }
