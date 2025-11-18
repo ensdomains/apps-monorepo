@@ -10,6 +10,7 @@ import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { profileOwnerQuery } from '../service/profileOwner'
 import { profileRecordsQuery } from '../service/profileRecords'
+import { profileResolverQuery } from '../service/profileResolver'
 import { createDiff } from '../utils/createDiff'
 import {
   defaultProfileRecords,
@@ -36,6 +37,10 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
   const { data: ownerData } = useSuspenseQuery({
     ...profileOwnerQuery(name),
+  })
+
+  const { data: resolverData } = useSuspenseQuery({
+    ...profileResolverQuery(name),
   })
 
   const {
@@ -83,6 +88,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       before,
       after,
       signer,
+      resolverAddress: resolverData?.resolverAddress,
       accountAddress: accountAddress as Address,
       publicClient,
     })
