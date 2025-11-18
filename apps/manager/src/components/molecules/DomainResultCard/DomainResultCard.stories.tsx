@@ -11,7 +11,7 @@ const meta = {
   argTypes: {
     status: {
       control: 'select',
-      options: ['available', 'premium', 'unavailable'],
+      options: ['available', 'premium'],
     },
     price: {
       control: 'number',
@@ -40,13 +40,6 @@ export const Premium: Story = {
   },
 }
 
-export const Unavailable: Story = {
-  args: {
-    domainName: 'taken.eth',
-    status: 'unavailable',
-  },
-}
-
 // @ts-expect-error - TODO: Fix args
 export const MultipleCards: Story = {
   render: () => (
@@ -63,7 +56,6 @@ export const MultipleCards: Story = {
         price={125000}
         onAction={() => alert('Registering super.eth')}
       />
-      <DomainResultCard domainName="common.eth" status="unavailable" />
       <DomainResultCard
         domainName="test123.eth"
         status="available"

@@ -1,6 +1,6 @@
+import { useWallet } from '@getpara/react-sdk'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
-import { useAccount } from 'wagmi'
 import { LinkButton } from '@/components/ui/button'
 import { sectionsList } from '../../data/records'
 import { profileOwnerQuery } from '../../service/profileOwner'
@@ -26,7 +26,8 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     ...profileOwnerQuery(name),
   })
 
-  const { address } = useAccount()
+  const { data: wallet } = useWallet()
+  const address = wallet?.address
 
   const isOwner = Boolean(
     address &&

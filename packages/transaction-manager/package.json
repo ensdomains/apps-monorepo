@@ -2,19 +2,13 @@
   "name": "@ens-apps/transaction-manager",
   "version": "0.1.0",
   "description": "Transaction management library for ENS applications",
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
+  "type": "module",
+  "private": true,
   "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
   },
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
     "test": "vitest",
     "typecheck": "tsc --noEmit"
   },
@@ -27,7 +21,7 @@
     "neverthrow": "^8.1.1",
     "permissionless": "^0.2.57",
     "viem": "^2.21.58",
-    "xstate": "^5.19.0"
+    "xstate": "catalog:"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.87.1",
@@ -36,7 +30,6 @@
   },
   "devDependencies": {
     "@types/react": "^19.0.6",
-    "tsup": "^8.3.5",
     "typescript": "^5.7.2",
     "vitest": "^3.2.4"
   }
