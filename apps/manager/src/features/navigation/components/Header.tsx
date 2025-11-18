@@ -418,8 +418,13 @@ const DisconnectedContent = () => {
 
   return (
     <div className="mr-6 flex items-center gap-4">
-      <Button onClick={handleConnect} disabled={walletLoading} size="lg">
-        {walletLoading ? 'Loading...' : 'Connect Wallet'}
+      <Button
+        variant="connectWallet"
+        onClick={handleConnect}
+        disabled={walletLoading}
+        size="lg"
+      >
+        {walletLoading ? 'Loading...' : 'Connect'}
       </Button>
     </div>
   )

@@ -11,14 +11,16 @@ export const CheckDomainPage = () => {
   }
 
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center bg-background px-4">
-      <h1 className="mb-4 font-bold font-serif text-4xl text-primary">
-        Your web3 username
-      </h1>
-      <p className="mb-10 max-w-[500px] text-center text-muted-foreground">
-        Your identity across web3, one name for all your crypto addresses,{' '}
+    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
+      <h1 className="mb-4 text-center text-5xl leading-tight">
+        <span className="font-normal text-brand-blue">Claim your</span>
         <br />
-        and your decentralised website.
+        <span className="font-serif text-primary-midnight-blue italic">
+          web3 username
+        </span>
+      </h1>
+      <p className="mb-10 max-w-[500px] text-center text-brand-blue text-xl">
+        A simple, portable identity that you control
       </p>
 
       <div className="w-full max-w-4xl">

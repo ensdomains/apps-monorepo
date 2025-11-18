@@ -74,7 +74,7 @@
   }
 
   .search-field-input::placeholder {
-    color: var(--color-brand-grey);
+    color: var(--color-lapis-surface);
   }
 
   .search-field-input:focus {

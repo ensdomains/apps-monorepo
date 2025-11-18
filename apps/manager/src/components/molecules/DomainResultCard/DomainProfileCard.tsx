@@ -139,12 +139,12 @@ export const DomainProfileCard = ({
         </div>
       </div>
 
-      <div className="flex h-8 min-w-[101px] shrink-0 flex-col items-end justify-end rounded-[4px] border border-primary-midnight-blue">
+      <div className="group flex h-8 min-w-[101px] shrink-0 flex-col items-end justify-end rounded-[4px] border border-primary-midnight-blue hover:bg-gray-600">
         <div className="flex h-8 items-center gap-1 rounded-[4px] px-2 py-1">
-          <p className="text-center font-medium text-primary-midnight-blue text-xs leading-normal">
+          <p className="text-center font-medium text-primary-midnight-blue text-xs leading-normal group-hover:text-white">
             View profile
           </p>
-          <ArrowRight className="size-2.5 h-2.5 text-primary-midnight-blue" />
+          <ArrowRight className="size-2.5 h-2.5 text-primary-midnight-blue group-hover:text-white" />
         </div>
       </div>
     </div>

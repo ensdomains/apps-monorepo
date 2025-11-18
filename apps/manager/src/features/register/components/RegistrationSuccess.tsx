@@ -1,17 +1,17 @@
 'use client'
 
-import { CheckCircleIcon, PlusIcon } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
+import { CheckCircleIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface RegistrationSuccessProps {
   domainName: string
-  onSetupAutorenewal: () => void
 }
 
 export const RegistrationSuccess = ({
   domainName,
-  onSetupAutorenewal,
 }: RegistrationSuccessProps) => {
+  const navigate = useNavigate()
   return (
     <div className="mx-auto max-w-md space-y-8 p-6 text-center">
       {/* QR-like pattern placeholder - same as registration in progress */}
@@ -115,9 +115,12 @@ export const RegistrationSuccess = ({
 
         {/* Action buttons */}
         <div className="space-y-3">
-          <Button onClick={onSetupAutorenewal} className="w-full" size="lg">
-            <PlusIcon className="mr-2 h-4 w-4" />
-            Setup Auto-Renewal
+          <Button
+            onClick={() => navigate({ to: '/' })}
+            className="w-full"
+            size="lg"
+          >
+            Back to search
           </Button>
         </div>
       </div>

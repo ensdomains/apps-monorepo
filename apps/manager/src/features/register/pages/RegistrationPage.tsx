@@ -1,6 +1,7 @@
 import { registrationMachine } from '@ens-apps/transaction-manager'
 import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
+import { ArrowLeftIcon } from 'lucide-react'
 import { useReducer } from 'react'
 import { Button } from '@/components/ui/button'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
@@ -162,22 +163,22 @@ export function Registration({ initialName }: RegistrationProps) {
     dispatch({ type: 'RESET', initialName })
   }
 
-  const handleSetupAutorenewal = () => {
-    // TODO: Implement autorenewal flow
-  }
-
   const displayDomainName = domainName || ''
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-6 flex flex-col items-start gap-4 md:flex-row">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={handleBack} className="h-auto p-2">
-          ← Back
+        <Button
+          variant="ghost"
+          onClick={handleBack}
+          className="h-auto p-2 text-lapis-surface uppercase"
+        >
+          <ArrowLeftIcon className="h-6 w-6 font-bold" /> Back
         </Button>
       </div>
 
       {step === RegistrationStep.PRICING && displayDomainName && (
-        <div className="mx-auto max-w-4xl px-4 py-6">
+        <div className="w-full py-6 md:py-6">
           <Pricing
             domainName={displayDomainName}
             duration={ui.duration}
@@ -232,10 +233,7 @@ export function Registration({ initialName }: RegistrationProps) {
       )}
 
       {step === RegistrationStep.SUCCESS && (
-        <RegistrationSuccess
-          domainName={displayDomainName}
-          onSetupAutorenewal={handleSetupAutorenewal}
-        />
+        <RegistrationSuccess domainName={displayDomainName} />
       )}
 
       {step === RegistrationStep.AUTORENEWAL && (

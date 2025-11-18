@@ -194,6 +194,7 @@ export const ConnectButton = () => {
 
   return (
     <Button
+      variant="connectWallet"
       onClick={() => WalletModalOpenAtom.set(true)}
       disabled={status !== 'disconnected'}
     >
