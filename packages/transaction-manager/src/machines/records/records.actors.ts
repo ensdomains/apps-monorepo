@@ -44,14 +44,8 @@ type RecordChanges = {
 const dedicatedResolverSetTextSnippet = [
   {
     inputs: [
-      {
-        name: 'key',
-        type: 'string',
-      },
-      {
-        name: 'value',
-        type: 'string',
-      },
+      { name: 'key', type: 'string' },
+      { name: 'value', type: 'string' },
     ],
     name: 'setText',
     outputs: [],
@@ -63,14 +57,8 @@ const dedicatedResolverSetTextSnippet = [
 const dedicatedResolverSetAddrSnippet = [
   {
     inputs: [
-      {
-        name: 'coinType',
-        type: 'uint256',
-      },
-      {
-        name: 'addressBytes',
-        type: 'bytes',
-      },
+      { name: 'coinType', type: 'uint256' },
+      { name: 'addressBytes', type: 'bytes' },
     ],
     name: 'setAddr',
     outputs: [],
@@ -171,10 +159,7 @@ const computeRecordChanges = (
     }
   }
 
-  return {
-    texts: textChanges,
-    coins: coinChanges,
-  }
+  return { texts: textChanges, coins: coinChanges }
 }
 
 const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => {
@@ -242,7 +227,6 @@ export const submitProfileRecordsUpdateActor = (input: {
         input.resolverAddress ?? ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl
 
       const node = namehash(input.name) as Hex
-
       const calls = buildDedicatedResolverCalls(changes)
 
       const multicallData = encodeFunctionData({

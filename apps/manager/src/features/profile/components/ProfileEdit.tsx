@@ -1,12 +1,20 @@
+import {
+  type RhinestoneSigner,
+  recordsMachine,
+} from '@ens-apps/transaction-manager'
 import { useSuspenseQuery } from '@tanstack/react-query'
+import { useActorRef } from '@xstate/react'
 import type { Address } from 'viem'
 import { Button } from '@/components/ui/button'
+import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+import { customSepolia, publicClient } from '@/lib/wagmi'
 import { profileOwnerQuery } from '../service/profileOwner'
 import { profileRecordsQuery } from '../service/profileRecords'
 import { createDiff } from '../utils/createDiff'
 import {
   defaultProfileRecords,
   transformProfileRecords,
+  transformToServiceFormat,
 } from '../utils/transformRecords'
 import { useAppForm } from './form'
 import { SaveChanges } from './SaveChanges'
@@ -30,6 +38,16 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     ...profileOwnerQuery(name),
   })
 
+  const {
+    rhinestoneAccount,
+    accountAddress,
+    isConnected: isRhinestoneConnected,
+  } = useRhinestoneAccount()
+
+  const recordsActor = useActorRef(recordsMachine, {
+    input: { chainId: customSepolia.id },
+  })
+
   const defaultValues = recordsData ?? defaultProfileRecords
 
   const form = useAppForm({
@@ -43,9 +61,31 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   }
 
   const handleSave = () => {
-    // TODO: Implement actual save logic
-    console.log('Saving changes:', form.state.values)
-    // Here you would typically call an API to save the changes
+    if (!isRhinestoneConnected || !rhinestoneAccount || !accountAddress) {
+      console.warn(
+        'Cannot save profile – Rhinestone smart account is not ready.',
+      )
+      return
+    }
+
+    const before = transformToServiceFormat(defaultValues)
+    const after = transformToServiceFormat(form.state.values)
+
+    const signer: RhinestoneSigner = {
+      type: 'rhinestone',
+      account: rhinestoneAccount,
+      config: { chain: customSepolia },
+    }
+
+    recordsActor.send({
+      type: 'START_UPDATE',
+      name,
+      before,
+      after,
+      signer,
+      accountAddress: accountAddress as Address,
+      publicClient,
+    })
   }
 
   const handleReset = () => {
