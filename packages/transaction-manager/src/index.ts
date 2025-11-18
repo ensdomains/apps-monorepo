@@ -65,6 +65,12 @@ export {
   saveTransaction,
 } from './helpers/transaction-persistence'
 export type {
+  RecordsContext,
+  RecordsEvent,
+  RecordsInput,
+} from './machines/records/records.machine'
+export { recordsMachine } from './machines/records/records.machine'
+export type {
   RegistrationContext,
   RegistrationEvent,
   RegistrationInput,
