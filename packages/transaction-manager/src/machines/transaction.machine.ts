@@ -38,7 +38,7 @@ import type {
  * This machine focuses solely on transaction lifecycle (submit → pending → confirm).
  * Account initialization and management is handled externally by AccountProvider.
  */
-export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
+export const transactionMachine = setup({
   types: {
     context: {} as {
       publicClient: PublicClient
@@ -181,7 +181,9 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
             return errAsync(
               new TransactionSubmissionError(
                 request,
-                new Error(`Unknown signer type: ${(signer as any).type}`),
+                new Error(
+                  `Unknown signer type: ${(signer as { type?: string }).type || 'unknown'}`,
+                ),
               ),
             )
         }
@@ -289,7 +291,8 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
 
     shouldCheckFallback: ({ context }) => context.fallbackChecks < 3,
 
-    wouldSucceed: (_, params: any) => params.wouldSucceed === true,
+    wouldSucceed: (_, params: { wouldSucceed?: boolean }) =>
+      params.wouldSucceed === true,
 
     isReverted: ({ context }) => context.receipt?.status === 'reverted',
   },
@@ -318,8 +321,14 @@ export const transactionMachine: ActorLogic<any, any, any, any, any> = setup({
       }
     },
 
-    logError: ({ context }, params: any) => {
-      const error = params?.error || params || 'Unknown error'
+    logError: (
+      { context },
+      params: { error?: Error | string } | Error | string,
+    ) => {
+      const error =
+        params && typeof params === 'object' && 'error' in params
+          ? params.error
+          : params || 'Unknown error'
       try {
         auditTrail.addAuditEntry('error', 'Transaction error occurred', {
           error,
