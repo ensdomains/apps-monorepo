@@ -82,22 +82,11 @@ const dedicatedResolverSetAddrSnippet = [
 const dedicatedResolverMulticallWithNodeCheckSnippet = [
   {
     inputs: [
-      {
-        name: 'node',
-        type: 'bytes32',
-      },
-      {
-        name: 'calls',
-        type: 'bytes[]',
-      },
+      { name: 'node', type: 'bytes32' },
+      { name: 'calls', type: 'bytes[]' },
     ],
     name: 'multicallWithNodeCheck',
-    outputs: [
-      {
-        name: 'results',
-        type: 'bytes[]',
-      },
-    ],
+    outputs: [{ name: 'results', type: 'bytes[]' }],
     stateMutability: 'nonpayable',
     type: 'function',
   },
