@@ -38,12 +38,17 @@ type TransactionChangeListener = (
  * - Still supports React integration via change listeners
  */
 class TransactionManager {
+  private instanceId = `tm-${Math.random().toString(36).slice(2, 9)}`
   private transactions = new Map<
     string,
     ActorRefFrom<typeof transactionMachine>
   >()
   private listeners = new Set<TransactionChangeListener>()
   private publicClients = new Map<number, PublicClient>() // chainId -> PublicClient
+
+  constructor() {
+    console.log(`🔧 [TRANSACTION MANAGER] Instance created: ${this.instanceId}`)
+  }
 
   /**
    * Set a public client for a specific chain
@@ -57,7 +62,7 @@ class TransactionManager {
   setPublicClient(chainId: number, publicClient: PublicClient): void {
     this.publicClients.set(chainId, publicClient)
     console.log(
-      `✅ [TRANSACTION MANAGER] Public client set for chain ${chainId}`,
+      `✅ [TRANSACTION MANAGER ${this.instanceId}] Public client set for chain ${chainId}`,
     )
   }
 
@@ -119,12 +124,26 @@ class TransactionManager {
       // Try to get from stored clients using chainId
       const resolvedChainId =
         chainId || (request as any)?.chainId || (intent as any)?.chainId
+      console.log(
+        `🔍 [TRANSACTION MANAGER ${this.instanceId}] Resolving publicClient for chainId: ${resolvedChainId}`,
+      )
+      console.log(
+        `🔍 [TRANSACTION MANAGER ${this.instanceId}] Stored publicClients:`,
+        Array.from(this.publicClients.keys()),
+      )
       if (resolvedChainId) {
         publicClient = this.publicClients.get(resolvedChainId)
+        console.log(
+          `🔍 [TRANSACTION MANAGER ${this.instanceId}] Found publicClient:`,
+          !!publicClient,
+        )
       }
     }
 
     if (!publicClient) {
+      console.error(
+        `❌ [TRANSACTION MANAGER ${this.instanceId}] No publicClient available`,
+      )
       throw new Error(
         'publicClient is required. Either pass it in options or pre-configure it with setPublicClient(chainId, client)',
       )

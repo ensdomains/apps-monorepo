@@ -1,178 +1,267 @@
+import { registrationMachine } from '@ens-apps/transaction-manager'
 import { useNavigate } from '@tanstack/react-router'
-import { useMachine } from '@xstate/react'
-import { useEffect, useMemo } from 'react'
-import { useAccount } from 'wagmi'
+import { useActorRef, useSelector } from '@xstate/react'
+import { ArrowLeftIcon } from 'lucide-react'
+import { useReducer } from 'react'
 import { Button } from '@/components/ui/button'
+import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+import { publicClient } from '@/lib/wagmi'
+import { ApprovalInProgress } from '../components/ApprovalInProgress'
 import { Autorenewal } from '../components/Autorenewal'
 import { PaymentInProgress } from '../components/PaymentInProgress'
-import { PaymentSuccess } from '../components/PaymentSuccess'
 import { Pricing } from '../components/Pricing'
 import { RegistrationInProgress } from '../components/RegistrationInProgress'
 import { RegistrationSuccess } from '../components/RegistrationSuccess'
+import { handleStartRegistration } from './RegistrationPage.handlers'
 import {
-  RegistrationStep,
-  searchMachine,
-} from '../machines/registrationMachineMock'
+  createInitialUIState,
+  registrationUIReducer,
+} from './RegistrationPage.reducer'
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+export enum RegistrationStep {
+  PRICING = 'pricing',
+  COMMITTING = 'committing',
+  APPROVING = 'approving',
+  REGISTERING = 'registering',
+  SUCCESS = 'success',
+  AUTORENEWAL = 'autorenewal',
+  ERROR = 'error',
+}
 
 interface RegistrationProps {
   initialName?: string
+  initialDuration?: number
 }
 
-export const Registration = ({ initialName }: RegistrationProps) => {
+// ============================================================================
+// HELPER: Map machine state to RegistrationStep
+// ============================================================================
+
+function mapMachineStateToStep(machineState: string): RegistrationStep {
+  switch (machineState) {
+    case 'idle':
+      return RegistrationStep.PRICING
+    case 'preparingCommitment':
+    case 'committingTransaction':
+    case 'waitingForCommitment':
+      return RegistrationStep.COMMITTING
+    case 'approvingToken':
+    case 'waitingForApproval':
+      return RegistrationStep.APPROVING
+    case 'registeringDomain':
+    case 'waitingForRegistration':
+      return RegistrationStep.REGISTERING
+    case 'success':
+      return RegistrationStep.SUCCESS
+    case 'error':
+      return RegistrationStep.ERROR
+    default:
+      return RegistrationStep.PRICING
+  }
+}
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
+
+export function Registration({ initialName }: RegistrationProps) {
   const navigate = useNavigate()
-  const { isConnected } = useAccount()
-  const [state, send] = useMachine(searchMachine)
 
-  useEffect(() => {
-    if (initialName) {
-      // Set domain name in context and prepare for pricing
-      send({ type: 'search', name: initialName })
-    }
-  }, [initialName, send])
+  // Machine actor
+  const actor = useActorRef(registrationMachine, {
+    input: {
+      chainId: 11155111, // Sepolia
+    },
+  })
 
-  const { step, name, domainName, duration, currencyType, selectedCrypto } =
-    state.context
+  // Account state
+  const { rhinestoneAccount, accountAddress, isConnected, rhinestoneConfig } =
+    useRhinestoneAccount()
 
-  // TODO: remove this once we have a real duration
-  const pricingDuration = Math.ceil(duration)
+  // Local UI state
+  const [ui, dispatch] = useReducer(
+    registrationUIReducer,
+    createInitialUIState(initialName),
+  )
 
-  // TODO: remove this once we have a real estimation
-  const estimation = useMemo(() => {
-    if (!domainName && !name) return undefined
+  // Derived state
+  const isAccountReady = Boolean(
+    rhinestoneAccount && accountAddress && rhinestoneConfig,
+  )
 
-    const baseYearlyFee = 5000000000000000n
-    const yearMultiplier = BigInt(Math.max(1, Math.floor(pricingDuration)))
+  // Selectors - directly select from machine state
+  const step = useSelector(actor, (state) => {
+    if (!isAccountReady) return RegistrationStep.PRICING
+    return mapMachineStateToStep(String(state.value))
+  })
 
-    return {
-      estimatedGasFee: 2000000000000000n,
-      estimatedGasLoading: false,
-      yearlyFee: baseYearlyFee,
-      totalDurationBasedFee: baseYearlyFee * yearMultiplier,
-      hasPremium: false,
-      premiumFee: 0n,
-      gasPrice: 20000000000n,
-      seconds: pricingDuration * 31536000,
-    }
-  }, [domainName, name, pricingDuration])
+  const domainName = useSelector(
+    actor,
+    (state) => state.context.name || ui.name,
+  )
 
+  const error = useSelector(
+    actor,
+    (state) => state.context.error?.message || null,
+  )
+
+  const commitTxId = useSelector(actor, (state) => state.context.commitmentTxId)
+
+  const registerTxId = useSelector(
+    actor,
+    (state) => state.context.registrationTxId,
+  )
+
+  // Derived state
+  const commitTxHash = commitTxId ? { hash: commitTxId as `0x${string}` } : null
+  const registerTxHash = registerTxId
+    ? { hash: registerTxId as `0x${string}` }
+    : null
+  const isCommitPending = step === RegistrationStep.COMMITTING
+  const isApprovePending = step === RegistrationStep.APPROVING
+  const isRegisterPending = step === RegistrationStep.REGISTERING
+
+  // Handlers
   const handleBack = () => {
     if (step === RegistrationStep.PRICING) {
       navigate({ to: '/' })
-    } else if (step === RegistrationStep.REGISTRATION_IN_PROGRESS) {
-      // This step goes to PaymentSuccess, but we want Pricing
-      // So we go back twice: first to PaymentSuccess, then to Pricing
-      send({ type: 'back' })
-      setTimeout(() => send({ type: 'back' }), 0)
+    } else if (
+      step === RegistrationStep.APPROVING ||
+      step === RegistrationStep.REGISTERING
+    ) {
+      // Don't allow going back during transactions
+      return
     } else {
       // All other steps go to pricing on 'back'
-      send({ type: 'back' })
+      actor.send({ type: 'CANCEL' })
+      dispatch({ type: 'RESET', initialName })
     }
   }
 
   const handleSetDuration = (newDuration: number) => {
-    send({ type: 'setDuration', duration: newDuration })
+    dispatch({ type: 'SET_DURATION', duration: newDuration })
   }
 
-  const handleSetCurrency = (currency: 'ETH' | 'USD') => {
-    send({ type: 'setCurrency', currencyType: currency })
+  const handleSelectPayment = (_method: 'crypto' | 'credit-card') => {
+    // No-op for now - handled by payment drawer
   }
 
-  const handleSelectPayment = (method: 'crypto' | 'credit-card') => {
-    send({ type: 'selectPayment', method })
+  const handleSelectCrypto = (_cryptoId: string) => {
+    // No-op for now - handled by payment drawer
   }
 
-  const handleSelectCrypto = (cryptoId: string) => {
-    send({ type: 'selectCrypto', cryptoId })
+  const handleRetry = () => {
+    actor.send({ type: 'RETRY' })
   }
 
-  const handleConfirmPayment = () => {
-    send({ type: 'confirmPayment' })
+  const handleReset = () => {
+    actor.send({ type: 'CANCEL' })
+    dispatch({ type: 'RESET', initialName })
   }
 
-  const handlePaymentSuccess = () => {
-    send({ type: 'paymentSuccess' })
-  }
-
-  const handleSkipNotifications = () => {
-    send({ type: 'skipNotifications' })
-  }
-
-  const handleRegistrationSuccess = () => {
-    send({ type: 'registrationSuccess' })
-  }
-
-  const handleSetupAutorenewal = () => {
-    send({ type: 'setupAutorenewal' })
-  }
-
-  const handleSkipAutorenewal = () => {
-    send({ type: 'skipAutorenewal' })
-  }
-
-  // domainName already includes .eth from the state machine
-  const displayDomainName =
-    domainName || (name ? (name.endsWith('.eth') ? name : `${name}.eth`) : '')
+  const displayDomainName = domainName || ''
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="mx-6 flex flex-col items-start gap-4 md:flex-row">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={handleBack} className="h-auto p-2">
-          ← Back
+        <Button
+          variant="ghost"
+          onClick={handleBack}
+          className="h-auto p-2 text-lapis-surface uppercase"
+        >
+          <ArrowLeftIcon className="h-6 w-6 font-bold" /> Back
         </Button>
       </div>
 
       {step === RegistrationStep.PRICING && displayDomainName && (
-        <div className="mx-auto max-w-md px-4 py-6">
+        <div className="w-full py-6 md:py-6">
           <Pricing
             domainName={displayDomainName}
-            duration={duration}
-            currencyType={currencyType}
-            estimation={estimation}
+            duration={ui.duration}
             isConnected={isConnected}
+            isLoading={isCommitPending || isApprovePending || isRegisterPending}
             onSetDuration={handleSetDuration}
-            onSetCurrency={handleSetCurrency}
             onSelectPayment={handleSelectPayment}
             onSelectCrypto={handleSelectCrypto}
-            onConfirmPayment={handleConfirmPayment}
+            onConfirmPayment={(tokenPrice, selectedToken) =>
+              handleStartRegistration(
+                {
+                  name: ui.name,
+                  duration: ui.duration,
+                  selectedToken: selectedToken as `0x${string}`,
+                  tokenPrice,
+                },
+                {
+                  rhinestoneAccount,
+                  accountAddress,
+                  rhinestoneConfig,
+                  publicClient,
+                },
+                actor,
+              )
+            }
           />
         </div>
       )}
 
-      {step === RegistrationStep.PAYMENT_IN_PROGRESS && (
+      {step === RegistrationStep.COMMITTING && (
         <PaymentInProgress
           domainName={displayDomainName}
-          selectedCrypto={selectedCrypto}
-          onPaymentSuccess={handlePaymentSuccess}
+          selectedCrypto=""
+          onPaymentSuccess={() => {}} // No-op - handled by state machine
         />
       )}
 
-      {step === RegistrationStep.PAYMENT_SUCCESS && (
-        <PaymentSuccess
+      {step === RegistrationStep.APPROVING && (
+        <ApprovalInProgress
           domainName={displayDomainName}
-          onComplete={handleSkipNotifications}
+          selectedToken={ui.selectedToken}
+          commitTxHash={commitTxHash}
         />
       )}
 
-      {step === RegistrationStep.REGISTRATION_IN_PROGRESS && (
+      {step === RegistrationStep.REGISTERING && (
         <RegistrationInProgress
           domainName={displayDomainName}
-          onRegistrationSuccess={handleRegistrationSuccess}
+          onRegistrationSuccess={() => {}} // No-op - handled by state machine
+          registerTxHash={registerTxHash}
         />
       )}
 
-      {step === RegistrationStep.REGISTRATION_SUCCESS && (
-        <RegistrationSuccess
-          domainName={displayDomainName}
-          onSetupAutorenewal={handleSetupAutorenewal}
-        />
+      {step === RegistrationStep.SUCCESS && (
+        <RegistrationSuccess domainName={displayDomainName} />
       )}
 
       {step === RegistrationStep.AUTORENEWAL && (
         <Autorenewal
           domainName={displayDomainName}
-          duration={duration}
-          onSkipAutorenewal={handleSkipAutorenewal}
+          duration={ui.duration}
+          onReset={handleReset}
+          onCompleteFlow={handleReset}
         />
+      )}
+
+      {step === RegistrationStep.ERROR && (
+        <div className="mx-auto max-w-md px-4 py-6">
+          <div className="text-center">
+            <h2 className="mb-4 font-semibold text-red-600 text-xl">
+              Registration Error
+            </h2>
+            <p className="mb-4 whitespace-pre-line text-gray-600">
+              {error || 'There was an error during the registration process.'}
+            </p>
+            <Button onClick={handleRetry} className="mr-2">
+              Retry
+            </Button>
+            <Button variant="outline" onClick={handleReset}>
+              Start Over
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   )

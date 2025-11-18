@@ -1,7 +1,9 @@
 'use client'
 
+import { useWallet } from '@getpara/react-sdk'
 import { CreditCardIcon } from 'lucide-react'
 import * as React from 'react'
+import { StablecoinItem } from '@/components/molecules/StablecoinList/StablecoinItem'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -17,17 +19,18 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from '@/components/ui/drawer'
-import { Input } from '@/components/ui/input'
 import { useMediaQuery } from '@/hooks/use-media-query'
-import { cn } from '@/lib/utils'
+import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 
 interface PaymentDrawerProps {
   domainName?: string
   duration?: number
   priceUSD?: number
+  isLoading?: boolean
   onPaymentSelect?: (method: 'crypto' | 'credit-card') => void
   onCryptoSelect?: (cryptoId: string) => void
-  onConfirmPayment?: () => void
+  onConfirmPayment?: (tokenPrice: bigint, selectedToken: string) => void
+  isUsingAA?: boolean
 }
 
 // Credit Card Payment Drawer Component
@@ -43,7 +46,7 @@ export const CreditCardPaymentDrawer = ({
   // Reusable trigger button
   const triggerButton = (
     <Button
-      className="h-12 flex-1 border border-gray-200 bg-white font-semibold text-base dark:border-gray-800 dark:bg-gray-900"
+      className="h-[70px] w-full rounded-[4px] border-2 border-brand-blue bg-white font-medium font-mono text-[13px] text-brand-blue uppercase tracking-[1.04px] hover:bg-brand-blue-light"
       onClick={() => {
         onPaymentSelect?.('credit-card')
         setOpen(false)
@@ -117,46 +120,68 @@ export const CryptoPaymentDrawer = ({
   domainName = 'example.eth',
   duration = 25,
   priceUSD = 2800,
+  isLoading = false,
   onPaymentSelect,
   onCryptoSelect,
   onConfirmPayment,
+  isUsingAA = false,
 }: PaymentDrawerProps) => {
   const [open, setOpen] = React.useState(false)
   const [selectedCoin, setSelectedCoin] = React.useState<string>('')
-  const isDesktop = useMediaQuery('(min-width: 768px)')
 
-  // Reusable trigger button
+  const isDesktop = useMediaQuery('(min-width: 768px)')
+  const { data: wallet } = useWallet()
+  const isConnected = !!wallet?.address
+  const { stablecoinBalances, isLoadingBalances } = useRhinestoneAccount()
+
+  const hasBalances = (stablecoinBalances?.length || 0) > 0
+  const stablecoinLoading = isLoadingBalances
+
+  // Auto-select first available token when balance is available
+  React.useEffect(() => {
+    if (
+      hasBalances &&
+      stablecoinBalances?.length &&
+      stablecoinBalances.length > 0 &&
+      !selectedCoin
+    ) {
+      const firstBalance = stablecoinBalances[0]
+      if (firstBalance) {
+        console.log(
+          '🔧 Auto-selecting token:',
+          firstBalance.symbol,
+          firstBalance.address,
+        )
+        setSelectedCoin(firstBalance.address)
+      }
+    }
+  }, [hasBalances, stablecoinBalances, selectedCoin])
+
+  // Debug button state
+  React.useEffect(() => {
+    console.log('🔍 Button state:', {
+      isLoading,
+      stablecoinLoading,
+      selectedCoin,
+      hasBalances,
+      stablecoinBalances: stablecoinBalances?.length,
+      buttonDisabled:
+        isLoading || stablecoinLoading || !selectedCoin || !hasBalances,
+    })
+  }, [
+    isLoading,
+    stablecoinLoading,
+    selectedCoin,
+    hasBalances,
+    stablecoinBalances,
+  ])
+
   const triggerButton = (
-    <Button className="h-12 flex-1 font-semibold text-base">
-      Pay with crypto
+    <Button className="h-[70px] w-full rounded-[4px] bg-brand-blue font-medium font-mono text-[13px] text-white uppercase tracking-[1.04px] hover:bg-brand-blue-hover">
+      Pay with stablecoins
     </Button>
   )
 
-  const cryptoOptions = [
-    {
-      id: 'optimism-usdc',
-      name: 'Optimism USDC',
-      balance: '$11,987.23',
-      icon: 'O',
-      color: 'red',
-    },
-    {
-      id: 'base-usdc',
-      name: 'Base USDC',
-      balance: '$8,987.23',
-      icon: 'B',
-      color: 'blue',
-    },
-    {
-      id: 'arbitrum-usdt',
-      name: 'Arbitrum USDT',
-      balance: '$2,987.23',
-      icon: 'A',
-      color: 'gray',
-    },
-  ]
-
-  // Crypto payment content
   const cryptoContent = (
     <div className="space-y-6">
       {/* Domain info */}
@@ -167,75 +192,116 @@ export const CryptoPaymentDrawer = ({
         <div className="text-muted-foreground text-sm">
           × {duration} years • ${priceUSD.toLocaleString()} USD
         </div>
+        {isUsingAA && (
+          <div className="inline-flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-1 text-green-700 text-sm">
+            <div className="h-2 w-2 rounded-full bg-green-500" />
+            Gasless Transaction
+          </div>
+        )}
       </div>
 
-      {/* Header */}
       <div className="text-center">
-        <h3 className="font-semibold text-gray-900 text-lg">Select coin</h3>
+        <h3 className="font-semibold text-gray-900 text-lg">
+          {isUsingAA
+            ? 'Pay with stablecoins from smart account'
+            : 'Pay with stablecoins'}
+        </h3>
         <p className="text-gray-600 text-sm">
-          Pay with any stablecoin on any chain
+          {isUsingAA
+            ? 'Using stablecoins from your smart account for gasless transactions'
+            : 'Pay with USDC or DAI on Sepolia'}
         </p>
       </div>
 
-      {/* Search coins */}
       <div className="space-y-4">
-        <Input placeholder="Search coins" className="w-full" />
+        {(isLoading || stablecoinLoading) && (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-gray-500 text-sm">
+              Loading your stablecoin balances...
+            </div>
+          </div>
+        )}
 
-        {/* Coin options */}
-        <div className="space-y-2">
-          {cryptoOptions.map((coin) => (
-            <button
-              key={coin.id}
-              onClick={() => setSelectedCoin(coin.id)}
-              type="button"
-              className="flex w-full cursor-pointer items-center justify-between p-3 text-left hover:bg-gray-50"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200">
-                  <span className="font-bold text-gray-700 text-sm">
-                    {coin.icon}
-                  </span>
+        {!isLoading && !stablecoinLoading && !hasBalances && (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            {!isConnected ? (
+              <>
+                <div className="mb-2 text-gray-500 text-sm">
+                  Please connect your wallet first
                 </div>
-                <div className="font-medium text-gray-900">{coin.name}</div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-gray-900">
-                  {coin.balance}
-                </span>
-                <div
-                  className={cn(
-                    'h-4 w-4 rounded-full border-2',
-                    selectedCoin === coin.id
-                      ? 'border-blue-500 bg-blue-500'
-                      : 'border-gray-300',
-                  )}
-                >
-                  {selectedCoin === coin.id && (
-                    <div className="h-full w-full rounded-full bg-blue-500"></div>
-                  )}
+                <div className="text-gray-400 text-xs">
+                  You need to connect a wallet to see your stablecoin balances
                 </div>
-              </div>
-            </button>
-          ))}
-        </div>
+              </>
+            ) : !wallet?.address ? (
+              <>
+                <div className="mb-2 text-gray-500 text-sm">
+                  Network not detected
+                </div>
+                <div className="text-gray-400 text-xs">
+                  Please check your wallet connection
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-2 text-gray-500 text-sm">
+                  No stablecoin balances found
+                </div>
+                <div className="text-gray-400 text-xs">
+                  Make sure you have USDC or DAI on Sepolia
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
-        {/* Continue button */}
+        {!isLoading && !stablecoinLoading && hasBalances && (
+          <div className="space-y-2">
+            {stablecoinBalances?.map((stablecoin) => (
+              <StablecoinItem
+                key={stablecoin.address}
+                stablecoin={{
+                  address: stablecoin.address,
+                  symbol: stablecoin.symbol,
+                  formattedBalance: stablecoin.formattedBalance,
+                }}
+                selectable={true} // Re-enabled: selectable
+                isSelected={selectedCoin === stablecoin.address}
+                onClick={() => setSelectedCoin(stablecoin.address)}
+              />
+            ))}
+          </div>
+        )}
+
         <Button
           className="w-full"
-          disabled={!selectedCoin}
+          disabled={
+            isLoading || stablecoinLoading || !selectedCoin || !hasBalances
+          }
           onClick={() => {
+            onPaymentSelect?.('crypto')
             if (selectedCoin) {
-              onPaymentSelect?.('crypto')
               onCryptoSelect?.(selectedCoin)
-              setOpen(false)
-              onConfirmPayment?.()
+              // Get the selected coin balance for price calculation
+              const selectedCoinBalance = stablecoinBalances?.find(
+                (c) => c.address === selectedCoin,
+              )
+              if (selectedCoinBalance && onConfirmPayment) {
+                // Use the raw balance (BigInt) and address directly
+                const tokenPrice = BigInt(selectedCoinBalance.balance)
+                onConfirmPayment(tokenPrice, selectedCoinBalance.address)
+              }
             }
+            setOpen(false)
           }}
         >
-          Continue with{' '}
-          {selectedCoin
-            ? cryptoOptions.find((c) => c.id === selectedCoin)?.name
-            : 'Selected Coin'}
+          {isLoading || stablecoinLoading
+            ? 'Processing...'
+            : !selectedCoin
+              ? 'Select a token'
+              : selectedCoin && hasBalances
+                ? `Continue with ${stablecoinBalances?.find((c) => c.address === selectedCoin)?.symbol || 'token'}`
+                : 'Continue with Payment'}
         </Button>
       </div>
     </div>
@@ -275,20 +341,29 @@ export const PaymentDrawer = ({
   domainName = 'example.eth',
   duration = 25,
   priceUSD = 2800,
+  isUsingAA = false,
+  onPaymentSelect,
+  onCryptoSelect,
+  onConfirmPayment,
 }: PaymentDrawerProps) => {
   return (
     <div className="space-y-3">
       <h3 className="font-medium text-lg">Select payment method</h3>
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         <CreditCardPaymentDrawer
           domainName={domainName}
           duration={duration}
           priceUSD={priceUSD}
+          onPaymentSelect={onPaymentSelect}
         />
         <CryptoPaymentDrawer
           domainName={domainName}
           duration={duration}
           priceUSD={priceUSD}
+          isUsingAA={isUsingAA}
+          onPaymentSelect={onPaymentSelect}
+          onCryptoSelect={onCryptoSelect}
+          onConfirmPayment={onConfirmPayment}
         />
       </div>
     </div>

@@ -270,9 +270,109 @@ describe('Transaction Machine', () => {
 })
 ```
 
-## Common Pitfalls
+## Common Pitfalls & Anti-Patterns
+
+### ❌ CRITICAL: Manual Result unwrapping with throw
+
+**Problem**: Wrapping a Result in a Promise and manually unwrapping by throwing defeats neverthrow's purpose.
+
+```typescript
+// ❌ WRONG - Anti-pattern
+export function myActor(input: {...}): ResultAsync<Data, Error> {
+  return ResultAsync.fromPromise(
+    myHelper(...).then((result) => {
+      if (result.isErr()) throw result.error  // ❌ Manual unwrapping
+      return result.value
+    }),
+    (error) => error as Error,
+  )
+}
+```
+
+**Fix**: Use `.andThen()` to chain Results directly:
+
+```typescript
+// ✅ CORRECT - Chain Results
+export function myActor(input: {...}): ResultAsync<Data, Error> {
+  return myHelper(...)  // If myHelper returns ResultAsync, just return it
+}
+
+// OR if myHelper returns Promise<Result>
+export function myActor(input: {...}): ResultAsync<Data, Error> {
+  return ResultAsync.fromSafePromise(
+    myHelper(...)
+  ).andThen((result) => result)  // Chain the Result
+}
+```
+
+---
+
+### ❌ Mixing try-catch with neverthrow
+
+**Problem**: Using try-catch outside ResultAsync scope goes against neverthrow's philosophy.
+
+```typescript
+// ❌ WRONG
+export function myActor(input: {...}): ResultAsync<string, Error> {
+  try {
+    const data = processSync()
+    const txId = startTransaction(data)
+    return ResultAsync.fromSafePromise(Promise.resolve(txId))
+  } catch (error) {
+    return errAsync(new Error(`Failed: ${error}`))
+  }
+}
+```
+
+**Fix**: Wrap the entire function in ResultAsync:
+
+```typescript
+// ✅ CORRECT
+export function myActor(input: {...}): ResultAsync<string, Error> {
+  return ResultAsync.fromSafePromise(
+    Promise.resolve().then(() => {
+      const data = processSync()  // Can throw
+      const txId = startTransaction(data)
+      return txId
+    })
+  ).mapErr((error) => new Error(`Failed: ${error}`))
+}
+```
+
+---
+
+### ❌ Try-catch in async helpers
+
+**Problem**: Using try-catch to return Result instead of neverthrow utilities.
+
+```typescript
+// ❌ WRONG
+async function fetchData(...): Promise<Result<Data, Error>> {
+  try {
+    const result = await api.fetch(...)
+    return ok(result)
+  } catch (error) {
+    return err(new Error(`Failed: ${error}`))
+  }
+}
+```
+
+**Fix**: Use `ResultAsync.fromPromise`:
+
+```typescript
+// ✅ CORRECT
+function fetchData(...): ResultAsync<Data, Error> {
+  return ResultAsync.fromPromise(
+    api.fetch(...),
+    (error) => new Error(`Failed: ${error}`)
+  )
+}
+```
+
+---
 
 ### ❌ Don't: Use err() for ResultAsync return types
+
 ```typescript
 function submit(...): ResultAsync<Hash, Error> {
   if (!client) {
@@ -282,6 +382,7 @@ function submit(...): ResultAsync<Hash, Error> {
 ```
 
 ### ✅ Do: Use errAsync() for ResultAsync
+
 ```typescript
 function submit(...): ResultAsync<Hash, Error> {
   if (!client) {
@@ -290,7 +391,10 @@ function submit(...): ResultAsync<Hash, Error> {
 }
 ```
 
+---
+
 ### ❌ Don't: Wrap sync code in Promise for ResultAsync
+
 ```typescript
 export function importData(json: string): ResultAsync<void, Error> {
   return ResultAsync.fromPromise(
@@ -304,6 +408,7 @@ export function importData(json: string): ResultAsync<void, Error> {
 ```
 
 ### ✅ Do: Use sync Result for sync operations
+
 ```typescript
 export function importData(json: string): Result<void, Error> {
   try {
@@ -315,6 +420,24 @@ export function importData(json: string): Result<void, Error> {
   }
 }
 ```
+
+---
+
+## neverthrow Best Practices Summary
+
+**Core Principles:**
+1. **Never manually unwrap Results** - Use `.andThen()`, `.map()`, `.mapErr()` for chaining
+2. **Avoid mixing Result with try-catch** - Choose one error handling approach
+3. **Use correct types** - `err()`/`ok()` for sync, `errAsync()`/`okAsync()` for async
+4. **Leverage `fromResultAsync` for XState** - Automatically unwraps Results for actors
+5. **Chain Results directly** - Don't wrap Result in Promise then unwrap
+
+**Common Patterns:**
+- **Async operations**: `ResultAsync.fromPromise(promise, errorHandler)`
+- **Chaining Results**: `.andThen(fn)` for operations that return Results
+- **Transforming values**: `.map(fn)` for operations that return raw values
+- **Transforming errors**: `.mapErr(fn)` to convert error types
+- **Combining multiple Results**: `Result.combine([result1, result2, ...])`
 
 ## Related Documentation
 

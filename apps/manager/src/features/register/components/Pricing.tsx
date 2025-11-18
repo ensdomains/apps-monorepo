@@ -1,396 +1,389 @@
-import { ChevronDownIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useModal } from '@getpara/react-sdk'
+import { useEffect, useMemo, useState } from 'react'
+import type { DomainAttributePillVariant } from '@/components/molecules/DomainResultCard/DomainAttributePill'
+import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
-import { Calendar } from '@/components/ui/calendar'
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
-import { Input } from '@/components/ui/input'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { cn } from '@/lib/utils'
+  INITIAL_PRICING_OPTIONS,
+  PRICING_DURATIONS,
+  sanitizePricingDuration,
+} from '@/features/register/constants/pricing'
+import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+import { getTokenPrices } from '../services/nameChainContractService'
+import { DurationSelector } from './CheckAvailability/components/DurationSelector'
+import type { PricingDuration, PricingOptions } from './CheckAvailability/types'
 import { CreditCardPaymentDrawer, CryptoPaymentDrawer } from './PaymentDrawer'
-import { RegisterDrawer } from './RegisterDrawer'
 
-type EstimationData = {
-  estimatedGasFee: bigint
-  estimatedGasLoading: boolean
-  yearlyFee: bigint
-  totalDurationBasedFee: bigint
-  hasPremium: boolean
-  premiumFee: bigint
-  gasPrice: bigint
-  seconds: number
+type PricingQuote = {
+  usdc?: number
+  dai?: number
 }
+
+type PricingQuoteMap = Record<PricingDuration, PricingQuote>
+
+const createEmptyPricingQuoteMap = (): PricingQuoteMap => ({
+  1: {},
+  2: {},
+  3: {},
+  4: {},
+  5: {},
+})
 
 type PricingProps = {
   domainName: string
   duration: number
-  currencyType: 'ETH' | 'USD'
-  estimation?: EstimationData
   isConnected: boolean
+  isLoading?: boolean
   onSetDuration: (duration: number) => void
-  onSetCurrency: (currency: 'ETH' | 'USD') => void
   onSelectPayment: (method: 'crypto' | 'credit-card') => void
   onSelectCrypto: (cryptoId: string) => void
-  onConfirmPayment: () => void
+  onConfirmPayment: (tokenPrice: bigint, selectedToken: string) => void
 }
 
 export const Pricing = ({
   domainName,
   duration,
-  currencyType,
-  estimation,
   isConnected,
+  isLoading = false,
   onSetDuration,
-  onSetCurrency,
   onSelectPayment,
   onSelectCrypto,
   onConfirmPayment,
 }: PricingProps) => {
-  const [activeTab, setActiveTab] = useState<'years' | 'date'>('years')
-  const [customYears, setCustomYears] = useState('')
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
-  const [isBreakdownOpen, setIsBreakdownOpen] = useState(false)
+  const [pricingOptions, setPricingOptions] = useState<PricingOptions>(
+    INITIAL_PRICING_OPTIONS,
+  )
+  const [selectedDuration, setSelectedDuration] = useState<PricingDuration>(
+    sanitizePricingDuration(duration),
+  )
+  const [isPricingLoading, setIsPricingLoading] = useState(false)
+  const [pricingQuotes, setPricingQuotes] = useState<PricingQuoteMap>(
+    createEmptyPricingQuoteMap,
+  )
+  const [basePricePerYear, setBasePricePerYear] = useState<number | null>(null)
 
-  // For pricing calculation, round up decimal years since service is mocked
-  const pricingDuration = Math.ceil(duration)
+  // Check if AA is available (Rhinestone SDK provides AA by default)
+  const { rhinestoneAccount } = useRhinestoneAccount()
+  const isUsingAA = !!rhinestoneAccount
 
-  const yearOptions = [
-    { years: 1, discount: 0 },
-    { years: 2, discount: 0 },
-    { years: 3, discount: 10 },
-    { years: 5, discount: 20 },
-    { years: 10, discount: 30 },
-    { years: 25, discount: 30 },
-  ]
+  // Para modal for wallet connection
+  const { openModal } = useModal()
 
-  const baseRegistrationFee =
-    (Number(estimation?.totalDurationBasedFee || 0) / 1e18) *
-    (currencyType === 'USD' ? 2500 : 1)
-  const networkFee =
-    (Number(estimation?.estimatedGasFee || 0) / 1e18) *
-    (currencyType === 'USD' ? 2500 : 1)
+  const isPremium = useMemo(() => determinePremium(domainName), [domainName])
 
-  // Calculate discount based on rounded duration for pricing
-  const selectedYearOption = yearOptions.find(
-    (option) => option.years === pricingDuration,
+  const premiumLabel = useMemo(() => {
+    const name = domainName.includes('.')
+      ? domainName.slice(0, domainName.lastIndexOf('.'))
+      : domainName
+    const length = name.length
+    if (!length || !isPremium) return null
+
+    const variant: DomainAttributePillVariant =
+      length <= 3 ? 'premium-3' : 'premium-4'
+    return {
+      label: `${length} character premium name`,
+      variant,
+    } as const
+  }, [domainName, isPremium])
+
+  // Use the original base price (before any discounts) for calculations
+  const basePerYear = basePricePerYear ?? 0
+  const selectedOption = pricingOptions[selectedDuration]
+  const selectedQuote = pricingQuotes[selectedDuration]
+  const fallbackTotal =
+    selectedOption?.total ??
+    (selectedOption ? selectedOption.price * selectedDuration : 0)
+  const finalPrice = selectedQuote?.usdc ?? fallbackTotal
+  const theoreticalTotal = basePerYear > 0 ? basePerYear * selectedDuration : 0
+  const discountAmount =
+    finalPrice && theoreticalTotal > 0
+      ? Math.max(0, theoreticalTotal - finalPrice)
+      : 0
+  const discountPercentage =
+    theoreticalTotal > 0 && finalPrice
+      ? Math.max(0, Math.round((discountAmount / theoreticalTotal) * 100))
+      : (selectedOption?.discount ?? 0)
+
+  const expirationDate = useMemo(() => {
+    const next = new Date()
+    next.setFullYear(next.getFullYear() + selectedDuration)
+    return next
+  }, [selectedDuration])
+
+  const formattedExpiration = useMemo(
+    () =>
+      expirationDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }),
+    [expirationDate],
   )
 
-  let basePrice: number
-  let pricePerYear: number
-  let discountPercentage: number
-  let discountAmount: number
+  const paddedDuration = useMemo(
+    () => selectedDuration.toString().padStart(2, '0'),
+    [selectedDuration],
+  )
 
-  if (selectedYearOption) {
-    // This is a predefined year option with potential discount
-    discountPercentage = selectedYearOption.discount
-    basePrice = baseRegistrationFee / (1 - discountPercentage / 100)
-    pricePerYear = basePrice / pricingDuration
-    discountAmount = basePrice - baseRegistrationFee
-  } else {
-    // This is a custom duration, use the API response directly
-    discountPercentage = 0
-    basePrice = baseRegistrationFee
-    pricePerYear = baseRegistrationFee / pricingDuration
-    discountAmount = 0
+  // Fetch pricing for all durations when domain changes
+  useEffect(() => {
+    let isCancelled = false
+
+    const fetchPricingOptions = async () => {
+      if (!domainName) return
+
+      setIsPricingLoading(true)
+      try {
+        // Fetch only 1-year price to use as base
+        const baseResult = await getTokenPrices(domainName, 1)
+
+        if (isCancelled) return
+
+        if (baseResult.isOk() && baseResult.value.usdc) {
+          const basePerYear = parseFloat(baseResult.value.usdc.formatted)
+          setBasePricePerYear(basePerYear)
+
+          const updatedOptions: PricingOptions = { ...INITIAL_PRICING_OPTIONS }
+          const updatedQuotes: PricingQuoteMap = createEmptyPricingQuoteMap()
+
+          // Calculate prices with client-side discounts
+          PRICING_DURATIONS.forEach((duration) => {
+            const discount = INITIAL_PRICING_OPTIONS[duration].discount
+            const discountMultiplier = 1 - discount / 100
+            const perYearPrice = basePerYear * discountMultiplier
+            const totalPrice = perYearPrice * duration
+
+            updatedOptions[duration] = {
+              ...INITIAL_PRICING_OPTIONS[duration],
+              price: perYearPrice,
+              discount,
+              total: totalPrice,
+            }
+
+            updatedQuotes[duration] = {
+              usdc: totalPrice,
+              dai: baseResult.value.dai
+                ? parseFloat(baseResult.value.dai.formatted) *
+                  discountMultiplier *
+                  duration
+                : undefined,
+            }
+          })
+
+          setPricingOptions(updatedOptions)
+          setPricingQuotes(updatedQuotes)
+        } else {
+          setBasePricePerYear(null)
+          setPricingOptions(INITIAL_PRICING_OPTIONS)
+          setPricingQuotes(createEmptyPricingQuoteMap())
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          console.error('Failed to get pricing options:', error)
+          setPricingOptions(INITIAL_PRICING_OPTIONS)
+          setBasePricePerYear(null)
+          setPricingQuotes(createEmptyPricingQuoteMap())
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsPricingLoading(false)
+        }
+      }
+    }
+
+    fetchPricingOptions()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [domainName])
+
+  const handleConfirmPayment = (tokenPrice: bigint, selectedToken: string) => {
+    onConfirmPayment(tokenPrice, selectedToken)
   }
 
-  const total = baseRegistrationFee + networkFee
-
-  const calculateDurationFromDate = (endDate: Date) => {
-    const now = new Date()
-    const diffInMs = endDate.getTime() - now.getTime()
-    const diffInYears = diffInMs / (1000 * 60 * 60 * 24 * 365.25)
-    return Math.max(1, Math.round(diffInYears * 100) / 100)
+  const handleSelectDuration = (newDuration: PricingDuration) => {
+    setSelectedDuration(newDuration)
+    onSetDuration(newDuration)
   }
 
-  const handleDateSelect = (date: Date | undefined) => {
-    if (date) {
-      setSelectedDate(date)
-      const calculatedDuration = calculateDurationFromDate(date)
-      onSetDuration(calculatedDuration)
+  const isPriceLoading =
+    isPricingLoading ||
+    pricingQuotes[selectedDuration]?.usdc === undefined ||
+    pricingQuotes[selectedDuration]?.usdc === null
+
+  const handleConnect = async () => {
+    try {
+      await openModal()
+    } catch (error) {
+      console.error('Failed to open Para modal:', error)
     }
   }
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    })
-  }
-
-  const minDate = new Date()
-  minDate.setDate(minDate.getDate() + 1)
-
   return (
-    <div className="space-y-4">
-      <div className="inline-flex items-center rounded bg-foreground px-2 py-1 font-bold text-background text-lg">
-        {domainName}
+    <div className="w-full max-w-[1200px] space-y-6">
+      {/* Domain Name Header */}
+      <div className="flex flex-col items-center gap-3 md:items-start">
+        {isPremium && premiumLabel && (
+          <DomainAttributePill
+            label={premiumLabel.label}
+            variant={premiumLabel.variant}
+          />
+        )}
+        <h1 className="font-semi-mono text-[#4a5c63] text-[48px] leading-none tracking-[-0.96px] md:text-[96px] md:tracking-[-7.68px]">
+          {domainName}
+        </h1>
       </div>
 
-      <h2 className="font-bold text-foreground text-xl">
-        Choose registration length
-      </h2>
-
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) => setActiveTab(value as 'years' | 'date')}
-      >
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="years">Select by Years</TabsTrigger>
-          <TabsTrigger value="date">Choose End Date</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="years" className="space-y-4">
-          <div className="mb-4">
-            <h3 className="mb-3 font-medium text-foreground text-sm">
-              Quick select
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              {yearOptions.map((yearOption) => (
-                <button
-                  key={yearOption.years}
-                  type="button"
-                  onClick={() => onSetDuration(yearOption.years)}
-                  className={cn(
-                    'relative rounded-lg border p-4 text-left transition-colors',
-                    duration === yearOption.years
-                      ? 'border-primary bg-primary/5 text-primary'
-                      : 'border-border bg-card hover:border-muted-foreground',
-                  )}
-                >
-                  <div className="font-medium">
-                    {yearOption.years} year{yearOption.years > 1 ? 's' : ''}
-                  </div>
-                  <div className="text-muted-foreground text-sm">
-                    {yearOption.discount > 0
-                      ? `${yearOption.discount}% off`
-                      : ''}
-                  </div>
-                  {yearOption.years === 5 && (
-                    <div className="-top-2 -right-2 absolute rounded bg-primary px-2 py-1 text-primary-foreground text-xs">
-                      Best value
-                    </div>
-                  )}
-                </button>
-              ))}
+      {/* Two Column Layout - Desktop / Single Column - Mobile */}
+      <div className="flex flex-col gap-4 md:flex-row md:gap-2">
+        {/* Left Column: Duration Selector */}
+        <div className="flex-1 space-y-2">
+          <DurationSelector
+            pricing={pricingOptions}
+            selectedDuration={selectedDuration}
+            onSelect={handleSelectDuration}
+            disabled={isPricingLoading || isLoading}
+          />
+          {isPricingLoading && (
+            <div className="text-center">
+              <p className="text-slate-500 text-sm">Loading prices...</p>
             </div>
-          </div>
+          )}
+        </div>
 
-          <div>
-            <label
-              htmlFor="custom-years"
-              className="mb-2 block font-medium text-foreground text-sm"
-            >
-              Or enter custom duration
-            </label>
-            <div className="flex w-full items-center space-x-2">
-              <Input
-                id="custom-years"
-                type="number"
-                placeholder="Enter years (1-999)"
-                value={customYears}
-                onChange={(e) => {
-                  setCustomYears(e.target.value)
-                  const years = parseInt(e.target.value, 10)
-                  if (years >= 1 && years <= 999) {
-                    onSetDuration(years)
-                  }
-                }}
-                min="1"
-                max="999"
-                className="flex-1"
-              />
-              <span className="text-muted-foreground">years</span>
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="date" className="space-y-4">
-          <div>
-            <h3 className="mb-3 font-medium text-foreground text-sm">
-              Select registration end date
-            </h3>
-            <div className="rounded-lg border border-border p-4">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={handleDateSelect}
-                disabled={(date) => date < minDate}
-                className="w-full"
-              />
-            </div>
-            {selectedDate && (
-              <div className="mt-3 rounded-lg bg-muted p-3">
-                <p className="text-muted-foreground text-sm">
-                  Registration will end on:{' '}
-                  <span className="font-medium text-foreground">
-                    {formatDate(selectedDate)}
+        {/* Right Column: Summary Cards - Desktop / Mobile: Full width */}
+        <div className="flex w-full flex-col gap-1 md:w-[453px] md:gap-[9px]">
+          {/* Registration Summary Card */}
+          <div className="flex flex-col items-center justify-center rounded-xl border border-[#ddddde] bg-white px-0 py-8 md:h-[205px] md:p-6">
+            <div className="w-full space-y-6 md:space-y-6">
+              <div className="space-y-2 text-center">
+                {/* Registering for X years */}
+                <div className="flex items-baseline justify-center gap-[6px]">
+                  <span className="font-normal text-[20px] text-primary-midnight-blue leading-none tracking-[-0.2px] md:text-[24px] md:tracking-[-0.24px]">
+                    Registering for
                   </span>
+                  <div className="rounded-sm bg-[rgba(245,245,245,0.5)] px-1 py-[2px]">
+                    <span className="font-medium text-[20px] text-brand-blue leading-none tracking-[-0.2px] md:text-[24px] md:tracking-[-0.24px]">
+                      {paddedDuration}
+                    </span>
+                  </div>
+                  <span className="font-normal text-[20px] text-primary-midnight-blue leading-none tracking-[-0.2px] md:text-[24px] md:tracking-[-0.24px]">
+                    years
+                  </span>
+                </div>
+
+                {/* Expiring on date */}
+                <div className="space-y-[6px]">
+                  <span className="font-normal text-[20px] text-primary-midnight-blue leading-none tracking-[-0.2px] md:text-[24px] md:tracking-[-0.24px]">
+                    expiring on
+                  </span>
+                  <div className="inline-flex items-center gap-2 rounded-sm bg-[rgba(245,245,245,0.5)] px-1 py-[2px]">
+                    <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+                      <rect
+                        x="3"
+                        y="4"
+                        width="11"
+                        height="10"
+                        rx="1"
+                        stroke="#0080bc"
+                        strokeWidth="1.5"
+                      />
+                      <path
+                        d="M3 7h11M6 3v2M11 3v2"
+                        stroke="#0080bc"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <span className="font-medium text-[20px] text-brand-blue leading-none tracking-[-0.2px] md:text-[24px] md:tracking-[-0.24px]">
+                      {formattedExpiration}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Total & Payment Card */}
+          <div className="space-y-8 rounded-xl border border-[#ddddde] bg-white px-0 py-8 md:space-y-[38px] md:p-8">
+            {/* Total Price Section */}
+            <div className="flex flex-col justify-center gap-4 text-center md:gap-1">
+              <div className="space-y-1">
+                <p className="font-normal text-[12px] text-lapis-surface tracking-[0.12px]">
+                  TOTAL
                 </p>
+                {!isPriceLoading &&
+                  discountPercentage > 0 &&
+                  theoreticalTotal > finalPrice && (
+                    <p className="text-[#7d7d7d] text-[16px] tracking-[-0.28px] line-through">
+                      ${theoreticalTotal.toFixed(0)} USD
+                    </p>
+                  )}
+                <div className="flex items-end justify-center gap-[6px]">
+                  <span className="font-medium font-mono text-[36px] text-primary-midnight-blue leading-none tracking-[0.36px] md:text-[48px] md:tracking-[0.48px]">
+                    ${isPriceLoading ? '...' : finalPrice.toFixed(0)}
+                  </span>
+                  <span className="font-normal text-[16px] text-primary-midnight-blue leading-[27px]">
+                    USD
+                  </span>
+                </div>
+              </div>
+              {!isPriceLoading &&
+                discountPercentage > 0 &&
+                discountAmount > 0 && (
+                  <div className="mx-auto w-fit rounded bg-[#e7faed] px-4 py-3 md:w-auto">
+                    <span className="font-normal text-[#007c23] text-[24px] tracking-[-0.22px]">
+                      Save ${discountAmount.toFixed(0)}
+                    </span>
+                  </div>
+                )}
+            </div>
+
+            {/* Payment Button */}
+            {!isConnected ? (
+              <div className="px-5 md:px-0">
+                <Button
+                  variant="default"
+                  className="h-[70px] w-full rounded-[4px] bg-brand-blue hover:bg-brand-blue-hover md:h-[74px]"
+                  onClick={handleConnect}
+                >
+                  <span className="font-medium font-mono text-[13px] text-white uppercase tracking-[1.04px]">
+                    Connect or sign in to register
+                  </span>
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 px-5 md:px-0">
+                <CryptoPaymentDrawer
+                  domainName={domainName}
+                  duration={selectedDuration}
+                  priceUSD={isPriceLoading ? 0 : finalPrice}
+                  isLoading={isLoading}
+                  onPaymentSelect={onSelectPayment}
+                  onCryptoSelect={onSelectCrypto}
+                  onConfirmPayment={handleConfirmPayment}
+                  isUsingAA={isUsingAA}
+                />
+                <CreditCardPaymentDrawer
+                  domainName={domainName}
+                  duration={selectedDuration}
+                  priceUSD={isPriceLoading ? 0 : finalPrice}
+                  onPaymentSelect={onSelectPayment}
+                />
               </div>
             )}
           </div>
-        </TabsContent>
-      </Tabs>
-
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-foreground text-lg">
-            Order Summary
-          </h3>
-          <div className="flex items-center rounded-md border border-border">
-            <button
-              type="button"
-              onClick={() => onSetCurrency('USD')}
-              className={cn(
-                'rounded-l-md px-3 py-1 font-medium text-sm transition-colors',
-                currencyType === 'USD'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              USD
-            </button>
-            <button
-              type="button"
-              onClick={() => onSetCurrency('ETH')}
-              className={cn(
-                'rounded-r-md px-3 py-1 font-medium text-sm transition-colors',
-                currencyType === 'ETH'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              ETH
-            </button>
-          </div>
         </div>
-
-        <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="rounded bg-foreground px-2 py-1 font-bold text-background text-sm">
-                {domainName}
-              </div>
-              <span className="text-muted-foreground text-sm">
-                •{' '}
-                {duration === Math.floor(duration)
-                  ? duration
-                  : duration.toFixed(2)}{' '}
-                year{duration !== 1 ? 's' : ''}
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="font-bold text-foreground text-lg">Total</span>
-              <span className="font-bold text-primary">●</span>
-            </div>
-          </div>
-
-          <div className="text-right">
-            <div className="font-bold text-2xl text-foreground">
-              {currencyType === 'ETH' ? '⟠' : '$'}
-              {total.toFixed(2)} {currencyType}
-            </div>
-          </div>
-
-          <Collapsible open={isBreakdownOpen} onOpenChange={setIsBreakdownOpen}>
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                className="flex h-auto w-full items-center justify-between p-0 hover:bg-transparent"
-              >
-                <span className="text-muted-foreground text-sm">
-                  Price breakdown
-                </span>
-                <ChevronDownIcon
-                  className={cn(
-                    'h-4 w-4 text-muted-foreground transition-transform',
-                    isBreakdownOpen && 'rotate-180',
-                  )}
-                />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-2 pt-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">
-                  ({pricingDuration} year{pricingDuration !== 1 ? 's' : ''} ×{' '}
-                  {currencyType === 'ETH' ? '⟠' : '$'}
-                  {pricePerYear.toFixed(2)} {currencyType}/year)
-                  {pricingDuration !== duration && (
-                    <span className="block text-muted-foreground/70 text-xs">
-                      (Rounded up from {duration.toFixed(2)} years)
-                    </span>
-                  )}
-                </span>
-                <span className="text-foreground">
-                  {currencyType === 'ETH' ? '⟠' : '$'}
-                  {basePrice.toFixed(2)}
-                </span>
-              </div>
-              {discountPercentage > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-green-600">
-                    ({discountPercentage}% off)
-                  </span>
-                  <span className="text-green-600">
-                    -{currencyType === 'ETH' ? '⟠' : '$'}
-                    {discountAmount.toFixed(2)}
-                  </span>
-                </div>
-              )}
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Est. network fee</span>
-                <span className="text-foreground">
-                  {currencyType === 'ETH' ? '⟠' : '$'}
-                  {networkFee.toFixed(4)}
-                </span>
-              </div>
-              <div className="border-border border-t pt-2">
-                <div className="flex justify-between font-medium text-sm">
-                  <span className="text-foreground">Total</span>
-                  <span className="text-foreground">
-                    {currencyType === 'ETH' ? '⟠' : '$'}
-                    {total.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
-
-        {!isConnected ? (
-          <RegisterDrawer
-            domainName={domainName}
-            duration={duration}
-            priceUSD={currencyType === 'USD' ? total : total * 2500}
-          >
-            <Button className="h-12 w-full font-semibold text-base">
-              Register
-            </Button>
-          </RegisterDrawer>
-        ) : (
-          <div className="flex space-x-3">
-            <CreditCardPaymentDrawer
-              domainName={domainName}
-              duration={duration}
-              priceUSD={currencyType === 'USD' ? total : total * 2500}
-              onPaymentSelect={onSelectPayment}
-            />
-            <CryptoPaymentDrawer
-              domainName={domainName}
-              duration={duration}
-              priceUSD={currencyType === 'USD' ? total : total * 2500}
-              onPaymentSelect={onSelectPayment}
-              onCryptoSelect={onSelectCrypto}
-              onConfirmPayment={onConfirmPayment}
-            />
-          </div>
-        )}
       </div>
     </div>
   )
+}
+
+function determinePremium(name: string) {
+  const normalized = name.trim().toLowerCase()
+  const label = normalized.endsWith('.eth')
+    ? normalized.replace('.eth', '')
+    : normalized
+  return label.length > 0 && label.length <= 4
 }
