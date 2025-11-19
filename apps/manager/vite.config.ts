@@ -48,4 +48,7 @@ export default defineConfig({
     },
     include: ['buffer', 'crypto-browserify', 'stream-browserify'],
   },
+  ssr: {
+    noExternal: ['crypto-browserify', 'stream-browserify'],
+  },
 })
