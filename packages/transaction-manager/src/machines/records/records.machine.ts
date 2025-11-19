@@ -201,13 +201,27 @@ export const recordsMachine = setup({
     },
 
     success: {
-      type: 'final',
       entry: ['logTransition', 'recordTransition', 'clearSnapshot'],
     },
 
     error: {
       entry: ['logTransition', 'recordTransition'],
       on: {
+        START_UPDATE: {
+          target: 'settingUpUpdate',
+          actions: assign({
+            name: ({ event }) => event.name,
+            before: ({ event }) => event.before,
+            after: ({ event }) => event.after,
+            signer: ({ event }) => event.signer,
+            accountAddress: ({ event }) => event.accountAddress,
+            publicClient: ({ event }) => event.publicClient,
+            resolverAddress: ({ event, context }) =>
+              event.resolverAddress ?? context.resolverAddress,
+            error: () => undefined,
+            updateTxId: () => undefined,
+          }),
+        },
         RETRY: {
           target: 'submittingUpdate',
           actions: assign({
