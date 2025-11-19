@@ -22,6 +22,8 @@ export const getOwner = ResultFn(async function* (name: string) {
     (e) => new GetOwnerError({ cause: e as GetOwnerErrorType }),
   )
 
+  console.log('result', result)
+
   if (!result) {
     return yield* new MissingOwnerError({})
   }

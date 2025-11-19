@@ -2,7 +2,7 @@ import {
   type RhinestoneSigner,
   recordsMachine,
 } from '@ens-apps/transaction-manager'
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useActorRef } from '@xstate/react'
 import type { Address } from 'viem'
 import { Button } from '@/components/ui/button'
@@ -35,7 +35,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     select: transformProfileRecords,
   })
 
-  const { data: ownerData } = useSuspenseQuery({
+  const { data: ownerData } = useQuery({
     ...profileOwnerQuery(name),
   })
 
