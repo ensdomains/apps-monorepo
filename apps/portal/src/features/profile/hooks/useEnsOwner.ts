@@ -1,6 +1,7 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import {
   type GetOwnerErrorType,
   type GetOwnerParameters,
@@ -21,6 +22,9 @@ export class GetEnsOwnerError extends TaggedError('GetEnsOwnerError')<{
   cause: GetOwnerErrorType | GetRegistryOwnerByLabelErrorType
 }> {}
 
+// ensjs doesn't work well with multichain yet
+const namechainEthRegistryAddress = '0x5fb63bbd34de21688c8aa8131be1c3b4a477109c'
+
 export const getEnsOwner = ResultFn(async function* (
   params: GetOwnerParameters,
 ) {
@@ -38,18 +42,33 @@ export const getEnsOwner = ResultFn(async function* (
 
   const namechainClient = yield* safeGetNamechainSepoliaClient()
 
-  let l2v2Owner = (yield* await fromPromise(
+  const l2v2Owner = yield* await fromPromise(
     getRegistryOwnerByLabel(namechainClient, {
       label,
-      registryAddress: '0x5fb63bbd34de21688c8aa8131be1c3b4a477109c',
+      registryAddress: namechainEthRegistryAddress,
     }),
     (e) =>
       new GetEnsOwnerError({ cause: e as GetRegistryOwnerByLabelErrorType }),
-  )) as Address | undefined
+  )
 
-  if (l2v2Owner === zeroAddress) l2v2Owner = undefined
+  if (l1v1Owner?.owner)
+    return ok({
+      owner: l1v1Owner?.owner,
+      registryAddress: getChainContractAddress({
+        chain: client.chain,
+        contract: 'ensRegistry',
+      }),
+      network: 'sepolia',
+    } as const)
 
-  return ok(l1v1Owner?.owner || l2v2Owner)
+  if (l2v2Owner && l2v2Owner !== zeroAddress)
+    return ok({
+      owner: l2v2Owner,
+      registryAddress: namechainEthRegistryAddress,
+      network: 'namechainSepolia',
+    } as const)
+
+  return ok(null)
 })
 
 export const getEnsOwnerQueryKey = createQueryKey<

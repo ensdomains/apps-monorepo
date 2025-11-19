@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useEnsResolver } from 'wagmi'
@@ -10,11 +10,12 @@ import { Owner } from '@/components/primary-name/Owner'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
 import { ParentName } from '@/features/profile/components/ParentName'
+import { ProtocolVersionWithCounter } from '@/features/profile/components/ProtocolVersionWithCounter'
 import { RecentActivity } from '@/features/profile/components/RecentActivity'
 import { RecordCount } from '@/features/profile/components/RecordCount'
-import { ResolverLocation } from '@/features/profile/components/ResolverLocation'
-import { RolesCount } from '@/features/profile/components/RolesCount'
 import { SubnameCount } from '@/features/profile/components/SubnameCount'
+import { TokenLocation } from '@/features/profile/components/TokenLocation'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 
 export const Route = createFileRoute('/$name/')({
@@ -29,10 +30,24 @@ const Profile = ({
   name: string
   resolverAddress?: Address
 }) => {
-  const { data, isLoading, error } = useQuery(getProfileQueryOptions(name))
+  const [profileQuery, ownerQuery] = useQueries({
+    queries: [getProfileQueryOptions(name), getEnsOwnerQueryOptions({ name })],
+  })
 
-  if (error) return <div>Error: {error.cause?.message}</div>
-  if (isLoading) return <LoadingSpinner title="Loading..." />
+  if (profileQuery.error)
+    return (
+      <div>
+        Failed to fetch the profile: {profileQuery.error.cause?.message}
+      </div>
+    )
+  if (ownerQuery.error)
+    return (
+      <div>Failed to fetch the owner: {ownerQuery.error.cause?.message}</div>
+    )
+  if (ownerQuery.isLoading || profileQuery.isLoading)
+    return <LoadingSpinner title="Loading..." />
+
+  const network = ownerQuery.data?.network || 'sepolia'
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -40,19 +55,17 @@ const Profile = ({
         <NameProfileCard name={name} />
       </div>
       <ExpiryWithRegistrationData name={name} />
-      <Owner name={name} />
+      <Owner owner={ownerQuery.data?.owner} />
       <ParentName name={name} />
-      {resolverAddress && (
-        <ResolverLocation name={name} resolverAddress={resolverAddress} />
-      )}
+      <TokenLocation name={name} network={network} />
 
       <RecordCount
         name={name}
-        records={data?.records}
+        records={profileQuery.data?.records}
         resolverAddress={resolverAddress}
       />
       <SubnameCount name={name} />
-      <RolesCount name={name} resolverAddress={resolverAddress} />
+      <ProtocolVersionWithCounter name={name} network={network} />
     </div>
   )
 }
