@@ -10,7 +10,10 @@ import {
   type Hex,
   namehash,
   type PublicClient,
+  zeroAddress,
 } from 'viem'
+import { DEDICATED_RESOLVER_ABI } from '../../contracts/abis/DedicatedResolver.abi'
+import { PUBLIC_RESOLVER_ABI } from '../../contracts/abis/PublicResolver.abi'
 import { ENS_SEPOLIA_CONTRACTS } from '../../contracts/ens-sepolia'
 import { transactionManager } from '../../providers/transactionManager'
 
@@ -37,48 +40,6 @@ type RecordChanges = {
   texts: TextChange[]
   coins: CoinChange[]
 }
-
-/**
- * Minimal DedicatedResolver ABI snippets required for profile updates.
- */
-const dedicatedResolverSetTextSnippet = [
-  {
-    inputs: [
-      { name: 'key', type: 'string' },
-      { name: 'value', type: 'string' },
-    ],
-    name: 'setText',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const
-
-const dedicatedResolverSetAddrSnippet = [
-  {
-    inputs: [
-      { name: 'coinType', type: 'uint256' },
-      { name: 'addressBytes', type: 'bytes' },
-    ],
-    name: 'setAddr',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const
-
-const dedicatedResolverMulticallWithNodeCheckSnippet = [
-  {
-    inputs: [
-      { name: 'node', type: 'bytes32' },
-      { name: 'calls', type: 'bytes[]' },
-    ],
-    name: 'multicallWithNodeCheck',
-    outputs: [{ name: 'results', type: 'bytes[]' }],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const
 
 /**
  * Normalize a coin id (string or number) into either a numeric type or name.
@@ -167,7 +128,7 @@ const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => {
 
   for (const { key, value } of changes.texts) {
     const data = encodeFunctionData({
-      abi: dedicatedResolverSetTextSnippet,
+      abi: DEDICATED_RESOLVER_ABI,
       functionName: 'setText',
       args: [key, value ?? ''],
     })
@@ -180,7 +141,7 @@ const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => {
     let encoded: Hex | Uint8Array = value ? coder.decode(value) : '0x'
 
     if (coder.coinType === 60 && encoded === '0x') {
-      encoded = coder.decode('0x0000000000000000000000000000000000000000')
+      encoded = coder.decode(zeroAddress)
     }
 
     if (typeof encoded !== 'string') {
@@ -188,9 +149,46 @@ const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => {
     }
 
     const data = encodeFunctionData({
-      abi: dedicatedResolverSetAddrSnippet,
+      abi: DEDICATED_RESOLVER_ABI,
       functionName: 'setAddr',
       args: [BigInt(coder.coinType), encoded],
+    })
+
+    calls.push(data)
+  }
+
+  return calls
+}
+
+const buildPublicResolverCalls = (node: Hex, changes: RecordChanges): Hex[] => {
+  const calls: Hex[] = []
+
+  for (const { key, value } of changes.texts) {
+    const data = encodeFunctionData({
+      abi: PUBLIC_RESOLVER_ABI,
+      functionName: 'setText',
+      args: [node, key, value ?? ''],
+    })
+
+    calls.push(data)
+  }
+
+  for (const { coin, value } of changes.coins) {
+    const coder = getCoderFromCoin(coin)
+    let encoded: Hex | Uint8Array = value ? coder.decode(value) : '0x'
+
+    if (coder.coinType === 60 && encoded === '0x') {
+      encoded = coder.decode(zeroAddress)
+    }
+
+    if (typeof encoded !== 'string') {
+      encoded = bytesToHex(encoded)
+    }
+
+    const data = encodeFunctionData({
+      abi: PUBLIC_RESOLVER_ABI,
+      functionName: 'setAddr',
+      args: [node, BigInt(coder.coinType), encoded],
     })
 
     calls.push(data)
@@ -207,6 +205,7 @@ export const submitProfileRecordsUpdateActor = (input: {
   publicClient: PublicClient
   chainId: number
   resolverAddress?: Address
+  isDedicatedResolver?: boolean
 }): ResultAsync<string, Error> =>
   fromPromise(
     (async () => {
@@ -227,10 +226,12 @@ export const submitProfileRecordsUpdateActor = (input: {
         input.resolverAddress ?? ENS_SEPOLIA_CONTRACTS.PublicResolver
 
       const node = namehash(input.name) as Hex
-      const calls = buildDedicatedResolverCalls(changes)
+      const calls = input.isDedicatedResolver
+        ? buildDedicatedResolverCalls(changes)
+        : buildPublicResolverCalls(node, changes)
 
       const multicallData = encodeFunctionData({
-        abi: dedicatedResolverMulticallWithNodeCheckSnippet,
+        abi: DEDICATED_RESOLVER_ABI,
         functionName: 'multicallWithNodeCheck',
         args: [node, calls],
       })
