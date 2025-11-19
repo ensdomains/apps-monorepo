@@ -10,6 +10,7 @@ import {
   type Hex,
   namehash,
   type PublicClient,
+  zeroAddress,
 } from 'viem'
 import { ENS_SEPOLIA_CONTRACTS } from '../../contracts/ens-sepolia'
 import { transactionManager } from '../../providers/transactionManager'
@@ -209,7 +210,7 @@ const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => {
     let encoded: Hex | Uint8Array = value ? coder.decode(value) : '0x'
 
     if (coder.coinType === 60 && encoded === '0x') {
-      encoded = coder.decode('0x0000000000000000000000000000000000000000')
+      encoded = coder.decode(zeroAddress)
     }
 
     if (typeof encoded !== 'string') {
@@ -246,7 +247,7 @@ const buildPublicResolverCalls = (node: Hex, changes: RecordChanges): Hex[] => {
     let encoded: Hex | Uint8Array = value ? coder.decode(value) : '0x'
 
     if (coder.coinType === 60 && encoded === '0x') {
-      encoded = coder.decode('0x0000000000000000000000000000000000000000')
+      encoded = coder.decode(zeroAddress)
     }
 
     if (typeof encoded !== 'string') {
