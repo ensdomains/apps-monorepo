@@ -38,17 +38,21 @@ interface OwnerProps {
 }
 
 export const Owner = ({ name }: OwnerProps) => {
-  const { data, error, isLoading } = useQuery(getEnsOwnerQueryOptions({ name }))
+  const {
+    data: owner,
+    error,
+    isLoading,
+  } = useQuery(getEnsOwnerQueryOptions({ name }))
 
   if (error) return <div>Error: {error.cause?.message}</div>
   if (isLoading) return <LoadingSpinner title="Loading..." />
-  if (!data?.owner)
+  if (!owner)
     return (
       <div className="flex flex-col p-6 rounded-2xl border border-gray-300">
         <span className="font-medium">Owner</span>
-        <span>No owner data (WIP)</span>
+        <span>No owner data</span>
       </div>
     )
 
-  return <OwnerWithENS owner={data.owner} />
+  return <OwnerWithENS owner={owner} />
 }

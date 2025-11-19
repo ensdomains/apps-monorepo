@@ -18,6 +18,9 @@ import { createConfig } from 'wagmi'
 
 export const sepoliaWithEns = extendChainWithEns(sepolia)
 
+// later to be replaced with actual namechain sepolia
+export const namechainSepolia = sepolia
+
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: false,
@@ -29,6 +32,7 @@ export const wagmiConfig = createConfig({
     baseSepolia,
     lineaSepolia,
     scrollSepolia,
+    namechainSepolia,
   ],
   connectors: connectorsForWallets(
     [
