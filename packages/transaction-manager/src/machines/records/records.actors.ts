@@ -12,6 +12,8 @@ import {
   type PublicClient,
   zeroAddress,
 } from 'viem'
+import { DEDICATED_RESOLVER_ABI } from '../../contracts/abis/DedicatedResolver.abi'
+import { PUBLIC_RESOLVER_ABI } from '../../contracts/abis/PublicResolver.abi'
 import { ENS_SEPOLIA_CONTRACTS } from '../../contracts/ens-sepolia'
 import { transactionManager } from '../../providers/transactionManager'
 
@@ -38,77 +40,6 @@ type RecordChanges = {
   texts: TextChange[]
   coins: CoinChange[]
 }
-
-/**
- * Minimal DedicatedResolver ABI snippets required for profile updates.
- */
-const dedicatedResolverSetTextSnippet = [
-  {
-    inputs: [
-      { name: 'key', type: 'string' },
-      { name: 'value', type: 'string' },
-    ],
-    name: 'setText',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const
-
-const dedicatedResolverSetAddrSnippet = [
-  {
-    // DedicatedResolver: setAddr(uint256 coinType, bytes addressBytes)
-    inputs: [
-      { name: 'coinType', type: 'uint256' },
-      { name: 'addressBytes', type: 'bytes' },
-    ],
-    name: 'setAddr',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const
-
-const publicResolverSetTextSnippet = [
-  {
-    inputs: [
-      { name: 'node', type: 'bytes32' },
-      { name: 'key', type: 'string' },
-      { name: 'value', type: 'string' },
-    ],
-    name: 'setText',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const
-
-const publicResolverSetAddrSnippet = [
-  {
-    inputs: [
-      { name: 'node', type: 'bytes32' },
-      { name: 'coinType', type: 'uint256' },
-      { name: 'addressBytes', type: 'bytes' },
-    ],
-    name: 'setAddr',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const
-
-const dedicatedResolverMulticallWithNodeCheckSnippet = [
-  {
-    inputs: [
-      { name: 'node', type: 'bytes32' },
-      { name: 'calls', type: 'bytes[]' },
-    ],
-    name: 'multicallWithNodeCheck',
-    outputs: [{ name: 'results', type: 'bytes[]' }],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const
 
 /**
  * Normalize a coin id (string or number) into either a numeric type or name.
@@ -197,7 +128,7 @@ const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => {
 
   for (const { key, value } of changes.texts) {
     const data = encodeFunctionData({
-      abi: dedicatedResolverSetTextSnippet,
+      abi: DEDICATED_RESOLVER_ABI,
       functionName: 'setText',
       args: [key, value ?? ''],
     })
@@ -218,7 +149,7 @@ const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => {
     }
 
     const data = encodeFunctionData({
-      abi: dedicatedResolverSetAddrSnippet,
+      abi: DEDICATED_RESOLVER_ABI,
       functionName: 'setAddr',
       args: [BigInt(coder.coinType), encoded],
     })
@@ -234,7 +165,7 @@ const buildPublicResolverCalls = (node: Hex, changes: RecordChanges): Hex[] => {
 
   for (const { key, value } of changes.texts) {
     const data = encodeFunctionData({
-      abi: publicResolverSetTextSnippet,
+      abi: PUBLIC_RESOLVER_ABI,
       functionName: 'setText',
       args: [node, key, value ?? ''],
     })
@@ -255,7 +186,7 @@ const buildPublicResolverCalls = (node: Hex, changes: RecordChanges): Hex[] => {
     }
 
     const data = encodeFunctionData({
-      abi: publicResolverSetAddrSnippet,
+      abi: PUBLIC_RESOLVER_ABI,
       functionName: 'setAddr',
       args: [node, BigInt(coder.coinType), encoded],
     })
@@ -300,7 +231,7 @@ export const submitProfileRecordsUpdateActor = (input: {
         : buildPublicResolverCalls(node, changes)
 
       const multicallData = encodeFunctionData({
-        abi: dedicatedResolverMulticallWithNodeCheckSnippet,
+        abi: DEDICATED_RESOLVER_ABI,
         functionName: 'multicallWithNodeCheck',
         args: [node, calls],
       })
