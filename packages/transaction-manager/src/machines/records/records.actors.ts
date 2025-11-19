@@ -41,10 +41,6 @@ type RecordChanges = {
   coins: CoinChange[]
 }
 
-/**
- * Normalize a coin id (string or number) into either a numeric type or name.
- * Mirrors ensjs normalizeCoinId behaviour in a simplified form.
- */
 const normalizeCoinId = (
   coinId: string | number,
 ): { type: 'id'; value: number } | { type: 'name'; value: string } => {
@@ -123,79 +119,77 @@ const computeRecordChanges = (
   return { texts: textChanges, coins: coinChanges }
 }
 
-const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => {
-  const calls: Hex[] = []
+const encodeCoinValue = (
+  coder: ReturnType<typeof getCoderFromCoin>,
+  value: string | null,
+): Hex => {
+  let encoded: Hex | Uint8Array = value ? coder.decode(value) : '0x'
 
-  for (const { key, value } of changes.texts) {
-    const data = encodeFunctionData({
-      abi: DEDICATED_RESOLVER_ABI,
-      functionName: 'setText',
-      args: [key, value ?? ''],
-    })
-
-    calls.push(data)
+  if (coder.coinType === 60 && encoded === '0x') {
+    encoded = coder.decode(zeroAddress)
   }
 
-  for (const { coin, value } of changes.coins) {
-    const coder = getCoderFromCoin(coin)
-    let encoded: Hex | Uint8Array = value ? coder.decode(value) : '0x'
-
-    if (coder.coinType === 60 && encoded === '0x') {
-      encoded = coder.decode(zeroAddress)
-    }
-
-    if (typeof encoded !== 'string') {
-      encoded = bytesToHex(encoded)
-    }
-
-    const data = encodeFunctionData({
-      abi: DEDICATED_RESOLVER_ABI,
-      functionName: 'setAddr',
-      args: [BigInt(coder.coinType), encoded],
-    })
-
-    calls.push(data)
+  if (typeof encoded !== 'string') {
+    encoded = bytesToHex(encoded)
   }
 
-  return calls
+  return encoded
 }
 
-const buildPublicResolverCalls = (node: Hex, changes: RecordChanges): Hex[] => {
-  const calls: Hex[] = []
-
-  for (const { key, value } of changes.texts) {
-    const data = encodeFunctionData({
-      abi: PUBLIC_RESOLVER_ABI,
+const buildTextCalls = (options: {
+  abi: typeof DEDICATED_RESOLVER_ABI | typeof PUBLIC_RESOLVER_ABI
+  texts: TextChange[]
+  buildArgs: (key: string, value: string | null) => readonly unknown[]
+}): Hex[] =>
+  options.texts.map(({ key, value }) =>
+    encodeFunctionData({
+      abi: options.abi,
       functionName: 'setText',
-      args: [node, key, value ?? ''],
-    })
+      args: options.buildArgs(key, value ?? '') as any,
+    }),
+  )
 
-    calls.push(data)
-  }
-
-  for (const { coin, value } of changes.coins) {
+const buildCoinCalls = (options: {
+  abi: typeof DEDICATED_RESOLVER_ABI | typeof PUBLIC_RESOLVER_ABI
+  coins: CoinChange[]
+  buildArgs: (coinType: number, encoded: Hex) => readonly unknown[]
+}): Hex[] =>
+  options.coins.map(({ coin, value }) => {
     const coder = getCoderFromCoin(coin)
-    let encoded: Hex | Uint8Array = value ? coder.decode(value) : '0x'
+    const encoded = encodeCoinValue(coder, value)
 
-    if (coder.coinType === 60 && encoded === '0x') {
-      encoded = coder.decode(zeroAddress)
-    }
-
-    if (typeof encoded !== 'string') {
-      encoded = bytesToHex(encoded)
-    }
-
-    const data = encodeFunctionData({
-      abi: PUBLIC_RESOLVER_ABI,
+    return encodeFunctionData({
+      abi: options.abi,
       functionName: 'setAddr',
-      args: [node, BigInt(coder.coinType), encoded],
+      args: options.buildArgs(coder.coinType, encoded) as any,
     })
+  })
 
-    calls.push(data)
-  }
+const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => [
+  ...buildTextCalls({
+    abi: DEDICATED_RESOLVER_ABI,
+    texts: changes.texts,
+    buildArgs: (key, value) => [key, value],
+  }),
+  ...buildCoinCalls({
+    abi: DEDICATED_RESOLVER_ABI,
+    coins: changes.coins,
+    buildArgs: (coinType, encoded) => [BigInt(coinType), encoded],
+  }),
+]
 
-  return calls
-}
+const buildPublicResolverCalls = (node: Hex, changes: RecordChanges): Hex[] => [
+  ...buildTextCalls({
+    abi: PUBLIC_RESOLVER_ABI,
+    texts: changes.texts,
+    buildArgs: (key, value) => [node, key, value],
+  }),
+  ...buildCoinCalls({
+    abi: PUBLIC_RESOLVER_ABI,
+    coins: changes.coins,
+    buildArgs: (coinType, encoded) => [node, BigInt(coinType), encoded],
+  }),
+]
 
 export const submitProfileRecordsUpdateActor = (input: {
   name: string

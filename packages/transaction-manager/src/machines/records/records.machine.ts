@@ -42,6 +42,19 @@ export type RecordsInput = {
   chainId: number
 }
 
+const startUpdateAssignment = {
+  name: ({ event }: any) => event.name,
+  before: ({ event }: any) => event.before,
+  after: ({ event }: any) => event.after,
+  signer: ({ event }: any) => event.signer,
+  accountAddress: ({ event }: any) => event.accountAddress,
+  publicClient: ({ event }: any) => event.publicClient,
+  resolverAddress: ({ event, context }: any) =>
+    event.resolverAddress ?? context.resolverAddress,
+  isDedicatedResolver: ({ event, context }: any) =>
+    event.isDedicatedResolver ?? context.isDedicatedResolver,
+}
+
 export const recordsMachine = setup({
   types: {
     context: {} as RecordsContext,
@@ -125,18 +138,7 @@ export const recordsMachine = setup({
       on: {
         START_UPDATE: {
           target: 'settingUpUpdate',
-          actions: assign({
-            name: ({ event }) => event.name,
-            before: ({ event }) => event.before,
-            after: ({ event }) => event.after,
-            signer: ({ event }) => event.signer,
-            accountAddress: ({ event }) => event.accountAddress,
-            publicClient: ({ event }) => event.publicClient,
-            resolverAddress: ({ event, context }) =>
-              event.resolverAddress ?? context.resolverAddress,
-            isDedicatedResolver: ({ event, context }) =>
-              event.isDedicatedResolver ?? context.isDedicatedResolver,
-          }),
+          actions: assign(startUpdateAssignment),
         },
       },
     },
@@ -215,16 +217,7 @@ export const recordsMachine = setup({
         START_UPDATE: {
           target: 'settingUpUpdate',
           actions: assign({
-            name: ({ event }) => event.name,
-            before: ({ event }) => event.before,
-            after: ({ event }) => event.after,
-            signer: ({ event }) => event.signer,
-            accountAddress: ({ event }) => event.accountAddress,
-            publicClient: ({ event }) => event.publicClient,
-            resolverAddress: ({ event, context }) =>
-              event.resolverAddress ?? context.resolverAddress,
-            isDedicatedResolver: ({ event, context }) =>
-              event.isDedicatedResolver ?? context.isDedicatedResolver,
+            ...startUpdateAssignment,
             error: () => undefined,
             updateTxId: () => undefined,
           }),
