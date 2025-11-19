@@ -39,7 +39,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     ...profileOwnerQuery(name),
   })
 
-  const { data: resolverData } = useSuspenseQuery({
+  const { data: resolverData } = useQuery({
     ...profileResolverQuery(name),
   })
 

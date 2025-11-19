@@ -224,7 +224,9 @@ export const submitProfileRecordsUpdateActor = (input: {
 
       const smartAccountAddress = input.signer.account.getAddress() as Address
       const resolverAddress =
-        input.resolverAddress ?? ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl
+        input.resolverAddress ?? ENS_SEPOLIA_CONTRACTS.PublicResolver
+
+      console.log('resolverAddress', smartAccountAddress, resolverAddress)
 
       const node = namehash(input.name) as Hex
       const calls = buildDedicatedResolverCalls(changes)

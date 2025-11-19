@@ -4,7 +4,6 @@
  * Pure functions for ENS registration operations.
  */
 
-import type { RhinestoneAccount } from '@rhinestone/sdk'
 import {
   err,
   errAsync,
@@ -59,7 +58,7 @@ function generateCommitment(
           ownerAddress,
           secret,
           ENS_SEPOLIA_CONTRACTS.ETHRegistry,
-          ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl,
+          ENS_SEPOLIA_CONTRACTS.PublicResolver,
           duration,
           REFERER_ADDRESS,
         ],
@@ -115,7 +114,7 @@ function encodeRegistrationData(
       ownerAddress,
       secret,
       ENS_SEPOLIA_CONTRACTS.ETHRegistry,
-      ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl,
+      ENS_SEPOLIA_CONTRACTS.PublicResolver,
       duration,
       paymentToken,
       REFERER_ADDRESS,
