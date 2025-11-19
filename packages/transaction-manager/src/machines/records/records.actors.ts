@@ -56,7 +56,36 @@ const dedicatedResolverSetTextSnippet = [
 
 const dedicatedResolverSetAddrSnippet = [
   {
+    // DedicatedResolver: setAddr(uint256 coinType, bytes addressBytes)
     inputs: [
+      { name: 'coinType', type: 'uint256' },
+      { name: 'addressBytes', type: 'bytes' },
+    ],
+    name: 'setAddr',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+] as const
+
+const publicResolverSetTextSnippet = [
+  {
+    inputs: [
+      { name: 'node', type: 'bytes32' },
+      { name: 'key', type: 'string' },
+      { name: 'value', type: 'string' },
+    ],
+    name: 'setText',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+] as const
+
+const publicResolverSetAddrSnippet = [
+  {
+    inputs: [
+      { name: 'node', type: 'bytes32' },
       { name: 'coinType', type: 'uint256' },
       { name: 'addressBytes', type: 'bytes' },
     ],
@@ -199,6 +228,43 @@ const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => {
   return calls
 }
 
+const buildPublicResolverCalls = (node: Hex, changes: RecordChanges): Hex[] => {
+  const calls: Hex[] = []
+
+  for (const { key, value } of changes.texts) {
+    const data = encodeFunctionData({
+      abi: publicResolverSetTextSnippet,
+      functionName: 'setText',
+      args: [node, key, value ?? ''],
+    })
+
+    calls.push(data)
+  }
+
+  for (const { coin, value } of changes.coins) {
+    const coder = getCoderFromCoin(coin)
+    let encoded: Hex | Uint8Array = value ? coder.decode(value) : '0x'
+
+    if (coder.coinType === 60 && encoded === '0x') {
+      encoded = coder.decode('0x0000000000000000000000000000000000000000')
+    }
+
+    if (typeof encoded !== 'string') {
+      encoded = bytesToHex(encoded)
+    }
+
+    const data = encodeFunctionData({
+      abi: publicResolverSetAddrSnippet,
+      functionName: 'setAddr',
+      args: [node, BigInt(coder.coinType), encoded],
+    })
+
+    calls.push(data)
+  }
+
+  return calls
+}
+
 export const submitProfileRecordsUpdateActor = (input: {
   name: string
   before: ServiceRecordSnapshot
@@ -207,6 +273,7 @@ export const submitProfileRecordsUpdateActor = (input: {
   publicClient: PublicClient
   chainId: number
   resolverAddress?: Address
+  isDedicatedResolver?: boolean
 }): ResultAsync<string, Error> =>
   fromPromise(
     (async () => {
@@ -227,7 +294,9 @@ export const submitProfileRecordsUpdateActor = (input: {
         input.resolverAddress ?? ENS_SEPOLIA_CONTRACTS.PublicResolver
 
       const node = namehash(input.name) as Hex
-      const calls = buildDedicatedResolverCalls(changes)
+      const calls = input.isDedicatedResolver
+        ? buildDedicatedResolverCalls(changes)
+        : buildPublicResolverCalls(node, changes)
 
       const multicallData = encodeFunctionData({
         abi: dedicatedResolverMulticallWithNodeCheckSnippet,

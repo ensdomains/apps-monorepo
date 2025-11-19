@@ -89,6 +89,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       after,
       signer,
       resolverAddress: resolverData?.resolverAddress,
+      isDedicatedResolver: resolverData?.isDedicatedResolver,
       accountAddress: accountAddress as Address,
       publicClient,
     })
