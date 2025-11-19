@@ -1,4 +1,4 @@
-import { useModal } from '@getpara/react-sdk'
+import { useModal } from '@getpara/react-sdk-lite'
 import { useEffect, useMemo, useState } from 'react'
 import type { DomainAttributePillVariant } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
