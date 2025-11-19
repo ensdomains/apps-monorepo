@@ -9,7 +9,7 @@ export const ENS_SEPOLIA_CONTRACTS = {
   BaseRegistrar: '0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85' as const,
 
   // Public Resolver
-  PublicResolver: '0x9010A27463717360cAD99CEA8bD39b8705CCA238' as const,
+  PublicResolver: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const,
 
   // Universal Resolver
   UniversalResolver: '0x352d7aA7a8bd0F6f31635BE5ceCb6Cebb6929A15' as const,
@@ -23,7 +23,6 @@ export const ENS_SEPOLIA_CONTRACTS = {
   // Registration-specific contracts (from manager app)
   ETHRegistry: '0x5fb63bbd34de21688c8aa8131be1c3b4a477109c' as const,
   FastTestETHRegistrar: '0xb08b6a514d54562ef3b7470bdb709c4eb135c535' as const,
-  DedicatedResolverImpl: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const,
 } as const
 
 // Payment tokens

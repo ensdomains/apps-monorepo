@@ -14,12 +14,11 @@ export type RecordsContext = {
   accountAddress?: Address
   publicClient?: PublicClient
   chainId: number
-
   name: string
   resolverAddress?: Address
+  isDedicatedResolver?: boolean
   before?: ServiceRecordSnapshot
   after?: ServiceRecordSnapshot
-
   updateTxId?: string
   error?: Error
 }
@@ -34,6 +33,7 @@ export type RecordsEvent =
       accountAddress: Address
       publicClient: PublicClient
       resolverAddress?: Address
+      isDedicatedResolver?: boolean
     }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
@@ -59,6 +59,7 @@ export const recordsMachine = setup({
         publicClient: PublicClient
         chainId: number
         resolverAddress?: Address
+        isDedicatedResolver?: boolean
       }) => submitProfileRecordsUpdateActor(input),
     ),
     pollTransactionStatus: fromResultAsync((input: { txId: string }) =>
@@ -112,6 +113,7 @@ export const recordsMachine = setup({
     chainId: input.chainId,
     name: '',
     resolverAddress: undefined,
+    isDedicatedResolver: undefined,
     before: undefined,
     after: undefined,
     updateTxId: undefined,
@@ -132,6 +134,8 @@ export const recordsMachine = setup({
             publicClient: ({ event }) => event.publicClient,
             resolverAddress: ({ event, context }) =>
               event.resolverAddress ?? context.resolverAddress,
+            isDedicatedResolver: ({ event, context }) =>
+              event.isDedicatedResolver ?? context.isDedicatedResolver,
           }),
         },
       },
@@ -163,6 +167,7 @@ export const recordsMachine = setup({
           publicClient: context.publicClient!,
           chainId: context.chainId,
           resolverAddress: context.resolverAddress,
+          isDedicatedResolver: context.isDedicatedResolver,
         }),
         onDone: {
           target: 'waitingForUpdate',
@@ -201,13 +206,29 @@ export const recordsMachine = setup({
     },
 
     success: {
-      type: 'final',
       entry: ['logTransition', 'recordTransition', 'clearSnapshot'],
     },
 
     error: {
       entry: ['logTransition', 'recordTransition'],
       on: {
+        START_UPDATE: {
+          target: 'settingUpUpdate',
+          actions: assign({
+            name: ({ event }) => event.name,
+            before: ({ event }) => event.before,
+            after: ({ event }) => event.after,
+            signer: ({ event }) => event.signer,
+            accountAddress: ({ event }) => event.accountAddress,
+            publicClient: ({ event }) => event.publicClient,
+            resolverAddress: ({ event, context }) =>
+              event.resolverAddress ?? context.resolverAddress,
+            isDedicatedResolver: ({ event, context }) =>
+              event.isDedicatedResolver ?? context.isDedicatedResolver,
+            error: () => undefined,
+            updateTxId: () => undefined,
+          }),
+        },
         RETRY: {
           target: 'submittingUpdate',
           actions: assign({
