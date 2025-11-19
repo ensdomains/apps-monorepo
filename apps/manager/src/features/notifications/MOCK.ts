@@ -28,34 +28,6 @@ const names = [
   '0xtestwallet.base.eth',
 ]
 
-const _postSlugs = await fetch(
-  'https://6709d36e.ensdomains-v2.pages.dev/blog/search.json',
-)
-  // biome-ignore lint/suspicious/noExplicitAny: Quick mock
-  .then((res) => res.json() as any)
-  .then((data) => data.map((post: { slug: string }) => post.slug))
-
-const _getPostMetadata = async (slug: string) => {
-  const post = await fetch(
-    `https://ens.domains/blog/post/${slug}/metadata.json`,
-  ).then((res) => res.json())
-  return post as {
-    slug: string
-    title: string
-
-    assets: {
-      post: {
-        'cover-thumb'?: {
-          src: string
-        }
-        cover?: {
-          src: string
-        }
-      }
-    }
-  }
-}
-
 type PostData = {
   slug: string
   title: string
