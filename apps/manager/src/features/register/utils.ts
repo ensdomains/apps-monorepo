@@ -12,6 +12,18 @@ export const getErrorMessage = (error: unknown) => {
   return error
 }
 
+/**
+ * Determines if a domain name is premium based on its length
+ * Premium domains are 4 characters or less (excluding .eth)
+ */
+export const determinePremium = (name: string): boolean => {
+  const normalized = name.trim().toLowerCase()
+  const label = normalized.endsWith('.eth')
+    ? normalized.replace('.eth', '')
+    : normalized
+  return label.length > 0 && label.length <= 4
+}
+
 export const STABLECOINS = {
   USDC: {
     id: 'usdc',

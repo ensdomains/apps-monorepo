@@ -105,7 +105,7 @@ export const DurationSelector = ({
                   ${formattedTotalPrice}
                 </span>
                 <span className="font-normal text-[#a0a4a6] text-[9px] leading-none tracking-[-0.38px] md:text-[16px]">
-                  per year
+                  Total
                 </span>
               </div>
             </div>

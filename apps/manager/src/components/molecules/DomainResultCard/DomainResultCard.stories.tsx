@@ -156,8 +156,6 @@ export const CustomLabels: Story = {
         domainName="custom.eth"
         status="available"
         price={50}
-        priceLabel="per year"
-        // actionText="Buy Now"
         onAction={() => alert('Custom action!')}
       />
       <DomainResultCard
