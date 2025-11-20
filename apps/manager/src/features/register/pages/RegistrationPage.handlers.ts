@@ -5,14 +5,14 @@
  */
 
 import type { registrationMachine, Signer } from '@ens-apps/transaction-manager'
-import type { PublicClient } from 'viem'
+import type { Address, PublicClient } from 'viem'
 import type { ActorRefFrom } from 'xstate'
 import { SUPPORTED_TOKENS } from '../services/nameChainContractService'
 
 export interface StartRegistrationParams {
   name: string
   duration: number // years
-  selectedToken: `0x${string}`
+  selectedToken: Address
   tokenPrice: bigint
 }
 
@@ -89,7 +89,7 @@ export function handleStartRegistration(
     token,
     price: tokenPrice,
     signer,
-    accountAddress: accountAddress as `0x${string}`,
+    accountAddress: accountAddress as Address,
     publicClient,
     useFastRegistrar,
   })

@@ -4,18 +4,19 @@
  * Manages local UI state (form inputs) separate from registration flow state.
  */
 
+import type { Address } from 'viem'
 import { SUPPORTED_TOKENS } from '../services/nameChainContractService'
 
 export interface RegistrationUIState {
   name: string
   duration: number // years
-  selectedToken: `0x${string}`
+  selectedToken: Address
 }
 
 export type RegistrationUIAction =
   | { type: 'SET_NAME'; name: string }
   | { type: 'SET_DURATION'; duration: number }
-  | { type: 'SET_TOKEN'; token: `0x${string}` }
+  | { type: 'SET_TOKEN'; token: Address }
   | { type: 'RESET'; initialName?: string }
 
 export function createInitialUIState(

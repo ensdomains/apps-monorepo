@@ -1,3 +1,5 @@
+import type { Hex } from 'viem'
+
 export const getTxHashResult = (result: any) => {
   if (result && typeof result === 'object') {
     if ('fill' in result && result.fill && typeof result.fill === 'object') {
@@ -16,5 +18,5 @@ export const getTxHashResult = (result: any) => {
 }
 
 export type RhinestoneTransactionResult = {
-  hash: `0x${string}`
+  hash: Hex
 }

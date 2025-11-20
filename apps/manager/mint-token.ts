@@ -1,182 +1,182 @@
 #!/usr/bin/env tsx
 
 import {
-    type Address,
-    createPublicClient,
-    createWalletClient,
-    formatUnits,
-    type Hex,
-    http,
-    parseUnits
-} from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
-import { customSepolia, SEPOLIA_RPC_URL } from './src/lib/wagmi';
-
+  type Address,
+  createPublicClient,
+  createWalletClient,
+  formatUnits,
+  type Hex,
+  http,
+  parseUnits,
+} from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
+import { customSepolia, SEPOLIA_RPC_URL } from './src/lib/wagmi'
 
 // Configuration
-const RHINESTONE_ACCOUNT: Address = '' as `0x${string}`; // Replace with the actual Rhinestone account address
-const MINT_AMOUNT = parseUnits('1000', 18); // 1000 tokens (DAI has 18 decimals)
-const USDC_MINT_AMOUNT = parseUnits('1000', 6); // 1000 USDC (USDC has 6 decimals)
+const RHINESTONE_ACCOUNT: Address = '' as Address // Replace with the actual Rhinestone account address
+const MINT_AMOUNT = parseUnits('1000', 18) // 1000 tokens (DAI has 18 decimals)
+const USDC_MINT_AMOUNT = parseUnits('1000', 6) // 1000 USDC (USDC has 6 decimals)
 
 // Mock token addresses on Sepolia
-const MOCK_USDC_ADDRESS: Address = '0x9028ab8e872af36c30c959a105cb86d1038412ae';
-const MOCK_DAI_ADDRESS: Address = '0x6630589c2e6364a96bb7acf0d9d64ac9c1dd3528';
+const MOCK_USDC_ADDRESS: Address = '0x9028ab8e872af36c30c959a105cb86d1038412ae'
+const MOCK_DAI_ADDRESS: Address = '0x6630589c2e6364a96bb7acf0d9d64ac9c1dd3528'
 
 // ERC20 ABI for mint function (assuming these are mock tokens with mint function)
 const ERC20_ABI = [
-    {
-        inputs: [
-            { name: 'to', type: 'address' as const },
-            { name: 'amount', type: 'uint256' as const }
-        ],
-        name: 'mint',
-        outputs: [],
-        stateMutability: 'nonpayable' as const,
-        type: 'function' as const
-    },
-    {
-        inputs: [{ name: 'account', type: 'address' as const }],
-        name: 'balanceOf',
-        outputs: [{ name: '', type: 'uint256' as const }],
-        stateMutability: 'view' as const,
-        type: 'function' as const
-    },
-    {
-        inputs: [],
-        name: 'decimals',
-        outputs: [{ name: '', type: 'uint8' as const }],
-        stateMutability: 'view' as const,
-        type: 'function' as const
-    },
-    {
-        inputs: [],
-        name: 'symbol',
-        outputs: [{ name: '', type: 'string' as const }],
-        stateMutability: 'view' as const,
-        type: 'function' as const
-    }
-] as const;
+  {
+    inputs: [
+      { name: 'to', type: 'address' as const },
+      { name: 'amount', type: 'uint256' as const },
+    ],
+    name: 'mint',
+    outputs: [],
+    stateMutability: 'nonpayable' as const,
+    type: 'function' as const,
+  },
+  {
+    inputs: [{ name: 'account', type: 'address' as const }],
+    name: 'balanceOf',
+    outputs: [{ name: '', type: 'uint256' as const }],
+    stateMutability: 'view' as const,
+    type: 'function' as const,
+  },
+  {
+    inputs: [],
+    name: 'decimals',
+    outputs: [{ name: '', type: 'uint8' as const }],
+    stateMutability: 'view' as const,
+    type: 'function' as const,
+  },
+  {
+    inputs: [],
+    name: 'symbol',
+    outputs: [{ name: '', type: 'string' as const }],
+    stateMutability: 'view' as const,
+    type: 'function' as const,
+  },
+] as const
 
 async function mintTokens(): Promise<void> {
-    // Check if private key is provided
-    let privateKey = process.env.PRIVATE_KEY;
+  // Check if private key is provided
+  let privateKey = process.env.PRIVATE_KEY
 
-    if (!privateKey) {
-        console.error('❌ Please set PRIVATE_KEY environment variable');
-        console.log('Example: PRIVATE_KEY=0x... tsx mint-tokens.ts');
-        process.exit(1);
+  if (!privateKey) {
+    console.error('❌ Please set PRIVATE_KEY environment variable')
+    console.log('Example: PRIVATE_KEY=0x... tsx mint-tokens.ts')
+    process.exit(1)
+  }
+
+  // Ensure private key has 0x prefix
+  if (!privateKey.startsWith('0x')) {
+    privateKey = `0x${privateKey}`
+  }
+
+  // Create account from private key
+  const account = privateKeyToAccount(privateKey as Hex)
+
+  // Create clients using customSepolia configuration
+  const publicClient = createPublicClient({
+    chain: customSepolia,
+    transport: http(SEPOLIA_RPC_URL),
+  })
+
+  const walletClient = createWalletClient({
+    chain: customSepolia,
+    transport: http(SEPOLIA_RPC_URL),
+    account, // Pass the account object, not the private key
+  })
+
+  const walletAddress = account.address
+  console.log(`🔑 Using wallet: ${walletAddress}`)
+  console.log(`🎯 Minting tokens to: ${RHINESTONE_ACCOUNT}`)
+  console.log('')
+
+  try {
+    // Check wallet balance
+    const balance = await publicClient.getBalance({
+      address: walletAddress,
+    })
+    console.log(`💰 Wallet balance: ${formatUnits(balance, 18)} ETH`)
+
+    if (balance < parseUnits('0.001', 18)) {
+      console.error(
+        '❌ Insufficient ETH for gas fees. Please fund your wallet.',
+      )
+      process.exit(1)
     }
 
-    // Ensure private key has 0x prefix
-    if (!privateKey.startsWith('0x')) {
-        privateKey = `0x${privateKey}`;
+    // Mint DAI
+    console.log('🪙 Minting DAI...')
+    const daiTxHash = await walletClient.writeContract({
+      address: MOCK_DAI_ADDRESS,
+      abi: ERC20_ABI,
+      functionName: 'mint',
+      args: [RHINESTONE_ACCOUNT, MINT_AMOUNT],
+    })
+
+    console.log(`📝 DAI mint transaction: ${daiTxHash}`)
+
+    // Wait for DAI transaction
+    const daiReceipt = await publicClient.waitForTransactionReceipt({
+      hash: daiTxHash,
+    })
+    console.log(`✅ DAI minted successfully! Gas used: ${daiReceipt.gasUsed}`)
+
+    // Mint USDC
+    console.log('🪙 Minting USDC...')
+    const usdcTxHash = await walletClient.writeContract({
+      address: MOCK_USDC_ADDRESS,
+      abi: ERC20_ABI,
+      functionName: 'mint',
+      args: [RHINESTONE_ACCOUNT, USDC_MINT_AMOUNT],
+    })
+
+    console.log(`📝 USDC mint transaction: ${usdcTxHash}`)
+
+    // Wait for USDC transaction
+    const usdcReceipt = await publicClient.waitForTransactionReceipt({
+      hash: usdcTxHash,
+    })
+    console.log(`✅ USDC minted successfully! Gas used: ${usdcReceipt.gasUsed}`)
+
+    // Check final balances
+    console.log('')
+    console.log('📊 Final token balances:')
+
+    const daiBalance = await publicClient.readContract({
+      address: MOCK_DAI_ADDRESS,
+      abi: ERC20_ABI,
+      functionName: 'balanceOf',
+      args: [RHINESTONE_ACCOUNT],
+    })
+
+    const usdcBalance = await publicClient.readContract({
+      address: MOCK_USDC_ADDRESS,
+      abi: ERC20_ABI,
+      functionName: 'balanceOf',
+      args: [RHINESTONE_ACCOUNT],
+    })
+
+    console.log(`🪙 DAI balance: ${formatUnits(daiBalance, 18)}`)
+    console.log(`🪙 USDC balance: ${formatUnits(usdcBalance, 6)}`)
+
+    console.log('')
+    console.log('🎉 Token minting completed successfully!')
+    console.log(`📍 Rhinestone account: ${RHINESTONE_ACCOUNT}`)
+  } catch (error) {
+    console.error('❌ Error minting tokens:', error)
+
+    // More detailed error logging
+    if (error instanceof Error) {
+      console.error('Error message:', error.message)
+      if ('cause' in error) {
+        console.error('Error cause:', error.cause)
+      }
     }
 
-    // Create account from private key
-    const account = privateKeyToAccount(privateKey as Hex);
-
-    // Create clients using customSepolia configuration
-    const publicClient = createPublicClient({
-        chain: customSepolia,
-        transport: http(SEPOLIA_RPC_URL)
-    });
-
-    const walletClient = createWalletClient({
-        chain: customSepolia,
-        transport: http(SEPOLIA_RPC_URL),
-        account // Pass the account object, not the private key
-    });
-
-    const walletAddress = account.address;
-    console.log(`🔑 Using wallet: ${walletAddress}`);
-    console.log(`🎯 Minting tokens to: ${RHINESTONE_ACCOUNT}`);
-    console.log('');
-
-    try {
-        // Check wallet balance
-        const balance = await publicClient.getBalance({
-            address: walletAddress
-        });
-        console.log(`💰 Wallet balance: ${formatUnits(balance, 18)} ETH`);
-
-        if (balance < parseUnits('0.001', 18)) {
-            console.error('❌ Insufficient ETH for gas fees. Please fund your wallet.');
-            process.exit(1);
-        }
-
-        // Mint DAI
-        console.log('🪙 Minting DAI...');
-        const daiTxHash = await walletClient.writeContract({
-            address: MOCK_DAI_ADDRESS,
-            abi: ERC20_ABI,
-            functionName: 'mint',
-            args: [RHINESTONE_ACCOUNT, MINT_AMOUNT]
-        });
-
-        console.log(`📝 DAI mint transaction: ${daiTxHash}`);
-
-        // Wait for DAI transaction
-        const daiReceipt = await publicClient.waitForTransactionReceipt({
-            hash: daiTxHash
-        });
-        console.log(`✅ DAI minted successfully! Gas used: ${daiReceipt.gasUsed}`);
-
-        // Mint USDC
-        console.log('🪙 Minting USDC...');
-        const usdcTxHash = await walletClient.writeContract({
-            address: MOCK_USDC_ADDRESS,
-            abi: ERC20_ABI,
-            functionName: 'mint',
-            args: [RHINESTONE_ACCOUNT, USDC_MINT_AMOUNT]
-        });
-
-        console.log(`📝 USDC mint transaction: ${usdcTxHash}`);
-
-        // Wait for USDC transaction
-        const usdcReceipt = await publicClient.waitForTransactionReceipt({
-            hash: usdcTxHash
-        });
-        console.log(`✅ USDC minted successfully! Gas used: ${usdcReceipt.gasUsed}`);
-
-        // Check final balances
-        console.log('');
-        console.log('📊 Final token balances:');
-
-        const daiBalance = await publicClient.readContract({
-            address: MOCK_DAI_ADDRESS,
-            abi: ERC20_ABI,
-            functionName: 'balanceOf',
-            args: [RHINESTONE_ACCOUNT]
-        });
-
-        const usdcBalance = await publicClient.readContract({
-            address: MOCK_USDC_ADDRESS,
-            abi: ERC20_ABI,
-            functionName: 'balanceOf',
-            args: [RHINESTONE_ACCOUNT]
-        });
-
-        console.log(`🪙 DAI balance: ${formatUnits(daiBalance, 18)}`);
-        console.log(`🪙 USDC balance: ${formatUnits(usdcBalance, 6)}`);
-
-        console.log('');
-        console.log('🎉 Token minting completed successfully!');
-        console.log(`📍 Rhinestone account: ${RHINESTONE_ACCOUNT}`);
-
-    } catch (error) {
-        console.error('❌ Error minting tokens:', error);
-
-        // More detailed error logging
-        if (error instanceof Error) {
-            console.error('Error message:', error.message);
-            if ('cause' in error) {
-                console.error('Error cause:', error.cause);
-            }
-        }
-
-        process.exit(1);
-    }
+    process.exit(1)
+  }
 }
 
 // Run the script
-mintTokens().catch(console.error);
+mintTokens().catch(console.error)
