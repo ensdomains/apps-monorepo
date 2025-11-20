@@ -7,6 +7,7 @@
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, PublicClient } from 'viem'
 import { encodeFunctionData, keccak256, toHex } from 'viem'
+import { sepolia } from 'viem/chains'
 import {
   ENS_SEPOLIA_CONTRACTS,
   ERC20_ABI,
@@ -233,7 +234,7 @@ export function submitCommitmentActor(input: {
             to: registrarAddress,
             data: commitmentData,
             value: 0n,
-            chainId: 11155111, // Sepolia
+            chainId: sepolia.id, // Sepolia
             rhinestoneParams: {
               calls: [
                 {
@@ -296,7 +297,7 @@ export function submitApprovalActor(input: {
             to: normalizedTokenAddress,
             data: approvalData,
             value: 0n,
-            chainId: 11155111, // Sepolia
+            chainId: sepolia.id, // Sepolia
             rhinestoneParams: {
               calls: [
                 {
@@ -383,7 +384,7 @@ export function submitRegistrationActor(input: {
             to: registrarAddress,
             data: registrationData,
             value: 0n,
-            chainId: 11155111, // Sepolia
+            chainId: sepolia.id, // Sepolia
             rhinestoneParams: {
               calls: [
                 {

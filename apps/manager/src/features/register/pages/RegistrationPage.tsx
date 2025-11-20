@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
 import { ArrowLeftIcon } from 'lucide-react'
 import { useEffect, useReducer, useState } from 'react'
+import { sepolia } from 'viem/chains'
 import { Button } from '@/components/ui/button'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 import { publicClient } from '@/lib/wagmi'
@@ -75,7 +76,7 @@ export function Registration({ initialName }: RegistrationProps) {
   // Machine actor
   const actor = useActorRef(registrationMachine, {
     input: {
-      chainId: 11155111, // Sepolia
+      chainId: sepolia.id, // Sepolia
     },
   })
 
