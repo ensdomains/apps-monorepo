@@ -48,8 +48,6 @@ export interface DomainResultCardProps {
   isPremium?: boolean
   price?: number
   priceLabel?: string
-  expiryDate?: Date | string
-  isExpiryLoading?: boolean
   onAction?: (domainName: string) => void
   className?: string
   link?: DomainResultCardLinkProps
@@ -66,7 +64,6 @@ export const DomainResultCard = ({
   isPremium: isPremiumProp = false,
   price,
   priceLabel = 'USD / year',
-  isExpiryLoading = false,
   onAction,
   className,
   link,
@@ -143,12 +140,6 @@ export const DomainResultCard = ({
             ${price !== undefined ? Math.round(price).toLocaleString() : ''}
           </p>
           <p className="text-slate-500 text-sm">{priceLabel}</p>
-
-          {isExpiryLoading && (
-            <div className="mt-2 flex flex-col items-end gap-1">
-              <div className="h-3 w-24 animate-pulse rounded bg-slate-300" />
-            </div>
-          )}
         </div>
       </div>
 
