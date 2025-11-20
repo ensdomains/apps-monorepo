@@ -1,10 +1,18 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { err, fromPromise, ok, type Result } from 'neverthrow'
-import { encodeFunctionData, formatUnits, keccak256, toHex } from 'viem'
-import { ERC20_ABI, FASTTESTETHREGISTRAR_ABI } from '@/lib/ens.abi'
-import { type RhinestoneTransactionResult } from '@/lib/rhinestone/utils'
-import { createPublicClient, http } from 'viem'
+import {
+  createPublicClient,
+  encodeFunctionData,
+  formatUnits,
+  http,
+  keccak256,
+  toHex,
+  zeroAddress,
+  zeroHash,
+} from 'viem'
 import { sepolia } from 'viem/chains'
+import { ERC20_ABI, FASTTESTETHREGISTRAR_ABI } from '@/lib/ens.abi'
+import type { RhinestoneTransactionResult } from '@/lib/rhinestone/utils'
 
 // Create standalone public client
 const SEPOLIA_RPC_URL = 'https://ethereum-sepolia-rpc.publicnode.com'
@@ -17,28 +25,28 @@ export class NameChainContractError extends TaggedError(
   'NameChainContractError',
 )<{
   cause: unknown
-}> { }
+}> {}
 
-
-export const EMPTY_ADDRESS = "0x0000000000000000000000000000000000000000" as `0x${string}`
-
-export const REFERER_ADDRESS = '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`
+export const EMPTY_ADDRESS = zeroAddress
+export const REFERER_ADDRESS = zeroHash
 
 // ENS Sepolia contract addresses (using FastTestETHRegistrar for 0 commitment time)
 export const ENS_SEPOLIA_CONTRACTS = {
-  REGISTRY: "0x5fb63bbd34de21688c8aa8131be1c3b4a477109c" as `0x${string}`, // ETHRegistry
-  REGISTRAR_CONTROLLER: "0xb08b6a514d54562ef3b7470bdb709c4eb135c535" as `0x${string}`, // FastTestETHRegistrar
-  PUBLIC_RESOLVER: "0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5" as `0x${string}`, // DedicatedResolverImpl
+  REGISTRY: '0x5fb63bbd34de21688c8aa8131be1c3b4a477109c' as `0x${string}`, // ETHRegistry
+  REGISTRAR_CONTROLLER:
+    '0xb08b6a514d54562ef3b7470bdb709c4eb135c535' as `0x${string}`, // FastTestETHRegistrar
+  PUBLIC_RESOLVER:
+    '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as `0x${string}`, // DedicatedResolverImpl
 }
 
 export const SUPPORTED_TOKENS = {
-  USDC: "0x9028ab8e872af36c30c959a105cb86d1038412ae" as `0x${string}`, // MockUSDC
-  DAI: "0x6630589c2e6364a96bb7acf0d9d64ac9c1dd3528" as `0x${string}`, // MockDAI
+  USDC: '0x9028ab8e872af36c30c959a105cb86d1038412ae' as `0x${string}`, // MockUSDC
+  DAI: '0x6630589c2e6364a96bb7acf0d9d64ac9c1dd3528' as `0x${string}`, // MockDAI
   // ETH: "0x0000000000000000000000000000000000000000" as `0x${string}`, // ETH - not supported by FastTestETHRegistrar
-};
+}
 
 // Default payment token - USDC
-export const DEFAULT_PAYMENT_TOKEN = SUPPORTED_TOKENS.USDC;
+export const DEFAULT_PAYMENT_TOKEN = SUPPORTED_TOKENS.USDC
 
 // Real commitment generation using ENS contract on Sepolia
 export const generateCommitment = async (
@@ -114,22 +122,22 @@ export const commitToRegistration = async (
     ])
 
     try {
-      const minAge = await publicClient.readContract({
+      const minAge = (await publicClient.readContract({
         address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
         abi: FASTTESTETHREGISTRAR_ABI,
         functionName: 'MIN_COMMITMENT_AGE',
-      }) as bigint
+      })) as bigint
 
       if (minAge !== 0n) {
-        const committedAt = await publicClient.readContract({
+        const committedAt = (await publicClient.readContract({
           address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
           abi: FASTTESTETHREGISTRAR_ABI,
           functionName: 'commitmentAt',
           args: [commitment],
-        }) as bigint
+        })) as bigint
 
         if (committedAt === 0n) {
-          await new Promise(resolve => setTimeout(resolve, 3000))
+          await new Promise((resolve) => setTimeout(resolve, 3000))
         }
 
         const latestBlock = await publicClient.getBlock()
@@ -137,7 +145,9 @@ export const commitToRegistration = async (
         const elapsed = nowTs - committedAt
         if (elapsed < minAge) {
           const waitSeconds = Number(minAge - elapsed)
-          await new Promise(resolve => setTimeout(resolve, waitSeconds * 1000))
+          await new Promise((resolve) =>
+            setTimeout(resolve, waitSeconds * 1000),
+          )
         }
       }
     } catch (_ageErr) {
@@ -160,7 +170,9 @@ export const approveTokenForRegistration = async (
 ): Promise<Result<RhinestoneTransactionResult, NameChainContractError>> => {
   // Force token address to lowercase to avoid Rhinestone SDK validation issues
   const normalizedTokenAddress = tokenAddress.toLowerCase() as `0x${string}`
-  console.log(`🔧 Token address normalization: ${tokenAddress} -> ${normalizedTokenAddress}`)
+  console.log(
+    `🔧 Token address normalization: ${tokenAddress} -> ${normalizedTokenAddress}`,
+  )
 
   try {
     const approveData = encodeFunctionData({
@@ -184,8 +196,12 @@ export const approveTokenForRegistration = async (
         functionName: 'allowance',
         args: [ownerAddress, ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER],
       })
-      console.log(`🔎 Allowance check: ${ownerAddress} -> ${ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER}`)
-      console.log(`🔎 Current allowance: ${currentAllowance.toString()} (required: ${amount.toString()})`)
+      console.log(
+        `🔎 Allowance check: ${ownerAddress} -> ${ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER}`,
+      )
+      console.log(
+        `🔎 Current allowance: ${currentAllowance.toString()} (required: ${amount.toString()})`,
+      )
       if (currentAllowance <= amount) {
         const reApproveData = encodeFunctionData({
           abi: ERC20_ABI,
@@ -223,7 +239,9 @@ export const registerDomain = async (
 ): Promise<Result<RhinestoneTransactionResult, NameChainContractError>> => {
   // Force payment token address to lowercase to avoid Rhinestone SDK validation issues
   const normalizedPaymentToken = paymentToken.toLowerCase() as `0x${string}`
-  console.log(`🔧 Payment token normalization: ${paymentToken} -> ${normalizedPaymentToken}`)
+  console.log(
+    `🔧 Payment token normalization: ${paymentToken} -> ${normalizedPaymentToken}`,
+  )
 
   try {
     // Check if the payment token is supported
@@ -234,10 +252,15 @@ export const registerDomain = async (
       args: [normalizedPaymentToken],
     })
 
-    console.log(`🔍 Payment token ${normalizedPaymentToken} is supported:`, isSupported)
+    console.log(
+      `🔍 Payment token ${normalizedPaymentToken} is supported:`,
+      isSupported,
+    )
 
     if (!isSupported) {
-      throw new Error(`Payment token ${normalizedPaymentToken} is not supported by the ENS registrar`)
+      throw new Error(
+        `Payment token ${normalizedPaymentToken} is not supported by the ENS registrar`,
+      )
     }
     // Convert duration from years to seconds
     const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
@@ -267,7 +290,6 @@ export const registerDomain = async (
       },
     ])
 
-
     return ok(result)
   } catch (error) {
     console.error('❌ Failed to register domain:', error)
@@ -275,13 +297,19 @@ export const registerDomain = async (
     // Handle specific error cases
     if (error instanceof Error) {
       if (error.message.includes('0x02e2ae9e')) {
-        console.error('❌ Payment token error detected. The token may not be supported or there may be insufficient balance.')
+        console.error(
+          '❌ Payment token error detected. The token may not be supported or there may be insufficient balance.',
+        )
       }
       if (error.message.includes('UserOperation reverted')) {
-        console.error('❌ UserOperation reverted. This usually means the transaction would fail on-chain.')
+        console.error(
+          '❌ UserOperation reverted. This usually means the transaction would fail on-chain.',
+        )
       }
       if (error.message.includes('InsufficientValue')) {
-        console.error('❌ Insufficient value sent. The price may have changed or there may be insufficient token balance.')
+        console.error(
+          '❌ Insufficient value sent. The price may have changed or there may be insufficient token balance.',
+        )
       }
     }
 
@@ -349,7 +377,7 @@ export const getENSNameInfo = ResultFn(async function* (
     )
 
     // Get pricing for the specific payment token
-    let _priceResult: any;
+    let _priceResult: any
     try {
       _priceResult = yield* await fromPromise(
         publicClient.readContract({
@@ -367,15 +395,15 @@ export const getENSNameInfo = ResultFn(async function* (
           address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
           abi: FASTTESTETHREGISTRAR_ABI,
           functionName: 'rentPrice',
-          args: [cleanName, ownerAddress, durationInSeconds, "0x0000000000000000000000000000000000000000"],
+          args: [cleanName, ownerAddress, durationInSeconds, zeroAddress],
         }),
         (e) => new NameChainContractError({ cause: e }),
       )
     }
 
-    const basePrice = _priceResult[0];
-    const premium = _priceResult[1];
-    const total = basePrice + premium;
+    const basePrice = _priceResult[0]
+    const premium = _priceResult[1]
+    const total = basePrice + premium
 
     return ok({
       name: `${cleanName}.eth`,
@@ -408,7 +436,7 @@ export const getTokenPrices = ResultFn(async function* (
     // Get prices for each supported token
     for (const [tokenName, tokenAddress] of Object.entries(SUPPORTED_TOKENS)) {
       try {
-        let priceResult: any;
+        let priceResult: any
         priceResult = yield* await fromPromise(
           publicClient.readContract({
             address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
@@ -420,10 +448,10 @@ export const getTokenPrices = ResultFn(async function* (
         )
 
         // Contract returns an array [base, premium], not an object
-        const priceArray = priceResult as unknown as [bigint, bigint];
-        const basePrice = priceArray[0];
-        const premium = priceArray[1];
-        const totalPrice = basePrice + premium;
+        const priceArray = priceResult as unknown as [bigint, bigint]
+        const basePrice = priceArray[0]
+        const premium = priceArray[1]
+        const totalPrice = basePrice + premium
 
         // Get token info for formatting
         const decimals = tokenName === 'USDC' ? 6 : 18 // USDC has 6 decimals, DAI has 18
@@ -481,4 +509,3 @@ export const isPaymentTokenSupported = ResultFn(async function* (
     throw new NameChainContractError({ cause: error })
   }
 })
-
