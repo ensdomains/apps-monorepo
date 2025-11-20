@@ -1,6 +1,6 @@
 'use client'
 
-import { useWallet } from '@getpara/react-sdk'
+import { useWallet } from '@getpara/react-sdk-lite'
 import { CreditCardIcon } from 'lucide-react'
 import * as React from 'react'
 import { StablecoinItem } from '@/components/molecules/StablecoinList/StablecoinItem'
