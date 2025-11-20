@@ -1,9 +1,11 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { err, fromPromise, ok, type Result } from 'neverthrow'
 import {
+  type Address,
   createPublicClient,
   encodeFunctionData,
   formatUnits,
+  type Hex,
   http,
   keccak256,
   toHex,
@@ -32,16 +34,14 @@ export const REFERER_ADDRESS = zeroHash
 
 // ENS Sepolia contract addresses (using FastTestETHRegistrar for 0 commitment time)
 export const ENS_SEPOLIA_CONTRACTS = {
-  REGISTRY: '0x5fb63bbd34de21688c8aa8131be1c3b4a477109c' as `0x${string}`, // ETHRegistry
-  REGISTRAR_CONTROLLER:
-    '0xb08b6a514d54562ef3b7470bdb709c4eb135c535' as `0x${string}`, // FastTestETHRegistrar
-  PUBLIC_RESOLVER:
-    '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as `0x${string}`, // DedicatedResolverImpl
+  REGISTRY: '0x5fb63bbd34de21688c8aa8131be1c3b4a477109c' as Address, // ETHRegistry
+  REGISTRAR_CONTROLLER: '0xb08b6a514d54562ef3b7470bdb709c4eb135c535' as Address, // FastTestETHRegistrar
+  PUBLIC_RESOLVER: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as Address, // DedicatedResolverImpl
 }
 
 export const SUPPORTED_TOKENS = {
-  USDC: '0x9028ab8e872af36c30c959a105cb86d1038412ae' as `0x${string}`, // MockUSDC
-  DAI: '0x6630589c2e6364a96bb7acf0d9d64ac9c1dd3528' as `0x${string}`, // MockDAI
+  USDC: '0x9028ab8e872af36c30c959a105cb86d1038412ae' as Address, // MockUSDC
+  DAI: '0x6630589c2e6364a96bb7acf0d9d64ac9c1dd3528' as Address, // MockDAI
   // ETH: "0x0000000000000000000000000000000000000000" as `0x${string}`, // ETH - not supported by FastTestETHRegistrar
 }
 
@@ -53,17 +53,14 @@ export const generateCommitment = async (
   name: string,
   ownerAddress: string,
   duration: number,
-  _paymentToken: `0x${string}` = SUPPORTED_TOKENS.USDC,
+  _paymentToken: Address = SUPPORTED_TOKENS.USDC,
 ): Promise<
-  Result<
-    { commitment: `0x${string}`; secret: `0x${string}` },
-    NameChainContractError
-  >
+  Result<{ commitment: Hex; secret: Hex }, NameChainContractError>
 > => {
   try {
     const cleanName = name.replace('.eth', '')
     const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
-    const secret = keccak256(toHex(Math.random().toString()) as `0x${string}`)
+    const secret = keccak256(toHex(Math.random().toString()) as Hex)
 
     const commitment = await publicClient.readContract({
       address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
@@ -71,7 +68,7 @@ export const generateCommitment = async (
       functionName: 'makeCommitment',
       args: [
         cleanName,
-        ownerAddress as `0x${string}`,
+        ownerAddress as Address,
         secret,
         ENS_SEPOLIA_CONTRACTS.REGISTRY,
         ENS_SEPOLIA_CONTRACTS.PUBLIC_RESOLVER,
@@ -80,7 +77,7 @@ export const generateCommitment = async (
       ],
     })
 
-    return ok({ commitment: commitment as `0x${string}`, secret })
+    return ok({ commitment: commitment as Hex, secret })
   } catch (error) {
     console.error('❌ Failed to generate commitment:', error)
     return err(new NameChainContractError({ cause: error }))
@@ -89,9 +86,9 @@ export const generateCommitment = async (
 
 // Real ENS registration functions using Rhinestone SDK
 export const commitToRegistration = async (
-  commitment: `0x${string}`,
+  commitment: Hex,
   sendTransaction: (calls: any[]) => Promise<RhinestoneTransactionResult>,
-  smartAccountAddress: `0x${string}`,
+  smartAccountAddress: Address,
 ): Promise<Result<RhinestoneTransactionResult, NameChainContractError>> => {
   try {
     // Check smart account ETH balance before committing
@@ -163,13 +160,13 @@ export const commitToRegistration = async (
 }
 
 export const approveTokenForRegistration = async (
-  tokenAddress: `0x${string}`,
+  tokenAddress: Address,
   amount: bigint,
-  ownerAddress: `0x${string}`,
+  ownerAddress: Address,
   sendTransaction: (calls: any[]) => Promise<RhinestoneTransactionResult>,
 ): Promise<Result<RhinestoneTransactionResult, NameChainContractError>> => {
   // Force token address to lowercase to avoid Rhinestone SDK validation issues
-  const normalizedTokenAddress = tokenAddress.toLowerCase() as `0x${string}`
+  const normalizedTokenAddress = tokenAddress.toLowerCase() as Address
   console.log(
     `🔧 Token address normalization: ${tokenAddress} -> ${normalizedTokenAddress}`,
   )
@@ -234,11 +231,11 @@ export const registerDomain = async (
   ownerAddress: string,
   secret: string,
   duration: number, // in years
-  paymentToken: `0x${string}` = SUPPORTED_TOKENS.USDC,
+  paymentToken: Address = SUPPORTED_TOKENS.USDC,
   sendTransaction: (calls: any[]) => Promise<RhinestoneTransactionResult>,
 ): Promise<Result<RhinestoneTransactionResult, NameChainContractError>> => {
   // Force payment token address to lowercase to avoid Rhinestone SDK validation issues
-  const normalizedPaymentToken = paymentToken.toLowerCase() as `0x${string}`
+  const normalizedPaymentToken = paymentToken.toLowerCase() as Address
   console.log(
     `🔧 Payment token normalization: ${paymentToken} -> ${normalizedPaymentToken}`,
   )
@@ -272,8 +269,8 @@ export const registerDomain = async (
       functionName: 'register',
       args: [
         cleanName,
-        ownerAddress as `0x${string}`,
-        secret as `0x${string}`,
+        ownerAddress as Address,
+        secret as Hex,
         ENS_SEPOLIA_CONTRACTS.REGISTRY,
         ENS_SEPOLIA_CONTRACTS.PUBLIC_RESOLVER,
         durationInSeconds,
@@ -358,8 +355,8 @@ export const checkRealNameAvailability = ResultFn(async function* (
 export const getENSNameInfo = ResultFn(async function* (
   name: string,
   duration: number = 1, // in years
-  paymentToken: `0x${string}` = SUPPORTED_TOKENS.USDC,
-  ownerAddress: `0x${string}` = EMPTY_ADDRESS,
+  paymentToken: Address = SUPPORTED_TOKENS.USDC,
+  ownerAddress: Address = EMPTY_ADDRESS,
 ) {
   const cleanName = name.replace('.eth', '')
   const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
@@ -490,7 +487,7 @@ export const getUSDCPrice = ResultFn(async function* (
 
 // Check if a token is supported for payments
 export const isPaymentTokenSupported = ResultFn(async function* (
-  tokenAddress: `0x${string}`,
+  tokenAddress: Address,
 ) {
   try {
     const isSupported = yield* await fromPromise(
