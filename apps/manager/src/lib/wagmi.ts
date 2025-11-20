@@ -27,6 +27,8 @@ export const publicClient = createPublicClient({
 })
 
 export const sepoliaWithEns = extendChainWithEns(customSepolia)
+export const namechainSepolia = sepolia
+
 // TODO: Not sure if this is needed separately from the publicClient
 export const ensPublicClient = createPublicClient({
   chain: sepoliaWithEns,
@@ -37,7 +39,7 @@ export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: true,
   multiInjectedProviderDiscovery: true,
-  chains: [sepoliaWithEns],
+  chains: [sepoliaWithEns, namechainSepolia],
   transports: {
     [customSepolia.id]: http(SEPOLIA_RPC_URL),
   },

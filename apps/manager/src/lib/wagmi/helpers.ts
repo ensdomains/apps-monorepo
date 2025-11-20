@@ -9,7 +9,7 @@ import {
 } from '@wagmi/core'
 import { fromAsyncThrowable, fromThrowable } from 'neverthrow'
 import type { CreateClientErrorType } from 'viem'
-import { wagmiConfig } from '../wagmi'
+import { namechainSepolia, wagmiConfig } from '../wagmi'
 
 export class WagmiClientError extends TaggedError('Wagmi/ClientError')<{
   cause: CreateClientErrorType
@@ -17,6 +17,11 @@ export class WagmiClientError extends TaggedError('Wagmi/ClientError')<{
 
 export const safeGetClient = fromThrowable(
   wagmiConfig.getClient,
+  (e) => new WagmiClientError({ cause: e as CreateClientErrorType }),
+)
+
+export const safeGetNamechainSepoliaClient = fromThrowable(
+  () => wagmiConfig.getClient({ chainId: namechainSepolia.id }),
   (e) => new WagmiClientError({ cause: e as CreateClientErrorType }),
 )
 
