@@ -35,7 +35,6 @@ function generateCommitment(
   name: string,
   ownerAddress: Address,
   duration: bigint,
-  _paymentToken: Address = SUPPORTED_TOKENS.USDC, // Not used in commitment
   registrarAddress: Address = ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
 ): ResultAsync<CommitmentData, Error> {
   const cleanName = name.replace('.eth', '')
@@ -147,7 +146,6 @@ export function generateCommitmentActor(input: {
   selectedToken: 'USDC' | 'DAI'
   useFastRegistrar: boolean
 }): ResultAsync<CommitmentData, Error> {
-  const paymentToken = getPaymentTokenAddress(input.selectedToken)
   const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
 
   return generateCommitment(
@@ -155,7 +153,6 @@ export function generateCommitmentActor(input: {
     input.name,
     input.owner,
     input.duration,
-    paymentToken,
     registrarAddress,
   )
 }
