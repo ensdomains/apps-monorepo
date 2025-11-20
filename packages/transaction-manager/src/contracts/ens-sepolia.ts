@@ -19,6 +19,7 @@ export const ENS_SEPOLIA_CONTRACTS = {
 
   // Registration-specific contracts (from manager app)
   ETHRegistry: '0x5fb63bbd34de21688c8aa8131be1c3b4a477109c' as const,
+  ETHRegistrar: '0x774faadcd7e8c4b7441aa2927f10845fea083ea1' as const,
   FastTestETHRegistrar: '0xb08b6a514d54562ef3b7470bdb709c4eb135c535' as const,
   DedicatedResolverImpl: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const,
 } as const
