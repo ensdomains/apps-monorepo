@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
 import { ArrowLeftIcon } from 'lucide-react'
 import { useEffect, useReducer, useState } from 'react'
-import type { Address } from 'viem'
+import type { Address, Hex } from 'viem'
 import { sepolia } from 'viem/chains'
 import { Button } from '@/components/ui/button'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
@@ -145,8 +145,8 @@ export function Registration({ initialName }: RegistrationProps) {
   }, [registerReadyTimestamp])
 
   // Derived state
-  const commitTxHash = commitTxId ? { hash: commitTxId as Address } : null
-  const registerTxHash = registerTxId ? { hash: registerTxId as Address } : null
+  const commitTxHash = commitTxId ? { hash: commitTxId as Hex } : null
+  const registerTxHash = registerTxId ? { hash: registerTxId as Hex } : null
   const isCommitPending = step === RegistrationStep.COMMITTING
   const isApprovePending = step === RegistrationStep.APPROVING
   const isRegisterPending = step === RegistrationStep.REGISTERING
