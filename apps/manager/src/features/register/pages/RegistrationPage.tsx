@@ -193,7 +193,7 @@ export function Registration({ initialName }: RegistrationProps) {
 
   return (
     <div className="mx-6 flex flex-col items-start gap-4 md:flex-row">
-      <div className="flex items-center justify-between">
+      <div className="absolute flex items-center justify-between">
         <Button
           variant="ghost"
           onClick={handleBack}
