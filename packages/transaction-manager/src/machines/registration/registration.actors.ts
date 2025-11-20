@@ -4,16 +4,10 @@
  * Pure functions for ENS registration operations.
  */
 
-import {
-  err,
-  errAsync,
-  fromPromise,
-  ok,
-  type Result,
-  ResultAsync,
-} from 'neverthrow'
+import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, PublicClient } from 'viem'
 import { encodeFunctionData, keccak256, toHex } from 'viem'
+import { sepolia } from 'viem/chains'
 import {
   ENS_SEPOLIA_CONTRACTS,
   ERC20_ABI,
@@ -42,7 +36,7 @@ function generateCommitment(
   name: string,
   ownerAddress: Address,
   duration: bigint,
-  _paymentToken: Address = SUPPORTED_TOKENS.USDC, // Not used in commitment
+  registrarAddress: Address = ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
 ): ResultAsync<CommitmentData, Error> {
   const cleanName = name.replace('.eth', '')
   const secret = keccak256(toHex(Math.random().toString()) as Hash)
@@ -50,7 +44,7 @@ function generateCommitment(
   return fromPromise(
     (async () => {
       const commitment = await publicClient.readContract({
-        address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+        address: registrarAddress,
         abi: FAST_TEST_ETH_REGISTRAR_ABI,
         functionName: 'makeCommitment',
         args: [
@@ -86,11 +80,14 @@ function encodeCommitmentData(commitment: Hash): Hash {
 /**
  * Encode token approval transaction data
  */
-function encodeTokenApprovalData(amount: bigint): Hash {
+function encodeTokenApprovalData(
+  amount: bigint,
+  registrarAddress: Address,
+): Hash {
   return encodeFunctionData({
     abi: ERC20_ABI,
     functionName: 'approve',
-    args: [ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar, amount * 2n],
+    args: [registrarAddress, amount * 2n],
   })
 }
 
@@ -129,6 +126,19 @@ function getPaymentTokenAddress(token: 'USDC' | 'DAI'): Address {
   return SUPPORTED_TOKENS[token]
 }
 
+function selectRegistrarAddress(useFastRegistrar: boolean): Address {
+  return useFastRegistrar
+    ? ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar
+    : ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+}
+
+function getSmartAccountAddress(signer: import('../..').Signer): Address {
+  if (signer.type === 'rhinestone') {
+    return signer.account.getAddress() as Address
+  }
+  throw new Error('Only Rhinestone signer is supported for registration')
+}
+
 // ============================================================================
 // Actor Functions (exported for use with fromResultAsync in machine)
 // ============================================================================
@@ -142,15 +152,16 @@ export function generateCommitmentActor(input: {
   duration: bigint
   publicClient: PublicClient
   selectedToken: 'USDC' | 'DAI'
+  useFastRegistrar: boolean
 }): ResultAsync<CommitmentData, Error> {
-  const paymentToken = getPaymentTokenAddress(input.selectedToken)
+  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
 
   return generateCommitment(
     input.publicClient,
     input.name,
     input.owner,
     input.duration,
-    paymentToken,
+    registrarAddress,
   )
 }
 
@@ -164,7 +175,10 @@ export function submitCommitmentActor(input: {
   name: string
   duration: bigint
   publicClient: PublicClient
+  useFastRegistrar: boolean
 }): ResultAsync<string, Error> {
+  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+
   return fromPromise(
     (async () => {
       console.log(
@@ -177,13 +191,7 @@ export function submitCommitmentActor(input: {
         },
       )
 
-      // Get account address from signer
-      let smartAccountAddress: Address
-      if (input.signer.type === 'rhinestone') {
-        smartAccountAddress = input.signer.account.getAddress() as Address
-      } else {
-        throw new Error('Only Rhinestone signer is supported for registration')
-      }
+      const smartAccountAddress = getSmartAccountAddress(input.signer)
 
       // Check smart account ETH balance before committing
       const ethBalance = await input.publicClient.getBalance({
@@ -223,14 +231,14 @@ export function submitCommitmentActor(input: {
           request: {
             type: 'rhinestone-intent',
             from: smartAccountAddress,
-            to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+            to: registrarAddress,
             data: commitmentData,
             value: 0n,
-            chainId: 11155111, // Sepolia
+            chainId: sepolia.id, // Sepolia
             rhinestoneParams: {
               calls: [
                 {
-                  to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+                  to: registrarAddress,
                   data: commitmentData,
                   value: 0n,
                 },
@@ -260,16 +268,13 @@ export function submitApprovalActor(input: {
   selectedToken: 'USDC' | 'DAI'
   signer: import('../..').Signer
   publicClient: PublicClient
+  useFastRegistrar: boolean
 }): ResultAsync<string, Error> {
+  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+
   return ResultAsync.fromSafePromise(
     Promise.resolve().then(() => {
-      // Get account address from signer
-      let smartAccountAddress: Address
-      if (input.signer.type === 'rhinestone') {
-        smartAccountAddress = input.signer.account.getAddress() as Address
-      } else {
-        throw new Error('Only Rhinestone signer is supported for registration')
-      }
+      const smartAccountAddress = getSmartAccountAddress(input.signer)
 
       const tokenAddress = getPaymentTokenAddress(input.selectedToken)
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
@@ -278,7 +283,10 @@ export function submitApprovalActor(input: {
         `🔧 Token address normalization: ${tokenAddress} -> ${normalizedTokenAddress}`,
       )
 
-      const approvalData = encodeTokenApprovalData(input.tokenPrice)
+      const approvalData = encodeTokenApprovalData(
+        input.tokenPrice,
+        registrarAddress,
+      )
 
       const txId = transactionManager.startTransaction(
         {
@@ -289,7 +297,7 @@ export function submitApprovalActor(input: {
             to: normalizedTokenAddress,
             data: approvalData,
             value: 0n,
-            chainId: 11155111, // Sepolia
+            chainId: sepolia.id, // Sepolia
             rhinestoneParams: {
               calls: [
                 {
@@ -325,16 +333,13 @@ export function submitRegistrationActor(input: {
   selectedToken: 'USDC' | 'DAI'
   owner: Address
   publicClient: PublicClient
+  useFastRegistrar: boolean
 }): ResultAsync<string, Error> {
+  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+
   return fromPromise(
     (async () => {
-      // Get account address from signer
-      let smartAccountAddress: Address
-      if (input.signer.type === 'rhinestone') {
-        smartAccountAddress = input.signer.account.getAddress() as Address
-      } else {
-        throw new Error('Only Rhinestone signer is supported for registration')
-      }
+      const smartAccountAddress = getSmartAccountAddress(input.signer)
 
       const paymentToken = getPaymentTokenAddress(input.selectedToken)
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
@@ -345,7 +350,7 @@ export function submitRegistrationActor(input: {
 
       // Check if the payment token is supported
       const isSupported = await input.publicClient.readContract({
-        address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+        address: registrarAddress,
         abi: FAST_TEST_ETH_REGISTRAR_ABI,
         functionName: 'isPaymentToken',
         args: [normalizedPaymentToken],
@@ -376,14 +381,14 @@ export function submitRegistrationActor(input: {
           request: {
             type: 'rhinestone-intent',
             from: smartAccountAddress,
-            to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+            to: registrarAddress,
             data: registrationData,
             value: 0n,
-            chainId: 11155111, // Sepolia
+            chainId: sepolia.id, // Sepolia
             rhinestoneParams: {
               calls: [
                 {
-                  to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+                  to: registrarAddress,
                   data: registrationData,
                   value: 0n,
                 },

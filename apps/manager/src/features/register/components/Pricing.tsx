@@ -1,4 +1,5 @@
 import { useModal } from '@getpara/react-sdk-lite'
+import { Calendar } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type { DomainAttributePillVariant } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
@@ -37,7 +38,11 @@ type PricingProps = {
   onSetDuration: (duration: number) => void
   onSelectPayment: (method: 'crypto' | 'credit-card') => void
   onSelectCrypto: (cryptoId: string) => void
-  onConfirmPayment: (tokenPrice: bigint, selectedToken: string) => void
+  onConfirmPayment: (
+    tokenPrice: bigint,
+    selectedToken: string,
+    options?: { fast?: boolean },
+  ) => void
 }
 
 export const Pricing = ({
@@ -198,8 +203,12 @@ export const Pricing = ({
     }
   }, [domainName])
 
-  const handleConfirmPayment = (tokenPrice: bigint, selectedToken: string) => {
-    onConfirmPayment(tokenPrice, selectedToken)
+  const handleConfirmPayment = (
+    tokenPrice: bigint,
+    selectedToken: string,
+    options?: { fast?: boolean },
+  ) => {
+    onConfirmPayment(tokenPrice, selectedToken, options)
   }
 
   const handleSelectDuration = (newDuration: PricingDuration) => {
@@ -279,23 +288,7 @@ export const Pricing = ({
                     expiring on
                   </span>
                   <div className="inline-flex items-center gap-2 rounded-sm bg-[rgba(245,245,245,0.5)] px-1 py-[2px]">
-                    <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-                      <rect
-                        x="3"
-                        y="4"
-                        width="11"
-                        height="10"
-                        rx="1"
-                        stroke="#0080bc"
-                        strokeWidth="1.5"
-                      />
-                      <path
-                        d="M3 7h11M6 3v2M11 3v2"
-                        stroke="#0080bc"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                      />
-                    </svg>
+                    <Calendar className="size-4 text-brand-blue" />
                     <span className="font-medium text-[20px] text-brand-blue leading-none tracking-[-0.2px] md:text-[24px] md:tracking-[-0.24px]">
                       {formattedExpiration}
                     </span>
