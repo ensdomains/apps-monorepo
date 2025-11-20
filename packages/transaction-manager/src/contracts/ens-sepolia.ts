@@ -1,3 +1,5 @@
+import { zeroAddress, zeroHash } from 'viem'
+
 export const ENS_SEPOLIA_CONTRACTS = {
   // ENS Registry
   Registry: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e' as const,
@@ -19,6 +21,7 @@ export const ENS_SEPOLIA_CONTRACTS = {
 
   // Registration-specific contracts (from manager app)
   ETHRegistry: '0x5fb63bbd34de21688c8aa8131be1c3b4a477109c' as const,
+  ETHRegistrar: '0x774faadcd7e8c4b7441aa2927f10845fea083ea1' as const,
   FastTestETHRegistrar: '0xb08b6a514d54562ef3b7470bdb709c4eb135c535' as const,
   DedicatedResolverImpl: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const,
 } as const
@@ -29,10 +32,8 @@ export const SUPPORTED_TOKENS = {
   DAI: '0x6630589c2e6364a96bb7acf0d9d64ac9c1dd3528' as const,
 } as const
 
-export const EMPTY_ADDRESS =
-  '0x0000000000000000000000000000000000000000' as const
-export const REFERER_ADDRESS =
-  '0x0000000000000000000000000000000000000000000000000000000000000000' as const
+export const EMPTY_ADDRESS = zeroAddress
+export const REFERER_ADDRESS = zeroHash
 
 // Fast Test ETH Registrar ABI (for registration)
 export const FAST_TEST_ETH_REGISTRAR_ABI = [

@@ -31,21 +31,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
-      crypto: 'crypto-browserify',
-      stream: 'stream-browserify',
-      buffer: 'buffer',
     },
   },
   define: {
     global: 'globalThis',
     'process.env': {},
-  },
-  optimizeDeps: {
-    esbuildOptions: {
-      define: {
-        global: 'globalThis',
-      },
-    },
-    include: ['buffer', 'crypto-browserify', 'stream-browserify'],
   },
 })

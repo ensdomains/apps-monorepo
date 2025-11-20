@@ -20,7 +20,7 @@
     "@biomejs/biome": "^2.2.3",
     "knip": "^5.63.1",
     "lefthook": "^2.0.2",
-    "wrangler": "^4.43.0"
+    "wrangler": "^4.49.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -37,7 +37,7 @@
     ],
     "patchedDependencies": {
       "xstate": "patches/xstate.patch",
-      "@getpara/core-sdk": "patches/@getpara__core-sdk.patch"
+      "@getpara/react-sdk-lite": "patches/@getpara__react-sdk-lite.patch"
     },
     "overrides": {
       "available-typed-arrays": "npm:@socketregistry/available-typed-arrays@^1",

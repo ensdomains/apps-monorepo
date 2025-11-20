@@ -1,6 +1,6 @@
 'use client'
 
-import { useWallet } from '@getpara/react-sdk'
+import { useWallet } from '@getpara/react-sdk-lite'
 import { CreditCardIcon } from 'lucide-react'
 import * as React from 'react'
 import { StablecoinItem } from '@/components/molecules/StablecoinList/StablecoinItem'
@@ -29,7 +29,11 @@ interface PaymentDrawerProps {
   isLoading?: boolean
   onPaymentSelect?: (method: 'crypto' | 'credit-card') => void
   onCryptoSelect?: (cryptoId: string) => void
-  onConfirmPayment?: (tokenPrice: bigint, selectedToken: string) => void
+  onConfirmPayment?: (
+    tokenPrice: bigint,
+    selectedToken: string,
+    options?: { fast?: boolean },
+  ) => void
   isUsingAA?: boolean
 }
 
@@ -136,6 +140,22 @@ export const CryptoPaymentDrawer = ({
 
   const hasBalances = (stablecoinBalances?.length || 0) > 0
   const stablecoinLoading = isLoadingBalances
+  const selectedCoinBalance = stablecoinBalances?.find(
+    (c) => c.address === selectedCoin,
+  )
+  const actionDisabled =
+    isLoading || stablecoinLoading || !selectedCoinBalance || !hasBalances
+
+  const handleCryptoContinue = (options?: { fast?: boolean }) => {
+    if (actionDisabled || !selectedCoinBalance) return
+    onPaymentSelect?.('crypto')
+    onCryptoSelect?.(selectedCoinBalance.address)
+    if (onConfirmPayment) {
+      const tokenPrice = BigInt(selectedCoinBalance.balance)
+      onConfirmPayment(tokenPrice, selectedCoinBalance.address, options)
+    }
+    setOpen(false)
+  }
 
   // Auto-select first available token when balance is available
   React.useEffect(() => {
@@ -275,34 +295,26 @@ export const CryptoPaymentDrawer = ({
 
         <Button
           className="w-full"
-          disabled={
-            isLoading || stablecoinLoading || !selectedCoin || !hasBalances
-          }
-          onClick={() => {
-            onPaymentSelect?.('crypto')
-            if (selectedCoin) {
-              onCryptoSelect?.(selectedCoin)
-              // Get the selected coin balance for price calculation
-              const selectedCoinBalance = stablecoinBalances?.find(
-                (c) => c.address === selectedCoin,
-              )
-              if (selectedCoinBalance && onConfirmPayment) {
-                // Use the raw balance (BigInt) and address directly
-                const tokenPrice = BigInt(selectedCoinBalance.balance)
-                onConfirmPayment(tokenPrice, selectedCoinBalance.address)
-              }
-            }
-            setOpen(false)
-          }}
+          disabled={actionDisabled}
+          onClick={() => handleCryptoContinue()}
         >
           {isLoading || stablecoinLoading
             ? 'Processing...'
-            : !selectedCoin
+            : !selectedCoinBalance
               ? 'Select a token'
-              : selectedCoin && hasBalances
-                ? `Continue with ${stablecoinBalances?.find((c) => c.address === selectedCoin)?.symbol || 'token'}`
-                : 'Continue with Payment'}
+              : `Continue with ${selectedCoinBalance.symbol}`}
         </Button>
+
+        {selectedCoinBalance && (
+          <Button
+            className="w-full"
+            variant="outline"
+            disabled={actionDisabled}
+            onClick={() => handleCryptoContinue({ fast: true })}
+          >
+            Continue with {selectedCoinBalance.symbol} (Fast)
+          </Button>
+        )}
       </div>
     </div>
   )

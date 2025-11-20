@@ -1,4 +1,5 @@
-import { useModal } from '@getpara/react-sdk'
+import { useModal } from '@getpara/react-sdk-lite'
+import { Calendar } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type { DomainAttributePillVariant } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
@@ -37,7 +38,11 @@ type PricingProps = {
   onSetDuration: (duration: number) => void
   onSelectPayment: (method: 'crypto' | 'credit-card') => void
   onSelectCrypto: (cryptoId: string) => void
-  onConfirmPayment: (tokenPrice: bigint, selectedToken: string) => void
+  onConfirmPayment: (
+    tokenPrice: bigint,
+    selectedToken: string,
+    options?: { fast?: boolean },
+  ) => void
 }
 
 export const Pricing = ({
@@ -198,8 +203,12 @@ export const Pricing = ({
     }
   }, [domainName])
 
-  const handleConfirmPayment = (tokenPrice: bigint, selectedToken: string) => {
-    onConfirmPayment(tokenPrice, selectedToken)
+  const handleConfirmPayment = (
+    tokenPrice: bigint,
+    selectedToken: string,
+    options?: { fast?: boolean },
+  ) => {
+    onConfirmPayment(tokenPrice, selectedToken, options)
   }
 
   const handleSelectDuration = (newDuration: PricingDuration) => {
@@ -221,24 +230,24 @@ export const Pricing = ({
   }
 
   return (
-    <div className="w-full max-w-[1200px] space-y-6">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 pt-4 pb-12 md:px-10">
       {/* Domain Name Header */}
-      <div className="flex flex-col items-center gap-3 md:items-start">
+      <div className="flex flex-col items-center gap-2 text-center md:items-start md:text-left">
         {isPremium && premiumLabel && (
           <DomainAttributePill
             label={premiumLabel.label}
             variant={premiumLabel.variant}
           />
         )}
-        <h1 className="font-semi-mono text-[#4a5c63] text-[48px] leading-none tracking-[-0.96px] md:text-[96px] md:tracking-[-7.68px]">
+        <h1 className="font-semi-mono text-[#4a5c63] text-[48px] leading-none tracking-[-0.96px] sm:text-[64px] md:text-[96px] md:tracking-[-7.68px]">
           {domainName}
         </h1>
       </div>
 
       {/* Two Column Layout - Desktop / Single Column - Mobile */}
-      <div className="flex flex-col gap-4 md:flex-row md:gap-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.5fr)_420px]">
         {/* Left Column: Duration Selector */}
-        <div className="flex-1 space-y-2">
+        <div className="space-y-2">
           <DurationSelector
             pricing={pricingOptions}
             selectedDuration={selectedDuration}
@@ -253,10 +262,10 @@ export const Pricing = ({
         </div>
 
         {/* Right Column: Summary Cards - Desktop / Mobile: Full width */}
-        <div className="flex w-full flex-col gap-1 md:w-[453px] md:gap-[9px]">
+        <div className="flex w-full flex-col gap-4">
           {/* Registration Summary Card */}
-          <div className="flex flex-col items-center justify-center rounded-xl border border-[#ddddde] bg-white px-0 py-8 md:h-[205px] md:p-6">
-            <div className="w-full space-y-6 md:space-y-6">
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-[#ddddde] bg-white px-6 py-6 shadow-sm">
+            <div className="w-full space-y-6">
               <div className="space-y-2 text-center">
                 {/* Registering for X years */}
                 <div className="flex items-baseline justify-center gap-[6px]">
@@ -279,23 +288,7 @@ export const Pricing = ({
                     expiring on
                   </span>
                   <div className="inline-flex items-center gap-2 rounded-sm bg-[rgba(245,245,245,0.5)] px-1 py-[2px]">
-                    <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-                      <rect
-                        x="3"
-                        y="4"
-                        width="11"
-                        height="10"
-                        rx="1"
-                        stroke="#0080bc"
-                        strokeWidth="1.5"
-                      />
-                      <path
-                        d="M3 7h11M6 3v2M11 3v2"
-                        stroke="#0080bc"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                      />
-                    </svg>
+                    <Calendar className="size-4 text-brand-blue" />
                     <span className="font-medium text-[20px] text-brand-blue leading-none tracking-[-0.2px] md:text-[24px] md:tracking-[-0.24px]">
                       {formattedExpiration}
                     </span>
@@ -306,9 +299,9 @@ export const Pricing = ({
           </div>
 
           {/* Total & Payment Card */}
-          <div className="space-y-8 rounded-xl border border-[#ddddde] bg-white px-0 py-8 md:space-y-[38px] md:p-8">
+          <div className="space-y-8 rounded-2xl border border-[#ddddde] bg-white px-6 py-8 shadow-sm">
             {/* Total Price Section */}
-            <div className="flex flex-col justify-center gap-4 text-center md:gap-1">
+            <div className="flex flex-col justify-center gap-4 text-center">
               <div className="space-y-1">
                 <p className="font-normal text-[12px] text-lapis-surface tracking-[0.12px]">
                   TOTAL
@@ -354,7 +347,7 @@ export const Pricing = ({
                 </Button>
               </div>
             ) : (
-              <div className="flex flex-col gap-3 px-5 md:px-0">
+              <div className="flex flex-col gap-3">
                 <CryptoPaymentDrawer
                   domainName={domainName}
                   duration={selectedDuration}

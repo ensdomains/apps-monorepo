@@ -1,4 +1,4 @@
-import { useWallet } from '@getpara/react-sdk'
+import { useWallet } from '@getpara/react-sdk-lite'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { LinkButton } from '@/components/ui/button'
