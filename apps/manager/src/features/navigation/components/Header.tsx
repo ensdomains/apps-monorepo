@@ -1,4 +1,4 @@
-import { useAccount, useModal, useWallet } from '@getpara/react-sdk'
+import { useAccount, useModal, useWallet } from '@getpara/react-sdk-lite'
 import { Link } from '@tanstack/react-router'
 import {
   Bell,
