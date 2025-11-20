@@ -213,7 +213,7 @@ export function Registration({ initialName }: RegistrationProps) {
             onSetDuration={handleSetDuration}
             onSelectPayment={handleSelectPayment}
             onSelectCrypto={handleSelectCrypto}
-            onConfirmPayment={(tokenPrice, selectedToken) =>
+            onConfirmPayment={(tokenPrice, selectedToken, options) =>
               handleStartRegistration(
                 {
                   name: ui.name,
@@ -228,6 +228,7 @@ export function Registration({ initialName }: RegistrationProps) {
                   publicClient,
                 },
                 actor,
+                { fast: options?.fast ?? false },
               )
             }
           />

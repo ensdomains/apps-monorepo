@@ -36,6 +36,7 @@ function generateCommitment(
   ownerAddress: Address,
   duration: bigint,
   _paymentToken: Address = SUPPORTED_TOKENS.USDC, // Not used in commitment
+  registrarAddress: Address = ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
 ): ResultAsync<CommitmentData, Error> {
   const cleanName = name.replace('.eth', '')
   const secret = keccak256(toHex(Math.random().toString()) as Hash)
@@ -43,7 +44,7 @@ function generateCommitment(
   return fromPromise(
     (async () => {
       const commitment = await publicClient.readContract({
-        address: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
+        address: registrarAddress,
         abi: FAST_TEST_ETH_REGISTRAR_ABI,
         functionName: 'makeCommitment',
         args: [
@@ -79,11 +80,14 @@ function encodeCommitmentData(commitment: Hash): Hash {
 /**
  * Encode token approval transaction data
  */
-function encodeTokenApprovalData(amount: bigint): Hash {
+function encodeTokenApprovalData(
+  amount: bigint,
+  registrarAddress: Address,
+): Hash {
   return encodeFunctionData({
     abi: ERC20_ABI,
     functionName: 'approve',
-    args: [ENS_SEPOLIA_CONTRACTS.ETHRegistrar, amount * 2n],
+    args: [registrarAddress, amount * 2n],
   })
 }
 
@@ -122,6 +126,12 @@ function getPaymentTokenAddress(token: 'USDC' | 'DAI'): Address {
   return SUPPORTED_TOKENS[token]
 }
 
+function selectRegistrarAddress(useFastRegistrar: boolean): Address {
+  return useFastRegistrar
+    ? ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar
+    : ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+}
+
 // ============================================================================
 // Actor Functions (exported for use with fromResultAsync in machine)
 // ============================================================================
@@ -135,8 +145,10 @@ export function generateCommitmentActor(input: {
   duration: bigint
   publicClient: PublicClient
   selectedToken: 'USDC' | 'DAI'
+  useFastRegistrar: boolean
 }): ResultAsync<CommitmentData, Error> {
   const paymentToken = getPaymentTokenAddress(input.selectedToken)
+  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
 
   return generateCommitment(
     input.publicClient,
@@ -144,6 +156,7 @@ export function generateCommitmentActor(input: {
     input.owner,
     input.duration,
     paymentToken,
+    registrarAddress,
   )
 }
 
@@ -157,7 +170,10 @@ export function submitCommitmentActor(input: {
   name: string
   duration: bigint
   publicClient: PublicClient
+  useFastRegistrar: boolean
 }): ResultAsync<string, Error> {
+  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+
   return fromPromise(
     (async () => {
       console.log(
@@ -216,14 +232,14 @@ export function submitCommitmentActor(input: {
           request: {
             type: 'rhinestone-intent',
             from: smartAccountAddress,
-            to: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
+            to: registrarAddress,
             data: commitmentData,
             value: 0n,
             chainId: 11155111, // Sepolia
             rhinestoneParams: {
               calls: [
                 {
-                  to: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
+                  to: registrarAddress,
                   data: commitmentData,
                   value: 0n,
                 },
@@ -253,7 +269,10 @@ export function submitApprovalActor(input: {
   selectedToken: 'USDC' | 'DAI'
   signer: import('../..').Signer
   publicClient: PublicClient
+  useFastRegistrar: boolean
 }): ResultAsync<string, Error> {
+  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+
   return ResultAsync.fromSafePromise(
     Promise.resolve().then(() => {
       // Get account address from signer
@@ -271,7 +290,10 @@ export function submitApprovalActor(input: {
         `🔧 Token address normalization: ${tokenAddress} -> ${normalizedTokenAddress}`,
       )
 
-      const approvalData = encodeTokenApprovalData(input.tokenPrice)
+      const approvalData = encodeTokenApprovalData(
+        input.tokenPrice,
+        registrarAddress,
+      )
 
       const txId = transactionManager.startTransaction(
         {
@@ -318,7 +340,10 @@ export function submitRegistrationActor(input: {
   selectedToken: 'USDC' | 'DAI'
   owner: Address
   publicClient: PublicClient
+  useFastRegistrar: boolean
 }): ResultAsync<string, Error> {
+  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+
   return fromPromise(
     (async () => {
       // Get account address from signer
@@ -338,7 +363,7 @@ export function submitRegistrationActor(input: {
 
       // Check if the payment token is supported
       const isSupported = await input.publicClient.readContract({
-        address: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
+        address: registrarAddress,
         abi: FAST_TEST_ETH_REGISTRAR_ABI,
         functionName: 'isPaymentToken',
         args: [normalizedPaymentToken],
@@ -369,14 +394,14 @@ export function submitRegistrationActor(input: {
           request: {
             type: 'rhinestone-intent',
             from: smartAccountAddress,
-            to: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
+            to: registrarAddress,
             data: registrationData,
             value: 0n,
             chainId: 11155111, // Sepolia
             rhinestoneParams: {
               calls: [
                 {
-                  to: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
+                  to: registrarAddress,
                   data: registrationData,
                   value: 0n,
                 },
