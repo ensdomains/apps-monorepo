@@ -2,7 +2,7 @@ import { registrationMachine } from '@ens-apps/transaction-manager'
 import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
 import { ArrowLeftIcon } from 'lucide-react'
-import { useReducer } from 'react'
+import { useEffect, useReducer, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 import { publicClient } from '@/lib/wagmi'
@@ -48,6 +48,7 @@ function mapMachineStateToStep(machineState: string): RegistrationStep {
     case 'preparingCommitment':
     case 'committingTransaction':
     case 'waitingForCommitment':
+    case 'commitmentCooldown':
       return RegistrationStep.COMMITTING
     case 'approvingToken':
     case 'waitingForApproval':
@@ -115,6 +116,31 @@ export function Registration({ initialName }: RegistrationProps) {
     actor,
     (state) => state.context.registrationTxId,
   )
+
+  const registerReadyTimestamp = useSelector(
+    actor,
+    (state) => state.context.registerReadyTimestamp ?? null,
+  )
+
+  const [registerWaitSeconds, setRegisterWaitSeconds] = useState<number | null>(
+    null,
+  )
+
+  useEffect(() => {
+    if (!registerReadyTimestamp) {
+      setRegisterWaitSeconds(null)
+      return
+    }
+
+    const updateRemaining = () => {
+      const diff = registerReadyTimestamp - Date.now()
+      setRegisterWaitSeconds(Math.max(0, Math.ceil(diff / 1000)))
+    }
+
+    updateRemaining()
+    const interval = setInterval(updateRemaining, 1000)
+    return () => clearInterval(interval)
+  }, [registerReadyTimestamp])
 
   // Derived state
   const commitTxHash = commitTxId ? { hash: commitTxId as `0x${string}` } : null
@@ -213,6 +239,7 @@ export function Registration({ initialName }: RegistrationProps) {
           domainName={displayDomainName}
           selectedCrypto=""
           onPaymentSuccess={() => {}} // No-op - handled by state machine
+          registerWaitSeconds={registerWaitSeconds}
         />
       )}
 

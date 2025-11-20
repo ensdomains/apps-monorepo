@@ -1,7 +1,6 @@
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
-import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Address, Hash, PublicClient } from 'viem'
-import { type ActorLogic, assign, setup } from 'xstate'
+import { assign, fromPromise, setup } from 'xstate'
 import * as auditTrail from '../../services/audit-trail.service'
 import type { Signer } from '../../types/signer.types'
 import {
@@ -32,6 +31,8 @@ type CommitmentData = {
   secret: string
 }
 
+const COMMITMENT_WAIT_DURATION_MS = 60_000
+
 export type RegistrationContext = {
   // Account & client
   signer?: Signer
@@ -50,6 +51,7 @@ export type RegistrationContext = {
   commitmentTxId?: string
   approvalTxId?: string
   registrationTxId?: string
+  registerReadyTimestamp?: number
 
   // Error state
   error?: Error
@@ -141,6 +143,12 @@ export const registrationMachine = setup({
     pollTransactionStatus: fromResultAsync((input: { txId: string }) => {
       return pollTransactionStatusActor(input)
     }),
+    waitAfterCommitment: fromPromise(
+      async ({ input }: { input: { delayMs: number } }) => {
+        const safeDelay = Math.max(0, input.delayMs)
+        await new Promise<void>((resolve) => setTimeout(resolve, safeDelay))
+      },
+    ),
   },
 
   actions: {
@@ -185,6 +193,10 @@ export const registrationMachine = setup({
       // await persistenceService.clearRegistrationSnapshot()
       console.log('🗑️ [REGISTRATION] Cleared snapshot')
     },
+
+    clearRegisterReadyTimestamp: assign({
+      registerReadyTimestamp: () => undefined,
+    }),
   },
 
   // Note: Persistence will be handled via inspect option (see export at bottom)
@@ -201,6 +213,7 @@ export const registrationMachine = setup({
     duration: 0n,
     selectedToken: 'USDC',
     tokenPrice: 0n,
+    registerReadyTimestamp: undefined,
   }),
 
   states: {
@@ -216,6 +229,7 @@ export const registrationMachine = setup({
             signer: ({ event }) => event.signer,
             accountAddress: ({ event }) => event.accountAddress,
             publicClient: ({ event }) => event.publicClient,
+            registerReadyTimestamp: () => undefined,
           }),
         },
       },
@@ -306,6 +320,36 @@ export const registrationMachine = setup({
       invoke: {
         src: 'pollTransactionStatus',
         input: ({ context }) => ({ txId: context.commitmentTxId! }),
+        onDone: {
+          target: 'commitmentCooldown',
+          actions: assign({
+            registerReadyTimestamp: () =>
+              Date.now() + COMMITMENT_WAIT_DURATION_MS,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+          }),
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    commitmentCooldown: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'waitAfterCommitment',
+        input: ({ context }) => {
+          const targetTimestamp =
+            context.registerReadyTimestamp ??
+            Date.now() + COMMITMENT_WAIT_DURATION_MS
+          const delayMs = Math.max(0, targetTimestamp - Date.now())
+          return { delayMs }
+        },
         onDone: 'approvingToken',
         onError: {
           target: 'error',
@@ -320,7 +364,11 @@ export const registrationMachine = setup({
     },
 
     approvingToken: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: [
+        'logTransition',
+        'recordTransition',
+        'clearRegisterReadyTimestamp',
+      ],
       invoke: {
         src: 'submitApproval',
         input: ({ context }) => ({

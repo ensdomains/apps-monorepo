@@ -4,15 +4,7 @@
  * Pure functions for ENS registration operations.
  */
 
-import type { RhinestoneAccount } from '@rhinestone/sdk'
-import {
-  err,
-  errAsync,
-  fromPromise,
-  ok,
-  type Result,
-  ResultAsync,
-} from 'neverthrow'
+import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, PublicClient } from 'viem'
 import { encodeFunctionData, keccak256, toHex } from 'viem'
 import {
@@ -51,7 +43,7 @@ function generateCommitment(
   return fromPromise(
     (async () => {
       const commitment = await publicClient.readContract({
-        address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+        address: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
         abi: FAST_TEST_ETH_REGISTRAR_ABI,
         functionName: 'makeCommitment',
         args: [
@@ -91,7 +83,7 @@ function encodeTokenApprovalData(amount: bigint): Hash {
   return encodeFunctionData({
     abi: ERC20_ABI,
     functionName: 'approve',
-    args: [ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar, amount * 2n],
+    args: [ENS_SEPOLIA_CONTRACTS.ETHRegistrar, amount * 2n],
   })
 }
 
@@ -224,14 +216,14 @@ export function submitCommitmentActor(input: {
           request: {
             type: 'rhinestone-intent',
             from: smartAccountAddress,
-            to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+            to: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
             data: commitmentData,
             value: 0n,
             chainId: 11155111, // Sepolia
             rhinestoneParams: {
               calls: [
                 {
-                  to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+                  to: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
                   data: commitmentData,
                   value: 0n,
                 },
@@ -346,7 +338,7 @@ export function submitRegistrationActor(input: {
 
       // Check if the payment token is supported
       const isSupported = await input.publicClient.readContract({
-        address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+        address: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
         abi: FAST_TEST_ETH_REGISTRAR_ABI,
         functionName: 'isPaymentToken',
         args: [normalizedPaymentToken],
@@ -377,14 +369,14 @@ export function submitRegistrationActor(input: {
           request: {
             type: 'rhinestone-intent',
             from: smartAccountAddress,
-            to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+            to: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
             data: registrationData,
             value: 0n,
             chainId: 11155111, // Sepolia
             rhinestoneParams: {
               calls: [
                 {
-                  to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+                  to: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
                   data: registrationData,
                   value: 0n,
                 },
