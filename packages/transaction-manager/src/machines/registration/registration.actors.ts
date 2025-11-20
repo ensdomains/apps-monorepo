@@ -131,6 +131,13 @@ function selectRegistrarAddress(useFastRegistrar: boolean): Address {
     : ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 }
 
+function getSmartAccountAddress(signer: import('../..').Signer): Address {
+  if (signer.type === 'rhinestone') {
+    return signer.account.getAddress() as Address
+  }
+  throw new Error('Only Rhinestone signer is supported for registration')
+}
+
 // ============================================================================
 // Actor Functions (exported for use with fromResultAsync in machine)
 // ============================================================================
@@ -183,13 +190,7 @@ export function submitCommitmentActor(input: {
         },
       )
 
-      // Get account address from signer
-      let smartAccountAddress: Address
-      if (input.signer.type === 'rhinestone') {
-        smartAccountAddress = input.signer.account.getAddress() as Address
-      } else {
-        throw new Error('Only Rhinestone signer is supported for registration')
-      }
+      const smartAccountAddress = getSmartAccountAddress(input.signer)
 
       // Check smart account ETH balance before committing
       const ethBalance = await input.publicClient.getBalance({
@@ -272,13 +273,7 @@ export function submitApprovalActor(input: {
 
   return ResultAsync.fromSafePromise(
     Promise.resolve().then(() => {
-      // Get account address from signer
-      let smartAccountAddress: Address
-      if (input.signer.type === 'rhinestone') {
-        smartAccountAddress = input.signer.account.getAddress() as Address
-      } else {
-        throw new Error('Only Rhinestone signer is supported for registration')
-      }
+      const smartAccountAddress = getSmartAccountAddress(input.signer)
 
       const tokenAddress = getPaymentTokenAddress(input.selectedToken)
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
@@ -343,13 +338,7 @@ export function submitRegistrationActor(input: {
 
   return fromPromise(
     (async () => {
-      // Get account address from signer
-      let smartAccountAddress: Address
-      if (input.signer.type === 'rhinestone') {
-        smartAccountAddress = input.signer.account.getAddress() as Address
-      } else {
-        throw new Error('Only Rhinestone signer is supported for registration')
-      }
+      const smartAccountAddress = getSmartAccountAddress(input.signer)
 
       const paymentToken = getPaymentTokenAddress(input.selectedToken)
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
