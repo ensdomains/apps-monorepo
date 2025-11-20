@@ -10,7 +10,7 @@
  */
 
 import { publicResolverSetAddrSnippet } from '@ensdomains/ensjs/contracts'
-import type { Address } from 'viem'
+import type { Address, Hex } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
 import { namehash } from 'viem/ens'
 import { useAccount, useEnsResolver } from 'wagmi'
@@ -26,11 +26,7 @@ export type SetForwardResolutionRequest = {
   address: Address
   abi: typeof publicResolverSetAddrSnippet
   functionName: 'setAddr'
-  args: readonly [
-    node: `0x${string}`,
-    reverseRegistrarChainId: bigint,
-    address: Address,
-  ]
+  args: readonly [node: Hex, reverseRegistrarChainId: bigint, address: Address]
 }
 
 export type UseSetForwardResolutionReturn = {
