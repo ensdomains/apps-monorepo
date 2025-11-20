@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { cva } from 'class-variance-authority'
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import {
   DomainProfileCard,
@@ -10,6 +11,12 @@ import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
 import { getErrorMessage } from '../../utils'
 import { useCheckAvailability } from './hooks/useCheckAvailability'
+
+const subtitleVariants = cva([
+  'pl-1 font-medium text-xs',
+  'font-sans text-brand-lapise-surface',
+  'leading-normal tracking-[0.28px]',
+])
 
 export type CheckAvailabilityProps = {
   onRegistrationComplete?: (name: string) => void
@@ -94,7 +101,7 @@ export const CheckAvailability = ({
           className="w-full"
         />
         {!shouldShowResult && !hasValidationError && !hasError && (
-          <p className="subtitle-search-field">
+          <p className={subtitleVariants()}>
             Start typing to check if your perfect name is available 🕵️‍♀️
           </p>
         )}
