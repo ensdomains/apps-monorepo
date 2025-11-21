@@ -58,13 +58,17 @@ const Profile = ({
       <Owner owner={ownerQuery.data?.owner} />
       <ParentName name={name} />
       <TokenLocation name={name} network={network} />
-
       <RecordCount
         name={name}
         records={profileQuery.data?.records}
         resolverAddress={resolverAddress}
       />
-      <SubnameCount name={name} />
+      {ownerQuery.data ? (
+        <SubnameCount
+          name={name}
+          registryAddress={ownerQuery.data.registryAddress}
+        />
+      ) : null}
       <ProtocolVersionWithCounter name={name} network={network} />
     </div>
   )

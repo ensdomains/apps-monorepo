@@ -1,43 +1,20 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, ListIcon, ListStartIcon } from 'lucide-react'
-import { zeroAddress } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
-import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistries'
+import { getNameRegistryQueryOptions } from '@/features/registry/hooks/useNameRegistry'
 import { getSubnamesQueryOptions } from '../hooks/useSubnames'
+import { RegistryLocation } from './RegistryLocation'
 
-const RegistryLocation = ({ name }: { name: string }) => {
-  const { data, isLoading, error } = useQuery(
-    getNameRegistriesQueryOptions({ name }),
-  )
-
-  if (error) return <div>{error.cause?.message}</div>
-  if (isLoading) return <LoadingSpinner title="Loading..." />
-
-  if (!data) return null
-
-  const lastLabel = data[0]
-
-  const hasSubregistry = lastLabel && lastLabel !== zeroAddress
-
-  return (
-    <div className="flex-1">
-      <span className="font-medium">Subregistry</span>
-
-      {hasSubregistry ? (
-        <CopyableRecord
-          displayValue={`${lastLabel.slice(0, 6)}...${lastLabel.slice(-4)}`}
-          value={lastLabel}
-        />
-      ) : (
-        <div>No subregistry</div>
-      )}
-    </div>
-  )
-}
-
-export const SubnameCount = ({ name }: { name: string }) => {
+export const SubnameCount = ({
+  name,
+  registryAddress,
+}: {
+  name: string
+  registryAddress: Address
+}) => {
   const { data, isLoading, error } = useQuery(getSubnamesQueryOptions({ name }))
 
   if (error) return <div>Error: {error.cause?.message}</div>
@@ -64,7 +41,7 @@ export const SubnameCount = ({ name }: { name: string }) => {
           width={24}
           className="p-2 w-8 h-8 rounded-4xl bg-secondary"
         />
-        <RegistryLocation name={name} />
+        <RegistryLocation name={name} registryAddress={registryAddress} />
         <Link
           to="/$name/records"
           search={{ view: 'list' }}
