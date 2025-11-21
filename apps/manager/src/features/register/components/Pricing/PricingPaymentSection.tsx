@@ -38,7 +38,7 @@ export const PricingPaymentSection = ({
       <div className="px-5 md:px-0">
         <Button
           variant="default"
-          className="h-[70px] w-full rounded-[4px] bg-brand-blue hover:bg-brand-blue-hover md:h-[74px]"
+          className="h-[70px] w-full rounded-[4px] bg-ens-blue hover:bg-ens-blue-hover md:h-[74px]"
           onClick={onConnect}
         >
           <span className="font-medium font-mono text-[13px] text-white uppercase tracking-[1.04px]">

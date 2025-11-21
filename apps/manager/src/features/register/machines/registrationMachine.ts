@@ -1,4 +1,4 @@
-import { assign, setup, fromPromise } from 'xstate'
+import { assign, fromPromise, setup } from 'xstate'
 import { SUPPORTED_TOKENS } from '../services/nameChainContractService'
 
 const STORAGE_KEYS = {
@@ -53,12 +53,12 @@ type RegistrationEvent =
   | { type: 'SELECT_TOKEN'; tokenAddress: string }
   | { type: 'CONFIRM_PAYMENT' }
   | {
-    type: 'COMMIT_RESULT'
-    commitment: string
-    secret: string
-    timestamp: number
-    txHash: string
-  }
+      type: 'COMMIT_RESULT'
+      commitment: string
+      secret: string
+      timestamp: number
+      txHash: string
+    }
   | { type: 'TIMER_COMPLETE' }
   | { type: 'REGISTER_RESULT'; txHash: string }
   | { type: 'RETRY_COMMIT' }
@@ -93,7 +93,10 @@ const loadSavedData = (): Partial<RegistrationContext> => {
   try {
     const saved = {
       name: localStorage.getItem(STORAGE_KEYS.NAME) || '',
-      duration: parseInt(localStorage.getItem(STORAGE_KEYS.DURATION) || '1', 10),
+      duration: parseInt(
+        localStorage.getItem(STORAGE_KEYS.DURATION) || '1',
+        10,
+      ),
       commitment: localStorage.getItem(STORAGE_KEYS.COMMITMENT) || '',
       secret: localStorage.getItem(STORAGE_KEYS.SECRET) || '',
       commitTxHash: localStorage.getItem(STORAGE_KEYS.COMMIT_TX_HASH) || '',
@@ -229,8 +232,6 @@ export const registrationMachine = setup({
         event.type === 'COMMIT_RESULT' ? event.txHash : '',
       step: () => RegistrationStep.REGISTER, // Go directly to registration
     }),
-
-
 
     setRegisterResult: assign({
       registerTxHash: ({ event }) =>
@@ -428,7 +429,6 @@ export const registrationMachine = setup({
         },
       },
     },
-
 
     registerInProgress: {
       entry: [

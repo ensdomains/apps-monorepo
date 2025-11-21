@@ -15,27 +15,27 @@ export const PricingRegistrationSummaryCard = ({
         <div className="space-y-2 text-center">
           {/* Registering for X years */}
           <div className="flex items-baseline justify-center gap-[6px]">
-            <span className="font-normal text-[20px] text-primary-midnight-blue leading-none tracking-[-0.2px] md:text-[24px] md:tracking-[-0.24px]">
+            <span className="font-normal text-[20px] text-ens-blue-midnight leading-none tracking-[-0.2px] md:text-[24px] md:tracking-[-0.24px]">
               Registering for
             </span>
             <div className="rounded-sm bg-[rgba(245,245,245,0.5)] px-1 py-[2px]">
-              <span className="font-medium text-[20px] text-brand-blue leading-none tracking-[-0.2px] md:text-[24px] md:tracking-[-0.24px]">
+              <span className="font-medium text-[20px] text-ens-blue leading-none tracking-[-0.2px] md:text-[24px] md:tracking-[-0.24px]">
                 {paddedDuration}
               </span>
             </div>
-            <span className="font-normal text-[20px] text-primary-midnight-blue leading-none tracking-[-0.2px] md:text-[24px] md:tracking-[-0.24px]">
+            <span className="font-normal text-[20px] text-ens-blue-midnight leading-none tracking-[-0.2px] md:text-[24px] md:tracking-[-0.24px]">
               years
             </span>
           </div>
 
           {/* Expiring on date */}
           <div className="space-y-[6px]">
-            <span className="font-normal text-[20px] text-primary-midnight-blue leading-none tracking-[-0.2px] md:text-[24px] md:tracking-[-0.24px]">
+            <span className="font-normal text-[20px] text-ens-blue-midnight leading-none tracking-[-0.2px] md:text-[24px] md:tracking-[-0.24px]">
               expiring on
             </span>
             <div className="inline-flex items-center gap-2 rounded-sm bg-[rgba(245,245,245,0.5)] px-1 py-[2px]">
-              <Calendar className="size-4 text-brand-blue" />
-              <span className="font-medium text-[20px] text-brand-blue leading-none tracking-[-0.2px] md:text-[24px] md:tracking-[-0.24px]">
+              <Calendar className="size-4 text-ens-blue" />
+              <span className="font-medium text-[20px] text-ens-blue leading-none tracking-[-0.2px] md:text-[24px] md:tracking-[-0.24px]">
                 {formattedExpiration}
               </span>
             </div>

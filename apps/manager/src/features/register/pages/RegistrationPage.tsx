@@ -197,7 +197,7 @@ export function Registration({ initialName }: RegistrationProps) {
         <Button
           variant="ghost"
           onClick={handleBack}
-          className="h-auto p-2 text-lapis-surface uppercase"
+          className="h-auto p-2 text-ens-lapis-surface uppercase"
         >
           <ArrowLeftIcon className="h-6 w-6 font-bold" /> Back
         </Button>

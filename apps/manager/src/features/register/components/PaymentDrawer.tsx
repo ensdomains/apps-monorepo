@@ -50,7 +50,7 @@ export const CreditCardPaymentDrawer = ({
   // Reusable trigger button
   const triggerButton = (
     <Button
-      className="h-[70px] w-full rounded-[4px] border-2 border-brand-blue bg-white font-medium font-mono text-[13px] text-brand-blue uppercase tracking-[1.04px] hover:bg-brand-blue-light"
+      className="h-[70px] w-full rounded-[4px] border-2 border-ens-blue bg-white font-medium font-mono text-[13px] text-ens-blue uppercase tracking-[1.04px] hover:bg-ens-blue-light"
       onClick={() => {
         onPaymentSelect?.('credit-card')
         setOpen(false)
@@ -197,7 +197,7 @@ export const CryptoPaymentDrawer = ({
   ])
 
   const triggerButton = (
-    <Button className="h-[70px] w-full rounded-[4px] bg-brand-blue font-medium font-mono text-[13px] text-white uppercase tracking-[1.04px] hover:bg-brand-blue-hover">
+    <Button className="h-[70px] w-full rounded-[4px] bg-ens-blue font-medium font-mono text-[13px] text-white uppercase tracking-[1.04px] hover:bg-ens-blue-hover">
       Pay with stablecoins
     </Button>
   )
