@@ -12,7 +12,7 @@ export async function checkNameAvailability(
   try {
     // Use the real contract to check availability with FastTestETHRegistrar
     const result = await checkRealNameAvailability(name)
-    
+
     if (result.isErr()) {
       return {
         name,
