@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import type { PricingDuration, PricingOptions } from '../types'
+import type { PricingDuration, PricingOptions } from './types'
 
 type DurationSelectorProps = {
   pricing: PricingOptions

@@ -1,10 +1,5 @@
 import { useModal } from '@getpara/react-sdk-lite'
 import { useEffect, useMemo, useState } from 'react'
-import {
-  INITIAL_PRICING_OPTIONS,
-  PRICING_DURATIONS,
-  sanitizePricingDuration,
-} from '@/features/register/constants/pricing'
 import { determinePremium } from '@/features/register/utils'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 import { getTokenPrices } from '../../services/nameChainContractService'
@@ -18,6 +13,9 @@ import {
   createEmptyPricingQuoteMap,
   formatDuration,
   formatExpirationDate,
+  INITIAL_PRICING_OPTIONS,
+  PRICING_DURATIONS,
+  sanitizePricingDuration,
 } from './utils'
 
 export const usePricing = ({
@@ -126,7 +124,6 @@ export const usePricing = ({
 
       setIsPricingLoading(true)
       try {
-        // Fetch only 1-year price to use as base
         const baseResult = await getTokenPrices(domainName, 1)
 
         if (isCancelled) return
@@ -138,7 +135,7 @@ export const usePricing = ({
           const updatedOptions: PricingOptions = { ...INITIAL_PRICING_OPTIONS }
           const updatedQuotes: PricingQuoteMap = createEmptyPricingQuoteMap()
 
-          // Calculate prices with client-side discounts
+          // TODO: Calculate prices with client-side discounts, I guess will be handle by the contract
           PRICING_DURATIONS.forEach((duration) => {
             const discount = INITIAL_PRICING_OPTIONS[duration].discount
             const discountMultiplier = 1 - discount / 100

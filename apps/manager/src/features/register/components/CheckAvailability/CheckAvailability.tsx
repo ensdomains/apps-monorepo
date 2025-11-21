@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useActor } from '@xstate/react'
 import { cva } from 'class-variance-authority'
 import { type ChangeEvent, useEffect, useRef, useState } from 'react'
 import {
@@ -8,8 +9,8 @@ import {
 import { SearchField } from '@/components/molecules/SearchField'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
+import { checkAvailabilityMachine } from '../../machines/checkAvailability.machine'
 import { getErrorMessage } from '../../utils'
-import { useCheckAvailability } from './hooks/useCheckAvailability'
 
 const subtitleVariants = cva([
   'pl-1 font-medium text-xs',
@@ -24,16 +25,17 @@ export type CheckAvailabilityProps = {
 export const CheckAvailability = ({
   onRegistrationComplete,
 }: CheckAvailabilityProps) => {
-  const {
-    context,
-    isSearching,
-    isPricingLoading,
-    hasResult,
-    hasError,
-    hasValidationError,
-    searchName,
-    clearValidationError,
-  } = useCheckAvailability()
+  const [state, send] = useActor(checkAvailabilityMachine)
+
+  const context = state.context
+  const isSearching =
+    state.matches('searching') || state.matches('fetchingPricing')
+  const isPricingLoading = state.matches('fetchingPricing')
+  const hasResult = Boolean(state.context.selectedName)
+  const hasError = state.matches('error')
+  const hasValidationError = state.matches('validationError')
+  const searchName = (query: string) => send({ type: 'SEARCH', query })
+  const clearValidationError = () => send({ type: 'CLEAR_VALIDATION' })
 
   const [inputValue, setInputValue] = useState(context.searchQuery)
   const prevRegistrationState = useRef(context.registrationSuccess)
@@ -60,7 +62,6 @@ export const CheckAvailability = ({
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value
     setInputValue(newValue)
-    // Clear validation error when user starts typing (but don't validate yet)
     if (hasValidationError) {
       clearValidationError()
     }
@@ -70,14 +71,12 @@ export const CheckAvailability = ({
     searchName(value)
   }
 
-  // Prioritize validation errors over API errors
   const errorMessage = hasValidationError
     ? (context.validationError?.message ?? null)
     : hasError && context.error
       ? String(getErrorMessage(context.error))
       : null
 
-  // Get the per-year price from pricing options (1 year base price)
   const pricePerYear = context.pricing[1]?.price ?? 0
 
   const shouldShowResult =
@@ -87,6 +86,14 @@ export const CheckAvailability = ({
     !hasValidationError &&
     inputValue.trim().toLowerCase() ===
       context.selectedName.trim().toLowerCase()
+
+  // Only fetch metadata when domain is unavailable
+  const { data: unavailableMetadata } = useQuery({
+    ...profileMetadataQuery(context.selectedName),
+    enabled: Boolean(
+      shouldShowResult && !context.isAvailable && context.selectedName,
+    ),
+  })
 
   return (
     <div className="relative space-y-4">
@@ -113,8 +120,9 @@ export const CheckAvailability = ({
       )}
 
       {shouldShowResult && context.isAvailable && (
-        <DomainResultCardWithExpiry
+        <DomainResultCard
           domainName={context.selectedName}
+          status="available"
           isPremium={context.isPremium}
           price={!isPricingLoading ? pricePerYear : undefined}
           priceLabel="USD/year"
@@ -126,61 +134,17 @@ export const CheckAvailability = ({
       )}
 
       {shouldShowResult && !context.isAvailable && (
-        <DomainProfileCardWithData domainName={context.selectedName} />
+        <DomainProfileCard
+          domainName={context.selectedName}
+          avatarUrl={unavailableMetadata?.avatarUrl}
+          registeredDate={unavailableMetadata?.registeredDate}
+          expiryDate={unavailableMetadata?.expiryDate}
+          link={{
+            to: '/p/$name',
+            params: { name: context.selectedName },
+          }}
+        />
       )}
     </div>
-  )
-}
-
-// Component to display available domains
-// Note: Available domains should NOT have expiry dates - they're either never registered or already expired
-const DomainResultCardWithExpiry = ({
-  domainName,
-  isPremium,
-  price,
-  priceLabel,
-  link,
-}: {
-  domainName: string
-  isPremium: boolean
-  price?: number
-  priceLabel: string
-  link: {
-    to: string
-    search: { name: string; duration: number }
-  }
-}) => {
-  return (
-    <DomainResultCard
-      domainName={domainName}
-      status="available"
-      isPremium={isPremium}
-      price={price}
-      priceLabel={priceLabel}
-      link={link}
-    />
-  )
-}
-
-// Component to fetch and display profile data for unavailable domains
-const DomainProfileCardWithData = ({ domainName }: { domainName: string }) => {
-  const { data: metadata } = useQuery(profileMetadataQuery(domainName))
-
-  // Extract dates and avatar (resultQueryOptions unwraps the Result type automatically)
-  const registeredDate = metadata?.registeredDate ?? undefined
-  const expiryDate = metadata?.expiryDate ?? undefined
-  const avatarUrl = metadata?.avatarUrl ?? undefined
-
-  return (
-    <DomainProfileCard
-      domainName={domainName}
-      avatarUrl={avatarUrl}
-      registeredDate={registeredDate}
-      expiryDate={expiryDate}
-      link={{
-        to: '/p/$name',
-        params: { name: domainName },
-      }}
-    />
   )
 }

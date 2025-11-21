@@ -1,17 +1,17 @@
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
-import type { PremiumLabel } from '../types'
+import type { PremiumLabel } from './types'
 
-type PricingDomainHeaderProps = {
+type DomainHeaderProps = {
   domainName: string
   isPremium: boolean
   premiumLabel: PremiumLabel | null
 }
 
-export const PricingDomainHeader = ({
+export const DomainHeader = ({
   domainName,
   isPremium,
   premiumLabel,
-}: PricingDomainHeaderProps) => {
+}: DomainHeaderProps) => {
   return (
     <div className="flex flex-col items-center gap-2 text-center md:items-start md:text-left">
       {isPremium && premiumLabel && (

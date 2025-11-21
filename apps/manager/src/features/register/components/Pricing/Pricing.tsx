@@ -1,8 +1,8 @@
-import { DurationSelector } from '../CheckAvailability/components/DurationSelector'
-import { PricingDomainHeader } from './components/PricingDomainHeader'
-import { PricingPaymentSection } from './components/PricingPaymentSection'
-import { PricingRegistrationSummaryCard } from './components/PricingRegistrationSummaryCard'
-import { PricingTotalPriceCard } from './components/PricingTotalPriceCard'
+import { DurationSelector } from '../CheckAvailability/DurationSelector'
+import { PricingDomainHeader } from './PricingDomainHeader'
+import { PricingPaymentSection } from './PricingPaymentSection'
+import { PricingRegistrationSummaryCard } from './PricingRegistrationSummaryCard'
+import { PricingTotalPriceCard } from './PricingTotalPriceCard'
 import type { PricingProps } from './types'
 import { usePricing } from './usePricing'
 

@@ -1,18 +1,9 @@
-import { createLink } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import type { HTMLAttributeAnchorTarget, MouseEventHandler } from 'react'
-import { forwardRef, useMemo } from 'react'
+import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import type { DomainAttributePillVariant } from './DomainAttributePill'
 import { DomainAttributePill } from './DomainAttributePill'
-
-const BaseDomainResultCardLink = forwardRef<
-  HTMLAnchorElement,
-  React.ComponentProps<'a'>
->((props, ref) => <a ref={ref} {...props} />)
-
-BaseDomainResultCardLink.displayName = 'BaseDomainResultCardLink'
-
-const DomainResultCardLink = createLink(BaseDomainResultCardLink)
 
 const AvailabilityCheckIcon = () => (
   <svg
@@ -164,7 +155,7 @@ export const DomainResultCard = ({
     const { onClick, to, params, search, hash, replace, target, rel } = link
 
     return (
-      <DomainResultCardLink
+      <Link
         to={to as never}
         params={params as never}
         search={search as never}
@@ -181,7 +172,7 @@ export const DomainResultCard = ({
         }}
       >
         {content}
-      </DomainResultCardLink>
+      </Link>
     )
   }
 
