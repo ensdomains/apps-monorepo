@@ -13,7 +13,7 @@ import { useCheckAvailability } from './hooks/useCheckAvailability'
 
 const subtitleVariants = cva([
   'pl-1 font-medium text-xs',
-  'font-sans text-brand-lapise-surface',
+  'font-sans text-ens-lapis-surface',
   'leading-normal tracking-[0.28px]',
 ])
 
