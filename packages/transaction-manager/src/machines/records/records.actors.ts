@@ -266,7 +266,7 @@ export const submitProfileRecordsUpdateActor = (input: {
 
 export const pollTransactionStatusActor = (input: {
   txId: string
-}): ResultAsync<void, Error> => {
+}): ResultAsync<string | undefined, Error> => {
   const txActor = transactionManager.getTransaction(input.txId)
 
   if (!txActor) {
@@ -274,11 +274,14 @@ export const pollTransactionStatusActor = (input: {
   }
 
   return fromPromise(
-    new Promise<void>((resolve, reject) => {
+    new Promise<string | undefined>((resolve, reject) => {
       const subscription = txActor.subscribe((snapshot) => {
         if (snapshot.value === 'success') {
+          const context: any = snapshot.context
+          const hash: string | undefined =
+            context?.hash || context?.receipt?.transactionHash
           subscription.unsubscribe()
-          resolve()
+          resolve(hash)
         }
         if (
           typeof snapshot.value === 'object' &&

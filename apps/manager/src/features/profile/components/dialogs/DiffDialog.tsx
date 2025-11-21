@@ -1,5 +1,5 @@
 import { useBlocker } from '@tanstack/react-router'
-import { Check, Plus, Save, X } from 'lucide-react'
+import { Check, Loader2, Plus, Save, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,17 +13,26 @@ import {
 } from '@/components/ui/dialog'
 import type { ProfileRecords } from '@/features/profile/types'
 import { createDiff } from '@/features/profile/utils/createDiff'
+import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 interface DiffDialogProps {
   originalData: ProfileRecords
   currentData: ProfileRecords
   onSave: () => void
+  isSaving?: boolean
+  isSuccess?: boolean
+  errorMessage?: string
+  txHash?: string
 }
 
 export const DiffDialog = ({
   originalData,
   currentData,
   onSave,
+  isSaving,
+  isSuccess,
+  errorMessage,
+  txHash,
 }: DiffDialogProps) => {
   const [open, setOpen] = useState(false)
   const diff = useMemo(
@@ -45,7 +54,6 @@ export const DiffDialog = ({
 
   const handleSave = () => {
     onSave()
-    setOpen(false)
   }
 
   const handleCancel = () => {
@@ -86,8 +94,14 @@ export const DiffDialog = ({
         <DialogHeader>
           <DialogTitle>Review Changes</DialogTitle>
         </DialogHeader>
+        <UpdateStatusPanel
+          isSaving={isSaving}
+          isSuccess={isSuccess}
+          errorMessage={errorMessage}
+          txHash={txHash}
+        />
         <div className="max-h-96 overflow-y-auto">
-          {hasChanges ? (
+          {isSaving ? null : hasChanges ? (
             <div className="space-y-4">
               {Object.entries(diff).map(([key, change]) => (
                 <div key={key} className="rounded-lg border p-4">
@@ -129,8 +143,21 @@ export const DiffDialog = ({
           <Button variant="outline" onClick={handleCancel}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!hasChanges}>
-            Save Changes
+          <Button
+            onClick={handleSave}
+            disabled={!hasChanges || Boolean(isSaving)}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 size-4" />
+                Save Changes
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

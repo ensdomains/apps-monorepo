@@ -20,6 +20,7 @@ export type RecordsContext = {
   before?: ServiceRecordSnapshot
   after?: ServiceRecordSnapshot
   updateTxId?: string
+  txHash?: string
   error?: Error
 }
 
@@ -130,6 +131,7 @@ export const recordsMachine = setup({
     before: undefined,
     after: undefined,
     updateTxId: undefined,
+    txHash: undefined,
     error: undefined,
   }),
 
@@ -194,7 +196,12 @@ export const recordsMachine = setup({
       invoke: {
         src: 'pollTransactionStatus',
         input: ({ context }) => ({ txId: context.updateTxId! }),
-        onDone: 'success',
+        onDone: {
+          target: 'success',
+          actions: assign({
+            txHash: ({ event }) => event.output,
+          }),
+        },
         onError: {
           target: 'error',
           actions: assign({
@@ -209,6 +216,17 @@ export const recordsMachine = setup({
 
     success: {
       entry: ['logTransition', 'recordTransition', 'clearSnapshot'],
+      on: {
+        START_UPDATE: {
+          target: 'settingUpUpdate',
+          actions: assign({
+            ...startUpdateAssignment,
+            error: () => undefined,
+            updateTxId: () => undefined,
+          }),
+        },
+        CANCEL: 'idle',
+      },
     },
 
     error: {
