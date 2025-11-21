@@ -1,15 +1,21 @@
 import { useQuery } from '@tanstack/react-query'
-import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { cva } from 'class-variance-authority'
+import { type ChangeEvent, useEffect, useRef, useState } from 'react'
 import {
   DomainProfileCard,
   DomainResultCard,
 } from '@/components/molecules/DomainResultCard'
 import { SearchField } from '@/components/molecules/SearchField'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
 import { getErrorMessage } from '../../utils'
 import { useCheckAvailability } from './hooks/useCheckAvailability'
+
+const subtitleVariants = cva([
+  'pl-1 font-medium text-xs',
+  'font-sans text-brand-lapise-surface',
+  'leading-normal tracking-[0.28px]',
+])
 
 export type CheckAvailabilityProps = {
   onRegistrationComplete?: (name: string) => void
@@ -94,7 +100,7 @@ export const CheckAvailability = ({
           className="w-full"
         />
         {!shouldShowResult && !hasValidationError && !hasError && (
-          <p className="subtitle-search-field">
+          <p className={subtitleVariants()}>
             Start typing to check if your perfect name is available 🕵️‍♀️
           </p>
         )}
@@ -126,7 +132,8 @@ export const CheckAvailability = ({
   )
 }
 
-// Component to fetch and display expiry data for available domains
+// Component to display available domains
+// Note: Available domains should NOT have expiry dates - they're either never registered or already expired
 const DomainResultCardWithExpiry = ({
   domainName,
   isPremium,
@@ -143,51 +150,6 @@ const DomainResultCardWithExpiry = ({
     search: { name: string; duration: number }
   }
 }) => {
-  const {
-    data: expiryData,
-    isFetched: isExpiryFetched,
-    fetchStatus,
-  } = useQuery(profileExpiryQuery(domainName))
-
-  // Track minimum loading time to prevent flash
-  const [showMinimumLoading, setShowMinimumLoading] = useState(true)
-  const mountTimeRef = useRef<number>(Date.now())
-
-  useEffect(() => {
-    // Reset mount time when domain name changes
-    mountTimeRef.current = Date.now()
-    setShowMinimumLoading(true)
-  }, [domainName])
-
-  useEffect(() => {
-    if (isExpiryFetched && showMinimumLoading) {
-      const elapsed = Date.now() - mountTimeRef.current
-      const minimumDisplayTime = 500 // ms
-      const remainingTime = Math.max(0, minimumDisplayTime - elapsed)
-
-      const timer = setTimeout(() => {
-        setShowMinimumLoading(false)
-      }, remainingTime)
-
-      return () => clearTimeout(timer)
-    }
-  }, [isExpiryFetched, showMinimumLoading])
-
-  // Extract expiry date from the result
-  // expiryData is unwrapped from Result type by resultQueryOptions
-  // The expiry field is a BigInt timestamp in seconds
-  const expiryDate = useMemo(() => {
-    if (expiryData && expiryData.status !== 'expired' && expiryData.expiry) {
-      // Convert BigInt timestamp (seconds) to Date (milliseconds)
-      return new Date(Number(expiryData.expiry) * 1000)
-    }
-    return undefined
-  }, [expiryData])
-
-  // Show loading skeleton while actively fetching or during minimum display time
-  const showExpiryLoading =
-    fetchStatus === 'fetching' || !isExpiryFetched || showMinimumLoading
-
   return (
     <DomainResultCard
       domainName={domainName}
@@ -195,8 +157,6 @@ const DomainResultCardWithExpiry = ({
       isPremium={isPremium}
       price={price}
       priceLabel={priceLabel}
-      expiryDate={expiryDate}
-      isExpiryLoading={showExpiryLoading}
       link={link}
     />
   )

@@ -48,8 +48,6 @@ export interface DomainResultCardProps {
   isPremium?: boolean
   price?: number
   priceLabel?: string
-  expiryDate?: Date | string
-  isExpiryLoading?: boolean
   onAction?: (domainName: string) => void
   className?: string
   link?: DomainResultCardLinkProps
@@ -60,28 +58,12 @@ const statusIconMap = {
   premium: <AvailabilityCheckIcon />,
 } as const
 
-const formatDate = (date: Date | string | undefined): string => {
-  if (!date) return ''
-
-  const dateObj = typeof date === 'string' ? new Date(date) : date
-
-  if (Number.isNaN(dateObj.getTime())) return ''
-
-  return dateObj.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-}
-
 export const DomainResultCard = ({
   domainName,
   status,
   isPremium: isPremiumProp = false,
   price,
-  priceLabel = 'USD/year',
-  expiryDate,
-  isExpiryLoading = false,
+  priceLabel = 'USD / year',
   onAction,
   className,
   link,
@@ -151,25 +133,13 @@ export const DomainResultCard = ({
           </span>
         </div>
 
-        <div className="text-right">
-          {price && (
-            <>
-              <p className="font-semibold text-slate-900">
-                ${price.toLocaleString()}
-              </p>
-              <p className="text-slate-500 text-sm">{priceLabel}</p>
-            </>
-          )}
-          {isExpiryLoading && (
-            <div className="mt-2 flex flex-col items-end gap-1">
-              <div className="h-3 w-24 animate-pulse rounded bg-slate-300" />
-            </div>
-          )}
-          {!isExpiryLoading && expiryDate && (
-            <p className="mt-2 text-slate-600 text-xs">
-              Expires: {formatDate(expiryDate)}
-            </p>
-          )}
+        <div className="flex items-end gap-2 text-center">
+          <span className="text-slate-500 text-sm">Starting at</span>
+
+          <p className="font-semibold text-slate-900">
+            ${price !== undefined ? Math.round(price).toLocaleString() : ''}
+          </p>
+          <p className="text-slate-500 text-sm">{priceLabel}</p>
         </div>
       </div>
 

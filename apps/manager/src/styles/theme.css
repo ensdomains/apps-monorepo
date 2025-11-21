@@ -9,11 +9,13 @@
 
   /* Custom colors - these will be available as Tailwind utilities */
   --color-lapis-core: #0080bc;
+  --color-lapis-core-rgb: 0, 128, 188;
   --color-lapis-dust: #cee1e8;
   --color-primary-dark-blue: #011a25;
   --color-primary-midnight-blue: #093c52;
   --color-availability-green: #00a63e;
   --color-lapis-surface: #79b1d0;
+  --color-lapis-shadow-rgb: 14, 61, 104;
   --color-light-grey-two: #e5e5e5;
   --color-light-white: #f6f6f6;
   --color-primary-magenta: #f53293;
