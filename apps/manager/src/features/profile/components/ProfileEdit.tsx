@@ -3,8 +3,9 @@ import {
   recordsMachine,
 } from '@ens-apps/transaction-manager'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
-import { useActorRef } from '@xstate/react'
+import { useActorRef, useSelector } from '@xstate/react'
 import type { Address } from 'viem'
+import { Alert } from '@/components/molecules/Alert'
 import { Button } from '@/components/ui/button'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 import { customSepolia, publicClient } from '@/lib/wagmi'
@@ -30,16 +31,16 @@ interface ProfileEditProps {
 }
 
 export const ProfileEdit = ({ name }: ProfileEditProps) => {
-  const { data: recordsData } = useSuspenseQuery({
+  const { data: recordsData, refetch: refetchRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
     select: transformProfileRecords,
   })
 
-  const { data: ownerData } = useQuery({
+  const { data: ownerData, refetch: refetchOwner } = useQuery({
     ...profileOwnerQuery(name),
   })
 
-  const { data: resolverData } = useQuery({
+  const { data: resolverData, refetch: refetchResolver } = useQuery({
     ...profileResolverQuery(name),
   })
 
@@ -52,6 +53,20 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   const recordsActor = useActorRef(recordsMachine, {
     input: { chainId: customSepolia.id },
   })
+
+  const recordsState = useSelector(recordsActor, (state) => state)
+  const txHash = recordsState.context.txHash
+  const isSubmitting =
+    recordsState.matches('submittingUpdate') ||
+    recordsState.matches('waitingForUpdate')
+  const isSuccess = recordsState.matches('success')
+  const isError = recordsState.matches('error')
+  const updateErrorMessage =
+    (isError &&
+      recordsState.context.error &&
+      recordsState.context.error.message) ||
+    (isError && 'Failed to update profile') ||
+    null
 
   const defaultValues = recordsData ?? defaultProfileRecords
 
@@ -97,6 +112,9 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
   const handleReset = () => {
     form.reset()
+    refetchRecords()
+    refetchOwner()
+    refetchResolver()
   }
 
   return (
@@ -104,6 +122,39 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]"
       onSubmit={handleSubmit}
     >
+      {isSubmitting && (
+        <div className="px-4">
+          <Alert
+            variant="info"
+            title="Updating profile"
+            description="Your profile changes are being submitted. This may take a few moments."
+            className="mb-4"
+          />
+        </div>
+      )}
+
+      {isSuccess && !isSubmitting && (
+        <div className="px-4">
+          <Alert
+            variant="success"
+            title="Profile updated"
+            description="Your ENS profile has been updated successfully."
+            className="mb-4"
+          />
+        </div>
+      )}
+
+      {isError && updateErrorMessage && (
+        <div className="px-4">
+          <Alert
+            variant="destructive"
+            title="Update failed"
+            description={updateErrorMessage}
+            className="mb-4"
+          />
+        </div>
+      )}
+
       {/* Header */}
       <HeaderSection
         form={form}
@@ -146,6 +197,12 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
               form={form}
               originalData={defaultValues}
               onSave={handleSave}
+              isSaving={isSubmitting}
+              isSuccess={isSuccess}
+              errorMessage={
+                isError ? (updateErrorMessage ?? undefined) : undefined
+              }
+              txHash={txHash}
             />
           </div>
         </div>
