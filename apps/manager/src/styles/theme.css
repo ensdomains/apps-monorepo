@@ -4,42 +4,52 @@
   --font-semi-mono: "ABCMonumentGroteskSemiMono";
   --font-serif: "ABCMarist";
 
-  --leading-ens-tight: 112%;
+  /* Line heights */
   --leading-ens-none: 96%;
+  --leading-ens-tight: 112%;
+  --leading-ens-normal: 120%;
 
-  /* Custom colors - these will be available as Tailwind utilities */
-  --color-lapis-core: #0080bc;
-  --color-lapis-core-rgb: 0, 128, 188;
-  --color-lapis-dust: #cee1e8;
-  --color-primary-dark-blue: #011a25;
-  --color-primary-midnight-blue: #093c52;
-  --color-availability-green: #00a63e;
-  --color-lapis-surface: #79b1d0;
-  --color-lapis-shadow-rgb: 14, 61, 104;
-  --color-light-grey-two: #e5e5e5;
-  --color-light-white: #f6f6f6;
-  --color-primary-magenta: #f53293;
-  --color-garnet-surface: #f886b6;
+  /* Experimental new brand colors */
+  --color-ens-lapis-dust: #cee1e8;
+  --color-ens-lapis-surface: #79b1d0;
+  --color-ens-lapis-core: #0080bc;
+  --color-ens-lapis-dense: #093c52;
 
-  /* Brand colors */
-  --color-brand-blue: oklch(57.2% 0.13 240deg);
-  --color-brand-blue-hover: oklch(51.9% 0.117 239deg);
-  --color-brand-blue-light: oklch(89.8% 0.0225 222deg);
-  --color-brand-blue-dark: oklch(20.4% 0.0388 229deg);
-  --color-brand-grey: oklch(46.2% 0.0248 223deg);
-  --color-brand-grey-2: oklch(92.2% 0.000000000000000749 0deg);
-  --color-brand-grey-border: oklch(83.5% 0.006 220deg);
-  --color-brand-grey-text: oklch(64.5% 0.008 220deg);
-  --color-brand-magenta: oklch(65.1% 0.238 356deg);
-  --color-brand-magenta-light: oklch(86.7% 0.0594 348deg);
-  --color-brand-green: oklch(51% 0.157 146deg);
-  --color-brand-green-light: oklch(87.5% 0.0345 155deg);
-  --color-brand-green-dark: oklch(45% 0.14 146deg);
-  --color-brand-lapise-dense: oklch(33.6% 0.0634 233deg);
-  --color-brand-lapise-surface: oklch(73.3% 0.0738 233deg);
-  --color-brand-dust: oklch(97.5% 0.0172 220deg);
-  --color-brand-background-light: oklch(98% 0.003 220deg);
-  --color-brand-background-medium: oklch(96% 0.005 220deg);
+  --color-ens-bronzite-dust: #f8f6d6;
+  --color-ens-bronzite-surface: #ae9582;
+  --color-ens-bronzite-core: #674d49;
+  --color-ens-bronzite-dense: #431c11;
+
+  --color-ens-peridot-dust: #c5ddcc;
+  --color-ens-peridot-surface: #74ac76;
+  --color-ens-peridot-core: #007c23;
+  --color-ens-peridot-dense: #033010;
+
+  --color-ens-garnet-dust: #f2c4da;
+  --color-ens-garnet-surface: #f886b6;
+  --color-ens-garnet-core: #f53293;
+  --color-ens-garnet-dense: #8a0a49;
+
+  /* Old brand colors */
+  --color-ens-blue: #0080bc;
+  --color-ens-blue-hover: #0070a4;
+  --color-ens-blue-light: #cee1e8;
+  --color-ens-blue-light-hover: #d8e7ed;
+  --color-ens-blue-midnight: #093c52;
+  --color-ens-blue-dark: #011a25;
+  --color-ens-magenta: #f53293;
+  --color-ens-magenta-light: #f2c4da;
+  --color-ens-green: #007c23;
+  --color-ens-green-light: #c5ddcc;
+  --color-ens-yellow: #fff72f;
+  --color-ens-yellow-light: #f8f6d6;
+  --color-ens-orange: #f47600;
+  --color-ens-orange-light: #ffe2b4;
+  --color-ens-brown-dark: #674d49;
+  --color-ens-gray: #4a5c63;
+  --color-ens-gray-two: #e5e5e5;
+  --color-ens-gray-three: #c4c7c8;
+  --color-ens-white: #f6f6f6;
 }
 
 /* ===============================
