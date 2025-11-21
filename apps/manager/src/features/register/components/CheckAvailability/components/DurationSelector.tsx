@@ -71,17 +71,17 @@ export const DurationSelector = ({
               'border',
               'transition-all',
               'bg-[#f8fafc]',
-              isSelected ? 'border-brand-blue' : 'border-[#dededf]',
-              !isSelected && !disabled && 'hover:border-brand-blue',
+              isSelected ? 'border-ens-blue' : 'border-[#dededf]',
+              !isSelected && !disabled && 'hover:border-ens-blue',
               disabled && 'cursor-not-allowed opacity-60',
               'focus-visible:outline-2',
               'focus-visible:outline-offset-2',
-              'focus-visible:outline-brand-blue',
+              'focus-visible:outline-ens-blue',
             )}
           >
             {/* Left: Year label */}
             <div className="flex items-center gap-3 md:gap-5">
-              <span className="font-normal text-[14px] text-primary-dark-blue leading-none tracking-[-0.77px] md:text-[24px]">
+              <span className="font-normal text-[14px] text-ens-blue-dark leading-none tracking-[-0.77px] md:text-[24px]">
                 {duration} year{duration > 1 ? 's' : ''}
               </span>
             </div>

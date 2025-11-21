@@ -18,7 +18,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          'h-[56px] w-[191px] items-center justify-center gap-4 rounded-md border bg-brand-blue px-6 py-6 text-white',
+          'h-[56px] w-[191px] items-center justify-center gap-4 rounded-md border bg-ens-blue px-6 py-6 text-white',
         destructive:
           'bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40',
         outline:
@@ -29,9 +29,9 @@ const buttonVariants = cva(
           'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
         link: 'text-primary underline-offset-4 hover:underline',
         connectWallet:
-          'h-[56px] w-[191px] items-center justify-center gap-4 rounded-md border bg-brand-blue px-6 py-8 text-white',
+          'h-[56px] w-[191px] items-center justify-center gap-4 rounded-md border bg-ens-blue px-6 py-8 text-white',
         payment:
-          'h-[56px] w-[191px] items-center justify-center gap-4 rounded-md border bg-brand-blue px-6 py-8 text-white uppercase',
+          'h-[56px] w-[191px] items-center justify-center gap-4 rounded-md border bg-ens-blue px-6 py-8 text-white uppercase',
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',

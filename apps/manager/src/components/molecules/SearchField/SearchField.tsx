@@ -12,15 +12,15 @@ const searchFieldVariants = cva(
     // Spacing
     'pt-[21px] pr-[28px] pb-[21px] pl-[52px]',
     // Borders & colors
-    'rounded border-[0.25px] border-brand-grey-2',
-    'bg-brand-dust text-brand-blue',
+    'rounded border-[0.25px] border-ens-gray-two',
+    'bg-ens-lapis-dust text-ens-blue',
     // Effects
-    'shadow-[0_9px_17px_0_rgba(var(--color-lapis-shadow-rgb),0.1)]',
+    'shadow-[0_9px_17px_0_rgba(14,61,104,0.1)]',
     'transition-all duration-200 ease-in-out',
     // States
-    'placeholder:text-lapis-surface',
+    'placeholder:text-ens-lapis-surface',
     'focus:border-transparent focus:outline-none',
-    'focus:shadow-[0_9px_17px_0_rgba(var(--color-lapis-shadow-rgb),0.1),0_0_0_2px_oklch(57.2%_0.13_240deg/0.2)]',
+    'focus:shadow-[0_9px_17px_0_rgba(14,61,104,0.1),0_0_0_2px_oklch(57.2%_0.13_240deg/0.2)]',
   ],
   {
     variants: {
@@ -34,7 +34,7 @@ const searchFieldVariants = cva(
 const searchIconVariants = cva([
   '-translate-y-1/2 absolute top-1/2 left-[18px]',
   'h-[26px] w-[26px]',
-  'text-brand-grey',
+  'text-ens-gray',
 ])
 
 const searchFieldContainerVariants = cva([

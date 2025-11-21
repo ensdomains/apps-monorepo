@@ -60,7 +60,7 @@ export const CheckAvailabilityView = ({
       )}
 
       {successMessage && (
-        <Alert className="border-brand-green/30 bg-brand-green-light text-brand-green-dark">
+        <Alert className="border-ens-green/30 bg-ens-green-light text-ens-green-dark">
           <AlertDescription>{successMessage}</AlertDescription>
         </Alert>
       )}

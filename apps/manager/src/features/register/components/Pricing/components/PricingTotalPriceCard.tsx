@@ -16,7 +16,7 @@ export const PricingTotalPriceCard = ({
   return (
     <div className="flex flex-col justify-center gap-4 text-center">
       <div className="space-y-1">
-        <p className="font-normal text-[12px] text-lapis-surface tracking-[0.12px]">
+        <p className="font-normal text-[12px] text-ens-lapis-surface tracking-[0.12px]">
           TOTAL
         </p>
         {!isPriceLoading &&
@@ -27,10 +27,10 @@ export const PricingTotalPriceCard = ({
             </p>
           )}
         <div className="flex items-end justify-center gap-[6px]">
-          <span className="font-medium font-mono text-[36px] text-primary-midnight-blue leading-none tracking-[0.36px] md:text-[48px] md:tracking-[0.48px]">
+          <span className="font-medium font-mono text-[36px] text-ens-blue-midnight leading-none tracking-[0.36px] md:text-[48px] md:tracking-[0.48px]">
             ${isPriceLoading ? '...' : finalPrice.toFixed(0)}
           </span>
-          <span className="font-normal text-[16px] text-primary-midnight-blue leading-[27px]">
+          <span className="font-normal text-[16px] text-ens-blue-midnight leading-[27px]">
             USD
           </span>
         </div>
