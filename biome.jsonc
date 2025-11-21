@@ -10,10 +10,16 @@
     "includes": [
       "apps/**",
       "packages/**",
-      "!**/*.gen.ts",
+
       "!**/node_modules",
-      "!**/dist",
-      "!**/.wrangler"
+
+      // Generated files
+      "!**/*.gen.ts",
+      "!**/*.gen.d.ts",
+
+      // Build & Temp files
+      "!!**/dist",
+      "!!**/.wrangler"
     ]
   },
   "formatter": {

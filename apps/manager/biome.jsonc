@@ -15,6 +15,11 @@
       }
     }
   },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
   "files": {
     "includes": [
       "./**",
@@ -28,9 +33,9 @@
 
       // Build & Temp files
       "!**/.tanstack",
-      "!**/.output",
-      "!**/.nitro",
-      "!**/.wrangler"
+      "!!**/.output",
+      "!!**/.nitro",
+      "!!**/.wrangler"
     ]
   }
 }
