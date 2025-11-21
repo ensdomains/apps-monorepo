@@ -1,7 +1,7 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { decodeFuses } from '@ensdomains/ensjs/utils'
+import type { DecodedFuses } from '@ensdomains/ensjs/utils'
 import { ok } from 'neverthrow'
 import {
   type GetNameWrapperDataError,
@@ -15,6 +15,14 @@ export class BurnedFuseCountError extends TaggedError('BurnedFuseCountError')<{
 
 export type BurnedFuseCountParameters = GetNameWrapperDataParameters
 
+const countBurned = (
+  f: DecodedFuses['child'] | DecodedFuses['parent'],
+): number =>
+  Object.values(f).reduce<number>((acc, v) => {
+    if (typeof v === 'boolean') return acc + (v ? 1 : 0)
+    return acc + countBurned(v) // recurse
+  }, 0)
+
 export const getBurnedFuseCount = ResultFn(async function* ({
   name,
 }: BurnedFuseCountParameters) {
@@ -24,15 +32,9 @@ export const getBurnedFuseCount = ResultFn(async function* ({
 
   const { fuses } = wrapperData
 
-  const count = (
-    obj: Record<string, boolean | Record<string, boolean>>,
-  ): number =>
-    Object.values(obj).reduce<number>((acc, cur) => {
-      if (typeof cur === 'boolean') return acc + (cur ? 1 : 0)
-      return acc + Object.values(cur).filter(Boolean).length
-    }, 0)
+  console.log(fuses.child)
 
-  const totalBurned = count(fuses.child) + count(fuses.parent)
+  const totalBurned = countBurned(fuses.child)
 
   return ok(totalBurned)
 })

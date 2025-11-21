@@ -1,11 +1,6 @@
-import type { GetNameHistoryReturnType } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
-import type {
-  BaseEvent,
-  BaseEventCategory,
-} from '@/components/table/EventsDataTable/types'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import {
   type GetNameHistoryError,

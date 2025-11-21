@@ -29,9 +29,9 @@ interface EditButtonsProps {
 }
 
 const EditButtons = ({ address, name }: EditButtonsProps) => {
-  const { data: owner } = useQuery(getEnsOwnerQueryOptions({ name }))
+  const { data } = useQuery(getEnsOwnerQueryOptions({ name }))
 
-  if (owner !== address) return null
+  if (data?.owner !== address) return null
 
   return (
     <div className="flex flex-row gap-2">

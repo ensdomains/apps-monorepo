@@ -42,14 +42,10 @@ interface OwnerInfoProps {
 }
 
 const OwnerInfo = ({ name }: OwnerInfoProps) => {
-  const {
-    data: owner,
-    isLoading,
-    error,
-  } = useQuery(getEnsOwnerQueryOptions({ name }))
+  const { data, isLoading, error } = useQuery(getEnsOwnerQueryOptions({ name }))
 
   if (isLoading) return <LoadingSpinner title="Loading owner" />
-  if (error || !owner) {
+  if (error || !data) {
     if (error) return <div>Error: {(error.cause as Error).message}</div>
     return <div>Could not load owner</div>
   }
@@ -59,7 +55,7 @@ const OwnerInfo = ({ name }: OwnerInfoProps) => {
       <div className="p-6 rounded-lg gap-4 flex flex-col border border-secondary w-full">
         <h2 className="text-2xl font-medium">Current Owner</h2>
         <div>
-          <OwnerDisplay owner={owner} />
+          <OwnerDisplay owner={data.owner} />
         </div>
       </div>
     </div>
@@ -92,7 +88,7 @@ function RouteComponent() {
       </div>
       <div className="flex flex-col gap-6">
         <OwnerInfo name={name} />
-        <NameHistory name={name} eventType="domainEvents" />
+        <NameHistory name={name} category="domain" />
         <ParentInfo name={name} />
       </div>
     </div>

@@ -9,7 +9,7 @@ interface ProtocolVersionWithCounterProps {
   network: 'sepolia' | 'namechainSepolia'
 }
 
-const RoleCount = ({ name }: { name: string }) => {
+const RoleCount = () => {
   return (
     <div className="w-full p-6 border-b border-b-gray-300 flex flex-row items-center gap-6">
       <ListIcon
@@ -53,11 +53,7 @@ export const ProtocolVersionWithCounter = ({
 }: ProtocolVersionWithCounterProps) => {
   return (
     <div className="flex flex-col rounded-2xl overflow-hidden  border border-gray-300 ">
-      {network === 'sepolia' ? (
-        <FuseCount name={name} />
-      ) : (
-        <RoleCount name={name} />
-      )}
+      {network === 'sepolia' ? <FuseCount name={name} /> : <RoleCount />}
       <div className="w-full p-6 duration-150 flex flex-row gap-6 items-center">
         <HashIcon
           height={24}
