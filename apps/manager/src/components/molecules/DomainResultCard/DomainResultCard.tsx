@@ -39,7 +39,7 @@ export const DomainResultCard = ({
     'px-5',
     'py-5',
     'text-left',
-    'bg-ens-light-bg',
+    'bg-ens-white',
     'rounded-[4px]',
     'shadow-lg',
     'transition',
@@ -98,9 +98,9 @@ export const DomainResultCard = ({
               </span>
             </div>
 
-            <div className="flex items-end gap-2 text-center">
+            <div className="flex items-start gap-2 text-center md:items-end">
               <span className="text-slate-500 text-sm">starting at</span>
-              <div className="flex flex-col items-end gap-1 text-sm md:flex-row md:gap-2 md:text-base">
+              <div className="flex flex-col items-start text-sm md:flex-row md:items-end md:gap-2 md:text-base">
                 {price ? (
                   <>
                     <p className="font-semibold text-slate-900 leading-tight">
