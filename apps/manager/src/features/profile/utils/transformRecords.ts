@@ -44,41 +44,39 @@ export const transformProfileRecords = (
   const processTextRecord = (
     acc: ProfileRecords,
     { key, value }: { key: string; value: string },
-  ): ProfileRecords => {
+  ): void => {
     const record = getRecordDef(key)
 
     if (record) {
-      return {
-        ...acc,
-        [record.section]: [...acc[record.section], { key, value }],
-      }
+      acc[record.section].push({ key, value })
+      return
     }
 
     if (staticTextRecords.includes(key as StaticRecordKey)) {
-      return {
-        ...acc,
-        base: { ...acc.base, [key]: value },
+      acc.base = {
+        ...acc.base,
+        [key]: value,
       }
+      return
     }
 
     if (key === 'links') {
       const links = v.parse(LinksSchema, JSON.parse(value))
-      return {
-        ...acc,
-        links: [...acc.links, ...links],
-      }
+      acc.links.push(...links)
+      return
     }
 
-    return {
-      ...acc,
-      unknown: [...acc.unknown, { key, value }],
-    }
+    acc.unknown.push({ key, value })
   }
 
-  const baseRecords = newEmptyProfileRecords()
-  const withAddresses = { ...baseRecords, addresses: profile.coins }
+  const result = newEmptyProfileRecords()
+  result.addresses = profile.coins
 
-  return profile.texts.reduce(processTextRecord, withAddresses)
+  for (const text of profile.texts) {
+    processTextRecord(result, text)
+  }
+
+  return result
 }
 
 /**

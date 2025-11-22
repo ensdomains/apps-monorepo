@@ -70,6 +70,7 @@ export type {
   RecordsInput,
 } from './machines/records/records.machine'
 export { recordsMachine } from './machines/records/records.machine'
+export type { ServiceRecordSnapshot } from './machines/records/records.types'
 export type {
   RegistrationContext,
   RegistrationEvent,
