@@ -5,9 +5,9 @@ import * as auditTrail from '../../services/audit-trail.service'
 import type { Signer } from '../../types/signer.types'
 import {
   pollTransactionStatusActor,
-  type ServiceRecordSnapshot,
   submitProfileRecordsUpdateActor,
 } from './records.actors'
+import type { ServiceRecordSnapshot } from './records.types'
 
 export type RecordsContext = {
   signer?: Signer
