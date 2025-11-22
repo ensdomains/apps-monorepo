@@ -1,4 +1,4 @@
-import { allSections, getAddressRecordDef } from '../data/records'
+import { allSections, getAddressRecordDef, getRecordDef } from '../data/records'
 import type { ProfileRecords } from '../types'
 
 type DiffValue = string | undefined
@@ -7,12 +7,28 @@ type DiffEntry = {
   original?: DiffValue
   current?: DiffValue
   type: 'added' | 'removed' | 'modified'
+  sectionLabel?: string
+  fieldLabel?: string
 }
 
 type Diff = Record<string, DiffEntry>
 
 const toNormalizedString = (value: unknown): string =>
   String(value ?? '').trim()
+
+const getSectionDisplayName = (section: string): string => {
+  const displayNames: Record<string, string> = {
+    address: 'Address',
+    bio: 'Bio',
+    social: 'Social',
+    contact: 'Contact',
+    links: 'Links',
+  }
+
+  return (
+    displayNames[section] ?? section.charAt(0).toUpperCase() + section.slice(1)
+  )
+}
 
 // Pure utility functions
 const isEmptyValue = (value: unknown): boolean => {
@@ -90,7 +106,10 @@ const addKeyValueDiffs = (
 
     if (diffEntry) {
       const displayName = getDisplayName(key)
-      target[`${section}.${displayName}`] = diffEntry
+      const sectionLabel = getSectionDisplayName(section)
+      diffEntry.sectionLabel = sectionLabel
+      diffEntry.fieldLabel = displayName
+      target[`${sectionLabel}: ${displayName}`] = diffEntry
     }
   }
 }
@@ -177,13 +196,19 @@ export const createDiff = (
       recordsToMap(original[section]),
       recordsToMap(current[section]),
       section,
+      (key) => getRecordDef(key)?.name || key,
     )
   }
 
   // Process links
   const linksDiffEntry = createLinksDiff(original.links, current.links)
   if (linksDiffEntry) {
-    diff.links = linksDiffEntry
+    const sectionLabel = getSectionDisplayName('links')
+    diff[sectionLabel] = {
+      ...linksDiffEntry,
+      sectionLabel,
+      fieldLabel: 'Links',
+    }
   }
 
   return diff
