@@ -1,6 +1,5 @@
 export * from './Alert'
 export * from './DomainResultCard'
 export * from './FormField'
-export * from './RegistrationOption'
 export * from './SearchField'
 export * from './StablecoinList'

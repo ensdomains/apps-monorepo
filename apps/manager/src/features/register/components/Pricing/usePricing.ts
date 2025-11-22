@@ -1,23 +1,21 @@
 import { useModal } from '@getpara/react-sdk-lite'
 import { useEffect, useMemo, useState } from 'react'
-import {
-  INITIAL_PRICING_OPTIONS,
-  PRICING_DURATIONS,
-  sanitizePricingDuration,
-} from '@/features/register/constants/pricing'
-import { determinePremium } from '@/features/register/utils'
-import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
-import { getTokenPrices } from '../../services/nameChainContractService'
 import type {
   PricingDuration,
   PricingOptions,
-} from '../CheckAvailability/types'
-import type { PremiumLabel, PricingProps, PricingQuoteMap } from './types'
+} from '@/features/register/components/Pricing/types'
+import { getPremiumLabel } from '@/features/register/utils'
+import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+import { getTokenPrices } from '../../services/nameChainContractService'
+import type { PricingProps, PricingQuoteMap } from './types'
 import {
   calculateExpirationDate,
   createEmptyPricingQuoteMap,
   formatDuration,
   formatExpirationDate,
+  INITIAL_PRICING_OPTIONS,
+  PRICING_DURATIONS,
+  sanitizePricingDuration,
 } from './utils'
 
 export const usePricing = ({
@@ -56,21 +54,7 @@ export const usePricing = ({
   // ==================== COMPUTED VALUES ====================
 
   // Premium detection
-  const isPremium = useMemo(() => determinePremium(domainName), [domainName])
-
-  const premiumLabel = useMemo((): PremiumLabel | null => {
-    const name = domainName.includes('.')
-      ? domainName.slice(0, domainName.lastIndexOf('.'))
-      : domainName
-    const length = name.length
-    if (!length || !isPremium) return null
-
-    const variant = length <= 3 ? 'premium-3' : 'premium-4'
-    return {
-      label: `${length} character premium name`,
-      variant,
-    } as const
-  }, [domainName, isPremium])
+  const premiumLabel = useMemo(() => getPremiumLabel(domainName), [domainName])
 
   // Price calculations
   const basePerYear = basePricePerYear ?? 0
@@ -126,7 +110,6 @@ export const usePricing = ({
 
       setIsPricingLoading(true)
       try {
-        // Fetch only 1-year price to use as base
         const baseResult = await getTokenPrices(domainName, 1)
 
         if (isCancelled) return
@@ -138,8 +121,8 @@ export const usePricing = ({
           const updatedOptions: PricingOptions = { ...INITIAL_PRICING_OPTIONS }
           const updatedQuotes: PricingQuoteMap = createEmptyPricingQuoteMap()
 
-          // Calculate prices with client-side discounts
-          PRICING_DURATIONS.forEach((duration) => {
+          // TODO: Calculate prices with client-side discounts, I guess will be handle by the contract
+          PRICING_DURATIONS.forEach((duration: PricingDuration) => {
             const discount = INITIAL_PRICING_OPTIONS[duration].discount
             const discountMultiplier = 1 - discount / 100
             const perYearPrice = basePerYear * discountMultiplier
@@ -223,7 +206,6 @@ export const usePricing = ({
     pricingQuotes,
 
     // Calculated values
-    isPremium,
     premiumLabel,
     finalPrice,
     discountAmount,

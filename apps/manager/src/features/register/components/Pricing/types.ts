@@ -1,11 +1,5 @@
 import type { DomainAttributePillVariant } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 
-// Re-export from CheckAvailability for convenience
-export type {
-  PricingDuration,
-  PricingOptions,
-} from '../CheckAvailability/types'
-
 /**
  * Pricing quote for different tokens
  */
@@ -44,3 +38,15 @@ export type PricingProps = {
     options?: { fast?: boolean },
   ) => void
 }
+
+export type PricingDuration = 1 | 2 | 3 | 4 | 5
+
+export interface PricingOption {
+  price: number
+  discount: number
+  label: string
+  badge?: 'best'
+  total?: number
+}
+
+export type PricingOptions = Record<PricingDuration, PricingOption>

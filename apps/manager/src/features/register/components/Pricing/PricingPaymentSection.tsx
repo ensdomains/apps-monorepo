@@ -1,9 +1,6 @@
 import { Button } from '@/components/ui/button'
-import type { PricingDuration } from '../../CheckAvailability/types'
-import {
-  CreditCardPaymentDrawer,
-  CryptoPaymentDrawer,
-} from '../../PaymentDrawer'
+import type { PricingDuration } from '@/features/register/components/Pricing/types'
+import { CreditCardPaymentDrawer, CryptoPaymentDrawer } from '../PaymentDrawer'
 
 type PricingPaymentSectionProps = {
   isConnected: boolean
