@@ -56,8 +56,8 @@ export function sanitizePricingDuration(
   if (value == null || Number.isNaN(value)) return defaultDuration
 
   const rounded = Math.round(value)
-  const firstDuration = PRICING_DURATIONS[0]!
-  const lastDuration = PRICING_DURATIONS[PRICING_DURATIONS.length - 1]!
+  const firstDuration = PRICING_DURATIONS[0] ?? 1
+  const lastDuration = PRICING_DURATIONS[PRICING_DURATIONS.length - 1] ?? 5
   const clamped = Math.max(
     firstDuration,
     Math.min(lastDuration, rounded),
