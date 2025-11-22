@@ -1,5 +1,5 @@
 import { useBlocker } from '@tanstack/react-router'
-import { Check, Loader2, Plus, Save, X } from 'lucide-react'
+import { ArrowRight, Check, Loader2, Plus, Save, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -107,7 +107,17 @@ export const DiffDialog = ({
                 <div key={key} className="rounded-lg border p-4">
                   <div className="mb-2 flex items-center gap-2">
                     {getChangeIcon(change.type)}
-                    <span className="font-medium">{key}</span>
+                    <span className="flex items-center gap-1 font-medium">
+                      {change.sectionLabel && change.fieldLabel ? (
+                        <>
+                          <span>{change.sectionLabel}</span>
+                          <ArrowRight className="size-3 text-gray-400" />
+                          <span>{change.fieldLabel}</span>
+                        </>
+                      ) : (
+                        key
+                      )}
+                    </span>
                     <Badge variant="outline">
                       {getChangeLabel(change.type)}
                     </Badge>
