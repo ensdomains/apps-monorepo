@@ -32,17 +32,13 @@ export const DomainResultCard = ({
 }: DomainResultCardProps) => {
   const baseClasses = cn(
     'domain-result-card',
-    'flex',
-    'flex-col',
-    'w-full',
+    'flex w-full flex-col',
     'gap-3',
-    'px-5',
-    'py-5',
+    'px-5 py-5',
     'text-left',
     'bg-ens-white',
     'rounded-[4px]',
-    'shadow-lg',
-    'transition',
+    'shadow-lg transition',
     link && 'hover:-translate-y-0.5 cursor-pointer hover:shadow-xl',
     className,
   )
@@ -76,21 +72,13 @@ export const DomainResultCard = ({
               </span>
               <span
                 className={cn(
-                  'px-2',
-                  'py-1',
-                  'text-2xl',
-                  'font-medium',
-                  'leading-none',
-                  'tracking-[-0.48px]',
-                  'text-ens-blue',
+                  'px-2 py-1',
+                  'text-2xl text-ens-blue',
                   'bg-white',
-                  'border',
-                  'border-ens-blue',
-                  'rounded-[4px]',
-                  'block',
-                  'max-w-[10ch]', // Mobile: 10 chars
-                  'sm:max-w-[40ch]', // Desktop (sm and up): 50 chars
-                  'truncate',
+                  'border border-ens-blue',
+                  'font-medium leading-none tracking-[-0.48px]',
+                  'block rounded-[4px]',
+                  'max-w-[10ch] truncate sm:max-w-[40ch]', // Mobile: 10 chars, Desktop: 40 chars
                 )}
                 title={domainName}
               >

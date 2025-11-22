@@ -1,5 +1,6 @@
 import { DomainResultCard } from '@/components/molecules'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { getPremiumLabel } from '@/features/register/utils'
 import { cn } from '@/lib/utils'
 import type { CheckAvailabilityResult } from './types'
 
@@ -30,11 +31,8 @@ export const RegistrationPanel = ({
     <DomainResultCard
       domainName={result.name}
       status={result.isPremium ? 'premium' : 'available'}
-      isPremium={result.isPremium}
-      link={{
-        to: '/register',
-        search: { name: result.name },
-      }}
+      premiumLabel={getPremiumLabel(result.name)}
+      link={`/register?name=${encodeURIComponent(result.name)}`}
     />
   ) : null
 
@@ -43,17 +41,10 @@ export const RegistrationPanel = ({
       <div
         className={cn(
           'registration-summary-card',
-          'w-full',
-          'max-w-4xl',
-          'rounded-sm',
-          'border',
-          'border-slate-200',
-          'bg-gradient-to-b',
-          'from-white',
-          'via-white',
-          'to-slate-50',
-          'p-8',
-          'shadow-2xl',
+          'w-full max-w-4xl',
+          'rounded-sm border border-slate-200',
+          'bg-gradient-to-b from-white via-white to-slate-50',
+          'p-8 shadow-2xl',
         )}
       >
         {header}

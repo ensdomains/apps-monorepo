@@ -57,35 +57,22 @@ export const DurationSelector = ({
             aria-pressed={isSelected}
             onClick={() => onSelect(duration)}
             className={cn(
-              'group',
-              'relative',
-              'flex',
-              'w-full',
-              'h-[58px]',
-              'md:h-[100px]',
-              'items-center',
-              'justify-between',
-              'px-3',
-              'py-[18px]',
-              'md:px-5',
-              'md:py-8',
-              'rounded-lg',
-              'md:rounded-xl',
-              'border',
-              'transition-all',
-              'bg-[#f8fafc]',
+              'group relative',
+              'flex w-full items-center justify-between',
+              'h-[58px] md:h-[100px]',
+              'px-3 py-[18px] md:px-5 md:py-8',
+              'rounded-lg md:rounded-xl',
+              'border border-[#dededf]',
+              'bg-[#f8fafc] transition-all',
               // Border states
-              'border-[#dededf]',
               'aria-pressed:border-ens-blue',
               // Hover states
               'hover:border-ens-blue',
               'aria-pressed:hover:border-ens-blue',
               'disabled:hover:border-[#dededf]',
               // Disabled state
-              'disabled:cursor-not-allowed',
-              'disabled:opacity-60',
-              'focus-visible:outline-2',
-              'focus-visible:outline-offset-2',
+              'disabled:cursor-not-allowed disabled:opacity-60',
+              'focus-visible:outline-2 focus-visible:outline-offset-2',
               'focus-visible:outline-ens-blue',
             )}
           >
