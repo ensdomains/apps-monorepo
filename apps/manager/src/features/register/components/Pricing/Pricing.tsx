@@ -24,7 +24,6 @@ export const Pricing = ({
     isPriceLoading,
 
     // Calculated values
-    isPremium,
     premiumLabel,
     finalPrice,
     discountAmount,
@@ -54,7 +53,6 @@ export const Pricing = ({
       {/* Domain Name Header */}
       <PricingDomainHeader
         domainName={domainName}
-        isPremium={isPremium}
         premiumLabel={premiumLabel}
       />
 

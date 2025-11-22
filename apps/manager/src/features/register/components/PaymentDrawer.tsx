@@ -2,7 +2,7 @@
 
 import { useWallet } from '@getpara/react-sdk-lite'
 import { CreditCardIcon } from 'lucide-react'
-import * as React from 'react'
+import { useEffect, useState } from 'react'
 import { StablecoinItem } from '@/components/molecules/StablecoinList/StablecoinItem'
 import { Button } from '@/components/ui/button'
 import {
@@ -44,7 +44,7 @@ export const CreditCardPaymentDrawer = ({
   priceUSD = 2800,
   onPaymentSelect,
 }: PaymentDrawerProps) => {
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpen] = useState(false)
   const isDesktop = useMediaQuery('(min-width: 768px)')
 
   // Reusable trigger button
@@ -130,8 +130,8 @@ export const CryptoPaymentDrawer = ({
   onConfirmPayment,
   isUsingAA = false,
 }: PaymentDrawerProps) => {
-  const [open, setOpen] = React.useState(false)
-  const [selectedCoin, setSelectedCoin] = React.useState<string>('')
+  const [open, setOpen] = useState(false)
+  const [selectedCoin, setSelectedCoin] = useState<string>('')
 
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const { data: wallet } = useWallet()
@@ -157,8 +157,7 @@ export const CryptoPaymentDrawer = ({
     setOpen(false)
   }
 
-  // Auto-select first available token when balance is available
-  React.useEffect(() => {
+  useEffect(() => {
     if (
       hasBalances &&
       stablecoinBalances?.length &&
@@ -176,25 +175,6 @@ export const CryptoPaymentDrawer = ({
       }
     }
   }, [hasBalances, stablecoinBalances, selectedCoin])
-
-  // Debug button state
-  React.useEffect(() => {
-    console.log('🔍 Button state:', {
-      isLoading,
-      stablecoinLoading,
-      selectedCoin,
-      hasBalances,
-      stablecoinBalances: stablecoinBalances?.length,
-      buttonDisabled:
-        isLoading || stablecoinLoading || !selectedCoin || !hasBalances,
-    })
-  }, [
-    isLoading,
-    stablecoinLoading,
-    selectedCoin,
-    hasBalances,
-    stablecoinBalances,
-  ])
 
   const triggerButton = (
     <Button className="h-[70px] w-full rounded-[4px] bg-ens-blue font-medium font-mono text-[13px] text-white uppercase tracking-[1.04px] hover:bg-ens-blue-hover">

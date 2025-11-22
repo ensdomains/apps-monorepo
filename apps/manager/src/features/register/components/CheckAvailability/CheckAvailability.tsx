@@ -1,6 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { useActor } from '@xstate/react'
-import { cva } from 'class-variance-authority'
 import { type ChangeEvent, useEffect, useRef, useState } from 'react'
 import {
   DomainProfileCard,
@@ -9,14 +7,8 @@ import {
 import { SearchField } from '@/components/molecules/SearchField'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
-import { checkAvailabilityMachine } from '../../machines/checkAvailability.machine'
+import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
 import { getErrorMessage } from '../../utils'
-
-const subtitleVariants = cva([
-  'pl-1 font-medium text-xs',
-  'font-sans text-ens-lapis-surface',
-  'leading-normal tracking-[0.28px]',
-])
 
 export type CheckAvailabilityProps = {
   onRegistrationComplete?: (name: string) => void
@@ -25,17 +17,15 @@ export type CheckAvailabilityProps = {
 export const CheckAvailability = ({
   onRegistrationComplete,
 }: CheckAvailabilityProps) => {
-  const [state, send] = useActor(checkAvailabilityMachine)
-
-  const context = state.context
-  const isSearching =
-    state.matches('searching') || state.matches('fetchingPricing')
-  const isPricingLoading = state.matches('fetchingPricing')
-  const hasResult = Boolean(state.context.selectedName)
-  const hasError = state.matches('error')
-  const hasValidationError = state.matches('validationError')
-  const searchName = (query: string) => send({ type: 'SEARCH', query })
-  const clearValidationError = () => send({ type: 'CLEAR_VALIDATION' })
+  const {
+    context,
+    isSearching,
+    hasError,
+    hasValidationError,
+    searchName,
+    resetSearch,
+    clearValidationError,
+  } = useCheckAvailability()
 
   const [inputValue, setInputValue] = useState(context.searchQuery)
   const prevRegistrationState = useRef(context.registrationSuccess)
@@ -62,6 +52,11 @@ export const CheckAvailability = ({
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value
     setInputValue(newValue)
+
+    if (newValue.trim() === '') {
+      resetSearch()
+    }
+
     if (hasValidationError) {
       clearValidationError()
     }
@@ -77,22 +72,30 @@ export const CheckAvailability = ({
       ? String(getErrorMessage(context.error))
       : null
 
-  const pricePerYear = context.pricing[1]?.price ?? 0
-
-  const shouldShowResult =
-    hasResult &&
+  // Display logic
+  const hasInput = inputValue.trim().length > 0
+  const isResultMatch =
     context.selectedName &&
-    !hasError &&
-    !hasValidationError &&
     inputValue.trim().toLowerCase() ===
       context.selectedName.trim().toLowerCase()
 
-  // Only fetch metadata when domain is unavailable
+  const showAvailableCard =
+    !isSearching &&
+    context.isAvailable &&
+    isResultMatch &&
+    !hasError &&
+    !hasValidationError
+  const showUnavailableCard =
+    !isSearching &&
+    !context.isAvailable &&
+    isResultMatch &&
+    !hasError &&
+    !hasValidationError
+  const showResultCard = (isSearching && hasInput) || showAvailableCard
+
   const { data: unavailableMetadata } = useQuery({
     ...profileMetadataQuery(context.selectedName),
-    enabled: Boolean(
-      shouldShowResult && !context.isAvailable && context.selectedName,
-    ),
+    enabled: !!(showUnavailableCard && context.selectedName),
   })
 
   return (
@@ -103,14 +106,18 @@ export const CheckAvailability = ({
           value={inputValue}
           onChange={handleInputChange}
           onSearch={handleSearch}
-          disabled={isPricingLoading || isSearching}
+          disabled={isSearching}
           className="w-full"
         />
-        {!shouldShowResult && !hasValidationError && !hasError && (
-          <p className={subtitleVariants()}>
-            Start typing to check if your perfect name is available 🕵️‍♀️
-          </p>
-        )}
+        {!showResultCard &&
+          !showUnavailableCard &&
+          !hasValidationError &&
+          !hasError &&
+          !isSearching && (
+            <p className="pl-1 font-medium font-sans text-ens-lapis-surface text-xs leading-normal tracking-[0.28px]">
+              Start typing to check if your perfect name is available 🕵️‍♀️
+            </p>
+          )}
       </div>
 
       {errorMessage && (
@@ -119,21 +126,22 @@ export const CheckAvailability = ({
         </Alert>
       )}
 
-      {shouldShowResult && context.isAvailable && (
+      {showResultCard && (
         <DomainResultCard
-          domainName={context.selectedName}
+          domainName={isSearching ? inputValue : context.selectedName || ''}
           status="available"
-          isPremium={context.isPremium}
-          price={!isPricingLoading ? pricePerYear : undefined}
-          priceLabel="USD/year"
-          link={{
-            to: '/register',
-            search: { name: context.selectedName, duration: 1 },
-          }}
+          premiumLabel={context.premiumLabel}
+          price={context.pricing[1]?.price}
+          isLoading={isSearching}
+          link={
+            !isSearching && context.selectedName
+              ? `/register?name=${encodeURIComponent(context.selectedName)}&duration=1`
+              : undefined
+          }
         />
       )}
 
-      {shouldShowResult && !context.isAvailable && (
+      {showUnavailableCard && (
         <DomainProfileCard
           domainName={context.selectedName}
           avatarUrl={unavailableMetadata?.avatarUrl}

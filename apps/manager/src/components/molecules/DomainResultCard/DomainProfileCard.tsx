@@ -54,7 +54,6 @@ export const DomainProfileCard = ({
     'flex-col',
     'w-full',
     'h-[157px]',
-    'px-[22px]',
     'py-[22px]',
     'bg-ens-white',
     'rounded-[4px]',

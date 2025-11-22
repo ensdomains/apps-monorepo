@@ -1,5 +1,8 @@
+import type {
+  PricingDuration,
+  PricingOptions,
+} from '@/features/register/components/Pricing/types'
 import { cn } from '@/lib/utils'
-import type { PricingDuration, PricingOptions } from './types'
 
 type DurationSelectorProps = {
   pricing: PricingOptions
@@ -71,9 +74,16 @@ export const DurationSelector = ({
               'border',
               'transition-all',
               'bg-[#f8fafc]',
-              isSelected ? 'border-ens-blue' : 'border-[#dededf]',
-              !isSelected && !disabled && 'hover:border-ens-blue',
-              disabled && 'cursor-not-allowed opacity-60',
+              // Border states
+              'border-[#dededf]',
+              'aria-pressed:border-ens-blue',
+              // Hover states
+              'hover:border-ens-blue',
+              'aria-pressed:hover:border-ens-blue',
+              'disabled:hover:border-[#dededf]',
+              // Disabled state
+              'disabled:cursor-not-allowed',
+              'disabled:opacity-60',
               'focus-visible:outline-2',
               'focus-visible:outline-offset-2',
               'focus-visible:outline-ens-blue',
@@ -105,7 +115,7 @@ export const DurationSelector = ({
                   ${formattedTotalPrice}
                 </span>
                 <span className="font-normal text-[#a0a4a6] text-[9px] leading-none tracking-[-0.38px] md:text-[16px]">
-                  Total
+                  total
                 </span>
               </div>
             </div>
