@@ -27,7 +27,7 @@ export const Available: Story = {
     domainName: 'example.eth',
     status: 'available',
     price: 45.2,
-    onAction: () => alert('Registering example.eth'),
+    link: '/register?name=example.eth',
   },
 }
 
@@ -36,142 +36,135 @@ export const Premium: Story = {
     domainName: 'premium.eth',
     status: 'premium',
     price: 245000,
-    onAction: () => alert('Registering premium.eth'),
+    link: '/register?name=premium.eth',
   },
 }
 
-// @ts-expect-error - TODO: Fix args
-export const MultipleCards: Story = {
+export const MultipleCards = {
   render: () => (
     <div className="flex max-w-xl flex-col gap-4">
       <DomainResultCard
         domainName="awesome.eth"
         status="available"
         price={32.5}
-        onAction={() => alert('Registering awesome.eth')}
+        link="/register?name=awesome.eth"
       />
       <DomainResultCard
         domainName="super.eth"
         status="premium"
         price={125000}
-        onAction={() => alert('Registering super.eth')}
+        link="/register?name=super.eth"
       />
       <DomainResultCard
         domainName="test123.eth"
         status="available"
         price={12.75}
-        onAction={() => alert('Registering test123.eth')}
+        link="/register?name=test123.eth"
       />
     </div>
   ),
 }
 
-// @ts-expect-error - TODO: Fix args
-export const DifferentLengths: Story = {
+export const DifferentLengths = {
   render: () => (
     <div className="flex max-w-xl flex-col gap-4">
       <DomainResultCard
         domainName="a.eth"
         status="premium"
         price={2450000}
-        onAction={() => alert('Registering a.eth')}
+        link="/register?name=a.eth"
       />
       <DomainResultCard
         domainName="ab.eth"
         status="premium"
         price={1225000}
-        onAction={() => alert('Registering ab.eth')}
+        link="/register?name=ab.eth"
       />
       <DomainResultCard
         domainName="abc.eth"
         status="premium"
         price={245000}
-        onAction={() => alert('Registering abc.eth')}
+        link="/register?name=abc.eth"
       />
       <DomainResultCard
         domainName="abcd.eth"
         status="available"
         price={61.25}
-        onAction={() => alert('Registering abcd.eth')}
+        link="/register?name=abcd.eth"
       />
       <DomainResultCard
         domainName="verylongdomainname.eth"
         status="available"
         price={12.25}
-        onAction={() => alert('Registering verylongdomainname.eth')}
+        link="/register?name=verylongdomainname.eth"
       />
     </div>
   ),
 }
 
-// @ts-expect-error - TODO: Fix args
-export const PricingVariations: Story = {
+export const PricingVariations = {
   render: () => (
     <div className="flex max-w-xl flex-col gap-4">
       <DomainResultCard
         domainName="cheap.eth"
         status="available"
         price={2.45}
-        onAction={() => alert('Registering cheap.eth')}
+        link="/register?name=cheap.eth"
       />
       <DomainResultCard
         domainName="moderate.eth"
         status="available"
         price={122.5}
-        onAction={() => alert('Registering moderate.eth')}
+        link="/register?name=moderate.eth"
       />
       <DomainResultCard
         domainName="expensive.eth"
         status="premium"
         price={24500}
-        onAction={() => alert('Registering expensive.eth')}
+        link="/register?name=expensive.eth"
       />
     </div>
   ),
 }
 
-// @ts-expect-error - TODO: Fix args
-export const WithoutPricing: Story = {
+export const WithoutPricing = {
   render: () => (
     <div className="flex max-w-xl flex-col gap-4">
       <DomainResultCard
         domainName="noprice.eth"
         status="available"
-        onAction={() => alert('Registering noprice.eth')}
+        link="/register?name=noprice.eth"
       />
       <DomainResultCard
         domainName="alsono.eth"
         status="premium"
-        onAction={() => alert('Registering alsono.eth')}
+        link="/register?name=alsono.eth"
       />
     </div>
   ),
 }
 
-// @ts-expect-error - TODO: Fix args
-export const CustomLabels: Story = {
+export const CustomLabels = {
   render: () => (
     <div className="flex max-w-xl flex-col gap-4">
       <DomainResultCard
         domainName="custom.eth"
         status="available"
         price={50}
-        onAction={() => alert('Custom action!')}
+        link="/register?name=custom.eth"
       />
       <DomainResultCard
         domainName="another.eth"
         status="premium"
         price={1000}
         priceLabel="one-time"
-        // actionText="Learn More"
-        onAction={() => alert('Learning more...')}
+        link="/register?name=another.eth"
       />
     </div>
   ),
 }
 
-// @ts-expect-error - TODO: Fix args
-export const InteractiveExample: Story = {
+export const InteractiveExample = {
   render: () => (
     <div className="max-w-xl">
       <h3 className="mb-4 font-semibold text-lg">Domain Search Results</h3>
@@ -180,10 +173,7 @@ export const InteractiveExample: Story = {
           domainName="myproject.eth"
           status="available"
           price={42.5}
-          onAction={(domainName) => {
-            console.log('Registering', domainName)
-            alert(`Registration process would start for ${domainName}!`)
-          }}
+          link="/register?name=myproject.eth"
         />
       </div>
     </div>

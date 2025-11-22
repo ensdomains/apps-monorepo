@@ -1,8 +1,4 @@
-import type {
-  PricingDuration,
-  PricingOptions,
-} from '../CheckAvailability/types'
-import type { PricingQuoteMap } from './types'
+import type { PricingDuration, PricingOptions, PricingQuoteMap } from './types'
 
 // ============================================================================
 // PRICING CONSTANTS

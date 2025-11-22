@@ -5,7 +5,6 @@ import {
   Copy,
   CreditCard,
   LayoutGrid,
-  List,
   RefreshCcw,
   Unlink,
   User,
@@ -367,12 +366,13 @@ const ConnectedContent = () => {
             </Link>
           </DropdownMenuItem>
 
-          <DropdownMenuItem asChild>
+          {/* TODO: Add /transactions route */}
+          {/* <DropdownMenuItem asChild>
             <Link to="/transactions">
               <List className="mr-2 size-4" />
               All Transactions
             </Link>
-          </DropdownMenuItem>
+          </DropdownMenuItem> */}
 
           <DropdownMenuSeparator />
 

@@ -23,7 +23,7 @@ export const getOwner = ResultFn(async function* (name: string) {
   )
 
   if (!result) {
-    return yield* new MissingOwnerError({})
+    return yield* new MissingOwnerError()
   }
 
   return ok(result)
