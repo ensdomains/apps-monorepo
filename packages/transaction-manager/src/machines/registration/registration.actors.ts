@@ -8,10 +8,10 @@ import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, PublicClient } from 'viem'
 import { encodeFunctionData, keccak256, toHex } from 'viem'
 import { sepolia } from 'viem/chains'
+import { FAST_TEST_ETH_REGISTRAR_ABI } from '../../contracts/abis/FastTestETHRegistrar.abi'
 import {
   ENS_SEPOLIA_CONTRACTS,
   ERC20_ABI,
-  FAST_TEST_ETH_REGISTRAR_ABI,
   REFERER_ADDRESS,
   SUPPORTED_TOKENS,
 } from '../../contracts/ens-sepolia'
