@@ -1,24 +1,14 @@
-import { createLink } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { ArrowRight, Calendar, Clock } from 'lucide-react'
 import type { MouseEventHandler } from 'react'
-import { forwardRef } from 'react'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import { cn } from '@/lib/utils'
 
-const BaseDomainProfileCardLink = forwardRef<
-  HTMLAnchorElement,
-  React.ComponentProps<'a'>
->((props, ref) => <a ref={ref} {...props} />)
-
-BaseDomainProfileCardLink.displayName = 'BaseDomainProfileCardLink'
-
-const DomainProfileCardLink = createLink(BaseDomainProfileCardLink)
-
 export interface DomainProfileCardProps {
   domainName: string
-  avatarUrl?: string
-  registeredDate?: Date | string
-  expiryDate?: Date | string
+  avatarUrl?: string | null
+  registeredDate?: Date | string | null
+  expiryDate?: Date | string | null
   onAction?: (domainName: string) => void
   className?: string
   link?: {
@@ -33,7 +23,7 @@ export interface DomainProfileCardProps {
   }
 }
 
-const formatDate = (date: Date | string | undefined): string => {
+const formatDate = (date: Date | string | null | undefined): string => {
   if (!date) return ''
 
   const dateObj = typeof date === 'string' ? new Date(date) : date
@@ -64,7 +54,6 @@ export const DomainProfileCard = ({
     'flex-col',
     'w-full',
     'h-[157px]',
-    'px-[22px]',
     'py-[22px]',
     'bg-ens-white',
     'rounded-[4px]',
@@ -159,7 +148,7 @@ export const DomainProfileCard = ({
     const { onClick, to, params, search, hash, replace, target, rel } = link
 
     return (
-      <DomainProfileCardLink
+      <Link
         to={to as never}
         params={params as never}
         search={search as never}
@@ -176,7 +165,7 @@ export const DomainProfileCard = ({
         }}
       >
         {content}
-      </DomainProfileCardLink>
+      </Link>
     )
   }
 

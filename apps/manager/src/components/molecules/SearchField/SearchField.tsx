@@ -1,45 +1,6 @@
-import { cva } from 'class-variance-authority'
 import { Search } from 'lucide-react'
 import { forwardRef } from 'react'
 import { cn } from '@/lib/utils'
-
-const searchFieldVariants = cva(
-  [
-    // Layout & sizing
-    'h-full w-full self-stretch',
-    // Typography
-    'font-sans font-semibold text-lg leading-[110%] tracking-[-0.4px]',
-    // Spacing
-    'pt-[21px] pr-[28px] pb-[21px] pl-[52px]',
-    // Borders & colors
-    'rounded border-[0.25px] border-ens-gray-two',
-    'bg-ens-lapis-dust text-ens-blue',
-    // Effects
-    'shadow-[0_9px_17px_0_rgba(14,61,104,0.1)]',
-    'transition-all duration-200 ease-in-out',
-    // States
-    'placeholder:text-ens-lapis-surface',
-    'focus:border-transparent focus:outline-none',
-    'focus:shadow-[0_9px_17px_0_rgba(14,61,104,0.1),0_0_0_2px_oklch(57.2%_0.13_240deg/0.2)]',
-  ],
-  {
-    variants: {
-      disabled: {
-        true: 'cursor-not-allowed',
-      },
-    },
-  },
-)
-
-const searchIconVariants = cva([
-  '-translate-y-1/2 absolute top-1/2 left-[18px]',
-  'h-[26px] w-[26px]',
-  'text-ens-gray',
-])
-
-const searchFieldContainerVariants = cva([
-  'relative flex items-center gap-[15px]',
-])
 
 export interface SearchFieldProps {
   placeholder?: string
@@ -78,7 +39,7 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
       <div
         className={cn(
           'search-field-container',
-          searchFieldContainerVariants(),
+          'relative flex items-center gap-[15px]',
           className,
         )}
       >
@@ -91,15 +52,25 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
           onChange={onChange}
           onKeyDown={handleKeyDown}
           disabled={disabled}
+          maxLength={255}
           className={cn(
-            'search-field',
-            searchFieldVariants({ disabled: !!disabled }),
+            'h-full w-full self-stretch',
+            'font-sans font-semibold text-lg leading-[110%] tracking-[-0.4px]',
+            'pt-[21px] pr-[28px] pb-[21px] pl-[52px]',
+            'rounded border-[0.25px] border-ens-gray-two',
+            'bg-ens-lapis-dust text-ens-blue',
+            'shadow-md',
+            'transition-all duration-200 ease-in-out',
+            'placeholder:text-ens-lapis-surface',
+            'focus:border-transparent focus:outline-none',
+            'focus:ring-2 focus:ring-blue-500/20',
+            'disabled:cursor-not-allowed',
           )}
         />
 
         <Search
           aria-hidden
-          className={searchIconVariants()}
+          className="-translate-y-1/2 absolute top-1/2 left-[18px] h-[26px] w-[26px] text-ens-gray"
           strokeWidth={1.5}
         />
       </div>

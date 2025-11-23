@@ -186,9 +186,9 @@ export const RegisterDrawer = ({
                 onClick={() => handleWalletSelect(wallet.id)}
                 className={cn(
                   'flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-all',
-                  selectedWallet === wallet.id
-                    ? 'border-blue-500'
-                    : 'border-border hover:border-blue-300',
+                  'border-border',
+                  'hover:border-blue-300',
+                  selectedWallet === wallet.id && 'border-blue-500',
                 )}
               >
                 <span className="text-lg">{wallet.icon}</span>

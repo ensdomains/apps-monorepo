@@ -1,5 +1,8 @@
+import type {
+  PricingDuration,
+  PricingOptions,
+} from '@/features/register/components/Pricing/types'
 import { cn } from '@/lib/utils'
-import type { PricingDuration, PricingOptions } from '../types'
 
 type DurationSelectorProps = {
   pricing: PricingOptions
@@ -54,28 +57,22 @@ export const DurationSelector = ({
             aria-pressed={isSelected}
             onClick={() => onSelect(duration)}
             className={cn(
-              'group',
-              'relative',
-              'flex',
-              'w-full',
-              'h-[58px]',
-              'md:h-[100px]',
-              'items-center',
-              'justify-between',
-              'px-3',
-              'py-[18px]',
-              'md:px-5',
-              'md:py-8',
-              'rounded-lg',
-              'md:rounded-xl',
-              'border',
-              'transition-all',
-              'bg-[#f8fafc]',
-              isSelected ? 'border-ens-blue' : 'border-[#dededf]',
-              !isSelected && !disabled && 'hover:border-ens-blue',
-              disabled && 'cursor-not-allowed opacity-60',
-              'focus-visible:outline-2',
-              'focus-visible:outline-offset-2',
+              'group relative',
+              'flex w-full items-center justify-between',
+              'h-[58px] md:h-[100px]',
+              'px-3 py-[18px] md:px-5 md:py-8',
+              'rounded-lg md:rounded-xl',
+              'border border-[#dededf]',
+              'bg-[#f8fafc] transition-all',
+              // Border states
+              'aria-pressed:border-ens-blue',
+              // Hover states
+              'hover:border-ens-blue',
+              'aria-pressed:hover:border-ens-blue',
+              'disabled:hover:border-[#dededf]',
+              // Disabled state
+              'disabled:cursor-not-allowed disabled:opacity-60',
+              'focus-visible:outline-2 focus-visible:outline-offset-2',
               'focus-visible:outline-ens-blue',
             )}
           >
@@ -105,7 +102,7 @@ export const DurationSelector = ({
                   ${formattedTotalPrice}
                 </span>
                 <span className="font-normal text-[#a0a4a6] text-[9px] leading-none tracking-[-0.38px] md:text-[16px]">
-                  Total
+                  total
                 </span>
               </div>
             </div>
