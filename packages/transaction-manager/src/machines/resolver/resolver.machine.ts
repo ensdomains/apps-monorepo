@@ -1,12 +1,10 @@
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, PublicClient } from 'viem'
 import { assign, setup } from 'xstate'
+import { pollTransactionStatus } from '../../helpers/pollTransactionStatus.actor'
 import * as auditTrail from '../../services/audit-trail.service'
 import type { Signer } from '../../types/signer.types'
-import {
-  pollTransactionStatusActor,
-  submitResolverUpdateActor,
-} from './resolver.actors'
+import { submitResolverUpdateActor } from './resolver.actors'
 
 export type ResolverContext = {
   signer?: Signer
@@ -61,7 +59,7 @@ export const resolverMachine = setup({
       }) => submitResolverUpdateActor(input),
     ),
     pollTransactionStatus: fromResultAsync((input: { txId: string }) =>
-      pollTransactionStatusActor(input),
+      pollTransactionStatus(input.txId),
     ),
   },
 

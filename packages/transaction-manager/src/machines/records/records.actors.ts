@@ -1,4 +1,4 @@
-import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
+import { fromPromise, type ResultAsync } from 'neverthrow'
 import {
   type Address,
   encodeFunctionData,
@@ -88,36 +88,3 @@ export const submitProfileRecordsUpdateActor = (input: {
     })(),
     (error) => error as Error,
   )
-
-export const pollTransactionStatusActor = (input: {
-  txId: string
-}): ResultAsync<string | undefined, Error> => {
-  const txActor = transactionManager.getTransaction(input.txId)
-
-  if (!txActor) {
-    return errAsync(new Error(`Transaction ${input.txId} not found`))
-  }
-
-  return fromPromise(
-    new Promise<string | undefined>((resolve, reject) => {
-      const subscription = txActor.subscribe((snapshot) => {
-        if (snapshot.value === 'success') {
-          const context: any = snapshot.context
-          const hash: string | undefined =
-            context?.hash || context?.receipt?.transactionHash
-          subscription.unsubscribe()
-          resolve(hash)
-        }
-        if (
-          typeof snapshot.value === 'object' &&
-          snapshot.value !== null &&
-          'error' in snapshot.value
-        ) {
-          subscription.unsubscribe()
-          reject(snapshot.context.error || new Error('Transaction failed'))
-        }
-      })
-    }),
-    (error) => error as Error,
-  )
-}

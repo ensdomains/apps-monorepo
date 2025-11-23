@@ -1,12 +1,10 @@
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, PublicClient } from 'viem'
 import { assign, setup } from 'xstate'
+import { pollTransactionStatus } from '../../helpers/pollTransactionStatus.actor'
 import * as auditTrail from '../../services/audit-trail.service'
 import type { Signer } from '../../types/signer.types'
-import {
-  pollTransactionStatusActor,
-  submitProfileRecordsUpdateActor,
-} from './records.actors'
+import { submitProfileRecordsUpdateActor } from './records.actors'
 import type { ServiceRecordSnapshot } from './records.types'
 
 export type RecordsContext = {
@@ -77,7 +75,7 @@ export const recordsMachine = setup({
       }) => submitProfileRecordsUpdateActor(input),
     ),
     pollTransactionStatus: fromResultAsync((input: { txId: string }) =>
-      pollTransactionStatusActor(input),
+      pollTransactionStatus(input.txId),
     ),
   },
 
