@@ -1,16 +1,10 @@
-import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
+import { fromPromise, type ResultAsync } from 'neverthrow'
 import { type Address, encodeFunctionData, type PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import { ETH_REGISTRY_ABI } from '../../contracts/abis/ETHRegistry.abi'
 import { ENS_SEPOLIA_CONTRACTS } from '../../contracts/ens-sepolia'
+import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
 import { transactionManager } from '../../providers/transactionManager'
-
-function getSmartAccountAddress(signer: import('../..').Signer): Address {
-  if (signer.type === 'rhinestone') {
-    return signer.account.getAddress() as Address
-  }
-  throw new Error('Only Rhinestone signer is supported for resolver updates')
-}
 
 export function submitResolverUpdateActor(input: {
   name: string
@@ -21,7 +15,6 @@ export function submitResolverUpdateActor(input: {
   return fromPromise(
     (async () => {
       const smartAccountAddress = getSmartAccountAddress(input.signer)
-
       const cleanName = input.name.replace('.eth', '')
 
       const [tokenId] = (await input.publicClient.readContract({
@@ -67,39 +60,6 @@ export function submitResolverUpdateActor(input: {
 
       return txId
     })(),
-    (error) => error as Error,
-  )
-}
-
-export function pollTransactionStatusActor(input: {
-  txId: string
-}): ResultAsync<string | undefined, Error> {
-  const txActor = transactionManager.getTransaction(input.txId)
-
-  if (!txActor) {
-    return errAsync(new Error(`Transaction ${input.txId} not found`))
-  }
-
-  return fromPromise(
-    new Promise<string | undefined>((resolve, reject) => {
-      const subscription = txActor.subscribe((snapshot) => {
-        if (snapshot.value === 'success') {
-          const context: any = snapshot.context
-          const hash: string | undefined =
-            context?.hash || context?.receipt?.transactionHash
-          subscription.unsubscribe()
-          resolve(hash)
-        }
-        if (
-          typeof snapshot.value === 'object' &&
-          snapshot.value !== null &&
-          'error' in snapshot.value
-        ) {
-          subscription.unsubscribe()
-          reject(snapshot.context.error || new Error('Transaction failed'))
-        }
-      })
-    }),
     (error) => error as Error,
   )
 }
