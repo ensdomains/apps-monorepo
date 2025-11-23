@@ -77,6 +77,12 @@ export type {
   RegistrationInput,
 } from './machines/registration/registration.machine'
 export { registrationMachine } from './machines/registration/registration.machine'
+export type {
+  ResolverContext,
+  ResolverEvent,
+  ResolverInput,
+} from './machines/resolver/resolver.machine'
+export { resolverMachine } from './machines/resolver/resolver.machine'
 // Machines
 export { transactionMachine } from './machines/transaction.machine'
 // Providers
