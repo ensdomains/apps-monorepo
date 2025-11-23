@@ -3,15 +3,8 @@ import { type Address, encodeFunctionData, type PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import { ETH_REGISTRY_ABI } from '../../contracts/abis/ETHRegistry.abi'
 import { ENS_SEPOLIA_CONTRACTS } from '../../contracts/ens-sepolia'
-import { pollTransactionStatus } from '../../helpers/pollTransactionStatus.actor'
+import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
 import { transactionManager } from '../../providers/transactionManager'
-
-function getSmartAccountAddress(signer: import('../..').Signer): Address {
-  if (signer.type === 'rhinestone') {
-    return signer.account.getAddress() as Address
-  }
-  throw new Error('Only Rhinestone signer is supported for resolver updates')
-}
 
 export function submitResolverUpdateActor(input: {
   name: string
@@ -22,7 +15,6 @@ export function submitResolverUpdateActor(input: {
   return fromPromise(
     (async () => {
       const smartAccountAddress = getSmartAccountAddress(input.signer)
-
       const cleanName = input.name.replace('.eth', '')
 
       const [tokenId] = (await input.publicClient.readContract({

@@ -8,6 +8,7 @@ import {
 } from 'viem'
 import { DEDICATED_RESOLVER_ABI } from '../../contracts/abis/DedicatedResolver.abi'
 import { ENS_SEPOLIA_CONTRACTS } from '../../contracts/ens-sepolia'
+import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
 import { transactionManager } from '../../providers/transactionManager'
 import {
   buildDedicatedResolverCalls,
@@ -40,7 +41,7 @@ export const submitProfileRecordsUpdateActor = (input: {
         )
       }
 
-      const smartAccountAddress = input.signer.account.getAddress() as Address
+      const smartAccountAddress = getSmartAccountAddress(input.signer)
       const resolverAddress =
         input.resolverAddress ?? ENS_SEPOLIA_CONTRACTS.PublicResolver
 
