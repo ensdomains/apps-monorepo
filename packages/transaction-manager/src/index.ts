@@ -27,11 +27,9 @@ export {
   TransactionStatusPanel,
   type TransactionStatusPanelProps,
 } from './components/TransactionStatusPanel'
+export { ETH_REGISTRAR_CONTROLLER_ABI } from './contracts/abis/ETHRegistrarController.abi'
 // Contracts
-export {
-  ENS_SEPOLIA_CONTRACTS,
-  ETH_REGISTRAR_CONTROLLER_ABI,
-} from './contracts/ens-sepolia'
+export { ENS_SEPOLIA_CONTRACTS } from './contracts/ens-sepolia'
 // Errors
 export { TransactionSubmissionError } from './errors/transaction.errors'
 export {
