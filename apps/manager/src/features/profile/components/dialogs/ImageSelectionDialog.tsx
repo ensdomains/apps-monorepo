@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMachine } from '@xstate/react'
 import clsx from 'clsx'
 import {
@@ -13,6 +13,8 @@ import {
   Upload,
 } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { sha256 } from 'viem'
+import { useAccount, useChainId, useSignTypedData } from 'wagmi'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -31,6 +33,8 @@ import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { cn } from '@/lib/utils'
 import { inspect } from '@/utils/xstate'
 
+const UPLOAD_TIMEOUT_MS = 30000
+
 interface ErrorDisplayProps {
   error: string | null
 }
@@ -45,6 +49,8 @@ const ErrorDisplay = ({ error }: ErrorDisplayProps) => {
     </Alert>
   )
 }
+
+const ONE_WEEK_MS = 1000 * 60 * 60 * 24 * 7
 
 type ImageType = 'avatar' | 'header'
 
@@ -70,6 +76,8 @@ export const ImageSelectionDialog = ({
   name,
 }: ImageSelectionDialogProps) => {
   const [open, setOpen] = useState(false)
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dropZoneRef = useRef<HTMLButtonElement>(null)
 
@@ -83,6 +91,10 @@ export const ImageSelectionDialog = ({
 
   // Use resolved image if available, otherwise fall back to original
   const displayImage = resolvedImage.data || currentImage
+
+  const { address, isConnected } = useAccount()
+  const chainId = useChainId()
+  const { signTypedDataAsync } = useSignTypedData()
 
   const [state, send] = useMachine(imageSelectionMachine, {
     input: {
@@ -109,14 +121,16 @@ export const ImageSelectionDialog = ({
     e.stopPropagation()
 
     const files = e.dataTransfer.files
-    if (files.length > 0) {
-      const file = files[0]
-      if (file?.type.startsWith('image/')) {
-        const imageUrl = URL.createObjectURL(file)
-        send({ type: 'OPEN_UPLOAD', imageUrl })
-      } else {
-        send({ type: 'SET_ERROR', error: 'Please select a valid image file' })
-      }
+    if (files.length === 0) return
+
+    const file = files[0]
+    if (file?.type.startsWith('image/')) {
+      const imageUrl = URL.createObjectURL(file)
+      setUploadFile(file)
+      setUploadPreviewUrl(imageUrl)
+      send({ type: 'OPEN_UPLOAD', imageUrl })
+    } else {
+      send({ type: 'SET_ERROR', error: 'Please select a valid image file' })
     }
   }
 
@@ -125,12 +139,145 @@ export const ImageSelectionDialog = ({
     if (file) {
       if (file.type.startsWith('image/')) {
         const imageUrl = URL.createObjectURL(file)
+        setUploadFile(file)
+        setUploadPreviewUrl(imageUrl)
         send({ type: 'OPEN_UPLOAD', imageUrl })
       } else {
         send({ type: 'SET_ERROR', error: 'Please select a valid image file' })
       }
     }
   }
+
+  const fileToDataURL = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = (err) => reject(err)
+      reader.readAsDataURL(file)
+    })
+
+  const dataURLToBytes = (dataURL: string) => {
+    const [, base64 = ''] = dataURL.split(',')
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
+    return bytes
+  }
+
+  const getChainName = () => {
+    if (!chainId || chainId === 1) return 'mainnet'
+    // Default to sepolia for non-mainnet in this app
+    return 'sepolia'
+  }
+
+  const { mutate: uploadImage, isPending: isUploading } = useMutation({
+    mutationFn: async () => {
+      if (!name) throw new Error('Name is required to upload an image')
+      if (!uploadFile) throw new Error('No image selected for upload')
+      if (!isConnected || !address)
+        throw new Error('Please connect your wallet before uploading an image')
+
+      const dataURL = await fileToDataURL(uploadFile)
+
+      const chainName = getChainName()
+      const baseUrlRoot = 'https://euc.li'
+
+      let endpoint: string
+      if (type === 'avatar') {
+        const baseURL =
+          chainName === 'mainnet' ? baseUrlRoot : `${baseUrlRoot}/${chainName}`
+        endpoint = `${baseURL}/${name}`
+      } else {
+        // header
+        endpoint =
+          chainName === 'mainnet'
+            ? `${baseUrlRoot}/${name}/h`
+            : `${baseUrlRoot}/${chainName}/${name}/h`
+      }
+
+      const hashBytes = sha256(dataURLToBytes(dataURL))
+      const urlHash = Array.from(hashBytes)
+        .map((b) => b.toString().padStart(2, '0'))
+        .join('')
+      const expiry = `${Date.now() + ONE_WEEK_MS}`
+
+      const sig = await signTypedDataAsync({
+        primaryType: 'Upload',
+        domain: {
+          name: 'Ethereum Name Service',
+          version: '1',
+        },
+        types: {
+          Upload: [
+            { name: 'upload', type: 'string' },
+            { name: 'expiry', type: 'string' },
+            { name: 'name', type: 'string' },
+            { name: 'hash', type: 'string' },
+          ],
+        },
+        message: {
+          upload: type,
+          expiry,
+          name,
+          hash: urlHash,
+        },
+      })
+
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS)
+
+      try {
+        const response = await fetch(endpoint, {
+          method: 'PUT',
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            expiry,
+            dataURL,
+            sig,
+            unverifiedAddress: address,
+          }),
+        })
+
+        clearTimeout(timeoutId)
+
+        if (!response.ok) {
+          throw new Error(`Upload failed with status ${response.status}`)
+        }
+
+        const result = (await response.json()) as
+          | { message: string }
+          | { error: string; status?: number }
+
+        if ('message' in result && result.message === 'uploaded') {
+          // Save Avup endpoint as the text record value
+          onImageChange(endpoint)
+          setOpen(false)
+          setUploadFile(null)
+          setUploadPreviewUrl(null)
+          send({ type: 'RESET' })
+          return
+        }
+
+        if ('error' in result) {
+          throw new Error(result.error)
+        }
+
+        throw new Error('Unknown error')
+      } catch (err) {
+        clearTimeout(timeoutId)
+        if (err instanceof Error && err.name === 'AbortError') {
+          throw new Error('Upload timed out. Please try again.')
+        }
+        throw err
+      }
+    },
+    onError: (error: unknown) => {
+      const message =
+        error instanceof Error ? error.message : 'Failed to upload image'
+      send({ type: 'SET_ERROR', error: message })
+    },
+  })
 
   // Get appropriate dimensions and styling based on type
   const getImageStyles = (size: 'small' | 'medium' | 'large' = 'medium') => {
@@ -410,7 +557,7 @@ export const ImageSelectionDialog = ({
       <div className="space-y-4">
         <div className="text-center">
           <img
-            src={state.context.uploadedImage || ''}
+            src={uploadPreviewUrl || ''}
             alt="Uploaded"
             className={getImageStyles('large')}
           />
@@ -425,8 +572,8 @@ export const ImageSelectionDialog = ({
         <Button variant="outline" onClick={() => send({ type: 'BACK' })}>
           Back
         </Button>
-        <Button onClick={() => send({ type: 'CONFIRM_UPLOAD' })}>
-          Use This Image
+        <Button onClick={() => uploadImage()} disabled={isUploading}>
+          {isUploading ? 'Uploading…' : 'Upload & Use Image'}
         </Button>
       </DialogFooter>
     </>
