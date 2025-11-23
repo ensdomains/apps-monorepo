@@ -18,6 +18,7 @@ import {
   transformProfileRecords,
   transformToServiceFormat,
 } from '../utils/transformRecords'
+import { UpdateResolverDialog } from './dialogs/UpdateResolverDialog'
 import { useAppForm } from './form'
 import { SaveChanges } from './SaveChanges'
 import { BioSection } from './sections/BioSection'
@@ -174,6 +175,14 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
         {/* Right/side column */}
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
           <WalletAddressesSection form={form} />
+
+          <UpdateResolverDialog
+            name={name}
+            currentResolver={resolverData?.resolverAddress}
+            onUpdated={() => {
+              refetchResolver()
+            }}
+          />
 
           {/* Reset & Save Buttons */}
           <div className="space-y-2 pt-2">
