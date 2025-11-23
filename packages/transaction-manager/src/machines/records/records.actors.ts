@@ -12,7 +12,6 @@ import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
 import { transactionManager } from '../../providers/transactionManager'
 import {
   buildDedicatedResolverCalls,
-  buildPublicResolverCalls,
   computeRecordChanges,
 } from './records.helpers'
 import type { ServiceRecordSnapshot } from './records.types'
@@ -25,7 +24,6 @@ export const submitProfileRecordsUpdateActor = (input: {
   publicClient: PublicClient
   chainId: number
   resolverAddress?: Address
-  isDedicatedResolver?: boolean
 }): ResultAsync<string, Error> =>
   fromPromise(
     (async () => {
@@ -46,9 +44,7 @@ export const submitProfileRecordsUpdateActor = (input: {
         input.resolverAddress ?? ENS_SEPOLIA_CONTRACTS.PublicResolver
 
       const node = namehash(input.name) as Hex
-      const calls = input.isDedicatedResolver
-        ? buildDedicatedResolverCalls(changes)
-        : buildPublicResolverCalls(node, changes)
+      const calls = buildDedicatedResolverCalls(changes)
 
       const multicallData = encodeFunctionData({
         abi: DEDICATED_RESOLVER_ABI,

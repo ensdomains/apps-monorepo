@@ -4,7 +4,6 @@ import {
 } from '@ensdomains/address-encoder'
 import { bytesToHex, encodeFunctionData, type Hex, zeroAddress } from 'viem'
 import { DEDICATED_RESOLVER_ABI } from '../../contracts/abis/DedicatedResolver.abi'
-import { PUBLIC_RESOLVER_ABI } from '../../contracts/abis/PublicResolver.abi'
 import type { ServiceRecordSnapshot } from './records.types'
 
 type TextChange = {
@@ -118,7 +117,7 @@ const encodeCoinValue = (
 }
 
 const buildTextCalls = (options: {
-  abi: typeof DEDICATED_RESOLVER_ABI | typeof PUBLIC_RESOLVER_ABI
+  abi: typeof DEDICATED_RESOLVER_ABI
   texts: TextChange[]
   buildArgs: (key: string, value: string | null) => readonly unknown[]
 }): Hex[] =>
@@ -131,7 +130,7 @@ const buildTextCalls = (options: {
   )
 
 const buildCoinCalls = (options: {
-  abi: typeof DEDICATED_RESOLVER_ABI | typeof PUBLIC_RESOLVER_ABI
+  abi: typeof DEDICATED_RESOLVER_ABI
   coins: CoinChange[]
   buildArgs: (coinType: number, encoded: Hex) => readonly unknown[]
 }): Hex[] =>
@@ -156,21 +155,5 @@ export const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => [
     abi: DEDICATED_RESOLVER_ABI,
     coins: changes.coins,
     buildArgs: (coinType, encoded) => [BigInt(coinType), encoded],
-  }),
-]
-
-export const buildPublicResolverCalls = (
-  node: Hex,
-  changes: RecordChanges,
-): Hex[] => [
-  ...buildTextCalls({
-    abi: PUBLIC_RESOLVER_ABI,
-    texts: changes.texts,
-    buildArgs: (key, value) => [node, key, value],
-  }),
-  ...buildCoinCalls({
-    abi: PUBLIC_RESOLVER_ABI,
-    coins: changes.coins,
-    buildArgs: (coinType, encoded) => [node, BigInt(coinType), encoded],
   }),
 ]
