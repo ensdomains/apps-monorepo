@@ -48,6 +48,8 @@ const ErrorDisplay = ({ error }: ErrorDisplayProps) => {
   )
 }
 
+const ONE_WEEK_MS = 1000 * 60 * 60 * 24 * 7
+
 type ImageType = 'avatar' | 'header'
 
 interface ImageSelectionDialogProps {
@@ -193,7 +195,7 @@ export const ImageSelectionDialog = ({
       const urlHash = Array.from(hashBytes)
         .map((b) => b.toString().padStart(2, '0'))
         .join('')
-      const expiry = `${Date.now() + 1000 * 60 * 60 * 24 * 7}`
+      const expiry = `${Date.now() + ONE_WEEK_MS}`
 
       const sig = await signTypedDataAsync({
         primaryType: 'Upload',
