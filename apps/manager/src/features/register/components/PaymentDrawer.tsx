@@ -27,6 +27,7 @@ interface PaymentDrawerProps {
   duration?: number
   priceUSD?: number
   isLoading?: boolean
+  disabled?: boolean
   onPaymentSelect?: (method: 'crypto' | 'credit-card') => void
   onCryptoSelect?: (cryptoId: string) => void
   onConfirmPayment?: (
@@ -42,6 +43,7 @@ export const CreditCardPaymentDrawer = ({
   domainName = 'example.eth',
   duration = 25,
   priceUSD = 2800,
+  disabled = false,
   onPaymentSelect,
 }: PaymentDrawerProps) => {
   const [open, setOpen] = useState(false)
@@ -50,7 +52,8 @@ export const CreditCardPaymentDrawer = ({
   // Reusable trigger button
   const triggerButton = (
     <Button
-      className="h-[70px] w-full rounded-[4px] border-2 border-ens-blue bg-white font-medium font-mono text-[13px] text-ens-blue uppercase tracking-[1.04px] hover:bg-ens-blue-light"
+      className="h-[70px] w-full rounded border-2 border-ens-blue bg-white font-medium font-mono text-[13px] text-ens-blue uppercase tracking-wider hover:bg-ens-blue-light disabled:cursor-not-allowed disabled:opacity-50"
+      disabled={disabled}
       onClick={() => {
         onPaymentSelect?.('credit-card')
         setOpen(false)
@@ -125,6 +128,7 @@ export const CryptoPaymentDrawer = ({
   duration = 25,
   priceUSD = 2800,
   isLoading = false,
+  disabled = false,
   onPaymentSelect,
   onCryptoSelect,
   onConfirmPayment,
@@ -177,7 +181,10 @@ export const CryptoPaymentDrawer = ({
   }, [hasBalances, stablecoinBalances, selectedCoin])
 
   const triggerButton = (
-    <Button className="h-[70px] w-full rounded-[4px] bg-ens-blue font-medium font-mono text-[13px] text-white uppercase tracking-[1.04px] hover:bg-ens-blue-hover">
+    <Button
+      className="h-[70px] w-full rounded bg-ens-blue font-medium font-mono text-[13px] text-white uppercase tracking-wider hover:bg-ens-blue-hover disabled:cursor-not-allowed disabled:opacity-50"
+      disabled={disabled}
+    >
       Pay with stablecoins
     </Button>
   )

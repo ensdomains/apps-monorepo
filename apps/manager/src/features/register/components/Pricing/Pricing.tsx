@@ -1,10 +1,13 @@
-import { DurationSelector } from '../CheckAvailability/DurationSelector'
-import { PricingDomainHeader } from './PricingDomainHeader'
-import { PricingPaymentSection } from './PricingPaymentSection'
-import { PricingRegistrationSummaryCard } from './PricingRegistrationSummaryCard'
-import { PricingTotalPriceCard } from './PricingTotalPriceCard'
-import type { PricingProps } from './types'
-import { usePricing } from './usePricing'
+import { DurationSelector } from '@/features/register/components/CheckAvailability/DurationSelector'
+import { PricingDomainHeader } from '@/features/register/components/Pricing/PricingDomainHeader'
+import { PricingPaymentSection } from '@/features/register/components/Pricing/PricingPaymentSection'
+import { PricingRegistrationSummaryCard } from '@/features/register/components/Pricing/PricingRegistrationSummaryCard'
+import { PricingTotalPriceCard } from '@/features/register/components/Pricing/PricingTotalPriceCard'
+import type {
+  PricingDuration,
+  PricingProps,
+} from '@/features/register/components/Pricing/types'
+import { usePricing } from '@/features/register/components/Pricing/usePricing'
 
 export const Pricing = ({
   domainName,
@@ -31,12 +34,13 @@ export const Pricing = ({
     theoreticalTotal,
     formattedExpiration,
     paddedDuration,
+    expirationDate,
 
     // Account/connection
     isUsingAA,
 
     // Handlers
-    handleSelectDuration,
+    handleChange,
     handleConfirmPayment,
     handleConnect,
   } = usePricing({
@@ -49,7 +53,7 @@ export const Pricing = ({
   })
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 pt-4 pb-12 md:px-10">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 pt-4 pb-12 md:px-10">
       {/* Domain Name Header */}
       <PricingDomainHeader
         domainName={domainName}
@@ -57,13 +61,13 @@ export const Pricing = ({
       />
 
       {/* Two Column Layout - Desktop / Single Column - Mobile */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.5fr)_420px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_420px] lg:items-stretch">
         {/* Left Column: Duration Selector */}
-        <div className="space-y-2">
+        <div className="flex flex-col space-y-2">
           <DurationSelector
             pricing={pricingOptions}
-            selectedDuration={selectedDuration}
-            onSelect={handleSelectDuration}
+            selectedDuration={selectedDuration as PricingDuration}
+            onSelect={(duration: PricingDuration) => handleChange(duration)}
             disabled={isPricingLoading || isLoading}
           />
           {isPricingLoading && (
@@ -74,15 +78,17 @@ export const Pricing = ({
         </div>
 
         {/* Right Column: Summary Cards - Desktop / Mobile: Full width */}
-        <div className="flex w-full flex-col gap-4">
+        <div className="flex w-full flex-col gap-2">
           {/* Registration Summary Card */}
           <PricingRegistrationSummaryCard
             paddedDuration={paddedDuration}
             formattedExpiration={formattedExpiration}
+            expirationDate={expirationDate}
+            onChange={handleChange}
           />
 
           {/* Total & Payment Card */}
-          <div className="space-y-8 rounded-2xl border border-[#ddddde] bg-white px-6 py-8 shadow-sm">
+          <div className="h-full space-y-6 rounded-2xl border border-ens-gray-two bg-white px-6 py-6 shadow-sm">
             {/* Total Price Section */}
             <PricingTotalPriceCard
               isPriceLoading={isPriceLoading}
@@ -97,7 +103,7 @@ export const Pricing = ({
               isConnected={isConnected}
               isLoading={isLoading}
               domainName={domainName}
-              selectedDuration={selectedDuration}
+              selectedDuration={selectedDuration as PricingDuration}
               priceUSD={finalPrice}
               isPriceLoading={isPriceLoading}
               isUsingAA={isUsingAA}

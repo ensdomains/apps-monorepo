@@ -1,20 +1,20 @@
 import { useModal } from '@getpara/react-sdk-lite'
-import { useEffect, useMemo, useState } from 'react'
-import type {
-  PricingDuration,
-  PricingOptions,
-} from '@/features/register/components/Pricing/types'
+import { useEffect, useMemo, useReducer } from 'react'
+import type { PricingDuration } from '@/features/register/components/Pricing/types'
 import { getPremiumLabel } from '@/features/register/utils'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 import { getTokenPrices } from '../../services/nameChainContractService'
-import type { PricingProps, PricingQuoteMap } from './types'
+import { createInitialState, pricingReducer } from './pricing.reducer'
+import type { PricingProps } from './types'
 import {
+  calculateDurationFromDate,
   calculateExpirationDate,
   createEmptyPricingQuoteMap,
   formatDuration,
   formatExpirationDate,
   INITIAL_PRICING_OPTIONS,
   PRICING_DURATIONS,
+  PRICING_YEAR_DISCOUNTS,
   sanitizePricingDuration,
 } from './utils'
 
@@ -34,51 +34,61 @@ export const usePricing = ({
   | 'onSelectCrypto'
   | 'onConfirmPayment'
 >) => {
-  // ==================== STATE ====================
-  const [pricingOptions, setPricingOptions] = useState<PricingOptions>(
-    INITIAL_PRICING_OPTIONS,
-  )
-  const [selectedDuration, setSelectedDuration] = useState<PricingDuration>(
+  const [state, dispatch] = useReducer(
+    pricingReducer,
     sanitizePricingDuration(duration),
+    createInitialState,
   )
-  const [isPricingLoading, setIsPricingLoading] = useState(false)
-  const [pricingQuotes, setPricingQuotes] = useState<PricingQuoteMap>(
-    createEmptyPricingQuoteMap,
-  )
-  const [basePricePerYear, setBasePricePerYear] = useState<number | null>(null)
 
-  // ==================== EXTERNAL HOOKS ====================
   const { rhinestoneAccount } = useRhinestoneAccount()
   const { openModal } = useModal()
 
-  // ==================== COMPUTED VALUES ====================
-
-  // Premium detection
   const premiumLabel = useMemo(() => getPremiumLabel(domainName), [domainName])
 
-  // Price calculations
-  const basePerYear = basePricePerYear ?? 0
-  const selectedOption = pricingOptions[selectedDuration]
-  const selectedQuote = pricingQuotes[selectedDuration]
-  const fallbackTotal =
-    selectedOption?.total ??
-    (selectedOption ? selectedOption.price * selectedDuration : 0)
-  const finalPrice = selectedQuote?.usdc ?? fallbackTotal
-  const theoreticalTotal = basePerYear > 0 ? basePerYear * selectedDuration : 0
+  const basePerYear = state.basePricePerYear ?? 0
+  const isCustomDuration = state.selectedDuration > 5
+  const selectedOption = !isCustomDuration
+    ? state.pricingOptions[state.selectedDuration as PricingDuration]
+    : undefined
+  const selectedQuote = !isCustomDuration
+    ? state.pricingQuotes[state.selectedDuration as PricingDuration]
+    : undefined
+
+  const bestDiscountMultiplier = 1 - (PRICING_YEAR_DISCOUNTS[5] ?? 0) / 100
+  const customDurationPrice =
+    isCustomDuration && basePerYear > 0
+      ? basePerYear * state.selectedDuration * bestDiscountMultiplier
+      : 0
+
+  const fallbackTotal = isCustomDuration
+    ? customDurationPrice
+    : (selectedOption?.total ??
+      (selectedOption
+        ? selectedOption.price * state.selectedDuration
+        : basePerYear * state.selectedDuration))
+
+  const finalPrice = isCustomDuration
+    ? customDurationPrice
+    : (selectedQuote?.usdc ?? fallbackTotal)
+
+  const theoreticalTotal =
+    basePerYear > 0 ? basePerYear * state.selectedDuration : 0
   const discountAmount =
     finalPrice && theoreticalTotal > 0
       ? Math.max(0, theoreticalTotal - finalPrice)
       : 0
+  const bestDiscount = PRICING_YEAR_DISCOUNTS[5] ?? 0
   const discountPercentage =
     theoreticalTotal > 0 && finalPrice
       ? Math.max(0, Math.round((discountAmount / theoreticalTotal) * 100))
-      : (selectedOption?.discount ?? 0)
+      : (selectedOption?.discount ?? (isCustomDuration ? bestDiscount : 0))
 
-  // Date formatting
-  const expirationDate = useMemo(
-    () => calculateExpirationDate(selectedDuration),
-    [selectedDuration],
-  )
+  const expirationDate = useMemo(() => {
+    if (state.selectedExpirationDate) {
+      return state.selectedExpirationDate
+    }
+    return calculateExpirationDate(state.selectedDuration)
+  }, [state.selectedDuration, state.selectedExpirationDate])
 
   const formattedExpiration = useMemo(
     () => formatExpirationDate(expirationDate),
@@ -86,29 +96,27 @@ export const usePricing = ({
   )
 
   const paddedDuration = useMemo(
-    () => formatDuration(selectedDuration),
-    [selectedDuration],
+    () => formatDuration(state.selectedDuration),
+    [state.selectedDuration],
   )
 
-  // Loading state
-  const isPriceLoading =
-    isPricingLoading ||
-    pricingQuotes[selectedDuration]?.usdc === undefined ||
-    pricingQuotes[selectedDuration]?.usdc === null
+  const isPriceLoading = isCustomDuration
+    ? state.isPricingLoading || state.basePricePerYear === null
+    : state.isPricingLoading ||
+      state.pricingQuotes[state.selectedDuration as PricingDuration]?.usdc ===
+        undefined ||
+      state.pricingQuotes[state.selectedDuration as PricingDuration]?.usdc ===
+        null
 
-  // Account Abstraction availability
   const isUsingAA = !!rhinestoneAccount
 
-  // ==================== EFFECTS ====================
-
-  // Fetch pricing for all durations when domain changes
   useEffect(() => {
     let isCancelled = false
 
     const fetchPricingOptions = async () => {
       if (!domainName) return
 
-      setIsPricingLoading(true)
+      dispatch({ type: 'FETCH_PRICING_START' })
       try {
         const baseResult = await getTokenPrices(domainName, 1)
 
@@ -116,12 +124,9 @@ export const usePricing = ({
 
         if (baseResult.isOk() && baseResult.value.usdc) {
           const basePerYear = parseFloat(baseResult.value.usdc.formatted)
-          setBasePricePerYear(basePerYear)
+          const updatedOptions = { ...INITIAL_PRICING_OPTIONS }
+          const updatedQuotes = createEmptyPricingQuoteMap()
 
-          const updatedOptions: PricingOptions = { ...INITIAL_PRICING_OPTIONS }
-          const updatedQuotes: PricingQuoteMap = createEmptyPricingQuoteMap()
-
-          // TODO: Calculate prices with client-side discounts, I guess will be handle by the contract
           PRICING_DURATIONS.forEach((duration: PricingDuration) => {
             const discount = INITIAL_PRICING_OPTIONS[duration].discount
             const discountMultiplier = 1 - discount / 100
@@ -145,23 +150,25 @@ export const usePricing = ({
             }
           })
 
-          setPricingOptions(updatedOptions)
-          setPricingQuotes(updatedQuotes)
+          if (!isCancelled) {
+            dispatch({
+              type: 'FETCH_PRICING_SUCCESS',
+              payload: {
+                basePricePerYear: basePerYear,
+                pricingOptions: updatedOptions,
+                pricingQuotes: updatedQuotes,
+              },
+            })
+          }
         } else {
-          setBasePricePerYear(null)
-          setPricingOptions(INITIAL_PRICING_OPTIONS)
-          setPricingQuotes(createEmptyPricingQuoteMap())
+          if (!isCancelled) {
+            dispatch({ type: 'FETCH_PRICING_ERROR' })
+          }
         }
       } catch (error) {
         if (!isCancelled) {
           console.error('Failed to get pricing options:', error)
-          setPricingOptions(INITIAL_PRICING_OPTIONS)
-          setBasePricePerYear(null)
-          setPricingQuotes(createEmptyPricingQuoteMap())
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsPricingLoading(false)
+          dispatch({ type: 'FETCH_PRICING_ERROR' })
         }
       }
     }
@@ -173,11 +180,20 @@ export const usePricing = ({
     }
   }, [domainName])
 
-  // ==================== HANDLERS ====================
+  const handleChange = (input: Date | number | undefined) => {
+    if (input === undefined) {
+      dispatch({ type: 'SET_DATE', payload: null })
+      return
+    }
 
-  const handleSelectDuration = (newDuration: PricingDuration) => {
-    setSelectedDuration(newDuration)
-    onSetDuration(newDuration)
+    if (input instanceof Date) {
+      dispatch({ type: 'SET_DATE', payload: input })
+      const calculatedDuration = calculateDurationFromDate(input)
+      onSetDuration(calculatedDuration)
+    } else {
+      dispatch({ type: 'SET_DURATION', payload: input })
+      onSetDuration(input)
+    }
   }
 
   const handleConfirmPayment = (
@@ -196,16 +212,12 @@ export const usePricing = ({
     }
   }
 
-  // ==================== RETURN ====================
   return {
-    // State
-    pricingOptions,
-    selectedDuration,
-    isPricingLoading,
+    pricingOptions: state.pricingOptions,
+    selectedDuration: state.selectedDuration,
+    isPricingLoading: state.isPricingLoading,
     isPriceLoading,
-    pricingQuotes,
-
-    // Calculated values
+    pricingQuotes: state.pricingQuotes,
     premiumLabel,
     finalPrice,
     discountAmount,
@@ -213,12 +225,9 @@ export const usePricing = ({
     theoreticalTotal,
     formattedExpiration,
     paddedDuration,
-
-    // Account/connection
+    expirationDate,
     isUsingAA,
-
-    // Handlers
-    handleSelectDuration,
+    handleChange,
     handleConfirmPayment,
     handleConnect,
     onSelectPayment,
