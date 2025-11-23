@@ -14,7 +14,6 @@ export type RecordsContext = {
   chainId: number
   name: string
   resolverAddress?: Address
-  isDedicatedResolver?: boolean
   before?: ServiceRecordSnapshot
   after?: ServiceRecordSnapshot
   updateTxId?: string
@@ -32,7 +31,6 @@ export type RecordsEvent =
       accountAddress: Address
       publicClient: PublicClient
       resolverAddress?: Address
-      isDedicatedResolver?: boolean
     }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
@@ -50,8 +48,6 @@ const startUpdateAssignment = {
   publicClient: ({ event }: any) => event.publicClient,
   resolverAddress: ({ event, context }: any) =>
     event.resolverAddress ?? context.resolverAddress,
-  isDedicatedResolver: ({ event, context }: any) =>
-    event.isDedicatedResolver ?? context.isDedicatedResolver,
 }
 
 export const recordsMachine = setup({
@@ -71,7 +67,6 @@ export const recordsMachine = setup({
         publicClient: PublicClient
         chainId: number
         resolverAddress?: Address
-        isDedicatedResolver?: boolean
       }) => submitProfileRecordsUpdateActor(input),
     ),
     pollTransactionStatus: fromResultAsync((input: { txId: string }) =>
@@ -125,7 +120,6 @@ export const recordsMachine = setup({
     chainId: input.chainId,
     name: '',
     resolverAddress: undefined,
-    isDedicatedResolver: undefined,
     before: undefined,
     after: undefined,
     updateTxId: undefined,
@@ -169,7 +163,6 @@ export const recordsMachine = setup({
           publicClient: context.publicClient!,
           chainId: context.chainId,
           resolverAddress: context.resolverAddress,
-          isDedicatedResolver: context.isDedicatedResolver,
         }),
         onDone: {
           target: 'waitingForUpdate',
