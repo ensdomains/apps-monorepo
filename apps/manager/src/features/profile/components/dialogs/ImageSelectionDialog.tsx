@@ -33,6 +33,8 @@ import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { cn } from '@/lib/utils'
 import { inspect } from '@/utils/xstate'
 
+const UPLOAD_TIMEOUT_MS = 30000
+
 interface ErrorDisplayProps {
   error: string | null
 }
@@ -218,7 +220,7 @@ export const ImageSelectionDialog = ({
       })
 
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000)
+      const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS)
 
       try {
         const response = await fetch(endpoint, {
