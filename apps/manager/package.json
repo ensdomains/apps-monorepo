@@ -21,7 +21,7 @@
     "@ens-apps/transaction-manager": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/address-encoder": "^1.1.2",
-    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@56e23c0",
+    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@4cb7069",
     "@getpara/evm-wallet-connectors": "2.0.0-alpha.72",
     "@getpara/react-sdk-lite": "2.0.0-alpha.72",
     "@getpara/web-sdk": "2.0.0-alpha.72",
