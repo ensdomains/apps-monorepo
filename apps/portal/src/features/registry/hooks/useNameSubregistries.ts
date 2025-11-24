@@ -74,8 +74,6 @@ export function useNameSubregistries({
     })
   })
 
-  // We can resolve parent chain: each registry lookup uses the result of previous one.
-  let parentRegistry: Address = L1_ETH_REGISTRY
   const results: Address[] = []
 
   for (let i = 0; i < reversed.length; i++) {
@@ -87,8 +85,6 @@ export function useNameSubregistries({
     results.unshift(registryAddress)
 
     if (isZeroAddress(registryAddress)) break
-
-    parentRegistry = registryAddress
   }
 
   const currentRegistry = results[0] ?? null
