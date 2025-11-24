@@ -5,6 +5,7 @@ import { ArrowLeftIcon } from 'lucide-react'
 import { useEffect, useReducer, useState } from 'react'
 import type { Address, Hex } from 'viem'
 import { sepolia } from 'viem/chains'
+import { useAccount, useAccountEffect } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 import { publicClient } from '@/lib/wagmi'
@@ -14,6 +15,7 @@ import { PaymentInProgress } from '../components/PaymentInProgress'
 import { Pricing } from '../components/Pricing'
 import { RegistrationInProgress } from '../components/RegistrationInProgress'
 import { RegistrationSuccess } from '../components/RegistrationSuccess'
+import { VerifyWalletModal } from '../components/VerifyWalletModal'
 import { handleStartRegistration } from './RegistrationPage.handlers'
 import {
   createInitialUIState,
@@ -84,12 +86,54 @@ export function Registration({ initialName }: RegistrationProps) {
   // Account state
   const { rhinestoneAccount, accountAddress, isConnected, rhinestoneConfig } =
     useRhinestoneAccount()
+  const { address } = useAccount()
 
   // Local UI state
   const [ui, dispatch] = useReducer(
     registrationUIReducer,
     createInitialUIState(initialName),
   )
+
+  // Verify wallet modal state
+  const [showVerifyModal, setShowVerifyModal] = useState(false)
+
+  // Show verification modal after wallet connection
+  useAccountEffect({
+    onConnect({ address: connectedAddress }) {
+      if (connectedAddress && typeof window !== 'undefined') {
+        // Check if this address has been verified before
+        const verified = localStorage.getItem(
+          `wallet_verified_${connectedAddress}`,
+        )
+        if (verified !== 'true') {
+          // Small delay to ensure UI is ready
+          setTimeout(() => {
+            setShowVerifyModal(true)
+          }, 500)
+        }
+      }
+    },
+  })
+
+  // Also check on mount if already connected
+  useEffect(() => {
+    if (isConnected && address && typeof window !== 'undefined') {
+      const verified = localStorage.getItem(`wallet_verified_${address}`)
+      if (verified !== 'true') {
+        // Small delay to ensure UI is ready
+        setTimeout(() => {
+          setShowVerifyModal(true)
+        }, 500)
+      }
+    }
+  }, [isConnected, address])
+
+  const handleVerificationComplete = () => {
+    if (address && typeof window !== 'undefined') {
+      localStorage.setItem(`wallet_verified_${address}`, 'true')
+    }
+    setShowVerifyModal(false)
+  }
 
   // Derived state
   const isAccountReady = Boolean(
@@ -192,105 +236,114 @@ export function Registration({ initialName }: RegistrationProps) {
   const displayDomainName = domainName || ''
 
   return (
-    <div className="mx-6 flex flex-col items-start gap-4 md:flex-row">
-      <div className="absolute flex items-center justify-between">
-        <Button
-          variant="ghost"
-          onClick={handleBack}
-          className="h-auto p-2 text-ens-lapis-surface uppercase"
-        >
-          <ArrowLeftIcon className="h-6 w-6 font-bold" /> Back
-        </Button>
-      </div>
+    <>
+      <VerifyWalletModal
+        open={showVerifyModal}
+        onOpenChange={setShowVerifyModal}
+        onVerified={handleVerificationComplete}
+      />
+      <div className="mx-6 flex flex-col items-start gap-4 md:flex-row">
+        <div className="absolute flex items-center justify-between">
+          <Button
+            variant="ghost"
+            onClick={handleBack}
+            className="h-auto p-2 text-ens-lapis-surface uppercase"
+          >
+            <ArrowLeftIcon className="h-6 w-6 font-bold" /> Back
+          </Button>
+        </div>
 
-      {step === RegistrationStep.PRICING && displayDomainName && (
-        <div className="w-full py-6 md:py-6">
-          <Pricing
+        {step === RegistrationStep.PRICING && displayDomainName && (
+          <div className="w-full py-6 md:py-6">
+            <Pricing
+              domainName={displayDomainName}
+              duration={ui.duration}
+              isConnected={isConnected}
+              isLoading={
+                isCommitPending || isApprovePending || isRegisterPending
+              }
+              onSetDuration={handleSetDuration}
+              onSelectPayment={handleSelectPayment}
+              onSelectCrypto={handleSelectCrypto}
+              onConfirmPayment={(tokenPrice, selectedToken, options) =>
+                handleStartRegistration(
+                  {
+                    name: ui.name,
+                    duration: ui.duration,
+                    selectedToken: selectedToken as Address,
+                    tokenPrice,
+                  },
+                  {
+                    rhinestoneAccount,
+                    accountAddress,
+                    rhinestoneConfig,
+                    publicClient,
+                  },
+                  actor,
+                  { fast: options?.fast ?? false },
+                )
+              }
+            />
+          </div>
+        )}
+
+        {step === RegistrationStep.COMMITTING && (
+          <PaymentInProgress
+            domainName={displayDomainName}
+            selectedCrypto=""
+            onPaymentSuccess={() => {}} // No-op - handled by state machine
+            registerWaitSeconds={registerWaitSeconds}
+          />
+        )}
+
+        {step === RegistrationStep.APPROVING && (
+          <ApprovalInProgress
+            domainName={displayDomainName}
+            selectedToken={ui.selectedToken}
+            commitTxHash={commitTxHash}
+          />
+        )}
+
+        {step === RegistrationStep.REGISTERING && (
+          <RegistrationInProgress
+            domainName={displayDomainName}
+            onRegistrationSuccess={() => {}} // No-op - handled by state machine
+            registerTxHash={registerTxHash}
+          />
+        )}
+
+        {step === RegistrationStep.SUCCESS && (
+          <RegistrationSuccess domainName={displayDomainName} />
+        )}
+
+        {step === RegistrationStep.AUTORENEWAL && (
+          <Autorenewal
             domainName={displayDomainName}
             duration={ui.duration}
-            isConnected={isConnected}
-            isLoading={isCommitPending || isApprovePending || isRegisterPending}
-            onSetDuration={handleSetDuration}
-            onSelectPayment={handleSelectPayment}
-            onSelectCrypto={handleSelectCrypto}
-            onConfirmPayment={(tokenPrice, selectedToken, options) =>
-              handleStartRegistration(
-                {
-                  name: ui.name,
-                  duration: ui.duration,
-                  selectedToken: selectedToken as Address,
-                  tokenPrice,
-                },
-                {
-                  rhinestoneAccount,
-                  accountAddress,
-                  rhinestoneConfig,
-                  publicClient,
-                },
-                actor,
-                { fast: options?.fast ?? false },
-              )
-            }
+            onReset={handleReset}
+            onCompleteFlow={handleReset}
           />
-        </div>
-      )}
+        )}
 
-      {step === RegistrationStep.COMMITTING && (
-        <PaymentInProgress
-          domainName={displayDomainName}
-          selectedCrypto=""
-          onPaymentSuccess={() => {}} // No-op - handled by state machine
-          registerWaitSeconds={registerWaitSeconds}
-        />
-      )}
-
-      {step === RegistrationStep.APPROVING && (
-        <ApprovalInProgress
-          domainName={displayDomainName}
-          selectedToken={ui.selectedToken}
-          commitTxHash={commitTxHash}
-        />
-      )}
-
-      {step === RegistrationStep.REGISTERING && (
-        <RegistrationInProgress
-          domainName={displayDomainName}
-          onRegistrationSuccess={() => {}} // No-op - handled by state machine
-          registerTxHash={registerTxHash}
-        />
-      )}
-
-      {step === RegistrationStep.SUCCESS && (
-        <RegistrationSuccess domainName={displayDomainName} />
-      )}
-
-      {step === RegistrationStep.AUTORENEWAL && (
-        <Autorenewal
-          domainName={displayDomainName}
-          duration={ui.duration}
-          onReset={handleReset}
-          onCompleteFlow={handleReset}
-        />
-      )}
-
-      {step === RegistrationStep.ERROR && (
-        <div className="mx-auto max-w-md px-4 py-6">
-          <div className="text-center">
-            <h2 className="mb-4 font-semibold text-red-600 text-xl">
-              Registration Error
-            </h2>
-            <p className="mb-4 whitespace-pre-line text-gray-600">
-              {error || 'There was an error during the registration process.'}
-            </p>
-            <Button onClick={handleRetry} className="mr-2">
-              Retry
-            </Button>
-            <Button variant="outline" onClick={handleReset}>
-              Start Over
-            </Button>
+        {step === RegistrationStep.ERROR && (
+          <div className="mx-auto max-w-md px-4 py-6">
+            <div className="text-center">
+              <h2 className="mb-4 font-semibold text-red-600 text-xl">
+                Registration Error
+              </h2>
+              <p className="mb-4 whitespace-pre-line text-gray-600">
+                {error || 'There was an error during the registration process.'}
+              </p>
+              <Button onClick={handleRetry} className="mr-2">
+                Retry
+              </Button>
+              <Button variant="outline" onClick={handleReset}>
+                Start Over
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   )
 }

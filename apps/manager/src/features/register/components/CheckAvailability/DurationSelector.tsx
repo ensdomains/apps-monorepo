@@ -58,19 +58,11 @@ export const DurationSelector = ({
             onClick={() => onSelect(duration)}
             className={cn(
               'group relative',
-              'flex w-full items-center justify-between',
-              'h-[58px] md:h-[100px]',
+              'flex h-[58px] w-full items-center justify-between md:h-[100px]',
               'px-3 py-4 md:px-5 md:py-8',
-              'rounded-lg md:rounded-xl',
-              'border border-ens-gray-three',
+              'rounded-lg border border-ens-gray-three hover:border-ens-blue disabled:hover:border-ens-gray-three aria-pressed:border-ens-blue md:rounded-xl',
               'bg-ens-white transition-all',
-
-              'aria-pressed:border-ens-blue',
-
-              'hover:border-ens-blue',
               'aria-pressed:hover:border-ens-blue',
-              'disabled:hover:border-ens-gray-three',
-
               'disabled:cursor-not-allowed disabled:opacity-60',
               'focus-visible:outline-2 focus-visible:outline-offset-2',
               'focus-visible:outline-ens-blue',
