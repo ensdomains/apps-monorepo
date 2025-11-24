@@ -113,13 +113,10 @@ export const uploadImageMutationOptions = ({
         },
       })
 
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS)
-
       try {
         const response = await fetch(endpoint, {
           method: 'PUT',
-          signal: controller.signal,
+          signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
           headers: {
             'Content-Type': 'application/json',
           },
@@ -130,8 +127,6 @@ export const uploadImageMutationOptions = ({
             unverifiedAddress: address,
           }),
         })
-
-        clearTimeout(timeoutId)
 
         if (!response.ok) {
           throw new Error(`Upload failed with status ${response.status}`)
@@ -157,7 +152,6 @@ export const uploadImageMutationOptions = ({
 
         throw new Error('Unknown error')
       } catch (err) {
-        clearTimeout(timeoutId)
         if (err instanceof Error && err.name === 'AbortError') {
           throw new Error('Upload timed out. Please try again.')
         }
