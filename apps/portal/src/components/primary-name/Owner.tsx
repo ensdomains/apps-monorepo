@@ -1,16 +1,25 @@
-import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { LoadingSpinner } from '../molecules/LoadingSpinner'
 
-const OwnerWithENS = ({ owner }: { owner: Address }) => {
-  const { data: ownerName, error, isLoading } = useEnsName({ address: owner })
+export const Owner = ({ owner }: { owner?: Address }) => {
+  const {
+    data: ownerName,
+    error,
+    isLoading,
+  } = useEnsName({ address: owner, query: { enabled: Boolean(owner) } })
 
   if (error) return <div>{error.message}</div>
   if (isLoading) return <div>Loading</div>
+
+  if (!owner)
+    return (
+      <div className="flex flex-col">
+        <span className="font-medium">Owner</span>
+        <span>No data</span>
+      </div>
+    )
 
   const shortenedAddress = `${owner.slice(0, 6)}...${owner.slice(-4)}`
 
@@ -31,24 +40,4 @@ const OwnerWithENS = ({ owner }: { owner: Address }) => {
       </div>
     </Link>
   )
-}
-
-interface OwnerProps {
-  name: string
-}
-
-export const Owner = ({ name }: OwnerProps) => {
-  const { data, error, isLoading } = useQuery(getEnsOwnerQueryOptions({ name }))
-
-  if (error) return <div>Error: {error.cause?.message}</div>
-  if (isLoading) return <LoadingSpinner title="Loading..." />
-  if (!data?.owner)
-    return (
-      <div className="flex flex-col p-6 rounded-2xl border border-gray-300">
-        <span className="font-medium">Owner</span>
-        <span>No owner data (WIP)</span>
-      </div>
-    )
-
-  return <OwnerWithENS owner={data.owner} />
 }
