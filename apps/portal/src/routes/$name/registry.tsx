@@ -144,7 +144,7 @@ function RouteComponent() {
               // we don’t have a primary name yet, so just let the card
               // shorten the address as it already does
               name: undefined,
-              address: hasOwner ? ownerAddress! : zeroAddress,
+              address: hasOwner ? ownerAddress : zeroAddress,
             }}
             network={{
               name: chainLocation?.chainName || 'Unknown',
