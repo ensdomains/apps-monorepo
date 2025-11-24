@@ -17,10 +17,10 @@
   },
   "packageManager": "pnpm@10.1.0+sha512.c89847b0667ddab50396bbbd008a2a43cf3b581efd59cf5d9aa8923ea1fb4b8106c041d540d08acb095037594d73ebc51e1ec89ee40c88b30b8a66c0fae0ac1b",
   "devDependencies": {
-    "@biomejs/biome": "^2.2.3",
+    "@biomejs/biome": "^2.3.7",
     "knip": "^5.63.1",
     "lefthook": "^2.0.2",
-    "wrangler": "^4.43.0"
+    "wrangler": "^4.49.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -37,7 +37,7 @@
     ],
     "patchedDependencies": {
       "xstate": "patches/xstate.patch",
-      "@getpara/core-sdk": "patches/@getpara__core-sdk.patch"
+      "@getpara/react-sdk-lite": "patches/@getpara__react-sdk-lite.patch"
     },
     "overrides": {
       "available-typed-arrays": "npm:@socketregistry/available-typed-arrays@^1",

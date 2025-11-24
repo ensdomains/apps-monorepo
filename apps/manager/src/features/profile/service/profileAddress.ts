@@ -24,7 +24,7 @@ export const getAddress = ResultFn(async function* (name: string) {
   )
 
   if (!result) {
-    return yield* new MissingProfileError({})
+    return yield* new MissingProfileError()
   }
 
   return ok(result.value)

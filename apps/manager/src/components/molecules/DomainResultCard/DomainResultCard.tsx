@@ -1,58 +1,18 @@
-import { createLink } from '@tanstack/react-router'
-import type { HTMLAttributeAnchorTarget, MouseEventHandler } from 'react'
-import { forwardRef, useMemo } from 'react'
+import { Link } from '@tanstack/react-router'
+import { AvailabilityCheckIcon } from '@/components/atoms/AvailabilityCheckIcon'
+import type { PremiumLabel } from '@/features/register/utils'
 import { cn } from '@/lib/utils'
-import type { DomainAttributePillVariant } from './DomainAttributePill'
 import { DomainAttributePill } from './DomainAttributePill'
 
-const BaseDomainResultCardLink = forwardRef<
-  HTMLAnchorElement,
-  React.ComponentProps<'a'>
->((props, ref) => <a ref={ref} {...props} />)
-
-BaseDomainResultCardLink.displayName = 'BaseDomainResultCardLink'
-
-const DomainResultCardLink = createLink(BaseDomainResultCardLink)
-
-const AvailabilityCheckIcon = () => (
-  <svg
-    aria-hidden="true"
-    className="h-[26px] w-[26px]"
-    fill="none"
-    viewBox="0 0 26 26"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      clipRule="evenodd"
-      d="M13 22.75c1.2804 0 2.5482-.2522 3.7312-.7422 1.1829-.49 2.2577-1.2081 3.1631-2.1135s1.5178-1.9802 2.0078-3.1631c.49-1.183.7422-2.4508.7422-3.7312 0-1.2804-.2522-2.5482-.7422-3.73116-.49-1.18293-1.2081-2.25776-2.1135-3.16313-.9054-.90537-1.9802-1.62355-3.1631-2.11353C15.5482 3.50219 14.2804 3.25 13 3.25 10.4141 3.25 7.93419 4.27723 6.10571 6.10571 4.27723 7.93419 3.25 10.4141 3.25 13c0 2.5859 1.02723 5.0658 2.85571 6.8943C7.93419 21.7228 10.4141 22.75 13 22.75Zm-.2513-5.8067 5.4166-6.5-1.664-1.38663-4.6583 5.58893-2.41038-2.4115-1.53183 1.5318 3.25005 3.25.8385.8385.7594-.9111Z"
-      fill="var(--color-brand-green)"
-      fillRule="evenodd"
-    />
-  </svg>
-)
-
-type DomainResultCardLinkProps = {
-  to: string
-  params?: Record<string, unknown>
-  search?: Record<string, unknown>
-  hash?: string
-  replace?: boolean
-  target?: HTMLAttributeAnchorTarget
-  rel?: string
-  onClick?: MouseEventHandler<HTMLAnchorElement>
-}
-
-export interface DomainResultCardProps {
+interface DomainResultCardProps {
   domainName: string
   status: 'available' | 'premium'
-  isPremium?: boolean
+  premiumLabel?: PremiumLabel
   price?: number
   priceLabel?: string
-  expiryDate?: Date | string
-  isExpiryLoading?: boolean
-  onAction?: (domainName: string) => void
   className?: string
-  link?: DomainResultCardLinkProps
+  link?: string
+  isLoading?: boolean
 }
 
 const statusIconMap = {
@@ -60,176 +20,110 @@ const statusIconMap = {
   premium: <AvailabilityCheckIcon />,
 } as const
 
-const formatDate = (date: Date | string | undefined): string => {
-  if (!date) return ''
-
-  const dateObj = typeof date === 'string' ? new Date(date) : date
-
-  if (Number.isNaN(dateObj.getTime())) return ''
-
-  return dateObj.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-}
-
 export const DomainResultCard = ({
   domainName,
   status,
-  isPremium: isPremiumProp = false,
+  premiumLabel,
   price,
-  priceLabel = 'USD/year',
-  expiryDate,
-  isExpiryLoading = false,
-  onAction,
+  priceLabel = '/year',
   className,
   link,
+  isLoading = false,
 }: DomainResultCardProps) => {
-  const showPremiumPill = isPremiumProp || status === 'premium'
-
-  const premiumLabel = useMemo(() => {
-    const name = domainName.includes('.')
-      ? domainName.slice(0, domainName.lastIndexOf('.'))
-      : domainName
-    const length = name.length
-    if (!length) return null
-
-    const variant: DomainAttributePillVariant =
-      length <= 3 ? 'premium-3' : 'premium-4'
-    return {
-      label: `${length} character premium name`,
-      variant,
-    } as const
-  }, [domainName])
-
   const baseClasses = cn(
-    'flex',
-    'flex-col',
-    'w-full',
-    'gap-3',
-    'px-5',
-    'py-5',
-    'text-left',
-    'bg-[#f6f6f6]',
-    'rounded-[4px]',
-    'shadow-[0px_20.905px_27.874px_0px_rgba(14,61,104,0.06)]',
-    'transition',
     'domain-result-card',
-    {
-      'cursor-pointer': link || onAction,
-      'hover:-translate-y-0.5': link || onAction,
-      'hover:shadow-[0px_20px_28px_-12px_rgba(15,23,42,0.20)]':
-        link || onAction,
-    },
+    'flex w-full flex-col',
+    'gap-3',
+    'px-5 py-5',
+    'text-left',
+    'bg-ens-white',
+    'rounded-[4px]',
+    'shadow-lg transition',
+    link && 'hover:-translate-y-0.5 cursor-pointer hover:shadow-xl',
     className,
   )
 
   const content = (
     <div className="flex w-full flex-col gap-3">
-      <div className="flex w-full items-center justify-between gap-4 px-[22px]">
-        <div className="flex items-center gap-[9px]">
-          <span className="flex items-center justify-center">
-            {statusIconMap[status]}
-          </span>
-          <span
-            className={cn(
-              'px-2',
-              'py-1',
-              'text-2xl',
-              'font-medium',
-              'leading-none',
-              'tracking-[-0.48px]',
-              'text-brand-blue',
-              'bg-white',
-              'border',
-              'border-brand-blue',
-              'rounded-[4px]',
-            )}
-          >
-            {domainName}
-          </span>
-        </div>
-
-        <div className="text-right">
-          {price && (
-            <>
-              <p className="font-semibold text-slate-900">
-                ${price.toLocaleString()}
-              </p>
-              <p className="text-slate-500 text-sm">{priceLabel}</p>
-            </>
-          )}
-          {isExpiryLoading && (
-            <div className="mt-2 flex flex-col items-end gap-1">
-              <div className="h-3 w-24 animate-pulse rounded bg-slate-300" />
+      {isLoading ? (
+        <>
+          <div className="flex w-full items-center justify-between gap-4">
+            <div className="flex items-center gap-[9px]">
+              <span className="flex h-[26px] w-[26px] animate-pulse items-center justify-center rounded-full bg-slate-200" />
+              <span className="inline-block h-9 w-48 animate-pulse rounded-[4px] bg-slate-200" />
             </div>
-          )}
-          {!isExpiryLoading && expiryDate && (
-            <p className="mt-2 text-slate-600 text-xs">
-              Expires: {formatDate(expiryDate)}
-            </p>
-          )}
-        </div>
-      </div>
 
-      <div className="flex flex-wrap items-center gap-2 px-[34px]">
-        <DomainAttributePill label="available" variant="available" />
-        {showPremiumPill && premiumLabel && (
-          <DomainAttributePill
-            label={premiumLabel.label}
-            variant={premiumLabel.variant}
-          />
-        )}
-      </div>
+            <div className="flex items-end gap-2 text-center">
+              <span className="inline-block h-5 w-20 animate-pulse rounded-md bg-slate-200 leading-tight" />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 px-[34px]">
+            <span className="inline-block h-6 w-20 animate-pulse rounded-full bg-slate-200" />
+            <span className="inline-block h-6 w-32 animate-pulse rounded-full bg-slate-200" />
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="flex w-full items-center justify-between gap-4">
+            <div className="flex items-center gap-[9px]">
+              <span className="flex items-center justify-center">
+                {statusIconMap[status]}
+              </span>
+              <span
+                className={cn(
+                  'px-2 py-1',
+                  'text-2xl text-ens-blue',
+                  'bg-white',
+                  'border border-ens-blue',
+                  'font-medium leading-none tracking-[-0.48px]',
+                  'block rounded-[4px]',
+                  'max-w-[10ch] truncate sm:max-w-[40ch]', // Mobile: 10 chars, Desktop: 40 chars
+                )}
+                title={domainName}
+              >
+                {domainName}
+              </span>
+            </div>
+
+            <div className="flex items-start gap-2 text-center md:items-end">
+              <span className="text-slate-500 text-sm">starting at</span>
+              <div className="flex flex-col items-start text-sm md:flex-row md:items-end md:gap-2 md:text-base">
+                {price ? (
+                  <>
+                    <p className="font-semibold text-slate-900 leading-tight">
+                      ${Math.round(price).toLocaleString()}
+                    </p>
+                    <p className="text-slate-500 text-sm">{priceLabel}</p>
+                  </>
+                ) : (
+                  <div className="flex items-end gap-2 text-center">
+                    <span className="inline-block h-5 w-20 animate-pulse rounded-md bg-slate-200 leading-tight" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 px-[34px]">
+            <DomainAttributePill label="available" variant="available" />
+            {premiumLabel && (
+              <DomainAttributePill
+                label={premiumLabel.label}
+                variant={premiumLabel.variant}
+              />
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 
-  const handleAction = () => {
-    if (!onAction) return
-    onAction(domainName)
-  }
-
   if (link) {
-    const { onClick, to, params, search, hash, replace, target, rel } = link
-
     return (
-      <DomainResultCardLink
-        to={to as never}
-        params={params as never}
-        search={search as never}
-        hash={hash}
-        replace={replace}
-        target={target}
-        rel={rel}
-        className={baseClasses}
-        onClick={(event) => {
-          onClick?.(event)
-          if (!event.defaultPrevented && onAction) {
-            onAction(domainName)
-          }
-        }}
-      >
+      <Link to={link as never} className={baseClasses}>
         {content}
-      </DomainResultCardLink>
-    )
-  }
-
-  if (onAction) {
-    return (
-      <button
-        type="button"
-        className={baseClasses}
-        onClick={handleAction}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault()
-            handleAction()
-          }
-        }}
-      >
-        {content}
-      </button>
+      </Link>
     )
   }
 

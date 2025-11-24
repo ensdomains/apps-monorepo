@@ -89,7 +89,10 @@ export const FASTTESTETHREGISTRAR_ABI = [
       { name: 'paymentToken', type: 'address' },
     ],
     name: 'rentPrice',
-    outputs: [{ name: 'base', type: 'uint256' }, { name: 'premium', type: 'uint256' }],
+    outputs: [
+      { name: 'base', type: 'uint256' },
+      { name: 'premium', type: 'uint256' },
+    ],
     stateMutability: 'view',
     type: 'function',
   },

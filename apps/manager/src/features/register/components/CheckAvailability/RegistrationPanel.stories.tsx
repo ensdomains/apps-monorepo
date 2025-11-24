@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { fn } from '@storybook/test'
 import { RegistrationPanel } from './RegistrationPanel'
 
 const meta = {
@@ -25,7 +24,7 @@ const meta = {
       isAvailable: true,
       isPremium: true,
     },
-    onClose: fn(),
+    onClose: () => {},
     isProcessing: false,
     isPricingLoading: false,
     error: null,

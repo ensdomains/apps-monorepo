@@ -5,14 +5,14 @@
  */
 
 import type { registrationMachine, Signer } from '@ens-apps/transaction-manager'
-import type { PublicClient } from 'viem'
+import type { Address, PublicClient } from 'viem'
 import type { ActorRefFrom } from 'xstate'
 import { SUPPORTED_TOKENS } from '../services/nameChainContractService'
 
 export interface StartRegistrationParams {
   name: string
   duration: number // years
-  selectedToken: `0x${string}`
+  selectedToken: Address
   tokenPrice: bigint
 }
 
@@ -33,15 +33,18 @@ export function handleStartRegistration(
   params: StartRegistrationParams,
   account: AccountInfo,
   actor: ActorRefFrom<typeof registrationMachine>,
+  options?: { fast?: boolean },
 ): void {
   const { name, duration, selectedToken, tokenPrice } = params
   const { rhinestoneAccount, accountAddress, rhinestoneConfig, publicClient } =
     account
+  const useFastRegistrar = Boolean(options?.fast)
 
   console.log('🔍 handleStartRegistration called with:', {
     accountAddress,
     hasRhinestoneAccount: !!rhinestoneAccount,
     params,
+    useFastRegistrar,
   })
 
   // Validation
@@ -75,6 +78,7 @@ export function handleStartRegistration(
     price: tokenPrice,
     hasSigner: !!signer,
     hasPublicClient: !!publicClient,
+    useFastRegistrar,
   })
 
   // Send event to machine with all necessary data
@@ -85,7 +89,8 @@ export function handleStartRegistration(
     token,
     price: tokenPrice,
     signer,
-    accountAddress: accountAddress as `0x${string}`,
+    accountAddress: accountAddress as Address,
     publicClient,
+    useFastRegistrar,
   })
 }

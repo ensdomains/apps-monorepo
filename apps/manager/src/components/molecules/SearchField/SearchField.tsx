@@ -23,7 +23,7 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
       onChange,
       onKeyDown,
       className,
-      disabled = false,
+      disabled,
     },
     ref,
   ) => {
@@ -36,7 +36,13 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
     }
 
     return (
-      <div className={cn('search-field', className)}>
+      <div
+        className={cn(
+          'search-field-container',
+          'relative flex items-center gap-[15px]',
+          className,
+        )}
+      >
         <input
           ref={ref}
           type="text"
@@ -46,10 +52,27 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
           onChange={onChange}
           onKeyDown={handleKeyDown}
           disabled={disabled}
-          className={cn('search-field-input', disabled && 'cursor-not-allowed')}
+          maxLength={255}
+          className={cn(
+            'h-full w-full self-stretch',
+            'font-sans font-semibold text-lg leading-[110%] tracking-[-0.4px]',
+            'pt-[21px] pr-[28px] pb-[21px] pl-[52px]',
+            'rounded border-[0.25px] border-ens-gray-two',
+            'bg-ens-lapis-dust text-ens-blue',
+            'shadow-md',
+            'transition-all duration-200 ease-in-out',
+            'placeholder:text-ens-lapis-surface',
+            'focus:border-transparent focus:outline-none',
+            'focus:ring-2 focus:ring-blue-500/20',
+            'disabled:cursor-not-allowed',
+          )}
         />
 
-        <Search aria-hidden className="search-field__icon" strokeWidth={1.5} />
+        <Search
+          aria-hidden
+          className="-translate-y-1/2 absolute top-1/2 left-[18px] h-[26px] w-[26px] text-ens-gray"
+          strokeWidth={1.5}
+        />
       </div>
     )
   },

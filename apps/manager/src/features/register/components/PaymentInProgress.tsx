@@ -7,12 +7,14 @@ interface PaymentInProgressProps {
   domainName: string
   selectedCrypto?: string
   onPaymentSuccess: () => void
+  registerWaitSeconds?: number | null
 }
 
 export const PaymentInProgress = ({
   domainName,
   selectedCrypto = 'USDC',
   onPaymentSuccess,
+  registerWaitSeconds,
 }: PaymentInProgressProps) => {
   React.useEffect(() => {
     // Mock contract call - simulate payment processing
@@ -71,6 +73,32 @@ export const PaymentInProgress = ({
           </div>
         </div>
       </div>
+
+      {typeof registerWaitSeconds === 'number' && (
+        <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-center text-blue-900 text-sm dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100">
+          {registerWaitSeconds > 0 ? (
+            <>
+              <div className="font-semibold text-xs uppercase tracking-wide">
+                Waiting period in effect
+              </div>
+              <div className="font-mono text-3xl">
+                {Math.floor(registerWaitSeconds / 60)
+                  .toString()
+                  .padStart(2, '0')}
+                :{(registerWaitSeconds % 60).toString().padStart(2, '0')}
+              </div>
+              <p>
+                We&apos;ll prompt you to register <strong>{domainName}</strong>{' '}
+                as soon as the 60 second commitment window ends.
+              </p>
+            </>
+          ) : (
+            <p className="font-medium text-green-700 dark:text-green-300">
+              Commitment window complete! Preparing your registration...
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Progress Steps */}
       <div className="space-y-3">
