@@ -6,7 +6,7 @@ import {
 } from './extractEventAddress'
 import type { ENSEvent } from './transformHistoryToEvents'
 
-type SubgraphEvent = {
+export type SubgraphEvent = {
   transactionID: string
   blockNumber: number
   id: ENSEvent['id']

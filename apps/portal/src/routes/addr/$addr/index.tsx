@@ -48,7 +48,7 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
       <div className="flex flex-row justify-between items-baseline">
-        <h1 className="text-[28px] font-medium leading-[1]">Overview</h1>
+        <h1 className="text-[28px] font-medium leading-none">{addr}</h1>
         {isConnected && (
           <Button variant="secondary" onClick={() => disconnect()}>
             Disconnect

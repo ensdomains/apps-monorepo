@@ -5,7 +5,7 @@ import {
   getWrapperData as ensjs_getWrapperData,
   type GetWrapperDataErrorType,
   type GetWrapperDataParameters,
-} from '@ensdomains/ensjs/public'
+} from '@ensdomains/ensjs/public/v1'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 

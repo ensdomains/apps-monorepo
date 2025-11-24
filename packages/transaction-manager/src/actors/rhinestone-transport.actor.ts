@@ -1,4 +1,4 @@
-import { errAsync, fromPromise, ok, type ResultAsync } from 'neverthrow'
+import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { Hash, Hex, PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import { TransactionSubmissionError } from '../errors/transaction.errors'
