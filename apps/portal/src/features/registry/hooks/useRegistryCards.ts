@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import type { Address, Hex } from 'viem'
+import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
-import { namehash } from 'viem/ens'
-import { getParentName } from '../utils/nameUtils'
+
+import { splitLabels } from '../utils/nameUtils'
+
 import { useL2Subregistries } from './useL2Subregistries'
 import { useNameSubregistries } from './useNameSubregistries'
+
 import { getRegistryOwnerQueryOptions } from './useRegistryOwner'
 
 export type RegistryCard = {
@@ -29,34 +31,20 @@ export type UseRegistryCardsReturn = {
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Address
 
-/**
- * Hook to fetch registry card data.
- *
- * L1:
- *  - Uses useNameSubregistries (getNameRegistries / UniversalResolver)
- *
- * L2:
- *  - Uses useL2Subregistries (walks hierarchy under L2 .eth registry
- *    using getNameRegistryAddress)
- *
- * Chain location (L1/L2/unknown) only decides which source to trust,
- * not whether a registry exists. Existence is based on whether the
- * current registry is non-zero.
- */
 export function useRegistryCards({
   name,
   chainLocation,
 }: {
   name: string
   chainLocation: 'L1' | 'L2' | 'unknown' | undefined
-  registryAddress?: Address | null
 }): UseRegistryCardsReturn {
-  const parentName = getParentName(name)
-
   const isL2 = chainLocation === 'L2'
-  const isL1 = !isL2 // treat 'unknown' as L1 ancestry for now
+  const isL1 = !isL2 // treat unknown as L1 ancestry
 
-  // L1 ancestry via UniversalResolver
+  // ----------------------------------------------------------------------
+  // 1. REGISTRY DISCOVERY (current + parent)
+  // ----------------------------------------------------------------------
+
   const {
     currentRegistry: l1CurrentRegistry,
     parentRegistry: l1ParentRegistry,
@@ -66,7 +54,6 @@ export function useRegistryCards({
     error: l1Error,
   } = useNameSubregistries({ name, enabled: isL1 })
 
-  // L2 ancestry via getNameRegistryAddress
   const {
     currentRegistry: l2CurrentRegistry,
     parentRegistry: l2ParentRegistry,
@@ -76,23 +63,33 @@ export function useRegistryCards({
     error: l2Error,
   } = useL2Subregistries({ name, enabled: isL2 })
 
-  // Choose source based on chain location
+  // Pick correct chain registries
   const currentRegistry = isL2 ? l2CurrentRegistry : l1CurrentRegistry
   const parentRegistry = isL2 ? l2ParentRegistry : l1ParentRegistry
   const subregistries = (isL2 ? l2Subregistries : l1Subregistries) ?? []
   const hasCurrentRegistry = isL2 ? l2HasCurrentRegistry : l1HasCurrentRegistry
 
-  // Calculate nodes for owner lookups
-  const nodeCurrent = namehash(name)
-  const nodeParent = parentName
-    ? namehash(parentName)
-    : ('0x0000000000000000000000000000000000000000000000000000000000000000' as Hex)
+  // ----------------------------------------------------------------------
+  // 2. DETERMINE LABELS for owner lookups (ENSv2 uses label → token)
+  //
+  //  flo.eth         current label = "flo"
+  //  test.flo.eth    current label = "test", parent label = "flo"
+  // ----------------------------------------------------------------------
 
-  // Only fetch owner if we have a valid (non-zero) registry address
+  const labels = splitLabels(name)
+
+  const currentLabel = labels[0] // leftmost
+  const parentLabel = labels[1] ?? null // second leftmost
+
+  // ----------------------------------------------------------------------
+  // 3. OWNER LOOKUPS – LABEL-BASED (NO namehash, NO tokenId manually)
+  // ----------------------------------------------------------------------
+
   const shouldFetchCurrentOwner =
     !!currentRegistry && currentRegistry !== ZERO_ADDRESS
+
   const shouldFetchParentOwner =
-    !!parentRegistry && parentRegistry !== ZERO_ADDRESS
+    !!parentRegistry && parentRegistry !== ZERO_ADDRESS && !!parentLabel
 
   const {
     data: currentOwner,
@@ -100,8 +97,8 @@ export function useRegistryCards({
     error: currentOwnerError,
   } = useQuery({
     ...getRegistryOwnerQueryOptions({
-      registryAddress: currentRegistry || ZERO_ADDRESS,
-      node: nodeCurrent,
+      registryAddress: currentRegistry ?? ZERO_ADDRESS,
+      label: currentLabel,
     }),
     enabled: shouldFetchCurrentOwner,
   })
@@ -112,30 +109,29 @@ export function useRegistryCards({
     error: parentOwnerError,
   } = useQuery({
     ...getRegistryOwnerQueryOptions({
-      registryAddress: parentRegistry || ZERO_ADDRESS,
-      node: nodeParent,
+      registryAddress: parentRegistry ?? ZERO_ADDRESS,
+      label: parentLabel ?? '',
     }),
     enabled: shouldFetchParentOwner,
   })
 
-  // Build registry cards
-  const currentChainId = sepolia.id // TODO: real Namechain ID
-  // Later on we need to use the correct chain ID for the current network
-  //   const currentChainId  chainLocation === 'L2'
-  //       ? Namechain ID
-  //       : Mainnet ID
+  // ----------------------------------------------------------------------
+  // 4. BUILD RETURN STRUCTURE
+  // ----------------------------------------------------------------------
+
+  const chainIdForCurrent = sepolia.id // TODO: use real namechain chainId later
 
   const current: RegistryCard = {
     registry: currentRegistry,
     owner: (currentOwner as Address) || null,
-    chainId: currentChainId,
+    chainId: chainIdForCurrent,
     hasCurrentRegistry,
   }
 
   const parent: RegistryCard = {
     registry: parentRegistry,
     owner: (parentOwner as Address) || null,
-    chainId: isL2 ? currentChainId : 11155111,
+    chainId: isL2 ? chainIdForCurrent : 11155111, // mainnet/sepolia for parent
   }
 
   const all: SubregistryInfo[] = subregistries.map((registry, index) => ({
