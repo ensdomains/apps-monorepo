@@ -2,13 +2,13 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
-  getOwner as ensjs_getOwner,
-  type GetOwnerErrorType,
+  type GetOwnerErrorType as ensjsv1_GetOwnerErrorType,
+  getOwner as ensjsv1_getOwner,
   type GetOwnerParameters,
-} from '@ensdomains/ensjs/public'
+} from '@ensdomains/ensjs/public/v1'
 import {
-  type GetRegistryOwnerByLabelErrorType,
-  getRegistryOwnerByLabel,
+  type GetOwnerErrorType as ensjsv2_GetOwnerErrorType,
+  getOwner as ensjsv2_getOwner,
 } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import { getChainContractAddress, zeroAddress } from 'viem'
@@ -18,7 +18,7 @@ import {
 } from '@/lib/wagmi/helpers'
 
 class GetOwnerError extends TaggedError('GetOwnerError')<{
-  cause: GetOwnerErrorType | GetRegistryOwnerByLabelErrorType
+  cause: ensjsv1_GetOwnerErrorType | ensjsv2_GetOwnerErrorType
 }> {}
 
 // TODO: Remove this once we have a proper namechain client
@@ -29,8 +29,8 @@ export const getOwner = ResultFn(async function* (params: GetOwnerParameters) {
 
   const l1v1Owner = yield* await fromPromise(
     // @ts-expect-error
-    ensjs_getOwner(client, params),
-    (e) => new GetOwnerError({ cause: e as GetOwnerErrorType }),
+    ensjsv1_getOwner(client, params),
+    (e) => new GetOwnerError({ cause: e as ensjsv1_GetOwnerErrorType }),
   )
 
   const label = params.name.split('.').slice(0, -1).join('')
@@ -38,11 +38,11 @@ export const getOwner = ResultFn(async function* (params: GetOwnerParameters) {
   const namechainClient = yield* safeGetNamechainSepoliaClient()
 
   const l2v2Owner = yield* await fromPromise(
-    getRegistryOwnerByLabel(namechainClient, {
+    ensjsv2_getOwner(namechainClient, {
       label,
       registryAddress: namechainEthRegistryAddress,
     }),
-    (e) => new GetOwnerError({ cause: e as GetRegistryOwnerByLabelErrorType }),
+    (e) => new GetOwnerError({ cause: e as ensjsv2_GetOwnerErrorType }),
   )
 
   if (l1v1Owner?.owner)
