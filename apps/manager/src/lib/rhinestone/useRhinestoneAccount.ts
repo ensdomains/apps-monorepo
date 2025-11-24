@@ -3,9 +3,9 @@
 import { type RhinestoneAccount, RhinestoneSDK } from '@rhinestone/sdk'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
-import { createPublicClient, formatUnits, http } from 'viem'
+import { type Address, createPublicClient, formatUnits, http } from 'viem'
 import { sepolia } from 'viem/chains'
-import { useAccount, useWalletClient } from 'wagmi'
+import { useConnection, useWalletClient } from 'wagmi'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
 import { ERC20_ABI } from '../ens.abi'
 import { walletClientToAccount, wrapParaAccount } from './rhinestone-utils'
@@ -38,7 +38,7 @@ export interface RhinestoneAccountState {
 }
 
 export function useRhinestoneAccount() {
-  const account = useAccount()
+  const account = useConnection()
   const { data: walletClient } = useWalletClient()
 
   const [state, setState] = useState<RhinestoneAccountState>({
@@ -56,7 +56,7 @@ export function useRhinestoneAccount() {
       if (!account.address) return null
       try {
         const balance = await publicClient.getBalance({
-          address: account.address as `0x${string}`,
+          address: account.address as Address,
         })
         return {
           balance: balance.toString(),
@@ -80,7 +80,7 @@ export function useRhinestoneAccount() {
         if (!state.accountAddress) return null
         try {
           const balance = await publicClient.getBalance({
-            address: state.accountAddress as `0x${string}`,
+            address: state.accountAddress as Address,
           })
           return {
             balance: balance.toString(),
@@ -114,7 +114,7 @@ export function useRhinestoneAccount() {
                 address: tokenAddress,
                 abi: ERC20_ABI,
                 functionName: 'balanceOf',
-                args: [state.accountAddress as `0x${string}`],
+                args: [state.accountAddress as Address],
               })
 
               const decimals = await publicClient.readContract({

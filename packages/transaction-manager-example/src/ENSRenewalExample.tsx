@@ -9,7 +9,7 @@ import { useSelector } from '@xstate/react'
 import type React from 'react'
 import { useEffect, useReducer, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { formatEther, parseEther } from 'viem'
+import { type Address, formatEther, type Hex, parseEther } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import { initialUIState, uiStateReducer } from './uiState.reducer'
@@ -203,7 +203,7 @@ function useSmartAccountBalance(params: {
       if (smartAccountAddress && publicClient) {
         try {
           const balance = await publicClient.getBalance({
-            address: smartAccountAddress as `0x${string}`,
+            address: smartAccountAddress as Address,
           })
           dispatch({ type: 'SET_SMART_ACCOUNT_BALANCE', payload: balance })
         } catch (error) {
@@ -594,9 +594,9 @@ function ENSRenewalExample() {
                             const intent: ETHTransferTransactionIntent = {
                               type: 'eth-transfer',
                               from: walletClient.account?.address,
-                              to: ui.smartAccountAddress as `0x${string}`,
+                              to: ui.smartAccountAddress as Address,
                               value: parseEther(ui.fundingAmount),
-                              data: '0x' as `0x${string}`,
+                              data: '0x' as Hex,
                             }
 
                             // Start transaction
@@ -665,7 +665,7 @@ function ENSRenewalExample() {
                     duration: BigInt(ui.duration) * YEAR_IN_SECONDS,
                     from: ui.useSmartAccount
                       ? rhinestoneAccount.address
-                      : (address as `0x${string}`),
+                      : (address as Address),
                   }
 
                   // Create signer

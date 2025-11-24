@@ -1,24 +1,14 @@
-import { createLink } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { ArrowRight, Calendar, Clock } from 'lucide-react'
 import type { MouseEventHandler } from 'react'
-import { forwardRef } from 'react'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import { cn } from '@/lib/utils'
 
-const BaseDomainProfileCardLink = forwardRef<
-  HTMLAnchorElement,
-  React.ComponentProps<'a'>
->((props, ref) => <a ref={ref} {...props} />)
-
-BaseDomainProfileCardLink.displayName = 'BaseDomainProfileCardLink'
-
-const DomainProfileCardLink = createLink(BaseDomainProfileCardLink)
-
 export interface DomainProfileCardProps {
   domainName: string
-  avatarUrl?: string
-  registeredDate?: Date | string
-  expiryDate?: Date | string
+  avatarUrl?: string | null
+  registeredDate?: Date | string | null
+  expiryDate?: Date | string | null
   onAction?: (domainName: string) => void
   className?: string
   link?: {
@@ -33,7 +23,7 @@ export interface DomainProfileCardProps {
   }
 }
 
-const formatDate = (date: Date | string | undefined): string => {
+const formatDate = (date: Date | string | null | undefined): string => {
   if (!date) return ''
 
   const dateObj = typeof date === 'string' ? new Date(date) : date
@@ -64,9 +54,8 @@ export const DomainProfileCard = ({
     'flex-col',
     'w-full',
     'h-[157px]',
-    'px-[22px]',
     'py-[22px]',
-    'bg-light-white',
+    'bg-ens-white',
     'rounded-[4px]',
     'shadow-[0px_20.905px_27.874px_0px_rgba(14,61,104,0.06)]',
     'transition',
@@ -86,7 +75,7 @@ export const DomainProfileCard = ({
       <div className="flex h-full items-center gap-4">
         {/* Avatar */}
         <div className="relative size-[113px] shrink-0">
-          <div className="size-[113px] overflow-clip rounded-[5.215px] bg-light-white">
+          <div className="size-[113px] overflow-clip rounded-[5.215px] bg-ens-white">
             <img
               src={avatarUrl || placeholderAvatar}
               alt={`${domainName} avatar`}
@@ -98,8 +87,8 @@ export const DomainProfileCard = ({
         {/* Domain Info */}
         <div className="flex h-full flex-col justify-start gap-2">
           {/* Domain Name Badge */}
-          <div className="flex items-center justify-center gap-[10px] rounded-[4px] bg-primary-magenta px-2 py-1">
-            <p className="font-medium text-2xl text-light-white leading-none tracking-[-0.64px]">
+          <div className="flex items-center justify-center gap-[10px] rounded-[4px] bg-ens-magenta px-2 py-1">
+            <p className="font-medium text-2xl text-ens-white leading-none tracking-[-0.64px]">
               {domainName}
             </p>
           </div>
@@ -109,12 +98,12 @@ export const DomainProfileCard = ({
             {/* Registered Date */}
             {formattedRegisteredDate && (
               <div className="flex items-center gap-[5.417px]">
-                <Calendar className="size-[18.958px] text-garnet-surface" />
+                <Calendar className="size-[18.958px] text-ens-garnet-surface" />
                 <div className="flex items-end gap-[3.611px]">
-                  <p className="text-garnet-surface text-sm leading-none tracking-[-0.28px]">
+                  <p className="text-ens-garnet-surface text-sm leading-none tracking-[-0.28px]">
                     Registered
                   </p>
-                  <p className="whitespace-nowrap font-medium text-primary-magenta text-sm leading-none tracking-[-0.28px]">
+                  <p className="whitespace-nowrap font-medium text-ens-magenta text-sm leading-none tracking-[-0.28px]">
                     {formattedRegisteredDate}
                   </p>
                 </div>
@@ -124,12 +113,12 @@ export const DomainProfileCard = ({
             {/* Expiry Date */}
             {formattedExpiryDate && (
               <div className="flex items-center gap-2">
-                <Clock className="size-[21px] text-garnet-surface" />
+                <Clock className="size-[21px] text-ens-garnet-surface" />
                 <div className="flex items-center gap-1">
-                  <p className="text-garnet-surface text-sm leading-none tracking-[-0.28px]">
+                  <p className="text-ens-garnet-surface text-sm leading-none tracking-[-0.28px]">
                     Expires
                   </p>
-                  <p className="whitespace-nowrap font-medium text-primary-magenta text-sm leading-none tracking-[-0.28px]">
+                  <p className="whitespace-nowrap font-medium text-ens-magenta text-sm leading-none tracking-[-0.28px]">
                     {formattedExpiryDate}
                   </p>
                 </div>
@@ -139,12 +128,12 @@ export const DomainProfileCard = ({
         </div>
       </div>
 
-      <div className="group flex h-8 min-w-[101px] shrink-0 flex-col items-end justify-end rounded-[4px] border border-primary-midnight-blue hover:bg-gray-600">
+      <div className="group flex h-8 min-w-[101px] shrink-0 flex-col items-end justify-end rounded-[4px] border border-ens-blue-midnight hover:bg-gray-600">
         <div className="flex h-8 items-center gap-1 rounded-[4px] px-2 py-1">
-          <p className="text-center font-medium text-primary-midnight-blue text-xs leading-normal group-hover:text-white">
+          <p className="text-center font-medium text-ens-blue-midnight text-xs leading-normal group-hover:text-white">
             View profile
           </p>
-          <ArrowRight className="size-2.5 h-2.5 text-primary-midnight-blue group-hover:text-white" />
+          <ArrowRight className="size-2.5 h-2.5 text-ens-blue-midnight group-hover:text-white" />
         </div>
       </div>
     </div>
@@ -159,7 +148,7 @@ export const DomainProfileCard = ({
     const { onClick, to, params, search, hash, replace, target, rel } = link
 
     return (
-      <DomainProfileCardLink
+      <Link
         to={to as never}
         params={params as never}
         search={search as never}
@@ -176,7 +165,7 @@ export const DomainProfileCard = ({
         }}
       >
         {content}
-      </DomainProfileCardLink>
+      </Link>
     )
   }
 

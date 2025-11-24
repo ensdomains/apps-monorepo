@@ -1,7 +1,6 @@
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
-import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Address, Hash, PublicClient } from 'viem'
-import { type ActorLogic, assign, setup } from 'xstate'
+import { assign, fromPromise, setup } from 'xstate'
 import * as auditTrail from '../../services/audit-trail.service'
 import type { Signer } from '../../types/signer.types'
 import {
@@ -32,6 +31,8 @@ type CommitmentData = {
   secret: string
 }
 
+const COMMITMENT_WAIT_DURATION_MS = 60_000
+
 export type RegistrationContext = {
   // Account & client
   signer?: Signer
@@ -44,12 +45,14 @@ export type RegistrationContext = {
   duration: bigint
   selectedToken: 'USDC' | 'DAI'
   tokenPrice: bigint
+  useFastRegistrar: boolean
 
   // Flow state
   commitment?: CommitmentData
   commitmentTxId?: string
   approvalTxId?: string
   registrationTxId?: string
+  registerReadyTimestamp?: number
 
   // Error state
   error?: Error
@@ -65,6 +68,7 @@ export type RegistrationEvent =
       signer: Signer
       accountAddress: Address
       publicClient: PublicClient
+      useFastRegistrar?: boolean
     }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
@@ -88,12 +92,14 @@ export const registrationMachine = setup({
         duration,
         publicClient,
         selectedToken,
+        useFastRegistrar,
       }: {
         name: string
         owner: Address
         duration: bigint
         publicClient: PublicClient
         selectedToken: 'USDC' | 'DAI'
+        useFastRegistrar: boolean
       }) => {
         return generateCommitmentActor({
           name,
@@ -101,6 +107,7 @@ export const registrationMachine = setup({
           duration,
           publicClient,
           selectedToken,
+          useFastRegistrar,
         })
       },
     ),
@@ -111,6 +118,7 @@ export const registrationMachine = setup({
         name: string
         duration: bigint
         publicClient: PublicClient
+        useFastRegistrar: boolean
       }) => {
         return submitCommitmentActor(input)
       },
@@ -121,6 +129,7 @@ export const registrationMachine = setup({
         selectedToken: 'USDC' | 'DAI'
         signer: Signer
         publicClient: PublicClient
+        useFastRegistrar: boolean
       }) => {
         return submitApprovalActor(input)
       },
@@ -134,6 +143,7 @@ export const registrationMachine = setup({
         selectedToken: 'USDC' | 'DAI'
         owner: Address
         publicClient: PublicClient
+        useFastRegistrar: boolean
       }) => {
         return submitRegistrationActor(input)
       },
@@ -141,6 +151,12 @@ export const registrationMachine = setup({
     pollTransactionStatus: fromResultAsync((input: { txId: string }) => {
       return pollTransactionStatusActor(input)
     }),
+    waitAfterCommitment: fromPromise(
+      async ({ input }: { input: { delayMs: number } }) => {
+        const safeDelay = Math.max(0, input.delayMs)
+        await new Promise<void>((resolve) => setTimeout(resolve, safeDelay))
+      },
+    ),
   },
 
   actions: {
@@ -185,6 +201,10 @@ export const registrationMachine = setup({
       // await persistenceService.clearRegistrationSnapshot()
       console.log('🗑️ [REGISTRATION] Cleared snapshot')
     },
+
+    clearRegisterReadyTimestamp: assign({
+      registerReadyTimestamp: () => undefined,
+    }),
   },
 
   // Note: Persistence will be handled via inspect option (see export at bottom)
@@ -201,6 +221,8 @@ export const registrationMachine = setup({
     duration: 0n,
     selectedToken: 'USDC',
     tokenPrice: 0n,
+    registerReadyTimestamp: undefined,
+    useFastRegistrar: false,
   }),
 
   states: {
@@ -216,6 +238,8 @@ export const registrationMachine = setup({
             signer: ({ event }) => event.signer,
             accountAddress: ({ event }) => event.accountAddress,
             publicClient: ({ event }) => event.publicClient,
+            registerReadyTimestamp: () => undefined,
+            useFastRegistrar: ({ event }) => Boolean(event.useFastRegistrar),
           }),
         },
       },
@@ -252,6 +276,7 @@ export const registrationMachine = setup({
             duration: context.duration,
             publicClient: context.publicClient!,
             selectedToken: context.selectedToken,
+            useFastRegistrar: context.useFastRegistrar,
           }
         },
         onDone: {
@@ -282,6 +307,7 @@ export const registrationMachine = setup({
           name: context.name,
           duration: context.duration,
           publicClient: context.publicClient!,
+          useFastRegistrar: context.useFastRegistrar,
         }),
         onDone: {
           target: 'waitingForCommitment',
@@ -306,6 +332,42 @@ export const registrationMachine = setup({
       invoke: {
         src: 'pollTransactionStatus',
         input: ({ context }) => ({ txId: context.commitmentTxId! }),
+        onDone: [
+          {
+            guard: ({ context }) => context.useFastRegistrar,
+            target: 'approvingToken',
+          },
+          {
+            target: 'commitmentCooldown',
+            actions: assign({
+              registerReadyTimestamp: () =>
+                Date.now() + COMMITMENT_WAIT_DURATION_MS,
+            }),
+          },
+        ],
+        onError: {
+          target: 'error',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+          }),
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    commitmentCooldown: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'waitAfterCommitment',
+        input: ({ context }) => {
+          const targetTimestamp =
+            context.registerReadyTimestamp ??
+            Date.now() + COMMITMENT_WAIT_DURATION_MS
+          const delayMs = Math.max(0, targetTimestamp - Date.now())
+          return { delayMs }
+        },
         onDone: 'approvingToken',
         onError: {
           target: 'error',
@@ -320,7 +382,11 @@ export const registrationMachine = setup({
     },
 
     approvingToken: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: [
+        'logTransition',
+        'recordTransition',
+        'clearRegisterReadyTimestamp',
+      ],
       invoke: {
         src: 'submitApproval',
         input: ({ context }) => ({
@@ -328,6 +394,7 @@ export const registrationMachine = setup({
           selectedToken: context.selectedToken,
           signer: context.signer!,
           publicClient: context.publicClient!,
+          useFastRegistrar: context.useFastRegistrar,
         }),
         onDone: {
           target: 'waitingForApproval',
@@ -377,6 +444,7 @@ export const registrationMachine = setup({
           selectedToken: context.selectedToken,
           owner: context.accountAddress!,
           publicClient: context.publicClient!,
+          useFastRegistrar: context.useFastRegistrar,
         }),
         onDone: {
           target: 'waitingForRegistration',

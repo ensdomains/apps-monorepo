@@ -78,13 +78,13 @@ const InputStep = () => {
             value={phoneNumber}
             onChange={(e) => {
               // Remove all non-digit characters except leading +
-              let value = e.target.value;
+              let value = e.target.value
               if (value[0] !== '+') {
-                value = '+' + value.replace(/[^0-9]/g, '');
+                value = `+${value.replace(/[^0-9]/g, '')}`
               } else {
-                value = '+' + value.slice(1).replace(/[^0-9]/g, '');
+                value = `+${value.slice(1).replace(/[^0-9]/g, '')}`
               }
-              setPhoneNumber(value);
+              setPhoneNumber(value)
             }}
             className="w-full"
             inputMode="tel"
@@ -93,12 +93,14 @@ const InputStep = () => {
             pattern="^\+[1-9]\d{1,14}$"
           />
           {phoneNumber && !/^\+[1-9]\d{1,14}$/.test(phoneNumber) && (
-            <p className="text-xs text-red-500">
-              Please enter a valid phone number in E.164 format (e.g. +15551234567)
+            <p className="text-red-500 text-xs">
+              Please enter a valid phone number in E.164 format (e.g.
+              +15551234567)
             </p>
           )}
-          <p className="text-xs text-gray-500">
-            Enter your full phone number in international format (E.164), e.g. +15551234567
+          <p className="text-gray-500 text-xs">
+            Enter your full phone number in international format (E.164), e.g.
+            +15551234567
           </p>
         </div>
       )}
@@ -114,9 +116,7 @@ const InputStep = () => {
             })
           }
         }}
-        disabled={
-          authMethod === 'email' ? !email : !phoneNumber
-        }
+        disabled={authMethod === 'email' ? !email : !phoneNumber}
         className="w-full"
       >
         {/* {isSigningUpOrLoggingIn ? (
