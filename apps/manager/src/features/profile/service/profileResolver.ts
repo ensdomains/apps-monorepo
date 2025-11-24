@@ -30,7 +30,7 @@ export const getResolver = ResultFn(async function* (name: string) {
       name,
       resolverAddress: ENS_SEPOLIA_CONTRACTS.UniversalResolver,
     }),
-    (e) => new GetUnderlyingAddressError({ cause: e as any }),
+    (e) => new GetUnderlyingAddressError({ cause: e }),
   )
 
   const dedicatedResolverResult = yield* await fromPromise(

@@ -1,4 +1,5 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
+import type { ChainWithEns } from '@ensdomains/ensjs/chain'
 import {
   type GetConnectorClientErrorType,
   getConnectorClient,
@@ -8,7 +9,8 @@ import {
   waitForTransactionReceipt,
 } from '@wagmi/core'
 import { fromAsyncThrowable, fromThrowable } from 'neverthrow'
-import type { CreateClientErrorType } from 'viem'
+import type { Client, CreateClientErrorType, Transport } from 'viem'
+import { sepolia } from 'viem/chains'
 import { namechainSepolia, wagmiConfig } from '../wagmi'
 
 export class WagmiClientError extends TaggedError('Wagmi/ClientError')<{
@@ -16,12 +18,19 @@ export class WagmiClientError extends TaggedError('Wagmi/ClientError')<{
 }> {}
 
 export const safeGetClient = fromThrowable(
-  wagmiConfig.getClient,
+  () =>
+    wagmiConfig.getClient({ chainId: sepolia.id }) as unknown as Client<
+      Transport,
+      ChainWithEns<typeof sepolia>
+    >,
   (e) => new WagmiClientError({ cause: e as CreateClientErrorType }),
 )
 
 export const safeGetNamechainSepoliaClient = fromThrowable(
-  () => wagmiConfig.getClient({ chainId: namechainSepolia.id }),
+  () =>
+    wagmiConfig.getClient({
+      chainId: namechainSepolia.id,
+    }) as unknown as Client<Transport, ChainWithEns<typeof namechainSepolia>>,
   (e) => new WagmiClientError({ cause: e as CreateClientErrorType }),
 )
 
