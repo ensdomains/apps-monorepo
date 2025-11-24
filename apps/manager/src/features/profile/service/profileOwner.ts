@@ -28,7 +28,6 @@ export const getOwner = ResultFn(async function* (params: GetOwnerParameters) {
   const client = yield* safeGetClient()
 
   const l1v1Owner = yield* await fromPromise(
-    // @ts-expect-error
     ensjsv1_getOwner(client, params),
     (e) => new GetOwnerError({ cause: e as ensjsv1_GetOwnerErrorType }),
   )
