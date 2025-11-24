@@ -9,13 +9,8 @@ import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
+import { L1_ETH_REGISTRY, L2_ETH_REGISTRY } from '@/lib/constants/registry'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-
-export const L1_ETH_REGISTRY =
-  '0x37AFa22dBdafa3E26541e1036b99c58a6Be04f5e' as Address
-
-export const L2_ETH_REGISTRY =
-  '0x5fb63bbd34de21688c8aa8131be1c3b4a477109c' as Address
 
 export type ChainLocation = 'L1' | 'L2' | 'unknown'
 

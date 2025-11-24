@@ -1,12 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
-
+import { isZeroAddress } from '@/lib/utils'
 import { splitLabels } from '../utils/nameUtils'
-
 import { useL2Subregistries } from './useL2Subregistries'
 import { useNameSubregistries } from './useNameSubregistries'
-
 import { getRegistryOwnerQueryOptions } from './useRegistryOwner'
 
 export type RegistryCard = {
@@ -85,11 +83,8 @@ export function useRegistryCards({
   // 3. OWNER LOOKUPS – LABEL-BASED (NO namehash, NO tokenId manually)
   // ----------------------------------------------------------------------
 
-  const shouldFetchCurrentOwner =
-    !!currentRegistry && currentRegistry !== ZERO_ADDRESS
-
-  const shouldFetchParentOwner =
-    !!parentRegistry && parentRegistry !== ZERO_ADDRESS && !!parentLabel
+  const shouldFetchCurrentOwner = !isZeroAddress(currentRegistry)
+  const shouldFetchParentOwner = !isZeroAddress(parentRegistry) && !!parentLabel
 
   const {
     data: currentOwner,

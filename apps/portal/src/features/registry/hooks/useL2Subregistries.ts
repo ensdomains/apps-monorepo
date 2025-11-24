@@ -9,8 +9,8 @@ import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
+import { L2_ETH_REGISTRY } from '@/lib/constants/registry'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { L2_ETH_REGISTRY } from './useNameChainLocation'
 
 export type GetL2NameRegistriesParameters = {
   name: string

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
+import { isZeroAddress } from '@/lib/utils'
 import { getNameRegistriesQueryOptions } from './useNameRegistries'
 
 export type UseNameSubregistriesParams = {
@@ -16,8 +17,6 @@ export type UseNameSubregistriesReturn = {
   isLoading: boolean
   error: Error | null
 }
-
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Address
 
 /**
  * Hook to get all subregistries for a given name
@@ -55,8 +54,7 @@ export function useNameSubregistries({
 
   // The name has its own registry if currentRegistry is non-zero
   // No need to query parent - the array tells us directly
-  const hasCurrentRegistry =
-    currentRegistry !== null && currentRegistry !== ZERO_ADDRESS
+  const hasCurrentRegistry = !isZeroAddress(currentRegistry)
 
   return {
     rootRegistry,
