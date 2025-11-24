@@ -57,10 +57,7 @@ export const transformProfileRecords = (
     if (staticTextRecords.includes(key as StaticRecordKey)) {
       return {
         ...acc,
-        base: {
-          ...acc.base,
-          [key]: value,
-        },
+        base: { ...acc.base, [key]: value },
       }
     }
 
@@ -78,16 +75,10 @@ export const transformProfileRecords = (
     }
   }
 
-  let result: ProfileRecords = {
-    ...newEmptyProfileRecords(),
-    addresses: profile.coins,
-  }
+  const baseRecords = newEmptyProfileRecords()
+  const withAddresses = { ...baseRecords, addresses: profile.coins }
 
-  for (const text of profile.texts) {
-    result = processTextRecord(result, text)
-  }
-
-  return result
+  return profile.texts.reduce(processTextRecord, withAddresses)
 }
 
 /**
