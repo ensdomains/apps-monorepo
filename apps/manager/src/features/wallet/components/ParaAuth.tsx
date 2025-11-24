@@ -80,9 +80,9 @@ const InputStep = () => {
               // Remove all non-digit characters except leading +
               let value = e.target.value
               if (value[0] !== '+') {
-                value = '+' + value.replace(/[^0-9]/g, '')
+                value = `+${value.replace(/[^0-9]/g, '')}`
               } else {
-                value = '+' + value.slice(1).replace(/[^0-9]/g, '')
+                value = `+${value.slice(1).replace(/[^0-9]/g, '')}`
               }
               setPhoneNumber(value)
             }}

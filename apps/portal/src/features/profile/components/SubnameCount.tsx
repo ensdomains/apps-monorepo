@@ -1,10 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, ListIcon, ListStartIcon } from 'lucide-react'
-import { type Address, zeroAddress } from 'viem'
-import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import type { Address } from 'viem'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
-import { getNameRegistryQueryOptions } from '@/features/registry/hooks/useNameRegistry'
 import { getSubnamesQueryOptions } from '../hooks/useSubnames'
 import { RegistryLocation } from './RegistryLocation'
 
