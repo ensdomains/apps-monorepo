@@ -1,6 +1,7 @@
-import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { fromPromise } from 'neverthrow'
+import { mutationOptions } from '@tanstack/react-query'
 import { sha256 } from 'viem'
+import type { EventFrom } from 'xstate'
+import type { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
 
 const UPLOAD_TIMEOUT_MS = 30000
 const ONE_WEEK_MS = 1000 * 60 * 60 * 24 * 7
@@ -21,13 +22,15 @@ const dataURLToBytes = (dataURL: string) => {
   return bytes
 }
 
+type ImageSelectionEvent = EventFrom<typeof imageSelectionMachine>
+
 const getChainName = (chainId: number | null | undefined) => {
   if (!chainId || chainId === 1) return 'mainnet'
   // Default to sepolia for non-mainnet in this app
   return 'sepolia'
 }
 
-export interface UploadImageInput {
+export interface UploadImageMutationOptionsArgs {
   type: ImageType
   name?: string
   uploadFile: File | null
@@ -36,43 +39,33 @@ export interface UploadImageInput {
   chainId: number | undefined
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   signTypedDataAsync: (args: any) => Promise<string>
+  onImageChange: (imageUrl: string) => void
+  setOpen: (open: boolean) => void
+  setUploadFile: (file: File | null) => void
+  setUploadPreviewUrl: (url: string | null) => void
+  send: (event: ImageSelectionEvent) => void
 }
 
-export type UploadImageResult = string
-
-export class UploadImageError extends TaggedError('UploadImageError')<{
-  message: string
-  cause?: unknown
-}> {}
-
-export const uploadImage = (input: UploadImageInput) =>
-  fromPromise<UploadImageResult, UploadImageError>(
-    (async () => {
-      const {
-        type,
-        name,
-        uploadFile,
-        isConnected,
-        address,
-        chainId,
-        signTypedDataAsync,
-      } = input
-
-      if (!name) {
-        throw new UploadImageError({
-          message: 'Name is required to upload an image',
-        })
-      }
-      if (!uploadFile) {
-        throw new UploadImageError({
-          message: 'No image selected for upload',
-        })
-      }
-      if (!isConnected || !address) {
-        throw new UploadImageError({
-          message: 'Please connect your wallet before uploading an image',
-        })
-      }
+export const uploadImageMutationOptions = ({
+  type,
+  name,
+  uploadFile,
+  isConnected,
+  address,
+  chainId,
+  signTypedDataAsync,
+  onImageChange,
+  setOpen,
+  setUploadFile,
+  setUploadPreviewUrl,
+  send,
+}: UploadImageMutationOptionsArgs) =>
+  mutationOptions({
+    mutationFn: async () => {
+      if (!name) throw new Error('Name is required to upload an image')
+      if (!uploadFile) throw new Error('No image selected for upload')
+      if (!isConnected || !address)
+        throw new Error('Please connect your wallet before uploading an image')
 
       const dataURL = await fileToDataURL(uploadFile)
 
@@ -136,9 +129,7 @@ export const uploadImage = (input: UploadImageInput) =>
         })
 
         if (!response.ok) {
-          throw new UploadImageError({
-            message: `Upload failed with status ${response.status}`,
-          })
+          throw new Error(`Upload failed with status ${response.status}`)
         }
 
         const result = (await response.json()) as
@@ -146,38 +137,30 @@ export const uploadImage = (input: UploadImageInput) =>
           | { error: string; status?: number }
 
         if ('message' in result && result.message === 'uploaded') {
-          return endpoint
+          // Save Avup endpoint as the text record value
+          onImageChange(endpoint)
+          setOpen(false)
+          setUploadFile(null)
+          setUploadPreviewUrl(null)
+          send({ type: 'RESET' })
+          return
         }
 
         if ('error' in result) {
-          throw new UploadImageError({ message: result.error })
+          throw new Error(result.error)
         }
 
-        throw new UploadImageError({ message: 'Unknown error' })
+        throw new Error('Unknown error')
       } catch (err) {
-        if (err instanceof UploadImageError) {
-          throw err
-        }
         if (err instanceof Error && err.name === 'AbortError') {
-          throw new UploadImageError({
-            message: 'Upload timed out. Please try again.',
-            cause: err,
-          })
+          throw new Error('Upload timed out. Please try again.')
         }
-        throw new UploadImageError({
-          message: 'Failed to upload image',
-          cause: err,
-        })
+        throw err
       }
-    })(),
-    (e) =>
-      e instanceof UploadImageError
-        ? e
-        : new UploadImageError({
-            message:
-              e instanceof Error && e.message
-                ? e.message
-                : 'Failed to upload image',
-            cause: e,
-          }),
-  )
+    },
+    onError: (error: unknown) => {
+      const message =
+        error instanceof Error ? error.message : 'Failed to upload image'
+      send({ type: 'SET_ERROR', error: message })
+    },
+  })
