@@ -18,14 +18,12 @@ interface DiffDialogProps {
   originalData: ProfileRecords
   currentData: ProfileRecords
   onSave: () => void
-  onCancel: () => void
 }
 
 export const DiffDialog = ({
   originalData,
   currentData,
   onSave,
-  onCancel,
 }: DiffDialogProps) => {
   const [open, setOpen] = useState(false)
   const diff = useMemo(
@@ -51,7 +49,6 @@ export const DiffDialog = ({
   }
 
   const handleCancel = () => {
-    onCancel()
     setOpen(false)
   }
 

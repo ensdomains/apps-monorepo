@@ -29,7 +29,9 @@ const DynamicRecord = ({ record }: DynamicRecordProps) => {
       <Button asChild variant="outline" size="sm" className="justify-start">
         <a href={href} target="_blank" rel="noopener noreferrer">
           <IconRenderer icon={recordDef?.icon} className="size-3.5" />
-          <span className="select-none text-gray-700">{recordDef?.name}</span>
+          <span className="select-none text-gray-700">
+            {recordDef?.name ?? record.key}
+          </span>
           <span className="text-gray-500">
             {recordDef?.displayPrefix}
             {displayValue}
@@ -46,7 +48,9 @@ const DynamicRecord = ({ record }: DynamicRecordProps) => {
       title={record.value}
     >
       <IconRenderer icon={recordDef?.icon} className="size-3.5" />
-      <span className="select-none text-gray-700">{recordDef?.name}</span>
+      <span className="select-none text-gray-700">
+        {recordDef?.name ?? record.key}
+      </span>
       <span className="text-gray-500">
         {recordDef?.displayPrefix}
         {displayValue}
@@ -65,7 +69,6 @@ export const ViewDynamicSection = ({
   section,
 }: ViewDynamicSectionProps) => {
   const sectionData = sections[section]
-
   const sectionRecords = records[section]
 
   if (sectionRecords.length === 0) {

@@ -8,7 +8,7 @@ const coinIconsRaw = import.meta.glob<string>('./*-icon.svg', {
 export const coinIcons = Object.fromEntries(
   Object.entries(coinIconsRaw).map(([key, value]) => [
     // biome-ignore lint/style/noNonNullAssertion: always has a value
-    key.split('/').pop()?.split('-')[0]!,
+    key.split('/').pop()!.split('-')[0]!,
     value,
   ]),
 )

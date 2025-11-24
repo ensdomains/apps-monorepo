@@ -1,4 +1,4 @@
-import { errAsync, ResultAsync } from 'neverthrow'
+import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Hex, PublicClient } from 'viem'
 import { prepareENSRenewalTransaction } from '../helpers/rhinestone-account.helpers'
 import type {
@@ -78,7 +78,7 @@ function prepareENSRenewal(
   chainId: number,
   useSmartAccount: boolean,
 ): ResultAsync<PreparedTransactionData, TransactionPreparationError> {
-  return ResultAsync.fromPromise(
+  return fromPromise(
     (async () => {
       const { name, duration, from } = intent
 
@@ -108,7 +108,15 @@ function prepareENSRenewal(
             data,
             value,
             chainId,
-            rhinestoneParams: { name, duration },
+            rhinestoneParams: {
+              calls: [
+                {
+                  to,
+                  data,
+                  value,
+                },
+              ],
+            },
           }
         : {
             type: 'eoa',
@@ -148,7 +156,7 @@ function prepareETHTransfer(
   chainId: number,
   useSmartAccount: boolean,
 ): ResultAsync<PreparedTransactionData, TransactionPreparationError> {
-  return ResultAsync.fromPromise(
+  return fromPromise(
     (async () => {
       const { to, value, from, data } = intent
 
@@ -167,6 +175,15 @@ function prepareETHTransfer(
             data: data || ('0x' as Hex),
             value,
             chainId,
+            rhinestoneParams: {
+              calls: [
+                {
+                  to,
+                  data: data || ('0x' as Hex),
+                  value,
+                },
+              ],
+            },
           }
         : {
             type: 'eoa',

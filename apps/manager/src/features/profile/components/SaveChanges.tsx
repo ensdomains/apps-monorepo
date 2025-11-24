@@ -6,7 +6,6 @@ import { sharedOptions, withForm } from './form'
 interface SaveChangesProps {
   originalData: ProfileRecords
   onSave: () => void
-  onCancel: () => void
 }
 
 export const SaveChanges = withForm({
@@ -14,16 +13,14 @@ export const SaveChanges = withForm({
   props: {
     originalData: defaultProfileRecords,
     onSave: () => {},
-    onCancel: () => {},
   } as SaveChangesProps,
-  render: ({ form, originalData, onSave, onCancel }) => (
+  render: ({ form, originalData, onSave }) => (
     <form.Subscribe selector={(state) => state.values}>
       {(currentData) => (
         <DiffDialog
           originalData={originalData}
           currentData={currentData}
           onSave={onSave}
-          onCancel={onCancel}
         />
       )}
     </form.Subscribe>

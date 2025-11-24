@@ -1,7 +1,6 @@
-import { Plus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
+import { AddLinkDialog } from '../dialogs/AddLinkDialog'
 
 export const LinksSection = withForm({
   ...sharedOptions,
@@ -29,21 +28,13 @@ export const LinksSection = withForm({
             </form.Field>
           ))}
           <div className="mt-3 flex justify-end">
-            <Button
-              variant="secondary"
-              size="sm"
-              className="rounded-full"
-              onClick={() => {
-                // ask for link name
-                const name = prompt('Enter link name')
-                if (name) {
-                  linksField.pushValue({ name, url: '' })
-                }
+            <AddLinkDialog
+              buttonLabel="Add Link"
+              title="Add Link"
+              onAdd={(link) => {
+                linksField.pushValue(link)
               }}
-            >
-              <Plus className="size-5" />
-              Add Link
-            </Button>
+            />
           </div>
         </div>
       )}

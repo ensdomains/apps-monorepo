@@ -1,26 +1,4 @@
-// Mock unavailable names
-const UNAVAILABLE_NAMES = [
-  'ucles.eth',
-  'test.eth',
-  'vitalik.eth',
-  'ethereum.eth',
-  'ens.eth',
-  'wallet.eth',
-  'crypto.eth',
-  'bitcoin.eth',
-  'web3.eth',
-  'defi.eth',
-  'nft.eth',
-  'dao.eth',
-  'metaverse.eth',
-  'blockchain.eth',
-  'smart.eth',
-  'contract.eth',
-  'dapp.eth',
-  'token.eth',
-  'coin.eth',
-  'money.eth',
-]
+import { checkRealNameAvailability } from '@/features/register/services/nameChainContractService'
 
 export interface NameAvailabilityResult {
   name: string
@@ -32,26 +10,20 @@ export async function checkNameAvailability(
   name: string,
 ): Promise<NameAvailabilityResult> {
   try {
-    // Simulate network delay
-    await new Promise((resolve) =>
-      setTimeout(resolve, 1000 + Math.random() * 1000),
-    )
+    // Use the real contract to check availability with FastTestETHRegistrar
+    const result = await checkRealNameAvailability(name)
 
-    // Simulate random errors for some names (5% chance)
-    if (Math.random() < 0.05) {
+    if (result.isErr()) {
       return {
         name,
         isAvailable: false,
-        error: 'Network error occurred while checking availability',
+        error: result.error.message,
       }
     }
 
-    // Check if name is in unavailable list
-    const isUnavailable = UNAVAILABLE_NAMES.includes(name.toLowerCase())
-
     return {
-      name,
-      isAvailable: !isUnavailable,
+      name: result.value.name,
+      isAvailable: result.value.isAvailable,
     }
   } catch (error) {
     return {

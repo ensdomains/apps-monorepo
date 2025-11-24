@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="390" height="1945" viewBox="0 0 390 1945" fill="none">
+  <rect width="390" height="1945" fill="white"/>
+  <rect width="390" height="1945" fill="url(#pattern0_715_14106)" fill-opacity="0.02"/>
+  <defs>
+    <pattern id="pattern0_715_14106" patternUnits="userSpaceOnUse" patternTransform="matrix(30 0 0 60 1.31134e-06 1.31134e-06)" preserveAspectRatio="none" viewBox="2.18557e-05 2.18557e-05 500 1000" width="1" height="1">
+      <use xlink:href="#pattern0_715_14106_inner" transform="translate(-500 0)"/>
+      <g id="pattern0_715_14106_inner">
+        <g clip-path="url(#clip0_715_14106)">
+          <rect width="500" height="500" transform="translate(500 2.18557e-05) rotate(90)" fill="black"/>
+          <path d="M408.536 125L408.536 1.93236e-05L466.463 2.18557e-05L466.463 125L408.536 125Z" fill="black"/>
+          <path d="M500 91.4644L375 91.4644L375 33.5366L500 33.5366L500 91.4644Z" fill="white"/>
+          <path d="M500 216.464L375 216.464L375 158.537L500 158.537L500 216.464Z" fill="white"/>
+          <path d="M408.536 250L408.536 125L466.463 125L466.463 250L408.536 250Z" fill="black"/>
+          <path d="M500 341.464L375 341.464L375 283.537L500 283.537L500 341.464Z" fill="white"/>
+          <path d="M408.536 375L408.536 250L466.463 250L466.463 375L408.536 375Z" fill="black"/>
+          <path d="M408.536 500L408.536 375L466.463 375L466.463 500L408.536 500Z" fill="black"/>
+          <path d="M500 466.464L375 466.464L375 408.537L500 408.537L500 466.464Z" fill="white"/>
+          <path d="M283.536 125L283.536 1.93235e-05L341.463 2.18557e-05L341.463 125L283.536 125Z" fill="black"/>
+          <path d="M375 91.4644L250 91.4644L250 33.5366L375 33.5366L375 91.4644Z" fill="white"/>
+          <path d="M283.536 250L283.536 125L341.463 125L341.463 250L283.536 250Z" fill="black"/>
+          <path d="M375 216.464L250 216.464L250 158.537L375 158.537L375 216.464Z" fill="white"/>
+          <path d="M375 341.464L250 341.464L250 283.537L375 283.537L375 341.464Z" fill="white"/>
+          <path d="M283.536 375L283.536 250L341.463 250L341.463 375L283.536 375Z" fill="black"/>
+          <path d="M375 466.464L250 466.464L250 408.537L375 408.537L375 466.464Z" fill="white"/>
+          <path d="M283.536 500L283.536 375L341.463 375L341.463 500L283.536 500Z" fill="black"/>
+          <path d="M250 91.4644L125 91.4644L125 33.5366L250 33.5366L250 91.4644Z" fill="white"/>
+          <path d="M158.536 125L158.536 1.93235e-05L216.463 2.18557e-05L216.463 125L158.536 125Z" fill="black"/>
+          <path d="M158.536 250L158.536 125L216.463 125L216.463 250L158.536 250Z" fill="black"/>
+          <path d="M250 216.464L125 216.464L125 158.537L250 158.537L250 216.464Z" fill="white"/>
+          <path d="M158.536 375L158.536 250L216.463 250L216.463 375L158.536 375Z" fill="black"/>
+          <path d="M250 341.464L125 341.464L125 283.537L250 283.537L250 341.464Z" fill="white"/>
+          <path d="M250 466.464L125 466.464L125 408.537L250 408.537L250 466.464Z" fill="white"/>
+          <path d="M158.536 500L158.536 375L216.463 375L216.463 500L158.536 500Z" fill="black"/>
+          <path d="M125 91.4644L1.93236e-05 91.4644L2.18557e-05 33.5366L125 33.5366L125 91.4644Z" fill="white"/>
+          <path d="M33.5357 125L33.5357 1.93235e-05L91.4634 2.18557e-05L91.4634 125L33.5357 125Z" fill="black"/>
+          <path d="M125 216.464L1.93236e-05 216.464L2.18557e-05 158.537L125 158.537L125 216.464Z" fill="white"/>
+          <path d="M33.5357 250L33.5357 125L91.4634 125L91.4634 250L33.5357 250Z" fill="black"/>
+          <path d="M33.5357 375L33.5357 250L91.4634 250L91.4634 375L33.5357 375Z" fill="black"/>
+          <path d="M125 341.464L1.93236e-05 341.464L2.18557e-05 283.537L125 283.537L125 341.464Z" fill="white"/>
+          <path d="M33.5357 500L33.5357 375L91.4634 375L91.4634 500L33.5357 500Z" fill="black"/>
+          <path d="M125 466.464L1.93236e-05 466.464L2.18557e-05 408.537L125 408.537L125 466.464Z" fill="white"/>
+        </g>
+      </g>
+      <use xlink:href="#pattern0_715_14106_inner" transform="translate(-250 500)"/>
+      <use xlink:href="#pattern0_715_14106_inner" transform="translate(250 500)"/>
+    </pattern>
+    <clipPath id="clip0_715_14106">
+      <rect width="500" height="500" fill="white" transform="translate(500 2.18557e-05) rotate(90)"/>
+    </clipPath>
+  </defs>
+</svg>
+

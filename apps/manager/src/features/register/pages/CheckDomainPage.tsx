@@ -1,78 +1,31 @@
 import { useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
-import {
-  checkNameAvailability,
-  type NameAvailabilityResult,
-} from '@/services/checkNameAvailabilityService'
-import { CheckAvailability } from '../components/CheckAvailability'
+import { CheckAvailability } from '../components/CheckAvailability/CheckAvailability'
 
 export const CheckDomainPage = () => {
   const navigate = useNavigate()
-  const [inputValue, setInputValue] = useState('')
-  const [isSearching, setIsSearching] = useState(false)
-  const [availabilityResult, setAvailabilityResult] =
-    useState<NameAvailabilityResult | null>(null)
-
-  const handleSearch = async (value: string) => {
-    const name = value.trim().toLowerCase()
-    if (!name) return
-
-    const nameWithEth = name.endsWith('.eth') ? name : `${name}.eth`
-
-    setIsSearching(true)
-    setAvailabilityResult(null)
-
-    try {
-      const result = await checkNameAvailability(nameWithEth)
-      setAvailabilityResult(result)
-    } catch (error) {
-      setAvailabilityResult({
-        name: nameWithEth,
-        isAvailable: false,
-        error:
-          error instanceof Error ? error.message : 'Unknown error occurred',
-      })
-    } finally {
-      setIsSearching(false)
-    }
-  }
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value)
-    setAvailabilityResult(null)
-  }
-
-  const handleContinue = () => {
-    if (availabilityResult?.isAvailable) {
-      navigate({
-        to: '/register',
-        search: { name: availabilityResult.name },
-      })
-    }
+  const handleRegistrationComplete = (name: string) => {
+    navigate({
+      to: '/register',
+      search: { name },
+    })
   }
 
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center bg-background px-4">
-      <h1 className="mb-4 font-bold font-serif text-4xl text-primary">
-        Your web3 username
-      </h1>
-      <p className="mb-10 max-w-[500px] text-center text-muted-foreground">
-        Your identity across web3, one name for all your crypto addresses,{' '}
+    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
+      <h1 className="mb-4 text-center text-5xl leading-tight">
+        <span className="font-normal text-ens-blue">Claim your</span>
         <br />
-        and your decentralised website.
+        <span className="font-serif text-ens-blue-midnight italic">
+          web3 username
+        </span>
+      </h1>
+      <p className="mb-10 max-w-[500px] text-center text-ens-blue text-xl">
+        A simple, portable identity that you control
       </p>
 
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-4xl">
         <CheckAvailability
-          inputValue={inputValue}
-          onChange={handleInputChange}
-          onSearch={() => handleSearch(inputValue)}
-          isSearching={isSearching}
-          isAvailable={availabilityResult?.isAvailable}
-          isError={!!availabilityResult?.error}
-          error={availabilityResult?.error}
-          name={availabilityResult?.name}
-          onContinue={handleContinue}
+          onRegistrationComplete={handleRegistrationComplete}
         />
       </div>
     </div>
