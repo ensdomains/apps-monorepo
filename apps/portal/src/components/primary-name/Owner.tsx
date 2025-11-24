@@ -1,29 +1,43 @@
-import { useQuery } from '@tanstack/react-query'
-import { sepolia } from 'viem/chains'
-import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { CopyableRecord } from '../molecules/CopyableRecord'
+import { Link } from '@tanstack/react-router'
+import type { Address } from 'viem'
+import { useEnsName } from 'wagmi'
+import { NameAvatar } from '@/features/profile/components/NameAvatar'
 
-const sepoliaUrl = sepolia.blockExplorers.default.url
+export const Owner = ({ owner }: { owner?: Address }) => {
+  const {
+    data: ownerName,
+    error,
+    isLoading,
+  } = useEnsName({ address: owner, query: { enabled: Boolean(owner) } })
 
-interface OwnerProps {
-  name: string
-}
+  if (error) return <div>{error.message}</div>
+  if (isLoading) return <div>Loading</div>
 
-export const Owner = ({ name }: OwnerProps) => {
-  const { data, error, isLoading } = useQuery(getEnsOwnerQueryOptions({ name }))
+  if (!owner)
+    return (
+      <div className="flex flex-col">
+        <span className="font-medium">Owner</span>
+        <span>No data</span>
+      </div>
+    )
 
-  if (error) return <div>Error: {error.cause?.message}</div>
-  if (isLoading) return <div>Loading...</div>
-  if (!data) return null
+  const shortenedAddress = `${owner.slice(0, 6)}...${owner.slice(-4)}`
 
   return (
-    <span className="flex flex-row gap-1 items-baseline">
-      <span>Owned by</span>
-      <CopyableRecord
-        className="max-w-40 sm:max-w-54 xl:max-w-80"
-        value={data.owner}
-        href={`${sepoliaUrl}/address/${data.owner}`}
+    <Link
+      to="/addr/$addr"
+      params={{ addr: owner }}
+      className="p-6 flex flex-row rounded-2xl gap-6 items-center border border-gray-300 hover:bg-gray-100"
+    >
+      <NameAvatar
+        width="40px"
+        height="40px"
+        name={ownerName || shortenedAddress}
       />
-    </span>
+      <div className="flex flex-col">
+        <span className="font-medium">Owner</span>
+        <span>{ownerName || shortenedAddress}</span>
+      </div>
+    </Link>
   )
 }

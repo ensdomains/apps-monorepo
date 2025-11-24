@@ -1,6 +1,9 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
+import { ErrorMessage } from '@/components/molecules/ErrorMessage'
+import { LoadingMessage } from '@/components/molecules/LoadingMessage'
+import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
 import { RecordEdit } from '@/components/views/records/RecordEdit'
 import { RecordList } from '@/components/views/records/RecordList'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
@@ -8,6 +11,7 @@ import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/$name/records')({
   component: App,
+  notFoundComponent: () => <NotFoundMessage />,
   loader: ({ params }) => {
     return queryClient.prefetchQuery(getProfileQueryOptions(params.name))
   },
@@ -42,10 +46,23 @@ function App() {
 
   const { view } = Route.useSearch()
 
-  if (isLoading) return <div>Loading...</div>
-  if (error || !data) {
-    if (error) return <div>Error: {(error.cause as Error).message}</div>
-    return <div>Could not load records</div>
+  if (isLoading) return <LoadingMessage />
+
+  if (error) {
+    const message =
+      (error.cause as Error | undefined)?.message ||
+      (error as Error).message ||
+      'Could not load records.'
+    return <ErrorMessage title="Records unavailable" description={message} />
+  }
+
+  if (!data) {
+    return (
+      <ErrorMessage
+        title="Records unavailable"
+        description="Could not load records."
+      />
+    )
   }
 
   return <RecordView {...{ view, name }} records={data.records} />

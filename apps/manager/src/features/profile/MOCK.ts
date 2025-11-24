@@ -1,3 +1,4 @@
+import { zeroAddress } from 'viem'
 import type { ProfileRecordsResult } from './service/profileRecords'
 
 export const DEBUG_PROFILE: ProfileRecordsResult = {
@@ -77,5 +78,5 @@ export const DEBUG_PROFILE: ProfileRecordsResult = {
       symbol: 'SOL',
     },
   ],
-  resolverAddress: '0x0000000000000000000000000000000000000000',
+  resolverAddress: zeroAddress,
 }

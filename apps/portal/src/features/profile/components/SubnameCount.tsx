@@ -1,36 +1,54 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, ListIcon, ListStartIcon } from 'lucide-react'
+import type { Address } from 'viem'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { getSubnamesQueryOptions } from '../hooks/useSubnames'
+import { RegistryLocation } from './RegistryLocation'
 
-interface SubnameCountProps {
+export const SubnameCount = ({
+  name,
+  registryAddress,
+}: {
   name: string
-}
-
-export const SubnameCount = ({ name }: SubnameCountProps) => {
+  registryAddress: Address
+}) => {
   const { data, isLoading, error } = useQuery(getSubnamesQueryOptions({ name }))
 
-  if (error) return <div>Error: {error.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (error) return <div>Error: {error.cause?.message}</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!data) return null
 
   return (
-    <Link
-      to="/$name/records"
-      search={{ view: 'list' }}
-      params={{ name }}
-      className="w-full p-6 border border-gray-300 rounded-xl hover:bg-gray-100 duration-150"
-    >
-      <div className="flex flex-row justify-between items-center">
+    <div className="flex flex-col rounded-2xl overflow-hidden  border border-gray-300 ">
+      <div className="w-full p-6 border-b border-b-gray-300 flex flex-row items-center gap-6">
+        <ListIcon
+          height={24}
+          width={24}
+          className="p-2 w-8 h-8 rounded-4xl bg-secondary"
+        />
         <div>
-          <h3 className="font-medium text-2xl">{data.length}</h3>
-          <p className="text-sm">subnames</p>
-        </div>
-        <div className="h-8 w-8 p-2 rounded-sm bg-gray-100 flex items-center justify-center">
-          <ChevronRight className="size-4" />
+          <span className="font-medium">{data.length}</span> subnames
         </div>
       </div>
-    </Link>
+      <div className="w-full p-6 duration-150 flex flex-row gap-6 items-center">
+        <ListStartIcon
+          height={24}
+          width={24}
+          className="p-2 w-8 h-8 rounded-4xl bg-secondary"
+        />
+        <RegistryLocation name={name} registryAddress={registryAddress} />
+        <Link
+          to="/$name/records"
+          search={{ view: 'list' }}
+          params={{ name }}
+          className="h-8 w-8 p-2 rounded-sm duration-150 bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+        >
+          <ChevronRight height={16} width={16} />
+        </Link>
+      </div>
+    </div>
   )
 }

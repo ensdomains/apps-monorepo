@@ -31,9 +31,24 @@ import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { cn } from '@/lib/utils'
 import { inspect } from '@/utils/xstate'
 
-export type ImageType = 'avatar' | 'header'
+interface ErrorDisplayProps {
+  error: string | null
+}
 
-export type ImageSelectionDialogProps = {
+const ErrorDisplay = ({ error }: ErrorDisplayProps) => {
+  if (!error) return null
+
+  return (
+    <Alert variant="destructive" className="mb-4">
+      <AlertCircle className="h-4 w-4" />
+      <AlertDescription>{error}</AlertDescription>
+    </Alert>
+  )
+}
+
+type ImageType = 'avatar' | 'header'
+
+interface ImageSelectionDialogProps {
   currentImage?: string
   defaultImage?: string
   onImageChange: (imageUrl: string) => void
@@ -117,18 +132,6 @@ export const ImageSelectionDialog = ({
     }
   }
 
-  // Error display component
-  const ErrorDisplay = () => {
-    if (!state.context.error) return null
-
-    return (
-      <Alert variant="destructive" className="mb-4">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{state.context.error}</AlertDescription>
-      </Alert>
-    )
-  }
-
   // Get appropriate dimensions and styling based on type
   const getImageStyles = (size: 'small' | 'medium' | 'large' = 'medium') => {
     const baseClasses = 'mx-auto rounded-md object-cover'
@@ -158,7 +161,7 @@ export const ImageSelectionDialog = ({
         {description && <p className="text-gray-600 text-sm">{description}</p>}
       </DialogHeader>
 
-      <ErrorDisplay />
+      <ErrorDisplay error={state.context.error} />
 
       <div className="space-y-4">
         <Button
@@ -301,7 +304,7 @@ export const ImageSelectionDialog = ({
         </div>
       </DialogHeader>
 
-      <ErrorDisplay />
+      <ErrorDisplay error={state.context.error} />
 
       <div className="space-y-4">
         <div className="relative">
@@ -402,7 +405,7 @@ export const ImageSelectionDialog = ({
         </p>
       </DialogHeader>
 
-      <ErrorDisplay />
+      <ErrorDisplay error={state.context.error} />
 
       <div className="space-y-4">
         <div className="text-center">
@@ -456,7 +459,7 @@ export const ImageSelectionDialog = ({
         </p>
       </DialogHeader>
 
-      <ErrorDisplay />
+      <ErrorDisplay error={state.context.error} />
 
       <div className="space-y-4">
         <Input
@@ -498,7 +501,7 @@ export const ImageSelectionDialog = ({
         </div>
       </DialogHeader>
 
-      <ErrorDisplay />
+      <ErrorDisplay error={state.context.error} />
 
       <div className="space-y-4">
         <div className="text-center">
@@ -563,10 +566,19 @@ export const ImageSelectionDialog = ({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="group relative block w-full cursor-pointer overflow-hidden rounded-md"
+          className={clsx(
+            'group relative block w-full cursor-pointer overflow-hidden',
+            type === 'avatar' && 'rounded-md',
+            type === 'header' && 'aspect-[3/1] md:aspect-[5/1]',
+          )}
           title={`Change ${type}`}
         >
-          <div className="absolute inset-0 flex items-center justify-center rounded-md bg-transparent transition-all duration-200 group-hover:bg-black/20">
+          <div
+            className={clsx(
+              'absolute inset-0 flex items-center justify-center bg-transparent transition-all duration-200 group-hover:bg-black/20',
+              type === 'avatar' && 'rounded-md',
+            )}
+          >
             <div className="opacity-0 transition-opacity duration-200 group-hover:opacity-100">
               <Image className="size-6 text-white" />
             </div>
@@ -585,7 +597,13 @@ export const ImageSelectionDialog = ({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className={clsx('h-48 w-full bg-gray-200 md:h-64')} />
+                <div
+                  className={clsx(
+                    type === 'header'
+                      ? 'h-full w-full bg-gray-200'
+                      : 'h-48 w-full bg-gray-200 md:h-64',
+                  )}
+                />
               )}
             </ImageFallback.Fallback>
           </ImageFallback.Root>

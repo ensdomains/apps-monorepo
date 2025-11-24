@@ -20,3 +20,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .leading-zero {
+    line-height: 0.5;
+  }
+}

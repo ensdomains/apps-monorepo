@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { ChevronRightIcon } from 'lucide-react'
 import type { Address } from 'viem/accounts'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { getNamesForAddressQueryOptions } from '../hooks/useNamesForAddress'
 
 interface NameCountProps {
@@ -19,7 +20,8 @@ export const NameCount = ({ address }: NameCountProps) => {
       return <div>Error connecting to Ethereum</div>
     return <div>Error: {error.cause?.message}</div>
   }
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
+
   return (
     <div className="flex flex-row justify-between items-center w-full p-6 rounded-lg border border-gray-300 hover:bg-gray-100 duration-150">
       <div className="flex flex-col w-full">

@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as NotificationsRouteRouteImport } from './routes/notifications/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -24,6 +25,11 @@ import { Route as PNameEditRouteImport } from './routes/p/$name/edit'
 import { Route as NotificationsChannelsTelegramRouteImport } from './routes/notifications/channels/telegram'
 import { Route as NotificationsChannelsEmailVerifyRouteImport } from './routes/notifications/channels/email/verify'
 
+const WalletRoute = WalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/notifications': typeof NotificationsRouteRouteWithChildren
   '/register': typeof RegisterRoute
+  '/wallet': typeof WalletRoute
   '/notifications/all': typeof NotificationsAllRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
@@ -117,6 +124,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/register': typeof RegisterRoute
+  '/wallet': typeof WalletRoute
   '/notifications/all': typeof NotificationsAllRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/notifications': typeof NotificationsRouteRouteWithChildren
   '/register': typeof RegisterRoute
+  '/wallet': typeof WalletRoute
   '/notifications/all': typeof NotificationsAllRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
@@ -152,6 +161,7 @@ export interface FileRouteTypes {
     | '/'
     | '/notifications'
     | '/register'
+    | '/wallet'
     | '/notifications/all'
     | '/payment/add'
     | '/payment/list'
@@ -167,6 +177,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/register'
+    | '/wallet'
     | '/notifications/all'
     | '/payment/add'
     | '/payment/list'
@@ -183,6 +194,7 @@ export interface FileRouteTypes {
     | '/'
     | '/notifications'
     | '/register'
+    | '/wallet'
     | '/notifications/all'
     | '/payment/add'
     | '/payment/list'
@@ -200,6 +212,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   NotificationsRouteRoute: typeof NotificationsRouteRouteWithChildren
   RegisterRoute: typeof RegisterRoute
+  WalletRoute: typeof WalletRoute
+  NotificationsAllRoute: typeof NotificationsAllRoute
+  NotificationsSettingsRoute: typeof NotificationsSettingsRoute
   PaymentAddRoute: typeof PaymentAddRoute
   PaymentListRoute: typeof PaymentListRoute
   AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
@@ -210,6 +225,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/wallet': {
+      id: '/wallet'
+      path: '/wallet'
+      fullPath: '/wallet'
+      preLoaderRoute: typeof WalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -334,6 +356,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   NotificationsRouteRoute: NotificationsRouteRouteWithChildren,
   RegisterRoute: RegisterRoute,
+  WalletRoute: WalletRoute,
+  NotificationsAllRoute: NotificationsAllRoute,
+  NotificationsSettingsRoute: NotificationsSettingsRoute,
   PaymentAddRoute: PaymentAddRoute,
   PaymentListRoute: PaymentListRoute,
   AutoRenewalIndexRoute: AutoRenewalIndexRoute,

@@ -2,10 +2,9 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
-  getOwner as ensjsGetOwner,
+  getOwner as ensjs_GetOwner,
   type GetOwnerErrorType,
 } from '@ensdomains/ensjs/public'
-import { skipToken } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
@@ -19,9 +18,7 @@ export const getOwner = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
 
   const result = yield* await fromPromise(
-    ensjsGetOwner(client, {
-      name,
-    }),
+    ensjs_GetOwner(client, { name }),
     (e) => new GetOwnerError({ cause: e as GetOwnerErrorType }),
   )
 
@@ -32,12 +29,8 @@ export const getOwner = ResultFn(async function* (name: string) {
   return ok(result)
 })
 
-export const ownerQuery = (name: string | undefined) =>
+export const profileOwnerQuery = (name: string) =>
   resultQueryOptions({
     queryKey: qk('profile', 'owner', { name }),
-    queryFn: name
-      ? ({ queryKey: [{ name }] }) =>
-          // biome-ignore lint/style/noNonNullAssertion: Null assertion is covered by the skipToken
-          getOwner(name!)
-      : skipToken,
+    queryFn: ({ queryKey: [{ name }] }) => getOwner(name),
   })

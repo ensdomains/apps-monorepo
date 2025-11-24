@@ -19,9 +19,7 @@ export const getAddress = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
 
   const result = yield* await fromPromise(
-    getAddressRecord(client, {
-      name,
-    }),
+    getAddressRecord(client, { name }),
     (e) => new GetAddressError({ cause: e as GetAddressRecordErrorType }),
   )
 
@@ -32,7 +30,7 @@ export const getAddress = ResultFn(async function* (name: string) {
   return ok(result.value)
 })
 
-export const addressQuery = (name: string | undefined) =>
+export const profileAddressQuery = (name: string | undefined) =>
   resultQueryOptions({
     queryKey: qk('profile', 'address', { name }),
     queryFn: name

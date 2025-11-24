@@ -1,6 +1,7 @@
 import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
@@ -25,7 +26,7 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
   })
 
   if (error) return <div>Error loading timestamps: {error.cause?.message}</div>
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   const data = groupEventsByTransactionId(
     history.map((item) => ({
@@ -63,7 +64,7 @@ const HistoryView = ({ name }: HistoryViewProps) => {
     return <div>History Error: {error.cause?.message || error.message}</div>
   }
 
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!history) return <div>No history</div>
 

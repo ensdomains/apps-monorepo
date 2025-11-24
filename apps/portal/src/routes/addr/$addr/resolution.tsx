@@ -10,6 +10,9 @@ import {
 import { Search } from 'lucide-react'
 import { useId, useState } from 'react'
 import type { Address } from 'viem'
+import { ErrorMessage } from '@/components/molecules/ErrorMessage'
+import { LoadingMessage } from '@/components/molecules/LoadingMessage'
+import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
 import {
   InputGroup,
   InputGroupAddon,
@@ -21,6 +24,7 @@ import { getResolvedNamesForAddressQueryOptions } from '@/features/forward-resol
 
 export const Route = createFileRoute('/addr/$addr/resolution')({
   component: RouteComponent,
+  notFoundComponent: () => <NotFoundMessage />,
 })
 
 function RouteComponent() {
@@ -49,10 +53,24 @@ function RouteComponent() {
 
   const searchNamesId = useId()
 
-  if (isLoading) return <div>Loading</div>
-  if (error) return <div>Error: {error.cause?.message}</div>
+  if (isLoading) return <LoadingMessage />
 
-  if (!data) return <div>No data</div>
+  if (error) {
+    const message =
+      (error.cause as Error | undefined)?.message ||
+      (error as Error).message ||
+      'Could not load data.'
+    return <ErrorMessage title="Data unavailable" description={message} />
+  }
+
+  if (!data) {
+    return (
+      <ErrorMessage
+        title="Data unavailable"
+        description="Could not load data."
+      />
+    )
+  }
 
   return (
     <>

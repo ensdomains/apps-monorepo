@@ -2,10 +2,17 @@ import { ens_split } from '@adraffy/ens-normalize'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { CheckCircleIcon } from 'lucide-react'
+import type { Address, Hex } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { ErrorMessage } from '@/components/molecules/ErrorMessage'
+import { LoadingMessage } from '@/components/molecules/LoadingMessage'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getRegistryNameDataQueryOptions } from '@/features/registry/hooks/useRegistryNameData'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
 import { useContractAddress } from '@/hooks/useContractAddress'
 import { cn } from '@/lib/utils'
@@ -16,10 +23,45 @@ import { isNormalized } from '@/utils/token/isNormalized'
 
 export const Route = createFileRoute('/$name/token')({
   component: RouteComponent,
+  notFoundComponent: () => <NotFoundMessage />,
 })
 
-function RouteComponent() {
-  const { name } = Route.useParams()
+const ContractInfo = ({
+  contractAddress,
+  tokenId,
+  hex,
+  tokenStandard,
+}: {
+  contractAddress: Address
+  tokenId: string
+  hex: Hex
+  tokenStandard: 'ERC-1155' | 'ERC-721'
+}) => {
+  return (
+    <div className="flex border border-gray-200 rounded-lg w-full p-6 gap-6 flex-wrap">
+      <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
+        <Label info="The address of the contract that owns the name">
+          Contract
+        </Label>
+        <CopyableRecord value={contractAddress} />
+      </div>
+      <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
+        <Label>Token Standard</Label>
+        <CopyableRecord value={tokenStandard} />
+      </div>
+      <div className="flex flex-col gap-1 w-full max-w-full">
+        <Label>Token ID</Label>
+        <CopyableRecord value={tokenId} className="max-w-full" />
+      </div>
+      <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
+        <Label>Token ID (HEX)</Label>
+        <CopyableRecord value={hex} />
+      </div>
+    </div>
+  )
+}
+
+const TokenV1Name = ({ name }: { name: string }) => {
   const nameWrapperAddress = useContractAddress({ contract: 'ensNameWrapper' })
   const registrarAddress = useContractAddress({
     contract: 'ensBaseRegistrarImplementation',
@@ -31,16 +73,65 @@ function RouteComponent() {
     isLoading,
   } = useQuery(getWrapperDataQueryOptions({ name }))
 
-  if (isWrappedError) return <div>Error: {isWrappedError.message}</div>
+  if (isWrappedError)
+    return (
+      <ErrorMessage
+        title="Error loading data"
+        description={isWrappedError.cause?.message || isWrappedError.message}
+      />
+    )
 
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <LoadingMessage />
 
   const isWrapped = Boolean(wrapperData)
 
   const contractAddress = isWrapped ? nameWrapperAddress : registrarAddress
 
+  const tokenStandard = isWrapped ? 'ERC-1155' : 'ERC-721'
+
   const hex = isWrapped ? namehash(name) : labelhash(name.split('.')[0])
   const tokenId = BigInt(hex).toString(10)
+
+  return <ContractInfo {...{ contractAddress, tokenId, hex, tokenStandard }} />
+}
+
+const TokenV2Name = ({ name }: { name: string }) => {
+  const label = name.split('.')[0]
+
+  const hex = labelhash(label)
+
+  const { data, error, isLoading } = useQuery(
+    getRegistryNameDataQueryOptions({
+      label,
+      registryAddress: '0x5fb63bbd34de21688c8aa8131be1c3b4a477109c',
+    }),
+  )
+
+  if (error)
+    return <div>Error loading registry data: {error.cause?.message}</div>
+
+  if (isLoading) return <LoadingSpinner title="Loading owner data" />
+
+  if (!data) return null
+
+  return (
+    <ContractInfo
+      tokenStandard="ERC-1155"
+      tokenId={data[0].toString(10)}
+      hex={hex}
+      contractAddress="0x5fb63bbd34de21688c8aa8131be1c3b4a477109c"
+    />
+  )
+}
+
+function RouteComponent() {
+  const { name } = Route.useParams()
+
+  const { data, isLoading, error } = useQuery(getEnsOwnerQueryOptions({ name }))
+
+  if (error) return <div>Error loading owner: {error.cause?.message}</div>
+
+  if (isLoading) return <LoadingSpinner title="Loading owner data" />
 
   const parts = ens_split(name)
 
@@ -64,28 +155,11 @@ function RouteComponent() {
         <header>
           <h1 className="text-[28px] font-medium">Token info</h1>
         </header>
-        <div className="flex border border-gray-200 rounded-lg w-full p-6 gap-6 flex-wrap">
-          <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
-            <Label info="The address of the contract that owns the name">
-              Contract
-            </Label>
-            <CopyableRecord value={contractAddress} />
-          </div>
-          <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
-            <Label>Token Standard</Label>
-            <CopyableRecord
-              value={isWrapped ? 'NameWrapper' : 'Base Registrar'}
-            />
-          </div>
-          <div className="flex flex-col gap-1 w-full max-w-full">
-            <Label>Token ID</Label>
-            <CopyableRecord value={tokenId} className="max-w-full" />
-          </div>
-          <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
-            <Label>Token ID (HEX)</Label>
-            <CopyableRecord value={hex} />
-          </div>
-        </div>
+        {data?.network === 'sepolia' ? (
+          <TokenV1Name name={name} />
+        ) : (
+          <TokenV2Name name={name} />
+        )}
         <div className="flex border border-gray-200 rounded-lg flex-col">
           <div className="flex flex-col w-full p-6 gap-6">
             <h2 className="font-medium text-2xl">Normalization</h2>
