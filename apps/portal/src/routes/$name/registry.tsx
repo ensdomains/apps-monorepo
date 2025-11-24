@@ -18,35 +18,33 @@ export const Route = createFileRoute('/$name/registry')({
 
 function RouteComponent() {
   const { name } = useParams({ from: '/$name/registry' })
-
   const labels = splitLabels(name)
 
-  // ⚠️ Important: we want the *registrable* label (2LD), not the left-most.
-  // flo.eth        -> "flo"
-  // test.flo.eth   -> "flo"
+  // registrable (2LD) label:
+  // flo.eth      -> flo
+  // test.flo.eth -> flo
   const registrableLabel =
     labels.length >= 2 ? labels[labels.length - 2] : labels[0]
 
-  // Determine which chain this name's *registry* lives on (L1/L2)
+  // Find where the registrable label lives (L1/L2)
   const { data: chainLocation, isLoading: isLoadingChainLocation } = useQuery(
     getNameChainLocationQueryOptions({ label: registrableLabel }),
   )
 
-  const { current, parent, isLoading, error } = useRegistryCards({
+  const {
+    current,
+    parent,
+    isLoading: isLoadingCards,
+    error,
+  } = useRegistryCards({
     name,
     chainLocation: chainLocation?.location,
-    // registryAddress is ignored by the hook logic now, but we keep the arg
-    // so callers don’t break.
-    registryAddress: chainLocation?.registryAddress ?? null,
   })
 
   const isL2 = chainLocation?.location === 'L2'
-  const showVerifiedBanner = !!current.hasCurrentRegistry && isL2
+  const showVerifiedBanner = Boolean(current.hasCurrentRegistry && isL2)
 
-  const parentNetworkName = sepolia.name
-  const parentChainId = sepolia.id
-
-  if (isLoading || isLoadingChainLocation) {
+  if (isLoadingCards || isLoadingChainLocation) {
     return (
       <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
         <h1 className="text-[28px] font-medium leading-[1]">Registry</h1>
@@ -69,12 +67,16 @@ function RouteComponent() {
     )
   }
 
+  const currentNetwork = getNetworkMetaFromChainId(
+    chainLocation?.chainId ?? sepolia.id,
+  )
+
+  const parentNetwork = getNetworkMetaFromChainId(parent.chainId ?? sepolia.id)
+
   // ─────────────────────────────
-  // Case 1: No registry for this name
+  // Case 1: Name has NO registry
   // ─────────────────────────────
   if (!current.hasCurrentRegistry) {
-    const parentNetwork = getNetworkMetaFromChainId(chainLocation?.chainId)
-
     return (
       <div className="flex flex-col gap-6 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
         <h1 className="text-[28px] font-medium leading-[1]">Registry</h1>
@@ -83,30 +85,28 @@ function RouteComponent() {
 
         {parent.registry && (
           <>
+            {/* Parent top row */}
             <ParentRegistrySection
               parent={{
                 name: getParentName(name) || 'eth',
                 address: parent.registry,
               }}
               owner={{
-                address:
-                  parent.owner ||
-                  ('0x0000000000000000000000000000000000000000' as `0x${string}`),
+                address: parent.owner ?? zeroAddress,
               }}
               network={parentNetwork}
             />
 
+            {/* Parent details card */}
             <RegistryCard
               registry={{
                 address: parent.registry,
                 owner: {
-                  address:
-                    parent.owner ||
-                    ('0x0000000000000000000000000000000000000000' as `0x${string}`),
+                  address: parent.owner ?? zeroAddress,
                 },
                 network: {
-                  name: parentNetworkName,
-                  chainId: parentChainId,
+                  name: parentNetwork.name,
+                  chainId: parentNetwork.chainId,
                 },
                 protocol: 'ENSv2',
               }}
@@ -119,18 +119,7 @@ function RouteComponent() {
 
   // ─────────────────────────────
   // Case 2: Name HAS a registry
-  //   - If showVerifiedBanner = true -> "Verified subregistry" screen
-  //   - Else -> "Unverified subregistry" screen
   // ─────────────────────────────
-
-  const currentNetwork = getNetworkMetaFromChainId(
-    chainLocation?.chainId ?? current.chainId,
-  )
-  const parentNetwork = getNetworkMetaFromChainId(parent.chainId)
-
-  const ownerAddress = current.owner
-  const hasOwner = !!ownerAddress && ownerAddress !== zeroAddress
-
   return (
     <div className="flex flex-col gap-6 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
       <h1 className="text-[28px] font-medium leading-[1]">Registry</h1>
@@ -141,13 +130,11 @@ function RouteComponent() {
         <>
           <RegistryHeaderCards
             owner={{
-              // we don’t have a primary name yet, so just let the card
-              // shorten the address as it already does
               name: undefined,
-              address: hasOwner ? ownerAddress : zeroAddress,
+              address: current.owner ?? zeroAddress,
             }}
             network={{
-              name: chainLocation?.chainName || 'Unknown',
+              name: currentNetwork.name,
               location: chainLocation?.location ?? 'unknown',
             }}
           />
@@ -156,16 +143,13 @@ function RouteComponent() {
             registry={{
               address: current.registry,
               owner: {
-                address:
-                  current.owner ||
-                  ('0x0000000000000000000000000000000000000000' as `0x${string}`),
+                address: current.owner ?? zeroAddress,
               },
               network: {
                 name: currentNetwork.name,
-                chainId: chainLocation?.chainId || current.chainId || 11155111,
+                chainId: currentNetwork.chainId,
               },
               protocol: 'ENSv2',
-              factory: current.registry,
             }}
           />
         </>
@@ -179,9 +163,7 @@ function RouteComponent() {
               address: parent.registry,
             }}
             owner={{
-              address:
-                parent.owner ||
-                ('0x0000000000000000000000000000000000000000' as `0x${string}`),
+              address: parent.owner ?? zeroAddress,
             }}
             network={parentNetwork}
           />
@@ -190,13 +172,11 @@ function RouteComponent() {
             registry={{
               address: parent.registry,
               owner: {
-                address:
-                  parent.owner ||
-                  ('0x0000000000000000000000000000000000000000' as `0x${string}`),
+                address: parent.owner ?? zeroAddress,
               },
               network: {
-                name: parentNetworkName,
-                chainId: parentChainId,
+                name: parentNetwork.name,
+                chainId: parentNetwork.chainId,
               },
               protocol: 'ENSv2',
             }}
