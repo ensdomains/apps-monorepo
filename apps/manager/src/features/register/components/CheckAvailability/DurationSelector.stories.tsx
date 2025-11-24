@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { fn } from '@storybook/test'
 import { DurationSelector } from './DurationSelector'
 
 const pricing = {
@@ -24,7 +23,7 @@ const meta = {
   tags: ['autodocs'],
   args: {
     pricing,
-    onSelect: fn(),
+    onSelect: () => {},
   },
 } satisfies Meta<typeof DurationSelector>
 

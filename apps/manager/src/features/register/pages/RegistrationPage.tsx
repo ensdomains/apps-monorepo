@@ -2,7 +2,9 @@ import { registrationMachine } from '@ens-apps/transaction-manager'
 import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
 import { ArrowLeftIcon } from 'lucide-react'
-import { useReducer } from 'react'
+import { useEffect, useReducer, useState } from 'react'
+import type { Address, Hex } from 'viem'
+import { sepolia } from 'viem/chains'
 import { Button } from '@/components/ui/button'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 import { publicClient } from '@/lib/wagmi'
@@ -48,6 +50,7 @@ function mapMachineStateToStep(machineState: string): RegistrationStep {
     case 'preparingCommitment':
     case 'committingTransaction':
     case 'waitingForCommitment':
+    case 'commitmentCooldown':
       return RegistrationStep.COMMITTING
     case 'approvingToken':
     case 'waitingForApproval':
@@ -74,7 +77,7 @@ export function Registration({ initialName }: RegistrationProps) {
   // Machine actor
   const actor = useActorRef(registrationMachine, {
     input: {
-      chainId: 11155111, // Sepolia
+      chainId: sepolia.id, // Sepolia
     },
   })
 
@@ -116,11 +119,34 @@ export function Registration({ initialName }: RegistrationProps) {
     (state) => state.context.registrationTxId,
   )
 
+  const registerReadyTimestamp = useSelector(
+    actor,
+    (state) => state.context.registerReadyTimestamp ?? null,
+  )
+
+  const [registerWaitSeconds, setRegisterWaitSeconds] = useState<number | null>(
+    null,
+  )
+
+  useEffect(() => {
+    if (!registerReadyTimestamp) {
+      setRegisterWaitSeconds(null)
+      return
+    }
+
+    const updateRemaining = () => {
+      const diff = registerReadyTimestamp - Date.now()
+      setRegisterWaitSeconds(Math.max(0, Math.ceil(diff / 1000)))
+    }
+
+    updateRemaining()
+    const interval = setInterval(updateRemaining, 1000)
+    return () => clearInterval(interval)
+  }, [registerReadyTimestamp])
+
   // Derived state
-  const commitTxHash = commitTxId ? { hash: commitTxId as `0x${string}` } : null
-  const registerTxHash = registerTxId
-    ? { hash: registerTxId as `0x${string}` }
-    : null
+  const commitTxHash = commitTxId ? { hash: commitTxId as Hex } : null
+  const registerTxHash = registerTxId ? { hash: registerTxId as Hex } : null
   const isCommitPending = step === RegistrationStep.COMMITTING
   const isApprovePending = step === RegistrationStep.APPROVING
   const isRegisterPending = step === RegistrationStep.REGISTERING
@@ -167,11 +193,11 @@ export function Registration({ initialName }: RegistrationProps) {
 
   return (
     <div className="mx-6 flex flex-col items-start gap-4 md:flex-row">
-      <div className="flex items-center justify-between">
+      <div className="absolute flex items-center justify-between">
         <Button
           variant="ghost"
           onClick={handleBack}
-          className="h-auto p-2 text-lapis-surface uppercase"
+          className="h-auto p-2 text-ens-lapis-surface uppercase"
         >
           <ArrowLeftIcon className="h-6 w-6 font-bold" /> Back
         </Button>
@@ -187,12 +213,12 @@ export function Registration({ initialName }: RegistrationProps) {
             onSetDuration={handleSetDuration}
             onSelectPayment={handleSelectPayment}
             onSelectCrypto={handleSelectCrypto}
-            onConfirmPayment={(tokenPrice, selectedToken) =>
+            onConfirmPayment={(tokenPrice, selectedToken, options) =>
               handleStartRegistration(
                 {
                   name: ui.name,
                   duration: ui.duration,
-                  selectedToken: selectedToken as `0x${string}`,
+                  selectedToken: selectedToken as Address,
                   tokenPrice,
                 },
                 {
@@ -202,6 +228,7 @@ export function Registration({ initialName }: RegistrationProps) {
                   publicClient,
                 },
                 actor,
+                { fast: options?.fast ?? false },
               )
             }
           />
@@ -213,6 +240,7 @@ export function Registration({ initialName }: RegistrationProps) {
           domainName={displayDomainName}
           selectedCrypto=""
           onPaymentSuccess={() => {}} // No-op - handled by state machine
+          registerWaitSeconds={registerWaitSeconds}
         />
       )}
 

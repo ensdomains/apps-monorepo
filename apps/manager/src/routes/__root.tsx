@@ -1,4 +1,4 @@
-import { ParaProvider } from '@getpara/react-sdk'
+import { ParaProvider } from '@getpara/react-sdk-lite'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   createRootRouteWithContext,
@@ -10,7 +10,7 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import type { ReactNode } from 'react'
 import { Layout } from '@/components/Layout'
 import appCss from '@/styles/index.css?url'
-import '@getpara/react-sdk/styles.css'
+import '@getpara/react-sdk-lite/styles.css'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { customSepolia } from '@/lib/wagmi'
 

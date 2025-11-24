@@ -1,8 +1,8 @@
 'use client'
 
-import { useWallet } from '@getpara/react-sdk'
+import { useWallet } from '@getpara/react-sdk-lite'
 import { CreditCardIcon } from 'lucide-react'
-import * as React from 'react'
+import { useEffect, useState } from 'react'
 import { StablecoinItem } from '@/components/molecules/StablecoinList/StablecoinItem'
 import { Button } from '@/components/ui/button'
 import {
@@ -27,9 +27,14 @@ interface PaymentDrawerProps {
   duration?: number
   priceUSD?: number
   isLoading?: boolean
+  disabled?: boolean
   onPaymentSelect?: (method: 'crypto' | 'credit-card') => void
   onCryptoSelect?: (cryptoId: string) => void
-  onConfirmPayment?: (tokenPrice: bigint, selectedToken: string) => void
+  onConfirmPayment?: (
+    tokenPrice: bigint,
+    selectedToken: string,
+    options?: { fast?: boolean },
+  ) => void
   isUsingAA?: boolean
 }
 
@@ -38,15 +43,17 @@ export const CreditCardPaymentDrawer = ({
   domainName = 'example.eth',
   duration = 25,
   priceUSD = 2800,
+  disabled = false,
   onPaymentSelect,
 }: PaymentDrawerProps) => {
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpen] = useState(false)
   const isDesktop = useMediaQuery('(min-width: 768px)')
 
   // Reusable trigger button
   const triggerButton = (
     <Button
-      className="h-[70px] w-full rounded-[4px] border-2 border-brand-blue bg-white font-medium font-mono text-[13px] text-brand-blue uppercase tracking-[1.04px] hover:bg-brand-blue-light"
+      className="h-[70px] w-full rounded border-2 border-ens-blue bg-white font-medium font-mono text-[13px] text-ens-blue uppercase tracking-wider hover:bg-ens-blue-light disabled:cursor-not-allowed disabled:opacity-50"
+      disabled={disabled}
       onClick={() => {
         onPaymentSelect?.('credit-card')
         setOpen(false)
@@ -121,13 +128,14 @@ export const CryptoPaymentDrawer = ({
   duration = 25,
   priceUSD = 2800,
   isLoading = false,
+  disabled = false,
   onPaymentSelect,
   onCryptoSelect,
   onConfirmPayment,
   isUsingAA = false,
 }: PaymentDrawerProps) => {
-  const [open, setOpen] = React.useState(false)
-  const [selectedCoin, setSelectedCoin] = React.useState<string>('')
+  const [open, setOpen] = useState(false)
+  const [selectedCoin, setSelectedCoin] = useState<string>('')
 
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const { data: wallet } = useWallet()
@@ -136,9 +144,24 @@ export const CryptoPaymentDrawer = ({
 
   const hasBalances = (stablecoinBalances?.length || 0) > 0
   const stablecoinLoading = isLoadingBalances
+  const selectedCoinBalance = stablecoinBalances?.find(
+    (c) => c.address === selectedCoin,
+  )
+  const actionDisabled =
+    isLoading || stablecoinLoading || !selectedCoinBalance || !hasBalances
 
-  // Auto-select first available token when balance is available
-  React.useEffect(() => {
+  const handleCryptoContinue = (options?: { fast?: boolean }) => {
+    if (actionDisabled || !selectedCoinBalance) return
+    onPaymentSelect?.('crypto')
+    onCryptoSelect?.(selectedCoinBalance.address)
+    if (onConfirmPayment) {
+      const tokenPrice = BigInt(selectedCoinBalance.balance)
+      onConfirmPayment(tokenPrice, selectedCoinBalance.address, options)
+    }
+    setOpen(false)
+  }
+
+  useEffect(() => {
     if (
       hasBalances &&
       stablecoinBalances?.length &&
@@ -157,27 +180,11 @@ export const CryptoPaymentDrawer = ({
     }
   }, [hasBalances, stablecoinBalances, selectedCoin])
 
-  // Debug button state
-  React.useEffect(() => {
-    console.log('🔍 Button state:', {
-      isLoading,
-      stablecoinLoading,
-      selectedCoin,
-      hasBalances,
-      stablecoinBalances: stablecoinBalances?.length,
-      buttonDisabled:
-        isLoading || stablecoinLoading || !selectedCoin || !hasBalances,
-    })
-  }, [
-    isLoading,
-    stablecoinLoading,
-    selectedCoin,
-    hasBalances,
-    stablecoinBalances,
-  ])
-
   const triggerButton = (
-    <Button className="h-[70px] w-full rounded-[4px] bg-brand-blue font-medium font-mono text-[13px] text-white uppercase tracking-[1.04px] hover:bg-brand-blue-hover">
+    <Button
+      className="h-[70px] w-full rounded bg-ens-blue font-medium font-mono text-[13px] text-white uppercase tracking-wider hover:bg-ens-blue-hover disabled:cursor-not-allowed disabled:opacity-50"
+      disabled={disabled}
+    >
       Pay with stablecoins
     </Button>
   )
@@ -275,34 +282,26 @@ export const CryptoPaymentDrawer = ({
 
         <Button
           className="w-full"
-          disabled={
-            isLoading || stablecoinLoading || !selectedCoin || !hasBalances
-          }
-          onClick={() => {
-            onPaymentSelect?.('crypto')
-            if (selectedCoin) {
-              onCryptoSelect?.(selectedCoin)
-              // Get the selected coin balance for price calculation
-              const selectedCoinBalance = stablecoinBalances?.find(
-                (c) => c.address === selectedCoin,
-              )
-              if (selectedCoinBalance && onConfirmPayment) {
-                // Use the raw balance (BigInt) and address directly
-                const tokenPrice = BigInt(selectedCoinBalance.balance)
-                onConfirmPayment(tokenPrice, selectedCoinBalance.address)
-              }
-            }
-            setOpen(false)
-          }}
+          disabled={actionDisabled}
+          onClick={() => handleCryptoContinue()}
         >
           {isLoading || stablecoinLoading
             ? 'Processing...'
-            : !selectedCoin
+            : !selectedCoinBalance
               ? 'Select a token'
-              : selectedCoin && hasBalances
-                ? `Continue with ${stablecoinBalances?.find((c) => c.address === selectedCoin)?.symbol || 'token'}`
-                : 'Continue with Payment'}
+              : `Continue with ${selectedCoinBalance.symbol}`}
         </Button>
+
+        {selectedCoinBalance && (
+          <Button
+            className="w-full"
+            variant="outline"
+            disabled={actionDisabled}
+            onClick={() => handleCryptoContinue({ fast: true })}
+          >
+            Continue with {selectedCoinBalance.symbol} (Fast)
+          </Button>
+        )}
       </div>
     </div>
   )

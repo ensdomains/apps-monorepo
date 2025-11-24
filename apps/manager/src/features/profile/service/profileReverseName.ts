@@ -24,7 +24,7 @@ export const getReverseName = ResultFn(async function* (address: Address) {
   )
 
   if (!result) {
-    return yield* new MissingReverseNameError({})
+    return yield* new MissingReverseNameError()
   }
 
   return ok(result)

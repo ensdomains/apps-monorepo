@@ -1,15 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
-import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { type ChangeEvent, useEffect, useRef, useState } from 'react'
 import {
   DomainProfileCard,
   DomainResultCard,
 } from '@/components/molecules/DomainResultCard'
 import { SearchField } from '@/components/molecules/SearchField'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
+import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
 import { getErrorMessage } from '../../utils'
-import { useCheckAvailability } from './hooks/useCheckAvailability'
 
 export type CheckAvailabilityProps = {
   onRegistrationComplete?: (name: string) => void
@@ -21,11 +20,10 @@ export const CheckAvailability = ({
   const {
     context,
     isSearching,
-    isPricingLoading,
-    hasResult,
     hasError,
     hasValidationError,
     searchName,
+    resetSearch,
     clearValidationError,
   } = useCheckAvailability()
 
@@ -54,7 +52,11 @@ export const CheckAvailability = ({
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value
     setInputValue(newValue)
-    // Clear validation error when user starts typing (but don't validate yet)
+
+    if (newValue.trim() === '') {
+      resetSearch()
+    }
+
     if (hasValidationError) {
       clearValidationError()
     }
@@ -64,23 +66,37 @@ export const CheckAvailability = ({
     searchName(value)
   }
 
-  // Prioritize validation errors over API errors
   const errorMessage = hasValidationError
     ? (context.validationError?.message ?? null)
     : hasError && context.error
       ? String(getErrorMessage(context.error))
       : null
 
-  // Get the per-year price from pricing options (1 year base price)
-  const pricePerYear = context.pricing[1]?.price ?? 0
-
-  const shouldShowResult =
-    hasResult &&
+  // Display logic
+  const hasInput = inputValue.trim().length > 0
+  const isResultMatch =
     context.selectedName &&
-    !hasError &&
-    !hasValidationError &&
     inputValue.trim().toLowerCase() ===
       context.selectedName.trim().toLowerCase()
+
+  const showAvailableCard =
+    !isSearching &&
+    context.isAvailable &&
+    isResultMatch &&
+    !hasError &&
+    !hasValidationError
+  const showUnavailableCard =
+    !isSearching &&
+    !context.isAvailable &&
+    isResultMatch &&
+    !hasError &&
+    !hasValidationError
+  const showResultCard = (isSearching && hasInput) || showAvailableCard
+
+  const { data: unavailableMetadata } = useQuery({
+    ...profileMetadataQuery(context.selectedName),
+    enabled: !!(showUnavailableCard && context.selectedName),
+  })
 
   return (
     <div className="relative space-y-4">
@@ -90,14 +106,18 @@ export const CheckAvailability = ({
           value={inputValue}
           onChange={handleInputChange}
           onSearch={handleSearch}
-          disabled={isPricingLoading || isSearching}
+          disabled={isSearching}
           className="w-full"
         />
-        {!shouldShowResult && !hasValidationError && !hasError && (
-          <p className="subtitle-search-field">
-            Start typing to check if your perfect name is available 🕵️‍♀️
-          </p>
-        )}
+        {!showResultCard &&
+          !showUnavailableCard &&
+          !hasValidationError &&
+          !hasError &&
+          !isSearching && (
+            <p className="pl-1 font-medium font-sans text-ens-lapis-surface text-xs leading-normal tracking-wide">
+              Start typing to check if your perfect name is available 🕵️‍♀️
+            </p>
+          )}
       </div>
 
       {errorMessage && (
@@ -106,121 +126,33 @@ export const CheckAvailability = ({
         </Alert>
       )}
 
-      {shouldShowResult && context.isAvailable && (
-        <DomainResultCardWithExpiry
-          domainName={context.selectedName}
-          isPremium={context.isPremium}
-          price={!isPricingLoading ? pricePerYear : undefined}
-          priceLabel="USD/year"
-          link={{
-            to: '/register',
-            search: { name: context.selectedName, duration: 1 },
-          }}
+      {showResultCard && (
+        <DomainResultCard
+          domainName={isSearching ? inputValue : context.selectedName || ''}
+          status="available"
+          premiumLabel={context.premiumLabel}
+          price={context.pricing[1]?.price}
+          isLoading={isSearching}
+          link={
+            !isSearching && context.selectedName
+              ? `/register?name=${encodeURIComponent(context.selectedName)}&duration=1`
+              : undefined
+          }
         />
       )}
 
-      {shouldShowResult && !context.isAvailable && (
-        <DomainProfileCardWithData domainName={context.selectedName} />
+      {showUnavailableCard && (
+        <DomainProfileCard
+          domainName={context.selectedName}
+          avatarUrl={unavailableMetadata?.avatarUrl}
+          registeredDate={unavailableMetadata?.registeredDate}
+          expiryDate={unavailableMetadata?.expiryDate}
+          link={{
+            to: '/p/$name',
+            params: { name: context.selectedName },
+          }}
+        />
       )}
     </div>
-  )
-}
-
-// Component to fetch and display expiry data for available domains
-const DomainResultCardWithExpiry = ({
-  domainName,
-  isPremium,
-  price,
-  priceLabel,
-  link,
-}: {
-  domainName: string
-  isPremium: boolean
-  price?: number
-  priceLabel: string
-  link: {
-    to: string
-    search: { name: string; duration: number }
-  }
-}) => {
-  const {
-    data: expiryData,
-    isFetched: isExpiryFetched,
-    fetchStatus,
-  } = useQuery(profileExpiryQuery(domainName))
-
-  // Track minimum loading time to prevent flash
-  const [showMinimumLoading, setShowMinimumLoading] = useState(true)
-  const mountTimeRef = useRef<number>(Date.now())
-
-  useEffect(() => {
-    // Reset mount time when domain name changes
-    mountTimeRef.current = Date.now()
-    setShowMinimumLoading(true)
-  }, [domainName])
-
-  useEffect(() => {
-    if (isExpiryFetched && showMinimumLoading) {
-      const elapsed = Date.now() - mountTimeRef.current
-      const minimumDisplayTime = 500 // ms
-      const remainingTime = Math.max(0, minimumDisplayTime - elapsed)
-
-      const timer = setTimeout(() => {
-        setShowMinimumLoading(false)
-      }, remainingTime)
-
-      return () => clearTimeout(timer)
-    }
-  }, [isExpiryFetched, showMinimumLoading])
-
-  // Extract expiry date from the result
-  // expiryData is unwrapped from Result type by resultQueryOptions
-  // The expiry field is a BigInt timestamp in seconds
-  const expiryDate = useMemo(() => {
-    if (expiryData && expiryData.status !== 'expired' && expiryData.expiry) {
-      // Convert BigInt timestamp (seconds) to Date (milliseconds)
-      return new Date(Number(expiryData.expiry) * 1000)
-    }
-    return undefined
-  }, [expiryData])
-
-  // Show loading skeleton while actively fetching or during minimum display time
-  const showExpiryLoading =
-    fetchStatus === 'fetching' || !isExpiryFetched || showMinimumLoading
-
-  return (
-    <DomainResultCard
-      domainName={domainName}
-      status="available"
-      isPremium={isPremium}
-      price={price}
-      priceLabel={priceLabel}
-      expiryDate={expiryDate}
-      isExpiryLoading={showExpiryLoading}
-      link={link}
-    />
-  )
-}
-
-// Component to fetch and display profile data for unavailable domains
-const DomainProfileCardWithData = ({ domainName }: { domainName: string }) => {
-  const { data: metadata } = useQuery(profileMetadataQuery(domainName))
-
-  // Extract dates and avatar (resultQueryOptions unwraps the Result type automatically)
-  const registeredDate = metadata?.registeredDate ?? undefined
-  const expiryDate = metadata?.expiryDate ?? undefined
-  const avatarUrl = metadata?.avatarUrl ?? undefined
-
-  return (
-    <DomainProfileCard
-      domainName={domainName}
-      avatarUrl={avatarUrl}
-      registeredDate={registeredDate}
-      expiryDate={expiryDate}
-      link={{
-        to: '/p/$name',
-        params: { name: domainName },
-      }}
-    />
   )
 }
