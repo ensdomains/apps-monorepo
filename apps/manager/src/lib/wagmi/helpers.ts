@@ -19,7 +19,7 @@ export class WagmiClientError extends TaggedError('Wagmi/ClientError')<{
 
 export const safeGetClient = fromThrowable(
   () =>
-    wagmiConfig.getClient({ chainId: sepolia.id }) as Client<
+    wagmiConfig.getClient({ chainId: sepolia.id }) as unknown as Client<
       Transport,
       ChainWithEns<typeof sepolia>
     >,
@@ -28,10 +28,9 @@ export const safeGetClient = fromThrowable(
 
 export const safeGetNamechainSepoliaClient = fromThrowable(
   () =>
-    wagmiConfig.getClient({ chainId: namechainSepolia.id }) as Client<
-      Transport,
-      ChainWithEns<typeof namechainSepolia>
-    >,
+    wagmiConfig.getClient({
+      chainId: namechainSepolia.id,
+    }) as unknown as Client<Transport, ChainWithEns<typeof namechainSepolia>>,
   (e) => new WagmiClientError({ cause: e as CreateClientErrorType }),
 )
 
