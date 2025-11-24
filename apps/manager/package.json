@@ -65,7 +65,7 @@
     "valibot": "^1.1.0",
     "vaul": "^1.1.2",
     "viem": "^2.37.4",
-    "wagmi": "^2.16.9",
+    "wagmi": "^3.0.1",
     "xstate": "catalog:"
   },
   "devDependencies": {

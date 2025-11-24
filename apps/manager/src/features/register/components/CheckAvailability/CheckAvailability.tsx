@@ -114,7 +114,7 @@ export const CheckAvailability = ({
           !hasValidationError &&
           !hasError &&
           !isSearching && (
-            <p className="pl-1 font-medium font-sans text-ens-lapis-surface text-xs leading-normal tracking-[0.28px]">
+            <p className="pl-1 font-medium font-sans text-ens-lapis-surface text-xs leading-normal tracking-wide">
               Start typing to check if your perfect name is available 🕵️‍♀️
             </p>
           )}

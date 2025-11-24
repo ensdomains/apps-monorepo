@@ -36,7 +36,7 @@ export const DurationSelector = ({
   }
 
   return (
-    <div className="flex flex-col gap-1 md:gap-2">
+    <div className="flex h-full flex-col justify-between gap-1 md:gap-2">
       {durationOrder.map((duration) => {
         const option = pricing[duration]
         const isSelected = duration === selectedDuration
@@ -60,48 +60,51 @@ export const DurationSelector = ({
               'group relative',
               'flex w-full items-center justify-between',
               'h-[58px] md:h-[100px]',
-              'px-3 py-[18px] md:px-5 md:py-8',
+              'px-3 py-4 md:px-5 md:py-8',
               'rounded-lg md:rounded-xl',
-              'border border-[#dededf]',
-              'bg-[#f8fafc] transition-all',
-              // Border states
+              'border border-ens-gray-three',
+              'bg-ens-white transition-all',
+
               'aria-pressed:border-ens-blue',
-              // Hover states
+
               'hover:border-ens-blue',
               'aria-pressed:hover:border-ens-blue',
-              'disabled:hover:border-[#dededf]',
-              // Disabled state
+              'disabled:hover:border-ens-gray-three',
+
               'disabled:cursor-not-allowed disabled:opacity-60',
               'focus-visible:outline-2 focus-visible:outline-offset-2',
               'focus-visible:outline-ens-blue',
             )}
           >
             {/* Left: Year label */}
-            <div className="flex items-center gap-3 md:gap-5">
-              <span className="font-normal text-[14px] text-ens-blue-dark leading-none tracking-[-0.77px] md:text-[24px]">
+            <div className="flex w-[50%] items-center gap-3 md:w-[60%] md:gap-5 lg:w-[40%] xl:w-[60%]">
+              <span className="font-normal text-ens-blue-dark text-sm leading-none tracking-tighter md:text-2xl">
                 {duration} year{duration > 1 ? 's' : ''}
               </span>
             </div>
 
             {/* Right: Discount badge + Price */}
-            <div className="flex items-center gap-2 md:gap-3">
-              {option.discount > 0 && (
+            <div className="flex w-[50%] items-center justify-between gap-2 md:w-[40%] md:gap-3 lg:w-[60%] xl:w-[40%]">
+              {option.discount > 0 ? (
                 <div
                   className={cn(
                     getBadgeColor(duration),
-                    'rounded-sm px-[3.5px] py-[2.5px] md:px-[6px] md:py-1',
+                    'flex items-center justify-center rounded-xs px-1 py-0.5 md:px-1.5 md:py-1',
                   )}
                 >
-                  <span className="font-medium text-[12px] text-white leading-none tracking-[-0.14px] md:text-[16px] md:tracking-[-0.23px]">
+                  <span className="font-medium text-white text-xs leading-none tracking-tight md:text-base">
                     {option.discount}% off
                   </span>
                 </div>
+              ) : (
+                <div className="w-10" />
               )}
-              <div className="flex items-baseline gap-1 md:gap-[6px]">
-                <span className="font-medium font-mono text-[#1d293d] text-[19px] leading-none tracking-[-0.77px] md:text-[32px]">
+
+              <div className="flex items-baseline gap-1 md:gap-1.5">
+                <span className="font-medium font-mono text-[#1d293d] text-[19px] leading-none tracking-tighter md:text-3xl">
                   ${formattedTotalPrice}
                 </span>
-                <span className="font-normal text-[#a0a4a6] text-[9px] leading-none tracking-[-0.38px] md:text-[16px]">
+                <span className="font-normal text-[#a0a4a6] text-[9px] leading-none tracking-tight md:text-base">
                   total
                 </span>
               </div>

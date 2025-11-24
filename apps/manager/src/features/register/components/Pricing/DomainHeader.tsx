@@ -20,7 +20,7 @@ export const DomainHeader = ({
           variant={premiumLabel.variant}
         />
       )}
-      <h1 className="font-semi-mono text-[48px] text-ens-blue-midnight leading-none tracking-[-0.96px] sm:text-[64px] md:text-[96px] md:tracking-[-7.68px]">
+      <h1 className="font-semi-mono text-5xl text-ens-blue-midnight leading-none tracking-tighter sm:text-6xl md:text-7xl">
         {domainName}
       </h1>
     </div>

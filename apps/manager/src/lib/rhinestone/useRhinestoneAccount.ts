@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
 import { type Address, createPublicClient, formatUnits, http } from 'viem'
 import { sepolia } from 'viem/chains'
-import { useAccount, useWalletClient } from 'wagmi'
+import { useConnection, useWalletClient } from 'wagmi'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
 import { ERC20_ABI } from '../ens.abi'
 import { walletClientToAccount, wrapParaAccount } from './rhinestone-utils'
@@ -38,7 +38,7 @@ export interface RhinestoneAccountState {
 }
 
 export function useRhinestoneAccount() {
-  const account = useAccount()
+  const account = useConnection()
   const { data: walletClient } = useWalletClient()
 
   const [state, setState] = useState<RhinestoneAccountState>({
