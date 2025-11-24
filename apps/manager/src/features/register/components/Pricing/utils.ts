@@ -1,9 +1,5 @@
 import type { PricingDuration, PricingOptions, PricingQuoteMap } from './types'
 
-// ============================================================================
-// PRICING CONSTANTS
-// ============================================================================
-
 export const PRICING_DURATIONS: PricingDuration[] = [1, 2, 3, 4, 5]
 
 export const PRICING_YEAR_DISCOUNTS: Record<PricingDuration, number> = {
@@ -70,13 +66,6 @@ export function sanitizePricingDuration(
   return defaultDuration
 }
 
-// ============================================================================
-// PRICING UTILITIES
-// ============================================================================
-
-/**
- * Creates an empty pricing quote map with all durations initialized to empty objects
- */
 export const createEmptyPricingQuoteMap = (): PricingQuoteMap => ({
   1: {},
   2: {},
@@ -85,29 +74,43 @@ export const createEmptyPricingQuoteMap = (): PricingQuoteMap => ({
   5: {},
 })
 
-/**
- * Formats a duration number with leading zero (e.g., 1 -> "01")
- */
-export const formatDuration = (duration: PricingDuration): string => {
+export const formatDuration = (duration: number): string => {
   return duration.toString().padStart(2, '0')
 }
 
-/**
- * Calculates the expiration date based on duration in years
- */
 export const calculateExpirationDate = (years: number): Date => {
   const date = new Date()
   date.setFullYear(date.getFullYear() + years)
   return date
 }
 
-/**
- * Formats a date in a readable format (e.g., "January 15, 2025")
- */
 export const formatExpirationDate = (date: Date): string => {
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   })
+}
+
+/**
+ * Calculates the duration in years from today to a target date, rounding up to the nearest year
+ * @param targetDate - The target expiration date
+ * @returns The duration in years (minimum 1), rounded up
+ */
+export const calculateDurationFromDate = (targetDate: Date): number => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const target = new Date(targetDate)
+  target.setHours(0, 0, 0, 0)
+
+  const diffMs = target.getTime() - today.getTime()
+
+  if (diffMs <= 0) {
+    return 1
+  }
+
+  const diffYears = diffMs / (365.25 * 24 * 60 * 60 * 1000)
+  const roundedYears = Math.ceil(diffYears)
+
+  return Math.max(1, roundedYears)
 }

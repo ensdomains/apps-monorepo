@@ -21,7 +21,7 @@ export const PricingDomainHeader = ({
       )}
       <h1
         className={cn(
-          'font-semi-mono text-[48px] text-ens-blue-midnight leading-none tracking-[-0.96px] sm:text-[64px] md:text-[96px] md:tracking-[-7.68px]',
+          'font-semi-mono text-5xl text-ens-blue-midnight leading-none tracking-tighter sm:text-6xl md:text-7xl',
           'w-full',
           'overflow-x-auto',
           'whitespace-nowrap',
