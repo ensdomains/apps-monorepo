@@ -14,7 +14,7 @@ export const pollTransactionStatus = (
     new Promise<string | undefined>((resolve, reject) => {
       const subscription = txActor.subscribe((snapshot) => {
         if (snapshot.value === 'success') {
-          const context: any = snapshot.context
+          const context = snapshot.context
           const hash: string | undefined =
             context?.hash || context?.receipt?.transactionHash
           subscription.unsubscribe()
