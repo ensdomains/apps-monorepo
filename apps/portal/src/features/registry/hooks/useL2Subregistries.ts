@@ -86,9 +86,12 @@ export const getL2NameRegistries = ResultFn(async function* (
         }),
     )
 
-    // For a missing registry, getNameRegistryAddress will typically return zeroAddress.
-    // We still push it so index mapping stays consistent.
     registries.unshift(registryAddress)
+
+    if (registryAddress === zeroAddress) {
+      break
+    }
+
     parentRegistry = registryAddress
   }
 
