@@ -4,7 +4,7 @@ import { createAtom } from '@xstate/store'
 import { useAtom } from '@xstate/store/react'
 import { Loader2, LoaderIcon, WalletIcon } from 'lucide-react'
 import { match } from 'ts-pattern'
-import { useAccount, useAccountEffect, useConnect } from 'wagmi'
+import { useConnect, useConnection, useConnectionEffect } from 'wagmi'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -128,9 +128,9 @@ export const WalletModal = () => {
     paraMachine,
     (state) => state.value !== 'closed',
   )
-  const { isConnected } = useAccount()
+  const { isConnected } = useConnection()
 
-  useAccountEffect({
+  useConnectionEffect({
     onConnect() {
       WalletModalOpenAtom.set(false)
       paraMachine.send({
@@ -185,7 +185,7 @@ export const WalletModal = () => {
 }
 
 export const ConnectButton = () => {
-  const { status } = useAccount()
+  const { status } = useConnection()
   const isOpen = useAtom(WalletModalOpenAtom)
 
   if (status === 'connected') {
