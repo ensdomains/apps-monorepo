@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import {
   Clock,
   Eye,
@@ -55,7 +55,9 @@ const ProfilePreview = ({ address }: { address: Address }) => {
           Disconnect
         </Button>
       </div>
-      <NameProfileCard name={name} />
+      <Link to="/$name" params={{ name }}>
+        <NameProfileCard name={name} />
+      </Link>
     </div>
   )
 }

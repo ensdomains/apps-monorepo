@@ -58,7 +58,6 @@ const OwnerInfo = ({ name }: OwnerInfoProps) => {
           <OwnerDisplay owner={data.owner} />
         </div>
       </div>
-      <div className="border border-secondary p-6 rounded-lg">WIP</div>
     </div>
   )
 }
@@ -86,16 +85,10 @@ function RouteComponent() {
     <div className="max-w-5xl w-full mx-auto flex flex-col gap-6 m-6 px-4">
       <div className="flex flex-row justify-between">
         <h1 className="font-medium text-[28px]">Ownership</h1>
-        <a
-          href="#change"
-          className="bg-secondary text-secondary-foreground px-4 py-2 rounded-sm text-base font-medium"
-        >
-          Transfer ownership
-        </a>
       </div>
       <div className="flex flex-col gap-6">
         <OwnerInfo name={name} />
-        <NameHistory name={name} eventType="domainEvents" />
+        <NameHistory name={name} category="domain" />
         <ParentInfo name={name} />
       </div>
     </div>
