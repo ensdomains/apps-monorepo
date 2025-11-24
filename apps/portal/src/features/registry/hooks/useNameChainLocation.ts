@@ -10,6 +10,7 @@ import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { L1_ETH_REGISTRY, L2_ETH_REGISTRY } from '@/lib/constants/registry'
+import { REGISTRY_CACHE } from '@/lib/query/cache'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 export type ChainLocation = 'L1' | 'L2' | 'unknown'
@@ -95,4 +96,5 @@ export const getNameChainLocationQueryOptions = (
   resultQueryOptions({
     queryKey: getNameChainLocationQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getNameChainLocation(params),
+    ...REGISTRY_CACHE,
   })

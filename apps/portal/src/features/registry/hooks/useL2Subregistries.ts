@@ -10,7 +10,8 @@ import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { L2_ETH_REGISTRY } from '@/lib/constants/registry'
-import { safeGetClient } from '@/lib/wagmi/helpers'
+import { REGISTRY_CACHE } from '@/lib/query/cache'
+import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
 
 export type GetL2NameRegistriesParameters = {
   name: string
@@ -47,7 +48,7 @@ class L2NameRegistriesError extends TaggedError('L2NameRegistriesError')<{
 export const getL2NameRegistries = ResultFn(async function* (
   params: GetL2NameRegistriesParameters,
 ) {
-  const client = yield* safeGetClient()
+  const client = yield* safeGetNamechainSepoliaClient()
   const { name } = params
 
   const labels = name.split('.')
@@ -121,6 +122,7 @@ export const getL2NameRegistriesQueryOptions = (
   resultQueryOptions({
     queryKey: l2NameRegistriesQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getL2NameRegistries(params),
+    ...REGISTRY_CACHE,
   })
 
 export type UseL2SubregistriesParams = {
@@ -149,6 +151,7 @@ export function useL2Subregistries({
   const { data, isLoading, error } = useQuery({
     ...getL2NameRegistriesQueryOptions({ name }),
     enabled,
+    placeholderData: (prev) => prev,
   })
 
   const result = data as L2NameRegistriesResult | undefined

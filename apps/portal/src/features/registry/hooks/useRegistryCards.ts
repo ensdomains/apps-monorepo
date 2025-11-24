@@ -27,11 +27,14 @@ export type UseRegistryCardsReturn = {
 export function useRegistryCards({
   name,
   chainLocation,
+  enabled = true,
 }: {
   name: string
   chainLocation: ChainLocation | undefined
-}) {
-  const discovery = useNameRegistryDiscovery({ name, chainLocation })
+  enabled?: boolean
+}): UseRegistryCardsReturn {
+  const discovery = useNameRegistryDiscovery({ name, chainLocation, enabled })
+
   const {
     currentRegistry,
     parentRegistry,
@@ -45,6 +48,7 @@ export function useRegistryCards({
     name,
     currentRegistry,
     parentRegistry,
+    enabled,
   })
 
   const chainIdForCurrent = sepolia.id
@@ -59,7 +63,7 @@ export function useRegistryCards({
     parent: {
       registry: parentRegistry,
       owner: owners.parentOwner,
-      chainId: chainLocation === 'L2' ? chainIdForCurrent : sepolia.id,
+      chainId: chainIdForCurrent, // both roots on Sepolia for now
     },
     all: subregistries.map((r, i) => ({ registry: r, depth: i })),
     isLoading: isLoadingDiscovery || owners.isLoading,

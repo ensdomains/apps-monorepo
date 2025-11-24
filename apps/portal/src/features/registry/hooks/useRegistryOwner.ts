@@ -7,6 +7,7 @@ import {
   type GetOwnerParameters,
 } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
+import { REGISTRY_CACHE } from '@/lib/query/cache'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 export class GetRegistryOwnerError extends TaggedError(
@@ -16,7 +17,7 @@ export class GetRegistryOwnerError extends TaggedError(
 }> {}
 
 export const getRegistryOwner = ResultFn(async function* (
-  params: GetOwnerParameters, // ✅ { registryAddress, label }
+  params: GetOwnerParameters,
 ) {
   const client = yield* safeGetClient()
 
@@ -44,4 +45,5 @@ export const getRegistryOwnerQueryOptions = (params: GetOwnerParameters) =>
     }: {
       queryKey: readonly [string, GetOwnerParameters]
     }) => getRegistryOwner(params),
+    ...REGISTRY_CACHE,
   })

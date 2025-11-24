@@ -16,13 +16,15 @@ export type RegistryDiscovery = {
 export function useNameRegistryDiscovery({
   name,
   chainLocation,
+  enabled = true,
 }: {
   name: string
   chainLocation: ChainLocation | undefined
+  enabled?: boolean
 }): RegistryDiscovery {
   const isL2 = chainLocation === 'L2'
-  const enabledL1 = !isL2
-  const enabledL2 = isL2
+  const enabledL1 = enabled && !isL2
+  const enabledL2 = enabled && isL2
 
   const l1 = useNameSubregistries({ name, enabled: enabledL1 })
   const l2 = useL2Subregistries({ name, enabled: enabledL2 })

@@ -8,24 +8,30 @@ export function useRegistryOwners({
   name,
   currentRegistry,
   parentRegistry,
+  enabled = true,
 }: {
   name: string
   currentRegistry: Address | null
   parentRegistry: Address | null
+  enabled?: boolean
 }) {
   const labels = splitLabels(name)
   const currentLabel = labels[0]
   const parentLabel = labels[1]
 
-  const shouldFetchCurrent = !isZeroAddress(currentRegistry)
-  const shouldFetchParent = !isZeroAddress(parentRegistry) && !!parentLabel
+  const shouldFetchCurrent =
+    enabled && !isZeroAddress(currentRegistry) && !!currentLabel
+
+  const shouldFetchParent =
+    enabled && !isZeroAddress(parentRegistry) && !!parentLabel
 
   const currentOwnerQ = useQuery({
     ...getRegistryOwnerQueryOptions({
       registryAddress: currentRegistry ?? ZERO_ADDRESS,
-      label: currentLabel,
+      label: currentLabel ?? '',
     }),
     enabled: shouldFetchCurrent,
+    placeholderData: (prev) => prev,
   })
 
   const parentOwnerQ = useQuery({
@@ -34,6 +40,7 @@ export function useRegistryOwners({
       label: parentLabel ?? '',
     }),
     enabled: shouldFetchParent,
+    placeholderData: (prev) => prev,
   })
 
   return {

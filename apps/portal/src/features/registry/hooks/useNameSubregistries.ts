@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { L1_ETH_REGISTRY } from '@/lib/constants/registry'
-import { isZeroAddress, ZERO_ADDRESS } from '@/lib/utils'
+import { isZeroAddress } from '@/lib/utils'
+import { REGISTRY_CACHE } from '../../../lib/query/cache'
 import { splitLabels } from '../utils/nameUtils'
-import { getNameRegistryQueryOptions } from './useNameRegistry'
+import { getNameRegistry, nameRegistryQueryKey } from './useNameRegistry'
 
 export type UseNameSubregistriesParams = {
   name: string
@@ -21,26 +22,27 @@ export type UseNameSubregistriesReturn = {
 }
 
 /**
- * Canonical ENSv2 L1 registry walk.
  *
- * Starts from L1_ETH_REGISTRY and walks labels right-to-left.
- * Equivalent to the L2 walk but using the L1 registry root.
+ * This uses getNameRegistry (cross-chain L1+L2 matcher)
+ * but forces L1 by always starting at L1_ETH_REGISTRY and
+ * never letting the walk switch chains.
  *
- * Example:
- *   test.flo.eth →
- *     labels = ["test", "flo", "eth"]
- *     path   = ["test", "flo"]
- *     reversed = ["flo", "test"]
- *     Walk:
- *       L1_ETH_REGISTRY --flo--> registry(flo.eth)
- *       registry(flo.eth) --test--> registry(test.flo.eth)
+ * Steps:
+ *  - labels = ["test", "flo", "eth"]
+ *  - path = ["test", "flo"]
+ *  - reversed = ["flo", "test"]
+ *
+ *  parent = L1_ETH_REGISTRY
+ *  flo  → registry(flo.eth)
+ *  test → registry(test.flo.eth)
  */
 export function useNameSubregistries({
   name,
   enabled = true,
 }: UseNameSubregistriesParams): UseNameSubregistriesReturn {
-  // Extract path labels (everything except the TLD)
-  const labels = splitLabels(name) // already returns left-to-right labels
+  const labels = splitLabels(name)
+
+  // No labels or only "eth" → nothing to walk
   if (labels.length < 2) {
     return {
       rootRegistry: L1_ETH_REGISTRY,
@@ -53,55 +55,55 @@ export function useNameSubregistries({
     }
   }
 
-  // Drop TLD (.eth)
-  const pathLabels = labels.slice(0, -1)
+  const pathLabels = labels.slice(0, -1) // drop TLD
   const reversed = [...pathLabels].reverse()
 
-  /**
-   * Multi-step registry walk:
-   * Step 1: Query registry for first label using L1_ETH_REGISTRY as root.
-   * Step 2+: Query registry using the returned registries as parents.
-   */
-  const queries = reversed.map((label, index) => {
-    const parent = index === 0 ? L1_ETH_REGISTRY : undefined // will be replaced later after the first results arrive
+  const query = useQuery({
+    queryKey: nameRegistryQueryKey({
+      registryAddress: L1_ETH_REGISTRY,
+      label: reversed[0] ?? '',
+    }),
+    queryFn: async () => {
+      let parent: Address = L1_ETH_REGISTRY
+      const registries: Address[] = []
 
-    return useQuery({
-      ...getNameRegistryQueryOptions({
-        registryAddress: parent ?? ZERO_ADDRESS,
-        label,
-      }),
-      enabled,
-    })
+      for (const label of reversed) {
+        const step = await getNameRegistry({
+          registryAddress: parent,
+          label,
+        })
+
+        if (step.isErr()) throw step.error
+
+        const registryAddress = step.value.registryAddress as Address
+
+        registries.unshift(registryAddress)
+
+        if (isZeroAddress(registryAddress)) break
+
+        parent = registryAddress
+      }
+
+      return { registries }
+    },
+    ...REGISTRY_CACHE,
+    enabled,
   })
 
-  const results: Address[] = []
+  const registries = query.data?.registries ?? []
 
-  for (let i = 0; i < reversed.length; i++) {
-    const q = queries[i]
-
-    if (!q.data) break
-
-    const registryAddress = q.data.registryAddress as Address
-    results.unshift(registryAddress)
-
-    if (isZeroAddress(registryAddress)) break
-  }
-
-  const currentRegistry = results[0] ?? null
-  const parentRegistryForName = results[1] ?? L1_ETH_REGISTRY
+  const currentRegistry = registries[0] ?? null
+  const parentRegistry = registries[1] ?? L1_ETH_REGISTRY
   const hasCurrentRegistry =
     !!currentRegistry && !isZeroAddress(currentRegistry)
-
-  const anyLoading = queries.some((q) => q.isLoading)
-  const anyError = queries.find((q) => q.error)?.error || null
 
   return {
     rootRegistry: L1_ETH_REGISTRY,
     currentRegistry,
-    parentRegistry: parentRegistryForName,
-    subregistries: results,
+    parentRegistry,
+    subregistries: registries,
     hasCurrentRegistry,
-    isLoading: anyLoading,
-    error: anyError as Error | null,
+    isLoading: query.isLoading,
+    error: query.error as Error | null,
   }
 }
