@@ -1,3 +1,4 @@
+import { resultMutationOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMachine } from '@xstate/react'
 import clsx from 'clsx'
@@ -31,7 +32,7 @@ import { imageSelectionMachine } from '@/features/profile/machines/imageSelectio
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import {
   type ImageType,
-  uploadImageMutationOptions,
+  uploadImage,
 } from '@/features/profile/service/profileImageUpload'
 import { cn } from '@/lib/utils'
 import { inspect } from '@/utils/xstate'
@@ -145,20 +146,30 @@ export const ImageSelectionDialog = ({
     }
   }
 
-  const { mutate: uploadImage, isPending: isUploading } = useMutation(
-    uploadImageMutationOptions({
-      type,
-      name,
-      uploadFile,
-      isConnected,
-      address,
-      chainId,
-      signTypedDataAsync,
-      onImageChange,
-      setOpen,
-      setUploadFile,
-      setUploadPreviewUrl,
-      send,
+  const { mutate: mutateUploadImage, isPending: isUploading } = useMutation(
+    resultMutationOptions({
+      mutationFn: () =>
+        uploadImage({
+          type,
+          name,
+          uploadFile,
+          isConnected,
+          address,
+          chainId,
+          signTypedDataAsync,
+        }),
+      onSuccess: (endpoint) => {
+        onImageChange(endpoint)
+        setOpen(false)
+        setUploadFile(null)
+        setUploadPreviewUrl(null)
+        send({ type: 'RESET' })
+      },
+      onError: (error) => {
+        const message =
+          error instanceof Error ? error.message : 'Failed to upload image'
+        send({ type: 'SET_ERROR', error: message })
+      },
     }),
   )
 
@@ -455,7 +466,7 @@ export const ImageSelectionDialog = ({
         <Button variant="outline" onClick={() => send({ type: 'BACK' })}>
           Back
         </Button>
-        <Button onClick={() => uploadImage()} disabled={isUploading}>
+        <Button onClick={() => mutateUploadImage()} disabled={isUploading}>
           {isUploading ? 'Uploading…' : 'Upload & Use Image'}
         </Button>
       </DialogFooter>

@@ -8,6 +8,7 @@ import type {
   SkipToken,
   UndefinedInitialDataOptions,
   UnusedSkipTokenOptions,
+  UseMutationOptions,
   UseQueryOptions,
 } from '@tanstack/react-query'
 import type { Result, ResultAsync } from 'neverthrow'
@@ -147,5 +148,58 @@ export function resultQueryOptions({
     ...rest,
     queryFn,
     queryKey,
+  }
+}
+
+export type ResultMutationFunction<
+  TData,
+  TError extends ResultError,
+  TVariables = void,
+> = (
+  variables: TVariables,
+) => Result<TData, TError> | ResultAsync<TData, TError>
+
+export type UseResultMutationOptions<
+  TData,
+  TError extends ResultError,
+  TVariables = void,
+  TContext = unknown,
+> = OmitKeyof<
+  UseMutationOptions<TData, TError, TVariables, TContext>,
+  'mutationFn'
+> & {
+  mutationFn?: ResultMutationFunction<TData, TError, TVariables>
+}
+
+export function resultMutationOptions<
+  TData,
+  TError extends ResultError,
+  TVariables = void,
+  TContext = unknown,
+>({
+  mutationFn: rawMutationFn,
+  ...rest
+}: UseResultMutationOptions<
+  TData,
+  TError,
+  TVariables,
+  TContext
+>): UseMutationOptions<TData, TError, TVariables, TContext> {
+  const mutationFn:
+    | UseMutationOptions<TData, TError, TVariables, TContext>['mutationFn']
+    | undefined =
+    typeof rawMutationFn === 'function'
+      ? async (variables: TVariables) =>
+          await rawMutationFn(variables).match(
+            (value) => value,
+            (error) => {
+              throw error
+            },
+          )
+      : undefined
+
+  return {
+    ...rest,
+    mutationFn,
   }
 }
