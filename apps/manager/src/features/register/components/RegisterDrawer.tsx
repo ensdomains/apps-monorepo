@@ -8,7 +8,7 @@ import {
   WalletIcon,
 } from 'lucide-react'
 import * as React from 'react'
-import { useAccount, useConnect, useDisconnect } from 'wagmi'
+import { useConnect, useConnection, useDisconnect } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -48,7 +48,7 @@ export const RegisterDrawer = ({
   const isDesktop = useMediaQuery('(min-width: 768px)')
 
   // Wagmi hooks for wallet connection
-  const { address, isConnected, connector } = useAccount()
+  const { address, isConnected, connector } = useConnection()
   const { connect, connectors, isPending } = useConnect()
   const { disconnect } = useDisconnect()
 

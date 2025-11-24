@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { CheckCircle, LoaderIcon, WalletIcon, XCircle } from 'lucide-react'
-import { useAccount, useConnect, useDisconnect } from 'wagmi'
+import { useConnect, useConnection, useDisconnect } from 'wagmi'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -283,7 +283,7 @@ const ConnectMenu = () => {
 
 const DisconnectMenu = () => {
   const { disconnect } = useDisconnect()
-  const { address, connector } = useAccount()
+  const { address, connector } = useConnection()
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`
@@ -338,7 +338,7 @@ const DisconnectMenu = () => {
 }
 
 function RouteComponent() {
-  const { isConnected, status, chainId } = useAccount()
+  const { isConnected, status, chainId } = useConnection()
   // console.log(connectors)
   console.log('RouteComponent', {
     isConnected,
