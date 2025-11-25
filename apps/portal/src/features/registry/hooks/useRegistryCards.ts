@@ -1,5 +1,9 @@
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
+import {
+  VERIFIABLE_FACTORY_L1,
+  VERIFIABLE_FACTORY_L2,
+} from '@/lib/constants/verifiableFactory'
 import type { ChainLocation } from './useNameChainLocation'
 import { useNameRegistryDiscovery } from './useNameRegistryDiscovery'
 import { useRegistryOwners } from './useRegistryOwners'
@@ -9,6 +13,7 @@ export type RegistryCard = {
   owner: Address | null
   chainId: number | null
   hasCurrentRegistry?: boolean
+  factory: Address | null
 }
 
 export type SubregistryInfo = {
@@ -53,17 +58,26 @@ export function useRegistryCards({
 
   const chainIdForCurrent = sepolia.id
 
+  const factory: Address | null =
+    chainLocation === 'L1'
+      ? VERIFIABLE_FACTORY_L1
+      : chainLocation === 'L2'
+        ? VERIFIABLE_FACTORY_L2
+        : null
+
   return {
     current: {
       registry: currentRegistry,
       owner: owners.currentOwner,
       chainId: chainIdForCurrent,
       hasCurrentRegistry,
+      factory,
     },
     parent: {
       registry: parentRegistry,
       owner: owners.parentOwner,
       chainId: chainIdForCurrent, // both roots on Sepolia for now
+      factory,
     },
     all: subregistries.map((r, i) => ({ registry: r, depth: i })),
     isLoading: isLoadingDiscovery || owners.isLoading,

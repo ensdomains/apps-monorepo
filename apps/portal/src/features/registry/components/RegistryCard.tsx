@@ -12,7 +12,7 @@ export type RegistryInfo = {
     chainId: number
   }
   protocol: string
-  factory?: Address
+  factory: Address | null
 }
 
 type RegistryCardProps = {
@@ -29,7 +29,7 @@ export function RegistryCard({ registry }: RegistryCardProps) {
         </div>
 
         <div className="flex items-center justify-start gap-3 flex-nowrap">
-          <span className="text-sm text-gray-600 flex-shrink-0 min-w-[60px]">
+          <span className="text-sm text-gray-600 shrink-0 min-w-[60px]">
             Chain ID
           </span>
           <CopyableRecord

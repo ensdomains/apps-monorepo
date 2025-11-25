@@ -47,7 +47,7 @@ function RouteComponent() {
   if (isLoadingCards || isLoadingChainLocation) {
     return (
       <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
-        <h1 className="text-[28px] font-medium leading-[1]">Registry</h1>
+        <h1 className="text-[28px] font-medium leading-none">Registry</h1>
         <div>Loading...</div>
         {chainLocation && (
           <div className="text-sm text-gray-600">
@@ -61,7 +61,7 @@ function RouteComponent() {
   if (error) {
     return (
       <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
-        <h1 className="text-[28px] font-medium leading-[1]">Registry</h1>
+        <h1 className="text-[28px] font-medium leading-none">Registry</h1>
         <div>Error: {error.message}</div>
       </div>
     )
@@ -79,7 +79,7 @@ function RouteComponent() {
   if (!current.hasCurrentRegistry) {
     return (
       <div className="flex flex-col gap-6 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
-        <h1 className="text-[28px] font-medium leading-[1]">Registry</h1>
+        <h1 className="text-[28px] font-medium leading-none">Registry</h1>
 
         <NoRegistryCard />
 
@@ -109,6 +109,7 @@ function RouteComponent() {
                   chainId: parentNetwork.chainId,
                 },
                 protocol: 'ENSv2',
+                factory: parent.factory,
               }}
             />
           </>
@@ -150,6 +151,7 @@ function RouteComponent() {
                 chainId: currentNetwork.chainId,
               },
               protocol: 'ENSv2',
+              factory: current.factory,
             }}
           />
         </>
@@ -179,6 +181,7 @@ function RouteComponent() {
                 chainId: parentNetwork.chainId,
               },
               protocol: 'ENSv2',
+              factory: parent.factory,
             }}
           />
         </>
