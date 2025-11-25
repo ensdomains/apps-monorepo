@@ -36,7 +36,7 @@ export const HeaderSection = withForm({
           )}
         </form.Field>
         {/* Share button overlay */}
-        <div className="absolute top-2 right-2 z-10">
+        <div className="absolute top-2 right-2">
           <form.Subscribe selector={(state) => state.values.base.avatar}>
             {(avatarUrl) => (
               <ShareProfileDialog

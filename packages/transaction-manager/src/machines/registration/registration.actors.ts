@@ -8,10 +8,10 @@ import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, PublicClient } from 'viem'
 import { encodeFunctionData, keccak256, toHex } from 'viem'
 import { sepolia } from 'viem/chains'
+import { ERC20_ABI } from '../../contracts/abis/ERC20.abi'
+import { FAST_TEST_ETH_REGISTRAR_ABI } from '../../contracts/abis/FastTestETHRegistrar.abi'
 import {
   ENS_SEPOLIA_CONTRACTS,
-  ERC20_ABI,
-  FAST_TEST_ETH_REGISTRAR_ABI,
   REFERER_ADDRESS,
   SUPPORTED_TOKENS,
 } from '../../contracts/ens-sepolia'
@@ -52,7 +52,7 @@ function generateCommitment(
           ownerAddress,
           secret,
           ENS_SEPOLIA_CONTRACTS.ETHRegistry,
-          ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl,
+          ENS_SEPOLIA_CONTRACTS.PublicResolver,
           duration,
           REFERER_ADDRESS,
         ],
@@ -111,7 +111,7 @@ function encodeRegistrationData(
       ownerAddress,
       secret,
       ENS_SEPOLIA_CONTRACTS.ETHRegistry,
-      ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl,
+      ENS_SEPOLIA_CONTRACTS.PublicResolver,
       duration,
       paymentToken,
       REFERER_ADDRESS,
@@ -424,11 +424,24 @@ export function pollTransactionStatusActor(input: {
   return fromPromise(
     new Promise<void>((resolve, reject) => {
       const subscription = txActor.subscribe((snapshot) => {
+        console.log('🔍 [POLL TX STATUS] Transaction state:', {
+          txId: input.txId,
+          state: snapshot.value,
+          hasError: !!snapshot.context.error,
+          error: snapshot.context.error?.message,
+        })
+
         if (snapshot.matches('success')) {
+          console.log('✅ [POLL TX STATUS] Transaction succeeded')
           subscription.unsubscribe()
           resolve()
         }
-        if (snapshot.matches({ error: {} })) {
+        // Check if we're in any error state (handles nested states like error.submission, error.reverted, etc.)
+        if (typeof snapshot.value === 'object' && 'error' in snapshot.value) {
+          console.error('❌ [POLL TX STATUS] Transaction failed:', {
+            errorState: snapshot.value,
+            error: snapshot.context.error,
+          })
           subscription.unsubscribe()
           reject(snapshot.context.error || new Error('Transaction failed'))
         }

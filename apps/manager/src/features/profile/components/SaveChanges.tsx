@@ -6,6 +6,10 @@ import { sharedOptions, withForm } from './form'
 interface SaveChangesProps {
   originalData: ProfileRecords
   onSave: () => void
+  isSaving?: boolean
+  isSuccess?: boolean
+  errorMessage?: string
+  txHash?: string
 }
 
 export const SaveChanges = withForm({
@@ -14,13 +18,25 @@ export const SaveChanges = withForm({
     originalData: defaultProfileRecords,
     onSave: () => {},
   } as SaveChangesProps,
-  render: ({ form, originalData, onSave }) => (
+  render: ({
+    form,
+    originalData,
+    onSave,
+    isSaving,
+    isSuccess,
+    errorMessage,
+    txHash,
+  }) => (
     <form.Subscribe selector={(state) => state.values}>
       {(currentData) => (
         <DiffDialog
           originalData={originalData}
           currentData={currentData}
           onSave={onSave}
+          isSaving={isSaving}
+          isSuccess={isSuccess}
+          errorMessage={errorMessage}
+          txHash={txHash}
         />
       )}
     </form.Subscribe>
