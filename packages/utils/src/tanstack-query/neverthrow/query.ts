@@ -1,18 +1,14 @@
-import {
-  type DataTag,
-  type DefinedInitialDataOptions,
-  type InitialDataFunction,
-  mutationOptions,
-  type OmitKeyof,
-  type QueryFunctionContext,
-  type QueryKey,
-  queryOptions,
-  type SkipToken,
-  type UndefinedInitialDataOptions,
-  type UnusedSkipTokenOptions,
-  type UseMutationOptions,
-  type UseQueryOptions,
-  type WithRequired,
+import type {
+  DataTag,
+  DefinedInitialDataOptions,
+  InitialDataFunction,
+  OmitKeyof,
+  QueryFunctionContext,
+  QueryKey,
+  SkipToken,
+  UndefinedInitialDataOptions,
+  UnusedSkipTokenOptions,
+  UseQueryOptions,
 } from '@tanstack/react-query'
 import type { Result, ResultAsync } from 'neverthrow'
 import type { NonUndefinedGuard, ResultError } from './shared'
