@@ -1,3 +1,4 @@
+import * as React from 'react'
 import { DurationSelector } from '@/features/register/components/CheckAvailability/DurationSelector'
 import { PricingDomainHeader } from '@/features/register/components/Pricing/PricingDomainHeader'
 import { PricingPaymentSection } from '@/features/register/components/Pricing/PricingPaymentSection'
@@ -18,6 +19,7 @@ export const Pricing = ({
   onSelectPayment,
   onSelectCrypto,
   onConfirmPayment,
+  onPricingDataChange,
 }: PricingProps) => {
   const {
     // State
@@ -52,6 +54,23 @@ export const Pricing = ({
     onConfirmPayment,
   })
 
+  // Notify parent of pricing data changes
+  const prevFinalPriceRef = React.useRef<number | null>(null)
+  const prevDiscountAmountRef = React.useRef<number | null>(null)
+
+  React.useEffect(() => {
+    if (
+      onPricingDataChange &&
+      !isPriceLoading &&
+      (prevFinalPriceRef.current !== finalPrice ||
+        prevDiscountAmountRef.current !== discountAmount)
+    ) {
+      prevFinalPriceRef.current = finalPrice
+      prevDiscountAmountRef.current = discountAmount
+      onPricingDataChange(finalPrice, discountAmount)
+    }
+  }, [finalPrice, discountAmount, isPriceLoading, onPricingDataChange])
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 pt-4 pb-12 md:px-10">
       {/* Domain Name Header */}
@@ -63,7 +82,7 @@ export const Pricing = ({
       {/* Two Column Layout - Desktop / Single Column - Mobile */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_420px] lg:items-stretch">
         {/* Left Column: Duration Selector */}
-        <div className="flex flex-col space-y-2">
+        <div className="flex flex-col space-y-2 duration-selector-container">
           <DurationSelector
             pricing={pricingOptions}
             selectedDuration={selectedDuration as PricingDuration}
@@ -78,7 +97,7 @@ export const Pricing = ({
         </div>
 
         {/* Right Column: Summary Cards - Desktop / Mobile: Full width */}
-        <div className="flex w-full flex-col gap-2">
+        <div className="summary-cards-container flex w-full flex-col gap-2">
           {/* Registration Summary Card */}
           <PricingRegistrationSummaryCard
             paddedDuration={paddedDuration}
@@ -88,7 +107,7 @@ export const Pricing = ({
           />
 
           {/* Total & Payment Card */}
-          <div className="h-full space-y-6 rounded-2xl border border-ens-gray-two bg-white px-6 py-6 shadow-sm">
+          <div className="total-payment-card h-full space-y-6 rounded-2xl border border-ens-gray-two bg-white px-6 py-6 shadow-sm">
             {/* Total Price Section */}
             <PricingTotalPriceCard
               isPriceLoading={isPriceLoading}
