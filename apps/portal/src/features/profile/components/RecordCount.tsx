@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, FileCodeIcon, ListIcon } from 'lucide-react'
 import { useMemo } from 'react'
-import { type Address, zeroAddress } from 'viem'
+import type { Address } from 'viem'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
@@ -24,7 +24,10 @@ export const RecordCount = ({
   }, [records])
 
   const { data, isLoading, error } = useQuery({
-    ...getUnderlyingAddressQueryOptions({ name, resolverAddress }),
+    ...getUnderlyingAddressQueryOptions({
+      name,
+      resolverAddress,
+    }),
     enabled: Boolean(resolverAddress),
   })
 

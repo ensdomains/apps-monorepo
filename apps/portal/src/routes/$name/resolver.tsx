@@ -195,9 +195,9 @@ function RouteComponent() {
 
   // TODO: remove this hack for when devnet and namechain is ready
   const resolverAddress =
-    tempResolverAddress === '0xb5c0FF6c84d352e896d1026193809b8FF248dCdF'
-      ? '0x352d7aA7a8bd0F6f31635BE5ceCb6Cebb6929A15'
-      : tempResolverAddress
+    tempResolverAddress === '0x2AFF1ceDDDd4c8C214ebFaAE10DBe63a8AB38400'
+      ? tempResolverAddress
+      : '0x2AFF1ceDDDd4c8C214ebFaAE10DBe63a8AB38400'
 
   if (error) {
     const message =

@@ -78,12 +78,17 @@ function App() {
   const { name } = useParams({ from: '/$name/' })
 
   const {
-    data: resolverAddress,
+    data: tempResolverAddress,
     isLoading,
     error,
   } = useEnsResolver({
     name,
   })
+
+  const resolverAddress =
+    tempResolverAddress === '0x2AFF1ceDDDd4c8C214ebFaAE10DBe63a8AB38400'
+      ? tempResolverAddress
+      : '0x2AFF1ceDDDd4c8C214ebFaAE10DBe63a8AB38400'
 
   if (error) {
     const message =

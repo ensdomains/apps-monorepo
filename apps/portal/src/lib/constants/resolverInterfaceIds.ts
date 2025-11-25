@@ -10,7 +10,7 @@ export const RESOLVER_INTERFACE_IDS = {
   ExtendedResolver: '0x9061b923',
   VersionableResolver: '0xd700ff33',
   DedicatedResolver: '0x92349baa',
-  CompositeExtendedResolver: '0xf686ea10',
+  CompositeExtendedResolver: '0xc7e45d73',
 } as const
 export type ResolverInterfaceName = keyof typeof RESOLVER_INTERFACE_IDS
 export type ResolverInterfaceId =
