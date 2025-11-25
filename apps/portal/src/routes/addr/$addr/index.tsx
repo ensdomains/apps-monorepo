@@ -13,16 +13,16 @@ export const Route = createFileRoute('/addr/$addr/')({
 })
 
 interface PrimaryNameProps {
-  addr: Address
+  address: Address
 }
 
-const PrimaryName = ({ addr }: PrimaryNameProps) => {
+const PrimaryName = ({ address }: PrimaryNameProps) => {
   const {
     data: name,
     isLoading,
     error,
   } = useEnsName({
-    address: addr as Address,
+    address,
   })
 
   if (error) {
@@ -55,7 +55,7 @@ function RouteComponent() {
           </Button>
         )}
       </div>
-      <PrimaryName addr={addr} />
+      <PrimaryName address={addr} />
       <h2 className="font-medium text-[26px]">Names</h2>
       <NameList address={addr} />
     </div>

@@ -54,7 +54,7 @@ const EditButtons = ({ address, name }: EditButtonsProps) => {
 }
 
 const sepoliaUrl = sepolia.blockExplorers.default.url
-const factoryAddress = ensContracts[11155111].ensVerifiableFactory.address
+const factoryAddress = ensContracts[11155111].ensL2VerifiableFactory.address
 
 interface UnderlyingResolverInfoProps {
   resolverAddress: Address
