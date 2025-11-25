@@ -42,20 +42,8 @@ export function useNameSubregistries({
 }: UseNameSubregistriesParams): UseNameSubregistriesReturn {
   const labels = splitLabels(name)
 
-  // No labels or only "eth" → nothing to walk
-  if (labels.length < 2) {
-    return {
-      rootRegistry: L1_ETH_REGISTRY,
-      currentRegistry: null,
-      parentRegistry: null,
-      subregistries: [],
-      hasCurrentRegistry: false,
-      isLoading: false,
-      error: null,
-    }
-  }
-
-  const pathLabels = labels.slice(0, -1) // drop TLD
+  const tooShort = labels.length < 2
+  const pathLabels = tooShort ? [] : labels.slice(0, -1)
   const reversed = [...pathLabels].reverse()
 
   const query = useQuery({
@@ -63,7 +51,10 @@ export function useNameSubregistries({
       registryAddress: L1_ETH_REGISTRY,
       label: reversed[0] ?? '',
     }),
+
     queryFn: async () => {
+      if (tooShort) return { registries: [] }
+
       let parent: Address = L1_ETH_REGISTRY
       const registries: Address[] = []
 
@@ -76,19 +67,32 @@ export function useNameSubregistries({
         if (step.isErr()) throw step.error
 
         const registryAddress = step.value.registryAddress as Address
-
         registries.unshift(registryAddress)
 
         if (isZeroAddress(registryAddress)) break
-
         parent = registryAddress
       }
 
       return { registries }
     },
-    ...REGISTRY_CACHE,
+
     enabled,
+    ...REGISTRY_CACHE,
+    placeholderData: (prev) => prev,
   })
+
+  // For too-short names, skip the registry-return logic
+  if (tooShort) {
+    return {
+      rootRegistry: L1_ETH_REGISTRY,
+      currentRegistry: null,
+      parentRegistry: null,
+      subregistries: [],
+      hasCurrentRegistry: false,
+      isLoading: false,
+      error: null,
+    }
+  }
 
   const registries = query.data?.registries ?? []
 
