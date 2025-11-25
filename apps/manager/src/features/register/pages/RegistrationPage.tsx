@@ -2,20 +2,17 @@ import { registrationMachine } from '@ens-apps/transaction-manager'
 import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
 import { ArrowLeftIcon } from 'lucide-react'
-import { useEffect, useReducer, useState } from 'react'
-import type { Address, Hex } from 'viem'
+import { useCallback, useEffect, useReducer, useState } from 'react'
+import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useAccount, useAccountEffect } from 'wagmi'
 import { Button } from '@/components/ui/button'
+import { Pricing } from '@/features/register/components/Pricing'
+import type { NotificationPreferences } from '@/features/register/components/RegistrationInProgress/NotificationSettings'
+import { RegistrationInProgress } from '@/features/register/components/RegistrationInProgress/RegistrationInProgress'
+import { VerifyWalletModal } from '@/features/register/components/VerifyWalletModal'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 import { publicClient } from '@/lib/wagmi'
-import { ApprovalInProgress } from '../components/ApprovalInProgress'
-import { Autorenewal } from '../components/Autorenewal'
-import { PaymentInProgress } from '../components/PaymentInProgress'
-import { Pricing } from '../components/Pricing'
-import { RegistrationInProgress } from '../components/RegistrationInProgress'
-import { RegistrationSuccess } from '../components/RegistrationSuccess'
-import { VerifyWalletModal } from '../components/VerifyWalletModal'
 import { handleStartRegistration } from './RegistrationPage.handlers'
 import {
   createInitialUIState,
@@ -45,8 +42,17 @@ interface RegistrationProps {
 // HELPER: Map machine state to RegistrationStep
 // ============================================================================
 
-function mapMachineStateToStep(machineState: string): RegistrationStep {
-  switch (machineState) {
+function mapMachineStateToStep(
+  machineState: string | Record<string, any>,
+): RegistrationStep {
+  // Handle nested error states (error.submission, error.reverted, etc.)
+  if (typeof machineState === 'object' && 'error' in machineState) {
+    return RegistrationStep.ERROR
+  }
+
+  const stateString = String(machineState)
+
+  switch (stateString) {
     case 'idle':
       return RegistrationStep.PRICING
     case 'preparingCommitment':
@@ -97,6 +103,17 @@ export function Registration({ initialName }: RegistrationProps) {
   // Verify wallet modal state
   const [showVerifyModal, setShowVerifyModal] = useState(false)
 
+  // Pricing data for registration details
+  const [pricingData, setPricingData] = useState<{
+    finalPrice: number
+    discountAmount: number
+  } | null>(null)
+
+  // Notification preferences state
+  const [hasSkippedNotifications, setHasSkippedNotifications] = useState(false)
+  const [hasConfirmedNotifications, setHasConfirmedNotifications] =
+    useState(false)
+
   // Show verification modal after wallet connection
   useAccountEffect({
     onConnect({ address: connectedAddress }) {
@@ -143,24 +160,13 @@ export function Registration({ initialName }: RegistrationProps) {
   // Selectors - directly select from machine state
   const step = useSelector(actor, (state) => {
     if (!isAccountReady) return RegistrationStep.PRICING
-    return mapMachineStateToStep(String(state.value))
+    // Pass raw state.value to handle nested error states
+    return mapMachineStateToStep(state.value)
   })
 
   const domainName = useSelector(
     actor,
     (state) => state.context.name || ui.name,
-  )
-
-  const error = useSelector(
-    actor,
-    (state) => state.context.error?.message || null,
-  )
-
-  const commitTxId = useSelector(actor, (state) => state.context.commitmentTxId)
-
-  const registerTxId = useSelector(
-    actor,
-    (state) => state.context.registrationTxId,
   )
 
   const registerReadyTimestamp = useSelector(
@@ -189,8 +195,6 @@ export function Registration({ initialName }: RegistrationProps) {
   }, [registerReadyTimestamp])
 
   // Derived state
-  const commitTxHash = commitTxId ? { hash: commitTxId as Hex } : null
-  const registerTxHash = registerTxId ? { hash: registerTxId as Hex } : null
   const isCommitPending = step === RegistrationStep.COMMITTING
   const isApprovePending = step === RegistrationStep.APPROVING
   const isRegisterPending = step === RegistrationStep.REGISTERING
@@ -224,9 +228,31 @@ export function Registration({ initialName }: RegistrationProps) {
     // No-op for now - handled by payment drawer
   }
 
-  const handleRetry = () => {
-    actor.send({ type: 'RETRY' })
+  const handleNotificationConfirm = (preferences: NotificationPreferences) => {
+    // TODO: Send notification preferences to API
+    console.log('Notification preferences confirmed:', preferences)
+    setHasConfirmedNotifications(true)
   }
+
+  const handleNotificationSkip = () => {
+    setHasSkippedNotifications(true)
+  }
+
+  const handleGoToDashboard = () => {
+    navigate({ to: '/' })
+  }
+
+  const handleCreateProfile = () => {
+    // TODO: Navigate to profile creation
+    console.log('Create profile clicked')
+  }
+
+  const handlePricingDataChange = useCallback(
+    (finalPrice: number, discountAmount: number) => {
+      setPricingData({ finalPrice, discountAmount })
+    },
+    [],
+  )
 
   const handleReset = () => {
     actor.send({ type: 'CANCEL' })
@@ -265,7 +291,7 @@ export function Registration({ initialName }: RegistrationProps) {
               onSetDuration={handleSetDuration}
               onSelectPayment={handleSelectPayment}
               onSelectCrypto={handleSelectCrypto}
-              onConfirmPayment={(tokenPrice, selectedToken, options) =>
+              onConfirmPayment={(tokenPrice, selectedToken, options) => {
                 handleStartRegistration(
                   {
                     name: ui.name,
@@ -282,66 +308,32 @@ export function Registration({ initialName }: RegistrationProps) {
                   actor,
                   { fast: options?.fast ?? false },
                 )
-              }
+              }}
+              onPricingDataChange={handlePricingDataChange}
             />
           </div>
         )}
 
-        {step === RegistrationStep.COMMITTING && (
-          <PaymentInProgress
-            domainName={displayDomainName}
-            selectedCrypto=""
-            onPaymentSuccess={() => {}} // No-op - handled by state machine
-            registerWaitSeconds={registerWaitSeconds}
-          />
-        )}
-
-        {step === RegistrationStep.APPROVING && (
-          <ApprovalInProgress
-            domainName={displayDomainName}
-            selectedToken={ui.selectedToken}
-            commitTxHash={commitTxHash}
-          />
-        )}
-
-        {step === RegistrationStep.REGISTERING && (
+        {(step === RegistrationStep.COMMITTING ||
+          step === RegistrationStep.APPROVING ||
+          step === RegistrationStep.REGISTERING ||
+          step === RegistrationStep.SUCCESS ||
+          step === RegistrationStep.ERROR) && (
           <RegistrationInProgress
             domainName={displayDomainName}
-            onRegistrationSuccess={() => {}} // No-op - handled by state machine
-            registerTxHash={registerTxHash}
-          />
-        )}
-
-        {step === RegistrationStep.SUCCESS && (
-          <RegistrationSuccess domainName={displayDomainName} />
-        )}
-
-        {step === RegistrationStep.AUTORENEWAL && (
-          <Autorenewal
-            domainName={displayDomainName}
+            actor={actor}
             duration={ui.duration}
-            onReset={handleReset}
-            onCompleteFlow={handleReset}
+            totalPrice={pricingData?.finalPrice ?? 0}
+            discountAmount={pricingData?.discountAmount ?? 0}
+            registerWaitSeconds={registerWaitSeconds}
+            onNotificationConfirm={handleNotificationConfirm}
+            onNotificationSkip={handleNotificationSkip}
+            onGoToDashboard={handleGoToDashboard}
+            onCreateProfile={handleCreateProfile}
+            showRegistrationDetails={
+              hasSkippedNotifications || hasConfirmedNotifications
+            }
           />
-        )}
-
-        {step === RegistrationStep.ERROR && (
-          <div className="mx-auto max-w-md px-4 py-6">
-            <div className="text-center">
-              <h2 className="mb-4 font-semibold text-red-600 text-xl">
-                Registration Error
-              </h2>
-              <p className="mb-4 whitespace-pre-line text-gray-600">
-                {error || 'There was an error during the registration process.'}
-              </p>
-              <Button onClick={handleRetry} className="mr-2">
-                Retry
-              </Button>
-              <Button variant="outline" onClick={handleReset}>
-                Start Over
-              </Button>
-            </div>
-          </div>
         )}
       </div>
     </>

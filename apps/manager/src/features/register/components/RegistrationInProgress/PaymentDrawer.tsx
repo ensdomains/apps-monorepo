@@ -301,7 +301,9 @@ export const CryptoPaymentDrawer = ({
                           <IconComponent className="h-8 w-8" />
                           {/* Chain badge - Sepolia */}
                           <div className="-bottom-0.5 -right-0.5 absolute flex h-3.5 w-3.5 items-center justify-center rounded-full bg-ens-peridot-core">
-                            <span className="text-[8px] text-white">S</span>
+                            <span className="text-[0.5rem] text-white leading-none">
+                              S
+                            </span>
                           </div>
                         </div>
                         <p className="text-ens-gray-dark text-sm tracking-wide">
@@ -335,7 +337,7 @@ export const CryptoPaymentDrawer = ({
           !actionDisabled && 'bg-ens-blue text-white hover:bg-ens-blue-hover',
         )}
         disabled={actionDisabled}
-        onClick={() => handleCryptoContinue()}
+        onClick={() => handleCryptoContinue({ fast: true })}
       >
         Confirm Payment
       </Button>

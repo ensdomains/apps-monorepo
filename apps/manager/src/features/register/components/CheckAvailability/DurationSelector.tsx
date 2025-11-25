@@ -93,10 +93,10 @@ export const DurationSelector = ({
               )}
 
               <div className="flex items-baseline gap-1 md:gap-1.5">
-                <span className="font-medium font-mono text-[#1d293d] text-[19px] leading-none tracking-tighter md:text-3xl">
+                <span className="font-medium font-mono text-ens-blue-dark text-xl leading-none tracking-tighter md:text-3xl">
                   ${formattedTotalPrice}
                 </span>
-                <span className="font-normal text-[#a0a4a6] text-[9px] leading-none tracking-tight md:text-base">
+                <span className="font-normal text-ens-gray-three text-xs leading-none tracking-tight md:text-base">
                   total
                 </span>
               </div>
