@@ -58,19 +58,11 @@ export const DurationSelector = ({
             onClick={() => onSelect(duration)}
             className={cn(
               'group relative',
-              'flex w-full items-center justify-between',
-              'h-[58px] md:h-[100px]',
+              'flex h-[58px] w-full items-center justify-between md:h-[100px]',
               'px-3 py-4 md:px-5 md:py-8',
-              'rounded-lg md:rounded-xl',
-              'border border-ens-gray-three',
+              'rounded-lg border border-ens-gray-three hover:border-ens-blue disabled:hover:border-ens-gray-three aria-pressed:border-ens-blue md:rounded-xl',
               'bg-ens-white transition-all',
-
-              'aria-pressed:border-ens-blue',
-
-              'hover:border-ens-blue',
               'aria-pressed:hover:border-ens-blue',
-              'disabled:hover:border-ens-gray-three',
-
               'disabled:cursor-not-allowed disabled:opacity-60',
               'focus-visible:outline-2 focus-visible:outline-offset-2',
               'focus-visible:outline-ens-blue',
@@ -101,10 +93,10 @@ export const DurationSelector = ({
               )}
 
               <div className="flex items-baseline gap-1 md:gap-1.5">
-                <span className="font-medium font-mono text-[#1d293d] text-[19px] leading-none tracking-tighter md:text-3xl">
+                <span className="font-medium font-mono text-ens-blue-dark text-xl leading-none tracking-tighter md:text-3xl">
                   ${formattedTotalPrice}
                 </span>
-                <span className="font-normal text-[#a0a4a6] text-[9px] leading-none tracking-tight md:text-base">
+                <span className="font-normal text-ens-gray-three text-xs leading-none tracking-tight md:text-base">
                   total
                 </span>
               </div>

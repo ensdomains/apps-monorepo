@@ -15,10 +15,12 @@ export const ENS_SEPOLIA_CONTRACTS = {
   ReverseRegistrar: '0xa58e81fe9b61b5c3fe2afd33cf304c454abfc7cb' as const,
   // Name Wrapper
   NameWrapper: '0x0635513f179d50a207757e05759cbd106d7dfce8' as const,
-  // Registration-specific contracts (from manager app)
-  ETHRegistry: '0x5fb63bbd34de21688c8aa8131be1c3b4a477109c' as const,
+  // L2 Registration-specific contracts (V2 deployment)
+  ETHRegistry: '0x0f3eb298470639a96bd548cea4a648bc80b2cee2' as const,
   ETHRegistrar: '0x774faadcd7e8c4b7441aa2927f10845fea083ea1' as const,
-  FastTestETHRegistrar: '0xb08b6a514d54562ef3b7470bdb709c4eb135c535' as const,
+  // V2 Fast Registrar - no commitment wait time required
+  FastTestETHRegistrar: '0x72e64d2c221f42df55745e89c394d2db4f3b48f2' as const,
+  DedicatedResolverImpl: '0x47c4055131c6fbeedb1357b6f4c7bf415d6c4b71' as const,
 } as const
 
 // Payment tokens
