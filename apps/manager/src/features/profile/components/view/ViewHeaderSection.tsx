@@ -51,7 +51,7 @@ export const ViewHeaderSection = ({
             />
           </ImageFallback.Fallback>
         </ImageFallback.Root>
-        <div className="absolute top-4 right-4 z-10">
+        <div className="absolute top-4 right-4">
           <ShareProfileDialog name={name} url={url} avatarUrl={avatar.data} />
         </div>
         <div className="-bottom-10 max-md:-translate-x-1/2 absolute left-1/2 size-24 md:left-6 md:size-36 lg:size-40">

@@ -5,6 +5,79 @@ import type {
 import { INITIAL_PRICING_OPTIONS } from '@/features/register/components/Pricing/utils'
 import { getPremiumLabel } from '@/features/register/utils'
 
+/**
+ * Display State Types
+ * Manages the UI display state for the CheckAvailability component.
+ * Uses a discriminated union pattern for type-safe state management.
+ */
+export type DisplayState =
+  | { type: 'idle' }
+  | { type: 'searching'; domainName: string }
+  | { type: 'available'; domainName: string }
+  | { type: 'unavailable'; domainName: string }
+
+export type DisplayStateInput = {
+  inputValue: string
+  selectedName: string | null
+  isSearching: boolean
+  isAvailable: boolean
+  hasError: boolean
+  hasValidationError: boolean
+}
+
+export type DisplayStateAction =
+  | { type: 'UPDATE_DISPLAY_INPUT'; payload: DisplayStateInput }
+  | { type: 'RESET_DISPLAY' }
+
+const initialDisplayState: DisplayState = { type: 'idle' }
+
+/**
+ * Computes display state based on input values
+ */
+function computeDisplayState(input: DisplayStateInput): DisplayState {
+  const trimmedInput = input.inputValue.trim()
+  const hasInput = trimmedInput.length > 0
+  const selectedName = input.selectedName
+  const isResultMatch =
+    selectedName &&
+    trimmedInput.toLowerCase() === selectedName.trim().toLowerCase()
+  const hasValidResult = !input.hasError && !input.hasValidationError
+
+  // Show loading state while searching
+  if (input.isSearching && hasInput) {
+    return { type: 'searching', domainName: trimmedInput }
+  }
+
+  // Show result if we have a valid match
+  if (isResultMatch && hasValidResult && !input.isSearching) {
+    if (input.isAvailable) {
+      return { type: 'available', domainName: selectedName }
+    }
+    return { type: 'unavailable', domainName: selectedName }
+  }
+
+  // Default to idle state
+  return { type: 'idle' }
+}
+
+export function displayStateReducer(
+  state: DisplayState,
+  action: DisplayStateAction,
+): DisplayState {
+  switch (action.type) {
+    case 'UPDATE_DISPLAY_INPUT':
+      return computeDisplayState(action.payload)
+    case 'RESET_DISPLAY':
+      return initialDisplayState
+    default:
+      return state
+  }
+}
+
+export function createInitialDisplayState(): DisplayState {
+  return initialDisplayState
+}
+
 export const initialState: State = {
   search: {
     searchQuery: '',
