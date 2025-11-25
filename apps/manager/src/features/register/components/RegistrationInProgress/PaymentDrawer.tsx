@@ -337,7 +337,7 @@ export const CryptoPaymentDrawer = ({
           !actionDisabled && 'bg-ens-blue text-white hover:bg-ens-blue-hover',
         )}
         disabled={actionDisabled}
-        onClick={() => handleCryptoContinue({ fast: true })}
+        onClick={() => handleCryptoContinue()}
       >
         Confirm Payment
       </Button>
