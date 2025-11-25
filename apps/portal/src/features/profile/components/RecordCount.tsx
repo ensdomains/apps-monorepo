@@ -1,9 +1,12 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, FileCodeIcon, ListIcon } from 'lucide-react'
 import { useMemo } from 'react'
-import type { Address } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
 export const RecordCount = ({
@@ -13,14 +16,23 @@ export const RecordCount = ({
 }: {
   name: string
   records?: GetRecordsReturnType
-  resolverAddress?: Address
+  resolverAddress: Address
 }) => {
   const recordCount = useMemo(() => {
     if (records) return recordsToTableData(records).length
     else return 0
   }, [records])
 
-  if (!records) return null
+  const { data, isLoading, error } = useQuery({
+    ...getUnderlyingAddressQueryOptions({ name, resolverAddress }),
+    enabled: Boolean(resolverAddress),
+  })
+
+  if (isLoading) return <LoadingSpinner title="Loading underlying resolver" />
+
+  if (error) return <div>Error: {error.cause?.message}</div>
+
+  const underlyingResolverAddress = data?.[0] || undefined
 
   return (
     <div className="flex flex-col rounded-2xl overflow-hidden  border border-gray-300 ">
@@ -42,13 +54,13 @@ export const RecordCount = ({
         />
         <div className="flex-1">
           <span className="font-medium">Resolver</span>
-          {resolverAddress ? (
+          {underlyingResolverAddress ? (
             <CopyableRecord
-              displayValue={`${resolverAddress.slice(0, 6)}...${resolverAddress.slice(-4)}`}
-              value={resolverAddress}
+              displayValue={`${underlyingResolverAddress.slice(0, 6)}...${underlyingResolverAddress.slice(-4)}`}
+              value={underlyingResolverAddress}
             />
           ) : (
-            <span>No resolver found</span>
+            <div>No resolver set</div>
           )}
         </div>
         <Link

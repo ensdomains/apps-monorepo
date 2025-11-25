@@ -58,17 +58,17 @@ const Profile = ({
       <Owner owner={ownerQuery.data?.owner} />
       <ParentName name={name} />
       <TokenLocation name={name} network={network} />
-      <RecordCount
-        name={name}
-        records={profileQuery.data?.records}
-        resolverAddress={resolverAddress}
-      />
-      {ownerQuery.data ? (
-        <SubnameCount
+      {resolverAddress && (
+        <RecordCount
           name={name}
-          registryAddress={ownerQuery.data.registryAddress}
+          records={profileQuery.data?.records}
+          resolverAddress={resolverAddress}
         />
-      ) : null}
+      )}
+      <SubnameCount
+        name={name}
+        registryAddress={ownerQuery.data?.registryAddress}
+      />
       <ProtocolVersionWithCounter name={name} network={network} />
     </div>
   )
@@ -78,17 +78,12 @@ function App() {
   const { name } = useParams({ from: '/$name/' })
 
   const {
-    data: tempResolverAddress,
+    data: resolverAddress,
     isLoading,
     error,
   } = useEnsResolver({
     name,
   })
-
-  const resolverAddress =
-    tempResolverAddress === '0xb5c0FF6c84d352e896d1026193809b8FF248dCdF'
-      ? '0x352d7aA7a8bd0F6f31635BE5ceCb6Cebb6929A15'
-      : tempResolverAddress
 
   if (error) {
     const message =
@@ -96,7 +91,7 @@ function App() {
       (error as Error | undefined)?.message ||
       'Could not load data.'
 
-    if (error && error.name === 'ChainDoesNotSupportContract')
+    if (error.name === 'ChainDoesNotSupportContract')
       return (
         <ErrorMessage
           title="Error loading data"

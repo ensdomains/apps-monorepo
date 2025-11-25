@@ -83,6 +83,9 @@ export const NameList = ({ address }: NameListProps) => {
   return (
     <div className="border rounded-2xl border-gray-300">
       <DataTable data={data} columns={columns} />
+      <div className="bg-secondary p-4 text-center rounded-b-2xl">
+        Full name list Coming Soon
+      </div>
     </div>
   )
 }

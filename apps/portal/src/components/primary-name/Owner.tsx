@@ -15,7 +15,7 @@ export const Owner = ({ owner }: { owner?: Address }) => {
 
   if (!owner)
     return (
-      <div className="flex flex-col">
+      <div className="p-6 flex flex-col rounded-2xl border border-gray-300 hover:bg-gray-100">
         <span className="font-medium">Owner</span>
         <span>No data</span>
       </div>
