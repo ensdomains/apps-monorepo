@@ -5,7 +5,7 @@ import { ErrorMessage } from '@/components/molecules/ErrorMessage'
 import { LoadingMessage } from '@/components/molecules/LoadingMessage'
 import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
 import { Button } from '@/components/ui/button'
-import { NameCount } from '@/features/dashboard/components/NameCount'
+import { NameList } from '@/features/dashboard/components/NameList'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
 export const Route = createFileRoute('/addr/$addr/')({
   component: RouteComponent,
@@ -13,16 +13,16 @@ export const Route = createFileRoute('/addr/$addr/')({
 })
 
 interface PrimaryNameProps {
-  addr: Address
+  address: Address
 }
 
-const PrimaryName = ({ addr }: PrimaryNameProps) => {
+const PrimaryName = ({ address }: PrimaryNameProps) => {
   const {
     data: name,
     isLoading,
     error,
   } = useEnsName({
-    address: addr as Address,
+    address,
   })
 
   if (error) {
@@ -43,10 +43,10 @@ function RouteComponent() {
   const { disconnect } = useDisconnect()
   const { isConnected } = useAccount()
 
-  const { addr } = Route.useParams()
+  const { addr } = Route.useParams() as { addr: Address }
 
   return (
-    <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
+    <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
       <div className="flex flex-row justify-between items-baseline">
         <h1 className="text-[28px] font-medium leading-none">{addr}</h1>
         {isConnected && (
@@ -55,8 +55,9 @@ function RouteComponent() {
           </Button>
         )}
       </div>
-      <PrimaryName addr={addr as Address} />
-      <NameCount address={addr as Address} />
+      <PrimaryName address={addr} />
+      <h2 className="font-medium text-[26px]">Names</h2>
+      <NameList address={addr} />
     </div>
   )
 }

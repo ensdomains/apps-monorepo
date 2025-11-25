@@ -143,7 +143,9 @@ export const GlobalTransactionToasts = ({
     })
 
     return () => {
-      subscriptions.forEach((sub) => sub.unsubscribe())
+      subscriptions.forEach((sub) => {
+        sub.unsubscribe()
+      })
     }
   }, [transactions, enabled, autoDismiss, maxToasts, seenStates])
 

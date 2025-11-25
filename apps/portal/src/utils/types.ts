@@ -1,3 +1,9 @@
 export type WithTimestamp<T> = T & {
   timestamp?: bigint
 }
+
+export type EnsNetworkName = 'sepolia' | 'namechainSepolia'
+
+export type WithEnsNetwork<T> = T & {
+  network: EnsNetworkName
+}

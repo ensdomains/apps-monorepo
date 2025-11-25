@@ -7,15 +7,21 @@ import {
   type GetNameRegistryAddressParameters,
 } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
-import { zeroAddress } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import {
   safeGetClient,
   safeGetNamechainSepoliaClient,
 } from '@/lib/wagmi/helpers'
+import type { WithEnsNetwork } from '@/utils/types'
 
 class nameRegistryError extends TaggedError('nameRegistryError')<{
   cause: GetNameRegistryAddressErrorType
 }> {}
+
+export type GetNameRegistryReturnType = WithEnsNetwork<{
+  registryAddress: Address
+  parentRegistryAddress: Address
+}>
 
 /**
  * Fetches name subregistry and ETH registry
@@ -33,11 +39,11 @@ export const getNameRegistry = ResultFn(async function* (
   )
 
   if (l1RegistryAddress !== zeroAddress) {
-    return ok({
+    return ok<GetNameRegistryReturnType>({
       registryAddress: l1RegistryAddress,
       parentRegistryAddress: params.registryAddress,
       network: 'sepolia',
-    } as const)
+    })
   }
 
   const l2RegistryAddress = yield* await fromPromise(
@@ -46,11 +52,11 @@ export const getNameRegistry = ResultFn(async function* (
       new nameRegistryError({ cause: e as GetNameRegistryAddressErrorType }),
   )
 
-  return ok({
+  return ok<GetNameRegistryReturnType>({
     network: 'namechainSepolia',
     parentRegistryAddress: params.registryAddress,
     registryAddress: l2RegistryAddress,
-  } as const)
+  })
 })
 
 // Query key factory

@@ -29,6 +29,12 @@ type ColumnConfig = {
   defaultNetworkIcon?: string
 }
 
+const formatter = new Intl.DateTimeFormat(undefined, {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
+
 export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
   enableSidebar = true,
   defaultNetworkName = 'Sepolia',
@@ -76,13 +82,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
         if (!timestamp) return <div>-</div>
 
         const date = new Date(Number(timestamp) * 1000)
-        const formatted = new Intl.DateTimeFormat(undefined, {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-        })
-          .format(date)
-          .replace(/-/g, '/')
+        const formatted = formatter.format(date).replace(/-/g, '/')
         return <div>{formatted}</div>
       },
     },

@@ -11,6 +11,14 @@ export const AuditTrailDashboard = () => {
   const [report, setReport] = useState<DebugReport | null>(null)
   const [autoRefresh, setAutoRefresh] = useState(false)
 
+  const handleViewHistory = () => {
+    const transitions = auditTrail.getTransitionHistory({
+      fromTime: Date.now() - 3600000, // Last hour
+      includeErrors: true,
+    })
+    setHistory(transitions)
+  }
+
   useEffect(() => {
     if (autoRefresh) {
       const interval = setInterval(() => {
@@ -19,14 +27,6 @@ export const AuditTrailDashboard = () => {
       return () => clearInterval(interval)
     }
   }, [autoRefresh, handleViewHistory])
-
-  const handleViewHistory = () => {
-    const transitions = auditTrail.getTransitionHistory({
-      fromTime: Date.now() - 3600000, // Last hour
-      includeErrors: true,
-    })
-    setHistory(transitions)
-  }
 
   const handleGenerateReport = () => {
     const debugReport = auditTrail.generateDebugReport()
