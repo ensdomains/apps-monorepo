@@ -424,11 +424,24 @@ export function pollTransactionStatusActor(input: {
   return fromPromise(
     new Promise<void>((resolve, reject) => {
       const subscription = txActor.subscribe((snapshot) => {
+        console.log('🔍 [POLL TX STATUS] Transaction state:', {
+          txId: input.txId,
+          state: snapshot.value,
+          hasError: !!snapshot.context.error,
+          error: snapshot.context.error?.message,
+        })
+
         if (snapshot.matches('success')) {
+          console.log('✅ [POLL TX STATUS] Transaction succeeded')
           subscription.unsubscribe()
           resolve()
         }
-        if (snapshot.matches({ error: {} })) {
+        // Check if we're in any error state (handles nested states like error.submission, error.reverted, etc.)
+        if (typeof snapshot.value === 'object' && 'error' in snapshot.value) {
+          console.error('❌ [POLL TX STATUS] Transaction failed:', {
+            errorState: snapshot.value,
+            error: snapshot.context.error,
+          })
           subscription.unsubscribe()
           reject(snapshot.context.error || new Error('Transaction failed'))
         }
