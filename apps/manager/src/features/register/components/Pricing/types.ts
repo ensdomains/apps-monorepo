@@ -37,6 +37,7 @@ export type PricingProps = {
     selectedToken: string,
     options?: { fast?: boolean },
   ) => void
+  onPricingDataChange?: (finalPrice: number, discountAmount: number) => void
 }
 
 export type PricingDuration = 1 | 2 | 3 | 4 | 5

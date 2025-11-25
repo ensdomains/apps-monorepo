@@ -11,6 +11,7 @@ import { ViewCryptoSection } from './ViewCryptoSection'
 import { ViewDynamicSection } from './ViewDynamicSection'
 import { ViewHeaderSection } from './ViewHeaderSection'
 import { ViewLinksSection } from './ViewLinksSection'
+import { ViewResolverSection } from './ViewResolverSection'
 
 interface ProfileViewProps {
   name: string
@@ -62,6 +63,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
         {/* Right/side column */}
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
           <ViewCryptoSection records={records} />
+          <ViewResolverSection name={name} />
           <ViewLinksSection records={records} />
 
           {/* Edit Button */}

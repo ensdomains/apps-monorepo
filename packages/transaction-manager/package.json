@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ensdomains/address-encoder": "^1.1.2",
     "@ens-apps/utils": "workspace:*",
     "@rhinestone/module-sdk": "^0.4.0",
     "@rhinestone/sdk": "^1.0.2",

@@ -2,7 +2,10 @@ import { AlertCircle, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { PricingDuration } from '@/features/register/components/Pricing/types'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
-import { CreditCardPaymentDrawer, CryptoPaymentDrawer } from '../PaymentDrawer'
+import {
+  CreditCardPaymentDrawer,
+  CryptoPaymentDrawer,
+} from '../RegistrationInProgress/PaymentDrawer'
 
 type PricingPaymentSectionProps = {
   isConnected: boolean

@@ -99,8 +99,8 @@ importers:
         specifier: ^1.1.2
         version: 1.1.4
       '@ensdomains/ensjs':
-        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@69d9a4a
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@69d9a4a(viem@2.39.0(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))
+        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@4cb7069
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@4cb7069(viem@2.39.0(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))
       '@getpara/evm-wallet-connectors':
         specifier: 2.0.0-alpha.72
         version: 2.0.0-alpha.72(@tanstack/react-query@5.90.10(react@19.1.1))(@types/react@19.2.5)(bufferutil@4.0.9)(encoding@0.1.13)(immer@10.2.0)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(typescript@5.9.2)(utf-8-validate@5.0.10)(viem@2.39.0(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))(wagmi@3.0.1)(zod@3.25.76)
@@ -532,6 +532,9 @@ importers:
       '@ens-apps/utils':
         specifier: workspace:*
         version: link:../utils
+      '@ensdomains/address-encoder':
+        specifier: ^1.1.2
+        version: 1.1.4
       '@rhinestone/module-sdk':
         specifier: ^0.4.0
         version: 0.4.0(viem@2.39.0(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@4.1.12))
