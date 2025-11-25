@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMachine } from '@xstate/react'
 import clsx from 'clsx'
 import {
@@ -13,6 +13,7 @@ import {
   Upload,
 } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { useAccount, useChainId, useSignTypedData } from 'wagmi'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -28,6 +29,10 @@ import {
 import { Input } from '@/components/ui/input'
 import { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import {
+  type ImageType,
+  uploadImageMutationOptions,
+} from '@/features/profile/service/profileImageUpload'
 import { cn } from '@/lib/utils'
 import { inspect } from '@/utils/xstate'
 
@@ -45,8 +50,6 @@ const ErrorDisplay = ({ error }: ErrorDisplayProps) => {
     </Alert>
   )
 }
-
-type ImageType = 'avatar' | 'header'
 
 interface ImageSelectionDialogProps {
   currentImage?: string
@@ -70,6 +73,8 @@ export const ImageSelectionDialog = ({
   name,
 }: ImageSelectionDialogProps) => {
   const [open, setOpen] = useState(false)
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dropZoneRef = useRef<HTMLButtonElement>(null)
 
@@ -83,6 +88,10 @@ export const ImageSelectionDialog = ({
 
   // Use resolved image if available, otherwise fall back to original
   const displayImage = resolvedImage.data || currentImage
+
+  const { address, isConnected } = useAccount()
+  const chainId = useChainId()
+  const { signTypedDataAsync } = useSignTypedData()
 
   const [state, send] = useMachine(imageSelectionMachine, {
     input: {
@@ -109,14 +118,16 @@ export const ImageSelectionDialog = ({
     e.stopPropagation()
 
     const files = e.dataTransfer.files
-    if (files.length > 0) {
-      const file = files[0]
-      if (file?.type.startsWith('image/')) {
-        const imageUrl = URL.createObjectURL(file)
-        send({ type: 'OPEN_UPLOAD', imageUrl })
-      } else {
-        send({ type: 'SET_ERROR', error: 'Please select a valid image file' })
-      }
+    if (files.length === 0) return
+
+    const file = files[0]
+    if (file?.type.startsWith('image/')) {
+      const imageUrl = URL.createObjectURL(file)
+      setUploadFile(file)
+      setUploadPreviewUrl(imageUrl)
+      send({ type: 'OPEN_UPLOAD', imageUrl })
+    } else {
+      send({ type: 'SET_ERROR', error: 'Please select a valid image file' })
     }
   }
 
@@ -125,12 +136,31 @@ export const ImageSelectionDialog = ({
     if (file) {
       if (file.type.startsWith('image/')) {
         const imageUrl = URL.createObjectURL(file)
+        setUploadFile(file)
+        setUploadPreviewUrl(imageUrl)
         send({ type: 'OPEN_UPLOAD', imageUrl })
       } else {
         send({ type: 'SET_ERROR', error: 'Please select a valid image file' })
       }
     }
   }
+
+  const { mutate: uploadImage, isPending: isUploading } = useMutation(
+    uploadImageMutationOptions({
+      type,
+      name,
+      uploadFile,
+      isConnected,
+      address,
+      chainId,
+      signTypedDataAsync,
+      onImageChange,
+      setOpen,
+      setUploadFile,
+      setUploadPreviewUrl,
+      send,
+    }),
+  )
 
   // Get appropriate dimensions and styling based on type
   const getImageStyles = (size: 'small' | 'medium' | 'large' = 'medium') => {
@@ -410,7 +440,7 @@ export const ImageSelectionDialog = ({
       <div className="space-y-4">
         <div className="text-center">
           <img
-            src={state.context.uploadedImage || ''}
+            src={uploadPreviewUrl || ''}
             alt="Uploaded"
             className={getImageStyles('large')}
           />
@@ -425,8 +455,8 @@ export const ImageSelectionDialog = ({
         <Button variant="outline" onClick={() => send({ type: 'BACK' })}>
           Back
         </Button>
-        <Button onClick={() => send({ type: 'CONFIRM_UPLOAD' })}>
-          Use This Image
+        <Button onClick={() => uploadImage()} disabled={isUploading}>
+          {isUploading ? 'Uploading…' : 'Upload & Use Image'}
         </Button>
       </DialogFooter>
     </>

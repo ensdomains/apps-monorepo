@@ -6,6 +6,7 @@ import { ProfileView } from '@/features/profile/components/view/ProfileView'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import { profileResolverQuery } from '@/features/profile/service/profileResolver'
 import { seo } from '@/utils/seo'
 
 export const Route = createFileRoute('/p/$name/')({
@@ -14,6 +15,7 @@ export const Route = createFileRoute('/p/$name/')({
       queryClient.ensureQueryData(profileRecordsQuery(name)),
       queryClient.prefetchQuery(profileOwnerQuery(name)),
       queryClient.prefetchQuery(profileExpiryQuery(name)),
+      queryClient.prefetchQuery(profileResolverQuery(name)),
     ])
 
     const description = profileRecords.texts.find(

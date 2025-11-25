@@ -3,22 +3,18 @@ import { zeroAddress, zeroHash } from 'viem'
 export const ENS_SEPOLIA_CONTRACTS = {
   // ENS Registry
   Registry: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e' as const,
-
   // ETH Registrar Controller (for .eth domains)
   ETHRegistrarController: '0xfed6a969aaa60e4961fcd3ebf1a2e8913ac65b72' as const,
-
   // Base Registrar Implementation
   BaseRegistrar: '0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85' as const,
-
   // Public Resolver
-  PublicResolver: '0x9010A27463717360cAD99CEA8bD39b8705CCA238' as const,
-
+  PublicResolver: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const,
+  // Universal Resolver
+  UniversalResolver: '0x352d7aA7a8bd0F6f31635BE5ceCb6Cebb6929A15' as const,
   // Reverse Registrar
   ReverseRegistrar: '0xa58e81fe9b61b5c3fe2afd33cf304c454abfc7cb' as const,
-
   // Name Wrapper
   NameWrapper: '0x0635513f179d50a207757e05759cbd106d7dfce8' as const,
-
   // L2 Registration-specific contracts (V2 deployment)
   ETHRegistry: '0x0f3eb298470639a96bd548cea4a648bc80b2cee2' as const,
   ETHRegistrar: '0x774faadcd7e8c4b7441aa2927f10845fea083ea1' as const,
@@ -35,190 +31,3 @@ export const SUPPORTED_TOKENS = {
 
 export const EMPTY_ADDRESS = zeroAddress
 export const REFERER_ADDRESS = zeroHash
-
-// Fast Test ETH Registrar ABI (for registration)
-export const FAST_TEST_ETH_REGISTRAR_ABI = [
-  {
-    inputs: [{ name: 'commitment', type: 'bytes32' }],
-    name: 'commit',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { name: 'name', type: 'string' },
-      { name: 'owner', type: 'address' },
-      { name: 'secret', type: 'bytes32' },
-      { name: 'subregistry', type: 'address' },
-      { name: 'resolver', type: 'address' },
-      { name: 'duration', type: 'uint64' },
-      { name: 'paymentToken', type: 'address' },
-      { name: 'referrer', type: 'bytes32' },
-    ],
-    name: 'makeCommitmentWithToken',
-    outputs: [{ name: '', type: 'bytes32' }],
-    stateMutability: 'pure',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { name: 'name', type: 'string' },
-      { name: 'owner', type: 'address' },
-      { name: 'secret', type: 'bytes32' },
-      { name: 'subregistry', type: 'address' },
-      { name: 'resolver', type: 'address' },
-      { name: 'duration', type: 'uint64' },
-      { name: 'paymentToken', type: 'address' },
-      { name: 'referrer', type: 'bytes32' },
-    ],
-    name: 'register',
-    outputs: [{ name: 'tokenId', type: 'uint256' }],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { name: 'name', type: 'string' },
-      { name: 'owner', type: 'address' },
-      { name: 'secret', type: 'bytes32' },
-      { name: 'subregistry', type: 'address' },
-      { name: 'resolver', type: 'address' },
-      { name: 'duration', type: 'uint64' },
-      { name: 'referrer', type: 'bytes32' },
-    ],
-    name: 'makeCommitment',
-    outputs: [{ name: '', type: 'bytes32' }],
-    stateMutability: 'pure',
-    type: 'function',
-  },
-  {
-    inputs: [{ name: 'commitment', type: 'bytes32' }],
-    name: 'commitmentAt',
-    outputs: [{ name: '', type: 'uint64' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'MIN_COMMITMENT_AGE',
-    outputs: [{ name: '', type: 'uint64' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'maxCommitmentAge',
-    outputs: [{ name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [{ name: 'name', type: 'string' }],
-    name: 'isAvailable',
-    outputs: [{ name: '', type: 'bool' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { name: 'name', type: 'string' },
-      { name: 'owner', type: 'address' },
-      { name: 'duration', type: 'uint64' },
-      { name: 'paymentToken', type: 'address' },
-    ],
-    name: 'rentPrice',
-    outputs: [
-      { name: 'base', type: 'uint256' },
-      { name: 'premium', type: 'uint256' },
-    ],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [{ name: 'token', type: 'address' }],
-    name: 'isPaymentToken',
-    outputs: [{ name: '', type: 'bool' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-] as const
-
-// ERC20 ABI
-export const ERC20_ABI = [
-  {
-    inputs: [{ name: '_owner', type: 'address' }],
-    name: 'balanceOf',
-    outputs: [{ name: 'balance', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'decimals',
-    outputs: [{ name: '', type: 'uint8' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'symbol',
-    outputs: [{ name: '', type: 'string' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { name: 'spender', type: 'address' },
-      { name: 'amount', type: 'uint256' },
-    ],
-    name: 'approve',
-    outputs: [{ name: '', type: 'bool' }],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { name: 'owner', type: 'address' },
-      { name: 'spender', type: 'address' },
-    ],
-    name: 'allowance',
-    outputs: [{ name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-] as const
-
-// ETH Registrar Controller ABI (only renewal function)
-export const ETH_REGISTRAR_CONTROLLER_ABI = [
-  {
-    inputs: [
-      { internalType: 'string', name: 'name', type: 'string' },
-      { internalType: 'uint256', name: 'duration', type: 'uint256' },
-    ],
-    name: 'renew',
-    outputs: [{ internalType: 'uint256', name: 'cost', type: 'uint256' }],
-    stateMutability: 'payable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { internalType: 'string', name: 'name', type: 'string' },
-      { internalType: 'uint256', name: 'duration', type: 'uint256' },
-    ],
-    name: 'rentPrice',
-    outputs: [
-      {
-        components: [
-          { internalType: 'uint256', name: 'base', type: 'uint256' },
-          { internalType: 'uint256', name: 'premium', type: 'uint256' },
-        ],
-        internalType: 'struct IPriceOracle.Price',
-        name: 'price',
-        type: 'tuple',
-      },
-    ],
-    stateMutability: 'view',
-    type: 'function',
-  },
-] as const

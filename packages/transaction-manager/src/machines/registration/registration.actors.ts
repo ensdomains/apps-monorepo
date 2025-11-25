@@ -8,10 +8,10 @@ import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, PublicClient } from 'viem'
 import { encodeFunctionData, keccak256, toHex } from 'viem'
 import { sepolia } from 'viem/chains'
+import { ERC20_ABI } from '../../contracts/abis/ERC20.abi'
+import { FAST_TEST_ETH_REGISTRAR_ABI } from '../../contracts/abis/FastTestETHRegistrar.abi'
 import {
   ENS_SEPOLIA_CONTRACTS,
-  ERC20_ABI,
-  FAST_TEST_ETH_REGISTRAR_ABI,
   REFERER_ADDRESS,
   SUPPORTED_TOKENS,
 } from '../../contracts/ens-sepolia'
@@ -52,7 +52,7 @@ function generateCommitment(
           ownerAddress,
           secret,
           ENS_SEPOLIA_CONTRACTS.ETHRegistry,
-          ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl,
+          ENS_SEPOLIA_CONTRACTS.PublicResolver,
           duration,
           REFERER_ADDRESS,
         ],
@@ -111,7 +111,7 @@ function encodeRegistrationData(
       ownerAddress,
       secret,
       ENS_SEPOLIA_CONTRACTS.ETHRegistry,
-      ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl,
+      ENS_SEPOLIA_CONTRACTS.PublicResolver,
       duration,
       paymentToken,
       REFERER_ADDRESS,

@@ -3,3 +3,4 @@ coverage
 .claude/
 dist
 .DS_Store
+package-lock.json
