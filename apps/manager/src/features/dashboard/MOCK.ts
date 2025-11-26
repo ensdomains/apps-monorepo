@@ -4,6 +4,8 @@ export type DashboardNameRow = {
   truncatedName?: string
   registrationDate?: Date | null
   expiryDate?: Date | null
+  autoRenewalDate?: Date | null
+  isPrimary?: boolean
   relation: {
     owner?: boolean
     registrant?: boolean
@@ -18,8 +20,10 @@ export const MOCK_DASHBOARD_NAMES: DashboardNameRow[] = [
     id: 'erni.eth',
     name: 'erni.eth',
     truncatedName: 'erni.eth',
-    registrationDate: new Date('2023-02-01'),
-    expiryDate: new Date('2025-02-01'),
+    registrationDate: new Date('2021-12-01'),
+    expiryDate: new Date('2031-12-01'),
+    autoRenewalDate: new Date('2031-12-01'),
+    isPrimary: true,
     relation: {
       owner: true,
       registrant: true,
@@ -31,8 +35,9 @@ export const MOCK_DASHBOARD_NAMES: DashboardNameRow[] = [
     id: 'lizard.eth',
     name: 'lizard.eth',
     truncatedName: 'lizard.eth',
-    registrationDate: new Date('2022-11-15'),
-    expiryDate: new Date('2024-11-15'),
+    registrationDate: new Date('2023-05-17'),
+    expiryDate: new Date('2033-05-17'),
+    autoRenewalDate: new Date('2033-05-17'),
     relation: {
       owner: true,
       registrant: true,
@@ -43,8 +48,9 @@ export const MOCK_DASHBOARD_NAMES: DashboardNameRow[] = [
     id: 'supername.eth',
     name: 'supername.eth',
     truncatedName: 'supername.eth',
-    registrationDate: new Date('2021-06-30'),
-    expiryDate: new Date('2025-06-30'),
+    registrationDate: new Date('2022-11-02'),
+    expiryDate: new Date('2032-11-02'),
+    autoRenewalDate: new Date('2032-11-02'),
     relation: {
       owner: true,
       wrappedOwner: true,
@@ -54,8 +60,9 @@ export const MOCK_DASHBOARD_NAMES: DashboardNameRow[] = [
     id: 'mywallet.eth',
     name: 'mywallet.eth',
     truncatedName: 'mywallet.eth',
-    registrationDate: new Date('2020-09-10'),
-    expiryDate: new Date('2024-09-10'),
+    registrationDate: new Date('2021-12-05'),
+    expiryDate: new Date('2031-12-05'),
+    autoRenewalDate: new Date('2031-12-05'),
     relation: {
       owner: true,
       registrant: true,
@@ -65,8 +72,9 @@ export const MOCK_DASHBOARD_NAMES: DashboardNameRow[] = [
     id: 'favourite.eth',
     name: 'favourite.eth',
     truncatedName: 'favourite.eth',
-    registrationDate: new Date('2023-08-20'),
-    expiryDate: new Date('2026-08-20'),
+    registrationDate: new Date('2020-01-15'),
+    expiryDate: new Date('2030-01-15'),
+    autoRenewalDate: new Date('2030-01-15'),
     relation: {
       owner: true,
       resolvedAddress: true,

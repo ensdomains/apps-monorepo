@@ -9,11 +9,11 @@ import { getNamesForAddress as ensjs_getNamesForAddress } from '@ensdomains/ensj
 import { useWallet } from '@getpara/react-sdk-lite'
 import { skipToken, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Info, Star } from 'lucide-react'
+import { ChevronDown, Info, MoreHorizontal, Search, Star } from 'lucide-react'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { Badge } from '@/components/ui/badge'
-import { LinkButton } from '@/components/ui/button'
+import { Button, LinkButton } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -26,6 +26,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import { DashboardSidebar } from '@/features/dashboard/components/DashboardSidebar'
 import {
   type DashboardNameRow,
@@ -205,26 +207,32 @@ const NamesTable = ({
 }) => {
   if (isLoading) {
     return (
-      <div className="py-6 text-center text-muted-foreground text-sm">
-        Loading your names...
-      </div>
+      <Card className="border bg-white/90">
+        <CardContent className="py-6 text-center text-muted-foreground text-sm">
+          Loading your names...
+        </CardContent>
+      </Card>
     )
   }
 
   if (error) {
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-destructive text-sm">
-        <Info className="size-4" />
-        <span>We couldn&apos;t load your names. Please try again.</span>
-      </div>
+      <Card className="border bg-white/90">
+        <CardContent className="flex items-center gap-2 border border-destructive/40 bg-destructive/5 px-4 py-3 text-destructive text-sm">
+          <Info className="size-4" />
+          <span>We couldn&apos;t load your names. Please try again.</span>
+        </CardContent>
+      </Card>
     )
   }
 
   if (!names || names.length === 0) {
     return (
-      <div className="py-6 text-center text-muted-foreground text-sm">
-        No ENS names found for this wallet yet.
-      </div>
+      <Card className="border bg-white/90">
+        <CardContent className="py-6 text-center text-muted-foreground text-sm">
+          No ENS names found for this wallet yet.
+        </CardContent>
+      </Card>
     )
   }
 
@@ -232,75 +240,195 @@ const NamesTable = ({
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-xl border bg-white/90">
-        <table className="min-w-full text-left text-sm">
-          <thead className="border-b bg-muted/40 text-muted-foreground text-xs uppercase">
-            <tr>
-              <th className="px-4 py-3 font-medium">Name</th>
-              <th className="px-4 py-3 font-medium">Registered</th>
-              <th className="px-4 py-3 font-medium">Expires</th>
-              <th className="px-4 py-3 font-medium">Relation</th>
-            </tr>
-          </thead>
-          <tbody>
-            {names.map((name) => (
-              <tr
+      <Card className="border bg-white/90">
+        <CardHeader className="border-b pb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-lg">My Names</h3>
+              <Badge variant="lightBlue" className="rounded-full px-2 py-0.5">
+                {names.length}
+              </Badge>
+            </div>
+            <div className="w-64">
+              <Input
+                size="sm"
+                placeholder="Search my name..."
+                startIcon={<Search className="size-4" />}
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center gap-6 text-muted-foreground text-xs">
+            <div className="w-6" />
+            <div className="flex flex-1 items-center gap-1">
+              <span>Name</span>
+              <ChevronDown className="size-3" />
+            </div>
+            <div className="flex w-40 items-center gap-1">
+              <span>Registered on</span>
+              <ChevronDown className="size-3" />
+            </div>
+            <div className="flex w-40 items-center gap-1">
+              <span>Expiry</span>
+              <ChevronDown className="size-3" />
+            </div>
+            <div className="flex w-40 items-center gap-1">
+              <span>Autorenewal</span>
+              <ChevronDown className="size-3" />
+            </div>
+            <div className="w-6" />
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-0">
+          <div className="flex items-center gap-3 border-b px-6 py-3 text-xs">
+            <input
+              type="checkbox"
+              className="size-4 rounded border border-gray-300"
+              aria-label="Select all"
+            />
+            <span className="font-medium text-muted-foreground">
+              Select all
+            </span>
+          </div>
+
+          {names.map((name) => {
+            const daysUntilExpiry =
+              name.expiryDate != null
+                ? Math.ceil(
+                    (name.expiryDate.getTime() - Date.now()) /
+                      (1000 * 60 * 60 * 24),
+                  )
+                : null
+
+            const expiresLabel =
+              daysUntilExpiry != null && daysUntilExpiry > 0
+                ? `Expires in ${daysUntilExpiry} days`
+                : null
+
+            return (
+              <div
                 key={name.id}
-                className="border-b last:border-b-0 hover:bg-muted/40"
+                className="flex items-start gap-4 border-b px-6 py-4 last:border-b-0"
               >
-                <td className="px-4 py-3">
-                  {name.name ? (
-                    <Link
-                      to="/p/$name"
-                      params={{ name: name.name }}
-                      className="font-medium text-ens-blue hover:underline"
-                    >
-                      {name.name}
-                    </Link>
-                  ) : (
-                    <span className="font-mono text-muted-foreground text-xs">
-                      {name.id.slice(0, 10)}…
-                    </span>
+                <div className="pt-2">
+                  <input
+                    type="checkbox"
+                    className="size-4 rounded border border-gray-300"
+                    aria-label={`Select ${name.name}`}
+                  />
+                </div>
+
+                <div className="flex flex-1 flex-col gap-2">
+                  {name.isPrimary && (
+                    <div className="inline-flex items-center gap-2">
+                      <Badge
+                        variant="lightBlue"
+                        className="rounded-full px-2 py-0.5 text-xs"
+                      >
+                        Primary Name
+                      </Badge>
+                    </div>
                   )}
-                </td>
-                <td className="px-4 py-3">
-                  {formatDate(name.registrationDate ?? null)}
-                </td>
-                <td className="px-4 py-3">
-                  {formatDate(name.expiryDate ?? null)}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-1">
-                    {name.relation.owner && (
-                      <Badge variant="outline" className="text-xs">
-                        Owner
-                      </Badge>
-                    )}
-                    {name.relation.registrant && (
-                      <Badge variant="outline" className="text-xs">
-                        Registrant
-                      </Badge>
-                    )}
-                    {name.relation.resolvedAddress && (
-                      <Badge variant="outline" className="text-xs">
-                        Resolver
-                      </Badge>
-                    )}
-                    {name.relation.wrappedOwner && (
-                      <Badge variant="outline" className="text-xs">
-                        Wrapped
-                      </Badge>
-                    )}
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-9 items-center justify-center rounded-full bg-muted" />
+                    <Button
+                      asChild
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto p-0 text-ens-blue hover:bg-transparent"
+                    >
+                      <Link to="/p/$name" params={{ name: name.name }}>
+                        <span className="font-semibold text-sm">
+                          {name.name}
+                        </span>
+                      </Link>
+                    </Button>
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div className="border-t bg-muted/40 px-4 py-3 text-center text-muted-foreground text-xs">
-          Showing {names.length} name{names.length === 1 ? '' : 's'} on Sepolia
-        </div>
-      </div>
+
+                  <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                    <span>Make Primary Name</span>
+                    <Switch checked={name.isPrimary} disabled aria-hidden />
+                  </div>
+                </div>
+
+                <div className="w-40 pt-2 text-sm">
+                  {formatDate(name.registrationDate ?? null)}
+                </div>
+
+                <div className="w-40 pt-2 text-sm">
+                  <div>{formatDate(name.expiryDate ?? null)}</div>
+                  <button
+                    type="button"
+                    className="mt-1 font-medium text-ens-blue text-xs"
+                  >
+                    Extend →
+                  </button>
+                  {expiresLabel && (
+                    <div className="mt-1 inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">
+                      <span className="mr-1 inline-block size-1.5 rounded-full bg-amber-500" />
+                      {expiresLabel}
+                    </div>
+                  )}
+                </div>
+
+                <div className="w-40 pt-2 text-sm">
+                  <div>
+                    {formatDate(name.autoRenewalDate ?? name.expiryDate)}
+                  </div>
+                  <button
+                    type="button"
+                    className="mt-1 font-medium text-ens-blue text-xs"
+                  >
+                    Autorenewals →
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  className="mt-2 ml-auto text-muted-foreground"
+                  aria-label="More actions"
+                >
+                  <MoreHorizontal className="size-5" />
+                </button>
+              </div>
+            )
+          })}
+
+          <div className="flex items-center justify-between border-t px-6 py-3 text-muted-foreground text-xs">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="flex size-7 items-center justify-center rounded-full border border-gray-300 text-gray-500"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                className="flex size-7 items-center justify-center rounded-full bg-ens-blue text-white"
+              >
+                1
+              </button>
+              <button
+                type="button"
+                className="flex size-7 items-center justify-center rounded-full border border-gray-300 text-gray-500"
+              >
+                2
+              </button>
+              <button
+                type="button"
+                className="flex size-7 items-center justify-center rounded-full border border-gray-300 text-gray-500"
+              >
+                ›
+              </button>
+            </div>
+            <span>
+              Showing 1-{Math.min(5, names.length)} of {names.length}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="border bg-white/90">
         <CardHeader>
