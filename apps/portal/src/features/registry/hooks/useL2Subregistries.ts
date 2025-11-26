@@ -70,7 +70,7 @@ export const getL2NameRegistries = ResultFn(async function* (
   //   pathLabels        = ["test", "flo"]
   //   reversed          = ["flo", "test"]
   //   L2_ETH_REGISTRY --flo--> flo.eth registry --test--> test.flo.eth registry
-  const reversed = [...pathLabels].reverse()
+  const reversed = pathLabels.toReversed()
 
   let parentRegistry: Address = L2_ETH_REGISTRY
   const registries: Address[] = []
