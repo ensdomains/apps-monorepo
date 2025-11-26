@@ -48,7 +48,6 @@ function RouteComponent() {
   }
 
   if (error) {
-    // TaggedError or Wagmi error – both should have .message
     const message =
       error instanceof Error
         ? error.message

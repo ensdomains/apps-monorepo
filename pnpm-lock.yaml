@@ -76,7 +76,7 @@ importers:
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: ^1.12.3
-        version: 1.15.2(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.20.6))(workerd@1.20251118.0)
+        version: 1.15.2(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.20.6))(workerd@1.20251118.0)(wrangler@4.50.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))
       vite:
         specifier: ^7.1.5
         version: 7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.20.6)
@@ -239,7 +239,7 @@ importers:
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: ^1.13.10
-        version: 1.15.2(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.20.6))(workerd@1.20251118.0)
+        version: 1.15.2(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.20.6))(workerd@1.20251118.0)(wrangler@4.50.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))
       '@statelyai/inspect':
         specifier: ^0.4.0
         version: 0.4.0(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(xstate@5.24.0(patch_hash=cd60a6eae163806e90144605b7835f441bcc3c7b456b9ad4eb0a7215997f36a5))
@@ -322,8 +322,8 @@ importers:
         specifier: ^1.1.2
         version: 1.1.4
       '@ensdomains/ensjs':
-        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@7687668
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@7687668(viem@2.40.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76))
+        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f7e4bc5
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f7e4bc5(viem@2.40.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76))
       '@ensdomains/locales':
         specifier: workspace:^
         version: link:../../packages/locales
@@ -447,7 +447,7 @@ importers:
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: ^1.13.13
-        version: 1.15.2(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.20.6))(workerd@1.20251118.0)
+        version: 1.15.2(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.20.6))(workerd@1.20251118.0)(wrangler@4.50.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))
       '@ensdomains/vite-plugin-i18next-loader':
         specifier: ^4.0.3
         version: 4.0.3(vite@7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.20.6))
@@ -506,8 +506,8 @@ importers:
   packages/l2-primary:
     dependencies:
       '@ensdomains/ensjs':
-        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@c2c65dc
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@c2c65dc(viem@2.40.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76))
+        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f7e4bc5
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f7e4bc5(viem@2.40.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76))
     devDependencies:
       '@tanstack/react-query':
         specifier: ^5.0.0
@@ -900,6 +900,7 @@ packages:
     resolution: {integrity: sha512-SPMxsesbABOjzcAa4IzW+yM+fTIjx3GG1doh229Pg16FjSEZJhknyRpcld4gnaZioK3JKwG9FWdKsUhbplKY8w==}
     peerDependencies:
       vite: ^6.1.0 || ^7.0.0
+      wrangler: ^4.50.0
 
   '@cloudflare/workerd-darwin-64@1.20251118.0':
     resolution: {integrity: sha512-UmWmYEYS/LkK/4HFKN6xf3Hk8cw70PviR+ftr3hUvs9HYZS92IseZEp16pkL6ZBETrPRpZC7OrzoYF7ky6kHsg==}
@@ -1010,15 +1011,8 @@ packages:
     peerDependencies:
       viem: ^2.9.2
 
-  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@7687668':
-    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@7687668}
-    version: 5.0.0-alpha.1
-    engines: {node: '>=22'}
-    peerDependencies:
-      viem: ^2.9.2
-
-  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@c2c65dc':
-    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@c2c65dc}
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f7e4bc5':
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f7e4bc5}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
     peerDependencies:
@@ -7861,7 +7855,7 @@ snapshots:
     optionalDependencies:
       workerd: 1.20251118.0
 
-  '@cloudflare/vite-plugin@1.15.2(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.20.6))(workerd@1.20251118.0)':
+  '@cloudflare/vite-plugin@1.15.2(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.20.6))(workerd@1.20251118.0)(wrangler@4.50.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))':
     dependencies:
       '@cloudflare/unenv-preset': 2.7.11(unenv@2.0.0-rc.24)(workerd@1.20251118.0)
       '@remix-run/node-fetch-server': 0.8.1
@@ -7874,7 +7868,6 @@ snapshots:
       wrangler: 4.50.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       ws: 8.18.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
-      - '@cloudflare/workers-types'
       - bufferutil
       - utf-8-validate
       - workerd
@@ -8093,19 +8086,7 @@ snapshots:
       ts-pattern: 5.9.0
       viem: 2.40.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
 
-  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@7687668(viem@2.40.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76))':
-    dependencies:
-      '@adraffy/ens-normalize': 1.10.1
-      '@ensdomains/address-encoder': 1.1.1
-      '@ensdomains/content-hash': 3.1.0-rc.1
-      '@ensdomains/dnsprovejs': 0.5.2
-      dns-packet: 5.6.1
-      graphql: 16.12.0
-      graphql-request: 7.2.0(graphql@16.12.0)
-      ts-pattern: 5.9.0
-      viem: 2.40.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
-
-  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@c2c65dc(viem@2.40.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76))':
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f7e4bc5(viem@2.40.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76))':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 1.1.1
