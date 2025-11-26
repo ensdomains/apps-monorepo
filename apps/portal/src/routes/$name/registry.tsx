@@ -106,7 +106,7 @@ function RouteComponent() {
                 address: parent.registry,
               }}
               owner={{
-                address: parent.owner ?? zeroAddress,
+                address: data?.owner ?? zeroAddress,
               }}
               network={parentNetwork}
             />
@@ -116,7 +116,7 @@ function RouteComponent() {
               registry={{
                 address: parent.registry,
                 owner: {
-                  address: parent.owner ?? zeroAddress,
+                  address: data?.owner ?? zeroAddress,
                 },
                 network: parentNetwork,
                 protocol: 'ENSv2',
@@ -143,7 +143,7 @@ function RouteComponent() {
           <RegistryHeaderCards
             owner={{
               name: undefined,
-              address: current.owner ?? zeroAddress,
+              address: data?.owner ?? zeroAddress,
             }}
             network={{
               name: currentNetwork.name,
@@ -155,7 +155,7 @@ function RouteComponent() {
             registry={{
               address: current.registry,
               owner: {
-                address: current.owner ?? zeroAddress,
+                address: data?.owner ?? zeroAddress,
               },
               network: {
                 name: currentNetwork.name,
@@ -176,7 +176,7 @@ function RouteComponent() {
               address: parent.registry,
             }}
             owner={{
-              address: parent.owner ?? zeroAddress,
+              address: data?.owner ?? zeroAddress,
             }}
             network={parentNetwork}
           />
@@ -185,7 +185,7 @@ function RouteComponent() {
             registry={{
               address: parent.registry,
               owner: {
-                address: parent.owner ?? zeroAddress,
+                address: data?.owner ?? zeroAddress,
               },
               network: {
                 name: parentNetwork.name,

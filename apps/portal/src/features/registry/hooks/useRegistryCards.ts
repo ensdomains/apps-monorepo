@@ -4,13 +4,11 @@ import {
   VERIFIABLE_FACTORY_L1,
   VERIFIABLE_FACTORY_L2,
 } from '@/lib/constants/verifiableFactory'
-import type { EnsNetworkName } from '../../../utils/types'
+import type { EnsNetworkName } from '@/utils/types'
 import { useNameRegistryDiscovery } from './useNameRegistryDiscovery'
-import { useRegistryOwners } from './useRegistryOwners'
 
 export type RegistryCard = {
   registry: Address | null
-  owner: Address | null
   chainId: number | null
   hasCurrentRegistry?: boolean
   factory: Address | null
@@ -38,23 +36,14 @@ export function useRegistryCards({
   chainLocation: EnsNetworkName | undefined
   enabled?: boolean
 }): UseRegistryCardsReturn {
-  const discovery = useNameRegistryDiscovery({ name, chainLocation, enabled })
-
   const {
     currentRegistry,
     parentRegistry,
     subregistries,
     hasCurrentRegistry,
-    isLoading: isLoadingDiscovery,
-    error: discoveryError,
-  } = discovery
-
-  const owners = useRegistryOwners({
-    name,
-    currentRegistry,
-    parentRegistry,
-    enabled,
-  })
+    isLoading,
+    error,
+  } = useNameRegistryDiscovery({ name, chainLocation, enabled })
 
   const chainIdForCurrent = sepolia.id
 
@@ -68,19 +57,17 @@ export function useRegistryCards({
   return {
     current: {
       registry: currentRegistry,
-      owner: owners.currentOwner,
       chainId: chainIdForCurrent,
       hasCurrentRegistry,
       factory,
     },
     parent: {
       registry: parentRegistry,
-      owner: owners.parentOwner,
-      chainId: chainIdForCurrent, // both roots on Sepolia for now
+      chainId: chainIdForCurrent,
       factory,
     },
     all: subregistries.map((r, i) => ({ registry: r, depth: i })),
-    isLoading: isLoadingDiscovery || owners.isLoading,
-    error: (discoveryError || owners.error) as Error | null,
+    isLoading,
+    error: error as Error | null,
   }
 }
