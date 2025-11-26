@@ -5,7 +5,6 @@ import {
   getNameRegistryAddress as ensjs_getNameRegistryAddress,
   type GetNameRegistryAddressErrorType,
 } from '@ensdomains/ensjs/public/v2'
-import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
@@ -53,13 +52,13 @@ export const getL2NameRegistries = ResultFn(async function* (
 
   const labels = name.split('.')
   if (labels.length < 2) {
-    return ok({
+    return ok<L2NameRegistriesResult>({
       rootRegistry: namechainEthRegistryAddress,
       currentRegistry: null,
       parentRegistry: null,
-      registries: [] as Address[],
+      registries: [],
       hasCurrentRegistry: false,
-    } satisfies L2NameRegistriesResult)
+    })
   }
 
   // Drop the TLD (eth) – we'll walk everything "under" .eth
@@ -89,26 +88,22 @@ export const getL2NameRegistries = ResultFn(async function* (
 
     registries.unshift(registryAddress)
 
-    if (registryAddress === zeroAddress) {
-      break
-    }
-
+    if (registryAddress === zeroAddress) break
     parentRegistry = registryAddress
   }
 
   const currentRegistry = registries[0] ?? null
-  const parentRegistryForName = registries[1] ?? namechainEthRegistryAddress // for 2LDs, parent is the L2 .eth registry
-
+  const parentRegistryForName = registries[1] ?? namechainEthRegistryAddress
   const hasCurrentRegistry =
     !!currentRegistry && currentRegistry !== zeroAddress
 
-  return ok({
+  return ok<L2NameRegistriesResult>({
     rootRegistry: namechainEthRegistryAddress,
     currentRegistry,
     parentRegistry: parentRegistryForName,
     registries,
     hasCurrentRegistry,
-  } satisfies L2NameRegistriesResult)
+  })
 })
 
 export const l2NameRegistriesQueryKey = createQueryKey<
@@ -124,51 +119,3 @@ export const getL2NameRegistriesQueryOptions = (
     queryFn: ({ queryKey: [, params] }) => getL2NameRegistries(params),
     ...REGISTRY_CACHE,
   })
-
-export type UseL2SubregistriesParams = {
-  name: string
-  enabled?: boolean
-}
-
-export type UseL2SubregistriesReturn = {
-  rootRegistry: Address | null
-  currentRegistry: Address | null
-  parentRegistry: Address | null
-  subregistries: readonly Address[]
-  hasCurrentRegistry: boolean
-  isLoading: boolean
-  error: Error | null
-}
-
-/**
- * L2 equivalent of useNameSubregistries, using getNameRegistryAddress
- * to walk the hierarchy under the L2 .eth registry.
- */
-export function useL2Subregistries({
-  name,
-  enabled = true,
-}: UseL2SubregistriesParams): UseL2SubregistriesReturn {
-  const { data, isLoading, error } = useQuery({
-    ...getL2NameRegistriesQueryOptions({ name }),
-    enabled,
-    placeholderData: (prev) => prev,
-  })
-
-  const result = data as L2NameRegistriesResult | undefined
-
-  const rootRegistry = result?.rootRegistry ?? namechainEthRegistryAddress
-  const currentRegistry = result?.currentRegistry ?? null
-  const parentRegistry = result?.parentRegistry ?? null
-  const subregistries = (result?.registries ?? []) as readonly Address[]
-  const hasCurrentRegistry = result?.hasCurrentRegistry ?? false
-
-  return {
-    rootRegistry,
-    currentRegistry,
-    parentRegistry,
-    subregistries,
-    hasCurrentRegistry,
-    isLoading,
-    error: error as Error | null,
-  }
-}

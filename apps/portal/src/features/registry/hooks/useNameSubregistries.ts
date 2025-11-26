@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { sepoliaEthRegistryAddress } from '@/lib/constants/registry'
+import { REGISTRY_CACHE } from '@/lib/query/cache'
 import { isZeroAddress } from '@/lib/utils'
-import { REGISTRY_CACHE } from '../../../lib/query/cache'
 import { splitLabels } from '../utils/nameUtils'
 import { getNameRegistry, nameRegistryQueryKey } from './useNameRegistry'
 
@@ -53,9 +53,8 @@ export function useNameSubregistries({
       registryAddress: sepoliaEthRegistryAddress,
       label: reversed[0] ?? '',
     }),
-
     queryFn: async () => {
-      if (tooShort) return { registries: [] }
+      if (tooShort) return { registries: [] as Address[] }
 
       let parent: Address = sepoliaEthRegistryAddress
       const registries: Address[] = []
@@ -77,13 +76,11 @@ export function useNameSubregistries({
 
       return { registries }
     },
-
     enabled,
     ...REGISTRY_CACHE,
     placeholderData: (prev) => prev,
   })
 
-  // For too-short names, skip the registry-return logic
   if (tooShort) {
     return {
       rootRegistry: sepoliaEthRegistryAddress,
@@ -96,8 +93,7 @@ export function useNameSubregistries({
     }
   }
 
-  const registries = query.data?.registries ?? []
-
+  const registries = (query.data?.registries ?? []) as readonly Address[]
   const currentRegistry = registries[0] ?? null
   const parentRegistry = registries[1] ?? sepoliaEthRegistryAddress
   const hasCurrentRegistry =
