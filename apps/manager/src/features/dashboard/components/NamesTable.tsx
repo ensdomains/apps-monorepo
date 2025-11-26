@@ -1,14 +1,8 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronDown, Info, MoreHorizontal, Search, Star } from 'lucide-react'
+import { ChevronDown, Heart, Info, MoreHorizontal, Search } from 'lucide-react'
 import { useMemo } from 'react'
 import { Badge } from '@/components/ui/badge'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import type { DashboardNameRow } from '@/features/dashboard/MOCK'
@@ -73,7 +67,9 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
       <CardHeader className="border-b pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold font-serif text-lg">My Names</h3>
+            <CardTitle className="font-semibold font-serif text-lg">
+              My Names
+            </CardTitle>
             <Badge variant="lightBlue" className="rounded-full px-2 py-0.5">
               {displayNames.length}
             </Badge>
@@ -255,43 +251,105 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
 
 export const FavoritesCard = ({ names }: { names?: DashboardNameRow[] }) => {
   const displayNames = useMemo(() => names ?? [], [names])
-  const favouriteSlice = displayNames.slice(0, 3)
+  const favouriteSlice = displayNames.slice(0, 5)
 
   return (
     <Card className="border bg-white/90">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 font-serif text-base">
-          Favourites List
-        </CardTitle>
-        <CardDescription>
-          A quick list of names you use the most.
-        </CardDescription>
+      <CardHeader className="border-b pb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CardTitle className="font-semibold font-serif text-lg">
+              Favourites List
+            </CardTitle>
+            <Badge variant="lightBlue" className="rounded-full px-2 py-0.5">
+              {displayNames.length}
+            </Badge>
+          </div>
+          <div className="w-64">
+            <Input
+              size="sm"
+              placeholder="Search name..."
+              startIcon={<Search className="size-4" />}
+            />
+          </div>
+        </div>
+        <div className="mt-4 flex items-center justify-between text-muted-foreground text-xs">
+          <div className="flex items-center gap-1">
+            <span>Name</span>
+            <ChevronDown className="size-3" />
+          </div>
+          <span className="pr-4">Notifications</span>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="p-0">
         {favouriteSlice.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
+          <div className="px-6 py-4 text-muted-foreground text-sm">
             When you start collecting names, you&apos;ll be able to pin your
             favourites here.
-          </p>
+          </div>
         ) : (
-          <ul className="space-y-2">
-            {favouriteSlice.map((name) => (
-              <li
-                key={name.id}
-                className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2"
-              >
-                <div className="flex items-center gap-2">
-                  <Star className="size-4 text-ens-blue" />
-                  <span className="rounded-[12px] bg-ens-blue/10 px-2 py-0.5 font-sans font-semibold text-ens-blue text-sm">
-                    {name.name ?? name.truncatedName ?? 'Unnamed'}
-                  </span>
-                </div>
-                <span className="text-muted-foreground text-xs">
-                  Expires {formatDate(name.expiryDate ?? null)}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="divide-y">
+              {favouriteSlice.map((name, index) => (
+                <li
+                  key={name.id}
+                  className="flex items-center justify-between px-6 py-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <Heart className="size-4 text-pink-500" fill="#ec4899" />
+                    <div className="flex size-9 items-center justify-center rounded-full bg-muted" />
+                    <Link
+                      to="/p/$name"
+                      params={{ name: name.name }}
+                      className="rounded-[12px] bg-ens-blue/10 px-3 py-1 font-sans font-semibold text-ens-blue text-sm hover:bg-ens-blue/15"
+                    >
+                      {name.name ?? name.truncatedName ?? 'Unnamed'}
+                    </Link>
+                  </div>
+                  <Switch checked={index === 0} aria-label="Notifications" />
+                </li>
+              ))}
+            </ul>
+            <div className="flex items-center justify-between border-t px-6 py-3 text-muted-foreground text-xs">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="flex size-7 items-center justify-center rounded-full border border-gray-300 text-gray-500"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  className="flex size-7 items-center justify-center rounded-full bg-ens-blue text-white"
+                >
+                  1
+                </button>
+                <button
+                  type="button"
+                  className="flex size-7 items-center justify-center rounded-full border border-gray-300 text-gray-500"
+                >
+                  2
+                </button>
+                <span className="px-1">…</span>
+                <button
+                  type="button"
+                  className="flex size-7 items-center justify-center rounded-full border border-gray-300 text-gray-500"
+                >
+                  32
+                </button>
+                <button
+                  type="button"
+                  className="flex size-7 items-center justify-center rounded-full border border-gray-300 text-gray-500"
+                >
+                  ›
+                </button>
+              </div>
+              <span>
+                Showing 1-{Math.min(5, displayNames.length)} of{' '}
+                {displayNames.length}
+              </span>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>
