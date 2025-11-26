@@ -20,8 +20,6 @@ export const Route = createFileRoute('/p/$name/')({
         profileReverseNameQuery(name as Address),
       )
 
-      console.log('reverseName', reverseName)
-
       resolvedName = reverseName.name
     }
 
