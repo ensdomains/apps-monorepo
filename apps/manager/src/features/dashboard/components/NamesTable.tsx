@@ -2,7 +2,6 @@ import { Link } from '@tanstack/react-router'
 import { ChevronDown, Info, MoreHorizontal, Search, Star } from 'lucide-react'
 import { useMemo } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -166,16 +165,13 @@ export const NamesTable = ({ names, isLoading, error }: NamesTableProps) => {
 
                   <div className="flex items-center gap-3">
                     <div className="flex size-9 items-center justify-center rounded-full bg-muted" />
-                    <Button
-                      asChild
-                      variant="ghost"
-                      size="sm"
+                    <Link
+                      to="/p/$name"
+                      params={{ name: name.name }}
                       className="h-auto rounded-[12px] bg-ens-blue/10 px-3 py-1 font-sans font-semibold text-ens-blue text-sm hover:bg-ens-blue/15"
                     >
-                      <Link to="/p/$name" params={{ name: name.name }}>
-                        {name.name}
-                      </Link>
-                    </Button>
+                      {name.name}
+                    </Link>
                   </div>
 
                   <div className="flex items-center gap-2 text-muted-foreground text-xs">
