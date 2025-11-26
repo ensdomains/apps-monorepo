@@ -1,13 +1,3 @@
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
-import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import type {
-  GetNamesForAddressErrorType,
-  GetNamesForAddressParameters,
-} from '@ensdomains/ensjs/subgraph'
-import { getNamesForAddress as ensjs_getNamesForAddress } from '@ensdomains/ensjs/subgraph'
-import { useWallet } from '@getpara/react-sdk-lite'
-import { skipToken, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
   Calendar,
@@ -18,8 +8,6 @@ import {
   Search,
   Star,
 } from 'lucide-react'
-import { fromPromise, ok } from 'neverthrow'
-import type { Address } from 'viem'
 import { Badge } from '@/components/ui/badge'
 import { Button, LinkButton } from '@/components/ui/button'
 import {
@@ -39,53 +27,9 @@ import { Switch } from '@/components/ui/switch'
 import { DashboardSidebar } from '@/features/dashboard/components/DashboardSidebar'
 import {
   type DashboardNameRow,
+  MOCK_DASHBOARD_HEADER,
   MOCK_DASHBOARD_NAMES,
 } from '@/features/dashboard/MOCK'
-import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
-import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
-import { safeGetClient } from '@/lib/wagmi/helpers'
-
-class GetDashboardNamesError extends TaggedError('GetDashboardNamesError')<{
-  cause: GetNamesForAddressErrorType
-}> {}
-
-const dashboardNamesQueryKey = createQueryKey<
-  'dashboard-names',
-  { address: Address | undefined }
->('dashboard-names')
-
-const getDashboardNames = ResultFn(async function* (
-  params: GetNamesForAddressParameters,
-) {
-  const client = yield* safeGetClient()
-
-  const names = yield* await fromPromise(
-    // biome-ignore lint/suspicious/noExplicitAny: ENSJS subgraph client typing is more specific than our Wagmi client
-    ensjs_getNamesForAddress(client as any, params),
-    (e) =>
-      new GetDashboardNamesError({
-        cause: e as GetNamesForAddressErrorType,
-      }),
-  )
-
-  return ok(names)
-})
-
-const getDashboardNamesQueryOptions = (
-  address: Address | undefined,
-  // Use skipToken behaviour when address is undefined
-) =>
-  resultQueryOptions({
-    queryKey: dashboardNamesQueryKey({ address }),
-    queryFn: address
-      ? () =>
-          getDashboardNames({
-            address,
-            orderBy: 'createdAt',
-            orderDirection: 'desc',
-          })
-      : skipToken,
-  })
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
@@ -133,32 +77,32 @@ const faqItems = [
   },
 ]
 
+type PrimaryNameCardProps = {
+  primaryName: string
+  address: string
+  registeredDate: Date
+  expiryDate: Date
+  avatarUrl?: string | null
+}
+
 const PrimaryNameCard = ({
   primaryName,
   address,
-}: {
-  primaryName?: string
-  address?: string
-}) => {
-  const metadataQuery = useQuery({
-    ...profileMetadataQuery(primaryName),
-  })
-
-  if (!primaryName && !address) return null
-
-  const registeredDate = metadataQuery.data?.registeredDate ?? null
-  const expiryDate = metadataQuery.data?.expiryDate ?? null
-  const avatarUrl = metadataQuery.data?.avatarUrl ?? null
+  registeredDate,
+  expiryDate,
+  avatarUrl,
+}: PrimaryNameCardProps) => {
+  const hasAvatar = Boolean(avatarUrl)
 
   return (
     <Card className="rounded-2xl border bg-white/90 shadow-sm">
       <div className="flex flex-col gap-6 p-6 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-6">
           <div className="h-[160px] w-[160px] overflow-hidden rounded-2xl bg-muted">
-            {avatarUrl ? (
+            {hasAvatar ? (
               <img
-                src={avatarUrl}
-                alt={primaryName ?? 'ENS avatar'}
+                src={avatarUrl as string}
+                alt={primaryName}
                 className="h-full w-full object-cover"
               />
             ) : (
@@ -169,16 +113,14 @@ const PrimaryNameCard = ({
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <span className="inline-flex items-center rounded-full bg-ens-blue px-5 py-2 font-semibold text-2xl text-white">
-                {primaryName ?? 'No primary name yet'}
+                {primaryName}
               </span>
-              {primaryName && (
-                <span className="inline-flex items-center gap-2 rounded-full bg-[#F4F7FB] px-4 py-1 font-medium text-ens-blue text-xs">
-                  Primary Name
-                  <span className="flex size-4 items-center justify-center rounded-full border border-ens-blue bg-white text-ens-blue">
-                    ✓
-                  </span>
+              <span className="inline-flex items-center gap-2 rounded-full bg-[#F4F7FB] px-4 py-1 font-medium text-ens-blue text-xs">
+                Primary Name
+                <span className="flex size-4 items-center justify-center rounded-full border border-ens-blue bg-white text-ens-blue">
+                  ✓
                 </span>
-              )}
+              </span>
             </div>
 
             <div className="flex flex-col gap-2 text-muted-foreground text-sm md:flex-row md:gap-8">
@@ -558,58 +500,23 @@ const FaqSection = () => (
 )
 
 export const DashboardPage = () => {
-  const { data: wallet } = useWallet()
-  const address = wallet?.address as Address | undefined
+  const header = MOCK_DASHBOARD_HEADER
+  const names = MOCK_DASHBOARD_NAMES
 
-  const reverseNameQuery = useQuery({
-    ...profileReverseNameQuery(address),
-  })
+  const displayName = header.primaryName
 
-  const primaryEnsName = reverseNameQuery.data?.name ?? wallet?.ensName ?? ''
-
-  const namesQuery = useQuery(getDashboardNamesQueryOptions(address))
-
-  const namesFromQuery: DashboardNameRow[] =
-    namesQuery.data?.map((name) => ({
-      id: name.id,
-      name: name.name ?? '',
-      truncatedName: name.truncatedName ?? undefined,
-      registrationDate: name.registrationDate?.date ?? null,
-      expiryDate: name.expiryDate?.date ?? null,
-      relation: name.relation,
-    })) ?? []
-
-  const hasRealNames = namesFromQuery.length > 0
-  const names = hasRealNames ? namesFromQuery : MOCK_DASHBOARD_NAMES
-
-  const displayName =
-    primaryEnsName || (address ? truncateAddress(address) : 'there')
-
-  const hasProfile = Boolean(primaryEnsName)
-
+  const hasProfile = true
   const hasNames = names.length > 0
 
   return (
     <div className="mx-auto flex max-w-6xl items-start gap-8 px-6 py-8">
-      <DashboardSidebar hasProfile={hasProfile} profileName={primaryEnsName} />
+      <DashboardSidebar
+        hasProfile={hasProfile}
+        profileName={header.primaryName}
+      />
 
       <div className="flex-1 space-y-6">
         <section className="space-y-4">
-          {hasNames && (
-            <div className="flex flex-col gap-2 rounded-xl border border-ens-blue/20 bg-ens-blue/5 px-4 py-3 text-ens-blue text-sm">
-              <div className="flex items-center gap-2">
-                <Info className="size-4" />
-                <span className="font-medium">
-                  You have ENS names ready to use
-                </span>
-              </div>
-              <p>
-                Set one as your primary name and share it instead of your wallet
-                address.
-              </p>
-            </div>
-          )}
-
           <div className="space-y-2">
             <h1 className="font-semibold text-3xl">Hello {displayName}</h1>
             <p className="text-muted-foreground text-sm">
@@ -620,8 +527,11 @@ export const DashboardPage = () => {
         </section>
 
         <PrimaryNameCard
-          primaryName={primaryEnsName || undefined}
-          address={address}
+          primaryName={header.primaryName}
+          address={header.address}
+          registeredDate={header.registeredDate}
+          expiryDate={header.expiryDate}
+          avatarUrl={header.avatarUrl}
         />
 
         <section className="space-y-4">
@@ -633,11 +543,7 @@ export const DashboardPage = () => {
               </span>
             )}
           </div>
-          <NamesTable
-            names={names}
-            isLoading={namesQuery.isLoading}
-            error={hasRealNames ? namesQuery.error : undefined}
-          />
+          <NamesTable names={names} isLoading={false} error={undefined} />
         </section>
 
         <DidYouKnowSection />

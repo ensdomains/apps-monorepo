@@ -14,12 +14,28 @@ export type DashboardNameRow = {
   }
 }
 
+export type DashboardHeader = {
+  primaryName: string
+  address: string
+  registeredDate: Date
+  expiryDate: Date
+  avatarUrl: string | null
+}
+
+export const MOCK_DASHBOARD_HEADER: DashboardHeader = {
+  primaryName: 'yoginth.eth',
+  address: '0x03Ba...17EF',
+  registeredDate: new Date('2020-02-04'),
+  expiryDate: new Date('2029-08-28'),
+  avatarUrl: 'https://yoginth.com/pfp.png',
+}
+
 // Mock data roughly matching the example state in the Figma dashboard
 export const MOCK_DASHBOARD_NAMES: DashboardNameRow[] = [
   {
-    id: 'erni.eth',
-    name: 'erni.eth',
-    truncatedName: 'erni.eth',
+    id: 'yoginth.eth',
+    name: 'yoginth.eth',
+    truncatedName: 'yoginth.eth',
     registrationDate: new Date('2021-12-01'),
     expiryDate: new Date('2031-12-01'),
     autoRenewalDate: new Date('2031-12-01'),
