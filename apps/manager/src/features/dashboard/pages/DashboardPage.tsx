@@ -45,14 +45,6 @@ export const DashboardPage = () => {
         />
 
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-xl">My Names</h2>
-            {hasNames && (
-              <span className="text-muted-foreground text-xs">
-                Showing {names.length} names linked to this wallet
-              </span>
-            )}
-          </div>
           <NamesTable names={names} isLoading={false} error={undefined} />
         </section>
 

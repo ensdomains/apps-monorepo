@@ -76,7 +76,7 @@ export const NamesTable = ({ names, isLoading, error }: NamesTableProps) => {
         <CardHeader className="border-b pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-lg">My Names</h3>
+              <h3 className="font-semibold font-serif text-lg">My Names</h3>
               <Badge variant="lightBlue" className="rounded-full px-2 py-0.5">
                 {displayNames.length}
               </Badge>
@@ -260,9 +260,8 @@ export const NamesTable = ({ names, isLoading, error }: NamesTableProps) => {
 
       <Card className="border bg-white/90">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Star className="size-4 text-ens-blue" />
-            Favourites
+          <CardTitle className="flex items-center gap-2 font-serif text-base">
+            Favourites List
           </CardTitle>
           <CardDescription>
             A quick list of names you use the most.
