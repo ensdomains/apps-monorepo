@@ -1,7 +1,9 @@
 import type { Address } from 'viem'
+import { sepoliaWithEns } from '@/lib/wagmi'
 
-export const L1_ETH_REGISTRY =
-  '0x37AFa22dBdafa3E26541e1036b99c58a6Be04f5e' as Address
+// ensjs doesn't work well with multichain yet
+export const namechainEthRegistryAddress = sepoliaWithEns.contracts
+  .ensL2Registry.address as Address
 
-export const L2_ETH_REGISTRY =
-  '0x5fb63bbd34de21688c8aa8131be1c3b4a477109c' as Address
+export const sepoliaEthRegistryAddress = sepoliaWithEns.contracts.ensRegistry
+  .address as Address

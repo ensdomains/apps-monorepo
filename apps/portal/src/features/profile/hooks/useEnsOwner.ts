@@ -13,7 +13,7 @@ import {
 } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { namechainEthRegistryAddress } from '@/lib/constants/registry'
 import {
   safeGetClient,
   safeGetNamechainSepoliaClient,
@@ -28,10 +28,6 @@ export type GetEnsOwnerReturnType = WithEnsNetwork<{
   owner: Address
   registryAddress: Address
 }> | null
-
-// ensjs doesn't work well with multichain yet
-const namechainEthRegistryAddress =
-  sepoliaWithEns.contracts.ensL2Registry.address
 
 export const getEnsOwner = ResultFn(async function* (
   params: GetOwnerParameters,

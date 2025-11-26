@@ -9,7 +9,7 @@ import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
-import { L2_ETH_REGISTRY } from '@/lib/constants/registry'
+import { namechainEthRegistryAddress } from '@/lib/constants/registry'
 import { REGISTRY_CACHE } from '@/lib/query/cache'
 import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
 
@@ -37,7 +37,7 @@ class L2NameRegistriesError extends TaggedError('L2NameRegistriesError')<{
  *      labels = ["flo", "eth"]
  *      pathLabels = ["flo"]
  *      registries = [ registry("flo.eth") ]
- *      parentRegistry = L2_ETH_REGISTRY (.eth registry on L2)
+ *      parentRegistry = namechainEthRegistryAddress (.eth registry on L2)
  *
  *  - test.flo.eth:
  *      labels = ["test", "flo", "eth"]
@@ -54,7 +54,7 @@ export const getL2NameRegistries = ResultFn(async function* (
   const labels = name.split('.')
   if (labels.length < 2) {
     return ok({
-      rootRegistry: L2_ETH_REGISTRY,
+      rootRegistry: namechainEthRegistryAddress,
       currentRegistry: null,
       parentRegistry: null,
       registries: [] as Address[],
@@ -69,10 +69,10 @@ export const getL2NameRegistries = ResultFn(async function* (
   // Example test.flo.eth:
   //   pathLabels        = ["test", "flo"]
   //   reversed          = ["flo", "test"]
-  //   L2_ETH_REGISTRY --flo--> flo.eth registry --test--> test.flo.eth registry
+  //   namechainEthRegistryAddress --flo--> flo.eth registry --test--> test.flo.eth registry
   const reversed = pathLabels.toReversed()
 
-  let parentRegistry: Address = L2_ETH_REGISTRY
+  let parentRegistry: Address = namechainEthRegistryAddress
   const registries: Address[] = []
 
   for (const label of reversed) {
@@ -97,13 +97,13 @@ export const getL2NameRegistries = ResultFn(async function* (
   }
 
   const currentRegistry = registries[0] ?? null
-  const parentRegistryForName = registries[1] ?? L2_ETH_REGISTRY // for 2LDs, parent is the L2 .eth registry
+  const parentRegistryForName = registries[1] ?? namechainEthRegistryAddress // for 2LDs, parent is the L2 .eth registry
 
   const hasCurrentRegistry =
     !!currentRegistry && currentRegistry !== zeroAddress
 
   return ok({
-    rootRegistry: L2_ETH_REGISTRY,
+    rootRegistry: namechainEthRegistryAddress,
     currentRegistry,
     parentRegistry: parentRegistryForName,
     registries,
@@ -156,7 +156,7 @@ export function useL2Subregistries({
 
   const result = data as L2NameRegistriesResult | undefined
 
-  const rootRegistry = result?.rootRegistry ?? L2_ETH_REGISTRY
+  const rootRegistry = result?.rootRegistry ?? namechainEthRegistryAddress
   const currentRegistry = result?.currentRegistry ?? null
   const parentRegistry = result?.parentRegistry ?? null
   const subregistries = (result?.registries ?? []) as readonly Address[]

@@ -12,7 +12,7 @@ import { RegistryHeaderCards } from '@/features/registry/components/RegistryHead
 import { VerifiedRegistryCard } from '@/features/registry/components/VerifiedRegistryCard'
 import { useRegistryCards } from '@/features/registry/hooks/useRegistryCards'
 import { getParentName } from '@/features/registry/utils/nameUtils'
-import { L1_ETH_REGISTRY } from '@/lib/constants/registry'
+import { sepoliaEthRegistryAddress } from '@/lib/constants/registry'
 
 export const Route = createFileRoute('/$name/registry')({
   component: RouteComponent,
@@ -75,7 +75,7 @@ function RouteComponent() {
     name: 'Sepolia',
     location: 'sepolia',
     chainId: sepolia.id,
-    registryAddress: L1_ETH_REGISTRY,
+    registryAddress: sepoliaEthRegistryAddress,
   }
 
   const namechainNetwork: NameChainLocation = {

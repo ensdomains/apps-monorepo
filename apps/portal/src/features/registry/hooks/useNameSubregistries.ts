@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
-import { L1_ETH_REGISTRY } from '@/lib/constants/registry'
+import { sepoliaEthRegistryAddress } from '@/lib/constants/registry'
 import { isZeroAddress } from '@/lib/utils'
 import { REGISTRY_CACHE } from '../../../lib/query/cache'
 import { splitLabels } from '../utils/nameUtils'
@@ -24,9 +24,9 @@ export type UseNameSubregistriesReturn = {
 /**
  * L1-oriented registry walk for ENS v2.
  *
- * Starts from L1_ETH_REGISTRY and walks labels right-to-left.
+ * Starts from sepoliaEthRegistryAddress and walks labels right-to-left.
  * Uses getNameRegistry under the hood, which checks L1 first and
- * falls back to Namechain if needed, but for the L1_ETH_REGISTRY root
+ * falls back to Namechain if needed, but for the sepoliaEthRegistryAddress root
  * we effectively only care about the L1 registry.
  *
  * Steps:
@@ -34,7 +34,7 @@ export type UseNameSubregistriesReturn = {
  *  - path = ["test", "flo"]
  *  - reversed = ["flo", "test"]
  *
- *  parent = L1_ETH_REGISTRY
+ *  parent = sepoliaEthRegistryAddress
  *  flo  → registry(flo.eth)
  *  test → registry(test.flo.eth)
  */
@@ -50,14 +50,14 @@ export function useNameSubregistries({
 
   const query = useQuery({
     queryKey: nameRegistryQueryKey({
-      registryAddress: L1_ETH_REGISTRY,
+      registryAddress: sepoliaEthRegistryAddress,
       label: reversed[0] ?? '',
     }),
 
     queryFn: async () => {
       if (tooShort) return { registries: [] }
 
-      let parent: Address = L1_ETH_REGISTRY
+      let parent: Address = sepoliaEthRegistryAddress
       const registries: Address[] = []
 
       for (const label of reversed) {
@@ -86,7 +86,7 @@ export function useNameSubregistries({
   // For too-short names, skip the registry-return logic
   if (tooShort) {
     return {
-      rootRegistry: L1_ETH_REGISTRY,
+      rootRegistry: sepoliaEthRegistryAddress,
       currentRegistry: null,
       parentRegistry: null,
       subregistries: [],
@@ -99,12 +99,12 @@ export function useNameSubregistries({
   const registries = query.data?.registries ?? []
 
   const currentRegistry = registries[0] ?? null
-  const parentRegistry = registries[1] ?? L1_ETH_REGISTRY
+  const parentRegistry = registries[1] ?? sepoliaEthRegistryAddress
   const hasCurrentRegistry =
     !!currentRegistry && !isZeroAddress(currentRegistry)
 
   return {
-    rootRegistry: L1_ETH_REGISTRY,
+    rootRegistry: sepoliaEthRegistryAddress,
     currentRegistry,
     parentRegistry,
     subregistries: registries,
