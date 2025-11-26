@@ -31,7 +31,7 @@ export const DashboardSidebar = ({
                 asChild
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start rounded-[24px] bg-ens-blue/10 text-ens-blue hover:bg-ens-blue/15"
+                className="w-full justify-start rounded-sm bg-ens-blue/10 text-ens-blue hover:bg-ens-blue/15"
               >
                 <Link to="/dashboard">
                   <LayoutGrid className="mr-3 size-5" />
@@ -45,7 +45,7 @@ export const DashboardSidebar = ({
                   params={{ name: profileName! }}
                   variant="ghost"
                   size="sm"
-                  className="w-full justify-start rounded-[24px] text-foreground hover:bg-muted/60"
+                  className="w-full justify-start rounded-sm text-foreground hover:bg-muted/60"
                 >
                   <User className="mr-3 size-4" />
                   <span>Profile</span>
@@ -54,7 +54,7 @@ export const DashboardSidebar = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full justify-start rounded-[24px] text-muted-foreground"
+                  className="w-full justify-start rounded-sm text-muted-foreground"
                   disabled
                 >
                   <User className="mr-3 size-4" />
@@ -72,7 +72,7 @@ export const DashboardSidebar = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start rounded-[24px] text-foreground"
+                className="w-full justify-start rounded-sm text-foreground"
                 disabled
               >
                 <Settings className="mr-3 size-4" />
@@ -81,7 +81,7 @@ export const DashboardSidebar = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start rounded-[24px] text-foreground"
+                className="w-full justify-start rounded-sm text-foreground"
                 disabled
               >
                 <HelpCircle className="mr-3 size-4" />

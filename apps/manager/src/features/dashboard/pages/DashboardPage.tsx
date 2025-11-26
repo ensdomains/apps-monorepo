@@ -26,7 +26,9 @@ export const DashboardPage = () => {
       <div className="flex-1 space-y-6">
         <section className="space-y-4">
           <div className="space-y-2">
-            <h1 className="font-semibold text-3xl">Hello {displayName}</h1>
+            <h1 className="font-semibold font-serif text-3xl">
+              Hello {displayName}
+            </h1>
             <p className="text-muted-foreground text-sm">
               View your primary ENS name, manage your names, and explore tips
               and resources.
