@@ -1,5 +1,4 @@
 import { Calendar, Clock } from 'lucide-react'
-import { Highlight } from '@/components/atoms/Highlight/Highlight'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
@@ -47,9 +46,9 @@ export const PrimaryNameCard = ({
 
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <Highlight className="inline-flex items-center rounded-full bg-ens-blue px-5 py-2 font-sans font-semibold text-2xl text-white">
+              <span className="inline-flex items-center rounded-full bg-ens-blue px-5 py-2 font-sans font-semibold text-2xl text-white">
                 {primaryName}
-              </Highlight>
+              </span>
               <span className="inline-flex items-center gap-2 rounded-full bg-[#F4F7FB] px-4 py-1 font-medium text-ens-blue text-xs">
                 Primary Name
                 <span className="flex size-4 items-center justify-center rounded-full border border-ens-blue bg-white text-ens-blue">

@@ -1,7 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronDown, Info, MoreHorizontal, Search, Star } from 'lucide-react'
 import { useMemo } from 'react'
-import { Highlight } from '@/components/atoms/Highlight/Highlight'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -171,12 +170,10 @@ export const NamesTable = ({ names, isLoading, error }: NamesTableProps) => {
                       asChild
                       variant="ghost"
                       size="sm"
-                      className="h-auto p-0 text-ens-blue hover:bg-transparent"
+                      className="h-auto rounded-[12px] bg-ens-blue/10 px-3 py-1 font-sans font-semibold text-ens-blue text-sm hover:bg-ens-blue/15"
                     >
                       <Link to="/p/$name" params={{ name: name.name }}>
-                        <Highlight className="rounded-[12px] bg-ens-blue/10 px-3 py-1 font-sans font-semibold text-ens-blue text-sm">
-                          {name.name}
-                        </Highlight>
+                        {name.name}
                       </Link>
                     </Button>
                   </div>
@@ -290,9 +287,9 @@ export const NamesTable = ({ names, isLoading, error }: NamesTableProps) => {
                 >
                   <div className="flex items-center gap-2">
                     <Star className="size-4 text-ens-blue" />
-                    <Highlight className="rounded-[12px] bg-ens-blue/10 px-2 py-0.5 font-sans font-semibold text-ens-blue text-sm">
+                    <span className="rounded-[12px] bg-ens-blue/10 px-2 py-0.5 font-sans font-semibold text-ens-blue text-sm">
                       {name.name ?? name.truncatedName ?? 'Unnamed'}
-                    </Highlight>
+                    </span>
                   </div>
                   <span className="text-muted-foreground text-xs">
                     Expires {formatDate(name.expiryDate ?? null)}
