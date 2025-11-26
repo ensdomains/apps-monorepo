@@ -322,8 +322,8 @@ importers:
         specifier: ^1.1.2
         version: 1.1.4
       '@ensdomains/ensjs':
-        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@c2c65dc
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@c2c65dc(viem@2.40.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76))
+        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@7687668
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@7687668(viem@2.40.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76))
       '@ensdomains/locales':
         specifier: workspace:^
         version: link:../../packages/locales
@@ -1005,6 +1005,13 @@ packages:
 
   '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@4cb7069':
     resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@4cb7069}
+    version: 5.0.0-alpha.1
+    engines: {node: '>=22'}
+    peerDependencies:
+      viem: ^2.9.2
+
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@7687668':
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@7687668}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
     peerDependencies:
@@ -8075,6 +8082,18 @@ snapshots:
       typescript-logging: 1.0.1
 
   '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@4cb7069(viem@2.40.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76))':
+    dependencies:
+      '@adraffy/ens-normalize': 1.10.1
+      '@ensdomains/address-encoder': 1.1.1
+      '@ensdomains/content-hash': 3.1.0-rc.1
+      '@ensdomains/dnsprovejs': 0.5.2
+      dns-packet: 5.6.1
+      graphql: 16.12.0
+      graphql-request: 7.2.0(graphql@16.12.0)
+      ts-pattern: 5.9.0
+      viem: 2.40.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
+
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@7687668(viem@2.40.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76))':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 1.1.1
