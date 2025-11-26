@@ -19,7 +19,7 @@ export type SubregistryInfo = {
   depth: number
 }
 
-export type UseRegistryCardsReturn = {
+export type UseRegistryCardsReturnType = {
   current: RegistryCard
   parent: RegistryCard
   all: SubregistryInfo[]
@@ -35,7 +35,7 @@ export function useRegistryCards({
   name: string
   chainLocation: EnsNetworkName | undefined
   enabled?: boolean
-}): UseRegistryCardsReturn {
+}): UseRegistryCardsReturnType {
   const {
     currentRegistry,
     parentRegistry,
