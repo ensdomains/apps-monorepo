@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
-import { isZeroAddress, ZERO_ADDRESS } from '@/lib/utils'
+import { zeroAddress } from 'viem'
+import { isZeroAddress } from '@/lib/utils'
+
 import { splitLabels } from '../utils/nameUtils'
 import { getRegistryOwnerQueryOptions } from './useRegistryOwner'
 
@@ -27,7 +29,7 @@ export function useRegistryOwners({
 
   const currentOwnerQ = useQuery({
     ...getRegistryOwnerQueryOptions({
-      registryAddress: currentRegistry ?? ZERO_ADDRESS,
+      registryAddress: currentRegistry ?? zeroAddress,
       label: currentLabel ?? '',
     }),
     enabled: shouldFetchCurrent,
@@ -36,7 +38,7 @@ export function useRegistryOwners({
 
   const parentOwnerQ = useQuery({
     ...getRegistryOwnerQueryOptions({
-      registryAddress: parentRegistry ?? ZERO_ADDRESS,
+      registryAddress: parentRegistry ?? zeroAddress,
       label: parentLabel ?? '',
     }),
     enabled: shouldFetchParent,

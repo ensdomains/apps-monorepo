@@ -38,7 +38,7 @@ export const getEnsOwner = ResultFn(async function* (
       }),
   )
 
-  const label = params.name.split('.').slice(0, -1).join('')
+  const label = params.name.split('.').slice(0, -1).join('.')
 
   const namechainClient = yield* safeGetNamechainSepoliaClient()
 

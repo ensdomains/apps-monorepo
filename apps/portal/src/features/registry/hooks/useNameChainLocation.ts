@@ -6,21 +6,12 @@ import {
   getNameRegistryAddress,
 } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
-import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { L1_ETH_REGISTRY, L2_ETH_REGISTRY } from '@/lib/constants/registry'
 import { REGISTRY_CACHE } from '@/lib/query/cache'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-
-export type ChainLocation = 'L1' | 'L2' | 'unknown'
-
-export type NameChainLocation = {
-  location: ChainLocation
-  registryAddress: Address | null
-  chainName: string
-  chainId: number
-}
+import type { NameChainLocation } from '../components/NetworkCard'
 
 export type GetNameChainLocationParameters = {
   label: string
@@ -50,9 +41,9 @@ export const getNameChainLocation = ResultFn(async function* ({
 
   if (l1 !== zeroAddress) {
     return ok<NameChainLocation>({
-      location: 'L1',
+      location: 'sepolia',
       registryAddress: l1,
-      chainName: 'Sepolia',
+      name: 'Sepolia',
       chainId: sepolia.id,
     })
   }
@@ -70,17 +61,17 @@ export const getNameChainLocation = ResultFn(async function* ({
 
   if (l2 !== zeroAddress) {
     return ok<NameChainLocation>({
-      location: 'L2',
+      location: 'sepoliaNamechain',
       registryAddress: l2,
-      chainName: 'Namechain',
+      name: 'Namechain',
       chainId: sepolia.id, // temporary until Namechain launches
     })
   }
 
   return ok<NameChainLocation>({
-    location: 'unknown',
-    registryAddress: null,
-    chainName: 'Unknown',
+    location: 'sepolia',
+    registryAddress: l1,
+    name: 'Sepolia',
     chainId: sepolia.id,
   })
 })

@@ -1,6 +1,6 @@
 import type { Address } from 'viem'
+import type { NetworkLocation } from '../components/NetworkCard'
 import { useL2Subregistries } from './useL2Subregistries'
-import type { ChainLocation } from './useNameChainLocation'
 import { useNameSubregistries } from './useNameSubregistries'
 
 export type RegistryDiscovery = {
@@ -19,17 +19,17 @@ export function useNameRegistryDiscovery({
   enabled = true,
 }: {
   name: string
-  chainLocation: ChainLocation | undefined
+  chainLocation?: NetworkLocation
   enabled?: boolean
 }): RegistryDiscovery {
-  const isL2 = chainLocation === 'L2'
-  const enabledL1 = enabled && !isL2
-  const enabledL2 = enabled && isL2
+  const isNamechain = chainLocation === 'sepoliaNamechain'
+  const enabledL1 = enabled && !isNamechain
+  const enabledL2 = enabled && isNamechain
 
   const l1 = useNameSubregistries({ name, enabled: enabledL1 })
   const l2 = useL2Subregistries({ name, enabled: enabledL2 })
 
-  const src = isL2 ? l2 : l1
+  const src = isNamechain ? l2 : l1
 
   return {
     rootRegistry: src.rootRegistry,

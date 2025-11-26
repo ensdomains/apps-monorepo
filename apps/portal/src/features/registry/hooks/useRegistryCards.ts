@@ -4,7 +4,7 @@ import {
   VERIFIABLE_FACTORY_L1,
   VERIFIABLE_FACTORY_L2,
 } from '@/lib/constants/verifiableFactory'
-import type { ChainLocation } from './useNameChainLocation'
+import type { NetworkLocation } from '../components/NetworkCard'
 import { useNameRegistryDiscovery } from './useNameRegistryDiscovery'
 import { useRegistryOwners } from './useRegistryOwners'
 
@@ -35,7 +35,7 @@ export function useRegistryCards({
   enabled = true,
 }: {
   name: string
-  chainLocation: ChainLocation | undefined
+  chainLocation: NetworkLocation | undefined
   enabled?: boolean
 }): UseRegistryCardsReturn {
   const discovery = useNameRegistryDiscovery({ name, chainLocation, enabled })
@@ -59,9 +59,9 @@ export function useRegistryCards({
   const chainIdForCurrent = sepolia.id
 
   const factory: Address | null =
-    chainLocation === 'L1'
+    chainLocation === 'sepolia'
       ? VERIFIABLE_FACTORY_L1
-      : chainLocation === 'L2'
+      : chainLocation === 'sepoliaNamechain'
         ? VERIFIABLE_FACTORY_L2
         : null
 

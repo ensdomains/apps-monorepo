@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { NameAvatar } from '../../profile/components/NameAvatar'
-import type { NetworkLocation } from './NetworkCard'
+import type { NameChainLocation } from './NetworkCard'
 import { NetworkCard } from './NetworkCard'
 import { OwnerCard } from './OwnerCard'
 
@@ -14,10 +14,7 @@ type ParentRegistrySectionProps = {
     name?: string
     address: Address
   }
-  network: {
-    name: string
-    location: NetworkLocation
-  }
+  network: NameChainLocation
 }
 
 export function ParentRegistrySection({

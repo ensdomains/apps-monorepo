@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import { zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
+import type { NameChainLocation } from '@/features/registry/components/NetworkCard'
 import { NoRegistryCard } from '@/features/registry/components/NoRegistryCard'
 import { ParentRegistrySection } from '@/features/registry/components/ParentRegistrySection'
 import { RegistryCard } from '@/features/registry/components/RegistryCard'
@@ -10,7 +11,7 @@ import { getNameChainLocationQueryOptions } from '@/features/registry/hooks/useN
 import { useRegistryCards } from '@/features/registry/hooks/useRegistryCards'
 import { getParentName, splitLabels } from '@/features/registry/utils/nameUtils'
 import { RegistryHeaderCards } from '../../features/registry/components/RegistryHeaderCards'
-import { getNetworkMetaFromChainId } from '../../features/registry/utils/network'
+import { L1_ETH_REGISTRY } from '../../lib/constants/registry'
 
 export const Route = createFileRoute('/$name/registry')({
   component: RouteComponent,
@@ -41,8 +42,10 @@ function RouteComponent() {
     chainLocation: chainLocation?.location,
   })
 
-  const isL2 = chainLocation?.location === 'L2'
-  const showVerifiedBanner = Boolean(current.hasCurrentRegistry && isL2)
+  const isSepoliaNamechain = chainLocation?.location === 'sepoliaNamechain'
+  const showVerifiedBanner = Boolean(
+    current.hasCurrentRegistry && isSepoliaNamechain,
+  )
 
   if (isLoadingCards || isLoadingChainLocation) {
     return (
@@ -51,7 +54,7 @@ function RouteComponent() {
         <div>Loading...</div>
         {chainLocation && (
           <div className="text-sm text-gray-600">
-            Detected chain: {chainLocation.chainName} ({chainLocation.location})
+            Detected chain: {chainLocation.name} ({chainLocation.location})
           </div>
         )}
       </div>
@@ -67,11 +70,15 @@ function RouteComponent() {
     )
   }
 
-  const currentNetwork = getNetworkMetaFromChainId(
-    chainLocation?.chainId ?? sepolia.id,
-  )
+  const sepoliaNetwork: NameChainLocation = {
+    name: 'Sepolia',
+    location: 'sepolia',
+    chainId: sepolia.id,
+    registryAddress: L1_ETH_REGISTRY,
+  }
 
-  const parentNetwork = getNetworkMetaFromChainId(parent.chainId ?? sepolia.id)
+  const currentNetwork = chainLocation ?? sepoliaNetwork
+  const parentNetwork = chainLocation ?? sepoliaNetwork
 
   // ─────────────────────────────
   // Case 1: Name has NO registry
@@ -104,10 +111,7 @@ function RouteComponent() {
                 owner: {
                   address: parent.owner ?? zeroAddress,
                 },
-                network: {
-                  name: parentNetwork.name,
-                  chainId: parentNetwork.chainId,
-                },
+                network: parentNetwork,
                 protocol: 'ENSv2',
                 factory: parent.factory,
               }}
@@ -123,7 +127,7 @@ function RouteComponent() {
   // ─────────────────────────────
   return (
     <div className="flex flex-col gap-6 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
-      <h1 className="text-[28px] font-medium leading-[1]">Registry</h1>
+      <h1 className="text-[28px] font-medium leading-none">Registry</h1>
 
       {showVerifiedBanner && <VerifiedRegistryCard />}
 
@@ -136,7 +140,7 @@ function RouteComponent() {
             }}
             network={{
               name: currentNetwork.name,
-              location: chainLocation?.location ?? 'unknown',
+              location: chainLocation?.location ?? 'sepolia',
             }}
           />
 

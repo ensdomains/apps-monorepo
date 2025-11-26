@@ -1,6 +1,14 @@
+import type { Address } from 'viem'
 import { NamechainSVG } from '@/assets/chains'
 
-export type NetworkLocation = 'L1' | 'L2' | 'unknown'
+export type NetworkLocation = 'sepolia' | 'sepoliaNamechain'
+
+export type NameChainLocation = {
+  name: string
+  location: NetworkLocation
+  chainId: number
+  registryAddress: Address | null
+}
 
 export type NetworkCardProps = {
   network: {
@@ -10,11 +18,11 @@ export type NetworkCardProps = {
 }
 
 export function NetworkCard({ network }: NetworkCardProps) {
-  const isL2 = network.location === 'L2'
+  const isNamechain = network.location === 'sepoliaNamechain'
 
   return (
     <div className="p-6 flex flex-row rounded-2xl gap-6 items-center border border-gray-300">
-      {isL2 ? (
+      {isNamechain ? (
         <NamechainSVG height={40} width={40} />
       ) : (
         <img src="/icons/eth.svg" alt="" className="w-10 h-10" />
