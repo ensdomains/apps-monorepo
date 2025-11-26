@@ -42,9 +42,9 @@ function RouteComponent() {
     chainLocation: chainLocation?.location,
   })
 
-  const isSepoliaNamechain = chainLocation?.location === 'sepoliaNamechain'
+  const isnamechainSepolia = chainLocation?.location === 'namechainSepolia'
   const showVerifiedBanner = Boolean(
-    current.hasCurrentRegistry && isSepoliaNamechain,
+    current.hasCurrentRegistry && isnamechainSepolia,
   )
 
   if (isLoadingCards || isLoadingChainLocation) {

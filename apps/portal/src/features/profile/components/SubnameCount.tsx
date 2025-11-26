@@ -11,15 +11,12 @@ export const SubnameCount = ({
   registryAddress,
 }: {
   name: string
-  registryAddress: Address
+  registryAddress?: Address
 }) => {
   const { data, isLoading, error } = useQuery(getSubnamesQueryOptions({ name }))
 
   if (error) return <div>Error: {error.cause?.message}</div>
   if (isLoading) return <LoadingSpinner title="Loading..." />
-  if (isLoading) return <LoadingSpinner title="Loading..." />
-
-  if (!data) return null
 
   return (
     <div className="flex flex-col rounded-2xl overflow-hidden  border border-gray-300 ">
@@ -30,7 +27,7 @@ export const SubnameCount = ({
           className="p-2 w-8 h-8 rounded-4xl bg-secondary"
         />
         <div>
-          <span className="font-medium">{data.length}</span> subnames
+          <span className="font-medium">{data ? data.length : 0}</span> subnames
         </div>
       </div>
       <div className="w-full p-6 duration-150 flex flex-row gap-6 items-center">
@@ -39,7 +36,14 @@ export const SubnameCount = ({
           width={24}
           className="p-2 w-8 h-8 rounded-4xl bg-secondary"
         />
-        <RegistryLocation name={name} registryAddress={registryAddress} />
+        {registryAddress ? (
+          <RegistryLocation name={name} registryAddress={registryAddress} />
+        ) : (
+          <div className="flex-1">
+            <span className="font-medium">Subregistry</span>
+            <div>None set</div>
+          </div>
+        )}
         <Link
           to="/$name/records"
           search={{ view: 'list' }}

@@ -348,7 +348,9 @@ class StorageManager {
           const entries = Array.from(memoryStorage.history.entries())
           entries.sort((a, b) => a[1].timestamp - b[1].timestamp)
           const toDelete = entries.slice(0, entries.length - MAX_HISTORY_SIZE)
-          toDelete.forEach(([id]) => memoryStorage.history.delete(id))
+          toDelete.forEach(([id]) => {
+            memoryStorage.history.delete(id)
+          })
         }
         break
     }
@@ -432,7 +434,9 @@ class StorageManager {
         const keys = Object.keys(localStorage).filter((k) =>
           k.startsWith('tx-'),
         )
-        keys.forEach((k) => localStorage.removeItem(k))
+        keys.forEach((k) => {
+          localStorage.removeItem(k)
+        })
         break
       }
 

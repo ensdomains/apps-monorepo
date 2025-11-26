@@ -1,5 +1,6 @@
 import type { Address } from 'viem'
-import type { NetworkLocation } from './NetworkCard'
+import type { EnsNetworkName } from '@/utils/types'
+
 import { NetworkCard } from './NetworkCard'
 import { OwnerCard } from './OwnerCard'
 
@@ -10,7 +11,7 @@ type RegistryHeaderCardsProps = {
   }
   network: {
     name: string
-    location: NetworkLocation
+    location: EnsNetworkName
   }
 }
 

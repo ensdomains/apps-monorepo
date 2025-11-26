@@ -1,5 +1,5 @@
 import type { Address } from 'viem'
-import type { NetworkLocation } from '../components/NetworkCard'
+import type { EnsNetworkName } from '@/utils/types'
 import { useL2Subregistries } from './useL2Subregistries'
 import { useNameSubregistries } from './useNameSubregistries'
 
@@ -19,10 +19,10 @@ export function useNameRegistryDiscovery({
   enabled = true,
 }: {
   name: string
-  chainLocation?: NetworkLocation
+  chainLocation?: EnsNetworkName
   enabled?: boolean
 }): RegistryDiscovery {
-  const isNamechain = chainLocation === 'sepoliaNamechain'
+  const isNamechain = chainLocation === 'namechainSepolia'
   const enabledL1 = enabled && !isNamechain
   const enabledL2 = enabled && isNamechain
 

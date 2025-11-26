@@ -254,7 +254,7 @@ export function Registration({ initialName }: RegistrationProps) {
     [],
   )
 
-  const handleReset = () => {
+  const _handleReset = () => {
     actor.send({ type: 'CANCEL' })
     dispatch({ type: 'RESET', initialName })
   }

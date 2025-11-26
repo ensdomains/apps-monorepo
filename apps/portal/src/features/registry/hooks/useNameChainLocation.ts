@@ -61,7 +61,7 @@ export const getNameChainLocation = ResultFn(async function* ({
 
   if (l2 !== zeroAddress) {
     return ok<NameChainLocation>({
-      location: 'sepoliaNamechain',
+      location: 'namechainSepolia',
       registryAddress: l2,
       name: 'Namechain',
       chainId: sepolia.id, // temporary until Namechain launches

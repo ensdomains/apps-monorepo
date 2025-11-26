@@ -1,11 +1,10 @@
 import type { Address } from 'viem'
 import { NamechainSVG } from '@/assets/chains'
-
-export type NetworkLocation = 'sepolia' | 'sepoliaNamechain'
+import type { EnsNetworkName } from '../../../utils/types'
 
 export type NameChainLocation = {
   name: string
-  location: NetworkLocation
+  location: EnsNetworkName
   chainId: number
   registryAddress: Address | null
 }
@@ -13,12 +12,12 @@ export type NameChainLocation = {
 export type NetworkCardProps = {
   network: {
     name: string
-    location: NetworkLocation
+    location: EnsNetworkName
   }
 }
 
 export function NetworkCard({ network }: NetworkCardProps) {
-  const isNamechain = network.location === 'sepoliaNamechain'
+  const isNamechain = network.location === 'namechainSepolia'
 
   return (
     <div className="p-6 flex flex-row rounded-2xl gap-6 items-center border border-gray-300">
