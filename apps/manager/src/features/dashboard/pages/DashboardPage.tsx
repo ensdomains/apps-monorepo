@@ -4,7 +4,6 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type {
   GetNamesForAddressErrorType,
   GetNamesForAddressParameters,
-  NameWithRelation,
 } from '@ensdomains/ensjs/subgraph'
 import { getNamesForAddress as ensjs_getNamesForAddress } from '@ensdomains/ensjs/subgraph'
 import { useWallet } from '@getpara/react-sdk-lite'
@@ -28,6 +27,10 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { DashboardSidebar } from '@/features/dashboard/components/DashboardSidebar'
+import {
+  type DashboardNameRow,
+  MOCK_DASHBOARD_NAMES,
+} from '@/features/dashboard/MOCK'
 import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -80,12 +83,10 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
   day: 'numeric',
 })
 
-const formatDate = (
-  value: NameWithRelation['expiryDate'] | NameWithRelation['registrationDate'],
-) => {
-  if (!value?.date) return '—'
+const formatDate = (value?: Date | null) => {
+  if (!value) return '—'
   try {
-    return dateFormatter.format(value.date)
+    return dateFormatter.format(value)
   } catch {
     return '—'
   }
@@ -198,7 +199,7 @@ const NamesTable = ({
   isLoading,
   error,
 }: {
-  names?: NameWithRelation[]
+  names?: DashboardNameRow[]
   isLoading: boolean
   error: unknown
 }) => {
@@ -263,9 +264,11 @@ const NamesTable = ({
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  {formatDate(name.registrationDate)}
+                  {formatDate(name.registrationDate ?? null)}
                 </td>
-                <td className="px-4 py-3">{formatDate(name.expiryDate)}</td>
+                <td className="px-4 py-3">
+                  {formatDate(name.expiryDate ?? null)}
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1">
                     {name.relation.owner && (
@@ -329,7 +332,7 @@ const NamesTable = ({
                     </span>
                   </div>
                   <span className="text-muted-foreground text-xs">
-                    Expires {formatDate(name.expiryDate)}
+                    Expires {formatDate(name.expiryDate ?? null)}
                   </span>
                 </li>
               ))}
@@ -411,12 +414,25 @@ export const DashboardPage = () => {
 
   const namesQuery = useQuery(getDashboardNamesQueryOptions(address))
 
+  const namesFromQuery: DashboardNameRow[] =
+    namesQuery.data?.map((name) => ({
+      id: name.id,
+      name: name.name ?? '',
+      truncatedName: name.truncatedName ?? undefined,
+      registrationDate: name.registrationDate?.date ?? null,
+      expiryDate: name.expiryDate?.date ?? null,
+      relation: name.relation,
+    })) ?? []
+
+  const hasRealNames = namesFromQuery.length > 0
+  const names = hasRealNames ? namesFromQuery : MOCK_DASHBOARD_NAMES
+
   const displayName =
     primaryEnsName || (address ? truncateAddress(address) : 'there')
 
   const hasProfile = Boolean(primaryEnsName)
 
-  const hasNames = Boolean(namesQuery.data && namesQuery.data.length > 0)
+  const hasNames = names.length > 0
 
   return (
     <div className="mx-auto flex max-w-6xl items-start gap-8 px-6 py-8">
@@ -458,15 +474,14 @@ export const DashboardPage = () => {
             <h2 className="font-semibold text-xl">My Names</h2>
             {hasNames && (
               <span className="text-muted-foreground text-xs">
-                Showing {namesQuery.data?.length ?? 0} names linked to this
-                wallet
+                Showing {names.length} names linked to this wallet
               </span>
             )}
           </div>
           <NamesTable
-            names={namesQuery.data}
+            names={names}
             isLoading={namesQuery.isLoading}
-            error={namesQuery.error}
+            error={hasRealNames ? namesQuery.error : undefined}
           />
         </section>
 
