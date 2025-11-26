@@ -23,6 +23,8 @@ export const getReverseName = ResultFn(async function* (address: Address) {
     (e) => new GetNameError({ cause: e as GetNameErrorType }),
   )
 
+  console.log('result', result)
+
   if (!result) {
     return yield* new MissingReverseNameError()
   }
