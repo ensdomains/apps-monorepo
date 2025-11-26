@@ -22,10 +22,12 @@ export type UseNameSubregistriesReturn = {
 }
 
 /**
+ * L1-oriented registry walk for ENS v2.
  *
- * This uses getNameRegistry (cross-chain L1+L2 matcher)
- * but forces L1 by always starting at L1_ETH_REGISTRY and
- * never letting the walk switch chains.
+ * Starts from L1_ETH_REGISTRY and walks labels right-to-left.
+ * Uses getNameRegistry under the hood, which checks L1 first and
+ * falls back to Namechain if needed, but for the L1_ETH_REGISTRY root
+ * we effectively only care about the L1 registry.
  *
  * Steps:
  *  - labels = ["test", "flo", "eth"]

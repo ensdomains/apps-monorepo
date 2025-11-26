@@ -2,16 +2,17 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import { zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
+import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import type { NameChainLocation } from '@/features/registry/components/NetworkCard'
 import { NoRegistryCard } from '@/features/registry/components/NoRegistryCard'
 import { ParentRegistrySection } from '@/features/registry/components/ParentRegistrySection'
 import { RegistryCard } from '@/features/registry/components/RegistryCard'
+import { RegistryHeaderCards } from '@/features/registry/components/RegistryHeaderCards'
 import { VerifiedRegistryCard } from '@/features/registry/components/VerifiedRegistryCard'
-import { getNameChainLocationQueryOptions } from '@/features/registry/hooks/useNameChainLocation'
 import { useRegistryCards } from '@/features/registry/hooks/useRegistryCards'
-import { getParentName, splitLabels } from '@/features/registry/utils/nameUtils'
-import { RegistryHeaderCards } from '../../features/registry/components/RegistryHeaderCards'
-import { L1_ETH_REGISTRY } from '../../lib/constants/registry'
+import { getParentName } from '@/features/registry/utils/nameUtils'
+import { L1_ETH_REGISTRY } from '@/lib/constants/registry'
 
 export const Route = createFileRoute('/$name/registry')({
   component: RouteComponent,
@@ -19,53 +20,53 @@ export const Route = createFileRoute('/$name/registry')({
 
 function RouteComponent() {
   const { name } = useParams({ from: '/$name/registry' })
-  const labels = splitLabels(name)
 
-  // registrable (2LD) label:
-  // flo.eth      -> flo
-  // test.flo.eth -> flo
-  const registrableLabel =
-    labels.length >= 2 ? labels[labels.length - 2] : labels[0]
+  const {
+    data,
+    isLoading: isLoadingOwner,
+    error,
+  } = useQuery(getEnsOwnerQueryOptions({ name }))
 
-  // Find where the registrable label lives (L1/L2)
-  const { data: chainLocation, isLoading: isLoadingChainLocation } = useQuery(
-    getNameChainLocationQueryOptions({ label: registrableLabel }),
-  )
+  const chainLocation = data?.network
 
   const {
     current,
     parent,
     isLoading: isLoadingCards,
-    error,
+    error: cardsError,
   } = useRegistryCards({
     name,
-    chainLocation: chainLocation?.location,
+    chainLocation,
+    enabled: !isLoadingOwner,
   })
 
-  const isnamechainSepolia = chainLocation?.location === 'namechainSepolia'
-  const showVerifiedBanner = Boolean(
-    current.hasCurrentRegistry && isnamechainSepolia,
-  )
+  const isNamechain = chainLocation === 'namechainSepolia'
+  const showVerifiedBanner = Boolean(current.hasCurrentRegistry && isNamechain)
 
-  if (isLoadingCards || isLoadingChainLocation) {
+  if (isLoadingOwner || isLoadingCards) {
+    return <LoadingSpinner title="Loading registry" />
+  }
+
+  if (error) {
+    // TaggedError or Wagmi error – both should have .message
+    const message =
+      error instanceof Error
+        ? error.message
+        : ((error as { message?: string })?.message ?? 'Unknown error')
+
     return (
       <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
-        <div>Loading...</div>
-        {chainLocation && (
-          <div className="text-sm text-gray-600">
-            Detected chain: {chainLocation.name} ({chainLocation.location})
-          </div>
-        )}
+        <div>Error: {message}</div>
       </div>
     )
   }
 
-  if (error) {
+  if (cardsError) {
     return (
       <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
-        <div>Error: {error.message}</div>
+        <div>Error: {cardsError.message}</div>
       </div>
     )
   }
@@ -77,15 +78,22 @@ function RouteComponent() {
     registryAddress: L1_ETH_REGISTRY,
   }
 
-  const currentNetwork = chainLocation ?? sepoliaNetwork
-  const parentNetwork = chainLocation ?? sepoliaNetwork
+  const namechainNetwork: NameChainLocation = {
+    name: 'Namechain',
+    location: 'namechainSepolia',
+    chainId: sepolia.id,
+    registryAddress: data?.registryAddress ?? null,
+  }
+
+  const currentNetwork = isNamechain ? namechainNetwork : sepoliaNetwork
+  const parentNetwork = currentNetwork
 
   // ─────────────────────────────
   // Case 1: Name has NO registry
   // ─────────────────────────────
   if (!current.hasCurrentRegistry) {
     return (
-      <div className="flex flex-col gap-6 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
+      <div className="flex flex-col gap-6 p-4 w-full lg|max-w-2xl xl:max-w-5xl mx-auto">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
 
         <NoRegistryCard />
@@ -140,7 +148,7 @@ function RouteComponent() {
             }}
             network={{
               name: currentNetwork.name,
-              location: chainLocation?.location ?? 'sepolia',
+              location: chainLocation ?? 'sepolia',
             }}
           />
 
