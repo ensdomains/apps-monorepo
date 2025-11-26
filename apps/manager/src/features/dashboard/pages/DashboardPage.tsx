@@ -1,7 +1,10 @@
 import { DashboardSidebar } from '@/features/dashboard/components/DashboardSidebar'
 import { DidYouKnowSection } from '@/features/dashboard/components/DidYouKnowSection'
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
-import { NamesTable } from '@/features/dashboard/components/NamesTable'
+import {
+  FavoritesCard,
+  MyNamesCard,
+} from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
 import {
   MOCK_DASHBOARD_HEADER,
@@ -45,7 +48,8 @@ export const DashboardPage = () => {
         />
 
         <section className="space-y-4">
-          <NamesTable names={names} isLoading={false} error={undefined} />
+          <MyNamesCard names={names} isLoading={false} error={undefined} />
+          <FavoritesCard names={names} />
         </section>
 
         <DidYouKnowSection />
