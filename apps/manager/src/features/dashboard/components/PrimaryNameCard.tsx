@@ -1,4 +1,4 @@
-import { Calendar, Clock } from 'lucide-react'
+import { Calendar, CheckCircle2, Clock } from 'lucide-react'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
@@ -29,10 +29,10 @@ export const PrimaryNameCard = ({
   const hasAvatar = Boolean(avatarUrl)
 
   return (
-    <Card className="rounded-2xl border bg-white/90 shadow-sm">
+    <Card className="rounded-[22px] border border-gray-200 bg-white/95 shadow-md">
       <div className="flex flex-col gap-6 p-6 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-6">
-          <div className="h-[160px] w-[160px] overflow-hidden rounded-2xl bg-muted">
+          <div className="h-[200px] w-[200px] overflow-hidden rounded-[18px] bg-muted">
             {hasAvatar ? (
               <img
                 src={avatarUrl as string}
@@ -46,29 +46,27 @@ export const PrimaryNameCard = ({
 
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <span className="inline-flex items-center rounded-full bg-ens-blue px-5 py-2 font-sans font-semibold text-2xl text-white">
+              <span className="inline-flex items-center rounded-[14px] bg-ens-blue px-6 py-3 font-sans font-semibold text-[28px] text-white leading-none">
                 {primaryName}
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full bg-[#F4F7FB] px-4 py-1 font-medium text-ens-blue text-xs">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#f1f5f9] px-4 py-2 font-medium text-ens-blue text-sm">
                 Primary Name
-                <span className="flex size-4 items-center justify-center rounded-full border border-ens-blue bg-white text-ens-blue">
-                  ✓
-                </span>
-              </span>
+                <CheckCircle2 className="size-4" />
+              </div>
             </div>
 
-            <div className="flex flex-col gap-2 text-muted-foreground text-sm md:flex-row md:gap-8">
+            <div className="flex flex-col gap-3 text-muted-foreground text-sm md:flex-row md:gap-8">
               <div className="flex items-center gap-2">
-                <Calendar className="size-4 text-muted-foreground" />
+                <Calendar className="size-5 text-muted-foreground" />
                 <span>Registered</span>
-                <span className="font-medium text-foreground">
+                <span className="font-semibold text-foreground">
                   {dateFormatter.format(registeredDate)}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="size-4 text-muted-foreground" />
+                <Clock className="size-5 text-muted-foreground" />
                 <span>Expires</span>
-                <span className="font-medium text-foreground">
+                <span className="font-semibold text-foreground">
                   {dateFormatter.format(expiryDate)}
                 </span>
               </div>
@@ -88,7 +86,7 @@ export const PrimaryNameCard = ({
           params={{ name: primaryName }}
           variant="outline"
           size="lg"
-          className="mt-4 whitespace-nowrap md:mt-0"
+          className="mt-4 whitespace-nowrap border-2 border-ens-blue text-ens-blue hover:bg-ens-blue/5 md:mt-0"
         >
           View profile →
         </LinkButton>
