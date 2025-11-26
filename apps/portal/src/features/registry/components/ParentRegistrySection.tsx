@@ -1,9 +1,9 @@
 import { Link } from '@tanstack/react-router'
 import type { Address } from 'viem'
+import { Owner } from '@/components/primary-name/Owner'
 import { NameAvatar } from '../../profile/components/NameAvatar'
 import type { NameChainLocation } from './NetworkCard'
 import { NetworkCard } from './NetworkCard'
-import { OwnerCard } from './OwnerCard'
 
 type ParentRegistrySectionProps = {
   parent: {
@@ -39,7 +39,7 @@ export function ParentRegistrySection({
           </div>
         </Link>
 
-        <OwnerCard owner={owner} />
+        <Owner owner={owner.address} />
         <NetworkCard network={network} />
       </div>
     </div>
