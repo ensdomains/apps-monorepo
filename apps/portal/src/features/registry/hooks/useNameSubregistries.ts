@@ -46,7 +46,7 @@ export function useNameSubregistries({
 
   const tooShort = labels.length < 2
   const pathLabels = tooShort ? [] : labels.slice(0, -1)
-  const reversed = [...pathLabels].reverse()
+  const reversed = pathLabels.toReversed()
 
   const query = useQuery({
     queryKey: nameRegistryQueryKey({

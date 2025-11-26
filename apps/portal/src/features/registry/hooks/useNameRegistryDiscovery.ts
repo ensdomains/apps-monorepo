@@ -31,13 +31,5 @@ export function useNameRegistryDiscovery({
 
   const src = isNamechain ? l2 : l1
 
-  return {
-    rootRegistry: src.rootRegistry,
-    currentRegistry: src.currentRegistry,
-    parentRegistry: src.parentRegistry,
-    subregistries: src.subregistries,
-    hasCurrentRegistry: src.hasCurrentRegistry,
-    isLoading: src.isLoading,
-    error: src.error,
-  }
+  return src
 }
