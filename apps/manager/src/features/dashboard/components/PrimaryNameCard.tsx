@@ -46,12 +46,14 @@ export const PrimaryNameCard = ({
 
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-3">
-              <span className="inline-flex w-fit items-center rounded-[14px] bg-[#0080bc] px-6 py-2.5 font-sans font-semibold text-[28px] text-white leading-none">
-                {primaryName}
-              </span>
-              <div className="inline-flex w-fit items-center gap-2 rounded-full bg-[#f1f5f9] px-4 py-1.5 font-medium text-[#0080bc] text-xs">
-                Primary Name
-                <CheckCircle2 className="size-4" />
+              <div className="flex items-center gap-3">
+                <span className="inline-flex w-fit items-center rounded-[14px] bg-[#0080bc] px-6 py-2.5 font-sans font-semibold text-[28px] text-white leading-none">
+                  {primaryName}
+                </span>
+                <div className="inline-flex w-fit items-center gap-2 rounded-full bg-[#f1f5f9] px-4 py-1.5 font-medium text-[#0080bc] text-xs">
+                  Primary Name
+                  <CheckCircle2 className="size-4" />
+                </div>
               </div>
             </div>
 
