@@ -1043,6 +1043,13 @@ packages:
     resolution: {integrity: sha512-nfm4ggpK5YBVwVwLZKF9WPjRGRTL9aUxX2O4pqv/AnQCz3WeGHsW7VhVFLj2s4EoWSzCXwR1E6nuqgUwnH692w==}
     engines: {node: '>=16.8'}
 
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@4cb7069':
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@4cb7069}
+    version: 5.0.0-alpha.1
+    engines: {node: '>=22'}
+    peerDependencies:
+      viem: ^2.9.2
+
   '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@69d9a4a':
     resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@69d9a4a}
     version: 5.0.0-alpha.1
@@ -8079,6 +8086,18 @@ snapshots:
       '@noble/hashes': 1.8.0
       dns-packet: 5.6.1
       typescript-logging: 1.0.1
+
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@4cb7069(viem@2.39.0(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))':
+    dependencies:
+      '@adraffy/ens-normalize': 1.10.1
+      '@ensdomains/address-encoder': 1.1.1
+      '@ensdomains/content-hash': 3.1.0-rc.1
+      '@ensdomains/dnsprovejs': 0.5.1
+      dns-packet: 5.6.1
+      graphql: 16.11.0
+      graphql-request: 7.2.0(graphql@16.11.0)
+      ts-pattern: 5.8.0
+      viem: 2.39.0(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76)
 
   '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@69d9a4a(viem@2.39.0(bufferutil@4.0.9)(typescript@5.9.2)(utf-8-validate@5.0.10)(zod@3.25.76))':
     dependencies:
