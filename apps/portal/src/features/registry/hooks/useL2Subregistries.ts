@@ -9,7 +9,6 @@ import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { namechainEthRegistryAddress } from '@/lib/constants/registry'
-import { REGISTRY_CACHE } from '@/lib/query/cache'
 import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
 
 export type GetL2NameRegistriesParameters = {
@@ -24,7 +23,9 @@ export type L2NameRegistriesResult = {
   hasCurrentRegistry: boolean
 }
 
-class L2NameRegistriesError extends TaggedError('L2NameRegistriesError')<{
+export class L2NameRegistriesError extends TaggedError(
+  'L2NameRegistriesError',
+)<{
   cause: GetNameRegistryAddressErrorType
 }> {}
 
@@ -117,5 +118,4 @@ export const getL2NameRegistriesQueryOptions = (
   resultQueryOptions({
     queryKey: l2NameRegistriesQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getL2NameRegistries(params),
-    ...REGISTRY_CACHE,
   })

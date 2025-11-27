@@ -1,10 +1,10 @@
-import { ResultFn } from '@ens-apps/utils/neverthrow'
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import type { GetNameRegistryAddressErrorType } from '@ensdomains/ensjs/public/v2'
 import { ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { sepoliaEthRegistryAddress } from '@/lib/constants/registry'
-import { REGISTRY_CACHE } from '@/lib/query/cache'
 import { isZeroAddress } from '@/lib/utils'
 import { getNameRegistry } from './useNameRegistry'
 
@@ -19,6 +19,12 @@ export type L1NameRegistriesResult = {
   registries: readonly Address[]
   hasCurrentRegistry: boolean
 }
+
+export class L1NameRegistriesError extends TaggedError(
+  'L1NameRegistriesError',
+)<{
+  cause: GetNameRegistryAddressErrorType
+}> {}
 
 /**
  * Walks the L1 registry hierarchy for a given .eth name.
@@ -107,5 +113,4 @@ export const getL1NameRegistriesQueryOptions = (
   resultQueryOptions({
     queryKey: l1NameRegistriesQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getL1NameRegistries(params),
-    ...REGISTRY_CACHE,
   })

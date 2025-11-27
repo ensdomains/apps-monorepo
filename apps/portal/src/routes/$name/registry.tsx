@@ -10,9 +10,13 @@ import { ParentRegistrySection } from '@/features/registry/components/ParentRegi
 import { RegistryCard } from '@/features/registry/components/RegistryCard'
 import { RegistryHeaderCards } from '@/features/registry/components/RegistryHeaderCards'
 import { VerifiedRegistryCard } from '@/features/registry/components/VerifiedRegistryCard'
-import { useRegistryCards } from '@/features/registry/hooks/useRegistryCards'
+import { useNameRegistryDiscovery } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getParentName } from '@/features/registry/utils/nameUtils'
 import { sepoliaEthRegistryAddress } from '@/lib/constants/registry'
+import {
+  namechainVerifiableFactory,
+  sepoliaVerifiableFactory,
+} from '@/lib/constants/verifiableFactory'
 
 export const Route = createFileRoute('/$name/registry')({
   component: RouteComponent,
@@ -30,18 +34,26 @@ function RouteComponent() {
   const chainLocation = data?.network
 
   const {
-    current,
-    parent,
+    currentRegistry,
+    parentRegistry,
+    hasCurrentRegistry,
     isLoading: isLoadingCards,
     error: cardsError,
-  } = useRegistryCards({
+  } = useNameRegistryDiscovery({
     name,
     chainLocation,
     enabled: !isLoadingOwner,
   })
 
   const isNamechain = chainLocation === 'namechainSepolia'
-  const showVerifiedBanner = Boolean(current.hasCurrentRegistry && isNamechain)
+  const factory =
+    chainLocation === 'sepolia'
+      ? sepoliaVerifiableFactory
+      : chainLocation === 'namechainSepolia'
+        ? namechainVerifiableFactory
+        : null
+
+  const showVerifiedBanner = Boolean(hasCurrentRegistry && isNamechain)
 
   if (isLoadingOwner || isLoadingCards) {
     return <LoadingSpinner title="Loading registry" />
@@ -90,20 +102,20 @@ function RouteComponent() {
   // ─────────────────────────────
   // Case 1: Name has NO registry
   // ─────────────────────────────
-  if (!current.hasCurrentRegistry) {
+  if (!hasCurrentRegistry) {
     return (
       <div className="flex flex-col gap-6 p-4 w-full lg|max-w-2xl xl:max-w-5xl mx-auto">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
 
         <NoRegistryCard />
 
-        {parent.registry && (
+        {parentRegistry && (
           <>
             {/* Parent top row */}
             <ParentRegistrySection
               parent={{
                 name: getParentName(name) || 'eth',
-                address: parent.registry,
+                address: parentRegistry,
               }}
               owner={{
                 address: data?.owner ?? zeroAddress,
@@ -114,13 +126,13 @@ function RouteComponent() {
             {/* Parent details card */}
             <RegistryCard
               registry={{
-                address: parent.registry,
+                address: parentRegistry,
                 owner: {
                   address: data?.owner ?? zeroAddress,
                 },
                 network: parentNetwork,
                 protocol: 'ENSv2',
-                factory: parent.factory,
+                factory,
               }}
             />
           </>
@@ -138,7 +150,7 @@ function RouteComponent() {
 
       {showVerifiedBanner && <VerifiedRegistryCard />}
 
-      {current.registry && (
+      {currentRegistry && (
         <>
           <RegistryHeaderCards
             owner={{
@@ -153,7 +165,7 @@ function RouteComponent() {
 
           <RegistryCard
             registry={{
-              address: current.registry,
+              address: currentRegistry,
               owner: {
                 address: data?.owner ?? zeroAddress,
               },
@@ -162,18 +174,18 @@ function RouteComponent() {
                 chainId: currentNetwork.chainId,
               },
               protocol: 'ENSv2',
-              factory: current.factory,
+              factory,
             }}
           />
         </>
       )}
 
-      {parent.registry && (
+      {parentRegistry && (
         <>
           <ParentRegistrySection
             parent={{
               name: getParentName(name) || 'eth',
-              address: parent.registry,
+              address: parentRegistry,
             }}
             owner={{
               address: data?.owner ?? zeroAddress,
@@ -183,7 +195,7 @@ function RouteComponent() {
 
           <RegistryCard
             registry={{
-              address: parent.registry,
+              address: parentRegistry,
               owner: {
                 address: data?.owner ?? zeroAddress,
               },
@@ -192,7 +204,7 @@ function RouteComponent() {
                 chainId: parentNetwork.chainId,
               },
               protocol: 'ENSv2',
-              factory: parent.factory,
+              factory,
             }}
           />
         </>

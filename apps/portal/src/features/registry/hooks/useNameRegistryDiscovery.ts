@@ -4,15 +4,23 @@ import {
   namechainEthRegistryAddress,
   sepoliaEthRegistryAddress,
 } from '@/lib/constants/registry'
+import type { WagmiClientError } from '@/lib/wagmi/helpers'
 import type { EnsNetworkName } from '@/utils/types'
 import {
   getL1NameRegistriesQueryOptions,
-  type L1NameRegistriesResult,
+  type L1NameRegistriesError,
 } from './useL1Subregistries'
 import {
   getL2NameRegistriesQueryOptions,
-  type L2NameRegistriesResult,
+  type L2NameRegistriesError,
 } from './useL2Subregistries'
+import type { NameRegistryError } from './useNameRegistry'
+
+export type RegistryDiscoveryError =
+  | L1NameRegistriesError
+  | L2NameRegistriesError
+  | WagmiClientError
+  | NameRegistryError
 
 export type RegistryDiscoveryReturnType = {
   rootRegistry: Address | null
@@ -21,7 +29,7 @@ export type RegistryDiscoveryReturnType = {
   subregistries: readonly Address[]
   hasCurrentRegistry: boolean
   isLoading: boolean
-  error: Error | null
+  error: RegistryDiscoveryError | null
 }
 
 export function useNameRegistryDiscovery({
@@ -41,42 +49,36 @@ export function useNameRegistryDiscovery({
       {
         ...getL1NameRegistriesQueryOptions({ name }),
         enabled: enabled && !isNamechain,
-        placeholderData: (prev: L1NameRegistriesResult | undefined) => prev,
       },
       // L2 Query
       {
         ...getL2NameRegistriesQueryOptions({ name }),
         enabled: enabled && isNamechain,
-        placeholderData: (prev: L2NameRegistriesResult | undefined) => prev,
       },
     ],
   })
 
-  // L1 Result
+  // L1 Result - data is already unwrapped by resultQueryOptions
   if (!isNamechain) {
-    const l1Data = l1Query.data as L1NameRegistriesResult | undefined
-
     return {
-      rootRegistry: l1Data?.rootRegistry ?? sepoliaEthRegistryAddress,
-      currentRegistry: l1Data?.currentRegistry ?? null,
-      parentRegistry: l1Data?.parentRegistry ?? null,
-      subregistries: (l1Data?.registries ?? []) as readonly Address[],
-      hasCurrentRegistry: l1Data?.hasCurrentRegistry ?? false,
+      rootRegistry: l1Query.data?.rootRegistry ?? sepoliaEthRegistryAddress,
+      currentRegistry: l1Query.data?.currentRegistry ?? null,
+      parentRegistry: l1Query.data?.parentRegistry ?? null,
+      subregistries: (l1Query.data?.registries ?? []) as readonly Address[],
+      hasCurrentRegistry: l1Query.data?.hasCurrentRegistry ?? false,
       isLoading: l1Query.isLoading,
-      error: (l1Query.error as Error | null) ?? null,
+      error: l1Query.error ?? null,
     }
   }
 
-  // L2 Result
-  const l2Data = l2Query.data as L2NameRegistriesResult | undefined
-
+  // L2 Result - data is already unwrapped by resultQueryOptions
   return {
-    rootRegistry: l2Data?.rootRegistry ?? namechainEthRegistryAddress,
-    currentRegistry: l2Data?.currentRegistry ?? null,
-    parentRegistry: l2Data?.parentRegistry ?? null,
-    subregistries: (l2Data?.registries ?? []) as readonly Address[],
-    hasCurrentRegistry: l2Data?.hasCurrentRegistry ?? false,
+    rootRegistry: l2Query.data?.rootRegistry ?? namechainEthRegistryAddress,
+    currentRegistry: l2Query.data?.currentRegistry ?? null,
+    parentRegistry: l2Query.data?.parentRegistry ?? null,
+    subregistries: (l2Query.data?.registries ?? []) as readonly Address[],
+    hasCurrentRegistry: l2Query.data?.hasCurrentRegistry ?? false,
     isLoading: l2Query.isLoading,
-    error: (l2Query.error as Error | null) ?? null,
+    error: l2Query.error ?? null,
   }
 }

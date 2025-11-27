@@ -14,7 +14,7 @@ import {
 } from '@/lib/wagmi/helpers'
 import type { WithEnsNetwork } from '@/utils/types'
 
-class nameRegistryError extends TaggedError('nameRegistryError')<{
+export class NameRegistryError extends TaggedError('nameRegistryError')<{
   cause: GetNameRegistryAddressErrorType
 }> {}
 
@@ -35,7 +35,7 @@ export const getNameRegistry = ResultFn(async function* (
   const l1RegistryAddress = yield* await fromPromise(
     ensjs_getNameRegistryAddress(l1Client, params),
     (e) =>
-      new nameRegistryError({ cause: e as GetNameRegistryAddressErrorType }),
+      new NameRegistryError({ cause: e as GetNameRegistryAddressErrorType }),
   )
 
   if (l1RegistryAddress !== zeroAddress) {
@@ -49,7 +49,7 @@ export const getNameRegistry = ResultFn(async function* (
   const l2RegistryAddress = yield* await fromPromise(
     ensjs_getNameRegistryAddress(namechainClient, params),
     (e) =>
-      new nameRegistryError({ cause: e as GetNameRegistryAddressErrorType }),
+      new NameRegistryError({ cause: e as GetNameRegistryAddressErrorType }),
   )
 
   return ok<GetNameRegistryReturnType>({
