@@ -40,24 +40,24 @@ const faqItems = [
 ]
 
 export const FaqSection = () => (
-  <Card className="border bg-white/90">
-    <CardHeader>
-      <CardTitle className="font-semibold font-serif text-lg">
+  <Card className="border-[#dededf] border-[0.25px] bg-white/90">
+    <CardHeader className="space-y-2 pb-6">
+      <CardTitle className="font-semibold font-serif text-[#232222] text-[32px]">
         Frequently Asked Questions
       </CardTitle>
-      <CardDescription>
+      <CardDescription className="text-[#8c8c8c] text-sm">
         Quick answers to common questions about managing your ENS names.
       </CardDescription>
     </CardHeader>
-    <CardContent className="space-y-1">
+    <CardContent className="space-y-0">
       {faqItems.map(({ question, answer }) => (
         <Collapsible key={question}>
-          <div className="border-t first:border-t-0">
-            <CollapsibleTrigger className="flex w-full items-center justify-between px-1 py-3 text-left font-medium text-sm">
+          <div className="border-[#dededf] border-t-[0.41px] first:border-t-0">
+            <CollapsibleTrigger className="flex w-full items-center justify-between px-1 py-3 text-left font-semibold text-[#232222] text-sm">
               <span>{question}</span>
-              <span className="ml-4 text-muted-foreground text-xs">+</span>
+              <span className="ml-4 text-[#8c8c8c] text-xs">+</span>
             </CollapsibleTrigger>
-            <CollapsibleContent className="px-1 pb-3 text-muted-foreground text-sm">
+            <CollapsibleContent className="px-1 pb-3 text-[#8c8c8c] text-sm">
               {answer}
             </CollapsibleContent>
           </div>

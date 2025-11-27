@@ -17,7 +17,6 @@ export const DashboardPage = () => {
 
   const displayName = header.primaryName
   const hasProfile = true
-  const hasNames = names.length > 0
 
   return (
     <div className="mx-auto flex max-w-6xl items-start gap-8 px-6 py-8">
@@ -26,16 +25,60 @@ export const DashboardPage = () => {
         profileName={header.primaryName}
       />
 
-      <div className="flex-1 space-y-6">
-        <section className="space-y-4">
-          <div className="space-y-2">
-            <h1 className="font-semibold font-serif text-3xl">
-              Hello {displayName}
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              View your primary ENS name, manage your names, and explore tips
-              and resources.
-            </p>
+      <div className="flex-1 space-y-8">
+        <section className="space-y-8">
+          <h1 className="font-serif text-[#232222] text-[40px] tracking-[0.4px]">
+            Hello {displayName}
+          </h1>
+
+          <div className="rounded-lg border border-[#0080bc] bg-[#e5f7ff] p-4">
+            <div className="flex items-start gap-3">
+              <svg
+                className="size-3.5 shrink-0 text-[#0080bc]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <title>Info</title>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div className="flex-1">
+                <p className="font-medium text-[#0080bc] text-sm">
+                  You have a new wallet
+                </p>
+                <p className="mt-0.5 text-[#0080bc] text-xs">
+                  Connect this wallet to manage your ENS names and update your
+                  profile
+                </p>
+              </div>
+              <button
+                type="button"
+                className="text-[#0080bc] hover:text-[#006699]"
+                aria-label="Close alert"
+              >
+                <svg
+                  className="size-[11px]"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <title>Close</title>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
         </section>
 

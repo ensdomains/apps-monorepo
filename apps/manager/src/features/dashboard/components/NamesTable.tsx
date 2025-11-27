@@ -63,56 +63,60 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
   }
 
   return (
-    <Card className="border bg-white/90">
-      <CardHeader className="border-b pb-4">
+    <Card className="border-[#dededf] border-[0.25px] bg-white/90">
+      <CardHeader className="border-[#dededf] border-b-[0.25px] pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CardTitle className="font-semibold font-serif text-lg">
+            <CardTitle className="font-semibold font-serif text-[#232222] text-[28px] tracking-[0.28px]">
               My Names
             </CardTitle>
-            <Badge variant="lightBlue" className="rounded-full px-2 py-0.5">
+            <Badge
+              variant="lightBlue"
+              className="rounded-full bg-[#e5f7ff] px-2 py-0.5 text-[#0080bc] text-sm"
+            >
               {displayNames.length}
             </Badge>
           </div>
-          <div className="w-64">
+          <div className="w-[292px]">
             <Input
               size="sm"
               placeholder="Search my name..."
-              startIcon={<Search className="size-4" />}
+              startIcon={<Search className="size-[18px]" />}
+              className="rounded-[4.1px] bg-ens-white"
             />
           </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-6 text-muted-foreground text-xs">
+        <div className="mt-4 flex items-center gap-6 text-[#7d7d7d] text-xs">
           <div className="w-6" />
           <div className="flex flex-1 items-center gap-1">
             <span>Name</span>
-            <ChevronDown className="size-3" />
+            <ChevronDown className="size-[8.2px]" />
           </div>
-          <div className="flex w-40 items-center gap-1">
+          <div className="flex w-[120px] items-center gap-1">
             <span>Registered on</span>
-            <ChevronDown className="size-3" />
+            <ChevronDown className="size-[8.2px]" />
           </div>
-          <div className="flex w-40 items-center gap-1">
+          <div className="flex w-[120px] items-center gap-1">
             <span>Expiry</span>
-            <ChevronDown className="size-3" />
+            <ChevronDown className="size-[8.2px]" />
           </div>
-          <div className="flex w-40 items-center gap-1">
+          <div className="flex w-[120px] items-center gap-1">
             <span>Autorenewal</span>
-            <ChevronDown className="size-3" />
+            <ChevronDown className="size-[8.2px]" />
           </div>
           <div className="w-6" />
         </div>
       </CardHeader>
 
       <CardContent className="p-0">
-        <div className="flex items-center gap-3 border-b px-6 py-3 text-xs">
+        <div className="flex items-center gap-3 border-[#dededf] border-b-[0.41px] px-6 py-3 text-xs">
           <input
             type="checkbox"
-            className="size-4 rounded border border-gray-300"
+            className="size-3 rounded border-[#7d7d7d] border-[0.41px]"
             aria-label="Select all"
           />
-          <span className="font-medium text-muted-foreground">Select all</span>
+          <span className="font-medium text-[#7d7d7d]">Select all</span>
         </div>
 
         {displayNames.map((name) => {
@@ -132,12 +136,12 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
           return (
             <div
               key={name.id}
-              className="flex items-start gap-4 border-b px-6 py-4 last:border-b-0"
+              className="flex items-start gap-4 border-[#dededf] border-b-[0.41px] px-6 py-6 last:border-b-0"
             >
               <div className="pt-2">
                 <input
                   type="checkbox"
-                  className="size-4 rounded border border-gray-300"
+                  className="size-3 rounded border-[#7d7d7d] border-[0.41px]"
                   aria-label={`Select ${name.name}`}
                 />
               </div>
@@ -147,7 +151,7 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
                   <div className="inline-flex items-center gap-2">
                     <Badge
                       variant="lightBlue"
-                      className="rounded-full px-2 py-0.5 text-xs"
+                      className="rounded-full bg-[#f1f5f9] px-2 py-0.5 text-[#0080bc] text-xs"
                     >
                       Primary Name
                     </Badge>
@@ -155,47 +159,47 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
                 )}
 
                 <div className="flex items-center gap-3">
-                  <div className="flex size-9 items-center justify-center rounded-full bg-muted" />
+                  <div className="flex size-[36.9px] items-center justify-center rounded-full bg-[#faf9f6]" />
                   <Link
                     to="/p/$name"
                     params={{ name: name.name }}
-                    className="h-auto rounded-[12px] bg-ens-blue/10 px-3 py-1 font-sans font-semibold text-ens-blue text-sm hover:bg-ens-blue/15"
+                    className="h-auto rounded-[2.867px] bg-[#e5f7ff] px-3 py-1 font-sans font-semibold text-[#0080bc] text-[16px] hover:bg-[#e5f7ff]/80"
                   >
                     {name.name}
                   </Link>
                 </div>
 
-                <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                <div className="flex items-center gap-2 text-[#7d7d7d] text-xs">
                   <span>Make Primary Name</span>
                   <Switch checked={name.isPrimary} disabled aria-hidden />
                 </div>
               </div>
 
-              <div className="w-40 pt-2 text-sm">
+              <div className="w-[120px] pt-2 text-[#515151] text-sm">
                 {formatDate(name.registrationDate ?? null)}
               </div>
 
-              <div className="w-40 pt-2 text-sm">
+              <div className="w-[120px] pt-2 text-[#515151] text-sm">
                 <div>{formatDate(name.expiryDate ?? null)}</div>
                 <button
                   type="button"
-                  className="mt-1 font-medium text-ens-blue text-xs"
+                  className="mt-1 font-medium text-[#0080bc] text-xs"
                 >
                   Extend →
                 </button>
                 {expiresLabel && (
-                  <div className="mt-1 inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">
-                    <span className="mr-1 inline-block size-1.5 rounded-full bg-amber-500" />
+                  <div className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-[#fff8f0] px-2.5 py-1 text-[#d97706] text-[11px]">
+                    <span className="inline-block size-1.5 rounded-full bg-[#f59e0b]" />
                     {expiresLabel}
                   </div>
                 )}
               </div>
 
-              <div className="w-40 pt-2 text-sm">
+              <div className="w-[120px] pt-2 text-[#515151] text-sm">
                 <div>{formatDate(name.autoRenewalDate ?? name.expiryDate)}</div>
                 <button
                   type="button"
-                  className="mt-1 font-medium text-ens-blue text-xs"
+                  className="mt-1 font-medium text-[#0080bc] text-xs"
                 >
                   Autorenewals →
                 </button>
@@ -203,7 +207,7 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
 
               <button
                 type="button"
-                className="mt-2 ml-auto text-muted-foreground"
+                className="mt-2 ml-auto text-[#7d7d7d]"
                 aria-label="More actions"
               >
                 <MoreHorizontal className="size-5" />
@@ -212,29 +216,29 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
           )
         })}
 
-        <div className="flex items-center justify-between border-t px-6 py-3 text-muted-foreground text-xs">
-          <div className="flex items-center gap-2">
+        <div className="flex h-14 items-center justify-between border-[#dededf] border-t-[0.41px] px-6 py-3 text-[#7d7d7d] text-xs">
+          <div className="flex items-center gap-3">
             <button
               type="button"
-              className="flex size-7 items-center justify-center rounded-full border border-gray-300 text-gray-500"
+              className="flex size-8 items-center justify-center rounded-md border border-[#d3d3d3] text-[#bcbcbc]"
             >
               ‹
             </button>
             <button
               type="button"
-              className="flex size-7 items-center justify-center rounded-full bg-ens-blue text-white"
+              className="flex size-8 items-center justify-center rounded-md bg-[#e5f7ff] text-[#0080bc]"
             >
               1
             </button>
             <button
               type="button"
-              className="flex size-7 items-center justify-center rounded-full border border-gray-300 text-gray-500"
+              className="flex size-8 items-center justify-center rounded-md border border-[#d3d3d3] text-[#bcbcbc]"
             >
               2
             </button>
             <button
               type="button"
-              className="flex size-7 items-center justify-center rounded-full border border-gray-300 text-gray-500"
+              className="flex size-8 items-center justify-center rounded-md border border-[#d3d3d3] text-[#bcbcbc]"
             >
               ›
             </button>
@@ -254,54 +258,58 @@ export const FavoritesCard = ({ names }: { names?: DashboardNameRow[] }) => {
   const favouriteSlice = displayNames.slice(0, 5)
 
   return (
-    <Card className="border bg-white/90">
-      <CardHeader className="border-b pb-4">
+    <Card className="border-[#dededf] border-[0.25px] bg-white/90">
+      <CardHeader className="border-[#dededf] border-b-[0.25px] pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CardTitle className="font-semibold font-serif text-lg">
+            <CardTitle className="font-semibold font-serif text-[#232222] text-[28px] tracking-[0.28px]">
               Favourites List
             </CardTitle>
-            <Badge variant="lightBlue" className="rounded-full px-2 py-0.5">
+            <Badge
+              variant="lightBlue"
+              className="rounded-full bg-[#ffecf5] px-2 py-0.5 text-[#f53293] text-sm"
+            >
               {displayNames.length}
             </Badge>
           </div>
-          <div className="w-64">
+          <div className="w-[292px]">
             <Input
               size="sm"
               placeholder="Search name..."
-              startIcon={<Search className="size-4" />}
+              startIcon={<Search className="size-[18px]" />}
+              className="rounded-[4.1px] bg-ens-white"
             />
           </div>
         </div>
-        <div className="mt-4 flex items-center justify-between text-muted-foreground text-xs">
+        <div className="mt-4 flex items-center justify-between text-[#7d7d7d] text-xs">
           <div className="flex items-center gap-1">
             <span>Name</span>
-            <ChevronDown className="size-3" />
+            <ChevronDown className="size-[8.2px]" />
           </div>
           <span className="pr-4">Notifications</span>
         </div>
       </CardHeader>
       <CardContent className="p-0">
         {favouriteSlice.length === 0 ? (
-          <div className="px-6 py-4 text-muted-foreground text-sm">
+          <div className="px-6 py-4 text-[#8c8c8c] text-sm">
             When you start collecting names, you&apos;ll be able to pin your
             favourites here.
           </div>
         ) : (
           <>
-            <ul className="divide-y">
+            <ul className="divide-y divide-[#dededf]">
               {favouriteSlice.map((name, index) => (
                 <li
                   key={name.id}
-                  className="flex items-center justify-between px-6 py-4"
+                  className="flex h-16 items-center justify-between gap-[25px] px-6 py-6"
                 >
                   <div className="flex items-center gap-3">
-                    <Heart className="size-4 text-pink-500" fill="#ec4899" />
-                    <div className="flex size-9 items-center justify-center rounded-full bg-muted" />
+                    <Heart className="size-4 fill-[#ec4899] text-[#ec4899]" />
+                    <div className="flex size-[36.9px] items-center justify-center rounded-full bg-[#faf9f6]" />
                     <Link
                       to="/p/$name"
                       params={{ name: name.name }}
-                      className="rounded-[12px] bg-ens-blue/10 px-3 py-1 font-sans font-semibold text-ens-blue text-sm hover:bg-ens-blue/15"
+                      className="rounded-[2.867px] bg-[#e5f7ff] px-3 py-1 font-sans font-semibold text-[#0080bc] text-[16px] hover:bg-[#e5f7ff]/80"
                     >
                       {name.name ?? name.truncatedName ?? 'Unnamed'}
                     </Link>
@@ -310,36 +318,36 @@ export const FavoritesCard = ({ names }: { names?: DashboardNameRow[] }) => {
                 </li>
               ))}
             </ul>
-            <div className="flex items-center justify-between border-t px-6 py-3 text-muted-foreground text-xs">
-              <div className="flex items-center gap-2">
+            <div className="flex h-14 items-center justify-between border-[#dededf] border-t-[0.41px] px-6 py-3 text-[#7d7d7d] text-xs">
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  className="flex size-7 items-center justify-center rounded-full border border-gray-300 text-gray-500"
+                  className="flex size-8 items-center justify-center rounded-md border border-[#d3d3d3] text-[#bcbcbc]"
                 >
                   ‹
                 </button>
                 <button
                   type="button"
-                  className="flex size-7 items-center justify-center rounded-full bg-ens-blue text-white"
+                  className="flex size-8 items-center justify-center rounded-md bg-[#e5f7ff] text-[#0080bc]"
                 >
                   1
                 </button>
                 <button
                   type="button"
-                  className="flex size-7 items-center justify-center rounded-full border border-gray-300 text-gray-500"
+                  className="flex size-8 items-center justify-center rounded-md border border-[#d3d3d3] text-[#bcbcbc]"
                 >
                   2
                 </button>
                 <span className="px-1">…</span>
                 <button
                   type="button"
-                  className="flex size-7 items-center justify-center rounded-full border border-gray-300 text-gray-500"
+                  className="flex size-8 items-center justify-center rounded-md border border-[#d3d3d3] text-[#bcbcbc]"
                 >
                   32
                 </button>
                 <button
                   type="button"
-                  className="flex size-7 items-center justify-center rounded-full border border-gray-300 text-gray-500"
+                  className="flex size-8 items-center justify-center rounded-md border border-[#d3d3d3] text-[#bcbcbc]"
                 >
                   ›
                 </button>

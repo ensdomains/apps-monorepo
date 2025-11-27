@@ -29,54 +29,47 @@ export const PrimaryNameCard = ({
   const hasAvatar = Boolean(avatarUrl)
 
   return (
-    <Card className="rounded-[22px] border border-gray-200 bg-white/95 shadow-md">
-      <div className="flex flex-col gap-6 p-6 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-6">
-          <div className="h-[200px] w-[200px] overflow-hidden rounded-[18px] bg-muted">
+    <Card className="rounded-[22px] border-[#dededf] border-[0.25px] bg-white/95 shadow-[0px_20.905px_27.874px_rgba(14,61,104,0.06)]">
+      <div className="flex flex-col gap-8 p-6 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col items-start gap-6 md:flex-row">
+          <div className="size-[200px] shrink-0 overflow-hidden rounded-[18px] bg-muted">
             {hasAvatar ? (
               <img
                 src={avatarUrl as string}
                 alt={primaryName}
-                className="h-full w-full object-cover"
+                className="size-full object-cover"
               />
             ) : (
-              <div className="h-full w-full bg-gradient-to-br from-ens-blue/40 via-ens-blue to-ens-blue-midnight" />
+              <div className="size-full bg-linear-to-br from-ens-blue/40 via-ens-blue to-ens-blue-midnight" />
             )}
           </div>
 
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <span className="inline-flex w-fit items-center rounded-[14px] bg-ens-blue px-6 py-3 font-sans font-semibold text-[28px] text-white leading-none">
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-3">
+              <span className="inline-flex w-fit items-center rounded-[14px] bg-[#0080bc] px-6 py-2.5 font-sans font-semibold text-[28px] text-white leading-none">
                 {primaryName}
               </span>
-              <div className="inline-flex w-fit items-center gap-2 rounded-full bg-[#f1f5f9] px-4 py-1 font-medium text-ens-blue text-xs">
+              <div className="inline-flex w-fit items-center gap-2 rounded-full bg-[#f1f5f9] px-4 py-1.5 font-medium text-[#0080bc] text-xs">
                 Primary Name
                 <CheckCircle2 className="size-4" />
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 text-muted-foreground text-sm md:flex-row md:gap-8">
+            <div className="flex flex-col gap-4 text-[#8c8c8c] text-sm">
               <div className="flex items-center gap-2">
-                <Calendar className="size-5 text-muted-foreground" />
+                <Calendar className="size-5 text-[#8c8c8c]" />
                 <span>Registered</span>
-                <span className="font-semibold text-foreground">
+                <span className="font-semibold text-[#232222]">
                   {dateFormatter.format(registeredDate)}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="size-5 text-muted-foreground" />
+                <Clock className="size-5 text-[#8c8c8c]" />
                 <span>Expires</span>
-                <span className="font-semibold text-foreground">
+                <span className="font-semibold text-[#232222]">
                   {dateFormatter.format(expiryDate)}
                 </span>
               </div>
-            </div>
-
-            <div className="text-muted-foreground text-sm">
-              Wallet{' '}
-              <span className="font-medium text-foreground">
-                {truncateAddress(address)}
-              </span>
             </div>
           </div>
         </div>
@@ -86,7 +79,7 @@ export const PrimaryNameCard = ({
           params={{ name: primaryName }}
           variant="outline"
           size="lg"
-          className="mt-4 whitespace-nowrap border-2 border-ens-blue text-ens-blue hover:bg-ens-blue/5 md:mt-0"
+          className="mt-4 whitespace-nowrap rounded-lg border-2 border-[#0080bc] text-[#0080bc] hover:bg-[#0080bc]/5 md:mt-0"
         >
           View profile →
         </LinkButton>
