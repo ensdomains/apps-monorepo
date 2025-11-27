@@ -42,7 +42,9 @@ const faqItems = [
 export const FaqSection = () => (
   <Card className="border bg-white/90">
     <CardHeader>
-      <CardTitle>Frequently Asked Questions</CardTitle>
+      <CardTitle className="font-semibold font-serif text-lg">
+        Frequently Asked Questions
+      </CardTitle>
       <CardDescription>
         Quick answers to common questions about managing your ENS names.
       </CardDescription>

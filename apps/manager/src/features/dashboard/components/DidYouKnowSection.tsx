@@ -9,7 +9,9 @@ import {
 export const DidYouKnowSection = () => (
   <Card className="border bg-white/90">
     <CardHeader>
-      <CardTitle>Did you know?</CardTitle>
+      <CardTitle className="font-semibold font-serif text-lg">
+        Did you know?
+      </CardTitle>
       <CardDescription>
         ENS names are more than just .eth usernames. Use them across apps,
         networks, and wallets.
