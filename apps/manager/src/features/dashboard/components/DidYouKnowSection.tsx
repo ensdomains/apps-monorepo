@@ -1,3 +1,5 @@
+import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -7,34 +9,73 @@ import {
 } from '@/components/ui/card'
 
 export const DidYouKnowSection = () => (
-  <Card className="border bg-white/90">
-    <CardHeader>
-      <CardTitle className="font-semibold font-serif text-lg">
-        Did you know?
-      </CardTitle>
-      <CardDescription>
-        ENS names are more than just .eth usernames. Use them across apps,
-        networks, and wallets.
-      </CardDescription>
+  <Card className="border bg-white/90 shadow-sm">
+    <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
+      <div className="space-y-1">
+        <CardTitle className="font-semibold font-serif text-2xl">
+          Did You Know?
+        </CardTitle>
+        <CardDescription className="max-w-xl text-sm">
+          ENS names are more than just .eth usernames. Use them across apps,
+          networks, and wallets.
+        </CardDescription>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+          2 of 10
+        </span>
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 rounded-full border border-muted bg-white/70 shadow-none hover:bg-muted/60"
+            aria-label="Previous tip"
+          >
+            <ChevronLeftIcon className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 rounded-full border border-muted bg-white/70 shadow-none hover:bg-muted/60"
+            aria-label="Next tip"
+          >
+            <ChevronRightIcon className="size-4" />
+          </Button>
+        </div>
+      </div>
     </CardHeader>
     <CardContent className="grid gap-4 md:grid-cols-2">
-      <div className="space-y-2 rounded-xl bg-ens-blue/5 p-4">
-        <div className="font-semibold text-ens-blue text-xs uppercase">
-          One username, many places
+      <div className="flex flex-col justify-between rounded-2xl bg-[#d3f0de] p-6 pb-7 md:p-8">
+        <div className="space-y-3">
+          <div className="text-emerald-900">
+            <p className="font-semibold text-2xl md:text-3xl">One username</p>
+            <p className="font-serif text-xl italic md:text-2xl">everywhere.</p>
+          </div>
+          <p className="max-w-md text-emerald-900/80 text-sm leading-relaxed">
+            Your name lives onchain — you own it, not a platform. Sign in to
+            web3 apps with your <span className="font-semibold">.eth name</span>{' '}
+            and your ENS profile will load automatically.
+          </p>
         </div>
-        <p className="text-muted-foreground text-sm">
-          Set a primary name once and use it across compatible apps, wallets,
-          and dapps instead of copying long addresses.
-        </p>
       </div>
-      <div className="space-y-2 rounded-xl bg-pink-50 p-4">
-        <div className="font-semibold text-pink-600 text-xs uppercase">
-          Stay safe
+
+      <div className="flex flex-col justify-between rounded-2xl bg-[#ffd3ea] p-6 pb-7 md:p-8">
+        <div className="space-y-3">
+          <div className="text-[#c2185b]">
+            <p className="font-semibold text-2xl md:text-3xl">
+              Verify authenticity
+            </p>
+            <p className="font-serif text-xl italic md:text-2xl">
+              and stay safe.
+            </p>
+          </div>
+          <p className="max-w-md text-[#7a1040] text-sm leading-relaxed">
+            Companies and projects use ENS because it’s secured with ethereum,
+            so you can be sure it’s the real deal. Avoid impersonation scams and
+            stay safe out there &lt;3.
+          </p>
         </div>
-        <p className="text-muted-foreground text-sm">
-          Always double-check links and transactions before signing. ENS names
-          help you recognise trusted accounts more easily.
-        </p>
       </div>
     </CardContent>
   </Card>
