@@ -13,10 +13,6 @@ import { VerifiedRegistryCard } from '@/features/registry/components/VerifiedReg
 import { useNameRegistryDiscovery } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getParentName } from '@/features/registry/utils/nameUtils'
 import { sepoliaEthRegistryAddress } from '@/lib/constants/registry'
-import {
-  namechainVerifiableFactory,
-  sepoliaVerifiableFactory,
-} from '@/lib/constants/verifiableFactory'
 
 export const Route = createFileRoute('/$name/registry')({
   component: RouteComponent,
@@ -31,28 +27,21 @@ function RouteComponent() {
     error,
   } = useQuery(getEnsOwnerQueryOptions({ name }))
 
-  const chainLocation = data?.network
-
   const {
     currentRegistry,
     parentRegistry,
     hasCurrentRegistry,
+    network,
+    protocolVersion,
+    factory,
     isLoading: isLoadingCards,
     error: cardsError,
   } = useNameRegistryDiscovery({
     name,
-    chainLocation,
     enabled: !isLoadingOwner,
   })
 
-  const isNamechain = chainLocation === 'namechainSepolia'
-  const factory =
-    chainLocation === 'sepolia'
-      ? sepoliaVerifiableFactory
-      : chainLocation === 'namechainSepolia'
-        ? namechainVerifiableFactory
-        : null
-
+  const isNamechain = network === 'namechainSepolia'
   const showVerifiedBanner = Boolean(hasCurrentRegistry && isNamechain)
 
   if (isLoadingOwner || isLoadingCards) {
@@ -131,7 +120,7 @@ function RouteComponent() {
                   address: data?.owner ?? zeroAddress,
                 },
                 network: parentNetwork,
-                protocol: 'ENSv2',
+                protocol: protocolVersion ?? 'ENSv2',
                 factory,
               }}
             />
@@ -159,7 +148,7 @@ function RouteComponent() {
             }}
             network={{
               name: currentNetwork.name,
-              location: chainLocation ?? 'sepolia',
+              location: network ?? 'sepolia',
             }}
           />
 
@@ -173,7 +162,7 @@ function RouteComponent() {
                 name: currentNetwork.name,
                 chainId: currentNetwork.chainId,
               },
-              protocol: 'ENSv2',
+              protocol: protocolVersion ?? 'ENSv2',
               factory,
             }}
           />
@@ -203,7 +192,7 @@ function RouteComponent() {
                 name: parentNetwork.name,
                 chainId: parentNetwork.chainId,
               },
-              protocol: 'ENSv2',
+              protocol: protocolVersion ?? 'ENSv2',
               factory,
             }}
           />

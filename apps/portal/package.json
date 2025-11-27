@@ -18,7 +18,7 @@
     "@ens-apps/l2-primary": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/address-encoder": "^1.1.2",
-    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f7e4bc5",
+    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@eaf940c",
     "@ensdomains/locales": "workspace:^",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-avatar": "^1.1.10",
