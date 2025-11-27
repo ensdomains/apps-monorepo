@@ -8,5 +8,5 @@ export const namechainEthRegistryAddress = sepoliaWithEns.contracts
 export const sepoliaEthRegistryAddress = sepoliaWithEns.contracts.ensRegistry
   .address as Address
 
-export const registryFinderAddress =
+export const l2RegistryFinderAddress =
   '0x1d4a4326C8a51aaD8C286b553EfA855C35890B26' as Address

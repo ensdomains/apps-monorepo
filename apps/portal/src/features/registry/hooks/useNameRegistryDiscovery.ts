@@ -4,18 +4,13 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { type GetOwnerErrorType, getOwner } from '@ensdomains/ensjs/public/v1'
 import {
+  getNameRegistries as ensjsGetNameRegistries,
   type GetNameRegistriesErrorType,
-  getNameRegistries,
 } from '@ensdomains/ensjs/public/v2'
-import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
-import {
-  namechainEthRegistryAddress,
-  registryFinderAddress,
-  sepoliaEthRegistryAddress,
-} from '@/lib/constants/registry'
+import { l2RegistryFinderAddress } from '@/lib/constants/registry'
 import {
   namechainVerifiableFactory,
   sepoliaVerifiableFactory,
@@ -25,19 +20,26 @@ import {
   safeGetClient,
   safeGetNamechainSepoliaClient,
 } from '@/lib/wagmi/helpers'
+import type { EnsNetworkName, ProtocolVersion } from '@/utils/types'
 
 export type GetNameRegistriesParameters = {
   name: string
 }
 
+/**
+ * Result of resolving registries for a name.
+ *
+ * We rely on these invariants:
+ * - `registries.at(-2)` is the registry for `name` (or undefined/zeroAddress if it doesn’t exist)
+ * - `registries.at(-3)` is the registry for the parent of `name` (if any)
+ *
+ * For V2 this comes directly from ensjs `getNameRegistries`.
+ * For V1 we synthesize the array so that the invariants still hold.
+ */
 export type NameRegistriesResult = {
-  rootRegistry: Address
-  currentRegistry: Address | null
-  parentRegistry: Address | null
   registries: readonly Address[]
-  hasCurrentRegistry: boolean
-  network: 'sepolia' | 'namechainSepolia'
-  protocolVersion: 'ENSv1' | 'ENSv2'
+  network: EnsNetworkName
+  protocolVersion: ProtocolVersion
   factory: Address | null
 }
 
@@ -45,33 +47,20 @@ export class NameRegistriesError extends TaggedError('NameRegistriesError')<{
   cause: GetNameRegistriesErrorType | GetOwnerErrorType
 }> {}
 
-export type RegistryDiscoveryError = NameRegistriesError | WagmiClientError
-
-export type RegistryDiscoveryReturnType = {
-  rootRegistry: Address | null
-  currentRegistry: Address | null
-  parentRegistry: Address | null
-  subregistries: readonly Address[]
-  hasCurrentRegistry: boolean
-  network: 'sepolia' | 'namechainSepolia' | null
-  protocolVersion: 'ENSv1' | 'ENSv2' | null
-  factory: Address | null
-  isLoading: boolean
-  error: RegistryDiscoveryError | null
-}
+export type NameRegistriesError_ = NameRegistriesError | WagmiClientError
 
 /**
  * Discovers which registry (L1 V1, L1 V2, or L2) a name exists on and returns all registry addresses.
  *
  * Checks in order:
- * 1. L2 V2 (Namechain) using getNameRegistries with RegistryFinder
- * 2. L1 V2 (Sepolia) using getNameRegistries with UniversalResolver
+ * 1. L2 V2 (Namechain) using ensjs getNameRegistries with RegistryFinder
+ * 2. L1 V2 (Sepolia) using ensjs getNameRegistries with UniversalResolver
  * 3. L1 V1 (Sepolia) using getOwner with V1 ETHRegistry
  *
  * For V1 registries, all subnames live on the same registry.
- * For V2 registries, getNameRegistries efficiently fetches all registry addresses at once.
+ * For V2 registries, ensjs getNameRegistries efficiently fetches all registry addresses at once.
  */
-export const getNameRegistriesForName = ResultFn(async function* (
+export const getNameRegistries = ResultFn(async function* (
   params: GetNameRegistriesParameters,
 ) {
   const { name } = params
@@ -81,52 +70,41 @@ export const getNameRegistriesForName = ResultFn(async function* (
   const labels = name.split('.')
   if (labels.length < 2) {
     return ok<NameRegistriesResult>({
-      rootRegistry: sepoliaEthRegistryAddress,
-      currentRegistry: null,
-      parentRegistry: null,
       registries: [],
-      hasCurrentRegistry: false,
       network: 'sepolia',
       protocolVersion: 'ENSv2',
       factory: sepoliaVerifiableFactory,
     })
   }
 
-  // Step 1: Check L2 V2 using getNameRegistries with RegistryFinder
+  // Step 1: Check L2 V2 using ensjs getNameRegistries with RegistryFinder
   const l2Registries = yield* await fromPromise(
-    getNameRegistries(l2Client, {
+    ensjsGetNameRegistries(l2Client, {
       name,
-      address: registryFinderAddress,
+      address: l2RegistryFinderAddress,
     }),
     (e) => new NameRegistriesError({ cause: e as GetNameRegistriesErrorType }),
   )
 
   // If registries.at(-2) exists and is not zeroAddress, name exists on L2
-  const l2SecondToLast = l2Registries.at(-2)
-  if (l2SecondToLast && l2SecondToLast !== zeroAddress) {
-    const currentRegistry = l2SecondToLast ?? null
-    const parentRegistry = l2Registries.at(-3) ?? namechainEthRegistryAddress
-
+  const l2NameRegistry = l2Registries.at(-2)
+  if (l2NameRegistry && l2NameRegistry !== zeroAddress) {
     return ok<NameRegistriesResult>({
-      rootRegistry: namechainEthRegistryAddress,
-      currentRegistry,
-      parentRegistry,
       registries: l2Registries,
-      hasCurrentRegistry: !!currentRegistry && currentRegistry !== zeroAddress,
       network: 'namechainSepolia',
       protocolVersion: 'ENSv2',
       factory: namechainVerifiableFactory,
     })
   }
 
-  // Step 2: Check L1 V2 using getNameRegistries with UniversalResolver
+  // Step 2: Check L1 V2 using ensjs getNameRegistries with UniversalResolver
   const universalResolverAddress = getChainContractAddress({
     chain: l1Client.chain,
     contract: 'ensUniversalResolver',
   })
 
   const l1V2Registries = yield* await fromPromise(
-    getNameRegistries(l1Client, {
+    ensjsGetNameRegistries(l1Client, {
       name,
       address: universalResolverAddress,
     }),
@@ -134,17 +112,10 @@ export const getNameRegistriesForName = ResultFn(async function* (
   )
 
   // If registries.at(-2) exists and is not zeroAddress, name exists on L1 V2
-  const l1V2SecondToLast = l1V2Registries.at(-2)
-  if (l1V2SecondToLast && l1V2SecondToLast !== zeroAddress) {
-    const currentRegistry = l1V2SecondToLast ?? null
-    const parentRegistry = l1V2Registries.at(-3) ?? sepoliaEthRegistryAddress
-
+  const l1V2NameRegistry = l1V2Registries.at(-2)
+  if (l1V2NameRegistry && l1V2NameRegistry !== zeroAddress) {
     return ok<NameRegistriesResult>({
-      rootRegistry: sepoliaEthRegistryAddress,
-      currentRegistry,
-      parentRegistry,
       registries: l1V2Registries,
-      hasCurrentRegistry: !!currentRegistry && currentRegistry !== zeroAddress,
       network: 'sepolia',
       protocolVersion: 'ENSv2',
       factory: sepoliaVerifiableFactory,
@@ -166,14 +137,12 @@ export const getNameRegistriesForName = ResultFn(async function* (
 
     // For V1, all labels use the same registry address
     const pathLabels = labels.slice(0, -1) // Drop TLD
-    const registries = pathLabels.map(() => v1RegistryAddress)
+    const registries: readonly Address[] = pathLabels.map(
+      () => v1RegistryAddress,
+    )
 
     return ok<NameRegistriesResult>({
-      rootRegistry: v1RegistryAddress,
-      currentRegistry: v1RegistryAddress,
-      parentRegistry: v1RegistryAddress,
       registries,
-      hasCurrentRegistry: true,
       network: 'sepolia',
       protocolVersion: 'ENSv1',
       factory: null, // V1 doesn't use verifiable factories
@@ -182,11 +151,7 @@ export const getNameRegistriesForName = ResultFn(async function* (
 
   // Name doesn't exist anywhere
   return ok<NameRegistriesResult>({
-    rootRegistry: sepoliaEthRegistryAddress,
-    currentRegistry: null,
-    parentRegistry: null,
     registries: [],
-    hasCurrentRegistry: false,
     network: 'sepolia',
     protocolVersion: 'ENSv2',
     factory: sepoliaVerifiableFactory,
@@ -203,31 +168,5 @@ export const getNameRegistriesQueryOptions = (
 ) =>
   resultQueryOptions({
     queryKey: nameRegistriesQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getNameRegistriesForName(params),
+    queryFn: ({ queryKey: [, params] }) => getNameRegistries(params),
   })
-
-export function useNameRegistryDiscovery({
-  name,
-  enabled = true,
-}: {
-  name: string
-  enabled?: boolean
-}): RegistryDiscoveryReturnType {
-  const query = useQuery({
-    ...getNameRegistriesQueryOptions({ name }),
-    enabled,
-  })
-
-  return {
-    rootRegistry: query.data?.rootRegistry ?? null,
-    currentRegistry: query.data?.currentRegistry ?? null,
-    parentRegistry: query.data?.parentRegistry ?? null,
-    subregistries: (query.data?.registries ?? []) as readonly Address[],
-    hasCurrentRegistry: query.data?.hasCurrentRegistry ?? false,
-    network: query.data?.network ?? null,
-    protocolVersion: query.data?.protocolVersion ?? null,
-    factory: query.data?.factory ?? null,
-    isLoading: query.isLoading,
-    error: query.error ?? null,
-  }
-}

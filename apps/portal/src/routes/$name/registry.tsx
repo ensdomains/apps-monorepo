@@ -10,7 +10,7 @@ import { ParentRegistrySection } from '@/features/registry/components/ParentRegi
 import { RegistryCard } from '@/features/registry/components/RegistryCard'
 import { RegistryHeaderCards } from '@/features/registry/components/RegistryHeaderCards'
 import { VerifiedRegistryCard } from '@/features/registry/components/VerifiedRegistryCard'
-import { useNameRegistryDiscovery } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getParentName } from '@/features/registry/utils/nameUtils'
 import { sepoliaEthRegistryAddress } from '@/lib/constants/registry'
 
@@ -28,23 +28,34 @@ function RouteComponent() {
   } = useQuery(getEnsOwnerQueryOptions({ name }))
 
   const {
-    currentRegistry,
-    parentRegistry,
-    hasCurrentRegistry,
-    network,
-    protocolVersion,
-    factory,
-    isLoading: isLoadingCards,
-    error: cardsError,
-  } = useNameRegistryDiscovery({
-    name,
+    data: registryData,
+    isLoading: isLoadingRegistry,
+    error: registryError,
+  } = useQuery({
+    ...getNameRegistriesQueryOptions({ name }),
     enabled: !isLoadingOwner,
   })
 
-  const isNamechain = network === 'namechainSepolia'
-  const showVerifiedBanner = Boolean(hasCurrentRegistry && isNamechain)
+  const registries = registryData?.registries ?? []
+  const network = registryData?.network ?? null
+  const protocolVersion = registryData?.protocolVersion ?? null
+  const factory = registryData?.factory ?? null
 
-  if (isLoadingOwner || isLoadingCards) {
+  // For both V1 and V2 we rely on:
+  // - registries.at(-2) = registry for `name`
+  // - registries.at(-3) = registry for parent of `name` (if any)
+
+  // For flo.eth: [.eth, flo.eth, .eth]
+  // For sub.flo.eth: [.eth, flo.eth, sub.flo.eth, .eth]
+  // So: .at(-1)=TLD, .at(-2)=name's registry, .at(-3)=parent's registry
+  const nameRegistry = registries.at(-2) ?? null // Registry for this name
+  const parentRegistry = registries.at(-3) ?? null // Registry for parent name
+  const hasNameRegistry = !!nameRegistry && nameRegistry !== zeroAddress
+
+  const isNamechain = network === 'namechainSepolia'
+  const showVerifiedBanner = Boolean(hasNameRegistry && isNamechain)
+
+  if (isLoadingOwner || isLoadingRegistry) {
     return <LoadingSpinner title="Loading registry" />
   }
 
@@ -62,11 +73,11 @@ function RouteComponent() {
     )
   }
 
-  if (cardsError) {
+  if (registryError) {
     return (
       <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
-        <div>Error: {cardsError.message}</div>
+        <div>Error: {registryError.message}</div>
       </div>
     )
   }
@@ -91,7 +102,7 @@ function RouteComponent() {
   // ─────────────────────────────
   // Case 1: Name has NO registry
   // ─────────────────────────────
-  if (!hasCurrentRegistry) {
+  if (!hasNameRegistry) {
     return (
       <div className="flex flex-col gap-6 p-4 w-full lg|max-w-2xl xl:max-w-5xl mx-auto">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
@@ -139,7 +150,7 @@ function RouteComponent() {
 
       {showVerifiedBanner && <VerifiedRegistryCard />}
 
-      {currentRegistry && (
+      {nameRegistry && (
         <>
           <RegistryHeaderCards
             owner={{
@@ -154,7 +165,7 @@ function RouteComponent() {
 
           <RegistryCard
             registry={{
-              address: currentRegistry,
+              address: nameRegistry,
               owner: {
                 address: data?.owner ?? zeroAddress,
               },
