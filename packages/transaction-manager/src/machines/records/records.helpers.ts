@@ -119,20 +119,23 @@ const encodeCoinValue = (
 const buildTextCalls = (options: {
   abi: typeof DEDICATED_RESOLVER_ABI
   texts: TextChange[]
-  buildArgs: (key: string, value: string | null) => readonly unknown[]
+  buildArgs: (key: string, value: string | null) => readonly [string, string]
 }): Hex[] =>
   options.texts.map(({ key, value }) =>
     encodeFunctionData({
       abi: options.abi,
       functionName: 'setText',
-      args: options.buildArgs(key, value ?? '') as any,
+      args: options.buildArgs(key, value ?? ''),
     }),
   )
 
 const buildCoinCalls = (options: {
   abi: typeof DEDICATED_RESOLVER_ABI
   coins: CoinChange[]
-  buildArgs: (coinType: number, encoded: Hex) => readonly unknown[]
+  buildArgs: (
+    coinType: number,
+    encoded: Hex,
+  ) => readonly [bigint, `0x${string}`]
 }): Hex[] =>
   options.coins.map(({ coin, value }) => {
     const coder = getCoderFromCoin(coin)
@@ -141,7 +144,7 @@ const buildCoinCalls = (options: {
     return encodeFunctionData({
       abi: options.abi,
       functionName: 'setAddr',
-      args: options.buildArgs(coder.coinType, encoded) as any,
+      args: options.buildArgs(coder.coinType, encoded),
     })
   })
 
@@ -149,7 +152,8 @@ export const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => [
   ...buildTextCalls({
     abi: DEDICATED_RESOLVER_ABI,
     texts: changes.texts,
-    buildArgs: (key, value) => [key, value],
+    // biome-ignore lint/style/noNonNullAssertion: value is never null
+    buildArgs: (key, value) => [key, value!],
   }),
   ...buildCoinCalls({
     abi: DEDICATED_RESOLVER_ABI,
