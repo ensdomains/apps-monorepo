@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, useParams } from '@tanstack/react-router'
+import { createFileRoute, Link, useParams } from '@tanstack/react-router'
+import { EditIcon } from 'lucide-react'
 import { zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import type { NameChainLocation } from '@/features/registry/components/NetworkCard'
 import { NoRegistryCard } from '@/features/registry/components/NoRegistryCard'
@@ -146,7 +148,15 @@ function RouteComponent() {
   // ─────────────────────────────
   return (
     <div className="flex flex-col gap-6 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
-      <h1 className="text-[28px] font-medium leading-none">Registry</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-[28px] font-medium leading-none">Registry</h1>
+        <Link to="/$name/deploy-registry" params={{ name }}>
+          <Button variant="outline" className="flex items-center gap-2">
+            <EditIcon className="size-4" />
+            Change registry
+          </Button>
+        </Link>
+      </div>
 
       {showVerifiedBanner && <VerifiedRegistryCard />}
 
