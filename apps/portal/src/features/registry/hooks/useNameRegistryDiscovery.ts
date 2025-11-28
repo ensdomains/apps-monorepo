@@ -10,12 +10,14 @@ import {
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
-import { l2RegistryFinderAddress } from '@/lib/constants/registry'
+import {
+  l2RegistryFinderAddress,
+  sepoliaEthRegistryAddress,
+} from '@/lib/constants/registry'
 import {
   namechainVerifiableFactory,
   sepoliaVerifiableFactory,
 } from '@/lib/constants/verifiableFactory'
-import type { WagmiClientError } from '@/lib/wagmi/helpers'
 import {
   safeGetClient,
   safeGetNamechainSepoliaClient,
@@ -25,6 +27,16 @@ import type { EnsNetworkName, ProtocolVersion } from '@/utils/types'
 export type GetNameRegistriesParameters = {
   name: string
 }
+
+type NameRegistriesResultType =
+  | [nameOrZero: Address, tld: Address] // Invalid or non-existent name
+  | [nameAddress: Address, ethRegistry: Address, rootRegistry: Address] // 2LD: flo.eth
+  | [
+      subnameAddress: Address,
+      nameAddress: Address,
+      ethRegistry: Address,
+      rootRegistry: Address,
+    ] // 3LD: sub.flo.eth
 
 /**
  * Result of resolving registries for a name.
@@ -37,7 +49,7 @@ export type GetNameRegistriesParameters = {
  * For V1 we synthesize the array so that the invariants still hold.
  */
 export type NameRegistriesResult = {
-  registries: readonly Address[]
+  registries: NameRegistriesResultType
   network: EnsNetworkName
   protocolVersion: ProtocolVersion
   factory: Address | null
@@ -47,7 +59,38 @@ export class NameRegistriesError extends TaggedError('NameRegistriesError')<{
   cause: GetNameRegistriesErrorType | GetOwnerErrorType
 }> {}
 
-export type NameRegistriesError_ = NameRegistriesError | WagmiClientError
+/**
+ * Converts ensjs getNameRegistries result to our precise tuple type.
+ *
+ * ensjs returns:
+ * - flo.eth (2LD): [flo address on ETH Registry, ETH Registry address, root registry address] = 3 elements
+ * - sub.flo.eth (3LD): [sub address on flo.eth subregistry, flo address on ETH Registry, ETH Registry address, root registry address] = 4 elements
+ *
+ * We support up to 3LD (third-level domains), so max 4 elements.
+ */
+function toNameRegistriesResultType(
+  arr: readonly Address[],
+): NameRegistriesResultType {
+  if (arr.length === 2) {
+    // Invalid or non-existent name: [nameOrZero, tld]
+    return [arr[0], arr[1]]
+  }
+
+  if (arr.length === 3) {
+    // 2LD (flo.eth): [nameAddress, ethRegistry, rootRegistry]
+    return [arr[0], arr[1], arr[2]]
+  }
+
+  if (arr.length === 4) {
+    // 3LD (sub.flo.eth): [subnameAddress, nameAddress, ethRegistry, rootRegistry]
+    return [arr[0], arr[1], arr[2], arr[3]]
+  }
+
+  // Should never reach here - we only support up to 3LD
+  throw new Error(
+    `Unsupported registry depth: expected 2-4 elements, got ${arr.length}`,
+  )
+}
 
 /**
  * Discovers which registry (L1 V1, L1 V2, or L2) a name exists on and returns all registry addresses.
@@ -69,8 +112,10 @@ export const getNameRegistries = ResultFn(async function* (
 
   const labels = name.split('.')
   if (labels.length < 2) {
+    // For TLD-only or invalid names, name doesn't exist
+
     return ok<NameRegistriesResult>({
-      registries: [],
+      registries: [zeroAddress, sepoliaEthRegistryAddress], // [name (doesn't exist), TLD]
       network: 'sepolia',
       protocolVersion: 'ENSv2',
       factory: sepoliaVerifiableFactory,
@@ -90,7 +135,7 @@ export const getNameRegistries = ResultFn(async function* (
   const l2NameRegistry = l2Registries.at(-2)
   if (l2NameRegistry && l2NameRegistry !== zeroAddress) {
     return ok<NameRegistriesResult>({
-      registries: l2Registries,
+      registries: toNameRegistriesResultType(l2Registries),
       network: 'namechainSepolia',
       protocolVersion: 'ENSv2',
       factory: namechainVerifiableFactory,
@@ -115,7 +160,7 @@ export const getNameRegistries = ResultFn(async function* (
   const l1V2NameRegistry = l1V2Registries.at(-2)
   if (l1V2NameRegistry && l1V2NameRegistry !== zeroAddress) {
     return ok<NameRegistriesResult>({
-      registries: l1V2Registries,
+      registries: toNameRegistriesResultType(l1V2Registries),
       network: 'sepolia',
       protocolVersion: 'ENSv2',
       factory: sepoliaVerifiableFactory,
@@ -135,11 +180,23 @@ export const getNameRegistries = ResultFn(async function* (
       contract: 'ensRegistry',
     })
 
-    // For V1, all labels use the same registry address
-    const pathLabels = labels.slice(0, -1) // Drop TLD
-    const registries: readonly Address[] = pathLabels.map(
-      () => v1RegistryAddress,
-    )
+    // For V1, all names are registered on the same V1 ETH Registry
+    const pathLabels = labels.slice(0, -1) // drop TLD
+
+    let registries: NameRegistriesResultType
+
+    if (pathLabels.length === 1) {
+      // flo.eth → [flo address (V1 Registry), ETH Registry (V1 Registry), root (V1 Registry)]
+      registries = [v1RegistryAddress, v1RegistryAddress, v1RegistryAddress]
+    } else {
+      // sub.flo.eth → [sub address (V1 Registry), flo address (V1 Registry), ETH Registry (V1 Registry), root (V1 Registry)]
+      registries = [
+        v1RegistryAddress,
+        v1RegistryAddress,
+        v1RegistryAddress,
+        v1RegistryAddress,
+      ]
+    }
 
     return ok<NameRegistriesResult>({
       registries,
@@ -149,9 +206,8 @@ export const getNameRegistries = ResultFn(async function* (
     })
   }
 
-  // Name doesn't exist anywhere
   return ok<NameRegistriesResult>({
-    registries: [],
+    registries: [zeroAddress, sepoliaEthRegistryAddress], // [name (doesn't exist), TLD]
     network: 'sepolia',
     protocolVersion: 'ENSv2',
     factory: sepoliaVerifiableFactory,
