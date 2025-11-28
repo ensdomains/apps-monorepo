@@ -6,7 +6,6 @@ import { skipToken } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { REVERSE_RESOLUTION_NETWORKS } from '../utils/network'
 
 class GetNameError extends TaggedError('GetNameError')<{
   cause: GetNameErrorType
@@ -18,19 +17,11 @@ class MissingReverseNameError extends TaggedError(
 
 export const getReverseName = ResultFn(async function* (address: Address) {
   const client = yield* safeGetClient()
-  const networks = REVERSE_RESOLUTION_NETWORKS
-  // const isDefault = network.reverseRegistrarChainId === 60
-  const isDefault = true
 
   const result = yield* await fromPromise(
-    getName(client, {
-      address,
-      ...(isDefault ? { reverseRegistrarChainId: 60 } : { chainId: 60 }),
-    }),
+    getName(client, { address }),
     (e) => new GetNameError({ cause: e as GetNameErrorType }),
   )
-
-  console.log('result', result)
 
   if (!result) {
     return yield* new MissingReverseNameError()
