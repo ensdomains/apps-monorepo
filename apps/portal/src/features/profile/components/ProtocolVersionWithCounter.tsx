@@ -3,10 +3,11 @@ import { Link } from '@tanstack/react-router'
 import { ChevronRight, HashIcon, ListIcon } from 'lucide-react'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { getBurnedFuseCountQueryOptions } from '@/features/namewrapper/hooks/useBurnedFuseCount'
+import type { EnsNetworkName } from '@/utils/types'
 
 interface ProtocolVersionWithCounterProps {
   name: string
-  network: 'sepolia' | 'namechainSepolia'
+  network: EnsNetworkName
 }
 
 const RoleCount = () => {

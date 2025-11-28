@@ -49,12 +49,10 @@ export function useReverseResolutionMutations({
 
   const { data: l1WalletClient } = useWalletClient({ chainId: sepolia.id })
   const ensChain = wagmiConfig.chains.find((c) => c.id === sepolia.id)
-  const ensEnabledChain = ensChain as ChainWithEns<typeof sepolia>
 
   // L2 Reverse Name (address -> name)
   const { getSetReverseNameRequest } = useSetReverseName({
     reverseRegistrarChainId,
-    chain: ensEnabledChain, // pass ENS-enabled chain instead of isTestnet
   })
 
   // Forward Resolution (name -> address) on L1 only
@@ -73,11 +71,11 @@ export function useReverseResolutionMutations({
         if (!l1WalletClient)
           throw new Error('Sepolia wallet client not available')
         if (!l1WalletClient.account) throw new Error('No connected account')
-        if (!ensEnabledChain) throw new Error('Sepolia chain missing in config')
+        if (!ensChain) throw new Error('Sepolia chain missing in config')
 
         const client = {
           ...l1WalletClient,
-          chain: ensEnabledChain,
+          chain: ensChain as ChainWithEns,
         }
 
         return {
@@ -91,7 +89,7 @@ export function useReverseResolutionMutations({
         request: getSetReverseNameRequest(name),
       }
     },
-    [ensEnabledChain, getSetReverseNameRequest, isL1, l1WalletClient],
+    [getSetReverseNameRequest, isL1, l1WalletClient, ensChain],
   )
 
   const getForwardResolutionRequest = useCallback(
