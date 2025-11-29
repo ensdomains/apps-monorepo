@@ -12,6 +12,7 @@ import {
 import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
 import { useAccount, useDisconnect, useEnsName } from 'wagmi'
+import { HomeSearchInput } from '@/components/HomeSearchInput'
 import {
   ExampleNameCard,
   LinkBlock,
@@ -24,7 +25,6 @@ import { NavBar } from '@/components/molecules/NavBar'
 import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
-import { HomeSearchInput } from '@/routes/components/HomeSearchInput'
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,

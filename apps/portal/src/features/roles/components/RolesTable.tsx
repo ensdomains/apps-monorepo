@@ -1,43 +1,47 @@
 import type { GetNameRolesAccountsReturnType } from '@ensdomains/ensjs/public/v2'
-import type { RoleName } from '@ensdomains/ensjs/utils/v2'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { Address } from 'viem'
-import { DataTable } from '@/components/molecules/DataTable/DataTable'
+import { AddressDisplay } from '@/components/organisms/HistoryTable/AddressDisplay'
+import { GroupedDataTable } from '@/components/table/GroupedDataTable'
 
 export type RolesTableProps = {
-  title: string
+  title?: string
   roles: GetNameRolesAccountsReturnType
 }
 
-export type AccountRoleColumnDef = {
+type AccountGroup = {
+  items: string[]
   account: Address
-  role: RoleName<string[]>
 }
 
-const columns: ColumnDef<AccountRoleColumnDef>[] = [
+const columns: ColumnDef<AccountGroup>[] = [
   {
     header: 'Role',
-    accessorKey: 'role',
-  },
-  {
-    header: 'Account',
     accessorKey: 'account',
+    cell(cell) {
+      const value = cell.getValue() as Address
+
+      return (
+        <div>
+          <AddressDisplay address={value} />
+        </div>
+      )
+    },
   },
 ]
 
 export const RolesTable = ({ title, roles }: RolesTableProps) => {
-  const data: AccountRoleColumnDef[] = Array.from(roles.entries()).flatMap(
-    ([account, roleNames]) =>
-      roleNames.map((role) => ({
-        account,
-        role: role as RoleName<string[]>,
-      })),
+  const data: AccountGroup[] = Array.from(roles.entries()).map(
+    ([account, roleNames]) => ({
+      account,
+      items: roleNames,
+    }),
   )
 
   return (
     <div>
-      <h2>{title}</h2>
-      <DataTable data={data} columns={columns} />
+      {title && <h2>{title}</h2>}
+      <GroupedDataTable<AccountGroup, string> data={data} columns={columns} />
     </div>
   )
 }
