@@ -23,7 +23,9 @@ import {
   TableRow,
 } from '../ui/table'
 
-const expanderColumn: ColumnDef<{ items: string[] }> = {
+const createExpanderColumn = <
+  TData extends { items: string[] },
+>(): ColumnDef<TData> => ({
   id: 'expander',
   header: () => <div />,
   cell: ({ row }) => {
@@ -49,7 +51,7 @@ const expanderColumn: ColumnDef<{ items: string[] }> = {
       </div>
     )
   },
-}
+})
 
 export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
   data,
@@ -60,7 +62,7 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
 
   const table = useReactTable({
     data,
-    columns: [expanderColumn, ...columns],
+    columns: [createExpanderColumn<TData>(), ...columns],
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
