@@ -12,9 +12,9 @@ import {
 import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
 import { useAccount, useDisconnect, useEnsName } from 'wagmi'
-import { HomeSearchInput } from '@/components/HomeSearchInput'
 import {
   ExampleNameCard,
+  HomeSearchInput,
   LinkBlock,
   UpNextItem,
   WhatsNewItem,

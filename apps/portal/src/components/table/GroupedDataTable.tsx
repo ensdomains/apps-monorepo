@@ -79,18 +79,21 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
       <TableHeader>
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
-            {headerGroup.headers.map((header) => {
-              return (
-                <TableHead key={header.id}>
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
-                </TableHead>
-              )
-            })}
+            {headerGroup.headers.map((header) => (
+              <TableHead
+                key={header.id}
+                className={cn(
+                  header.column.id === 'expander' && 'w-[200px]', // fixed width
+                )}
+              >
+                {header.isPlaceholder
+                  ? null
+                  : flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )}
+              </TableHead>
+            ))}
           </TableRow>
         ))}
       </TableHeader>
@@ -107,7 +110,11 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
                 {row.getVisibleCells().map((cell) => (
                   <TableCell
                     key={cell.id}
-                    className={cn('px-6', tableView.compact ? 'py-2' : 'py-4')}
+                    className={cn(
+                      cell.column.id === 'expander' && 'w-[96px]',
+                      'px-6',
+                      tableView.compact ? 'py-2' : 'py-4',
+                    )}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
