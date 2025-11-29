@@ -1,5 +1,5 @@
 import type { ChainWithEns } from '@ensdomains/ensjs/chain'
-import { deploySubregistry } from '@ensdomains/ensjs/wallet'
+import { deploySubregistryWriteParameters } from '@ensdomains/ensjs/wallet'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
 import {
@@ -9,10 +9,13 @@ import {
   CircleCheckIcon,
 } from 'lucide-react'
 import { useState } from 'react'
-import type { Address, Hash } from 'viem'
-import { waitForTransactionReceipt } from 'viem/actions'
+import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
-import { useWalletClient } from 'wagmi'
+import {
+  useWaitForTransactionReceipt,
+  useWalletClient,
+  useWriteContract,
+} from 'wagmi'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -40,11 +43,8 @@ function RouteComponent() {
   const [useCustomRegistry, setUseCustomRegistry] = useState(false)
   const [contractAddress, setContractAddress] = useState('')
   const [migrateSubnames, setMigrateSubnames] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isWaitingConfirmation, setIsWaitingConfirmation] = useState(false)
-  const [txError, setTxError] = useState<string | null>(null)
-  const [txHash, setTxHash] = useState<Hash | null>(null)
-  const [isConfirmed, setIsConfirmed] = useState(false)
+
+  const { data: walletClient } = useWalletClient({ chainId: sepolia.id })
 
   const {
     data: registryData,
@@ -55,7 +55,6 @@ function RouteComponent() {
   const network = registryData?.network ?? 'sepolia'
   const isNamechain = network === 'namechainSepolia'
 
-  const { data: walletClient } = useWalletClient({ chainId: sepolia.id })
   const ensChain = wagmiConfig.chains.find((c) => c.id === sepolia.id)
 
   const factoryAddress = isNamechain
@@ -66,32 +65,34 @@ function RouteComponent() {
     ? namechainUserRegistryAddress
     : sepoliaUserRegistryAddress
 
+  const {
+    writeContractAsync,
+    data: txHash,
+    isPending: isWriting,
+    error: writeError,
+  } = useWriteContract()
+
+  const { isLoading: isConfirming, isSuccess: isConfirmed } =
+    useWaitForTransactionReceipt({
+      hash: txHash,
+    })
+
   const handleSubmit = async () => {
-    setTxError(null)
-    setTxHash(null)
-    setIsConfirmed(false)
-
-    if (!walletClient) {
-      setTxError('Wallet not connected')
-      return
-    }
-
-    if (!walletClient.account) {
-      setTxError('No account connected')
-      return
-    }
-
     if (!implAddress) {
-      setTxError('Implementation address not configured for this network')
       return
     }
 
     if (!ensChain) {
-      setTxError('Chain configuration not found')
       return
     }
 
-    setIsSubmitting(true)
+    if (!walletClient) {
+      return
+    }
+
+    if (!walletClient.account) {
+      return
+    }
 
     try {
       const finalFactoryAddress = useCustomRegistry
@@ -103,48 +104,41 @@ function RouteComponent() {
         chain: ensChain as ChainWithEns,
       }
 
-      const hash = await deploySubregistry(client, {
+      const writeParams = deploySubregistryWriteParameters(client, {
         factoryAddress: finalFactoryAddress,
         implAddress,
         // TODO: Handle migrateSubnames logic
       })
 
-      setTxHash(hash)
-      setIsSubmitting(false)
-      setIsWaitingConfirmation(true)
-
-      const receipt = await waitForTransactionReceipt(client, {
-        hash,
+      await writeContractAsync({
+        address: writeParams.address,
+        abi: writeParams.abi,
+        functionName: writeParams.functionName,
+        args: writeParams.args,
       })
-
-      if (receipt.status === 'success') {
-        setIsConfirmed(true)
-      } else {
-        setTxError('Transaction failed on-chain')
-      }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'An unknown error occurred while deploying the subregistry'
-      setTxError(errorMessage)
-    } finally {
-      setIsSubmitting(false)
-      setIsWaitingConfirmation(false)
+      console.error('Failed to deploy subregistry:', error)
     }
   }
 
   const isSubmitDisabled =
     (useCustomRegistry && contractAddress.trim() === '') ||
-    isSubmitting ||
-    isWaitingConfirmation ||
+    isWriting ||
+    isConfirming ||
     !walletClient
 
   const getButtonText = () => {
-    if (isSubmitting) return 'Submitting...'
-    if (isWaitingConfirmation) return 'Waiting for confirmation...'
+    if (isWriting) return 'Submitting...'
+    if (isConfirming) return 'Waiting for confirmation...'
+    if (isConfirmed) return 'Confirmed!'
     return 'Update subregistry'
   }
+
+  const txError = writeError
+    ? writeError instanceof Error
+      ? writeError.message
+      : 'An unknown error occurred while deploying the subregistry'
+    : null
 
   if (isLoading) {
     return <LoadingSpinner title="Loading registry information" />
