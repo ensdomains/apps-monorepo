@@ -17,10 +17,10 @@
   },
   "packageManager": "pnpm@10.16.0",
   "devDependencies": {
-    "@biomejs/biome": "^2.3.7",
-    "knip": "^5.63.1",
-    "lefthook": "^2.0.2",
-    "wrangler": "^4.49.0"
+    "@biomejs/biome": "^2.3.8",
+    "knip": "^5.70.2",
+    "lefthook": "^2.0.4",
+    "wrangler": "^4.51.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -64,7 +64,8 @@
       "set-function-length": "npm:@socketregistry/set-function-length@^1",
       "string.prototype.codepointat": "npm:@socketregistry/string.prototype.codepointat@^1",
       "typed-array-buffer": "npm:@socketregistry/typed-array-buffer@^1",
-      "which-typed-array": "npm:@socketregistry/which-typed-array@^1"
+      "which-typed-array": "npm:@socketregistry/which-typed-array@^1",
+      "es-set-tostringtag": "npm:@socketregistry/es-set-tostringtag@^1"
     }
   }
 }
