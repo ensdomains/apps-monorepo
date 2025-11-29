@@ -255,10 +255,48 @@ export const getNameRegistries = ResultFn(async function* (
       })
     }
 
-    // If we reach here, root is zeroAddress - this is a wrapped V1 name, not V2
+    // If we reach here, root is zeroAddress but name registry exists
+    // This indicates a wrapped V1 name (NameWrapper is the registry)
+    // Return as V1 name instead of falling through to V1 check
     debug(
-      '[getNameRegistries] ⚠️  Root registry is zeroAddress - this is a wrapped V1 name, not V2. Continuing to V1 check...',
+      '[getNameRegistries] ⚠️  Root registry is zeroAddress but name registry exists',
     )
+    debug('[getNameRegistries] This is a wrapped V1 name - returning as ENSv1')
+
+    // For wrapped names, use V1 registry address for consistency
+    const v1RegistryAddress = getChainContractAddress({
+      chain: l1Client.chain,
+      contract: 'ensRegistry',
+    })
+
+    const pathLabels = labels.slice(0, -1) // drop TLD
+    let registries: NameRegistriesResultType
+
+    if (pathLabels.length === 1) {
+      registries = [v1RegistryAddress, v1RegistryAddress, v1RegistryAddress]
+    } else {
+      registries = [
+        v1RegistryAddress,
+        v1RegistryAddress,
+        v1RegistryAddress,
+        v1RegistryAddress,
+      ]
+    }
+
+    debug('[getNameRegistries] Wrapped V1 registries array:', registries)
+    debug('[getNameRegistries] Returning protocol: ENSv1')
+    debug('[getNameRegistries] Returning factory: null')
+    debug('[getNameRegistries] Returning network: sepolia')
+
+    const result = {
+      registries,
+      network: 'sepolia' as const,
+      protocolVersion: 'ENSv1' as const,
+      factory: null,
+    }
+    debug('[getNameRegistries] Final wrapped V1 result:', result)
+
+    return ok<NameRegistriesResult>(result)
   }
 
   // Step 3: Check L1 V1 using getOwner
