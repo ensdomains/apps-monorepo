@@ -38,6 +38,16 @@ function RouteComponent() {
     enabled: !isLoadingOwner,
   })
 
+  // Fetch parent owner separately
+  // The parent registry (e.g., "eth" for "name.eth") has a different owner than the current name.
+  // We need to query the parent name's owner to display the correct owner in the parent registry section.
+  // Example: For "v1rtl.eth", the parent is "eth" which is owned by ENS DAO, not the v1rtl.eth owner.
+  const parentName = getParentName(name)
+  const { data: parentOwnerData, isLoading: isLoadingParentOwner } = useQuery({
+    ...getEnsOwnerQueryOptions({ name: parentName || 'eth' }),
+    enabled: !!parentName && !isLoadingOwner && !isLoadingRegistry,
+  })
+
   const registries = registryData?.registries ?? []
   const network = registryData?.network ?? null
   const protocolVersion = registryData?.protocolVersion ?? null
@@ -57,7 +67,7 @@ function RouteComponent() {
   const isNamechain = network === 'namechainSepolia'
   const showVerifiedBanner = Boolean(hasNameRegistry && isNamechain)
 
-  if (isLoadingOwner || isLoadingRegistry) {
+  if (isLoadingOwner || isLoadingRegistry || isLoadingParentOwner) {
     return <LoadingSpinner title="Loading registry" />
   }
 
@@ -120,7 +130,7 @@ function RouteComponent() {
                 address: parentRegistry,
               }}
               owner={{
-                address: data?.owner ?? zeroAddress,
+                address: parentOwnerData?.owner ?? zeroAddress,
               }}
               network={parentNetwork}
             />
@@ -130,7 +140,7 @@ function RouteComponent() {
               registry={{
                 address: parentRegistry,
                 owner: {
-                  address: data?.owner ?? zeroAddress,
+                  address: parentOwnerData?.owner ?? zeroAddress,
                 },
                 network: parentNetwork,
                 protocol: protocolVersion ?? 'ENSv2',
@@ -198,7 +208,7 @@ function RouteComponent() {
               address: parentRegistry,
             }}
             owner={{
-              address: data?.owner ?? zeroAddress,
+              address: parentOwnerData?.owner ?? zeroAddress,
             }}
             network={parentNetwork}
           />
@@ -207,7 +217,7 @@ function RouteComponent() {
             registry={{
               address: parentRegistry,
               owner: {
-                address: data?.owner ?? zeroAddress,
+                address: parentOwnerData?.owner ?? zeroAddress,
               },
               network: {
                 name: parentNetwork.name,
