@@ -5,9 +5,13 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 
 interface AddressDisplayProps {
   address: Address
+  short?: boolean
 }
 
-export const AddressDisplay = ({ address }: AddressDisplayProps) => {
+export const AddressDisplay = ({
+  address,
+  short = true,
+}: AddressDisplayProps) => {
   const { data: ensName, isLoading } = useEnsName({ address })
 
   if (isLoading) {
@@ -19,7 +23,8 @@ export const AddressDisplay = ({ address }: AddressDisplayProps) => {
     )
   }
 
-  const displayName = ensName || `${address.slice(0, 6)}…${address.slice(-4)}`
+  const displayName =
+    ensName || short ? `${address.slice(0, 6)}…${address.slice(-4)}` : address
 
   return (
     <div className="flex flex-row items-center gap-2">

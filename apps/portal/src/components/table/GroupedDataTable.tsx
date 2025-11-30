@@ -9,7 +9,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { ChevronDown, ChevronUp } from 'lucide-react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
 import type { DataTableProps } from '../molecules/DataTable/DataTable'
@@ -27,7 +27,6 @@ const createExpanderColumn = <
   TData extends { items: string[] },
 >(): ColumnDef<TData> => ({
   id: 'expander',
-  header: () => <div />,
   cell: ({ row }) => {
     const count = row.original.items.length
     return (
@@ -36,9 +35,7 @@ const createExpanderColumn = <
           <Button
             variant="outline"
             size="sm"
-            aria-label={
-              row.getIsExpanded() ? 'Collapse events' : 'Expand events'
-            }
+            aria-label={row.getIsExpanded() ? 'Collapse' : 'Expand'}
             onClick={(e) => {
               e.stopPropagation()
               row.toggleExpanded()
@@ -53,10 +50,24 @@ const createExpanderColumn = <
   },
 })
 
+export type GroupedDataTableProps<
+  TData extends { items: string[] },
+  TValue,
+> = DataTableProps<TData, TValue> & {
+  itemsWrapper?: ({ items }: { items: TData['items'] }) => ReactNode
+}
+
 export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
   data,
   columns,
-}: DataTableProps<TData, TValue>) => {
+  itemsWrapper = ({ items }) => (
+    <>
+      {items.map((item) => (
+        <div key={item}>{item}</div>
+      ))}
+    </>
+  ),
+}: GroupedDataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [expanded, setExpanded] = useState<ExpandedState>({})
 
@@ -77,7 +88,7 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
   const [tableView] = useTableViewSettings()
 
   return (
-    <Table className="relative">
+    <Table className="relative border border-gray-300 rounded-2xl border-separate border-spacing-0">
       <TableHeader>
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
@@ -85,7 +96,8 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
               <TableHead
                 key={header.id}
                 className={cn(
-                  header.column.id === 'expander' && 'w-[200px]', // fixed width
+                  'border-b border-b-gray-300',
+                  header.column.id === 'expander' && 'w-[100px]',
                 )}
               >
                 {header.isPlaceholder
@@ -112,18 +124,21 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
                 {row.getVisibleCells().map((cell) => (
                   <TableCell
                     key={cell.id}
-                    className={cn(
-                      cell.column.id === 'expander' && 'w-[96px]',
-                      'px-6',
-                      tableView.compact ? 'py-2' : 'py-4',
-                    )}
+                    className={cn('px-6', tableView.compact ? 'py-2' : 'py-4')}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}
               </TableRow>
-              {row.getIsExpanded() &&
-                row.original.items.map((item) => <div key={item}>{item}</div>)}
+              {row.getIsExpanded() && (
+                <TableRow>
+                  <TableCell colSpan={table.getAllColumns().length}>
+                    <div className="flex flex-col">
+                      {itemsWrapper({ items: row.original.items })}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
             </>
           ))
         ) : (
