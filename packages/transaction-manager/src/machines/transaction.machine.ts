@@ -696,7 +696,7 @@ export const transactionMachine = setup({
                   `Transaction ${context.hash} reverted`,
                 ),
             }),
-            'logError',
+            'logCritical',
             'recordTransition',
           ],
         },

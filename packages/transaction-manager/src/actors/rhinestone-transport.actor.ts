@@ -114,10 +114,10 @@ export function submitRhinestoneTransaction(input: {
         error,
       )
       console.error('❌ [RHINESTONE TRANSPORT] Error details:', {
-        name: error?.name,
-        message: error?.message,
-        cause: error?.cause,
-        stack: error?.stack,
+        name: (error as Error)?.name,
+        message: (error as Error)?.message,
+        cause: (error as Error)?.cause,
+        stack: (error as Error)?.stack,
       })
       return new TransactionSubmissionError(rhinestoneRequest, error as Error)
     },
