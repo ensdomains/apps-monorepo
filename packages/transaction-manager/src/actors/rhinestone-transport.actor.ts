@@ -22,7 +22,7 @@ export function submitRhinestoneTransaction(input: {
   signer: RhinestoneSigner
   publicClient: PublicClient
 }): ResultAsync<Hash, TransactionSubmissionError> {
-  const { request, signer, publicClient } = input
+  const { request, signer } = input
   const { account, config } = signer
   const rhinestoneRequest = request as RhinestoneTransactionRequest
 

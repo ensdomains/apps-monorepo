@@ -41,7 +41,6 @@ const TransactionManagerContext =
  */
 export const TransactionManagerProvider = ({
   children,
-  publicClient,
 }: TransactionManagerProviderProps) => {
   const [transactions, setTransactions] = useState<
     Map<string, ActorRefFrom<typeof transactionMachine>>

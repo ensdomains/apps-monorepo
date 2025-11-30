@@ -710,7 +710,7 @@ export const transactionMachine = setup({
     retrying: {
       entry: [
         'recordTransition',
-        ({ context }) => {
+        () => {
           console.log(
             '🔄 [TRANSACTION] Retrying transaction (attempt ${context.retryCount})',
           )
