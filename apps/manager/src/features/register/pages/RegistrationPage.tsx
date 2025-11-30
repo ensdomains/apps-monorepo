@@ -13,6 +13,7 @@ import { RegistrationInProgress } from '@/features/register/components/Registrat
 import { VerifyWalletModal } from '@/features/register/components/VerifyWalletModal'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 import { publicClient } from '@/lib/wagmi'
+import { inspect } from '@/utils/xstate'
 import { handleStartRegistration } from './RegistrationPage.handlers'
 import {
   createInitialUIState,
@@ -87,6 +88,7 @@ export function Registration({ initialName }: RegistrationProps) {
     input: {
       chainId: sepolia.id, // Sepolia
     },
+    inspect,
   })
 
   // Account state
