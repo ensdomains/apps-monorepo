@@ -42,7 +42,7 @@ export const CoinRecord = ({
       height={24}
       width={24}
       className={cn(
-        'first:z-10 h-6 w-max duration-150 will-change-transform hover:-translate-y-[2px]',
+        'first:z-10 h-6 w-max duration-150 will-change-transform hover:-translate-y-0.5',
         className,
       )}
       alt={coinType}
