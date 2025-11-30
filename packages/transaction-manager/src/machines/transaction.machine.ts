@@ -554,7 +554,7 @@ export const transactionMachine = setup({
                 error: ({ event }) => event.error as Error,
                 retryCount: ({ context }) => context.retryCount + 1,
               }),
-              'logError',
+              'logCritical',
               'recordTransition',
             ],
           },
@@ -614,7 +614,7 @@ export const transactionMachine = setup({
               assign({
                 error: ({ event }) => event.error as Error,
               }),
-              'logError',
+              'logCritical',
               'recordTransition',
             ],
           },
