@@ -12,7 +12,7 @@
     "noEmit": true,
     "resolveJsonModule": true,
     "rootDir": "./src",
-    "composite": true
+    "declaration": false
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx"]
