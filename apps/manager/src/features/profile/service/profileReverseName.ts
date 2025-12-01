@@ -1,14 +1,14 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { type GetNameErrorType, getName } from '@ensdomains/ensjs/public'
 import { skipToken } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
+import { type GetEnsNameErrorType, getEnsName } from 'viem/ens'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-class GetNameError extends TaggedError('GetNameError')<{
-  cause: GetNameErrorType
+class GetEnsNameError extends TaggedError('GetEnsNameError')<{
+  cause: GetEnsNameErrorType
 }> {}
 
 class MissingReverseNameError extends TaggedError(
@@ -19,9 +19,11 @@ export const getReverseName = ResultFn(async function* (address: Address) {
   const client = yield* safeGetClient()
 
   const result = yield* await fromPromise(
-    getName(client, { address }),
-    (e) => new GetNameError({ cause: e as GetNameErrorType }),
+    getEnsName(client, { address }),
+    (e) => new GetEnsNameError({ cause: e as GetEnsNameErrorType }),
   )
+
+  console.log('result', result)
 
   if (!result) {
     return yield* new MissingReverseNameError()
