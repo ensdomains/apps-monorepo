@@ -41,7 +41,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     ...profileOwnerQuery(name),
   })
 
-  const { data: resolverData, refetch: refetchResolver } = useQuery({
+  const { data: resolver, refetch: refetchResolver } = useQuery({
     ...profileResolverQuery(name),
   })
 
@@ -104,8 +104,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       before,
       after,
       signer,
-      resolverAddress: resolverData?.resolverAddress,
-      isDedicatedResolver: resolverData?.isDedicatedResolver,
+      resolverAddress: resolver,
       accountAddress: accountAddress as Address,
       publicClient,
     })
@@ -178,12 +177,11 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
           <UpdateResolverDialog
             name={name}
-            currentResolver={resolverData?.resolverAddress}
+            currentResolver={resolver}
             onUpdated={() => {
               refetchResolver()
             }}
           />
-
           {/* Reset & Save Buttons */}
           <div className="space-y-2 pt-2">
             <form.Subscribe
