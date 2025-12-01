@@ -18,7 +18,6 @@ import {
   transformProfileRecords,
   transformToServiceFormat,
 } from '../utils/transformRecords'
-import { SelectDefaultChainsDialog } from './dialogs/SelectDefaultChainsDialog'
 import { UpdateResolverDialog } from './dialogs/UpdateResolverDialog'
 import { useAppForm } from './form'
 import { SaveChanges } from './SaveChanges'
