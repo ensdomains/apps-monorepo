@@ -183,7 +183,6 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
               refetchResolver()
             }}
           />
-          <SelectDefaultChainsDialog />
           {/* Reset & Save Buttons */}
           <div className="space-y-2 pt-2">
             <form.Subscribe
