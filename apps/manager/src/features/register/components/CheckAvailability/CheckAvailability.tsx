@@ -18,6 +18,7 @@ import {
   displayStateReducer,
 } from '@/features/register/components/CheckAvailability/checkAvailability.reducer'
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
+import { ValidationError } from '@/features/register/components/CheckAvailability/ValidationError'
 import { getErrorMessage } from '@/features/register/utils'
 import { useDebounce } from '@/hooks/useDebounce'
 
@@ -84,9 +85,8 @@ export const CheckAvailability = ({
     searchName(value)
   }
 
-  const errorMessage = hasValidationError
-    ? (context.validationError?.message ?? null)
-    : hasError && context.error
+  const nonValidationErrorMessage =
+    !hasValidationError && hasError && context.error
       ? String(getErrorMessage(context.error))
       : null
 
@@ -147,9 +147,13 @@ export const CheckAvailability = ({
         )}
       </div>
 
-      {errorMessage && (
+      {hasValidationError && context.validationError && (
+        <ValidationError error={context.validationError} />
+      )}
+
+      {nonValidationErrorMessage && (
         <Alert variant="destructive">
-          <AlertDescription>{errorMessage}</AlertDescription>
+          <AlertDescription>{nonValidationErrorMessage}</AlertDescription>
         </Alert>
       )}
 

@@ -15,7 +15,15 @@ import { getTokenPrices } from '@/features/register/services/nameChainContractSe
 import { normalizeQuery, validateENSName } from '@/features/register/utils'
 import { checkNameAvailability } from '@/services/checkNameAvailabilityService'
 
-export const useCheckAvailability = () => {
+interface UseCheckAvailabilityOptions {
+  initialName?: string
+  autoSearch?: boolean
+}
+
+export const useCheckAvailability = ({
+  initialName,
+  autoSearch = false,
+}: UseCheckAvailabilityOptions = {}) => {
   const [state, dispatch] = useReducer(checkAvailabilityReducer, initialState)
 
   const clearValidationError = useCallback(() => {
@@ -73,6 +81,23 @@ export const useCheckAvailability = () => {
       })
     }
   }, [])
+
+  useEffect(() => {
+    if (
+      initialName &&
+      autoSearch &&
+      !state.search.searchQuery &&
+      !state.isSearching
+    ) {
+      searchName(initialName)
+    }
+  }, [
+    initialName,
+    autoSearch,
+    state.search.searchQuery,
+    state.isSearching,
+    searchName,
+  ])
 
   useEffect(() => {
     const fetchPrices = async () => {
