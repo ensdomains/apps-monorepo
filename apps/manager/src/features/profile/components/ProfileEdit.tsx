@@ -18,6 +18,7 @@ import {
   transformProfileRecords,
   transformToServiceFormat,
 } from '../utils/transformRecords'
+import { SelectDefaultChainsDialog } from './dialogs/SelectDefaultChainsDialog'
 import { UpdateResolverDialog } from './dialogs/UpdateResolverDialog'
 import { useAppForm } from './form'
 import { SaveChanges } from './SaveChanges'
@@ -41,7 +42,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     ...profileOwnerQuery(name),
   })
 
-  const { data: resolverData, refetch: refetchResolver } = useQuery({
+  const { data: resolver, refetch: refetchResolver } = useQuery({
     ...profileResolverQuery(name),
   })
 
@@ -104,8 +105,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       before,
       after,
       signer,
-      resolverAddress: resolverData?.resolverAddress,
-      isDedicatedResolver: resolverData?.isDedicatedResolver,
+      resolverAddress: resolver,
       accountAddress: accountAddress as Address,
       publicClient,
     })
@@ -178,12 +178,12 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
           <UpdateResolverDialog
             name={name}
-            currentResolver={resolverData?.resolverAddress}
+            currentResolver={resolver}
             onUpdated={() => {
               refetchResolver()
             }}
           />
-
+          <SelectDefaultChainsDialog />
           {/* Reset & Save Buttons */}
           <div className="space-y-2 pt-2">
             <form.Subscribe
