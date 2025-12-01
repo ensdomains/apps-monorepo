@@ -431,7 +431,7 @@ export function pollTransactionStatusActor(input: {
           error: snapshot.context.error?.message,
         })
 
-        if (snapshot.matches('success')) {
+        if (snapshot.matches('success' as unknown as never)) {
           console.log('✅ [POLL TX STATUS] Transaction succeeded')
           subscription.unsubscribe()
           resolve()
