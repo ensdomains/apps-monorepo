@@ -88,7 +88,7 @@ export const validateENSName = (name: string): ValidationError => {
     return {
       type: 'INVALID_FORMAT',
       message:
-        "Not a valid name format. Something in the name isn't supported. Try letters, numbers, hyphens, or emojis with no spaces.",
+        "Something in the name isn't supported. Try letters, numbers, hyphens, or emojis with no spaces.",
     }
   }
 
@@ -96,7 +96,7 @@ export const validateENSName = (name: string): ValidationError => {
     return {
       type: 'INVALID_FORMAT',
       message:
-        "Not a valid name format. Something in the name isn't supported. Try letters, numbers, hyphens, or emojis with no spaces.",
+        "Something in the name isn't supported. Try letters, numbers, hyphens, or emojis with no spaces.",
     }
   }
 
@@ -104,14 +104,14 @@ export const validateENSName = (name: string): ValidationError => {
     return {
       type: 'INVALID_FORMAT',
       message:
-        "Not a valid name format. Something in the name isn't supported. Try letters, numbers, hyphens, or emojis with no spaces.",
+        "Something in the name isn't supported. Try letters, numbers, hyphens, or emojis with no spaces.",
     }
   }
 
   if (label.length > 0 && label.length < 3) {
     return {
       type: 'TOO_SHORT',
-      message: 'Too short. Names must be 3 characters or more to register.',
+      message: 'Names must be 3 characters or more to register.',
     }
   }
 
@@ -121,7 +121,7 @@ export const validateENSName = (name: string): ValidationError => {
     return {
       type: 'INVALID_CHARACTER',
       message:
-        "Invalid character. That character isn't supported. Try letters, numbers, hyphens, or emojis.",
+        "That character isn't supported. Try letters, numbers, hyphens, or emojis.",
     }
   }
 
