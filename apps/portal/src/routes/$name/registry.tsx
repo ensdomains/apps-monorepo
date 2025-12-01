@@ -43,7 +43,11 @@ function RouteComponent() {
   // We need to query the parent name's owner to display the correct owner in the parent registry section.
   // Example: For "v1rtl.eth", the parent is "eth" which is owned by ENS DAO, not the v1rtl.eth owner.
   const parentName = getParentName(name)
-  const { data: parentOwnerData, isLoading: isLoadingParentOwner } = useQuery({
+  const {
+    data: parentOwnerData,
+    isLoading: isLoadingParentOwner,
+    error: parentOwnerError,
+  } = useQuery({
     ...getEnsOwnerQueryOptions({ name: parentName || 'eth' }),
     enabled: !!parentName && !isLoadingOwner && !isLoadingRegistry,
   })
@@ -67,10 +71,6 @@ function RouteComponent() {
   const isNamechain = network === 'namechainSepolia'
   const showVerifiedBanner = Boolean(hasNameRegistry && isNamechain)
 
-  if (isLoadingOwner || isLoadingRegistry || isLoadingParentOwner) {
-    return <LoadingSpinner title="Loading registry" />
-  }
-
   if (error) {
     const message =
       error instanceof Error
@@ -90,6 +90,15 @@ function RouteComponent() {
       <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
         <div>Error: {registryError.message}</div>
+      </div>
+    )
+  }
+
+  if (parentOwnerError) {
+    return (
+      <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
+        <h1 className="text-[28px] font-medium leading-none">Registry</h1>
+        <div>Error: {parentOwnerError.message}</div>
       </div>
     )
   }
@@ -119,36 +128,43 @@ function RouteComponent() {
       <div className="flex flex-col gap-6 p-4 w-full lg|max-w-2xl xl:max-w-5xl mx-auto">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
 
-        <NoRegistryCard />
-
-        {parentRegistry && (
-          <>
-            {/* Parent top row */}
-            <ParentRegistrySection
-              parent={{
-                name: getParentName(name) || 'eth',
-                address: parentRegistry,
-              }}
-              owner={{
-                address: parentOwnerData?.owner ?? zeroAddress,
-              }}
-              network={parentNetwork}
-            />
-
-            {/* Parent details card */}
-            <RegistryCard
-              registry={{
-                address: parentRegistry,
-                owner: {
-                  address: parentOwnerData?.owner ?? zeroAddress,
-                },
-                network: parentNetwork,
-                protocol: protocolVersion ?? 'ENSv2',
-                factory,
-              }}
-            />
-          </>
+        {isLoadingOwner || isLoadingRegistry ? (
+          <LoadingSpinner title="Loading registry data..." />
+        ) : (
+          <NoRegistryCard />
         )}
+
+        {parentRegistry &&
+          (isLoadingParentOwner ? (
+            <LoadingSpinner title="Loading parent owner data..." />
+          ) : (
+            <>
+              {/* Parent top row */}
+              <ParentRegistrySection
+                parent={{
+                  name: getParentName(name) || 'eth',
+                  address: parentRegistry,
+                }}
+                owner={{
+                  address: parentOwnerData?.owner ?? zeroAddress,
+                }}
+                network={parentNetwork}
+              />
+
+              {/* Parent details card */}
+              <RegistryCard
+                registry={{
+                  address: parentRegistry,
+                  owner: {
+                    address: parentOwnerData?.owner ?? zeroAddress,
+                  },
+                  network: parentNetwork,
+                  protocol: protocolVersion ?? 'ENSv2',
+                  factory,
+                }}
+              />
+            </>
+          ))}
       </div>
     )
   }
@@ -160,75 +176,82 @@ function RouteComponent() {
     <div className="flex flex-col gap-6 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
-        <Link to="/$name/deploy-registry" params={{ name }}>
-          <Button variant="outline" className="flex items-center gap-2">
+        <Button variant="outline" className="flex items-center gap-2" asChild>
+          <Link to="/$name/deploy-registry" params={{ name }}>
             <EditIcon className="size-4" />
             Change registry
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </div>
 
       {showVerifiedBanner && <VerifiedRegistryCard />}
 
-      {nameRegistry && (
-        <>
-          <RegistryHeaderCards
-            owner={{
-              name: undefined,
-              address: data?.owner ?? zeroAddress,
-            }}
-            network={{
-              name: currentNetwork.name,
-              location: network ?? 'sepolia',
-            }}
-          />
-
-          <RegistryCard
-            registry={{
-              address: nameRegistry,
-              owner: {
+      {isLoadingOwner || isLoadingRegistry ? (
+        <LoadingSpinner title="Loading registry data..." />
+      ) : (
+        nameRegistry && (
+          <>
+            <RegistryHeaderCards
+              owner={{
+                name: undefined,
                 address: data?.owner ?? zeroAddress,
-              },
-              network: {
+              }}
+              network={{
                 name: currentNetwork.name,
-                chainId: currentNetwork.chainId,
-              },
-              protocol: protocolVersion ?? 'ENSv2',
-              factory,
-            }}
-          />
-        </>
+                location: network ?? 'sepolia',
+              }}
+            />
+
+            <RegistryCard
+              registry={{
+                address: nameRegistry,
+                owner: {
+                  address: data?.owner ?? zeroAddress,
+                },
+                network: {
+                  name: currentNetwork.name,
+                  chainId: currentNetwork.chainId,
+                },
+                protocol: protocolVersion ?? 'ENSv2',
+                factory,
+              }}
+            />
+          </>
+        )
       )}
 
-      {parentRegistry && (
-        <>
-          <ParentRegistrySection
-            parent={{
-              name: getParentName(name) || 'eth',
-              address: parentRegistry,
-            }}
-            owner={{
-              address: parentOwnerData?.owner ?? zeroAddress,
-            }}
-            network={parentNetwork}
-          />
-
-          <RegistryCard
-            registry={{
-              address: parentRegistry,
-              owner: {
+      {parentRegistry &&
+        (isLoadingParentOwner ? (
+          <LoadingSpinner title="Loading parent owner data..." />
+        ) : (
+          <>
+            <ParentRegistrySection
+              parent={{
+                name: getParentName(name) || 'eth',
+                address: parentRegistry,
+              }}
+              owner={{
                 address: parentOwnerData?.owner ?? zeroAddress,
-              },
-              network: {
-                name: parentNetwork.name,
-                chainId: parentNetwork.chainId,
-              },
-              protocol: protocolVersion ?? 'ENSv2',
-              factory,
-            }}
-          />
-        </>
-      )}
+              }}
+              network={parentNetwork}
+            />
+
+            <RegistryCard
+              registry={{
+                address: parentRegistry,
+                owner: {
+                  address: parentOwnerData?.owner ?? zeroAddress,
+                },
+                network: {
+                  name: parentNetwork.name,
+                  chainId: parentNetwork.chainId,
+                },
+                protocol: protocolVersion ?? 'ENSv2',
+                factory,
+              }}
+            />
+          </>
+        ))}
     </div>
   )
 }

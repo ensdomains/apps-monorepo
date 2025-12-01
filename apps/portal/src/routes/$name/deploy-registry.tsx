@@ -77,39 +77,31 @@ function RouteComponent() {
       hash: txHash,
     })
 
+  const finalFactoryAddress = useCustomRegistry
+    ? (contractAddress as Address)
+    : factoryAddress
+
+  const writeParams =
+    walletClient && ensChain && implAddress
+      ? deploySubregistryWriteParameters(
+          {
+            ...walletClient,
+            chain: ensChain as ChainWithEns,
+          },
+          {
+            factoryAddress: finalFactoryAddress,
+            implAddress,
+            // TODO: Handle migrateSubnames logic
+          },
+        )
+      : null
+
   const handleSubmit = async () => {
-    if (!implAddress) {
-      return
-    }
-
-    if (!ensChain) {
-      return
-    }
-
-    if (!walletClient) {
-      return
-    }
-
-    if (!walletClient.account) {
+    if (!writeParams) {
       return
     }
 
     try {
-      const finalFactoryAddress = useCustomRegistry
-        ? (contractAddress as Address)
-        : factoryAddress
-
-      const client = {
-        ...walletClient,
-        chain: ensChain as ChainWithEns,
-      }
-
-      const writeParams = deploySubregistryWriteParameters(client, {
-        factoryAddress: finalFactoryAddress,
-        implAddress,
-        // TODO: Handle migrateSubnames logic
-      })
-
       await writeContractAsync({
         address: writeParams.address,
         abi: writeParams.abi,
@@ -134,11 +126,7 @@ function RouteComponent() {
     return 'Update subregistry'
   }
 
-  const txError = writeError
-    ? writeError instanceof Error
-      ? writeError.message
-      : 'An unknown error occurred while deploying the subregistry'
-    : null
+  const txError = writeError?.message ?? null
 
   if (isLoading) {
     return <LoadingSpinner title="Loading registry information" />
