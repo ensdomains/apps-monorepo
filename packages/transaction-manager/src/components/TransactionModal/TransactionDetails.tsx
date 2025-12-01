@@ -7,7 +7,6 @@ export interface TransactionDetailsProps {
 export const TransactionDetails = ({
   network,
   estimatedCost,
-  status,
 }: TransactionDetailsProps) => {
   return (
     <div

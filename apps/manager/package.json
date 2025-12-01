@@ -25,8 +25,6 @@
     "@getpara/evm-wallet-connectors": "2.0.0-alpha.72",
     "@getpara/react-sdk-lite": "2.0.0-alpha.72",
     "@getpara/web-sdk": "2.0.0-alpha.72",
-    "@privy-io/react-auth": "^2.21.2",
-    "@privy-io/wagmi": "^1.0.6",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
@@ -65,7 +63,7 @@
     "valibot": "^1.1.0",
     "vaul": "^1.1.2",
     "viem": "^2.37.4",
-    "wagmi": "^3.0.1",
+    "wagmi": "^3.0.2",
     "xstate": "catalog:"
   },
   "devDependencies": {

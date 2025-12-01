@@ -1,5 +1,5 @@
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
-import type { Address, Hash, PublicClient } from 'viem'
+import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
 import * as auditTrail from '../../services/audit-trail.service'
 import type { Signer } from '../../types/signer.types'
@@ -28,7 +28,7 @@ import {
 
 type CommitmentData = {
   commitment: Hash
-  secret: string
+  secret: Hex
 }
 
 // V2 contracts don't require commitment wait time when using FastTestETHRegistrar

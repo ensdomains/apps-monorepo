@@ -256,10 +256,10 @@ export function Registration({ initialName }: RegistrationProps) {
     [],
   )
 
-  const _handleReset = () => {
-    actor.send({ type: 'CANCEL' })
-    dispatch({ type: 'RESET', initialName })
-  }
+  // const _handleReset = () => {
+  //   actor.send({ type: 'CANCEL' })
+  //   dispatch({ type: 'RESET', initialName })
+  // }
 
   const displayDomainName = domainName || ''
 
