@@ -42,6 +42,7 @@
     "@tanstack/react-router": "^1.132.41",
     "@tanstack/react-router-devtools": "^1.132.41",
     "@tanstack/react-start": "^1.132.43",
+    "@tanstack/valibot-form-adapter": "^0.42.1",
     "@wagmi/core": "^2.20.3",
     "@xstate/react": "^6.0.0",
     "@xstate/store": "^3.9.2",
