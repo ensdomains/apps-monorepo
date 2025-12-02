@@ -147,7 +147,7 @@ const emailRoutes = createApp()
         logger.error('Failed to send verification email', {
           channelId: result.channel.id,
           email,
-          error: emailResult.error.message,
+          error: emailResult.error,
         })
       } else {
         logger.info('Verification email sent', {
@@ -381,7 +381,7 @@ const idRoutes = createApp()
       logger.error('Failed to send verification email', {
         channelId,
         email: channel.target,
-        error: emailResult.error.message,
+        error: emailResult.error,
       })
     } else {
       logger.info('Verification email resent', {
