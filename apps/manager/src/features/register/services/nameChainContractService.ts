@@ -1,3 +1,4 @@
+import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { err, fromPromise, ok, type Result } from 'neverthrow'
 import {
@@ -12,14 +13,14 @@ import {
   zeroAddress,
   zeroHash,
 } from 'viem'
-import { sepolia } from 'viem/chains'
 import { ERC20_ABI, FASTTESTETHREGISTRAR_ABI } from '@/lib/ens.abi'
 import type { RhinestoneTransactionResult } from '@/lib/rhinestone/utils'
+import { customSepolia, SEPOLIA_RPC_URL } from '@/lib/wagmi'
 
 // Create standalone public client
-const SEPOLIA_RPC_URL = 'https://ethereum-sepolia-rpc.publicnode.com'
+
 const publicClient = createPublicClient({
-  chain: sepolia,
+  chain: customSepolia,
   transport: http(SEPOLIA_RPC_URL),
 })
 
@@ -32,18 +33,10 @@ export class NameChainContractError extends TaggedError(
 export const EMPTY_ADDRESS = zeroAddress
 export const REFERER_ADDRESS = zeroHash
 
-// ENS Sepolia contract addresses (using FastTestETHRegistrar for 0 commitment time)
-export const ENS_SEPOLIA_CONTRACTS = {
-  REGISTRY: '0x5fb63bbd34de21688c8aa8131be1c3b4a477109c' as Address, // ETHRegistry
-  REGISTRAR_CONTROLLER: '0xb08b6a514d54562ef3b7470bdb709c4eb135c535' as Address, // FastTestETHRegistrar
-  PUBLIC_RESOLVER: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as Address, // DedicatedResolverImpl
-}
-
 export const SUPPORTED_TOKENS = {
   USDC: '0x9028ab8e872af36c30c959a105cb86d1038412ae' as Address, // MockUSDC
   DAI: '0x6630589c2e6364a96bb7acf0d9d64ac9c1dd3528' as Address, // MockDAI
-  // ETH: "0x0000000000000000000000000000000000000000" as `0x${string}`, // ETH - not supported by FastTestETHRegistrar
-}
+} as const
 
 // Default payment token - USDC
 export const DEFAULT_PAYMENT_TOKEN = SUPPORTED_TOKENS.USDC
@@ -63,15 +56,15 @@ export const generateCommitment = async (
     const secret = keccak256(toHex(Math.random().toString()) as Hex)
 
     const commitment = await publicClient.readContract({
-      address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+      address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
       abi: FASTTESTETHREGISTRAR_ABI,
       functionName: 'makeCommitment',
       args: [
         cleanName,
         ownerAddress as Address,
         secret,
-        ENS_SEPOLIA_CONTRACTS.REGISTRY,
-        ENS_SEPOLIA_CONTRACTS.PUBLIC_RESOLVER,
+        ENS_SEPOLIA_CONTRACTS.ETHRegistry,
+        ENS_SEPOLIA_CONTRACTS.PublicResolver,
         durationInSeconds,
         REFERER_ADDRESS,
       ],
@@ -112,7 +105,7 @@ export const commitToRegistration = async (
 
     const result = await sendTransaction([
       {
-        to: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+        to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
         data: commitData,
         value: 0n,
       },
@@ -120,14 +113,14 @@ export const commitToRegistration = async (
 
     try {
       const minAge = (await publicClient.readContract({
-        address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+        address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
         abi: FASTTESTETHREGISTRAR_ABI,
         functionName: 'MIN_COMMITMENT_AGE',
       })) as bigint
 
       if (minAge !== 0n) {
         const committedAt = (await publicClient.readContract({
-          address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+          address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
           abi: FASTTESTETHREGISTRAR_ABI,
           functionName: 'commitmentAt',
           args: [commitment],
@@ -175,7 +168,7 @@ export const approveTokenForRegistration = async (
     const approveData = encodeFunctionData({
       abi: ERC20_ABI,
       functionName: 'approve',
-      args: [ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER, amount * 2n],
+      args: [ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar, amount * 2n],
     })
 
     const result = await sendTransaction([
@@ -191,10 +184,10 @@ export const approveTokenForRegistration = async (
         address: normalizedTokenAddress,
         abi: ERC20_ABI,
         functionName: 'allowance',
-        args: [ownerAddress, ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER],
+        args: [ownerAddress, ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar],
       })
       console.log(
-        `🔎 Allowance check: ${ownerAddress} -> ${ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER}`,
+        `🔎 Allowance check: ${ownerAddress} -> ${ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar}`,
       )
       console.log(
         `🔎 Current allowance: ${currentAllowance.toString()} (required: ${amount.toString()})`,
@@ -203,7 +196,7 @@ export const approveTokenForRegistration = async (
         const reApproveData = encodeFunctionData({
           abi: ERC20_ABI,
           functionName: 'approve',
-          args: [ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER, amount * 2n], // Approve double the amount
+          args: [ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar, amount * 2n], // Approve double the amount
         })
 
         const reApproveResult = await sendTransaction([
@@ -243,7 +236,7 @@ export const registerDomain = async (
   try {
     // Check if the payment token is supported
     const isSupported = await publicClient.readContract({
-      address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+      address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
       abi: FASTTESTETHREGISTRAR_ABI,
       functionName: 'isPaymentToken',
       args: [normalizedPaymentToken],
@@ -271,8 +264,8 @@ export const registerDomain = async (
         cleanName,
         ownerAddress as Address,
         secret as Hex,
-        ENS_SEPOLIA_CONTRACTS.REGISTRY,
-        ENS_SEPOLIA_CONTRACTS.PUBLIC_RESOLVER,
+        ENS_SEPOLIA_CONTRACTS.ETHRegistry,
+        ENS_SEPOLIA_CONTRACTS.PublicResolver,
         durationInSeconds,
         normalizedPaymentToken,
         REFERER_ADDRESS,
@@ -281,7 +274,7 @@ export const registerDomain = async (
 
     const result = await sendTransaction([
       {
-        to: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+        to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
         data: registerData,
         value: 0n,
       },
@@ -327,9 +320,10 @@ export const checkRealNameAvailability = ResultFn(async function* (
       })
     })
 
+    // Check availability using the registrar's isAvailable function
     const availability = yield* await fromPromise(
       publicClient.readContract({
-        address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+        address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
         abi: FASTTESTETHREGISTRAR_ABI,
         functionName: 'isAvailable',
         args: [cleanName],
@@ -365,7 +359,7 @@ export const getENSNameInfo = ResultFn(async function* (
     // Check availability
     const availability = yield* await fromPromise(
       publicClient.readContract({
-        address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+        address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
         abi: FASTTESTETHREGISTRAR_ABI,
         functionName: 'isAvailable',
         args: [cleanName],
@@ -378,7 +372,7 @@ export const getENSNameInfo = ResultFn(async function* (
     try {
       _priceResult = yield* await fromPromise(
         publicClient.readContract({
-          address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+          address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
           abi: FASTTESTETHREGISTRAR_ABI,
           functionName: 'rentPrice',
           args: [cleanName, ownerAddress, durationInSeconds, paymentToken],
@@ -389,7 +383,7 @@ export const getENSNameInfo = ResultFn(async function* (
       // Fallback to ETH pricing
       _priceResult = yield* await fromPromise(
         publicClient.readContract({
-          address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+          address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
           abi: FASTTESTETHREGISTRAR_ABI,
           functionName: 'rentPrice',
           args: [cleanName, ownerAddress, durationInSeconds, zeroAddress],
@@ -436,7 +430,7 @@ export const getTokenPrices = ResultFn(async function* (
         let priceResult: any
         priceResult = yield* await fromPromise(
           publicClient.readContract({
-            address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+            address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
             abi: FASTTESTETHREGISTRAR_ABI,
             functionName: 'rentPrice',
             args: [cleanName, EMPTY_ADDRESS, durationInSeconds, tokenAddress],
@@ -492,7 +486,7 @@ export const isPaymentTokenSupported = ResultFn(async function* (
   try {
     const isSupported = yield* await fromPromise(
       publicClient.readContract({
-        address: ENS_SEPOLIA_CONTRACTS.REGISTRAR_CONTROLLER,
+        address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
         abi: FASTTESTETHREGISTRAR_ABI,
         functionName: 'isPaymentToken',
         args: [tokenAddress],

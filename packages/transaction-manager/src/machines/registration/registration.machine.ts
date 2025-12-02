@@ -9,6 +9,7 @@ import {
   submitApprovalActor,
   submitCommitmentActor,
   submitRegistrationActor,
+  validateCommitmentActor,
 } from './registration.actors'
 
 /**
@@ -157,6 +158,15 @@ export const registrationMachine = setup({
       async ({ input }: { input: { delayMs: number } }) => {
         const safeDelay = Math.max(0, input.delayMs)
         await new Promise<void>((resolve) => setTimeout(resolve, safeDelay))
+      },
+    ),
+    validateCommitment: fromResultAsync(
+      (input: {
+        commitment: CommitmentData
+        publicClient: PublicClient
+        useFastRegistrar: boolean
+      }) => {
+        return validateCommitmentActor(input)
       },
     ),
   },
@@ -353,7 +363,7 @@ export const registrationMachine = setup({
         onDone: [
           {
             guard: ({ context }) => context.useFastRegistrar,
-            target: 'approvingToken',
+            target: 'validatingCommitment',
           },
           {
             target: 'commitmentCooldown',
@@ -372,6 +382,36 @@ export const registrationMachine = setup({
             ({ event }) => {
               console.error(
                 '❌ [REGISTRATION] Commitment transaction failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    validatingCommitment: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'validateCommitment',
+        input: ({ context }) => ({
+          commitment: context.commitment!,
+          publicClient: context.publicClient!,
+          useFastRegistrar: context.useFastRegistrar,
+        }),
+        onDone: 'approvingToken',
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Commitment validation failed:',
                 event.error,
               )
             },
