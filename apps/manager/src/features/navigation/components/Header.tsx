@@ -2,6 +2,7 @@ import { useAccount, useModal, useWallet } from '@getpara/react-sdk-lite'
 import { Link } from '@tanstack/react-router'
 import {
   Bell,
+  ChevronDown,
   Copy,
   CreditCard,
   LayoutGrid,
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import ensLogo from '@/assets/icons/ens.svg'
+import ensMobileLogo from '@/assets/icons/ens-mobile.svg'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -58,28 +60,6 @@ const ConnectedContent = () => {
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {
       console.error('Failed to copy address:', error)
-    }
-  }
-
-  const getAuthTypeLabel = (): string => {
-    if (!account?.embedded?.authType) {
-      return 'Para + Rhinestone'
-    }
-
-    const authType = account.embedded.authType
-    switch (authType) {
-      case 'email':
-        return 'Email'
-      case 'phone':
-        return 'Phone'
-      case 'farcaster':
-        return 'X (Farcaster)'
-      case 'telegram':
-        return 'Telegram'
-      case 'externalWallet':
-        return 'External Wallet'
-      default:
-        return 'Para + Rhinestone'
     }
   }
 
@@ -134,109 +114,77 @@ const ConnectedContent = () => {
     return 'Connected'
   }
 
-  const getConnectionMethod = () => {
-    if (isLoading) {
-      return 'Initializing Smart Account...'
-    }
-
-    const authTypeLabel = getAuthTypeLabel()
-    return `Para + Rhinestone (${authTypeLabel})`
-  }
-
   return (
-    <div className="mr-6 flex items-center gap-4">
+    <div className="mr-2 flex items-center gap-2 md:mr-6 md:gap-4">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="flex items-center gap-2 rounded-md p-2 hover:bg-accent hover:text-accent-foreground"
+            className="flex items-center gap-0.5 rounded-full border border-gray-300 py-1 pr-1.5 pl-1 transition-colors hover:bg-gray-50 md:gap-1 md:pr-2"
           >
-            {ensAvatar ? (
-              <img
-                src={ensAvatar}
-                alt="ENS Avatar"
-                className="size-8 rounded-full"
-              />
-            ) : (
-              <div className="flex size-8 items-center justify-center rounded-full bg-muted">
-                {isLoading ? (
-                  <div className="size-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-                ) : (
-                  <User className="size-4 text-muted-foreground" />
-                )}
-              </div>
-            )}
-            <span className="font-medium text-sm">
-              {getDisplayName()}
-              {isLoading && (
-                <span className="ml-2 text-muted-foreground text-xs">
-                  (Smart Account)
-                </span>
+            <div className="flex items-center gap-1 md:gap-2">
+              {ensAvatar ? (
+                <img
+                  src={ensAvatar}
+                  alt="ENS Avatar"
+                  className="size-[36px] rounded-full md:size-[46px]"
+                />
+              ) : (
+                <div className="flex size-[36px] items-center justify-center rounded-full bg-muted md:size-[46px]">
+                  {isLoading ? (
+                    <div className="size-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent md:size-5" />
+                  ) : (
+                    <User className="size-4 text-muted-foreground md:size-5" />
+                  )}
+                </div>
               )}
-            </span>
+              <span className="font-medium text-gray-700 text-sm leading-tight tracking-tight md:text-base md:leading-[0.96] md:tracking-[-0.32px]">
+                {getDisplayName()}
+                {isLoading && (
+                  <span className="ml-1 text-muted-foreground text-xs md:ml-2">
+                    (Smart Account)
+                  </span>
+                )}
+              </span>
+            </div>
+            <ChevronDown className="size-5 text-gray-500 md:size-6" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-80">
-          <div className="p-3">
-            <div className="mb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium text-sm">{getDisplayName()}</div>
-                  <div className="text-muted-foreground text-xs">
-                    Connected via {getConnectionMethod()}
-                  </div>
-                </div>
-                {/* <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={refreshBalances}
-                >
-                  <RefreshCcw className="size-3" />
-                </Button> */}
+          <div className="p-4">
+            <div className="mb-4">
+              <div className="font-medium text-base text-ens-blue-dark">
+                {getDisplayName()}
               </div>
             </div>
 
-            {/* EOA Address and Balance */}
-            {address && (
+            {/* EOA Address and Balance - Only show if NOT using smart account auth */}
+            {address && !account?.embedded?.isConnected && (
               <div className="mb-3">
-                <div className="flex items-center justify-between">
-                  <div className="mb-1 font-medium text-muted-foreground text-xs">
-                    EOA Address
-                  </div>
-                  {/* <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={refreshBalances}
-                  >
-                    <RefreshCcw className="size-3" />
-                  </Button> */}
+                <div className="mb-2 font-medium text-gray-500 text-xs uppercase tracking-wide">
+                  EOA Address
                 </div>
 
-                <div className="flex items-center justify-between rounded bg-muted p-2 text-xs">
+                <div className="flex items-center justify-between rounded-lg bg-gray-100 p-3">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-muted-foreground">
+                    <span className="font-mono text-gray-600 text-sm">
                       {`${address.slice(0, 6)}...${address.slice(-4)}`}
                     </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0 hover:bg-background"
+                    <button
+                      type="button"
                       onClick={() => handleCopyAddress(address)}
+                      className="rounded p-1 transition-colors hover:bg-white"
                     >
-                      <Copy className="size-3" />
-                    </Button>
+                      <Copy className="size-4 text-gray-600" />
+                    </button>
                   </div>
                   {eoaEthBalance && (
-                    <span className="font-bold text-foreground">
+                    <span className="font-bold text-ens-blue-dark text-sm">
                       {eoaEthBalance.formattedBalance}
                     </span>
                   )}
                   {isLoadingEoaEth && (
-                    <span className="font-bold text-foreground">
-                      Loading...
-                    </span>
+                    <span className="text-gray-500 text-sm">Loading...</span>
                   )}
                 </div>
               </div>
@@ -245,64 +193,45 @@ const ConnectedContent = () => {
             {/* Rhinestone Smart Account Information */}
             {(isLoading || rhinestoneAccount || accountAddress) && (
               <div className="mb-3">
-                <div className="flex items-center justify-between">
-                  <div className="mb-1 font-medium text-muted-foreground text-xs">
-                    Smart Account Address
-                  </div>
-                  {/* {!isLoading && rhinestoneAccount && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={refreshBalances}
-                    >
-                      <RefreshCcw className="size-3" />
-                    </Button>
-                  )} */}
+                <div className="mb-2 font-medium text-gray-500 text-xs uppercase tracking-wide">
+                  Smart Account Address
                 </div>
 
                 {isLoading ? (
-                  <div className="flex items-center justify-between rounded bg-muted p-2 text-xs">
-                    <div className="flex items-center gap-2">
-                      <div className="size-3 animate-spin rounded-full border border-muted-foreground border-t-transparent" />
-                      <span className="text-muted-foreground">
-                        Creating smart account...
-                      </span>
-                    </div>
+                  <div className="flex items-center gap-2 rounded-lg bg-gray-100 p-3">
+                    <div className="size-4 animate-spin rounded-full border-2 border-gray-500 border-t-transparent" />
+                    <span className="text-gray-600 text-sm">
+                      Creating smart account...
+                    </span>
                   </div>
                 ) : error ? (
-                  <div className="rounded bg-red-50 p-2 text-xs dark:bg-red-950/20">
-                    <div className="text-red-600 dark:text-red-400">
+                  <div className="rounded-lg bg-red-50 p-3">
+                    <div className="font-medium text-red-600 text-sm">
                       Failed to create smart account
                     </div>
-                    <div className="mt-1 text-red-500 text-xs dark:text-red-500">
-                      {error}
-                    </div>
+                    <div className="mt-1 text-red-500 text-xs">{error}</div>
                   </div>
                 ) : rhinestoneAccount && accountAddress ? (
-                  <div className="flex items-center justify-between rounded bg-muted p-2 text-xs">
+                  <div className="flex items-center justify-between rounded-lg bg-gray-100 p-3">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-muted-foreground">
+                      <span className="font-mono text-gray-600 text-sm">
                         {`${accountAddress.slice(0, 6)}...${accountAddress.slice(-4)}`}
                       </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 hover:bg-background"
+                      <button
+                        type="button"
                         onClick={() => handleCopyAddress(accountAddress)}
+                        className="rounded p-1 transition-colors hover:bg-white"
                       >
-                        <Copy className="size-3" />
-                      </Button>
+                        <Copy className="size-4 text-gray-600" />
+                      </button>
                     </div>
                     {smartAccountEthBalance && (
-                      <span className="font-bold text-foreground">
+                      <span className="font-bold text-ens-blue-dark text-sm">
                         {smartAccountEthBalance.formattedBalance}
                       </span>
                     )}
                     {isLoadingSmartAccountEth && (
-                      <span className="font-bold text-foreground">
-                        Loading...
-                      </span>
+                      <span className="text-gray-500 text-sm">Loading...</span>
                     )}
                   </div>
                 ) : null}
@@ -314,28 +243,23 @@ const ConnectedContent = () => {
               stablecoinBalances &&
               stablecoinBalances.length > 0 && (
                 <div className="mb-3">
-                  <div className="mb-1 font-medium text-muted-foreground text-xs">
+                  <div className="mb-2 font-medium text-gray-500 text-xs uppercase tracking-wide">
                     Token Balances
                   </div>
                   <div className="space-y-2">
                     {stablecoinBalances.map((balance, index) => (
                       <div
                         key={`${balance.address}-${index}`}
-                        className="relative"
+                        className="flex items-center justify-between rounded-lg bg-gray-100 p-3"
                       >
-                        {/* Token Container */}
-                        <div className="flex items-center justify-between rounded bg-muted p-2 text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-muted-foreground">
-                              {balance.symbol}
-                            </span>
-                          </div>
-                          {balance.formattedBalance && (
-                            <span className="font-bold text-foreground">
-                              {balance.formattedBalance}
-                            </span>
-                          )}
-                        </div>
+                        <span className="font-medium text-gray-600 text-sm">
+                          {balance.symbol}
+                        </span>
+                        {balance.formattedBalance && (
+                          <span className="font-bold text-ens-blue-dark text-sm">
+                            {balance.formattedBalance}
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -343,8 +267,8 @@ const ConnectedContent = () => {
               )}
 
             {copied && (
-              <div className="mb-3 text-green-600 text-xs dark:text-green-400">
-                Copied!
+              <div className="mb-3 font-medium text-green-600 text-sm">
+                ✓ Copied to clipboard
               </div>
             )}
           </div>
@@ -392,9 +316,12 @@ const ConnectedContent = () => {
 
       <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon">
-            <Bell className="size-5" />
-          </Button>
+          <button
+            type="button"
+            className="flex items-center justify-center rounded-full border border-gray-300 p-2 transition-colors hover:bg-gray-50 md:p-[11px]"
+          >
+            <Bell className="size-5 md:size-6" />
+          </button>
         </PopoverTrigger>
         <PopoverContent className="w-sm" collisionPadding={16} sideOffset={16}>
           <NotificationsDropdown onAction={() => setNotificationsOpen(false)} />
@@ -436,9 +363,12 @@ const Menu = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <LayoutGrid className="size-5" />
-        </Button>
+        <button
+          type="button"
+          className="flex items-center justify-center rounded-full border border-gray-300 p-2 transition-colors hover:bg-gray-50 md:p-[11px]"
+        >
+          <LayoutGrid className="size-5 md:size-6" />
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent collisionPadding={16}>
         <DropdownMenuItem onClick={toggleTheme}>
@@ -456,9 +386,10 @@ export const Header = () => {
   return (
     <nav className="sticky top-0 z-10 flex items-center justify-end bg-background px-10 py-7">
       <Link to="/" className="mr-auto py-2">
-        <img src={ensLogo} alt="ENS Logo" className="h-8" />
+        <img src={ensMobileLogo} alt="ENS Logo" className="h-8 md:hidden" />
+        <img src={ensLogo} alt="ENS Logo" className="hidden h-8 md:block" />
       </Link>
-      {status !== 'connecting' && status !== 'reconnecting' ? (
+      {!walletLoading ? (
         isConnected ? (
           <ConnectedContent />
         ) : (

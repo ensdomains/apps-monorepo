@@ -7,8 +7,3 @@ export type ServiceRecordSnapshot = {
 
 export type ServiceRecordText = ServiceRecordSnapshot['texts'][number]
 export type ServiceRecordCoin = ServiceRecordSnapshot['coins'][number]
-
-export type ResolverConfig = {
-  resolverAddress?: Address
-  isDedicatedResolver?: boolean
-}
