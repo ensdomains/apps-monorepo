@@ -13,79 +13,75 @@ export const DashboardSidebar = ({
   profileName,
 }: DashboardSidebarProps) => {
   return (
-    <div className="hidden w-72 flex-shrink-0 lg:block">
-      <aside className="rounded-2xl border bg-white/90 p-6 shadow-sm">
-        <div className="space-y-6">
+    <div className="hidden w-[300px] shrink-0 lg:block">
+      <aside className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white p-6 shadow-none">
+        <div className="space-y-8">
           <Input
-            size="sm"
+            size="default"
             placeholder="Search name, address..."
-            startIcon={<Search className="size-4" />}
+            startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
+            className="h-[44px] rounded-[4px] border-[#e5e5e5] border-[0.4px] bg-white text-[#8c8c8c] placeholder:text-[#8c8c8c]"
           />
 
-          <div className="space-y-3">
-            <div className="font-medium text-muted-foreground text-xs">
+          <div className="space-y-2">
+            <div className="font-sans text-[#8b8b8b] text-[12px] uppercase leading-[16px]">
               MAIN MENU
             </div>
-            <nav className="space-y-2 pt-1">
+            <nav className="space-y-[2px]">
               <Button
                 asChild
                 variant="ghost"
-                size="sm"
-                className="w-full justify-start rounded-sm bg-ens-blue/10 text-ens-blue hover:bg-ens-blue/15"
+                className="h-auto w-full justify-start rounded-[8px] bg-[#e2f1f5] p-3 text-[#0080bc] hover:bg-[#e2f1f5]/80 hover:text-[#0080bc]"
               >
-                <Link to="/dashboard">
-                  <LayoutGrid className="mr-3 size-5" />
-                  <span className="font-semibold">Dashboard</span>
+                <Link to="/dashboard" className="flex items-center gap-[10px]">
+                  <LayoutGrid className="size-6" />
+                  <span className="font-medium font-sans text-[14px]">
+                    Dashboard
+                  </span>
                 </Link>
               </Button>
 
               {hasProfile ? (
                 <LinkButton
                   to="/p/$name"
-                  params={{ name: profileName! }}
+                  params={{ name: profileName ?? '' }}
                   variant="ghost"
-                  size="sm"
-                  className="w-full justify-start rounded-sm text-foreground hover:bg-muted/60"
+                  className="h-auto w-full justify-start rounded-[8px] bg-transparent p-3 text-[#6b6b6b] hover:bg-gray-100 hover:text-[#6b6b6b]"
                 >
-                  <User className="mr-3 size-4" />
-                  <span>Profile</span>
+                  <User className="size-6" />
+                  <span className="font-sans text-[14px]">Profile</span>
                 </LinkButton>
               ) : (
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="w-full justify-start rounded-sm text-muted-foreground"
+                  className="h-auto w-full justify-start rounded-[8px] bg-transparent p-3 text-[#6b6b6b] hover:bg-gray-100 hover:text-[#6b6b6b]"
                   disabled
                 >
-                  <User className="mr-3 size-4" />
-                  <span>Profile</span>
+                  <User className="size-6" />
+                  <span className="font-sans text-[14px]">Profile</span>
                 </Button>
               )}
             </nav>
           </div>
 
-          <div className="space-y-3">
-            <div className="font-medium text-muted-foreground text-xs">
+          <div className="space-y-2">
+            <div className="font-sans text-[#8b8b8b] text-[12px] uppercase leading-[16px]">
               SETTINGS
             </div>
-            <nav className="space-y-2">
+            <nav className="space-y-[2px]">
               <Button
                 variant="ghost"
-                size="sm"
-                className="w-full justify-start rounded-sm text-foreground"
-                disabled
+                className="h-auto w-full justify-start rounded-[8px] bg-transparent px-3 py-[10px] text-[#6b6b6b] hover:bg-gray-100 hover:text-[#6b6b6b]"
               >
-                <Settings className="mr-3 size-4" />
-                <span>Settings</span>
+                <Settings className="size-6" />
+                <span className="mr-3 font-sans text-[14px]">Settings</span>
               </Button>
               <Button
                 variant="ghost"
-                size="sm"
-                className="w-full justify-start rounded-sm text-foreground"
-                disabled
+                className="h-auto w-full justify-start rounded-[8px] bg-transparent px-3 py-[10px] text-[#6b6b6b] hover:bg-gray-100 hover:text-[#6b6b6b]"
               >
-                <HelpCircle className="mr-3 size-4" />
-                <span>Help</span>
+                <HelpCircle className="size-6" />
+                <span className="mr-3 font-sans text-[14px]">Help</span>
               </Button>
             </nav>
           </div>

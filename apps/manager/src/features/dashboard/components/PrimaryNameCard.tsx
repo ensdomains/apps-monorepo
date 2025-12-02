@@ -1,15 +1,12 @@
-import { Calendar, CheckCircle2, Clock } from 'lucide-react'
+import { Calendar, Check, Clock } from 'lucide-react'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
-  month: 'short',
+  month: 'long',
   day: 'numeric',
 })
-
-const truncateAddress = (address: string) =>
-  `${address.slice(0, 6)}...${address.slice(-4)}`
 
 type PrimaryNameCardProps = {
   primaryName: string
@@ -29,10 +26,10 @@ export const PrimaryNameCard = ({
   const hasAvatar = Boolean(avatarUrl)
 
   return (
-    <Card className="rounded-[22px] border-[#dededf] border-[0.25px] bg-white/95 shadow-[0px_20.905px_27.874px_rgba(14,61,104,0.06)]">
-      <div className="flex flex-col gap-8 p-6 md:flex-row md:items-start md:justify-between">
-        <div className="flex flex-col items-start gap-6 md:flex-row">
-          <div className="size-[200px] shrink-0 overflow-hidden rounded-[18px] bg-muted">
+    <Card className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white p-[24px] shadow-none">
+      <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col items-start gap-[20px] md:flex-row">
+          <div className="size-[200px] shrink-0 overflow-hidden rounded-[4px] bg-[#faf9f6]">
             {hasAvatar ? (
               <img
                 src={avatarUrl as string}
@@ -40,37 +37,56 @@ export const PrimaryNameCard = ({
                 className="size-full object-cover"
               />
             ) : (
-              <div className="size-full bg-linear-to-br from-ens-blue/40 via-ens-blue to-ens-blue-midnight" />
+              <div className="size-full bg-gradient-to-br from-blue-400 via-blue-600 to-blue-900" />
             )}
           </div>
 
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <span className="inline-flex w-fit items-center rounded-[14px] bg-[#0080bc] px-6 py-2.5 font-sans font-semibold text-[28px] text-white leading-none">
+          <div className="flex h-[200px] flex-col justify-between">
+            <div className="flex flex-col items-start gap-[12px]">
+              <div className="inline-flex items-center rounded-[4px] bg-[#0080bc] px-[8.5px] py-[4.25px]">
+                <span className="font-medium font-mono text-[#f6f6f6] text-[28px] leading-[0.96] tracking-[-0.56px]">
                   {primaryName}
                 </span>
-                <div className="inline-flex w-fit items-center gap-2 rounded-full bg-[#f1f5f9] px-4 py-1.5 font-medium text-[#0080bc] text-xs">
-                  Primary Name
-                  <CheckCircle2 className="size-4" />
+              </div>
+              <div className="flex items-center gap-[2px]">
+                <div className="inline-flex items-center gap-[8px] rounded-[73px] bg-[#f6f6f6] px-[6.5px] py-[3.3px]">
+                  <span className="font-sans text-[#0080bc] text-[12px] leading-[1.15] tracking-[-0.24px]">
+                    Primary Name
+                  </span>
+                  <div className="flex size-[10px] items-center justify-center rounded-full bg-[#0080bc]">
+                    <Check
+                      className="size-[6px] text-[#f6f6f6]"
+                      strokeWidth={4}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-col gap-4 text-[#8c8c8c] text-sm">
-              <div className="flex items-center gap-2">
-                <Calendar className="size-5 text-[#8c8c8c]" />
-                <span>Registered</span>
-                <span className="font-semibold text-[#232222]">
-                  {dateFormatter.format(registeredDate)}
-                </span>
+            <div className="flex flex-col gap-[8.5px]">
+              <div className="flex items-center gap-[8px]">
+                <Calendar
+                  className="size-[16px] text-[#8c8c8c]"
+                  strokeWidth={1.5}
+                />
+                <div className="flex items-end gap-[4px] text-[12px] leading-[0.96] tracking-[-0.24px]">
+                  <span className="text-[#8c8c8c]">Registered</span>
+                  <span className="text-[#232222]">
+                    {dateFormatter.format(registeredDate)}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Clock className="size-5 text-[#8c8c8c]" />
-                <span>Expires</span>
-                <span className="font-semibold text-[#232222]">
-                  {dateFormatter.format(expiryDate)}
-                </span>
+              <div className="flex items-center gap-[8px]">
+                <Clock
+                  className="size-[16px] text-[#8c8c8c]"
+                  strokeWidth={1.5}
+                />
+                <div className="flex items-end gap-[4px] text-[12px] leading-[0.96] tracking-[-0.24px]">
+                  <span className="text-[#8c8c8c]">Expires</span>
+                  <span className="text-[#232222]">
+                    {dateFormatter.format(expiryDate)}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -80,10 +96,12 @@ export const PrimaryNameCard = ({
           to="/p/$name"
           params={{ name: primaryName }}
           variant="outline"
-          size="lg"
-          className="mt-4 whitespace-nowrap rounded-lg border-2 border-[#0080bc] text-[#0080bc] hover:bg-[#0080bc]/5 md:mt-0"
+          className="h-[34px] rounded-[4px] border border-[#0080bc] px-[8.5px] py-[4.25px] text-[#0080bc] hover:bg-[#0080bc]/5 hover:text-[#0080bc]"
         >
-          View profile →
+          <span className="font-sans text-[14px] leading-normal">
+            View profile
+          </span>
+          <span className="ml-[4px]">→</span>
         </LinkButton>
       </div>
     </Card>
