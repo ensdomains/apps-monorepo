@@ -500,8 +500,8 @@ importers:
   packages/l2-primary:
     dependencies:
       '@ensdomains/ensjs':
-        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@870740b
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@870740b(viem@2.40.2(typescript@5.9.3)(zod@4.1.13))
+        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@ee630f0
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@ee630f0(viem@2.40.2(typescript@5.9.3)(zod@4.1.13))
     devDependencies:
       '@tanstack/react-query':
         specifier: ^5.0.0
@@ -1024,6 +1024,13 @@ packages:
 
   '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@c0e1c28':
     resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@c0e1c28}
+    version: 5.0.0-alpha.1
+    engines: {node: '>=22'}
+    peerDependencies:
+      viem: ^2.9.2
+
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@ee630f0':
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@ee630f0}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
     peerDependencies:
@@ -6536,17 +6543,6 @@ snapshots:
       dns-packet: 5.6.1
       typescript-logging: 1.0.1
 
-  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@870740b(viem@2.40.2(typescript@5.9.3)(zod@4.1.13))':
-    dependencies:
-      '@adraffy/ens-normalize': 1.10.1
-      '@ensdomains/address-encoder': 1.1.1
-      '@ensdomains/content-hash': 3.1.0-rc.1
-      dns-packet: 5.6.1
-      graphql: 16.12.0
-      graphql-request: 7.2.0(graphql@16.12.0)
-      ts-pattern: 5.9.0
-      viem: 2.40.2(typescript@5.9.3)(zod@4.1.13)
-
   '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@870740b(viem@2.40.3(typescript@5.9.3)(zod@4.1.13))':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
@@ -6564,6 +6560,17 @@ snapshots:
       '@ensdomains/address-encoder': 1.1.1
       '@ensdomains/content-hash': 3.1.0-rc.1
       '@ensdomains/dnsprovejs': 0.5.2
+      dns-packet: 5.6.1
+      graphql: 16.12.0
+      graphql-request: 7.2.0(graphql@16.12.0)
+      ts-pattern: 5.9.0
+      viem: 2.40.2(typescript@5.9.3)(zod@4.1.13)
+
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@ee630f0(viem@2.40.2(typescript@5.9.3)(zod@4.1.13))':
+    dependencies:
+      '@adraffy/ens-normalize': 1.10.1
+      '@ensdomains/address-encoder': 1.1.1
+      '@ensdomains/content-hash': 3.1.0-rc.1
       dns-packet: 5.6.1
       graphql: 16.12.0
       graphql-request: 7.2.0(graphql@16.12.0)

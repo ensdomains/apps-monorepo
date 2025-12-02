@@ -23,7 +23,7 @@
   },
   "keywords": [],
   "dependencies": {
-    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@870740b"
+    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@ee630f0"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.0.0",
