@@ -30,9 +30,9 @@ const faqItems = [
 ]
 
 export const FaqSection = () => (
-  <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-[24px] py-[32px]">
-    <div className="mb-[12px] flex flex-col items-start gap-[12px]">
-      <h2 className="font-serif text-[#232222] text-[28px] leading-[0.96] tracking-[0.28px]">
+  <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:px-[24px] md:py-[32px]">
+    <div className="mb-[12px] flex flex-col items-start gap-3 md:gap-[12px]">
+      <h2 className="font-serif text-[#232222] text-[24px] leading-[0.96] tracking-[0.24px] md:text-[28px] md:tracking-[0.28px]">
         Frequently Asked Questions
       </h2>
       <a
@@ -41,8 +41,10 @@ export const FaqSection = () => (
         rel="noopener noreferrer"
         className="flex items-center gap-[4.92px] text-[#0080bc] hover:text-[#006699]"
       >
-        <span className="font-sans text-[14px] leading-[1.8]">Get support</span>
-        <ArrowRight className="size-[8px]" strokeWidth={2} />
+        <span className="font-sans text-[13px] leading-[1.6] md:text-[14px] md:leading-[1.8]">
+          Get support
+        </span>
+        <ArrowRight className="size-[7px] md:size-[8px]" strokeWidth={2} />
       </a>
     </div>
     <div className="flex flex-col">

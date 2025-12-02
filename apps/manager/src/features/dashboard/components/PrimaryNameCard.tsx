@@ -26,10 +26,10 @@ export const PrimaryNameCard = ({
   const hasAvatar = Boolean(avatarUrl)
 
   return (
-    <Card className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white p-[24px] shadow-none">
-      <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
-        <div className="flex flex-col items-start gap-[20px] md:flex-row">
-          <div className="size-[200px] shrink-0 overflow-hidden rounded-[4px] bg-[#faf9f6]">
+    <Card className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white p-4 shadow-none md:p-[24px]">
+      <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-8">
+        <div className="flex flex-col items-start gap-4 md:flex-row md:gap-[20px]">
+          <div className="size-[120px] shrink-0 overflow-hidden rounded-[4px] bg-[#faf9f6] md:size-[200px]">
             {hasAvatar ? (
               <img
                 src={avatarUrl as string}
@@ -41,10 +41,10 @@ export const PrimaryNameCard = ({
             )}
           </div>
 
-          <div className="flex h-[200px] flex-col justify-between">
-            <div className="flex flex-col items-start gap-[12px]">
-              <div className="inline-flex items-center rounded-[4px] bg-[#0080bc] px-[8.5px] py-[4.25px]">
-                <span className="font-medium font-mono text-[#f6f6f6] text-[28px] leading-[0.96] tracking-[-0.56px]">
+          <div className="flex min-h-0 flex-col justify-between md:h-[200px]">
+            <div className="flex flex-col items-start gap-2 md:gap-[12px]">
+              <div className="inline-flex items-center rounded-[4px] bg-[#0080bc] px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
+                <span className="font-medium font-mono text-[#f6f6f6] text-[20px] leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]">
                   {primaryName}
                 </span>
               </div>
@@ -97,7 +97,7 @@ export const PrimaryNameCard = ({
           to="/p/$name"
           params={{ name: primaryName }}
           variant="outline"
-          className="h-[34px] rounded-[4px] border border-[#0080bc] px-[8.5px] py-[4.25px] text-[#0080bc] hover:bg-[#0080bc]/5 hover:text-[#0080bc]"
+          className="h-[34px] w-full rounded-[4px] border border-[#0080bc] px-[8.5px] py-[4.25px] text-[#0080bc] hover:bg-[#0080bc]/5 hover:text-[#0080bc] md:w-auto"
         >
           <span className="font-sans text-[14px] leading-normal">
             View profile

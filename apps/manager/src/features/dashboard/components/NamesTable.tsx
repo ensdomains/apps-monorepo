@@ -22,23 +22,23 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
 
   return (
     <div className="w-full">
-      <div className="mb-[20px] flex flex-col gap-[20px]">
-        <div className="flex items-center gap-[40px]">
+      <div className="mb-[20px] flex flex-col gap-4 md:gap-[20px]">
+        <div className="flex items-center gap-4 overflow-x-auto md:gap-[40px]">
           <button
             type="button"
             onClick={() => setActiveTab('myNames')}
-            className="flex items-center gap-[12px]"
+            className="flex shrink-0 items-center gap-2 md:gap-[12px]"
           >
             <span
-              className={`font-serif text-[28px] leading-[0.96] tracking-[0.28px] ${activeTab === 'myNames' ? 'text-[#232222]' : 'text-[#a9a9a9]'}`}
+              className={`font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px] ${activeTab === 'myNames' ? 'text-[#232222]' : 'text-[#a9a9a9]'}`}
             >
               My Names
             </span>
             <div
-              className={`flex h-[20px] items-center justify-center rounded-[14px] px-[6.5px] py-[1.6px] ${activeTab === 'myNames' ? 'bg-[#e5f7ff]' : 'border-[#8c8c8c] border-[0.5px]'}`}
+              className={`flex h-[18px] items-center justify-center rounded-[14px] px-[5px] py-[1.4px] md:h-[20px] md:px-[6.5px] md:py-[1.6px] ${activeTab === 'myNames' ? 'bg-[#e5f7ff]' : 'border-[#8c8c8c] border-[0.5px]'}`}
             >
               <span
-                className={`font-sans text-[14px] leading-[1.05] ${activeTab === 'myNames' ? 'text-[#0080bc]' : 'text-[#8c8c8c]'}`}
+                className={`font-sans text-[12px] leading-[1.05] md:text-[14px] ${activeTab === 'myNames' ? 'text-[#0080bc]' : 'text-[#8c8c8c]'}`}
               >
                 {names?.length ?? 0}
               </span>
@@ -48,18 +48,18 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
           <button
             type="button"
             onClick={() => setActiveTab('favorites')}
-            className="flex items-center gap-[12px]"
+            className="flex shrink-0 items-center gap-2 md:gap-[12px]"
           >
             <span
-              className={`font-serif text-[28px] leading-[0.96] tracking-[0.28px] ${activeTab === 'favorites' ? 'text-[#232222]' : 'text-[#a9a9a9]'}`}
+              className={`font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px] ${activeTab === 'favorites' ? 'text-[#232222]' : 'text-[#a9a9a9]'}`}
             >
               {activeTab === 'favorites' ? 'Favorites List' : 'Favorites'}
             </span>
             <div
-              className={`flex h-[20px] items-center justify-center rounded-[14px] px-[6.5px] py-[1.6px] ${activeTab === 'favorites' ? 'bg-[#ffecf5]' : 'border-[#8c8c8c] border-[0.5px]'}`}
+              className={`flex h-[18px] items-center justify-center rounded-[14px] px-[5px] py-[1.4px] md:h-[20px] md:px-[6.5px] md:py-[1.6px] ${activeTab === 'favorites' ? 'bg-[#ffecf5]' : 'border-[#8c8c8c] border-[0.5px]'}`}
             >
               <span
-                className={`font-sans text-[14px] leading-[1.05] ${activeTab === 'favorites' ? 'text-[#f53293]' : 'text-[#8c8c8c]'}`}
+                className={`font-sans text-[12px] leading-[1.05] md:text-[14px] ${activeTab === 'favorites' ? 'text-[#f53293]' : 'text-[#8c8c8c]'}`}
               >
                 {MOCK_FAVORITE_NAMES.length}
               </span>
@@ -68,7 +68,7 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
         </div>
 
         {activeTab === 'myNames' && (
-          <div className="w-[292px]">
+          <div className="w-full md:w-[292px]">
             <Input
               size="sm"
               placeholder="Search my name..."
