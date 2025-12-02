@@ -1,14 +1,30 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
+  "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "app-api-worker",
   "main": "src/worker.ts",
   "compatibility_date": "2025-08-14",
   "compatibility_flags": ["nodejs_compat"],
 
+  "observability": {
+    "enabled": false,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": false,
+      "persist": true,
+      "head_sampling_rate": 1
+    }
+  },
+
   "hyperdrive": [
     {
       "binding": "DB",
-      "id": "NONE",
+      "id": "0ad2db5f510d4e699b140c3c11cda8bb",
       "localConnectionString": "postgresql://postgres:postgres@localhost/postgres"
     }
   ],
@@ -16,7 +32,7 @@
   "kv_namespaces": [
     {
       "binding": "KV",
-      "id": "4f44782c9c28436c9af279f46298fb94"
+      "id": "85a14d25fa4a41a3a7123bcd5093c09a"
     }
   ],
 
@@ -24,27 +40,25 @@
     "producers": [
       {
         "binding": "TELEGRAM_QUEUE",
-        "queue": "api-worker-telegram-delivery"
+        "queue": "app-api-worker-telegram-delivery"
       },
       {
         "binding": "EMAIL_QUEUE",
-        "queue": "api-worker-email-delivery"
+        "queue": "app-api-worker-email-delivery"
       }
     ],
     "consumers": [
       {
-        "queue": "api-worker-telegram-delivery",
+        "queue": "app-api-worker-telegram-delivery",
         "max_batch_size": 10,
         "max_batch_timeout": 5,
-        "max_retries": 3,
-        "dead_letter_queue": "api-worker-telegram-delivery-dlq"
+        "max_retries": 3
       },
       {
-        "queue": "api-worker-email-delivery",
+        "queue": "app-api-worker-email-delivery",
         "max_batch_size": 50,
         "max_batch_timeout": 3,
-        "max_retries": 3,
-        "dead_letter_queue": "api-worker-email-delivery-dlq"
+        "max_retries": 3
       }
     ]
   },

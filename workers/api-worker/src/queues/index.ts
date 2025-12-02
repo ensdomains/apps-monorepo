@@ -8,10 +8,10 @@ export const handleQueue = async (
 ): Promise<void> => {
   // Route to appropriate queue handler based on queue name
   switch (batch.queue) {
-    case 'api-worker-telegram-delivery':
+    case 'app-api-worker-telegram-delivery':
       await handleTelegramQueue(batch as MessageBatch<TelegramDeliveryJob>, env)
       break
-    case 'api-worker-email-delivery':
+    case 'app-api-worker-email-delivery':
       await handleEmailQueue(batch as MessageBatch<EmailDeliveryJob>, env)
       break
     default:
