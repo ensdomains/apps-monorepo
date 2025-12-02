@@ -1,3 +1,4 @@
+import { cors } from 'hono/cors'
 import { HTTPException } from 'hono/http-exception'
 import { logger, prettifyError } from '#utils/logger.js'
 import { createApp } from './middleware/hono'
@@ -9,6 +10,7 @@ import watchersApp from './routes/watchers'
 import webhookApp from './routes/webhook'
 
 const app = createApp()
+  .use('/*', cors())
   .route('/', authApp)
   .route('/', favoritesApp)
   .route('/', notificationsApp)
