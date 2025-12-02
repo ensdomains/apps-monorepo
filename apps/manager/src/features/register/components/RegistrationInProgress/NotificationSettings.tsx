@@ -25,7 +25,6 @@ import {
   Clock,
   Heart,
   Mail,
-  MessageCircle,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -39,6 +38,7 @@ import {
   updatePreferencesBatch,
 } from '@/features/register/services/notificationService'
 import { cn } from '@/lib/utils'
+import { TelegramConnect } from './TelegramConnect'
 
 interface NotificationSettingsProps {
   onConfirm: (settings: NotificationPreferences) => void
@@ -60,7 +60,6 @@ export const NotificationSettings = ({
   onSkip,
   className,
 }: NotificationSettingsProps) => {
-  const [isTelegramConnecting, setIsTelegramConnecting] = useState(false)
   const [emailVerificationSent, setEmailVerificationSent] = useState(false)
   const [isResendingVerification, setIsResendingVerification] = useState(false)
 
@@ -133,22 +132,6 @@ export const NotificationSettings = ({
       }
     },
   })
-
-  const handleTelegramSignup = async () => {
-    setIsTelegramConnecting(true)
-
-    try {
-      console.log('Initiating Telegram signup...')
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      form.setFieldValue('telegramConnected', true)
-      console.log('Telegram connected successfully (mocked)')
-    } catch (error) {
-      console.error('Telegram signup failed:', error)
-    } finally {
-      setIsTelegramConnecting(false)
-    }
-  }
 
   const isFormValid = () => {
     const emailValue = form.getFieldValue('email')
@@ -278,32 +261,12 @@ export const NotificationSettings = ({
 
         <form.Field name="telegramConnected">
           {(field) => (
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={handleTelegramSignup}
-                disabled={isTelegramConnecting || field.state.value}
-                className={cn(
-                  'flex w-fit items-center justify-center gap-3.5 rounded-full px-4 py-2.5 transition-colors',
-                  field.state.value
-                    ? 'cursor-not-allowed bg-ens-peridot-core'
-                    : 'bg-ens-lapis-core hover:bg-ens-lapis-core/90',
-                  isTelegramConnecting && 'cursor-wait opacity-50',
-                )}
-              >
-                <MessageCircle className="h-5 w-5 text-white" />
-                <span className="font-medium text-base text-white leading-[15.36px] tracking-tight">
-                  {field.state.value
-                    ? 'Telegram Connected ✓'
-                    : isTelegramConnecting
-                      ? 'Connecting...'
-                      : 'Sign up with Telegram'}
-                </span>
-              </button>
-              <p className="text-ens-gray text-sm leading-[19.6px]">
-                Get instant updates through Telegram for your domains
-              </p>
-            </div>
+            <TelegramConnect
+              connected={field.state.value}
+              onConnectionChange={(connected) => field.handleChange(connected)}
+              // Set forceRealWidget={true} to test real Telegram widget even if USE_MOCK_API is true
+              forceRealWidget={true}
+            />
           )}
         </form.Field>
       </div>
