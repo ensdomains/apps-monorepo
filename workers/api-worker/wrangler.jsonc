@@ -64,13 +64,13 @@
   },
 
   "triggers": {
-    "crons": ["*/5 * * * *"]
+    "crons": ["0 */1 * * *"]
   },
 
   "vars": {
     "CHAIN": "mainnet",
-    "BASE_URL": "https://notifications.ens.domains",
+    "BASE_URL": "https://app-api-worker.ens-cf.workers.dev",
     "EMAIL_FROM_ADDRESS": "notifications@ens.domains",
-    "MANAGER_APP_URL": "http://localhost:3000"
+    "MANAGER_APP_URL": "https://manager-app-v4.ens-cf.workers.dev"
   }
 }
