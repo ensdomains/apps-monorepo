@@ -131,17 +131,11 @@ export const getNameRegistries = ResultFn(async function* (
   )
 
   const l2NameRegistry = l2Registries.at(-2)
-  const l2RootRegistry = l2Registries.at(0)
 
-  // Check if this is a valid V2 name on L2
-  // V2 names should have a non-zero root registry (first element)
-  // Invalid/incomplete data (like migrated V1 names) has zeroAddress for root
-  if (
-    l2NameRegistry &&
-    l2NameRegistry !== zeroAddress &&
-    l2RootRegistry &&
-    l2RootRegistry !== zeroAddress
-  ) {
+  // Check if name exists on L2
+  // If nameRegistry is non-zero, the name has a registry on L2
+  // rootRegistry being zero just means it's a migrated V1 name, but it's still V2 on L2
+  if (l2NameRegistry && l2NameRegistry !== zeroAddress) {
     return ok<NameRegistriesResult>({
       registries: toNameRegistriesResultType(l2Registries),
       network: 'namechainSepolia',

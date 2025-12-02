@@ -316,8 +316,8 @@ importers:
         specifier: ^1.1.2
         version: 1.1.4
       '@ensdomains/ensjs':
-        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@993d0c0
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@993d0c0(viem@2.40.3(typescript@5.9.3)(zod@4.1.13))
+        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@627ce51
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@627ce51(viem@2.40.3(typescript@5.9.3)(zod@4.1.13))
       '@ensdomains/locales':
         specifier: workspace:^
         version: link:../../packages/locales
@@ -500,8 +500,8 @@ importers:
   packages/l2-primary:
     dependencies:
       '@ensdomains/ensjs':
-        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@993d0c0
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@993d0c0(viem@2.40.2(typescript@5.9.3)(zod@4.1.13))
+        specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@627ce51
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@627ce51(viem@2.40.2(typescript@5.9.3)(zod@4.1.13))
     devDependencies:
       '@tanstack/react-query':
         specifier: ^5.0.0
@@ -1015,8 +1015,8 @@ packages:
     resolution: {integrity: sha512-lSuYnUvUV+kBviQ82XUldtpiE0lA4gWrCilsoCWbTKtc/fH6re9NaTkhbPEy/7OF96MMAG1BDnuoTsfSMAzFBg==}
     engines: {node: '>=16.8'}
 
-  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@993d0c0':
-    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@993d0c0}
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@627ce51':
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@627ce51}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
     peerDependencies:
@@ -6536,7 +6536,7 @@ snapshots:
       dns-packet: 5.6.1
       typescript-logging: 1.0.1
 
-  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@993d0c0(viem@2.40.2(typescript@5.9.3)(zod@4.1.13))':
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@627ce51(viem@2.40.2(typescript@5.9.3)(zod@4.1.13))':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 1.1.1
@@ -6547,7 +6547,7 @@ snapshots:
       ts-pattern: 5.9.0
       viem: 2.40.2(typescript@5.9.3)(zod@4.1.13)
 
-  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@993d0c0(viem@2.40.3(typescript@5.9.3)(zod@4.1.13))':
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@627ce51(viem@2.40.3(typescript@5.9.3)(zod@4.1.13))':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 1.1.1
