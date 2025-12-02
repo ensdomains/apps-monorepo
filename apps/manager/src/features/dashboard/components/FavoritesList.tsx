@@ -121,7 +121,7 @@ export const FavoritesList = ({ favorites = [] }: FavoritesListProps) => {
           </button>
         </div>
         <span className="text-center font-sans text-[#7d7d7d] text-[11px] leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
-          Showing 1-{Math.min(5, favorites.length)} of 105
+          Showing 1-{Math.min(5, favorites.length)} of {favorites.length}
         </span>
       </div>
     </div>
