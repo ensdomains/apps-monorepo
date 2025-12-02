@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store/react'
 import { ArrowRight, ArrowUpRight, SmileIcon } from 'lucide-react'
+import { useWalletClient } from 'wagmi'
 import { Button, LinkButton } from '@/components/ui/button'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { signInBackendMutation } from '../../queries/auth'
@@ -27,11 +28,16 @@ export const NotificationsDropdown = ({
 }
 
 const UnauthenticatedContent = () => {
+  const { data: walletClient } = useWalletClient()
   const signIn = useMutation(signInBackendMutation)
 
   const handleSignIn = async () => {
+    if (!walletClient) {
+      throw new Error('No wallet client found')
+    }
+
     try {
-      await signIn.mutateAsync()
+      await signIn.mutateAsync({ walletClient })
     } catch (error) {
       console.error('Failed to sign in:', error)
     }

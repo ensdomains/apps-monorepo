@@ -1,7 +1,6 @@
 import { mutationOptions } from '@tanstack/react-query'
-import { getAccount, signMessage } from '@wagmi/core'
+import type { WalletClient } from 'viem'
 import { createSiweMessage } from 'viem/siwe'
-import { wagmiConfig } from '@/lib/wagmi'
 import { backendAuthStore, backendClient } from '@/utils/backend-client'
 
 const getNonce = async () => {
@@ -15,8 +14,8 @@ const getNonce = async () => {
 }
 
 export const signInBackendMutation = mutationOptions({
-  mutationFn: async () => {
-    const account = getAccount(wagmiConfig)
+  mutationFn: async ({ walletClient }: { walletClient: WalletClient }) => {
+    const account = walletClient.account
 
     if (!account || !account.address) {
       throw new Error('No account found')
@@ -31,13 +30,14 @@ export const signInBackendMutation = mutationOptions({
       // domain: 'app.ens.domains',
       domain: url.hostname,
       nonce,
-      chainId: wagmiConfig.chains[0].id,
+      chainId: walletClient.chain?.id ?? 0,
       uri: url.origin,
       version: '1',
     })
 
-    const signedMessage = await signMessage(wagmiConfig, {
+    const signedMessage = await walletClient.signMessage({
       message: siweMessage,
+      account,
     })
 
     const response = await backendClient.auth.login.$post({

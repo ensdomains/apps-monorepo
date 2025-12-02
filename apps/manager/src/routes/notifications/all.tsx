@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useAtom } from '@xstate/store/react'
+import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -20,10 +21,15 @@ export const Route = createFileRoute('/notifications/all')({
 function RouteComponent() {
   const isAuthed = useAtom(isBackendAuthed)
   const signIn = useMutation(signInBackendMutation)
+  const { data: walletClient } = useWalletClient()
 
   const handleSignIn = async () => {
     try {
-      await signIn.mutateAsync()
+      if (!walletClient) {
+        throw new Error('No wallet client found')
+      }
+
+      await signIn.mutateAsync({ walletClient })
     } catch (error) {
       console.error('Failed to sign in:', error)
     }
