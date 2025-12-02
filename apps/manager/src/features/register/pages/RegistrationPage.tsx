@@ -168,7 +168,7 @@ export function Registration({ initialName }: RegistrationProps) {
   }
 
   const handleGoToDashboard = () => {
-    navigate({ to: '/' })
+    navigate({ to: '/dashboard' })
   }
 
   const handleCreateProfile = () => {
