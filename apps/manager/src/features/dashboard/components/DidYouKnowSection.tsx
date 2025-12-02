@@ -15,24 +15,24 @@ export const DidYouKnowSection = () => (
       <div className="flex items-center gap-[8px]">
         <button
           type="button"
-          className="size-[32px] text-[#bcbcbc] hover:text-[#232222]"
+          className="relative size-[32px] shrink-0 text-[#bcbcbc] hover:text-[#232222]"
         >
           <ChevronLeft className="size-full" strokeWidth={1} />
         </button>
-        <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.12px]">
-          1 of 10
+        <span className="font-sans text-[#7d7d7d] text-[12px] leading-[1.2] tracking-[0.12px]">
+          2 of 10
         </span>
         <button
           type="button"
-          className="size-[32px] text-[#bcbcbc] hover:text-[#232222]"
+          className="relative size-[32px] shrink-0 text-[#bcbcbc] hover:text-[#232222]"
         >
           <ChevronRight className="size-full" strokeWidth={1} />
         </button>
       </div>
     </div>
 
-    <div className="scrollbar-hide flex gap-[20px] overflow-x-auto pb-2">
-      {CARDS.map((card) => (
+    <div className="flex gap-[20px]">
+      {CARDS.slice(0, 2).map((card) => (
         <div
           key={card.id}
           className={`w-[428px] shrink-0 overflow-hidden rounded-[6px] p-[20px] ${

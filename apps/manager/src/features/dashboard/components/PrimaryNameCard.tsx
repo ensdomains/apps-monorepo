@@ -1,4 +1,4 @@
-import { Calendar, Check, Clock } from 'lucide-react'
+import { Calendar, Check, ChevronDown, Clock } from 'lucide-react'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
@@ -60,6 +60,7 @@ export const PrimaryNameCard = ({
                     />
                   </div>
                 </div>
+                <ChevronDown className="size-[17.5px] text-[#0080bc]" />
               </div>
             </div>
 

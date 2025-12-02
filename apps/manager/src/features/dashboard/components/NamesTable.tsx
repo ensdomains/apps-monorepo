@@ -209,7 +209,7 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
               className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
             >
               {name.isPrimary && (
-                <div className="mb-[10px] ml-[24px]">
+                <div className="mb-[10px] px-[24px]">
                   <div className="inline-flex items-center gap-[8px] rounded-[73px] bg-[#f6f6f6] px-[6.5px] py-[3.28px]">
                     <span className="font-sans text-[#0080bc] text-[12px] leading-[1.15] tracking-[-0.24px]">
                       Primary Name
@@ -249,24 +249,33 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
 
                 <div className="flex items-start gap-[30px]">
                   <div className="flex w-[120px] flex-col items-start gap-[4px]">
-                    <span className="font-sans text-[#515151] text-[14px] leading-[1.8]">
-                      {formatDate(name.expiryDate)}
-                    </span>
-                    <button
-                      type="button"
-                      className="flex items-center gap-[4.9px] text-[#0080bc]"
-                    >
-                      <span className="font-sans text-[12px]">Extend</span>
-                      <ArrowRight className="size-[8px]" strokeWidth={3} />
-                    </button>
+                    <div className="flex flex-col items-start">
+                      <span className="font-sans text-[#515151] text-[14px] leading-[1.8]">
+                        {formatDate(name.expiryDate)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-center gap-[3.28px]">
+                      <button
+                        type="button"
+                        className="flex items-center gap-[4.92px] text-[#0080bc]"
+                      >
+                        <span className="font-sans text-[12px] leading-[1.8]">
+                          Extend
+                        </span>
+                        <ArrowRight
+                          className="size-[7.538px]"
+                          strokeWidth={3}
+                        />
+                      </button>
+                    </div>
 
                     {isExpiringSoon && (
-                      <div className="mt-1 flex items-center gap-[4px] rounded-[20px] bg-[#fff8f0] p-[4px]">
+                      <div className="flex items-center gap-[4px] rounded-[20px] bg-[#fff8f0] p-[4px]">
                         <CircleAlert
                           className="size-[12px] text-[#e3a531]"
                           strokeWidth={2}
                         />
-                        <span className="font-sans text-[#c68a1b] text-[12px] tracking-[0.24px]">
+                        <span className="font-sans text-[#c68a1b] text-[12px] leading-[1.05] tracking-[0.24px]">
                           Expires in {daysUntilExpiry} days
                         </span>
                       </div>
@@ -288,7 +297,6 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
           <button
             type="button"
             className="relative size-[32px] shrink-0 text-[#d3d3d3]"
-            disabled={activeTab === 'favorites'}
           >
             <ChevronLeft className="size-full" />
           </button>
@@ -297,6 +305,13 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
               1
             </span>
           </div>
+          {activeTab === 'myNames' && (
+            <div className="flex size-[32px] shrink-0 items-center justify-center rounded-[6px]">
+              <span className="font-sans text-[#bcbcbc] text-[12px] leading-[normal]">
+                2
+              </span>
+            </div>
+          )}
           {activeTab === 'favorites' && (
             <>
               <div className="flex size-[32px] shrink-0 items-center justify-center rounded-[6px]">
