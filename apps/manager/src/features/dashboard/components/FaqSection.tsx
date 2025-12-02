@@ -1,10 +1,4 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { ArrowRight, CircleArrowDown } from 'lucide-react'
 import {
   Collapsible,
   CollapsibleContent,
@@ -13,56 +7,61 @@ import {
 
 const faqItems = [
   {
-    question: 'How do I renew a name?',
+    question: 'How do subnames work?',
     answer:
-      'Go to Manage renewals to see upcoming expiries and extend your names before they lapse.',
+      'Subnames are names created under your existing ENS name (e.g. sub.name.eth). You can create unlimited subnames and configure them individually.',
   },
   {
-    question: 'Can I transfer my ENS name?',
+    question: 'Can I transfer my ENS name to another wallet?',
     answer:
       'Yes. From a name’s profile you can transfer ownership to another address at any time.',
   },
   {
-    question: 'What is a primary name?',
+    question:
+      'What is the difference between ENS and traditional domain names?',
     answer:
-      'A primary name is the main ENS name attached to your wallet address. Apps can display it instead of your address.',
+      'ENS names are decentralized, owned by you on the blockchain, and can be used for payments, websites, and more. Traditional domains are rented from centralized registrars.',
   },
   {
-    question: 'Can I use ENS across chains?',
+    question: 'How can I secure my ENS name?',
     answer:
-      'ENS names are registered on Ethereum mainnet but can be used as identities across many ecosystems.',
-  },
-  {
-    question: 'How can I keep my ENS names safe?',
-    answer:
-      'Use a secure wallet, be cautious of signing unknown transactions, and verify links before connecting.',
+      'Use a secure wallet, be cautious of signing unknown transactions, and verify links before connecting. You can also lock your name’s records for added security.',
   },
 ]
 
 export const FaqSection = () => (
-  <Card className="border-[#dededf] border-[0.25px] bg-white/90">
-    <CardHeader className="space-y-2 pb-6">
-      <CardTitle className="font-semibold font-serif text-[#232222] text-[32px]">
+  <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-[24px] py-[32px]">
+    <div className="mb-[12px] flex flex-col items-start gap-[12px]">
+      <h2 className="font-serif text-[#232222] text-[28px] leading-[0.96] tracking-[0.28px]">
         Frequently Asked Questions
-      </CardTitle>
-      <CardDescription className="text-[#8c8c8c] text-sm">
-        Quick answers to common questions about managing your ENS names.
-      </CardDescription>
-    </CardHeader>
-    <CardContent className="space-y-0">
+      </h2>
+      <a
+        href="https://para.com/support"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-[4.92px] text-[#0080bc] hover:text-[#006699]"
+      >
+        <span className="font-sans text-[14px] leading-[1.8]">Get support</span>
+        <ArrowRight className="size-[8px]" strokeWidth={2} />
+      </a>
+    </div>
+    <div className="flex flex-col">
       {faqItems.map(({ question, answer }) => (
         <Collapsible key={question}>
-          <div className="border-[#dededf] border-t-[0.41px] first:border-t-0">
-            <CollapsibleTrigger className="flex w-full items-center justify-between px-1 py-3 text-left font-semibold text-[#232222] text-sm">
+          <div className="border-[lightgrey] border-b-[0.4px] last:border-b-0">
+            <CollapsibleTrigger className="flex h-[56px] w-full items-center justify-between text-left font-sans text-[#121212] text-[16px] leading-[20px]">
               <span>{question}</span>
-              <span className="ml-4 text-[#8c8c8c] text-xs">+</span>
+              <CircleArrowDown
+                className="size-[24px] text-[#232222]"
+                strokeWidth={1}
+              />
             </CollapsibleTrigger>
-            <CollapsibleContent className="px-1 pb-3 text-[#8c8c8c] text-sm">
+            <CollapsibleContent className="pb-4 text-[#515151] text-[14px]">
               {answer}
             </CollapsibleContent>
           </div>
         </Collapsible>
       ))}
-    </CardContent>
-  </Card>
+    </div>
+  </div>
 )
