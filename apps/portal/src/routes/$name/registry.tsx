@@ -38,20 +38,6 @@ function RouteComponent() {
     enabled: !isLoadingOwner,
   })
 
-  // Fetch parent owner separately
-  // The parent registry (e.g., "eth" for "name.eth") has a different owner than the current name.
-  // We need to query the parent name's owner to display the correct owner in the parent registry section.
-  // Example: For "v1rtl.eth", the parent is "eth" which is owned by ENS DAO, not the v1rtl.eth owner.
-  const parentName = getParentName(name)
-  const {
-    data: parentOwnerData,
-    isLoading: isLoadingParentOwner,
-    error: parentOwnerError,
-  } = useQuery({
-    ...getEnsOwnerQueryOptions({ name: parentName || 'eth' }),
-    enabled: !!parentName && !isLoadingOwner && !isLoadingRegistry,
-  })
-
   const registries = registryData?.registries ?? []
   const network = registryData?.network ?? null
   const protocolVersion = registryData?.protocolVersion ?? null
@@ -70,6 +56,21 @@ function RouteComponent() {
 
   const isNamechain = network === 'namechainSepolia'
   const showVerifiedBanner = Boolean(hasNameRegistry && isNamechain)
+  const isV1Name = protocolVersion === 'ENSv1'
+
+  // Fetch parent owner separately
+  // The parent registry (e.g., "eth" for "name.eth") has a different owner than the current name.
+  // We need to query the parent name's owner to display the correct owner in the parent registry section.
+  // Example: For "v1rtl.eth", the parent is "eth" which is owned by ENS DAO, not the v1rtl.eth owner.
+  const parentName = getParentName(name)
+  const {
+    data: parentOwnerData,
+    isLoading: isLoadingParentOwner,
+    error: parentOwnerError,
+  } = useQuery({
+    ...getEnsOwnerQueryOptions({ name: parentName || 'eth' }),
+    enabled: !!parentRegistry && !isLoadingOwner && !isLoadingRegistry,
+  })
 
   if (error) {
     const message =
@@ -170,7 +171,52 @@ function RouteComponent() {
   }
 
   // ─────────────────────────────
-  // Case 2: Name HAS a registry
+  // Case 2: V1 Name
+  // ─────────────────────────────
+  // V1 names don't own subregistries - they're entries in the V1 ETH Registry.
+  // Only show the parent registry section (the V1 ETH Registry where they're registered).
+  if (isV1Name) {
+    return (
+      <div className="flex flex-col gap-6 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
+        <h1 className="text-[28px] font-medium leading-none">Registry</h1>
+
+        {parentRegistry &&
+          (isLoadingParentOwner ? (
+            <LoadingSpinner title="Loading parent owner data..." />
+          ) : (
+            <>
+              {/* Parent top row */}
+              <ParentRegistrySection
+                parent={{
+                  name: getParentName(name) || 'eth',
+                  address: parentRegistry,
+                }}
+                owner={{
+                  address: parentOwnerData?.owner ?? zeroAddress,
+                }}
+                network={parentNetwork}
+              />
+
+              {/* Parent details card */}
+              <RegistryCard
+                registry={{
+                  address: parentRegistry,
+                  owner: {
+                    address: parentOwnerData?.owner ?? zeroAddress,
+                  },
+                  network: parentNetwork,
+                  protocol: protocolVersion ?? 'ENSv1',
+                  factory,
+                }}
+              />
+            </>
+          ))}
+      </div>
+    )
+  }
+
+  // ─────────────────────────────
+  // Case 3: V2 Name with registry
   // ─────────────────────────────
   return (
     <div className="flex flex-col gap-6 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
