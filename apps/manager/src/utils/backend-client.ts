@@ -25,7 +25,9 @@ export const isBackendAuthed = backendAuthStore.select(
   (state) => state.authKey !== undefined,
 )
 
-export const backendClient = hc<AppRouter>('/api', {
+const baseUrl = import.meta.env.VITE_API_URL ?? '/api'
+
+export const backendClient = hc<AppRouter>(baseUrl, {
   headers: () => {
     const auth = backendAuthStore.get().context.authKey
 
