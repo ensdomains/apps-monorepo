@@ -12,18 +12,22 @@ import {
   getOwner as ensjsv2_getOwner,
 } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
-import { zeroAddress } from 'viem'
+import { type Address, zeroAddress } from 'viem'
+import { namechainEthRegistryAddress } from '@/lib/constants/registry'
 import {
   safeGetClient,
   safeGetNamechainSepoliaClient,
 } from '@/lib/wagmi/helpers'
+import type { WithEnsNetwork } from '@/utils/types'
 
 export class GetEnsOwnerError extends TaggedError('GetEnsOwnerError')<{
   cause: ensjsv1_GetOwnerErrorType | ensjsv2_GetOwnerErrorType
 }> {}
 
-// ensjs doesn't work well with multichain yet
-const namechainEthRegistryAddress = '0x5fb63bbd34de21688c8aa8131be1c3b4a477109c'
+export type GetEnsOwnerReturnType = WithEnsNetwork<{
+  owner: Address
+  registryAddress: Address
+}> | null
 
 export const getEnsOwner = ResultFn(async function* (
   params: GetOwnerParameters,
@@ -38,7 +42,7 @@ export const getEnsOwner = ResultFn(async function* (
       }),
   )
 
-  const label = params.name.split('.').slice(0, -1).join('')
+  const label = params.name.split('.').slice(0, -1).join('.')
 
   const namechainClient = yield* safeGetNamechainSepoliaClient()
 
@@ -51,21 +55,21 @@ export const getEnsOwner = ResultFn(async function* (
   )
 
   if (l1v1Owner?.owner)
-    return ok({
+    return ok<GetEnsOwnerReturnType>({
       owner: l1v1Owner?.owner,
       registryAddress: getChainContractAddress({
         chain: client.chain,
         contract: 'ensRegistry',
       }),
       network: 'sepolia',
-    } as const)
+    })
 
   if (l2v2Owner && l2v2Owner !== zeroAddress)
-    return ok({
+    return ok<GetEnsOwnerReturnType>({
       owner: l2v2Owner,
       registryAddress: namechainEthRegistryAddress,
       network: 'namechainSepolia',
-    } as const)
+    })
 
   return ok(null)
 })

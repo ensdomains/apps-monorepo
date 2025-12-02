@@ -1,5 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { type ChangeEvent, useEffect, useRef, useState } from 'react'
+import {
+  type ChangeEvent,
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+} from 'react'
 import {
   DomainProfileCard,
   DomainResultCard,
@@ -7,8 +13,14 @@ import {
 import { SearchField } from '@/components/molecules/SearchField'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
+import {
+  createInitialDisplayState,
+  displayStateReducer,
+} from '@/features/register/components/CheckAvailability/checkAvailability.reducer'
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
-import { getErrorMessage } from '../../utils'
+import { ValidationError } from '@/features/register/components/CheckAvailability/ValidationError'
+import { getErrorMessage } from '@/features/register/utils'
+import { useDebounce } from '@/hooks/useDebounce'
 
 export type CheckAvailabilityProps = {
   onRegistrationComplete?: (name: string) => void
@@ -49,53 +61,72 @@ export const CheckAvailability = ({
     onRegistrationComplete,
   ])
 
+  const { cancel: cancelDebounce } = useDebounce(inputValue.trim(), {
+    callback: (debouncedValue) => {
+      if (debouncedValue && debouncedValue !== context.searchQuery) {
+        searchName(debouncedValue)
+      }
+    },
+    immediateCallback: () => {
+      resetSearch()
+    },
+  })
+
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value
     setInputValue(newValue)
-
-    if (newValue.trim() === '') {
-      resetSearch()
-    }
-
     if (hasValidationError) {
       clearValidationError()
     }
   }
 
   const handleSearch = (value: string) => {
+    cancelDebounce()
     searchName(value)
   }
 
-  const errorMessage = hasValidationError
-    ? (context.validationError?.message ?? null)
-    : hasError && context.error
+  const nonValidationErrorMessage =
+    !hasValidationError && hasError && context.error
       ? String(getErrorMessage(context.error))
       : null
 
-  // Display logic
-  const hasInput = inputValue.trim().length > 0
-  const isResultMatch =
-    context.selectedName &&
-    inputValue.trim().toLowerCase() ===
-      context.selectedName.trim().toLowerCase()
+  // Manage display state with useReducer
+  const [displayState, dispatch] = useReducer(
+    displayStateReducer,
+    createInitialDisplayState(),
+  )
 
-  const showAvailableCard =
-    !isSearching &&
-    context.isAvailable &&
-    isResultMatch &&
+  // Update display state when inputs change
+  useEffect(() => {
+    dispatch({
+      type: 'UPDATE_DISPLAY_INPUT',
+      payload: {
+        inputValue,
+        selectedName: context.selectedName,
+        isSearching,
+        isAvailable: context.isAvailable,
+        hasError,
+        hasValidationError,
+      },
+    })
+  }, [
+    inputValue,
+    context.selectedName,
+    context.isAvailable,
+    isSearching,
+    hasError,
+    hasValidationError,
+  ])
+
+  const showHint =
+    displayState.type === 'idle' &&
+    !hasValidationError &&
     !hasError &&
-    !hasValidationError
-  const showUnavailableCard =
-    !isSearching &&
-    !context.isAvailable &&
-    isResultMatch &&
-    !hasError &&
-    !hasValidationError
-  const showResultCard = (isSearching && hasInput) || showAvailableCard
+    !isSearching
 
   const { data: unavailableMetadata } = useQuery({
     ...profileMetadataQuery(context.selectedName),
-    enabled: !!(showUnavailableCard && context.selectedName),
+    enabled: displayState.type === 'unavailable' && !!context.selectedName,
   })
 
   return (
@@ -109,47 +140,53 @@ export const CheckAvailability = ({
           disabled={isSearching}
           className="w-full"
         />
-        {!showResultCard &&
-          !showUnavailableCard &&
-          !hasValidationError &&
-          !hasError &&
-          !isSearching && (
-            <p className="pl-1 font-medium font-sans text-ens-lapis-surface text-xs leading-normal tracking-wide">
-              Start typing to check if your perfect name is available 🕵️‍♀️
-            </p>
-          )}
+        {showHint && (
+          <p className="pl-1 font-medium font-sans text-ens-lapis-surface text-xs leading-normal tracking-wide">
+            Start typing to check if your perfect name is available 🕵️‍♀️
+          </p>
+        )}
       </div>
 
-      {errorMessage && (
+      {hasValidationError && context.validationError && (
+        <ValidationError error={context.validationError} />
+      )}
+
+      {nonValidationErrorMessage && (
         <Alert variant="destructive">
-          <AlertDescription>{errorMessage}</AlertDescription>
+          <AlertDescription>{nonValidationErrorMessage}</AlertDescription>
         </Alert>
       )}
 
-      {showResultCard && (
+      {displayState.type === 'searching' && (
         <DomainResultCard
-          domainName={isSearching ? inputValue : context.selectedName || ''}
+          domainName={displayState.domainName}
           status="available"
           premiumLabel={context.premiumLabel}
           price={context.pricing[1]?.price}
-          isLoading={isSearching}
-          link={
-            !isSearching && context.selectedName
-              ? `/register?name=${encodeURIComponent(context.selectedName)}&duration=1`
-              : undefined
-          }
+          isLoading={true}
         />
       )}
 
-      {showUnavailableCard && (
+      {displayState.type === 'available' && (
+        <DomainResultCard
+          domainName={displayState.domainName}
+          status="available"
+          premiumLabel={context.premiumLabel}
+          price={context.pricing[1]?.price}
+          isLoading={false}
+          link={`/register?name=${encodeURIComponent(displayState.domainName)}&duration=1`}
+        />
+      )}
+
+      {displayState.type === 'unavailable' && (
         <DomainProfileCard
-          domainName={context.selectedName}
+          domainName={displayState.domainName}
           avatarUrl={unavailableMetadata?.avatarUrl}
           registeredDate={unavailableMetadata?.registeredDate}
           expiryDate={unavailableMetadata?.expiryDate}
           link={{
             to: '/p/$name',
-            params: { name: context.selectedName },
+            params: { name: displayState.domainName },
           }}
         />
       )}

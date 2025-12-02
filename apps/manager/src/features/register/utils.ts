@@ -1,3 +1,4 @@
+import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { NameAvailabilityError } from './machines/searchNameMachine'
 
 export type ValidationError =
@@ -87,7 +88,7 @@ export const validateENSName = (name: string): ValidationError => {
     return {
       type: 'INVALID_FORMAT',
       message:
-        "Not a valid name format. Something in the name isn't supported. Try letters, numbers, hyphens, or emojis with no spaces.",
+        "Something in the name isn't supported. Try letters, numbers, hyphens, or emojis with no spaces.",
     }
   }
 
@@ -95,7 +96,7 @@ export const validateENSName = (name: string): ValidationError => {
     return {
       type: 'INVALID_FORMAT',
       message:
-        "Not a valid name format. Something in the name isn't supported. Try letters, numbers, hyphens, or emojis with no spaces.",
+        "Something in the name isn't supported. Try letters, numbers, hyphens, or emojis with no spaces.",
     }
   }
 
@@ -103,14 +104,14 @@ export const validateENSName = (name: string): ValidationError => {
     return {
       type: 'INVALID_FORMAT',
       message:
-        "Not a valid name format. Something in the name isn't supported. Try letters, numbers, hyphens, or emojis with no spaces.",
+        "Something in the name isn't supported. Try letters, numbers, hyphens, or emojis with no spaces.",
     }
   }
 
   if (label.length > 0 && label.length < 3) {
     return {
       type: 'TOO_SHORT',
-      message: 'Too short. Names must be 3 characters or more to register.',
+      message: 'Names must be 3 characters or more to register.',
     }
   }
 
@@ -120,7 +121,7 @@ export const validateENSName = (name: string): ValidationError => {
     return {
       type: 'INVALID_CHARACTER',
       message:
-        "Invalid character. That character isn't supported. Try letters, numbers, hyphens, or emojis.",
+        "That character isn't supported. Try letters, numbers, hyphens, or emojis.",
     }
   }
 
@@ -134,7 +135,7 @@ export const STABLECOINS = {
     symbol: 'USDC',
     decimals: 6,
     address: '0x9028ab8e872af36c30c959a105cb86d1038412ae', // MockUSDC
-    icon: '🪙',
+    icon: USDCIcon,
   },
   DAI: {
     id: 'dai',
@@ -142,6 +143,14 @@ export const STABLECOINS = {
     symbol: 'DAI',
     decimals: 18,
     address: '0x6630589c2e6364a96bb7acf0d9d64ac9c1dd3528', // MockDAI
-    icon: '🪙',
+    icon: DAI,
+  },
+  USDT: {
+    id: 'usdt',
+    name: 'Tether',
+    symbol: 'USDT',
+    decimals: 6,
+    address: '0x0000000000000000000000000000000000000000', // Placeholder
+    icon: USDTIcon,
   },
 } as const

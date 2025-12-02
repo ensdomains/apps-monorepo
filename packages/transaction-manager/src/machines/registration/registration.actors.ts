@@ -8,10 +8,10 @@ import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, PublicClient } from 'viem'
 import { encodeFunctionData, keccak256, toHex } from 'viem'
 import { sepolia } from 'viem/chains'
+import { ERC20_ABI } from '../../contracts/abis/ERC20.abi'
+import { FAST_TEST_ETH_REGISTRAR_ABI } from '../../contracts/abis/FastTestETHRegistrar.abi'
 import {
   ENS_SEPOLIA_CONTRACTS,
-  ERC20_ABI,
-  FAST_TEST_ETH_REGISTRAR_ABI,
   REFERER_ADDRESS,
   SUPPORTED_TOKENS,
 } from '../../contracts/ens-sepolia'
@@ -52,7 +52,7 @@ function generateCommitment(
           ownerAddress,
           secret,
           ENS_SEPOLIA_CONTRACTS.ETHRegistry,
-          ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl,
+          ENS_SEPOLIA_CONTRACTS.PublicResolver,
           duration,
           REFERER_ADDRESS,
         ],
@@ -111,7 +111,7 @@ function encodeRegistrationData(
       ownerAddress,
       secret,
       ENS_SEPOLIA_CONTRACTS.ETHRegistry,
-      ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl,
+      ENS_SEPOLIA_CONTRACTS.PublicResolver,
       duration,
       paymentToken,
       REFERER_ADDRESS,
@@ -256,6 +256,125 @@ export function submitCommitmentActor(input: {
       return txId
     })(),
     (error) => error as Error,
+  )
+}
+
+/**
+ * Validate commitment readiness before proceeding to registration
+ * Checks commitmentAt timestamp and MIN_COMMITMENT_AGE from contract
+ * This ensures the commitment is recorded on-chain before registration
+ */
+export function validateCommitmentActor(input: {
+  commitment: CommitmentData
+  publicClient: PublicClient
+  useFastRegistrar: boolean
+}): ResultAsync<void, Error> {
+  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+
+  return fromPromise(
+    (async () => {
+      console.log('🔍 [REGISTRATION ACTOR] Validating commitment readiness...')
+
+      // Helper function to sleep
+      const sleep = (ms: number) =>
+        new Promise<void>((resolve) => setTimeout(resolve, ms))
+
+      // Check MIN_COMMITMENT_AGE from contract
+      let minAge: bigint
+      try {
+        minAge = (await input.publicClient.readContract({
+          address: registrarAddress,
+          abi: FAST_TEST_ETH_REGISTRAR_ABI,
+          functionName: 'MIN_COMMITMENT_AGE',
+        })) as bigint
+        console.log(
+          `📋 [REGISTRATION ACTOR] MIN_COMMITMENT_AGE: ${minAge.toString()} seconds`,
+        )
+      } catch (error) {
+        console.warn(
+          '⚠️ [REGISTRATION ACTOR] Failed to fetch MIN_COMMITMENT_AGE, assuming 0:',
+          error,
+        )
+        minAge = 0n
+      }
+
+      // Check if commitmentAt is recorded (retry with backoff if not)
+      let committedAt: bigint = 0n
+      let attempts = 0
+      const maxAttempts = 5
+
+      while (committedAt === 0n && attempts < maxAttempts) {
+        try {
+          committedAt = (await input.publicClient.readContract({
+            address: registrarAddress,
+            abi: FAST_TEST_ETH_REGISTRAR_ABI,
+            functionName: 'commitmentAt',
+            args: [input.commitment.commitment],
+          })) as bigint
+
+          if (committedAt === 0n) {
+            attempts++
+            if (attempts < maxAttempts) {
+              console.log(
+                `⏳ [REGISTRATION ACTOR] Commitment timestamp not yet recorded, waiting 3s (attempt ${attempts}/${maxAttempts})...`,
+              )
+              await sleep(3000)
+            }
+          }
+        } catch (error) {
+          console.warn(
+            '⚠️ [REGISTRATION ACTOR] Failed to fetch commitmentAt:',
+            error,
+          )
+          attempts++
+          if (attempts < maxAttempts) {
+            await sleep(3000)
+          }
+        }
+      }
+
+      if (committedAt === 0n) {
+        throw new Error(
+          'Commitment timestamp not recorded after multiple attempts. The commitment transaction may not have been confirmed yet.',
+        )
+      }
+
+      console.log(
+        `✅ [REGISTRATION ACTOR] Commitment recorded at timestamp: ${committedAt.toString()}`,
+      )
+
+      // If MIN_COMMITMENT_AGE is 0, we can proceed immediately
+      if (minAge === 0n) {
+        console.log(
+          '✅ [REGISTRATION ACTOR] MIN_COMMITMENT_AGE is 0, commitment is ready',
+        )
+        return
+      }
+
+      // Otherwise, wait until MIN_COMMITMENT_AGE has elapsed
+      const latestBlock = await input.publicClient.getBlock()
+      const nowTs = latestBlock.timestamp as bigint
+      const elapsed = nowTs - committedAt
+
+      if (elapsed < minAge) {
+        const waitSeconds = Number(minAge - elapsed)
+        console.log(
+          `⏳ [REGISTRATION ACTOR] Waiting ${waitSeconds}s for MIN_COMMITMENT_AGE before registering...`,
+        )
+        await sleep(waitSeconds * 1000)
+      } else {
+        console.log(
+          `✅ [REGISTRATION ACTOR] MIN_COMMITMENT_AGE requirement satisfied (elapsed: ${elapsed.toString()}s, required: ${minAge.toString()}s)`,
+        )
+      }
+    })(),
+    (error) => {
+      console.error(
+        '❌ [REGISTRATION ACTOR] Commitment validation failed:',
+        error,
+      )
+      return error as Error
+    },
   )
 }
 
@@ -424,11 +543,24 @@ export function pollTransactionStatusActor(input: {
   return fromPromise(
     new Promise<void>((resolve, reject) => {
       const subscription = txActor.subscribe((snapshot) => {
-        if (snapshot.matches('success')) {
+        console.log('🔍 [POLL TX STATUS] Transaction state:', {
+          txId: input.txId,
+          state: snapshot.value,
+          hasError: !!snapshot.context.error,
+          error: snapshot.context.error?.message,
+        })
+
+        if (snapshot.matches('success' as unknown as never)) {
+          console.log('✅ [POLL TX STATUS] Transaction succeeded')
           subscription.unsubscribe()
           resolve()
         }
-        if (snapshot.matches({ error: {} })) {
+        // Check if we're in any error state (handles nested states like error.submission, error.reverted, etc.)
+        if (typeof snapshot.value === 'object' && 'error' in snapshot.value) {
+          console.error('❌ [POLL TX STATUS] Transaction failed:', {
+            errorState: snapshot.value,
+            error: snapshot.context.error,
+          })
           subscription.unsubscribe()
           reject(snapshot.context.error || new Error('Transaction failed'))
         }

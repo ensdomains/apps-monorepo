@@ -1,0 +1,408 @@
+'use client'
+
+import { useWallet } from '@getpara/react-sdk-lite'
+import { CreditCardIcon, Search } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer'
+import { Input } from '@/components/ui/input'
+import { STABLECOINS } from '@/features/register/utils'
+import { useMediaQuery } from '@/hooks/use-media-query'
+import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+import { cn } from '@/lib/utils'
+
+interface PaymentDrawerProps {
+  domainName?: string
+  duration?: number
+  priceUSD?: number
+  isLoading?: boolean
+  disabled?: boolean
+  onPaymentSelect?: (method: 'crypto' | 'credit-card') => void
+  onCryptoSelect?: (cryptoId: string) => void
+  onConfirmPayment?: (
+    tokenPrice: bigint,
+    selectedToken: string,
+    options?: { fast?: boolean },
+  ) => void
+  isUsingAA?: boolean
+}
+
+// Credit Card Payment Drawer Component
+export const CreditCardPaymentDrawer = ({
+  domainName = 'example.eth',
+  duration = 25,
+  priceUSD = 2800,
+  disabled = false,
+  onPaymentSelect,
+}: PaymentDrawerProps) => {
+  const [open, setOpen] = useState(false)
+  const isDesktop = useMediaQuery('(min-width: 768px)')
+
+  // Reusable trigger button
+  const triggerButton = (
+    <Button
+      className="h-16 w-full rounded border-2 border-ens-blue bg-white font-medium font-mono text-ens-blue text-sm uppercase tracking-wider hover:bg-ens-blue-light disabled:cursor-not-allowed disabled:opacity-50"
+      disabled={disabled}
+      onClick={() => {
+        onPaymentSelect?.('credit-card')
+        setOpen(false)
+      }}
+    >
+      Pay with credit card
+    </Button>
+  )
+
+  // Credit card (MoonPay mock) content
+  const creditCardContent = (
+    <div className="space-y-6">
+      {/* Domain info */}
+      <div className="space-y-2 p-4 text-center">
+        <div className="inline-flex items-center rounded bg-foreground px-2 py-1 font-bold font-mono text-background text-lg">
+          {domainName}
+        </div>
+        <div className="text-muted-foreground text-sm">
+          × {duration} years • ${priceUSD.toLocaleString()} USD
+        </div>
+      </div>
+
+      {/* Coming Soon Placeholder */}
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
+          <CreditCardIcon className="h-8 w-8 text-blue-600" />
+        </div>
+        <h3 className="mb-2 font-semibold text-gray-900 text-xl">
+          Credit Card Payment
+        </h3>
+        <p className="mb-4 font-medium text-gray-600 text-lg">Coming Soon</p>
+        <p className="max-w-sm text-gray-500 text-sm">
+          Credit card payments via MoonPay will be available soon. Please use
+          crypto payment for now.
+        </p>
+      </div>
+    </div>
+  )
+
+  // Desktop Dialog
+  if (isDesktop) {
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>{triggerButton}</DialogTrigger>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Credit Card Payment</DialogTitle>
+          </DialogHeader>
+          {creditCardContent}
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
+  // Mobile Drawer
+  return (
+    <Drawer open={open} onOpenChange={setOpen}>
+      <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
+      <DrawerContent>
+        <DrawerHeader className="text-left">
+          <DrawerTitle>Credit Card Payment</DrawerTitle>
+        </DrawerHeader>
+        <div className="px-4 pb-6">{creditCardContent}</div>
+      </DrawerContent>
+    </Drawer>
+  )
+}
+
+// Crypto Payment Drawer Component
+export const CryptoPaymentDrawer = ({
+  isLoading = false,
+  disabled = false,
+  onPaymentSelect,
+  onCryptoSelect,
+  onConfirmPayment,
+}: PaymentDrawerProps) => {
+  const [open, setOpen] = useState(false)
+  const [selectedCoin, setSelectedCoin] = useState<string>('')
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const isDesktop = useMediaQuery('(min-width: 768px)')
+  const { data: wallet } = useWallet()
+  const isConnected = !!wallet?.address
+  const { stablecoinBalances, isLoadingBalances } = useRhinestoneAccount()
+
+  const hasBalances = (stablecoinBalances?.length || 0) > 0
+  const stablecoinLoading = isLoadingBalances
+
+  // Filter stablecoins based on search query
+  const filteredStablecoins = useMemo(() => {
+    if (!stablecoinBalances || stablecoinBalances.length === 0) return []
+    if (!searchQuery.trim()) return stablecoinBalances
+
+    const query = searchQuery.toLowerCase().trim()
+    return stablecoinBalances.filter(
+      (coin) =>
+        coin.symbol.toLowerCase().includes(query) ||
+        'Sepolia'.toLowerCase().includes(query) ||
+        `Sepolia ${coin.symbol}`.toLowerCase().includes(query),
+    )
+  }, [stablecoinBalances, searchQuery])
+
+  const selectedCoinBalance = stablecoinBalances?.find(
+    (c) => c.address === selectedCoin,
+  )
+  const actionDisabled =
+    isLoading || stablecoinLoading || !selectedCoinBalance || !hasBalances
+
+  const handleCryptoContinue = (options?: { fast?: boolean }) => {
+    if (actionDisabled || !selectedCoinBalance) return
+    onPaymentSelect?.('crypto')
+    onCryptoSelect?.(selectedCoinBalance.address)
+    if (onConfirmPayment) {
+      const tokenPrice = BigInt(selectedCoinBalance.balance)
+      onConfirmPayment(tokenPrice, selectedCoinBalance.address, options)
+    }
+    setOpen(false)
+    // Reset state when closing
+    setSelectedCoin('')
+    setSearchQuery('')
+  }
+
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen)
+    if (!newOpen) {
+      // Reset state when closing
+      setSelectedCoin('')
+      setSearchQuery('')
+    }
+  }
+
+  const triggerButton = (
+    <Button
+      className="h-16 w-full rounded bg-ens-blue font-medium font-mono text-sm text-white uppercase tracking-wider hover:bg-ens-blue-hover disabled:cursor-not-allowed disabled:opacity-50"
+      disabled={disabled}
+    >
+      Pay with stablecoins
+    </Button>
+  )
+
+  const cryptoContent = (
+    <div className="flex min-h-[500px] flex-col justify-between gap-4 px-4">
+      <div className="flex flex-col gap-4">
+        {/* Header Section */}
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex flex-col items-center gap-2">
+            <h2 className="text-center font-medium text-2xl text-ens-peridot-dense tracking-wide">
+              Select coin
+            </h2>
+            <div className="flex flex-col items-center gap-1.5">
+              <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
+                Stables accepted
+              </p>
+              {/* Stablecoin icons */}
+              <div className="flex items-center gap-1">
+                <USDTIcon className="h-7 w-7" />
+                <USDCIcon className="h-7 w-7" />
+                <DAI className="h-7 w-7" />
+              </div>
+            </div>
+          </div>
+
+          {/* Search Input */}
+          <div className="w-2/3">
+            <Input
+              type="text"
+              placeholder="Search coins"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              startIcon={<Search className="h-4 w-4 text-ens-gray" />}
+              className="h-9 rounded border-ens-gray-two"
+            />
+          </div>
+        </div>
+
+        {/* Coin List */}
+        <div className="flex flex-col gap-8">
+          {(isLoading || stablecoinLoading) && (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-ens-gray-two text-sm">
+                Loading your stablecoin balances...
+              </div>
+            </div>
+          )}
+
+          {!isLoading && !stablecoinLoading && !hasBalances && !isConnected && (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="mb-2 text-ens-gray text-sm">
+                Please connect your wallet first
+              </div>
+              <div className="text-ens-gray-three text-xs">
+                You need to connect a wallet to see your stablecoin balances
+              </div>
+            </div>
+          )}
+
+          {!isLoading &&
+            !stablecoinLoading &&
+            hasBalances &&
+            filteredStablecoins.length === 0 && (
+              <div className="flex min-h-60 flex-col items-center justify-center rounded-xl bg-neutral-100 py-12">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white">
+                  <Search className="h-8 w-8 text-ens-gray" />
+                </div>
+                <h3 className="mb-2 font-normal text-base text-ens-blue-dark">
+                  No coins found
+                </h3>
+                <p className="max-w-56 text-center text-base text-ens-gray">
+                  Try searching for a different coin or chain
+                </p>
+              </div>
+            )}
+
+          {!isLoading &&
+            !stablecoinLoading &&
+            hasBalances &&
+            filteredStablecoins.length > 0 && (
+              <div className="flex flex-col gap-6">
+                {filteredStablecoins.map((stablecoin) => {
+                  const isSelected = selectedCoin === stablecoin.address
+                  // Find the matching icon from STABLECOINS
+                  const coinConfig = Object.values(STABLECOINS).find(
+                    (coin) => coin.symbol === stablecoin.symbol,
+                  )
+                  const IconComponent = coinConfig?.icon || USDCIcon
+
+                  return (
+                    <button
+                      key={stablecoin.address}
+                      type="button"
+                      onClick={() => setSelectedCoin(stablecoin.address)}
+                      className={cn(
+                        'flex h-11 items-center justify-between rounded px-2.5 py-4 transition-colors',
+                        isSelected
+                          ? 'bg-ens-blue-light'
+                          : 'hover:bg-ens-gray-two/50',
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        {/* Coin icon with chain badge */}
+                        <div className="relative h-8 w-8">
+                          <IconComponent className="h-8 w-8" />
+                          {/* Chain badge - Sepolia */}
+                          <div className="-bottom-0.5 -right-0.5 absolute flex h-3.5 w-3.5 items-center justify-center rounded-full bg-ens-peridot-core">
+                            <span className="text-[0.5rem] text-white leading-none">
+                              S
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-ens-gray-dark text-sm tracking-wide">
+                          Sepolia {stablecoin.symbol}
+                        </p>
+                      </div>
+                      <p className="text-right text-base text-ens-gray-dark tracking-wide">
+                        $
+                        {parseFloat(stablecoin.formattedBalance).toLocaleString(
+                          'en-US',
+                          {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          },
+                        )}
+                      </p>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+        </div>
+      </div>
+
+      {/* Confirm Button */}
+      <Button
+        className={cn(
+          'h-20 w-full rounded bg-ens-gray-two font-medium font-mono text-ens-gray-dark text-sm uppercase tracking-wider',
+          'hover:bg-ens-gray-two',
+          'disabled:cursor-not-allowed disabled:opacity-50',
+          !actionDisabled && 'bg-ens-blue text-white hover:bg-ens-blue-hover',
+        )}
+        disabled={actionDisabled}
+        onClick={() => handleCryptoContinue()}
+      >
+        Confirm Payment
+      </Button>
+    </div>
+  )
+
+  // Desktop Dialog
+  if (isDesktop) {
+    return (
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogTrigger asChild>{triggerButton}</DialogTrigger>
+        <DialogContent className="min-h-[500px]" showCloseButton={true}>
+          <DialogHeader>
+            <DialogTitle className="sr-only">Select coin</DialogTitle>
+          </DialogHeader>
+          {cryptoContent}
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
+  // Mobile Drawer
+  return (
+    <Drawer open={open} onOpenChange={handleOpenChange}>
+      <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
+      <DrawerContent>
+        <DrawerHeader className="px-4 pt-5 pb-5 text-left">
+          <DrawerTitle className="sr-only">Select coin</DrawerTitle>
+        </DrawerHeader>
+        {cryptoContent}
+      </DrawerContent>
+    </Drawer>
+  )
+}
+
+// Main Payment Drawer Component (for backward compatibility)
+export const PaymentDrawer = ({
+  domainName = 'example.eth',
+  duration = 25,
+  priceUSD = 2800,
+  isUsingAA = false,
+  onPaymentSelect,
+  onCryptoSelect,
+  onConfirmPayment,
+}: PaymentDrawerProps) => {
+  return (
+    <div className="space-y-3">
+      <h3 className="font-medium text-lg">Select payment method</h3>
+      <div className="flex flex-col gap-3">
+        <CreditCardPaymentDrawer
+          domainName={domainName}
+          duration={duration}
+          priceUSD={priceUSD}
+          onPaymentSelect={onPaymentSelect}
+        />
+        <CryptoPaymentDrawer
+          domainName={domainName}
+          duration={duration}
+          priceUSD={priceUSD}
+          isUsingAA={isUsingAA}
+          onPaymentSelect={onPaymentSelect}
+          onCryptoSelect={onCryptoSelect}
+          onConfirmPayment={onConfirmPayment}
+        />
+      </div>
+    </div>
+  )
+}

@@ -1,5 +1,5 @@
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
-import type { Address, Hash, PublicClient } from 'viem'
+import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
 import * as auditTrail from '../../services/audit-trail.service'
 import type { Signer } from '../../types/signer.types'
@@ -9,6 +9,7 @@ import {
   submitApprovalActor,
   submitCommitmentActor,
   submitRegistrationActor,
+  validateCommitmentActor,
 } from './registration.actors'
 
 /**
@@ -28,9 +29,11 @@ import {
 
 type CommitmentData = {
   commitment: Hash
-  secret: string
+  secret: Hex
 }
 
+// V2 contracts don't require commitment wait time when using FastTestETHRegistrar
+// This is only used as fallback for non-fast registrar
 const COMMITMENT_WAIT_DURATION_MS = 60_000
 
 export type RegistrationContext = {
@@ -155,6 +158,15 @@ export const registrationMachine = setup({
       async ({ input }: { input: { delayMs: number } }) => {
         const safeDelay = Math.max(0, input.delayMs)
         await new Promise<void>((resolve) => setTimeout(resolve, safeDelay))
+      },
+    ),
+    validateCommitment: fromResultAsync(
+      (input: {
+        commitment: CommitmentData
+        publicClient: PublicClient
+        useFastRegistrar: boolean
+      }) => {
+        return validateCommitmentActor(input)
       },
     ),
   },
@@ -287,9 +299,17 @@ export const registrationMachine = setup({
         },
         onError: {
           target: 'error',
-          actions: assign({
-            error: ({ event }) => event.error as Error,
-          }),
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Commitment preparation failed:',
+                event.error,
+              )
+            },
+          ],
         },
       },
       on: {
@@ -317,9 +337,17 @@ export const registrationMachine = setup({
         },
         onError: {
           target: 'error',
-          actions: assign({
-            error: ({ event }) => event.error as Error,
-          }),
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Commitment submission failed:',
+                event.error,
+              )
+            },
+          ],
         },
       },
       on: {
@@ -335,7 +363,7 @@ export const registrationMachine = setup({
         onDone: [
           {
             guard: ({ context }) => context.useFastRegistrar,
-            target: 'approvingToken',
+            target: 'validatingCommitment',
           },
           {
             target: 'commitmentCooldown',
@@ -347,9 +375,47 @@ export const registrationMachine = setup({
         ],
         onError: {
           target: 'error',
-          actions: assign({
-            error: ({ event }) => event.error as Error,
-          }),
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Commitment transaction failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    validatingCommitment: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'validateCommitment',
+        input: ({ context }) => ({
+          commitment: context.commitment!,
+          publicClient: context.publicClient!,
+          useFastRegistrar: context.useFastRegistrar,
+        }),
+        onDone: 'approvingToken',
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Commitment validation failed:',
+                event.error,
+              )
+            },
+          ],
         },
       },
       on: {
@@ -404,9 +470,17 @@ export const registrationMachine = setup({
         },
         onError: {
           target: 'error',
-          actions: assign({
-            error: ({ event }) => event.error as Error,
-          }),
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Token approval submission failed:',
+                event.error,
+              )
+            },
+          ],
         },
       },
       on: {
@@ -422,9 +496,17 @@ export const registrationMachine = setup({
         onDone: 'registeringDomain',
         onError: {
           target: 'error',
-          actions: assign({
-            error: ({ event }) => event.error as Error,
-          }),
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Token approval transaction failed:',
+                event.error,
+              )
+            },
+          ],
         },
       },
       on: {
@@ -454,9 +536,17 @@ export const registrationMachine = setup({
         },
         onError: {
           target: 'error',
-          actions: assign({
-            error: ({ event }) => event.error as Error,
-          }),
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Registration submission failed:',
+                event.error,
+              )
+            },
+          ],
         },
       },
       on: {
@@ -472,9 +562,17 @@ export const registrationMachine = setup({
         onDone: 'success',
         onError: {
           target: 'error',
-          actions: assign({
-            error: ({ event }) => event.error as Error,
-          }),
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Registration transaction failed:',
+                event.error,
+              )
+            },
+          ],
         },
       },
       on: {
@@ -488,7 +586,20 @@ export const registrationMachine = setup({
     },
 
     error: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: [
+        'logTransition',
+        'recordTransition',
+        ({ context }) => {
+          console.error('❌ [REGISTRATION MACHINE] Entered error state:', {
+            error: context.error?.message,
+            errorName: context.error?.name,
+            errorStack: context.error?.stack,
+            registrationTxId: context.registrationTxId,
+            approvalTxId: context.approvalTxId,
+            commitmentTxId: context.commitmentTxId,
+          })
+        },
+      ],
       on: {
         RETRY: {
           target: 'preparingCommitment',

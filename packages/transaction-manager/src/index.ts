@@ -27,11 +27,9 @@ export {
   TransactionStatusPanel,
   type TransactionStatusPanelProps,
 } from './components/TransactionStatusPanel'
+export { ETH_REGISTRAR_CONTROLLER_ABI } from './contracts/abis/ETHRegistrarController.abi'
 // Contracts
-export {
-  ENS_SEPOLIA_CONTRACTS,
-  ETH_REGISTRAR_CONTROLLER_ABI,
-} from './contracts/ens-sepolia'
+export { ENS_SEPOLIA_CONTRACTS } from './contracts/ens-sepolia'
 // Errors
 export { TransactionSubmissionError } from './errors/transaction.errors'
 export {
@@ -65,11 +63,24 @@ export {
   saveTransaction,
 } from './helpers/transaction-persistence'
 export type {
+  RecordsContext,
+  RecordsEvent,
+  RecordsInput,
+} from './machines/records/records.machine'
+export { recordsMachine } from './machines/records/records.machine'
+export type { ServiceRecordSnapshot } from './machines/records/records.types'
+export type {
   RegistrationContext,
   RegistrationEvent,
   RegistrationInput,
 } from './machines/registration/registration.machine'
 export { registrationMachine } from './machines/registration/registration.machine'
+export type {
+  ResolverContext,
+  ResolverEvent,
+  ResolverInput,
+} from './machines/resolver/resolver.machine'
+export { resolverMachine } from './machines/resolver/resolver.machine'
 // Machines
 export { transactionMachine } from './machines/transaction.machine'
 // Providers

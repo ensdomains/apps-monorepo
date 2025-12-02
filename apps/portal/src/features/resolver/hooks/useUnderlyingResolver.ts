@@ -22,14 +22,17 @@ export const getUnderlyingResolver = ResultFn(async function* (
 ) {
   const client = yield* safeGetClient()
 
-  const isComposite = yield* getSupportsInterfaces({
+  const [isComposite] = yield* getSupportsInterfaces({
     address: params.resolverAddress,
     interfaces: [RESOLVER_INTERFACE_IDS.CompositeExtendedResolver],
   })
 
-  if (!isComposite[0]) return ok(null)
+  console.log({ isComposite, params })
 
-  const result = yield* await fromPromise(
+  if (!isComposite) return ok(null)
+
+  const result = yield* fromPromise(
+    // until it gets properly deployed
     ensjs_getUnderlyingAddress(client, params),
     (e) => {
       return new GetUnderlyingResolverError({

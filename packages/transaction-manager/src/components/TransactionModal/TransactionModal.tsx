@@ -25,7 +25,6 @@ export const TransactionModal = ({
   estimatedCost,
   steps,
   currentStepIndex = 0,
-  flowType = 'single',
   selectedPayment,
   paymentOptions,
   machineState = 'idle',

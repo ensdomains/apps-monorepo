@@ -1,28 +1,27 @@
 import { registrationMachine } from '@ens-apps/transaction-manager'
 import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
-import { ArrowLeftIcon } from 'lucide-react'
-import { useEffect, useReducer, useState } from 'react'
-import type { Address, Hex } from 'viem'
+import { AlertCircle, ArrowLeftIcon } from 'lucide-react'
+import { useCallback, useReducer, useState } from 'react'
+import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import { Button } from '@/components/ui/button'
+import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
+import { Pricing } from '@/features/register/components/Pricing'
+import { PricingDomainHeader } from '@/features/register/components/Pricing/PricingDomainHeader'
+import type { NotificationPreferences } from '@/features/register/components/RegistrationInProgress/NotificationSettings'
+import { RegistrationInProgress } from '@/features/register/components/RegistrationInProgress/RegistrationInProgress'
+import { VerifyWalletModal } from '@/features/register/components/VerifyWalletModal'
+import { useCountdown } from '@/hooks/useCountdown'
+import { useWalletVerification } from '@/hooks/useWalletVerification'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 import { publicClient } from '@/lib/wagmi'
-import { ApprovalInProgress } from '../components/ApprovalInProgress'
-import { Autorenewal } from '../components/Autorenewal'
-import { PaymentInProgress } from '../components/PaymentInProgress'
-import { Pricing } from '../components/Pricing'
-import { RegistrationInProgress } from '../components/RegistrationInProgress'
-import { RegistrationSuccess } from '../components/RegistrationSuccess'
+import { inspect } from '@/utils/xstate'
 import { handleStartRegistration } from './RegistrationPage.handlers'
 import {
   createInitialUIState,
   registrationUIReducer,
 } from './RegistrationPage.reducer'
-
-// ============================================================================
-// TYPES
-// ============================================================================
 
 export enum RegistrationStep {
   PRICING = 'pricing',
@@ -39,18 +38,23 @@ interface RegistrationProps {
   initialDuration?: number
 }
 
-// ============================================================================
-// HELPER: Map machine state to RegistrationStep
-// ============================================================================
+function mapMachineStateToStep(
+  machineState: string | Record<string, unknown>,
+): RegistrationStep {
+  if (typeof machineState === 'object' && 'error' in machineState) {
+    return RegistrationStep.ERROR
+  }
 
-function mapMachineStateToStep(machineState: string): RegistrationStep {
-  switch (machineState) {
+  const stateString = String(machineState)
+
+  switch (stateString) {
     case 'idle':
       return RegistrationStep.PRICING
     case 'preparingCommitment':
     case 'committingTransaction':
     case 'waitingForCommitment':
     case 'commitmentCooldown':
+    case 'validatingCommitment':
       return RegistrationStep.COMMITTING
     case 'approvingToken':
     case 'waitingForApproval':
@@ -67,39 +71,46 @@ function mapMachineStateToStep(machineState: string): RegistrationStep {
   }
 }
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
-
 export function Registration({ initialName }: RegistrationProps) {
   const navigate = useNavigate()
 
-  // Machine actor
   const actor = useActorRef(registrationMachine, {
     input: {
-      chainId: sepolia.id, // Sepolia
+      chainId: sepolia.id,
     },
+    inspect,
   })
 
-  // Account state
   const { rhinestoneAccount, accountAddress, isConnected, rhinestoneConfig } =
     useRhinestoneAccount()
 
-  // Local UI state
   const [ui, dispatch] = useReducer(
     registrationUIReducer,
     createInitialUIState(initialName),
   )
 
-  // Derived state
+  const { showVerifyModal, setShowVerifyModal, handleVerificationComplete } =
+    useWalletVerification()
+
+  const [pricingData, setPricingData] = useState<{
+    finalPrice: number
+    discountAmount: number
+  } | null>(null)
+
+  const [hasSkippedNotifications, setHasSkippedNotifications] = useState(false)
+  const [hasConfirmedNotifications, setHasConfirmedNotifications] =
+    useState(false)
+
+  const { context: availabilityContext, isSearching: isCheckingAvailability } =
+    useCheckAvailability({ initialName, autoSearch: true })
+
   const isAccountReady = Boolean(
     rhinestoneAccount && accountAddress && rhinestoneConfig,
   )
 
-  // Selectors - directly select from machine state
   const step = useSelector(actor, (state) => {
     if (!isAccountReady) return RegistrationStep.PRICING
-    return mapMachineStateToStep(String(state.value))
+    return mapMachineStateToStep(state.value)
   })
 
   const domainName = useSelector(
@@ -107,51 +118,19 @@ export function Registration({ initialName }: RegistrationProps) {
     (state) => state.context.name || ui.name,
   )
 
-  const error = useSelector(
-    actor,
-    (state) => state.context.error?.message || null,
-  )
-
-  const commitTxId = useSelector(actor, (state) => state.context.commitmentTxId)
-
-  const registerTxId = useSelector(
-    actor,
-    (state) => state.context.registrationTxId,
-  )
-
   const registerReadyTimestamp = useSelector(
     actor,
     (state) => state.context.registerReadyTimestamp ?? null,
   )
 
-  const [registerWaitSeconds, setRegisterWaitSeconds] = useState<number | null>(
-    null,
+  const { remainingSeconds: registerWaitSeconds } = useCountdown(
+    registerReadyTimestamp,
   )
 
-  useEffect(() => {
-    if (!registerReadyTimestamp) {
-      setRegisterWaitSeconds(null)
-      return
-    }
-
-    const updateRemaining = () => {
-      const diff = registerReadyTimestamp - Date.now()
-      setRegisterWaitSeconds(Math.max(0, Math.ceil(diff / 1000)))
-    }
-
-    updateRemaining()
-    const interval = setInterval(updateRemaining, 1000)
-    return () => clearInterval(interval)
-  }, [registerReadyTimestamp])
-
-  // Derived state
-  const commitTxHash = commitTxId ? { hash: commitTxId as Hex } : null
-  const registerTxHash = registerTxId ? { hash: registerTxId as Hex } : null
   const isCommitPending = step === RegistrationStep.COMMITTING
   const isApprovePending = step === RegistrationStep.APPROVING
   const isRegisterPending = step === RegistrationStep.REGISTERING
 
-  // Handlers
   const handleBack = () => {
     if (step === RegistrationStep.PRICING) {
       navigate({ to: '/' })
@@ -162,7 +141,6 @@ export function Registration({ initialName }: RegistrationProps) {
       // Don't allow going back during transactions
       return
     } else {
-      // All other steps go to pricing on 'back'
       actor.send({ type: 'CANCEL' })
       dispatch({ type: 'RESET', initialName })
     }
@@ -180,117 +158,154 @@ export function Registration({ initialName }: RegistrationProps) {
     // No-op for now - handled by payment drawer
   }
 
-  const handleRetry = () => {
-    actor.send({ type: 'RETRY' })
+  const handleNotificationConfirm = (preferences: NotificationPreferences) => {
+    console.log('Notification preferences confirmed:', preferences)
+    setHasConfirmedNotifications(true)
   }
 
-  const handleReset = () => {
-    actor.send({ type: 'CANCEL' })
-    dispatch({ type: 'RESET', initialName })
+  const handleNotificationSkip = () => {
+    setHasSkippedNotifications(true)
   }
+
+  const handleGoToDashboard = () => {
+    navigate({ to: '/dashboard' })
+  }
+
+  const handleCreateProfile = () => {
+    console.log('Create profile clicked')
+  }
+
+  const handlePricingDataChange = useCallback(
+    (finalPrice: number, discountAmount: number) => {
+      setPricingData({ finalPrice, discountAmount })
+    },
+    [],
+  )
 
   const displayDomainName = domainName || ''
 
   return (
-    <div className="mx-6 flex flex-col items-start gap-4 md:flex-row">
-      <div className="absolute flex items-center justify-between">
-        <Button
-          variant="ghost"
-          onClick={handleBack}
-          className="h-auto p-2 text-ens-lapis-surface uppercase"
-        >
-          <ArrowLeftIcon className="h-6 w-6 font-bold" /> Back
-        </Button>
-      </div>
+    <>
+      <VerifyWalletModal
+        open={showVerifyModal}
+        onOpenChange={setShowVerifyModal}
+        onVerified={handleVerificationComplete}
+      />
+      <div className="mx-6 flex flex-col items-start gap-4 md:flex-row">
+        <div className="absolute flex items-center justify-between">
+          <Button
+            variant="ghost"
+            onClick={handleBack}
+            className="h-auto p-2 text-ens-lapis-surface uppercase"
+          >
+            <ArrowLeftIcon className="h-6 w-6 font-bold" /> Back
+          </Button>
+        </div>
 
-      {step === RegistrationStep.PRICING && displayDomainName && (
-        <div className="w-full py-6 md:py-6">
-          <Pricing
+        {step === RegistrationStep.PRICING && displayDomainName && (
+          <div className="w-full py-6 md:py-6">
+            {isCheckingAvailability && initialName && (
+              <div className="flex min-h-[400px] items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="h-12 w-12 animate-spin rounded-full border-4 border-ens-lapis-surface border-t-transparent" />
+                  <p className="text-ens-gray">
+                    Checking availability for {displayDomainName}...
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {!isCheckingAvailability &&
+              initialName &&
+              availabilityContext.selectedName &&
+              availabilityContext.isAvailable === false && (
+                <div className="flex min-h-[400px] items-center justify-center px-4">
+                  <div className="flex w-full max-w-2xl flex-col items-center gap-8 rounded-lg border border-ens-gray-two bg-white p-8 text-center">
+                    <AlertCircle className="h-16 w-16 text-ens-gray" />
+
+                    <div className="flex w-full flex-col items-center gap-4">
+                      <div className="w-full opacity-40">
+                        <PricingDomainHeader
+                          domainName={displayDomainName}
+                          premiumLabel={undefined}
+                        />
+                      </div>
+
+                      <p className="text-ens-gray text-sm">
+                        {availabilityContext.error ||
+                          'This name is not available'}
+                      </p>
+                    </div>
+
+                    <Button
+                      onClick={() => navigate({ to: '/' })}
+                      className="h-14 w-full rounded bg-ens-blue font-mono text-sm text-white uppercase tracking-wider hover:bg-ens-blue-hover"
+                    >
+                      Back to Search
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+            {(!initialName ||
+              (!isCheckingAvailability &&
+                availabilityContext.isAvailable !== false)) && (
+              <Pricing
+                domainName={displayDomainName}
+                duration={ui.duration}
+                isConnected={isConnected}
+                isLoading={
+                  isCommitPending || isApprovePending || isRegisterPending
+                }
+                onSetDuration={handleSetDuration}
+                onSelectPayment={handleSelectPayment}
+                onSelectCrypto={handleSelectCrypto}
+                onConfirmPayment={(tokenPrice, selectedToken, options) => {
+                  handleStartRegistration(
+                    {
+                      name: ui.name,
+                      duration: ui.duration,
+                      selectedToken: selectedToken as Address,
+                      tokenPrice,
+                    },
+                    {
+                      rhinestoneAccount,
+                      accountAddress,
+                      rhinestoneConfig,
+                      publicClient,
+                    },
+                    actor,
+                    { fast: options?.fast ?? true },
+                  )
+                }}
+                onPricingDataChange={handlePricingDataChange}
+              />
+            )}
+          </div>
+        )}
+
+        {(step === RegistrationStep.COMMITTING ||
+          step === RegistrationStep.APPROVING ||
+          step === RegistrationStep.REGISTERING ||
+          step === RegistrationStep.SUCCESS ||
+          step === RegistrationStep.ERROR) && (
+          <RegistrationInProgress
             domainName={displayDomainName}
+            actor={actor}
             duration={ui.duration}
-            isConnected={isConnected}
-            isLoading={isCommitPending || isApprovePending || isRegisterPending}
-            onSetDuration={handleSetDuration}
-            onSelectPayment={handleSelectPayment}
-            onSelectCrypto={handleSelectCrypto}
-            onConfirmPayment={(tokenPrice, selectedToken, options) =>
-              handleStartRegistration(
-                {
-                  name: ui.name,
-                  duration: ui.duration,
-                  selectedToken: selectedToken as Address,
-                  tokenPrice,
-                },
-                {
-                  rhinestoneAccount,
-                  accountAddress,
-                  rhinestoneConfig,
-                  publicClient,
-                },
-                actor,
-                { fast: options?.fast ?? false },
-              )
+            totalPrice={pricingData?.finalPrice ?? 0}
+            discountAmount={pricingData?.discountAmount ?? 0}
+            registerWaitSeconds={registerWaitSeconds}
+            onNotificationConfirm={handleNotificationConfirm}
+            onNotificationSkip={handleNotificationSkip}
+            onGoToDashboard={handleGoToDashboard}
+            onCreateProfile={handleCreateProfile}
+            showRegistrationDetails={
+              hasSkippedNotifications || hasConfirmedNotifications
             }
           />
-        </div>
-      )}
-
-      {step === RegistrationStep.COMMITTING && (
-        <PaymentInProgress
-          domainName={displayDomainName}
-          selectedCrypto=""
-          onPaymentSuccess={() => {}} // No-op - handled by state machine
-          registerWaitSeconds={registerWaitSeconds}
-        />
-      )}
-
-      {step === RegistrationStep.APPROVING && (
-        <ApprovalInProgress
-          domainName={displayDomainName}
-          selectedToken={ui.selectedToken}
-          commitTxHash={commitTxHash}
-        />
-      )}
-
-      {step === RegistrationStep.REGISTERING && (
-        <RegistrationInProgress
-          domainName={displayDomainName}
-          onRegistrationSuccess={() => {}} // No-op - handled by state machine
-          registerTxHash={registerTxHash}
-        />
-      )}
-
-      {step === RegistrationStep.SUCCESS && (
-        <RegistrationSuccess domainName={displayDomainName} />
-      )}
-
-      {step === RegistrationStep.AUTORENEWAL && (
-        <Autorenewal
-          domainName={displayDomainName}
-          duration={ui.duration}
-          onReset={handleReset}
-          onCompleteFlow={handleReset}
-        />
-      )}
-
-      {step === RegistrationStep.ERROR && (
-        <div className="mx-auto max-w-md px-4 py-6">
-          <div className="text-center">
-            <h2 className="mb-4 font-semibold text-red-600 text-xl">
-              Registration Error
-            </h2>
-            <p className="mb-4 whitespace-pre-line text-gray-600">
-              {error || 'There was an error during the registration process.'}
-            </p>
-            <Button onClick={handleRetry} className="mr-2">
-              Retry
-            </Button>
-            <Button variant="outline" onClick={handleReset}>
-              Start Over
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   )
 }

@@ -286,14 +286,18 @@ class TransactionManager {
    */
   private notifyListeners(): void {
     const txCopy = this.getTransactions()
-    this.listeners.forEach((listener) => listener(txCopy))
+    this.listeners.forEach((listener) => {
+      listener(txCopy)
+    })
   }
 
   /**
    * Clear all transactions (for testing)
    */
   clear(): void {
-    this.transactions.forEach((actor) => actor.stop())
+    this.transactions.forEach((actor) => {
+      actor.stop()
+    })
     this.transactions.clear()
     this.notifyListeners()
   }

@@ -1,14 +1,38 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { type GetNameErrorType, getName } from '@ensdomains/ensjs/public'
 import { skipToken } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
+import { readContract } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-class GetNameError extends TaggedError('GetNameError')<{
-  cause: GetNameErrorType
+const REVERSE_RESOLVER_ADDRESS = '0x01a552795cdb65c5f5f0392a9d1b7f419ac9acd8'
+
+const REVERSE_RESOLVER_ABI = [
+  {
+    inputs: [
+      {
+        internalType: 'address[]',
+        name: 'addrs',
+        type: 'address[]',
+      },
+    ],
+    name: 'resolveNames',
+    outputs: [
+      {
+        internalType: 'string[]',
+        name: 'names',
+        type: 'string[]',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const
+
+class ReverseResolverError extends TaggedError('ReverseResolverError')<{
+  cause: unknown
 }> {}
 
 class MissingReverseNameError extends TaggedError(
@@ -19,15 +43,22 @@ export const getReverseName = ResultFn(async function* (address: Address) {
   const client = yield* safeGetClient()
 
   const result = yield* await fromPromise(
-    getName(client, { address }),
-    (e) => new GetNameError({ cause: e as GetNameErrorType }),
+    readContract(client, {
+      address: REVERSE_RESOLVER_ADDRESS,
+      abi: REVERSE_RESOLVER_ABI,
+      functionName: 'resolveNames',
+      args: [[address]],
+    }),
+    (e) => new ReverseResolverError({ cause: e }),
   )
 
-  if (!result) {
+  const [name] = result ?? []
+
+  if (!name) {
     return yield* new MissingReverseNameError()
   }
 
-  return ok(result)
+  return ok(name)
 })
 
 export const profileReverseNameQuery = (address: Address | undefined) =>

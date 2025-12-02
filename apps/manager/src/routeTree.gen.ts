@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as NotificationsRouteRouteImport } from './routes/notifications/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as NotificationsIndexRouteImport } from './routes/notifications/index'
@@ -33,6 +34,11 @@ const WalletRoute = WalletRouteImport.update({
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NotificationsRouteRoute = NotificationsRouteRouteImport.update({
@@ -107,6 +113,7 @@ const NotificationsChannelsEmailVerifyRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/notifications': typeof NotificationsRouteRouteWithChildren
+  '/dashboard': typeof DashboardRoute
   '/register': typeof RegisterRoute
   '/wallet': typeof WalletRoute
   '/notifications/all': typeof NotificationsAllRoute
@@ -123,6 +130,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
   '/register': typeof RegisterRoute
   '/wallet': typeof WalletRoute
   '/notifications/all': typeof NotificationsAllRoute
@@ -141,6 +149,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/notifications': typeof NotificationsRouteRouteWithChildren
+  '/dashboard': typeof DashboardRoute
   '/register': typeof RegisterRoute
   '/wallet': typeof WalletRoute
   '/notifications/all': typeof NotificationsAllRoute
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/notifications'
+    | '/dashboard'
     | '/register'
     | '/wallet'
     | '/notifications/all'
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/dashboard'
     | '/register'
     | '/wallet'
     | '/notifications/all'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/notifications'
+    | '/dashboard'
     | '/register'
     | '/wallet'
     | '/notifications/all'
@@ -211,10 +223,9 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   NotificationsRouteRoute: typeof NotificationsRouteRouteWithChildren
+  DashboardRoute: typeof DashboardRoute
   RegisterRoute: typeof RegisterRoute
   WalletRoute: typeof WalletRoute
-  NotificationsAllRoute: typeof NotificationsAllRoute
-  NotificationsSettingsRoute: typeof NotificationsSettingsRoute
   PaymentAddRoute: typeof PaymentAddRoute
   PaymentListRoute: typeof PaymentListRoute
   AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
@@ -237,6 +248,13 @@ declare module '@tanstack/react-router' {
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/notifications': {
@@ -355,10 +373,9 @@ const NotificationsRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   NotificationsRouteRoute: NotificationsRouteRouteWithChildren,
+  DashboardRoute: DashboardRoute,
   RegisterRoute: RegisterRoute,
   WalletRoute: WalletRoute,
-  NotificationsAllRoute: NotificationsAllRoute,
-  NotificationsSettingsRoute: NotificationsSettingsRoute,
   PaymentAddRoute: PaymentAddRoute,
   PaymentListRoute: PaymentListRoute,
   AutoRenewalIndexRoute: AutoRenewalIndexRoute,

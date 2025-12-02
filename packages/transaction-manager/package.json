@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@ens-apps/utils": "workspace:*",
+    "@ensdomains/address-encoder": "^1.1.2",
     "@rhinestone/module-sdk": "^0.4.0",
     "@rhinestone/sdk": "^1.0.2",
     "@xstate/react": "^4.0.0-beta.12",
@@ -26,11 +27,12 @@
   "peerDependencies": {
     "@tanstack/react-query": "^5.87.1",
     "react": "^18.0.0 || ^19.0.0",
-    "wagmi": "^2.16.9"
+    "wagmi": "^3.0.2"
   },
   "devDependencies": {
     "@types/react": "^19.0.6",
     "typescript": "^5.7.2",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wagmi": "^3.0.2"
   }
 }

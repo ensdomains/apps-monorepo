@@ -15,10 +15,8 @@ import {
   type WalletClient,
 } from 'viem'
 import { sepolia } from 'viem/chains'
-import {
-  ENS_SEPOLIA_CONTRACTS,
-  ETH_REGISTRAR_CONTROLLER_ABI,
-} from '../contracts/ens-sepolia'
+import { ETH_REGISTRAR_CONTROLLER_ABI } from '../contracts/abis/ETHRegistrarController.abi'
+import { ENS_SEPOLIA_CONTRACTS } from '../contracts/ens-sepolia'
 
 export class RhinestoneAccountError extends Error {
   constructor(message: string) {
