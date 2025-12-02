@@ -56,7 +56,7 @@ interface NamesTableProps {
   error: unknown
 }
 
-export const MyNamesCard = ({
+export const NamesTable = ({
   names = [],
   favorites,
   isLoading,

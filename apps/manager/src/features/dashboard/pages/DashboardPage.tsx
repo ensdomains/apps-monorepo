@@ -2,7 +2,7 @@ import { CircleAlert, X } from 'lucide-react'
 import { DashboardSidebar } from '@/features/dashboard/components/DashboardSidebar'
 import { DidYouKnowSection } from '@/features/dashboard/components/DidYouKnowSection'
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
-import { MyNamesCard } from '@/features/dashboard/components/NamesTable'
+import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
 import {
   MOCK_DASHBOARD_HEADER,
@@ -60,7 +60,7 @@ export const DashboardPage = () => {
         />
         <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:px-[24px] md:py-[32px]">
           <div className="space-y-5">
-            <MyNamesCard names={names} isLoading={false} error={undefined} />
+            <NamesTable names={names} isLoading={false} error={undefined} />
           </div>
         </div>
         <DidYouKnowSection />
