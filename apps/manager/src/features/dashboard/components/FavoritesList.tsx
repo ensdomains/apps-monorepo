@@ -9,18 +9,13 @@ import {
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import {
-  type DashboardNameRow,
-  MOCK_FAVORITE_NAMES,
-} from '@/features/dashboard/MOCK'
+import type { DashboardNameRow } from '@/features/dashboard/MOCK'
 
 interface FavoritesListProps {
   favorites?: DashboardNameRow[]
 }
 
-export const FavoritesList = ({
-  favorites = MOCK_FAVORITE_NAMES,
-}: FavoritesListProps) => {
+export const FavoritesList = ({ favorites = [] }: FavoritesListProps) => {
   return (
     <div className="w-full">
       <div className="mb-[20px] flex flex-col gap-4 md:gap-[20px]">

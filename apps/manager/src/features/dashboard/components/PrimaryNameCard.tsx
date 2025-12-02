@@ -1,12 +1,8 @@
-import { Calendar, Check, ChevronDown, Clock } from 'lucide-react'
+import { Calendar, ChevronDown, Clock } from 'lucide-react'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-
-const dateFormatter = new Intl.DateTimeFormat('en-US', {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-})
+import { formatDashboardDate } from '@/features/dashboard/utils'
+import { PrimaryBadge } from './PrimaryBadge'
 
 type PrimaryNameCardProps = {
   primaryName: string
@@ -23,6 +19,8 @@ export const PrimaryNameCard = ({
   expiryDate,
   avatarUrl,
 }: PrimaryNameCardProps) => {
+  const formattedRegisteredDate = formatDashboardDate(registeredDate)
+  const formattedExpiryDate = formatDashboardDate(expiryDate)
   const hasAvatar = Boolean(avatarUrl)
 
   return (
@@ -49,17 +47,7 @@ export const PrimaryNameCard = ({
                 </span>
               </div>
               <div className="flex items-center gap-[2px]">
-                <div className="inline-flex items-center gap-[8px] rounded-[73px] bg-[#f6f6f6] px-[6.5px] py-[3.3px]">
-                  <span className="font-sans text-[#0080bc] text-[12px] leading-[1.15] tracking-[-0.24px]">
-                    Primary Name
-                  </span>
-                  <div className="flex size-[10px] items-center justify-center rounded-full bg-[#0080bc]">
-                    <Check
-                      className="size-[6px] text-[#f6f6f6]"
-                      strokeWidth={4}
-                    />
-                  </div>
-                </div>
+                <PrimaryBadge />
                 <ChevronDown className="size-[17.5px] text-[#0080bc]" />
               </div>
             </div>
@@ -73,7 +61,7 @@ export const PrimaryNameCard = ({
                 <div className="flex items-end gap-[4px] text-[12px] leading-[0.96] tracking-[-0.24px]">
                   <span className="text-[#8c8c8c]">Registered</span>
                   <span className="text-[#232222]">
-                    {dateFormatter.format(registeredDate)}
+                    {formattedRegisteredDate}
                   </span>
                 </div>
               </div>
@@ -84,15 +72,12 @@ export const PrimaryNameCard = ({
                 />
                 <div className="flex items-end gap-[4px] text-[12px] leading-[0.96] tracking-[-0.24px]">
                   <span className="text-[#8c8c8c]">Expires</span>
-                  <span className="text-[#232222]">
-                    {dateFormatter.format(expiryDate)}
-                  </span>
+                  <span className="text-[#232222]">{formattedExpiryDate}</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
-
         <LinkButton
           to="/p/$name"
           params={{ name: primaryName }}

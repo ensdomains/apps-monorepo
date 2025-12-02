@@ -8,14 +8,62 @@ import {
 import { FavoritesList } from './FavoritesList'
 import { MyNamesList } from './MyNamesList'
 
+type TabKey = 'myNames' | 'favorites'
+
+type TabButtonProps = {
+  label: string
+  count: number
+  isActive: boolean
+  onClick: () => void
+  activeBadgeClass: string
+  activeCountClass: string
+}
+
+const DashboardTabButton = ({
+  label,
+  count,
+  isActive,
+  onClick,
+  activeBadgeClass,
+  activeCountClass,
+}: TabButtonProps) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="flex shrink-0 items-center gap-2 md:gap-[12px]"
+  >
+    <span
+      className={`font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px] ${isActive ? 'text-[#232222]' : 'text-[#a9a9a9]'}`}
+    >
+      {label}
+    </span>
+    <div
+      className={`flex h-[18px] items-center justify-center rounded-[14px] px-[5px] py-[1.4px] md:h-[20px] md:px-[6.5px] md:py-[1.6px] ${isActive ? activeBadgeClass : 'border-[#8c8c8c] border-[0.5px]'}`}
+    >
+      <span
+        className={`font-sans text-[12px] leading-[1.05] md:text-[14px] ${isActive ? activeCountClass : 'text-[#8c8c8c]'}`}
+      >
+        {count}
+      </span>
+    </div>
+  </button>
+)
+
 interface NamesTableProps {
   names?: DashboardNameRow[]
+  favorites?: DashboardNameRow[]
   isLoading: boolean
   error: unknown
 }
 
-export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
-  const [activeTab, setActiveTab] = useState<'myNames' | 'favorites'>('myNames')
+export const MyNamesCard = ({
+  names = [],
+  favorites,
+  isLoading,
+  error,
+}: NamesTableProps) => {
+  const [activeTab, setActiveTab] = useState<TabKey>('myNames')
+  const favoriteNames = favorites ?? MOCK_FAVORITE_NAMES
 
   if (isLoading) return <div>Loading...</div>
   if (error) return <div>Error loading names</div>
@@ -24,47 +72,38 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
     <div className="w-full">
       <div className="mb-[20px] flex flex-col gap-4 md:gap-[20px]">
         <div className="flex items-center gap-4 overflow-x-auto md:gap-[40px]">
-          <button
-            type="button"
-            onClick={() => setActiveTab('myNames')}
-            className="flex shrink-0 items-center gap-2 md:gap-[12px]"
-          >
-            <span
-              className={`font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px] ${activeTab === 'myNames' ? 'text-[#232222]' : 'text-[#a9a9a9]'}`}
-            >
-              My Names
-            </span>
-            <div
-              className={`flex h-[18px] items-center justify-center rounded-[14px] px-[5px] py-[1.4px] md:h-[20px] md:px-[6.5px] md:py-[1.6px] ${activeTab === 'myNames' ? 'bg-[#e5f7ff]' : 'border-[#8c8c8c] border-[0.5px]'}`}
-            >
-              <span
-                className={`font-sans text-[12px] leading-[1.05] md:text-[14px] ${activeTab === 'myNames' ? 'text-[#0080bc]' : 'text-[#8c8c8c]'}`}
-              >
-                {names?.length ?? 0}
-              </span>
-            </div>
-          </button>
+          {[
+            {
+              key: 'myNames' as const,
+              label: 'My Names',
+              count: names.length,
+              activeBadgeClass: 'bg-[#e5f7ff]',
+              activeCountClass: 'text-[#0080bc]',
+            },
+            {
+              key: 'favorites' as const,
+              label: 'Favorites',
+              count: favoriteNames.length,
+              activeBadgeClass: 'bg-[#ffecf5]',
+              activeCountClass: 'text-[#f53293]',
+            },
+          ].map((tab) => {
+            const isActive = activeTab === tab.key
+            const label =
+              tab.key === 'favorites' && isActive ? 'Favorites List' : tab.label
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('favorites')}
-            className="flex shrink-0 items-center gap-2 md:gap-[12px]"
-          >
-            <span
-              className={`font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px] ${activeTab === 'favorites' ? 'text-[#232222]' : 'text-[#a9a9a9]'}`}
-            >
-              {activeTab === 'favorites' ? 'Favorites List' : 'Favorites'}
-            </span>
-            <div
-              className={`flex h-[18px] items-center justify-center rounded-[14px] px-[5px] py-[1.4px] md:h-[20px] md:px-[6.5px] md:py-[1.6px] ${activeTab === 'favorites' ? 'bg-[#ffecf5]' : 'border-[#8c8c8c] border-[0.5px]'}`}
-            >
-              <span
-                className={`font-sans text-[12px] leading-[1.05] md:text-[14px] ${activeTab === 'favorites' ? 'text-[#f53293]' : 'text-[#8c8c8c]'}`}
-              >
-                {MOCK_FAVORITE_NAMES.length}
-              </span>
-            </div>
-          </button>
+            return (
+              <DashboardTabButton
+                key={tab.key}
+                label={label}
+                count={tab.count}
+                isActive={isActive}
+                activeBadgeClass={tab.activeBadgeClass}
+                activeCountClass={tab.activeCountClass}
+                onClick={() => setActiveTab(tab.key)}
+              />
+            )
+          })}
         </div>
 
         {activeTab === 'myNames' && (
@@ -82,7 +121,7 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
       {activeTab === 'myNames' ? (
         <MyNamesList names={names} />
       ) : (
-        <FavoritesList favorites={MOCK_FAVORITE_NAMES} />
+        <FavoritesList favorites={favoriteNames} />
       )}
     </div>
   )

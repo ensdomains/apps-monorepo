@@ -2,7 +2,6 @@ import { Link } from '@tanstack/react-router'
 import {
   ArrowRight,
   ArrowUpRight,
-  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -10,21 +9,12 @@ import {
   MoreHorizontal,
 } from 'lucide-react'
 import type { DashboardNameRow } from '@/features/dashboard/MOCK'
-
-const dateFormatter = new Intl.DateTimeFormat('en-US', {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-})
-
-const formatDate = (value?: Date | null) => {
-  if (!value) return '—'
-  try {
-    return dateFormatter.format(value)
-  } catch {
-    return '—'
-  }
-}
+import {
+  formatDashboardDate,
+  getDaysUntil,
+  isExpiringSoon,
+} from '@/features/dashboard/utils'
+import { PrimaryBadge } from './PrimaryBadge'
 
 interface MyNamesListProps {
   names?: DashboardNameRow[]
@@ -63,13 +53,13 @@ export const MyNamesList = ({ names = [] }: MyNamesListProps) => {
 
       <div className="flex w-full flex-col">
         {names.map((name) => {
-          const daysUntilExpiry = name.expiryDate
-            ? Math.ceil(
-                (name.expiryDate.getTime() - Date.now()) /
-                  (1000 * 60 * 60 * 24),
-              )
-            : 0
-          const isExpiringSoon = daysUntilExpiry > 0 && daysUntilExpiry <= 30
+          const daysUntilExpiry = getDaysUntil(name.expiryDate)
+          const expiringSoon = isExpiringSoon(
+            name.expiryDate,
+            30,
+            daysUntilExpiry,
+          )
+          const formattedExpiryDate = formatDashboardDate(name.expiryDate)
 
           return (
             <div
@@ -78,17 +68,7 @@ export const MyNamesList = ({ names = [] }: MyNamesListProps) => {
             >
               {name.isPrimary && (
                 <div className="mb-[10px] px-[24px]">
-                  <div className="inline-flex items-center gap-[8px] rounded-[73px] bg-[#f6f6f6] px-[6.5px] py-[3.28px]">
-                    <span className="font-sans text-[#0080bc] text-[12px] leading-[1.15] tracking-[-0.24px]">
-                      Primary Name
-                    </span>
-                    <div className="flex size-[10px] items-center justify-center rounded-full bg-[#0080bc]">
-                      <Check
-                        className="size-[6px] text-[#f6f6f6]"
-                        strokeWidth={4}
-                      />
-                    </div>
-                  </div>
+                  <PrimaryBadge />
                 </div>
               )}
 
@@ -119,7 +99,7 @@ export const MyNamesList = ({ names = [] }: MyNamesListProps) => {
                   <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:gap-[4px]">
                     <div className="flex flex-col items-start">
                       <span className="font-sans text-[#515151] text-[12px] leading-[1.6] md:text-[14px] md:leading-[1.8]">
-                        {formatDate(name.expiryDate)}
+                        {formattedExpiryDate}
                       </span>
                     </div>
                     <div className="flex items-center justify-center gap-[3.28px]">
@@ -137,7 +117,7 @@ export const MyNamesList = ({ names = [] }: MyNamesListProps) => {
                       </button>
                     </div>
 
-                    {isExpiringSoon && (
+                    {expiringSoon && daysUntilExpiry !== null && (
                       <div className="flex items-center gap-[3px] rounded-[20px] bg-[#fff8f0] p-[3px] md:gap-[4px] md:p-[4px]">
                         <CircleAlert
                           className="size-[10px] text-[#e3a531] md:size-[12px]"
