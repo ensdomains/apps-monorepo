@@ -103,8 +103,8 @@ export const MyNamesList = ({ names = [] }: MyNamesListProps) => {
                       </span>
                     </div>
                     <div className="flex items-center justify-center gap-[3.28px]">
-                      <button
-                        type="button"
+                      <Link
+                        to="/auto-renewal"
                         className="flex items-center gap-[4.92px] text-[#0080bc]"
                       >
                         <span className="font-sans text-[11px] leading-[1.6] md:text-[12px] md:leading-[1.8]">
@@ -114,7 +114,7 @@ export const MyNamesList = ({ names = [] }: MyNamesListProps) => {
                           className="size-[6px] md:size-[7.538px]"
                           strokeWidth={3}
                         />
-                      </button>
+                      </Link>
                     </div>
 
                     {expiringSoon && daysUntilExpiry !== null && (
