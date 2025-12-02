@@ -92,7 +92,7 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
               <span
                 className={`font-sans text-[14px] leading-[1.05] ${activeTab === 'favorites' ? 'text-[#f53293]' : 'text-[#8c8c8c]'}`}
               >
-                105
+                {MOCK_FAVORITE_NAMES.length}
               </span>
             </div>
           </button>
