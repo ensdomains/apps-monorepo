@@ -97,3 +97,51 @@ export const MOCK_DASHBOARD_NAMES: DashboardNameRow[] = [
     },
   },
 ]
+
+export const MOCK_FAVORITE_NAMES: DashboardNameRow[] = [
+  {
+    id: 'seraphinalee.eth',
+    name: 'seraphinalee.eth',
+    truncatedName: 'seraphinalee.eth',
+    registrationDate: null,
+    expiryDate: null,
+    autoRenewalDate: null,
+    relation: {},
+  },
+  {
+    id: 'zenithnova.eth',
+    name: 'zenithnova.eth',
+    truncatedName: 'zenithnova.eth',
+    registrationDate: null,
+    expiryDate: null,
+    autoRenewalDate: null,
+    relation: {},
+  },
+  {
+    id: 'luminaquest.eth',
+    name: 'luminaquest.eth',
+    truncatedName: 'luminaquest.eth',
+    registrationDate: null,
+    expiryDate: null,
+    autoRenewalDate: null,
+    relation: {},
+  },
+  {
+    id: 'astralvoyager.eth',
+    name: 'astralvoyager.eth',
+    truncatedName: 'astralvoyager.eth',
+    registrationDate: null,
+    expiryDate: null,
+    autoRenewalDate: null,
+    relation: {},
+  },
+  {
+    id: 'celestialharbor.eth',
+    name: 'celestialharbor.eth',
+    truncatedName: 'celestialharbor.eth',
+    registrationDate: null,
+    expiryDate: null,
+    autoRenewalDate: null,
+    relation: {},
+  },
+]
