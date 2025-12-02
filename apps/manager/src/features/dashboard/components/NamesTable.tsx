@@ -55,7 +55,6 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
     <div className="w-full">
       <div className="mb-[20px] flex items-start justify-between">
         <div className="flex items-center gap-[40px]">
-          {/* My Names Tab */}
           <button
             type="button"
             onClick={() => setActiveTab('myNames')}
@@ -77,7 +76,6 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
             </div>
           </button>
 
-          {/* Favorites Tab */}
           <button
             type="button"
             onClick={() => setActiveTab('favorites')}
@@ -112,7 +110,6 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
         </div>
       </div>
 
-      {/* Sort Headers */}
       {activeTab === 'myNames' ? (
         <div className="relative mb-[16px] h-[32px] w-full">
           <div className="absolute top-[4px] left-[24px] flex items-center gap-[8px]">
@@ -154,7 +151,6 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
         </div>
       )}
 
-      {/* Select All (My Names Only) */}
       {activeTab === 'myNames' && (
         <div className="mb-[16px] flex h-[32px] items-center gap-[12px]">
           <div className="size-[12px] rounded-[3px] border-[#7d7d7d] border-[0.41px]" />
@@ -164,7 +160,6 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
         </div>
       )}
 
-      {/* Rows */}
       <div className="flex w-full flex-col">
         {displayNames.map((name) => {
           if (activeTab === 'favorites') {
@@ -178,7 +173,6 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
                     <div className="flex items-center gap-[12px]">
                       <Heart className="size-[16px] fill-[#ed5499] text-[#ed5499]" />
                       <div className="relative size-[36.9px] overflow-hidden rounded-full bg-[#faf9f6]">
-                        {/* Avatar placeholder */}
                         <div className="absolute inset-0 bg-gradient-to-br from-purple-200 to-blue-200" />
                       </div>
                       <div className="flex h-[24px] items-center justify-center rounded-[2.8px] bg-[#e5f7ff] px-[8px] py-[4px]">
@@ -201,7 +195,6 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
             )
           }
 
-          // My Names Row
           const daysUntilExpiry = name.expiryDate
             ? Math.ceil(
                 (name.expiryDate.getTime() - Date.now()) /
@@ -215,7 +208,6 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
               key={name.id}
               className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
             >
-              {/* Primary Name Badge if applicable - layout is slightly different for first row in Figma but general rows look uniform */}
               {name.isPrimary && (
                 <div className="mb-[10px] ml-[24px]">
                   <div className="inline-flex items-center gap-[8px] rounded-[73px] bg-[#f6f6f6] px-[6.5px] py-[3.28px]">
@@ -223,7 +215,6 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
                       Primary Name
                     </span>
                     <div className="flex size-[10px] items-center justify-center rounded-full bg-[#0080bc]">
-                      {/* Check icon */}
                       <Check
                         className="size-[6px] text-[#f6f6f6]"
                         strokeWidth={4}
@@ -234,12 +225,10 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
               )}
 
               <div className="flex items-center justify-between">
-                {/* Name Column */}
                 <div className="flex w-[340px] items-center gap-[25px]">
                   <div className="flex items-center gap-[12px]">
                     <div className="size-[12px] rounded-[3px] border-[#7d7d7d] border-[0.41px]" />
                     <div className="relative size-[36.9px] overflow-hidden rounded-full bg-[#faf9f6]">
-                      {/* Avatar placeholder */}
                       <div className="absolute inset-0 bg-gradient-to-br from-purple-200 to-blue-200" />
                     </div>
                     <div className="flex h-[24px] items-center justify-center rounded-[2.8px] bg-[#e5f7ff] px-[8px] py-[4px]">
@@ -250,7 +239,6 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
                       >
                         {name.name}
                       </Link>
-                      {/* External link icon */}
                       <ArrowUpRight
                         className="size-[7px] text-[#0080bc]"
                         strokeWidth={3}
@@ -259,7 +247,6 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
                   </div>
                 </div>
 
-                {/* Dates / Expiry Column */}
                 <div className="flex items-start gap-[30px]">
                   <div className="flex w-[120px] flex-col items-start gap-[4px]">
                     <span className="font-sans text-[#515151] text-[14px] leading-[1.8]">
@@ -270,14 +257,11 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
                       className="flex items-center gap-[4.9px] text-[#0080bc]"
                     >
                       <span className="font-sans text-[12px]">Extend</span>
-                      {/* Arrow icon */}
                       <ArrowRight className="size-[8px]" strokeWidth={3} />
                     </button>
 
-                    {/* Notification Pill */}
                     {isExpiringSoon && (
                       <div className="mt-1 flex items-center gap-[4px] rounded-[20px] bg-[#fff8f0] p-[4px]">
-                        {/* Warning Icon */}
                         <CircleAlert
                           className="size-[12px] text-[#e3a531]"
                           strokeWidth={2}
@@ -299,7 +283,6 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
         })}
       </div>
 
-      {/* Pagination */}
       <div className="mt-[32px] flex h-[56px] items-center justify-between">
         <div className="flex items-center gap-[12px]">
           <button type="button" className="size-[32px] text-[#d3d3d3]">
@@ -325,6 +308,4 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
   )
 }
 
-// Exporting FavoritesCard as empty or reusing MyNamesCard for now since DashboardPage might import it.
-// But we integrated logic above.
 export const FavoritesCard = () => null

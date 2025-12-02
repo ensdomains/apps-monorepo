@@ -30,7 +30,6 @@ export const MOCK_DASHBOARD_HEADER: DashboardHeader = {
   avatarUrl: 'https://yoginth.com/pfp.png',
 }
 
-// Mock data roughly matching the example state in the Figma dashboard
 export const MOCK_DASHBOARD_NAMES: DashboardNameRow[] = [
   {
     id: 'yoginth.eth',
