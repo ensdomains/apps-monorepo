@@ -12,7 +12,6 @@ import {
 export const DashboardPage = () => {
   const header = MOCK_DASHBOARD_HEADER
   const names = MOCK_DASHBOARD_NAMES
-
   const displayName = header.primaryName
   const hasProfile = true
 
@@ -22,7 +21,6 @@ export const DashboardPage = () => {
         hasProfile={hasProfile}
         profileName={header.primaryName}
       />
-
       <div className="min-w-0 flex-1 space-y-6 md:space-y-8">
         <div className="space-y-4 md:space-y-8">
           <div className="flex w-full items-start justify-between gap-3 rounded-[8px] border-[#0080bc] border-[0.4px] bg-[#e5f7ff] px-3 py-3 md:px-[14px] md:py-[16px]">
@@ -48,26 +46,23 @@ export const DashboardPage = () => {
               <X className="size-[11px]" />
             </button>
           </div>
-
           <h1 className="font-serif text-[#232222] text-[28px] leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]">
             Hello {displayName}
           </h1>
         </div>
-
         <PrimaryNameCard
           primaryName={header.primaryName}
           address={header.address}
           registeredDate={header.registeredDate}
           expiryDate={header.expiryDate}
           avatarUrl={header.avatarUrl}
+          names={names}
         />
-
         <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:px-[24px] md:py-[32px]">
           <div className="space-y-5">
             <MyNamesCard names={names} isLoading={false} error={undefined} />
           </div>
         </div>
-
         <DidYouKnowSection />
         <FaqSection />
       </div>

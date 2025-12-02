@@ -1,8 +1,10 @@
 import { Calendar, ChevronDown, Clock } from 'lucide-react'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import type { DashboardNameRow } from '@/features/dashboard/MOCK'
 import { formatDashboardDate } from '@/features/dashboard/utils'
 import { PrimaryBadge } from './PrimaryBadge'
+import { PrimaryNameDialog } from './PrimaryNameDialog'
 
 type PrimaryNameCardProps = {
   primaryName: string
@@ -10,14 +12,15 @@ type PrimaryNameCardProps = {
   registeredDate: Date
   expiryDate: Date
   avatarUrl?: string | null
+  names: DashboardNameRow[]
 }
 
 export const PrimaryNameCard = ({
   primaryName,
-  address,
   registeredDate,
   expiryDate,
   avatarUrl,
+  names,
 }: PrimaryNameCardProps) => {
   const formattedRegisteredDate = formatDashboardDate(registeredDate)
   const formattedExpiryDate = formatDashboardDate(expiryDate)
@@ -35,22 +38,24 @@ export const PrimaryNameCard = ({
                 className="size-full object-cover"
               />
             ) : (
-              <div className="size-full bg-gradient-to-br from-blue-400 via-blue-600 to-blue-900" />
+              <div className="size-full bg-linear-to-br from-blue-400 via-blue-600 to-blue-900" />
             )}
           </div>
 
           <div className="flex min-h-0 flex-col justify-between md:h-[200px]">
-            <div className="flex flex-col items-start gap-2 md:gap-[12px]">
-              <div className="inline-flex items-center rounded-[4px] bg-[#0080bc] px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
-                <span className="font-medium font-mono text-[#f6f6f6] text-[20px] leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]">
-                  {primaryName}
-                </span>
+            <PrimaryNameDialog primaryName={primaryName} names={names}>
+              <div className="flex flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-[12px]">
+                <div className="inline-flex items-center rounded-[4px] bg-[#0080bc] px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
+                  <span className="font-medium font-mono text-[20px] text-ens-white leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]">
+                    {primaryName}
+                  </span>
+                </div>
+                <div className="flex items-center gap-[2px]">
+                  <PrimaryBadge />
+                  <ChevronDown className="size-[17.5px] text-[#0080bc]" />
+                </div>
               </div>
-              <div className="flex items-center gap-[2px]">
-                <PrimaryBadge />
-                <ChevronDown className="size-[17.5px] text-[#0080bc]" />
-              </div>
-            </div>
+            </PrimaryNameDialog>
 
             <div className="flex flex-col gap-[8.5px]">
               <div className="flex items-center gap-[8px]">
