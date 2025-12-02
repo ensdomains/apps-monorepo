@@ -7,12 +7,17 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleAlert,
+  Heart,
   MoreHorizontal,
   Search,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Input } from '@/components/ui/input'
-import type { DashboardNameRow } from '@/features/dashboard/MOCK'
+import { Switch } from '@/components/ui/switch'
+import {
+  type DashboardNameRow,
+  MOCK_FAVORITE_NAMES,
+} from '@/features/dashboard/MOCK'
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
@@ -38,11 +43,10 @@ interface NamesTableProps {
 export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
   const [activeTab, setActiveTab] = useState<'myNames' | 'favorites'>('myNames')
 
-  // Logic to filter based on tab would go here. For now, we use the same list or filter if 'isFavorite' exists.
-  // The MOCK data doesn't explicitly have 'isFavorite', assuming all in 'names' are "My Names".
-  // For "Favorites", we might mock/filter or just show empty/same list for demo.
-
-  const displayNames = useMemo(() => names ?? [], [names])
+  const displayNames = useMemo(
+    () => (activeTab === 'myNames' ? (names ?? []) : MOCK_FAVORITE_NAMES),
+    [activeTab, names],
+  )
 
   if (isLoading) return <div>Loading...</div>
   if (error) return <div>Error loading names</div>
@@ -68,7 +72,7 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
               <span
                 className={`font-sans text-[14px] leading-[1.05] ${activeTab === 'myNames' ? 'text-[#0080bc]' : 'text-[#8c8c8c]'}`}
               >
-                {displayNames.length}
+                {names?.length ?? 0}
               </span>
             </div>
           </button>
@@ -85,10 +89,10 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
               Favorites
             </span>
             <div
-              className={`flex h-[20px] items-center justify-center rounded-[14px] px-[6.5px] py-[1.6px] ${activeTab === 'favorites' ? 'bg-[#e5f7ff]' : 'border-[#8c8c8c] border-[0.5px]'}`}
+              className={`flex h-[20px] items-center justify-center rounded-[14px] px-[6.5px] py-[1.6px] ${activeTab === 'favorites' ? 'bg-[#ffecf5]' : 'border-[#8c8c8c] border-[0.5px]'}`}
             >
               <span
-                className={`font-sans text-[14px] leading-[1.05] ${activeTab === 'favorites' ? 'text-[#0080bc]' : 'text-[#8c8c8c]'}`}
+                className={`font-sans text-[14px] leading-[1.05] ${activeTab === 'favorites' ? 'text-[#f53293]' : 'text-[#8c8c8c]'}`}
               >
                 105
               </span>
@@ -99,7 +103,9 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
         <div className="w-[292px]">
           <Input
             size="sm"
-            placeholder="Search my name..."
+            placeholder={
+              activeTab === 'myNames' ? 'Search my name...' : 'Search name...'
+            }
             startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
             className="h-[32px] rounded-[4.1px] border-none bg-[#f6f6f6] text-[#8c8c8c] text-[13.12px] placeholder:text-[#8c8c8c]"
           />
@@ -107,38 +113,95 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
       </div>
 
       {/* Sort Headers */}
-      <div className="relative mb-[16px] h-[32px] w-full">
-        <div className="absolute top-[4px] left-[24px] flex items-center gap-[8px]">
-          <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
-            Name
-          </span>
-          <div className="flex flex-col">
-            <ChevronDown className="size-[8.2px] rotate-180 text-[#7d7d7d]" />
-            <ChevronDown className="size-[8.2px] text-[#7d7d7d]" />
+      {activeTab === 'myNames' ? (
+        <div className="relative mb-[16px] h-[32px] w-full">
+          <div className="absolute top-[4px] left-[24px] flex items-center gap-[8px]">
+            <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
+              Name
+            </span>
+            <div className="flex flex-col">
+              <ChevronDown className="size-[8.2px] rotate-180 text-[#7d7d7d]" />
+              <ChevronDown className="size-[8.2px] text-[#7d7d7d]" />
+            </div>
+          </div>
+          <div className="absolute top-[4px] left-[652px] flex items-center gap-[8px]">
+            <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
+              Expiry
+            </span>
+            <div className="flex flex-col">
+              <ChevronDown className="size-[8.2px] rotate-180 text-[#7d7d7d]" />
+              <ChevronDown className="size-[8.2px] text-[#7d7d7d]" />
+            </div>
           </div>
         </div>
-        <div className="absolute top-[4px] left-[652px] flex items-center gap-[8px]">
-          <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
-            Expiry
-          </span>
-          <div className="flex flex-col">
-            <ChevronDown className="size-[8.2px] rotate-180 text-[#7d7d7d]" />
-            <ChevronDown className="size-[8.2px] text-[#7d7d7d]" />
+      ) : (
+        <div className="flex h-[32px] w-full items-center justify-between pl-[28px]">
+          <div className="flex items-center gap-[8px]">
+            <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
+              Name
+            </span>
+            <div className="flex flex-col">
+              <ChevronDown className="size-[8.2px] rotate-180 text-[#7d7d7d]" />
+              <ChevronDown className="size-[8.2px] text-[#7d7d7d]" />
+            </div>
+          </div>
+          <div className="flex items-center gap-[6px]">
+            <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
+              Receive expiry notifications
+            </span>
+            <Switch className="h-[16px] w-[28px]" />
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Select All */}
-      <div className="mb-[16px] flex h-[32px] items-center gap-[12px]">
-        <div className="size-[12px] rounded-[3px] border-[#7d7d7d] border-[0.41px]" />
-        <span className="font-sans text-[#232222] text-[14px] tracking-[0.28px]">
-          Select all
-        </span>
-      </div>
+      {/* Select All (My Names Only) */}
+      {activeTab === 'myNames' && (
+        <div className="mb-[16px] flex h-[32px] items-center gap-[12px]">
+          <div className="size-[12px] rounded-[3px] border-[#7d7d7d] border-[0.41px]" />
+          <span className="font-sans text-[#232222] text-[14px] tracking-[0.28px]">
+            Select all
+          </span>
+        </div>
+      )}
 
       {/* Rows */}
       <div className="flex w-full flex-col">
         {displayNames.map((name) => {
+          if (activeTab === 'favorites') {
+            return (
+              <div
+                key={name.id}
+                className="flex h-[64px] items-center justify-between border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
+              >
+                <div className="flex w-full items-center justify-between">
+                  <div className="flex w-[300px] items-center gap-[25px]">
+                    <div className="flex items-center gap-[12px]">
+                      <Heart className="size-[16px] fill-[#ed5499] text-[#ed5499]" />
+                      <div className="relative size-[36.9px] overflow-hidden rounded-full bg-[#faf9f6]">
+                        {/* Avatar placeholder */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-purple-200 to-blue-200" />
+                      </div>
+                      <div className="flex h-[24px] items-center justify-center rounded-[2.8px] bg-[#e5f7ff] px-[8px] py-[4px]">
+                        <Link
+                          to="/p/$name"
+                          params={{ name: name.name }}
+                          className="mr-2 font-medium font-mono text-[#0080bc] text-[16px] tracking-[-0.32px]"
+                        >
+                          {name.name}
+                        </Link>
+                        <ArrowUpRight
+                          className="size-[7px] text-[#0080bc]"
+                          strokeWidth={3}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          }
+
+          // My Names Row
           const daysUntilExpiry = name.expiryDate
             ? Math.ceil(
                 (name.expiryDate.getTime() - Date.now()) /
@@ -264,4 +327,4 @@ export const MyNamesCard = ({ names, isLoading, error }: NamesTableProps) => {
 
 // Exporting FavoritesCard as empty or reusing MyNamesCard for now since DashboardPage might import it.
 // But we integrated logic above.
-export const FavoritesCard = ({ names }: { names?: DashboardNameRow[] }) => null
+export const FavoritesCard = () => null
