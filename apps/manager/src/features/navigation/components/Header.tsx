@@ -5,7 +5,6 @@ import {
   ChevronDown,
   Copy,
   CreditCard,
-  LayoutGrid,
   RefreshCcw,
   Unlink,
   User,
@@ -368,25 +367,26 @@ const DisconnectedContent = () => {
 }
 
 const Menu = () => {
-  const { theme, toggleTheme } = useTheme()
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="flex size-[56px] items-center justify-center rounded-[100px] border-[#e6e6e6] border-[0.4px] p-[11px] transition-colors hover:bg-gray-50"
-        >
-          <LayoutGrid className="size-[24px]" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent collisionPadding={16}>
-        <DropdownMenuItem onClick={toggleTheme}>
-          {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
+  // const { theme, toggleTheme } = useTheme()
+  //
+  // return (
+  //   <DropdownMenu>
+  //     <DropdownMenuTrigger asChild>
+  //       <button
+  //         type="button"
+  //         className="flex size-[56px] items-center justify-center rounded-[100px] border-[#e6e6e6] border-[0.4px] p-[11px] transition-colors hover:bg-gray-50"
+  //       >
+  //         <LayoutGrid className="size-[24px]" />
+  //       </button>
+  //     </DropdownMenuTrigger>
+  //     <DropdownMenuContent collisionPadding={16}>
+  //       <DropdownMenuItem onClick={toggleTheme}>
+  //         {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+  //       </DropdownMenuItem>
+  //     </DropdownMenuContent>
+  //   </DropdownMenu>
+  // )
+  return null
 }
 
 export const Header = () => {
