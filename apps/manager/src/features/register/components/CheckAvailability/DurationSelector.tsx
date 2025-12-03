@@ -71,7 +71,9 @@ export const DurationSelector = ({
             {/* Left: Year label */}
             <div className="flex w-[50%] items-center gap-3 md:w-[60%] md:gap-5 lg:w-[40%] xl:w-[60%]">
               <span className="font-normal text-ens-blue-dark text-sm leading-none tracking-tighter md:text-2xl">
-                {duration} year{duration > 1 ? 's' : ''}
+                {duration === 5
+                  ? '5+ years'
+                  : `${duration} year${duration > 1 ? 's' : ''}`}
               </span>
             </div>
 

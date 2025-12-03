@@ -229,6 +229,11 @@ const UserMenuContent = ({
                 ))}
               </div>
             ) : null}
+            {/* Alpha release info */}
+            <p className="mt-2 text-ens-gray text-xs leading-relaxed">
+              💡 For this alpha release, accounts are automatically funded with
+              test tokens.
+            </p>
           </div>
         )}
 
@@ -237,104 +242,10 @@ const UserMenuContent = ({
             ✓ Copied to clipboard
           </div>
         )}
-
-        {/* Dev-only: Manual funding trigger button */}
-        {import.meta.env.DEV && accountAddress && (
-          <div className="mb-4 border-red-300 border-t pt-4">
-            <div className="mb-2 font-medium text-red-600 text-xs uppercase tracking-wide">
-              🧪 Dev Only
-            </div>
-            <ManualFundingButton accountAddress={accountAddress} />
-          </div>
-        )}
       </div>
 
       {/* Menu Items - will be rendered separately for dropdown vs drawer */}
     </>
-  )
-}
-
-// Dev-only component for manual funding trigger
-const ManualFundingButton = ({
-  accountAddress,
-}: {
-  accountAddress: string
-}) => {
-  const [isFunding, setIsFunding] = useState(false)
-  const [fundingError, setFundingError] = useState<string | null>(null)
-  const [fundingSuccess, setFundingSuccess] = useState(false)
-
-  const handleManualFunding = async () => {
-    setIsFunding(true)
-    setFundingError(null)
-    setFundingSuccess(false)
-
-    try {
-      const apiBaseUrl =
-        import.meta.env.VITE_API_BASE_URL ||
-        'https://api-worker.ens.workers.dev'
-      const response = await fetch(`${apiBaseUrl}/p/fund-smart-account`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ accountAddress }),
-      })
-
-      if (!response.ok) {
-        const errorData = (await response
-          .json()
-          .catch(() => ({ error: 'Unknown error' }))) as { error: string }
-        throw new Error(errorData.error || 'Failed to fund smart account')
-      }
-
-      const result = (await response.json()) as {
-        success: boolean
-        daiTxHash?: string
-        usdcTxHash?: string
-      }
-
-      console.log('✅ Manual funding successful:', result)
-      setFundingSuccess(true)
-      setTimeout(() => setFundingSuccess(false), 5000)
-    } catch (error) {
-      console.error('❌ Manual funding failed:', error)
-      setFundingError(error instanceof Error ? error.message : 'Unknown error')
-    } finally {
-      setIsFunding(false)
-    }
-  }
-
-  return (
-    <div className="space-y-2">
-      <button
-        type="button"
-        onClick={handleManualFunding}
-        disabled={isFunding}
-        className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-red-400 bg-red-50 px-4 py-2 text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
-      >
-        {isFunding ? (
-          <>
-            <div className="size-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
-            <span className="font-medium text-sm">Funding...</span>
-          </>
-        ) : (
-          <span className="font-medium text-sm">🪙 Trigger Auto-Funding</span>
-        )}
-      </button>
-      {fundingError && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-2">
-          <div className="text-red-600 text-xs">{fundingError}</div>
-        </div>
-      )}
-      {fundingSuccess && (
-        <div className="rounded-lg border border-green-300 bg-green-50 p-2">
-          <div className="text-green-700 text-xs">
-            ✓ Funding initiated successfully! Check balances in a few seconds.
-          </div>
-        </div>
-      )}
-    </div>
   )
 }
 
@@ -492,9 +403,8 @@ const ConnectedContent = () => {
       {isDesktop ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>{triggerButton}</DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80">
+          <DropdownMenuContent align="end" className="w-96">
             <UserMenuContent {...menuContentProps} />
-            <DropdownMenuSeparator />
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link to="/auto-renewal" className="text-ens-blue-dark">
@@ -648,18 +558,24 @@ export const Header = () => {
 
   return (
     <nav className="sticky top-0 z-10 flex min-w-0 items-center justify-between gap-4 bg-background px-4 py-4 md:px-10 md:py-7">
-      <Link to="/" className="shrink-0 py-2">
-        <img
-          src={ensMobileLogo}
-          alt="ENS Logo"
-          className="h-8 shrink-0 md:hidden"
-        />
-        <img
-          src={ensLogo}
-          alt="ENS Logo"
-          className="hidden h-8 shrink-0 md:block"
-        />
-      </Link>
+      <div className="flex shrink-0 items-center gap-3">
+        <Link to="/" className="shrink-0 py-2">
+          <img
+            src={ensMobileLogo}
+            alt="ENS Logo"
+            className="h-8 shrink-0 md:hidden"
+          />
+          <img
+            src={ensLogo}
+            alt="ENS Logo"
+            className="hidden h-8 shrink-0 md:block"
+          />
+        </Link>
+        {/* Sepolia Chain Badge */}
+        <span className="rounded-full border border-ens-blue-light bg-ens-lapis-dust px-2.5 py-1 font-medium font-mono text-ens-blue-dark text-xs uppercase tracking-wide">
+          Sepolia
+        </span>
+      </div>
       <div className="flex min-w-0 items-center gap-2 md:gap-4">
         {!walletLoading ? (
           isConnected ? (

@@ -1,7 +1,7 @@
 'use client'
 
 import { type RhinestoneAccount, RhinestoneSDK } from '@rhinestone/sdk'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
 import { type Address, createPublicClient, formatUnits, http } from 'viem'
 import { sepolia } from 'viem/chains'
@@ -42,6 +42,7 @@ export interface RhinestoneAccountState {
 export function useRhinestoneAccount() {
   const account = useConnection()
   const { data: walletClient } = useWalletClient()
+  const queryClient = useQueryClient()
 
   const [state, setState] = useState<RhinestoneAccountState>({
     rhinestoneAccount: null,
@@ -53,7 +54,6 @@ export function useRhinestoneAccount() {
     autoFundingError: null,
   })
 
-  // ETH Balance for EOA
   const { data: eoaEthBalance, isLoading: isLoadingEoaEth } = useQuery({
     queryKey: ['eoaEthBalance', account.address],
     queryFn: async () => {
@@ -76,7 +76,6 @@ export function useRhinestoneAccount() {
     retryDelay: 5000,
   })
 
-  // ETH Balance for Smart Account
   const { data: smartAccountEthBalance, isLoading: isLoadingSmartAccountEth } =
     useQuery({
       queryKey: ['smartAccountEthBalance', state.accountAddress],
@@ -109,7 +108,6 @@ export function useRhinestoneAccount() {
         try {
           const balances = []
 
-          // Fetch balances for all supported tokens
           for (const [tokenName, tokenAddress] of Object.entries(
             SUPPORTED_TOKENS,
           )) {
@@ -135,7 +133,6 @@ export function useRhinestoneAccount() {
               })
             } catch (_error) {
               console.error(`Failed to fetch ${tokenName} balance:`, _error)
-              // Continue with other tokens
             }
           }
 
@@ -151,7 +148,6 @@ export function useRhinestoneAccount() {
     })
 
   const initializeRhinestoneAccount = useCallback(async () => {
-    // Check wallet connection and availability of a signing wallet client
     const hasWagmiAccount = Boolean((walletClient as any)?.account)
     if (!account.isConnected || !walletClient || !hasWagmiAccount) {
       console.log('❌ Rhinestone initialization skipped - wallet not connected')
@@ -176,10 +172,7 @@ export function useRhinestoneAccount() {
         )
       }
 
-      // Convert walletClient to account (guaranteed present above)
       const account = walletClientToAccount(walletClient)
-
-      // Wrap the account for Para compatibility
       const wrappedAccount = wrapParaAccount(account)
 
       const sdk = new RhinestoneSDK({
@@ -190,18 +183,6 @@ export function useRhinestoneAccount() {
         },
       })
 
-      // const sessionOwnerAccount = privateKeyToAccount(generatePrivateKey())
-
-      // // create session owner account
-      // const session: Session = {
-      //   owners: {
-      //     type: 'ecdsa',
-      //     accounts: [sessionOwnerAccount],
-      //   }
-
-      // }
-
-      // Create smart account with the appropriate account (Para wrapped or direct)
       const rhinestoneAccount = await sdk.createAccount({
         owners: {
           type: 'ecdsa' as const,
@@ -213,7 +194,7 @@ export function useRhinestoneAccount() {
 
       const rhinestoneConfig = {
         chain: customSepolia,
-        bundlerUrl: undefined, // Pimlico URL managed internally by SDK
+        bundlerUrl: undefined,
         paymasterUrl: undefined,
         sponsorshipPolicyId: undefined,
         rhinestoneApiKey: apiKey,
@@ -227,11 +208,6 @@ export function useRhinestoneAccount() {
         isLoading: false,
         error: null,
       }))
-
-      // Trigger auto-funding after account is created
-      if (accountAddress) {
-        triggerAutoFunding(accountAddress)
-      }
     } catch (error) {
       console.error('Failed to initialize Rhinestone account:', error)
 
@@ -294,13 +270,37 @@ export function useRhinestoneAccount() {
 
   const triggerAutoFunding = useCallback(
     async (accountAddress: string) => {
-      // Skip if already funding or already funded (has balances)
-      if (
-        state.isAutoFunding ||
-        (stablecoinBalances && stablecoinBalances.length > 0)
-      ) {
+      if (state.isAutoFunding) {
         return
       }
+
+      const MINIMUM_BALANCE_USD = 12
+      let totalBalanceUSD = 0
+
+      if (stablecoinBalances && stablecoinBalances.length > 0) {
+        for (const balance of stablecoinBalances) {
+          const match = balance.formattedBalance?.match(
+            /^([\d.]+)\s+(USDC|DAI)$/i,
+          )
+          if (match && match[1]) {
+            const amount = parseFloat(match[1])
+            if (!Number.isNaN(amount)) {
+              totalBalanceUSD += amount
+            }
+          }
+        }
+      }
+
+      if (totalBalanceUSD >= MINIMUM_BALANCE_USD) {
+        console.log(
+          `💰 Sufficient balance ($${totalBalanceUSD.toFixed(2)}), skipping autofund`,
+        )
+        return
+      }
+
+      console.log(
+        `💸 Insufficient balance ($${totalBalanceUSD.toFixed(2)}), triggering autofund`,
+      )
 
       setState((prev) => ({
         ...prev,
@@ -331,12 +331,22 @@ export function useRhinestoneAccount() {
           success: boolean
           daiTxHash?: string
           usdcTxHash?: string
+          ethTxHash?: string
         }
 
         console.log('✅ Auto-funding initiated:', result)
 
-        // Invalidate balances query to refetch after funding
-        // The query will automatically refetch due to refetchInterval
+        queryClient.invalidateQueries({
+          queryKey: ['stablecoinBalances', accountAddress],
+        })
+        queryClient.invalidateQueries({
+          queryKey: ['smartAccountEthBalance', accountAddress],
+        })
+        if (account.address) {
+          queryClient.invalidateQueries({
+            queryKey: ['eoaEthBalance', account.address],
+          })
+        }
       } catch (error) {
         console.error('❌ Auto-funding failed:', error)
         setState((prev) => ({
@@ -346,22 +356,37 @@ export function useRhinestoneAccount() {
             error instanceof Error ? error.message : 'Unknown error',
         }))
       } finally {
-        // Keep isAutoFunding true for a bit to show processing, then set to false
-        // The UI will show balances once they're available
         setTimeout(() => {
           setState((prev) => ({
             ...prev,
             isAutoFunding: false,
           }))
-        }, 5000) // Show processing for 5 seconds, then let balances query handle it
+        }, 5000)
       }
     },
-    [state.isAutoFunding, stablecoinBalances],
+    [state.isAutoFunding, stablecoinBalances, queryClient, account.address],
   )
 
   useEffect(() => {
     initializeRhinestoneAccount()
   }, [initializeRhinestoneAccount])
+
+  useEffect(() => {
+    if (
+      state.accountAddress &&
+      !state.isLoading &&
+      !isLoadingBalances &&
+      !state.isAutoFunding
+    ) {
+      triggerAutoFunding(state.accountAddress)
+    }
+  }, [
+    state.accountAddress,
+    state.isLoading,
+    isLoadingBalances,
+    state.isAutoFunding,
+    triggerAutoFunding,
+  ])
 
   return {
     ...state,

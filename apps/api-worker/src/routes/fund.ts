@@ -15,15 +15,12 @@ import { logger, prettifyError } from '../utils/logger'
 
 const app = createApp()
 
-// Token addresses on Sepolia (matching manager app)
 const MOCK_USDC_ADDRESS: Address = '0x9028ab8e872af36c30c959a105cb86d1038412ae'
 const MOCK_DAI_ADDRESS: Address = '0x6630589c2e6364a96bb7acf0d9d64ac9c1dd3528'
 
-// Mint amounts
-const MINT_AMOUNT = parseUnits('1000', 18) // 1000 DAI (18 decimals)
-const USDC_MINT_AMOUNT = parseUnits('1000', 6) // 1000 USDC (6 decimals)
+const MINT_AMOUNT = parseUnits('1000', 18)
+const USDC_MINT_AMOUNT = parseUnits('1000', 6)
 
-// ERC20 ABI for mint function
 const ERC20_ABI = [
   {
     inputs: [
@@ -37,7 +34,6 @@ const ERC20_ABI = [
   },
 ] as const
 
-// Sepolia RPC URL
 const SEPOLIA_RPC_URL = 'https://ethereum-sepolia-rpc.publicnode.com'
 
 app.post('/fund-smart-account', async (c) => {
@@ -59,24 +55,29 @@ app.post('/fund-smart-account', async (c) => {
       })
     }
 
-    // Get private key from environment
-    const privateKey = c.env.FUNDING_PRIVATE_KEY as string | undefined
+    const privateKey = process.env.FUNDING_PRIVATE_KEY || ''
     if (!privateKey) {
-      logger.error('FUNDING_PRIVATE_KEY not configured')
       throw new HTTPException(500, {
-        message: 'Funding service not configured',
+        message: 'FUNDING_PRIVATE_KEY is not set',
       })
     }
 
-    // Ensure private key has 0x prefix
     const formattedPrivateKey = privateKey.startsWith('0x')
       ? (privateKey as Hex)
       : (`0x${privateKey}` as Hex)
 
-    // Create account from private key
+    if (formattedPrivateKey.length !== 66) {
+      logger.error('Invalid private key format', {
+        length: formattedPrivateKey.length,
+        hasPrefix: formattedPrivateKey.startsWith('0x'),
+      })
+      throw new HTTPException(500, {
+        message: 'Invalid private key format',
+      })
+    }
+
     const account = privateKeyToAccount(formattedPrivateKey)
 
-    // Create clients
     const publicClient = createPublicClient({
       chain: sepolia,
       transport: http(SEPOLIA_RPC_URL),
@@ -94,7 +95,6 @@ app.post('/fund-smart-account', async (c) => {
       targetAccount: accountAddress,
     })
 
-    // Check wallet balance
     const balance = await publicClient.getBalance({
       address: walletAddress,
     })
@@ -111,10 +111,10 @@ app.post('/fund-smart-account', async (c) => {
     const results: {
       daiTxHash?: string
       usdcTxHash?: string
+      ethTxHash?: string
       errors?: string[]
     } = {}
 
-    // Mint DAI
     try {
       logger.info('Minting DAI', { to: accountAddress })
       const daiTxHash = await walletClient.writeContract({
@@ -127,7 +127,6 @@ app.post('/fund-smart-account', async (c) => {
       results.daiTxHash = daiTxHash
       logger.info('DAI mint transaction submitted', { txHash: daiTxHash })
 
-      // Wait for transaction (optional - can be async)
       await publicClient.waitForTransactionReceipt({
         hash: daiTxHash,
       })
@@ -140,7 +139,6 @@ app.post('/fund-smart-account', async (c) => {
       results.errors.push(`DAI mint failed: ${errorMessage}`)
     }
 
-    // Mint USDC
     try {
       logger.info('Minting USDC', { to: accountAddress })
       const usdcTxHash = await walletClient.writeContract({
@@ -153,7 +151,6 @@ app.post('/fund-smart-account', async (c) => {
       results.usdcTxHash = usdcTxHash
       logger.info('USDC mint transaction submitted', { txHash: usdcTxHash })
 
-      // Wait for transaction (optional - can be async)
       await publicClient.waitForTransactionReceipt({
         hash: usdcTxHash,
       })
@@ -166,10 +163,38 @@ app.post('/fund-smart-account', async (c) => {
       results.errors.push(`USDC mint failed: ${errorMessage}`)
     }
 
-    // Return success if at least one transaction succeeded
-    if (results.errors && results.errors.length === 2) {
+    try {
+      const ethAmount = parseUnits('0.01', 18)
+      logger.info('Sending ETH to smart account for gas', {
+        to: accountAddress,
+        amount: formatUnits(ethAmount, 18),
+      })
+
+      const ethTxHash = await walletClient.sendTransaction({
+        to: accountAddress as Address,
+        value: ethAmount,
+      })
+
+      results.ethTxHash = ethTxHash
+      logger.info('ETH transfer transaction submitted', { txHash: ethTxHash })
+
+      await publicClient.waitForTransactionReceipt({
+        hash: ethTxHash,
+      })
+      logger.info('ETH transfer transaction confirmed', { txHash: ethTxHash })
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error)
+      logger.error('Failed to send ETH', { error: errorMessage })
+      results.errors = results.errors || []
+      results.errors.push(`ETH transfer failed: ${errorMessage}`)
+    }
+
+    const failedCount = results.errors?.length || 0
+    const totalAttempts = 3
+    if (failedCount === totalAttempts) {
       throw new HTTPException(500, {
-        message: `Both mints failed: ${results.errors.join('; ')}`,
+        message: `All funding transactions failed: ${results.errors?.join('; ')}`,
       })
     }
 
