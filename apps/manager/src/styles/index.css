@@ -21,7 +21,7 @@
   }
 
   button,
-  [role='button'],
+  [role="button"],
   a {
     @apply cursor-pointer;
   }
