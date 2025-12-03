@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { HelpCircle, LayoutGrid, Search, Settings, User } from 'lucide-react'
+import { LayoutGrid, Search, User } from 'lucide-react'
 import { Button, LinkButton } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -61,28 +61,6 @@ export const DashboardSidebar = ({
                   <span className="font-sans text-[14px]">Profile</span>
                 </Button>
               )}
-            </nav>
-          </div>
-
-          <div className="space-y-2">
-            <div className="font-sans text-[#8b8b8b] text-[12px] uppercase leading-[16px]">
-              SETTINGS
-            </div>
-            <nav className="space-y-[2px]">
-              <Button
-                variant="ghost"
-                className="h-auto w-full justify-start rounded-[8px] bg-transparent px-3 py-[10px] text-[#6b6b6b] hover:bg-gray-100 hover:text-[#6b6b6b]"
-              >
-                <Settings className="size-6" />
-                <span className="mr-3 font-sans text-[14px]">Settings</span>
-              </Button>
-              <Button
-                variant="ghost"
-                className="h-auto w-full justify-start rounded-[8px] bg-transparent px-3 py-[10px] text-[#6b6b6b] hover:bg-gray-100 hover:text-[#6b6b6b]"
-              >
-                <HelpCircle className="size-6" />
-                <span className="mr-3 font-sans text-[14px]">Help</span>
-              </Button>
             </nav>
           </div>
         </div>

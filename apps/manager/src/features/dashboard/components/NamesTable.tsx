@@ -71,7 +71,7 @@ export const NamesTable = ({
   return (
     <div className="w-full">
       <div className="mb-[20px] flex flex-col gap-4 md:gap-[20px]">
-        <div className="flex items-center gap-4 overflow-x-auto md:gap-[40px]">
+        <div className="flex items-center gap-4 md:gap-[40px]">
           {[
             {
               key: 'myNames' as const,
@@ -89,13 +89,11 @@ export const NamesTable = ({
             },
           ].map((tab) => {
             const isActive = activeTab === tab.key
-            const label =
-              tab.key === 'favorites' && isActive ? 'Favorites List' : tab.label
 
             return (
               <DashboardTabButton
                 key={tab.key}
-                label={label}
+                label={tab.label}
                 count={tab.count}
                 isActive={isActive}
                 activeBadgeClass={tab.activeBadgeClass}
