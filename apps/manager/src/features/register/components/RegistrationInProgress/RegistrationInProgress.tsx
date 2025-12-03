@@ -46,6 +46,7 @@ function mapMachineStateToProgressStage(
     case 'committingTransaction':
     case 'waitingForCommitment':
     case 'commitmentCooldown':
+    case 'validatingCommitment':
       return 'name-registering'
     case 'approvingToken':
     case 'waitingForApproval':
@@ -118,7 +119,7 @@ export const RegistrationInProgress = ({
   })
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-0 pt-10 pb-6 md:px-6">
       <ProgressBar
         stage={progressStage}
         machineState={typeof stateValue === 'string' ? stateValue : 'error'}

@@ -31,87 +31,87 @@ const STATE_MESSAGES: Record<string, { primary: string; fact?: string }[]> = {
   preparingCommitment: [
     {
       primary: 'Name registering',
-      fact: 'ENS names are stored on the Ethereum blockchain as NFTs',
+      fact: 'ENS names are stored on-chain as NFTs',
     },
     {
       primary: 'Preparing commitment',
-      fact: 'ENS uses a commit-reveal scheme to prevent front-running',
+      fact: 'Commit-reveal prevents front-running',
     },
   ],
   committingTransaction: [
     {
       primary: 'Committing',
-      fact: 'The commitment hides your registration intent from others',
+      fact: 'Commitment hides your registration intent',
     },
     {
       primary: 'Waiting for signature',
-      fact: 'ENS names can be up to 255 characters long',
+      fact: 'ENS names can be up to 255 characters',
     },
   ],
   waitingForCommitment: [
     {
       primary: 'Waiting for transaction',
-      fact: 'ENS was launched in 2017 and has over 2 million names registered',
+      fact: 'Over 2 million ENS names registered',
     },
     {
       primary: 'Confirming commitment',
-      fact: 'You can set multiple records for your ENS name (ETH, BTC, email, etc.)',
+      fact: 'Set multiple records: ETH, BTC, email',
     },
   ],
   commitmentCooldown: [
     {
       primary: 'Waiting period',
-      fact: 'The 60-second wait prevents front-running attacks',
+      fact: '60-second wait prevents attacks',
     },
     {
       primary: 'Almost ready',
-      fact: 'ENS names work across all Ethereum-compatible chains',
+      fact: 'Works across all EVM-compatible chains',
     },
   ],
   approvingToken: [
     {
       primary: 'Approving',
-      fact: 'Token approval allows the registrar to charge your payment',
+      fact: 'Approval allows registrar to charge',
     },
     {
       primary: 'Authorizing payment',
-      fact: 'ENS supports USDC and DAI for registration payments',
+      fact: 'Supports USDC and DAI payments',
     },
   ],
   waitingForApproval: [
     {
       primary: 'Waiting for approval',
-      fact: 'ENS names can be transferred to other wallets anytime',
+      fact: 'Transfer your name to any wallet',
     },
     {
       primary: 'Confirming approval',
-      fact: 'You can set a reverse record to link your address to your ENS name',
+      fact: 'Set reverse record to show your name',
     },
   ],
   registeringDomain: [
     {
       primary: 'Registering',
-      fact: 'ENS names are permanent and can only expire if not renewed',
+      fact: 'Names are permanent, only expire if not renewed',
     },
     {
       primary: 'Finalizing registration',
-      fact: 'ENS supports subdomains - create unlimited subdomains for free',
+      fact: 'Create unlimited subdomains for free',
     },
   ],
   waitingForRegistration: [
     {
       primary: 'Waiting for registration',
-      fact: 'ENS names are human-readable addresses for crypto wallets',
+      fact: 'Human-readable addresses for wallets',
     },
     {
       primary: 'Almost complete',
-      fact: 'You can use your ENS name to receive crypto from any chain',
+      fact: 'Receive crypto from any chain',
     },
   ],
   success: [
     {
       primary: 'Registration Complete!',
-      fact: 'Your ENS domain is now active and ready to use',
+      fact: 'Your ENS domain is now active',
     },
   ],
 }
@@ -119,7 +119,7 @@ const STATE_MESSAGES: Record<string, { primary: string; fact?: string }[]> = {
 const DEFAULT_MESSAGES = [
   {
     primary: 'Name registering',
-    fact: 'ENS names make crypto addresses human-readable',
+    fact: 'Makes crypto addresses human-readable',
   },
 ]
 
@@ -173,7 +173,7 @@ export const ProgressBar = ({
   return (
     <div className={cn('mx-auto w-full max-w-6xl', className)}>
       {isComplete ? (
-        <div className="mx-auto flex max-w-2xl items-start gap-3 rounded-[10px] border border-ens-peridot-border bg-ens-peridot-bg p-4">
+        <div className="flex items-start gap-3 rounded-lg border border-ens-peridot-border bg-ens-peridot-bg p-4">
           <CheckCircle2
             className="h-4 w-4 shrink-0 text-ens-peridot-text-dark"
             aria-hidden="true"
@@ -203,7 +203,7 @@ export const ProgressBar = ({
         </div>
       ) : (
         <div className="mt-1 flex flex-col gap-1">
-          <div className="relative min-h-12">
+          <div className="relative min-h-14 sm:min-h-12">
             <div
               className={cn(
                 'absolute inset-0 transition-all duration-300 ease-in-out',

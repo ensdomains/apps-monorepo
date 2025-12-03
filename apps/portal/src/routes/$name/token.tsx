@@ -151,7 +151,7 @@ function RouteComponent() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
+      <div className="flex flex-col gap-6 max-w-360 mx-auto w-full">
         <header>
           <h1 className="text-[28px] font-medium">Token info</h1>
         </header>

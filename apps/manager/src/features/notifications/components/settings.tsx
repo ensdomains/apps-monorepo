@@ -1,97 +1,97 @@
+import { useQuery } from '@tanstack/react-query'
 import {
-  ArrowRightLeft,
-  Calendar,
-  Clock,
-  type LucideIcon,
-  MailIcon,
+  AlertTriangle,
+  Mail,
+  MessageSquare,
+  Plus,
+  Smartphone,
 } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { useState } from 'react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { channelsQueryOptions } from '../queries/channels'
+import { AddChannelModal } from './channels/add-channel-modal'
+import { ChannelCard } from './channels/channel-card'
 
-const NOTIFICATION_OPTIONS: {
-  icon?: LucideIcon
-  label: string
-  description: string
-  recommended?: boolean
-}[] = [
-  {
-    icon: ArrowRightLeft,
-    label: 'Name Transfers',
-    description: 'Get notified when your domains are transferred',
-    recommended: true,
-  },
-  {
-    icon: Calendar,
-    label: 'Name Expiry',
-    description:
-      'Get notified when your domains are expired. 30, 7, 1 days before expiry',
-    recommended: true,
-  },
-  {
-    icon: Clock,
-    label: 'ENS Labs Updates',
-    description:
-      'Get updated on the latest releases and news from the ENS Labs team.',
-  },
-]
+export function NotificationSettings() {
+  const { data: channels = [], isLoading } = useQuery(channelsQueryOptions)
+  const [showAddModal, setShowAddModal] = useState(false)
 
-export const NotificationSettings = () => {
+  const verifiedChannels = channels.filter(
+    (channel) => channel.status === 'verified',
+  )
+  const hasVerifiedChannels = verifiedChannels.length > 0
+
   return (
-    <div>
-      <h1 className="font-normal text-2xl">Notification Settings</h1>
-      <p>
-        Manage your notification preferences for your name(s) and ENS-related
-        updates.
-      </p>
-
-      <div className="mt-4 rounded-md bg-gray-200 p-5">
-        <div className="mb-5">
-          <h2 className="mb-2 flex items-center gap-2 font-medium text-gray-900 text-lg">
-            <MailIcon className="size-5" />
-            Email Notifications
-          </h2>
-          <p>Receive notifications via email for important domain events</p>
-        </div>
-
-        <div className="mb-8 space-y-4">
-          <div className="font-medium">Notification Email Address</div>
-          <div className="flex gap-2">
-            <Input />
-            <Button>Save</Button>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          {NOTIFICATION_OPTIONS.map((option) => (
-            <div
-              key={option.label}
-              // bottom border if isn't last
-              className="space-y-3 border-gray-300 not-last:border-b not-last:pb-4"
-            >
-              <div className="flex items-center gap-2">
-                {option.icon && <option.icon className="size-4" />}
-                <div>{option.label}</div>
-                {option.recommended && (
-                  <Badge variant="secondary">Recommended</Badge>
-                )}
-              </div>
-              <div className="flex items-center justify-between gap-2 font-normal text-neutral-500">
-                <Label className="font-normal text-sm">
-                  {option.description}
-                </Label>
-                <Switch />
-              </div>
+    <div className="space-y-6">
+      {/* Global warning banner */}
+      {!hasVerifiedChannels && (
+        <Alert className="border-amber-200 bg-amber-50">
+          <AlertTriangle className="block h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800">
+            <div className="flex items-center justify-between gap-2">
+              <span>Add a delivery channel to receive critical alerts</span>
             </div>
-          ))}
-        </div>
-      </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
-      <div className="mt-8">
-        <Button className="w-full">Save Settings</Button>
-      </div>
+      {/* Channels Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Smartphone className="h-5 w-5" />
+                Delivery Channels
+              </CardTitle>
+              <CardDescription>
+                Manage where you receive notifications
+              </CardDescription>
+            </div>
+            <Button onClick={() => setShowAddModal(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Channel
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-3">
+              {[1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="h-16 animate-pulse rounded-lg bg-muted"
+                />
+              ))}
+            </div>
+          ) : channels.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground">
+              <Smartphone className="mx-auto mb-4 h-12 w-12 opacity-50" />
+              <p>No delivery channels configured</p>
+              <p className="text-sm">
+                Add an email or Telegram channel to receive notifications
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {channels.map((channel) => (
+                <ChannelCard key={channel.id} channel={channel} />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Add Channel Modal */}
+      <AddChannelModal open={showAddModal} onOpenChange={setShowAddModal} />
     </div>
   )
 }

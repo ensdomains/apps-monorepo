@@ -1,3 +1,4 @@
+export { DashboardProfilePreview } from './DashboardProfilePreview'
 export { ExampleNameCard } from './ExampleNameCard'
 export { HomeSearchInput } from './HomeSearchInput'
 export { LinkBlock } from './LinkBlock'

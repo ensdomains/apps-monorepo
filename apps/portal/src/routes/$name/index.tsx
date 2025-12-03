@@ -109,7 +109,7 @@ function App() {
   if (isLoading) return <LoadingMessage />
 
   return (
-    <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl lg:gap-6 xl:max-w-5xl mx-auto">
+    <div className="flex flex-col gap-4 p-4 w-full lg:gap-6 max-w-360 mx-auto">
       <div className="flex flex-row justify-between items-baseline">
         <h1 className="text-[28px] font-medium leading-none">Overview</h1>
       </div>

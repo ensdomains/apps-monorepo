@@ -11,15 +11,20 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as NotificationsRouteRouteImport } from './routes/notifications/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as NotificationsIndexRouteImport } from './routes/notifications/index'
 import { Route as AutoRenewalIndexRouteImport } from './routes/auto-renewal/index'
 import { Route as PaymentListRouteImport } from './routes/payment/list'
 import { Route as PaymentAddRouteImport } from './routes/payment/add'
-import { Route as NotificationsSettingsRouteImport } from './routes/notifications/settings'
 import { Route as NotificationsAllRouteImport } from './routes/notifications/all'
 import { Route as PNameIndexRouteImport } from './routes/p/$name/index'
+import { Route as NotificationsSettingsIndexRouteImport } from './routes/notifications/settings/index'
+import { Route as DebugBackendIndexRouteImport } from './routes/debug/backend/index'
 import { Route as PNameEditRouteImport } from './routes/p/$name/edit'
+import { Route as NotificationsChannelsTelegramRouteImport } from './routes/notifications/channels/telegram'
+import { Route as NotificationsChannelsEmailVerifyRouteImport } from './routes/notifications/channels/email/verify'
 
 const WalletRoute = WalletRouteImport.update({
   id: '/wallet',
@@ -31,15 +36,25 @@ const RegisterRoute = RegisterRouteImport.update({
   path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRouteRoute = NotificationsRouteRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NotificationsIndexRoute = NotificationsIndexRouteImport.update({
-  id: '/notifications/',
-  path: '/notifications/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => NotificationsRouteRoute,
 } as any)
 const AutoRenewalIndexRoute = AutoRenewalIndexRouteImport.update({
   id: '/auto-renewal/',
@@ -56,19 +71,25 @@ const PaymentAddRoute = PaymentAddRouteImport.update({
   path: '/payment/add',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NotificationsSettingsRoute = NotificationsSettingsRouteImport.update({
-  id: '/notifications/settings',
-  path: '/notifications/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const NotificationsAllRoute = NotificationsAllRouteImport.update({
-  id: '/notifications/all',
-  path: '/notifications/all',
-  getParentRoute: () => rootRouteImport,
+  id: '/all',
+  path: '/all',
+  getParentRoute: () => NotificationsRouteRoute,
 } as any)
 const PNameIndexRoute = PNameIndexRouteImport.update({
   id: '/p/$name/',
   path: '/p/$name/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsSettingsIndexRoute =
+  NotificationsSettingsIndexRouteImport.update({
+    id: '/settings/',
+    path: '/settings/',
+    getParentRoute: () => NotificationsRouteRoute,
+  } as any)
+const DebugBackendIndexRoute = DebugBackendIndexRouteImport.update({
+  id: '/debug/backend/',
+  path: '/debug/backend/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PNameEditRoute = PNameEditRouteImport.update({
@@ -76,100 +97,140 @@ const PNameEditRoute = PNameEditRouteImport.update({
   path: '/p/$name/edit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotificationsChannelsTelegramRoute =
+  NotificationsChannelsTelegramRouteImport.update({
+    id: '/channels/telegram',
+    path: '/channels/telegram',
+    getParentRoute: () => NotificationsRouteRoute,
+  } as any)
+const NotificationsChannelsEmailVerifyRoute =
+  NotificationsChannelsEmailVerifyRouteImport.update({
+    id: '/channels/email/verify',
+    path: '/channels/email/verify',
+    getParentRoute: () => NotificationsRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/notifications': typeof NotificationsRouteRouteWithChildren
+  '/dashboard': typeof DashboardRoute
   '/register': typeof RegisterRoute
   '/wallet': typeof WalletRoute
   '/notifications/all': typeof NotificationsAllRoute
-  '/notifications/settings': typeof NotificationsSettingsRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/auto-renewal': typeof AutoRenewalIndexRoute
-  '/notifications': typeof NotificationsIndexRoute
+  '/notifications/': typeof NotificationsIndexRoute
+  '/notifications/channels/telegram': typeof NotificationsChannelsTelegramRoute
   '/p/$name/edit': typeof PNameEditRoute
+  '/debug/backend': typeof DebugBackendIndexRoute
+  '/notifications/settings': typeof NotificationsSettingsIndexRoute
   '/p/$name': typeof PNameIndexRoute
+  '/notifications/channels/email/verify': typeof NotificationsChannelsEmailVerifyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
   '/register': typeof RegisterRoute
   '/wallet': typeof WalletRoute
   '/notifications/all': typeof NotificationsAllRoute
-  '/notifications/settings': typeof NotificationsSettingsRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/auto-renewal': typeof AutoRenewalIndexRoute
   '/notifications': typeof NotificationsIndexRoute
+  '/notifications/channels/telegram': typeof NotificationsChannelsTelegramRoute
   '/p/$name/edit': typeof PNameEditRoute
+  '/debug/backend': typeof DebugBackendIndexRoute
+  '/notifications/settings': typeof NotificationsSettingsIndexRoute
   '/p/$name': typeof PNameIndexRoute
+  '/notifications/channels/email/verify': typeof NotificationsChannelsEmailVerifyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/notifications': typeof NotificationsRouteRouteWithChildren
+  '/dashboard': typeof DashboardRoute
   '/register': typeof RegisterRoute
   '/wallet': typeof WalletRoute
   '/notifications/all': typeof NotificationsAllRoute
-  '/notifications/settings': typeof NotificationsSettingsRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/notifications/': typeof NotificationsIndexRoute
+  '/notifications/channels/telegram': typeof NotificationsChannelsTelegramRoute
   '/p/$name/edit': typeof PNameEditRoute
+  '/debug/backend/': typeof DebugBackendIndexRoute
+  '/notifications/settings/': typeof NotificationsSettingsIndexRoute
   '/p/$name/': typeof PNameIndexRoute
+  '/notifications/channels/email/verify': typeof NotificationsChannelsEmailVerifyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/notifications'
+    | '/dashboard'
     | '/register'
     | '/wallet'
     | '/notifications/all'
-    | '/notifications/settings'
     | '/payment/add'
     | '/payment/list'
     | '/auto-renewal'
-    | '/notifications'
+    | '/notifications/'
+    | '/notifications/channels/telegram'
     | '/p/$name/edit'
+    | '/debug/backend'
+    | '/notifications/settings'
     | '/p/$name'
+    | '/notifications/channels/email/verify'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/dashboard'
     | '/register'
     | '/wallet'
     | '/notifications/all'
-    | '/notifications/settings'
     | '/payment/add'
     | '/payment/list'
     | '/auto-renewal'
     | '/notifications'
+    | '/notifications/channels/telegram'
     | '/p/$name/edit'
+    | '/debug/backend'
+    | '/notifications/settings'
     | '/p/$name'
+    | '/notifications/channels/email/verify'
   id:
     | '__root__'
     | '/'
+    | '/notifications'
+    | '/dashboard'
     | '/register'
     | '/wallet'
     | '/notifications/all'
-    | '/notifications/settings'
     | '/payment/add'
     | '/payment/list'
     | '/auto-renewal/'
     | '/notifications/'
+    | '/notifications/channels/telegram'
     | '/p/$name/edit'
+    | '/debug/backend/'
+    | '/notifications/settings/'
     | '/p/$name/'
+    | '/notifications/channels/email/verify'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  NotificationsRouteRoute: typeof NotificationsRouteRouteWithChildren
+  DashboardRoute: typeof DashboardRoute
   RegisterRoute: typeof RegisterRoute
   WalletRoute: typeof WalletRoute
-  NotificationsAllRoute: typeof NotificationsAllRoute
-  NotificationsSettingsRoute: typeof NotificationsSettingsRoute
   PaymentAddRoute: typeof PaymentAddRoute
   PaymentListRoute: typeof PaymentListRoute
   AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
-  NotificationsIndexRoute: typeof NotificationsIndexRoute
   PNameEditRoute: typeof PNameEditRoute
+  DebugBackendIndexRoute: typeof DebugBackendIndexRoute
   PNameIndexRoute: typeof PNameIndexRoute
 }
 
@@ -189,6 +250,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -198,10 +273,10 @@ declare module '@tanstack/react-router' {
     }
     '/notifications/': {
       id: '/notifications/'
-      path: '/notifications'
-      fullPath: '/notifications'
+      path: '/'
+      fullPath: '/notifications/'
       preLoaderRoute: typeof NotificationsIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof NotificationsRouteRoute
     }
     '/auto-renewal/': {
       id: '/auto-renewal/'
@@ -224,25 +299,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PaymentAddRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/notifications/settings': {
-      id: '/notifications/settings'
-      path: '/notifications/settings'
-      fullPath: '/notifications/settings'
-      preLoaderRoute: typeof NotificationsSettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/notifications/all': {
       id: '/notifications/all'
-      path: '/notifications/all'
+      path: '/all'
       fullPath: '/notifications/all'
       preLoaderRoute: typeof NotificationsAllRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof NotificationsRouteRoute
     }
     '/p/$name/': {
       id: '/p/$name/'
       path: '/p/$name'
       fullPath: '/p/$name'
       preLoaderRoute: typeof PNameIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications/settings/': {
+      id: '/notifications/settings/'
+      path: '/settings'
+      fullPath: '/notifications/settings'
+      preLoaderRoute: typeof NotificationsSettingsIndexRouteImport
+      parentRoute: typeof NotificationsRouteRoute
+    }
+    '/debug/backend/': {
+      id: '/debug/backend/'
+      path: '/debug/backend'
+      fullPath: '/debug/backend'
+      preLoaderRoute: typeof DebugBackendIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/p/$name/edit': {
@@ -252,20 +334,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PNameEditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/notifications/channels/telegram': {
+      id: '/notifications/channels/telegram'
+      path: '/channels/telegram'
+      fullPath: '/notifications/channels/telegram'
+      preLoaderRoute: typeof NotificationsChannelsTelegramRouteImport
+      parentRoute: typeof NotificationsRouteRoute
+    }
+    '/notifications/channels/email/verify': {
+      id: '/notifications/channels/email/verify'
+      path: '/channels/email/verify'
+      fullPath: '/notifications/channels/email/verify'
+      preLoaderRoute: typeof NotificationsChannelsEmailVerifyRouteImport
+      parentRoute: typeof NotificationsRouteRoute
+    }
   }
 }
 
+interface NotificationsRouteRouteChildren {
+  NotificationsAllRoute: typeof NotificationsAllRoute
+  NotificationsIndexRoute: typeof NotificationsIndexRoute
+  NotificationsChannelsTelegramRoute: typeof NotificationsChannelsTelegramRoute
+  NotificationsSettingsIndexRoute: typeof NotificationsSettingsIndexRoute
+  NotificationsChannelsEmailVerifyRoute: typeof NotificationsChannelsEmailVerifyRoute
+}
+
+const NotificationsRouteRouteChildren: NotificationsRouteRouteChildren = {
+  NotificationsAllRoute: NotificationsAllRoute,
+  NotificationsIndexRoute: NotificationsIndexRoute,
+  NotificationsChannelsTelegramRoute: NotificationsChannelsTelegramRoute,
+  NotificationsSettingsIndexRoute: NotificationsSettingsIndexRoute,
+  NotificationsChannelsEmailVerifyRoute: NotificationsChannelsEmailVerifyRoute,
+}
+
+const NotificationsRouteRouteWithChildren =
+  NotificationsRouteRoute._addFileChildren(NotificationsRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  NotificationsRouteRoute: NotificationsRouteRouteWithChildren,
+  DashboardRoute: DashboardRoute,
   RegisterRoute: RegisterRoute,
   WalletRoute: WalletRoute,
-  NotificationsAllRoute: NotificationsAllRoute,
-  NotificationsSettingsRoute: NotificationsSettingsRoute,
   PaymentAddRoute: PaymentAddRoute,
   PaymentListRoute: PaymentListRoute,
   AutoRenewalIndexRoute: AutoRenewalIndexRoute,
-  NotificationsIndexRoute: NotificationsIndexRoute,
   PNameEditRoute: PNameEditRoute,
+  DebugBackendIndexRoute: DebugBackendIndexRoute,
   PNameIndexRoute: PNameIndexRoute,
 }
 export const routeTree = rootRouteImport

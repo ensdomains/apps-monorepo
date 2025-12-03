@@ -1,16 +1,22 @@
-import { useAccount, useModal, useWallet } from '@getpara/react-sdk-lite'
+import {
+  useAccount,
+  useLogout,
+  useModal,
+  useWallet,
+} from '@getpara/react-sdk-lite'
 import { Link } from '@tanstack/react-router'
 import {
   Bell,
+  ChevronDown,
   Copy,
   CreditCard,
-  LayoutGrid,
   RefreshCcw,
   Unlink,
   User,
 } from 'lucide-react'
 import { useState } from 'react'
 import ensLogo from '@/assets/icons/ens.svg'
+import ensMobileLogo from '@/assets/icons/ens-mobile.svg'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -25,13 +31,13 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { NotificationsDropdown } from '@/features/notifications/components'
-import { useTheme } from '@/hooks/use-theme'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 
 const ConnectedContent = () => {
   const { data: wallet } = useWallet()
   const account = useAccount()
   const { openModal } = useModal()
+  const { logout } = useLogout()
   const {
     rhinestoneAccount,
     accountAddress,
@@ -58,28 +64,6 @@ const ConnectedContent = () => {
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {
       console.error('Failed to copy address:', error)
-    }
-  }
-
-  const getAuthTypeLabel = (): string => {
-    if (!account?.embedded?.authType) {
-      return 'Para + Rhinestone'
-    }
-
-    const authType = account.embedded.authType
-    switch (authType) {
-      case 'email':
-        return 'Email'
-      case 'phone':
-        return 'Phone'
-      case 'farcaster':
-        return 'X (Farcaster)'
-      case 'telegram':
-        return 'Telegram'
-      case 'externalWallet':
-        return 'External Wallet'
-      default:
-        return 'Para + Rhinestone'
     }
   }
 
@@ -134,272 +118,229 @@ const ConnectedContent = () => {
     return 'Connected'
   }
 
-  const getConnectionMethod = () => {
-    if (isLoading) {
-      return 'Initializing Smart Account...'
-    }
-
-    const authTypeLabel = getAuthTypeLabel()
-    return `Para + Rhinestone (${authTypeLabel})`
-  }
-
   return (
-    <div className="mr-6 flex items-center gap-4">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className="flex items-center gap-2 rounded-md p-2 hover:bg-accent hover:text-accent-foreground"
-          >
-            {ensAvatar ? (
-              <img
-                src={ensAvatar}
-                alt="ENS Avatar"
-                className="size-8 rounded-full"
-              />
-            ) : (
-              <div className="flex size-8 items-center justify-center rounded-full bg-muted">
-                {isLoading ? (
-                  <div className="size-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+    <div className="mr-0 flex items-center gap-[16px] md:mr-0 md:gap-[74px]">
+      <div className="flex items-center gap-[16px]">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="flex items-center gap-[4px] rounded-[100px] border-[#e6e6e6] border-[0.4px] bg-white py-[4px] pr-[8px] pl-[4px] transition-colors hover:bg-gray-50"
+            >
+              <div className="flex items-center gap-[8px]">
+                {ensAvatar ? (
+                  <img
+                    src={ensAvatar}
+                    alt="ENS Avatar"
+                    className="size-[46px] rounded-full object-cover"
+                  />
                 ) : (
-                  <User className="size-4 text-muted-foreground" />
-                )}
-              </div>
-            )}
-            <span className="font-medium text-sm">
-              {getDisplayName()}
-              {isLoading && (
-                <span className="ml-2 text-muted-foreground text-xs">
-                  (Smart Account)
-                </span>
-              )}
-            </span>
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-80">
-          <div className="p-3">
-            <div className="mb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium text-sm">{getDisplayName()}</div>
-                  <div className="text-muted-foreground text-xs">
-                    Connected via {getConnectionMethod()}
+                  <div className="flex size-[46px] items-center justify-center rounded-full bg-muted">
+                    {isLoading ? (
+                      <div className="size-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+                    ) : (
+                      <User className="size-5 text-muted-foreground" />
+                    )}
                   </div>
-                </div>
-                {/* <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={refreshBalances}
-                >
-                  <RefreshCcw className="size-3" />
-                </Button> */}
+                )}
+                <span className="font-medium font-sans text-[#444444] text-[16px] leading-[0.96] tracking-[-0.32px]">
+                  {getDisplayName()}
+                  {isLoading && (
+                    <span className="ml-2 text-muted-foreground text-xs">
+                      (Smart Account)
+                    </span>
+                  )}
+                </span>
               </div>
-            </div>
+              <ChevronDown className="size-[24px] text-[#000000]" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80">
+            <div className="p-4">
+              <div className="mb-4">
+                <div className="font-medium text-base text-ens-blue-dark">
+                  {getDisplayName()}
+                </div>
+              </div>
 
-            {/* EOA Address and Balance */}
-            {address && (
-              <div className="mb-3">
-                <div className="flex items-center justify-between">
-                  <div className="mb-1 font-medium text-muted-foreground text-xs">
+              {/* EOA Address and Balance - Only show if NOT using smart account auth */}
+              {address && !account?.embedded?.isConnected && (
+                <div className="mb-3">
+                  <div className="mb-2 font-medium text-gray-500 text-xs uppercase tracking-wide">
                     EOA Address
                   </div>
-                  {/* <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={refreshBalances}
-                  >
-                    <RefreshCcw className="size-3" />
-                  </Button> */}
-                </div>
 
-                <div className="flex items-center justify-between rounded bg-muted p-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-muted-foreground">
-                      {`${address.slice(0, 6)}...${address.slice(-4)}`}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0 hover:bg-background"
-                      onClick={() => handleCopyAddress(address)}
-                    >
-                      <Copy className="size-3" />
-                    </Button>
+                  <div className="flex items-center justify-between rounded-lg bg-gray-100 p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-gray-600 text-sm">
+                        {`${address.slice(0, 6)}...${address.slice(-4)}`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyAddress(address)}
+                        className="rounded p-1 transition-colors hover:bg-white"
+                      >
+                        <Copy className="size-4 text-gray-600" />
+                      </button>
+                    </div>
+                    {eoaEthBalance && (
+                      <span className="font-bold text-ens-blue-dark text-sm">
+                        {eoaEthBalance.formattedBalance}
+                      </span>
+                    )}
+                    {isLoadingEoaEth && (
+                      <span className="text-gray-500 text-sm">Loading...</span>
+                    )}
                   </div>
-                  {eoaEthBalance && (
-                    <span className="font-bold text-foreground">
-                      {eoaEthBalance.formattedBalance}
-                    </span>
-                  )}
-                  {isLoadingEoaEth && (
-                    <span className="font-bold text-foreground">
-                      Loading...
-                    </span>
-                  )}
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Rhinestone Smart Account Information */}
-            {(isLoading || rhinestoneAccount || accountAddress) && (
-              <div className="mb-3">
-                <div className="flex items-center justify-between">
-                  <div className="mb-1 font-medium text-muted-foreground text-xs">
+              {/* Rhinestone Smart Account Information */}
+              {(isLoading || rhinestoneAccount || accountAddress) && (
+                <div className="mb-3">
+                  <div className="mb-2 font-medium text-gray-500 text-xs uppercase tracking-wide">
                     Smart Account Address
                   </div>
-                  {/* {!isLoading && rhinestoneAccount && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={refreshBalances}
-                    >
-                      <RefreshCcw className="size-3" />
-                    </Button>
-                  )} */}
-                </div>
 
-                {isLoading ? (
-                  <div className="flex items-center justify-between rounded bg-muted p-2 text-xs">
-                    <div className="flex items-center gap-2">
-                      <div className="size-3 animate-spin rounded-full border border-muted-foreground border-t-transparent" />
-                      <span className="text-muted-foreground">
+                  {isLoading ? (
+                    <div className="flex items-center gap-2 rounded-lg bg-gray-100 p-3">
+                      <div className="size-4 animate-spin rounded-full border-2 border-gray-500 border-t-transparent" />
+                      <span className="text-gray-600 text-sm">
                         Creating smart account...
                       </span>
                     </div>
-                  </div>
-                ) : error ? (
-                  <div className="rounded bg-red-50 p-2 text-xs dark:bg-red-950/20">
-                    <div className="text-red-600 dark:text-red-400">
-                      Failed to create smart account
+                  ) : error ? (
+                    <div className="rounded-lg bg-red-50 p-3">
+                      <div className="font-medium text-red-600 text-sm">
+                        Failed to create smart account
+                      </div>
+                      <div className="mt-1 text-red-500 text-xs">{error}</div>
                     </div>
-                    <div className="mt-1 text-red-500 text-xs dark:text-red-500">
-                      {error}
+                  ) : rhinestoneAccount && accountAddress ? (
+                    <div className="flex items-center justify-between rounded-lg bg-gray-100 p-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-gray-600 text-sm">
+                          {`${accountAddress.slice(0, 6)}...${accountAddress.slice(-4)}`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyAddress(accountAddress)}
+                          className="rounded p-1 transition-colors hover:bg-white"
+                        >
+                          <Copy className="size-4 text-gray-600" />
+                        </button>
+                      </div>
+                      {smartAccountEthBalance && (
+                        <span className="font-bold text-ens-blue-dark text-sm">
+                          {smartAccountEthBalance.formattedBalance}
+                        </span>
+                      )}
+                      {isLoadingSmartAccountEth && (
+                        <span className="text-gray-500 text-sm">
+                          Loading...
+                        </span>
+                      )}
                     </div>
-                  </div>
-                ) : rhinestoneAccount && accountAddress ? (
-                  <div className="flex items-center justify-between rounded bg-muted p-2 text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-muted-foreground">
-                        {`${accountAddress.slice(0, 6)}...${accountAddress.slice(-4)}`}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 hover:bg-background"
-                        onClick={() => handleCopyAddress(accountAddress)}
-                      >
-                        <Copy className="size-3" />
-                      </Button>
-                    </div>
-                    {smartAccountEthBalance && (
-                      <span className="font-bold text-foreground">
-                        {smartAccountEthBalance.formattedBalance}
-                      </span>
-                    )}
-                    {isLoadingSmartAccountEth && (
-                      <span className="font-bold text-foreground">
-                        Loading...
-                      </span>
-                    )}
-                  </div>
-                ) : null}
-              </div>
-            )}
+                  ) : null}
+                </div>
+              )}
 
-            {/* Token Balances (Stablecoins) */}
-            {!isLoading &&
-              stablecoinBalances &&
-              stablecoinBalances.length > 0 && (
-                <div className="mb-3">
-                  <div className="mb-1 font-medium text-muted-foreground text-xs">
-                    Token Balances
-                  </div>
-                  <div className="space-y-2">
-                    {stablecoinBalances.map((balance, index) => (
-                      <div
-                        key={`${balance.address}-${index}`}
-                        className="relative"
-                      >
-                        {/* Token Container */}
-                        <div className="flex items-center justify-between rounded bg-muted p-2 text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-muted-foreground">
-                              {balance.symbol}
-                            </span>
-                          </div>
+              {/* Token Balances (Stablecoins) */}
+              {!isLoading &&
+                stablecoinBalances &&
+                stablecoinBalances.length > 0 && (
+                  <div className="mb-3">
+                    <div className="mb-2 font-medium text-gray-500 text-xs uppercase tracking-wide">
+                      Token Balances
+                    </div>
+                    <div className="space-y-2">
+                      {stablecoinBalances.map((balance, index) => (
+                        <div
+                          key={`${balance.address}-${index}`}
+                          className="flex items-center justify-between rounded-lg bg-gray-100 p-3"
+                        >
+                          <span className="font-medium text-gray-600 text-sm">
+                            {balance.symbol}
+                          </span>
                           {balance.formattedBalance && (
-                            <span className="font-bold text-foreground">
+                            <span className="font-bold text-ens-blue-dark text-sm">
                               {balance.formattedBalance}
                             </span>
                           )}
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
+                )}
+
+              {copied && (
+                <div className="mb-3 font-medium text-green-600 text-sm">
+                  ✓ Copied to clipboard
                 </div>
               )}
+            </div>
 
-            {copied && (
-              <div className="mb-3 text-green-600 text-xs dark:text-green-400">
-                Copied!
-              </div>
-            )}
-          </div>
+            <DropdownMenuSeparator />
 
-          <DropdownMenuSeparator />
+            {/* Menu Items */}
+            <DropdownMenuItem asChild>
+              <Link to="/auto-renewal">
+                <RefreshCcw className="mr-2 size-4" />
+                Renewals
+              </Link>
+            </DropdownMenuItem>
 
-          {/* Menu Items */}
-          <DropdownMenuItem asChild>
-            <Link to="/auto-renewal">
-              <RefreshCcw className="mr-2 size-4" />
-              Renewals
-            </Link>
-          </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/payment/list">
+                <CreditCard className="mr-2 size-4" />
+                Payment Methods
+              </Link>
+            </DropdownMenuItem>
 
-          <DropdownMenuItem asChild>
-            <Link to="/payment/list">
-              <CreditCard className="mr-2 size-4" />
-              Payment Methods
-            </Link>
-          </DropdownMenuItem>
-
-          {/* TODO: Add /transactions route */}
-          {/* <DropdownMenuItem asChild>
+            {/* TODO: Add /transactions route */}
+            {/* <DropdownMenuItem asChild>
             <Link to="/transactions">
               <List className="mr-2 size-4" />
               All Transactions
             </Link>
           </DropdownMenuItem> */}
 
-          <DropdownMenuSeparator />
+            <DropdownMenuSeparator />
 
-          {/* Manage Wallet */}
-          <DropdownMenuItem onClick={() => openModal()}>
-            <User className="mr-2 size-4" />
-            Manage Wallet
-          </DropdownMenuItem>
+            {/* Manage Wallet */}
+            <DropdownMenuItem onClick={() => openModal()}>
+              <User className="mr-2 size-4" />
+              Manage Wallet
+            </DropdownMenuItem>
 
-          {/* Disconnect */}
-          <DropdownMenuItem onClick={() => openModal()}>
-            <Unlink className="mr-2 size-4" />
-            Disconnect
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            {/* Disconnect */}
+            <DropdownMenuItem onClick={() => logout()}>
+              <Unlink className="mr-2 size-4" />
+              Disconnect
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-      <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
-        <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon">
-            <Bell className="size-5" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-sm" collisionPadding={16} sideOffset={16}>
-          <NotificationsDropdown onAction={() => setNotificationsOpen(false)} />
-        </PopoverContent>
-      </Popover>
+        <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="flex size-[56px] items-center justify-center rounded-[100px] border-[#e6e6e6] border-[0.4px] p-[11px] transition-colors hover:bg-gray-50"
+            >
+              <Bell className="size-[24px]" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-sm"
+            collisionPadding={16}
+            sideOffset={16}
+          >
+            <NotificationsDropdown
+              onAction={() => setNotificationsOpen(false)}
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
     </div>
   )
 }
@@ -431,22 +372,26 @@ const DisconnectedContent = () => {
 }
 
 const Menu = () => {
-  const { theme, toggleTheme } = useTheme()
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <LayoutGrid className="size-5" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent collisionPadding={16}>
-        <DropdownMenuItem onClick={toggleTheme}>
-          {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
+  // const { theme, toggleTheme } = useTheme()
+  //
+  // return (
+  //   <DropdownMenu>
+  //     <DropdownMenuTrigger asChild>
+  //       <button
+  //         type="button"
+  //         className="flex size-[56px] items-center justify-center rounded-[100px] border-[#e6e6e6] border-[0.4px] p-[11px] transition-colors hover:bg-gray-50"
+  //       >
+  //         <LayoutGrid className="size-[24px]" />
+  //       </button>
+  //     </DropdownMenuTrigger>
+  //     <DropdownMenuContent collisionPadding={16}>
+  //       <DropdownMenuItem onClick={toggleTheme}>
+  //         {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+  //       </DropdownMenuItem>
+  //     </DropdownMenuContent>
+  //   </DropdownMenu>
+  // )
+  return null
 }
 
 export const Header = () => {
@@ -454,22 +399,33 @@ export const Header = () => {
   const isConnected = !!wallet && !walletLoading
 
   return (
-    <nav className="sticky top-0 z-10 flex items-center justify-end bg-background px-10 py-7">
+    <nav className="sticky top-0 z-10 flex items-center justify-between bg-background px-[36px] py-[29px]">
       <Link to="/" className="mr-auto py-2">
-        <img src={ensLogo} alt="ENS Logo" className="h-8" />
+        <img
+          src={ensMobileLogo}
+          alt="ENS Logo"
+          className="h-[38px] md:hidden"
+        />
+        <img
+          src={ensLogo}
+          alt="ENS Logo"
+          className="hidden h-[38px] md:block"
+        />
       </Link>
-      {status !== 'connecting' && status !== 'reconnecting' ? (
-        isConnected ? (
-          <ConnectedContent />
+      <div className="flex items-center gap-[74px]">
+        {!walletLoading ? (
+          isConnected ? (
+            <ConnectedContent />
+          ) : (
+            <DisconnectedContent />
+          )
         ) : (
-          <DisconnectedContent />
-        )
-      ) : (
-        <div className="mr-6 flex items-center gap-4">
-          <div className="h-8 w-28 animate-pulse rounded bg-gray-200" />
-        </div>
-      )}
-      <Menu />
+          <div className="mr-6 flex items-center gap-4">
+            <div className="h-8 w-28 animate-pulse rounded bg-gray-200" />
+          </div>
+        )}
+        <Menu />
+      </div>
     </nav>
   )
 }

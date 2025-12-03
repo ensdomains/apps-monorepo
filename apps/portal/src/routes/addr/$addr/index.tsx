@@ -46,7 +46,7 @@ function RouteComponent() {
   const { addr } = Route.useParams() as { addr: Address }
 
   return (
-    <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
+    <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
       <div className="flex flex-row justify-between items-baseline">
         <h1 className="text-[28px] font-medium leading-none">{addr}</h1>
         {isConnected && (
