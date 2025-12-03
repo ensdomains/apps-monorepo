@@ -35,6 +35,8 @@ export interface RhinestoneAccountState {
   isLoading: boolean
   error: string | null
   rhinestoneConfig: any | null
+  isAutoFunding: boolean
+  autoFundingError: string | null
 }
 
 export function useRhinestoneAccount() {
@@ -47,6 +49,8 @@ export function useRhinestoneAccount() {
     isLoading: false,
     error: null,
     rhinestoneConfig: null,
+    isAutoFunding: false,
+    autoFundingError: null,
   })
 
   // ETH Balance for EOA
@@ -223,6 +227,11 @@ export function useRhinestoneAccount() {
         isLoading: false,
         error: null,
       }))
+
+      // Trigger auto-funding after account is created
+      if (accountAddress) {
+        triggerAutoFunding(accountAddress)
+      }
     } catch (error) {
       console.error('Failed to initialize Rhinestone account:', error)
 
@@ -281,6 +290,73 @@ export function useRhinestoneAccount() {
       }
     },
     [state.rhinestoneAccount],
+  )
+
+  const triggerAutoFunding = useCallback(
+    async (accountAddress: string) => {
+      // Skip if already funding or already funded (has balances)
+      if (
+        state.isAutoFunding ||
+        (stablecoinBalances && stablecoinBalances.length > 0)
+      ) {
+        return
+      }
+
+      setState((prev) => ({
+        ...prev,
+        isAutoFunding: true,
+        autoFundingError: null,
+      }))
+
+      try {
+        const apiBaseUrl =
+          import.meta.env.VITE_API_BASE_URL ||
+          'https://api-worker.ens.workers.dev'
+        const response = await fetch(`${apiBaseUrl}/p/fund-smart-account`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ accountAddress }),
+        })
+
+        if (!response.ok) {
+          const errorData = (await response
+            .json()
+            .catch(() => ({ error: 'Unknown error' }))) as { error: string }
+          throw new Error(errorData.error || 'Failed to fund smart account')
+        }
+
+        const result = (await response.json()) as {
+          success: boolean
+          daiTxHash?: string
+          usdcTxHash?: string
+        }
+
+        console.log('✅ Auto-funding initiated:', result)
+
+        // Invalidate balances query to refetch after funding
+        // The query will automatically refetch due to refetchInterval
+      } catch (error) {
+        console.error('❌ Auto-funding failed:', error)
+        setState((prev) => ({
+          ...prev,
+          isAutoFunding: false,
+          autoFundingError:
+            error instanceof Error ? error.message : 'Unknown error',
+        }))
+      } finally {
+        // Keep isAutoFunding true for a bit to show processing, then set to false
+        // The UI will show balances once they're available
+        setTimeout(() => {
+          setState((prev) => ({
+            ...prev,
+            isAutoFunding: false,
+          }))
+        }, 5000) // Show processing for 5 seconds, then let balances query handle it
+      }
+    },
+    [state.isAutoFunding, stablecoinBalances],
   )
 
   useEffect(() => {

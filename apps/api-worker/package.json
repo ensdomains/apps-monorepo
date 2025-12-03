@@ -10,6 +10,7 @@
   "dependencies": {
     "hono": "^4.9.1",
     "lucide": "^0.542.0",
+    "viem": "^2.21.45",
     "workers-og": "^0.0.27"
   },
   "devDependencies": {

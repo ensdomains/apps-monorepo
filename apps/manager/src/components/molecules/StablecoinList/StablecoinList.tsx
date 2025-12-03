@@ -1,6 +1,6 @@
 import { Coins } from 'lucide-react'
 import { STABLECOINS } from '@/features/register/utils'
-import { useTheme } from '@/hooks/use-theme'
+import { useTheme } from '@/hooks/useTheme'
 import { cn } from '@/lib/utils'
 
 export interface StablecoinData {

@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
 import { STABLECOINS } from '@/features/register/utils'
-import { useMediaQuery } from '@/hooks/use-media-query'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 import { cn } from '@/lib/utils'
 

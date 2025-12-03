@@ -14,13 +14,7 @@ import { useState } from 'react'
 import ensLogo from '@/assets/icons/ens.svg'
 import ensMobileLogo from '@/assets/icons/ens-mobile.svg'
 import { Button } from '@/components/ui/button'
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from '@/components/ui/drawer'
+import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,8 +28,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { NotificationsDropdown } from '@/features/notifications/components'
-import { useMediaQuery } from '@/hooks/use-media-query'
-import { useTheme } from '@/hooks/use-theme'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { useTheme } from '@/hooks/useTheme'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 
 // Reusable menu content component
@@ -55,6 +49,8 @@ const UserMenuContent = ({
   handleCopyAddress,
   getDisplayName,
   ensAvatar,
+  isAutoFunding,
+  autoFundingError,
 }: {
   account: ReturnType<typeof useAccount>
   address: string | undefined
@@ -73,6 +69,8 @@ const UserMenuContent = ({
   handleCopyAddress: (address: string) => void
   getDisplayName: () => string
   ensAvatar: string | null | undefined
+  isAutoFunding: boolean
+  autoFundingError: string | null
 }) => {
   return (
     <>
@@ -191,28 +189,46 @@ const UserMenuContent = ({
         )}
 
         {/* Token Balances (Stablecoins) */}
-        {!isLoading && stablecoinBalances && stablecoinBalances.length > 0 && (
+        {!isLoading && (
           <div className="mb-4">
             <div className="mb-2 font-medium text-ens-blue-midnight text-xs uppercase tracking-wide">
               Token Balances
             </div>
-            <div className="space-y-2">
-              {stablecoinBalances.map((balance, index) => (
-                <div
-                  key={`${balance.address}-${index}`}
-                  className="flex items-center justify-between rounded-lg border border-ens-blue-light bg-ens-lapis-dust p-3"
-                >
-                  <span className="font-medium text-ens-blue-dark text-sm">
-                    {balance.symbol}
-                  </span>
-                  {balance.formattedBalance && (
-                    <span className="font-bold text-ens-blue-dark text-sm">
-                      {balance.formattedBalance}
-                    </span>
-                  )}
+            {isAutoFunding ? (
+              <div className="flex items-center gap-2 rounded-lg border border-ens-blue-light bg-ens-lapis-dust p-3">
+                <div className="size-4 animate-spin rounded-full border-2 border-ens-blue border-t-transparent" />
+                <span className="text-ens-blue-dark text-sm">
+                  Processing auto-funds...
+                </span>
+              </div>
+            ) : autoFundingError ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                <div className="font-medium text-red-600 text-sm">
+                  Auto-funding failed
                 </div>
-              ))}
-            </div>
+                <div className="mt-1 text-red-500 text-xs">
+                  {autoFundingError}
+                </div>
+              </div>
+            ) : stablecoinBalances && stablecoinBalances.length > 0 ? (
+              <div className="space-y-2">
+                {stablecoinBalances.map((balance, index) => (
+                  <div
+                    key={`${balance.address}-${index}`}
+                    className="flex items-center justify-between rounded-lg border border-ens-blue-light bg-ens-lapis-dust p-3"
+                  >
+                    <span className="font-medium text-ens-blue-dark text-sm">
+                      {balance.symbol}
+                    </span>
+                    {balance.formattedBalance && (
+                      <span className="font-bold text-ens-blue-dark text-sm">
+                        {balance.formattedBalance}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         )}
 
@@ -221,10 +237,104 @@ const UserMenuContent = ({
             ✓ Copied to clipboard
           </div>
         )}
+
+        {/* Dev-only: Manual funding trigger button */}
+        {import.meta.env.DEV && accountAddress && (
+          <div className="mb-4 border-red-300 border-t pt-4">
+            <div className="mb-2 font-medium text-red-600 text-xs uppercase tracking-wide">
+              🧪 Dev Only
+            </div>
+            <ManualFundingButton accountAddress={accountAddress} />
+          </div>
+        )}
       </div>
 
       {/* Menu Items - will be rendered separately for dropdown vs drawer */}
     </>
+  )
+}
+
+// Dev-only component for manual funding trigger
+const ManualFundingButton = ({
+  accountAddress,
+}: {
+  accountAddress: string
+}) => {
+  const [isFunding, setIsFunding] = useState(false)
+  const [fundingError, setFundingError] = useState<string | null>(null)
+  const [fundingSuccess, setFundingSuccess] = useState(false)
+
+  const handleManualFunding = async () => {
+    setIsFunding(true)
+    setFundingError(null)
+    setFundingSuccess(false)
+
+    try {
+      const apiBaseUrl =
+        import.meta.env.VITE_API_BASE_URL ||
+        'https://api-worker.ens.workers.dev'
+      const response = await fetch(`${apiBaseUrl}/p/fund-smart-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ accountAddress }),
+      })
+
+      if (!response.ok) {
+        const errorData = (await response
+          .json()
+          .catch(() => ({ error: 'Unknown error' }))) as { error: string }
+        throw new Error(errorData.error || 'Failed to fund smart account')
+      }
+
+      const result = (await response.json()) as {
+        success: boolean
+        daiTxHash?: string
+        usdcTxHash?: string
+      }
+
+      console.log('✅ Manual funding successful:', result)
+      setFundingSuccess(true)
+      setTimeout(() => setFundingSuccess(false), 5000)
+    } catch (error) {
+      console.error('❌ Manual funding failed:', error)
+      setFundingError(error instanceof Error ? error.message : 'Unknown error')
+    } finally {
+      setIsFunding(false)
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={handleManualFunding}
+        disabled={isFunding}
+        className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-red-400 bg-red-50 px-4 py-2 text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
+      >
+        {isFunding ? (
+          <>
+            <div className="size-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
+            <span className="font-medium text-sm">Funding...</span>
+          </>
+        ) : (
+          <span className="font-medium text-sm">🪙 Trigger Auto-Funding</span>
+        )}
+      </button>
+      {fundingError && (
+        <div className="rounded-lg border border-red-300 bg-red-50 p-2">
+          <div className="text-red-600 text-xs">{fundingError}</div>
+        </div>
+      )}
+      {fundingSuccess && (
+        <div className="rounded-lg border border-green-300 bg-green-50 p-2">
+          <div className="text-green-700 text-xs">
+            ✓ Funding initiated successfully! Check balances in a few seconds.
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -243,6 +353,8 @@ const ConnectedContent = () => {
     isLoadingEoaEth,
     isLoadingSmartAccountEth,
     error,
+    isAutoFunding,
+    autoFundingError,
   } = useRhinestoneAccount()
 
   const address = wallet?.address
@@ -371,7 +483,8 @@ const ConnectedContent = () => {
     handleCopyAddress,
     getDisplayName,
     ensAvatar,
-    openModal,
+    isAutoFunding,
+    autoFundingError,
   }
 
   return (
