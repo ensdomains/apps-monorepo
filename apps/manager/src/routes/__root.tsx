@@ -9,6 +9,7 @@ import {
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import type { ReactNode } from 'react'
 import { Layout } from '@/components/Layout'
+import { PostHogProvider } from '@/components/PostHogProvider'
 import appCss from '@/styles/index.css?url'
 import '@getpara/react-sdk-lite/styles.css'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -25,50 +26,52 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ParaProvider
-        paraClientConfig={{
-          apiKey: VITE_PARA_API_KEY,
-          env: 'BETA' as any,
-        }}
-        config={{
-          appName: 'ENS Manager',
-        }}
-        externalWalletConfig={{
-          wallets: ['METAMASK', 'WALLETCONNECT'],
-          // createLinkedEmbeddedForExternalWallets: ['METAMASK'],
-          evmConnector: {
-            config: {
-              chains: [customSepolia],
+      <PostHogProvider>
+        <ParaProvider
+          paraClientConfig={{
+            apiKey: VITE_PARA_API_KEY,
+            env: 'BETA' as any,
+          }}
+          config={{
+            appName: 'ENS Manager',
+          }}
+          externalWalletConfig={{
+            wallets: ['METAMASK', 'WALLETCONNECT'],
+            // createLinkedEmbeddedForExternalWallets: ['METAMASK'],
+            evmConnector: {
+              config: {
+                chains: [customSepolia],
+              },
             },
-          },
-          walletConnect: {
-            projectId: '21fef48091f12692cad574a6f7753643',
-          },
-        }}
-        paraModalConfig={{
-          disableEmailLogin: false,
-          disablePhoneLogin: true,
-          onRampTestMode: true,
-          oAuthMethods: ['GOOGLE', 'TWITTER', 'TELEGRAM'],
-          authLayout: ['AUTH:FULL', 'EXTERNAL:FULL'],
-          recoverySecretStepEnabled: true,
+            walletConnect: {
+              projectId: '21fef48091f12692cad574a6f7753643',
+            },
+          }}
+          paraModalConfig={{
+            disableEmailLogin: false,
+            disablePhoneLogin: true,
+            onRampTestMode: true,
+            oAuthMethods: ['GOOGLE', 'TWITTER', 'TELEGRAM'],
+            authLayout: ['AUTH:FULL', 'EXTERNAL:FULL'],
+            recoverySecretStepEnabled: true,
 
-          theme: {
-            foregroundColor: '#2D3648',
-            backgroundColor: '#FFFFFF',
-            accentColor: '#0066CC',
-            darkForegroundColor: '#E8EBF2',
-            darkBackgroundColor: '#1A1F2B',
-            darkAccentColor: '#4D9FFF',
-            mode: 'light',
-            borderRadius: 'lg',
-            font: 'Inter',
-          },
-          twoFactorAuthEnabled: false,
-        }}
-      >
-        {children}
-      </ParaProvider>
+            theme: {
+              foregroundColor: '#2D3648',
+              backgroundColor: '#FFFFFF',
+              accentColor: '#0066CC',
+              darkForegroundColor: '#E8EBF2',
+              darkBackgroundColor: '#1A1F2B',
+              darkAccentColor: '#4D9FFF',
+              mode: 'light',
+              borderRadius: 'lg',
+              font: 'Inter',
+            },
+            twoFactorAuthEnabled: false,
+          }}
+        >
+          {children}
+        </ParaProvider>
+      </PostHogProvider>
     </QueryClientProvider>
   )
 }

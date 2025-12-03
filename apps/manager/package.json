@@ -50,6 +50,7 @@
     "date-fns": "^4.1.0",
     "fastestsmallesttextencoderdecoder": "^1.0.22",
     "immer": "^10.1.3",
+    "posthog-js": "^1.160.0",
     "lucide": "^0.542.0",
     "lucide-react": "^0.542.0",
     "neverthrow": "^8.2.0",
