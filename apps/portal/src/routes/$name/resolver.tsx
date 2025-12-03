@@ -156,7 +156,7 @@ const ResolverView = ({ name, resolverAddress }: ResolverViewProps) => {
   const { address } = useAccount()
 
   return (
-    <div className="max-w-5xl mx-auto w-full flex flex-col p-6 gap-6">
+    <div className="max-w-360 mx-auto w-full flex flex-col p-6 gap-6">
       <div className="flex flex-row gap-4 justify-between items-center">
         <h1 className="text-[28px] font-medium">Resolver</h1>
         {address && <EditButtons address={address} name={name} />}

@@ -12,12 +12,8 @@ export const SEPOLIA_RPC_URL = 'https://ethereum-sepolia-rpc.publicnode.com'
 export const customSepolia = {
   ...sepolia,
   rpcUrls: {
-    default: {
-      http: [SEPOLIA_RPC_URL],
-    },
-    public: {
-      http: [SEPOLIA_RPC_URL],
-    },
+    default: { http: [SEPOLIA_RPC_URL] },
+    public: { http: [SEPOLIA_RPC_URL] },
   },
 }
 
@@ -28,12 +24,6 @@ export const publicClient = createPublicClient({
 
 export const sepoliaWithEns = extendChainWithEns(customSepolia)
 export const namechainSepolia = sepolia
-
-// TODO: Not sure if this is needed separately from the publicClient
-export const ensPublicClient = createPublicClient({
-  chain: sepoliaWithEns,
-  transport: http(SEPOLIA_RPC_URL),
-})
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,

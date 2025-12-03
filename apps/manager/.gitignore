@@ -11,4 +11,5 @@ storybook-static
 .output
 .nitro
 .wrangler
-.dev.vars*
+.dev.vars
+.env

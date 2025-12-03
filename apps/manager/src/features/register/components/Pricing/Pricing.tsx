@@ -1,4 +1,4 @@
-import * as React from 'react'
+import { useEffect, useRef } from 'react'
 import { DurationSelector } from '@/features/register/components/CheckAvailability/DurationSelector'
 import { PricingDomainHeader } from '@/features/register/components/Pricing/PricingDomainHeader'
 import { PricingPaymentSection } from '@/features/register/components/Pricing/PricingPaymentSection'
@@ -55,10 +55,10 @@ export const Pricing = ({
   })
 
   // Notify parent of pricing data changes
-  const prevFinalPriceRef = React.useRef<number | null>(null)
-  const prevDiscountAmountRef = React.useRef<number | null>(null)
+  const prevFinalPriceRef = useRef<number | null>(null)
+  const prevDiscountAmountRef = useRef<number | null>(null)
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (
       onPricingDataChange &&
       !isPriceLoading &&
