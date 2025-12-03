@@ -27,8 +27,8 @@
   }
 
   button:disabled,
-  [role='button'][aria-disabled='true'],
-  a[aria-disabled='true'] {
+  [role="button"][aria-disabled="true"],
+  a[aria-disabled="true"] {
     cursor: default;
   }
 }
