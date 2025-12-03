@@ -1,7 +1,6 @@
 import type { GetNameRolesAccountsReturnType } from '@ensdomains/ensjs/public/v2'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { Address } from 'viem'
-import { ad } from 'vitest/dist/chunks/reporters.d.BFLkQcL6.js'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { AddressDisplay } from '@/components/organisms/HistoryTable/AddressDisplay'
 import { GroupedDataTable } from '@/components/table/GroupedDataTable'

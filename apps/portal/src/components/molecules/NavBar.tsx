@@ -4,7 +4,7 @@ import { BookIcon, CircleQuestionMarkIcon, SettingsIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import { LogoWithTextSVG } from '@/assets/logo'
 import { TableViewSwitch } from '@/features/records/components/RecordsTable/TableViewSwitch'
-import { HomeSearchInput } from '../../routes/components/HomeSearchInput'
+import { HomeSearchInput } from '../homepage'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 
 export const NavBar = () => {
