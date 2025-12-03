@@ -394,7 +394,7 @@ export const Header = () => {
   const isConnected = !!wallet && !walletLoading
 
   return (
-    <nav className="sticky top-0 z-10 flex items-center justify-between bg-background px-[58px] py-[40px]">
+    <nav className="sticky top-0 z-10 flex items-center justify-between bg-background px-[36px] py-[29px]">
       <Link to="/" className="mr-auto py-2">
         <img
           src={ensMobileLogo}

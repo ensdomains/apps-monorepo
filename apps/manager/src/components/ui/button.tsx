@@ -29,7 +29,7 @@ const buttonVariants = cva(
           'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
         link: 'text-primary underline-offset-4 hover:underline',
         connectWallet:
-          'h-[56px] w-[191px] items-center justify-center gap-4 rounded-md border bg-ens-blue px-6 py-8 text-white',
+          'h-[56px] w-[191px] items-center justify-center gap-4 rounded-md border bg-ens-blue px-6 py-[27px] text-white',
         payment:
           'h-[56px] w-[191px] items-center justify-center gap-4 rounded-md border bg-ens-blue px-6 py-8 text-white uppercase',
       },
