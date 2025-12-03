@@ -4,17 +4,19 @@ import type { YieldableError } from './error-classes.js'
 /**
  * Type utilities for inferring Result types
  */
-export type InferOkTypes<R> = R extends Result<infer T, unknown>
-  ? T
-  : R extends ResultAsync<infer T, unknown>
+export type InferOkTypes<R> =
+  R extends Result<infer T, unknown>
     ? T
-    : never
+    : R extends ResultAsync<infer T, unknown>
+      ? T
+      : never
 
-export type InferErrTypes<R> = R extends Result<unknown, infer E>
-  ? E
-  : R extends ResultAsync<unknown, infer E>
+export type InferErrTypes<R> =
+  R extends Result<unknown, infer E>
     ? E
-    : never
+    : R extends ResultAsync<unknown, infer E>
+      ? E
+      : never
 
 /**
  * Creates a typed promise wrapper that converts errors to Result.

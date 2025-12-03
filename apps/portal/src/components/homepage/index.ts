@@ -1,3 +1,4 @@
+export { DashboardProfilePreview } from './DashboardProfilePreview'
 export { ExampleNameCard } from './ExampleNameCard'
 export { LinkBlock } from './LinkBlock'
 export { UpNextItem } from './UpNextItem'

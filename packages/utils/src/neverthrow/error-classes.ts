@@ -98,11 +98,10 @@ export const DataError: new <Args extends AnyErrorBody = {}>(
  * This is used internally to determine if the DataError constructor
  * should accept arguments or not.
  */
-export type Equals<X, Y> = (<T>() => T extends X ? 1 : 2) extends <
-  T,
->() => T extends Y ? 1 : 2
-  ? true
-  : false
+export type Equals<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
+    ? true
+    : false
 
 type TaggedError<
   Tag extends string,

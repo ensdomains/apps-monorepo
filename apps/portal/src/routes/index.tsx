@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import {
   Clock,
   Eye,
@@ -10,20 +10,15 @@ import {
   Users,
 } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
-import type { Address } from 'viem'
-import { useAccount, useDisconnect, useEnsName } from 'wagmi'
 import {
   ExampleNameCard,
   LinkBlock,
   UpNextItem,
   WhatsNewItem,
 } from '@/components/homepage'
-import { CopyableRecord } from '@/components/molecules/CopyableRecord'
-import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { DashboardProfilePreview } from '@/components/homepage/DashboardProfilePreview'
 import { NavBar } from '@/components/molecules/NavBar'
 import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
-import { Button } from '@/components/ui/button'
-import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
 import { HomeSearchInput } from '@/routes/components/HomeSearchInput'
 
 export const Route = createFileRoute('/')({
@@ -31,44 +26,11 @@ export const Route = createFileRoute('/')({
   notFoundComponent: () => <NotFoundMessage />,
 })
 
-const ProfilePreview = ({ address }: { address: Address }) => {
-  const { data: name, isLoading, error } = useEnsName({ address })
-  const { disconnect } = useDisconnect()
-
-  if (error) return <div>Error loading profile: {error.message}</div>
-  if (isLoading) return <LoadingSpinner title="Loading..." />
-
-  if (!name) return null
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-row gap-4">
-        <h2 className="font-medium text-[26px] flex flex-row w-max gap-1 items-baseline">
-          <span className="w-full">Connected as </span>
-          <CopyableRecord
-            value={address}
-            displayValue={`${address.slice(0, 6)}...${address.slice(-4)}`}
-            href={`/addr/${address}`}
-          />
-        </h2>
-        <Button variant="secondary" onClick={() => disconnect()}>
-          Disconnect
-        </Button>
-      </div>
-      <Link to="/$name" params={{ name }}>
-        <NameProfileCard name={name} />
-      </Link>
-    </div>
-  )
-}
-
 function RouteComponent() {
-  const { isConnected, address } = useAccount()
-
   return (
     <>
       <NavBar />
-      <main className="mx-auto py-10 flex flex-col gap-12 px-6">
+      <main className="mx-auto max-w-360 py-10 flex flex-col gap-12 px-6">
         <header className="flex flex-col gap-6">
           <div>
             <h1 className="text-[40px] font-bold">ENS Explorer</h1>
@@ -77,7 +39,7 @@ function RouteComponent() {
           <HomeSearchInput />
         </header>
 
-        <section className="bg-gray-100 border-x-0 border-y border-gray-200 p-8 -mx-6">
+        <section className="bg-gray-100 xl:rounded-lg border border-gray-200 p-8 -mx-6 md:mx-0">
           <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8">
             <div className="flex flex-col gap-4 items-start">
               <h2 className="text-2xl font-bold">
@@ -139,9 +101,10 @@ function RouteComponent() {
           </div>
         </section>
 
+        <DashboardProfilePreview />
+
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-12">
           <section className="flex flex-col gap-6">
-            {isConnected && address && <ProfilePreview address={address} />}
             <h2 className="text-2xl font-bold">ENSv2 name examples</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <ExampleNameCard
@@ -149,7 +112,7 @@ function RouteComponent() {
                 description="Name with records on the new Dedicated Resolver"
               />
               <ExampleNameCard
-                name="example.eth"
+                name="fast.eth"
                 description="Name with subnames on the new Registry contract"
               />
               <ExampleNameCard
@@ -161,7 +124,7 @@ function RouteComponent() {
                 description="Name with custom Roles created"
               />
               <ExampleNameCard
-                name="example.eth"
+                name="raffy.eth"
                 description="Name migrated to ENSv2"
               />
               <ExampleNameCard
@@ -215,7 +178,7 @@ function RouteComponent() {
               <LinkBlock
                 title="ENS Docs"
                 description="Official docs for ENS and its integrations."
-                href="https://docs.ens.domains"
+                href="https://ens.domains/ensv2"
               />
               <LinkBlock
                 title="ENS Contracts"
@@ -230,18 +193,18 @@ function RouteComponent() {
               <LinkBlock
                 title="ENSv2 Design Doc"
                 description="Architecture overview of ENSv2 and Namechain."
-                href="https://docs.ens.domains/ensv2"
+                href="https://ens.domains/blog/post/ensv2"
               />
               <LinkBlock
                 title="Unruggable Gateway"
                 description="Censorship-resistant ENS resolution."
                 href="https://github.com/ensdomains/evmgateway"
               />
-              <LinkBlock
+              {/* <LinkBlock
                 title="Developer Telegram"
                 description="Join the ENS dev chat."
                 href="https://t.me/ensdomains"
-              />
+              /> */}
             </div>
           </section>
 

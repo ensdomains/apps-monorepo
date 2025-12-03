@@ -15,11 +15,12 @@ import type { Result, ResultAsync } from 'neverthrow'
  * type UserTypeAsync = InferOkTypes<ReturnType<typeof fetchUser>> // User
  * ```
  */
-export type InferOkTypes<R> = R extends Result<infer T, unknown>
-  ? T
-  : R extends ResultAsync<infer T, unknown>
+export type InferOkTypes<R> =
+  R extends Result<infer T, unknown>
     ? T
-    : never
+    : R extends ResultAsync<infer T, unknown>
+      ? T
+      : never
 
 /**
  * Extracts the error type from a Result or ResultAsync.
@@ -36,11 +37,12 @@ export type InferOkTypes<R> = R extends Result<infer T, unknown>
  * type ErrorTypeAsync = InferErrTypes<ReturnType<typeof fetchUser>> // NetworkError
  * ```
  */
-export type InferErrTypes<R> = R extends Result<unknown, infer E>
-  ? E
-  : R extends ResultAsync<unknown, infer E>
+export type InferErrTypes<R> =
+  R extends Result<unknown, infer E>
     ? E
-    : never
+    : R extends ResultAsync<unknown, infer E>
+      ? E
+      : never
 
 /**
  * Checks if two types are exactly equal.
@@ -57,8 +59,7 @@ export type InferErrTypes<R> = R extends Result<unknown, infer E>
  * type Test4 = Equals<{ a: string }, { a: number }> // false
  * ```
  */
-export type Equals<X, Y> = (<T>() => T extends X ? 1 : 2) extends <
-  T,
->() => T extends Y ? 1 : 2
-  ? true
-  : false
+export type Equals<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
+    ? true
+    : false

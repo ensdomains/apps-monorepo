@@ -9,12 +9,10 @@ const chains = {
   sepolia: extendChainWithEns(sepolia),
 }
 
-export type ViemClient = ReturnType<typeof createEnsClient> extends Result<
-  infer T,
-  infer E
->
-  ? T
-  : never
+export type ViemClient =
+  ReturnType<typeof createEnsClient> extends Result<infer T, infer E>
+    ? T
+    : never
 
 export const createEnsClient = (env: CloudflareBindings) => {
   const chain = chains[env.CHAIN as keyof typeof chains]

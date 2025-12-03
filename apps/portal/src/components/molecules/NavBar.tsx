@@ -4,8 +4,8 @@ import { BookIcon, CircleQuestionMarkIcon, SettingsIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import { LogoWithTextSVG } from '@/assets/logo'
 import { TableViewSwitch } from '@/features/records/components/RecordsTable/TableViewSwitch'
+import { HomeSearchInput } from '../../routes/components/HomeSearchInput'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
-import { SearchBar } from './SearchBar'
 
 export const NavBar = () => {
   const { location } = useRouterState()
@@ -18,7 +18,7 @@ export const NavBar = () => {
       </Link>
       {location.pathname !== '/' && (
         <div className="flex flex-row gap-2 w-full">
-          <SearchBar />
+          <HomeSearchInput />
         </div>
       )}
       <div className="flex gap-2 flex-row justify-end w-full">
