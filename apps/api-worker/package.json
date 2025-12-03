@@ -1,5 +1,5 @@
 {
-  "name": "api-worker",
+  "name": "avatar-worker",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
