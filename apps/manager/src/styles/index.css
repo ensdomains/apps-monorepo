@@ -29,7 +29,7 @@
   button:disabled,
   [role="button"][aria-disabled="true"],
   a[aria-disabled="true"] {
-    cursor: default;
+    @apply cursor-default;
   }
 }
 
