@@ -1,38 +1,27 @@
-import { ResultFn } from '@ens-apps/utils/neverthrow'
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { ok } from 'neverthrow'
+import {
+  getSubgraphRecords as ensjs_getSubgraphRecords,
+  type GetSubgraphRecordsErrorType,
+} from '@ensdomains/ensjs/subgraph'
+import { fromPromise, ok } from 'neverthrow'
+import { safeGetClient } from '@/lib/wagmi/helpers'
 
-// biome-ignore lint/correctness/useYield: stubbed implementation does not need to yield
-export const getSubgraphRecords = ResultFn(async function* (_name: string) {
-  // TODO: Remove this once we have a real subgraph records from ensjs
-  const subgraphRecords = {
-    isMigrated: true,
-    createdAt: { date: new Date(), value: Date.now() },
-    texts: [
-      'com.twitter',
-      'com.discord',
-      'com.github',
-      'avatar',
-      'header',
-      'org.telegram',
-      'url',
-      'name',
-      'email',
-      'location',
-      'description',
-    ],
-    coins: [
-      '2147483648',
-      '60',
-      '2147492101',
-      '2147483658',
-      '2147525809',
-      '2147542792',
-      '2148018000',
-      '2147483785',
-    ],
-  }
+class GetSubgraphRecordsError extends TaggedError('GetSubgraphRecordsError')<{
+  cause: GetSubgraphRecordsErrorType
+}> {}
+
+export const getSubgraphRecords = ResultFn(async function* (name: string) {
+  const client = yield* safeGetClient()
+
+  const subgraphRecords = yield* await fromPromise(
+    ensjs_getSubgraphRecords(client, { name }),
+    (e) =>
+      new GetSubgraphRecordsError({
+        cause: e as GetSubgraphRecordsErrorType,
+      }),
+  )
 
   return ok(subgraphRecords)
 })
