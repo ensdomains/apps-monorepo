@@ -1,9 +1,11 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
+import { Plus } from 'lucide-react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/molecules/ErrorMessage'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
+import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { RolesTable } from '@/features/roles/components/RolesTable'
@@ -67,8 +69,16 @@ function RouteComponent() {
 
   if (data?.network === 'namechainSepolia') {
     return (
-      <div className="max-w-5xl w-full mx-auto flex flex-col gap-6 m-6 px-4">
-        <h1 className="text-3xl font-medium">Roles</h1>
+      <div className="max-w-360 w-full mx-auto flex flex-col gap-6 m-6 px-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-[28px] font-medium leading-none">Roles</h1>
+          <Button variant="outline" className="flex items-center gap-2" asChild>
+            <a href={`/${name}/add-user`}>
+              <Plus className="size-4" />
+              Add user
+            </a>
+          </Button>
+        </div>
         <V2NameRoles name={name} registryAddress={data.registryAddress} />
       </div>
     )

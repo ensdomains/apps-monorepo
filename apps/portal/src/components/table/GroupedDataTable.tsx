@@ -9,7 +9,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { ChevronDown, ChevronUp } from 'lucide-react'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
 import type { DataTableProps } from '../molecules/DataTable/DataTable'
@@ -102,7 +102,7 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
       <TableBody>
         {table.getRowModel().rows?.length ? (
           table.getRowModel().rows.map((row) => (
-            <>
+            <Fragment key={row.id}>
               <TableRow
                 className={cn(
                   'hover:bg-gray-200',
@@ -124,7 +124,7 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
               </TableRow>
               {row.getIsExpanded() &&
                 row.original.items.map((item) => <div key={item}>{item}</div>)}
-            </>
+            </Fragment>
           ))
         ) : (
           <TableRow>
