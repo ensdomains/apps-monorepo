@@ -1,0 +1,36 @@
+import { cors } from 'hono/cors'
+import { HTTPException } from 'hono/http-exception'
+import { logger, prettifyError } from '#utils/logger.js'
+import { createApp } from './middleware/hono'
+import authApp from './routes/auth'
+import expiryApp from './routes/expiry'
+import favoritesApp from './routes/favorites'
+import notificationsApp from './routes/notifications'
+import watchersApp from './routes/watchers'
+import webhookApp from './routes/webhook'
+
+const app = createApp()
+  .use('/*', cors())
+  .route('/', authApp)
+  .route('/', favoritesApp)
+  .route('/', notificationsApp)
+  .route('/', webhookApp)
+  .route('/', expiryApp)
+  .route('/', watchersApp)
+  .onError((err, c) => {
+    if (err instanceof HTTPException) {
+      // Get the custom response
+      return err.getResponse()
+    }
+
+    console.log('err', err)
+    logger.error('Internal server error', {
+      path: c.req.path,
+      method: c.req.method,
+      error: prettifyError(err),
+    })
+
+    return c.json({ error: 'Internal server error' }, 500)
+  })
+
+export default app
