@@ -4,7 +4,7 @@ import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 
 function RouteComponent() {
-  const isDashboardEnabled = useFeatureFlag('dashboard-enabled')
+  const isDashboardEnabled = useFeatureFlag('dashboard')
   const navigate = useNavigate()
 
   useEffect(() => {
