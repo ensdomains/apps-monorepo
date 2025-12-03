@@ -1,4 +1,9 @@
-import { useAccount, useModal, useWallet } from '@getpara/react-sdk-lite'
+import {
+  useAccount,
+  useLogout,
+  useModal,
+  useWallet,
+} from '@getpara/react-sdk-lite'
 import { Link } from '@tanstack/react-router'
 import {
   Bell,
@@ -26,13 +31,13 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { NotificationsDropdown } from '@/features/notifications/components'
-import { useTheme } from '@/hooks/use-theme'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 
 const ConnectedContent = () => {
   const { data: wallet } = useWallet()
   const account = useAccount()
   const { openModal } = useModal()
+  const { logout } = useLogout()
   const {
     rhinestoneAccount,
     accountAddress,
@@ -309,7 +314,7 @@ const ConnectedContent = () => {
             </DropdownMenuItem>
 
             {/* Disconnect */}
-            <DropdownMenuItem onClick={() => openModal()}>
+            <DropdownMenuItem onClick={() => logout()}>
               <Unlink className="mr-2 size-4" />
               Disconnect
             </DropdownMenuItem>
