@@ -23,7 +23,7 @@ type RolesFormData = {
   canTransferAdmin: RolePermissions
 }
 
-const roleDefinitions = [
+export const roleDefinitions = [
   {
     key: 'registrar' as const,
     title: 'Registrar',
