@@ -1,11 +1,15 @@
-import { useAccount, useModal, useWallet } from '@getpara/react-sdk-lite'
+import {
+  useAccount,
+  useLogout,
+  useModal,
+  useWallet,
+} from '@getpara/react-sdk-lite'
 import { Link } from '@tanstack/react-router'
 import {
   Bell,
   ChevronDown,
   Copy,
   CreditCard,
-  LayoutGrid,
   RefreshCcw,
   Unlink,
   User,
@@ -27,13 +31,13 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { NotificationsDropdown } from '@/features/notifications/components'
-import { useTheme } from '@/hooks/use-theme'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 
 const ConnectedContent = () => {
   const { data: wallet } = useWallet()
   const account = useAccount()
   const { openModal } = useModal()
+  const { logout } = useLogout()
   const {
     rhinestoneAccount,
     accountAddress,
@@ -310,7 +314,7 @@ const ConnectedContent = () => {
             </DropdownMenuItem>
 
             {/* Disconnect */}
-            <DropdownMenuItem onClick={() => openModal()}>
+            <DropdownMenuItem onClick={() => logout()}>
               <Unlink className="mr-2 size-4" />
               Disconnect
             </DropdownMenuItem>
@@ -368,25 +372,26 @@ const DisconnectedContent = () => {
 }
 
 const Menu = () => {
-  const { theme, toggleTheme } = useTheme()
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="flex size-[56px] items-center justify-center rounded-[100px] border-[#e6e6e6] border-[0.4px] p-[11px] transition-colors hover:bg-gray-50"
-        >
-          <LayoutGrid className="size-[24px]" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent collisionPadding={16}>
-        <DropdownMenuItem onClick={toggleTheme}>
-          {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
+  // const { theme, toggleTheme } = useTheme()
+  //
+  // return (
+  //   <DropdownMenu>
+  //     <DropdownMenuTrigger asChild>
+  //       <button
+  //         type="button"
+  //         className="flex size-[56px] items-center justify-center rounded-[100px] border-[#e6e6e6] border-[0.4px] p-[11px] transition-colors hover:bg-gray-50"
+  //       >
+  //         <LayoutGrid className="size-[24px]" />
+  //       </button>
+  //     </DropdownMenuTrigger>
+  //     <DropdownMenuContent collisionPadding={16}>
+  //       <DropdownMenuItem onClick={toggleTheme}>
+  //         {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+  //       </DropdownMenuItem>
+  //     </DropdownMenuContent>
+  //   </DropdownMenu>
+  // )
+  return null
 }
 
 export const Header = () => {
@@ -394,7 +399,7 @@ export const Header = () => {
   const isConnected = !!wallet && !walletLoading
 
   return (
-    <nav className="sticky top-0 z-10 flex items-center justify-between bg-background px-[58px] py-[40px]">
+    <nav className="sticky top-0 z-10 flex items-center justify-between bg-background px-[36px] py-[29px]">
       <Link to="/" className="mr-auto py-2">
         <img
           src={ensMobileLogo}

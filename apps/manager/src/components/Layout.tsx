@@ -19,6 +19,7 @@ export const Layout = ({ children }: LayoutProps) => {
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'repeat',
+          backgroundAttachment: 'fixed',
           backgroundColor: 'white',
         }}
       >

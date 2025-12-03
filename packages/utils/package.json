@@ -9,10 +9,12 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "test": "echo \"No tests for utils package\""
+    "test": "vitest --typecheck",
+    "test:run": "vitest run --typecheck"
   },
   "devDependencies": {
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   },
   "keywords": [],
   "dependencies": {

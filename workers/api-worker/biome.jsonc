@@ -1,0 +1,19 @@
+{
+  "$schema": "../../node_modules/@biomejs/biome/configuration_schema.json",
+  "root": false,
+  "extends": "//",
+  "files": {
+    "includes": [
+      "./**",
+
+      "!**/node_modules",
+
+      // Generated files
+      "!**/*.gen.ts",
+      "!**/*.gen.d.ts",
+
+      // Build & Temp files
+      "!**/.wrangler"
+    ]
+  }
+}

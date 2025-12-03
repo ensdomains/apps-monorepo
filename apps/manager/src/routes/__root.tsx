@@ -8,6 +8,8 @@ import {
 } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import type { ReactNode } from 'react'
+import { Toaster } from 'sonner'
+import { WagmiProvider } from 'wagmi'
 import { Layout } from '@/components/Layout'
 import appCss from '@/styles/index.css?url'
 import '@getpara/react-sdk-lite/styles.css'
@@ -99,7 +101,12 @@ export const Route = createRootRouteWithContext<RootRouterContext>()({
     ],
   }),
   component: RootComponent,
+  notFoundComponent: NotFoundComponent,
 })
+
+function NotFoundComponent() {
+  return <div>Not Found</div>
+}
 
 function RootComponent() {
   return (
@@ -108,6 +115,7 @@ function RootComponent() {
         <Layout>
           <Outlet />
         </Layout>
+        <Toaster position="top-right" />
       </ProvidersWrapper>
 
       <TanStackRouterDevtools position="bottom-right" />
