@@ -1,5 +1,6 @@
 import type { GetNameRolesAccountsReturnType } from '@ensdomains/ensjs/public/v2'
 import type { ColumnDef } from '@tanstack/react-table'
+import { UserIcon, UserLockIcon } from 'lucide-react'
 import type { Address } from 'viem'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { AddressDisplay } from '@/components/organisms/HistoryTable/AddressDisplay'
@@ -46,15 +47,15 @@ const RoleItemContainer = ({
         displayValue={label}
         value={role}
       />
-      <div className="w-full flex flex-row gap-4">
+      <div className="w-full flex flex-row gap-2">
         {admin && (
-          <div className="p-2 rounded-2xl flex items-center bg-secondary h-[26px]">
-            Admin
+          <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[26px]">
+            <UserLockIcon width={16} height={16} /> Admin
           </div>
         )}
         {manager && (
-          <div className="p-2 rounded-2xl flex items-center bg-secondary h-[26px]">
-            Manager
+          <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[26px]">
+            <UserIcon width={16} height={16} /> Manager
           </div>
         )}
       </div>
