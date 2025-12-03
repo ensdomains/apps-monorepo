@@ -60,7 +60,7 @@ export const FavoritesList = ({ favorites = [] }: FavoritesListProps) => {
                   <div className="relative size-[32px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
                     <div className="absolute inset-0 bg-gradient-to-br from-purple-200 to-blue-200" />
                   </div>
-                  <div className="flex min-w-0 flex-1 items-center justify-center rounded-[2.867px] bg-[#e5f7ff] px-2 py-1 md:h-[24px] md:px-[8px] md:py-[4px]">
+                  <div className="flex shrink-0 items-center justify-center rounded-[2.867px] bg-[#e5f7ff] px-2 py-1 md:h-[24px] md:px-[8px] md:py-[4px]">
                     <Link
                       to="/p/$name"
                       params={{ name: name.name }}
