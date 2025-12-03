@@ -11,6 +11,7 @@ import { NoRegistryCard } from '@/features/registry/components/NoRegistryCard'
 import { ParentRegistrySection } from '@/features/registry/components/ParentRegistrySection'
 import { RegistryCard } from '@/features/registry/components/RegistryCard'
 import { RegistryHeaderCards } from '@/features/registry/components/RegistryHeaderCards'
+import { RegistryHistory } from '@/features/registry/components/RegistryHistory'
 import { VerifiedRegistryCard } from '@/features/registry/components/VerifiedRegistryCard'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getParentName } from '@/features/registry/utils/nameUtils'
@@ -298,6 +299,13 @@ function RouteComponent() {
             />
           </>
         ))}
+
+      {nameRegistry && nameRegistry !== zeroAddress && (
+        <RegistryHistory
+          registryAddress={nameRegistry}
+          label={name.split('.')[0]}
+        />
+      )}
     </div>
   )
 }
