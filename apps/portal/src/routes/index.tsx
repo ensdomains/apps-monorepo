@@ -20,7 +20,6 @@ import {
 import { DashboardProfilePreview } from '@/components/homepage/DashboardProfilePreview'
 import { NavBar } from '@/components/molecules/NavBar'
 import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
-import { HomeSearchInput } from '@/routes/components/HomeSearchInput'
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,
