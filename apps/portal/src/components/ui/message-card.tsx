@@ -44,7 +44,9 @@ export function MessageCard({
 
         <h2 className="text-2xl font-bold">{title}</h2>
 
-        <div className="text-base leading-relaxed">{description}</div>
+        <div className="text-base leading-relaxed wrap-break-word whitespace-normal max-w-full overflow-wrap-anywhere">
+          {description}
+        </div>
       </div>
 
       {actionButton && (
