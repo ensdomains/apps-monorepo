@@ -25,60 +25,6 @@ import {
   TableRow,
 } from '../ui/table'
 
-const createExpanderColumn = <
-  TData extends { items: string[] },
->(): ColumnDef<TData> => ({
-  id: 'expander',
-  cell: ({ row }) => {
-    const count = row.original.items.length
-    return (
-      <div className="flex flex-row items-center gap-1">
-        {count > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label={row.getIsExpanded() ? 'Collapse' : 'Expand'}
-            onClick={(e) => {
-              e.stopPropagation()
-              row.toggleExpanded()
-            }}
-          >
-            {row.getIsExpanded() ? <ChevronUp /> : <ChevronDown />}
-            <span className="text-sm font-medium">{count}</span>
-          </Button>
-        )}
-      </div>
-    )
-  },
-})
-
-const createMoreColumn = <
-  TData extends { items: string[] },
->(): ColumnDef<TData> => ({
-  id: 'more',
-  header: () => null,
-  cell: ({ row, table }) => {
-    return (
-      <div className="flex justify-end pr-4">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation()
-            const meta = table.options.meta as {
-              onMoreClick?: (r: typeof row) => void
-            }
-            meta?.onMoreClick?.(row)
-          }}
-        >
-          <PanelRightOpen className="h-4 w-4" />
-          <span className="text-sm font-medium">More</span>
-        </Button>
-      </div>
-    )
-  },
-})
-
 export type GroupedDataTableProps<
   TData extends { items: string[] },
   TValue,
@@ -102,13 +48,60 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [clickedRow, setClickedRow] = useState<Row<TData> | null>(null)
 
-  const table = useReactTable({
+  const expanderColumn: ColumnDef<TData> = {
+    id: 'expander',
+    cell: ({ row }) => {
+      const count = row.original.items.length
+      return (
+        <div className="flex flex-row items-center gap-1">
+          {count > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label={row.getIsExpanded() ? 'Collapse' : 'Expand'}
+              onClick={(e) => {
+                e.stopPropagation()
+                row.toggleExpanded()
+              }}
+            >
+              {row.getIsExpanded() ? <ChevronUp /> : <ChevronDown />}
+              <span className="text-sm font-medium">{count}</span>
+            </Button>
+          )}
+        </div>
+      )
+    },
+  }
+
+  const moreColumn: ColumnDef<TData> = {
+    id: 'more',
+    header: () => null,
+    cell: ({ row, table }) => {
+      const meta = table.options.meta as {
+        onMoreClick?: (r: Row<TData>) => void
+      }
+
+      return (
+        <div className="flex justify-end pr-4">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              meta?.onMoreClick?.(row)
+            }}
+          >
+            <PanelRightOpen className="h-4 w-4" />
+            <span className="text-sm font-medium">More</span>
+          </Button>
+        </div>
+      )
+    },
+  }
+
+  const table = useReactTable<TData>({
     data,
-    columns: [
-      createExpanderColumn<TData>(),
-      ...columns,
-      createMoreColumn<TData>(),
-    ],
+    columns: [expanderColumn, ...columns, moreColumn],
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
@@ -184,7 +177,7 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
                 </TableRow>
                 {row.getIsExpanded() && (
                   <TableRow>
-                    <TableCell colSpan={table.getAllColumns().length}>
+                    <TableCell colSpan={table.getVisibleLeafColumns().length}>
                       <div className="flex flex-col">
                         {itemsWrapper(row.original)}
                       </div>
@@ -196,7 +189,7 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
           ) : (
             <TableRow>
               <TableCell
-                colSpan={table.getAllColumns().length}
+                colSpan={table.getVisibleLeafColumns().length}
                 className="h-24 text-center"
               >
                 No data found.
