@@ -10,7 +10,7 @@ export const ENS_SEPOLIA_CONTRACTS = {
   // Public Resolver
   PublicResolver: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const,
   // Universal Resolver
-  UniversalResolver: '0x352d7aA7a8bd0F6f31635BE5ceCb6Cebb6929A15' as const,
+  UniversalResolver: '0x2AFF1ceDDDd4c8C214ebFaAE10DBe63a8AB38400' as const,
   // Reverse Registrar
   ReverseRegistrar: '0xa58e81fe9b61b5c3fe2afd33cf304c454abfc7cb' as const,
   // Name Wrapper
