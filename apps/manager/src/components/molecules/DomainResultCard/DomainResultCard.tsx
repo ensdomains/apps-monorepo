@@ -11,8 +11,8 @@ interface DomainResultCardProps {
   price?: number
   priceLabel?: string
   className?: string
-  link?: string
   isLoading?: boolean
+  clickable?: boolean
 }
 
 const statusIconMap = {
@@ -27,8 +27,8 @@ export const DomainResultCard = ({
   price,
   priceLabel = '/year',
   className,
-  link,
   isLoading = false,
+  clickable = false,
 }: DomainResultCardProps) => {
   const baseClasses = cn(
     'domain-result-card',
@@ -37,9 +37,9 @@ export const DomainResultCard = ({
     'px-5 py-5',
     'text-left',
     'bg-ens-white',
-    'rounded-[4px]',
+    'rounded-sm',
     'shadow-lg transition',
-    link && 'hover:-translate-y-0.5 cursor-pointer hover:shadow-xl',
+    clickable && 'hover:-translate-y-0.5 cursor-pointer hover:shadow-xl',
     className,
   )
 
@@ -50,7 +50,7 @@ export const DomainResultCard = ({
           <div className="flex w-full items-center justify-between gap-4">
             <div className="flex items-center gap-[9px]">
               <span className="flex h-[26px] w-[26px] animate-pulse items-center justify-center rounded-full bg-slate-200" />
-              <span className="inline-block h-9 w-48 animate-pulse rounded-[4px] bg-slate-200" />
+              <span className="inline-block h-9 w-48 animate-pulse rounded-sm bg-slate-200" />
             </div>
 
             <div className="flex items-end gap-2 text-center">
@@ -77,7 +77,7 @@ export const DomainResultCard = ({
                   'bg-white',
                   'border border-ens-blue',
                   'font-medium leading-none tracking-[-0.48px]',
-                  'block rounded-[4px]',
+                  'block rounded-sm',
                   'max-w-[10ch] truncate sm:max-w-[40ch]', // Mobile: 10 chars, Desktop: 40 chars
                 )}
                 title={domainName}
@@ -118,14 +118,6 @@ export const DomainResultCard = ({
       )}
     </div>
   )
-
-  if (link) {
-    return (
-      <Link to={link as never} className={baseClasses}>
-        {content}
-      </Link>
-    )
-  }
 
   return <div className={baseClasses}>{content}</div>
 }

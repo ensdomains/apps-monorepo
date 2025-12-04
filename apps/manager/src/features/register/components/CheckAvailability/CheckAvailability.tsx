@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import {
   type ChangeEvent,
   useEffect,
@@ -118,78 +119,75 @@ export const CheckAvailability = ({
     hasValidationError,
   ])
 
-  const showHint =
-    displayState.type === 'idle' &&
-    !hasValidationError &&
-    !hasError &&
-    !isSearching
-
   const { data: unavailableMetadata } = useQuery({
     ...profileMetadataQuery(context.selectedName),
     enabled: displayState.type === 'unavailable' && !!context.selectedName,
   })
 
   return (
-    <div className="relative space-y-4">
-      <div className="flex flex-col gap-2">
+    <div className="relative flex flex-col gap-2">
+      <div className="relative">
         <SearchField
-          placeholder="Search for a name"
+          placeholder=".eth"
           value={inputValue}
           onChange={handleInputChange}
           onSearch={handleSearch}
           disabled={isSearching}
           className="w-full"
         />
-        {showHint && (
-          <p className="pl-1 font-medium font-sans text-ens-lapis-surface text-xs leading-normal tracking-wide">
-            Start typing to check if your perfect name is available 🕵️‍♀️
-          </p>
-        )}
+
+        <div className="absolute top-full z-10 mt-2 w-full space-y-4">
+          {hasValidationError && context.validationError && (
+            <ValidationError error={context.validationError} />
+          )}
+
+          {nonValidationErrorMessage && (
+            <Alert variant="destructive">
+              <AlertDescription>{nonValidationErrorMessage}</AlertDescription>
+            </Alert>
+          )}
+          {displayState.type === 'searching' && (
+            <DomainResultCard
+              domainName={displayState.domainName}
+              status="available"
+              premiumLabel={context.premiumLabel}
+              price={context.pricing[1]?.price}
+              isLoading={true}
+            />
+          )}
+
+          {displayState.type === 'available' && (
+            <Link
+              to="/register"
+              search={{ name: displayState.domainName, duration: 1 }}
+            >
+              <DomainResultCard
+                domainName={displayState.domainName}
+                status="available"
+                premiumLabel={context.premiumLabel}
+                price={context.pricing[1]?.price}
+                isLoading={false}
+                clickable
+              />
+            </Link>
+          )}
+
+          {displayState.type === 'unavailable' && (
+            <Link to="/p/$name" params={{ name: displayState.domainName }}>
+              <DomainProfileCard
+                domainName={displayState.domainName}
+                avatarUrl={unavailableMetadata?.avatarUrl}
+                registeredDate={unavailableMetadata?.registeredDate}
+                expiryDate={unavailableMetadata?.expiryDate}
+                clickable
+              />
+            </Link>
+          )}
+        </div>
       </div>
-
-      {hasValidationError && context.validationError && (
-        <ValidationError error={context.validationError} />
-      )}
-
-      {nonValidationErrorMessage && (
-        <Alert variant="destructive">
-          <AlertDescription>{nonValidationErrorMessage}</AlertDescription>
-        </Alert>
-      )}
-
-      {displayState.type === 'searching' && (
-        <DomainResultCard
-          domainName={displayState.domainName}
-          status="available"
-          premiumLabel={context.premiumLabel}
-          price={context.pricing[1]?.price}
-          isLoading={true}
-        />
-      )}
-
-      {displayState.type === 'available' && (
-        <DomainResultCard
-          domainName={displayState.domainName}
-          status="available"
-          premiumLabel={context.premiumLabel}
-          price={context.pricing[1]?.price}
-          isLoading={false}
-          link={`/register?name=${encodeURIComponent(displayState.domainName)}&duration=1`}
-        />
-      )}
-
-      {displayState.type === 'unavailable' && (
-        <DomainProfileCard
-          domainName={displayState.domainName}
-          avatarUrl={unavailableMetadata?.avatarUrl}
-          registeredDate={unavailableMetadata?.registeredDate}
-          expiryDate={unavailableMetadata?.expiryDate}
-          link={{
-            to: '/p/$name',
-            params: { name: displayState.domainName },
-          }}
-        />
-      )}
+      <p className="pl-1 font-medium font-sans text-ens-lapis-surface text-sm leading-normal tracking-wide">
+        Start typing to check if your perfect name is available 🕵️‍♀️
+      </p>
     </div>
   )
 }
