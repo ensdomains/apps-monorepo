@@ -9,6 +9,7 @@ import {
   notificationsInfiniteQuery,
   unreadCountQuery,
 } from '../../queries/notifications'
+import { NotificationsTitleRow } from '../shared'
 import { NotificationItem } from './notification-items'
 
 interface NotificationsDropdownProps {
@@ -45,10 +46,10 @@ const UnauthenticatedContent = () => {
 
   return (
     <div className="">
-      <div className="flex items-center justify-between px-4 py-3">
-        <h1 className="font-normal text-2xl">Notifications</h1>
+      <div className="px-4 py-3">
+        <NotificationsTitleRow title="Notifications" />
       </div>
-      <div className="px-4 py-6">
+      <div className="px-4 pt-2 pb-6">
         <div className="space-y-4 text-center">
           <div className="space-y-2">
             <h3 className="font-medium text-lg">Connect your wallet</h3>
@@ -100,10 +101,10 @@ const AuthenticatedContent = ({ onAction }: AuthenticatedContentProps) => {
   if (isLoading) {
     return (
       <div className="">
-        <div className="flex items-center justify-between px-4 py-3">
-          <h1 className="font-normal text-2xl">Notifications</h1>
+        <div className="px-4 py-3">
+          <NotificationsTitleRow title="Notifications" />
         </div>
-        <div className="px-4 py-6 text-center text-muted-foreground text-sm">
+        <div className="px-4 pt-2 pb-6 text-center text-muted-foreground text-sm">
           Loading notifications...
         </div>
       </div>
@@ -113,10 +114,10 @@ const AuthenticatedContent = ({ onAction }: AuthenticatedContentProps) => {
   if (isError) {
     return (
       <div className="">
-        <div className="flex items-center justify-between px-4 py-3">
-          <h1 className="font-normal text-2xl">Notifications</h1>
+        <div className="px-4 py-3">
+          <NotificationsTitleRow title="Notifications" />
         </div>
-        <div className="px-4 py-6 text-center text-destructive text-sm">
+        <div className="px-4 pt-2 pb-6 text-center text-destructive text-sm">
           Failed to load notifications
         </div>
       </div>
@@ -124,38 +125,42 @@ const AuthenticatedContent = ({ onAction }: AuthenticatedContentProps) => {
   }
 
   return (
-    <div className="p-2">
-      <div className="flex items-center justify-between">
-        <h1 className="font-normal text-2xl">Notifications</h1>
-        {unreadCount > 0 ? (
-          <button
-            type="button"
-            className="text-sm"
-            onClick={() => {
-              // TODO: Implement mark all as read
-              console.log('Mark all as read')
-            }}
-          >
-            Mark all as read
-            <span className="ml-2 rounded-md bg-gray-200 px-1.5 py-0.5 text-gray-900 text-xs">
-              {unreadCount}
-            </span>
-          </button>
-        ) : (
-          <a
-            className="inline-flex items-center gap-1 text-muted-foreground text-sm hover:underline"
-            href="https://ens.domains/blog"
-            target="_blank"
-            rel="noreferrer"
-          >
-            what's new at ENS <ArrowUpRight className="size-3.5" />
-          </a>
-        )}
+    <div className="">
+      <div className="px-4 py-3">
+        <NotificationsTitleRow
+          title="Notifications"
+          rightSlot={
+            unreadCount > 0 ? (
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-gray-50"
+                onClick={() => {
+                  // TODO: Implement mark all as read
+                  console.log('Mark all as read')
+                }}
+              >
+                <span>Mark all as read</span>
+                <span className="rounded-md bg-gray-200 px-1.5 py-0.5 text-gray-900 text-xs">
+                  {unreadCount}
+                </span>
+              </button>
+            ) : (
+              <a
+                className="inline-flex items-center gap-1 text-muted-foreground text-sm hover:underline"
+                href="https://ens.domains/blog"
+                target="_blank"
+                rel="noreferrer"
+              >
+                what's new at ENS <ArrowUpRight className="size-3.5" />
+              </a>
+            )
+          }
+        />
       </div>
 
-      <div>
+      <div className="px-2 pt-1 pb-4">
         {displayedNotifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center space-y-2 pt-6">
+          <div className="flex flex-col items-center justify-center space-y-2 py-6">
             <SmileIcon className="size-10" />
             <div className="text-muted-foreground text-sm">All caught up!</div>
             <LinkButton
@@ -168,7 +173,7 @@ const AuthenticatedContent = ({ onAction }: AuthenticatedContentProps) => {
             </LinkButton>
           </div>
         ) : (
-          <div className="mt-1">
+          <div className="mt-1 max-h-80 space-y-1 overflow-y-auto pr-1">
             {displayedNotifications.map((notification) => (
               <NotificationItem
                 key={`${notification.kind}-${notification.timestamp}`}
@@ -181,7 +186,7 @@ const AuthenticatedContent = ({ onAction }: AuthenticatedContentProps) => {
       </div>
 
       {allNotifications.length > 3 && (
-        <div className="pt-5">
+        <div className="border-gray-100 border-t px-4 pt-3 pb-2">
           <LinkButton
             to="/notifications/all"
             variant="ghost"
