@@ -54,6 +54,12 @@
   --color-ens-gray-two: #e5e5e5;
   --color-ens-gray-three: #c4c7c8;
   --color-ens-white: #f6f6f6;
+
+  /* Temp names to be given official names once the design system is finalized */
+  --text-temp-64px: 4rem; /* TEMP NAME - Designs commonly use 64px for h1's but no official name has been given */
+  --text-temp-64px--line-height: 78%;
+  --text-temp-32px: 2rem;
+  --text-temp-32px--line-height: 110%;
 }
 
 /* ===============================
@@ -62,10 +68,6 @@
  */
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -100,7 +102,6 @@
 }
 
 :root {
-  --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
