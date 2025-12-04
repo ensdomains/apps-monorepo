@@ -67,7 +67,7 @@ export const RecordCount = ({
           )}
         </div>
         <Link
-          to="/$name/records"
+          to="/$name/resolver"
           search={{ view: 'list' }}
           params={{ name }}
           className="h-8 w-8 p-2 rounded-sm duration-150 bg-gray-100 hover:bg-gray-200 flex items-center justify-center"

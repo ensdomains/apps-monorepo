@@ -79,7 +79,7 @@ function RouteComponent() {
         : ((error as { message?: string })?.message ?? 'Unknown error')
 
     return (
-      <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
+      <div className="flex flex-col gap-4 p-4 w-full max-w-360 mx-auto">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
         <div>Error: {message}</div>
       </div>
@@ -88,7 +88,7 @@ function RouteComponent() {
 
   if (registryError) {
     return (
-      <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
+      <div className="flex flex-col gap-4 p-4 w-full max-w-360 mx-auto">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
         <div>Error: {registryError.message}</div>
       </div>
@@ -126,7 +126,7 @@ function RouteComponent() {
   // ─────────────────────────────
   if (!hasNameRegistry) {
     return (
-      <div className="flex flex-col gap-6 p-4 w-full lg|max-w-2xl xl:max-w-5xl mx-auto">
+      <div className="flex flex-col gap-6 p-4 w-full max-w-360 mx-auto">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
 
         {isLoadingOwner || isLoadingRegistry ? (
