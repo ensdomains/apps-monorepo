@@ -23,11 +23,11 @@ const getMockRoleData = () => ({
   canTransferAdmin: { manager: false, admin: true },
 })
 
-interface RolesSidebarProps<TData> extends PropsWithChildren {
+type RolesSidebarProps<TData> = PropsWithChildren<{
   row: Row<TData> | null
   open: boolean
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
-}
+}>
 
 export const RolesSidebar = <TData extends { items: string[] }>({
   children,

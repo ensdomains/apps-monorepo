@@ -83,15 +83,15 @@ export type GroupedDataTableProps<
   TData extends { items: string[] },
   TValue,
 > = DataTableProps<TData, TValue> & {
-  itemsWrapper?: ({ items }: { items: TData['items'] }) => ReactNode
+  itemsWrapper?: (rowData: TData) => ReactNode
 }
 
 export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
   data,
   columns,
-  itemsWrapper = ({ items }) => (
+  itemsWrapper = (rowData) => (
     <>
-      {items.map((item) => (
+      {rowData.items.map((item) => (
         <div key={item}>{item}</div>
       ))}
     </>
@@ -186,7 +186,7 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
                   <TableRow>
                     <TableCell colSpan={table.getAllColumns().length}>
                       <div className="flex flex-col">
-                        {itemsWrapper({ items: row.original.items })}
+                        {itemsWrapper(row.original)}
                       </div>
                     </TableCell>
                   </TableRow>

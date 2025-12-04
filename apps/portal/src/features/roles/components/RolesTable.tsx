@@ -77,8 +77,8 @@ const RoleItem = ({
   return <RoleItemContainer label={roleLabel} {...{ admin, manager, role }} />
 }
 
-const ItemsWrapper = ({ items }: { items: string[] }) => {
-  const permissions = roleToPermissions(items)
+const ItemsWrapper = (rowData: AccountGroup) => {
+  const permissions = roleToPermissions(rowData.items)
 
   return (
     <>

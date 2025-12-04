@@ -25,37 +25,37 @@ type RolesFormData = {
 
 export const roleDefinitions = [
   {
-    key: 'registrar' as const,
+    key: 'registrar',
     title: 'Registrar',
     description: 'Can register new names',
   },
   {
-    key: 'renew' as const,
+    key: 'renew',
     title: 'Renew',
     description: 'Can renew name registrations',
   },
   {
-    key: 'setSubregistry' as const,
+    key: 'setSubregistry',
     title: 'Set Subregistry',
     description: 'Can change subregistry addresses',
   },
   {
-    key: 'setResolver' as const,
+    key: 'setResolver',
     title: 'Set Resolver',
     description: 'Can change the resolver addresses',
   },
   {
-    key: 'setTokenObserver' as const,
+    key: 'setTokenObserver',
     title: 'Set Token Observer',
     description: 'Can set token observer contracts',
   },
   {
-    key: 'burn' as const,
+    key: 'burn',
     title: 'Burn',
     description: 'Can burn (delete) the name',
   },
   {
-    key: 'canTransferAdmin' as const,
+    key: 'canTransferAdmin',
     title: 'Can Transfer Admin',
     description: 'Can grant/revoke transfer admin rights',
   },
