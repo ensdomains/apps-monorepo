@@ -100,8 +100,8 @@ const AuthenticatedContent = ({ onAction }: AuthenticatedContentProps) => {
 
   if (isLoading) {
     return (
-      <div className="">
-        <div className="px-4 py-3">
+      <div>
+        <div className="p-2">
           <NotificationsTitleRow title="Notifications" />
         </div>
         <div className="px-4 pt-2 pb-6 text-center text-muted-foreground text-sm">
@@ -113,8 +113,8 @@ const AuthenticatedContent = ({ onAction }: AuthenticatedContentProps) => {
 
   if (isError) {
     return (
-      <div className="">
-        <div className="px-4 py-3">
+      <div>
+        <div className="p-2">
           <NotificationsTitleRow title="Notifications" />
         </div>
         <div className="px-4 pt-2 pb-6 text-center text-destructive text-sm">
@@ -125,8 +125,8 @@ const AuthenticatedContent = ({ onAction }: AuthenticatedContentProps) => {
   }
 
   return (
-    <div className="">
-      <div className="px-4 py-3">
+    <div>
+      <div className="p-2">
         <NotificationsTitleRow
           title="Notifications"
           rightSlot={
