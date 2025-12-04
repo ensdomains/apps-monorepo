@@ -16,8 +16,19 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  /* Enable keyword animations */
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      interpolate-size: allow-keywords;
+    }
+  }
+
   body {
     @apply bg-background text-foreground;
+
+    /* Improve text rendering */
+    -webkit-font-smoothing: antialiased;
   }
 
   button,
