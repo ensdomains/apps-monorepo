@@ -163,42 +163,38 @@ export function NotificationPreferences() {
                           </p>
                         )}
                       </div>
-                      {['email', 'telegram'].map((channelType) => {
-                        const isChannelVerified = verifiedChannels.some(
-                          (c) => c.channel === channelType,
-                        )
-                        const isEnabled = isPreferenceEnabled(
-                          kind.id,
-                          channelType as ChannelType,
-                        )
+                      <div className="flex items-center gap-10">
+                        {['email', 'telegram'].map((channelType) => {
+                          const isChannelVerified = verifiedChannels.some(
+                            (c) => c.channel === channelType,
+                          )
+                          const isEnabled = isPreferenceEnabled(
+                            kind.id,
+                            channelType as ChannelType,
+                          )
 
-                        return (
-                          <div
-                            key={channelType}
-                            className="flex flex-col items-center gap-1"
-                          >
-                            <Switch
-                              checked={isEnabled}
-                              onCheckedChange={(checked) =>
-                                handlePreferenceChange(
-                                  kind.id,
-                                  channelType as ChannelType,
-                                  checked,
-                                )
-                              }
-                              disabled={
-                                !hasVerifiedChannels || !isChannelVerified
-                              }
-                            />
-                            {!hasVerifiedChannels || !isChannelVerified ? (
-                              <span className="text-center text-muted-foreground text-xs">
-                                Add{' '}
-                                {channelType === 'email' ? 'Email' : 'Telegram'}
-                              </span>
-                            ) : null}
-                          </div>
-                        )
-                      })}
+                          return (
+                            <div
+                              key={channelType}
+                              className="flex flex-col items-center gap-1"
+                            >
+                              <Switch
+                                checked={isEnabled}
+                                onCheckedChange={(checked) =>
+                                  handlePreferenceChange(
+                                    kind.id,
+                                    channelType as ChannelType,
+                                    checked,
+                                  )
+                                }
+                                disabled={
+                                  !hasVerifiedChannels || !isChannelVerified
+                                }
+                              />
+                            </div>
+                          )
+                        })}
+                      </div>
                     </div>
                   )
                 })}
