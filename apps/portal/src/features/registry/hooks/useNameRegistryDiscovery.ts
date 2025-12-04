@@ -113,7 +113,6 @@ export const getNameRegistries = ResultFn(async function* (
   const labels = name.split('.')
   if (labels.length < 2) {
     // For TLD-only or invalid names, name doesn't exist
-
     return ok<NameRegistriesResult>({
       registries: [zeroAddress, sepoliaEthRegistryAddress], // [name (doesn't exist), TLD]
       network: 'sepolia',
@@ -131,8 +130,11 @@ export const getNameRegistries = ResultFn(async function* (
     (e) => new NameRegistriesError({ cause: e as GetNameRegistriesErrorType }),
   )
 
-  // If registries.at(-2) exists and is not zeroAddress, name exists on L2
   const l2NameRegistry = l2Registries.at(-2)
+
+  // Check if name exists on L2
+  // If nameRegistry is non-zero, the name has a registry on L2
+  // rootRegistry being zero just means it's a migrated V1 name, but it's still V2 on L2
   if (l2NameRegistry && l2NameRegistry !== zeroAddress) {
     return ok<NameRegistriesResult>({
       registries: toNameRegistriesResultType(l2Registries),
@@ -156,14 +158,50 @@ export const getNameRegistries = ResultFn(async function* (
     (e) => new NameRegistriesError({ cause: e as GetNameRegistriesErrorType }),
   )
 
-  // If registries.at(-2) exists and is not zeroAddress, name exists on L1 V2
+  const v1RegistryAddress = getChainContractAddress({
+    chain: l1Client.chain,
+    contract: 'ensRegistry',
+  })
+
   const l1V2NameRegistry = l1V2Registries.at(-2)
+  const l1V2RootRegistry = l1V2Registries.at(0)
+
+  // Check if this is actually a V1 registry by comparing addresses
+  // For wrapped V1 names, UniversalResolver returns the NameWrapper address, not V1 registry
+  // But wrapped V1 names will have zeroAddress for root registry (same as invalid L2 data)
   if (l1V2NameRegistry && l1V2NameRegistry !== zeroAddress) {
+    // Check if root registry is non-zero (true V2) or zeroAddress (wrapped V1)
+    if (l1V2RootRegistry && l1V2RootRegistry !== zeroAddress) {
+      return ok<NameRegistriesResult>({
+        registries: toNameRegistriesResultType(l1V2Registries),
+        network: 'sepolia',
+        protocolVersion: 'ENSv2',
+        factory: sepoliaVerifiableFactory,
+      })
+    }
+
+    // If we reach here, root is zeroAddress but name registry exists
+    // This indicates a wrapped V1 name (NameWrapper is the registry)
+    // Return as V1 name instead of falling through to V1 check
+    const pathLabels = labels.slice(0, -1) // drop TLD
+    let registries: NameRegistriesResultType
+
+    if (pathLabels.length === 1) {
+      registries = [v1RegistryAddress, v1RegistryAddress, v1RegistryAddress]
+    } else {
+      registries = [
+        v1RegistryAddress,
+        v1RegistryAddress,
+        v1RegistryAddress,
+        v1RegistryAddress,
+      ]
+    }
+
     return ok<NameRegistriesResult>({
-      registries: toNameRegistriesResultType(l1V2Registries),
+      registries,
       network: 'sepolia',
-      protocolVersion: 'ENSv2',
-      factory: sepoliaVerifiableFactory,
+      protocolVersion: 'ENSv1',
+      factory: null,
     })
   }
 
@@ -182,7 +220,6 @@ export const getNameRegistries = ResultFn(async function* (
 
     // For V1, all names are registered on the same V1 ETH Registry
     const pathLabels = labels.slice(0, -1) // drop TLD
-
     let registries: NameRegistriesResultType
 
     if (pathLabels.length === 1) {
