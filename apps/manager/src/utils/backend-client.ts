@@ -1,25 +1,44 @@
-import { createStore } from '@xstate/store'
 import type { AppRouter } from 'api-worker/hc'
 import { hc } from 'hono/client'
+import { createPersistedStore } from './xstate-store'
 
-// export const backendAuthKey = createAtom<string | null>(null)
+const BACKEND_AUTH_STORAGE_KEY = '@manager-v4/backend_auth'
 
-export const backendAuthStore = createStore({
-  context: {
-    authKey: undefined as string | undefined,
-    address: undefined as string | undefined,
-  },
-  on: {
-    signIn: (context, event: { authKey: string; address: string }) => {
-      context.authKey = event.authKey
-      context.address = event.address
+type BackendAuthContext = {
+  authKey: string | undefined
+  address: string | undefined
+}
+
+type BackendAuthEvents = {
+  signIn: { authKey: string; address: string }
+  signOut: Record<string, never>
+}
+
+export const backendAuthStore = createPersistedStore<
+  BackendAuthContext,
+  BackendAuthEvents,
+  never
+>(
+  {
+    context: {
+      authKey: undefined,
+      address: undefined,
     },
-    signOut: (context) => {
-      context.authKey = undefined
-      context.address = undefined
+    on: {
+      signIn: (context, event: { authKey: string; address: string }) => ({
+        ...context,
+        authKey: event.authKey,
+        address: event.address,
+      }),
+      signOut: (context) => ({
+        ...context,
+        authKey: undefined,
+        address: undefined,
+      }),
     },
   },
-})
+  { key: BACKEND_AUTH_STORAGE_KEY },
+)
 
 export const isBackendAuthed = backendAuthStore.select(
   (state) => state.authKey !== undefined,
