@@ -9,10 +9,15 @@ type BackendAuthContext = {
   address: string | undefined
 }
 
+type BackendAuthEvents = {
+  signIn: { authKey: string; address: string }
+  signOut: Record<string, never>
+}
+
 export const backendAuthStore = createPersistedStore<
   BackendAuthContext,
-  any,
-  any
+  BackendAuthEvents,
+  never
 >(
   {
     context: {
