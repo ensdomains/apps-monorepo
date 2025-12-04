@@ -20,6 +20,7 @@ import { Route as NameRegistryRouteImport } from './routes/$name/registry'
 import { Route as NameRecordsRouteImport } from './routes/$name/records'
 import { Route as NameOwnershipRouteImport } from './routes/$name/ownership'
 import { Route as NameHistoryRouteImport } from './routes/$name/history'
+import { Route as NameAddUserRouteImport } from './routes/$name/add-user'
 import { Route as AddrAddrIndexRouteImport } from './routes/addr/$addr/index'
 import { Route as AddrAddrReverseResolutionRouteImport } from './routes/addr/$addr/reverse-resolution'
 import { Route as AddrAddrResolutionRouteImport } from './routes/addr/$addr/resolution'
@@ -79,6 +80,11 @@ const NameHistoryRoute = NameHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => NameRoute,
 } as any)
+const NameAddUserRoute = NameAddUserRouteImport.update({
+  id: '/add-user',
+  path: '/add-user',
+  getParentRoute: () => NameRoute,
+} as any)
 const AddrAddrIndexRoute = AddrAddrIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -99,6 +105,7 @@ const AddrAddrResolutionRoute = AddrAddrResolutionRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$name': typeof NameRouteWithChildren
+  '/$name/add-user': typeof NameAddUserRoute
   '/$name/history': typeof NameHistoryRoute
   '/$name/ownership': typeof NameOwnershipRoute
   '/$name/records': typeof NameRecordsRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$name/add-user': typeof NameAddUserRoute
   '/$name/history': typeof NameHistoryRoute
   '/$name/ownership': typeof NameOwnershipRoute
   '/$name/records': typeof NameRecordsRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$name': typeof NameRouteWithChildren
+  '/$name/add-user': typeof NameAddUserRoute
   '/$name/history': typeof NameHistoryRoute
   '/$name/ownership': typeof NameOwnershipRoute
   '/$name/records': typeof NameRecordsRoute
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$name'
+    | '/$name/add-user'
     | '/$name/history'
     | '/$name/ownership'
     | '/$name/records'
@@ -163,6 +173,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/$name/add-user'
     | '/$name/history'
     | '/$name/ownership'
     | '/$name/records'
@@ -178,6 +189,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$name'
+    | '/$name/add-user'
     | '/$name/history'
     | '/$name/ownership'
     | '/$name/records'
@@ -277,6 +289,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NameHistoryRouteImport
       parentRoute: typeof NameRoute
     }
+    '/$name/add-user': {
+      id: '/$name/add-user'
+      path: '/add-user'
+      fullPath: '/$name/add-user'
+      preLoaderRoute: typeof NameAddUserRouteImport
+      parentRoute: typeof NameRoute
+    }
     '/addr/$addr/': {
       id: '/addr/$addr/'
       path: '/'
@@ -302,6 +321,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface NameRouteChildren {
+  NameAddUserRoute: typeof NameAddUserRoute
   NameHistoryRoute: typeof NameHistoryRoute
   NameOwnershipRoute: typeof NameOwnershipRoute
   NameRecordsRoute: typeof NameRecordsRoute
@@ -313,6 +333,7 @@ interface NameRouteChildren {
 }
 
 const NameRouteChildren: NameRouteChildren = {
+  NameAddUserRoute: NameAddUserRoute,
   NameHistoryRoute: NameHistoryRoute,
   NameOwnershipRoute: NameOwnershipRoute,
   NameRecordsRoute: NameRecordsRoute,

@@ -3,8 +3,8 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import { BookIcon, CircleQuestionMarkIcon, SettingsIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import { LogoWithTextSVG } from '@/assets/logo'
+import { HomeSearchInput } from '@/components/homepage'
 import { TableViewSwitch } from '@/features/records/components/RecordsTable/TableViewSwitch'
-import { HomeSearchInput } from '../homepage'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 
 export const NavBar = () => {
