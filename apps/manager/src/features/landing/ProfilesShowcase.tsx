@@ -40,6 +40,7 @@ export const ProfilesShowcase = () => {
             },
           ]}
           variant="peridot"
+          delay={0}
         />
         <ProfileCard
           name="nick.eth"
@@ -64,6 +65,7 @@ export const ProfilesShowcase = () => {
             },
           ]}
           variant="lapis"
+          delay={0.05}
         />
         <ProfileCard
           name="erni.eth"
@@ -83,6 +85,7 @@ export const ProfilesShowcase = () => {
             },
           ]}
           variant="garnet"
+          delay={0.1}
         />
       </div>
     </div>

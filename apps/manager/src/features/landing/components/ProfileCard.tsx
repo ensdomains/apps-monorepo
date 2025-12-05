@@ -1,4 +1,5 @@
 import { CalendarIcon } from 'lucide-react'
+import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { formatDashboardDate } from '@/features/dashboard/utils'
 import { tw, twm } from '@/utils/tailwind'
@@ -70,6 +71,7 @@ export const ProfileCard = ({
   links,
   variant,
   className,
+  delay = 0,
 }: {
   name: string
   avatarUrl: string
@@ -78,9 +80,18 @@ export const ProfileCard = ({
   links: { icon: ReactNode; href: string; title: string }[]
   variant: ProfileCardVariant
   className?: string
+  delay?: number
 }) => {
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 40, scale: 0.95 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: false, margin: '-80px' }}
+      transition={{
+        duration: 0.5,
+        delay,
+        ease: 'easeOut',
+      }}
       className={twm(
         'w-full overflow-hidden rounded-xl',
         COLOR_VARIANTS[variant].bg,
@@ -151,6 +162,6 @@ export const ProfileCard = ({
           ))}
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
