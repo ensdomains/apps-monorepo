@@ -46,7 +46,7 @@ const UnauthenticatedContent = () => {
 
   return (
     <div className="">
-      <div className="px-4 py-3">
+      <div className="p-2">
         <NotificationsTitleRow title="Notifications" />
       </div>
       <div className="px-4 pt-2 pb-6">

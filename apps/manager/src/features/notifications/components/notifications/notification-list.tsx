@@ -111,7 +111,7 @@ export const AllNotifications = ({ onAction }: { onAction?: () => void }) => {
           ))}
 
           {hasNextPage && (
-            <div className="px-4 py-3">
+            <div className="p-2">
               <button
                 type="button"
                 onClick={() => fetchNextPage()}
