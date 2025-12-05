@@ -85,6 +85,8 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
       <div className="flex items-center gap-x-2">
         <Link
           to="/p/$name"
+          target="_blank"
+          rel="noopener noreferrer"
           params={{ name }}
           className="underline underline-offset-2"
         >
