@@ -1,6 +1,11 @@
-import { Link as LinkIcon, Share as ShareIcon } from 'lucide-react'
+import {
+  Check as CheckIcon,
+  Link as LinkIcon,
+  Share as ShareIcon,
+} from 'lucide-react'
 import { useMemo, useState } from 'react'
 import QRCode from 'react-qr-code'
+import { toast } from 'sonner'
 import ensLogo from '@/assets/icons/ens.svg'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import { Button } from '@/components/ui/button'
@@ -25,6 +30,7 @@ export const ShareProfileDialog = ({
   trigger,
 }: ShareProfileDialogProps) => {
   const [open, setOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const safeUrl = useMemo(() => {
     // Ensure absolute URL for QR and native share
@@ -47,7 +53,7 @@ export const ShareProfileDialog = ({
         await navigator.share({ title: `${name} – ENS Profile`, url: safeUrl })
       } else {
         await navigator.clipboard.writeText(safeUrl)
-        // optional: toast
+        toast.success('Link copied to clipboard')
       }
     } catch {
       // user canceled or unsupported – no-op
@@ -57,13 +63,22 @@ export const ShareProfileDialog = ({
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(safeUrl)
+      toast.success('Link copied to clipboard')
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
     } catch {
       // ignore
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        setOpen(isOpen)
+        if (!isOpen) setCopied(false)
+      }}
+    >
       <DialogTrigger asChild>
         {trigger ?? (
           <Button variant="outline" size="sm">
@@ -104,8 +119,12 @@ export const ShareProfileDialog = ({
             Share
           </Button>
           <Button variant="outline" onClick={handleCopy}>
-            <LinkIcon className="mr-2 size-4" />
-            Copy Link
+            {copied ? (
+              <CheckIcon className="mr-2 size-4" />
+            ) : (
+              <LinkIcon className="mr-2 size-4" />
+            )}
+            {copied ? 'Copied' : 'Copy Link'}
           </Button>
         </DialogFooter>
       </DialogContent>
