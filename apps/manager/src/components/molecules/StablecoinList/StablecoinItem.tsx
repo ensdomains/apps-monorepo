@@ -49,7 +49,7 @@ export function StablecoinItem({
       className={cn(
         'flex w-full items-center justify-between rounded-md border p-2 transition-all duration-200',
         selectable && 'cursor-pointer hover:bg-muted/50',
-        isSelected && 'bg-blue-50 ring-2 ring-blue-500 dark:bg-blue-950/20',
+        isSelected && 'bg-blue-50 ring-2 ring-blue-500',
         className,
       )}
       {...componentProps}
