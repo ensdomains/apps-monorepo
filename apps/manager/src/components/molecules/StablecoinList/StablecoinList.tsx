@@ -34,8 +34,6 @@ export function StablecoinList({
   className,
   interactive = false,
 }: StablecoinListProps) {
-  // const { theme } = useTheme()
-  // const isDark = theme === 'dark' && false
   const isDark = false
 
   // Get token info from STABLECOINS constants
