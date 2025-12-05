@@ -1,6 +1,7 @@
 import { Link as LinkIcon, Share as ShareIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import QRCode from 'react-qr-code'
+import { toast } from 'sonner'
 import ensLogo from '@/assets/icons/ens.svg'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import { Button } from '@/components/ui/button'
@@ -47,7 +48,7 @@ export const ShareProfileDialog = ({
         await navigator.share({ title: `${name} – ENS Profile`, url: safeUrl })
       } else {
         await navigator.clipboard.writeText(safeUrl)
-        // optional: toast
+        toast.success('Link copied to clipboard')
       }
     } catch {
       // user canceled or unsupported – no-op
@@ -57,6 +58,7 @@ export const ShareProfileDialog = ({
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(safeUrl)
+      toast.success('Link copied to clipboard')
     } catch {
       // ignore
     }
