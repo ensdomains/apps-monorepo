@@ -1,166 +1,183 @@
-import { useCallback, useEffect, useReducer } from 'react'
-import {
-  checkAvailabilityReducer,
-  initialState,
-} from '@/features/register/components/CheckAvailability/checkAvailability.reducer'
-import type {
-  PricingDuration,
-  PricingOptions,
-} from '@/features/register/components/Pricing/types'
+import { useQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
+import type { PricingOptions } from '@/features/register/components/Pricing/types'
 import {
   INITIAL_PRICING_OPTIONS,
   PRICING_DURATIONS,
 } from '@/features/register/components/Pricing/utils'
-import { getTokenPrices } from '@/features/register/services/nameChainContractService'
-import { normalizeQuery, validateENSName } from '@/features/register/utils'
-import { checkNameAvailability } from '@/services/checkNameAvailabilityService'
+import {
+  getNamePricingQueryOptions,
+  getSearchNameQueryOptions,
+} from '@/features/register/services/checkNameAvailabilityService'
+import {
+  getPremiumLabel,
+  normalizeQuery,
+  validateENSName,
+} from '@/features/register/utils'
 
-interface UseCheckAvailabilityOptions {
+export type DisplayState =
+  | { type: 'idle' }
+  | { type: 'searching'; domainName: string }
+  | { type: 'available'; domainName: string }
+  | { type: 'unavailable'; domainName: string }
+
+interface UseCheckAvailabilityParams {
+  /** Current input value (for instant validation) */
+  inputValue?: string
+  /** Debounced input value (for query) */
+  debouncedInput?: string
+  /** Initial name to auto-search (for registration page) */
   initialName?: string
+  /** Whether to auto-search the initial name */
   autoSearch?: boolean
 }
 
 export const useCheckAvailability = ({
+  inputValue = '',
+  debouncedInput = '',
   initialName,
   autoSearch = false,
-}: UseCheckAvailabilityOptions = {}) => {
-  const [state, dispatch] = useReducer(checkAvailabilityReducer, initialState)
+}: UseCheckAvailabilityParams = {}) => {
+  // For auto-search mode (registration page), use initialName for everything
+  const effectiveInput = autoSearch && initialName ? initialName : inputValue
+  const effectiveDebouncedInput =
+    autoSearch && initialName ? initialName : debouncedInput
 
-  const clearValidationError = useCallback(() => {
-    dispatch({ type: 'CLEAR_VALIDATION' })
-  }, [])
+  const trimmedInput = effectiveInput.trim()
+  const trimmedDebouncedInput = effectiveDebouncedInput.trim()
 
-  const resetSearch = useCallback(() => {
-    dispatch({ type: 'RESET_SEARCH' })
-  }, [])
+  // Instant validation on current input (not debounced)
+  const validation = useMemo(
+    () => (trimmedInput ? validateENSName(trimmedInput) : null),
+    [trimmedInput],
+  )
 
-  const searchName = useCallback(async (query: string) => {
-    const validation = validateENSName(query)
+  // Only normalize debounced input if validation passes
+  const normalizedName = useMemo(
+    () =>
+      !validation && trimmedDebouncedInput
+        ? normalizeQuery(trimmedDebouncedInput)
+        : null,
+    [validation, trimmedDebouncedInput],
+  )
 
-    if (validation) {
-      dispatch({
-        type: 'VALIDATION_ERROR',
-        payload: { error: validation, query },
-      })
-      return
-    }
+  // Is currently debouncing (input changed but debounce hasn't fired yet)
+  const isDebouncing =
+    trimmedInput !== trimmedDebouncedInput && trimmedInput.length > 0
 
-    const normalized = normalizeQuery(query)
-    if (!normalized) {
-      dispatch({ type: 'RESET_SEARCH' })
-      return
-    }
+  // Availability query - only runs if validation passes and we have input
+  const availabilityQuery = useQuery({
+    ...getSearchNameQueryOptions(normalizedName ?? ''),
+    enabled: !!normalizedName && trimmedInput.length >= 3,
+  })
 
-    // Start the actual search
-    dispatch({ type: 'SEARCH_START', payload: { query: normalized } })
+  // Pricing query - only runs if name is available
+  const pricingQuery = useQuery({
+    ...getNamePricingQueryOptions(availabilityQuery.data?.name),
+    enabled: availabilityQuery.data?.isAvailable === true,
+  })
 
-    try {
-      const result = await checkNameAvailability(normalized)
+  // Compute pricing options from query data
+  const pricing = useMemo((): PricingOptions => {
+    const pricingData = pricingQuery.data
+    if (!pricingData?.usdc) return INITIAL_PRICING_OPTIONS
 
-      if (!result.isAvailable && result.error) {
-        dispatch({
-          type: 'SEARCH_ERROR',
-          payload: { error: result.error, name: normalized },
-        })
-      } else {
-        dispatch({
-          type: 'SEARCH_SUCCESS',
-          payload: { name: result.name, isAvailable: result.isAvailable },
-        })
+    const basePerYear = parseFloat(pricingData.usdc.formatted)
+    const newPricing = { ...INITIAL_PRICING_OPTIONS }
+
+    for (const duration of PRICING_DURATIONS) {
+      const discount = INITIAL_PRICING_OPTIONS[duration].discount
+      const discountMultiplier = 1 - discount / 100
+      const perYearPrice = basePerYear * discountMultiplier
+      const totalPrice = perYearPrice * duration
+
+      newPricing[duration] = {
+        ...INITIAL_PRICING_OPTIONS[duration],
+        price: perYearPrice,
+        discount,
+        total: totalPrice,
       }
-    } catch (err) {
-      dispatch({
-        type: 'SEARCH_ERROR',
-        payload: {
-          error:
-            err instanceof Error
-              ? err.message
-              : 'Unable to check availability. Please try again.',
-          name: normalized,
-        },
-      })
     }
-  }, [])
 
-  useEffect(() => {
-    if (
-      initialName &&
-      autoSearch &&
-      !state.search.searchQuery &&
-      !state.isSearching
-    ) {
-      searchName(initialName)
+    return newPricing
+  }, [pricingQuery.data])
+
+  // Derive display state
+  const displayState = useMemo((): DisplayState => {
+    // No input
+    if (!trimmedInput) return { type: 'idle' }
+
+    // Validation error - show idle (error shown separately)
+    if (validation) return { type: 'idle' }
+
+    // Loading
+    if (availabilityQuery.isFetching && normalizedName) {
+      return { type: 'searching', domainName: normalizedName }
     }
+
+    // Has result
+    const data = availabilityQuery.data
+    if (data && !availabilityQuery.isFetching) {
+      // Check if result matches current input
+      const inputMatches =
+        trimmedInput.toLowerCase() ===
+          data.name.replace('.eth', '').toLowerCase() ||
+        trimmedInput.toLowerCase() === data.name.toLowerCase()
+
+      if (inputMatches) {
+        if (data.isAvailable) {
+          return { type: 'available', domainName: data.name }
+        }
+        return { type: 'unavailable', domainName: data.name }
+      }
+    }
+
+    return { type: 'idle' }
   }, [
-    initialName,
-    autoSearch,
-    state.search.searchQuery,
-    state.isSearching,
-    searchName,
+    trimmedInput,
+    validation,
+    availabilityQuery.isFetching,
+    availabilityQuery.data,
+    normalizedName,
   ])
 
-  useEffect(() => {
-    const fetchPrices = async () => {
-      if (!state.search.selectedName || !state.search.isAvailable) return
+  // Premium label
+  const premiumLabel = useMemo(
+    () =>
+      availabilityQuery.data?.name
+        ? getPremiumLabel(availabilityQuery.data.name)
+        : undefined,
+    [availabilityQuery.data?.name],
+  )
 
-      dispatch({ type: 'PRICING_START' })
-
-      try {
-        const baseResult = await getTokenPrices(state.search.selectedName, 1)
-
-        if (baseResult.isOk() && baseResult.value.usdc) {
-          const basePerYear = parseFloat(baseResult.value.usdc.formatted)
-
-          const newPricing: PricingOptions = { ...INITIAL_PRICING_OPTIONS }
-          PRICING_DURATIONS.forEach((duration: PricingDuration) => {
-            const discount = INITIAL_PRICING_OPTIONS[duration].discount
-            const discountMultiplier = 1 - discount / 100
-            const perYearPrice = basePerYear * discountMultiplier
-            const totalPrice = perYearPrice * duration
-
-            newPricing[duration] = {
-              ...INITIAL_PRICING_OPTIONS[duration],
-              price: perYearPrice,
-              discount,
-              total: totalPrice,
-            }
-          })
-
-          dispatch({
-            type: 'PRICING_SUCCESS',
-            payload: { pricing: newPricing },
-          })
-        } else if (baseResult.isErr()) {
-          console.error('Failed to fetch base price:', baseResult.error)
-          dispatch({ type: 'PRICING_END' })
-        }
-      } catch (error) {
-        console.error('Failed to fetch pricing:', error)
-        dispatch({ type: 'PRICING_END' })
-      }
+  // Error message extraction
+  const errorMessage = useMemo(() => {
+    const err = availabilityQuery.error
+    if (!err) return null
+    if (err instanceof Error) return err.message
+    if (typeof err === 'object' && err !== null && 'message' in err) {
+      return String((err as { message: unknown }).message)
     }
+    return 'An error occurred'
+  }, [availabilityQuery.error])
 
-    fetchPrices()
-  }, [state.search.selectedName, state.search.isAvailable])
+  // Show loading when debouncing or fetching (but not if there's a validation error)
+  const isLoading =
+    !validation && (isDebouncing || availabilityQuery.isFetching)
 
   return {
-    context: {
-      searchQuery: state.search.searchQuery,
-      selectedName: state.search.selectedName,
-      isAvailable: state.search.isAvailable,
-      pricing: state.pricing.pricing,
-      error: state.search.error,
-      validationError: state.search.validationError,
-      premiumLabel: state.search.premiumLabel,
-      registrationSuccess: state.search.registrationSuccess,
-    },
-    isSearching: state.isSearching,
-    isPricingLoading: state.pricing.isPricingLoading,
-    hasResult: Boolean(state.search.selectedName),
-    hasError: Boolean(state.search.error),
-    hasValidationError: Boolean(state.search.validationError),
-    searchName,
-    resetSearch,
-    clearValidationError,
+    validation,
+    availabilityQuery,
+    pricingQuery,
+    pricing,
+    displayState,
+    premiumLabel,
+    selectedName: availabilityQuery.data?.name ?? null,
+    isAvailable: availabilityQuery.data?.isAvailable ?? false,
+    isSearching: availabilityQuery.isFetching,
+    isDebouncing,
+    isLoading,
+    error: availabilityQuery.error,
+    errorMessage,
   }
 }

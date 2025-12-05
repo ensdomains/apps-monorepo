@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react'
+import { Loader2, Search } from 'lucide-react'
 import { forwardRef, type InputHTMLAttributes } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -7,10 +7,14 @@ export interface SearchFieldProps
   placeholder?: string
   onSearch?: (value: string) => void
   wrapperClassName?: string
+  isLoading?: boolean
 }
 
 export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
-  ({ onSearch, className, wrapperClassName, onKeyDown, ...props }, ref) => {
+  (
+    { onSearch, className, wrapperClassName, onKeyDown, isLoading, ...props },
+    ref,
+  ) => {
     const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
       if (event.key === 'Enter' && onSearch) {
         onSearch(event.currentTarget.value)
@@ -45,12 +49,19 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
           )}
           {...props}
         />
-
         <Search
           aria-hidden
           className="-translate-y-1/2 absolute top-1/2 left-[18px] size-[26px] text-ens-lapis-dust"
           strokeWidth={2.15}
         />
+
+        {isLoading && (
+          <Loader2
+            aria-hidden
+            className="-translate-y-1/2 absolute top-1/2 right-[18px] size-[26px] animate-spin text-ens-lapis-dust"
+            strokeWidth={2.15}
+          />
+        )}
       </div>
     )
   },
