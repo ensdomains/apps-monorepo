@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { type PermissionKey, permissions } from '@/lib/roles/permissions'
 
 type RolePermissions = {
   manager: boolean
@@ -14,56 +15,7 @@ type RolePermissions = {
 
 type RolesFormData = {
   user: string
-  registrar: RolePermissions
-  renew: RolePermissions
-  setSubregistry: RolePermissions
-  setResolver: RolePermissions
-  setTokenObserver: RolePermissions
-  burn: RolePermissions
-  canTransferAdmin: RolePermissions
-}
-
-export const roleDefinitions = [
-  {
-    key: 'registrar',
-    title: 'Registrar',
-    description: 'Can register new names',
-  },
-  {
-    key: 'renew',
-    title: 'Renew',
-    description: 'Can renew name registrations',
-  },
-  {
-    key: 'setSubregistry',
-    title: 'Set Subregistry',
-    description: 'Can change subregistry addresses',
-  },
-  {
-    key: 'setResolver',
-    title: 'Set Resolver',
-    description: 'Can change the resolver addresses',
-  },
-  {
-    key: 'setTokenObserver',
-    title: 'Set Token Observer',
-    description: 'Can set token observer contracts',
-  },
-  {
-    key: 'burn',
-    title: 'Burn',
-    description: 'Can burn (delete) the name',
-  },
-  {
-    key: 'canTransferAdmin',
-    title: 'Can Transfer Admin',
-    description: 'Can grant/revoke transfer admin rights',
-  },
-] as const satisfies {
-  key: keyof Omit<RolesFormData, 'user'>
-  title: string
-  description: string
-}[]
+} & Record<PermissionKey, RolePermissions>
 
 export const Route = createFileRoute('/$name/add-user')({
   component: RouteComponent,
@@ -71,16 +23,20 @@ export const Route = createFileRoute('/$name/add-user')({
 
 function RouteComponent() {
   const { name } = useParams({ from: '/$name/add-user' })
-  const [formData, setFormData] = useState<RolesFormData>({
+
+  // Initialize form data with all permissions set to false
+  const initialFormData: RolesFormData = {
     user: '',
-    registrar: { manager: false, admin: false },
-    renew: { manager: false, admin: false },
-    setSubregistry: { manager: false, admin: false },
-    setResolver: { manager: false, admin: false },
-    setTokenObserver: { manager: false, admin: false },
-    burn: { manager: false, admin: false },
-    canTransferAdmin: { manager: false, admin: false },
-  })
+    ...permissions.reduce(
+      (acc, permission) => {
+        acc[permission.key] = { manager: false, admin: false }
+        return acc
+      },
+      {} as Record<PermissionKey, RolePermissions>,
+    ),
+  }
+
+  const [formData, setFormData] = useState<RolesFormData>(initialFormData)
   const [userInputError, setUserInputError] = useState<string | null>(null)
 
   const isValidEnsName = (input: string): boolean => {
@@ -107,14 +63,14 @@ function RouteComponent() {
   }
 
   const handleRoleChange = (
-    roleKey: keyof Omit<RolesFormData, 'user'>,
+    permissionKey: PermissionKey,
     permission: 'manager' | 'admin',
     checked: boolean,
   ) => {
     setFormData((prev) => ({
       ...prev,
-      [roleKey]: {
-        ...prev[roleKey],
+      [permissionKey]: {
+        ...prev[permissionKey],
         [permission]: checked,
       },
     }))
@@ -161,28 +117,32 @@ function RouteComponent() {
         <div className="flex flex-col gap-4">
           <h2 className="text-lg font-medium">Roles</h2>
           <div className="border rounded-lg divide-y">
-            {roleDefinitions.map((role) => (
+            {permissions.map((permission) => (
               <div
-                key={role.key}
+                key={permission.key}
                 className="flex items-center justify-between p-4 gap-4"
               >
                 <div className="flex flex-col gap-1 flex-1">
-                  <div className="font-medium">{role.title}</div>
+                  <div className="font-medium">{permission.title}</div>
                   <div className="text-sm text-gray-600">
-                    {role.description}
+                    {permission.description}
                   </div>
                 </div>
                 <div className="flex items-center gap-8">
                   <div className="flex items-center gap-2">
                     <Checkbox
-                      id={`${role.key}-manager`}
-                      checked={formData[role.key].manager}
+                      id={`${permission.key}-manager`}
+                      checked={formData[permission.key].manager}
                       onCheckedChange={(checked) =>
-                        handleRoleChange(role.key, 'manager', checked === true)
+                        handleRoleChange(
+                          permission.key,
+                          'manager',
+                          checked === true,
+                        )
                       }
                     />
                     <Label
-                      htmlFor={`${role.key}-manager`}
+                      htmlFor={`${permission.key}-manager`}
                       className="font-normal cursor-pointer text-gray-600"
                     >
                       Manager
@@ -190,14 +150,18 @@ function RouteComponent() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Checkbox
-                      id={`${role.key}-admin`}
-                      checked={formData[role.key].admin}
+                      id={`${permission.key}-admin`}
+                      checked={formData[permission.key].admin}
                       onCheckedChange={(checked) =>
-                        handleRoleChange(role.key, 'admin', checked === true)
+                        handleRoleChange(
+                          permission.key,
+                          'admin',
+                          checked === true,
+                        )
                       }
                     />
                     <Label
-                      htmlFor={`${role.key}-admin`}
+                      htmlFor={`${permission.key}-admin`}
                       className="font-normal cursor-pointer text-gray-600"
                     >
                       Admin

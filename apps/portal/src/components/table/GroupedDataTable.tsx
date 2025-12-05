@@ -9,10 +9,18 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { ChevronDown, ChevronUp, PanelRightOpen } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronUp,
+  PanelRightOpen,
+  UserIcon,
+  UserLockIcon,
+} from 'lucide-react'
 import { Fragment, type ReactNode, useState } from 'react'
+import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { RolesSidebar } from '@/features/roles/components/RolesSidebar'
+import { roleToPermissions } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
 import type { DataTableProps } from '../molecules/DataTable/DataTable'
 import { Button } from '../ui/button'
@@ -35,13 +43,6 @@ export type GroupedDataTableProps<
 export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
   data,
   columns,
-  itemsWrapper = (rowData) => (
-    <>
-      {rowData.items.map((item) => (
-        <div key={item}>{item}</div>
-      ))}
-    </>
-  ),
 }: GroupedDataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [expanded, setExpanded] = useState<ExpandedState>({})
@@ -137,6 +138,7 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
                   className={cn(
                     'border-b border-b-gray-300',
                     header.column.id === 'expander' && 'w-[100px]',
+                    header.column.id === 'permissions' && 'min-w-[200px]',
                   )}
                 >
                   {header.isPlaceholder
@@ -175,15 +177,77 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
                     </TableCell>
                   ))}
                 </TableRow>
-                {row.getIsExpanded() && (
-                  <TableRow>
-                    <TableCell colSpan={table.getVisibleLeafColumns().length}>
-                      <div className="flex flex-col">
-                        {itemsWrapper(row.original)}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
+                {row.getIsExpanded() &&
+                  (() => {
+                    const permissions = roleToPermissions(row.original.items)
+                    const permissionEntries = Array.from(permissions.entries())
+
+                    return permissionEntries.map(
+                      ([role, { admin, manager }], index) => {
+                        const roleLabel = role
+                          .replaceAll('_', ' ')
+                          .toLowerCase()
+                        const isLast = index === permissionEntries.length - 1
+
+                        return (
+                          <TableRow key={role}>
+                            {/* Expander column - empty */}
+                            <TableCell
+                              className={cn(
+                                'px-6',
+                                tableView.compact ? 'py-2' : 'py-4',
+                                !isLast && 'border-b border-b-gray-200',
+                              )}
+                            />
+                            {/* Role column */}
+                            <TableCell
+                              className={cn(
+                                'px-6',
+                                tableView.compact ? 'py-2' : 'py-4',
+                                !isLast && 'border-b border-b-gray-200',
+                              )}
+                            >
+                              <CopyableRecord
+                                className="capitalize"
+                                displayValue={roleLabel}
+                                value={role}
+                              />
+                            </TableCell>
+                            {/* Permission column */}
+                            <TableCell
+                              className={cn(
+                                'px-6',
+                                tableView.compact ? 'py-2' : 'py-4',
+                                !isLast && 'border-b border-b-gray-200',
+                              )}
+                            >
+                              <div className="flex flex-row gap-2">
+                                {admin && (
+                                  <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[26px]">
+                                    <UserLockIcon width={16} height={16} />{' '}
+                                    Admin
+                                  </div>
+                                )}
+                                {manager && (
+                                  <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[26px]">
+                                    <UserIcon width={16} height={16} /> Manager
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                            {/* More column - empty */}
+                            <TableCell
+                              className={cn(
+                                'px-6',
+                                tableView.compact ? 'py-2' : 'py-4',
+                                !isLast && 'border-b border-b-gray-200',
+                              )}
+                            />
+                          </TableRow>
+                        )
+                      },
+                    )
+                  })()}
               </Fragment>
             ))
           ) : (
