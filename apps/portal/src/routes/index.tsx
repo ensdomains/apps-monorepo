@@ -108,27 +108,30 @@ function RouteComponent() {
             <h2 className="text-2xl font-bold">ENSv2 name examples</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <ExampleNameCard
-                name="example.eth"
+                name="v1rtl.eth"
                 description="Name with records on the new Dedicated Resolver"
+                link="resolver"
               />
               <ExampleNameCard
                 name="fast.eth"
                 description="Name with subnames on the new Registry contract"
               />
               <ExampleNameCard
-                name="sub.example.eth"
+                name="sub.fast.eth"
                 description="Subname on the new Registry contract"
+                link="registry"
               />
               <ExampleNameCard
-                name="example.eth"
+                name="fast.eth"
                 description="Name with custom Roles created"
+                link="roles"
               />
               <ExampleNameCard
                 name="raffy.eth"
                 description="Name migrated to ENSv2"
               />
               <ExampleNameCard
-                name="example.eth"
+                name="fast.eth"
                 description="Name with multiple L2 Primary set"
               />
             </div>
