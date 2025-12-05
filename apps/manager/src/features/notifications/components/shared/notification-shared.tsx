@@ -40,3 +40,16 @@ export const NameDisplay = ({ name }: { name: string }) => (
 export const ActionRow = ({ children }: { children: React.ReactNode }) => (
   <div className="mt-3 flex justify-end">{children}</div>
 )
+
+export const NotificationsTitleRow = ({
+  title,
+  rightSlot,
+}: {
+  title: string
+  rightSlot?: React.ReactNode
+}) => (
+  <div className="flex items-center justify-between">
+    <h1 className="font-normal text-2xl">{title}</h1>
+    {rightSlot}
+  </div>
+)
