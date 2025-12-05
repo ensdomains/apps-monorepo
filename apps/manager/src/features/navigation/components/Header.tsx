@@ -5,7 +5,6 @@ import {
   ChevronDown,
   Copy,
   CreditCard,
-  LayoutGrid,
   RefreshCcw,
   Unlink,
   User,
@@ -29,7 +28,6 @@ import {
 } from '@/components/ui/popover'
 import { NotificationsDropdown } from '@/features/notifications/components'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { useTheme } from '@/hooks/useTheme'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 
 // Reusable menu content component
