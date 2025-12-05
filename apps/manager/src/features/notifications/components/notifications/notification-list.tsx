@@ -5,6 +5,7 @@ import {
   notificationsInfiniteQuery,
 } from '../../queries/notifications'
 import { groupNotificationsByTime } from '../../utils'
+import { NotificationsTitleRow } from '../shared'
 import { NotificationItem } from './notification-items'
 
 const NotificationGroup = ({
@@ -52,12 +53,14 @@ export const AllNotifications = ({ onAction }: { onAction?: () => void }) => {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="font-normal text-2xl">All Notifications</h1>
-          <LinkButton to="/notifications/settings" variant="link">
-            Notification Settings
-          </LinkButton>
-        </div>
+        <NotificationsTitleRow
+          title="All Notifications"
+          rightSlot={
+            <LinkButton to="/notifications/settings" variant="link">
+              Notification Settings
+            </LinkButton>
+          }
+        />
         <div className="py-8 text-center text-muted-foreground text-sm">
           Loading notifications...
         </div>
@@ -68,12 +71,14 @@ export const AllNotifications = ({ onAction }: { onAction?: () => void }) => {
   if (isError) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="font-normal text-2xl">All Notifications</h1>
-          <LinkButton to="/notifications/settings" variant="link">
-            Notification Settings
-          </LinkButton>
-        </div>
+        <NotificationsTitleRow
+          title="All Notifications"
+          rightSlot={
+            <LinkButton to="/notifications/settings" variant="link">
+              Notification Settings
+            </LinkButton>
+          }
+        />
         <div className="py-8 text-center text-destructive text-sm">
           Failed to load notifications
         </div>
@@ -83,12 +88,14 @@ export const AllNotifications = ({ onAction }: { onAction?: () => void }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="font-normal text-2xl">All Notifications</h1>
-        <LinkButton to="/notifications/settings" variant="link">
-          Notification Settings
-        </LinkButton>
-      </div>
+      <NotificationsTitleRow
+        title="All Notifications"
+        rightSlot={
+          <LinkButton to="/notifications/settings" variant="link">
+            Notification Settings
+          </LinkButton>
+        }
+      />
 
       {allNotifications.length === 0 ? (
         <div className="py-8 text-center text-gray-500">No notifications</div>
@@ -104,7 +111,7 @@ export const AllNotifications = ({ onAction }: { onAction?: () => void }) => {
           ))}
 
           {hasNextPage && (
-            <div className="px-4 py-3">
+            <div className="p-2">
               <button
                 type="button"
                 onClick={() => fetchNextPage()}
