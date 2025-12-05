@@ -8,7 +8,6 @@ import {
   PersonStandingIcon,
   UserLockIcon,
 } from 'lucide-react'
-import { LogoWithTextSVG } from '@/assets/logo'
 import {
   Sidebar,
   SidebarContent,
@@ -79,14 +78,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
   return (
     <Sidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!">
       <SidebarHeader>
-        <Link
-          to="/"
-          className="flex md:hidden flex-row gap-2 items-center my-4"
-        >
-          <LogoWithTextSVG width={72} height="auto" />
-          <span className="font-bold">Explorer</span>
-        </Link>
-        <span className="text-lg font-bold wrap-break-word">{name}</span>
+        <span className="ml-3 text-lg font-bold wrap-break-word">{name}</span>
       </SidebarHeader>
       <SidebarContent>
         {itemGroups.map((items, i) => {
