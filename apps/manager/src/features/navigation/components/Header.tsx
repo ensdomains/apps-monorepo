@@ -533,8 +533,6 @@ const DisconnectedContent = () => {
 const Menu = () => {
   // const { theme, toggleTheme } = useTheme()
 
-  // Theme menu temporarily disabled in manager;
-  // keeping implementation commented for future use.
   // return (
   //   <DropdownMenu>
   //     <DropdownMenuTrigger asChild>
