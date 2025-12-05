@@ -2,7 +2,12 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getAvailable } from '@ensdomains/ensjs/public'
+import { skipToken } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
+import {
+  checkRealNameAvailability,
+  getTokenPrices,
+} from '@/features/register/services/nameChainContractService'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 export class NameAvailabilityError extends TaggedError(
@@ -10,23 +15,6 @@ export class NameAvailabilityError extends TaggedError(
 )<{
   cause: unknown
 }> {}
-
-export const checkNameAvailabilityService = ResultFn(async function* (
-  name: string,
-) {
-  const client = yield* safeGetClient()
-
-  const nameWithEth = name.endsWith('.eth') ? name : `${name}.eth`
-  const availability = yield* await fromPromise(
-    getAvailable(client, { name: nameWithEth }),
-    (e) => new NameAvailabilityError({ cause: e }),
-  )
-
-  return ok({
-    isAvailable: availability,
-    name: nameWithEth,
-  })
-})
 
 export const searchNameQueryKey = createQueryKey<
   'searchName',
@@ -38,5 +26,19 @@ export const searchNameQueryKey = createQueryKey<
 export const getSearchNameQueryOptions = (name: string) =>
   resultQueryOptions({
     queryKey: searchNameQueryKey({ name }),
-    queryFn: ({ queryKey: [, { name }] }) => checkNameAvailabilityService(name),
+    queryFn: ({ queryKey: [, { name }] }) => checkRealNameAvailability(name),
+  })
+
+// Pricing query options
+export const namePricingQueryKey = createQueryKey<
+  'namePricing',
+  {
+    name: string
+  }
+>('namePricing')
+
+export const getNamePricingQueryOptions = (name: string | undefined) =>
+  resultQueryOptions({
+    queryKey: namePricingQueryKey({ name: name ?? '' }),
+    queryFn: name ? () => getTokenPrices(name, 1) : skipToken,
   })
