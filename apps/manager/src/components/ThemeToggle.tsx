@@ -1,8 +1,6 @@
 export const ThemeToggle = () => {
   // const { theme, toggleTheme } = useTheme()
 
-  // Theme toggle button temporarily disabled in manager;
-  // leave implementation here commented for future use.
   // return (
   //   <button
   //     type="button"
