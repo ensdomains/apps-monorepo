@@ -8,9 +8,8 @@ import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import type { NameChainLocation } from '@/features/registry/components/NetworkCard'
 import { NoRegistryCard } from '@/features/registry/components/NoRegistryCard'
-import { ParentRegistrySection } from '@/features/registry/components/ParentRegistrySection'
 import { RegistryCard } from '@/features/registry/components/RegistryCard'
-import { RegistryHeaderCards } from '@/features/registry/components/RegistryHeaderCards'
+import { RegistryCardsGrid } from '@/features/registry/components/RegistryCardsGrid'
 import { VerifiedRegistryCard } from '@/features/registry/components/VerifiedRegistryCard'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getParentName } from '@/features/registry/utils/nameUtils'
@@ -141,16 +140,16 @@ function RouteComponent() {
           ) : (
             <>
               {/* Parent top row */}
-              <ParentRegistrySection
-                parent={{
-                  name: getParentName(name) || 'eth',
-                  address: parentRegistry,
-                }}
-                owner={{
-                  address: parentOwnerData?.owner ?? zeroAddress,
-                }}
-                network={parentNetwork}
-              />
+              <div className="flex flex-col gap-4">
+                <h2 className="text-xl font-semibold">Parent registry</h2>
+                <RegistryCardsGrid
+                  label={getParentName(name) || 'eth'}
+                  owner={{
+                    address: parentOwnerData?.owner ?? zeroAddress,
+                  }}
+                  network={parentNetwork}
+                />
+              </div>
 
               {/* Parent details card */}
               <RegistryCard
@@ -186,16 +185,16 @@ function RouteComponent() {
           ) : (
             <>
               {/* Parent top row */}
-              <ParentRegistrySection
-                parent={{
-                  name: getParentName(name) || 'eth',
-                  address: parentRegistry,
-                }}
-                owner={{
-                  address: parentOwnerData?.owner ?? zeroAddress,
-                }}
-                network={parentNetwork}
-              />
+              <div className="flex flex-col gap-4">
+                <h2 className="text-xl font-semibold">Parent registry</h2>
+                <RegistryCardsGrid
+                  label={getParentName(name) || 'eth'}
+                  owner={{
+                    address: parentOwnerData?.owner ?? zeroAddress,
+                  }}
+                  network={parentNetwork}
+                />
+              </div>
 
               {/* Parent details card */}
               <RegistryCard
@@ -237,7 +236,8 @@ function RouteComponent() {
       ) : (
         nameRegistry && (
           <>
-            <RegistryHeaderCards
+            <RegistryCardsGrid
+              label={name.split('.')[0]}
               owner={{
                 name: undefined,
                 address: data?.owner ?? zeroAddress,
@@ -271,16 +271,16 @@ function RouteComponent() {
           <LoadingSpinner title="Loading parent owner data..." />
         ) : (
           <>
-            <ParentRegistrySection
-              parent={{
-                name: getParentName(name) || 'eth',
-                address: parentRegistry,
-              }}
-              owner={{
-                address: parentOwnerData?.owner ?? zeroAddress,
-              }}
-              network={parentNetwork}
-            />
+            <div className="flex flex-col gap-4">
+              <h2 className="text-xl font-semibold">Parent registry</h2>
+              <RegistryCardsGrid
+                label={getParentName(name) || 'eth'}
+                owner={{
+                  address: parentOwnerData?.owner ?? zeroAddress,
+                }}
+                network={parentNetwork}
+              />
+            </div>
 
             <RegistryCard
               registry={{
