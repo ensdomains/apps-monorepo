@@ -5,7 +5,6 @@ import {
   ChevronDown,
   Copy,
   CreditCard,
-  LayoutGrid,
   RefreshCcw,
   Unlink,
   User,
@@ -29,7 +28,6 @@ import {
 } from '@/components/ui/popover'
 import { NotificationsDropdown } from '@/features/notifications/components'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { useTheme } from '@/hooks/useTheme'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 
 // Reusable menu content component
@@ -527,28 +525,6 @@ const DisconnectedContent = () => {
         {walletLoading ? 'Loading...' : 'Connect'}
       </Button>
     </div>
-  )
-}
-
-const Menu = () => {
-  const { theme, toggleTheme } = useTheme()
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="flex items-center justify-center rounded-full border border-gray-300 p-2 transition-colors hover:bg-gray-50 md:p-[11px]"
-        >
-          <LayoutGrid className="size-5 md:size-6" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent collisionPadding={16}>
-        <DropdownMenuItem onClick={toggleTheme}>
-          {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   )
 }
 
