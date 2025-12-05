@@ -1,10 +1,4 @@
-import {
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle,
-  MessageSquare,
-  XCircle,
-} from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle, XCircle } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import type { TelegramStepProps } from './types'
@@ -16,7 +10,7 @@ export function TelegramCreateStep({ state, actions }: TelegramStepProps) {
     isChannelCreated,
     channelError,
   } = state
-  const { onCreateChannel, onBackToAuth, onCancel } = actions
+  const { onCreateChannel, onBackToAuth } = actions
 
   return (
     <>
