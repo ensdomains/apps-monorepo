@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
-import { motion } from 'motion/react'
+import { motion, useMotionValue, useTransform } from 'motion/react'
 import type { ComponentProps, ReactNode } from 'react'
 import { useRef, useState } from 'react'
 import card_1_1 from '@/assets/pages/landing/card-1-1.webp'
@@ -166,6 +166,7 @@ const CarouselCard = ({
   data: { title, description },
   children,
   className,
+  style,
   ...props
 }: {
   data: {
@@ -174,12 +175,22 @@ const CarouselCard = ({
   }
   children: ReactNode
 } & ComponentProps<typeof motion.div>) => {
+  const x = useMotionValue(0)
+  const scale = useTransform(x, [-300, 0, 300], [0.9, 1, 0.9])
+  const rotate = useTransform(x, [-300, 0, 300], [-12, 0, 12])
+
   return (
     <motion.div
       className={cn(
         'flex flex-none flex-col gap-4 overflow-hidden rounded-[8px] p-[22px]',
         className,
       )}
+      style={{
+        x,
+        scale,
+        rotate,
+        ...style,
+      }}
       {...props}
     >
       <h2 className="font-bold text-temp-32px leading-ens-none">{title}</h2>
@@ -204,10 +215,10 @@ export const FeaturesCarousel = () => {
   }
 
   return (
-    <div className="relative mt-28 overflow-x-hidden">
+    <div className="relative mt-28">
       <div className="relative mx-auto w-full-[2rem] max-w-6xl">
         <div
-          className="relative flex w-full [--s2-basis:80%] xl:[--s2-basis:70%]"
+          className="relative flex w-full [--s2-basis:90%] xl:[--s2-basis:70%]"
           ref={constraintRef}
         >
           {FEATURE_CARDS.map(({ children, className, ...data }, index) => {
@@ -254,7 +265,7 @@ export const FeaturesCarousel = () => {
           })}
         </div>
         {/* Prev button, dots for each slide, next button */}
-        <div className="my-9 flex items-center justify-center gap-4">
+        <div className="my-9 flex items-center justify-center gap-4 pb-4">
           <button type="button" onClick={decrementOffset}>
             <ChevronLeftIcon className="size-6" />
           </button>
