@@ -6,6 +6,7 @@ import {
   WalletIcon,
 } from 'lucide-react'
 import type { Address } from 'viem'
+import { LogoWithTextSVG } from '@/assets/logo'
 import {
   Sidebar,
   SidebarContent,
@@ -47,6 +48,13 @@ export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
   return (
     <Sidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!">
       <SidebarHeader className="p-6">
+        <Link
+          to="/"
+          className="flex md:hidden flex-row gap-2 items-center mb-4"
+        >
+          <LogoWithTextSVG width={72} height="auto" />
+          <span className="font-bold">Explorer</span>
+        </Link>
         <div className="flex flex-row gap-2 items-start">
           <WalletIcon />
           <span className="text-lg font-mono font-medium w-full max-w-md overflow-hidden break-words">

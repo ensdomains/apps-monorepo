@@ -10,7 +10,7 @@ export const ENS_SEPOLIA_CONTRACTS = {
   // Public Resolver
   PublicResolver: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const,
   // Universal Resolver
-  UniversalResolver: '0x352d7aA7a8bd0F6f31635BE5ceCb6Cebb6929A15' as const,
+  UniversalResolver: '0x2AFF1ceDDDd4c8C214ebFaAE10DBe63a8AB38400' as const,
   // Reverse Registrar
   ReverseRegistrar: '0xa58e81fe9b61b5c3fe2afd33cf304c454abfc7cb' as const,
   // Name Wrapper
@@ -19,7 +19,7 @@ export const ENS_SEPOLIA_CONTRACTS = {
   ETHRegistry: '0x0f3eb298470639a96bd548cea4a648bc80b2cee2' as const,
   ETHRegistrar: '0x774faadcd7e8c4b7441aa2927f10845fea083ea1' as const,
   // V2 Fast Registrar - no commitment wait time required
-  FastTestETHRegistrar: '0x72e64d2c221f42df55745e89c394d2db4f3b48f2' as const,
+  FastTestETHRegistrar: '0x3334f0ebcbc4b5b7067f3aff25c6da8973690d54' as const,
   DedicatedResolverImpl: '0x47c4055131c6fbeedb1357b6f4c7bf415d6c4b71' as const,
 } as const
 

@@ -78,7 +78,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
   return (
     <Sidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!">
       <SidebarHeader>
-        <span className="text-lg font-bold break-words">{name}</span>
+        <span className="ml-3 text-lg font-bold wrap-break-word">{name}</span>
       </SidebarHeader>
       <SidebarContent>
         {itemGroups.map((items, i) => {
