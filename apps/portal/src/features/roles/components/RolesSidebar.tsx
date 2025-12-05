@@ -10,18 +10,8 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { roleDefinitions } from '@/routes/$name/add-user'
-
-// Mock role data - TODO: replace with real data from row
-const getMockRoleData = () => ({
-  registrar: { manager: false, admin: true },
-  renew: { manager: false, admin: true },
-  setSubregistry: { manager: false, admin: true },
-  setResolver: { manager: false, admin: true },
-  setTokenObserver: { manager: false, admin: true },
-  burn: { manager: false, admin: true },
-  canTransferAdmin: { manager: false, admin: true },
-})
+import { permissions } from '@/lib/roles/permissions'
+import { roleToPermissions } from '@/lib/roles/rolesToPermissions'
 
 type RolesSidebarProps<TData> = PropsWithChildren<{
   row: Row<TData> | null
@@ -89,52 +79,67 @@ export const RolesSidebar = <TData extends { items: string[] }>({
               <div className="flex flex-col gap-4">
                 <h3 className="text-lg font-medium">Roles</h3>
                 <div className="border rounded-lg divide-y">
-                  {roleDefinitions.map((role) => {
-                    const roleData = getMockRoleData()
-                    const permissions =
-                      roleData[role.key as keyof typeof roleData]
-                    return (
-                      <div
-                        key={role.key}
-                        className="flex items-center justify-between p-4 gap-4"
-                      >
-                        <div className="flex flex-col gap-1 flex-1">
-                          <div className="font-medium">{role.title}</div>
-                          <div className="text-sm text-gray-600">
-                            {role.description}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-8">
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              id={`${role.key}-manager`}
-                              checked={permissions.manager}
-                              disabled
-                            />
-                            <Label
-                              htmlFor={`${role.key}-manager`}
-                              className="font-normal cursor-pointer text-gray-600"
-                            >
-                              Manager
-                            </Label>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              id={`${role.key}-admin`}
-                              checked={permissions.admin}
-                              disabled
-                            />
-                            <Label
-                              htmlFor={`${role.key}-admin`}
-                              className="font-normal cursor-pointer text-gray-600"
-                            >
-                              Admin
-                            </Label>
-                          </div>
-                        </div>
-                      </div>
+                  {(() => {
+                    // Get permissions from row data
+                    const rolePermissionsMap = roleToPermissions(
+                      row.original.items,
                     )
-                  })}
+
+                    return permissions.map((permission) => {
+                      // Look up permissions using the permission key directly
+                      // The key matches the format in the items array (e.g., 'SET_SUBREGISTRY')
+                      const rolePermissions = rolePermissionsMap.get(
+                        permission.key,
+                      ) || {
+                        admin: false,
+                        manager: false,
+                      }
+
+                      return (
+                        <div
+                          key={permission.key}
+                          className="flex items-center justify-between p-4 gap-4"
+                        >
+                          <div className="flex flex-col gap-1 flex-1">
+                            <div className="font-medium">
+                              {permission.title}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {permission.description}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-8">
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id={`${permission.key}-manager`}
+                                checked={rolePermissions.manager}
+                                disabled
+                              />
+                              <Label
+                                htmlFor={`${permission.key}-manager`}
+                                className="font-normal cursor-pointer text-gray-600"
+                              >
+                                Manager
+                              </Label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id={`${permission.key}-admin`}
+                                checked={rolePermissions.admin}
+                                disabled
+                              />
+                              <Label
+                                htmlFor={`${permission.key}-admin`}
+                                className="font-normal cursor-pointer text-gray-600"
+                              >
+                                Admin
+                              </Label>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })
+                  })()}
                 </div>
               </div>
             </div>
