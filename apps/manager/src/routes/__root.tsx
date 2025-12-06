@@ -9,7 +9,6 @@ import {
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import type { ReactNode } from 'react'
 import { Toaster } from 'sonner'
-import { WagmiProvider } from 'wagmi'
 import { Layout } from '@/components/Layout'
 import appCss from '@/styles/index.css?url'
 import '@getpara/react-sdk-lite/styles.css'
