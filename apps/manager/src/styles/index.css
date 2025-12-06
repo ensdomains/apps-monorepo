@@ -31,6 +31,16 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  ::-webkit-scrollbar {
+    @apply bg-transparent w-2;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-ens-lapis-dust rounded-sm;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-ens-lapis-surface;
+  }
+
   button,
   [role="button"],
   a {
