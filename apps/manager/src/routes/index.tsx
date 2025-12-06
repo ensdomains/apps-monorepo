@@ -10,7 +10,7 @@ const LandingPage = () => {
   return (
     <div>
       {/* Hero Section */}
-      <div className="mx-auto mt-11 flex flex-col items-center">
+      <div className="mx-auto mt-11 flex w-full-[2rem] flex-col items-center">
         <h1 className="text-center text-temp-64px">
           <span className="font-normal text-ens-lapis-core">Claim your</span>
           <br />

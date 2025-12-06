@@ -8,7 +8,7 @@ import card_1_2 from '@/assets/pages/landing/card-1-2.webp'
 import card_1_3 from '@/assets/pages/landing/card-1-3.webp'
 import { cn } from '@/lib/utils'
 import { tw } from '@/utils/tailwind'
-import { BgPattern, ChatBubble } from './components/primitives'
+import { BgPattern, ChatBubble, Sparkle } from './components/primitives'
 
 type FeatureCard = {
   title: ReactNode
@@ -45,17 +45,17 @@ const FEATURE_CARDS: FeatureCard[] = [
         <img
           src={card_1_2}
           alt="card-1-2"
-          className="pointer-events-none absolute bottom-3 left-[27.5%] w-64"
+          className="-bottom-2 pointer-events-none absolute left-8 w-64 max-sm:hidden md:left-[10%] lg:bottom-3 lg:left-[27.5%]"
         />
         <img
           src={card_1_1}
           alt="card-1-1"
-          className="pointer-events-none absolute top-[22px] left-[22px] w-64"
+          className={`-left-8 -top-7 pointer-events-none absolute w-58 sm:top-4 sm:left-[22px] md:top-[22px] lg:w-64`}
         />
         <img
           src={card_1_3}
           alt="card-1-3"
-          className="pointer-events-none absolute right-4 bottom-12 w-64"
+          className="-right-5 -bottom-20 pointer-events-none absolute w-58 sm:right-4 sm:bottom-12 lg:w-64"
         />
       </>
     ),
@@ -78,30 +78,32 @@ const FEATURE_CARDS: FeatureCard[] = [
           <div className="absolute inset-0 bg-linear-290 from-55% from-[#FFEFF6CC] to-130% to-[#F886B64D] opacity-90" />
         </div>
 
-        <div className="absolute top-8 left-8 space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="size-11 rounded-full bg-ens-garnet-surface"></div>
-            <div className="rounded-md bg-ens-garnet-dense p-2 font-medium text-base text-white leading-ens-tight">
-              support.company.eth
+        <div className="absolute inset-4 flex flex-col gap-4 sm:inset-6">
+          <div className="flex flex-col items-start gap-2">
+            <div className="flex items-center gap-2">
+              <div className="size-9 rounded-full bg-ens-garnet-surface md:size-11"></div>
+              <div className="rounded-md bg-ens-garnet-dense p-1.5 font-medium text-sm text-white leading-ens-tight sm:p-2 sm:text-base">
+                support.company.eth
+              </div>
             </div>
+
+            <ChatBubble>Can you share your order number?</ChatBubble>
           </div>
 
-          <ChatBubble>Can you share your order number?</ChatBubble>
-        </div>
-
-        <div className="absolute right-8 bottom-8 space-y-4">
-          <div className="flex items-center justify-end gap-2">
-            <div className="size-11 rounded-full bg-ens-garnet-surface"></div>
-            <div className="rounded-md bg-ens-garnet-dense p-2 font-medium text-base text-white leading-ens-tight">
-              you.eth
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center justify-end gap-2">
+              <div className="size-9 rounded-full bg-ens-garnet-surface md:size-11"></div>
+              <div className="rounded-md bg-ens-garnet-dense p-1.5 font-medium text-sm text-white leading-ens-tight sm:p-2 sm:text-base">
+                you.eth
+              </div>
             </div>
-          </div>
 
-          <ChatBubble kind="reply">
-            No problem. I just checked your
-            <br />
-            ENS profile, you're legit! It's HGJLY ☺️
-          </ChatBubble>
+            <ChatBubble kind="reply">
+              No problem. I just checked your
+              <br />
+              ENS profile, you're legit! It's HGJLY ☺️
+            </ChatBubble>
+          </div>
         </div>
       </>
     ),
@@ -131,28 +133,35 @@ const FEATURE_CARDS: FeatureCard[] = [
         </div>
 
         <div className="absolute top-10 left-10 w-1/3 max-w-3xs">
-          <div className="relative rounded-[6px] bg-ens-blue-midnight/50 p-4">
-            <span className="block w-full bg-linear-90 from-white to-transparent bg-clip-text font-medium font-semi-mono text-sm text-transparent">
+          <div className="relative rounded-[6px] bg-ens-blue-midnight/50 p-3 md:p-4">
+            <span className="block w-full bg-linear-90 from-white to-transparent bg-clip-text font-medium font-semi-mono text-transparent text-xs md:text-sm">
               0x0b08dA7068b73A579Bd5E8a8290f
             </span>
-            <span className="-translate-1/2 absolute top-0 left-0 text-[32px] leading-none">
+            <span className="-translate-1/2 absolute top-0 left-0 text-[28px] leading-none md:text-[32px]">
               🫣
             </span>
-            <span className="-translate-y-1/2 absolute top-1/2 right-0 translate-x-[115%] text-[42px] leading-none">
+            <span className="-translate-y-1/2 absolute top-1/2 right-0 translate-x-[115%] text-[32px] leading-none md:text-[42px]">
               🫷
             </span>
           </div>
         </div>
 
         <div className="-translate-1/2 absolute top-[55%] left-1/2">
-          <div className="relative rounded-[6px] bg-linear-90 from-ens-blue to-[#21B8FF] p-5">
-            <span className="block w-full font-medium font-semi-mono text-[28px] text-white">
+          <div className="relative rounded-[6px] bg-linear-90 from-ens-blue to-[#21B8FF] p-3 md:p-5">
+            {/* Five randomly placed sparkles */}
+            <Sparkle className="-top-8 -left-13 md:-left-20 absolute max-md:h-8" />
+            <Sparkle className="-bottom-7 -left-8 md:-left-12 md:-bottom-12 absolute max-md:h-8" />
+            <Sparkle className="-right-14 -top-2 md:-right-20 md:-top-8 absolute max-md:h-8" />
+            <Sparkle className="-bottom-12 -right-4 md:-bottom-14 md:-right-12 absolute rotate-180 max-md:h-8" />
+            <Sparkle className="-bottom-17 -right-11 md:-bottom-20 md:-right-32 absolute max-md:h-8" />
+
+            <span className="block w-full font-medium font-semi-mono text-lg text-white md:text-[28px]">
               friend.eth
             </span>
-            <span className="-translate-1/2 absolute top-0 left-0 text-[44px] leading-none">
+            <span className="-translate-1/2 absolute top-0 left-0 text-[28px] leading-none md:text-[44px]">
               😌
             </span>
-            <span className="-translate-y-1/2 absolute top-1/2 right-0 translate-x-[115%] text-[44px] leading-none">
+            <span className="-translate-y-1/2 absolute top-1/2 right-0 translate-x-5/6 text-[28px] leading-none md:text-[44px]">
               🫶
             </span>
           </div>
@@ -182,7 +191,7 @@ const CarouselCard = ({
   return (
     <motion.div
       className={cn(
-        'flex flex-none flex-col gap-4 overflow-hidden rounded-[8px] p-[22px]',
+        'flex flex-none flex-col justify-between overflow-hidden rounded-[8px] p-4 lg:p-[22px]',
         className,
       )}
       style={{
@@ -193,12 +202,18 @@ const CarouselCard = ({
       }}
       {...props}
     >
-      <h2 className="font-bold text-temp-32px leading-ens-none">{title}</h2>
-      <p className="max-w-[350px] font-normal font-serif text-base leading-none">
-        {description}
-      </p>
+      <div className="space-y-4">
+        <h2 className="font-bold text-2xl leading-ens-none lg:text-temp-32px">
+          {title}
+        </h2>
+        <p className="max-w-[350px] font-normal font-serif text-sm leading-none lg:text-base">
+          {description}
+        </p>
+      </div>
 
-      <div className="relative isolate mt-auto h-[320px]">{children}</div>
+      <div className="relative isolate mt-10 h-[320px] select-none justify-self-end lg:mt-4">
+        {children}
+      </div>
     </motion.div>
   )
 }
@@ -215,10 +230,10 @@ export const FeaturesCarousel = () => {
   }
 
   return (
-    <div className="relative mt-28">
+    <div className="relative mt-15 lg:mt-28">
       <div className="relative mx-auto w-full-[2rem] max-w-6xl">
         <div
-          className="relative flex w-full [--s2-basis:90%] xl:[--s2-basis:70%]"
+          className="relative flex w-full [--s2-basis:90%] md:[--s2-basis:80%] xl:[--s2-basis:70%]"
           ref={constraintRef}
         >
           {FEATURE_CARDS.map(({ children, className, ...data }, index) => {

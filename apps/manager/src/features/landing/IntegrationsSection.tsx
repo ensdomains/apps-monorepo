@@ -1,3 +1,4 @@
+import ensIcon from '@/assets/icons/ens-mobile.svg'
 export const IntegrationsSection = () => {
   return (
     <div className="mt-20 bg-white">
@@ -12,6 +13,21 @@ export const IntegrationsSection = () => {
             exercitationem quis ipsum sapiente quos repellendus modi, sunt ullam
             eligendi architecto?
           </p>
+        </div>
+
+        <div className="mt-16 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          {Array.from({ length: 16 }).map((_, index) => (
+            <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: Hardcoded list
+              key={index}
+              className="flex items-center gap-2 border-ens-lapis-dust border-t py-4"
+            >
+              <img src={ensIcon} alt="ENS" className="size-10 object-cover" />
+              <span className="font-medium text-base text-ens-blue-midnight md:text-lg lg:text-[22px]">
+                ENS Domains
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </div>

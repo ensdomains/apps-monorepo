@@ -60,6 +60,8 @@
   --text-temp-64px--line-height: 78%;
   --text-temp-32px: 2rem;
   --text-temp-32px--line-height: 110%;
+
+  --breakpoint-xs: 30rem;
 }
 
 /* ===============================
