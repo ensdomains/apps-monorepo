@@ -1,5 +1,5 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/molecules/ErrorMessage'
@@ -11,7 +11,7 @@ import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { RolesTable } from '@/features/roles/components/RolesTable'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
 
-export const Route = createFileRoute('/$name/roles')({
+export const Route = createFileRoute('/$name/roles/')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
 })
@@ -73,10 +73,10 @@ function RouteComponent() {
         <div className="flex items-center justify-between">
           <h1 className="text-[28px] font-medium leading-none">Roles</h1>
           <Button variant="outline" className="flex items-center gap-2" asChild>
-            <a href={`/${name}/add-user`}>
+            <Link to="/$name/roles/add-user" params={{ name }}>
               <Plus className="size-4" />
               Add user
-            </a>
+            </Link>
           </Button>
         </div>
         <V2NameRoles name={name} registryAddress={data.registryAddress} />
