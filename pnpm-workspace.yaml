@@ -11,3 +11,5 @@ minimumReleaseAge: 1440
 trustPolicy: no-downgrade
 
 autoInstallPeers: false
+
+resolutionMode: highest
