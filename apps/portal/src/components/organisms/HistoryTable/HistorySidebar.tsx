@@ -45,6 +45,7 @@ const NameDisplay = ({ name }: NameDisplayProps) => {
         value={name}
         displayValue={<span>{name}</span>}
         className="underline decoration-dashed underline-offset-4"
+        href={`/name/${name}`}
       />
     </div>
   )

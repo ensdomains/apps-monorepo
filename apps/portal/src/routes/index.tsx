@@ -58,7 +58,7 @@ function RouteComponent() {
                   Need an ENSv2 name?
                 </span>
                 <ExternalLink
-                  href="https://app.ens.domains"
+                  href="https://app.ens.dev/"
                   className="underline hover:no-underline"
                 >
                   Register one in the new Manager →
@@ -69,7 +69,7 @@ function RouteComponent() {
                   Deep dive into the new contracts?
                 </span>
                 <ExternalLink
-                  href="https://ens.domains/ensv2"
+                  href="https://ens.domains/blog/post/ensv2"
                   className="underline hover:no-underline"
                 >
                   Read the ENSv2 design doc →
@@ -80,13 +80,13 @@ function RouteComponent() {
                   Want to learn more about ENSv2?
                 </span>
                 <ExternalLink
-                  href="https://docs.ens.domains"
+                  href=" https://ens.domains/ensv2"
                   className="underline hover:no-underline"
                 >
                   Visit our info hub →
                 </ExternalLink>
               </div>
-              <div>
+              {/* <div>
                 <span className="font-medium text-gray-700 mr-2">
                   Want to share feedback on the Alpha?
                 </span>
@@ -96,7 +96,7 @@ function RouteComponent() {
                 >
                   Join our Alpha TG group →
                 </ExternalLink>
-              </div>
+              </div> */}
             </div>
           </div>
         </section>
