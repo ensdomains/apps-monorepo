@@ -66,19 +66,17 @@ export const NamesTable = ({ favorites }: NamesTableProps) => {
   const pageSize = 5
   const favoriteNames = favorites ?? []
   const trimmedQuery = searchQuery.trim()
-  const namesQuery = useQuery(
-    dashboardNamesListQuery({
+  const namesQuery = useQuery({
+    ...dashboardNamesListQuery({
       query: trimmedQuery || undefined,
       sortBy,
       sortDirection,
       page,
       pageSize,
     }),
-    {
-      placeholderData: keepPreviousData,
-      enabled: activeTab === 'myNames',
-    },
-  )
+    placeholderData: keepPreviousData,
+    enabled: activeTab === 'myNames',
+  })
 
   const displayedNames = namesQuery.data?.items ?? []
   const totalCount = namesQuery.data?.total ?? 0
