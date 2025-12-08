@@ -56,8 +56,13 @@ const V2NameRoles = ({
 function RouteComponent() {
   const { name } = Route.useParams()
 
-  const { data, isLoading, error } = useQuery(getEnsOwnerQueryOptions({ name }))
+  const { data, isLoading, error } = useQuery({
+    ...getEnsOwnerQueryOptions({ name }),
+    enabled: name.endsWith('.eth'),
+  })
 
+  if (!name.endsWith('.eth'))
+    return <ErrorMessage title="Only .eth is supported" />
   if (isLoading) return <LoadingSpinner title="Loading name owner" />
   if (error)
     return (
@@ -82,5 +87,11 @@ function RouteComponent() {
         <V2NameRoles name={name} registryAddress={data.registryAddress} />
       </div>
     )
-  } else return <div>This is not a Namechain name</div>
+  } else
+    return (
+      <ErrorMessage
+        title="This is not a Namechain name"
+        description="Role editing is supported only for Namechain names at the moment."
+      />
+    )
 }
