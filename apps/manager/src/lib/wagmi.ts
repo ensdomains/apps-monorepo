@@ -1,4 +1,7 @@
-import { addEnsL1Contracts } from '@ensdomains/ensjs'
+import {
+  extendChainWithL1Ens,
+  extendChainWithL2Ens,
+} from '@ensdomains/ensjs/chain'
 import { injected } from '@wagmi/core'
 import { createPublicClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
@@ -17,8 +20,8 @@ export const customSepolia = {
   },
 }
 
-export const sepoliaWithEns = addEnsL1Contracts(customSepolia)
-export const namechainSepolia = sepolia
+export const sepoliaWithEns = extendChainWithL1Ens(customSepolia)
+export const namechainSepolia = extendChainWithL2Ens(sepolia)
 
 const ccipReadConfig = {
   async request({
