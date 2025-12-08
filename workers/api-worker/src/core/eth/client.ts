@@ -1,12 +1,15 @@
-import { extendChainWithEns } from '@ensdomains/ensjs/chain'
+import {
+  extendChainWithL1Ens,
+  extendChainWithL2Ens,
+} from '@ensdomains/ensjs/chain'
 import { ok, type Result } from 'neverthrow'
 import { createPublicClient, http } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
 import { error } from '../../utils/result'
 
 const chains = {
-  mainnet: extendChainWithEns(mainnet),
-  sepolia: extendChainWithEns(sepolia),
+  mainnet: extendChainWithL1Ens(mainnet),
+  sepolia: extendChainWithL2Ens(sepolia),
 }
 
 export type ViemClient =

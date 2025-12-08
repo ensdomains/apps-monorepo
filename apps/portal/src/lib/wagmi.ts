@@ -1,11 +1,14 @@
-import { extendChainWithEns } from '@ensdomains/ensjs/chain'
+import {
+  extendChainWithL1Ens,
+  extendChainWithL2Ens,
+} from '@ensdomains/ensjs/chain'
 import { connectorsForWallets } from '@rainbow-me/rainbowkit'
 import {
   frameWallet,
   injectedWallet,
   metaMaskWallet,
 } from '@rainbow-me/rainbowkit/wallets'
-import { createClient, http } from 'viem'
+import { type Chain, createClient, http } from 'viem'
 import {
   arbitrumSepolia,
   baseSepolia,
@@ -16,10 +19,13 @@ import {
 } from 'viem/chains'
 import { createConfig } from 'wagmi'
 
-export const sepoliaWithEns = extendChainWithEns(sepolia)
+export const sepoliaWithEns = extendChainWithL1Ens(sepolia)
 
 // later to be replaced with actual namechain sepolia
-export const namechainSepolia = sepolia
+export const namechainSepolia = extendChainWithL2Ens(sepolia)
+
+const drpc = (chain: Chain) =>
+  `https://lb.drpc.live/${chain.name.toLowerCase()}/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j`
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
@@ -46,9 +52,11 @@ export const wagmiConfig = createConfig({
   client: ({ chain }) =>
     createClient({
       chain,
-      transport: http(
-        `https://lb.drpc.live/${chain.name.toLowerCase()}/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j`,
-      ),
+      transport: http(drpc(chain), {
+        batch: {
+          wait: 10, // Wait 10ms to collect more requests before sending batch (default is 0ms)
+        },
+      }),
     }),
 })
 

@@ -1,4 +1,3 @@
-import type { ChainWithEns } from '@ensdomains/ensjs/chain'
 import {
   deploySubregistryWriteParameters,
   setSubregistryWriteParameters,
@@ -12,7 +11,6 @@ import {
   useWalletClient,
   useWriteContract,
 } from 'wagmi'
-import { wagmiConfig } from '@/lib/wagmi'
 
 interface UseDeployRegistryMutationsParams {
   name: string
@@ -30,7 +28,6 @@ export const useDeployRegistryMutations = ({
   protocolVersion,
 }: UseDeployRegistryMutationsParams) => {
   const { data: walletClient } = useWalletClient({ chainId: sepolia.id })
-  const ensChain = wagmiConfig.chains.find((c) => c.id === sepolia.id)
 
   // Deploy subregistry mutation
   const {
@@ -77,17 +74,11 @@ export const useDeployRegistryMutations = ({
   const label = name.split('.')[0]
 
   const writeParams =
-    walletClient && ensChain && implAddress
-      ? deploySubregistryWriteParameters(
-          {
-            ...walletClient,
-            chain: ensChain as ChainWithEns,
-          },
-          {
-            factoryAddress,
-            implAddress,
-          },
-        )
+    walletClient && implAddress
+      ? deploySubregistryWriteParameters(walletClient, {
+          factoryAddress,
+          implAddress,
+        })
       : null
 
   // Automatically call setSubregistry when deploy is confirmed
@@ -96,7 +87,6 @@ export const useDeployRegistryMutations = ({
       !isConfirmed ||
       !deployReceipt ||
       !walletClient ||
-      !ensChain ||
       !currentNameRegistry
     ) {
       return
@@ -117,17 +107,11 @@ export const useDeployRegistryMutations = ({
       return
     }
 
-    const setSubregistryParams = setSubregistryWriteParameters(
-      {
-        ...walletClient,
-        chain: ensChain as ChainWithEns,
-      },
-      {
-        registryAddress: currentNameRegistry as Address,
-        label,
-        subregistryAddress: deployedAddress,
-      },
-    )
+    const setSubregistryParams = setSubregistryWriteParameters(walletClient, {
+      registryAddress: currentNameRegistry as Address,
+      label,
+      subregistryAddress: deployedAddress,
+    })
 
     writeSetSubregistryAsync({
       address: setSubregistryParams.address,
@@ -140,7 +124,6 @@ export const useDeployRegistryMutations = ({
     isConfirmed,
     deployReceipt,
     walletClient,
-    ensChain,
     currentNameRegistry,
     label,
     writeSetSubregistryAsync,

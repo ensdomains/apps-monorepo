@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, useParams } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import type { Address } from 'viem/accounts'
 import { useEnsName } from 'wagmi'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
@@ -80,7 +80,7 @@ const ParentInfo = ({ name }: ParentInfoProps) => {
 }
 
 function RouteComponent() {
-  const { name } = useParams({ from: '/$name/ownership' })
+  const { name } = Route.useParams()
   return (
     <div className="max-w-360 w-full mx-auto flex flex-col gap-6 m-6 px-4">
       <div className="flex flex-row justify-between">

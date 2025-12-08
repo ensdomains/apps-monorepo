@@ -34,7 +34,7 @@ export const CopyableRecord = ({
       {href ? (
         <ExternalLink
           className={cn(
-            'text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4 flex-1',
+            'text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4',
             truncate && 'truncate',
           )}
           href={href}
@@ -52,7 +52,7 @@ export const CopyableRecord = ({
         </div>
       )}
       <button
-        className="flex-shrink-0 cursor-pointer"
+        className="shrink-0 cursor-pointer"
         type="button"
         onClick={() => setCopy(true)}
       >

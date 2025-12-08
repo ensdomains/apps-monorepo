@@ -103,6 +103,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
             value={txId}
             displayValue={<span className="font-mono">{shortTxId}</span>}
             className="text-sm underline decoration-dashed underline-offset-4"
+            href={`https://sepolia.etherscan.io/tx/${txId}`}
           />
         )
       },

@@ -1,5 +1,6 @@
 export { DashboardProfilePreview } from './DashboardProfilePreview'
 export { ExampleNameCard } from './ExampleNameCard'
+export { HomeSearchInput } from './HomeSearchInput'
 export { LinkBlock } from './LinkBlock'
 export { UpNextItem } from './UpNextItem'
 export { WhatsNewItem } from './WhatsNewItem'
