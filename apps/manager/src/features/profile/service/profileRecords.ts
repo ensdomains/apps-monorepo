@@ -27,7 +27,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   }
 
   const client = yield* safeGetClient()
-  const subgraphRecords = yield* await getSubgraphRecords(name)
+  const subgraphRecords = yield* getSubgraphRecords(name)
 
   const texts = [
     ...forceFetchRecords.always,
