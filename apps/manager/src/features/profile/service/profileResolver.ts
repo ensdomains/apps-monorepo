@@ -7,6 +7,7 @@ import {
   getUnderlyingAddress,
 } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
+import { getEnsResolver } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 class GetUnderlyingAddressError extends TaggedError(
@@ -18,10 +19,15 @@ class GetUnderlyingAddressError extends TaggedError(
 export const getResolver = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
 
+  const resolverAddress = await getEnsResolver(client, {
+    name,
+    universalResolverAddress: ENS_SEPOLIA_CONTRACTS.UniversalResolver,
+  })
+
   const resolverResult = yield* await fromPromise(
     getUnderlyingAddress(client, {
       name,
-      resolverAddress: ENS_SEPOLIA_CONTRACTS.UniversalResolver,
+      resolverAddress,
     }),
     (e) =>
       new GetUnderlyingAddressError({
