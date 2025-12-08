@@ -62,12 +62,7 @@ export const DashboardPage = () => {
         />
         <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:px-[24px] md:py-[32px]">
           <div className="space-y-5">
-            <NamesTable
-              names={names}
-              favorites={favorites}
-              isLoading={false}
-              error={undefined}
-            />
+            <NamesTable favorites={favorites} />
           </div>
         </div>
         <DidYouKnowSection />
