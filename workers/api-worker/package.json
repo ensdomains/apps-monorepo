@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@ens-apps/utils": "workspace:*",
-    "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@7109549",
+    "@ensdomains/ensjs": "catalog:",
     "@hono/valibot-validator": "^0.5.3",
     "drizzle-orm": "^0.44.5",
     "graphql": "^16.11.0",
