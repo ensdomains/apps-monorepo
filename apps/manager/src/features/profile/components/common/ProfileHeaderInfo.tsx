@@ -75,13 +75,15 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
         <Wallet className="size-5" />
         Owned by <OwnerLink address={owner} profileName={name} />
       </div>
-      <div className="flex items-center gap-x-1 whitespace-pre-wrap">
-        <Calendar className="size-5" />
-        Expires{' '}
-        <span className="font-medium">
-          {formatDate(new Date(Number(expiry.data?.expiry) * 1000))}
-        </span>
-      </div>
+      {expiry.data?.expiry && (
+        <div className="flex items-center gap-x-1 whitespace-pre-wrap">
+          <Calendar className="size-5" />
+          Expires{' '}
+          <span className="font-medium">
+            {formatDate(new Date(Number(expiry.data?.expiry) * 1000))}
+          </span>
+        </div>
+      )}
       <div className="flex items-center gap-x-2">
         <Link
           to="/p/$name"
