@@ -19,13 +19,27 @@ import { PrimaryBadge } from './PrimaryBadge'
 interface MyNamesListProps {
   names?: DashboardNameRow[]
   searchQuery?: string
+  page: number
+  pageSize: number
+  totalCount: number
+  onPageChange: (page: number) => void
 }
 
-export const MyNamesList = ({ names = [], searchQuery }: MyNamesListProps) => {
+export const MyNamesList = ({
+  names = [],
+  searchQuery,
+  page,
+  pageSize,
+  totalCount,
+  onPageChange,
+}: MyNamesListProps) => {
   const hasResults = names.length > 0
-  const startCount = hasResults ? 1 : 0
-  const endCount = hasResults ? Math.min(5, names.length) : 0
   const trimmedQuery = searchQuery?.trim()
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+  const startCount = totalCount === 0 ? 0 : (page - 1) * pageSize + 1
+  const endCount = totalCount === 0 ? 0 : Math.min(page * pageSize, totalCount)
+  const canGoPrev = page > 1
+  const canGoNext = page < totalPages
 
   return (
     <div className="w-full">
@@ -161,30 +175,28 @@ export const MyNamesList = ({ names = [], searchQuery }: MyNamesListProps) => {
         <div className="flex items-center justify-center gap-2 md:gap-[12px]">
           <button
             type="button"
-            className="relative size-[28px] shrink-0 text-[#d3d3d3] md:size-[32px]"
+            className="relative size-[28px] shrink-0 rounded-[6px] border border-[#d3d3d3] text-[#232222] disabled:opacity-50 md:size-[32px]"
+            onClick={() => onPageChange(page - 1)}
+            disabled={!canGoPrev}
           >
             <ChevronLeft className="size-full" />
           </button>
-          <div className="flex size-[28px] shrink-0 items-center justify-center rounded-[6px] bg-[#e5f7ff] md:size-[32px]">
-            <span className="font-medium font-sans text-[#0080bc] text-[11px] leading-[normal] md:text-[12px]">
-              1
-            </span>
-          </div>
-          <div className="flex size-[28px] shrink-0 items-center justify-center rounded-[6px] md:size-[32px]">
-            <span className="font-sans text-[#bcbcbc] text-[11px] leading-[normal] md:text-[12px]">
-              2
+          <div className="flex items-center gap-2 px-2 text-[#232222] text-[12px] md:text-[13px]">
+            <span>
+              Page {page} of {totalPages}
             </span>
           </div>
           <button
             type="button"
-            className="relative size-[28px] shrink-0 text-[#d3d3d3] md:size-[32px]"
+            className="relative size-[28px] shrink-0 rounded-[6px] border border-[#d3d3d3] text-[#232222] disabled:opacity-50 md:size-[32px]"
+            onClick={() => onPageChange(page + 1)}
+            disabled={!canGoNext}
           >
             <ChevronRight className="size-full" />
           </button>
         </div>
         <span className="text-center font-sans text-[#7d7d7d] text-[11px] leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
-          Showing {hasResults ? `${startCount}-${endCount}` : 0} of{' '}
-          {names.length}
+          Showing {hasResults ? `${startCount}-${endCount}` : 0} of {totalCount}
         </span>
       </div>
     </div>
