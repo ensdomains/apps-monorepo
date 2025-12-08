@@ -1,9 +1,4 @@
-import {
-  useAccount,
-  useLogout,
-  useModal,
-  useWallet,
-} from '@getpara/react-sdk-lite'
+import { useAccount, useModal, useWallet } from '@getpara/react-sdk-lite'
 import { Link } from '@tanstack/react-router'
 import {
   Bell,
@@ -18,6 +13,7 @@ import { useState } from 'react'
 import ensLogo from '@/assets/icons/ens.svg'
 import ensMobileLogo from '@/assets/icons/ens-mobile.svg'
 import { Button } from '@/components/ui/button'
+import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,13 +27,231 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { NotificationsDropdown } from '@/features/notifications/components'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+
+// Reusable menu content component
+const UserMenuContent = ({
+  account,
+  address,
+  accountAddress,
+  isLoading,
+  stablecoinBalances,
+  eoaEthBalance,
+  smartAccountEthBalance,
+  isLoadingEoaEth,
+  isLoadingSmartAccountEth,
+  rhinestoneAccount,
+  error,
+  copied,
+  handleCopyAddress,
+  getDisplayName,
+  ensAvatar,
+  isAutoFunding,
+  autoFundingError,
+}: {
+  account: ReturnType<typeof useAccount>
+  address: string | undefined
+  accountAddress: string | null | undefined
+  isLoading: boolean
+  stablecoinBalances:
+    | Array<{ address: string; symbol: string; formattedBalance?: string }>
+    | undefined
+  eoaEthBalance: { formattedBalance: string } | null | undefined
+  smartAccountEthBalance: { formattedBalance: string } | null | undefined
+  isLoadingEoaEth: boolean
+  isLoadingSmartAccountEth: boolean
+  rhinestoneAccount: unknown
+  error: string | null
+  copied: boolean
+  handleCopyAddress: (address: string) => void
+  getDisplayName: () => string
+  ensAvatar: string | null | undefined
+  isAutoFunding: boolean
+  autoFundingError: string | null
+}) => {
+  return (
+    <>
+      <div className="p-4 md:p-4">
+        {/* User Header with Avatar */}
+        <div className="mb-6 flex items-center gap-3">
+          {ensAvatar ? (
+            <img
+              src={ensAvatar}
+              alt="ENS Avatar"
+              className="size-12 shrink-0 rounded-full border-2 border-ens-blue-light object-cover"
+            />
+          ) : (
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-full border-2 border-ens-blue-light bg-ens-lapis-dust">
+              {isLoading ? (
+                <div className="size-6 animate-spin rounded-full border-2 border-ens-blue border-t-transparent" />
+              ) : (
+                <User className="size-6 text-ens-blue" />
+              )}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="truncate font-medium text-ens-blue-dark text-lg">
+              {getDisplayName()}
+            </div>
+            {isLoading && (
+              <div className="mt-0.5 text-ens-blue text-xs">
+                Creating smart account...
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* EOA Address and Balance - Only show if NOT using smart account auth */}
+        {address && !account?.embedded?.isConnected && (
+          <div className="mb-4">
+            <div className="mb-2 font-medium text-ens-blue-midnight text-xs uppercase tracking-wide">
+              EOA Address
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border border-ens-blue-light bg-ens-lapis-dust p-3">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-ens-blue-dark text-sm">
+                  {`${address.slice(0, 6)}...${address.slice(-4)}`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleCopyAddress(address)}
+                  className="rounded p-1 text-ens-blue transition-colors hover:bg-ens-blue-light"
+                >
+                  <Copy className="size-4" />
+                </button>
+              </div>
+              {eoaEthBalance && (
+                <span className="font-bold text-ens-blue-dark text-sm">
+                  {eoaEthBalance.formattedBalance}
+                </span>
+              )}
+              {isLoadingEoaEth && (
+                <span className="text-ens-blue-midnight text-sm">
+                  Loading...
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Rhinestone Smart Account Information */}
+        {(isLoading || rhinestoneAccount || accountAddress) && (
+          <div className="mb-4">
+            <div className="mb-2 font-medium text-ens-blue-midnight text-xs uppercase tracking-wide">
+              Smart Account Address
+            </div>
+
+            {isLoading ? (
+              <div className="flex items-center gap-2 rounded-lg border border-ens-blue-light bg-ens-lapis-dust p-3">
+                <div className="size-4 animate-spin rounded-full border-2 border-ens-blue border-t-transparent" />
+                <span className="text-ens-blue-dark text-sm">
+                  Creating smart account...
+                </span>
+              </div>
+            ) : error ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                <div className="font-medium text-red-600 text-sm">
+                  Failed to create smart account
+                </div>
+                <div className="mt-1 text-red-500 text-xs">{error}</div>
+              </div>
+            ) : rhinestoneAccount && accountAddress ? (
+              <div className="flex items-center justify-between rounded-lg border border-ens-blue-light bg-ens-lapis-dust p-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-ens-blue-dark text-sm">
+                    {`${accountAddress.slice(0, 6)}...${accountAddress.slice(-4)}`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyAddress(accountAddress)}
+                    className="rounded p-1 text-ens-blue transition-colors hover:bg-ens-blue-light"
+                  >
+                    <Copy className="size-4" />
+                  </button>
+                </div>
+                {smartAccountEthBalance && (
+                  <span className="font-bold text-ens-blue-dark text-sm">
+                    {smartAccountEthBalance.formattedBalance}
+                  </span>
+                )}
+                {isLoadingSmartAccountEth && (
+                  <span className="text-ens-blue-midnight text-sm">
+                    Loading...
+                  </span>
+                )}
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {/* Token Balances (Stablecoins) */}
+        {!isLoading && (
+          <div className="mb-4">
+            <div className="mb-2 font-medium text-ens-blue-midnight text-xs uppercase tracking-wide">
+              Token Balances
+            </div>
+            {isAutoFunding ? (
+              <div className="flex items-center gap-2 rounded-lg border border-ens-blue-light bg-ens-lapis-dust p-3">
+                <div className="size-4 animate-spin rounded-full border-2 border-ens-blue border-t-transparent" />
+                <span className="text-ens-blue-dark text-sm">
+                  Processing auto-funds...
+                </span>
+              </div>
+            ) : autoFundingError ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                <div className="font-medium text-red-600 text-sm">
+                  Auto-funding failed
+                </div>
+                <div className="mt-1 text-red-500 text-xs">
+                  {autoFundingError}
+                </div>
+              </div>
+            ) : stablecoinBalances && stablecoinBalances.length > 0 ? (
+              <div className="space-y-2">
+                {stablecoinBalances.map((balance, index) => (
+                  <div
+                    key={`${balance.address}-${index}`}
+                    className="flex items-center justify-between rounded-lg border border-ens-blue-light bg-ens-lapis-dust p-3"
+                  >
+                    <span className="font-medium text-ens-blue-dark text-sm">
+                      {balance.symbol}
+                    </span>
+                    {balance.formattedBalance && (
+                      <span className="font-bold text-ens-blue-dark text-sm">
+                        {balance.formattedBalance}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {/* Alpha release info */}
+            <p className="mt-2 text-ens-gray text-xs leading-relaxed">
+              💡 For this alpha release, accounts are automatically funded with
+              test tokens.
+            </p>
+          </div>
+        )}
+
+        {copied && (
+          <div className="mb-3 font-medium text-ens-green text-sm">
+            ✓ Copied to clipboard
+          </div>
+        )}
+      </div>
+
+      {/* Menu Items - will be rendered separately for dropdown vs drawer */}
+    </>
+  )
+}
 
 const ConnectedContent = () => {
   const { data: wallet } = useWallet()
   const account = useAccount()
   const { openModal } = useModal()
-  const { logout } = useLogout()
+  const isDesktop = useMediaQuery('(min-width: 768px)')
   const {
     rhinestoneAccount,
     accountAddress,
@@ -48,6 +262,8 @@ const ConnectedContent = () => {
     isLoadingEoaEth,
     isLoadingSmartAccountEth,
     error,
+    isAutoFunding,
+    autoFundingError,
   } = useRhinestoneAccount()
 
   const address = wallet?.address
@@ -55,6 +271,7 @@ const ConnectedContent = () => {
   const ensAvatar = wallet?.ensAvatar
 
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
   const handleCopyAddress = async (addressToCopy: string) => {
@@ -118,229 +335,169 @@ const ConnectedContent = () => {
     return 'Connected'
   }
 
+  const displayName = getDisplayName()
+
+  // Shared trigger button
+  const triggerButton = (
+    <button
+      type="button"
+      className="flex min-w-0 max-w-full items-center gap-0.5 rounded-full border border-gray-300 py-1 pr-1.5 pl-1 transition-colors hover:bg-gray-50 md:gap-1 md:pr-2"
+    >
+      <div className="flex min-w-0 items-center gap-1 md:gap-2">
+        {ensAvatar ? (
+          <img
+            src={ensAvatar}
+            alt="ENS Avatar"
+            className="size-[36px] shrink-0 rounded-full md:size-[46px]"
+          />
+        ) : (
+          <div className="flex size-[36px] shrink-0 items-center justify-center rounded-full bg-muted md:size-[46px]">
+            {isLoading ? (
+              <div className="size-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent md:size-5" />
+            ) : (
+              <User className="size-4 text-muted-foreground md:size-5" />
+            )}
+          </div>
+        )}
+        <span
+          className="min-w-0 truncate font-medium text-gray-700 text-sm leading-tight tracking-tight md:text-base md:leading-[0.96] md:tracking-[-0.32px]"
+          title={displayName}
+        >
+          {displayName}
+          {isLoading && (
+            <span className="ml-1 shrink-0 text-muted-foreground text-xs md:ml-2">
+              (Smart Account)
+            </span>
+          )}
+        </span>
+      </div>
+      <ChevronDown className="size-5 shrink-0 text-gray-500 md:size-6" />
+    </button>
+  )
+
+  // Shared menu content props
+  const menuContentProps = {
+    account,
+    address,
+    accountAddress,
+    isLoading,
+    stablecoinBalances,
+    eoaEthBalance,
+    smartAccountEthBalance,
+    isLoadingEoaEth,
+    isLoadingSmartAccountEth,
+    rhinestoneAccount,
+    error,
+    copied,
+    handleCopyAddress,
+    getDisplayName,
+    ensAvatar,
+    isAutoFunding,
+    autoFundingError,
+  }
+
   return (
-    <div className="mr-0 flex items-center gap-[16px] md:mr-0 md:gap-[74px]">
-      <div className="flex items-center gap-[16px]">
+    <div className="flex min-w-0 items-center gap-2 md:gap-4">
+      {isDesktop ? (
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="flex items-center gap-[4px] rounded-[100px] border-[#e6e6e6] border-[0.4px] bg-white py-[4px] pr-[8px] pl-[4px] transition-colors hover:bg-gray-50"
-            >
-              <div className="flex items-center gap-[8px]">
-                {ensAvatar ? (
-                  <img
-                    src={ensAvatar}
-                    alt="ENS Avatar"
-                    className="size-[46px] rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="flex size-[46px] items-center justify-center rounded-full bg-muted">
-                    {isLoading ? (
-                      <div className="size-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-                    ) : (
-                      <User className="size-5 text-muted-foreground" />
-                    )}
-                  </div>
-                )}
-                <span className="font-medium font-sans text-[#444444] text-[16px] leading-[0.96] tracking-[-0.32px]">
-                  {getDisplayName()}
-                  {isLoading && (
-                    <span className="ml-2 text-muted-foreground text-xs">
-                      (Smart Account)
-                    </span>
-                  )}
-                </span>
-              </div>
-              <ChevronDown className="size-[24px] text-[#000000]" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80">
-            <div className="p-4">
-              <div className="mb-4">
-                <div className="font-medium text-base text-ens-blue-dark">
-                  {getDisplayName()}
-                </div>
-              </div>
-
-              {/* EOA Address and Balance - Only show if NOT using smart account auth */}
-              {address && !account?.embedded?.isConnected && (
-                <div className="mb-3">
-                  <div className="mb-2 font-medium text-gray-500 text-xs uppercase tracking-wide">
-                    EOA Address
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-lg bg-gray-100 p-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-gray-600 text-sm">
-                        {`${address.slice(0, 6)}...${address.slice(-4)}`}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopyAddress(address)}
-                        className="rounded p-1 transition-colors hover:bg-white"
-                      >
-                        <Copy className="size-4 text-gray-600" />
-                      </button>
-                    </div>
-                    {eoaEthBalance && (
-                      <span className="font-bold text-ens-blue-dark text-sm">
-                        {eoaEthBalance.formattedBalance}
-                      </span>
-                    )}
-                    {isLoadingEoaEth && (
-                      <span className="text-gray-500 text-sm">Loading...</span>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Rhinestone Smart Account Information */}
-              {(isLoading || rhinestoneAccount || accountAddress) && (
-                <div className="mb-3">
-                  <div className="mb-2 font-medium text-gray-500 text-xs uppercase tracking-wide">
-                    Smart Account Address
-                  </div>
-
-                  {isLoading ? (
-                    <div className="flex items-center gap-2 rounded-lg bg-gray-100 p-3">
-                      <div className="size-4 animate-spin rounded-full border-2 border-gray-500 border-t-transparent" />
-                      <span className="text-gray-600 text-sm">
-                        Creating smart account...
-                      </span>
-                    </div>
-                  ) : error ? (
-                    <div className="rounded-lg bg-red-50 p-3">
-                      <div className="font-medium text-red-600 text-sm">
-                        Failed to create smart account
-                      </div>
-                      <div className="mt-1 text-red-500 text-xs">{error}</div>
-                    </div>
-                  ) : rhinestoneAccount && accountAddress ? (
-                    <div className="flex items-center justify-between rounded-lg bg-gray-100 p-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-gray-600 text-sm">
-                          {`${accountAddress.slice(0, 6)}...${accountAddress.slice(-4)}`}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopyAddress(accountAddress)}
-                          className="rounded p-1 transition-colors hover:bg-white"
-                        >
-                          <Copy className="size-4 text-gray-600" />
-                        </button>
-                      </div>
-                      {smartAccountEthBalance && (
-                        <span className="font-bold text-ens-blue-dark text-sm">
-                          {smartAccountEthBalance.formattedBalance}
-                        </span>
-                      )}
-                      {isLoadingSmartAccountEth && (
-                        <span className="text-gray-500 text-sm">
-                          Loading...
-                        </span>
-                      )}
-                    </div>
-                  ) : null}
-                </div>
-              )}
-
-              {/* Token Balances (Stablecoins) */}
-              {!isLoading &&
-                stablecoinBalances &&
-                stablecoinBalances.length > 0 && (
-                  <div className="mb-3">
-                    <div className="mb-2 font-medium text-gray-500 text-xs uppercase tracking-wide">
-                      Token Balances
-                    </div>
-                    <div className="space-y-2">
-                      {stablecoinBalances.map((balance, index) => (
-                        <div
-                          key={`${balance.address}-${index}`}
-                          className="flex items-center justify-between rounded-lg bg-gray-100 p-3"
-                        >
-                          <span className="font-medium text-gray-600 text-sm">
-                            {balance.symbol}
-                          </span>
-                          {balance.formattedBalance && (
-                            <span className="font-bold text-ens-blue-dark text-sm">
-                              {balance.formattedBalance}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-              {copied && (
-                <div className="mb-3 font-medium text-green-600 text-sm">
-                  ✓ Copied to clipboard
-                </div>
-              )}
-            </div>
-
+          <DropdownMenuTrigger asChild>{triggerButton}</DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-96">
+            <UserMenuContent {...menuContentProps} />
             <DropdownMenuSeparator />
-
-            {/* Menu Items */}
             <DropdownMenuItem asChild>
-              <Link to="/auto-renewal">
-                <RefreshCcw className="mr-2 size-4" />
+              <Link to="/auto-renewal" className="text-ens-blue-dark">
+                <RefreshCcw className="mr-2 size-4 text-ens-blue" />
                 Renewals
               </Link>
             </DropdownMenuItem>
-
             <DropdownMenuItem asChild>
-              <Link to="/payment/list">
-                <CreditCard className="mr-2 size-4" />
+              <Link to="/payment/list" className="text-ens-blue-dark">
+                <CreditCard className="mr-2 size-4 text-ens-blue" />
                 Payment Methods
               </Link>
             </DropdownMenuItem>
-
-            {/* TODO: Add /transactions route */}
-            {/* <DropdownMenuItem asChild>
-            <Link to="/transactions">
-              <List className="mr-2 size-4" />
-              All Transactions
-            </Link>
-          </DropdownMenuItem> */}
-
             <DropdownMenuSeparator />
-
-            {/* Manage Wallet */}
-            <DropdownMenuItem onClick={() => openModal()}>
-              <User className="mr-2 size-4" />
+            <DropdownMenuItem
+              onClick={() => openModal()}
+              className="text-ens-blue-dark"
+            >
+              <User className="mr-2 size-4 text-ens-blue" />
               Manage Wallet
             </DropdownMenuItem>
-
-            {/* Disconnect */}
-            <DropdownMenuItem onClick={() => logout()}>
-              <Unlink className="mr-2 size-4" />
+            <DropdownMenuItem
+              onClick={() => openModal()}
+              className="text-ens-blue-dark"
+            >
+              <Unlink className="mr-2 size-4 text-ens-blue" />
               Disconnect
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+      ) : (
+        <Drawer open={menuOpen} onOpenChange={setMenuOpen}>
+          <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
+          <DrawerContent>
+            <div className="max-h-[80vh] overflow-y-auto">
+              <UserMenuContent {...menuContentProps} />
+              <div className="border-ens-blue-light border-t">
+                <Link
+                  to="/auto-renewal"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust"
+                >
+                  <RefreshCcw className="size-4 text-ens-blue" />
+                  Renewals
+                </Link>
+                <Link
+                  to="/payment/list"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust"
+                >
+                  <CreditCard className="size-4 text-ens-blue" />
+                  Payment Methods
+                </Link>
+                <div className="border-ens-blue-light border-t" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    openModal()
+                    setMenuOpen(false)
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust"
+                >
+                  <User className="size-4 text-ens-blue" />
+                  Manage Wallet
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    openModal()
+                    setMenuOpen(false)
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust"
+                >
+                  <Unlink className="size-4 text-ens-blue" />
+                  Disconnect
+                </button>
+              </div>
+            </div>
+          </DrawerContent>
+        </Drawer>
+      )}
 
-        <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="flex size-[56px] items-center justify-center rounded-[100px] border-[#e6e6e6] border-[0.4px] p-[11px] transition-colors hover:bg-gray-50"
-            >
-              <Bell className="size-[24px]" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent
-            className="w-sm"
-            collisionPadding={16}
-            sideOffset={16}
+      <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="flex items-center justify-center rounded-full border border-gray-300 p-2 transition-colors hover:bg-gray-50 md:p-[11px]"
           >
-            <NotificationsDropdown
-              onAction={() => setNotificationsOpen(false)}
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
+            <Bell className="size-5 md:size-6" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-sm" collisionPadding={16} sideOffset={16}>
+          <NotificationsDropdown onAction={() => setNotificationsOpen(false)} />
+        </PopoverContent>
+      </Popover>
     </div>
   )
 }
@@ -371,48 +528,31 @@ const DisconnectedContent = () => {
   )
 }
 
-const Menu = () => {
-  // const { theme, toggleTheme } = useTheme()
-  //
-  // return (
-  //   <DropdownMenu>
-  //     <DropdownMenuTrigger asChild>
-  //       <button
-  //         type="button"
-  //         className="flex size-[56px] items-center justify-center rounded-[100px] border-[#e6e6e6] border-[0.4px] p-[11px] transition-colors hover:bg-gray-50"
-  //       >
-  //         <LayoutGrid className="size-[24px]" />
-  //       </button>
-  //     </DropdownMenuTrigger>
-  //     <DropdownMenuContent collisionPadding={16}>
-  //       <DropdownMenuItem onClick={toggleTheme}>
-  //         {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
-  //       </DropdownMenuItem>
-  //     </DropdownMenuContent>
-  //   </DropdownMenu>
-  // )
-  return null
-}
-
 export const Header = () => {
   const { data: wallet, isLoading: walletLoading } = useWallet()
   const isConnected = !!wallet && !walletLoading
 
   return (
-    <nav className="sticky top-0 z-10 flex items-center justify-between bg-background px-[36px] py-[29px]">
-      <Link to="/" className="mr-auto py-2">
-        <img
-          src={ensMobileLogo}
-          alt="ENS Logo"
-          className="h-[38px] md:hidden"
-        />
-        <img
-          src={ensLogo}
-          alt="ENS Logo"
-          className="hidden h-[38px] md:block"
-        />
-      </Link>
-      <div className="flex items-center gap-[74px]">
+    <nav className="sticky top-0 z-10 flex min-w-0 items-center justify-between gap-4 bg-background px-4 py-4 md:px-10 md:py-7">
+      <div className="flex shrink-0 items-center gap-3">
+        <Link to="/" className="shrink-0 py-2">
+          <img
+            src={ensMobileLogo}
+            alt="ENS Logo"
+            className="h-8 shrink-0 md:hidden"
+          />
+          <img
+            src={ensLogo}
+            alt="ENS Logo"
+            className="hidden h-8 shrink-0 md:block"
+          />
+        </Link>
+        {/* Sepolia Chain Badge */}
+        <span className="rounded-full border border-ens-blue-light bg-ens-lapis-dust px-2.5 py-1 font-medium font-mono text-ens-blue-dark text-xs uppercase tracking-wide">
+          Sepolia
+        </span>
+      </div>
+      <div className="flex min-w-0 items-center gap-2 md:gap-4">
         {!walletLoading ? (
           isConnected ? (
             <ConnectedContent />
@@ -420,11 +560,10 @@ export const Header = () => {
             <DisconnectedContent />
           )
         ) : (
-          <div className="mr-6 flex items-center gap-4">
+          <div className="flex items-center gap-4">
             <div className="h-8 w-28 animate-pulse rounded bg-gray-200" />
           </div>
         )}
-        <Menu />
       </div>
     </nav>
   )

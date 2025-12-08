@@ -1,6 +1,5 @@
 import { Coins } from 'lucide-react'
 import { STABLECOINS } from '@/features/register/utils'
-import { useTheme } from '@/hooks/use-theme'
 import { cn } from '@/lib/utils'
 
 export interface StablecoinData {
@@ -35,9 +34,6 @@ export function StablecoinList({
   className,
   interactive = false,
 }: StablecoinListProps) {
-  const { theme } = useTheme()
-  const isDark = theme === 'dark'
-
   // Get token info from STABLECOINS constants
   const getTokenInfo = (symbol: string, index: number) => {
     const stablecoin = Object.values(STABLECOINS).find(
@@ -51,14 +47,14 @@ export function StablecoinList({
         // DAI - Orange theme
         {
           color: 'text-orange-600',
-          bgColor: isDark ? 'bg-orange-950/30' : 'bg-orange-50',
-          borderColor: isDark ? 'border-orange-800/50' : 'border-orange-200',
+          bgColor: 'bg-orange-50',
+          borderColor: 'border-orange-200',
         },
         // USDC - Blue theme
         {
           color: 'text-blue-600',
-          bgColor: isDark ? 'bg-blue-950/30' : 'bg-blue-50',
-          borderColor: isDark ? 'border-blue-800/50' : 'border-blue-200',
+          bgColor: 'bg-blue-50',
+          borderColor: 'border-blue-200',
         },
       ]
       const colorScheme = colorSchemes[index % colorSchemes.length]
@@ -73,9 +69,9 @@ export function StablecoinList({
     return {
       icon: '🪙',
       name: symbol,
-      color: isDark ? 'text-gray-400' : 'text-gray-600',
-      bgColor: isDark ? 'bg-gray-800/50' : 'bg-gray-50',
-      borderColor: isDark ? 'border-gray-700/50' : 'border-gray-200',
+      color: 'text-gray-600',
+      bgColor: 'bg-gray-50',
+      borderColor: 'border-gray-200',
     }
   }
 
@@ -93,18 +89,8 @@ export function StablecoinList({
     <div className={cn('space-y-2', className)}>
       {showTitle && (
         <div className="flex items-center gap-2">
-          <Coins
-            className={cn(
-              'h-3 w-3',
-              isDark ? 'text-gray-400' : 'text-gray-500',
-            )}
-          />
-          <span
-            className={cn(
-              'font-medium text-xs',
-              isDark ? 'text-gray-400' : 'text-gray-500',
-            )}
-          >
+          <Coins className={cn('h-3 w-3', 'text-gray-500')} />
+          <span className={cn('font-medium text-xs', 'text-gray-500')}>
             {title}
           </span>
         </div>
@@ -125,9 +111,7 @@ export function StablecoinList({
               key={stablecoin.address}
               className={cn(
                 'flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-all duration-200',
-                isDark
-                  ? 'hover:shadow-black/20 hover:shadow-lg'
-                  : 'hover:shadow-sm',
+                'hover:shadow-sm',
                 tokenInfo.bgColor,
                 tokenInfo.borderColor,
                 interactive && 'cursor-pointer',
@@ -139,7 +123,7 @@ export function StablecoinList({
               <div
                 className={cn(
                   'flex h-8 w-8 items-center justify-center rounded-full shadow-sm',
-                  isDark ? 'bg-gray-800' : 'bg-white',
+                  'bg-white',
                 )}
               >
                 <img
@@ -168,33 +152,18 @@ export function StablecoinList({
                       <span className="text-lg">
                         {stablecoin.chainInfo.icon}
                       </span>
-                      <div
-                        className={cn(
-                          'text-xs',
-                          isDark ? 'text-gray-500' : 'text-gray-400',
-                        )}
-                      >
+                      <div className={cn('text-xs', 'text-gray-400')}>
                         {stablecoin.chainInfo.name}
                       </div>
                     </div>
                   ) : (
-                    <div
-                      className={cn(
-                        'text-xs',
-                        isDark ? 'text-gray-500' : 'text-gray-400',
-                      )}
-                    >
+                    <div className={cn('text-xs', 'text-gray-400')}>
                       {stablecoin.address.slice(0, 6)}...
                       {stablecoin.address.slice(-4)}
                     </div>
                   )}
                 </div>
-                <div
-                  className={cn(
-                    'font-semibold text-sm',
-                    isDark ? 'text-gray-100' : 'text-gray-900',
-                  )}
-                >
+                <div className={cn('font-semibold text-sm', 'text-gray-900')}>
                   {parseFloat(stablecoin.formattedBalance).toLocaleString(
                     'en-US',
                     {
