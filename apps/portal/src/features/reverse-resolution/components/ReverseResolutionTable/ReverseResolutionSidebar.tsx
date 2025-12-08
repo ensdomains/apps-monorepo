@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/sheet'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
+import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
@@ -41,24 +42,54 @@ interface AddressHistoryProps {
 }
 
 const AddressHistory = ({ history, name }: AddressHistoryProps) => {
+  const groupedData = groupEventsByTransactionId(history, 'resolver')
+
   const {
-    data: timestamps,
-    isLoading,
-    error,
+    data: timestampsData,
+    isLoading: isLoadingTimestamps,
+    error: timestampsError,
   } = useBlockTimestamps({
     blocks: history.map((item) => BigInt(item.blockNumber)),
   })
 
-  if (error) return <div>Error loading timestamps: {error.cause?.message}</div>
-  if (isLoading) return <LoadingSpinner title="Loading..." />
+  const {
+    data: sendersData,
+    isLoading: isLoadingSenders,
+    error: sendersError,
+  } = useTransactionSenders({
+    transactionHashes: groupedData.map((tx) => tx.transactionID as Hash),
+  })
 
-  const data = groupEventsByTransactionId(
-    history.map((item) => ({
-      ...item,
-      timestamp: timestamps?.get(BigInt(item.blockNumber)),
-    })),
-    'resolver',
-  )
+  if (isLoadingTimestamps && isLoadingSenders) {
+    return <LoadingSpinner title="Loading transaction data..." />
+  }
+  if (isLoadingTimestamps) {
+    return <LoadingSpinner title="Loading timestamps..." />
+  }
+  if (isLoadingSenders) {
+    return <LoadingSpinner title="Loading transaction senders..." />
+  }
+
+  if (timestampsError) {
+    return <div>Error loading timestamps: {timestampsError.cause?.message}</div>
+  }
+  if (sendersError) {
+    return (
+      <div>
+        Error loading transaction senders: {sendersError.cause?.message}
+      </div>
+    )
+  }
+
+  if (!timestampsData || !sendersData) {
+    return <div>No data available</div>
+  }
+
+  const dataWithTimestampsAndSenders = groupedData.map((tx) => ({
+    ...tx,
+    timestamp: timestampsData.get(BigInt(tx.blockNumber)),
+    from: sendersData.get(tx.transactionID as Hash) || tx.from,
+  }))
 
   return (
     <div className="flex flex-col gap-4">
@@ -70,7 +101,7 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
           </Button>
         </Link>
       </div>
-      <EventsDataTable name={name} data={data} />
+      <EventsDataTable name={name} data={dataWithTimestampsAndSenders} />
     </div>
   )
 }

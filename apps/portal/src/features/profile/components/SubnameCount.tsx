@@ -3,8 +3,11 @@ import { Link } from '@tanstack/react-router'
 import { ChevronRight, ListIcon, ListStartIcon } from 'lucide-react'
 import type { Address } from 'viem'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { getSubnamesQueryOptions } from '../hooks/useSubnames'
 import { RegistryLocation } from './RegistryLocation'
+
+const v1EnsRegistry = sepoliaWithEns.contracts.ensRegistry.address
 
 export const SubnameCount = ({
   name,
@@ -36,7 +39,7 @@ export const SubnameCount = ({
           width={24}
           className="p-2 w-8 h-8 rounded-4xl bg-secondary"
         />
-        {registryAddress ? (
+        {registryAddress && registryAddress !== v1EnsRegistry ? (
           <RegistryLocation name={name} registryAddress={registryAddress} />
         ) : (
           <div className="flex-1">

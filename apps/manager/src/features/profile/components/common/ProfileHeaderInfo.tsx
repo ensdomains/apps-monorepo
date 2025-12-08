@@ -24,9 +24,7 @@ const OwnerLink = ({ address, profileName }: OwnerLinkProps) => {
   if (!ownerName.data) {
     return (
       <Link
-        // @ts-expect-error - TODO: Route not added yet
-        to="/a/$address"
-        // @ts-expect-error - TODO: Route not added yet
+        to="/p/$address"
         params={{ address: address }}
         className="font-medium underline underline-offset-2"
       >
@@ -35,17 +33,17 @@ const OwnerLink = ({ address, profileName }: OwnerLinkProps) => {
     )
   }
 
-  if (ownerName.data.name === profileName) {
-    return <span className="font-medium">{ownerName.data.name}</span>
+  if (ownerName.data === profileName) {
+    return <span className="font-medium">{ownerName.data}</span>
   }
 
   return (
     <Link
       to="/p/$name"
-      params={{ name: ownerName.data.name }}
+      params={{ name: ownerName.data }}
       className="font-medium underline underline-offset-2"
     >
-      {ownerName.data.name}
+      {ownerName.data}
     </Link>
   )
 }
@@ -75,13 +73,15 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
         <Wallet className="size-5" />
         Owned by <OwnerLink address={owner} profileName={name} />
       </div>
-      <div className="flex items-center gap-x-1 whitespace-pre-wrap">
-        <Calendar className="size-5" />
-        Expires{' '}
-        <span className="font-medium">
-          {formatDate(new Date(Number(expiry.data?.expiry) * 1000))}
-        </span>
-      </div>
+      {expiry.data?.expiry && (
+        <div className="flex items-center gap-x-1 whitespace-pre-wrap">
+          <Calendar className="size-5" />
+          Expires{' '}
+          <span className="font-medium">
+            {formatDate(new Date(Number(expiry.data?.expiry) * 1000))}
+          </span>
+        </div>
+      )}
       <div className="flex items-center gap-x-2">
         <Link
           to="/p/$name"

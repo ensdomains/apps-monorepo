@@ -45,6 +45,7 @@ const NameDisplay = ({ name }: NameDisplayProps) => {
         value={name}
         displayValue={<span>{name}</span>}
         className="underline decoration-dashed underline-offset-4"
+        href={`/name/${name}`}
       />
     </div>
   )
@@ -110,6 +111,7 @@ const TransactionDetails = ({
                   {txHash.slice(0, 10)}...{txHash.slice(-8)}
                 </span>
               }
+              href={`https://sepolia.etherscan.io/tx/${txHash}`}
             />
           }
         />

@@ -49,7 +49,7 @@ export const NameAvatar = ({
       className={cn(
         '[background:var(--avatar-placeholder-gradient)]',
         rounded,
-        `w-[var(--width)] h-[var(--height)]`,
+        `        w-(--width) h-(--height)`,
       )}
     />
   )

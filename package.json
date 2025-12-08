@@ -15,7 +15,7 @@
     "test:manager": "pnpm -r --filter=manager test",
     "dev:tx-example": "pnpm -r --filter=@ens-apps/transaction-manager-example dev"
   },
-  "packageManager": "pnpm@10.16.0",
+  "packageManager": "pnpm@10.20.0",
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
     "knip": "^5.70.2",
@@ -64,7 +64,8 @@
       "set-function-length": "npm:@socketregistry/set-function-length@^1",
       "string.prototype.codepointat": "npm:@socketregistry/string.prototype.codepointat@^1",
       "typed-array-buffer": "npm:@socketregistry/typed-array-buffer@^1",
-      "which-typed-array": "npm:@socketregistry/which-typed-array@^1"
+      "which-typed-array": "npm:@socketregistry/which-typed-array@^1",
+      "es-set-tostringtag": "npm:@socketregistry/es-set-tostringtag@^1"
     }
   }
 }

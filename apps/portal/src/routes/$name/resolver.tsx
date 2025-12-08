@@ -1,4 +1,4 @@
-import { ensContracts } from '@ensdomains/ensjs/chain'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import { EditIcon, XIcon } from 'lucide-react'
 import { type Address, zeroAddress } from 'viem'
@@ -17,6 +17,7 @@ import { ResolverNetwork } from '@/features/resolver/components/ResolverNetwork'
 import { ResolverPrimaryName } from '@/features/resolver/components/ResolverPrimaryName'
 import { ResolverType } from '@/features/resolver/components/ResolverType'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
+import { namechainSepolia } from '@/lib/wagmi'
 
 export const Route = createFileRoute('/$name/resolver')({
   component: RouteComponent,
@@ -54,7 +55,11 @@ const EditButtons = ({ address, name }: EditButtonsProps) => {
 }
 
 const sepoliaUrl = sepolia.blockExplorers.default.url
-const factoryAddress = ensContracts[11155111].ensL2VerifiableFactory.address
+
+const factoryAddress = getChainContractAddress({
+  chain: namechainSepolia,
+  contract: 'ensVerifiableFactory',
+})
 
 interface UnderlyingResolverInfoProps {
   resolverAddress: Address

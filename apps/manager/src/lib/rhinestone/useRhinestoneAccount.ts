@@ -215,6 +215,9 @@ export function useSmartAccount(config?: UseSmartAccountConfig) {
 
   return {
     ...state,
+    // TODO: Implement auto funding
+    isAutoFunding: false,
+    autoFundingError: null,
     address: state.accountAddress,
     isConnected: isReady && !!state.smartAccountClient,
     stablecoinBalances,

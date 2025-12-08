@@ -42,15 +42,12 @@ function RouteComponent() {
   const protocolVersion = registryData?.protocolVersion ?? null
   const factory = registryData?.factory ?? null
 
-  // For both V1 and V2 we rely on:
-  // - registries.at(-2) = registry for `name`
-  // - registries.at(-3) = registry for parent of `name` (if any)
-
-  // For flo.eth: [.eth, flo.eth, .eth]
-  // For sub.flo.eth: [.eth, flo.eth, sub.flo.eth, .eth]
-  // So: .at(-1)=TLD, .at(-2)=name's registry, .at(-3)=parent's registry
-  const nameRegistry = registries.at(-2) ?? null // Registry for this name
-  const parentRegistry = registries.at(-3) ?? null // Registry for parent name
+  // ensjs returns registries as: [this name's registry, parent registry, ..., root registry]
+  // For flo.eth (2LD): [flo registry, eth registry, root registry]
+  // For sub.flo.eth (3LD): [sub registry, flo registry, eth registry, root registry]
+  // So: .at(0) = name's registry, .at(1) = parent's registry
+  const nameRegistry = registries.at(0) ?? null // Registry for this name
+  const parentRegistry = registries.at(1) ?? null // Registry for parent name
   const hasNameRegistry = !!nameRegistry && nameRegistry !== zeroAddress
 
   const isNamechain = network === 'namechainSepolia'

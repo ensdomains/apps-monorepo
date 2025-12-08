@@ -1,7 +1,10 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { type GetRecordsReturnType, getRecords } from '@ensdomains/ensjs/public'
+import {
+  getRecords as ensjs_getRecords,
+  type GetRecordsReturnType,
+} from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { alwaysProbeAddressRecords, forceFetchRecords } from '../data/records'
@@ -45,7 +48,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     : alwaysProbeAddressRecords
 
   const records = yield* await fromPromise(
-    getRecords(client, {
+    ensjs_getRecords(client, {
       name,
       coins,
       texts,

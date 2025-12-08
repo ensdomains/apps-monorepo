@@ -7,7 +7,6 @@ import {
   useSetReverseName,
 } from '@ens-apps/l2-primary/hooks'
 import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
-import type { ChainWithEns } from '@ensdomains/ensjs/chain'
 import {
   type SetPrimaryNameWriteParametersReturnType,
   setPrimaryNameWriteParameters,
@@ -18,7 +17,7 @@ import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useWalletClient } from 'wagmi'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
-import { wagmiConfig } from '@/lib/wagmi'
+import { sepoliaWithEns } from '@/lib/wagmi'
 
 export type UseReverseResolutionMutationsParams = {
   reverseRegistrarChainId: ReverseRegistrarChainId
@@ -48,7 +47,6 @@ export function useReverseResolutionMutations({
   )
 
   const { data: l1WalletClient } = useWalletClient({ chainId: sepolia.id })
-  const ensChain = wagmiConfig.chains.find((c) => c.id === sepolia.id)
 
   // L2 Reverse Name (address -> name)
   const { getSetReverseNameRequest } = useSetReverseName({
@@ -71,16 +69,16 @@ export function useReverseResolutionMutations({
         if (!l1WalletClient)
           throw new Error('Sepolia wallet client not available')
         if (!l1WalletClient.account) throw new Error('No connected account')
-        if (!ensChain) throw new Error('Sepolia chain missing in config')
-
-        const client = {
-          ...l1WalletClient,
-          chain: ensChain as ChainWithEns,
-        }
 
         return {
           kind: 'l1',
-          request: setPrimaryNameWriteParameters(client, { name }),
+          request: setPrimaryNameWriteParameters(
+            {
+              ...l1WalletClient,
+              chain: sepoliaWithEns,
+            },
+            { name },
+          ),
         }
       }
 
@@ -89,7 +87,7 @@ export function useReverseResolutionMutations({
         request: getSetReverseNameRequest(name),
       }
     },
-    [getSetReverseNameRequest, isL1, l1WalletClient, ensChain],
+    [getSetReverseNameRequest, isL1, l1WalletClient],
   )
 
   const getForwardResolutionRequest = useCallback(

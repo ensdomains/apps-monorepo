@@ -5,16 +5,10 @@ export const ENS_SEPOLIA_CONTRACTS = {
   Registry: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e' as const,
   // ETH Registrar Controller (for .eth domains)
   ETHRegistrarController: '0xfed6a969aaa60e4961fcd3ebf1a2e8913ac65b72' as const,
-  // Base Registrar Implementation
-  BaseRegistrar: '0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85' as const,
   // Public Resolver
   PublicResolver: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const,
   // Universal Resolver
-  UniversalResolver: '0x2AFF1ceDDDd4c8C214ebFaAE10DBe63a8AB38400' as const,
-  // Reverse Registrar
-  ReverseRegistrar: '0xa58e81fe9b61b5c3fe2afd33cf304c454abfc7cb' as const,
-  // Name Wrapper
-  NameWrapper: '0x0635513f179d50a207757e05759cbd106d7dfce8' as const,
+  UniversalResolver: '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce' as const,
   // L2 Registration-specific contracts (V2 deployment)
   ETHRegistry: '0xf332544e6234f1ca149907d0d4658afd5feb6831' as const,
   ETHRegistrar: '0x774faadcd7e8c4b7441aa2927f10845fea083ea1' as const,
