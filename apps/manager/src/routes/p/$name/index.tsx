@@ -36,7 +36,7 @@ export const Route = createFileRoute('/p/$name/')({
 
     return { description, resolvedName }
   },
-  ssr: false,
+  ssr: true,
   pendingComponent: () => <ProfileLoading />,
   head: ({ params: { name }, loaderData }) => {
     const { description, resolvedName } = loaderData || {}
