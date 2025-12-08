@@ -2,6 +2,7 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import type { Address } from 'viem'
+import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/molecules/ErrorMessage'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
@@ -56,6 +57,8 @@ const V2NameRoles = ({
 function RouteComponent() {
   const { name } = Route.useParams()
 
+  const { isConnected } = useConnection()
+
   const { data, isLoading, error } = useQuery({
     ...getEnsOwnerQueryOptions({ name }),
     enabled: name.endsWith('.eth'),
@@ -77,12 +80,18 @@ function RouteComponent() {
       <div className="max-w-360 w-full mx-auto flex flex-col gap-6 m-6 px-4">
         <div className="flex items-center justify-between">
           <h1 className="text-[28px] font-medium leading-none">Roles</h1>
-          <Button variant="outline" className="flex items-center gap-2" asChild>
-            <Link to="/$name/roles/add-user" params={{ name }}>
-              <Plus className="size-4" />
-              Add user
-            </Link>
-          </Button>
+          {isConnected && (
+            <Button
+              variant="outline"
+              className="flex items-center gap-2"
+              asChild
+            >
+              <Link to="/$name/roles/add-user" params={{ name }}>
+                <Plus className="size-4" />
+                Add user
+              </Link>
+            </Button>
+          )}
         </div>
         <V2NameRoles name={name} registryAddress={data.registryAddress} />
       </div>
