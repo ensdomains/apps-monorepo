@@ -7,7 +7,7 @@ import type { Address } from 'viem'
 import { readContract } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-const REVERSE_RESOLVER_ADDRESS = '0x01a552795cdb65c5f5f0392a9d1b7f419ac9acd8'
+const REVERSE_RESOLVER_ADDRESS = '0x7cd0016f722f34394110738eec10265b00c6c7d9'
 
 const REVERSE_RESOLVER_ABI = [
   {
@@ -55,7 +55,9 @@ export const getReverseName = ResultFn(async function* (address: Address) {
   const [name] = result ?? []
 
   if (!name) {
-    return yield* new MissingReverseNameError()
+    return yield* new MissingReverseNameError({
+      cause: new Error('No reverse name found'),
+    })
   }
 
   return ok(name)

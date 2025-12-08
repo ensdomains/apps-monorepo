@@ -1,4 +1,5 @@
 import { useAccount, useModal, useWallet } from '@getpara/react-sdk-lite'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
   Bell,
@@ -10,6 +11,7 @@ import {
   User,
 } from 'lucide-react'
 import { useState } from 'react'
+import type { Address } from 'viem'
 import ensLogo from '@/assets/icons/ens.svg'
 import ensMobileLogo from '@/assets/icons/ens-mobile.svg'
 import { Button } from '@/components/ui/button'
@@ -27,6 +29,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { NotificationsDropdown } from '@/features/notifications/components'
+import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
+import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 
@@ -266,9 +270,17 @@ const ConnectedContent = () => {
     autoFundingError,
   } = useRhinestoneAccount()
 
-  const address = wallet?.address
+  const address = wallet?.address as Address | undefined
   const ensName = wallet?.ensName
   const ensAvatar = wallet?.ensAvatar
+
+  const { data: reverseName } = useQuery({
+    ...profileReverseNameQuery(address),
+  })
+  const { data: reverseMetadata } = useQuery({
+    ...profileMetadataQuery(reverseName),
+  })
+  const avatarUrl = reverseMetadata?.avatarUrl ?? ensAvatar
 
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -292,6 +304,10 @@ const ConnectedContent = () => {
 
     // Check embedded account with auth type
     if (account?.embedded?.isConnected && account.embedded.authType) {
+      if (reverseName) {
+        return reverseName
+      }
+
       const authType = account.embedded.authType
 
       switch (authType) {
@@ -324,7 +340,6 @@ const ConnectedContent = () => {
       }
     }
 
-    // Fallback to ENS name or wallet address
     if (ensName) {
       return ensName
     }
@@ -344,9 +359,9 @@ const ConnectedContent = () => {
       className="flex min-w-0 max-w-full items-center gap-0.5 rounded-full border border-gray-300 py-1 pr-1.5 pl-1 transition-colors hover:bg-gray-50 md:gap-1 md:pr-2"
     >
       <div className="flex min-w-0 items-center gap-1 md:gap-2">
-        {ensAvatar ? (
+        {avatarUrl ? (
           <img
-            src={ensAvatar}
+            src={avatarUrl}
             alt="ENS Avatar"
             className="size-[36px] shrink-0 rounded-full md:size-[46px]"
           />
@@ -391,7 +406,7 @@ const ConnectedContent = () => {
     copied,
     handleCopyAddress,
     getDisplayName,
-    ensAvatar,
+    ensAvatar: avatarUrl,
     isAutoFunding,
     autoFundingError,
   }
