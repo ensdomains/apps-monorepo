@@ -1,9 +1,13 @@
-import { useQuery } from '@tanstack/react-query'
-import { Search } from 'lucide-react'
-import { useState } from 'react'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { ArrowUpDown, Search } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import type { DashboardNameRow } from '@/features/dashboard/MOCK'
-import { dashboardSearchQuery } from '@/features/dashboard/service/dashboardSearch'
+import {
+  type DashboardNamesSortDirection,
+  type DashboardNamesSortKey,
+  dashboardNamesListQuery,
+} from '@/features/dashboard/service/dashboardNamesList'
 import { FavoritesList } from './FavoritesList'
 import { MyNamesList } from './MyNamesList'
 
@@ -49,35 +53,68 @@ const DashboardTabButton = ({
 )
 
 interface NamesTableProps {
-  names?: DashboardNameRow[]
   favorites?: DashboardNameRow[]
-  isLoading: boolean
-  error: unknown
 }
 
-export const NamesTable = ({
-  names = [],
-  favorites,
-  isLoading,
-  error,
-}: NamesTableProps) => {
+export const NamesTable = ({ favorites }: NamesTableProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>('myNames')
   const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState<DashboardNamesSortKey>('name')
+  const [sortDirection, setSortDirection] =
+    useState<DashboardNamesSortDirection>('asc')
+  const [page, setPage] = useState(1)
+  const pageSize = 5
   const favoriteNames = favorites ?? []
   const trimmedQuery = searchQuery.trim()
-  const searchQueryOptions = dashboardSearchQuery(trimmedQuery)
-  const shouldSearch = activeTab === 'myNames' && Boolean(trimmedQuery)
-  const searchQueryResult = useQuery({
-    ...searchQueryOptions,
-    enabled: shouldSearch && Boolean(searchQueryOptions.enabled),
-  })
-  const displayedNames = shouldSearch ? (searchQueryResult.data ?? []) : names
-  const isSearching = shouldSearch && searchQueryResult.isLoading
-  const hasSearchError = shouldSearch && searchQueryResult.isError
+  const namesQuery = useQuery(
+    dashboardNamesListQuery({
+      query: trimmedQuery || undefined,
+      sortBy,
+      sortDirection,
+      page,
+      pageSize,
+    }),
+    {
+      placeholderData: keepPreviousData,
+      enabled: activeTab === 'myNames',
+    },
+  )
 
-  if (isLoading) return <div>Loading...</div>
-  if (error || hasSearchError) return <div>Error loading names</div>
-  if (isSearching) return <div>Searching...</div>
+  const displayedNames = namesQuery.data?.items ?? []
+  const totalCount = namesQuery.data?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+  const isLoading = namesQuery.isLoading && !namesQuery.data
+  const isFetching = namesQuery.isFetching
+
+  useEffect(() => {
+    setPage((prev) => Math.min(prev, totalPages))
+  }, [totalPages])
+
+  const onSearchChange = (value: string) => {
+    setSearchQuery(value)
+    setPage(1)
+  }
+
+  const onSortChange = (key: DashboardNamesSortKey) => {
+    setSortBy(key)
+    setPage(1)
+  }
+
+  const toggleSortDirection = () => {
+    setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    setPage(1)
+  }
+
+  const onPageChange = (nextPage: number) => {
+    setPage(Math.max(1, nextPage))
+  }
+
+  const statusMessage = (() => {
+    if (namesQuery.isError) return 'Error loading names'
+    if (isLoading) return 'Loading names...'
+    if (isFetching) return 'Updating...'
+    return null
+  })()
 
   return (
     <div className="w-full">
@@ -87,7 +124,7 @@ export const NamesTable = ({
             {
               key: 'myNames' as const,
               label: 'My Names',
-              count: names.length,
+              count: totalCount,
               activeBadgeClass: 'bg-[#e5f7ff]',
               activeCountClass: 'text-[#0080bc]',
             },
@@ -116,21 +153,59 @@ export const NamesTable = ({
         </div>
 
         {activeTab === 'myNames' && (
-          <div className="w-full md:w-[292px]">
-            <Input
-              size="sm"
-              placeholder="Search my name..."
-              startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
-              className="h-[32px] rounded-[4.1px] border-none bg-[#f6f6f6] text-[#8c8c8c] text-[13.12px] placeholder:text-[#8c8c8c]"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-            />
+          <div className="flex w-full flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
+            <div className="w-full md:w-[292px]">
+              <Input
+                size="sm"
+                placeholder="Search my name..."
+                startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
+                className="h-[32px] rounded-[4.1px] border-none bg-[#f6f6f6] text-[#8c8c8c] text-[13.12px] placeholder:text-[#8c8c8c]"
+                value={searchQuery}
+                onChange={(event) => onSearchChange(event.target.value)}
+              />
+            </div>
+            <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
+              <label className="text-[#7d7d7d] text-[12px] tracking-[0.24px]">
+                Sort by
+              </label>
+              <select
+                value={sortBy}
+                onChange={(event) =>
+                  onSortChange(event.target.value as DashboardNamesSortKey)
+                }
+                className="h-[32px] rounded-[4px] border border-[#dededf] bg-white px-2 text-[#232222] text-[13px]"
+              >
+                <option value="name">Name</option>
+                <option value="expiry">Expiry</option>
+              </select>
+              <button
+                type="button"
+                onClick={toggleSortDirection}
+                className="flex items-center gap-1 rounded-[4px] border border-[#dededf] px-2 py-1 text-[#232222] text-[12px] hover:bg-[#f6f6f6]"
+              >
+                <ArrowUpDown className="size-4" />
+                {sortDirection === 'asc' ? 'Asc' : 'Desc'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'myNames' && statusMessage && (
+          <div className="text-[#7d7d7d] text-[12px] md:text-[13px]">
+            {statusMessage}
           </div>
         )}
       </div>
 
       {activeTab === 'myNames' ? (
-        <MyNamesList names={displayedNames} searchQuery={searchQuery} />
+        <MyNamesList
+          names={displayedNames}
+          searchQuery={searchQuery}
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          onPageChange={onPageChange}
+        />
       ) : (
         <FavoritesList favorites={favoriteNames} />
       )}
