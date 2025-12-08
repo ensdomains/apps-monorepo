@@ -2,17 +2,22 @@ import type { Address } from 'viem'
 
 /**
  * Extracts an address from a history event
- * Checks common address fields: owner, registrant, newOwner, addr
+ * Checks common address fields: owner, registrant, newOwner
+ * Note: Does NOT check 'addr' field as that contains resolver address records (Bitcoin, etc.), not transaction senders
+ * Note: Many resolver events (TextChanged, AddrChanged, etc.) don't have sender info in subgraph data
  */
 export const extractEventAddress = (event: unknown): Address | null => {
   const evt = event as Record<string, unknown>
 
-  if (evt.owner && typeof evt.owner === 'string') return evt.owner as Address
-  if (evt.registrant && typeof evt.registrant === 'string')
+  if (evt.owner && typeof evt.owner === 'string') {
+    return evt.owner as Address
+  }
+  if (evt.registrant && typeof evt.registrant === 'string') {
     return evt.registrant as Address
-  if (evt.newOwner && typeof evt.newOwner === 'string')
+  }
+  if (evt.newOwner && typeof evt.newOwner === 'string') {
     return evt.newOwner as Address
-  if (evt.addr && typeof evt.addr === 'string') return evt.addr as Address
+  }
 
   return null
 }

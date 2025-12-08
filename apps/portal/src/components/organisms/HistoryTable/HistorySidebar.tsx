@@ -110,6 +110,7 @@ const TransactionDetails = ({
                   {txHash.slice(0, 10)}...{txHash.slice(-8)}
                 </span>
               }
+              href={`https://sepolia.etherscan.io/tx/${txHash}`}
             />
           }
         />
