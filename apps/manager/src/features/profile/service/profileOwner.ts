@@ -10,9 +10,10 @@ import {
   type GetOwnerErrorType as ensjsv2_GetOwnerErrorType,
   getOwner as ensjsv2_getOwner,
 } from '@ensdomains/ensjs/public/v2'
+import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
 import { fromPromise, ok } from 'neverthrow'
 import { getChainContractAddress, zeroAddress } from 'viem'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { namechainSepolia, sepoliaWithEns } from '@/lib/wagmi'
 import {
   safeGetClient,
   safeGetNamechainSepoliaClient,
@@ -24,40 +25,50 @@ class GetOwnerError extends TaggedError('GetOwnerError')<{
 
 export const getOwner = ResultFn(async function* (params: GetOwnerParameters) {
   const client = yield* safeGetClient()
+  const namechainClient = yield* safeGetNamechainSepoliaClient()
 
   const l1v1Owner = yield* await fromPromise(
     ensjsv1_getOwner(client, params),
     (e) => new GetOwnerError({ cause: e as ensjsv1_GetOwnerErrorType }),
   )
 
-  const label = params.name.split('.').slice(0, -1).join('')
+  const { label } = makeLabelNodeAndParent(params.name)
 
-  const namechainClient = yield* safeGetNamechainSepoliaClient()
+  const v2EthRegistry = getChainContractAddress({
+    chain: namechainSepolia,
+    contract: 'ensV2EthRegistry',
+  })
+
+  const v1EthRegistry = getChainContractAddress({
+    chain: sepoliaWithEns,
+    contract: 'ensRegistry',
+  })
+
+  if (l1v1Owner?.owner) {
+    console.log('yogiOwner', l1v1Owner)
+    return ok({
+      owner: l1v1Owner?.owner,
+      registryAddress: v1EthRegistry,
+      network: 'sepolia',
+    })
+  }
 
   const l2v2Owner = yield* await fromPromise(
     ensjsv2_getOwner(namechainClient, {
       label,
-      registryAddress: sepoliaWithEns.contracts.ensV2EthRegistry.address,
+      registryAddress: v2EthRegistry,
     }),
     (e) => new GetOwnerError({ cause: e as ensjsv2_GetOwnerErrorType }),
   )
 
-  if (l1v1Owner?.owner)
-    return ok({
-      owner: l1v1Owner?.owner,
-      registryAddress: getChainContractAddress({
-        chain: client.chain,
-        contract: 'ensRegistry',
-      }),
-      network: 'sepolia',
-    } as const)
-
-  if (l2v2Owner && l2v2Owner !== zeroAddress)
+  if (l2v2Owner && l2v2Owner !== zeroAddress) {
+    console.log('yogiOwner', l2v2Owner)
     return ok({
       owner: l2v2Owner,
-      registryAddress: sepoliaWithEns.contracts.ensV2EthRegistry.address,
+      registryAddress: v2EthRegistry,
       network: 'namechainSepolia',
-    } as const)
+    })
+  }
 
   return ok(null)
 })
