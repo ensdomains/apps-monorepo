@@ -24,9 +24,7 @@ const OwnerLink = ({ address, profileName }: OwnerLinkProps) => {
   if (!ownerName.data) {
     return (
       <Link
-        // @ts-expect-error - TODO: Route not added yet
-        to="/a/$address"
-        // @ts-expect-error - TODO: Route not added yet
+        to="/p/$address"
         params={{ address: address }}
         className="font-medium underline underline-offset-2"
       >
@@ -35,17 +33,17 @@ const OwnerLink = ({ address, profileName }: OwnerLinkProps) => {
     )
   }
 
-  if (ownerName.data.name === profileName) {
-    return <span className="font-medium">{ownerName.data.name}</span>
+  if (ownerName.data === profileName) {
+    return <span className="font-medium">{ownerName.data}</span>
   }
 
   return (
     <Link
       to="/p/$name"
-      params={{ name: ownerName.data.name }}
+      params={{ name: ownerName.data }}
       className="font-medium underline underline-offset-2"
     >
-      {ownerName.data.name}
+      {ownerName.data}
     </Link>
   )
 }
