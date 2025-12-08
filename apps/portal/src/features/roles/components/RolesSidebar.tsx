@@ -89,7 +89,7 @@ export const RolesSidebar = <TData extends { items: string[] }>({
                       // Look up permissions using the permission key directly
                       // The key matches the format in the items array (e.g., 'SET_SUBREGISTRY')
                       const rolePermissions = rolePermissionsMap.get(
-                        permission.key,
+                        permission.key.slice(5), // strip ROLE_
                       ) || {
                         admin: false,
                         manager: false,
