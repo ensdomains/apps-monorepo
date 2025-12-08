@@ -95,6 +95,29 @@ export const MOCK_DASHBOARD_NAMES: DashboardNameRow[] = [
       resolvedAddress: true,
     },
   },
+  // Extra mock names for pagination testing
+  ...Array.from({ length: 12 }).map((_, index) => {
+    const suffix = index + 1
+    const name = `sample${suffix}.eth`
+    const registrationDate = new Date(
+      `2021-01-${String(10 + suffix).padStart(2, '0')}`,
+    )
+    const expiryDate = new Date(
+      `2031-01-${String(10 + suffix).padStart(2, '0')}`,
+    )
+
+    return {
+      id: name,
+      name,
+      truncatedName: name,
+      registrationDate,
+      expiryDate,
+      autoRenewalDate: expiryDate,
+      relation: {
+        owner: true,
+      },
+    }
+  }),
 ]
 
 export const MOCK_FAVORITE_NAMES: DashboardNameRow[] = [
@@ -143,4 +166,18 @@ export const MOCK_FAVORITE_NAMES: DashboardNameRow[] = [
     autoRenewalDate: null,
     relation: {},
   },
+  // Extra mock favorites for pagination testing
+  ...Array.from({ length: 8 }).map((_, index) => {
+    const name = `favsample${index + 1}.eth`
+
+    return {
+      id: name,
+      name,
+      truncatedName: name,
+      registrationDate: null,
+      expiryDate: null,
+      autoRenewalDate: null,
+      relation: {},
+    }
+  }),
 ]
