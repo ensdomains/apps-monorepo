@@ -70,5 +70,6 @@ export type ProfileRecordsResult = GetRecordsReturnType<
 export const profileRecordsQuery = (name: string) =>
   resultQueryOptions({
     queryKey: qk('profile', 'get_records', { name }),
+    meta: { persist: true },
     queryFn: ({ queryKey: [{ name }] }) => getProfileRecords(name),
   })

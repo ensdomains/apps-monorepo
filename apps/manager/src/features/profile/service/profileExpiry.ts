@@ -26,5 +26,6 @@ export const getExpiry = ResultFn(async function* (name: string) {
 export const profileExpiryQuery = (name: string) =>
   resultQueryOptions({
     queryKey: qk('profile', 'expiry', { name }),
+    meta: { persist: true },
     queryFn: ({ queryKey: [{ name }] }) => getExpiry(name),
   })

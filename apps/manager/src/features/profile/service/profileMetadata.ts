@@ -136,6 +136,7 @@ export const getProfileMetadata = ResultFn(async function* (name: string) {
 export const profileMetadataQuery = (name: string | undefined) =>
   resultQueryOptions({
     queryKey: qk('profile', 'metadata', { name }),
+    meta: { persist: true },
     queryFn: name
       ? ({ queryKey: [{ name }] }) =>
           // biome-ignore lint/style/noNonNullAssertion: Null assertion is covered by the skipToken

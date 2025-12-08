@@ -37,6 +37,7 @@ export const parseAvatarQuery = (
 ) =>
   resultQueryOptions({
     queryKey: qk('profile', 'parse_avatar', { record, gatewayUrls }),
+    meta: { persist: true },
     queryFn: record
       ? ({ queryKey: [{ record, gatewayUrls }] }) =>
           // biome-ignore lint/style/noNonNullAssertion: Null assertion is covered by the skipToken

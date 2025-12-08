@@ -41,5 +41,6 @@ export const getResolver = ResultFn(async function* (name: string) {
 export const profileResolverQuery = (name: string) =>
   resultQueryOptions({
     queryKey: qk('profile', 'resolver', { name }),
+    meta: { persist: true },
     queryFn: ({ queryKey: [{ name }] }) => getResolver(name),
   })

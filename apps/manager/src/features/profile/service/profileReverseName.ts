@@ -64,6 +64,7 @@ export const getReverseName = ResultFn(async function* (address: Address) {
 export const profileReverseNameQuery = (address: Address | undefined) =>
   resultQueryOptions({
     queryKey: qk('profile', 'reverse_name', { address }),
+    meta: { persist: true },
     queryFn: address
       ? ({ queryKey: [{ address }] }) =>
           // biome-ignore lint/style/noNonNullAssertion: Null assertion is covered by the skipToken

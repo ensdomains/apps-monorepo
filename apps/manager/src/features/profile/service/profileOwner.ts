@@ -74,5 +74,6 @@ export const getOwner = ResultFn(async function* (params: GetOwnerParameters) {
 export const profileOwnerQuery = (name: string) =>
   resultQueryOptions({
     queryKey: qk('profile', 'owner', { name }),
+    meta: { persist: true },
     queryFn: () => getOwner({ name }),
   })
