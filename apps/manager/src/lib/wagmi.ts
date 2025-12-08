@@ -50,6 +50,12 @@ const ccipReadConfig = {
   },
 }
 
+export const publicClient = createPublicClient({
+  chain: sepoliaWithEns,
+  transport: http(SEPOLIA_RPC_URL),
+  ccipRead: ccipReadConfig,
+})
+
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: true,
