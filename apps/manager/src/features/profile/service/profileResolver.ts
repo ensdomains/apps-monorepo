@@ -2,14 +2,17 @@ import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getUnderlyingAddress } from '@ensdomains/ensjs/public/v2'
+import {
+  type GetUnderlyingResolverErrorType,
+  getUnderlyingAddress,
+} from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 class GetUnderlyingAddressError extends TaggedError(
   'GetUnderlyingAddressError',
 )<{
-  cause: any
+  cause: GetUnderlyingResolverErrorType
 }> {}
 
 export const getResolver = ResultFn(async function* (name: string) {
@@ -20,7 +23,10 @@ export const getResolver = ResultFn(async function* (name: string) {
       name,
       resolverAddress: ENS_SEPOLIA_CONTRACTS.UniversalResolver,
     }),
-    (e) => new GetUnderlyingAddressError({ cause: e }),
+    (e) =>
+      new GetUnderlyingAddressError({
+        cause: e as GetUnderlyingResolverErrorType,
+      }),
   )
 
   return ok(resolverResult[0])
