@@ -42,8 +42,8 @@ type NameRegistriesResultType =
  * Result of resolving registries for a name.
  *
  * We rely on these invariants:
- * - `registries.at(-2)` is the registry for `name` (or undefined/zeroAddress if it doesn’t exist)
- * - `registries.at(-3)` is the registry for the parent of `name` (if any)
+ * - `registries.at(0)` is the registry for `name` (or undefined/zeroAddress if it doesn't exist)
+ * - `registries.at(1)` is the registry for the parent of `name` (if any)
  *
  * For V2 this comes directly from ensjs `getNameRegistries`.
  * For V1 we synthesize the array so that the invariants still hold.
@@ -130,7 +130,7 @@ export const getNameRegistries = ResultFn(async function* (
     (e) => new NameRegistriesError({ cause: e as GetNameRegistriesErrorType }),
   )
 
-  const l2NameRegistry = l2Registries.at(-2)
+  const l2NameRegistry = l2Registries.at(0)
 
   // Check if name exists on L2
   // If nameRegistry is non-zero, the name has a registry on L2
@@ -163,8 +163,8 @@ export const getNameRegistries = ResultFn(async function* (
     contract: 'ensRegistry',
   })
 
-  const l1V2NameRegistry = l1V2Registries.at(-2)
-  const l1V2RootRegistry = l1V2Registries.at(0)
+  const l1V2NameRegistry = l1V2Registries.at(0)
+  const l1V2RootRegistry = l1V2Registries.at(-1)
 
   // Check if this is actually a V1 registry by comparing addresses
   // For wrapped V1 names, UniversalResolver returns the NameWrapper address, not V1 registry
