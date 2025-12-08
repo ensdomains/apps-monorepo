@@ -18,8 +18,8 @@ const MINT_AMOUNT = parseUnits('1000', 18) // 1000 tokens (DAI has 18 decimals)
 const USDC_MINT_AMOUNT = parseUnits('1000', 6) // 1000 USDC (USDC has 6 decimals)
 
 // Mock token addresses on Sepolia
-const MOCK_USDC_ADDRESS: Address = '0x9028ab8e872af36c30c959a105cb86d1038412ae'
-const MOCK_DAI_ADDRESS: Address = '0x6630589c2e6364a96bb7acf0d9d64ac9c1dd3528'
+const MOCK_USDC_ADDRESS: Address = '0xeb704373997b676d111e4767e281b9fb3852ecef'
+const MOCK_DAI_ADDRESS: Address = '0x8817e87e865b75db8b6a7e0d882b6dcba88d913e'
 
 // ERC20 ABI for mint function (assuming these are mock tokens with mint function)
 const ERC20_ABI = [
