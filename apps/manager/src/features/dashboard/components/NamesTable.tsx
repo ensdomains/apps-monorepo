@@ -1,10 +1,11 @@
 import { Search } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import {
   type DashboardNameRow,
   MOCK_FAVORITE_NAMES,
 } from '@/features/dashboard/MOCK'
+import { filterDashboardNames } from '@/features/dashboard/utils'
 import { FavoritesList } from './FavoritesList'
 import { MyNamesList } from './MyNamesList'
 
@@ -63,7 +64,12 @@ export const NamesTable = ({
   error,
 }: NamesTableProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>('myNames')
+  const [searchQuery, setSearchQuery] = useState('')
   const favoriteNames = favorites ?? MOCK_FAVORITE_NAMES
+  const filteredNames = useMemo(
+    () => filterDashboardNames(names, searchQuery),
+    [names, searchQuery],
+  )
 
   if (isLoading) return <div>Loading...</div>
   if (error) return <div>Error loading names</div>
@@ -111,13 +117,15 @@ export const NamesTable = ({
               placeholder="Search my name..."
               startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
               className="h-[32px] rounded-[4.1px] border-none bg-[#f6f6f6] text-[#8c8c8c] text-[13.12px] placeholder:text-[#8c8c8c]"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
             />
           </div>
         )}
       </div>
 
       {activeTab === 'myNames' ? (
-        <MyNamesList names={names} />
+        <MyNamesList names={filteredNames} searchQuery={searchQuery} />
       ) : (
         <FavoritesList favorites={favoriteNames} />
       )}

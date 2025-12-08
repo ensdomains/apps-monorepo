@@ -7,15 +7,27 @@ import {
   Heart,
   Search,
 } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import type { DashboardNameRow } from '@/features/dashboard/MOCK'
+import { filterDashboardNames } from '@/features/dashboard/utils'
 
 interface FavoritesListProps {
   favorites?: DashboardNameRow[]
 }
 
 export const FavoritesList = ({ favorites = [] }: FavoritesListProps) => {
+  const [searchQuery, setSearchQuery] = useState('')
+  const filteredFavorites = useMemo(
+    () => filterDashboardNames(favorites, searchQuery),
+    [favorites, searchQuery],
+  )
+  const hasResults = filteredFavorites.length > 0
+  const startCount = hasResults ? 1 : 0
+  const endCount = hasResults ? Math.min(5, filteredFavorites.length) : 0
+  const trimmedQuery = searchQuery.trim()
+
   return (
     <div className="w-full">
       <div className="mb-[20px] flex flex-col gap-4 md:gap-[20px]">
@@ -25,6 +37,8 @@ export const FavoritesList = ({ favorites = [] }: FavoritesListProps) => {
             placeholder="Search name..."
             startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
             className="h-[32px] rounded-[4.1px] border-none bg-[#f6f6f6] text-[#8c8c8c] text-[13.12px] placeholder:text-[#8c8c8c]"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
           />
         </div>
       </div>
@@ -48,36 +62,44 @@ export const FavoritesList = ({ favorites = [] }: FavoritesListProps) => {
       </div>
 
       <div className="flex w-full flex-col">
-        {favorites.map((name) => (
-          <div
-            key={name.id}
-            className="box-border flex h-[64px] flex-col items-start justify-center gap-[16px] border-[lightgrey] border-t-0 border-r-0 border-b-[0.41px] border-l-0 px-0 py-[24px] last:border-b-0"
-          >
-            <div className="flex w-full items-center">
-              <div className="flex w-full items-center gap-3 md:w-[300px] md:gap-[25px]">
-                <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-[12px]">
-                  <Heart className="size-[14px] shrink-0 fill-[#ed5499] text-[#ed5499] md:size-[16px]" />
-                  <div className="relative size-[32px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-200 to-blue-200" />
-                  </div>
-                  <div className="flex shrink-0 items-center justify-center rounded-[2.867px] bg-[#e5f7ff] px-2 py-1 md:h-[24px] md:px-[8px] md:py-[4px]">
-                    <Link
-                      to="/p/$name"
-                      params={{ name: name.name }}
-                      className="mr-1 truncate font-medium font-mono text-[#0080bc] text-[14px] leading-[0.96] tracking-[-0.28px] md:mr-2 md:text-[16px] md:tracking-[-0.32px]"
-                    >
-                      {name.name}
-                    </Link>
-                    <ArrowUpRight
-                      className="size-[6px] shrink-0 text-[#0080bc] md:size-[7px]"
-                      strokeWidth={3}
-                    />
+        {hasResults ? (
+          filteredFavorites.map((name) => (
+            <div
+              key={name.id}
+              className="box-border flex h-[64px] flex-col items-start justify-center gap-[16px] border-[lightgrey] border-t-0 border-r-0 border-b-[0.41px] border-l-0 px-0 py-[24px] last:border-b-0"
+            >
+              <div className="flex w-full items-center">
+                <div className="flex w-full items-center gap-3 md:w-[300px] md:gap-[25px]">
+                  <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-[12px]">
+                    <Heart className="size-[14px] shrink-0 fill-[#ed5499] text-[#ed5499] md:size-[16px]" />
+                    <div className="relative size-[32px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
+                      <div className="absolute inset-0 bg-gradient-to-br from-purple-200 to-blue-200" />
+                    </div>
+                    <div className="flex shrink-0 items-center justify-center rounded-[2.867px] bg-[#e5f7ff] px-2 py-1 md:h-[24px] md:px-[8px] md:py-[4px]">
+                      <Link
+                        to="/p/$name"
+                        params={{ name: name.name }}
+                        className="mr-1 truncate font-medium font-mono text-[#0080bc] text-[14px] leading-[0.96] tracking-[-0.28px] md:mr-2 md:text-[16px] md:tracking-[-0.32px]"
+                      >
+                        {name.name}
+                      </Link>
+                      <ArrowUpRight
+                        className="size-[6px] shrink-0 text-[#0080bc] md:size-[7px]"
+                        strokeWidth={3}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+          ))
+        ) : (
+          <div className="rounded-[6px] border border-[#dededf] border-dashed bg-[#f6f6f6] px-4 py-6 text-center text-[#515151] text-[13px]">
+            {trimmedQuery
+              ? `No favorites match "${trimmedQuery}".`
+              : 'No favorites to show yet.'}
           </div>
-        ))}
+        )}
       </div>
 
       <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
@@ -121,7 +143,8 @@ export const FavoritesList = ({ favorites = [] }: FavoritesListProps) => {
           </button>
         </div>
         <span className="text-center font-sans text-[#7d7d7d] text-[11px] leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
-          Showing 1-{Math.min(5, favorites.length)} of {favorites.length}
+          Showing {hasResults ? `${startCount}-${endCount}` : 0} of{' '}
+          {filteredFavorites.length}
         </span>
       </div>
     </div>

@@ -1,3 +1,5 @@
+import type { DashboardNameRow } from './MOCK'
+
 const dashboardDateFormatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
   month: 'long',
@@ -35,4 +37,25 @@ export const isExpiringSoon = (
   if (daysUntil === null) return false
 
   return daysUntil > 0 && daysUntil <= thresholdDays
+}
+
+const normalizeQuery = (value: string) => value.trim().toLowerCase()
+
+export const filterDashboardNames = (
+  names: DashboardNameRow[],
+  query: string,
+) => {
+  const normalizedQuery = normalizeQuery(query)
+
+  if (!normalizedQuery) return names
+
+  return names.filter(({ name, truncatedName }) => {
+    const candidates = [name, truncatedName].filter((value): value is string =>
+      Boolean(value),
+    )
+
+    return candidates.some((candidate) =>
+      candidate.toLowerCase().includes(normalizedQuery),
+    )
+  })
 }
