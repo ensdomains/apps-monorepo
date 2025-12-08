@@ -8,7 +8,7 @@ export const ENS_SEPOLIA_CONTRACTS = {
   // Public Resolver
   PublicResolver: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const,
   // Universal Resolver
-  UniversalResolver: '0x2AFF1ceDDDd4c8C214ebFaAE10DBe63a8AB38400' as const,
+  UniversalResolver: '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce' as const,
   // L2 Registration-specific contracts (V2 deployment)
   ETHRegistry: '0x0f3eb298470639a96bd548cea4a648bc80b2cee2' as const,
   ETHRegistrar: '0x774faadcd7e8c4b7441aa2927f10845fea083ea1' as const,
