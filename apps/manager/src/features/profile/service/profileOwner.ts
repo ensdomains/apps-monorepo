@@ -12,6 +12,7 @@ import {
 } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import { getChainContractAddress, zeroAddress } from 'viem'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import {
   safeGetClient,
   safeGetNamechainSepoliaClient,
@@ -20,9 +21,6 @@ import {
 class GetOwnerError extends TaggedError('GetOwnerError')<{
   cause: ensjsv1_GetOwnerErrorType | ensjsv2_GetOwnerErrorType
 }> {}
-
-// TODO: Remove this once we have a proper namechain client
-const namechainEthRegistryAddress = '0x5fb63bbd34de21688c8aa8131be1c3b4a477109c'
 
 export const getOwner = ResultFn(async function* (params: GetOwnerParameters) {
   const client = yield* safeGetClient()
@@ -39,7 +37,7 @@ export const getOwner = ResultFn(async function* (params: GetOwnerParameters) {
   const l2v2Owner = yield* await fromPromise(
     ensjsv2_getOwner(namechainClient, {
       label,
-      registryAddress: namechainEthRegistryAddress,
+      registryAddress: sepoliaWithEns.contracts.ensV2EthRegistry.address,
     }),
     (e) => new GetOwnerError({ cause: e as ensjsv2_GetOwnerErrorType }),
   )
@@ -57,7 +55,7 @@ export const getOwner = ResultFn(async function* (params: GetOwnerParameters) {
   if (l2v2Owner && l2v2Owner !== zeroAddress)
     return ok({
       owner: l2v2Owner,
-      registryAddress: namechainEthRegistryAddress,
+      registryAddress: sepoliaWithEns.contracts.ensV2EthRegistry.address,
       network: 'namechainSepolia',
     } as const)
 
