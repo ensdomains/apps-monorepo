@@ -53,7 +53,9 @@ export const wagmiConfig = createConfig({
     createClient({
       chain,
       transport: http(drpc(chain), {
-        batch: true, // Enable JSON-RPC batch requests for better performance
+        batch: {
+          wait: 10, // Wait 10ms to collect more requests before sending batch (default is 0ms)
+        },
       }),
     }),
 })
