@@ -1,19 +1,21 @@
+import { useSuspenseQuery } from '@tanstack/react-query'
 import { CircleAlert, X } from 'lucide-react'
 import { DashboardSidebar } from '@/features/dashboard/components/DashboardSidebar'
 import { DidYouKnowSection } from '@/features/dashboard/components/DidYouKnowSection'
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
-import {
-  MOCK_DASHBOARD_HEADER,
-  MOCK_DASHBOARD_NAMES,
-} from '@/features/dashboard/MOCK'
+import { dashboardFavoritesQuery } from '@/features/dashboard/service/dashboardFavorites'
+import { dashboardHeaderQuery } from '@/features/dashboard/service/dashboardHeader'
+import { dashboardNamesQuery } from '@/features/dashboard/service/dashboardNames'
 
 export const DashboardPage = () => {
-  const header = MOCK_DASHBOARD_HEADER
-  const names = MOCK_DASHBOARD_NAMES
+  const { data: header } = useSuspenseQuery(dashboardHeaderQuery())
+  const { data: names } = useSuspenseQuery(dashboardNamesQuery())
+  const { data: favorites } = useSuspenseQuery(dashboardFavoritesQuery())
+
   const displayName = header.primaryName
-  const hasProfile = true
+  const hasProfile = Boolean(header.primaryName)
 
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 px-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-[40px]">
@@ -60,7 +62,12 @@ export const DashboardPage = () => {
         />
         <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:px-[24px] md:py-[32px]">
           <div className="space-y-5">
-            <NamesTable names={names} isLoading={false} error={undefined} />
+            <NamesTable
+              names={names}
+              favorites={favorites}
+              isLoading={false}
+              error={undefined}
+            />
           </div>
         </div>
         <DidYouKnowSection />

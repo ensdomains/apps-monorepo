@@ -1,11 +1,9 @@
+import { useQuery } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Input } from '@/components/ui/input'
-import {
-  type DashboardNameRow,
-  MOCK_FAVORITE_NAMES,
-} from '@/features/dashboard/MOCK'
-import { filterDashboardNames } from '@/features/dashboard/utils'
+import type { DashboardNameRow } from '@/features/dashboard/MOCK'
+import { dashboardSearchQuery } from '@/features/dashboard/service/dashboardSearch'
 import { FavoritesList } from './FavoritesList'
 import { MyNamesList } from './MyNamesList'
 
@@ -65,14 +63,21 @@ export const NamesTable = ({
 }: NamesTableProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>('myNames')
   const [searchQuery, setSearchQuery] = useState('')
-  const favoriteNames = favorites ?? MOCK_FAVORITE_NAMES
-  const filteredNames = useMemo(
-    () => filterDashboardNames(names, searchQuery),
-    [names, searchQuery],
-  )
+  const favoriteNames = favorites ?? []
+  const trimmedQuery = searchQuery.trim()
+  const searchQueryOptions = dashboardSearchQuery(trimmedQuery)
+  const shouldSearch = activeTab === 'myNames' && Boolean(trimmedQuery)
+  const searchQueryResult = useQuery({
+    ...searchQueryOptions,
+    enabled: shouldSearch && Boolean(searchQueryOptions.enabled),
+  })
+  const displayedNames = shouldSearch ? (searchQueryResult.data ?? []) : names
+  const isSearching = shouldSearch && searchQueryResult.isLoading
+  const hasSearchError = shouldSearch && searchQueryResult.isError
 
   if (isLoading) return <div>Loading...</div>
-  if (error) return <div>Error loading names</div>
+  if (error || hasSearchError) return <div>Error loading names</div>
+  if (isSearching) return <div>Searching...</div>
 
   return (
     <div className="w-full">
@@ -125,7 +130,7 @@ export const NamesTable = ({
       </div>
 
       {activeTab === 'myNames' ? (
-        <MyNamesList names={filteredNames} searchQuery={searchQuery} />
+        <MyNamesList names={displayedNames} searchQuery={searchQuery} />
       ) : (
         <FavoritesList favorites={favoriteNames} />
       )}
