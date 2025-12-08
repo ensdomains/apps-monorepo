@@ -43,9 +43,7 @@ const ConnectedContent = () => {
     accountAddress,
     isLoading,
     stablecoinBalances,
-    eoaEthBalance,
     smartAccountEthBalance,
-    isLoadingEoaEth,
     isLoadingSmartAccountEth,
     error,
   } = useRhinestoneAccount()
@@ -183,14 +181,6 @@ const ConnectedContent = () => {
                         <Copy className="size-4 text-gray-600" />
                       </button>
                     </div>
-                    {eoaEthBalance && (
-                      <span className="font-bold text-ens-blue-dark text-sm">
-                        {eoaEthBalance.formattedBalance}
-                      </span>
-                    )}
-                    {isLoadingEoaEth && (
-                      <span className="text-gray-500 text-sm">Loading...</span>
-                    )}
                   </div>
                 </div>
               )}

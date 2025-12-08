@@ -1,75 +1,85 @@
 'use client'
 
 import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import {
+  useClient as useParaClient,
+  useWallet as useParaWallet,
+} from '@getpara/react-sdk-lite'
+import { createParaAccount } from '@getpara/viem-v2-integration'
 import { useQuery } from '@tanstack/react-query'
-import { createSmartAccountClient } from 'permissionless'
+import {
+  createSmartAccountClient,
+  type SmartAccountClient,
+} from 'permissionless'
 import { toSimpleSmartAccount } from 'permissionless/accounts'
 import { createPimlicoClient } from 'permissionless/clients/pimlico'
-import { useEffect, useState } from 'react'
-import { type Address, createPublicClient, formatUnits, http } from 'viem'
+import { toOwner } from 'permissionless/utils'
+import { useEffect, useRef, useState } from 'react'
+import { type Address, formatUnits, http } from 'viem'
 import { entryPoint07Address } from 'viem/account-abstraction'
-import { sepolia } from 'viem/chains'
+import { useWalletClient } from 'wagmi'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
+import { customSepolia, publicClient } from '@/lib/wagmi'
 import { ERC20_ABI } from '../ens.abi'
-import { wrapParaAccount } from './rhinestone-utils'
-import { useViemAccount } from './useViemAccount'
+import { wrapParaAccount } from './utils'
 
-const SEPOLIA_RPC_URL = 'https://ethereum-sepolia-rpc.publicnode.com'
-
-export const customSepolia = {
-  ...sepolia,
-  rpcUrls: {
-    default: { http: [SEPOLIA_RPC_URL] },
-    public: { http: [SEPOLIA_RPC_URL] },
-  },
-}
-
-const publicClient = createPublicClient({
-  chain: customSepolia,
-  transport: http(SEPOLIA_RPC_URL),
-})
+export type WalletSource = 'para-embedded' | 'external-wallet' | null
 
 export interface SmartAccountState {
-  smartAccountClient: any | null
+  smartAccountClient: SmartAccountClient | null
   accountAddress: string | null
   isLoading: boolean
   error: string | null
 }
 
-export interface UseParaPimlicoAccountConfig {
+export interface UseSmartAccountConfig {
   accountType?: 'simple' | 'hca'
   hcaFactoryAddress?: Address
 }
 
-export function useParaPimlicoAccount(config?: UseParaPimlicoAccountConfig) {
-  const { viemAccount, isLoading: accountLoading } = useViemAccount()
+export function useSmartAccount(config?: UseSmartAccountConfig) {
   const accountType = config?.accountType || 'simple'
   const hcaFactoryAddress =
     config?.hcaFactoryAddress || ENS_SEPOLIA_CONTRACTS.HCAFactory
 
+  const paraClient = useParaClient()
+  const { data: paraWallet } = useParaWallet()
+  const { data: wagmiWalletClient } = useWalletClient()
+
+  const wagmiAddress = wagmiWalletClient?.account?.address
+  const hasWagmi = !!wagmiAddress
+  const hasPara = !paraWallet?.isExternal && !!paraWallet && !!paraClient
+
+  const walletSource: WalletSource =
+    paraWallet?.isExternal && hasWagmi
+      ? 'external-wallet'
+      : hasPara
+        ? 'para-embedded'
+        : null
+
+  const isReady = (paraWallet?.isExternal && hasWagmi) || hasPara
+
   const [state, setState] = useState<SmartAccountState>({
     smartAccountClient: null,
     accountAddress: null,
-    isLoading: true,
+    isLoading: false,
     error: null,
   })
 
-  // Keep your existing balance queries
+  // prevent multiple initializations
+  const initializedRef = useRef<string | null>(null)
+
   const { data: smartAccountEthBalance, isLoading: isLoadingSmartAccountEth } =
     useQuery({
       queryKey: ['smartAccountEthBalance', state.accountAddress],
       queryFn: async () => {
         if (!state.accountAddress) return null
-        try {
-          const balance = await publicClient.getBalance({
-            address: state.accountAddress as Address,
-          })
-          return {
-            balance: balance.toString(),
-            formattedBalance: `${parseFloat(formatUnits(balance, 18)).toFixed(4)} ETH`,
-          }
-        } catch (_error) {
-          return null
+        const balance = await publicClient.getBalance({
+          address: state.accountAddress as Address,
+        })
+        return {
+          balance: balance.toString(),
+          formattedBalance: `${parseFloat(formatUnits(balance, 18)).toFixed(4)} ETH`,
         }
       },
       enabled: !!state.accountAddress,
@@ -81,158 +91,100 @@ export function useParaPimlicoAccount(config?: UseParaPimlicoAccountConfig) {
       queryKey: ['stablecoinBalances', state.accountAddress],
       queryFn: async () => {
         if (!state.accountAddress) return []
-        try {
-          const balances = []
-          for (const [tokenName, tokenAddress] of Object.entries(
-            SUPPORTED_TOKENS,
-          )) {
-            try {
-              const balance = await publicClient.readContract({
-                address: tokenAddress,
-                abi: ERC20_ABI,
-                functionName: 'balanceOf',
-                args: [state.accountAddress as Address],
-              })
-              const decimals = await publicClient.readContract({
-                address: tokenAddress,
-                abi: ERC20_ABI,
-                functionName: 'decimals',
-              })
-              balances.push({
-                address: tokenAddress,
-                symbol: tokenName,
-                balance: balance.toString(),
-                formattedBalance: `${formatUnits(balance, decimals)} ${tokenName}`,
-              })
-            } catch (_error) {
-              console.error(`Failed to fetch ${tokenName} balance:`, _error)
-            }
+        const balances = []
+        for (const [tokenName, tokenAddress] of Object.entries(
+          SUPPORTED_TOKENS,
+        )) {
+          try {
+            const balance = await publicClient.readContract({
+              address: tokenAddress,
+              abi: ERC20_ABI,
+              functionName: 'balanceOf',
+              args: [state.accountAddress as Address],
+            })
+            const decimals = await publicClient.readContract({
+              address: tokenAddress,
+              abi: ERC20_ABI,
+              functionName: 'decimals',
+            })
+            balances.push({
+              address: tokenAddress,
+              symbol: tokenName,
+              balance: balance.toString(),
+              formattedBalance: `${formatUnits(balance, decimals)} ${tokenName}`,
+            })
+          } catch {
+            // Skip failed fetches
           }
-          return balances
-        } catch (_error) {
-          return []
         }
+        return balances
       },
       enabled: !!state.accountAddress,
       refetchInterval: 30000,
     })
 
-  // Initialize Smart Account
   useEffect(() => {
-    const initializeClient = async () => {
-      if (!viemAccount || accountLoading) {
-        setState((prev) => ({
-          ...prev,
-          smartAccountClient: null,
-          accountAddress: null,
-          error: null,
-        }))
-        return
-      }
+    const init = async () => {
+      if (!isReady) return
+
+      const key =
+        walletSource === 'external-wallet'
+          ? `external-${wagmiAddress}`
+          : `para-${paraClient?.toString()}`
+
+      if (initializedRef.current === key) return
 
       setState((prev) => ({ ...prev, isLoading: true, error: null }))
 
       try {
         const PIMLICO_API_KEY = import.meta.env.VITE_PIMLICO_API_KEY
-        if (!PIMLICO_API_KEY) {
-          throw new Error('Pimlico API key not configured')
-        }
+        if (!PIMLICO_API_KEY) throw new Error('Pimlico API key not configured')
 
         const PIMLICO_URL = `https://api.pimlico.io/v2/${customSepolia.id}/rpc?apikey=${PIMLICO_API_KEY}`
 
-        // Wrap Para account to adjust v-byte
-        const wrappedAccount = wrapParaAccount(viemAccount)
+        let ownerAccount: Parameters<typeof toSimpleSmartAccount>[0]['owner']
 
-        let smartAccount: any
-
-        if (accountType === 'hca') {
-          console.log(
-            '🔄 Creating HCA (Hybrid Custodial Account) with Para viem account...',
-          )
-          console.warn(
-            '⚠️ HCA implementation needs to be completed. Using SimpleAccount as fallback.',
-            'Please implement HCA using toSmartAccount from viem/account-abstraction',
-            'with the HCA factory at:',
-            hcaFactoryAddress,
-          )
-
-          // TODO: Implement proper HCA using toSmartAccount from viem/account-abstraction
-
-          // For now, using SimpleAccount as fallback
-          smartAccount = await toSimpleSmartAccount({
-            owner: wrappedAccount as any,
-            client: publicClient,
-            entryPoint: {
-              address: entryPoint07Address,
-              version: '0.7',
-            },
-          })
-
-          console.log(
-            '📦 HCA (using SimpleAccount as fallback):',
-            smartAccount.address,
-          )
+        if (walletSource === 'external-wallet' && wagmiWalletClient) {
+          ownerAccount = await toOwner({ owner: wagmiWalletClient })
+        } else if (walletSource === 'para-embedded' && paraClient) {
+          ownerAccount = wrapParaAccount(
+            createParaAccount(paraClient),
+          ) as typeof ownerAccount
         } else {
-          console.log(
-            '🔄 Creating Simple Smart Account with Para viem account...',
-          )
-
-          // Create SimpleAccount with wrapped Para account as owner
-          smartAccount = await toSimpleSmartAccount({
-            owner: wrappedAccount as any,
-            client: publicClient,
-            entryPoint: {
-              address: entryPoint07Address,
-              version: '0.7',
-            },
-          })
-
-          // Check if account is already deployed
-          const accountCode = await publicClient.getCode({
-            address: smartAccount.address,
-          })
-          const isDeployed = accountCode && accountCode !== '0x'
-
-          console.log('📦 Account status:', {
-            address: smartAccount.address,
-            isDeployed,
-          })
-
-          // If account is already deployed, override getInitCode to prevent redeployment
-          if (isDeployed) {
-            console.log('🔧 Account already deployed, skipping initCode...')
-            const originalGetInitCode = (smartAccount as any).getInitCode
-            if (originalGetInitCode) {
-              ;(smartAccount as any).getInitCode = async () => {
-                return '0x'
-              }
-            }
-          }
-
-          console.log('📦 Simple account created:', smartAccount.address)
+          throw new Error('No valid wallet connection')
         }
 
-        // Create Pimlico client
-        const pimlicoClient = createPimlicoClient({
-          transport: http(PIMLICO_URL),
-          entryPoint: {
-            address: entryPoint07Address,
-            version: '0.7',
-          },
+        // TODO: HCA support
+        if (accountType === 'hca') {
+          console.warn(
+            'HCA not implemented. Using SimpleAccount. Factory:',
+            hcaFactoryAddress,
+          )
+        }
+
+        const smartAccount = await toSimpleSmartAccount({
+          owner: ownerAccount,
+          client: publicClient,
+          entryPoint: { address: entryPoint07Address, version: '0.7' },
         })
 
-        // Create Smart Account Client with sponsorship
+        const pimlicoClient = createPimlicoClient({
+          transport: http(PIMLICO_URL),
+          entryPoint: { address: entryPoint07Address, version: '0.7' },
+        })
+
         const client = createSmartAccountClient({
           account: smartAccount,
           chain: customSepolia,
           bundlerTransport: http(PIMLICO_URL),
-          paymaster: pimlicoClient, // Always sponsor
+          paymaster: pimlicoClient,
           userOperation: {
-            estimateFeesPerGas: async () => {
-              return (await pimlicoClient.getUserOperationGasPrice()).fast
-            },
+            estimateFeesPerGas: async () =>
+              (await pimlicoClient.getUserOperationGasPrice()).fast,
           },
         })
+
+        initializedRef.current = key
 
         setState({
           smartAccountClient: client,
@@ -240,41 +192,43 @@ export function useParaPimlicoAccount(config?: UseParaPimlicoAccountConfig) {
           isLoading: false,
           error: null,
         })
-
-        console.log(
-          `✅ ${accountType === 'hca' ? 'HCA' : 'Simple'} account initialized:`,
-          smartAccount.address,
-        )
       } catch (error) {
         console.error('Failed to initialize smart account:', error)
         setState((prev) => ({
           ...prev,
           isLoading: false,
-          error: String(error),
+          error: error instanceof Error ? error.message : String(error),
         }))
       }
     }
 
-    initializeClient()
-  }, [viemAccount, accountLoading, accountType, hcaFactoryAddress])
+    init()
+  }, [
+    walletSource,
+    wagmiWalletClient,
+    wagmiAddress,
+    paraClient,
+    isReady,
+    accountType,
+    hcaFactoryAddress,
+  ])
 
   return {
     ...state,
     address: state.accountAddress,
-    isConnected: !!viemAccount && !!state.smartAccountClient,
+    isConnected: isReady && !!state.smartAccountClient,
     stablecoinBalances,
     isLoadingBalances,
     smartAccountEthBalance,
     isLoadingSmartAccountEth,
-    // For compatibility with existing code
+    walletSource,
+    ownerAddress: walletSource === 'external-wallet' ? wagmiAddress : null,
+    // Backward compatibility, we keep this for backward compatibility
     rhinestoneAccount: state.smartAccountClient,
-    rhinestoneConfig: {
-      chain: customSepolia,
-      accountType,
-      hcaFactoryAddress: accountType === 'hca' ? hcaFactoryAddress : undefined,
-    },
+    rhinestoneConfig: { chain: customSepolia, accountType },
   }
 }
 
-// Export with old name for compatibility
-export const useRhinestoneAccount = useParaPimlicoAccount
+// TODO: Remove this once we have a proper useRhinestoneAccount hook
+export const useRhinestoneAccount = useSmartAccount
+export const useParaPimlicoAccount = useSmartAccount
