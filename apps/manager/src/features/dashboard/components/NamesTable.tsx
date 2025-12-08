@@ -1,13 +1,12 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import type { DashboardNameRow } from '@/features/dashboard/MOCK'
-import {
-  type DashboardNamesSortDirection,
-  type DashboardNamesSortKey,
-  dashboardNamesListQuery,
+import type {
+  DashboardNamesSortDirection,
+  DashboardNamesSortKey,
 } from '@/features/dashboard/service/dashboardNamesList'
+import { useDashboardNamesListQuery } from '@/features/dashboard/service/hooks'
 import { FavoritesList } from './FavoritesList'
 import { MyNamesList } from './MyNamesList'
 
@@ -66,16 +65,12 @@ export const NamesTable = ({ favorites }: NamesTableProps) => {
   const pageSize = 5
   const favoriteNames = favorites ?? []
   const trimmedQuery = searchQuery.trim()
-  const namesQuery = useQuery({
-    ...dashboardNamesListQuery({
-      query: trimmedQuery || undefined,
-      sortBy,
-      sortDirection,
-      page,
-      pageSize,
-    }),
-    placeholderData: keepPreviousData,
-    enabled: activeTab === 'myNames',
+  const namesQuery = useDashboardNamesListQuery({
+    query: trimmedQuery || undefined,
+    sortBy,
+    sortDirection,
+    page,
+    pageSize,
   })
 
   const displayedNames = namesQuery.data?.items ?? []

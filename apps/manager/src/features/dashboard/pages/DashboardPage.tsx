@@ -1,18 +1,19 @@
-import { useSuspenseQuery } from '@tanstack/react-query'
 import { CircleAlert, X } from 'lucide-react'
 import { DashboardSidebar } from '@/features/dashboard/components/DashboardSidebar'
 import { DidYouKnowSection } from '@/features/dashboard/components/DidYouKnowSection'
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
-import { dashboardFavoritesQuery } from '@/features/dashboard/service/dashboardFavorites'
-import { dashboardHeaderQuery } from '@/features/dashboard/service/dashboardHeader'
-import { dashboardNamesQuery } from '@/features/dashboard/service/dashboardNames'
+import {
+  useDashboardFavoritesQuery,
+  useDashboardHeaderQuery,
+  useDashboardNamesQuery,
+} from '@/features/dashboard/service/hooks'
 
 export const DashboardPage = () => {
-  const { data: header } = useSuspenseQuery(dashboardHeaderQuery())
-  const { data: names } = useSuspenseQuery(dashboardNamesQuery())
-  const { data: favorites } = useSuspenseQuery(dashboardFavoritesQuery())
+  const { data: header } = useDashboardHeaderQuery()
+  const { data: names } = useDashboardNamesQuery()
+  const { data: favorites } = useDashboardFavoritesQuery()
 
   const displayName = header.primaryName
   const hasProfile = Boolean(header.primaryName)
