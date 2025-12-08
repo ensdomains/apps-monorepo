@@ -12,7 +12,7 @@ import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import {
   l2RegistryFinderAddress,
-  sepoliaEthRegistryAddress,
+  namechainEthRegistryAddress,
 } from '@/lib/constants/registry'
 import {
   namechainVerifiableFactory,
@@ -41,8 +41,8 @@ type NameRegistriesResultType =
 /**
  * Result of resolving registries for a name.
  *
- * We rely on these invariants:
- * - `registries.at(0)` is the registry for `name` (or undefined/zeroAddress if it doesn't exist)
+ * Invariants:
+ * - `registries.at(0)` is the registry for `name` (or zeroAddress if it doesn't exist)
  * - `registries.at(1)` is the registry for the parent of `name` (if any)
  *
  * For V2 this comes directly from ensjs `getNameRegistries`.
@@ -114,14 +114,16 @@ export const getNameRegistries = ResultFn(async function* (
   if (labels.length < 2) {
     // For TLD-only or invalid names, name doesn't exist
     return ok<NameRegistriesResult>({
-      registries: [zeroAddress, sepoliaEthRegistryAddress], // [name (doesn't exist), TLD]
+      registries: [zeroAddress, namechainEthRegistryAddress], // [name (doesn't exist), TLD]
       network: 'sepolia',
       protocolVersion: 'ENSv2',
       factory: sepoliaVerifiableFactory,
     })
   }
 
-  // Step 1: Check L2 V2 using ensjs getNameRegistries with RegistryFinder
+  // ─────────────────────────────
+  // Step 1: L2 V2 (Namechain) using ensjs getNameRegistries with RegistryFinder
+  // ─────────────────────────────
   const l2Registries = yield* await fromPromise(
     ensjsGetNameRegistries(l2Client, {
       name,
@@ -133,7 +135,7 @@ export const getNameRegistries = ResultFn(async function* (
   const l2NameRegistry = l2Registries.at(0)
 
   // Check if name exists on L2
-  // If nameRegistry is non-zero, the name has a registry on L2
+  // If nameRegistry is non-zero, the name has a registry on L2 V2
   // rootRegistry being zero just means it's a migrated V1 name, but it's still V2 on L2
   if (l2NameRegistry && l2NameRegistry !== zeroAddress) {
     return ok<NameRegistriesResult>({
@@ -144,7 +146,9 @@ export const getNameRegistries = ResultFn(async function* (
     })
   }
 
-  // Step 2: Check L1 V2 using ensjs getNameRegistries with UniversalResolver
+  // ─────────────────────────────
+  // Step 2: L1 V2 (Sepolia, UniversalResolver) using ensjs getNameRegistries with UniversalResolver
+  // ─────────────────────────────
   const universalResolverAddress = getChainContractAddress({
     chain: l1Client.chain,
     contract: 'ensUniversalResolver',
@@ -166,29 +170,32 @@ export const getNameRegistries = ResultFn(async function* (
   const l1V2NameRegistry = l1V2Registries.at(0)
   const l1V2RootRegistry = l1V2Registries.at(-1)
 
-  // Check if this is actually a V1 registry by comparing addresses
-  // For wrapped V1 names, UniversalResolver returns the NameWrapper address, not V1 registry
-  // But wrapped V1 names will have zeroAddress for root registry (same as invalid L2 data)
-  if (l1V2NameRegistry && l1V2NameRegistry !== zeroAddress) {
-    // Check if root registry is non-zero (true V2) or zeroAddress (wrapped V1)
-    if (l1V2RootRegistry && l1V2RootRegistry !== zeroAddress) {
-      return ok<NameRegistriesResult>({
-        registries: toNameRegistriesResultType(l1V2Registries),
-        network: 'sepolia',
-        protocolVersion: 'ENSv2',
-        factory: sepoliaVerifiableFactory,
-      })
-    }
+  const hasV2Root =
+    Boolean(l1V2RootRegistry) && l1V2RootRegistry !== zeroAddress
+  const hasNameRegistry =
+    Boolean(l1V2NameRegistry) && l1V2NameRegistry !== zeroAddress
 
-    // If we reach here, root is zeroAddress but name registry exists
-    // This indicates a wrapped V1 name (NameWrapper is the registry)
-    // Return as V1 name instead of falling through to V1 check
+  // Case 2A: True ENSv2 name on L1 (name + root both non-zero)
+  if (hasNameRegistry && hasV2Root) {
+    return ok<NameRegistriesResult>({
+      registries: toNameRegistriesResultType(l1V2Registries),
+      network: 'sepolia',
+      protocolVersion: 'ENSv2',
+      factory: sepoliaVerifiableFactory,
+    })
+  }
+
+  // Case 2B: Wrapped V1 – name registry exists but root is zero
+  // (UniversalResolver returns NameWrapper address as registry, but no V2 root)
+  if (hasNameRegistry && !hasV2Root) {
     const pathLabels = labels.slice(0, -1) // drop TLD
     let registries: NameRegistriesResultType
 
     if (pathLabels.length === 1) {
+      // flo.eth → [V1 registry, V1 registry, V1 registry]
       registries = [v1RegistryAddress, v1RegistryAddress, v1RegistryAddress]
     } else {
+      // sub.flo.eth → [V1 registry, V1 registry, V1 registry, V1 registry]
       registries = [
         v1RegistryAddress,
         v1RegistryAddress,
@@ -205,28 +212,32 @@ export const getNameRegistries = ResultFn(async function* (
     })
   }
 
-  // Step 3: Check L1 V1 using getOwner
+  // If we reach here, there is an L1 ENSv2 tree, but THIS NAME has no entry in it.
+  // This is the case for pure V1 names, or completely non-existent names.
+
+  // ─────────────────────────────
+  // Step 3: L1 V1 (classic ENS Registry) using getOwner
+  // ─────────────────────────────
   const l1V1Owner = yield* await fromPromise(
     getOwner(l1Client, { name }),
     (e) => new NameRegistriesError({ cause: e as GetOwnerErrorType }),
   )
 
-  // If owner exists, name is on V1 registry - all subnames share the same registry
+  // Case 3A: Pure V1 name – owner exists on V1 registry - all subnames share the same registry
   if (l1V1Owner?.owner && l1V1Owner.owner !== zeroAddress) {
     const v1RegistryAddress = getChainContractAddress({
       chain: l1Client.chain,
       contract: 'ensRegistry',
     })
 
-    // For V1, all names are registered on the same V1 ETH Registry
     const pathLabels = labels.slice(0, -1) // drop TLD
     let registries: NameRegistriesResultType
 
     if (pathLabels.length === 1) {
-      // flo.eth → [flo address (V1 Registry), ETH Registry (V1 Registry), root (V1 Registry)]
+      // flo.eth → [V1 registry, V1 registry, V1 registry]
       registries = [v1RegistryAddress, v1RegistryAddress, v1RegistryAddress]
     } else {
-      // sub.flo.eth → [sub address (V1 Registry), flo address (V1 Registry), ETH Registry (V1 Registry), root (V1 Registry)]
+      // sub.flo.eth → [V1 registry, V1 registry, V1 registry, V1 registry]
       registries = [
         v1RegistryAddress,
         v1RegistryAddress,
@@ -243,8 +254,9 @@ export const getNameRegistries = ResultFn(async function* (
     })
   }
 
+  // Case 3B: No owner on V1 either – name truly doesn't exist anywhere.
   return ok<NameRegistriesResult>({
-    registries: [zeroAddress, sepoliaEthRegistryAddress], // [name (doesn't exist), TLD]
+    registries: [zeroAddress, namechainEthRegistryAddress], // [name (doesn't exist), TLD]
     network: 'sepolia',
     protocolVersion: 'ENSv2',
     factory: sepoliaVerifiableFactory,
