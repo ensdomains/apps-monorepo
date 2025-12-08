@@ -1,7 +1,9 @@
 import type { GetNameHistoryReturnType } from '@ensdomains/ensjs/subgraph'
 import { useMemo } from 'react'
+import type { Hash } from 'viem'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
+import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import {
   type ENSEvent,
   transformHistoryToEvents,
@@ -18,25 +20,57 @@ export const HistoryDataTable = ({
   const eventsData = useMemo(() => transformHistoryToEvents(history), [history])
 
   // Fetch timestamps for all transactions
-  const { data, isLoading, error } = useBlockTimestamps({
+  const {
+    data: timestampsData,
+    isLoading: isLoadingTimestamps,
+    error: timestampsError,
+  } = useBlockTimestamps({
     blocks: eventsData.map((tx) => BigInt(tx.blockNumber)),
   })
 
-  // Add timestamps to the events data
-  const eventsDataWithTimestamps = useMemo(() => {
-    if (!data) return []
+  // Fetch senders for all transactions
+  const {
+    data: sendersData,
+    isLoading: isLoadingSenders,
+    error: sendersError,
+  } = useTransactionSenders({
+    transactionHashes: eventsData.map((tx) => tx.transactionID as Hash),
+  })
+
+  // Add timestamps and senders to the events data
+  const eventsDataWithTimestampsAndSenders = useMemo(() => {
+    if (!timestampsData || !sendersData) return []
     return eventsData.map((tx) => ({
       ...tx,
-      timestamp: data.get(BigInt(tx.blockNumber)),
+      timestamp: timestampsData.get(BigInt(tx.blockNumber)),
+      from: sendersData.get(tx.transactionID as Hash) || tx.from,
     }))
-  }, [eventsData, data])
+  }, [eventsData, timestampsData, sendersData])
 
-  if (isLoading) return <div>Loading timestamps...</div>
-  if (error) return <div>Error loading timestamps: {error.cause?.message}</div>
+  if (isLoadingTimestamps && isLoadingSenders) {
+    return <div>Loading transaction data...</div>
+  }
+  if (isLoadingTimestamps) {
+    return <div>Loading timestamps...</div>
+  }
+  if (isLoadingSenders) {
+    return <div>Loading transaction senders...</div>
+  }
+
+  if (timestampsError) {
+    return <div>Error loading timestamps: {timestampsError.cause?.message}</div>
+  }
+  if (sendersError) {
+    return (
+      <div>
+        Error loading transaction senders: {sendersError.cause?.message}
+      </div>
+    )
+  }
 
   return (
     <EventsDataTable<ENSEvent>
-      data={eventsDataWithTimestamps}
+      data={eventsDataWithTimestampsAndSenders}
       name={name}
       enableSidebar={true}
       enableFilters={true}

@@ -42,6 +42,7 @@ export const AddressDisplay = ({
         value={ensName || address}
         displayValue={<span>{displayName}</span>}
         className="text-sm underline decoration-dashed underline-offset-4"
+        href={`/addr/${address}`}
       />
     </div>
   )

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import type { Hash } from 'viem'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
@@ -6,6 +7,7 @@ import {
   type GetNameHistoryError,
   getNameHistoryQueryOptions,
 } from '@/features/profile/hooks/useNameHistory'
+import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import {
   groupEventsByTransactionId,
   type SubgraphEvent,
@@ -31,24 +33,54 @@ const NameHistoryTable = ({
   data: SubgraphEvent[]
   category: Category
 }) => {
+  const groupedData = groupEventsByTransactionId(history, category)
+
   const {
-    data: timestamps,
-    isLoading,
-    error,
+    data: timestampsData,
+    isLoading: isLoadingTimestamps,
+    error: timestampsError,
   } = useBlockTimestamps({
     blocks: history.map((item) => BigInt(item.blockNumber)),
   })
 
-  if (error) return <div>Error loading timestamps: {error.cause?.message}</div>
-  if (isLoading) return <LoadingSpinner title="Loading..." />
+  const {
+    data: sendersData,
+    isLoading: isLoadingSenders,
+    error: sendersError,
+  } = useTransactionSenders({
+    transactionHashes: groupedData.map((tx) => tx.transactionID as Hash),
+  })
 
-  const data = groupEventsByTransactionId(
-    history.map((item) => ({
-      ...item,
-      timestamp: timestamps?.get(BigInt(item.blockNumber)),
-    })),
-    category,
-  )
+  if (isLoadingTimestamps && isLoadingSenders) {
+    return <LoadingSpinner title="Loading transaction data..." />
+  }
+  if (isLoadingTimestamps) {
+    return <LoadingSpinner title="Loading timestamps..." />
+  }
+  if (isLoadingSenders) {
+    return <LoadingSpinner title="Loading transaction senders..." />
+  }
+
+  if (timestampsError) {
+    return <div>Error loading timestamps: {timestampsError.cause?.message}</div>
+  }
+  if (sendersError) {
+    return (
+      <div>
+        Error loading transaction senders: {sendersError.cause?.message}
+      </div>
+    )
+  }
+
+  if (!timestampsData || !sendersData) {
+    return <div>No data available</div>
+  }
+
+  const dataWithTimestampsAndSenders = groupedData.map((tx) => ({
+    ...tx,
+    timestamp: timestampsData.get(BigInt(tx.blockNumber)),
+    from: sendersData.get(tx.transactionID as Hash) || tx.from,
+  }))
 
   return (
     <EventsDataTable
@@ -56,7 +88,7 @@ const NameHistoryTable = ({
       enableSearch={false}
       enableTransactionCount={false}
       enableSidebar={false}
-      data={data}
+      data={dataWithTimestampsAndSenders}
       name={name}
     />
   )
