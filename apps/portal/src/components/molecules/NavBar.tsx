@@ -70,7 +70,7 @@ export const NavBar = () => {
         {/* Mobile menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="icon" variant="ghost" className="size-7">
+            <Button size="icon" variant="ghost" className="size-7 md:hidden">
               <Menu className="size-4" />
             </Button>
           </DropdownMenuTrigger>
