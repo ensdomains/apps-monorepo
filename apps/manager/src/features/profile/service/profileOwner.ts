@@ -45,7 +45,6 @@ export const getOwner = ResultFn(async function* (params: GetOwnerParameters) {
   })
 
   if (l1v1Owner?.owner) {
-    console.log('yogiOwner', l1v1Owner)
     return ok({
       owner: l1v1Owner?.owner,
       registryAddress: v1EthRegistry,
@@ -62,7 +61,6 @@ export const getOwner = ResultFn(async function* (params: GetOwnerParameters) {
   )
 
   if (l2v2Owner && l2v2Owner !== zeroAddress) {
-    console.log('yogiOwner', l2v2Owner)
     return ok({
       owner: l2v2Owner,
       registryAddress: v2EthRegistry,
