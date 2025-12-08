@@ -24,7 +24,7 @@ export const AddressDisplay = ({
   }
 
   const displayName =
-    ensName || short ? `${address.slice(0, 6)}…${address.slice(-4)}` : address
+    ensName || (short ? `${address.slice(0, 6)}…${address.slice(-4)}` : address)
 
   return (
     <div className="flex flex-row items-center gap-2">

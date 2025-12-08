@@ -31,7 +31,7 @@ const V2NameRoles = ({
         ...getNameRolesAccountsQueryOptions({
           label: currentLabel,
           registryAddress,
-          fromBlock: 9683977n, // to test with raffy.eth
+          fromBlock: 9783977n, // to test with raffy.eth
         }),
         enabled: labels.length === 2,
       },
@@ -82,5 +82,5 @@ function RouteComponent() {
         <V2NameRoles name={name} registryAddress={data.registryAddress} />
       </div>
     )
-  } else return <div>This a ENSv1 Name</div>
+  } else return <div>This is not a Namechain name</div>
 }

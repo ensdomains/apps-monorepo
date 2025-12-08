@@ -3,64 +3,46 @@
  * @see https://github.com/ensdomains/namechain/blob/429e873130a4985da99b42050817b77745b90381/contracts/src/common/registry/libraries/RegistryRolesLib.sol
  */
 
-export type PermissionKey =
-  | 'REGISTRAR'
-  | 'RENEW'
-  | 'SET_SUBREGISTRY'
-  | 'SET_RESOLVER'
-  | 'SET_TOKEN_OBSERVER'
-  | 'CAN_TRANSFER' // Note: CAN_TRANSFER_ADMIN in items becomes CAN_TRANSFER in permissions map
-  | 'UNREGISTER'
+import type { Role } from '@ensdomains/ensjs/utils/v2'
+
+export type PermissionKey = Exclude<Role, `${string}_ADMIN`>
 
 export type Permission = {
   key: PermissionKey
-  contractName: string // The exact constant name from the contract
   title: string
   description: string
 }
 
 export const permissions: Permission[] = [
   {
-    key: 'REGISTRAR',
-    contractName: 'ROLE_REGISTRAR',
+    key: 'ROLE_REGISTRAR',
     title: 'Registrar',
     description: 'Can register new names',
   },
   {
-    key: 'RENEW',
-    contractName: 'ROLE_RENEW',
+    key: 'ROLE_RENEW',
     title: 'Renew',
     description: 'Can renew name registrations',
   },
   {
-    key: 'SET_SUBREGISTRY',
-    contractName: 'ROLE_SET_SUBREGISTRY',
+    key: 'ROLE_SET_SUBREGISTRY',
     title: 'Set Subregistry',
     description: 'Can change subregistry addresses',
   },
   {
-    key: 'SET_RESOLVER',
-    contractName: 'ROLE_SET_RESOLVER',
+    key: 'ROLE_SET_RESOLVER',
     title: 'Set Resolver',
     description: 'Can change the resolver addresses',
   },
   {
-    key: 'SET_TOKEN_OBSERVER',
-    contractName: 'ROLE_SET_TOKEN_OBSERVER',
+    key: 'ROLE_SET_TOKEN_OBSERVER',
     title: 'Set Token Observer',
     description: 'Can set token observer contracts',
   },
   {
-    key: 'CAN_TRANSFER',
-    contractName: 'ROLE_CAN_TRANSFER_ADMIN',
-    title: 'Can Transfer',
-    description: 'Can grant/revoke transfer admin rights',
-  },
-  {
-    key: 'UNREGISTER',
-    contractName: 'ROLE_UNREGISTER',
-    title: 'Unregister',
-    description: 'Can unregister (delete) the name',
+    key: 'ROLE_BURN',
+    title: 'Burn',
+    description: 'Can burn (delete) the name',
   },
 ] as const
 
