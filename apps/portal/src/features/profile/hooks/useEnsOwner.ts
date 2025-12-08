@@ -11,9 +11,10 @@ import {
   type GetOwnerErrorType as ensjsv2_GetOwnerErrorType,
   getOwner as ensjsv2_getOwner,
 } from '@ensdomains/ensjs/public/v2'
+import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
-import { namechainEthRegistryAddress } from '@/lib/constants/registry'
+import { namechainSepolia, sepoliaWithEns } from '@/lib/wagmi'
 import {
   safeGetClient,
   safeGetNamechainSepoliaClient,
@@ -42,34 +43,43 @@ export const getEnsOwner = ResultFn(async function* (
       }),
   )
 
-  const label = params.name.split('.').slice(0, -1).join('.')
+  const { label } = makeLabelNodeAndParent(params.name)
 
   const namechainClient = yield* safeGetNamechainSepoliaClient()
 
-  const l2v2Owner = yield* await fromPromise(
-    ensjsv2_getOwner(namechainClient, {
-      label,
-      registryAddress: namechainEthRegistryAddress,
-    }),
-    (e) => new GetEnsOwnerError({ cause: e as ensjsv2_GetOwnerErrorType }),
-  )
+  const v2EthRegistry = getChainContractAddress({
+    chain: namechainSepolia,
+    contract: 'ensV2EthRegistry',
+  })
+
+  const v1EthRegistry = getChainContractAddress({
+    chain: sepoliaWithEns,
+    contract: 'ensRegistry',
+  })
 
   if (l1v1Owner?.owner)
     return ok<GetEnsOwnerReturnType>({
       owner: l1v1Owner?.owner,
-      registryAddress: getChainContractAddress({
-        chain: client.chain,
-        contract: 'ensRegistry',
-      }),
+      registryAddress: v1EthRegistry,
       network: 'sepolia',
     })
+
+  const l2v2Owner = yield* await fromPromise(
+    ensjsv2_getOwner(namechainClient, {
+      label,
+      registryAddress: v2EthRegistry,
+    }),
+    (e) => new GetEnsOwnerError({ cause: e as ensjsv2_GetOwnerErrorType }),
+  )
 
   if (l2v2Owner && l2v2Owner !== zeroAddress)
     return ok<GetEnsOwnerReturnType>({
       owner: l2v2Owner,
-      registryAddress: namechainEthRegistryAddress,
+      registryAddress: v2EthRegistry,
       network: 'namechainSepolia',
     })
+
+  console.log({ l2v2Owner, l1v1Owner, v1EthRegistry, v2EthRegistry })
 
   return ok(null)
 })

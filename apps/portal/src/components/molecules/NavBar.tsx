@@ -8,9 +8,10 @@ import {
 } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
+import { HomeSearchInput } from '@/components/homepage'
 import { TableViewSwitch } from '@/features/records/components/RecordsTable/TableViewSwitch'
-import { HomeSearchInput } from '../../routes/components/HomeSearchInput'
 import { Badge } from '../ui/badge'
+import { Button } from '../ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,13 +66,13 @@ export const NavBar = () => {
           <HomeSearchInput />
         </div>
       )}
-      <div className="flex gap-2 flex-row justify-end md:w-full">
+      <div className="flex gap-2 flex-row justify-end items-center md:w-full">
         {/* Mobile menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center justify-center cursor-pointer p-1 hover:bg-accent rounded-sm md:hidden">
+            <Button size="icon" variant="ghost" className="size-7">
               <Menu className="size-4" />
-            </button>
+            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>

@@ -5,8 +5,7 @@
  * Coin types are the same across mainnet and testnet (e.g., 42161 for Arbitrum).
  */
 
-import type { ChainWithEns } from '@ensdomains/ensjs/chain'
-import type { Address } from 'viem'
+import type { Address, Chain } from 'viem'
 
 /**
  * reverseRegistrarChainId
@@ -30,7 +29,7 @@ export type ReverseRegistrarChainId =
 export type NetworkKey = 'mainnet' | 'sepolia'
 
 /** Map ChainWithEns → NetworkKey, defaulting to 'sepolia' */
-export function resolveNetworkFromChain(chain?: ChainWithEns): NetworkKey {
+export function resolveNetworkFromChain(chain?: Chain): NetworkKey {
   switch (chain?.id) {
     case 1:
       return 'mainnet'

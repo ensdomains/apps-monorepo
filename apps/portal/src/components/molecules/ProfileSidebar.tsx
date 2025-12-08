@@ -7,6 +7,7 @@ import {
   Network,
   PersonStandingIcon,
   UserLockIcon,
+  UserRoundCog,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -45,6 +46,11 @@ const itemGroups = [
       title: 'Ownership',
       url: '/$name/ownership',
       icon: UserLockIcon,
+    },
+    {
+      title: 'Roles',
+      url: '/$name/roles',
+      icon: UserRoundCog,
     },
   ],
   [
