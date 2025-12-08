@@ -1,6 +1,5 @@
 import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
-import type { InferResponseType } from 'hono'
 import { backendClient } from '@/utils/backend-client'
 import type {
   BatchPreferencesRequest,

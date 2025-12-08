@@ -1,11 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import {
-  AlertTriangle,
-  Mail,
-  MessageSquare,
-  Plus,
-  Smartphone,
-} from 'lucide-react'
+import { AlertTriangle, Plus, Smartphone } from 'lucide-react'
 import { useState } from 'react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
