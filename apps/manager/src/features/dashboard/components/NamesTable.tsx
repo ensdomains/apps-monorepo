@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { ArrowUpDown, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import type { DashboardNameRow } from '@/features/dashboard/MOCK'
@@ -94,12 +94,10 @@ export const NamesTable = ({ favorites }: NamesTableProps) => {
   }
 
   const onSortChange = (key: DashboardNamesSortKey) => {
+    setSortDirection((prev) =>
+      sortBy === key ? (prev === 'asc' ? 'desc' : 'asc') : 'asc',
+    )
     setSortBy(key)
-    setPage(1)
-  }
-
-  const toggleSortDirection = () => {
-    setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
     setPage(1)
   }
 
@@ -151,40 +149,15 @@ export const NamesTable = ({ favorites }: NamesTableProps) => {
         </div>
 
         {activeTab === 'myNames' && (
-          <div className="flex w-full flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
-            <div className="w-full md:w-[292px]">
-              <Input
-                size="sm"
-                placeholder="Search my name..."
-                startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
-                className="h-[32px] rounded-[4.1px] border-none bg-[#f6f6f6] text-[#8c8c8c] text-[13.12px] placeholder:text-[#8c8c8c]"
-                value={searchQuery}
-                onChange={(event) => onSearchChange(event.target.value)}
-              />
-            </div>
-            <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
-              <label className="text-[#7d7d7d] text-[12px] tracking-[0.24px]">
-                Sort by
-              </label>
-              <select
-                value={sortBy}
-                onChange={(event) =>
-                  onSortChange(event.target.value as DashboardNamesSortKey)
-                }
-                className="h-[32px] rounded-[4px] border border-[#dededf] bg-white px-2 text-[#232222] text-[13px]"
-              >
-                <option value="name">Name</option>
-                <option value="expiry">Expiry</option>
-              </select>
-              <button
-                type="button"
-                onClick={toggleSortDirection}
-                className="flex items-center gap-1 rounded-[4px] border border-[#dededf] px-2 py-1 text-[#232222] text-[12px] hover:bg-[#f6f6f6]"
-              >
-                <ArrowUpDown className="size-4" />
-                {sortDirection === 'asc' ? 'Asc' : 'Desc'}
-              </button>
-            </div>
+          <div className="w-full md:w-[292px]">
+            <Input
+              size="sm"
+              placeholder="Search my name..."
+              startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
+              className="h-[32px] rounded-[4.1px] border-none bg-[#f6f6f6] text-[#8c8c8c] text-[13.12px] placeholder:text-[#8c8c8c]"
+              value={searchQuery}
+              onChange={(event) => onSearchChange(event.target.value)}
+            />
           </div>
         )}
 
@@ -203,6 +176,9 @@ export const NamesTable = ({ favorites }: NamesTableProps) => {
           pageSize={pageSize}
           totalCount={totalCount}
           onPageChange={onPageChange}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onSortChange={onSortChange}
         />
       ) : (
         <FavoritesList favorites={favoriteNames} />

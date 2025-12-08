@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   CircleAlert,
   MoreHorizontal,
 } from 'lucide-react'
@@ -23,6 +24,9 @@ interface MyNamesListProps {
   pageSize: number
   totalCount: number
   onPageChange: (page: number) => void
+  sortBy: 'name' | 'expiry'
+  sortDirection: 'asc' | 'desc'
+  onSortChange: (key: 'name' | 'expiry') => void
 }
 
 export const MyNamesList = ({
@@ -32,6 +36,9 @@ export const MyNamesList = ({
   pageSize,
   totalCount,
   onPageChange,
+  sortBy,
+  sortDirection,
+  onSortChange,
 }: MyNamesListProps) => {
   const hasResults = names.length > 0
   const trimmedQuery = searchQuery?.trim()
@@ -44,24 +51,44 @@ export const MyNamesList = ({
   return (
     <div className="w-full">
       <div className="relative mb-[16px] hidden h-[32px] w-full md:block">
-        <div className="absolute top-[4px] left-[24px] flex items-center gap-[8px]">
-          <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
+        <button
+          type="button"
+          onClick={() => onSortChange('name')}
+          className="absolute top-[4px] left-[24px] flex items-center gap-[8px] text-left"
+        >
+          <span
+            className={`font-sans text-[12px] tracking-[0.24px] ${sortBy === 'name' ? 'text-[#232222]' : 'text-[#7d7d7d]'}`}
+          >
             Name
           </span>
           <div className="flex flex-col">
-            <ChevronDown className="size-[8.2px] rotate-180 text-[#7d7d7d]" />
-            <ChevronDown className="size-[8.2px] text-[#7d7d7d]" />
+            <ChevronUp
+              className={`size-[8.2px] ${sortBy === 'name' && sortDirection === 'asc' ? 'text-[#232222]' : 'text-[#bcbcbc]'}`}
+            />
+            <ChevronDown
+              className={`size-[8.2px] ${sortBy === 'name' && sortDirection === 'desc' ? 'text-[#232222]' : 'text-[#bcbcbc]'}`}
+            />
           </div>
-        </div>
-        <div className="absolute top-[4px] left-[652px] flex items-center gap-[8px]">
-          <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
+        </button>
+        <button
+          type="button"
+          onClick={() => onSortChange('expiry')}
+          className="absolute top-[4px] left-[652px] flex items-center gap-[8px] text-left"
+        >
+          <span
+            className={`font-sans text-[12px] tracking-[0.24px] ${sortBy === 'expiry' ? 'text-[#232222]' : 'text-[#7d7d7d]'}`}
+          >
             Expiry
           </span>
           <div className="flex flex-col">
-            <ChevronDown className="size-[8.2px] rotate-180 text-[#7d7d7d]" />
-            <ChevronDown className="size-[8.2px] text-[#7d7d7d]" />
+            <ChevronUp
+              className={`size-[8.2px] ${sortBy === 'expiry' && sortDirection === 'asc' ? 'text-[#232222]' : 'text-[#bcbcbc]'}`}
+            />
+            <ChevronDown
+              className={`size-[8.2px] ${sortBy === 'expiry' && sortDirection === 'desc' ? 'text-[#232222]' : 'text-[#bcbcbc]'}`}
+            />
           </div>
-        </div>
+        </button>
       </div>
 
       <div className="mb-[16px] flex h-[32px] items-center gap-[12px]">
