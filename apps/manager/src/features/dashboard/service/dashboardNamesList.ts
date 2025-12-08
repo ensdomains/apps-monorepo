@@ -28,27 +28,25 @@ const sortNames = (
 }
 
 // biome-ignore lint/correctness/useYield: mock implementation returns static data
-export const getDashboardNamesList = ResultFn(
-  async function* (params: {
-    query?: string
-    sortBy: DashboardNamesSortKey
-    sortDirection: DashboardNamesSortDirection
-    page: number
-    pageSize: number
-  }) {
-    const { query = '', sortBy, sortDirection, page, pageSize } = params
+export const getDashboardNamesList = ResultFn(async function* (params: {
+  query?: string
+  sortBy: DashboardNamesSortKey
+  sortDirection: DashboardNamesSortDirection
+  page: number
+  pageSize: number
+}) {
+  const { query = '', sortBy, sortDirection, page, pageSize } = params
 
-    const filtered = filterDashboardNames(MOCK_DASHBOARD_NAMES, query)
-    const sorted = sortNames(filtered, sortBy, sortDirection)
+  const filtered = filterDashboardNames(MOCK_DASHBOARD_NAMES, query)
+  const sorted = sortNames(filtered, sortBy, sortDirection)
 
-    const total = sorted.length
-    const start = Math.max(0, (page - 1) * pageSize)
-    const end = Math.max(start, start + pageSize)
-    const items = sorted.slice(start, end)
+  const total = sorted.length
+  const start = Math.max(0, (page - 1) * pageSize)
+  const end = Math.max(start, start + pageSize)
+  const items = sorted.slice(start, end)
 
-    return ok({ items, total })
-  },
-)
+  return ok({ items, total })
+})
 
 export const dashboardNamesListQuery = (params: {
   query?: string
@@ -59,8 +57,10 @@ export const dashboardNamesListQuery = (params: {
 }) =>
   resultQueryOptions({
     queryKey: qk('dashboard', 'names-list', params),
-    queryFn: ({ queryKey: [{ query, sortBy, sortDirection, page, pageSize }] })
-      => getDashboardNamesList({
+    queryFn: ({
+      queryKey: [{ query, sortBy, sortDirection, page, pageSize }],
+    }) =>
+      getDashboardNamesList({
         query,
         sortBy,
         sortDirection,
