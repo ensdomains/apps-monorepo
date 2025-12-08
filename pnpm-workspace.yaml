@@ -1,11 +1,15 @@
 packages:
-  - "apps/*"
-  - "packages/*"
+  - apps/*
+  - packages/*
   - "workers/*"
 
 catalog:
-  # Needs to be shared between apps and utils for types to work
-  xstate: ^5.21.0
+  xstate: ^5.24.0
 
 minimumReleaseAge: 1440
+
 trustPolicy: no-downgrade
+
+autoInstallPeers: false
+
+resolutionMode: highest

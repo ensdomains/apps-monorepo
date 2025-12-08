@@ -8,8 +8,7 @@
  * an address to resolve to an ENS name on that chain/network.
  */
 
-import type { ChainWithEns } from '@ensdomains/ensjs/chain'
-import type { Address } from 'viem'
+import type { Address, Chain } from 'viem'
 import {
   l2ReverseRegistrarSetNameForAddrSnippet,
   l2ReverseRegistrarSetNameSnippet,
@@ -22,11 +21,7 @@ import {
 
 export type UseSetReverseNameParameters = {
   reverseRegistrarChainId: ReverseRegistrarChainId
-  /**
-   * Chain used to resolve which registrar deployment to use.
-   * If omitted or unknown, we default to 'sepolia' (current app default).
-   */
-  chain?: ChainWithEns
+  chain?: Chain
 }
 
 export type SetReverseNameRequest =

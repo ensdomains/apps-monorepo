@@ -1,8 +1,11 @@
+import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, HashIcon, ListIcon } from 'lucide-react'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { getBurnedFuseCountQueryOptions } from '@/features/namewrapper/hooks/useBurnedFuseCount'
+import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
+import { namechainEthRegistryAddress } from '@/lib/constants/registry'
 import type { EnsNetworkName } from '@/utils/types'
 
 interface ProtocolVersionWithCounterProps {
@@ -10,7 +13,19 @@ interface ProtocolVersionWithCounterProps {
   network: EnsNetworkName
 }
 
-const RoleCount = () => {
+const RoleCount = ({ name }: { name: string }) => {
+  const { data, isLoading, error } = useQuery(
+    getNameRolesAccountsQueryOptions({
+      ...makeLabelNodeAndParent(name),
+      registryAddress: namechainEthRegistryAddress,
+      fromBlock: 9782822n,
+    }),
+  )
+
+  if (error)
+    return <div>Failed to fetch fuses count: {error.cause?.message}</div>
+  if (isLoading) return <LoadingSpinner />
+
   return (
     <div className="w-full p-6 border-b border-b-gray-300 flex flex-row items-center gap-6">
       <ListIcon
@@ -19,7 +34,7 @@ const RoleCount = () => {
         className="p-2 w-8 h-8 rounded-4xl bg-secondary"
       />
       <div>
-        <span className="font-medium">0</span> roles
+        <span className="font-medium">{(data || { size: 0 }).size}</span> roles
       </div>
     </div>
   )
@@ -54,7 +69,11 @@ export const ProtocolVersionWithCounter = ({
 }: ProtocolVersionWithCounterProps) => {
   return (
     <div className="flex flex-col rounded-2xl overflow-hidden  border border-gray-300 ">
-      {network === 'sepolia' ? <FuseCount name={name} /> : <RoleCount />}
+      {network === 'sepolia' ? (
+        <FuseCount name={name} />
+      ) : (
+        <RoleCount name={name} />
+      )}
       <div className="w-full p-6 duration-150 flex flex-row gap-6 items-center">
         <HashIcon
           height={24}
