@@ -5,6 +5,8 @@
  */
 
 import type { registrationMachine, Signer } from '@ens-apps/transaction-manager'
+import type { RhinestoneConfig } from '@ens-apps/transaction-manager/types/transaction.types'
+import type { SmartAccountClient } from 'permissionless'
 import type { Address, PublicClient } from 'viem'
 import type { ActorRefFrom } from 'xstate'
 import { SUPPORTED_TOKENS } from '../services/nameChainContractService'
@@ -16,10 +18,11 @@ export interface StartRegistrationParams {
   tokenPrice: bigint
 }
 
+// TODO: Rename to SmartAccountInfo for clarity and consistency
 export interface AccountInfo {
-  rhinestoneAccount: any
-  accountAddress: string | null
-  rhinestoneConfig: any
+  rhinestoneAccount: SmartAccountClient
+  accountAddress: Address | null
+  rhinestoneConfig: RhinestoneConfig
   publicClient: PublicClient
 }
 
@@ -38,16 +41,9 @@ export function handleStartRegistration(
   const { name, duration, selectedToken, tokenPrice } = params
   const { rhinestoneAccount, accountAddress, rhinestoneConfig, publicClient } =
     account
+
   const useFastRegistrar = Boolean(options?.fast)
 
-  console.log('🔍 handleStartRegistration called with:', {
-    accountAddress,
-    hasRhinestoneAccount: !!rhinestoneAccount,
-    params,
-    useFastRegistrar,
-  })
-
-  // Validation
   if (!accountAddress || !rhinestoneAccount || !rhinestoneConfig) {
     console.error('❌ Account not connected or not initialized', {
       accountAddress,
@@ -58,18 +54,25 @@ export function handleStartRegistration(
     return
   }
 
-  // Create Signer from Rhinestone account
+  // Create Signer from Pimlico smart account
+  // Use 'pimlico' type to use the new Para + Pimlico implementation
   const signer: Signer = {
-    type: 'rhinestone',
-    account: rhinestoneAccount,
-    config: rhinestoneConfig,
+    type: 'pimlico',
+    account: rhinestoneAccount, // This is actually the SmartAccountClient from permissionless
+    config: {
+      ...rhinestoneConfig,
+      accountAddress: accountAddress,
+    },
   }
 
-  // Map token address to token name
   const token = selectedToken === SUPPORTED_TOKENS.DAI ? 'DAI' : 'USDC'
 
-  // Convert years to seconds
   const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
+
+  const enableSponsorship =
+    import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === undefined
+      ? true // Default to true for testnet
+      : import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === 'true'
 
   console.log('✅ Creating START_REGISTRATION event:', {
     name,
@@ -79,6 +82,7 @@ export function handleStartRegistration(
     hasSigner: !!signer,
     hasPublicClient: !!publicClient,
     useFastRegistrar,
+    sponsored: enableSponsorship,
   })
 
   // Send event to machine with all necessary data
@@ -92,5 +96,6 @@ export function handleStartRegistration(
     accountAddress: accountAddress as Address,
     publicClient,
     useFastRegistrar,
+    sponsored: enableSponsorship,
   })
 }

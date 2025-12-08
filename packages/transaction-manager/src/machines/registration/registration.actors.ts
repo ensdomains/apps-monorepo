@@ -134,9 +134,34 @@ function selectRegistrarAddress(useFastRegistrar: boolean): Address {
 
 function getSmartAccountAddress(signer: import('../..').Signer): Address {
   if (signer.type === 'rhinestone') {
+    // Rhinestone SDK account - use getAddress method
     return signer.account.getAddress() as Address
   }
-  throw new Error('Only Rhinestone signer is supported for registration')
+
+  if (signer.type === 'pimlico') {
+    // First, try to get address from config if available
+    if (signer.config.accountAddress) {
+      return signer.config.accountAddress
+    }
+
+    // signer.account is a SmartAccountClient from permissionless
+    // The SmartAccountClient has an account property with an address property
+    const smartAccountClient = signer.account as any
+    if (smartAccountClient?.account?.address) {
+      return smartAccountClient.account.address as Address
+    }
+    // Fallback: try to get address directly if it's a string
+    if (typeof smartAccountClient?.address === 'string') {
+      return smartAccountClient.address as Address
+    }
+    throw new Error(
+      'Unable to get smart account address from SmartAccountClient',
+    )
+  }
+
+  throw new Error(
+    'Only Rhinestone or Pimlico signer is supported for registration',
+  )
 }
 
 // ============================================================================
@@ -167,7 +192,6 @@ export function generateCommitmentActor(input: {
 
 /**
  * Submit commitment transaction via transaction manager
- * Note: Includes ETH balance check (smart account needs ETH for gas)
  */
 export function submitCommitmentActor(input: {
   commitment: CommitmentData
@@ -176,6 +200,7 @@ export function submitCommitmentActor(input: {
   duration: bigint
   publicClient: PublicClient
   useFastRegistrar: boolean
+  sponsored?: boolean
 }): ResultAsync<string, Error> {
   const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
 
@@ -192,31 +217,6 @@ export function submitCommitmentActor(input: {
       )
 
       const smartAccountAddress = getSmartAccountAddress(input.signer)
-
-      // Check smart account ETH balance before committing
-      const ethBalance = await input.publicClient.getBalance({
-        address: smartAccountAddress,
-      })
-
-      console.log(`💰 [REGISTRATION ACTOR] Smart account ETH balance:`, {
-        address: smartAccountAddress,
-        balance: ethBalance.toString(),
-        balanceInEth: (Number(ethBalance) / 1e18).toFixed(6),
-      })
-
-      if (ethBalance === 0n) {
-        throw new Error(
-          `Smart account needs ETH for gas. Send Sepolia ETH to: ${smartAccountAddress}`,
-        )
-      }
-
-      // Warn if balance is very low (less than 0.001 ETH)
-      if (ethBalance < 1000000000000000n) {
-        console.warn(`⚠️ [REGISTRATION ACTOR] Low ETH balance - may fail:`, {
-          balance: (Number(ethBalance) / 1e18).toFixed(6),
-          recommended: '0.001 ETH or more',
-        })
-      }
 
       const commitmentData = encodeCommitmentData(input.commitment.commitment)
 
@@ -243,6 +243,7 @@ export function submitCommitmentActor(input: {
                   value: 0n,
                 },
               ],
+              sponsored: input.sponsored ?? true,
             },
           },
         },
@@ -388,6 +389,7 @@ export function submitApprovalActor(input: {
   signer: import('../..').Signer
   publicClient: PublicClient
   useFastRegistrar: boolean
+  sponsored?: boolean
 }): ResultAsync<string, Error> {
   const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
 
@@ -425,6 +427,7 @@ export function submitApprovalActor(input: {
                   value: 0n,
                 },
               ],
+              sponsored: input.sponsored ?? true,
             },
           },
         },
@@ -453,6 +456,7 @@ export function submitRegistrationActor(input: {
   owner: Address
   publicClient: PublicClient
   useFastRegistrar: boolean
+  sponsored?: boolean
 }): ResultAsync<string, Error> {
   const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
 
@@ -512,6 +516,7 @@ export function submitRegistrationActor(input: {
                   value: 0n,
                 },
               ],
+              sponsored: input.sponsored ?? true,
             },
           },
         },

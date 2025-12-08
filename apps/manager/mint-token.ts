@@ -13,13 +13,14 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { customSepolia, SEPOLIA_RPC_URL } from './src/lib/wagmi'
 
 // Configuration
-const RHINESTONE_ACCOUNT: Address = '' as Address // Replace with the actual Rhinestone account address
+const SMART_ACCOUNT: Address =
+  '0xC260ad10Dc178b43d8DdE30CC165350053e13863' as Address // Replace with the actual Rhinestone account address
 const MINT_AMOUNT = parseUnits('1000', 18) // 1000 tokens (DAI has 18 decimals)
 const USDC_MINT_AMOUNT = parseUnits('1000', 6) // 1000 USDC (USDC has 6 decimals)
 
 // Mock token addresses on Sepolia
-const MOCK_USDC_ADDRESS: Address = '0x9028ab8e872af36c30c959a105cb86d1038412ae'
-const MOCK_DAI_ADDRESS: Address = '0x6630589c2e6364a96bb7acf0d9d64ac9c1dd3528'
+const MOCK_USDC_ADDRESS: Address = '0xeb704373997b676d111e4767e281b9fb3852ecef'
+const MOCK_DAI_ADDRESS: Address = '0x8817e87e865b75db8b6a7e0d882b6dcba88d913e'
 
 // ERC20 ABI for mint function (assuming these are mock tokens with mint function)
 const ERC20_ABI = [
@@ -88,7 +89,7 @@ async function mintTokens(): Promise<void> {
 
   const walletAddress = account.address
   console.log(`🔑 Using wallet: ${walletAddress}`)
-  console.log(`🎯 Minting tokens to: ${RHINESTONE_ACCOUNT}`)
+  console.log(`🎯 Minting tokens to: ${SMART_ACCOUNT}`)
   console.log('')
 
   try {
@@ -111,7 +112,7 @@ async function mintTokens(): Promise<void> {
       address: MOCK_DAI_ADDRESS,
       abi: ERC20_ABI,
       functionName: 'mint',
-      args: [RHINESTONE_ACCOUNT, MINT_AMOUNT],
+      args: [SMART_ACCOUNT, MINT_AMOUNT],
     })
 
     console.log(`📝 DAI mint transaction: ${daiTxHash}`)
@@ -128,7 +129,7 @@ async function mintTokens(): Promise<void> {
       address: MOCK_USDC_ADDRESS,
       abi: ERC20_ABI,
       functionName: 'mint',
-      args: [RHINESTONE_ACCOUNT, USDC_MINT_AMOUNT],
+      args: [SMART_ACCOUNT, USDC_MINT_AMOUNT],
     })
 
     console.log(`📝 USDC mint transaction: ${usdcTxHash}`)
@@ -147,14 +148,14 @@ async function mintTokens(): Promise<void> {
       address: MOCK_DAI_ADDRESS,
       abi: ERC20_ABI,
       functionName: 'balanceOf',
-      args: [RHINESTONE_ACCOUNT],
+      args: [SMART_ACCOUNT],
     })
 
     const usdcBalance = await publicClient.readContract({
       address: MOCK_USDC_ADDRESS,
       abi: ERC20_ABI,
       functionName: 'balanceOf',
-      args: [RHINESTONE_ACCOUNT],
+      args: [SMART_ACCOUNT],
     })
 
     console.log(`🪙 DAI balance: ${formatUnits(daiBalance, 18)}`)
@@ -162,7 +163,7 @@ async function mintTokens(): Promise<void> {
 
     console.log('')
     console.log('🎉 Token minting completed successfully!')
-    console.log(`📍 Rhinestone account: ${RHINESTONE_ACCOUNT}`)
+    console.log(`📍 Rhinestone account: ${SMART_ACCOUNT}`)
   } catch (error) {
     console.error('❌ Error minting tokens:', error)
 
