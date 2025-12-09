@@ -150,113 +150,111 @@ function RouteComponent() {
   const encoding = parts.map((part) => part.type).join(' + ')
 
   return (
-    <div className="p-6">
-      <div className="flex flex-col gap-6 max-w-360 mx-auto w-full">
-        <header>
-          <h1 className="text-[28px] font-medium">Token info</h1>
-        </header>
-        {data?.network === 'sepolia' ? (
-          <TokenV1Name name={name} />
-        ) : (
-          <TokenV2Name name={name} />
-        )}
-        <div className="flex border border-gray-300 rounded-lg flex-col">
-          <div className="flex flex-col w-full p-6 gap-6">
-            <h2 className="font-medium text-2xl">Normalization</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="flex flex-col gap-1">
-                <Label>Input</Label>
-                <div className="flex flex-row gap-1 flex-wrap min-w-[38px] items-end">
-                  {parts.map((label, idx) => (
-                    <>
-                      <span
-                        className="px-1 py-2 font-mono border border-gray-300 rounded-sm"
-                        key={String.fromCodePoint(...label.input)}
-                      >
-                        {String.fromCodePoint(...label.input)}
-                      </span>
-                      {idx < parts.length - 1 && (
-                        <span className="mx-1 py-2">·</span>
-                      )}
-                    </>
-                  ))}
-                </div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label>Normalization</Label>
-                <div className="flex flex-row gap-4 items-center">
-                  <div
-                    className={cn(
-                      'p-2 pr-4 rounded-[99px] w-max flex flex-row items-center gap-1',
-                      normalized ? 'bg-green-200' : 'bg-red-200',
+    <div className="flex flex-col gap-6 p-6 max-w-360 mx-auto w-full">
+      <header>
+        <h1 className="text-[28px] font-medium">Token info</h1>
+      </header>
+      {data?.network === 'sepolia' ? (
+        <TokenV1Name name={name} />
+      ) : (
+        <TokenV2Name name={name} />
+      )}
+      <div className="flex border border-gray-300 rounded-lg flex-col">
+        <div className="flex flex-col w-full p-6 gap-6">
+          <h2 className="font-medium text-2xl">Normalization</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-1">
+              <Label>Input</Label>
+              <div className="flex flex-row gap-1 flex-wrap min-w-[38px] items-end">
+                {parts.map((label, idx) => (
+                  <>
+                    <span
+                      className="px-1 py-2 font-mono border border-gray-300 rounded-sm"
+                      key={String.fromCodePoint(...label.input)}
+                    >
+                      {String.fromCodePoint(...label.input)}
+                    </span>
+                    {idx < parts.length - 1 && (
+                      <span className="mx-1 py-2">·</span>
                     )}
-                  >
-                    <CheckCircleIcon className="size-4" />
-                    <div>{normalized ? 'Normalized' : 'Not Normalized'}</div>
-                  </div>
-                  <div>{hasEmoji ? `${encoding} + Emoji` : encoding}</div>
-                </div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label>Unicode</Label>
-                <CopyableRecord value={escapeUnicode(name)} />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label>ASCII</Label>
-                <CopyableRecord value={ascii} />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label>DNS-encoded</Label>
-                <CopyableRecord value={dnsEncode} className="max-w-full" />
-              </div>
-              <div className="flex flex-col gap-1 w-full max-w-full">
-                <Label>Namehash</Label>
-                <CopyableRecord value={hash} className="max-w-full" />
+                  </>
+                ))}
               </div>
             </div>
-          </div>
-          {labels[0] ? (
-            <Tabs defaultValue={labels[0]}>
-              <div className="pl-6 border-b w-full border-b-gray-300">
-                <span className="font-medium">Labels: </span>
-                <TabsList>
-                  {labels.map((label) => {
-                    return (
-                      <TabsTrigger key={label} value={label}>
-                        {label}
-                      </TabsTrigger>
-                    )
-                  })}
-                </TabsList>
+            <div className="flex flex-col gap-1">
+              <Label>Normalization</Label>
+              <div className="flex flex-row gap-4 items-center">
+                <div
+                  className={cn(
+                    'p-2 pr-4 rounded-[99px] w-max flex flex-row items-center gap-1',
+                    normalized ? 'bg-green-200' : 'bg-red-200',
+                  )}
+                >
+                  <CheckCircleIcon className="size-4" />
+                  <div>{normalized ? 'Normalized' : 'Not Normalized'}</div>
+                </div>
+                <div>{hasEmoji ? `${encoding} + Emoji` : encoding}</div>
               </div>
-              {parts.map((part) => {
-                const label = String.fromCodePoint(...part.input)
-                return (
-                  <TabsContent
-                    className="grid grid-cols-2 gap-6"
-                    value={label}
-                    key={label}
-                  >
-                    <div className="flex flex-col gap-1">
-                      <Label>Input</Label>
-                      <CopyableRecord value={label} />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <Label>Normalization</Label>
-                      <CopyableRecord value={part.type as string} />
-                    </div>
-                    <div className="flex flex-col gap-1 col-span-full">
-                      <Label>Labelhash</Label>
-                      <CopyableRecord value={labelhash(label)} />
-                    </div>
-                  </TabsContent>
-                )
-              })}
-            </Tabs>
-          ) : (
-            <div>Invalid name: no labels</div>
-          )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label>Unicode</Label>
+              <CopyableRecord value={escapeUnicode(name)} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label>ASCII</Label>
+              <CopyableRecord value={ascii} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label>DNS-encoded</Label>
+              <CopyableRecord value={dnsEncode} className="max-w-full" />
+            </div>
+            <div className="flex flex-col gap-1 w-full max-w-full">
+              <Label>Namehash</Label>
+              <CopyableRecord value={hash} className="max-w-full" />
+            </div>
+          </div>
         </div>
+        {labels[0] ? (
+          <Tabs defaultValue={labels[0]}>
+            <div className="pl-6 border-b w-full border-b-gray-300">
+              <span className="font-medium">Labels: </span>
+              <TabsList>
+                {labels.map((label) => {
+                  return (
+                    <TabsTrigger key={label} value={label}>
+                      {label}
+                    </TabsTrigger>
+                  )
+                })}
+              </TabsList>
+            </div>
+            {parts.map((part) => {
+              const label = String.fromCodePoint(...part.input)
+              return (
+                <TabsContent
+                  className="grid grid-cols-2 gap-6"
+                  value={label}
+                  key={label}
+                >
+                  <div className="flex flex-col gap-1">
+                    <Label>Input</Label>
+                    <CopyableRecord value={label} />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label>Normalization</Label>
+                    <CopyableRecord value={part.type as string} />
+                  </div>
+                  <div className="flex flex-col gap-1 col-span-full">
+                    <Label>Labelhash</Label>
+                    <CopyableRecord value={labelhash(label)} />
+                  </div>
+                </TabsContent>
+              )
+            })}
+          </Tabs>
+        ) : (
+          <div>Invalid name: no labels</div>
+        )}
       </div>
     </div>
   )
