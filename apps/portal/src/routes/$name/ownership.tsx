@@ -81,6 +81,7 @@ const ParentInfo = ({ name }: ParentInfoProps) => {
 
 function RouteComponent() {
   const { name } = Route.useParams()
+  console.log('🚀 ~ RouteComponent ~ name:', name)
   return (
     <div className="max-w-360 w-full mx-auto flex flex-col gap-6 m-6 px-4">
       <div className="flex flex-row justify-between">

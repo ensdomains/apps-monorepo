@@ -115,7 +115,7 @@ export const NameHistory = ({
   if (!data) return <div>No results.</div>
 
   return (
-    <div className="flex flex-col gap-1 p-6 border border-secondary rounded-lg w-full">
+    <div className="flex flex-col gap-1 p-6 border border-gray-300 rounded-lg w-full">
       <div>
         <h2 className="text-[26px] font-medium">History</h2>
       </div>

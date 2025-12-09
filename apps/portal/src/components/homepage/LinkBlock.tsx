@@ -11,7 +11,7 @@ export const LinkBlock = ({
   description: string
   href: string
 }) => (
-  <div className="p-4 rounded-lg border border-gray-200 flex flex-row justify-between items-center gap-4">
+  <div className="p-4 rounded-lg border border-gray-300 flex flex-row justify-between items-center gap-4">
     <div>
       <h3 className="font-semibold text-base mb-1">{title}</h3>
       <p className="text-sm text-gray-600">{description}</p>

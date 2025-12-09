@@ -14,6 +14,7 @@ import { VerifiedRegistryCard } from '@/features/registry/components/VerifiedReg
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getParentName } from '@/features/registry/utils/nameUtils'
 import { sepoliaEthRegistryAddress } from '@/lib/constants/registry'
+import { NameHistory } from '../../components/organisms/NameHistory/NameHistory'
 
 export const Route = createFileRoute('/$name/registry')({
   component: RouteComponent,
@@ -138,7 +139,7 @@ function RouteComponent() {
             <>
               {/* Parent top row */}
               <div className="flex flex-col gap-4">
-                <h2 className="text-xl font-semibold">Parent registry</h2>
+                <h2 className="text-[26px] font-semibold">Parent registry</h2>
                 <RegistryCardsGrid
                   label={getParentName(name) || 'eth'}
                   owner={{
@@ -160,6 +161,7 @@ function RouteComponent() {
                   factory,
                 }}
               />
+              <NameHistory name={name} category="registration" />
             </>
           ))}
       </div>
@@ -183,7 +185,7 @@ function RouteComponent() {
             <>
               {/* Parent top row */}
               <div className="flex flex-col gap-4">
-                <h2 className="text-xl font-semibold">Parent registry</h2>
+                <h2 className="text-[26px] font-semibold">Parent registry</h2>
                 <RegistryCardsGrid
                   label={getParentName(name) || 'eth'}
                   owner={{
@@ -205,6 +207,7 @@ function RouteComponent() {
                   factory,
                 }}
               />
+              <NameHistory name={name} category="registration" />
             </>
           ))}
       </div>
@@ -269,7 +272,7 @@ function RouteComponent() {
         ) : (
           <>
             <div className="flex flex-col gap-4">
-              <h2 className="text-xl font-semibold">Parent registry</h2>
+              <h2 className="text-[26px] font-semibold">Parent registry</h2>
               <RegistryCardsGrid
                 label={getParentName(name) || 'eth'}
                 owner={{
@@ -293,6 +296,7 @@ function RouteComponent() {
                 factory,
               }}
             />
+            <NameHistory name={name} category="registration" />
           </>
         ))}
     </div>

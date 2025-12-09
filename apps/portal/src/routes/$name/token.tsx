@@ -38,7 +38,7 @@ const ContractInfo = ({
   tokenStandard: 'ERC-1155' | 'ERC-721'
 }) => {
   return (
-    <div className="flex border border-gray-200 rounded-lg w-full p-6 gap-6 flex-wrap">
+    <div className="flex border border-gray-300 rounded-lg w-full p-6 gap-6 flex-wrap">
       <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
         <Label info="The address of the contract that owns the name">
           Contract
@@ -160,7 +160,7 @@ function RouteComponent() {
         ) : (
           <TokenV2Name name={name} />
         )}
-        <div className="flex border border-gray-200 rounded-lg flex-col">
+        <div className="flex border border-gray-300 rounded-lg flex-col">
           <div className="flex flex-col w-full p-6 gap-6">
             <h2 className="font-medium text-2xl">Normalization</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -170,7 +170,7 @@ function RouteComponent() {
                   {parts.map((label, idx) => (
                     <>
                       <span
-                        className="px-1 py-2 font-mono border border-gray-200 rounded-sm"
+                        className="px-1 py-2 font-mono border border-gray-300 rounded-sm"
                         key={String.fromCodePoint(...label.input)}
                       >
                         {String.fromCodePoint(...label.input)}
