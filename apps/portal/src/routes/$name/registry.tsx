@@ -139,7 +139,7 @@ function RouteComponent() {
             <>
               {/* Parent top row */}
               <div className="flex flex-col gap-4">
-                <h2 className="text-[26px] font-semibold">Parent registry</h2>
+                <h2 className="text-[26px]">Parent registry</h2>
                 <RegistryCardsGrid
                   label={getParentName(name) || 'eth'}
                   owner={{
