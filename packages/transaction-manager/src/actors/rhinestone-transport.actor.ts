@@ -1,5 +1,5 @@
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
-import type { Hash, Hex, PublicClient } from 'viem'
+import type { Hash, PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import { TransactionSubmissionError } from '../errors/transaction.errors'
 import type { RhinestoneSigner } from '../types/signer.types'
@@ -87,26 +87,20 @@ export function submitRhinestoneTransaction(input: {
       console.log('✅ Transaction response:', transaction)
 
       // Rhinestone returns an "intent" object with an 'id' property, not 'hash'
-      const txHash = transaction.hash || transaction.id
+      const txHash = transaction.hash
 
       console.log('✅ Transaction hash/id:', txHash)
       console.log('✅ Transaction type:', transaction.type)
 
-      if (!transaction || (!transaction.hash && !transaction.id)) {
+      if (!transaction || !transaction.hash) {
         console.error('❌ No transaction hash or ID returned!', transaction)
         throw new Error(
           'No transaction hash or ID returned from Rhinestone SDK',
         )
       }
 
-      // Convert the bigint ID to a hex string if needed
-      const hashAsHex =
-        typeof txHash === 'bigint'
-          ? (`0x${txHash.toString(16).padStart(64, '0')}` as Hex)
-          : (txHash as Hex)
-
-      console.log('✅ Final hash:', hashAsHex)
-      return hashAsHex
+      console.log('✅ Final hash:', txHash)
+      return txHash
     })(),
     (error) => {
       console.error(

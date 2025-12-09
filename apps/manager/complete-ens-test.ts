@@ -23,8 +23,9 @@
  * - Ready for integration into your app
  */
 
-import { RhinestoneSDK } from '@rhinestone/sdk'
+import { type RhinestoneAccount, RhinestoneSDK } from '@rhinestone/sdk'
 import {
+  type Chain,
   createPublicClient,
   createWalletClient,
   encodeFunctionData,
@@ -553,8 +554,8 @@ async function fundRhinestoneAccount(smartAccountAddress: string) {
  * This uses the intent-based API instead of user operations
  */
 async function submitSponsoredTransaction(
-  rhinestoneAccount: any,
-  chain: any,
+  rhinestoneAccount: RhinestoneAccount,
+  chain: Chain,
   calls: Array<{ to: `0x${string}`; data: `0x${string}`; value: bigint }>,
 ): Promise<string | null> {
   console.log('💰 Preparing sponsored transaction (intent-based)...', {
@@ -594,7 +595,7 @@ async function submitSponsoredTransaction(
 
   // Extract transaction hash/ID from result
   // TransactionResult has type 'intent' with id property
-  const txHash = transactionResult?.hash || transactionResult?.id
+  const txHash = transactionResult?.id
 
   if (!txHash) {
     throw new Error('No transaction hash or ID returned from Rhinestone SDK')
