@@ -1,4 +1,4 @@
-import { AlertCircle, ExternalLink } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { PricingDuration } from '@/features/register/components/Pricing/types'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
@@ -38,16 +38,9 @@ export const PricingPaymentSection = ({
   onCryptoSelect,
   onConfirmPayment,
 }: PricingPaymentSectionProps) => {
-  const {
-    smartAccountEthBalance,
-    isLoadingSmartAccountEth,
-    stablecoinBalances,
-    isLoadingBalances,
-  } = useRhinestoneAccount()
+  const { isLoadingSmartAccountEth, stablecoinBalances, isLoadingBalances } =
+    useRhinestoneAccount()
 
-  const hasEth = smartAccountEthBalance
-    ? BigInt(smartAccountEthBalance.balance) > 0n
-    : false
   const hasStablecoins =
     (stablecoinBalances?.length || 0) > 0 &&
     stablecoinBalances?.some((balance) => BigInt(balance.balance) > 0n)
@@ -69,36 +62,12 @@ export const PricingPaymentSection = ({
     )
   }
 
-  const showNoEthError = !isLoadingBalancesCheck && !hasEth
-  const showNoStablecoinError =
-    !isLoadingBalancesCheck && hasEth && !hasStablecoins
+  const showNoStablecoinError = !isLoadingBalancesCheck && !hasStablecoins
 
-  const disableBothButtons = showNoEthError
   const disableCryptoButton = showNoStablecoinError
 
   return (
     <div className="flex flex-col gap-3">
-      {showNoEthError && (
-        <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3">
-          <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
-          <div className="flex-1">
-            <p className="text-red-800 text-sm">
-              Insufficient funds. You don't have enough Sepolia ETH in your
-              wallet.{' '}
-              <a
-                href="https://sepoliafaucet.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 font-medium underline hover:text-red-900"
-              >
-                Alchemy Sepolia Faucet
-                <ExternalLink className="size-3" />
-              </a>
-            </p>
-          </div>
-        </div>
-      )}
-
       {showNoStablecoinError && (
         <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3">
           <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
@@ -116,7 +85,7 @@ export const PricingPaymentSection = ({
         duration={selectedDuration}
         priceUSD={isPriceLoading ? 0 : priceUSD}
         isLoading={isLoading}
-        disabled={disableBothButtons || disableCryptoButton}
+        disabled={disableCryptoButton}
         onPaymentSelect={onPaymentSelect}
         onCryptoSelect={onCryptoSelect}
         onConfirmPayment={onConfirmPayment}
@@ -126,7 +95,7 @@ export const PricingPaymentSection = ({
         domainName={domainName}
         duration={selectedDuration}
         priceUSD={isPriceLoading ? 0 : priceUSD}
-        disabled={disableBothButtons}
+        disabled={false}
         onPaymentSelect={onPaymentSelect}
       />
     </div>

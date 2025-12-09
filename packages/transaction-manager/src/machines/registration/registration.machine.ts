@@ -49,6 +49,7 @@ export type RegistrationContext = {
   selectedToken: 'USDC' | 'DAI'
   tokenPrice: bigint
   useFastRegistrar: boolean
+  sponsored?: boolean
 
   // Flow state
   commitment?: CommitmentData
@@ -72,6 +73,7 @@ export type RegistrationEvent =
       accountAddress: Address
       publicClient: PublicClient
       useFastRegistrar?: boolean
+      sponsored?: boolean
     }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
@@ -122,6 +124,7 @@ export const registrationMachine = setup({
         duration: bigint
         publicClient: PublicClient
         useFastRegistrar: boolean
+        sponsored?: boolean
       }) => {
         return submitCommitmentActor(input)
       },
@@ -133,6 +136,7 @@ export const registrationMachine = setup({
         signer: Signer
         publicClient: PublicClient
         useFastRegistrar: boolean
+        sponsored?: boolean
       }) => {
         return submitApprovalActor(input)
       },
@@ -147,6 +151,7 @@ export const registrationMachine = setup({
         owner: Address
         publicClient: PublicClient
         useFastRegistrar: boolean
+        sponsored?: boolean
       }) => {
         return submitRegistrationActor(input)
       },
@@ -252,6 +257,7 @@ export const registrationMachine = setup({
             publicClient: ({ event }) => event.publicClient,
             registerReadyTimestamp: () => undefined,
             useFastRegistrar: ({ event }) => Boolean(event.useFastRegistrar),
+            sponsored: ({ event }) => event.sponsored ?? true,
           }),
         },
       },
@@ -328,6 +334,7 @@ export const registrationMachine = setup({
           duration: context.duration,
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
+          sponsored: context.sponsored,
         }),
         onDone: {
           target: 'waitingForCommitment',
@@ -461,6 +468,7 @@ export const registrationMachine = setup({
           signer: context.signer!,
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
+          sponsored: context.sponsored,
         }),
         onDone: {
           target: 'waitingForApproval',
@@ -527,6 +535,7 @@ export const registrationMachine = setup({
           owner: context.accountAddress!,
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
+          sponsored: context.sponsored,
         }),
         onDone: {
           target: 'waitingForRegistration',

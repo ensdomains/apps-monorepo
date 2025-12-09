@@ -1,3 +1,5 @@
+import type { RhinestoneAccount } from '@rhinestone/sdk'
+import type { SmartAccountClient } from 'permissionless'
 import type { WalletClient } from 'viem'
 import type { RhinestoneConfig } from './transaction.types'
 
@@ -18,10 +20,22 @@ export interface EOASigner {
 
 /**
  * Rhinestone Smart Account Signer
+ * Uses Rhinestone SDK account
  */
 export interface RhinestoneSigner {
   type: 'rhinestone'
-  account: any // RhinestoneAccount from @rhinestone/sdk
+  account: RhinestoneAccount // RhinestoneAccount from @rhinestone/sdk
+  config: RhinestoneConfig
+}
+
+/**
+ * Pimlico Smart Account Signer
+ * Uses permissionless SmartAccountClient with Para + Pimlico
+ * The account is created in useRhinestoneAccount hook
+ */
+export interface PimlicoSigner {
+  type: 'pimlico'
+  account: SmartAccountClient // SmartAccountClient from permissionless (created in hook)
   config: RhinestoneConfig
 }
 
@@ -61,6 +75,7 @@ export interface SafeSigner {
 export type Signer =
   | EOASigner
   | RhinestoneSigner
+  | PimlicoSigner
   | ERC4337Signer
   | PrivySigner
   | SafeSigner
@@ -77,6 +92,13 @@ export function isEOASigner(signer: Signer): signer is EOASigner {
  */
 export function isRhinestoneSigner(signer: Signer): signer is RhinestoneSigner {
   return signer.type === 'rhinestone'
+}
+
+/**
+ * Type guard to check if signer is Pimlico
+ */
+export function isPimlicoSigner(signer: Signer): signer is PimlicoSigner {
+  return signer.type === 'pimlico'
 }
 
 /**

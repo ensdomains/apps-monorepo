@@ -3,6 +3,7 @@ import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Hash, PublicClient, TransactionReceipt } from 'viem'
 import { assign, fromPromise as fromPromiseXState, setup } from 'xstate'
 import { submitEOATransaction } from '../actors/eoa-transport.actor'
+import { submitPimlicoTransaction } from '../actors/plimlico-transport.actor'
 import { prepareTransaction } from '../actors/prepare-transaction.actor'
 import { submitRhinestoneTransaction } from '../actors/rhinestone-transport.actor'
 import {
@@ -159,6 +160,13 @@ export const transactionMachine = setup({
 
           case 'rhinestone':
             return submitRhinestoneTransaction({
+              request,
+              signer,
+              publicClient,
+            })
+
+          case 'pimlico':
+            return submitPimlicoTransaction({
               request,
               signer,
               publicClient,

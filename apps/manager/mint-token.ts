@@ -13,7 +13,8 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { customSepolia, SEPOLIA_RPC_URL } from './src/lib/wagmi'
 
 // Configuration
-const RHINESTONE_ACCOUNT: Address = '' as Address // Replace with the actual Rhinestone account address
+const SMART_ACCOUNT: Address =
+  '0xC260ad10Dc178b43d8DdE30CC165350053e13863' as Address // Replace with the actual Rhinestone account address
 const MINT_AMOUNT = parseUnits('1000', 18) // 1000 tokens (DAI has 18 decimals)
 const USDC_MINT_AMOUNT = parseUnits('1000', 6) // 1000 USDC (USDC has 6 decimals)
 
@@ -88,7 +89,7 @@ async function mintTokens(): Promise<void> {
 
   const walletAddress = account.address
   console.log(`🔑 Using wallet: ${walletAddress}`)
-  console.log(`🎯 Minting tokens to: ${RHINESTONE_ACCOUNT}`)
+  console.log(`🎯 Minting tokens to: ${SMART_ACCOUNT}`)
   console.log('')
 
   try {
@@ -111,7 +112,7 @@ async function mintTokens(): Promise<void> {
       address: MOCK_DAI_ADDRESS,
       abi: ERC20_ABI,
       functionName: 'mint',
-      args: [RHINESTONE_ACCOUNT, MINT_AMOUNT],
+      args: [SMART_ACCOUNT, MINT_AMOUNT],
     })
 
     console.log(`📝 DAI mint transaction: ${daiTxHash}`)
@@ -128,7 +129,7 @@ async function mintTokens(): Promise<void> {
       address: MOCK_USDC_ADDRESS,
       abi: ERC20_ABI,
       functionName: 'mint',
-      args: [RHINESTONE_ACCOUNT, USDC_MINT_AMOUNT],
+      args: [SMART_ACCOUNT, USDC_MINT_AMOUNT],
     })
 
     console.log(`📝 USDC mint transaction: ${usdcTxHash}`)
@@ -147,14 +148,14 @@ async function mintTokens(): Promise<void> {
       address: MOCK_DAI_ADDRESS,
       abi: ERC20_ABI,
       functionName: 'balanceOf',
-      args: [RHINESTONE_ACCOUNT],
+      args: [SMART_ACCOUNT],
     })
 
     const usdcBalance = await publicClient.readContract({
       address: MOCK_USDC_ADDRESS,
       abi: ERC20_ABI,
       functionName: 'balanceOf',
-      args: [RHINESTONE_ACCOUNT],
+      args: [SMART_ACCOUNT],
     })
 
     console.log(`🪙 DAI balance: ${formatUnits(daiBalance, 18)}`)
@@ -162,7 +163,7 @@ async function mintTokens(): Promise<void> {
 
     console.log('')
     console.log('🎉 Token minting completed successfully!')
-    console.log(`📍 Rhinestone account: ${RHINESTONE_ACCOUNT}`)
+    console.log(`📍 Rhinestone account: ${SMART_ACCOUNT}`)
   } catch (error) {
     console.error('❌ Error minting tokens:', error)
 

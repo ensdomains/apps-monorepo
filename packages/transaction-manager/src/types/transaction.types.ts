@@ -1,4 +1,11 @@
-import type { Address, Chain, Hash, Hex, TransactionReceipt } from 'viem'
+import type {
+  Address,
+  Chain,
+  Hash,
+  Hex,
+  TransactionReceipt,
+  WalletClient,
+} from 'viem'
 
 export type TransactionType = 'eoa' | 'erc4337' | 'rhinestone-intent'
 
@@ -31,7 +38,7 @@ export interface ERC4337UserOperation extends BaseTransactionRequest {
   paymasterAndData?: Hex
   signature?: Hex
   entryPoint: Address
-  [key: string]: unknown // Index signature for bundler compatibility
+  [key: string]: unknown
 }
 
 export interface RhinestoneCall {
@@ -44,6 +51,7 @@ export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
   type: 'rhinestone-intent'
   rhinestoneParams: {
     calls: RhinestoneCall[]
+    sponsored?: boolean
   }
 }
 
@@ -79,12 +87,19 @@ export type TransactionIntent =
   | ETHTransferTransactionIntent
   | CustomTransactionIntent
 
+// TODO: Rename to SmartAccountConfig for clarity and consistency
+// Im thinking to create a helper so we can decide which config to use, rhinestone or pimlico
 export interface RhinestoneConfig {
   chain?: Chain
   bundlerUrl?: string
   paymasterUrl?: string
   sponsorshipPolicyId?: string
   rhinestoneApiKey?: string
+  pimlicoApiKey?: string
+  walletClient?: WalletClient
+  accountAddress?: Address
+  accountType?: 'simple' | 'hca'
+  hcaFactoryAddress?: Address
 }
 
 export interface TransactionOptions {

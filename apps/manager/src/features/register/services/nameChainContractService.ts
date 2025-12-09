@@ -81,22 +81,8 @@ export const generateCommitment = async (
 export const commitToRegistration = async (
   commitment: Hex,
   sendTransaction: (calls: any[]) => Promise<RhinestoneTransactionResult>,
-  smartAccountAddress: Address,
 ): Promise<Result<RhinestoneTransactionResult, NameChainContractError>> => {
   try {
-    // Check smart account ETH balance before committing
-    const ethBalance = await publicClient.getBalance({
-      address: smartAccountAddress,
-    })
-
-    if (ethBalance === 0n) {
-      return err(
-        new NameChainContractError({
-          cause: `Smart account needs ETH for gas. Send Sepolia ETH to: ${smartAccountAddress}`,
-        }),
-      )
-    }
-
     const commitData = encodeFunctionData({
       abi: FASTTESTETHREGISTRAR_ABI,
       functionName: 'commit',

@@ -41,9 +41,7 @@ const UserMenuContent = ({
   accountAddress,
   isLoading,
   stablecoinBalances,
-  eoaEthBalance,
   smartAccountEthBalance,
-  isLoadingEoaEth,
   isLoadingSmartAccountEth,
   rhinestoneAccount,
   error,
@@ -61,9 +59,7 @@ const UserMenuContent = ({
   stablecoinBalances:
     | Array<{ address: string; symbol: string; formattedBalance?: string }>
     | undefined
-  eoaEthBalance: { formattedBalance: string } | null | undefined
   smartAccountEthBalance: { formattedBalance: string } | null | undefined
-  isLoadingEoaEth: boolean
   isLoadingSmartAccountEth: boolean
   rhinestoneAccount: unknown
   error: string | null
@@ -105,40 +101,6 @@ const UserMenuContent = ({
             )}
           </div>
         </div>
-
-        {/* EOA Address and Balance - Only show if NOT using smart account auth */}
-        {address && !account?.embedded?.isConnected && (
-          <div className="mb-4">
-            <div className="mb-2 font-medium text-ens-blue-midnight text-xs uppercase tracking-wide">
-              EOA Address
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg border border-ens-blue-light bg-ens-lapis-dust p-3">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-ens-blue-dark text-sm">
-                  {`${address.slice(0, 6)}...${address.slice(-4)}`}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleCopyAddress(address)}
-                  className="rounded p-1 text-ens-blue transition-colors hover:bg-ens-blue-light"
-                >
-                  <Copy className="size-4" />
-                </button>
-              </div>
-              {eoaEthBalance && (
-                <span className="font-bold text-ens-blue-dark text-sm">
-                  {eoaEthBalance.formattedBalance}
-                </span>
-              )}
-              {isLoadingEoaEth && (
-                <span className="text-ens-blue-midnight text-sm">
-                  Loading...
-                </span>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Rhinestone Smart Account Information */}
         {(isLoading || rhinestoneAccount || accountAddress) && (
@@ -261,9 +223,7 @@ const ConnectedContent = () => {
     accountAddress,
     isLoading,
     stablecoinBalances,
-    eoaEthBalance,
     smartAccountEthBalance,
-    isLoadingEoaEth,
     isLoadingSmartAccountEth,
     error,
     isAutoFunding,
@@ -397,9 +357,7 @@ const ConnectedContent = () => {
     accountAddress,
     isLoading,
     stablecoinBalances,
-    eoaEthBalance,
     smartAccountEthBalance,
-    isLoadingEoaEth,
     isLoadingSmartAccountEth,
     rhinestoneAccount,
     error,

@@ -1,99 +1,89 @@
 'use client'
 
-import { type RhinestoneAccount, RhinestoneSDK } from '@rhinestone/sdk'
+import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import {
+  useClient as useParaClient,
+  useWallet as useParaWallet,
+} from '@getpara/react-sdk-lite'
+import { createParaAccount } from '@getpara/viem-v2-integration'
 import { useQuery } from '@tanstack/react-query'
-import { useCallback, useEffect, useState } from 'react'
-import { type Address, createPublicClient, formatUnits, http } from 'viem'
-import { sepolia } from 'viem/chains'
-import { useConnection, useWalletClient } from 'wagmi'
+import {
+  createSmartAccountClient,
+  type SmartAccountClient,
+} from 'permissionless'
+import { toSimpleSmartAccount } from 'permissionless/accounts'
+import { createPimlicoClient } from 'permissionless/clients/pimlico'
+import { toOwner } from 'permissionless/utils'
+import { useEffect, useRef, useState } from 'react'
+import { type Address, formatUnits, http } from 'viem'
+import { entryPoint07Address } from 'viem/account-abstraction'
+import { useWalletClient } from 'wagmi'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
+import { customSepolia, publicClient } from '@/lib/wagmi'
 import { ERC20_ABI } from '../ens.abi'
-import { walletClientToAccount, wrapParaAccount } from './rhinestone-utils'
-import { getTxHashResult } from './utils'
+import { wrapParaAccount } from './utils'
 
-const SEPOLIA_RPC_URL = 'https://ethereum-sepolia-rpc.publicnode.com'
+export type WalletSource = 'para-embedded' | 'external-wallet' | null
 
-export const customSepolia = {
-  ...sepolia,
-  rpcUrls: {
-    default: {
-      http: [SEPOLIA_RPC_URL],
-    },
-    public: {
-      http: [SEPOLIA_RPC_URL],
-    },
-  },
-}
-const publicClient = createPublicClient({
-  chain: customSepolia,
-  transport: http(SEPOLIA_RPC_URL),
-})
-
-export interface RhinestoneAccountState {
-  rhinestoneAccount: RhinestoneAccount | null
+export interface SmartAccountState {
+  smartAccountClient: SmartAccountClient | null
   accountAddress: string | null
   isLoading: boolean
   error: string | null
-  rhinestoneConfig: any | null
 }
 
-export function useRhinestoneAccount() {
-  const account = useConnection()
-  const { data: walletClient } = useWalletClient()
+export interface UseSmartAccountConfig {
+  accountType?: 'simple' | 'hca'
+  hcaFactoryAddress?: Address
+}
 
-  const [state, setState] = useState<RhinestoneAccountState>({
-    rhinestoneAccount: null,
+export function useSmartAccount(config?: UseSmartAccountConfig) {
+  const accountType = config?.accountType || 'simple'
+  const hcaFactoryAddress =
+    config?.hcaFactoryAddress || ENS_SEPOLIA_CONTRACTS.HCAFactory
+
+  const paraClient = useParaClient()
+  const { data: paraWallet } = useParaWallet()
+  const { data: wagmiWalletClient } = useWalletClient()
+
+  const wagmiAddress = wagmiWalletClient?.account?.address
+  const hasWagmi = !!wagmiAddress
+  const hasPara = !paraWallet?.isExternal && !!paraWallet && !!paraClient
+
+  const walletSource: WalletSource =
+    paraWallet?.isExternal && hasWagmi
+      ? 'external-wallet'
+      : hasPara
+        ? 'para-embedded'
+        : null
+
+  const isReady = (paraWallet?.isExternal && hasWagmi) || hasPara
+
+  const [state, setState] = useState<SmartAccountState>({
+    smartAccountClient: null,
     accountAddress: null,
     isLoading: false,
     error: null,
-    rhinestoneConfig: null,
   })
 
-  // ETH Balance for EOA
-  const { data: eoaEthBalance, isLoading: isLoadingEoaEth } = useQuery({
-    queryKey: ['eoaEthBalance', account.address],
-    queryFn: async () => {
-      if (!account.address) return null
-      try {
-        const balance = await publicClient.getBalance({
-          address: account.address as Address,
-        })
-        return {
-          balance: balance.toString(),
-          formattedBalance: `${parseFloat(formatUnits(balance, 18)).toFixed(4)} ETH`,
-        }
-      } catch (_error) {
-        return null
-      }
-    },
-    enabled: account.isConnected && !!account.address,
-    refetchInterval: 30000,
-    retry: 1,
-    retryDelay: 5000,
-  })
+  // prevent multiple initializations
+  const initializedRef = useRef<string | null>(null)
 
-  // ETH Balance for Smart Account
   const { data: smartAccountEthBalance, isLoading: isLoadingSmartAccountEth } =
     useQuery({
       queryKey: ['smartAccountEthBalance', state.accountAddress],
       queryFn: async () => {
         if (!state.accountAddress) return null
-        try {
-          const balance = await publicClient.getBalance({
-            address: state.accountAddress as Address,
-          })
-          return {
-            balance: balance.toString(),
-            formattedBalance: `${parseFloat(formatUnits(balance, 18)).toFixed(4)} ETH`,
-          }
-        } catch (_error) {
-          return null
+        const balance = await publicClient.getBalance({
+          address: state.accountAddress as Address,
+        })
+        return {
+          balance: balance.toString(),
+          formattedBalance: `${parseFloat(formatUnits(balance, 18)).toFixed(4)} ETH`,
         }
       },
-      enabled: account.isConnected && !!state.accountAddress,
+      enabled: !!state.accountAddress,
       refetchInterval: 30000,
-      retry: 1,
-      retryDelay: 5000,
     })
 
   const { data: stablecoinBalances = [], isLoading: isLoadingBalances } =
@@ -101,205 +91,147 @@ export function useRhinestoneAccount() {
       queryKey: ['stablecoinBalances', state.accountAddress],
       queryFn: async () => {
         if (!state.accountAddress) return []
-
-        try {
-          const balances = []
-
-          // Fetch balances for all supported tokens
-          for (const [tokenName, tokenAddress] of Object.entries(
-            SUPPORTED_TOKENS,
-          )) {
-            try {
-              const balance = await publicClient.readContract({
-                address: tokenAddress,
-                abi: ERC20_ABI,
-                functionName: 'balanceOf',
-                args: [state.accountAddress as Address],
-              })
-
-              const decimals = await publicClient.readContract({
-                address: tokenAddress,
-                abi: ERC20_ABI,
-                functionName: 'decimals',
-              })
-
-              balances.push({
-                address: tokenAddress,
-                symbol: tokenName,
-                balance: balance.toString(),
-                formattedBalance: `${formatUnits(balance, decimals)} ${tokenName}`,
-              })
-            } catch (_error) {
-              console.error(`Failed to fetch ${tokenName} balance:`, _error)
-              // Continue with other tokens
-            }
+        const balances = []
+        for (const [tokenName, tokenAddress] of Object.entries(
+          SUPPORTED_TOKENS,
+        )) {
+          try {
+            const balance = await publicClient.readContract({
+              address: tokenAddress,
+              abi: ERC20_ABI,
+              functionName: 'balanceOf',
+              args: [state.accountAddress as Address],
+            })
+            const decimals = await publicClient.readContract({
+              address: tokenAddress,
+              abi: ERC20_ABI,
+              functionName: 'decimals',
+            })
+            balances.push({
+              address: tokenAddress,
+              symbol: tokenName,
+              balance: balance.toString(),
+              formattedBalance: `${formatUnits(balance, decimals)} ${tokenName}`,
+            })
+          } catch {
+            // Skip failed fetches
           }
-
-          return balances
-        } catch (_error) {
-          return []
         }
+        return balances
       },
-      enabled: account.isConnected && !!state.accountAddress,
+      enabled: !!state.accountAddress,
       refetchInterval: 30000,
-      retry: 1,
-      retryDelay: 5000,
     })
 
-  const initializeRhinestoneAccount = useCallback(async () => {
-    // Check wallet connection and availability of a signing wallet client
-    const hasWagmiAccount = Boolean((walletClient as any)?.account)
-    if (!account.isConnected || !walletClient || !hasWagmiAccount) {
-      console.log('❌ Rhinestone initialization skipped - wallet not connected')
-      setState((prev) => ({
-        ...prev,
-        rhinestoneAccount: null,
-        accountAddress: null,
-        rhinestoneConfig: null,
-        error: null,
-      }))
-      return
-    }
+  useEffect(() => {
+    const init = async () => {
+      if (!isReady) return
 
-    setState((prev) => ({ ...prev, isLoading: true, error: null }))
+      const key =
+        walletSource === 'external-wallet'
+          ? `external-${wagmiAddress}`
+          : `para-${paraClient?.toString()}`
 
-    try {
-      const apiKey = import.meta.env.VITE_RHINESTONE_API_KEY
+      if (initializedRef.current === key) return
 
-      if (!apiKey) {
-        throw new Error(
-          '❌ Rhinestone API key not configured in environment variables',
-        )
-      }
-
-      // Convert walletClient to account (guaranteed present above)
-      const account = walletClientToAccount(walletClient)
-
-      // Wrap the account for Para compatibility
-      const wrappedAccount = wrapParaAccount(account)
-
-      const sdk = new RhinestoneSDK({
-        apiKey,
-        bundler: {
-          type: 'pimlico',
-          apiKey: import.meta.env.VITE_PIMLICO_API_KEY,
-        },
-      })
-
-      // const sessionOwnerAccount = privateKeyToAccount(generatePrivateKey())
-
-      // // create session owner account
-      // const session: Session = {
-      //   owners: {
-      //     type: 'ecdsa',
-      //     accounts: [sessionOwnerAccount],
-      //   }
-
-      // }
-
-      // Create smart account with the appropriate account (Para wrapped or direct)
-      const rhinestoneAccount = await sdk.createAccount({
-        owners: {
-          type: 'ecdsa' as const,
-          accounts: [wrappedAccount],
-        },
-      })
-
-      const accountAddress = rhinestoneAccount.getAddress()
-
-      const rhinestoneConfig = {
-        chain: customSepolia,
-        bundlerUrl: undefined, // Pimlico URL managed internally by SDK
-        paymasterUrl: undefined,
-        sponsorshipPolicyId: undefined,
-        rhinestoneApiKey: apiKey,
-      }
-
-      setState((prev) => ({
-        ...prev,
-        rhinestoneAccount,
-        accountAddress,
-        rhinestoneConfig,
-        isLoading: false,
-        error: null,
-      }))
-    } catch (error) {
-      console.error('Failed to initialize Rhinestone account:', error)
-
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        error: String(error),
-      }))
-    }
-  }, [account.isConnected, walletClient])
-
-  const sendTransaction = useCallback(
-    async (calls: any[]): Promise<any> => {
-      if (!state.rhinestoneAccount) {
-        throw new Error('Rhinestone account not initialized')
-      }
+      setState((prev) => ({ ...prev, isLoading: true, error: null }))
 
       try {
-        console.log('🚀 Sending transaction with calls:', calls)
+        const PIMLICO_API_KEY = import.meta.env.VITE_PIMLICO_API_KEY
+        if (!PIMLICO_API_KEY) throw new Error('Pimlico API key not configured')
 
-        const result = await state.rhinestoneAccount.sendUserOperation({
-          chain: customSepolia,
-          calls: calls,
-        })
+        const PIMLICO_URL = `https://api.pimlico.io/v2/${customSepolia.id}/rpc?apikey=${PIMLICO_API_KEY}`
 
-        console.log('📋 Transaction result:', result)
-        console.log('📋 Result keys:', Object.keys(result || {}))
+        let ownerAccount: Parameters<typeof toSimpleSmartAccount>[0]['owner']
 
-        if (!result) {
-          throw new Error(
-            'Transaction returned null - transaction may have failed',
+        if (walletSource === 'external-wallet' && wagmiWalletClient) {
+          ownerAccount = await toOwner({ owner: wagmiWalletClient })
+        } else if (walletSource === 'para-embedded' && paraClient) {
+          ownerAccount = wrapParaAccount(
+            createParaAccount(paraClient),
+          ) as typeof ownerAccount
+        } else {
+          throw new Error('No valid wallet connection')
+        }
+
+        // TODO: HCA support
+        if (accountType === 'hca') {
+          console.warn(
+            'HCA not implemented. Using SimpleAccount. Factory:',
+            hcaFactoryAddress,
           )
         }
 
-        const txHash = getTxHashResult(result)
+        const smartAccount = await toSimpleSmartAccount({
+          owner: ownerAccount,
+          client: publicClient,
+          entryPoint: { address: entryPoint07Address, version: '0.7' },
+        })
 
-        console.log('✅ Transaction submitted:', txHash)
+        const pimlicoClient = createPimlicoClient({
+          transport: http(PIMLICO_URL),
+          entryPoint: { address: entryPoint07Address, version: '0.7' },
+        })
 
-        console.log('⏳ Waiting for transaction execution...')
-        const executionResult =
-          await state.rhinestoneAccount.waitForExecution(result)
-        console.log('✅ Transaction execution confirmed!', executionResult)
+        const client = createSmartAccountClient({
+          account: smartAccount,
+          chain: customSepolia,
+          bundlerTransport: http(PIMLICO_URL),
+          paymaster: pimlicoClient,
+          userOperation: {
+            estimateFeesPerGas: async () =>
+              (await pimlicoClient.getUserOperationGasPrice()).fast,
+          },
+        })
 
-        if (executionResult && (executionResult as any).status === 'reverted') {
-          throw new Error('Transaction was reverted')
-        }
+        initializedRef.current = key
 
-        return {
-          transaction: result,
-          result: executionResult,
-          fillTransactionHash: txHash,
-        }
+        setState({
+          smartAccountClient: client,
+          accountAddress: smartAccount.address,
+          isLoading: false,
+          error: null,
+        })
       } catch (error) {
-        console.error('Transaction failed:', error)
-        throw error
+        console.error('Failed to initialize smart account:', error)
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          error: error instanceof Error ? error.message : String(error),
+        }))
       }
-    },
-    [state.rhinestoneAccount],
-  )
+    }
 
-  useEffect(() => {
-    initializeRhinestoneAccount()
-  }, [initializeRhinestoneAccount])
+    init()
+  }, [
+    walletSource,
+    wagmiWalletClient,
+    wagmiAddress,
+    paraClient,
+    isReady,
+    accountType,
+    hcaFactoryAddress,
+  ])
 
   return {
     ...state,
+    // TODO: Implement auto funding
+    isAutoFunding: false,
+    autoFundingError: null,
     address: state.accountAddress,
-    isConnected:
-      account.isConnected &&
-      !!state.accountAddress &&
-      !!state.rhinestoneAccount,
-    sendTransaction,
+    isConnected: isReady && !!state.smartAccountClient,
     stablecoinBalances,
     isLoadingBalances,
-    eoaEthBalance,
     smartAccountEthBalance,
-    isLoadingEoaEth,
     isLoadingSmartAccountEth,
+    walletSource,
+    ownerAddress: walletSource === 'external-wallet' ? wagmiAddress : null,
+    // Backward compatibility, we keep this for backward compatibility
+    rhinestoneAccount: state.smartAccountClient,
+    rhinestoneConfig: { chain: customSepolia, accountType },
   }
 }
+
+// TODO: Remove this once we have a proper useRhinestoneAccount hook
+export const useRhinestoneAccount = useSmartAccount
+export const useParaPimlicoAccount = useSmartAccount

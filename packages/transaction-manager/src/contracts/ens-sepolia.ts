@@ -10,10 +10,22 @@ export const ENS_SEPOLIA_CONTRACTS = {
   // Universal Resolver
   UniversalResolver: '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce' as const,
   // L2 Registration-specific contracts (V2 deployment)
-  ETHRegistry: '0x0f3eb298470639a96bd548cea4a648bc80b2cee2' as const,
+  ETHRegistry: '0xf332544e6234f1ca149907d0d4658afd5feb6831' as const,
   ETHRegistrar: '0x774faadcd7e8c4b7441aa2927f10845fea083ea1' as const,
   // V2 Fast Registrar - no commitment wait time required
   FastTestETHRegistrar: '0x3334f0ebcbc4b5b7067f3aff25c6da8973690d54' as const,
+  DedicatedResolverImpl: '0xa20b41dc7336c4d974e3c9a6ea01b77647559c46' as const,
+  // Additional contracts
+  BridgeController: '0xbb84d5d658bbdb48bf99689f3a14f780ab2f9220' as const,
+  DedicatedResolver: '0xa20b41dc7336c4d974e3c9a6ea01b77647559c46' as const,
+  HCAFactory: '0x6a20c7f050f31f4b4cb1eaf060849629be10e6a1' as const,
+  MockBridge: '0xbcacc7702593e79e23f697505465b8fb344a9961' as const,
+  RegistryDatastore: '0xe82b3bef599d45806fcce747df176808ff6244cf' as const,
+  SimpleRegistryMetadata: '0x30eb652ab8498ee8b90e4a0553b31ed7d1c924cd' as const,
+  StandardRentPriceOracle:
+    '0x8067e4771d9599ba5f33fcab8d05ee18ac505b23' as const,
+  UserRegistry: '0x8cfbf4a6b3f546021b9f8e6099bda2cb0297cd25' as const,
+  VerifiableFactory: '0xb9541bdd86c4d01c726a33694f14e8528adcb20d' as const,
 } as const
 
 // Payment tokens

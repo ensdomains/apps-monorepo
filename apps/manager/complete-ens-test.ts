@@ -6,7 +6,7 @@
  * This single file contains everything needed to test ENS registration:
  * 1. Account creation and funding using Rhinestone SDK v1.0.2
  * 2. Token minting and balance checking
- * 3. Complete ENS registration flow with Pimlico bundler
+ * 3. Complete ENS registration flow using sponsored intents (not user operations)
  * 4. Comprehensive testing and error handling
  *
  * Usage:
@@ -14,16 +14,18 @@
  * 3. Run: npx tsx complete-ens-test.ts
  *
  * Features:
- * - Uses Rhinestone SDK v1.0.2 with Pimlico bundler
+ * - Uses Rhinestone SDK v1.0.2 with sponsored intents (intent-based transactions)
  * - Uses FastTestETHRegistrar (no commit time)
  * - Supports ERC20 token payments (USDC/DAI)
  * - Automatic account funding with balance checking
  * - Complete error handling and helpful messages
+ * - Uses sponsored transactions (gas paid by sponsor, not user operations)
  * - Ready for integration into your app
  */
 
-import { RhinestoneSDK } from '@rhinestone/sdk'
+import { type RhinestoneAccount, RhinestoneSDK } from '@rhinestone/sdk'
 import {
+  type Chain,
   createPublicClient,
   createWalletClient,
   encodeFunctionData,
@@ -37,39 +39,28 @@ import {
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
-import type { TransactionStatus } from './node_modules/@rhinestone/sdk/dist/src/execution'
 
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
 
-const getTxHashResult = (result: TransactionStatus) => {
-  // Extract transaction hash if available
-  if (result && typeof result === 'object') {
-    if ('fillTransactionHash' in result) {
-      return result.fillTransactionHash
-    } else if ('transactionHash' in result) {
-      return result.transactionHash
-    }
-  }
-  return null
-}
-
 // ENS Sepolia contract addresses (using FastTestETHRegistrar for 0 commitment time)
+// Addresses match packages/transaction-manager/src/contracts/ens-sepolia.ts
 const ENS_CONTRACTS = {
-  REGISTRY: '0x5fb63bbd34de21688c8aa8131be1c3b4a477109c' as `0x${string}`, // ETHRegistry
+  REGISTRY: '0xf332544e6234f1ca149907d0d4658afd5feb6831' as `0x${string}`, // ETHRegistry
   REGISTRAR_CONTROLLER:
-    '0xb08b6a514d54562ef3b7470bdb709c4eb135c535' as `0x${string}`, // FastTestETHRegistrar
+    '0x3334f0ebcbc4b5b7067f3aff25c6da8973690d54' as `0x${string}`, // FastTestETHRegistrar
   PUBLIC_RESOLVER:
-    '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as `0x${string}`, // DedicatedResolverImpl
+    '0xa20b41dc7336c4d974e3c9a6ea01b77647559c46' as `0x${string}`, // DedicatedResolverImpl
 }
 
 // Supported payment tokens on Sepolia ENS
 const SUPPORTED_TOKENS = {
-  USDC: '0x9028ab8e872af36c30c959a105cb86d1038412ae' as `0x${string}`, // MockUSDC
-  DAI: '0x6630589c2e6364a96bb7acf0d9d64ac9c1dd3528' as `0x${string}`, // MockDAI
+  USDC: '0xeb704373997b676d111e4767e281b9fb3852ecef' as `0x${string}`, // MockUSDC
+  DAI: '0x8817e87e865b75db8b6a7e0d882b6dcba88d913e' as `0x${string}`, // MockDAI
 }
 
+const PIMLICO_API_KEY = ''
 const RHINESTONE_API_KEY = ''
 const PRIVATE_KEY = '' as `0x${string}`
 
@@ -381,6 +372,10 @@ async function createRhinestoneAccountAndGetAddress(): Promise<string> {
     // Initialize SDK instance with Pimlico bundler
     const sdk = new RhinestoneSDK({
       apiKey: RHINESTONE_API_KEY,
+      bundler: {
+        type: 'pimlico',
+        apiKey: PIMLICO_API_KEY,
+      },
     })
 
     console.log('✅ SDK initialized successfully')
@@ -548,6 +543,72 @@ async function fundRhinestoneAccount(smartAccountAddress: string) {
     smartAccountAddress as `0x${string}`,
     'DAI',
   )
+}
+
+// ============================================================================
+// RHINESTONE INTENT-BASED TRANSACTION HELPER
+// ============================================================================
+
+/**
+ * Submit a sponsored transaction using Rhinestone intents
+ * This uses the intent-based API instead of user operations
+ */
+async function submitSponsoredTransaction(
+  rhinestoneAccount: RhinestoneAccount,
+  chain: Chain,
+  calls: Array<{ to: `0x${string}`; data: `0x${string}`; value: bigint }>,
+): Promise<string | null> {
+  console.log('💰 Preparing sponsored transaction (intent-based)...', {
+    chain: chain.name,
+    chainId: chain.id,
+    callCount: calls.length,
+  })
+
+  // Step 1: Prepare the transaction (creates intent with sponsorship)
+  const transactionData = await rhinestoneAccount.prepareTransaction({
+    sourceChains: [chain],
+    targetChain: chain,
+    calls: calls,
+    sponsored: true,
+  })
+
+  console.log('🔍 Prepared Transaction Data:', {
+    intentRoute: transactionData.intentRoute,
+    transaction: transactionData.transaction,
+  })
+
+  // Step 2: Sign the prepared transaction (includes intentRoute)
+  const signedTransaction =
+    await rhinestoneAccount.signTransaction(transactionData)
+
+  console.log('✅ Transaction signed:', {
+    signedTransaction,
+  })
+
+  // Step 3: Submit the signed transaction with authorizations
+  const transactionResult = await rhinestoneAccount.submitTransaction(
+    signedTransaction,
+    [],
+  )
+
+  console.log('✅ Transaction submitted:', transactionResult)
+
+  // Extract transaction hash/ID from result
+  // TransactionResult has type 'intent' with id property
+  const txHash = transactionResult?.id
+
+  if (!txHash) {
+    throw new Error('No transaction hash or ID returned from Rhinestone SDK')
+  }
+
+  // Convert bigint to hex string if needed
+  const hashAsHex =
+    typeof txHash === 'bigint'
+      ? (`0x${txHash.toString(16).padStart(64, '0')}` as `0x${string}`)
+      : (txHash as string)
+
+  console.log('✅ Transaction hash/id:', hashAsHex)
+  return hashAsHex
 }
 
 // ============================================================================
@@ -757,38 +818,32 @@ async function registerEnsDomain(
     args: [commitment],
   })
 
-  const txConfig = {
-    chain: sepolia,
-    calls: [
-      {
-        to: ENS_CONTRACTS.REGISTRAR_CONTROLLER,
-        data: commitData,
-        value: 0n,
-      },
-    ],
-  }
-  console.log(
-    'Commit transaction config:',
-    JSON.stringify(
-      txConfig,
-      (_, value) => (typeof value === 'bigint' ? value.toString() : value),
-      2,
-    ),
-  )
+  console.log('Commit transaction config:', {
+    chain: sepolia.name,
+    chainId: sepolia.id,
+    to: ENS_CONTRACTS.REGISTRAR_CONTROLLER,
+    data: commitData,
+    value: '0',
+  })
 
   try {
-    const commitTx = await rhinestoneAccount.sendTransaction(txConfig)
-
-    console.log('✅ Commit transaction submitted:', commitTx)
-    console.log('⏳ Waiting for commit execution...')
-    const commitResult = await rhinestoneAccount.waitForExecution(commitTx)
-    console.log(
-      '🔍 Commit result structure:',
-      JSON.stringify(commitResult, null, 2),
+    // Use intent-based sponsored transaction
+    const commitTxHash = await submitSponsoredTransaction(
+      rhinestoneAccount,
+      sepolia,
+      [
+        {
+          to: ENS_CONTRACTS.REGISTRAR_CONTROLLER,
+          data: commitData,
+          value: 0n,
+        },
+      ],
     )
-    const commitTxHash = getTxHashResult(commitResult)
-    console.log('✅ Commit transaction confirmed!')
+
+    console.log('✅ Commit transaction submitted!')
     console.log('   Transaction hash:', commitTxHash || 'N/A')
+    console.log('⏳ Waiting for commit to be processed...')
+    await sleep(3000) // Wait a bit for the intent to be processed
 
     try {
       const minAge = (await publicClient.readContract({
@@ -845,20 +900,20 @@ async function registerEnsDomain(
     })
 
     try {
-      const approveTx = await rhinestoneAccount.sendTransaction({
-        chain: sepolia,
-        calls: [
+      // Use intent-based sponsored transaction
+      const approveResult = await submitSponsoredTransaction(
+        rhinestoneAccount,
+        sepolia,
+        [
           {
             to: paymentToken,
             data: approveData,
             value: 0n,
           },
         ],
-      })
+      )
 
-      const result = await rhinestoneAccount.waitForExecution(approveTx)
-      const approveResult = getTxHashResult(result)
-      console.log('✅ Approve transaction confirmed!')
+      console.log('✅ Approve transaction submitted!')
       console.log('   Transaction hash:', approveResult || 'N/A')
 
       // Wait a bit for the approval to be processed
@@ -885,18 +940,13 @@ async function registerEnsDomain(
             args: [ENS_CONTRACTS.REGISTRAR_CONTROLLER, totalPrice * 2n], // Approve double the amount
           })
 
-          const reApproveTx = await rhinestoneAccount.sendTransaction({
-            chain: sepolia,
-            calls: [
-              {
-                to: paymentToken,
-                data: reApproveData,
-                value: 0n,
-              },
-            ],
-          })
-
-          await rhinestoneAccount.waitForExecution(reApproveTx)
+          await submitSponsoredTransaction(rhinestoneAccount, sepolia, [
+            {
+              to: paymentToken,
+              data: reApproveData,
+              value: 0n,
+            },
+          ])
           console.log('✅ Re-approval completed!')
         }
       } catch (e) {
@@ -947,26 +997,20 @@ async function registerEnsDomain(
     //     console.error('❌ Preflight estimateGas for register failed:', preflightError)
     // }
 
-    const registerTx = await rhinestoneAccount.sendTransaction({
-      chain: sepolia,
-      calls: [
+    // Use intent-based sponsored transaction
+    const registerTxHash = await submitSponsoredTransaction(
+      rhinestoneAccount,
+      sepolia,
+      [
         {
           to: ENS_CONTRACTS.REGISTRAR_CONTROLLER,
           data: registerData,
           value: 0n, // No ETH value needed when using payment tokens
         },
       ],
-    })
-
-    console.log('✅ Register transaction submitted:', registerTx)
-    console.log('⏳ Waiting for register execution...')
-    const result = await rhinestoneAccount.waitForExecution(registerTx)
-    console.log(
-      '🔍 Register result structure:',
-      JSON.stringify(result, null, 2),
     )
-    const registerTxHash = getTxHashResult(result)
-    console.log('✅ Register transaction confirmed!')
+
+    console.log('✅ Register transaction submitted!')
     console.log('   Transaction hash:', registerTxHash || 'N/A')
 
     console.log('\n🎉 SUCCESS! ENS name registered:')
@@ -1105,7 +1149,7 @@ async function testEnsRegistration() {
 
   try {
     const result = await registerEnsDomain(
-      'ucles117',
+      'ucles11790',
       1, // 1 year duration
       SUPPORTED_TOKENS.USDC, // Use USDC for payment
       {
