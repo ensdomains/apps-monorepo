@@ -2,5 +2,5 @@ node_modules
 coverage
 .claude/
 dist
-.DS_Store
+**/.DS_Store
 package-lock.json
