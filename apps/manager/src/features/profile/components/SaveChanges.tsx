@@ -4,6 +4,7 @@ import { DiffDialog } from './dialogs/DiffDialog'
 import { sharedOptions, withForm } from './form'
 
 interface SaveChangesProps {
+  name: string
   originalData: ProfileRecords
   onSave: () => void
   isSaving?: boolean
@@ -15,11 +16,13 @@ interface SaveChangesProps {
 export const SaveChanges = withForm({
   ...sharedOptions,
   props: {
+    name: '',
     originalData: defaultProfileRecords,
     onSave: () => {},
   } as SaveChangesProps,
   render: ({
     form,
+    name,
     originalData,
     onSave,
     isSaving,
@@ -30,6 +33,7 @@ export const SaveChanges = withForm({
     <form.Subscribe selector={(state) => state.values}>
       {(currentData) => (
         <DiffDialog
+          name={name}
           originalData={originalData}
           currentData={currentData}
           onSave={onSave}
