@@ -114,7 +114,7 @@ function RootComponent() {
         <Layout>
           <Outlet />
         </Layout>
-        <Toaster position="top-right" />
+        <Toaster position="bottom-center" />
       </ProvidersWrapper>
 
       <TanStackRouterDevtools position="bottom-right" />
