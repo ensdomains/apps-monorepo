@@ -86,7 +86,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       !accountAddress ||
       !rhinestoneConfig
     ) {
-      console.warn('Cannot save profile – Pimlico smart account is not ready.')
+      console.warn('Cannot save profile – smart account is not ready.')
       return
     }
 
