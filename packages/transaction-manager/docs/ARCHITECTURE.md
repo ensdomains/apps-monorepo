@@ -119,7 +119,7 @@ export interface EOASigner {
 export interface RhinestoneSigner {
   type: 'rhinestone'
   account: any  // RhinestoneAccount from @rhinestone/sdk
-  config: RhinestoneConfig
+  config: SmartAccountConfig
 }
 
 export type Signer = EOASigner | RhinestoneSigner | ...

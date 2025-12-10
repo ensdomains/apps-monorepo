@@ -1,6 +1,8 @@
+import type { Signer } from '@ens-apps/transaction-manager'
 import type {
   Account,
   Address,
+  Chain,
   HashTypedDataParameters,
   Hex,
   SignableMessage,
@@ -8,6 +10,8 @@ import type {
   TypedDataDefinition,
   WalletClient,
 } from 'viem'
+import type { SmartAccountState } from './types'
+import { isPimlicoAccount, isRhinestoneAccount } from './types'
 
 /**
  * Error thrown when wallet client has no connected account
@@ -32,7 +36,6 @@ export function walletClientToAccount(walletClient: WalletClient): Account {
 
   const account = {
     address,
-    // EIP-191 message signing
     async signMessage({
       message,
     }: {
@@ -40,7 +43,6 @@ export function walletClientToAccount(walletClient: WalletClient): Account {
     }): Promise<Hex> {
       return walletClient.signMessage({ account: address, message })
     },
-    // EIP-712 typed data signing
     async signTypedData<
       typedData extends TypedData | Record<string, unknown> = TypedData,
       primaryType extends keyof typedData | 'EIP712Domain' = keyof typedData,
@@ -57,7 +59,6 @@ export function walletClientToAccount(walletClient: WalletClient): Account {
       })
       return signature
     },
-    // Raw transaction signing (not currently used by the SDK paths, but provided for completeness)
     async signTransaction(transaction: any): Promise<Hex> {
       return (walletClient as any).signTransaction({
         account: address,
@@ -99,18 +100,15 @@ export function wrapParaAccount(
   viemAccount: Account,
   walletId?: string,
 ): Account {
-  // Store the wallet ID for signing operations (for debugging purposes)
   const effectiveWalletId =
     walletId || (viemAccount as any).walletId || (viemAccount as any)._walletId
 
-  // Store reference for potential debugging
   if (effectiveWalletId) {
     ;(viemAccount as any)._paraWalletId = effectiveWalletId
   }
 
   return {
     ...viemAccount,
-    // Override signMessage to adjust v-byte for smart wallet compatibility
     signMessage: async ({ message }: { message: SignableMessage }) => {
       if (!viemAccount.signMessage) {
         throw new Error('Account does not support signMessage')
@@ -118,7 +116,6 @@ export function wrapParaAccount(
       const originalSignature = await viemAccount.signMessage({ message })
       return adjustVByte(originalSignature)
     },
-    // Override signTypedData to adjust v-byte for smart wallet compatibility
     signTypedData: async <
       const TTypedData extends TypedData | Record<string, unknown>,
       TPrimaryType extends keyof TTypedData | 'EIP712Domain' = keyof TTypedData,
@@ -131,7 +128,6 @@ export function wrapParaAccount(
       const originalSignature = await viemAccount.signTypedData(typedData)
       return adjustVByte(originalSignature)
     },
-    // Keep signAuthorization as is for EIP-7702
     signAuthorization: viemAccount.signAuthorization
       ? viemAccount.signAuthorization.bind(viemAccount)
       : undefined,

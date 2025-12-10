@@ -22,7 +22,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { STABLECOINS } from '@/features/register/utils'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+import { useSmartAccount } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 
 interface PaymentDrawerProps {
@@ -46,7 +46,6 @@ export const CreditCardPaymentDrawer = ({
   domainName = 'example.eth',
   duration = 25,
   priceUSD = 2800,
-  disabled = false,
   onPaymentSelect,
 }: PaymentDrawerProps) => {
   const [open, setOpen] = useState(false)
@@ -56,7 +55,7 @@ export const CreditCardPaymentDrawer = ({
   const triggerButton = (
     <Button
       className="h-16 w-full rounded border-2 border-ens-blue bg-white font-medium font-mono text-ens-blue text-sm uppercase tracking-wider hover:bg-ens-blue-light disabled:cursor-not-allowed disabled:opacity-50"
-      disabled={disabled}
+      disabled
       onClick={() => {
         onPaymentSelect?.('credit-card')
         setOpen(false)
@@ -140,7 +139,7 @@ export const CryptoPaymentDrawer = ({
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const { data: wallet } = useWallet()
   const isConnected = !!wallet?.address
-  const { stablecoinBalances, isLoadingBalances } = useRhinestoneAccount()
+  const { stablecoinBalances, isLoadingBalances } = useSmartAccount()
 
   const hasBalances = (stablecoinBalances?.length || 0) > 0
   const stablecoinLoading = isLoadingBalances

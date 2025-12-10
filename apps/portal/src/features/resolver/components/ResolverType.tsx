@@ -30,7 +30,7 @@ const InterfaceCheck = ({ resolverAddress }: InterfaceCheckProps) => {
 
   if (supportsInterfaces[0]) {
     return (
-      <div className="flex flex-row p-4 sm:p-6 gap-4 sm:gap-6 rounded-2xl border border-secondary w-full flex-1 items-center">
+      <div className="flex flex-row p-4 sm:p-6 gap-4 sm:gap-6 rounded-2xl border border-gray-300 w-full flex-1 items-center">
         <FocusIcon className="size-10" />
         <div className="flex flex-col">
           <span className="font-medium">Type</span>

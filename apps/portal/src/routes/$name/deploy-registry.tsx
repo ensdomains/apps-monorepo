@@ -3,6 +3,9 @@ import { createFileRoute, Link, useParams } from '@tanstack/react-router'
 import { AlertCircle, ArrowLeftIcon } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
+import { zeroAddress } from 'viem'
+import { useConnection } from 'wagmi'
+import { ErrorMessage } from '@/components/molecules/ErrorMessage'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -10,6 +13,7 @@ import { DeployRegistryForm } from '@/features/registry/components/DeployRegistr
 import { DeployTransactionStatus } from '@/features/registry/components/DeployTransactionStatus'
 import { SetSubregistryTransactionStatus } from '@/features/registry/components/SetSubregistryTransactionStatus'
 import { useDeployRegistryMutations } from '@/features/registry/hooks/useDeployRegistryMutations'
+import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import {
   namechainUserRegistryAddress,
@@ -26,6 +30,7 @@ export const Route = createFileRoute('/$name/deploy-registry')({
 
 function RouteComponent() {
   const { name } = useParams({ from: '/$name/deploy-registry' })
+  const { address: connectedAddress } = useConnection()
   const [useCustomRegistry, setUseCustomRegistry] = useState(false)
   const [contractAddress, setContractAddress] = useState('')
   const [migrateSubnames, setMigrateSubnames] = useState(false)
@@ -38,6 +43,25 @@ function RouteComponent() {
 
   const network = registryData?.network ?? 'sepolia'
   const isNamechain = network === 'namechainSepolia'
+
+  const label = name.split('.')[0]
+  const parentRegistry = registryData?.registries.at(1) ?? null
+
+  // Check if connected user has ROLE_SET_SUBREGISTRY permission on the parent registry
+  const { data: hasSetSubregistryRole, isLoading: isLoadingRoleCheck } =
+    useQuery({
+      ...getHasRolesQueryOptions({
+        registryAddress: parentRegistry ?? zeroAddress,
+        label,
+        roles: ['ROLE_SET_SUBREGISTRY'],
+        account: connectedAddress ?? zeroAddress,
+      }),
+      enabled:
+        !!connectedAddress &&
+        !!parentRegistry &&
+        parentRegistry !== zeroAddress &&
+        !isLoading,
+    })
 
   const factoryAddress = isNamechain
     ? namechainVerifiableFactory
@@ -144,6 +168,60 @@ function RouteComponent() {
             names can deploy and manage their own subregistries.
           </AlertDescription>
         </Alert>
+      </div>
+    )
+  }
+
+  // Check if user has permission to deploy/change registry
+  if (isLoadingRoleCheck) {
+    return <LoadingSpinner title="Checking permissions..." />
+  }
+
+  if (connectedAddress && !hasSetSubregistryRole) {
+    return (
+      <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
+        <Link to="/$name/registry" params={{ name }}>
+          <Button variant="ghost" className="flex items-center gap-2 -ml-2">
+            <ArrowLeftIcon className="size-4" />
+            Back
+          </Button>
+        </Link>
+        <h1 className="text-[28px] font-medium leading-none">
+          Deploy registry
+        </h1>
+        <ErrorMessage
+          title="Permission Denied"
+          description={
+            <>
+              You don't have the required{' '}
+              <code className="font-mono text-sm bg-gray-100 px-1 py-0.5 rounded">
+                ROLE_SET_SUBREGISTRY
+              </code>{' '}
+              permission to change the registry for <strong>{name}</strong>.
+              Please contact the registry administrator to request access.
+            </>
+          }
+        />
+      </div>
+    )
+  }
+
+  if (!connectedAddress) {
+    return (
+      <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
+        <Link to="/$name/registry" params={{ name }}>
+          <Button variant="ghost" className="flex items-center gap-2 -ml-2">
+            <ArrowLeftIcon className="size-4" />
+            Back
+          </Button>
+        </Link>
+        <h1 className="text-[28px] font-medium leading-none">
+          Deploy registry
+        </h1>
+        <ErrorMessage
+          title="Wallet Not Connected"
+          description="Please connect your wallet to deploy or change a registry."
+        />
       </div>
     )
   }

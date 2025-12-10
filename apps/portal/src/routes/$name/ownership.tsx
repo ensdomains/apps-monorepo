@@ -4,7 +4,7 @@ import type { Address } from 'viem/accounts'
 import { useEnsName } from 'wagmi'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
-import { NameHistory } from '@/components/organisms/NameHistory/NameHistory'
+import { NameSubgraphHistory } from '@/components/organisms/NameSubgraphHistory/NameSubgraphHistory'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { parentName } from '@/lib/parent'
 import { LoadingSpinner } from '../../components/molecules/LoadingSpinner'
@@ -52,7 +52,7 @@ const OwnerInfo = ({ name }: OwnerInfoProps) => {
 
   return (
     <div className="flex flex-col lg:flex-row gap-4">
-      <div className="p-6 rounded-lg gap-4 flex flex-col border border-secondary w-full">
+      <div className="p-6 rounded-lg gap-4 flex flex-col border border-gray-300 w-full">
         <h2 className="text-2xl font-medium">Current Owner</h2>
         <div>
           <OwnerDisplay owner={data.owner} />
@@ -70,7 +70,7 @@ const ParentInfo = ({ name }: ParentInfoProps) => {
   const parent = parentName(name)
 
   return (
-    <div className="p-6 rounded-lg gap-4 flex flex-col border border-secondary w-full">
+    <div className="p-6 rounded-lg gap-4 flex flex-col border border-gray-300 w-full">
       <h2 className="text-2xl font-medium">Parent name</h2>
       <div>
         <CopyableRecord value={parent} />
@@ -81,14 +81,15 @@ const ParentInfo = ({ name }: ParentInfoProps) => {
 
 function RouteComponent() {
   const { name } = Route.useParams()
+
   return (
-    <div className="max-w-360 w-full mx-auto flex flex-col gap-6 m-6 px-4">
+    <div className="max-w-360 w-full mx-auto flex flex-col gap-6 p-6">
       <div className="flex flex-row justify-between">
         <h1 className="font-medium text-[28px]">Ownership</h1>
       </div>
       <div className="flex flex-col gap-6">
         <OwnerInfo name={name} />
-        <NameHistory name={name} category="domain" />
+        <NameSubgraphHistory name={name} category="domain" />
         <ParentInfo name={name} />
       </div>
     </div>

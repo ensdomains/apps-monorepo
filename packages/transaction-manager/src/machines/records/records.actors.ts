@@ -33,9 +33,12 @@ export const submitProfileRecordsUpdateActor = (input: {
         throw new Error('No profile record changes to apply')
       }
 
-      if (input.signer.type !== 'rhinestone') {
+      if (
+        input.signer.type !== 'rhinestone' &&
+        input.signer.type !== 'pimlico'
+      ) {
         throw new Error(
-          'Only Rhinestone signer is currently supported for profile updates',
+          'Only Rhinestone or Pimlico signers are supported for profile updates',
         )
       }
 

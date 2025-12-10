@@ -1,13 +1,13 @@
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { SmartAccountClient } from 'permissionless'
 import type { WalletClient } from 'viem'
-import type { RhinestoneConfig } from './transaction.types'
+import type { SmartAccountConfig } from './transaction.types'
 
 /**
  * Signer Types
  *
  * Abstract signer interface that decouples transaction submission
- * from specific account implementations (EOA, Rhinestone, Privy, Safe, etc.)
+ * from specific account implementations (EOA, Rhinestone, Pimlico, Privy, Safe, etc.)
  */
 
 /**
@@ -20,23 +20,22 @@ export interface EOASigner {
 
 /**
  * Rhinestone Smart Account Signer
- * Uses Rhinestone SDK account
+ * Uses Rhinestone SDK account for chain abstraction
  */
 export interface RhinestoneSigner {
   type: 'rhinestone'
   account: RhinestoneAccount // RhinestoneAccount from @rhinestone/sdk
-  config: RhinestoneConfig
+  config: SmartAccountConfig
 }
 
 /**
  * Pimlico Smart Account Signer
- * Uses permissionless SmartAccountClient with Para + Pimlico
- * The account is created in useRhinestoneAccount hook
+ * Uses permissionless SmartAccountClient with Para + Pimlico bundler
  */
 export interface PimlicoSigner {
   type: 'pimlico'
-  account: SmartAccountClient // SmartAccountClient from permissionless (created in hook)
-  config: RhinestoneConfig
+  account: SmartAccountClient // SmartAccountClient from permissionless
+  config: SmartAccountConfig
 }
 
 /**

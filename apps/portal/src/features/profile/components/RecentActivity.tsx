@@ -100,22 +100,29 @@ export const RecentActivity = ({ name }: RecentActivityProps) => {
   }
 
   if (!events) {
-    return <div>No recent activity</div>
+    return (
+      <div className="flex flex-col gap-1 p-6 border border-gray-300 rounded-lg w-full">
+        <div>
+          <h2 className="text-[26px] font-medium">History</h2>
+        </div>
+        <div>No recent activity</div>
+      </div>
+    )
   }
 
   return (
-    <div className="flex flex-col  gap-6">
-      <h3 className="font-medium text-2xl">History</h3>
-      <div className="border border-gray-300 p-6 rounded-lg">
-        <RecentActivityTable
-          name={name}
-          events={[
-            ...events.domainEvents,
-            ...(events.registrationEvents || []),
-            ...(events.resolverEvents || []),
-          ]}
-        />
+    <div className="flex flex-col gap-1 p-6 border border-gray-300 rounded-lg w-full">
+      <div>
+        <h2 className="text-[26px] font-medium">History</h2>
       </div>
+      <RecentActivityTable
+        name={name}
+        events={[
+          ...events.domainEvents,
+          ...(events.registrationEvents || []),
+          ...(events.resolverEvents || []),
+        ]}
+      />
     </div>
   )
 }

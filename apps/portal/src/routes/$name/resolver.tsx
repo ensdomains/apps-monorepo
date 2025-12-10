@@ -9,7 +9,7 @@ import { ErrorMessage } from '@/components/molecules/ErrorMessage'
 import { LoadingMessage } from '@/components/molecules/LoadingMessage'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
-import { NameHistory } from '@/components/organisms/NameHistory/NameHistory'
+import { NameSubgraphHistory } from '@/components/organisms/NameSubgraphHistory/NameSubgraphHistory'
 import { DedicatedResolverBanner } from '@/components/resolver/DedicatedResolverBanner'
 import { ResolverDetails } from '@/components/resolver/ResolverDetails'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
@@ -182,7 +182,7 @@ const ResolverView = ({ name, resolverAddress }: ResolverViewProps) => {
           },
         ]}
       />
-      <NameHistory name={name} />
+      <NameSubgraphHistory name={name} />
     </div>
   )
 }

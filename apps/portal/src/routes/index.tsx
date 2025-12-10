@@ -39,7 +39,7 @@ function RouteComponent() {
           <HomeSearchInput />
         </header>
 
-        <section className="bg-gray-100 xl:rounded-lg border border-gray-200 p-8 -mx-6 md:mx-0">
+        <section className="bg-gray-100 xl:rounded-lg border border-gray-300 p-8 -mx-6 md:mx-0">
           <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8">
             <div className="flex flex-col gap-4 items-start">
               <h2 className="text-2xl font-bold">
@@ -165,7 +165,7 @@ function RouteComponent() {
                 icon={Grid3x3}
                 to="/addr/$addr/reverse-resolution"
                 params={{
-                  addr: '0xA6362Dcb7Db14C357E788C876eE99e1f982f1115',
+                  addr: '0x205d2686da3Bf33f64C17f21462c51B5eaD462CF',
                 }}
                 title="L2 Primary Names"
                 description="Set and view primary names on other networks."
