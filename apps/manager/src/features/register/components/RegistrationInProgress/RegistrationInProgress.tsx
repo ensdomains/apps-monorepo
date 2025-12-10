@@ -42,6 +42,9 @@ function mapMachineStateToProgressStage(
   const machineState = String(stateValue)
 
   switch (machineState) {
+    case 'settingUpRegistration':
+    case 'deployingResolver':
+    case 'waitingForResolverDeployment':
     case 'preparingCommitment':
     case 'committingTransaction':
     case 'waitingForCommitment':
