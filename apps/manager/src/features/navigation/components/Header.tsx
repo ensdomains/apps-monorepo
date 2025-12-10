@@ -32,9 +32,7 @@ import { NotificationsDropdown } from '@/features/notifications/components'
 import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { useSmartAccount } from '@/lib/smart-account'
-
-type UseRhinestoneAccountReturn = ReturnType<typeof useRhinestoneAccount>
+import { type SmartAccountState, useSmartAccount } from '@/lib/smart-account'
 
 // Reusable menu content component
 const UserMenuContent = ({
@@ -68,7 +66,7 @@ const UserMenuContent = ({
   handleCopyAddress: (address: string) => void
   getDisplayName: () => string
   ensAvatar: string | null | undefined
-  autoFundingMutation: UseRhinestoneAccountReturn['autoFundingMutation']
+  autoFundingMutation: SmartAccountState['autoFundingMutation']
 }) => {
   return (
     <>
