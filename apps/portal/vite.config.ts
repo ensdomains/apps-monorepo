@@ -17,7 +17,7 @@ const locales = dirname(
 export default defineConfig({
   plugins: [
     tanstackRouter({
-      autoCodeSplitting: false,
+      autoCodeSplitting: true,
       routeFileIgnorePattern: '.((css|const).ts)',
     }),
     viteReact(),
