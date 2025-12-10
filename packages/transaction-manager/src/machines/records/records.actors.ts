@@ -34,6 +34,17 @@ function createTransactionRequest(params: {
 }): TransactionRequest {
   const { signer, from, to, data, value, chainId, calls, sponsored } = params
 
+  if (signer.type === 'eoa') {
+    return {
+      type: 'eoa',
+      from,
+      to,
+      data,
+      value,
+      chainId,
+    }
+  }
+
   if (signer.type === 'rhinestone') {
     return {
       type: 'rhinestone-intent',
@@ -76,6 +87,7 @@ export const submitProfileRecordsUpdateActor = (input: {
   signer: Signer
   publicClient: PublicClient
   chainId: number
+  accountAddress: Address
   resolverAddress?: Address
 }): ResultAsync<string, Error> =>
   ResultAsync.fromSafePromise(
@@ -86,16 +98,21 @@ export const submitProfileRecordsUpdateActor = (input: {
         throw new Error('No profile record changes to apply')
       }
 
-      if (
-        input.signer.type !== 'rhinestone' &&
-        input.signer.type !== 'pimlico'
+      let fromAddress: Address
+
+      if (input.signer.type === 'eoa') {
+        fromAddress = input.accountAddress
+      } else if (
+        input.signer.type === 'rhinestone' ||
+        input.signer.type === 'pimlico'
       ) {
+        fromAddress = getSmartAccountAddress(input.signer)
+      } else {
         throw new Error(
-          'Only Rhinestone or Pimlico signers are supported for profile updates',
+          'Only EOA, Rhinestone, or Pimlico signers are supported for profile updates',
         )
       }
 
-      const smartAccountAddress = getSmartAccountAddress(input.signer)
       const resolverAddress =
         input.resolverAddress ?? ENS_SEPOLIA_CONTRACTS.PublicResolver
 
@@ -110,7 +127,7 @@ export const submitProfileRecordsUpdateActor = (input: {
 
       const request = createTransactionRequest({
         signer: input.signer,
-        from: smartAccountAddress,
+        from: fromAddress,
         to: resolverAddress,
         data: multicallData,
         value: 0n,
