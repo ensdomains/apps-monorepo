@@ -105,7 +105,7 @@ export interface EOASigner {
 export interface RhinestoneSigner {
   type: 'rhinestone'
   account: any // RhinestoneAccount from @rhinestone/sdk
-  config: RhinestoneConfig
+  config: SmartAccountConfig
   // Note: publicClient is NOT in signer - it's in machine context
 }
 
@@ -189,17 +189,17 @@ const result = await prepareENSRenewal({
   duration: 31536000n,
   chainId: 11155111,
   useSmartAccount: true,
-  rhinestoneConfig: { chain: sepolia },
+  smartAccountConfig: { chain: sepolia },
 })
 
 if (result.isErr()) return
 
 const { request, options } = result.value
 
-// 3. Create Rhinestone signer
+// 3. Create Smart Account signer
 const signer: Signer = {
   type: 'rhinestone',
-  account: rhinestoneAccount,
+  account: smartAccount,
   config: { chain: sepolia },
   // publicClient is pre-configured in transactionManager
 }
@@ -216,15 +216,15 @@ function createSigner(
   useSmartAccount: boolean,
   walletClient: WalletClient,
   publicClient: PublicClient,
-  rhinestoneAccount?: any,
-  rhinestoneConfig?: RhinestoneConfig
+  smartAccount?: any,
+  smartAccountConfig?: SmartAccountConfig
 ): Signer {
-  if (useSmartAccount && rhinestoneAccount) {
+  if (useSmartAccount && smartAccount) {
     return {
       type: 'rhinestone',
-      account: rhinestoneAccount,
+      account: smartAccount,
       publicClient,
-      config: rhinestoneConfig!,
+      config: smartAccountConfig!,
     }
   }
 
@@ -239,8 +239,8 @@ const signer = createSigner(
   useSmartAccount,
   walletClient,
   publicClient,
-  rhinestoneAccount,
-  rhinestoneConfig
+  smartAccount,
+  smartAccountConfig
 )
 
 startTransaction(request, signer, options)
@@ -362,8 +362,8 @@ startTransaction(
   {
     publicClient,
     walletClient,
-    rhinestoneAccount,
-    rhinestoneConfig,
+    smartAccount,
+    smartAccountConfig,
     // ... lots of optional parameters
   }
 )
@@ -372,7 +372,7 @@ startTransaction(
 if (request.type === 'eoa') {
   submitEOATransaction({ request, walletClient })
 } else if (request.type === 'rhinestone-intent') {
-  submitRhinestoneTransaction({ request, rhinestoneAccount, rhinestoneConfig })
+  submitRhinestoneTransaction({ request, smartAccount, smartAccountConfig })
 }
 ```
 

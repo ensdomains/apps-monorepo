@@ -2,6 +2,7 @@ import { useWallet } from '@getpara/react-sdk-lite'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { LinkButton } from '@/components/ui/button'
+import { useSmartAccount } from '@/lib/smart-account'
 import { sectionsList } from '../../data/records'
 import { profileOwnerQuery } from '../../service/profileOwner'
 import { profileRecordsQuery } from '../../service/profileRecords'
@@ -28,12 +29,16 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   })
 
   const { data: wallet } = useWallet()
-  const address = wallet?.address
+
+  const { accountAddress: smartAccountAddress } = useSmartAccount()
+
+  const normalizedOwner = ownerData?.owner?.toLowerCase()
+  const connectedAddresses = [wallet?.address, smartAccountAddress]
+    .filter((addr): addr is string => Boolean(addr))
+    .map((addr) => addr.toLowerCase())
 
   const isOwner = Boolean(
-    address &&
-      ownerData?.owner &&
-      ownerData.owner.toLowerCase() === address.toLowerCase(),
+    normalizedOwner && connectedAddresses.includes(normalizedOwner),
   )
 
   if (!records) {

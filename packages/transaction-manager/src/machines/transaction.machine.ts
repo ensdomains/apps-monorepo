@@ -251,9 +251,10 @@ export const transactionMachine = setup({
 
         if (
           request.type === 'erc4337' ||
-          request.type === 'rhinestone-intent'
+          request.type === 'rhinestone-intent' ||
+          request.type === 'pimlico'
         ) {
-          // For 4337 and Rhinestone, we'd need different simulation methods
+          // For 4337, Rhinestone, and Pimlico, we'd need different simulation methods
           return ResultAsync.fromSafePromise(
             Promise.resolve({ wouldSucceed: true }),
           )
@@ -543,7 +544,10 @@ export const transactionMachine = setup({
             assign({
               hash: ({ event }) => event.output,
               userOpHash: ({ event, context }) =>
-                context.request?.type === 'erc4337' ? event.output : undefined,
+                context.request?.type === 'erc4337' ||
+                context.request?.type === 'pimlico'
+                  ? event.output
+                  : undefined,
             }),
             'recordTransition',
             ({ event }) => {

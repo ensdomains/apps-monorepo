@@ -2,7 +2,7 @@ import { useModal } from '@getpara/react-sdk-lite'
 import { useEffect, useMemo, useReducer } from 'react'
 import type { PricingDuration } from '@/features/register/components/Pricing/types'
 import { getPremiumLabel } from '@/features/register/utils'
-import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+import { useSmartAccount } from '@/lib/smart-account'
 import { getTokenPrices } from '../../services/nameChainContractService'
 import { createInitialState, pricingReducer } from './pricing.reducer'
 import type { PricingProps } from './types'
@@ -40,7 +40,7 @@ export const usePricing = ({
     createInitialState,
   )
 
-  const { rhinestoneAccount } = useRhinestoneAccount()
+  const { client: smartAccountClient } = useSmartAccount()
   const { openModal } = useModal()
 
   const premiumLabel = useMemo(() => getPremiumLabel(domainName), [domainName])
@@ -108,7 +108,7 @@ export const usePricing = ({
       state.pricingQuotes[state.selectedDuration as PricingDuration]?.usdc ===
         null
 
-  const isUsingAA = !!rhinestoneAccount
+  const isUsingAA = !!smartAccountClient
 
   useEffect(() => {
     let isCancelled = false

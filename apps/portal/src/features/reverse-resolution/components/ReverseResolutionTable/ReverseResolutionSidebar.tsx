@@ -94,7 +94,7 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-row justify-between items-center">
-        <h3 className="text-xl font-medium">History</h3>
+        <h3 className="text-[26px] font-medium">History</h3>
         <Link to="/$name/history" params={{ name }}>
           <Button variant="outline" size="sm">
             Full history

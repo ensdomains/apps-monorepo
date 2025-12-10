@@ -9,18 +9,8 @@ export interface DomainProfileCardProps {
   avatarUrl?: string | null
   registeredDate?: Date | string | null
   expiryDate?: Date | string | null
-  onAction?: (domainName: string) => void
   className?: string
-  link?: {
-    to: string
-    params?: Record<string, unknown>
-    search?: Record<string, unknown>
-    hash?: string
-    replace?: boolean
-    target?: React.HTMLAttributeAnchorTarget
-    rel?: string
-    onClick?: MouseEventHandler<HTMLAnchorElement>
-  }
+  clickable?: boolean
 }
 
 const formatDate = (date: Date | string | null | undefined): string => {
@@ -42,35 +32,24 @@ export const DomainProfileCard = ({
   avatarUrl,
   registeredDate,
   expiryDate,
-  onAction,
   className,
-  link,
+  clickable = false,
 }: DomainProfileCardProps) => {
   const formattedRegisteredDate = formatDate(registeredDate) || 'N/A'
   const formattedExpiryDate = formatDate(expiryDate) || 'N/A'
 
-  const baseClasses = cn(
-    'flex',
-    'flex-col',
-    'w-full',
-    'h-[157px]',
-    'py-[22px]',
-    'bg-ens-white',
-    'rounded-[4px]',
-    'shadow-[0px_20.905px_27.874px_0px_rgba(14,61,104,0.06)]',
-    'transition',
-    'domain-profile-card',
-    {
-      'cursor-pointer': link || onAction,
-      'hover:-translate-y-0.5': link || onAction,
-      'hover:shadow-[0px_20px_28px_-12px_rgba(15,23,42,0.20)]':
-        link || onAction,
-    },
-    className,
-  )
-
-  const content = (
-    <div className="flex h-full w-full items-end justify-between gap-4">
+  // const content =
+  return (
+    <div
+      className={cn(
+        'flex h-[157px] w-full items-end justify-between gap-4',
+        'rounded-sm bg-ens-white p-[22px]',
+        'shadow-[0px_20.905px_27.874px_0px_rgba(14,61,104,0.06)] transition',
+        clickable &&
+          'hover:-translate-y-0.5 cursor-pointer hover:shadow-[0px_20px_28px_-12px_rgba(15,23,42,0.20)]',
+        className,
+      )}
+    >
       {/* Left section: Avatar and Domain Info */}
       <div className="flex h-full items-center gap-4">
         {/* Avatar */}
@@ -87,10 +66,8 @@ export const DomainProfileCard = ({
         {/* Domain Info */}
         <div className="flex h-full flex-col justify-start gap-2">
           {/* Domain Name Badge */}
-          <div className="flex items-center justify-center gap-[10px] rounded-[4px] bg-ens-magenta px-2 py-1">
-            <p className="font-medium text-2xl text-ens-white leading-none tracking-[-0.64px]">
-              {domainName}
-            </p>
+          <div className="flex w-fit items-center justify-center gap-[10px] rounded-sm bg-ens-magenta px-2 py-1 font-medium text-2xl text-ens-white leading-none tracking-[-0.64px]">
+            {domainName}
           </div>
 
           {/* Registration and Expiry Info */}
@@ -98,7 +75,7 @@ export const DomainProfileCard = ({
             {/* Registered Date */}
             {formattedRegisteredDate && (
               <div className="flex items-center gap-[5.417px]">
-                <Calendar className="size-[18.958px] text-ens-garnet-surface" />
+                <Calendar className="size-5 text-ens-garnet-surface" />
                 <div className="flex items-end gap-[3.611px]">
                   <p className="text-ens-garnet-surface text-sm leading-none tracking-[-0.28px]">
                     Registered
@@ -113,7 +90,7 @@ export const DomainProfileCard = ({
             {/* Expiry Date */}
             {formattedExpiryDate && (
               <div className="flex items-center gap-2">
-                <Clock className="size-[21px] text-ens-garnet-surface" />
+                <Clock className="size-5 text-ens-garnet-surface" />
                 <div className="flex items-center gap-1">
                   <p className="text-ens-garnet-surface text-sm leading-none tracking-[-0.28px]">
                     Expires
@@ -128,8 +105,8 @@ export const DomainProfileCard = ({
         </div>
       </div>
 
-      <div className="group flex h-8 min-w-[101px] shrink-0 flex-col items-end justify-end rounded-[4px] border border-ens-blue-midnight hover:bg-gray-600">
-        <div className="flex h-8 items-center gap-1 rounded-[4px] px-2 py-1">
+      <div className="group flex h-8 min-w-[101px] shrink-0 flex-col items-end justify-end rounded-sm border border-ens-blue-midnight hover:bg-gray-600">
+        <div className="flex h-8 items-center gap-1 rounded-sm px-2 py-1">
           <p className="text-center font-medium text-ens-blue-midnight text-xs leading-normal group-hover:text-white">
             View profile
           </p>
@@ -138,56 +115,6 @@ export const DomainProfileCard = ({
       </div>
     </div>
   )
-
-  const handleAction = () => {
-    if (!onAction) return
-    onAction(domainName)
-  }
-
-  if (link) {
-    const { onClick, to, params, search, hash, replace, target, rel } = link
-
-    return (
-      <Link
-        to={to as never}
-        params={params as never}
-        search={search as never}
-        hash={hash}
-        replace={replace}
-        target={target}
-        rel={rel}
-        className={baseClasses}
-        onClick={(event) => {
-          onClick?.(event)
-          if (!event.defaultPrevented && onAction) {
-            onAction(domainName)
-          }
-        }}
-      >
-        {content}
-      </Link>
-    )
-  }
-
-  if (onAction) {
-    return (
-      <button
-        type="button"
-        className={baseClasses}
-        onClick={handleAction}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault()
-            handleAction()
-          }
-        }}
-      >
-        {content}
-      </button>
-    )
-  }
-
-  return <div className={baseClasses}>{content}</div>
 }
 
 DomainProfileCard.displayName = 'DomainProfileCard'

@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, ArrowLeftIcon } from 'lucide-react'
 import { useCallback, useReducer, useState } from 'react'
-import type { Address } from 'viem'
+import type { Address, PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import { Button } from '@/components/ui/button'
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
@@ -14,7 +14,7 @@ import { RegistrationInProgress } from '@/features/register/components/Registrat
 import { VerifyWalletModal } from '@/features/register/components/VerifyWalletModal'
 import { useCountdown } from '@/hooks/useCountdown'
 import { useWalletVerification } from '@/hooks/useWalletVerification'
-import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+import { useSmartAccount } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import { inspect } from '@/utils/xstate'
 import { handleStartRegistration } from './RegistrationPage.handlers'
@@ -81,8 +81,12 @@ export function Registration({ initialName }: RegistrationProps) {
     inspect,
   })
 
-  const { rhinestoneAccount, accountAddress, isConnected, rhinestoneConfig } =
-    useRhinestoneAccount()
+  // Use unified smart account hook (defaults to Pimlico)
+  const account = useSmartAccount({ type: 'pimlico' })
+
+  // Extract account info
+  const accountAddress = account.accountAddress
+  const isConnected = account.isConnected
 
   const [ui, dispatch] = useReducer(
     registrationUIReducer,
@@ -101,11 +105,15 @@ export function Registration({ initialName }: RegistrationProps) {
   const [hasConfirmedNotifications, setHasConfirmedNotifications] =
     useState(false)
 
-  const { context: availabilityContext, isSearching: isCheckingAvailability } =
-    useCheckAvailability({ initialName, autoSearch: true })
+  const {
+    selectedName,
+    isAvailable,
+    errorMessage: availabilityError,
+    isSearching: isCheckingAvailability,
+  } = useCheckAvailability({ initialName, autoSearch: true })
 
   const isAccountReady = Boolean(
-    rhinestoneAccount && accountAddress && rhinestoneConfig,
+    accountAddress && account.client && account.config,
   )
 
   const step = useSelector(actor, (state) => {
@@ -217,8 +225,8 @@ export function Registration({ initialName }: RegistrationProps) {
 
             {!isCheckingAvailability &&
               initialName &&
-              availabilityContext.selectedName &&
-              availabilityContext.isAvailable === false && (
+              selectedName &&
+              isAvailable === false && (
                 <div className="flex min-h-[400px] items-center justify-center px-4">
                   <div className="flex w-full max-w-2xl flex-col items-center gap-8 rounded-lg border border-ens-gray-two bg-white p-8 text-center">
                     <AlertCircle className="h-16 w-16 text-ens-gray" />
@@ -232,8 +240,7 @@ export function Registration({ initialName }: RegistrationProps) {
                       </div>
 
                       <p className="text-ens-gray text-sm">
-                        {availabilityContext.error ||
-                          'This name is not available'}
+                        {availabilityError || 'This name is not available'}
                       </p>
                     </div>
 
@@ -248,8 +255,7 @@ export function Registration({ initialName }: RegistrationProps) {
               )}
 
             {(!initialName ||
-              (!isCheckingAvailability &&
-                availabilityContext.isAvailable !== false)) && (
+              (!isCheckingAvailability && isAvailable !== false)) && (
               <Pricing
                 domainName={displayDomainName}
                 duration={ui.duration}
@@ -268,14 +274,12 @@ export function Registration({ initialName }: RegistrationProps) {
                       selectedToken: selectedToken as Address,
                       tokenPrice,
                     },
-                    {
-                      rhinestoneAccount,
-                      accountAddress,
-                      rhinestoneConfig,
-                      publicClient,
-                    },
+                    account,
                     actor,
-                    { fast: options?.fast ?? true },
+                    {
+                      publicClient: publicClient as PublicClient,
+                      fast: options?.fast ?? true,
+                    },
                   )
                 }}
                 onPricingDataChange={handlePricingDataChange}

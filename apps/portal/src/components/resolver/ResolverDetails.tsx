@@ -59,7 +59,7 @@ export const ResolverDetails = ({
   data: DatapointProps[]
 }) => {
   return (
-    <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg w-full">
+    <div className="flex flex-col gap-6 p-6 border border-gray-300 rounded-lg w-full">
       <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-y-1 sm:gap-y-4 gap-x-40">
         {data.map((item) => (
           <Datapoint key={item.label} {...item} />
