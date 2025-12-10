@@ -1,10 +1,19 @@
 fragment Domain on Domain {
   id
   name
+  normalizedName
+  createdAt
+  expiryDate
   resolver {
     ...Resolver
   }
   owner {
+    ...Account
+  }
+  registrant {
+    ...Account
+  }
+  resolvedAddress {
     ...Account
   }
 }

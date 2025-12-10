@@ -1,5 +1,15 @@
-query Domains($where: DomainFilter!) {
-  domains(where: $where) {
+query Domains(
+  $where: DomainFilter!
+  $first: Int
+  $orderBy: Domain_orderBy
+  $orderDirection: OrderDirection
+) {
+  domains(
+    where: $where
+    first: $first
+    orderBy: $orderBy
+    orderDirection: $orderDirection
+  ) {
     ...Domain
   }
 }

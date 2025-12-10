@@ -339,8 +339,13 @@ export type DomainFragment = {
   __typename?: 'Domain'
   id: string
   name?: string | null
+  normalizedName?: string | null
+  createdAt: number
+  expiryDate?: number | null
   resolver?: ({ __typename?: 'Resolver' } & ResolverFragment) | null
   owner: { __typename?: 'Account' } & AccountFragment
+  registrant?: ({ __typename?: 'Account' } & AccountFragment) | null
+  resolvedAddress?: ({ __typename?: 'Account' } & AccountFragment) | null
 }
 
 export type ResolverFragment = {
@@ -353,6 +358,9 @@ export type ResolverFragment = {
 
 export type DomainsQueryVariables = Exact<{
   where: DomainFilter
+  first?: InputMaybe<Scalars['Int']['input']>
+  orderBy?: InputMaybe<Domain_OrderBy>
+  orderDirection?: InputMaybe<OrderDirection>
 }>
 
 export type DomainsQuery = {
@@ -440,6 +448,9 @@ export const DomainFragmentDoc = {
         selections: [
           { kind: 'Field', name: { kind: 'Name', value: 'id' } },
           { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'normalizedName' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'expiryDate' } },
           {
             kind: 'Field',
             name: { kind: 'Name', value: 'resolver' },
@@ -456,6 +467,32 @@ export const DomainFragmentDoc = {
           {
             kind: 'Field',
             name: { kind: 'Name', value: 'owner' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                {
+                  kind: 'FragmentSpread',
+                  name: { kind: 'Name', value: 'Account' },
+                },
+              ],
+            },
+          },
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'registrant' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                {
+                  kind: 'FragmentSpread',
+                  name: { kind: 'Name', value: 'Account' },
+                },
+              ],
+            },
+          },
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'resolvedAddress' },
             selectionSet: {
               kind: 'SelectionSet',
               selections: [
@@ -548,6 +585,36 @@ export const DomainsDocument = {
             },
           },
         },
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'first' },
+          },
+          type: { kind: 'NamedType', name: { kind: 'Name', value: 'Int' } },
+        },
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'orderBy' },
+          },
+          type: {
+            kind: 'NamedType',
+            name: { kind: 'Name', value: 'Domain_orderBy' },
+          },
+        },
+        {
+          kind: 'VariableDefinition',
+          variable: {
+            kind: 'Variable',
+            name: { kind: 'Name', value: 'orderDirection' },
+          },
+          type: {
+            kind: 'NamedType',
+            name: { kind: 'Name', value: 'OrderDirection' },
+          },
+        },
       ],
       selectionSet: {
         kind: 'SelectionSet',
@@ -562,6 +629,30 @@ export const DomainsDocument = {
                 value: {
                   kind: 'Variable',
                   name: { kind: 'Name', value: 'where' },
+                },
+              },
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'first' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'first' },
+                },
+              },
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'orderBy' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'orderBy' },
+                },
+              },
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'orderDirection' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'orderDirection' },
                 },
               },
             ],
@@ -602,6 +693,9 @@ export const DomainsDocument = {
         selections: [
           { kind: 'Field', name: { kind: 'Name', value: 'id' } },
           { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'normalizedName' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'expiryDate' } },
           {
             kind: 'Field',
             name: { kind: 'Name', value: 'resolver' },
@@ -618,6 +712,32 @@ export const DomainsDocument = {
           {
             kind: 'Field',
             name: { kind: 'Name', value: 'owner' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                {
+                  kind: 'FragmentSpread',
+                  name: { kind: 'Name', value: 'Account' },
+                },
+              ],
+            },
+          },
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'registrant' },
+            selectionSet: {
+              kind: 'SelectionSet',
+              selections: [
+                {
+                  kind: 'FragmentSpread',
+                  name: { kind: 'Name', value: 'Account' },
+                },
+              ],
+            },
+          },
+          {
+            kind: 'Field',
+            name: { kind: 'Name', value: 'resolvedAddress' },
             selectionSet: {
               kind: 'SelectionSet',
               selections: [
