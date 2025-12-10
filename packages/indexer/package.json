@@ -1,0 +1,28 @@
+{
+  "name": "@ens-apps/indexer",
+  "version": "1.0.0",
+  "description": "Indexer for ENS apps",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./generated.ts"
+  },
+  "scripts": {
+    "codegen": "graphql-codegen",
+    "test": "echo \"No tests for indexer package\""
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "^6.0.1",
+    "@graphql-codegen/fragment-matcher": "^6.0.0",
+    "@graphql-codegen/typescript": "^5.0.2",
+    "@graphql-codegen/typescript-operations": "^5.0.2",
+    "@graphql-codegen/typescript-react-apollo": "^4.3.3",
+    "typescript": "^5.9.2"
+  },
+  "keywords": [],
+  "dependencies": {
+    "@apollo/client": "3.14.0",
+    "graphql": "^16.11.0",
+    "@ensdomains/ensjs": "catalog:"
+  }
+}

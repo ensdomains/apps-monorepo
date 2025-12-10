@@ -1,0 +1,5 @@
+query Domains($where: DomainFilter!) {
+  domains(where: $where) {
+    ...Domain
+  }
+}

@@ -1,0 +1,6 @@
+fragment Resolver on Resolver {
+  id
+  address
+  avatar: text(key: "avatar")
+  description: text(key: "description")
+}
