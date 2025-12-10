@@ -52,7 +52,7 @@ const OwnerInfo = ({ name }: OwnerInfoProps) => {
 
   return (
     <div className="flex flex-col lg:flex-row gap-4">
-      <div className="p-6 rounded-lg gap-4 flex flex-col border border-secondary w-full">
+      <div className="p-6 rounded-lg gap-4 flex flex-col border border-gray-300 w-full">
         <h2 className="text-2xl font-medium">Current Owner</h2>
         <div>
           <OwnerDisplay owner={data.owner} />
@@ -70,7 +70,7 @@ const ParentInfo = ({ name }: ParentInfoProps) => {
   const parent = parentName(name)
 
   return (
-    <div className="p-6 rounded-lg gap-4 flex flex-col border border-secondary w-full">
+    <div className="p-6 rounded-lg gap-4 flex flex-col border border-gray-300 w-full">
       <h2 className="text-2xl font-medium">Parent name</h2>
       <div>
         <CopyableRecord value={parent} />
