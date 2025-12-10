@@ -1,13 +1,10 @@
-import {
-  type RhinestoneSigner,
-  recordsMachine,
-} from '@ens-apps/transaction-manager'
+import { recordsMachine } from '@ens-apps/transaction-manager'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
-import type { Address } from 'viem'
+import type { Address, PublicClient } from 'viem'
 import { Alert } from '@/components/molecules/Alert'
 import { Button } from '@/components/ui/button'
-import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+import { useSmartAccount } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { profileOwnerQuery } from '../service/profileOwner'
 import { profileRecordsQuery } from '../service/profileRecords'
@@ -46,10 +43,10 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   })
 
   const {
-    rhinestoneAccount,
     accountAddress,
-    isConnected: isRhinestoneConnected,
-  } = useRhinestoneAccount()
+    isConnected: isSmartAccountConnected,
+    signer,
+  } = useSmartAccount()
 
   const recordsActor = useActorRef(recordsMachine, {
     input: { chainId: customSepolia.id },
@@ -82,21 +79,13 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   }
 
   const handleSave = () => {
-    if (!isRhinestoneConnected || !rhinestoneAccount || !accountAddress) {
-      console.warn(
-        'Cannot save profile – Rhinestone smart account is not ready.',
-      )
+    if (!isSmartAccountConnected || !signer || !accountAddress) {
+      console.warn('Cannot save profile – Smart account is not ready.')
       return
     }
 
     const before = transformToServiceFormat(defaultValues)
     const after = transformToServiceFormat(form.state.values)
-
-    const signer: RhinestoneSigner = {
-      type: 'rhinestone',
-      account: rhinestoneAccount,
-      config: { chain: customSepolia },
-    }
 
     recordsActor.send({
       type: 'START_UPDATE',
@@ -106,7 +95,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       signer,
       resolverAddress: resolver,
       accountAddress: accountAddress as Address,
-      publicClient,
+      publicClient: publicClient as PublicClient,
     })
   }
 

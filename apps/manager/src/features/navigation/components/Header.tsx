@@ -32,7 +32,7 @@ import { NotificationsDropdown } from '@/features/notifications/components'
 import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+import { useSmartAccount } from '@/lib/smart-account'
 
 // Reusable menu content component
 const UserMenuContent = ({
@@ -43,7 +43,7 @@ const UserMenuContent = ({
   stablecoinBalances,
   smartAccountEthBalance,
   isLoadingSmartAccountEth,
-  rhinestoneAccount,
+  smartAccountClient,
   error,
   copied,
   handleCopyAddress,
@@ -61,7 +61,7 @@ const UserMenuContent = ({
     | undefined
   smartAccountEthBalance: { formattedBalance: string } | null | undefined
   isLoadingSmartAccountEth: boolean
-  rhinestoneAccount: unknown
+  smartAccountClient: unknown
   error: string | null
   copied: boolean
   handleCopyAddress: (address: string) => void
@@ -102,8 +102,8 @@ const UserMenuContent = ({
           </div>
         </div>
 
-        {/* Rhinestone Smart Account Information */}
-        {(isLoading || rhinestoneAccount || accountAddress) && (
+        {/* Smart Account Information */}
+        {(isLoading || smartAccountClient || accountAddress) && (
           <div className="mb-4">
             <div className="mb-2 font-medium text-ens-blue-midnight text-xs uppercase tracking-wide">
               Smart Account Address
@@ -123,7 +123,7 @@ const UserMenuContent = ({
                 </div>
                 <div className="mt-1 text-red-500 text-xs">{error}</div>
               </div>
-            ) : rhinestoneAccount && accountAddress ? (
+            ) : smartAccountClient && accountAddress ? (
               <div className="flex items-center justify-between rounded-lg border border-ens-blue-light bg-ens-lapis-dust p-3">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-ens-blue-dark text-sm">
@@ -219,7 +219,7 @@ const ConnectedContent = () => {
   const { openModal } = useModal()
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const {
-    rhinestoneAccount,
+    client: smartAccountClient,
     accountAddress,
     isLoading,
     stablecoinBalances,
@@ -228,7 +228,7 @@ const ConnectedContent = () => {
     error,
     isAutoFunding,
     autoFundingError,
-  } = useRhinestoneAccount()
+  } = useSmartAccount()
 
   const address = wallet?.address as Address | undefined
   const ensName = wallet?.ensName
@@ -359,7 +359,7 @@ const ConnectedContent = () => {
     stablecoinBalances,
     smartAccountEthBalance,
     isLoadingSmartAccountEth,
-    rhinestoneAccount,
+    smartAccountClient,
     error,
     copied,
     handleCopyAddress,

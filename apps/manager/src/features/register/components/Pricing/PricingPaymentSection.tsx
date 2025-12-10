@@ -1,7 +1,7 @@
 import { AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { PricingDuration } from '@/features/register/components/Pricing/types'
-import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+import { useSmartAccount } from '@/lib/smart-account'
 import {
   CreditCardPaymentDrawer,
   CryptoPaymentDrawer,
@@ -39,7 +39,7 @@ export const PricingPaymentSection = ({
   onConfirmPayment,
 }: PricingPaymentSectionProps) => {
   const { isLoadingSmartAccountEth, stablecoinBalances, isLoadingBalances } =
-    useRhinestoneAccount()
+    useSmartAccount()
 
   const hasStablecoins =
     (stablecoinBalances?.length || 0) > 0 &&

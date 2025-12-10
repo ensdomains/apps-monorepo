@@ -4,11 +4,10 @@
  * Business logic extracted outside React components for testability.
  */
 
-import type { registrationMachine, Signer } from '@ens-apps/transaction-manager'
-import type { RhinestoneConfig } from '@ens-apps/transaction-manager/types/transaction.types'
-import type { SmartAccountClient } from 'permissionless'
+import type { registrationMachine } from '@ens-apps/transaction-manager'
 import type { Address, PublicClient } from 'viem'
 import type { ActorRefFrom } from 'xstate'
+import type { SmartAccountState } from '@/lib/smart-account'
 import { SUPPORTED_TOKENS } from '../services/nameChainContractService'
 
 export interface StartRegistrationParams {
@@ -18,82 +17,70 @@ export interface StartRegistrationParams {
   tokenPrice: bigint
 }
 
-// TODO: Rename to SmartAccountInfo for clarity and consistency
-export interface AccountInfo {
-  rhinestoneAccount: SmartAccountClient
-  accountAddress: Address | null
-  rhinestoneConfig: RhinestoneConfig
+export interface HandleRegistrationOptions {
+  fast?: boolean
   publicClient: PublicClient
 }
 
 /**
- * Handle starting the registration flow
+ * Unified handler that starts registration with any smart account type
  *
- * Validates account readiness, creates the Signer, and sends START_REGISTRATION event to the machine.
- * Shows an alert if validation fails.
+ * Uses the pre-computed signer from the smart account hook.
+ * This is the main entry point for starting registration.
+ *
+ * @example
+ * const account = useSmartAccount({ type: 'pimlico' })
+ * handleStartRegistration(params, account, actor, { publicClient, fast: true })
  */
 export function handleStartRegistration(
   params: StartRegistrationParams,
-  account: AccountInfo,
+  account: SmartAccountState,
   actor: ActorRefFrom<typeof registrationMachine>,
-  options?: { fast?: boolean },
+  options: HandleRegistrationOptions,
 ): void {
   const { name, duration, selectedToken, tokenPrice } = params
-  const { rhinestoneAccount, accountAddress, rhinestoneConfig, publicClient } =
-    account
+  const { publicClient, fast = true } = options
 
-  const useFastRegistrar = Boolean(options?.fast)
-
-  if (!accountAddress || !rhinestoneAccount || !rhinestoneConfig) {
-    console.error('❌ Account not connected or not initialized', {
-      accountAddress,
-      hasRhinestoneAccount: !!rhinestoneAccount,
-      hasRhinestoneConfig: !!rhinestoneConfig,
+  // Validate account is ready - signer is pre-computed by the hook
+  if (!account.signer || !account.accountAddress) {
+    console.error('❌ Smart account not connected or not initialized', {
+      accountAddress: account.accountAddress,
+      hasSigner: !!account.signer,
+      type: account.type,
     })
     alert('Account not ready. Please wait for wallet to connect.')
     return
   }
 
-  // Create Signer from Pimlico smart account
-  // Use 'pimlico' type to use the new Para + Pimlico implementation
-  const signer: Signer = {
-    type: 'pimlico',
-    account: rhinestoneAccount, // This is actually the SmartAccountClient from permissionless
-    config: {
-      ...rhinestoneConfig,
-      accountAddress: accountAddress,
-    },
-  }
-
   const token = selectedToken === SUPPORTED_TOKENS.DAI ? 'DAI' : 'USDC'
-
   const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
+  const useFastRegistrar = Boolean(fast)
 
   const enableSponsorship =
     import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === undefined
       ? true // Default to true for testnet
       : import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === 'true'
 
-  console.log('✅ Creating START_REGISTRATION event:', {
+  console.log(`✅ Creating START_REGISTRATION event with ${account.type}:`, {
     name,
     duration: durationInSeconds,
     token,
     price: tokenPrice,
-    hasSigner: !!signer,
+    hasSigner: !!account.signer,
     hasPublicClient: !!publicClient,
     useFastRegistrar,
     sponsored: enableSponsorship,
   })
 
-  // Send event to machine with all necessary data
+  // Send event to machine - uses pre-computed signer from hook
   actor.send({
     type: 'START_REGISTRATION',
     name,
     duration: durationInSeconds,
     token,
     price: tokenPrice,
-    signer,
-    accountAddress: accountAddress as Address,
+    signer: account.signer,
+    accountAddress: account.accountAddress,
     publicClient,
     useFastRegistrar,
     sponsored: enableSponsorship,
