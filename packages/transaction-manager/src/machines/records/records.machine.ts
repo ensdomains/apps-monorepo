@@ -64,6 +64,7 @@ export const recordsMachine = setup({
         before: ServiceRecordSnapshot
         after: ServiceRecordSnapshot
         signer: Signer
+        accountAddress: Address
         publicClient: PublicClient
         chainId: number
         resolverAddress?: Address
@@ -160,6 +161,7 @@ export const recordsMachine = setup({
           before: context.before!,
           after: context.after!,
           signer: context.signer!,
+          accountAddress: context.accountAddress!,
           publicClient: context.publicClient!,
           chainId: context.chainId,
           resolverAddress: context.resolverAddress,
