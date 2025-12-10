@@ -56,6 +56,7 @@ export const resolverMachine = setup({
         newResolver: Address
         signer: Signer
         publicClient: PublicClient
+        accountAddress: Address
       }) => submitResolverUpdateActor(input),
     ),
     pollTransactionStatus: fromResultAsync((input: { txId: string }) =>
@@ -148,6 +149,7 @@ export const resolverMachine = setup({
           newResolver: context.newResolver!,
           signer: context.signer!,
           publicClient: context.publicClient!,
+          accountAddress: context.accountAddress!,
         }),
         onDone: {
           target: 'waitingForUpdate',
