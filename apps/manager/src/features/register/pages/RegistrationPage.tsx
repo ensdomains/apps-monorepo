@@ -50,6 +50,9 @@ function mapMachineStateToStep(
   switch (stateString) {
     case 'idle':
       return RegistrationStep.PRICING
+    case 'settingUpRegistration':
+    case 'deployingResolver':
+    case 'waitingForResolverDeployment':
     case 'preparingCommitment':
     case 'committingTransaction':
     case 'waitingForCommitment':
