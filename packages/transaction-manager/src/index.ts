@@ -116,6 +116,7 @@ export type {
 export type {
   EOASigner,
   ERC4337Signer,
+  PimlicoSigner,
   PrivySigner,
   RhinestoneSigner,
   SafeSigner,
@@ -124,6 +125,7 @@ export type {
 export {
   isEOASigner,
   isERC4337Signer,
+  isPimlicoSigner,
   isRhinestoneSigner,
 } from './types/signer.types'
 export type {
@@ -134,6 +136,7 @@ export type {
   ETHTransferTransactionIntent,
   PaymentMethod,
   PaymentOption,
+  SmartAccountConfig,
   TransactionFlowType,
   TransactionIntent,
   TransactionModalState,

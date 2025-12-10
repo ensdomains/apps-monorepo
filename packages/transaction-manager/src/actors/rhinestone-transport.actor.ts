@@ -65,7 +65,6 @@ export function submitRhinestoneTransaction(input: {
 
   const chain = config.chain || sepolia
 
-  // Execute the transaction through Rhinestone SDK
   return fromPromise(
     (async () => {
       console.log('📤 Calling rhinestoneAccount.sendUserOperation()...', {
