@@ -67,7 +67,7 @@ export function submitRhinestoneTransaction(input: {
 
   return fromPromise(
     (async () => {
-      console.log('📤 Calling rhinestoneAccount.sendUserOperation()...', {
+      console.log('📤 Calling rhinestoneAccount.sendTransaction()...', {
         chain: chain.name,
         chainId: chain.id,
         callCount: rhinestoneRequest.rhinestoneParams.calls.length,
@@ -78,7 +78,7 @@ export function submitRhinestoneTransaction(input: {
         })),
       })
 
-      const transaction = await account.sendUserOperation({
+      const transaction = await account.sendTransaction({
         chain: chain,
         calls: rhinestoneRequest.rhinestoneParams.calls,
       })
@@ -86,20 +86,20 @@ export function submitRhinestoneTransaction(input: {
       console.log('✅ Transaction response:', transaction)
 
       // Rhinestone returns an "intent" object with an 'id' property, not 'hash'
-      const txHash = transaction.hash
+      const txId = transaction.id
 
-      console.log('✅ Transaction hash/id:', txHash)
+      console.log('✅ Transaction hash/id:', txId)
       console.log('✅ Transaction type:', transaction.type)
 
-      if (!transaction || !transaction.hash) {
+      if (!transaction || !transaction.id) {
         console.error('❌ No transaction hash or ID returned!', transaction)
         throw new Error(
           'No transaction hash or ID returned from Rhinestone SDK',
         )
       }
 
-      console.log('✅ Final hash:', txHash)
-      return txHash
+      console.log('✅ Final hash:', txId)
+      return txId
     })(),
     (error) => {
       console.error(
