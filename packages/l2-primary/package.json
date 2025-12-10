@@ -6,7 +6,7 @@
   "private": true,
   "exports": {
     ".": "./src/index.ts",
-    "./hooks": "./src/hooks/index.ts",
+    "./utils": "./src/utils/index.ts",
     "./chains": "./src/chains.ts",
     "./L2ReverseRegistrar": "./src/L2ReverseRegistrar.ts",
     "./reverseRegistrarChainIds": "./src/reverseRegistrarChainIds.ts"
@@ -15,20 +15,11 @@
     "test": "echo \"No tests for l2-primary package\""
   },
   "devDependencies": {
-    "@tanstack/react-query": "^5.0.0",
-    "react": "^19.1.1",
-    "typescript": "^5.9.2",
-    "viem": "^2.37.4",
-    "wagmi": "^3.0.2"
+    "typescript": "^5.9.2"
   },
   "keywords": [],
   "dependencies": {
-    "@ensdomains/ensjs": "catalog:"
-  },
-  "peerDependencies": {
-    "@tanstack/react-query": "^5.0.0",
-    "react": "^19.1.1",
-    "viem": "^2.37.4",
-    "wagmi": "^3.0.2"
+    "@ensdomains/ensjs": "catalog:",
+    "viem": "^2.40.3"
   }
 }
