@@ -7,7 +7,7 @@ import { LinkButton } from '@/components/ui/button'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { ProfileEdit } from '@/features/profile/components/ProfileEdit'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
-import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+import { useSmartAccount } from '@/lib/smart-account'
 
 export const Route = createFileRoute('/p/$name/edit')({
   component: RouteComponent,
@@ -36,7 +36,7 @@ function RouteComponent() {
   const {
     accountAddress: smartAccountAddress,
     isLoading: isSmartAccountLoading,
-  } = useRhinestoneAccount()
+  } = useSmartAccount()
 
   const normalizedOwner = ownerData?.owner?.toLowerCase()
   const connectedAddresses = [wallet?.address, smartAccountAddress]

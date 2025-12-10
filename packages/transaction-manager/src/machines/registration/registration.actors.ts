@@ -5,9 +5,10 @@
  */
 
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
-import type { Address, Hash, PublicClient } from 'viem'
+import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { encodeFunctionData, keccak256, toHex } from 'viem'
 import { sepolia } from 'viem/chains'
+import type { Signer } from '../..'
 import { ERC20_ABI } from '../../contracts/abis/ERC20.abi'
 import { FAST_TEST_ETH_REGISTRAR_ABI } from '../../contracts/abis/FastTestETHRegistrar.abi'
 import {
@@ -16,6 +17,11 @@ import {
   SUPPORTED_TOKENS,
 } from '../../contracts/ens-sepolia'
 import { transactionManager } from '../../providers/transactionManager'
+import type {
+  PimlicoTransactionRequest,
+  RhinestoneTransactionRequest,
+  TransactionRequest,
+} from '../../types/transaction.types'
 
 type CommitmentData = {
   commitment: Hash
@@ -132,7 +138,7 @@ function selectRegistrarAddress(useFastRegistrar: boolean): Address {
     : ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 }
 
-function getSmartAccountAddress(signer: import('../..').Signer): Address {
+function getSmartAccountAddress(signer: Signer): Address {
   if (signer.type === 'rhinestone') {
     // Rhinestone SDK account - use getAddress method
     return signer.account.getAddress() as Address
@@ -161,6 +167,57 @@ function getSmartAccountAddress(signer: import('../..').Signer): Address {
 
   throw new Error(
     'Only Rhinestone or Pimlico signer is supported for registration',
+  )
+}
+
+/**
+ * Create transaction request based on signer type
+ * Returns the appropriate transaction request type (rhinestone-intent or pimlico)
+ */
+function createTransactionRequest(params: {
+  signer: Signer
+  from: Address
+  to: Address
+  data: Hex
+  value: bigint
+  chainId: number
+  calls: Array<{ to: Address; data: Hex; value: bigint }>
+  sponsored?: boolean
+}): TransactionRequest {
+  const { signer, from, to, data, value, chainId, calls, sponsored } = params
+
+  if (signer.type === 'rhinestone') {
+    return {
+      type: 'rhinestone-intent',
+      from,
+      to,
+      data,
+      value,
+      chainId,
+      rhinestoneParams: {
+        calls,
+        sponsored: sponsored ?? true,
+      },
+    } as RhinestoneTransactionRequest
+  }
+
+  if (signer.type === 'pimlico') {
+    return {
+      type: 'pimlico',
+      from,
+      to,
+      data,
+      value,
+      chainId,
+      pimlicoParams: {
+        calls,
+        sponsored: sponsored ?? true,
+      },
+    } as PimlicoTransactionRequest
+  }
+
+  throw new Error(
+    `Unsupported signer type for transaction request: ${signer.type}`,
   )
 }
 
@@ -225,27 +282,27 @@ export function submitCommitmentActor(input: {
         !!input.publicClient,
       )
 
-      const txId = transactionManager.startTransaction(
-        {
-          type: 'custom',
-          request: {
-            type: 'rhinestone-intent',
-            from: smartAccountAddress,
+      const request = createTransactionRequest({
+        signer: input.signer,
+        from: smartAccountAddress,
+        to: registrarAddress,
+        data: commitmentData,
+        value: 0n,
+        chainId: sepolia.id,
+        calls: [
+          {
             to: registrarAddress,
             data: commitmentData,
             value: 0n,
-            chainId: sepolia.id, // Sepolia
-            rhinestoneParams: {
-              calls: [
-                {
-                  to: registrarAddress,
-                  data: commitmentData,
-                  value: 0n,
-                },
-              ],
-              sponsored: input.sponsored ?? true,
-            },
           },
+        ],
+        sponsored: input.sponsored ?? true,
+      })
+
+      const txId = transactionManager.startTransaction(
+        {
+          type: 'custom',
+          request,
         },
         input.signer,
         {
@@ -409,27 +466,27 @@ export function submitApprovalActor(input: {
         registrarAddress,
       )
 
-      const txId = transactionManager.startTransaction(
-        {
-          type: 'custom',
-          request: {
-            type: 'rhinestone-intent',
-            from: smartAccountAddress,
+      const request = createTransactionRequest({
+        signer: input.signer,
+        from: smartAccountAddress,
+        to: normalizedTokenAddress,
+        data: approvalData,
+        value: 0n,
+        chainId: sepolia.id,
+        calls: [
+          {
             to: normalizedTokenAddress,
             data: approvalData,
             value: 0n,
-            chainId: sepolia.id, // Sepolia
-            rhinestoneParams: {
-              calls: [
-                {
-                  to: normalizedTokenAddress,
-                  data: approvalData,
-                  value: 0n,
-                },
-              ],
-              sponsored: input.sponsored ?? true,
-            },
           },
+        ],
+        sponsored: input.sponsored ?? true,
+      })
+
+      const txId = transactionManager.startTransaction(
+        {
+          type: 'custom',
+          request,
         },
         input.signer,
         {
@@ -498,27 +555,27 @@ export function submitRegistrationActor(input: {
         normalizedPaymentToken,
       )
 
-      const txId = transactionManager.startTransaction(
-        {
-          type: 'custom',
-          request: {
-            type: 'rhinestone-intent',
-            from: smartAccountAddress,
+      const request = createTransactionRequest({
+        signer: input.signer,
+        from: smartAccountAddress,
+        to: registrarAddress,
+        data: registrationData,
+        value: 0n,
+        chainId: sepolia.id,
+        calls: [
+          {
             to: registrarAddress,
             data: registrationData,
             value: 0n,
-            chainId: sepolia.id, // Sepolia
-            rhinestoneParams: {
-              calls: [
-                {
-                  to: registrarAddress,
-                  data: registrationData,
-                  value: 0n,
-                },
-              ],
-              sponsored: input.sponsored ?? true,
-            },
           },
+        ],
+        sponsored: input.sponsored ?? true,
+      })
+
+      const txId = transactionManager.startTransaction(
+        {
+          type: 'custom',
+          request,
         },
         input.signer,
         {

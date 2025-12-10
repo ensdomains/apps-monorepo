@@ -3,11 +3,16 @@ import type {
   Chain,
   Hash,
   Hex,
+  PublicClient,
   TransactionReceipt,
   WalletClient,
 } from 'viem'
 
-export type TransactionType = 'eoa' | 'erc4337' | 'rhinestone-intent'
+export type TransactionType =
+  | 'eoa'
+  | 'erc4337'
+  | 'rhinestone-intent'
+  | 'pimlico'
 
 export interface BaseTransactionRequest {
   type: TransactionType
@@ -55,10 +60,29 @@ export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
   }
 }
 
+/**
+ * Pimlico Transaction Request
+ * Uses permissionless SmartAccountClient with calls array (similar to Rhinestone)
+ */
+export interface PimlicoCall {
+  to: Address
+  data: Hex
+  value: bigint
+}
+
+export interface PimlicoTransactionRequest extends BaseTransactionRequest {
+  type: 'pimlico'
+  pimlicoParams: {
+    calls: PimlicoCall[]
+    sponsored?: boolean
+  }
+}
+
 export type TransactionRequest =
   | EOATransactionRequest
   | ERC4337UserOperation
   | RhinestoneTransactionRequest
+  | PimlicoTransactionRequest
 
 // Transaction Intents - High-level descriptions of what the user wants to do
 // (Distinct from Rhinestone intents, which are chain abstraction intents)
@@ -87,20 +111,22 @@ export type TransactionIntent =
   | ETHTransferTransactionIntent
   | CustomTransactionIntent
 
-// TODO: Rename to SmartAccountConfig for clarity and consistency
-// Im thinking to create a helper so we can decide which config to use, rhinestone or pimlico
-export interface RhinestoneConfig {
+/**
+ * Smart Account Configuration
+ *
+ * Shared config interface for all smart account signers (Pimlico, Rhinestone, etc.)
+ * Contains chain info, bundler/paymaster URLs, and account details.
+ */
+export type SmartAccountConfig = {
   chain?: Chain
   bundlerUrl?: string
   paymasterUrl?: string
   sponsorshipPolicyId?: string
-  rhinestoneApiKey?: string
-  pimlicoApiKey?: string
   walletClient?: WalletClient
   accountAddress?: Address
   accountType?: 'simple' | 'hca'
   hcaFactoryAddress?: Address
-}
+} & ({ rhinestoneApiKey: string } | { pimlicoApiKey: string })
 
 export interface TransactionOptions {
   usePrivateMempool?: boolean
@@ -108,12 +134,12 @@ export interface TransactionOptions {
   timeout?: number
   retryCount?: number
   retryDelay?: number
-  rhinestoneConfig?: RhinestoneConfig
+  smartAccountConfig?: SmartAccountConfig
   description?: string
   modal?: Partial<TransactionModalState>
   id?: string
-  publicClient?: any // PublicClient from viem
-  walletClient?: any // WalletClient from viem
+  publicClient?: PublicClient // PublicClient from viem
+  walletClient?: WalletClient // WalletClient from viem
 }
 
 export interface TransactionResult {

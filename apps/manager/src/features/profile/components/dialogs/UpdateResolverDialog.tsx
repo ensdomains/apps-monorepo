@@ -1,4 +1,4 @@
-import { resolverMachine, type Signer } from '@ens-apps/transaction-manager'
+import { resolverMachine } from '@ens-apps/transaction-manager'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useEffect, useState } from 'react'
 import type { Address } from 'viem'
@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
+import { useSmartAccount } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
@@ -32,8 +32,7 @@ export const UpdateResolverDialog = ({
   const [resolver, setResolver] = useState(currentResolver ?? '')
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
 
-  const { rhinestoneAccount, accountAddress, rhinestoneConfig, isConnected } =
-    useRhinestoneAccount()
+  const { accountAddress, isConnected, signer } = useSmartAccount()
 
   const resolverActor = useActorRef(resolverMachine, {
     input: { chainId: customSepolia.id },
@@ -79,25 +78,11 @@ export const UpdateResolverDialog = ({
       return
     }
 
-    if (
-      !isConnected ||
-      !rhinestoneAccount ||
-      !accountAddress ||
-      !rhinestoneConfig
-    ) {
+    if (!isConnected || !signer || !accountAddress) {
       setErrorMessage(
         'Connect your wallet and smart account before updating the resolver.',
       )
       return
-    }
-
-    const signer: Signer = {
-      type: 'pimlico',
-      account: rhinestoneAccount,
-      config: {
-        ...rhinestoneConfig,
-        accountAddress: accountAddress as Address,
-      },
     }
 
     resolverActor.send({

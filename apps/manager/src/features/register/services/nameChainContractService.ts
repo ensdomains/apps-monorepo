@@ -14,7 +14,7 @@ import {
   zeroHash,
 } from 'viem'
 import { ERC20_ABI, FASTTESTETHREGISTRAR_ABI } from '@/lib/ens.abi'
-import type { RhinestoneTransactionResult } from '@/lib/rhinestone/utils'
+import type { RhinestoneTransactionResult } from '@/lib/smart-account/utils'
 import { customSepolia, SEPOLIA_RPC_URL } from '@/lib/wagmi'
 
 // Create standalone public client
