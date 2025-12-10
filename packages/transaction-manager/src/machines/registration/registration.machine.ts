@@ -6,9 +6,11 @@ import type { Signer } from '../../types/signer.types'
 import {
   generateCommitmentActor,
   pollTransactionStatusActor,
+  resolveResolverDeploymentActor,
   submitApprovalActor,
   submitCommitmentActor,
   submitRegistrationActor,
+  submitResolverDeploymentActor,
   validateCommitmentActor,
 } from './registration.actors'
 
@@ -16,13 +18,14 @@ import {
  * Registration Machine
  *
  * Orchestrates the ENS registration flow:
- * 1. Generate commitment
- * 2. Submit commitment transaction
- * 3. Wait for commitment confirmation
- * 4. Approve token spend
- * 5. Wait for approval confirmation
- * 6. Submit registration transaction
- * 7. Wait for registration confirmation
+ * 1. Deploy dedicated resolver
+ * 2. Generate commitment
+ * 3. Submit commitment transaction
+ * 4. Wait for commitment confirmation
+ * 5. Approve token spend
+ * 6. Wait for approval confirmation
+ * 7. Submit registration transaction
+ * 8. Wait for registration confirmation
  *
  * Persistence is handled automatically via inspect option (see export at bottom)
  */
@@ -52,6 +55,9 @@ export type RegistrationContext = {
   sponsored?: boolean
 
   // Flow state
+  resolverTxId?: string
+  resolverSalt?: bigint
+  resolverAddress?: Address
   commitment?: CommitmentData
   commitmentTxId?: string
   approvalTxId?: string
@@ -90,6 +96,20 @@ export const registrationMachine = setup({
   },
 
   actors: {
+    deployResolver: fromResultAsync(
+      (input: {
+        name: string
+        owner: Address
+        signer: Signer
+        publicClient: PublicClient
+        sponsored?: boolean
+      }) => {
+        return submitResolverDeploymentActor(input)
+      },
+    ),
+    resolveResolverDeployment: fromResultAsync((input: { txId: string }) => {
+      return resolveResolverDeploymentActor(input)
+    }),
     generateCommitment: fromResultAsync(
       ({
         name,
@@ -98,6 +118,7 @@ export const registrationMachine = setup({
         publicClient,
         selectedToken,
         useFastRegistrar,
+        resolverAddress,
       }: {
         name: string
         owner: Address
@@ -105,6 +126,7 @@ export const registrationMachine = setup({
         publicClient: PublicClient
         selectedToken: 'USDC' | 'DAI'
         useFastRegistrar: boolean
+        resolverAddress: Address
       }) => {
         return generateCommitmentActor({
           name,
@@ -113,6 +135,7 @@ export const registrationMachine = setup({
           publicClient,
           selectedToken,
           useFastRegistrar,
+          resolverAddress,
         })
       },
     ),
@@ -152,6 +175,7 @@ export const registrationMachine = setup({
         publicClient: PublicClient
         useFastRegistrar: boolean
         sponsored?: boolean
+        resolverAddress: Address
       }) => {
         return submitRegistrationActor(input)
       },
@@ -200,6 +224,8 @@ export const registrationMachine = setup({
           context: {
             name: context.name,
             duration: context.duration.toString(),
+            resolverTxId: context.resolverTxId,
+            resolverAddress: context.resolverAddress,
             commitmentTxId: context.commitmentTxId,
             approvalTxId: context.approvalTxId,
             registrationTxId: context.registrationTxId,
@@ -240,6 +266,9 @@ export const registrationMachine = setup({
     tokenPrice: 0n,
     registerReadyTimestamp: undefined,
     useFastRegistrar: false,
+    resolverAddress: undefined,
+    resolverTxId: undefined,
+    resolverSalt: undefined,
   }),
 
   states: {
@@ -258,6 +287,13 @@ export const registrationMachine = setup({
             registerReadyTimestamp: () => undefined,
             useFastRegistrar: ({ event }) => Boolean(event.useFastRegistrar),
             sponsored: ({ event }) => event.sponsored ?? true,
+            resolverAddress: () => undefined,
+            resolverTxId: () => undefined,
+            resolverSalt: () => undefined,
+            commitment: () => undefined,
+            commitmentTxId: () => undefined,
+            approvalTxId: () => undefined,
+            registrationTxId: () => undefined,
           }),
         },
       },
@@ -273,7 +309,76 @@ export const registrationMachine = setup({
         })
       },
       always: {
-        target: 'preparingCommitment',
+        target: 'deployingResolver',
+      },
+    },
+
+    deployingResolver: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'deployResolver',
+        input: ({ context }) => ({
+          name: context.name,
+          owner: context.accountAddress!,
+          signer: context.signer!,
+          publicClient: context.publicClient!,
+          sponsored: context.sponsored,
+        }),
+        onDone: {
+          target: 'waitingForResolverDeployment',
+          actions: assign({
+            resolverTxId: ({ event }) => event.output.txId,
+            resolverSalt: ({ event }) => event.output.salt,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Resolver deployment submission failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    waitingForResolverDeployment: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'resolveResolverDeployment',
+        input: ({ context }) => ({ txId: context.resolverTxId! }),
+        onDone: {
+          target: 'preparingCommitment',
+          actions: assign({
+            resolverAddress: ({ event }) => event.output.resolverAddress,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Resolver deployment failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
       },
     },
 
@@ -295,6 +400,7 @@ export const registrationMachine = setup({
             publicClient: context.publicClient!,
             selectedToken: context.selectedToken,
             useFastRegistrar: context.useFastRegistrar,
+            resolverAddress: context.resolverAddress!,
           }
         },
         onDone: {
@@ -536,6 +642,7 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,
+          resolverAddress: context.resolverAddress!,
         }),
         onDone: {
           target: 'waitingForRegistration',
@@ -611,9 +718,17 @@ export const registrationMachine = setup({
       ],
       on: {
         RETRY: {
-          target: 'preparingCommitment',
+          target: 'deployingResolver',
           actions: assign({
             error: undefined,
+            resolverAddress: undefined,
+            resolverTxId: undefined,
+            resolverSalt: undefined,
+            commitment: undefined,
+            commitmentTxId: undefined,
+            approvalTxId: undefined,
+            registrationTxId: undefined,
+            registerReadyTimestamp: undefined,
           }),
         },
         CANCEL: 'idle',
