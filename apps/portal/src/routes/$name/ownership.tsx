@@ -4,7 +4,7 @@ import type { Address } from 'viem/accounts'
 import { useEnsName } from 'wagmi'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
-import { NameHistory } from '@/components/organisms/NameHistory/NameHistory'
+import { NameSubgraphHistory } from '@/components/organisms/NameSubgraphHistory/NameSubgraphHistory'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { parentName } from '@/lib/parent'
 import { LoadingSpinner } from '../../components/molecules/LoadingSpinner'
@@ -89,7 +89,7 @@ function RouteComponent() {
       </div>
       <div className="flex flex-col gap-6">
         <OwnerInfo name={name} />
-        <NameHistory name={name} category="domain" />
+        <NameSubgraphHistory name={name} category="domain" />
         <ParentInfo name={name} />
       </div>
     </div>

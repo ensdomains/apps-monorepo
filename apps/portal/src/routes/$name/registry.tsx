@@ -14,7 +14,7 @@ import { VerifiedRegistryCard } from '@/features/registry/components/VerifiedReg
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getParentName } from '@/features/registry/utils/nameUtils'
 import { sepoliaEthRegistryAddress } from '@/lib/constants/registry'
-import { NameHistory } from '../../components/organisms/NameHistory/NameHistory'
+import { NameSubgraphHistory } from '../../components/organisms/NameSubgraphHistory/NameSubgraphHistory'
 
 export const Route = createFileRoute('/$name/registry')({
   component: RouteComponent,
@@ -161,7 +161,7 @@ function RouteComponent() {
                   factory,
                 }}
               />
-              <NameHistory name={name} category="registration" />
+              <NameSubgraphHistory name={name} category="registration" />
             </>
           ))}
       </div>
@@ -207,7 +207,7 @@ function RouteComponent() {
                   factory,
                 }}
               />
-              <NameHistory name={name} category="registration" />
+              <NameSubgraphHistory name={name} category="registration" />
             </>
           ))}
       </div>
@@ -296,7 +296,7 @@ function RouteComponent() {
                 factory,
               }}
             />
-            <NameHistory name={name} category="registration" />
+            <NameSubgraphHistory name={name} category="registration" />
           </>
         ))}
     </div>

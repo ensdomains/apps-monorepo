@@ -15,7 +15,7 @@ import {
 
 type Category = 'domain' | 'registration' | 'resolver'
 
-interface NameHistoryProps {
+interface NameSubgraphHistoryProps {
   name: string
   category?: Category
 }
@@ -24,7 +24,7 @@ const categoryToEventType = (c: Category): `${Category}Events` => {
   return `${c}Events`
 }
 
-const NameHistoryTable = ({
+const NameSubgraphHistoryTable = ({
   name,
   data: history,
   category,
@@ -94,10 +94,10 @@ const NameHistoryTable = ({
   )
 }
 
-export const NameHistory = ({
+export const NameSubgraphHistory = ({
   name,
   category = 'resolver',
-}: NameHistoryProps) => {
+}: NameSubgraphHistoryProps) => {
   const {
     data: history,
     isLoading,
@@ -127,7 +127,7 @@ export const NameHistory = ({
       <div>
         <h2 className="text-[26px] font-medium">History</h2>
       </div>
-      <NameHistoryTable {...{ name, data, category }} />
+      <NameSubgraphHistoryTable {...{ name, data, category }} />
     </div>
   )
 }
