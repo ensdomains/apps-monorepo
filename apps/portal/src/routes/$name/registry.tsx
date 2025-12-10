@@ -16,6 +16,7 @@ import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getParentName } from '@/features/registry/utils/nameUtils'
 import { sepoliaEthRegistryAddress } from '@/lib/constants/registry'
+import { NameSubgraphHistory } from '../../components/organisms/NameSubgraphHistory/NameSubgraphHistory'
 
 export const Route = createFileRoute('/$name/registry')({
   component: RouteComponent,
@@ -96,7 +97,7 @@ function RouteComponent() {
         : ((error as { message?: string })?.message ?? 'Unknown error')
 
     return (
-      <div className="flex flex-col gap-4 p-4 w-full max-w-360 mx-auto">
+      <div className="flex flex-col gap-6 p-6 w-full max-w-360">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
         <div>Error: {message}</div>
       </div>
@@ -105,7 +106,7 @@ function RouteComponent() {
 
   if (registryError) {
     return (
-      <div className="flex flex-col gap-4 p-4 w-full max-w-360 mx-auto">
+      <div className="flex flex-col gap-6 p-6 w-full max-w-360">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
         <div>Error: {registryError.message}</div>
       </div>
@@ -114,7 +115,7 @@ function RouteComponent() {
 
   if (parentOwnerError) {
     return (
-      <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
+      <div className="flex flex-col gap-6 p-6 w-full max-w-360">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
         <div>Error: {parentOwnerError.message}</div>
       </div>
@@ -143,7 +144,7 @@ function RouteComponent() {
   // ─────────────────────────────
   if (!hasNameRegistry) {
     return (
-      <div className="flex flex-col gap-6 p-4 w-full max-w-360 mx-auto">
+      <div className="max-w-360 mx-auto w-full flex flex-col p-6 gap-6">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
 
         {isLoadingOwner || isLoadingRegistry ? (
@@ -159,7 +160,7 @@ function RouteComponent() {
             <>
               {/* Parent top row */}
               <div className="flex flex-col gap-4">
-                <h2 className="text-xl font-semibold">Parent registry</h2>
+                <h2 className="text-[26px]">Parent registry</h2>
                 <RegistryCardsGrid
                   label={getParentName(name) || 'eth'}
                   owner={{
@@ -181,6 +182,7 @@ function RouteComponent() {
                   factory,
                 }}
               />
+              <NameSubgraphHistory name={name} category="registration" />
             </>
           ))}
       </div>
@@ -194,7 +196,7 @@ function RouteComponent() {
   // Only show the parent registry section (the V1 ETH Registry where they're registered).
   if (isV1Name) {
     return (
-      <div className="flex flex-col gap-6 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
+      <div className="max-w-360 mx-auto w-full flex flex-col p-6 gap-6">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
 
         {parentRegistry &&
@@ -204,7 +206,7 @@ function RouteComponent() {
             <>
               {/* Parent top row */}
               <div className="flex flex-col gap-4">
-                <h2 className="text-xl font-semibold">Parent registry</h2>
+                <h2 className="text-[26px] font-semibold">Parent registry</h2>
                 <RegistryCardsGrid
                   label={getParentName(name) || 'eth'}
                   owner={{
@@ -226,6 +228,7 @@ function RouteComponent() {
                   factory,
                 }}
               />
+              <NameSubgraphHistory name={name} category="registration" />
             </>
           ))}
       </div>
@@ -236,7 +239,7 @@ function RouteComponent() {
   // Case 3: V2 Name with registry
   // ─────────────────────────────
   return (
-    <div className="flex flex-col gap-6 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
+    <div className="max-w-360 mx-auto w-full flex flex-col p-6 gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
         {hasSetSubregistryRole && (
@@ -292,7 +295,7 @@ function RouteComponent() {
         ) : (
           <>
             <div className="flex flex-col gap-4">
-              <h2 className="text-xl font-semibold">Parent registry</h2>
+              <h2 className="text-[26px] font-semibold">Parent registry</h2>
               <RegistryCardsGrid
                 label={getParentName(name) || 'eth'}
                 owner={{
@@ -316,6 +319,7 @@ function RouteComponent() {
                 factory,
               }}
             />
+            <NameSubgraphHistory name={name} category="registration" />
           </>
         ))}
     </div>

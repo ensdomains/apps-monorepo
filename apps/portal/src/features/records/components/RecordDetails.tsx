@@ -30,7 +30,7 @@ const AddressRecordValue = ({
   canEditRecords,
 }: AddressRecordValueProps) => {
   return (
-    <div className="flex flex-row gap-4 p-6 border border-gray-200 rounded-lg w-full items-end">
+    <div className="flex flex-row gap-4 p-6 border border-gray-300 rounded-lg w-full items-end">
       <div className="flex flex-col gap-1">
         <Label htmlFor="coin_type">Coin Type</Label>
         <div className="flex flex-row gap-2">
@@ -69,7 +69,7 @@ interface TextRecordValueProps {
 
 const TextRecordValue = ({ record, canEditRecords }: TextRecordValueProps) => {
   return (
-    <div className="flex flex-row gap-4 p-6 border border-gray-200 rounded-lg w-full items-end">
+    <div className="flex flex-row gap-4 p-6 border border-gray-300 rounded-lg w-full items-end">
       <div className="flex flex-col gap-1 w-full">
         <Label htmlFor={record.key}>Text</Label>
         <Input
@@ -98,7 +98,7 @@ const ContentHashValue = ({
   canEditRecords,
 }: ContentHashValueProps) => {
   return (
-    <div className="flex flex-row gap-4 p-6 border border-gray-200 rounded-lg w-full items-end">
+    <div className="flex flex-row gap-4 p-6 border border-gray-300 rounded-lg w-full items-end">
       <div className="flex flex-col gap-1 w-full">
         <Label htmlFor={record.type}>Content Hash</Label>
         <Input
@@ -174,7 +174,7 @@ const ResolverView = ({ name }: ResolverViewProps) => {
   if (!resolverAddress) return <div>No data</div>
 
   return (
-    <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg">
+    <div className="flex flex-col gap-6 p-6 border border-gray-300 rounded-lg">
       <h3 className="text-2xl font-medium">Resolver</h3>
       <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
         <UnderlyingResolver {...{ name, resolverAddress }} />
@@ -243,7 +243,7 @@ const HistoryView = ({ name, record }: HistoryViewProps) => {
   if (isLoading) return <LoadingSpinner title="Loading..." />
 
   return (
-    <div className="flex flex-col gap-6 p-6 border border-gray-200 rounded-lg overflow-y-scroll">
+    <div className="flex flex-col gap-6 p-6 border border-gray-300 rounded-lg overflow-y-scroll">
       <h3 className="text-2xl font-medium">History</h3>
       <DataTable
         data={filterRecordHistoryByRecord(history || [], record)}
