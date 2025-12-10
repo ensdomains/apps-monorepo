@@ -1,6 +1,6 @@
 import { useBlocker } from '@tanstack/react-router'
 import { ArrowRight, Check, Loader2, Plus, Save, X } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button, LinkButton } from '@/components/ui/button'
 import {
@@ -37,24 +37,9 @@ export const DiffDialog = ({
   txHash,
 }: DiffDialogProps) => {
   const [open, setOpen] = useState(false)
-  const [baselineData, setBaselineData] = useState(originalData)
-  const prevIsSuccessRef = useRef(isSuccess)
-
-  useEffect(() => {
-    setBaselineData(originalData)
-  }, [originalData])
-
-  useEffect(() => {
-    const prevIsSuccess = prevIsSuccessRef.current
-    if (!prevIsSuccess && isSuccess) {
-      setBaselineData(JSON.parse(JSON.stringify(currentData)))
-    }
-    prevIsSuccessRef.current = isSuccess
-  }, [isSuccess, currentData])
-
   const diff = useMemo(
-    () => createDiff(baselineData, currentData),
-    [baselineData, currentData],
+    () => createDiff(originalData, currentData),
+    [originalData, currentData],
   )
   const hasChanges = Object.keys(diff).length > 0
   const showSuccessState = Boolean(isSuccess && !hasChanges)
