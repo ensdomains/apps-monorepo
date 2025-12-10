@@ -17,7 +17,7 @@ const locales = dirname(
 export default defineConfig({
   plugins: [
     tanstackRouter({
-      autoCodeSplitting: true,
+      autoCodeSplitting: false,
       routeFileIgnorePattern: '.((css|const).ts)',
     }),
     viteReact(),
@@ -31,24 +31,13 @@ export default defineConfig({
       '@ens-apps/utils': fileURLToPath(
         new URL('../../packages/utils/src', import.meta.url),
       ),
-      '@ens-apps/l2-primary': new URL(
-        '../../packages/l2-primary/src',
-        import.meta.url,
-      ).pathname,
+      '@ens-apps/l2-primary': fileURLToPath(
+        new URL('../../packages/l2-primary/src', import.meta.url),
+      ),
     },
-    dedupe: ['react', 'react-dom', 'wagmi', '@wagmi/core'],
+    dedupe: ['react', 'react-dom', 'wagmi', '@wagmi/core', 'viem'],
   },
   optimizeDeps: {
     exclude: ['@ens-apps/l2-primary'],
-  },
-  build: {
-    commonjsOptions: {
-      include: [/node_modules/],
-    },
-    rollupOptions: {
-      output: {
-        manualChunks: undefined,
-      },
-    },
   },
 })
