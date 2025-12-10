@@ -346,27 +346,27 @@ export function submitResolverDeploymentActor(input: {
         args: [ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl, salt, initCalldata],
       })
 
-      const txId = transactionManager.startTransaction(
-        {
-          type: 'custom',
-          request: {
-            type: 'rhinestone-intent',
-            from: smartAccountAddress,
+      const request = createTransactionRequest({
+        signer: input.signer,
+        from: smartAccountAddress,
+        to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
+        data: deployCalldata,
+        value: 0n,
+        chainId: sepolia.id,
+        calls: [
+          {
             to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
             data: deployCalldata,
             value: 0n,
-            chainId: sepolia.id,
-            rhinestoneParams: {
-              calls: [
-                {
-                  to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
-                  data: deployCalldata,
-                  value: 0n,
-                },
-              ],
-              sponsored: input.sponsored ?? true,
-            },
           },
+        ],
+        sponsored: input.sponsored ?? true,
+      })
+
+      const txId = transactionManager.startTransaction(
+        {
+          type: 'custom',
+          request,
         },
         input.signer,
         {
