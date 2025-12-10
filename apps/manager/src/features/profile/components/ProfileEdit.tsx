@@ -2,6 +2,7 @@ import { recordsMachine, type Signer } from '@ens-apps/transaction-manager'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
 import type { Address } from 'viem'
+import { useWalletClient } from 'wagmi'
 import { Alert } from '@/components/molecules/Alert'
 import { Button } from '@/components/ui/button'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
@@ -49,6 +50,8 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     isConnected: isRhinestoneConnected,
   } = useRhinestoneAccount()
 
+  const { data: walletClient } = useWalletClient()
+
   const recordsActor = useActorRef(recordsMachine, {
     input: { chainId: customSepolia.id },
   })
@@ -79,27 +82,67 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     form.handleSubmit()
   }
 
-  const handleSave = () => {
-    if (
-      !isRhinestoneConnected ||
-      !rhinestoneAccount ||
-      !accountAddress ||
-      !rhinestoneConfig
-    ) {
-      console.warn('Cannot save profile – smart account is not ready.')
-      return
-    }
+  const ownerAddress = ownerData?.owner as Address | undefined
+  const normalizedOwner = ownerAddress?.toLowerCase()
+  const normalizedSmartAccount = accountAddress?.toLowerCase()
+  const normalizedWalletAddress = walletClient?.account?.address?.toLowerCase()
 
+  const isOwnedBySmartAccount = Boolean(
+    normalizedOwner &&
+      normalizedSmartAccount &&
+      normalizedOwner === normalizedSmartAccount,
+  )
+  const isOwnedByEoa = Boolean(
+    normalizedOwner &&
+      normalizedWalletAddress &&
+      normalizedOwner === normalizedWalletAddress,
+  )
+
+  const handleSave = () => {
     const before = transformToServiceFormat(defaultValues)
     const after = transformToServiceFormat(form.state.values)
 
-    const signer: Signer = {
-      type: 'pimlico',
-      account: rhinestoneAccount,
-      config: {
-        ...rhinestoneConfig,
-        accountAddress: accountAddress as Address,
-      },
+    let signer: Signer | null = null
+    let submissionAddress: Address | null = null
+
+    if (isOwnedBySmartAccount) {
+      if (
+        !isRhinestoneConnected ||
+        !rhinestoneAccount ||
+        !accountAddress ||
+        !rhinestoneConfig
+      ) {
+        console.warn('Cannot save profile – smart account is not ready.')
+        return
+      }
+
+      signer = {
+        type: 'pimlico',
+        account: rhinestoneAccount,
+        config: {
+          ...rhinestoneConfig,
+          accountAddress: accountAddress as Address,
+        },
+      }
+      submissionAddress = accountAddress as Address
+    } else if (isOwnedByEoa) {
+      const walletAddress = walletClient?.account?.address
+
+      if (!walletClient || !walletAddress) {
+        console.warn('Cannot save profile – EOA wallet is not ready.')
+        return
+      }
+
+      signer = {
+        type: 'eoa',
+        walletClient,
+      }
+      submissionAddress = walletAddress as Address
+    } else {
+      console.warn(
+        'Cannot save profile – connected account does not own this profile.',
+      )
+      return
     }
 
     recordsActor.send({
@@ -109,7 +152,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       after,
       signer,
       resolverAddress: resolver,
-      accountAddress: accountAddress as Address,
+      accountAddress: submissionAddress,
       publicClient,
     })
   }
@@ -160,11 +203,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       )}
 
       {/* Header */}
-      <HeaderSection
-        form={form}
-        name={name}
-        owner={ownerData?.owner as Address | undefined}
-      />
+      <HeaderSection form={form} name={name} owner={ownerAddress} />
 
       <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
         {/* Left/main column */}
@@ -182,6 +221,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
           <UpdateResolverDialog
             name={name}
             currentResolver={resolver}
+            owner={ownerAddress}
             onUpdated={() => {
               refetchResolver()
             }}
