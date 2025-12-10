@@ -191,6 +191,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
             </form.Subscribe>
             <SaveChanges
               form={form}
+              name={name}
               originalData={defaultValues}
               onSave={handleSave}
               isSaving={isSubmitting}

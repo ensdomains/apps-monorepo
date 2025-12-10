@@ -2,7 +2,7 @@ import { useBlocker } from '@tanstack/react-router'
 import { ArrowRight, Check, Loader2, Plus, Save, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, LinkButton } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,7 @@ import { createDiff } from '@/features/profile/utils/createDiff'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 interface DiffDialogProps {
+  name: string
   originalData: ProfileRecords
   currentData: ProfileRecords
   onSave: () => void
@@ -26,6 +27,7 @@ interface DiffDialogProps {
 }
 
 export const DiffDialog = ({
+  name,
   originalData,
   currentData,
   onSave,
@@ -43,7 +45,7 @@ export const DiffDialog = ({
 
   useBlocker({
     shouldBlockFn: () => {
-      if (!hasChanges) return false
+      if (!hasChanges || isSuccess) return false
 
       const shouldLeave = confirm(
         'You have unsaved changes. Are you sure you want to leave?',
@@ -100,75 +102,91 @@ export const DiffDialog = ({
           errorMessage={errorMessage}
           txHash={txHash}
         />
-        <div className="max-h-96 overflow-y-auto">
-          {isSaving ? null : hasChanges ? (
-            <div className="space-y-4">
-              {Object.entries(diff).map(([key, change]) => (
-                <div key={key} className="rounded-lg border p-4">
-                  <div className="mb-2 flex items-center gap-2">
-                    {getChangeIcon(change.type)}
-                    <span className="flex items-center gap-1 font-medium">
-                      {change.sectionLabel && change.fieldLabel ? (
-                        <>
-                          <span>{change.sectionLabel}</span>
-                          <ArrowRight className="size-3 text-gray-400" />
-                          <span>{change.fieldLabel}</span>
-                        </>
-                      ) : (
-                        key
-                      )}
-                    </span>
-                    <Badge variant="outline">
-                      {getChangeLabel(change.type)}
-                    </Badge>
-                  </div>
-                  {change.type === 'added' && (
-                    <div className="rounded bg-green-50 p-2 text-green-700 text-sm">
-                      <strong>New value:</strong> {change.current || '(empty)'}
+        {!isSuccess && (
+          <div className="max-h-96 overflow-y-auto">
+            {isSaving ? null : hasChanges ? (
+              <div className="space-y-4">
+                {Object.entries(diff).map(([key, change]) => (
+                  <div key={key} className="rounded-lg border p-4">
+                    <div className="mb-2 flex items-center gap-2">
+                      {getChangeIcon(change.type)}
+                      <span className="flex items-center gap-1 font-medium">
+                        {change.sectionLabel && change.fieldLabel ? (
+                          <>
+                            <span>{change.sectionLabel}</span>
+                            <ArrowRight className="size-3 text-gray-400" />
+                            <span>{change.fieldLabel}</span>
+                          </>
+                        ) : (
+                          key
+                        )}
+                      </span>
+                      <Badge variant="outline">
+                        {getChangeLabel(change.type)}
+                      </Badge>
                     </div>
-                  )}
-                  {change.type === 'removed' && (
-                    <div className="rounded bg-red-50 p-2 text-red-700 text-sm">
-                      <strong>Removed:</strong> {change.original || '(empty)'}
-                    </div>
-                  )}
-                  {change.type === 'modified' && (
-                    <div className="space-y-2">
-                      <div className="rounded bg-red-50 p-2 text-red-700 text-sm">
-                        <strong>From:</strong> {change.original || '(empty)'}
-                      </div>
+                    {change.type === 'added' && (
                       <div className="rounded bg-green-50 p-2 text-green-700 text-sm">
-                        <strong>To:</strong> {change.current || '(empty)'}
+                        <strong>New value:</strong>{' '}
+                        {change.current || '(empty)'}
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-gray-500">No changes to save</p>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={!hasChanges || Boolean(isSaving)}
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="mr-2 size-4 animate-spin" />
-                Saving...
-              </>
+                    )}
+                    {change.type === 'removed' && (
+                      <div className="rounded bg-red-50 p-2 text-red-700 text-sm">
+                        <strong>Removed:</strong> {change.original || '(empty)'}
+                      </div>
+                    )}
+                    {change.type === 'modified' && (
+                      <div className="space-y-2">
+                        <div className="rounded bg-red-50 p-2 text-red-700 text-sm">
+                          <strong>From:</strong> {change.original || '(empty)'}
+                        </div>
+                        <div className="rounded bg-green-50 p-2 text-green-700 text-sm">
+                          <strong>To:</strong> {change.current || '(empty)'}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             ) : (
-              <>
-                <Save className="mr-2 size-4" />
-                Save Changes
-              </>
+              <p className="text-center text-gray-500">No changes to save</p>
             )}
-          </Button>
+          </div>
+        )}
+        <DialogFooter>
+          {isSuccess ? (
+            <LinkButton
+              to="/p/$name"
+              params={{ name }}
+              className="w-full"
+              onClick={() => setOpen(false)}
+            >
+              Go to Profile
+            </LinkButton>
+          ) : (
+            <>
+              <Button variant="outline" onClick={handleCancel}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={!hasChanges || Boolean(isSaving)}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 size-4" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
