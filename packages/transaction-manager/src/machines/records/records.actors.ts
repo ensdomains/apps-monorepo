@@ -1,16 +1,9 @@
 import { fromPromise, type ResultAsync } from 'neverthrow'
-import {
-  type Address,
-  encodeFunctionData,
-  type Hex,
-  namehash,
-  type PublicClient,
-} from 'viem'
+import { type Address, encodeFunctionData, type PublicClient } from 'viem'
 import { DEDICATED_RESOLVER_ABI } from '../../contracts/abis/DedicatedResolver.abi'
 import { ENS_SEPOLIA_CONTRACTS } from '../../contracts/ens-sepolia'
-import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
+import { buildTransactionRequest } from '../../helpers/buildTransactionRequest'
 import { transactionManager } from '../../providers/transactionManager'
-import type { TransactionRequest } from '../../types/transaction.types'
 import {
   buildDedicatedResolverCalls,
   computeRecordChanges,
@@ -38,57 +31,29 @@ export const submitProfileRecordsUpdateActor = (input: {
       const resolverAddress =
         input.resolverAddress ?? ENS_SEPOLIA_CONTRACTS.PublicResolver
 
-      const node = namehash(input.name) as Hex
       const calls = buildDedicatedResolverCalls(changes)
 
       const multicallData = encodeFunctionData({
         abi: DEDICATED_RESOLVER_ABI,
-        functionName: 'multicallWithNodeCheck',
-        args: [node, calls],
+        functionName: 'multicall',
+        args: [calls],
       })
 
-      const fromAddress =
-        input.signer.type === 'rhinestone' || input.signer.type === 'pimlico'
-          ? getSmartAccountAddress(input.signer)
-          : input.accountAddress
-
-      let request: TransactionRequest
-
-      if (
-        input.signer.type === 'rhinestone' ||
-        input.signer.type === 'pimlico'
-      ) {
-        request = {
-          type: 'rhinestone-intent',
-          from: fromAddress,
-          to: resolverAddress,
-          data: multicallData,
-          value: 0n,
-          chainId: input.chainId,
-          rhinestoneParams: {
-            calls: [
-              {
-                to: resolverAddress,
-                data: multicallData,
-                value: 0n,
-              },
-            ],
+      const request = buildTransactionRequest({
+        signer: input.signer,
+        to: resolverAddress,
+        data: multicallData,
+        value: 0n,
+        chainId: input.chainId,
+        accountAddress: input.accountAddress,
+        rhinestoneCalls: [
+          {
+            to: resolverAddress,
+            data: multicallData,
+            value: 0n,
           },
-        }
-      } else if (input.signer.type === 'eoa') {
-        request = {
-          type: 'eoa',
-          from: fromAddress,
-          to: resolverAddress,
-          data: multicallData,
-          value: 0n,
-          chainId: input.chainId,
-        }
-      } else {
-        throw new Error(
-          'Only Smart Account, or EOA signers are supported for profile updates',
-        )
-      }
+        ],
+      })
 
       const txId = transactionManager.startTransaction(
         {
