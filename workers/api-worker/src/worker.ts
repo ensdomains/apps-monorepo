@@ -6,6 +6,11 @@ import { handleScheduled } from './scheduled'
 
 export type AppRouter = typeof router
 
+// @ts-expect-error
+BigInt.prototype.toJSON = function () {
+  return this.toString()
+}
+
 export default {
   fetch: router.fetch,
   queue: handleQueue,

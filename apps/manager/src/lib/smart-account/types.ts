@@ -1,5 +1,6 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
+import type { UseMutationResult } from '@tanstack/react-query'
 import type { SmartAccountClient } from 'permissionless'
 import type { Address } from 'viem'
 import type { PimlicoConfig } from './pimlico'
@@ -43,8 +44,19 @@ export interface BaseAccountState {
   smartAccountEthBalance: EthBalance | null
   isLoadingSmartAccountEth: boolean
 
-  isAutoFunding: boolean
-  autoFundingError: string | null
+  autoFundingMutation: UseMutationResult<
+    | {
+        usdcTxHash: null
+        daiTxHash: null
+      }
+    | {
+        usdcTxHash: `0x${string}`
+        daiTxHash: `0x${string}`
+      },
+    Error,
+    `0x${string}`,
+    unknown
+  >
 
   signer: Signer | null
 }

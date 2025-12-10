@@ -10,7 +10,7 @@ import {
   Unlink,
   User,
 } from 'lucide-react'
-import { useState } from 'react'
+import { type ComponentProps, useState } from 'react'
 import type { Address } from 'viem'
 import ensLogo from '@/assets/icons/ens.svg'
 import ensMobileLogo from '@/assets/icons/ens-mobile.svg'
@@ -32,7 +32,7 @@ import { NotificationsDropdown } from '@/features/notifications/components'
 import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { useSmartAccount } from '@/lib/smart-account'
+import { type SmartAccountState, useSmartAccount } from '@/lib/smart-account'
 
 // Reusable menu content component
 const UserMenuContent = ({
@@ -49,8 +49,7 @@ const UserMenuContent = ({
   handleCopyAddress,
   getDisplayName,
   ensAvatar,
-  isAutoFunding,
-  autoFundingError,
+  autoFundingMutation,
 }: {
   account: ReturnType<typeof useAccount>
   address: string | undefined
@@ -67,8 +66,7 @@ const UserMenuContent = ({
   handleCopyAddress: (address: string) => void
   getDisplayName: () => string
   ensAvatar: string | null | undefined
-  isAutoFunding: boolean
-  autoFundingError: string | null
+  autoFundingMutation: SmartAccountState['autoFundingMutation']
 }) => {
   return (
     <>
@@ -158,41 +156,41 @@ const UserMenuContent = ({
             <div className="mb-2 font-medium text-ens-blue-midnight text-xs uppercase tracking-wide">
               Token Balances
             </div>
-            {isAutoFunding ? (
-              <div className="flex items-center gap-2 rounded-lg border border-ens-blue-light bg-ens-lapis-dust p-3">
-                <div className="size-4 animate-spin rounded-full border-2 border-ens-blue border-t-transparent" />
-                <span className="text-ens-blue-dark text-sm">
-                  Processing auto-funds...
-                </span>
-              </div>
-            ) : autoFundingError ? (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-                <div className="font-medium text-red-600 text-sm">
-                  Auto-funding failed
-                </div>
-                <div className="mt-1 text-red-500 text-xs">
-                  {autoFundingError}
-                </div>
-              </div>
-            ) : stablecoinBalances && stablecoinBalances.length > 0 ? (
-              <div className="space-y-2">
-                {stablecoinBalances.map((balance, index) => (
-                  <div
-                    key={`${balance.address}-${index}`}
-                    className="flex items-center justify-between rounded-lg border border-ens-blue-light bg-ens-lapis-dust p-3"
-                  >
-                    <span className="font-medium text-ens-blue-dark text-sm">
-                      {balance.symbol}
+
+            <div className="space-y-2">
+              {stablecoinBalances?.map((balance, index) => (
+                <div
+                  key={`${balance.address}-${index}`}
+                  className="flex items-center justify-between rounded-lg border border-ens-blue-light bg-ens-lapis-dust p-3"
+                >
+                  <span className="font-medium text-ens-blue-dark text-sm">
+                    {balance.symbol}
+                  </span>
+                  {balance.formattedBalance && (
+                    <span className="font-bold text-ens-blue-dark text-sm">
+                      {balance.formattedBalance}
                     </span>
-                    {balance.formattedBalance && (
-                      <span className="font-bold text-ens-blue-dark text-sm">
-                        {balance.formattedBalance}
-                      </span>
-                    )}
+                  )}
+                </div>
+              ))}
+              {autoFundingMutation.isPending ? (
+                <div className="flex items-center gap-2 rounded-lg border border-ens-blue-light bg-ens-lapis-dust p-3">
+                  <div className="size-4 animate-spin rounded-full border-2 border-ens-blue border-t-transparent" />
+                  <span className="text-ens-blue-dark text-sm">
+                    Processing auto-funds...
+                  </span>
+                </div>
+              ) : autoFundingMutation.isError ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                  <div className="font-medium text-red-600 text-sm">
+                    Auto-funding failed
                   </div>
-                ))}
-              </div>
-            ) : null}
+                  <div className="mt-1 text-red-500 text-xs">
+                    {autoFundingMutation.error?.message ?? 'Unknown error'}
+                  </div>
+                </div>
+              ) : null}
+            </div>
             {/* Alpha release info */}
             <p className="mt-2 text-ens-gray text-xs leading-relaxed">
               💡 For this alpha release, accounts are automatically funded with
@@ -226,8 +224,7 @@ const ConnectedContent = () => {
     smartAccountEthBalance,
     isLoadingSmartAccountEth,
     error,
-    isAutoFunding,
-    autoFundingError,
+    autoFundingMutation,
   } = useSmartAccount()
 
   const address = wallet?.address as Address | undefined
@@ -351,7 +348,7 @@ const ConnectedContent = () => {
   )
 
   // Shared menu content props
-  const menuContentProps = {
+  const menuContentProps: ComponentProps<typeof UserMenuContent> = {
     account,
     address,
     accountAddress,
@@ -365,8 +362,7 @@ const ConnectedContent = () => {
     handleCopyAddress,
     getDisplayName,
     ensAvatar: avatarUrl,
-    isAutoFunding,
-    autoFundingError,
+    autoFundingMutation,
   }
 
   return (
