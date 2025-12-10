@@ -1,3 +1,4 @@
+import type { DomainFragment } from '@ens-apps/indexer'
 import { Link } from '@tanstack/react-router'
 import {
   ArrowRight,
@@ -8,7 +9,6 @@ import {
   CircleAlert,
   MoreHorizontal,
 } from 'lucide-react'
-import type { DashboardNameRow } from '@/features/dashboard/types'
 import {
   formatDashboardDate,
   getDaysUntil,
@@ -17,10 +17,14 @@ import {
 import { PrimaryBadge } from './PrimaryBadge'
 
 interface MyNamesListProps {
-  names?: DashboardNameRow[]
+  names?: DomainFragment[]
+  primaryLabel?: string | null
 }
 
-export const MyNamesList = ({ names = [] }: MyNamesListProps) => {
+const toDateFromSeconds = (value?: number | null) =>
+  typeof value === 'number' ? new Date(value * 1000) : null
+
+export const MyNamesList = ({ names = [], primaryLabel }: MyNamesListProps) => {
   return (
     <div className="w-full">
       <div className="relative mb-[16px] hidden h-[32px] w-full md:block">
@@ -53,20 +57,21 @@ export const MyNamesList = ({ names = [] }: MyNamesListProps) => {
 
       <div className="flex w-full flex-col">
         {names.map((name) => {
-          const daysUntilExpiry = getDaysUntil(name.expiryDate)
-          const expiringSoon = isExpiringSoon(
-            name.expiryDate,
-            30,
-            daysUntilExpiry,
-          )
-          const formattedExpiryDate = formatDashboardDate(name.expiryDate)
+          const label = name.name ?? name.normalizedName ?? name.id
+          const expiryDate = toDateFromSeconds(name.expiryDate ?? null)
+          const daysUntilExpiry = getDaysUntil(expiryDate)
+          const expiringSoon = isExpiringSoon(expiryDate, 30, daysUntilExpiry)
+          const formattedExpiryDate = formatDashboardDate(expiryDate)
+          const isPrimary =
+            primaryLabel !== undefined &&
+            label.toLowerCase() === primaryLabel?.toLowerCase()
 
           return (
             <div
               key={name.id}
               className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
             >
-              {name.isPrimary && (
+              {isPrimary && (
                 <div className="mb-[10px] px-[24px]">
                   <PrimaryBadge />
                 </div>
@@ -82,10 +87,10 @@ export const MyNamesList = ({ names = [] }: MyNamesListProps) => {
                     <div className="flex min-w-0 flex-1 items-center justify-center rounded-[2.8px] bg-[#e5f7ff] px-2 py-1 md:h-[24px] md:px-[8px] md:py-[4px]">
                       <Link
                         to="/p/$name"
-                        params={{ name: name.name }}
+                        params={{ name: label }}
                         className="mr-1 truncate font-medium font-mono text-[#0080bc] text-[14px] tracking-[-0.28px] md:mr-2 md:text-[16px] md:tracking-[-0.32px]"
                       >
-                        {name.name}
+                        {label}
                       </Link>
                       <ArrowUpRight
                         className="size-[6px] shrink-0 text-[#0080bc] md:size-[7px]"

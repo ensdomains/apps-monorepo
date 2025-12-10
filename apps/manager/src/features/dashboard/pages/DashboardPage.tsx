@@ -1,25 +1,65 @@
+import {
+  Domain_OrderBy,
+  OrderDirection,
+  useDomainsQuery,
+} from '@ens-apps/indexer'
+import { useWallet } from '@getpara/react-sdk-lite'
 import { CircleAlert, X } from 'lucide-react'
 import { DashboardSidebar } from '@/features/dashboard/components/DashboardSidebar'
 import { DidYouKnowSection } from '@/features/dashboard/components/DidYouKnowSection'
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
-import {
-  MOCK_DASHBOARD_HEADER,
-  MOCK_DASHBOARD_NAMES,
-} from '@/features/dashboard/MOCK'
+
+const formatAddress = (value?: string | null) =>
+  value ? `${value.slice(0, 6)}...${value.slice(-4)}` : '—'
+
+const toDateFromSeconds = (value?: number | null) =>
+  typeof value === 'number' ? new Date(value * 1000) : null
 
 export const DashboardPage = () => {
-  const header = MOCK_DASHBOARD_HEADER
-  const names = MOCK_DASHBOARD_NAMES
-  const displayName = header.primaryName
-  const hasProfile = true
+  const { data: wallet } = useWallet()
+
+  const normalizedAddress = wallet?.address?.toLowerCase()
+  const normalizedPrimaryName = wallet?.ensName?.toLowerCase()
+
+  const queryVariables = normalizedAddress
+    ? {
+        where: { owner: normalizedAddress },
+        first: 50,
+        orderBy: Domain_OrderBy.RegistrationDate,
+        orderDirection: OrderDirection.Desc,
+      }
+    : undefined
+
+  const { data, loading, error } = useDomainsQuery(
+    queryVariables
+      ? {
+          variables: queryVariables,
+        }
+      : { skip: true },
+  )
+
+  const names = normalizedAddress && data?.domains ? data.domains : []
+
+  const primaryNameRow =
+    names.find((name) => {
+      const label = name.name ?? name.normalizedName ?? name.id
+      return (
+        normalizedPrimaryName !== undefined &&
+        label.toLowerCase() === normalizedPrimaryName
+      )
+    }) ?? names[0]
+
+  const displayName =
+    primaryNameRow?.name ?? wallet?.ensName ?? formatAddress(wallet?.address)
+  const hasProfile = names.length > 0
 
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 px-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-[40px]">
       <DashboardSidebar
         hasProfile={hasProfile}
-        profileName={header.primaryName}
+        profileName={primaryNameRow?.name ?? ''}
       />
       <div className="min-w-0 flex-1 space-y-6 md:space-y-8">
         <div className="space-y-4 md:space-y-8">
@@ -51,16 +91,29 @@ export const DashboardPage = () => {
           </h1>
         </div>
         <PrimaryNameCard
-          primaryName={header.primaryName}
-          address={header.address}
-          registeredDate={header.registeredDate}
-          expiryDate={header.expiryDate}
-          avatarUrl={header.avatarUrl}
+          primaryName={
+            primaryNameRow?.name ??
+            primaryNameRow?.normalizedName ??
+            wallet?.ensName
+          }
+          registeredDate={toDateFromSeconds(primaryNameRow?.createdAt)}
+          expiryDate={toDateFromSeconds(primaryNameRow?.expiryDate ?? null)}
+          avatarUrl={
+            primaryNameRow?.resolver?.avatar ?? wallet?.ensAvatar ?? null
+          }
           names={names}
+          primaryLabel={primaryNameRow?.name ?? primaryNameRow?.normalizedName}
         />
         <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:px-[24px] md:py-[32px]">
           <div className="space-y-5">
-            <NamesTable names={names} isLoading={false} error={undefined} />
+            <NamesTable
+              names={names}
+              primaryLabel={
+                primaryNameRow?.name ?? primaryNameRow?.normalizedName
+              }
+              isLoading={loading}
+              error={error}
+            />
           </div>
         </div>
         <DidYouKnowSection />

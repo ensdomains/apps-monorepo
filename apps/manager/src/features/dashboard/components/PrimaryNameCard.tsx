@@ -1,18 +1,18 @@
+import type { DomainFragment } from '@ens-apps/indexer'
 import { Calendar, ChevronDown, Clock } from 'lucide-react'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import type { DashboardNameRow } from '@/features/dashboard/types'
 import { formatDashboardDate } from '@/features/dashboard/utils'
 import { PrimaryBadge } from './PrimaryBadge'
 import { PrimaryNameDialog } from './PrimaryNameDialog'
 
 type PrimaryNameCardProps = {
-  primaryName: string
-  address: string
-  registeredDate: Date
-  expiryDate: Date
+  primaryName?: string | null
+  registeredDate?: Date | null
+  expiryDate?: Date | null
   avatarUrl?: string | null
-  names: DashboardNameRow[]
+  names: DomainFragment[]
+  primaryLabel?: string | null
 }
 
 export const PrimaryNameCard = ({
@@ -21,10 +21,13 @@ export const PrimaryNameCard = ({
   expiryDate,
   avatarUrl,
   names,
+  primaryLabel,
 }: PrimaryNameCardProps) => {
   const formattedRegisteredDate = formatDashboardDate(registeredDate)
   const formattedExpiryDate = formatDashboardDate(expiryDate)
   const hasAvatar = Boolean(avatarUrl)
+  const displayName = primaryName ?? 'Your ENS name'
+  const canViewProfile = Boolean(primaryName)
 
   return (
     <Card className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white p-4 shadow-none md:p-[24px]">
@@ -34,7 +37,7 @@ export const PrimaryNameCard = ({
             {hasAvatar ? (
               <img
                 src={avatarUrl as string}
-                alt={primaryName}
+                alt={displayName}
                 className="size-full object-cover"
               />
             ) : (
@@ -43,11 +46,11 @@ export const PrimaryNameCard = ({
           </div>
 
           <div className="flex min-h-0 flex-col justify-between md:h-[200px]">
-            <PrimaryNameDialog primaryName={primaryName} names={names}>
+            <PrimaryNameDialog primaryLabel={primaryLabel} names={names}>
               <div className="flex flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-[12px]">
                 <div className="inline-flex items-center rounded-[4px] bg-[#0080bc] px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
                   <span className="font-medium font-mono text-[20px] text-ens-white leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]">
-                    {primaryName}
+                    {displayName}
                   </span>
                 </div>
                 <div className="flex items-center gap-[2px]">
@@ -85,8 +88,9 @@ export const PrimaryNameCard = ({
         </div>
         <LinkButton
           to="/p/$name"
-          params={{ name: primaryName }}
+          params={{ name: primaryName ?? '' }}
           variant="outline"
+          disabled={!canViewProfile}
           className="h-[34px] w-full rounded-[4px] border border-[#0080bc] px-[8.5px] py-[4.25px] text-[#0080bc] hover:bg-[#0080bc]/5 hover:text-[#0080bc] md:w-auto"
         >
           <span className="font-sans text-[14px] leading-normal">

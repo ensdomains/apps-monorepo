@@ -1,3 +1,4 @@
+import type { DomainFragment } from '@ens-apps/indexer'
 import { Check } from 'lucide-react'
 import {
   Dialog,
@@ -7,18 +8,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import type { DashboardNameRow } from '@/features/dashboard/types'
 import { cn } from '@/lib/utils'
 
 type PrimaryNameDialogProps = {
-  names: DashboardNameRow[]
-  primaryName: string
+  names: DomainFragment[]
+  primaryLabel?: string | null
   children: React.ReactNode
 }
 
 export const PrimaryNameDialog = ({
   names,
-  primaryName,
+  primaryLabel,
   children,
 }: PrimaryNameDialogProps) => {
   return (
@@ -37,7 +37,10 @@ export const PrimaryNameDialog = ({
 
         <div className="flex flex-col">
           {names.map((name) => {
-            const isPrimary = name.name === primaryName
+            const label = name.name ?? name.normalizedName ?? name.id
+            const isPrimary =
+              primaryLabel !== undefined &&
+              label.toLowerCase() === primaryLabel?.toLowerCase()
 
             return (
               <div
@@ -60,7 +63,7 @@ export const PrimaryNameDialog = ({
                         isPrimary ? 'text-white' : 'text-[#444444]',
                       )}
                     >
-                      {name.name}
+                      {label}
                     </span>
                   </div>
                 </div>

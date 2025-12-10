@@ -1,3 +1,4 @@
+import type { DomainFragment } from '@ens-apps/indexer'
 import { Search } from 'lucide-react'
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
@@ -48,8 +49,9 @@ const DashboardTabButton = ({
 )
 
 interface NamesTableProps {
-  names?: DashboardNameRow[]
+  names?: DomainFragment[]
   favorites?: DashboardNameRow[]
+  primaryLabel?: string | null
   isLoading: boolean
   error: unknown
 }
@@ -57,6 +59,7 @@ interface NamesTableProps {
 export const NamesTable = ({
   names = [],
   favorites,
+  primaryLabel,
   isLoading,
   error,
 }: NamesTableProps) => {
@@ -115,7 +118,7 @@ export const NamesTable = ({
       </div>
 
       {activeTab === 'myNames' ? (
-        <MyNamesList names={names} />
+        <MyNamesList names={names} primaryLabel={primaryLabel} />
       ) : (
         <FavoritesList favorites={favoriteNames} />
       )}
