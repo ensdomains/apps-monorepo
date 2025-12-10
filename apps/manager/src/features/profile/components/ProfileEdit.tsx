@@ -1,6 +1,7 @@
 import { recordsMachine, type Signer } from '@ens-apps/transaction-manager'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import type { Address } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { Alert } from '@/components/molecules/Alert'
@@ -10,6 +11,7 @@ import { customSepolia, publicClient } from '@/lib/wagmi'
 import { profileOwnerQuery } from '../service/profileOwner'
 import { profileRecordsQuery } from '../service/profileRecords'
 import { profileResolverQuery } from '../service/profileResolver'
+import type { ProfileRecords } from '../types'
 import { createDiff } from '../utils/createDiff'
 import {
   defaultProfileRecords,
@@ -76,7 +78,10 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     defaultValues,
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const lastSavedValuesRef = useRef<ProfileRecords>(defaultValues)
+  const [recentlySaved, setRecentlySaved] = useState(false)
+
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
     e.stopPropagation()
     form.handleSubmit()
@@ -97,6 +102,27 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       normalizedWalletAddress &&
       normalizedOwner === normalizedWalletAddress,
   )
+
+  // Keep baseline in sync with latest fetched defaults
+  useEffect(() => {
+    lastSavedValuesRef.current = defaultValues
+  }, [defaultValues])
+
+  // Reset machine and update baseline when save succeeds
+  useEffect(() => {
+    if (isSuccess && !isSubmitting) {
+      lastSavedValuesRef.current = JSON.parse(
+        JSON.stringify(form.state.values),
+      ) as ProfileRecords
+
+      setRecentlySaved(true)
+      const timer = setTimeout(() => setRecentlySaved(false), 4000)
+
+      recordsActor.send({ type: 'CANCEL' })
+
+      return () => clearTimeout(timer)
+    }
+  }, [isSuccess, isSubmitting, form.state.values, recordsActor])
 
   const handleSave = () => {
     const before = transformToServiceFormat(defaultValues)
@@ -180,7 +206,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
         </div>
       )}
 
-      {isSuccess && !isSubmitting && (
+      {recentlySaved && (
         <div className="px-4">
           <Alert
             variant="success"
@@ -229,7 +255,9 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
           {/* Reset & Save Buttons */}
           <div className="space-y-2 pt-2">
             <form.Subscribe
-              selector={(state) => createDiff(defaultValues, state.values)}
+              selector={(state) =>
+                createDiff(lastSavedValuesRef.current, state.values)
+              }
             >
               {(diff) =>
                 Object.keys(diff).length > 0 && (
@@ -247,10 +275,10 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
             <SaveChanges
               form={form}
               name={name}
-              originalData={defaultValues}
+              originalData={lastSavedValuesRef.current}
               onSave={handleSave}
               isSaving={isSubmitting}
-              isSuccess={isSuccess}
+              isSuccess={recentlySaved}
               errorMessage={
                 isError ? (updateErrorMessage ?? undefined) : undefined
               }
