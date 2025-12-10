@@ -165,7 +165,7 @@ function RouteComponent() {
                 icon={Grid3x3}
                 to="/addr/$addr/reverse-resolution"
                 params={{
-                  addr: '0xA6362Dcb7Db14C357E788C876eE99e1f982f1115',
+                  addr: '0x205d2686da3Bf33f64C17f21462c51B5eaD462CF',
                 }}
                 title="L2 Primary Names"
                 description="Set and view primary names on other networks."
