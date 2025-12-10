@@ -1,2 +1,2 @@
-export * from './useSetForwardResolution'
-export * from './useSetReverseName'
+export * from './setForwardResolution'
+export * from './setReverseName'
