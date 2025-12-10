@@ -8,6 +8,26 @@ interface UpdateStatusPanelProps {
   txHash?: string
 }
 
+const mapTransactionError = (message?: string) => {
+  if (!message) return undefined
+
+  const normalized = message.toLowerCase()
+
+  if (normalized.includes('user rejected')) {
+    return 'Transaction was rejected in your wallet.'
+  }
+
+  if (normalized.includes('insufficient funds')) {
+    return 'Not enough ETH to cover gas for this transaction.'
+  }
+
+  if (normalized.includes('revert')) {
+    return 'The transaction reverted. Please check your inputs and try again.'
+  }
+
+  return message
+}
+
 export const UpdateStatusPanel = ({
   isSaving,
   isSuccess,
@@ -55,12 +75,14 @@ export const UpdateStatusPanel = ({
   }
 
   if (errorMessage) {
+    const friendlyMessage = mapTransactionError(errorMessage)
+
     return (
       <div className="mb-3">
         <Alert
           variant="destructive"
           title="Update failed"
-          description={errorMessage}
+          description={friendlyMessage}
         >
           {renderTxLink()}
         </Alert>
