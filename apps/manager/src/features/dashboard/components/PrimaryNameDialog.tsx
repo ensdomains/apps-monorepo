@@ -8,6 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { resolveDomainLabel } from '@/features/dashboard/utils'
 import { cn } from '@/lib/utils'
 
 type PrimaryNameDialogProps = {
@@ -37,7 +38,7 @@ export const PrimaryNameDialog = ({
 
         <div className="flex flex-col">
           {names.map((name) => {
-            const label = name.name ?? name.normalizedName ?? name.id
+            const label = resolveDomainLabel(name)
             const isPrimary =
               primaryLabel !== undefined &&
               label.toLowerCase() === primaryLabel?.toLowerCase()

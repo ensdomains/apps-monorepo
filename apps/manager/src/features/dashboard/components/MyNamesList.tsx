@@ -13,6 +13,8 @@ import {
   formatDashboardDate,
   getDaysUntil,
   isExpiringSoon,
+  resolveDomainLabel,
+  toDateFromSeconds,
 } from '@/features/dashboard/utils'
 import { PrimaryBadge } from './PrimaryBadge'
 
@@ -20,9 +22,6 @@ interface MyNamesListProps {
   names?: DomainFragment[]
   primaryLabel?: string | null
 }
-
-const toDateFromSeconds = (value?: number | null) =>
-  typeof value === 'number' ? new Date(value * 1000) : null
 
 export const MyNamesList = ({ names = [], primaryLabel }: MyNamesListProps) => {
   return (
@@ -57,7 +56,7 @@ export const MyNamesList = ({ names = [], primaryLabel }: MyNamesListProps) => {
 
       <div className="flex w-full flex-col">
         {names.map((name) => {
-          const label = name.name ?? name.normalizedName ?? name.id
+          const label = resolveDomainLabel(name)
           const expiryDate = toDateFromSeconds(name.expiryDate ?? null)
           const daysUntilExpiry = getDaysUntil(expiryDate)
           const expiringSoon = isExpiringSoon(expiryDate, 30, daysUntilExpiry)

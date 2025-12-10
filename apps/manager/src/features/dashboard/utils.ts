@@ -36,3 +36,12 @@ export const isExpiringSoon = (
 
   return daysUntil > 0 && daysUntil <= thresholdDays
 }
+
+export const resolveDomainLabel = (domain: {
+  id: string
+  name?: string | null
+  normalizedName?: string | null
+}) => domain.name ?? domain.normalizedName ?? domain.id
+
+export const toDateFromSeconds = (value?: number | null) =>
+  typeof value === 'number' ? new Date(value * 1000) : null

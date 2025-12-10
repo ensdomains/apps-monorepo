@@ -10,12 +10,13 @@ import { DidYouKnowSection } from '@/features/dashboard/components/DidYouKnowSec
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
+import {
+  resolveDomainLabel,
+  toDateFromSeconds,
+} from '@/features/dashboard/utils'
 
 const formatAddress = (value?: string | null) =>
   value ? `${value.slice(0, 6)}...${value.slice(-4)}` : '—'
-
-const toDateFromSeconds = (value?: number | null) =>
-  typeof value === 'number' ? new Date(value * 1000) : null
 
 export const DashboardPage = () => {
   const { data: wallet } = useWallet()
@@ -44,15 +45,19 @@ export const DashboardPage = () => {
 
   const primaryNameRow =
     names.find((name) => {
-      const label = name.name ?? name.normalizedName ?? name.id
+      const label = resolveDomainLabel(name)
       return (
         normalizedPrimaryName !== undefined &&
         label.toLowerCase() === normalizedPrimaryName
       )
     }) ?? names[0]
 
+  const primaryLabel = primaryNameRow
+    ? resolveDomainLabel(primaryNameRow)
+    : null
+
   const displayName =
-    primaryNameRow?.name ?? wallet?.ensName ?? formatAddress(wallet?.address)
+    primaryLabel ?? wallet?.ensName ?? formatAddress(wallet?.address)
   const hasProfile = names.length > 0
 
   return (
@@ -91,26 +96,20 @@ export const DashboardPage = () => {
           </h1>
         </div>
         <PrimaryNameCard
-          primaryName={
-            primaryNameRow?.name ??
-            primaryNameRow?.normalizedName ??
-            wallet?.ensName
-          }
+          primaryName={primaryLabel ?? wallet?.ensName}
           registeredDate={toDateFromSeconds(primaryNameRow?.createdAt)}
           expiryDate={toDateFromSeconds(primaryNameRow?.expiryDate ?? null)}
           avatarUrl={
             primaryNameRow?.resolver?.avatar ?? wallet?.ensAvatar ?? null
           }
           names={names}
-          primaryLabel={primaryNameRow?.name ?? primaryNameRow?.normalizedName}
+          primaryLabel={primaryLabel}
         />
         <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:px-[24px] md:py-[32px]">
           <div className="space-y-5">
             <NamesTable
               names={names}
-              primaryLabel={
-                primaryNameRow?.name ?? primaryNameRow?.normalizedName
-              }
+              primaryLabel={primaryLabel}
               isLoading={loading}
               error={error}
             />
