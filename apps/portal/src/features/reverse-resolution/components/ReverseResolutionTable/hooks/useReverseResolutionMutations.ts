@@ -13,7 +13,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
-import { useAccount, useEnsResolver, useWalletClient } from 'wagmi'
+import { useConnection, useEnsResolver, useWalletClient } from 'wagmi'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { sepoliaWithEns } from '@/lib/wagmi'
 
@@ -37,7 +37,7 @@ export function useReverseResolutionMutations({
   displayName,
 }: UseReverseResolutionMutationsParams) {
   const queryClient = useQueryClient()
-  const { chain } = useAccount()
+  const { chain } = useConnection()
 
   // L1 means Ethereum (reverseRegistrarChainId 1 or 60). We only use Sepolia for L1 here.
   const isL1 = useMemo(
