@@ -14,14 +14,16 @@ import {
   resolveDomainLabel,
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
+import { useSmartAccount } from '@/lib/smart-account'
 
 const formatAddress = (value?: string | null) =>
   value ? `${value.slice(0, 6)}...${value.slice(-4)}` : '—'
 
 export const DashboardPage = () => {
   const { data: wallet } = useWallet()
+  const { accountAddress } = useSmartAccount()
 
-  const normalizedAddress = wallet?.address?.toLowerCase()
+  const normalizedAddress = accountAddress?.toLowerCase()
   const normalizedPrimaryName = wallet?.ensName?.toLowerCase()
 
   const queryVariables = normalizedAddress
@@ -34,11 +36,7 @@ export const DashboardPage = () => {
     : undefined
 
   const { data, loading, error } = useDomainsQuery(
-    queryVariables
-      ? {
-          variables: queryVariables,
-        }
-      : { skip: true },
+    queryVariables ? { variables: queryVariables } : { skip: true },
   )
 
   const names = normalizedAddress && data?.domains ? data.domains : []
@@ -57,7 +55,7 @@ export const DashboardPage = () => {
     : null
 
   const displayName =
-    primaryLabel ?? wallet?.ensName ?? formatAddress(wallet?.address)
+    primaryLabel ?? wallet?.ensName ?? formatAddress(accountAddress)
   const hasProfile = names.length > 0
 
   return (

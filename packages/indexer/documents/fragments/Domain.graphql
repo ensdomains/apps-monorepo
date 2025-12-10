@@ -10,10 +10,4 @@ fragment Domain on Domain {
   owner {
     ...Account
   }
-  registrant {
-    ...Account
-  }
-  resolvedAddress {
-    ...Account
-  }
 }

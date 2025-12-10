@@ -344,8 +344,6 @@ export type DomainFragment = {
   expiryDate?: number | null
   resolver?: ({ __typename?: 'Resolver' } & ResolverFragment) | null
   owner: { __typename?: 'Account' } & AccountFragment
-  registrant?: ({ __typename?: 'Account' } & AccountFragment) | null
-  resolvedAddress?: ({ __typename?: 'Account' } & AccountFragment) | null
 }
 
 export type ResolverFragment = {
@@ -467,32 +465,6 @@ export const DomainFragmentDoc = {
           {
             kind: 'Field',
             name: { kind: 'Name', value: 'owner' },
-            selectionSet: {
-              kind: 'SelectionSet',
-              selections: [
-                {
-                  kind: 'FragmentSpread',
-                  name: { kind: 'Name', value: 'Account' },
-                },
-              ],
-            },
-          },
-          {
-            kind: 'Field',
-            name: { kind: 'Name', value: 'registrant' },
-            selectionSet: {
-              kind: 'SelectionSet',
-              selections: [
-                {
-                  kind: 'FragmentSpread',
-                  name: { kind: 'Name', value: 'Account' },
-                },
-              ],
-            },
-          },
-          {
-            kind: 'Field',
-            name: { kind: 'Name', value: 'resolvedAddress' },
             selectionSet: {
               kind: 'SelectionSet',
               selections: [
@@ -712,32 +684,6 @@ export const DomainsDocument = {
           {
             kind: 'Field',
             name: { kind: 'Name', value: 'owner' },
-            selectionSet: {
-              kind: 'SelectionSet',
-              selections: [
-                {
-                  kind: 'FragmentSpread',
-                  name: { kind: 'Name', value: 'Account' },
-                },
-              ],
-            },
-          },
-          {
-            kind: 'Field',
-            name: { kind: 'Name', value: 'registrant' },
-            selectionSet: {
-              kind: 'SelectionSet',
-              selections: [
-                {
-                  kind: 'FragmentSpread',
-                  name: { kind: 'Name', value: 'Account' },
-                },
-              ],
-            },
-          },
-          {
-            kind: 'Field',
-            name: { kind: 'Name', value: 'resolvedAddress' },
             selectionSet: {
               kind: 'SelectionSet',
               selections: [
