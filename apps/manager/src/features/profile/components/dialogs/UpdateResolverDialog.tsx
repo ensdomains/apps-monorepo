@@ -3,6 +3,7 @@ import { useActorRef, useSelector } from '@xstate/react'
 import { useEffect, useState } from 'react'
 import type { Address } from 'viem'
 import { isAddress } from 'viem'
+import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,12 +22,14 @@ interface UpdateResolverDialogProps {
   name: string
   currentResolver?: string
   onUpdated?: () => void
+  owner?: Address
 }
 
 export const UpdateResolverDialog = ({
   name,
   currentResolver,
   onUpdated,
+  owner,
 }: UpdateResolverDialogProps) => {
   const [open, setOpen] = useState(false)
   const [resolver, setResolver] = useState(currentResolver ?? '')
@@ -34,6 +37,7 @@ export const UpdateResolverDialog = ({
 
   const { rhinestoneAccount, accountAddress, rhinestoneConfig, isConnected } =
     useRhinestoneAccount()
+  const { data: walletClient } = useWalletClient()
 
   const resolverActor = useActorRef(resolverMachine, {
     input: { chainId: customSepolia.id },
@@ -66,6 +70,21 @@ export const UpdateResolverDialog = ({
     }
   }, [isSuccess, onUpdated])
 
+  const normalizedOwner = owner?.toLowerCase()
+  const normalizedSmartAccount = accountAddress?.toLowerCase()
+  const normalizedWalletAddress = walletClient?.account?.address?.toLowerCase()
+
+  const isOwnedBySmartAccount = Boolean(
+    normalizedOwner &&
+      normalizedSmartAccount &&
+      normalizedOwner === normalizedSmartAccount,
+  )
+  const isOwnedByEoa = Boolean(
+    normalizedOwner &&
+      normalizedWalletAddress &&
+      normalizedOwner === normalizedWalletAddress,
+  )
+
   const handleSave = () => {
     setErrorMessage(undefined)
 
@@ -79,25 +98,47 @@ export const UpdateResolverDialog = ({
       return
     }
 
-    if (
-      !isConnected ||
-      !rhinestoneAccount ||
-      !accountAddress ||
-      !rhinestoneConfig
-    ) {
-      setErrorMessage(
-        'Connect your wallet and smart account before updating the resolver.',
-      )
-      return
-    }
+    let signer: Signer | null = null
+    let submissionAddress: Address | null = null
 
-    const signer: Signer = {
-      type: 'pimlico',
-      account: rhinestoneAccount,
-      config: {
-        ...rhinestoneConfig,
-        accountAddress: accountAddress as Address,
-      },
+    if (isOwnedBySmartAccount) {
+      if (
+        !isConnected ||
+        !rhinestoneAccount ||
+        !accountAddress ||
+        !rhinestoneConfig
+      ) {
+        setErrorMessage(
+          'Connect your wallet and smart account before updating the resolver.',
+        )
+        return
+      }
+
+      signer = {
+        type: 'pimlico',
+        account: rhinestoneAccount,
+        config: {
+          ...rhinestoneConfig,
+          accountAddress: accountAddress as Address,
+        },
+      }
+      submissionAddress = accountAddress as Address
+    } else if (isOwnedByEoa) {
+      const walletAddress = walletClient?.account?.address
+
+      if (!walletClient || !walletAddress) {
+        setErrorMessage('Connect your wallet before updating the resolver.')
+        return
+      }
+
+      signer = {
+        type: 'eoa',
+        walletClient,
+      }
+      submissionAddress = walletAddress as Address
+    } else {
+      setErrorMessage('Connect the owner wallet to update the resolver.')
+      return
     }
 
     resolverActor.send({
@@ -105,7 +146,7 @@ export const UpdateResolverDialog = ({
       name,
       resolver: resolver as Address,
       signer,
-      accountAddress: accountAddress as Address,
+      accountAddress: submissionAddress,
       publicClient,
     })
   }
