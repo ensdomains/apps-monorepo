@@ -8,19 +8,13 @@ interface LayoutProps {
 
 export const Layout = ({ children }: LayoutProps) => {
   return (
-    <div className="min-h-screen">
+    <div className="flex min-h-screen flex-col bg-white">
       <Header />
 
-      {/* Main Content */}
       <main
-        className="min-h-[calc(90vh-80px)]"
+        className="isolate flex-1"
         style={{
-          backgroundImage: `url(${patternBg})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'repeat',
-          backgroundAttachment: 'fixed',
-          backgroundColor: 'white',
+          background: `url("${patternBg}") center/30px repeat`,
         }}
       >
         {children}

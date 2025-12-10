@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { DomainResultCard } from '@/components/molecules'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { getPremiumLabel } from '@/features/register/utils'
@@ -28,12 +29,14 @@ export const RegistrationPanel = ({
   const isAvailable = result.isAvailable
 
   const header = isAvailable ? (
-    <DomainResultCard
-      domainName={result.name}
-      status={result.isPremium ? 'premium' : 'available'}
-      premiumLabel={getPremiumLabel(result.name)}
-      link={`/register?name=${encodeURIComponent(result.name)}`}
-    />
+    <Link to="/register" search={{ name: result.name }}>
+      <DomainResultCard
+        domainName={result.name}
+        status={result.isPremium ? 'premium' : 'available'}
+        premiumLabel={getPremiumLabel(result.name)}
+        clickable
+      />
+    </Link>
   ) : null
 
   return (
