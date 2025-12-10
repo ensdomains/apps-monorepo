@@ -46,7 +46,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     accountAddress,
     isConnected: isSmartAccountConnected,
     signer,
-  } = useSmartAccount()
+  } = useSmartAccount({ type: 'pimlico' })
 
   const recordsActor = useActorRef(recordsMachine, {
     input: { chainId: customSepolia.id },
