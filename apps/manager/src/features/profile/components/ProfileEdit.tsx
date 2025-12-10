@@ -13,6 +13,7 @@ import { profileRecordsQuery } from '../service/profileRecords'
 import { profileResolverQuery } from '../service/profileResolver'
 import type { ProfileRecords } from '../types'
 import { createDiff } from '../utils/createDiff'
+import { isProfileOwner } from '../utils/isProfileOwner'
 import {
   defaultProfileRecords,
   transformProfileRecords,
@@ -88,20 +89,11 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   }
 
   const ownerAddress = ownerData?.owner as Address | undefined
-  const normalizedOwner = ownerAddress?.toLowerCase()
-  const normalizedSmartAccount = accountAddress?.toLowerCase()
-  const normalizedWalletAddress = walletClient?.account?.address?.toLowerCase()
-
-  const isOwnedBySmartAccount = Boolean(
-    normalizedOwner &&
-      normalizedSmartAccount &&
-      normalizedOwner === normalizedSmartAccount,
-  )
-  const isOwnedByEoa = Boolean(
-    normalizedOwner &&
-      normalizedWalletAddress &&
-      normalizedOwner === normalizedWalletAddress,
-  )
+  const { isOwnedBySmartAccount, isOwnedByEoa } = isProfileOwner({
+    owner: ownerAddress,
+    walletAddress: walletClient?.account?.address,
+    smartAccountAddress: accountAddress as Address,
+  })
 
   // Keep baseline in sync with latest fetched defaults
   useEffect(() => {

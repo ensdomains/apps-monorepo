@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 import { customSepolia, publicClient } from '@/lib/wagmi'
+import { isProfileOwner } from '../../utils/isProfileOwner'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 interface UpdateResolverDialogProps {
@@ -70,20 +71,11 @@ export const UpdateResolverDialog = ({
     }
   }, [isSuccess, onUpdated])
 
-  const normalizedOwner = owner?.toLowerCase()
-  const normalizedSmartAccount = accountAddress?.toLowerCase()
-  const normalizedWalletAddress = walletClient?.account?.address?.toLowerCase()
-
-  const isOwnedBySmartAccount = Boolean(
-    normalizedOwner &&
-      normalizedSmartAccount &&
-      normalizedOwner === normalizedSmartAccount,
-  )
-  const isOwnedByEoa = Boolean(
-    normalizedOwner &&
-      normalizedWalletAddress &&
-      normalizedOwner === normalizedWalletAddress,
-  )
+  const { isOwnedBySmartAccount, isOwnedByEoa } = isProfileOwner({
+    owner,
+    walletAddress: walletClient?.account?.address,
+    smartAccountAddress: accountAddress as Address,
+  })
 
   const handleSave = () => {
     setErrorMessage(undefined)
