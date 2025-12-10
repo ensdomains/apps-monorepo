@@ -1,7 +1,11 @@
 import { fromPromise, type ResultAsync } from 'neverthrow'
-import { type Address, encodeFunctionData, type PublicClient } from 'viem'
+import {
+  type Address,
+  encodeFunctionData,
+  type PublicClient,
+  zeroAddress,
+} from 'viem'
 import { DEDICATED_RESOLVER_ABI } from '../../contracts/abis/DedicatedResolver.abi'
-import { ENS_SEPOLIA_CONTRACTS } from '../../contracts/ens-sepolia'
 import { buildTransactionRequest } from '../../helpers/buildTransactionRequest'
 import { transactionManager } from '../../providers/transactionManager'
 import {
@@ -28,8 +32,7 @@ export const submitProfileRecordsUpdateActor = (input: {
         throw new Error('No profile record changes to apply')
       }
 
-      const resolverAddress =
-        input.resolverAddress ?? ENS_SEPOLIA_CONTRACTS.PublicResolver
+      const resolverAddress = input.resolverAddress ?? zeroAddress
 
       const calls = buildDedicatedResolverCalls(changes)
 
