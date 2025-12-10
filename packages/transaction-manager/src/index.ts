@@ -136,7 +136,6 @@ export type {
   ETHTransferTransactionIntent,
   PaymentMethod,
   PaymentOption,
-  RhinestoneConfig,
   SmartAccountConfig,
   TransactionFlowType,
   TransactionIntent,
