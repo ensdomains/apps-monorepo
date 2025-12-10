@@ -35,7 +35,6 @@ export default defineConfig({
         new URL('../../packages/l2-primary/src', import.meta.url),
       ),
     },
-    dedupe: ['react', 'react-dom', 'wagmi', '@wagmi/core', 'viem'],
   },
   optimizeDeps: {
     exclude: ['@ens-apps/l2-primary'],
