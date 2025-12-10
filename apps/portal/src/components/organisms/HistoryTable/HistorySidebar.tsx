@@ -26,9 +26,11 @@ interface DetailRowProps {
 
 const DetailRow = ({ label, value }: DetailRowProps) => {
   return (
-    <div className="flex flex-row gap-6 items-center">
-      <span className="text-black font-medium sm:min-w-[160px]">{label}</span>
-      <div className="flex-1">{value}</div>
+    <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 items-start sm:items-center">
+      <span className="text-black font-medium shrink-0 xs:min-w-[160px]">
+        {label}
+      </span>
+      <div className="flex-1 min-w-0">{value}</div>
     </div>
   )
 }
