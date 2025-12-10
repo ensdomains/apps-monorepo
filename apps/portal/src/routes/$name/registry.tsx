@@ -3,6 +3,7 @@ import { createFileRoute, Link, useParams } from '@tanstack/react-router'
 import { EditIcon } from 'lucide-react'
 import { zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
+import { useConnection } from 'wagmi'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
@@ -11,6 +12,7 @@ import { NoRegistryCard } from '@/features/registry/components/NoRegistryCard'
 import { RegistryCard } from '@/features/registry/components/RegistryCard'
 import { RegistryCardsGrid } from '@/features/registry/components/RegistryCardsGrid'
 import { VerifiedRegistryCard } from '@/features/registry/components/VerifiedRegistryCard'
+import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getParentName } from '@/features/registry/utils/nameUtils'
 import { sepoliaEthRegistryAddress } from '@/lib/constants/registry'
@@ -21,6 +23,7 @@ export const Route = createFileRoute('/$name/registry')({
 
 function RouteComponent() {
   const { name } = useParams({ from: '/$name/registry' })
+  const { address: connectedAddress } = useConnection()
 
   const {
     data,
@@ -53,6 +56,24 @@ function RouteComponent() {
   const isNamechain = network === 'namechainSepolia'
   const showVerifiedBanner = Boolean(hasNameRegistry && isNamechain)
   const isV1Name = protocolVersion === 'ENSv1'
+
+  const label = name.split('.')[0]
+
+  // Check if connected user has ROLE_SET_SUBREGISTRY permission on the parent registry
+  const { data: hasSetSubregistryRole } = useQuery({
+    ...getHasRolesQueryOptions({
+      registryAddress: parentRegistry ?? zeroAddress,
+      label,
+      roles: ['ROLE_SET_SUBREGISTRY'],
+      account: connectedAddress ?? zeroAddress,
+    }),
+    enabled:
+      !!connectedAddress &&
+      !!parentRegistry &&
+      parentRegistry !== zeroAddress &&
+      hasNameRegistry &&
+      !isV1Name,
+  })
 
   // Fetch parent owner separately
   // The parent registry (e.g., "eth" for "name.eth") has a different owner than the current name.
@@ -218,12 +239,14 @@ function RouteComponent() {
     <div className="flex flex-col gap-6 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
-        <Button variant="outline" className="flex items-center gap-2" asChild>
-          <Link to="/$name/deploy-registry" params={{ name }}>
-            <EditIcon className="size-4" />
-            Change registry
-          </Link>
-        </Button>
+        {hasSetSubregistryRole && (
+          <Button variant="outline" className="flex items-center gap-2" asChild>
+            <Link to="/$name/deploy-registry" params={{ name }}>
+              <EditIcon className="size-4" />
+              Change registry
+            </Link>
+          </Button>
+        )}
       </div>
 
       {showVerifiedBanner && <VerifiedRegistryCard />}
