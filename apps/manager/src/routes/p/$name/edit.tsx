@@ -7,6 +7,7 @@ import { LinkButton } from '@/components/ui/button'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { ProfileEdit } from '@/features/profile/components/ProfileEdit'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
+import { useRhinestoneAccount } from '@/lib/rhinestone/useRhinestoneAccount'
 
 export const Route = createFileRoute('/p/$name/edit')({
   component: RouteComponent,
@@ -32,15 +33,24 @@ function RouteComponent() {
     ...profileOwnerQuery(name),
   })
 
-  const address = wallet?.address
+  const {
+    accountAddress: smartAccountAddress,
+    isLoading: isSmartAccountLoading,
+  } = useRhinestoneAccount()
+
+  const normalizedOwner = ownerData?.owner?.toLowerCase()
+  const connectedAddresses = [wallet?.address, smartAccountAddress]
+    .filter((addr): addr is string => Boolean(addr))
+    .map((addr) => addr.toLowerCase())
 
   const isOwner = Boolean(
-    address &&
-      ownerData?.owner &&
-      ownerData.owner.toLowerCase() === address.toLowerCase(),
+    normalizedOwner && connectedAddresses.includes(normalizedOwner),
   )
 
-  if (isWalletLoading || isOwnerLoading) {
+  const isCheckingOwnership =
+    isWalletLoading || isOwnerLoading || (!isOwner && isSmartAccountLoading)
+
+  if (isCheckingOwnership) {
     return <ProfileLoading />
   }
 

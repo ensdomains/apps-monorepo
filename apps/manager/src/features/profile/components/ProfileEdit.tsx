@@ -1,7 +1,4 @@
-import {
-  type RhinestoneSigner,
-  recordsMachine,
-} from '@ens-apps/transaction-manager'
+import { recordsMachine, type Signer } from '@ens-apps/transaction-manager'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
 import type { Address } from 'viem'
@@ -48,6 +45,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   const {
     rhinestoneAccount,
     accountAddress,
+    rhinestoneConfig,
     isConnected: isRhinestoneConnected,
   } = useRhinestoneAccount()
 
@@ -82,20 +80,26 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   }
 
   const handleSave = () => {
-    if (!isRhinestoneConnected || !rhinestoneAccount || !accountAddress) {
-      console.warn(
-        'Cannot save profile – Rhinestone smart account is not ready.',
-      )
+    if (
+      !isRhinestoneConnected ||
+      !rhinestoneAccount ||
+      !accountAddress ||
+      !rhinestoneConfig
+    ) {
+      console.warn('Cannot save profile – smart account is not ready.')
       return
     }
 
     const before = transformToServiceFormat(defaultValues)
     const after = transformToServiceFormat(form.state.values)
 
-    const signer: RhinestoneSigner = {
-      type: 'rhinestone',
+    const signer: Signer = {
+      type: 'pimlico',
       account: rhinestoneAccount,
-      config: { chain: customSepolia },
+      config: {
+        ...rhinestoneConfig,
+        accountAddress: accountAddress as Address,
+      },
     }
 
     recordsActor.send({
@@ -202,6 +206,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
             </form.Subscribe>
             <SaveChanges
               form={form}
+              name={name}
               originalData={defaultValues}
               onSave={handleSave}
               isSaving={isSubmitting}
