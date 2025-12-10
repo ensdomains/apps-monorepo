@@ -1,16 +1,19 @@
 'use client'
 
 import type { Signer } from '@ens-apps/transaction-manager'
+import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   useClient as useParaClient,
   useWallet as useParaWallet,
 } from '@getpara/react-sdk-lite'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { type Address, formatUnits } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
 import { customSepolia, publicClient } from '@/lib/wagmi'
+import { backendClient } from '@/utils/backend-client'
 import { ERC20_ABI } from '../ens.abi'
 import { initializePimlicoAccount, type PimlicoConfig } from './pimlico'
 import {
@@ -92,7 +95,11 @@ export function useSmartAccount(
 
   const { data: smartAccountEthBalance, isLoading: isLoadingSmartAccountEth } =
     useQuery({
-      queryKey: ['smartAccountEthBalance', accountAddress],
+      queryKey: $qk({
+        $scope: 'wallet',
+        $action: 'smartAccountEthBalance',
+        address: accountAddress,
+      }),
       queryFn: async () => {
         if (!accountAddress) return null
         const balance = await publicClient.getBalance({
@@ -109,7 +116,11 @@ export function useSmartAccount(
 
   const { data: stablecoinBalances = [], isLoading: isLoadingBalances } =
     useQuery({
-      queryKey: ['stablecoinBalances', accountAddress],
+      queryKey: $qk({
+        $scope: 'wallet',
+        $action: 'stablecoinBalances',
+        address: accountAddress,
+      }),
       queryFn: async () => {
         if (!accountAddress) return []
         const balances = []
@@ -132,6 +143,7 @@ export function useSmartAccount(
               address: tokenAddress,
               symbol: tokenName,
               balance: balance.toString(),
+              decimals,
               formattedBalance: `${formatUnits(balance, decimals)} ${tokenName}`,
             })
           } catch {
@@ -143,6 +155,63 @@ export function useSmartAccount(
       enabled: !!accountAddress,
       refetchInterval: 30000,
     })
+
+  const autoFundingMutation = useMutation({
+    mutationKey: $qk({
+      $scope: 'wallet',
+      $action: 'fund',
+      address: accountAddress,
+    }),
+    mutationFn: async (address: Address) => {
+      toast.loading('Funding wallet', {
+        description: `Funding wallet ${address} with mock USDC & DAI tokens`,
+        id: `fund-wallet-${address}`,
+      })
+      console.debug('Wallet Funder: Funding wallet', address)
+
+      const response = await backendClient.wallet.fund.$post({
+        json: {
+          address,
+        },
+      })
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fund wallet: ${response.statusText} ${await response.text()}`,
+        )
+      }
+
+      return response.json()
+    },
+    onSuccess: (data, address, _, context) => {
+      if (!data || data.usdcTxHash || !data.daiTxHash) {
+        console.log(
+          'Wallet Funder: No transaction hashes received, assuming already funded',
+        )
+        toast.dismiss(`fund-wallet-${address}`)
+        return
+      }
+
+      toast.success('Wallet funded successfully', {
+        description: `Wallet ${address} funded successfully`,
+        id: `fund-wallet-${address}`,
+      })
+
+      console.log('Wallet Funder: Successfully funded wallet', address, data)
+
+      context.client.invalidateQueries({
+        queryKey: $qk({
+          $scope: 'wallet',
+          $action: 'stablecoinBalances',
+        }),
+      })
+    },
+    onError: (error, address) => {
+      toast.error('Failed to fund wallet', {
+        description: `Failed to fund wallet: ${error.message}`,
+        id: `fund-wallet-${address}`,
+      })
+    },
+  })
 
   const initializeAccount = useCallback(async () => {
     if (!isWalletReady) {
@@ -207,6 +276,31 @@ export function useSmartAccount(
     initializeAccount()
   }, [initializeAccount])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Should not attempt to rerun from mutation status
+  useEffect(() => {
+    if (
+      !accountAddress ||
+      isLoading ||
+      isLoadingBalances ||
+      !autoFundingMutation.isIdle
+    )
+      return
+
+    const totalBalance = stablecoinBalances.reduce(
+      (acc, balance) =>
+        acc + BigInt(balance.balance) / BigInt(10 ** balance.decimals),
+      0n,
+    )
+
+    // Don't fund if the address already has enough tokens
+    if (totalBalance >= 500n) {
+      console.debug('Wallet Funder: Address already has enough tokens')
+      return
+    }
+
+    autoFundingMutation.mutate(accountAddress as Address)
+  }, [accountAddress, isLoading, isLoadingBalances, stablecoinBalances])
+
   const signer: Signer | null = useMemo(() => {
     if (!client || !accountAddress) return null
 
@@ -262,8 +356,7 @@ export function useSmartAccount(
     isLoadingBalances,
     smartAccountEthBalance: smartAccountEthBalance ?? null,
     isLoadingSmartAccountEth,
-    isAutoFunding: false,
-    autoFundingError: null,
+    autoFundingMutation,
     signer,
   }
 

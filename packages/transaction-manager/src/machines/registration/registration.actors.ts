@@ -5,12 +5,20 @@
  */
 
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
-import type { Address, Hash, Hex, PublicClient } from 'viem'
-import { encodeFunctionData, keccak256, toHex } from 'viem'
+import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
+import {
+  decodeEventLog,
+  encodeFunctionData,
+  keccak256,
+  parseAbi,
+  stringToBytes,
+  toHex,
+} from 'viem'
 import { sepolia } from 'viem/chains'
 import type { Signer } from '../..'
 import { ERC20_ABI } from '../../contracts/abis/ERC20.abi'
 import { FAST_TEST_ETH_REGISTRAR_ABI } from '../../contracts/abis/FastTestETHRegistrar.abi'
+import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
 import {
   ENS_SEPOLIA_CONTRACTS,
   REFERER_ADDRESS,
@@ -28,9 +36,98 @@ type CommitmentData = {
   secret: Hash
 }
 
+const DEDICATED_RESOLVER_INIT_ABI = parseAbi([
+  'function initialize(address owner, uint256 bitmap)',
+])
+
+const DEDICATED_RESOLVER_ROLE_BITMAP = BigInt(
+  '0x1111111111111111111111111111111111111111111111111111111111111111',
+)
+
 // ============================================================================
 // Helper Functions (only used in this file)
 // ============================================================================
+
+function generateResolverSalt(): bigint {
+  return BigInt(keccak256(stringToBytes(new Date().toISOString())))
+}
+
+function getResolverInitCalldata(ownerAddress: Address): Hex {
+  return encodeFunctionData({
+    abi: DEDICATED_RESOLVER_INIT_ABI,
+    functionName: 'initialize',
+    args: [ownerAddress, DEDICATED_RESOLVER_ROLE_BITMAP],
+  })
+}
+
+function parseProxyDeployedAddress(
+  receipt: TransactionReceipt,
+): Address | undefined {
+  for (const log of receipt.logs) {
+    try {
+      const decoded = decodeEventLog({
+        abi: VERIFIABLE_FACTORY_ABI,
+        data: log.data,
+        topics: log.topics,
+      })
+
+      if (decoded.eventName === 'ProxyDeployed') {
+        return decoded.args.proxyAddress as Address
+      }
+    } catch {
+      // Ignore non-matching logs
+    }
+  }
+  return undefined
+}
+
+async function waitForTransactionReceiptById(
+  txId: string,
+): Promise<TransactionReceipt> {
+  const txActor = transactionManager.getTransaction(txId)
+
+  if (!txActor) {
+    throw new Error(`Transaction ${txId} not found`)
+  }
+
+  const snapshot = txActor.getSnapshot()
+
+  if (
+    (snapshot.matches?.('success' as never) || snapshot.value === 'success') &&
+    snapshot.context.receipt
+  ) {
+    return snapshot.context.receipt
+  }
+
+  if (typeof snapshot.value === 'object' && 'error' in snapshot.value) {
+    throw snapshot.context.error || new Error(`Transaction ${txId} failed`)
+  }
+
+  return new Promise<TransactionReceipt>((resolve, reject) => {
+    const subscription = txActor.subscribe((nextSnapshot) => {
+      if (
+        (nextSnapshot.matches?.('success' as never) ||
+          nextSnapshot.value === 'success') &&
+        nextSnapshot.context.receipt
+      ) {
+        subscription.unsubscribe()
+        resolve(nextSnapshot.context.receipt)
+        return
+      }
+
+      if (
+        typeof nextSnapshot.value === 'object' &&
+        'error' in nextSnapshot.value
+      ) {
+        subscription.unsubscribe()
+        reject(
+          nextSnapshot.context.error ||
+            new Error(`Transaction ${txId} failed during execution`),
+        )
+      }
+    })
+  })
+}
 
 /**
  * Generate commitment hash via contract call
@@ -42,6 +139,7 @@ function generateCommitment(
   name: string,
   ownerAddress: Address,
   duration: bigint,
+  resolverAddress: Address,
   registrarAddress: Address = ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
 ): ResultAsync<CommitmentData, Error> {
   const cleanName = name.replace('.eth', '')
@@ -58,7 +156,7 @@ function generateCommitment(
           ownerAddress,
           secret,
           ENS_SEPOLIA_CONTRACTS.ETHRegistry,
-          ENS_SEPOLIA_CONTRACTS.PublicResolver,
+          resolverAddress,
           duration,
           REFERER_ADDRESS,
         ],
@@ -106,6 +204,7 @@ function encodeRegistrationData(
   secret: Hash,
   duration: bigint,
   paymentToken: Address,
+  resolverAddress: Address,
 ): Hash {
   const cleanName = name.replace('.eth', '')
 
@@ -117,7 +216,7 @@ function encodeRegistrationData(
       ownerAddress,
       secret,
       ENS_SEPOLIA_CONTRACTS.ETHRegistry,
-      ENS_SEPOLIA_CONTRACTS.PublicResolver,
+      resolverAddress,
       duration,
       paymentToken,
       REFERER_ADDRESS,
@@ -226,6 +325,87 @@ function createTransactionRequest(params: {
 // ============================================================================
 
 /**
+ * Deploy dedicated resolver proxy through verifiable factory
+ */
+export function submitResolverDeploymentActor(input: {
+  name: string
+  owner: Address
+  signer: import('../..').Signer
+  publicClient: PublicClient
+  sponsored?: boolean
+}): ResultAsync<{ txId: string; salt: bigint }, Error> {
+  return ResultAsync.fromSafePromise(
+    Promise.resolve().then(() => {
+      const smartAccountAddress = getSmartAccountAddress(input.signer)
+      const salt = generateResolverSalt()
+      const initCalldata = getResolverInitCalldata(input.owner)
+
+      const deployCalldata = encodeFunctionData({
+        abi: VERIFIABLE_FACTORY_ABI,
+        functionName: 'deployProxy',
+        args: [ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl, salt, initCalldata],
+      })
+
+      const request = createTransactionRequest({
+        signer: input.signer,
+        from: smartAccountAddress,
+        to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
+        data: deployCalldata,
+        value: 0n,
+        chainId: sepolia.id,
+        calls: [
+          {
+            to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
+            data: deployCalldata,
+            value: 0n,
+          },
+        ],
+        sponsored: input.sponsored ?? true,
+      })
+
+      const txId = transactionManager.startTransaction(
+        {
+          type: 'custom',
+          request,
+        },
+        input.signer,
+        {
+          description: `Deploy dedicated resolver for ${input.name}.eth`,
+          publicClient: input.publicClient,
+        },
+      )
+
+      return { txId, salt }
+    }),
+  ).mapErr(
+    (error) => new Error(`Failed to submit resolver deployment: ${error}`),
+  )
+}
+
+/**
+ * Wait for resolver deployment transaction and extract deployed proxy address
+ */
+export function resolveResolverDeploymentActor(input: {
+  txId: string
+}): ResultAsync<{ resolverAddress: Address }, Error> {
+  return fromPromise(
+    (async () => {
+      const receipt = await waitForTransactionReceiptById(input.txId)
+      const resolverAddress = parseProxyDeployedAddress(receipt)
+
+      if (!resolverAddress) {
+        throw new Error(
+          'ProxyDeployed event not found in resolver deployment receipt',
+        )
+      }
+
+      return { resolverAddress }
+    })(),
+    (error) => error as Error,
+  )
+}
+
+/**
  * Generate commitment for ENS registration
  */
 export function generateCommitmentActor(input: {
@@ -235,6 +415,7 @@ export function generateCommitmentActor(input: {
   publicClient: PublicClient
   selectedToken: 'USDC' | 'DAI'
   useFastRegistrar: boolean
+  resolverAddress: Address
 }): ResultAsync<CommitmentData, Error> {
   const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
 
@@ -243,6 +424,7 @@ export function generateCommitmentActor(input: {
     input.name,
     input.owner,
     input.duration,
+    input.resolverAddress,
     registrarAddress,
   )
 }
@@ -514,6 +696,7 @@ export function submitRegistrationActor(input: {
   publicClient: PublicClient
   useFastRegistrar: boolean
   sponsored?: boolean
+  resolverAddress: Address
 }): ResultAsync<string, Error> {
   const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
 
@@ -553,6 +736,7 @@ export function submitRegistrationActor(input: {
         input.commitment.secret,
         input.duration,
         normalizedPaymentToken,
+        input.resolverAddress,
       )
 
       const request = createTransactionRequest({

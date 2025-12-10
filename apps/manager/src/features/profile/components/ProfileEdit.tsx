@@ -1,7 +1,8 @@
-import { recordsMachine } from '@ens-apps/transaction-manager'
+import { recordsMachine, type Signer } from '@ens-apps/transaction-manager'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
 import type { Address, PublicClient } from 'viem'
+import { useWalletClient } from 'wagmi'
 import { Alert } from '@/components/molecules/Alert'
 import { Button } from '@/components/ui/button'
 import { useSmartAccount } from '@/lib/smart-account'
@@ -46,25 +47,32 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     accountAddress,
     isConnected: isSmartAccountConnected,
     signer,
-  } = useSmartAccount()
+  } = useSmartAccount({ type: 'pimlico' })
+
+  const { data: wagmiWalletClient } = useWalletClient()
 
   const recordsActor = useActorRef(recordsMachine, {
     input: { chainId: customSepolia.id },
   })
 
-  const recordsState = useSelector(recordsActor, (state) => state)
-  const txHash = recordsState.context.txHash
-  const isSubmitting =
-    recordsState.matches('submittingUpdate') ||
-    recordsState.matches('waitingForUpdate')
-  const isSuccess = recordsState.matches('success')
-  const isError = recordsState.matches('error')
-  const updateErrorMessage =
-    (isError &&
-      recordsState.context.error &&
-      recordsState.context.error.message) ||
-    (isError && 'Failed to update profile') ||
-    null
+  const { txHash, isSubmitting, isSuccess, isError, updateErrorMessage } =
+    useSelector(recordsActor, (state) => {
+      const isSubmitting =
+        state.matches('submittingUpdate') || state.matches('waitingForUpdate')
+      const isSuccess = state.matches('success')
+      const isError = state.matches('error')
+      const updateErrorMessage = isError
+        ? (state.context.error?.message ?? 'Failed to update profile')
+        : null
+
+      return {
+        txHash: state.context.txHash,
+        isSubmitting,
+        isSuccess,
+        isError,
+        updateErrorMessage,
+      }
+    })
 
   const defaultValues = recordsData ?? defaultProfileRecords
 
@@ -72,15 +80,46 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     defaultValues,
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const ownerAddress = ownerData?.owner as Address | undefined
+  const eoaAddress = wagmiWalletClient?.account?.address as Address | undefined
+  const smartAccountAddress = accountAddress as Address | undefined
+
+  const handleSubmit: React.FormEventHandler<HTMLFormElement> = (e) => {
     e.preventDefault()
     e.stopPropagation()
     form.handleSubmit()
   }
 
   const handleSave = () => {
-    if (!isSmartAccountConnected || !signer || !accountAddress) {
-      console.warn('Cannot save profile – Smart account is not ready.')
+    if (!ownerAddress) {
+      console.warn('Cannot save profile - ENS owner is not available.')
+      return
+    }
+
+    const owner = ownerAddress.toLowerCase()
+
+    const smartValid =
+      smartAccountAddress &&
+      smartAccountAddress.toLowerCase() === owner &&
+      signer &&
+      isSmartAccountConnected
+
+    const eoaValid =
+      eoaAddress && eoaAddress.toLowerCase() === owner && wagmiWalletClient
+
+    const signerChoice = smartValid
+      ? { signer, account: smartAccountAddress }
+      : eoaValid
+        ? {
+            signer: { type: 'eoa', walletClient: wagmiWalletClient },
+            account: eoaAddress,
+          }
+        : null
+
+    if (!signerChoice) {
+      console.warn(
+        'Cannot save profile - Connected account does not match the ENS owner.',
+      )
       return
     }
 
@@ -92,9 +131,9 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       name,
       before,
       after,
-      signer,
+      signer: signerChoice.signer as Signer,
       resolverAddress: resolver,
-      accountAddress: accountAddress as Address,
+      accountAddress: signerChoice.account,
       publicClient: publicClient as PublicClient,
     })
   }
@@ -121,7 +160,6 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
           />
         </div>
       )}
-
       {isSuccess && !isSubmitting && (
         <div className="px-4">
           <Alert
@@ -132,7 +170,6 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
           />
         </div>
       )}
-
       {isError && updateErrorMessage && (
         <div className="px-4">
           <Alert
@@ -143,35 +180,22 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
           />
         </div>
       )}
-
-      {/* Header */}
-      <HeaderSection
-        form={form}
-        name={name}
-        owner={ownerData?.owner as Address | undefined}
-      />
+      <HeaderSection form={form} name={name} owner={ownerAddress} />
 
       <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
-        {/* Left/main column */}
         <div className="space-y-4 md:col-span-7 lg:col-span-8">
           <BioSection form={form} />
           <div className="h-px w-full bg-gray-200" />
           <SocialLinksSection form={form} />
           <LinksSection form={form} />
         </div>
-
-        {/* Right/side column */}
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
           <WalletAddressesSection form={form} />
-
           <UpdateResolverDialog
             name={name}
             currentResolver={resolver}
-            onUpdated={() => {
-              refetchResolver()
-            }}
+            onUpdated={refetchResolver}
           />
-          {/* Reset & Save Buttons */}
           <div className="space-y-2 pt-2">
             <form.Subscribe
               selector={(state) => createDiff(defaultValues, state.values)}
