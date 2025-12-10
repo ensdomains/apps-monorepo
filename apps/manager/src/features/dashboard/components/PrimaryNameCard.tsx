@@ -1,7 +1,7 @@
 import { Calendar, ChevronDown, Clock } from 'lucide-react'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import type { DashboardNameRow } from '@/features/dashboard/MOCK'
+import type { DashboardNameRow } from '@/features/dashboard/types'
 import { formatDashboardDate } from '@/features/dashboard/utils'
 import { PrimaryBadge } from './PrimaryBadge'
 import { PrimaryNameDialog } from './PrimaryNameDialog'

@@ -1,10 +1,8 @@
 import { Search } from 'lucide-react'
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
-import {
-  type DashboardNameRow,
-  MOCK_FAVORITE_NAMES,
-} from '@/features/dashboard/MOCK'
+import { MOCK_FAVORITE_NAMES } from '@/features/dashboard/MOCK'
+import type { DashboardNameRow } from '@/features/dashboard/types'
 import { FavoritesList } from './FavoritesList'
 import { MyNamesList } from './MyNamesList'
 

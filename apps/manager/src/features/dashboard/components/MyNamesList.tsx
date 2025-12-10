@@ -8,7 +8,7 @@ import {
   CircleAlert,
   MoreHorizontal,
 } from 'lucide-react'
-import type { DashboardNameRow } from '@/features/dashboard/MOCK'
+import type { DashboardNameRow } from '@/features/dashboard/types'
 import {
   formatDashboardDate,
   getDaysUntil,

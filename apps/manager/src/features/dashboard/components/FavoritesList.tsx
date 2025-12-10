@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import type { DashboardNameRow } from '@/features/dashboard/MOCK'
+import type { DashboardNameRow } from '@/features/dashboard/types'
 
 interface FavoritesListProps {
   favorites?: DashboardNameRow[]

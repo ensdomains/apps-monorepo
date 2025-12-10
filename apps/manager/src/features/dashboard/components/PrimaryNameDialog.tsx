@@ -7,7 +7,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import type { DashboardNameRow } from '@/features/dashboard/MOCK'
+import type { DashboardNameRow } from '@/features/dashboard/types'
 import { cn } from '@/lib/utils'
 
 type PrimaryNameDialogProps = {
