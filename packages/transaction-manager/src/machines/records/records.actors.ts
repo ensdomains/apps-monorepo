@@ -1,4 +1,4 @@
-import { fromPromise, type ResultAsync } from 'neverthrow'
+import { ResultAsync } from 'neverthrow'
 import {
   type Address,
   encodeFunctionData,
@@ -6,27 +6,80 @@ import {
   namehash,
   type PublicClient,
 } from 'viem'
+import type { Signer } from '../..'
 import { DEDICATED_RESOLVER_ABI } from '../../contracts/abis/DedicatedResolver.abi'
 import { ENS_SEPOLIA_CONTRACTS } from '../../contracts/ens-sepolia'
 import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
 import { transactionManager } from '../../providers/transactionManager'
+import type {
+  PimlicoTransactionRequest,
+  RhinestoneTransactionRequest,
+  TransactionRequest,
+} from '../../types/transaction.types'
 import {
   buildDedicatedResolverCalls,
   computeRecordChanges,
 } from './records.helpers'
 import type { ServiceRecordSnapshot } from './records.types'
 
+function createTransactionRequest(params: {
+  signer: Signer
+  from: Address
+  to: Address
+  data: Hex
+  value: bigint
+  chainId: number
+  calls: Array<{ to: Address; data: Hex; value: bigint }>
+  sponsored?: boolean
+}): TransactionRequest {
+  const { signer, from, to, data, value, chainId, calls, sponsored } = params
+
+  if (signer.type === 'rhinestone') {
+    return {
+      type: 'rhinestone-intent',
+      from,
+      to,
+      data,
+      value,
+      chainId,
+      rhinestoneParams: {
+        calls,
+        sponsored: sponsored ?? true,
+      },
+    } as RhinestoneTransactionRequest
+  }
+
+  if (signer.type === 'pimlico') {
+    return {
+      type: 'pimlico',
+      from,
+      to,
+      data,
+      value,
+      chainId,
+      pimlicoParams: {
+        calls,
+        sponsored: sponsored ?? true,
+      },
+    } as PimlicoTransactionRequest
+  }
+
+  throw new Error(
+    `Unsupported signer type for transaction request: ${signer.type}`,
+  )
+}
+
 export const submitProfileRecordsUpdateActor = (input: {
   name: string
   before: ServiceRecordSnapshot
   after: ServiceRecordSnapshot
-  signer: import('../..').Signer
+  signer: Signer
   publicClient: PublicClient
   chainId: number
   resolverAddress?: Address
 }): ResultAsync<string, Error> =>
-  fromPromise(
-    (async () => {
+  ResultAsync.fromSafePromise(
+    Promise.resolve().then(() => {
       const changes = computeRecordChanges(input.before, input.after)
 
       if (changes.texts.length === 0 && changes.coins.length === 0) {
@@ -55,26 +108,26 @@ export const submitProfileRecordsUpdateActor = (input: {
         args: [node, calls],
       })
 
-      const txId = transactionManager.startTransaction(
-        {
-          type: 'custom',
-          request: {
-            type: 'rhinestone-intent',
-            from: smartAccountAddress,
+      const request = createTransactionRequest({
+        signer: input.signer,
+        from: smartAccountAddress,
+        to: resolverAddress,
+        data: multicallData,
+        value: 0n,
+        chainId: input.chainId,
+        calls: [
+          {
             to: resolverAddress,
             data: multicallData,
             value: 0n,
-            chainId: input.chainId,
-            rhinestoneParams: {
-              calls: [
-                {
-                  to: resolverAddress,
-                  data: multicallData,
-                  value: 0n,
-                },
-              ],
-            },
           },
+        ],
+      })
+
+      const txId = transactionManager.startTransaction(
+        {
+          type: 'custom',
+          request,
         },
         input.signer,
         {
@@ -85,6 +138,5 @@ export const submitProfileRecordsUpdateActor = (input: {
       )
 
       return txId
-    })(),
-    (error) => error as Error,
-  )
+    }),
+  ).mapErr((error) => error as Error)
