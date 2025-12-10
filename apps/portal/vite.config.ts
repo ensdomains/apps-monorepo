@@ -17,7 +17,7 @@ const locales = dirname(
 export default defineConfig({
   plugins: [
     tanstackRouter({
-      autoCodeSplitting: false, // Disable to prevent provider context issues in production
+      autoCodeSplitting: true,
       routeFileIgnorePattern: '.((css|const).ts)',
     }),
     viteReact(),
@@ -36,26 +36,8 @@ export default defineConfig({
         import.meta.url,
       ).pathname,
     },
-    dedupe: ['react', 'react-dom', 'wagmi', '@wagmi/core'],
   },
   optimizeDeps: {
     exclude: ['@ens-apps/l2-primary'],
-    include: [
-      'react',
-      'react-dom',
-      'wagmi',
-      '@wagmi/core',
-      '@rainbow-me/rainbowkit',
-    ],
-  },
-  build: {
-    commonjsOptions: {
-      include: [/node_modules/],
-    },
-    rollupOptions: {
-      output: {
-        manualChunks: undefined, // Let Vite handle chunking automatically without aggressive splitting
-      },
-    },
   },
 })
