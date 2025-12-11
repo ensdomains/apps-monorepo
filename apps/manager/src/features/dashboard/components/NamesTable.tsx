@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react'
 import { useState } from 'react'
+import { match } from 'ts-pattern'
 import { Input } from '@/components/ui/input'
 import { MyNamesList } from './MyNamesList'
 
@@ -63,26 +64,23 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
           })}
         </div>
 
-        {activeTab === 'myNames' && (
-          <div className="w-full md:w-[292px]">
-            <Input
-              size="sm"
-              placeholder="Search my name..."
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
-              className="h-[32px] rounded-[4.1px] border-none bg-[#f6f6f6] text-[#8c8c8c] text-[13.12px] placeholder:text-[#8c8c8c]"
-            />
-          </div>
-        )}
+        {match(activeTab)
+          .with('myNames', () => (
+            <div className="w-full md:w-[292px]">
+              <Input
+                size="sm"
+                placeholder="Search my name..."
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
+                className="h-[32px] rounded-[4.1px] border-none bg-ens-white text-[#8c8c8c] text-[13.12px] placeholder:text-[#8c8c8c]"
+              />
+            </div>
+          ))
+          .otherwise(() => null)}
       </div>
 
       <MyNamesList primaryLabel={primaryLabel} searchQuery={searchQuery} />
-      {/* {activeTab === 'myNames' ? (
-        <MyNamesList names={names} primaryLabel={primaryLabel} />
-      ) : (
-        <FavoritesList favorites={favoriteNames} />
-      )} */}
     </div>
   )
 }
