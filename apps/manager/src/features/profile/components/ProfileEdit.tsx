@@ -47,7 +47,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     accountAddress,
     isConnected: isSmartAccountConnected,
     signer,
-  } = useSmartAccount({ type: 'rhinestone' })
+  } = useSmartAccount()
 
   const { data: wagmiWalletClient } = useWalletClient()
 

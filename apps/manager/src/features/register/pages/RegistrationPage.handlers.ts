@@ -29,7 +29,7 @@ export interface HandleRegistrationOptions {
  * This is the main entry point for starting registration.
  *
  * @example
- * const account = useSmartAccount({ type: 'pimlico' })
+ * const account = useSmartAccount() // defaults to rhinestone
  * handleStartRegistration(params, account, actor, { publicClient, fast: true })
  */
 export function handleStartRegistration(
