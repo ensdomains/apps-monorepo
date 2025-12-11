@@ -23,7 +23,19 @@ interface MyNamesListProps {
   primaryLabel?: string | null
 }
 
-export const MyNamesList = ({ names = [], primaryLabel }: MyNamesListProps) => {
+export const MyNamesList = ({
+  names = [],
+  primaryLabel,
+  canPrev,
+  canNext,
+  onPrev,
+  onNext,
+}: MyNamesListProps & {
+  canPrev: boolean
+  canNext: boolean
+  onPrev: () => void
+  onNext: () => void
+}) => {
   return (
     <div className="w-full">
       <div className="mb-[16px] hidden w-full md:flex md:items-center md:justify-between">
@@ -158,23 +170,24 @@ export const MyNamesList = ({ names = [], primaryLabel }: MyNamesListProps) => {
       </div>
 
       <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center justify-center gap-2 md:gap-[12px]">
+        <div className="flex items-center justify-center gap-3 md:gap-[12px]">
           <button
             type="button"
-            className="relative size-[28px] shrink-0 text-[#d3d3d3] md:size-[32px]"
+            onClick={onPrev}
+            disabled={!canPrev}
+            className="flex items-center gap-1 rounded-[6px] border border-[#d3d3d3] px-3 py-1 text-[#7d7d7d] text-[11px] disabled:border-[#f0f0f0] disabled:text-[#d3d3d3] md:text-[12px]"
           >
-            <ChevronLeft className="size-full" />
+            <ChevronLeft className="size-[14px]" />
+            <span>Previous</span>
           </button>
-          <div className="flex size-[28px] shrink-0 items-center justify-center rounded-[6px] bg-[#e5f7ff] md:size-[32px]">
-            <span className="font-medium font-sans text-[#0080bc] text-[11px] leading-[normal] md:text-[12px]">
-              1
-            </span>
-          </div>
           <button
             type="button"
-            className="relative size-[28px] shrink-0 text-[#d3d3d3] md:size-[32px]"
+            onClick={onNext}
+            disabled={!canNext}
+            className="flex items-center gap-1 rounded-[6px] border border-[#d3d3d3] px-3 py-1 text-[#7d7d7d] text-[11px] disabled:border-[#f0f0f0] disabled:text-[#d3d3d3] md:text-[12px]"
           >
-            <ChevronRight className="size-full" />
+            <span>Next</span>
+            <ChevronRight className="size-[14px]" />
           </button>
         </div>
         <span className="text-center font-sans text-[#7d7d7d] text-[11px] leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">

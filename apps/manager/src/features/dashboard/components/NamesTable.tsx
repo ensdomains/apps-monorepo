@@ -1,6 +1,6 @@
 import type { DomainFragment } from '@ens-apps/indexer'
 import { Search } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { MyNamesList } from './MyNamesList'
 
@@ -42,9 +42,35 @@ export const NamesTable = ({
   error,
 }: NamesTableProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>('myNames')
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 5
   // const favoriteNames = favorites ?? []
 
   if (error) return <div>Error loading names</div>
+
+  const total = names.length
+  const totalPages = total > 0 ? Math.ceil(total / PAGE_SIZE) : 1
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages)
+    }
+  }, [page, totalPages])
+
+  const startIndex = (page - 1) * PAGE_SIZE
+  const paginatedNames =
+    total > 0 ? names.slice(startIndex, startIndex + PAGE_SIZE) : names
+
+  const canPrev = page > 1
+  const canNext = page < totalPages
+
+  const handlePrev = () => {
+    if (canPrev) setPage((prev) => prev - 1)
+  }
+
+  const handleNext = () => {
+    if (canNext) setPage((prev) => prev + 1)
+  }
 
   return (
     <div className="w-full">
@@ -93,7 +119,14 @@ export const NamesTable = ({
           Loading names...
         </div>
       ) : (
-        <MyNamesList names={names} primaryLabel={primaryLabel} />
+        <MyNamesList
+          names={paginatedNames}
+          primaryLabel={primaryLabel}
+          canPrev={canPrev}
+          canNext={canNext}
+          onPrev={handlePrev}
+          onNext={handleNext}
+        />
       )}
       {/* {activeTab === 'myNames' ? (
         <MyNamesList names={names} primaryLabel={primaryLabel} />
