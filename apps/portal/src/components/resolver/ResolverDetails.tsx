@@ -1,8 +1,9 @@
+import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { useSupportsInterfaces } from '@/hooks/useSupportsInterfaces'
 import {
-  RESOLVER_FEATURE_NAMES,
+  RESOLVER_FEATURES,
   RESOLVER_INTERFACE_IDS,
   type ResolverInterfaceName,
 } from '@/lib/constants/resolverInterfaceIds'
@@ -22,11 +23,13 @@ const SupportedFeatures = ({
     interfaces: Object.values(RESOLVER_INTERFACE_IDS),
   })
 
-  const supportedInterfaceIds = Object.keys(RESOLVER_INTERFACE_IDS)
+  const supportedInterfaces = Object.keys(RESOLVER_INTERFACE_IDS)
     .filter((_, index) => supportsInterfaces?.[index])
-    .map(
-      (name) => RESOLVER_FEATURE_NAMES[name as ResolverInterfaceName] || name,
-    )
+    .map((name) => {
+      const interfaceName = name as ResolverInterfaceName
+      return RESOLVER_FEATURES[interfaceName]
+    })
+    .filter((feature) => feature?.name && feature?.link)
 
   if (isLoading) return <LoadingSpinner title="Loading..." />
   if (error) return <div>Error: {error.message}</div>
@@ -38,13 +41,14 @@ const SupportedFeatures = ({
         Interfaces
       </span>
       <div className="flex flex-row flex-wrap gap-x-4 gap-y-2">
-        {supportedInterfaceIds.map((feature) => (
-          <div
-            key={feature}
-            className="text-sm sm:text-base font-normal underline underline-offset-2 decoration-dotted cursor-pointer"
+        {supportedInterfaces.map((feature) => (
+          <ExternalLink
+            key={feature.name}
+            href={feature.link}
+            className="text-sm sm:text-base font-normal underline underline-offset-2 decoration-dotted hover:text-blue-600 transition-colors"
           >
-            {feature}
-          </div>
+            {feature.name}
+          </ExternalLink>
         ))}
       </div>
     </div>
@@ -65,7 +69,7 @@ export const ResolverDetails = ({
           <Datapoint key={item.label} {...item} />
         ))}
       </div>
-      <div className="border-t border-t-gray-200 h-[1px]"></div>
+      <div className="border-t border-t-gray-200 h-px"></div>
       <SupportedFeatures resolverAddress={resolverAddress} />
     </div>
   )
