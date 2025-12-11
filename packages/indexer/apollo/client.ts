@@ -6,7 +6,7 @@ export const createApolloClient = () =>
   new ApolloClient({
     cache: new InMemoryCache(),
     devtools: {
-      enabled: true,
+      enabled: process.env.NODE_ENV === "development",
     },
     link: from([retryLink, httpLink]),
   })
