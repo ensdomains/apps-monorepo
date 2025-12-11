@@ -6,16 +6,14 @@ import {
 import { useWallet } from '@getpara/react-sdk-lite'
 import { useQuery } from '@tanstack/react-query'
 import { CircleAlert, X } from 'lucide-react'
+import { useState } from 'react'
 import type { Address } from 'viem'
 import { DashboardSidebar } from '@/features/dashboard/components/DashboardSidebar'
 import { DidYouKnowSection } from '@/features/dashboard/components/DidYouKnowSection'
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
-import {
-  resolveDomainLabel,
-  toDateFromSeconds,
-} from '@/features/dashboard/utils'
+import { resolveDomainLabel } from '@/features/dashboard/utils'
 import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useSmartAccount } from '@/lib/smart-account'
@@ -26,6 +24,9 @@ const formatAddress = (value?: string | null) =>
 export const DashboardPage = () => {
   const { data: wallet } = useWallet()
   const { accountAddress } = useSmartAccount()
+
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 5
 
   const address = wallet?.address as Address | undefined
 
@@ -43,7 +44,8 @@ export const DashboardPage = () => {
   const queryVariables = normalizedAddress
     ? {
         where: { owner: normalizedAddress },
-        first: 50,
+        first: PAGE_SIZE,
+        skip: (page - 1) * PAGE_SIZE,
         orderBy: Domain_OrderBy.RegistrationDate,
         orderDirection: OrderDirection.Desc,
       }
@@ -55,33 +57,19 @@ export const DashboardPage = () => {
 
   const names = normalizedAddress && data?.domains ? data.domains : []
   const isNamesLoading = !normalizedAddress || loading
+  const canPrev = page > 1 && !isNamesLoading
+  const canNext = !isNamesLoading && names.length === PAGE_SIZE
 
-  const primaryNameRow =
-    names.find((name) => {
-      const label = resolveDomainLabel(name)
-      return (
-        normalizedPrimaryName !== undefined &&
-        label.toLowerCase() === normalizedPrimaryName
-      )
-    }) ?? names[0]
-
-  const primaryLabel = primaryNameRow
-    ? resolveDomainLabel(primaryNameRow)
-    : null
-
-  const defaultName = reverseName ?? primaryLabel ?? wallet?.ensName ?? null
-
-  const registeredDate =
-    reverseMetadata?.registeredDate ??
-    toDateFromSeconds(primaryNameRow?.createdAt)
-  const expiryDate =
-    reverseMetadata?.expiryDate ??
-    toDateFromSeconds(primaryNameRow?.expiryDate ?? null)
-  const avatarUrl =
-    reverseMetadata?.avatarUrl ??
-    primaryNameRow?.resolver?.avatar ??
-    wallet?.ensAvatar ??
+  const primaryLabel =
+    normalizedPrimaryName ??
+    (names[0] ? resolveDomainLabel(names[0]) : undefined) ??
     null
+
+  const defaultName = reverseName ?? wallet?.ensName ?? primaryLabel ?? null
+
+  const registeredDate = reverseMetadata?.registeredDate ?? null
+  const expiryDate = reverseMetadata?.expiryDate ?? null
+  const avatarUrl = reverseMetadata?.avatarUrl ?? wallet?.ensAvatar ?? null
 
   const isPrimaryLoading =
     isNamesLoading || isReverseNameLoading || isReverseMetadataLoading
@@ -93,7 +81,7 @@ export const DashboardPage = () => {
     <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 px-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-[40px]">
       <DashboardSidebar
         hasProfile={hasProfile}
-        profileName={defaultName ?? primaryNameRow?.name ?? ''}
+        profileName={defaultName ?? ''}
       />
       <div className="min-w-0 flex-1 space-y-6 md:space-y-8">
         <div className="space-y-4 md:space-y-8">
@@ -140,6 +128,10 @@ export const DashboardPage = () => {
               primaryLabel={primaryLabel}
               isLoading={isNamesLoading}
               error={error}
+              canPrev={canPrev}
+              canNext={canNext}
+              onPrev={() => canPrev && setPage((p) => p - 1)}
+              onNext={() => canNext && setPage((p) => p + 1)}
             />
           </div>
         </div>
