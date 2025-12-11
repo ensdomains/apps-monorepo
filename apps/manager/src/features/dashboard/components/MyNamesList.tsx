@@ -47,12 +47,12 @@ export const MyNamesList = ({ names = [], primaryLabel }: MyNamesListProps) => {
         </div>
       </div>
 
-      <div className="mb-[16px] flex h-[32px] items-center gap-[12px]">
+      {/* <div className="mb-[16px] flex h-[32px] items-center gap-[12px]">
         <div className="size-[12px] rounded-[3px] border-[#7d7d7d] border-[0.41px]" />
         <span className="font-sans text-[#232222] text-[14px] tracking-[0.28px]">
           Select all
         </span>
-      </div>
+      </div> */}
 
       <div className="flex w-full flex-col">
         {names.map((name) => {
