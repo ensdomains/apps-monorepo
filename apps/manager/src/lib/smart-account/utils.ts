@@ -125,7 +125,19 @@ export function wrapParaAccount(
       if (!viemAccount.signTypedData) {
         throw new Error('Account does not support signTypedData')
       }
-      const originalSignature = await viemAccount.signTypedData(typedData)
+      // Serialize the typed data message contents
+      // This ensures that large bigint values (e.g., intent nonce) are properly passed
+      // to the wallet during signing
+      const serializedTypedData: TypedDataDefinition<TTypedData, TPrimaryType> =
+        {
+          ...typedData,
+          message: convertBigIntsToStrings(typedData.message) as Record<
+            string,
+            unknown
+          >,
+        }
+      const originalSignature =
+        await viemAccount.signTypedData(serializedTypedData)
       return adjustVByte(originalSignature)
     },
     signAuthorization: viemAccount.signAuthorization
@@ -155,6 +167,25 @@ function adjustVByte(signature: string): Hex {
     .padStart(2, '0')}` as Hex
 
   return adjustedSignature
+}
+
+/**
+ * Converts BigInt values to strings recursively within an object or array.
+ * @internal
+ */
+function convertBigIntsToStrings<T>(value: T): T {
+  if (typeof value === 'bigint') {
+    return value.toString() as T
+  }
+  if (Array.isArray(value)) {
+    return value.map(convertBigIntsToStrings) as T
+  }
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, convertBigIntsToStrings(v)]),
+    ) as T
+  }
+  return value
 }
 
 export const getTxHashResult = (result: any) => {
