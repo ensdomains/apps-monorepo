@@ -32,9 +32,7 @@ export const UpdateResolverDialog = ({
   const [resolver, setResolver] = useState(currentResolver ?? '')
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
 
-  const { accountAddress, isConnected, signer } = useSmartAccount({
-    type: 'pimlico',
-  })
+  const { accountAddress, isConnected, signer } = useSmartAccount()
 
   const resolverActor = useActorRef(resolverMachine, {
     input: { chainId: customSepolia.id },
