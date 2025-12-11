@@ -1,25 +1,52 @@
+import { useWallet } from '@getpara/react-sdk-lite'
+import { useQuery } from '@tanstack/react-query'
 import { CircleAlert, X } from 'lucide-react'
+import type { Address } from 'viem'
 import { DashboardSidebar } from '@/features/dashboard/components/DashboardSidebar'
 import { DidYouKnowSection } from '@/features/dashboard/components/DidYouKnowSection'
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
-import {
-  MOCK_DASHBOARD_HEADER,
-  MOCK_DASHBOARD_NAMES,
-} from '@/features/dashboard/MOCK'
+import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
+import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { useSmartAccount } from '@/lib/smart-account'
+
+const formatAddress = (value?: string | null) =>
+  value ? `${value.slice(0, 6)}...${value.slice(-4)}` : '—'
 
 export const DashboardPage = () => {
-  const header = MOCK_DASHBOARD_HEADER
-  const names = MOCK_DASHBOARD_NAMES
-  const displayName = header.primaryName
-  const hasProfile = true
+  const { data: wallet } = useWallet()
+  const { accountAddress } = useSmartAccount()
+
+  const address = wallet?.address as Address | undefined
+
+  const { data: reverseName, isPending: isReverseNameLoading } = useQuery({
+    ...profileReverseNameQuery(address),
+  })
+  const { data: reverseMetadata, isPending: isReverseMetadataLoading } =
+    useQuery({
+      ...profileMetadataQuery(reverseName),
+    })
+
+  const normalizedPrimaryName = wallet?.ensName?.toLowerCase()
+  const primaryLabel = normalizedPrimaryName ?? null
+
+  const defaultName = reverseName ?? wallet?.ensName ?? primaryLabel ?? null
+
+  const registeredDate = reverseMetadata?.registeredDate ?? null
+  const expiryDate = reverseMetadata?.expiryDate ?? null
+  const avatarUrl = reverseMetadata?.avatarUrl ?? wallet?.ensAvatar ?? null
+
+  const isPrimaryLoading = isReverseNameLoading || isReverseMetadataLoading
+
+  const displayName = defaultName ?? formatAddress(accountAddress)
+  const hasProfile = Boolean(defaultName)
 
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 px-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-[40px]">
       <DashboardSidebar
         hasProfile={hasProfile}
-        profileName={header.primaryName}
+        profileName={defaultName ?? ''}
       />
       <div className="min-w-0 flex-1 space-y-6 md:space-y-8">
         <div className="space-y-4 md:space-y-8">
@@ -51,16 +78,17 @@ export const DashboardPage = () => {
           </h1>
         </div>
         <PrimaryNameCard
-          primaryName={header.primaryName}
-          address={header.address}
-          registeredDate={header.registeredDate}
-          expiryDate={header.expiryDate}
-          avatarUrl={header.avatarUrl}
-          names={names}
+          primaryName={defaultName}
+          registeredDate={registeredDate}
+          expiryDate={expiryDate}
+          avatarUrl={avatarUrl}
+          names={[]}
+          primaryLabel={primaryLabel}
+          isLoading={isPrimaryLoading}
         />
         <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:px-[24px] md:py-[32px]">
           <div className="space-y-5">
-            <NamesTable names={names} isLoading={false} error={undefined} />
+            <NamesTable primaryLabel={primaryLabel} />
           </div>
         </div>
         <DidYouKnowSection />

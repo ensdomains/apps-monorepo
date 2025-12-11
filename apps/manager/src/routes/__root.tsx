@@ -12,6 +12,8 @@ import { Toaster } from 'sonner'
 import { Layout } from '@/components/Layout'
 import appCss from '@/styles/index.css?url'
 import '@getpara/react-sdk-lite/styles.css'
+import { ApolloProvider } from '@apollo/client'
+import apolloClient from '@ens-apps/indexer/apollo'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { customSepolia } from '@/lib/wagmi'
 
@@ -25,52 +27,54 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
   const { queryClient } = Route.useRouteContext()
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ParaProvider
-        paraClientConfig={{
-          apiKey: VITE_PARA_API_KEY,
-          env: 'BETA' as any,
-        }}
-        config={{
-          appName: 'ENS Manager',
-        }}
-        externalWalletConfig={{
-          wallets: ['METAMASK', 'WALLETCONNECT'],
-          // createLinkedEmbeddedForExternalWallets: ['METAMASK'],
-          evmConnector: {
-            config: {
-              chains: [customSepolia],
+    <ApolloProvider client={apolloClient}>
+      <QueryClientProvider client={queryClient}>
+        <ParaProvider
+          paraClientConfig={{
+            apiKey: VITE_PARA_API_KEY,
+            env: 'BETA' as any,
+          }}
+          config={{
+            appName: 'ENS Manager',
+          }}
+          externalWalletConfig={{
+            wallets: ['METAMASK', 'WALLETCONNECT'],
+            // createLinkedEmbeddedForExternalWallets: ['METAMASK'],
+            evmConnector: {
+              config: {
+                chains: [customSepolia],
+              },
             },
-          },
-          walletConnect: {
-            projectId: '21fef48091f12692cad574a6f7753643',
-          },
-        }}
-        paraModalConfig={{
-          disableEmailLogin: false,
-          disablePhoneLogin: true,
-          onRampTestMode: true,
-          oAuthMethods: ['GOOGLE', 'TWITTER', 'TELEGRAM'],
-          authLayout: ['AUTH:FULL', 'EXTERNAL:FULL'],
-          recoverySecretStepEnabled: true,
+            walletConnect: {
+              projectId: '21fef48091f12692cad574a6f7753643',
+            },
+          }}
+          paraModalConfig={{
+            disableEmailLogin: false,
+            disablePhoneLogin: true,
+            onRampTestMode: true,
+            oAuthMethods: ['GOOGLE', 'TWITTER', 'TELEGRAM'],
+            authLayout: ['AUTH:FULL', 'EXTERNAL:FULL'],
+            recoverySecretStepEnabled: true,
 
-          theme: {
-            foregroundColor: '#2D3648',
-            backgroundColor: '#FFFFFF',
-            accentColor: '#0066CC',
-            darkForegroundColor: '#E8EBF2',
-            darkBackgroundColor: '#1A1F2B',
-            darkAccentColor: '#4D9FFF',
-            mode: 'light',
-            borderRadius: 'lg',
-            font: 'Inter',
-          },
-          twoFactorAuthEnabled: false,
-        }}
-      >
-        {children}
-      </ParaProvider>
-    </QueryClientProvider>
+            theme: {
+              foregroundColor: '#2D3648',
+              backgroundColor: '#FFFFFF',
+              accentColor: '#0066CC',
+              darkForegroundColor: '#E8EBF2',
+              darkBackgroundColor: '#1A1F2B',
+              darkAccentColor: '#4D9FFF',
+              mode: 'light',
+              borderRadius: 'lg',
+              font: 'Inter',
+            },
+            twoFactorAuthEnabled: false,
+          }}
+        >
+          {children}
+        </ParaProvider>
+      </QueryClientProvider>
+    </ApolloProvider>
   )
 }
 
