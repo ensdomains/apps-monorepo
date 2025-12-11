@@ -399,6 +399,7 @@ export type ResolverFragment = {
 export type DomainsQueryVariables = Exact<{
   where: DomainFilter
   first?: InputMaybe<Scalars['Int']['input']>
+  skip?: InputMaybe<Scalars['Int']['input']>
   orderBy?: InputMaybe<Domain_OrderBy>
   orderDirection?: InputMaybe<OrderDirection>
 }>
@@ -1162,6 +1163,11 @@ export const DomainsDocument = {
         },
         {
           kind: 'VariableDefinition',
+          variable: { kind: 'Variable', name: { kind: 'Name', value: 'skip' } },
+          type: { kind: 'NamedType', name: { kind: 'Name', value: 'Int' } },
+        },
+        {
+          kind: 'VariableDefinition',
           variable: {
             kind: 'Variable',
             name: { kind: 'Name', value: 'orderBy' },
@@ -1204,6 +1210,14 @@ export const DomainsDocument = {
                 value: {
                   kind: 'Variable',
                   name: { kind: 'Name', value: 'first' },
+                },
+              },
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'skip' },
+                value: {
+                  kind: 'Variable',
+                  name: { kind: 'Name', value: 'skip' },
                 },
               },
               {
