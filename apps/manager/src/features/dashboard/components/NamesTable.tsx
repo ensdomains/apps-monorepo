@@ -2,7 +2,6 @@ import type { DomainFragment } from '@ens-apps/indexer'
 import { Search } from 'lucide-react'
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
 import { MyNamesList } from './MyNamesList'
 
 type TabKey = 'myNames' // | 'favorites'
@@ -44,37 +43,6 @@ const DashboardTabButton = ({
       </span>
     </div>
   </button>
-)
-
-const ShimmerBlock = ({ className }: { className?: string }) => (
-  <div className={cn('relative overflow-hidden bg-[#f6f6f6]', className)}>
-    <div className="absolute inset-0 animate-shimmer bg-linear-to-r from-transparent via-white/40 to-transparent" />
-  </div>
-)
-
-const NamesListSkeleton = () => (
-  <div className="flex w-full flex-col">
-    {[0, 1, 2].map((index) => (
-      <div
-        key={index}
-        className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
-      >
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[25px]">
-            <div className="flex items-center gap-2 md:gap-[12px]">
-              <ShimmerBlock className="size-[32px] shrink-0 rounded-full md:size-[36.9px]" />
-              <ShimmerBlock className="h-[24px] w-[160px] rounded-[2.8px]" />
-            </div>
-          </div>
-
-          <div className="flex items-start justify-between gap-4 md:gap-[30px]">
-            <ShimmerBlock className="h-[16px] w-[120px] rounded-[4px]" />
-            <ShimmerBlock className="size-[24px] shrink-0 rounded-full" />
-          </div>
-        </div>
-      </div>
-    ))}
-  </div>
 )
 
 interface NamesTableProps {
@@ -146,7 +114,9 @@ export const NamesTable = ({
       </div>
 
       {isLoading ? (
-        <NamesListSkeleton />
+        <div className="py-8 text-center font-sans text-[#8c8c8c] text-sm">
+          Loading names...
+        </div>
       ) : (
         <MyNamesList names={names} primaryLabel={primaryLabel} />
       )}
