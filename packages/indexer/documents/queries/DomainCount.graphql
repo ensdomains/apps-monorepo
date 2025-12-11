@@ -1,0 +1,5 @@
+query DomainCount($where: DomainFilter!) {
+  domainConnection(where: $where) {
+    totalCount
+  }
+}
