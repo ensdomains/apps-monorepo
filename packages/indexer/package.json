@@ -5,7 +5,7 @@
   "type": "module",
   "private": true,
   "exports": {
-    ".": "./generated.ts",
+    ".": "./graphql.gen.ts",
     "./apollo": "./apollo/client.ts"
   },
   "scripts": {

@@ -5,9 +5,6 @@ import retryLink from './retryLink'
 export const createApolloClient = () =>
   new ApolloClient({
     cache: new InMemoryCache(),
-    devtools: {
-      enabled: process.env.NODE_ENV === "development",
-    },
     link: from([retryLink, httpLink]),
   })
 

@@ -7,7 +7,7 @@ const config: CodegenConfig = {
   },
   documents: './documents/**/*.graphql',
   generates: {
-    'generated.ts': {
+    'graphql.gen.ts': {
       config: {
         addDocBlocks: false,
         disableDescriptions: true,
