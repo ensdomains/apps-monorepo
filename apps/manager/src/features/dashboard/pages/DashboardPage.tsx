@@ -4,7 +4,9 @@ import {
   useDomainsQuery,
 } from '@ens-apps/indexer'
 import { useWallet } from '@getpara/react-sdk-lite'
+import { useQuery } from '@tanstack/react-query'
 import { CircleAlert, X } from 'lucide-react'
+import type { Address } from 'viem'
 import { DashboardSidebar } from '@/features/dashboard/components/DashboardSidebar'
 import { DidYouKnowSection } from '@/features/dashboard/components/DidYouKnowSection'
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
@@ -14,6 +16,8 @@ import {
   resolveDomainLabel,
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
+import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
+import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useSmartAccount } from '@/lib/smart-account'
 
 const formatAddress = (value?: string | null) =>
@@ -22,6 +26,15 @@ const formatAddress = (value?: string | null) =>
 export const DashboardPage = () => {
   const { data: wallet } = useWallet()
   const { accountAddress } = useSmartAccount()
+
+  const address = wallet?.address as Address | undefined
+
+  const { data: reverseName } = useQuery({
+    ...profileReverseNameQuery(address),
+  })
+  const { data: reverseMetadata } = useQuery({
+    ...profileMetadataQuery(reverseName),
+  })
 
   const normalizedAddress = accountAddress?.toLowerCase()
   const normalizedPrimaryName = wallet?.ensName?.toLowerCase()
@@ -54,15 +67,28 @@ export const DashboardPage = () => {
     ? resolveDomainLabel(primaryNameRow)
     : null
 
-  const displayName =
-    primaryLabel ?? wallet?.ensName ?? formatAddress(accountAddress)
-  const hasProfile = names.length > 0
+  const defaultName = reverseName ?? primaryLabel ?? wallet?.ensName ?? null
+
+  const registeredDate =
+    reverseMetadata?.registeredDate ??
+    toDateFromSeconds(primaryNameRow?.createdAt)
+  const expiryDate =
+    reverseMetadata?.expiryDate ??
+    toDateFromSeconds(primaryNameRow?.expiryDate ?? null)
+  const avatarUrl =
+    reverseMetadata?.avatarUrl ??
+    primaryNameRow?.resolver?.avatar ??
+    wallet?.ensAvatar ??
+    null
+
+  const displayName = defaultName ?? formatAddress(accountAddress)
+  const hasProfile = Boolean(defaultName) || names.length > 0
 
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 px-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-[40px]">
       <DashboardSidebar
         hasProfile={hasProfile}
-        profileName={primaryNameRow?.name ?? ''}
+        profileName={defaultName ?? primaryNameRow?.name ?? ''}
       />
       <div className="min-w-0 flex-1 space-y-6 md:space-y-8">
         <div className="space-y-4 md:space-y-8">
@@ -94,12 +120,10 @@ export const DashboardPage = () => {
           </h1>
         </div>
         <PrimaryNameCard
-          primaryName={primaryLabel ?? wallet?.ensName}
-          registeredDate={toDateFromSeconds(primaryNameRow?.createdAt)}
-          expiryDate={toDateFromSeconds(primaryNameRow?.expiryDate ?? null)}
-          avatarUrl={
-            primaryNameRow?.resolver?.avatar ?? wallet?.ensAvatar ?? null
-          }
+          primaryName={defaultName}
+          registeredDate={registeredDate}
+          expiryDate={expiryDate}
+          avatarUrl={avatarUrl}
           names={names}
           primaryLabel={primaryLabel}
         />
