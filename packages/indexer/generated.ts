@@ -377,22 +377,9 @@ export type ResolverFragment = {
   description?: string | null
 }
 
-export type DomainCountQueryVariables = Exact<{
-  where: DomainFilter
-}>
-
-export type DomainCountQuery = {
-  __typename?: 'Query'
-  domainConnection: {
-    __typename?: 'DomainConnection'
-    totalCount?: number | null
-  }
-}
-
 export type DomainsQueryVariables = Exact<{
   where: DomainFilter
   first?: InputMaybe<Scalars['Int']['input']>
-  skip?: InputMaybe<Scalars['Int']['input']>
   orderBy?: InputMaybe<Domain_OrderBy>
   orderDirection?: InputMaybe<OrderDirection>
 }>
@@ -572,109 +559,6 @@ export const DomainFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode
-export const DomainCountDocument = {
-  kind: 'Document',
-  definitions: [
-    {
-      kind: 'OperationDefinition',
-      operation: 'query',
-      name: { kind: 'Name', value: 'DomainCount' },
-      variableDefinitions: [
-        {
-          kind: 'VariableDefinition',
-          variable: {
-            kind: 'Variable',
-            name: { kind: 'Name', value: 'where' },
-          },
-          type: {
-            kind: 'NonNullType',
-            type: {
-              kind: 'NamedType',
-              name: { kind: 'Name', value: 'DomainFilter' },
-            },
-          },
-        },
-      ],
-      selectionSet: {
-        kind: 'SelectionSet',
-        selections: [
-          {
-            kind: 'Field',
-            name: { kind: 'Name', value: 'domainConnection' },
-            arguments: [
-              {
-                kind: 'Argument',
-                name: { kind: 'Name', value: 'where' },
-                value: {
-                  kind: 'Variable',
-                  name: { kind: 'Name', value: 'where' },
-                },
-              },
-            ],
-            selectionSet: {
-              kind: 'SelectionSet',
-              selections: [
-                { kind: 'Field', name: { kind: 'Name', value: 'totalCount' } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode
-export function useDomainCountQuery(
-  baseOptions: Apollo.QueryHookOptions<
-    DomainCountQuery,
-    DomainCountQueryVariables
-  > &
-    (
-      | { variables: DomainCountQueryVariables; skip?: boolean }
-      | { skip: boolean }
-    ),
-) {
-  const options = { ...defaultOptions, ...baseOptions }
-  return Apollo.useQuery<DomainCountQuery, DomainCountQueryVariables>(
-    DomainCountDocument,
-    options,
-  )
-}
-export function useDomainCountLazyQuery(
-  baseOptions?: Apollo.LazyQueryHookOptions<
-    DomainCountQuery,
-    DomainCountQueryVariables
-  >,
-) {
-  const options = { ...defaultOptions, ...baseOptions }
-  return Apollo.useLazyQuery<DomainCountQuery, DomainCountQueryVariables>(
-    DomainCountDocument,
-    options,
-  )
-}
-export function useDomainCountSuspenseQuery(
-  baseOptions?:
-    | Apollo.SkipToken
-    | Apollo.SuspenseQueryHookOptions<
-        DomainCountQuery,
-        DomainCountQueryVariables
-      >,
-) {
-  const options =
-    baseOptions === Apollo.skipToken
-      ? baseOptions
-      : { ...defaultOptions, ...baseOptions }
-  return Apollo.useSuspenseQuery<DomainCountQuery, DomainCountQueryVariables>(
-    DomainCountDocument,
-    options,
-  )
-}
-export type DomainCountQueryHookResult = ReturnType<typeof useDomainCountQuery>
-export type DomainCountLazyQueryHookResult = ReturnType<
-  typeof useDomainCountLazyQuery
->
-export type DomainCountSuspenseQueryHookResult = ReturnType<
-  typeof useDomainCountSuspenseQuery
->
 export const DomainsDocument = {
   kind: 'Document',
   definitions: [
@@ -703,11 +587,6 @@ export const DomainsDocument = {
             kind: 'Variable',
             name: { kind: 'Name', value: 'first' },
           },
-          type: { kind: 'NamedType', name: { kind: 'Name', value: 'Int' } },
-        },
-        {
-          kind: 'VariableDefinition',
-          variable: { kind: 'Variable', name: { kind: 'Name', value: 'skip' } },
           type: { kind: 'NamedType', name: { kind: 'Name', value: 'Int' } },
         },
         {
@@ -754,14 +633,6 @@ export const DomainsDocument = {
                 value: {
                   kind: 'Variable',
                   name: { kind: 'Name', value: 'first' },
-                },
-              },
-              {
-                kind: 'Argument',
-                name: { kind: 'Name', value: 'skip' },
-                value: {
-                  kind: 'Variable',
-                  name: { kind: 'Name', value: 'skip' },
                 },
               },
               {
