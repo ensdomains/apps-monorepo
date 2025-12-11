@@ -29,12 +29,13 @@ export const DashboardPage = () => {
 
   const address = wallet?.address as Address | undefined
 
-  const { data: reverseName } = useQuery({
+  const { data: reverseName, isPending: isReverseNameLoading } = useQuery({
     ...profileReverseNameQuery(address),
   })
-  const { data: reverseMetadata } = useQuery({
-    ...profileMetadataQuery(reverseName),
-  })
+  const { data: reverseMetadata, isPending: isReverseMetadataLoading } =
+    useQuery({
+      ...profileMetadataQuery(reverseName),
+    })
 
   const normalizedAddress = accountAddress?.toLowerCase()
   const normalizedPrimaryName = wallet?.ensName?.toLowerCase()
@@ -82,6 +83,9 @@ export const DashboardPage = () => {
     wallet?.ensAvatar ??
     null
 
+  const isPrimaryLoading =
+    isNamesLoading || isReverseNameLoading || isReverseMetadataLoading
+
   const displayName = defaultName ?? formatAddress(accountAddress)
   const hasProfile = Boolean(defaultName) || names.length > 0
 
@@ -127,6 +131,7 @@ export const DashboardPage = () => {
           avatarUrl={avatarUrl}
           names={names}
           primaryLabel={primaryLabel}
+          isLoading={isPrimaryLoading}
         />
         <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:px-[24px] md:py-[32px]">
           <div className="space-y-5">

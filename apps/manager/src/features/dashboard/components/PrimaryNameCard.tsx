@@ -13,6 +13,7 @@ type PrimaryNameCardProps = {
   avatarUrl?: string | null
   names: DomainFragment[]
   primaryLabel?: string | null
+  isLoading?: boolean
 }
 
 export const PrimaryNameCard = ({
@@ -22,11 +23,15 @@ export const PrimaryNameCard = ({
   avatarUrl,
   names,
   primaryLabel,
+  isLoading,
 }: PrimaryNameCardProps) => {
   const formattedRegisteredDate = formatDashboardDate(registeredDate)
   const formattedExpiryDate = formatDashboardDate(expiryDate)
   const hasAvatar = Boolean(avatarUrl)
-  const displayName = primaryName ?? 'Your ENS name'
+  const displayName =
+    isLoading && !primaryName ? 'Loading...' : (primaryName ?? 'Your ENS name')
+  const registeredLabel = isLoading ? 'Loading...' : formattedRegisteredDate
+  const expiryLabel = isLoading ? 'Loading...' : formattedExpiryDate
   const canViewProfile = Boolean(primaryName)
 
   return (
@@ -68,9 +73,7 @@ export const PrimaryNameCard = ({
                 />
                 <div className="flex items-end gap-[4px] text-[12px] leading-[0.96] tracking-[-0.24px]">
                   <span className="text-[#8c8c8c]">Registered</span>
-                  <span className="text-[#232222]">
-                    {formattedRegisteredDate}
-                  </span>
+                  <span className="text-[#232222]">{registeredLabel}</span>
                 </div>
               </div>
               <div className="flex items-center gap-[8px]">
@@ -80,7 +83,7 @@ export const PrimaryNameCard = ({
                 />
                 <div className="flex items-end gap-[4px] text-[12px] leading-[0.96] tracking-[-0.24px]">
                   <span className="text-[#8c8c8c]">Expires</span>
-                  <span className="text-[#232222]">{formattedExpiryDate}</span>
+                  <span className="text-[#232222]">{expiryLabel}</span>
                 </div>
               </div>
             </div>
