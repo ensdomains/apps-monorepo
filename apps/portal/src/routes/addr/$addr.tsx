@@ -23,7 +23,7 @@ function RouteComponent() {
         <NavBar />
         <div className="flex flex-1">
           <AddrSidebar addr={checksumAddress(addr as Address)} />
-          <SidebarInset className="w-full">
+          <SidebarInset className="w-full min-w-0">
             <Outlet />
           </SidebarInset>
         </div>

@@ -86,8 +86,8 @@ export const RecordList = ({
           )}
         </div>
         {rowCount > 0 ? (
-          <div className="flex flex-row w-full justify-between h-10">
-            <span className="flex flex-row items-center gap-1">
+          <div className="flex flex-col lg:flex-row w-full lg:justify-between lg:items-center gap-4">
+            <div className="flex flex-row items-center gap-1 shrink-0">
               <button
                 type="button"
                 className="cursor-pointer"
@@ -96,15 +96,15 @@ export const RecordList = ({
                 <XIcon className="size-6" />
               </button>
               {rowCount} selected
-            </span>
-            <div className="flex flex-row gap-2">
-              <Button variant="secondary">
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+              <Button variant="secondary" className="w-auto whitespace-nowrap">
                 <PencilLineIcon className="size-6" /> Edit
               </Button>
-              <Button variant="secondary">
+              <Button variant="secondary" className="w-auto whitespace-nowrap">
                 <FileInputIcon className="size-6" /> Export
               </Button>
-              <Button variant="secondary">
+              <Button variant="secondary" className="w-auto whitespace-nowrap">
                 <TrashIcon className="size-6" /> Delete
               </Button>
             </div>
@@ -123,11 +123,13 @@ export const RecordList = ({
           </InputGroup>
         )}
       </header>
-      <RecordsTable
-        name={name}
-        table={table}
-        {...{ rowSelection, setRowSelection }}
-      />
+      <div className="overflow-x-auto">
+        <RecordsTable
+          name={name}
+          table={table}
+          {...{ rowSelection, setRowSelection }}
+        />
+      </div>
     </>
   )
 }
