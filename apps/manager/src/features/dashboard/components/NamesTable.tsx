@@ -4,7 +4,7 @@ import { match } from 'ts-pattern'
 import { Input } from '@/components/ui/input'
 import { MyNamesList } from './MyNamesList'
 
-type TabKey = 'myNames' // | 'favorites'
+type TabKey = 'myNames'
 
 type TabButtonProps = {
   label: string
@@ -43,13 +43,6 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
               key: 'myNames' as const,
               label: 'My Names',
             },
-            // {
-            //   key: 'favorites' as const,
-            //   label: 'Favorites',
-            //   count: favoriteNames.length,
-            //   activeBadgeClass: 'bg-[#ffecf5]',
-            //   activeCountClass: 'text-[#f53293]',
-            // },
           ].map((tab) => {
             const isActive = activeTab === tab.key
 
