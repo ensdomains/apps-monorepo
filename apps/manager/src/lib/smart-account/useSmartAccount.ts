@@ -43,21 +43,21 @@ export { isPimlicoAccount, isRhinestoneAccount } from './types'
  * (Pimlico, Rhinestone) with a consistent interface.
  *
  * @example
- * // Use Pimlico (default)
+ * // Use Rhinestone (default) - gas sponsorship enabled by default on testnet
  * const account = useSmartAccount()
- * const account = useSmartAccount({ type: 'pimlico' })
- *
- * @example
- * // Use Rhinestone
  * const account = useSmartAccount({ type: 'rhinestone' })
  *
  * @example
+ * // Use Pimlico
+ * const account = useSmartAccount({ type: 'pimlico' })
+ *
+ * @example
  * // Type-safe usage
- * if (isPimlicoAccount(account)) {
- *   // account.client is SmartAccountClient
- * }
  * if (isRhinestoneAccount(account)) {
  *   // account.client is RhinestoneAccount
+ * }
+ * if (isPimlicoAccount(account)) {
+ *   // account.client is SmartAccountClient
  * }
  */
 export function useSmartAccount(
