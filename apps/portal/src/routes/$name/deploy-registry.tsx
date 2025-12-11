@@ -112,7 +112,7 @@ function RouteComponent() {
     if (isSettingSubregistry || isConfirmingSetSubregistry)
       return 'Setting subregistry...'
     if (isSetSubregistryConfirmed) return 'Complete!'
-    return 'Update subregistry'
+    return 'Deploy subregistry'
   }
 
   if (isLoading) {
