@@ -26,24 +26,34 @@ interface MyNamesListProps {
 export const MyNamesList = ({ names = [], primaryLabel }: MyNamesListProps) => {
   return (
     <div className="w-full">
-      <div className="relative mb-[16px] hidden h-[32px] w-full md:block">
-        <div className="absolute top-[4px] left-[24px] flex items-center gap-[8px]">
-          <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
-            Name
-          </span>
-          <div className="flex flex-col">
-            <ChevronDown className="size-[8.2px] rotate-180 text-[#7d7d7d]" />
-            <ChevronDown className="size-[8.2px] text-[#7d7d7d]" />
+      <div className="mb-[16px] hidden w-full md:flex md:items-center md:justify-between">
+        <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[25px]">
+          <div className="flex items-center gap-2 md:gap-[12px]">
+            <div className="size-[32px] shrink-0 md:size-[36.9px]" />
+            <div className="flex items-center gap-[8px]">
+              <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
+                Name
+              </span>
+              <div className="flex flex-col">
+                <ChevronDown className="size-[8.2px] rotate-180 text-[#7d7d7d]" />
+                <ChevronDown className="size-[8.2px] text-[#7d7d7d]" />
+              </div>
+            </div>
           </div>
         </div>
-        <div className="absolute top-[4px] left-[652px] flex items-center gap-[8px]">
-          <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
-            Expiry
-          </span>
-          <div className="flex flex-col">
-            <ChevronDown className="size-[8.2px] rotate-180 text-[#7d7d7d]" />
-            <ChevronDown className="size-[8.2px] text-[#7d7d7d]" />
+        <div className="flex items-start justify-between gap-4 md:gap-[30px]">
+          <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px]">
+            <div className="flex items-center gap-[8px]">
+              <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
+                Expiry
+              </span>
+              <div className="flex flex-col">
+                <ChevronDown className="size-[8.2px] rotate-180 text-[#7d7d7d]" />
+                <ChevronDown className="size-[8.2px] text-[#7d7d7d]" />
+              </div>
+            </div>
           </div>
+          <div className="size-[24px] shrink-0" />
         </div>
       </div>
 
