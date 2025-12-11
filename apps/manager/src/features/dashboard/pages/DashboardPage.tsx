@@ -53,6 +53,7 @@ export const DashboardPage = () => {
   )
 
   const names = normalizedAddress && data?.domains ? data.domains : []
+  const isNamesLoading = !normalizedAddress || loading
 
   const primaryNameRow =
     names.find((name) => {
@@ -132,7 +133,7 @@ export const DashboardPage = () => {
             <NamesTable
               names={names}
               primaryLabel={primaryLabel}
-              isLoading={loading}
+              isLoading={isNamesLoading}
               error={error}
             />
           </div>
