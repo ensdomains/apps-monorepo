@@ -48,8 +48,9 @@ const DEDICATED_RESOLVER_ROLE_BITMAP = BigInt(
 // Helper Functions (only used in this file)
 // ============================================================================
 
-function generateResolverSalt(): bigint {
-  return BigInt(keccak256(stringToBytes(new Date().toISOString())))
+function generateResolverSalt(name: string): bigint {
+  const timestamp = new Date().toISOString()
+  return BigInt(keccak256(stringToBytes(`${name}:${timestamp}`)))
 }
 
 function getResolverInitCalldata(ownerAddress: Address): Hex {
@@ -337,7 +338,7 @@ export function submitResolverDeploymentActor(input: {
   return ResultAsync.fromSafePromise(
     Promise.resolve().then(() => {
       const smartAccountAddress = getSmartAccountAddress(input.signer)
-      const salt = generateResolverSalt()
+      const salt = generateResolverSalt(input.name)
       const initCalldata = getResolverInitCalldata(input.owner)
 
       const deployCalldata = encodeFunctionData({
