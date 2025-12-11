@@ -188,7 +188,7 @@ export const TransactionEvents = ({
               <TabsContent key={event.id} value={event.id} className="p-6">
                 <div className="flex flex-col gap-8">
                   <div className="flex flex-col gap-4 w-full">
-                    <div className="flex items-center justify-between gap-2 w-full">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2 w-full">
                       <CopyableRecord
                         value={event.type}
                         displayValue={
@@ -208,8 +208,8 @@ export const TransactionEvents = ({
                         </a>
                       </Button>
                     </div>
-                    <div className="flex flex-row gap-6 items-center">
-                      <span className="text-base font-semibold text-black sm:min-w-[160px]">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 items-start sm:items-center">
+                      <span className="text-base font-semibold text-black shrink-0 sm:min-w-[160px]">
                         Transaction
                       </span>
                       <CopyableRecord
@@ -219,7 +219,7 @@ export const TransactionEvents = ({
                             {txHash.slice(0, 10)}...{txHash.slice(-8)}
                           </span>
                         }
-                        className="text-sm"
+                        className="text-sm flex-1 min-w-0"
                       />
                     </div>
                     <div className="flex flex-row gap-6 items-center">

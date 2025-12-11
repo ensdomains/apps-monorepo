@@ -40,19 +40,23 @@ export function RegistryCard({ registry }: RegistryCardProps) {
         </div>
 
         <div className="flex items-center justify-start gap-3">
-          <span className="text-sm text-gray-600 min-w-[60px]">Contract</span>
+          <span className="text-sm text-gray-600 shrink-0 min-w-[60px]">
+            Contract
+          </span>
           <CopyableRecord
             value={registry.address}
-            className="underline decoration-dotted underline-offset-4"
+            className="underline decoration-dotted underline-offset-4 flex-1 min-w-0"
           />
         </div>
 
         {registry.factory && (
           <div className="flex items-center justify-start gap-3">
-            <span className="text-sm text-gray-600 min-w-[60px]">Factory</span>
+            <span className="text-sm text-gray-600 shrink-0 min-w-[60px]">
+              Factory
+            </span>
             <CopyableRecord
               value={registry.factory}
-              className="underline decoration-dotted underline-offset-4"
+              className="underline decoration-dotted underline-offset-4 flex-1 min-w-0"
             />
           </div>
         )}
