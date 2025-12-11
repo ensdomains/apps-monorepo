@@ -78,7 +78,7 @@ export const useDashboardNames = ({
     } else {
       setSortField(field)
       setSortDirection(
-        field === 'expiry' ? OrderDirection.Asc : OrderDirection.Asc,
+        field === 'expiry' ? OrderDirection.Asc : OrderDirection.Desc,
       )
     }
   }
