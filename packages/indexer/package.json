@@ -16,14 +16,14 @@
     "@graphql-codegen/cli": "^6.0.1",
     "@graphql-codegen/fragment-matcher": "^6.0.0",
     "@graphql-codegen/typescript": "^5.0.2",
+    "@graphql-codegen/typescript-document-nodes": "^5.0.6",
     "@graphql-codegen/typescript-operations": "^5.0.2",
-    "@graphql-codegen/typescript-react-apollo": "^4.3.3",
     "typescript": "^5.9.2"
   },
   "keywords": [],
   "dependencies": {
     "@apollo/client": "3.14.0",
     "graphql": "^16.11.0",
-    "@ensdomains/ensjs": "catalog:"
+    "graphql-tag": "^2.12.6"
   }
 }

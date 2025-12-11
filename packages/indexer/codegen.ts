@@ -15,11 +15,12 @@ const config: CodegenConfig = {
         withMutationFn: false,
         withMutationOptionsType: false,
         withResultType: false,
+        nameSuffix: 'Document',
       },
       plugins: [
         'typescript',
         'typescript-operations',
-        'typescript-react-apollo',
+        'typescript-document-nodes',
       ],
     },
     'possible-types.ts': {
