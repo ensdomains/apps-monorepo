@@ -63,7 +63,7 @@ export { isPimlicoAccount, isRhinestoneAccount } from './types'
 export function useSmartAccount(
   config?: UseSmartAccountConfig,
 ): SmartAccountState {
-  const providerType = config?.type ?? 'pimlico'
+  const providerType = config?.type ?? 'rhinestone'
   const accountType = config?.accountType ?? 'simple'
 
   const paraClient = useParaClient()

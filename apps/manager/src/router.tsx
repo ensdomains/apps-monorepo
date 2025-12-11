@@ -22,7 +22,8 @@ export function getRouter() {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 1000 * 60 * 60, // 1 hour
+        // no caching, each request can optin to caching if needed
+        staleTime: 0,
       },
     },
     mutationCache: new MutationCache({

@@ -6,6 +6,7 @@ import {
   Menu,
   SettingsIcon,
 } from 'lucide-react'
+import { lazy, Suspense } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
 import { HomeSearchInput } from '@/components/homepage'
@@ -23,7 +24,11 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
-import { SidebarTrigger } from '../ui/sidebar'
+
+// Lazy load SidebarTrigger to prevent hook errors in production when sidebar isn't available
+const SidebarTrigger = lazy(() =>
+  import('../ui/sidebar').then((mod) => ({ default: mod.SidebarTrigger })),
+)
 
 export const NavBar = () => {
   const { location } = useRouterState()
@@ -36,7 +41,11 @@ export const NavBar = () => {
   return (
     <nav className="sticky top-0 left-0 flex flex-row gap-2 p-4 bg-background text-foreground w-full justify-between border-b border-b-gray-300 h-(--header-height) z-50">
       <div className="flex flex-row gap-2 items-center w-auto md:w-full">
-        {hasSidebar && <SidebarTrigger className="md:hidden" />}
+        {hasSidebar && (
+          <Suspense fallback={null}>
+            <SidebarTrigger className="md:hidden" />
+          </Suspense>
+        )}
         <Link to="/" className="flex flex-row gap-2 items-center relative">
           {/* Small logo for mobile */}
           <div className="relative md:hidden">
