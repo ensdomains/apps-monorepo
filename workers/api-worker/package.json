@@ -26,6 +26,7 @@
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/ensjs": "catalog:",
     "@hono/valibot-validator": "^0.5.3",
+    "@neondatabase/serverless": "^1.0.2",
     "drizzle-orm": "^0.44.5",
     "graphql": "^16.11.0",
     "graphql-request": "^7.2.0",

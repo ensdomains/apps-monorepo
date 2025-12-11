@@ -1,9 +1,9 @@
 import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
+import type { NotificationKind } from 'api-worker/types'
 import { backendClient } from '@/utils/backend-client'
 import type {
   BatchPreferencesRequest,
-  NotificationKind,
   PreferencesResponse,
   PreferenceUpdateRequest,
 } from '../types/preferences'
@@ -23,31 +23,12 @@ export const preferencesQueryOptions = queryOptions({
   },
 })
 
-export const notificationKindsQueryOptions = queryOptions({
-  queryKey: qk('preferences', 'kinds'),
-  queryFn: async (): Promise<{
-    kinds: NotificationKind[]
-    categories: string[]
-  }> => {
-    const response = await backendClient.notifications.preferences.kinds.$get()
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch notification kinds: ${response.statusText}`,
-      )
-    }
-    return response.json()
-  },
-  meta: {
-    dependsOn: ['backend'],
-  },
-})
-
 // Mutations
 export const updatePreferenceMutationOptions = mutationOptions({
   mutationFn: async ({
     kind,
     ...request
-  }: { kind: string } & PreferenceUpdateRequest) => {
+  }: { kind: NotificationKind } & PreferenceUpdateRequest) => {
     const response = await backendClient.notifications.preferences[
       ':kind'
     ].$patch({
