@@ -170,11 +170,6 @@ export const MyNamesList = ({ names = [], primaryLabel }: MyNamesListProps) => {
               1
             </span>
           </div>
-          <div className="flex size-[28px] shrink-0 items-center justify-center rounded-[6px] md:size-[32px]">
-            <span className="font-sans text-[#bcbcbc] text-[11px] leading-[normal] md:text-[12px]">
-              2
-            </span>
-          </div>
           <button
             type="button"
             className="relative size-[28px] shrink-0 text-[#d3d3d3] md:size-[32px]"
@@ -183,7 +178,7 @@ export const MyNamesList = ({ names = [], primaryLabel }: MyNamesListProps) => {
           </button>
         </div>
         <span className="text-center font-sans text-[#7d7d7d] text-[11px] leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
-          Showing 1-{Math.min(5, names.length)} of {names.length}
+          Showing your names
         </span>
       </div>
     </div>

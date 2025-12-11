@@ -8,40 +8,21 @@ type TabKey = 'myNames' // | 'favorites'
 
 type TabButtonProps = {
   label: string
-  count: number
   isActive: boolean
   onClick: () => void
-  activeBadgeClass: string
-  activeCountClass: string
 }
 
-const DashboardTabButton = ({
-  label,
-  count,
-  isActive,
-  onClick,
-  activeBadgeClass,
-  activeCountClass,
-}: TabButtonProps) => (
+const DashboardTabButton = ({ label, isActive, onClick }: TabButtonProps) => (
   <button
     type="button"
     onClick={onClick}
-    className="flex shrink-0 items-center gap-2 md:gap-[12px]"
+    className="flex shrink-0 items-center"
   >
     <span
       className={`font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px] ${isActive ? 'text-[#232222]' : 'text-[#a9a9a9]'}`}
     >
       {label}
     </span>
-    <div
-      className={`flex h-[18px] items-center justify-center rounded-[14px] px-[5px] py-[1.4px] md:h-[20px] md:px-[6.5px] md:py-[1.6px] ${isActive ? activeBadgeClass : 'border-[#8c8c8c] border-[0.5px]'}`}
-    >
-      <span
-        className={`font-sans text-[12px] leading-[1.05] md:text-[14px] ${isActive ? activeCountClass : 'text-[#8c8c8c]'}`}
-      >
-        {count}
-      </span>
-    </div>
   </button>
 )
 
@@ -73,9 +54,6 @@ export const NamesTable = ({
             {
               key: 'myNames' as const,
               label: 'My Names',
-              count: names.length,
-              activeBadgeClass: 'bg-[#e5f7ff]',
-              activeCountClass: 'text-[#0080bc]',
             },
             // {
             //   key: 'favorites' as const,
@@ -91,10 +69,7 @@ export const NamesTable = ({
               <DashboardTabButton
                 key={tab.key}
                 label={tab.label}
-                count={tab.count}
                 isActive={isActive}
-                activeBadgeClass={tab.activeBadgeClass}
-                activeCountClass={tab.activeCountClass}
                 onClick={() => setActiveTab(tab.key)}
               />
             )
