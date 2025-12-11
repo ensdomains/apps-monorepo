@@ -33,7 +33,7 @@ export const UpdateResolverDialog = ({
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
 
   const { accountAddress, isConnected, signer } = useSmartAccount({
-    type: 'pimlico',
+    type: 'rhinestone',
   })
 
   const resolverActor = useActorRef(resolverMachine, {
