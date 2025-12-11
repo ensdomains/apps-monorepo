@@ -19,7 +19,12 @@ export const CopyableRecord = ({
   const [copy, setCopy] = useState(false)
 
   useEffect(() => {
-    if (copy) navigator.clipboard.writeText(value.toString())
+    if (copy) {
+      navigator.clipboard.writeText(value.toString())
+      // Reset checkmark back to copy icon after 2 seconds
+      const timer = setTimeout(() => setCopy(false), 2000)
+      return () => clearTimeout(timer)
+    }
   }, [copy, value])
 
   const content = displayValue || value
