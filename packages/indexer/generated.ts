@@ -375,6 +375,25 @@ export type ResolverFragment = {
   address: string
   avatar?: string | null
   description?: string | null
+  header?: string | null
+  url?: string | null
+  email?: string | null
+  location?: string | null
+  phone?: string | null
+  mail?: string | null
+  timezone?: string | null
+  twitter?: string | null
+  telegram?: string | null
+  farcaster?: string | null
+  instagram?: string | null
+  discord?: string | null
+  github?: string | null
+  linkedin?: string | null
+  youtube?: string | null
+  reddit?: string | null
+  tiktok?: string | null
+  twitch?: string | null
+  mastodon?: string | null
 }
 
 export type DomainsQueryVariables = Exact<{
@@ -427,6 +446,282 @@ export const ResolverFragmentDoc = {
                 value: {
                   kind: 'StringValue',
                   value: 'description',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'header' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'header', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'url' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'url', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'email' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'email', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'location' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'location', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'phone' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'phone', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'mail' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'mail', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'timezone' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'timezone', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'twitter' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.twitter',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'telegram' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'org.telegram',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'farcaster' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'xyz.farcaster',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'instagram' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.instagram',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'discord' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.discord',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'github' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.github',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'linkedin' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.linkedin',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'youtube' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.youtube',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'reddit' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.reddit',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'tiktok' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.tiktok',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'twitch' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.twitch',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'mastodon' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.mastodon',
                   block: false,
                 },
               },
@@ -549,6 +844,282 @@ export const DomainFragmentDoc = {
                 value: {
                   kind: 'StringValue',
                   value: 'description',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'header' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'header', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'url' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'url', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'email' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'email', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'location' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'location', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'phone' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'phone', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'mail' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'mail', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'timezone' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'timezone', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'twitter' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.twitter',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'telegram' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'org.telegram',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'farcaster' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'xyz.farcaster',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'instagram' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.instagram',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'discord' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.discord',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'github' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.github',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'linkedin' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.linkedin',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'youtube' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.youtube',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'reddit' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.reddit',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'tiktok' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.tiktok',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'twitch' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.twitch',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'mastodon' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.mastodon',
                   block: false,
                 },
               },
@@ -757,6 +1328,282 @@ export const DomainsDocument = {
                 value: {
                   kind: 'StringValue',
                   value: 'description',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'header' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'header', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'url' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'url', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'email' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'email', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'location' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'location', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'phone' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'phone', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'mail' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'mail', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'timezone' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: { kind: 'StringValue', value: 'timezone', block: false },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'twitter' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.twitter',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'telegram' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'org.telegram',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'farcaster' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'xyz.farcaster',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'instagram' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.instagram',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'discord' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.discord',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'github' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.github',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'linkedin' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.linkedin',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'youtube' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.youtube',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'reddit' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.reddit',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'tiktok' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.tiktok',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'twitch' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.twitch',
+                  block: false,
+                },
+              },
+            ],
+          },
+          {
+            kind: 'Field',
+            alias: { kind: 'Name', value: 'mastodon' },
+            name: { kind: 'Name', value: 'text' },
+            arguments: [
+              {
+                kind: 'Argument',
+                name: { kind: 'Name', value: 'key' },
+                value: {
+                  kind: 'StringValue',
+                  value: 'com.mastodon',
                   block: false,
                 },
               },
