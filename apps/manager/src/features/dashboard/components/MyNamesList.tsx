@@ -13,7 +13,7 @@ import {
   CircleAlert,
   MoreHorizontal,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   formatDashboardDate,
   getDaysUntil,
@@ -35,11 +35,8 @@ export const MyNamesList = ({
 }: MyNamesListProps) => {
   const { accountAddress } = useSmartAccount()
   const [page, setPage] = useState(1)
+  const previousSearchRef = useRef<string>('')
   const PAGE_SIZE = 5
-
-  useEffect(() => {
-    setPage(1)
-  }, [searchQuery])
 
   const normalizedAddress = accountAddress?.toLowerCase()
 
@@ -59,7 +56,19 @@ export const MyNamesList = ({
     : undefined
 
   const { data, loading, error } = useDomainsQuery(
-    queryVariables ? { variables: queryVariables } : { skip: true },
+    queryVariables
+      ? {
+          variables: queryVariables,
+          onCompleted: () => {
+            if (previousSearchRef.current !== searchQuery) {
+              previousSearchRef.current = searchQuery
+              if (page !== 1) {
+                setPage(1)
+              }
+            }
+          },
+        }
+      : { skip: true },
   )
 
   const names = normalizedAddress && data?.domains ? data.domains : []
