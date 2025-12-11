@@ -41,6 +41,7 @@ export type Domain = {
   __typename?: 'Domain'
   canonicalId?: Maybe<Scalars['String']['output']>
   createdAt: Scalars['Int']['output']
+  events: Array<Event>
   expiryDate?: Maybe<Scalars['Int']['output']>
   id: Scalars['String']['output']
   isMigrated: Scalars['Boolean']['output']
@@ -58,6 +59,10 @@ export type Domain = {
   tokenId?: Maybe<Scalars['String']['output']>
   tokenVersion?: Maybe<Scalars['Int']['output']>
   ttl?: Maybe<Scalars['Int']['output']>
+}
+
+export type DomainEventsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>
 }
 
 export type DomainConnection = {
@@ -109,8 +114,11 @@ export type EacRoleAssignment = {
 export type Event = {
   __typename?: 'Event'
   blockNumber: Scalars['Int']['output']
+  contractAddress: Scalars['String']['output']
   domain?: Maybe<Domain>
   id: Scalars['String']['output']
+  name?: Maybe<Scalars['String']['output']>
+  namehash?: Maybe<Scalars['String']['output']>
   timestamp: Scalars['Int']['output']
   transactionHash: Scalars['String']['output']
   type: Scalars['String']['output']
@@ -127,6 +135,18 @@ export type EventEdge = {
   __typename?: 'EventEdge'
   cursor: Scalars['String']['output']
   node: Event
+}
+
+export type EventFilter = {
+  blockNumber_gt?: InputMaybe<Scalars['Int']['input']>
+  blockNumber_lt?: InputMaybe<Scalars['Int']['input']>
+  contractAddress: Scalars['String']['input']
+  domain?: InputMaybe<Scalars['String']['input']>
+  namehash?: InputMaybe<Scalars['String']['input']>
+  timestamp_gt?: InputMaybe<Scalars['Int']['input']>
+  timestamp_lt?: InputMaybe<Scalars['Int']['input']>
+  type?: InputMaybe<Scalars['String']['input']>
+  type_in?: InputMaybe<Array<Scalars['String']['input']>>
 }
 
 export enum OrderDirection {
@@ -195,11 +215,13 @@ export type QueryEventConnectionArgs = {
   before?: InputMaybe<Scalars['String']['input']>
   first?: InputMaybe<Scalars['Int']['input']>
   last?: InputMaybe<Scalars['Int']['input']>
+  where?: InputMaybe<EventFilter>
 }
 
 export type QueryEventsArgs = {
   first?: InputMaybe<Scalars['Int']['input']>
   skip?: InputMaybe<Scalars['Int']['input']>
+  where?: InputMaybe<EventFilter>
 }
 
 export type QueryMetadataArgs = {
@@ -340,6 +362,7 @@ export type DomainFragment = {
   id: string
   name?: string | null
   normalizedName?: string | null
+  tokenId?: string | null
   createdAt: number
   expiryDate?: number | null
   resolver?: ({ __typename?: 'Resolver' } & ResolverFragment) | null
@@ -447,8 +470,7 @@ export const DomainFragmentDoc = {
           { kind: 'Field', name: { kind: 'Name', value: 'id' } },
           { kind: 'Field', name: { kind: 'Name', value: 'name' } },
           { kind: 'Field', name: { kind: 'Name', value: 'normalizedName' } },
-          { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
-          { kind: 'Field', name: { kind: 'Name', value: 'expiryDate' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'tokenId' } },
           {
             kind: 'Field',
             name: { kind: 'Name', value: 'resolver' },
@@ -475,6 +497,8 @@ export const DomainFragmentDoc = {
               ],
             },
           },
+          { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'expiryDate' } },
         ],
       },
     },
@@ -666,8 +690,7 @@ export const DomainsDocument = {
           { kind: 'Field', name: { kind: 'Name', value: 'id' } },
           { kind: 'Field', name: { kind: 'Name', value: 'name' } },
           { kind: 'Field', name: { kind: 'Name', value: 'normalizedName' } },
-          { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
-          { kind: 'Field', name: { kind: 'Name', value: 'expiryDate' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'tokenId' } },
           {
             kind: 'Field',
             name: { kind: 'Name', value: 'resolver' },
@@ -694,6 +717,8 @@ export const DomainsDocument = {
               ],
             },
           },
+          { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+          { kind: 'Field', name: { kind: 'Name', value: 'expiryDate' } },
         ],
       },
     },
