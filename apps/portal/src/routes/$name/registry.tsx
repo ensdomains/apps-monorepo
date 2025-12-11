@@ -246,7 +246,7 @@ function RouteComponent() {
           <Button variant="outline" className="flex items-center gap-2" asChild>
             <Link to="/$name/deploy-registry" params={{ name }}>
               <EditIcon className="size-4" />
-              Change registry
+              Deploy registry
             </Link>
           </Button>
         )}
