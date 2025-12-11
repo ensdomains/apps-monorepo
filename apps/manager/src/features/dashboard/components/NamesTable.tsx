@@ -1,4 +1,3 @@
-import type { DomainFragment } from '@ens-apps/indexer'
 import { Search } from 'lucide-react'
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
@@ -27,32 +26,12 @@ const DashboardTabButton = ({ label, isActive, onClick }: TabButtonProps) => (
 )
 
 interface NamesTableProps {
-  names?: DomainFragment[]
-  // favorites?: DashboardNameRow[]
   primaryLabel?: string | null
-  isLoading: boolean
-  error: unknown
-  canPrev: boolean
-  canNext: boolean
-  onPrev: () => void
-  onNext: () => void
 }
 
-export const NamesTable = ({
-  names = [],
-  // favorites,
-  primaryLabel,
-  isLoading,
-  error,
-  canPrev,
-  canNext,
-  onPrev,
-  onNext,
-}: NamesTableProps) => {
+export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>('myNames')
   // const favoriteNames = favorites ?? []
-
-  if (error) return <div>Error loading names</div>
 
   return (
     <div className="w-full">
@@ -96,20 +75,7 @@ export const NamesTable = ({
         )}
       </div>
 
-      {isLoading ? (
-        <div className="py-8 text-center font-sans text-[#8c8c8c] text-sm">
-          Loading names...
-        </div>
-      ) : (
-        <MyNamesList
-          names={names}
-          primaryLabel={primaryLabel}
-          canPrev={canPrev}
-          canNext={canNext}
-          onPrev={onPrev}
-          onNext={onNext}
-        />
-      )}
+      <MyNamesList primaryLabel={primaryLabel} />
       {/* {activeTab === 'myNames' ? (
         <MyNamesList names={names} primaryLabel={primaryLabel} />
       ) : (
