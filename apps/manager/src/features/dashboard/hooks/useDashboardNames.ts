@@ -6,7 +6,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useSmartAccount } from '@/lib/smart-account'
-import { getDomainsQuery } from '../dashboard.service'
+import { getDomainsQuery } from '../dashboardDomains'
 
 const PAGE_SIZE = 5
 
