@@ -1,19 +1,12 @@
-import {
-  Domain_OrderBy,
-  OrderDirection,
-  useDomainsQuery,
-} from '@ens-apps/indexer'
 import { useWallet } from '@getpara/react-sdk-lite'
 import { useQuery } from '@tanstack/react-query'
 import { CircleAlert, X } from 'lucide-react'
-import { useState } from 'react'
 import type { Address } from 'viem'
 import { DashboardSidebar } from '@/features/dashboard/components/DashboardSidebar'
 import { DidYouKnowSection } from '@/features/dashboard/components/DidYouKnowSection'
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
-import { resolveDomainLabel } from '@/features/dashboard/utils'
 import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useSmartAccount } from '@/lib/smart-account'
@@ -25,9 +18,6 @@ export const DashboardPage = () => {
   const { data: wallet } = useWallet()
   const { accountAddress } = useSmartAccount()
 
-  const [page, setPage] = useState(1)
-  const PAGE_SIZE = 5
-
   const address = wallet?.address as Address | undefined
 
   const { data: reverseName, isPending: isReverseNameLoading } = useQuery({
@@ -38,32 +28,8 @@ export const DashboardPage = () => {
       ...profileMetadataQuery(reverseName),
     })
 
-  const normalizedAddress = accountAddress?.toLowerCase()
   const normalizedPrimaryName = wallet?.ensName?.toLowerCase()
-
-  const queryVariables = normalizedAddress
-    ? {
-        where: { owner: normalizedAddress },
-        first: PAGE_SIZE,
-        skip: (page - 1) * PAGE_SIZE,
-        orderBy: Domain_OrderBy.RegistrationDate,
-        orderDirection: OrderDirection.Desc,
-      }
-    : undefined
-
-  const { data, loading, error } = useDomainsQuery(
-    queryVariables ? { variables: queryVariables } : { skip: true },
-  )
-
-  const names = normalizedAddress && data?.domains ? data.domains : []
-  const isNamesLoading = !normalizedAddress || loading
-  const canPrev = page > 1 && !isNamesLoading
-  const canNext = !isNamesLoading && names.length === PAGE_SIZE
-
-  const primaryLabel =
-    normalizedPrimaryName ??
-    (names[0] ? resolveDomainLabel(names[0]) : undefined) ??
-    null
+  const primaryLabel = normalizedPrimaryName ?? null
 
   const defaultName = reverseName ?? wallet?.ensName ?? primaryLabel ?? null
 
@@ -71,11 +37,10 @@ export const DashboardPage = () => {
   const expiryDate = reverseMetadata?.expiryDate ?? null
   const avatarUrl = reverseMetadata?.avatarUrl ?? wallet?.ensAvatar ?? null
 
-  const isPrimaryLoading =
-    isNamesLoading || isReverseNameLoading || isReverseMetadataLoading
+  const isPrimaryLoading = isReverseNameLoading || isReverseMetadataLoading
 
   const displayName = defaultName ?? formatAddress(accountAddress)
-  const hasProfile = Boolean(defaultName) || names.length > 0
+  const hasProfile = Boolean(defaultName)
 
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 px-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-[40px]">
@@ -117,22 +82,13 @@ export const DashboardPage = () => {
           registeredDate={registeredDate}
           expiryDate={expiryDate}
           avatarUrl={avatarUrl}
-          names={names}
+          names={[]}
           primaryLabel={primaryLabel}
           isLoading={isPrimaryLoading}
         />
         <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:px-[24px] md:py-[32px]">
           <div className="space-y-5">
-            <NamesTable
-              names={names}
-              primaryLabel={primaryLabel}
-              isLoading={isNamesLoading}
-              error={error}
-              canPrev={canPrev}
-              canNext={canNext}
-              onPrev={() => canPrev && setPage((p) => p - 1)}
-              onNext={() => canNext && setPage((p) => p + 1)}
-            />
+            <NamesTable primaryLabel={primaryLabel} />
           </div>
         </div>
         <DidYouKnowSection />
