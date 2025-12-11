@@ -5,10 +5,13 @@ import {
 } from '@ens-apps/indexer'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { match } from 'ts-pattern'
 import { useSmartAccount } from '@/lib/smart-account'
 import { getDomainsQuery } from '../service/dashboardDomains'
 
 const PAGE_SIZE = 5
+
+export type SortField = 'name' | 'expiry' | 'registration'
 
 export const useDashboardNames = ({
   searchQuery,
@@ -17,6 +20,10 @@ export const useDashboardNames = ({
 }) => {
   const { accountAddress } = useSmartAccount()
   const [page, setPage] = useState(1)
+  const [sortField, setSortField] = useState<SortField>('registration')
+  const [sortDirection, setSortDirection] = useState<OrderDirection>(
+    OrderDirection.Desc,
+  )
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Reset page on search change
   useEffect(() => {
@@ -24,6 +31,12 @@ export const useDashboardNames = ({
   }, [searchQuery, accountAddress])
 
   const normalizedAddress = accountAddress?.toLowerCase()
+
+  const orderBy = match(sortField)
+    .with('name', () => Domain_OrderBy.Name)
+    .with('expiry', () => Domain_OrderBy.ExpiryDate)
+    .with('registration', () => Domain_OrderBy.RegistrationDate)
+    .exhaustive()
 
   const queryVariables = normalizedAddress
     ? {
@@ -35,8 +48,8 @@ export const useDashboardNames = ({
         },
         first: PAGE_SIZE,
         skip: (page - 1) * PAGE_SIZE,
-        orderBy: Domain_OrderBy.RegistrationDate,
-        orderDirection: OrderDirection.Desc,
+        orderBy,
+        orderDirection: sortDirection,
       }
     : undefined
 
@@ -57,6 +70,19 @@ export const useDashboardNames = ({
     }
   }
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((prev) =>
+        prev === OrderDirection.Desc ? OrderDirection.Asc : OrderDirection.Desc,
+      )
+    } else {
+      setSortField(field)
+      setSortDirection(
+        field === 'expiry' ? OrderDirection.Asc : OrderDirection.Asc,
+      )
+    }
+  }
+
   return {
     names,
     isLoading: isPending,
@@ -65,5 +91,8 @@ export const useDashboardNames = ({
     handlePrev,
     handleNext,
     pageSize: PAGE_SIZE,
+    sortField,
+    sortDirection,
+    handleSort,
   }
 }

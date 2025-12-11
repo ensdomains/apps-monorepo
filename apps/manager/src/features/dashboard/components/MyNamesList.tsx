@@ -1,3 +1,4 @@
+import { OrderDirection } from '@ens-apps/indexer'
 import { Link } from '@tanstack/react-router'
 import {
   ArrowRight,
@@ -24,12 +25,49 @@ interface MyNamesListProps {
   searchQuery?: string
 }
 
+type SortIndicatorProps = {
+  direction?: OrderDirection
+  isActive: boolean
+}
+
+const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
+  if (!isActive) {
+    return (
+      <div className="flex flex-col">
+        <ChevronDown className="size-[8.2px] rotate-180 text-[#7d7d7d]" />
+        <ChevronDown className="size-[8.2px] text-[#7d7d7d]" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col">
+      <ChevronDown
+        className={`size-[8.2px] rotate-180 ${direction === OrderDirection.Asc ? 'text-[#0080bc]' : 'text-[#7d7d7d]'}`}
+      />
+      <ChevronDown
+        className={`size-[8.2px] ${direction === OrderDirection.Desc ? 'text-[#0080bc]' : 'text-[#7d7d7d]'}`}
+      />
+    </div>
+  )
+}
+
 export const MyNamesList = ({
   primaryLabel,
   searchQuery = '',
 }: MyNamesListProps) => {
-  const { names, isLoading, isError, page, handlePrev, handleNext, pageSize } =
-    useDashboardNames({ searchQuery })
+  const {
+    names,
+    isLoading,
+    isError,
+    page,
+    handlePrev,
+    handleNext,
+    pageSize,
+    sortField,
+    sortDirection,
+    handleSort,
+  } = useDashboardNames({ searchQuery })
 
   if (isError) {
     return (
@@ -46,26 +84,38 @@ export const MyNamesList = ({
           <div className="flex items-center gap-2 md:gap-[12px]">
             <div className="size-[32px] shrink-0 md:size-[36.9px]" />
             <div className="flex items-center gap-[8px]">
-              <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
-                Name
-              </span>
-              <div className="flex flex-col">
-                <ChevronDown className="size-[8.2px] rotate-180 text-[#7d7d7d]" />
-                <ChevronDown className="size-[8.2px] text-[#7d7d7d]" />
-              </div>
+              <button
+                type="button"
+                onClick={() => handleSort('name')}
+                className="flex cursor-pointer items-center gap-[8px]"
+              >
+                <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
+                  Name
+                </span>
+                <SortIndicator
+                  isActive={sortField === 'name'}
+                  direction={sortDirection}
+                />
+              </button>
             </div>
           </div>
         </div>
         <div className="flex items-start justify-between gap-4 md:gap-[30px]">
           <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px]">
             <div className="flex items-center gap-[8px]">
-              <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
-                Expiry
-              </span>
-              <div className="flex flex-col">
-                <ChevronDown className="size-[8.2px] rotate-180 text-[#7d7d7d]" />
-                <ChevronDown className="size-[8.2px] text-[#7d7d7d]" />
-              </div>
+              <button
+                type="button"
+                onClick={() => handleSort('expiry')}
+                className="flex cursor-pointer items-center gap-[8px]"
+              >
+                <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
+                  Expiry
+                </span>
+                <SortIndicator
+                  isActive={sortField === 'expiry'}
+                  direction={sortDirection}
+                />
+              </button>
             </div>
           </div>
           <div className="size-[24px] shrink-0" />
