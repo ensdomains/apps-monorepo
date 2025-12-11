@@ -9,7 +9,8 @@ import { createConfig } from 'wagmi'
 import { walletConnect } from 'wagmi/connectors'
 
 // Single source of truth for Sepolia RPC URL
-export const SEPOLIA_RPC_URL = 'https://ethereum-sepolia-rpc.publicnode.com'
+export const SEPOLIA_RPC_URL =
+  'https://eth-sepolia.g.alchemy.com/v2/Wwfr-wciSuc0f1ZSqqE5DxdFLM2SF_cu'
 
 // Create a custom Sepolia chain with working RPC
 export const customSepolia = {
