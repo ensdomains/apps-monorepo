@@ -26,18 +26,31 @@ import { PrimaryBadge } from './PrimaryBadge'
 
 interface MyNamesListProps {
   primaryLabel?: string | null
+  searchQuery?: string
 }
 
-export const MyNamesList = ({ primaryLabel }: MyNamesListProps) => {
+export const MyNamesList = ({
+  primaryLabel,
+  searchQuery = '',
+}: MyNamesListProps) => {
   const { accountAddress } = useSmartAccount()
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 5
+
+  useEffect(() => {
+    setPage(1)
+  }, [searchQuery])
 
   const normalizedAddress = accountAddress?.toLowerCase()
 
   const queryVariables = normalizedAddress
     ? {
-        where: { owner: normalizedAddress },
+        where: {
+          owner: normalizedAddress,
+          ...(searchQuery
+            ? { name_contains_nocase: searchQuery.toLowerCase() }
+            : {}),
+        },
         first: PAGE_SIZE,
         skip: (page - 1) * PAGE_SIZE,
         orderBy: Domain_OrderBy.RegistrationDate,

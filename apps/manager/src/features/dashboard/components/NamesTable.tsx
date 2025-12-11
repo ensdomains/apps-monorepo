@@ -31,7 +31,7 @@ interface NamesTableProps {
 
 export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>('myNames')
-  // const favoriteNames = favorites ?? []
+  const [searchQuery, setSearchQuery] = useState('')
 
   return (
     <div className="w-full">
@@ -68,6 +68,8 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
             <Input
               size="sm"
               placeholder="Search my name..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
               startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
               className="h-[32px] rounded-[4.1px] border-none bg-[#f6f6f6] text-[#8c8c8c] text-[13.12px] placeholder:text-[#8c8c8c]"
             />
@@ -75,7 +77,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
         )}
       </div>
 
-      <MyNamesList primaryLabel={primaryLabel} />
+      <MyNamesList primaryLabel={primaryLabel} searchQuery={searchQuery} />
       {/* {activeTab === 'myNames' ? (
         <MyNamesList names={names} primaryLabel={primaryLabel} />
       ) : (
