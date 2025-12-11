@@ -66,6 +66,7 @@ export const recordsMachine = setup({
         signer: Signer
         publicClient: PublicClient
         chainId: number
+        accountAddress: Address
         resolverAddress?: Address
       }) => submitProfileRecordsUpdateActor(input),
     ),
@@ -162,6 +163,7 @@ export const recordsMachine = setup({
           signer: context.signer!,
           publicClient: context.publicClient!,
           chainId: context.chainId,
+          accountAddress: context.accountAddress!,
           resolverAddress: context.resolverAddress,
         }),
         onDone: {
