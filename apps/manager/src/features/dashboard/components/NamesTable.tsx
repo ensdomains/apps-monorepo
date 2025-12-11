@@ -2,12 +2,9 @@ import type { DomainFragment } from '@ens-apps/indexer'
 import { Search } from 'lucide-react'
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
-import { MOCK_FAVORITE_NAMES } from '@/features/dashboard/MOCK'
-import type { DashboardNameRow } from '@/features/dashboard/types'
-import { FavoritesList } from './FavoritesList'
 import { MyNamesList } from './MyNamesList'
 
-type TabKey = 'myNames' | 'favorites'
+type TabKey = 'myNames' // | 'favorites'
 
 type TabButtonProps = {
   label: string
@@ -50,7 +47,7 @@ const DashboardTabButton = ({
 
 interface NamesTableProps {
   names?: DomainFragment[]
-  favorites?: DashboardNameRow[]
+  // favorites?: DashboardNameRow[]
   primaryLabel?: string | null
   isLoading: boolean
   error: unknown
@@ -58,13 +55,13 @@ interface NamesTableProps {
 
 export const NamesTable = ({
   names = [],
-  favorites,
+  // favorites,
   primaryLabel,
   isLoading,
   error,
 }: NamesTableProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>('myNames')
-  const favoriteNames = favorites ?? MOCK_FAVORITE_NAMES
+  // const favoriteNames = favorites ?? MOCK_FAVORITE_NAMES
 
   if (isLoading) return <div>Loading...</div>
   if (error) return <div>Error loading names</div>
@@ -81,13 +78,13 @@ export const NamesTable = ({
               activeBadgeClass: 'bg-[#e5f7ff]',
               activeCountClass: 'text-[#0080bc]',
             },
-            {
-              key: 'favorites' as const,
-              label: 'Favorites',
-              count: favoriteNames.length,
-              activeBadgeClass: 'bg-[#ffecf5]',
-              activeCountClass: 'text-[#f53293]',
-            },
+            // {
+            //   key: 'favorites' as const,
+            //   label: 'Favorites',
+            //   count: favoriteNames.length,
+            //   activeBadgeClass: 'bg-[#ffecf5]',
+            //   activeCountClass: 'text-[#f53293]',
+            // },
           ].map((tab) => {
             const isActive = activeTab === tab.key
 
@@ -117,11 +114,12 @@ export const NamesTable = ({
         )}
       </div>
 
-      {activeTab === 'myNames' ? (
+      <MyNamesList names={names} primaryLabel={primaryLabel} />
+      {/* {activeTab === 'myNames' ? (
         <MyNamesList names={names} primaryLabel={primaryLabel} />
       ) : (
         <FavoritesList favorites={favoriteNames} />
-      )}
+      )} */}
     </div>
   )
 }
