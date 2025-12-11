@@ -54,7 +54,7 @@ const Profile = ({
       <div className="lg:col-span-2 xl:col-span-2">
         <NameProfileCard name={name} />
       </div>
-      <ExpiryWithRegistrationData name={name} />
+      <ExpiryWithRegistrationData name={name} network={network} />
       <Owner owner={ownerQuery.data?.owner} />
       <ParentName name={name} />
       <TokenLocation name={name} network={network} />
