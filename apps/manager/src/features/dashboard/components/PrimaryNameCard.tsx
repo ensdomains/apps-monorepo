@@ -1,5 +1,6 @@
 import type { DomainFragment } from '@ens-apps/indexer'
 import { Calendar, ChevronDown, Clock } from 'lucide-react'
+import { match } from 'ts-pattern'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { formatDashboardDate } from '@/features/dashboard/utils'
@@ -39,15 +40,17 @@ export const PrimaryNameCard = ({
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-8">
         <div className="flex flex-col items-start gap-4 md:flex-row md:gap-[20px]">
           <div className="size-[120px] shrink-0 overflow-hidden rounded-[4px] bg-[#faf9f6] md:size-[200px]">
-            {hasAvatar ? (
-              <img
-                src={avatarUrl as string}
-                alt={displayName}
-                className="size-full object-cover"
-              />
-            ) : (
-              <div className="size-full bg-linear-to-br from-blue-400 via-blue-600 to-blue-900" />
-            )}
+            {match(hasAvatar)
+              .with(true, () => (
+                <img
+                  src={avatarUrl as string}
+                  alt={displayName}
+                  className="size-full object-cover"
+                />
+              ))
+              .otherwise(() => (
+                <div className="size-full bg-linear-to-br from-blue-400 via-blue-600 to-blue-900" />
+              ))}
           </div>
 
           <div className="flex min-h-0 flex-col justify-between md:h-[200px]">
