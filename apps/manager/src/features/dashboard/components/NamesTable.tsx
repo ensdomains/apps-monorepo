@@ -61,7 +61,7 @@ export const NamesTable = ({
   error,
 }: NamesTableProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>('myNames')
-  // const favoriteNames = favorites ?? MOCK_FAVORITE_NAMES
+  // const favoriteNames = favorites ?? []
 
   if (isLoading) return <div>Loading...</div>
   if (error) return <div>Error loading names</div>
