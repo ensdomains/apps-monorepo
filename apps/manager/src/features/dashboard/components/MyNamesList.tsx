@@ -79,7 +79,7 @@ export const MyNamesList = ({ names = [], primaryLabel }: MyNamesListProps) => {
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[25px]">
                   <div className="flex items-center gap-2 md:gap-[12px]">
-                    <div className="size-[12px] shrink-0 rounded-[3px] border-[#7d7d7d] border-[0.41px]" />
+                    {/* <div className="size-[12px] shrink-0 rounded-[3px] border-[#7d7d7d] border-[0.41px]" /> */}
                     <div className="relative size-[32px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
                       <div className="absolute inset-0 bg-gradient-to-br from-purple-200 to-blue-200" />
                     </div>
