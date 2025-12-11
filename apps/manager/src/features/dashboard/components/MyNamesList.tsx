@@ -34,8 +34,8 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
   if (!isActive) {
     return (
       <div className="flex flex-col">
-        <ChevronDown className="size-[8.2px] rotate-180 text-[#7d7d7d]" />
-        <ChevronDown className="size-[8.2px] text-[#7d7d7d]" />
+        <ChevronDown className="size-[8.2px] rotate-180 text-[#d7d7d7]" />
+        <ChevronDown className="size-[8.2px] text-[#d7d7d7]" />
       </div>
     )
   }
@@ -43,10 +43,10 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
   return (
     <div className="flex flex-col">
       <ChevronDown
-        className={`size-[8.2px] rotate-180 ${direction === OrderDirection.Asc ? 'text-[#0080bc]' : 'text-[#7d7d7d]'}`}
+        className={`size-[8.2px] rotate-180 ${direction === OrderDirection.Asc ? 'text-[#0080bc]' : 'text-[#d7d7d7]'}`}
       />
       <ChevronDown
-        className={`size-[8.2px] ${direction === OrderDirection.Desc ? 'text-[#0080bc]' : 'text-[#7d7d7d]'}`}
+        className={`size-[8.2px] ${direction === OrderDirection.Desc ? 'text-[#0080bc]' : 'text-[#d7d7d7]'}`}
       />
     </div>
   )
@@ -89,7 +89,9 @@ export const MyNamesList = ({
                 onClick={() => handleSort('name')}
                 className="flex cursor-pointer items-center gap-[8px]"
               >
-                <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
+                <span
+                  className={`font-sans text-[12px] tracking-[0.24px] ${sortField === 'name' ? 'font-bold text-[#232222]' : 'text-[#7d7d7d]'}`}
+                >
                   Name
                 </span>
                 <SortIndicator
@@ -108,7 +110,9 @@ export const MyNamesList = ({
                 onClick={() => handleSort('expiry')}
                 className="flex cursor-pointer items-center gap-[8px]"
               >
-                <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
+                <span
+                  className={`font-sans text-[12px] tracking-[0.24px] ${sortField === 'expiry' ? 'font-bold text-[#232222]' : 'text-[#7d7d7d]'}`}
+                >
                   Expiry
                 </span>
                 <SortIndicator
