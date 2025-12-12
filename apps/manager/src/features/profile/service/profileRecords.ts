@@ -33,7 +33,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
 
   const client = yield* safeGetClient()
   const subgraphRecords = yield* getSubgraphRecords(name)
-  const resolverAddress = (yield* getResolver(name)) as Address | undefined
+  const resolverAddress = yield* getResolver(name)
 
   const texts = [
     ...forceFetchRecords.always,
