@@ -29,7 +29,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { NotificationsDropdown } from '@/features/notifications/components'
-import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
+import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { type SmartAccountState, useSmartAccount } from '@/lib/smart-account'
@@ -234,10 +235,21 @@ const ConnectedContent = () => {
   const { data: reverseName } = useQuery({
     ...profileReverseNameQuery(address),
   })
-  const { data: reverseMetadata } = useQuery({
-    ...profileMetadataQuery(reverseName),
+  const { data: reverseRecords } = useQuery({
+    ...profileRecordsQuery(reverseName ?? ''),
+    enabled: !!reverseName,
   })
-  const avatarUrl = reverseMetadata?.avatarUrl ?? ensAvatar
+
+  const avatarRecord = reverseRecords?.texts.find(
+    (text) => text.key === 'avatar',
+  )?.value
+
+  const { data: parsedAvatar } = useQuery({
+    ...parseAvatarQuery(avatarRecord),
+    enabled: !!avatarRecord,
+  })
+
+  const avatarUrl = parsedAvatar ?? ensAvatar
 
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)

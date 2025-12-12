@@ -1,4 +1,4 @@
-import type { Prettify } from 'viem'
+import type { Address, Prettify } from 'viem'
 import type {
   Section,
   SpecialSection,
@@ -32,6 +32,7 @@ export type ProfileRecords = Prettify<
     addresses: AddressRecordValue[]
     links: LinkItem[]
     unknown: TextRecordValue[] // For any custom records
+    resolverAddress?: Address
   }
 >
 

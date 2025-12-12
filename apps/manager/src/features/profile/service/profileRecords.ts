@@ -1,19 +1,24 @@
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { DEDICATED_RESOLVER_ABI } from '@ens-apps/transaction-manager/contracts/abis/DedicatedResolver.abi'
+import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
-  getRecords as ensjs_getRecords,
-  type GetRecordsReturnType,
-} from '@ensdomains/ensjs/public'
-import { fromPromise, ok } from 'neverthrow'
+  coinTypeToNameMap,
+  getCoderByCoinType,
+} from '@ensdomains/address-encoder'
+import { ok } from 'neverthrow'
+import { type Address, hexToBytes, namehash } from 'viem'
+import { multicall } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { alwaysProbeAddressRecords, forceFetchRecords } from '../data/records'
 import { DEBUG_PROFILE } from '../MOCK'
 import { getSubgraphRecords } from './getSubgraphRecords'
+import { getResolver } from './profileResolver'
 
-class RecordsError extends TaggedError('RecordsError')<{
-  cause: unknown
-}> {}
+const COIN_TYPE_NAME_MAP = coinTypeToNameMap as Record<
+  string,
+  readonly [string, string]
+>
 
 export const getProfileRecords = ResultFn(async function* (name: string) {
   if (name === 'debug') {
@@ -28,6 +33,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
 
   const client = yield* safeGetClient()
   const subgraphRecords = yield* getSubgraphRecords(name)
+  const resolverAddress = yield* getResolver(name)
 
   const texts = [
     ...forceFetchRecords.always,
@@ -38,7 +44,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
       : forceFetchRecords.whenNotIndexed),
   ]
 
-  const coins = subgraphRecords
+  const coinTypes = subgraphRecords
     ? [
         ...subgraphRecords.coins.filter(
           (c) => !alwaysProbeAddressRecords.includes(c),
@@ -47,25 +53,104 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
       ]
     : alwaysProbeAddressRecords
 
-  const records = yield* await fromPromise(
-    ensjs_getRecords(client, {
-      name,
-      coins,
-      texts,
-      ignoreInvalidCoinTypes: true,
-    }),
-    (e) => new RecordsError({ cause: e }),
-  )
+  const result: ProfileRecordsResult = {
+    texts: [],
+    coins: [],
+    resolverAddress,
+    _rawSubgraphRecords: subgraphRecords,
+  }
 
-  return ok(records)
+  if (!resolverAddress) {
+    return ok(result)
+  }
+
+  const node = namehash(name)
+
+  const textContracts = texts.map((key) => ({
+    address: resolverAddress,
+    abi: DEDICATED_RESOLVER_ABI,
+    functionName: 'text' as const,
+    args: [node, key] as const,
+  }))
+
+  const textResults = await multicall(client, {
+    contracts: textContracts,
+    allowFailure: true,
+  })
+
+  textResults.forEach((entry, index) => {
+    const key = texts[index]
+
+    if (!key) return
+
+    if (entry.status !== 'success') {
+      return
+    }
+
+    const value = entry.result as string
+
+    if (typeof value === 'string' && value.trim() !== '') {
+      result.texts.push({ key, value })
+    }
+  })
+
+  const coinTypeNumbers = coinTypes
+    .map((coin) => Number.parseInt(String(coin), 10))
+    .filter((coinType) => !Number.isNaN(coinType))
+
+  const coinContracts = coinTypeNumbers.map((coinTypeNumber) => ({
+    address: resolverAddress,
+    abi: DEDICATED_RESOLVER_ABI,
+    functionName: 'addr' as const,
+    args: [node, BigInt(coinTypeNumber)] as const,
+  }))
+
+  const coinResults = await multicall(client, {
+    contracts: coinContracts,
+    allowFailure: true,
+  })
+
+  coinResults.forEach((entry, index) => {
+    const coinTypeNumber = coinTypeNumbers[index]
+
+    if (coinTypeNumber === undefined) return
+
+    if (entry.status !== 'success') {
+      return
+    }
+
+    const raw = entry.result as `0x${string}` | string | null
+
+    if (!raw || raw === '0x') return
+
+    let value: string
+
+    try {
+      const coder = getCoderByCoinType(coinTypeNumber)
+      const bytes = hexToBytes(raw as `0x${string}`)
+      value = coder.encode(bytes)
+    } catch {
+      value = raw as string
+    }
+
+    const symbolEntry = COIN_TYPE_NAME_MAP[String(coinTypeNumber)]
+
+    result.coins.push({
+      coinType: coinTypeNumber,
+      value,
+      ...(symbolEntry ? { symbol: symbolEntry[0] } : {}),
+    })
+  })
+
+  return ok(result)
 })
 
-export type ProfileRecordsResult = GetRecordsReturnType<
-  readonly string[],
-  readonly (string | number)[],
-  false,
-  false
->
+export type ProfileRecordsResult = {
+  texts: Array<{ key: string; value: string }>
+  coins: Array<{ coinType: number; value: string; symbol?: string }>
+  resolverAddress?: Address
+  _rawSubgraphRecords?: unknown
+}
 
 export const profileRecordsQuery = (name: string) =>
   resultQueryOptions({
