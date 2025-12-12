@@ -1,6 +1,4 @@
-import { Link } from '@tanstack/react-router'
 import { ArrowRight, Calendar, Clock } from 'lucide-react'
-import type { MouseEventHandler } from 'react'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import { cn } from '@/lib/utils'
 

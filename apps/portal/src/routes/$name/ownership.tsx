@@ -1,86 +1,33 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import type { Address } from 'viem/accounts'
-import { useEnsName } from 'wagmi'
-import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { ErrorMessage } from '@/components/molecules/ErrorMessage'
+import { LoadingMessage } from '@/components/molecules/LoadingMessage'
 import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
 import { NameSubgraphHistory } from '@/components/organisms/NameSubgraphHistory/NameSubgraphHistory'
+import { ExpiryWithRegistrationData } from '@/features/ownership/components/ExpiryWithRegistrationData'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { parentName } from '@/lib/parent'
-import { LoadingSpinner } from '../../components/molecules/LoadingSpinner'
 
 export const Route = createFileRoute('/$name/ownership')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
 })
 
-interface OwnerDisplayProps {
-  owner: Address
-}
-
-const OwnerDisplay = ({ owner }: OwnerDisplayProps) => {
-  const { data: ensName, isLoading } = useEnsName({
-    address: owner,
-  })
-
-  if (isLoading) return <LoadingSpinner title="Loading owner" />
-
-  if (ensName) {
-    return (
-      <>
-        <CopyableRecord value={ensName} />
-        <CopyableRecord value={owner} />
-      </>
-    )
-  } else {
-    return <CopyableRecord value={owner} />
-  }
-}
-
-interface OwnerInfoProps {
-  name: string
-}
-
-const OwnerInfo = ({ name }: OwnerInfoProps) => {
-  const { data, isLoading, error } = useQuery(getEnsOwnerQueryOptions({ name }))
-
-  if (isLoading) return <LoadingSpinner title="Loading owner" />
-  if (error || !data) {
-    if (error) return <div>Error: {(error.cause as Error).message}</div>
-    return <div>Could not load owner</div>
-  }
-
-  return (
-    <div className="flex flex-col lg:flex-row gap-4">
-      <div className="p-6 rounded-lg gap-4 flex flex-col border border-gray-300 w-full">
-        <h2 className="text-2xl font-medium">Current Owner</h2>
-        <div>
-          <OwnerDisplay owner={data.owner} />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-interface ParentInfoProps {
-  name: string
-}
-
-const ParentInfo = ({ name }: ParentInfoProps) => {
-  const parent = parentName(name)
-
-  return (
-    <div className="p-6 rounded-lg gap-4 flex flex-col border border-gray-300 w-full">
-      <h2 className="text-2xl font-medium">Parent name</h2>
-      <div>
-        <CopyableRecord value={parent} />
-      </div>
-    </div>
-  )
-}
-
 function RouteComponent() {
   const { name } = Route.useParams()
+
+  const { data, isLoading, error } = useQuery(getEnsOwnerQueryOptions({ name }))
+
+  if (error)
+    return (
+      <ErrorMessage
+        title="Failed to fetch owner"
+        description={error.cause.message}
+      />
+    )
+
+  if (isLoading) return <LoadingMessage title="Loading owner data" />
+
+  if (!data) return null
 
   return (
     <div className="max-w-360 w-full mx-auto flex flex-col gap-6 p-6">
@@ -88,9 +35,8 @@ function RouteComponent() {
         <h1 className="font-medium text-[28px]">Ownership</h1>
       </div>
       <div className="flex flex-col gap-6">
-        <OwnerInfo name={name} />
+        <ExpiryWithRegistrationData name={name} network={data.network} />
         <NameSubgraphHistory name={name} category="domain" />
-        <ParentInfo name={name} />
       </div>
     </div>
   )

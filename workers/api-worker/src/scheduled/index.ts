@@ -3,7 +3,7 @@ import { evaluateExpiringNames } from '#services/expiry/evaluate.js'
 
 export const handleScheduled: ExportedHandlerScheduledHandler<
   CloudflareBindings
-> = async (controller, env, ctx): Promise<void> => {
+> = async (controller, env, _ctx): Promise<void> => {
   console.log(
     `Scheduled event triggered: ${controller.cron} at ${new Date(controller.scheduledTime).toISOString()}`,
   )

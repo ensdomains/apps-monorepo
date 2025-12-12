@@ -1,6 +1,6 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: test code */
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { err, errAsync, ok, okAsync } from 'neverthrow'
+import { errAsync, okAsync } from 'neverthrow'
 import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type Database, DatabaseError } from '#core/database/index.js'
 import * as schema from '#core/database/schema/index.js'

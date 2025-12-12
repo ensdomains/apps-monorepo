@@ -113,7 +113,7 @@ describe('Integration tests', () => {
   })
 
   it('should handle database errors', async () => {
-    const processUserRegistration = ResultFn(async function* (userData: {
+    const processUserRegistration = ResultFn(async function* (_userData: {
       email: string
       name: string
     }) {
@@ -136,7 +136,7 @@ describe('Integration tests', () => {
   })
 
   it('should handle network errors', async () => {
-    const processUserRegistration = ResultFn(async function* (userData: {
+    const processUserRegistration = ResultFn(async function* (_userData: {
       email: string
       name: string
     }) {

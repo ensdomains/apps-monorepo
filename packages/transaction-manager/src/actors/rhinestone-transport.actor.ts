@@ -1,5 +1,5 @@
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
-import type { Hash, Hex, PublicClient } from 'viem'
+import type { Hash, PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import { TransactionSubmissionError } from '../errors/transaction.errors'
 import type { RhinestoneSigner } from '../types/signer.types'

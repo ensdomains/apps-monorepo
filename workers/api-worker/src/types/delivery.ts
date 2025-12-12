@@ -1,8 +1,4 @@
-import type {
-  ChannelType,
-  NotificationKind,
-  NotificationPayloads,
-} from '#config/notifications.js'
+import type { NotificationKind } from '#config/notifications.js'
 
 // Base delivery job
 export type BaseDeliveryJob = {
