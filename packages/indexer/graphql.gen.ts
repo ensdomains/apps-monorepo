@@ -394,16 +394,6 @@ export type DomainsQuery = { __typename?: 'Query', domains: Array<(
     & DomainFragment
   )> };
 
-export type ProfileQueryVariables = Exact<{
-  name: Scalars['String']['input'];
-}>;
-
-
-export type ProfileQuery = { __typename?: 'Query', domains: Array<(
-    { __typename?: 'Domain' }
-    & DomainFragment
-  )> };
-
 export const Resolver = gql`
     fragment Resolver on Resolver {
   id
@@ -469,13 +459,6 @@ export const DomainsDocument = gql`
     orderBy: $orderBy
     orderDirection: $orderDirection
   ) {
-    ...Domain
-  }
-}
-    ${Domain}`;
-export const ProfileDocument = gql`
-    query Profile($name: String!) {
-  domains(where: {name: $name}, first: 1) {
     ...Domain
   }
 }
