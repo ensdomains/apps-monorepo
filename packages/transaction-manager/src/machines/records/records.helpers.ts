@@ -3,6 +3,7 @@ import {
   getCoderByCoinType,
 } from '@ensdomains/address-encoder'
 import { bytesToHex, encodeFunctionData, type Hex, zeroAddress } from 'viem'
+import { z } from 'zod'
 import { DEDICATED_RESOLVER_ABI } from '../../contracts/abis/DedicatedResolver.abi'
 import type { ServiceRecordSnapshot } from './records.types'
 
@@ -19,6 +20,22 @@ type CoinChange = {
 export type RecordChanges = {
   texts: TextChange[]
   coins: CoinChange[]
+}
+
+export type RecordIssue = {
+  sectionKey: string
+  fieldKey: string
+  message: string
+}
+
+export class RecordsValidationError extends Error {
+  issues: RecordIssue[]
+
+  constructor(issues: RecordIssue[]) {
+    super(issues.map((issue) => issue.message).join('\n'))
+    this.name = 'RecordsValidationError'
+    this.issues = issues
+  }
 }
 
 const normalizeCoinId = (
@@ -99,6 +116,53 @@ export const computeRecordChanges = (
   return { texts: textChanges, coins: coinChanges }
 }
 
+const bioUrlSchema = z
+  .string()
+  .trim()
+  .superRefine((value, ctx) => {
+    if (value === '') {
+      return
+    }
+
+    try {
+      const url = new URL(value)
+
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Invalid Bio URL',
+        })
+      }
+    } catch {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Invalid Bio URL',
+      })
+    }
+  })
+
+const validateTextChange = ({ key, value }: TextChange): RecordIssue[] => {
+  const trimmed = value?.trim() ?? ''
+
+  if (trimmed === '') {
+    return []
+  }
+
+  if (key === 'url') {
+    const result = bioUrlSchema.safeParse(trimmed)
+
+    if (!result.success) {
+      return result.error.issues.map((issue) => ({
+        sectionKey: 'bio',
+        fieldKey: 'url',
+        message: issue.message,
+      }))
+    }
+  }
+
+  return []
+}
+
 const encodeCoinValue = (
   coder: ReturnType<typeof getCoderFromCoin>,
   value: string | null,
@@ -127,14 +191,33 @@ const buildTextCalls = (options: {
   abi: typeof DEDICATED_RESOLVER_ABI
   texts: TextChange[]
   buildArgs: (key: string, value: string | null) => readonly [string, string]
-}): Hex[] =>
-  options.texts.map(({ key, value }) =>
-    encodeFunctionData({
-      abi: options.abi,
-      functionName: 'setText',
-      args: options.buildArgs(key, value ?? ''),
-    }),
-  )
+}): Hex[] => {
+  const calls: Hex[] = []
+  const issues: RecordIssue[] = []
+
+  for (const change of options.texts) {
+    const changeIssues = validateTextChange(change)
+
+    if (changeIssues.length > 0) {
+      issues.push(...changeIssues)
+      continue
+    }
+
+    calls.push(
+      encodeFunctionData({
+        abi: options.abi,
+        functionName: 'setText',
+        args: options.buildArgs(change.key, change.value ?? ''),
+      }),
+    )
+  }
+
+  if (issues.length > 0) {
+    throw new RecordsValidationError(issues)
+  }
+
+  return calls
+}
 
 const buildCoinCalls = (options: {
   abi: typeof DEDICATED_RESOLVER_ABI
@@ -145,7 +228,7 @@ const buildCoinCalls = (options: {
   ) => readonly [bigint, `0x${string}`]
 }): Hex[] => {
   const calls: Hex[] = []
-  const errors: string[] = []
+  const issues: RecordIssue[] = []
 
   for (const { coin, value } of options.coins) {
     const coder = getCoderFromCoin(coin)
@@ -161,22 +244,19 @@ const buildCoinCalls = (options: {
         }),
       )
     } catch (error) {
-      if (error instanceof Error) {
-        errors.push(error.message)
-      } else {
-        errors.push('Invalid coin address')
-      }
+      const message =
+        error instanceof Error ? error.message : 'Invalid coin address'
+
+      issues.push({
+        sectionKey: 'address',
+        fieldKey: String(coder.coinType),
+        message,
+      })
     }
   }
 
-  if (errors.length > 0) {
-    const uniqueMessages = Array.from(new Set(errors))
-
-    if (uniqueMessages.length === 1) {
-      throw new Error(uniqueMessages[0]!)
-    }
-
-    throw new Error(uniqueMessages.join(', '))
+  if (issues.length > 0) {
+    throw new RecordsValidationError(issues)
   }
 
   return calls

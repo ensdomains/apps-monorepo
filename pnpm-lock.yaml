@@ -612,6 +612,9 @@ importers:
       xstate:
         specifier: 'catalog:'
         version: 5.24.0(patch_hash=cd60a6eae163806e90144605b7835f441bcc3c7b456b9ad4eb0a7215997f36a5)
+      zod:
+        specifier: ^4.1.0
+        version: 4.1.13
     devDependencies:
       '@types/react':
         specifier: ^19.0.6
