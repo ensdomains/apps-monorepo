@@ -85,7 +85,7 @@ export function Registration({ initialName }: RegistrationProps) {
   })
 
   // Use unified smart account hook (defaults to Pimlico)
-  const account = useSmartAccount({ type: 'pimlico' })
+  const account = useSmartAccount({ type: 'pimlico', accountType: 'hca' })
 
   // Extract account info
   const accountAddress = account.accountAddress

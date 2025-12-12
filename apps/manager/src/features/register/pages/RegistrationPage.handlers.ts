@@ -61,6 +61,14 @@ export function handleStartRegistration(
       ? true // Default to true for testnet
       : import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === 'true'
 
+  // For HCA accounts, use the EOA address as the owner
+  // The smart account will still be used for the transaction (sponsorship),
+  // but the ENS name will be owned by the EOA
+  const ownerAddress =
+    account.config?.accountType === 'hca' && account.ownerAddress
+      ? account.ownerAddress
+      : account.accountAddress
+
   console.log(`✅ Creating START_REGISTRATION event with ${account.type}:`, {
     name,
     duration: durationInSeconds,
@@ -70,6 +78,9 @@ export function handleStartRegistration(
     hasPublicClient: !!publicClient,
     useFastRegistrar,
     sponsored: enableSponsorship,
+    accountType: account.config?.accountType,
+    ownerAddress,
+    smartAccountAddress: account.accountAddress,
   })
 
   // Send event to machine - uses pre-computed signer from hook
@@ -81,6 +92,7 @@ export function handleStartRegistration(
     price: tokenPrice,
     signer: account.signer,
     accountAddress: account.accountAddress,
+    ownerAddress, // Use EOA for HCA, smart account for simple
     publicClient,
     useFastRegistrar,
     sponsored: enableSponsorship,

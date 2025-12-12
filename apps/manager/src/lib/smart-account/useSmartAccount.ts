@@ -60,6 +60,7 @@ export { isPimlicoAccount, isRhinestoneAccount } from './types'
  *   // account.client is SmartAccountClient
  * }
  */
+export type ParaClient = ReturnType<typeof useParaClient>
 export function useSmartAccount(
   config?: UseSmartAccountConfig,
 ): SmartAccountState {
@@ -67,6 +68,7 @@ export function useSmartAccount(
   const accountType = config?.accountType ?? 'simple'
 
   const paraClient = useParaClient()
+
   const { data: paraWallet } = useParaWallet()
   const { data: wagmiWalletClient } = useWalletClient()
 
@@ -239,6 +241,7 @@ export function useSmartAccount(
           walletClient: wagmiWalletClient ?? undefined,
           paraClient: paraClient ?? undefined,
           accountType,
+          registerHCA: accountType === 'hca', // Register HCA if accountType is 'hca'
         })
         setClient(result.client)
         setAccountAddress(result.address)
@@ -249,6 +252,8 @@ export function useSmartAccount(
         }
         const result = await initializeRhinestoneAccount({
           walletClient: wagmiWalletClient,
+          accountType,
+          registerHCA: accountType === 'hca', // Register HCA if accountType is 'hca'
         })
         setClient(result.client)
         setAccountAddress(result.address)

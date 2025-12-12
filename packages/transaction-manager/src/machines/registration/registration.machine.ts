@@ -43,6 +43,7 @@ export type RegistrationContext = {
   // Account & client
   signer?: Signer
   accountAddress?: Address
+  ownerAddress?: Address // EOA owner address (for HCA, this differs from accountAddress)
   publicClient?: PublicClient
   chainId: number
 
@@ -77,6 +78,7 @@ export type RegistrationEvent =
       price: bigint
       signer: Signer
       accountAddress: Address
+      ownerAddress?: Address // EOA owner address (for HCA, this differs from accountAddress)
       publicClient: PublicClient
       useFastRegistrar?: boolean
       sponsored?: boolean
@@ -258,6 +260,7 @@ export const registrationMachine = setup({
   context: ({ input }) => ({
     signer: undefined,
     accountAddress: undefined,
+    ownerAddress: undefined,
     publicClient: undefined,
     chainId: input.chainId,
     name: '',
@@ -283,6 +286,8 @@ export const registrationMachine = setup({
             tokenPrice: ({ event }) => event.price,
             signer: ({ event }) => event.signer,
             accountAddress: ({ event }) => event.accountAddress,
+            ownerAddress: ({ event }) =>
+              event.ownerAddress ?? event.accountAddress, // Default to accountAddress if not provided
             publicClient: ({ event }) => event.publicClient,
             registerReadyTimestamp: () => undefined,
             useFastRegistrar: ({ event }) => Boolean(event.useFastRegistrar),
@@ -319,7 +324,7 @@ export const registrationMachine = setup({
         src: 'deployResolver',
         input: ({ context }) => ({
           name: context.name,
-          owner: context.accountAddress!,
+          owner: context.ownerAddress ?? context.accountAddress!,
           signer: context.signer!,
           publicClient: context.publicClient!,
           sponsored: context.sponsored,
@@ -395,7 +400,7 @@ export const registrationMachine = setup({
 
           return {
             name: context.name,
-            owner: context.accountAddress!,
+            owner: context.ownerAddress ?? context.accountAddress!,
             duration: context.duration,
             publicClient: context.publicClient!,
             selectedToken: context.selectedToken,
@@ -638,7 +643,7 @@ export const registrationMachine = setup({
           signer: context.signer!,
           duration: context.duration,
           selectedToken: context.selectedToken,
-          owner: context.accountAddress!,
+          owner: context.ownerAddress ?? context.accountAddress!,
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,

@@ -7,11 +7,14 @@
 
 import { type RhinestoneAccount, RhinestoneSDK } from '@rhinestone/sdk'
 import type { Address, WalletClient } from 'viem'
-import { customSepolia } from '@/lib/wagmi'
+import { customSepolia, publicClient } from '@/lib/wagmi'
+import { registerHCAOwnershipSafe } from './hca-registry'
+import type { SmartAccountType } from './types'
 import { walletClientToAccount, wrapParaAccount } from './utils'
 
 export interface RhinestoneConfig {
   chain: typeof customSepolia
+  accountType: SmartAccountType
   bundlerUrl?: string
   paymasterUrl?: string
   sponsorshipPolicyId?: string
@@ -20,6 +23,8 @@ export interface RhinestoneConfig {
 
 export interface InitializeRhinestoneParams {
   walletClient: WalletClient
+  accountType?: SmartAccountType
+  registerHCA?: boolean // Whether to register HCA ownership after account creation
 }
 
 export interface RhinestoneInitResult {
@@ -38,7 +43,11 @@ export interface RhinestoneInitResult {
 export async function initializeRhinestoneAccount(
   params: InitializeRhinestoneParams,
 ): Promise<RhinestoneInitResult> {
-  const { walletClient } = params
+  const {
+    walletClient,
+    accountType = 'simple',
+    registerHCA = accountType === 'hca',
+  } = params
 
   const apiKey = import.meta.env.VITE_RHINESTONE_API_KEY
   if (!apiKey) {
@@ -55,6 +64,11 @@ export async function initializeRhinestoneAccount(
   }
 
   const account = walletClientToAccount(walletClient)
+  const eoaAddress = walletClient.account?.address
+
+  if (!eoaAddress) {
+    throw new Error('Wallet client must have an account address')
+  }
 
   const wrappedAccount = wrapParaAccount(account)
 
@@ -75,8 +89,20 @@ export async function initializeRhinestoneAccount(
 
   const accountAddress = rhinestoneAccount.getAddress()
 
+  // Register HCA ownership if requested
+  if (registerHCA) {
+    await registerHCAOwnershipSafe({
+      smartAccountAddress: accountAddress,
+      eoaAddress,
+      walletClient,
+      publicClient,
+      accountType: 'rhinestone',
+    })
+  }
+
   const config: RhinestoneConfig = {
     chain: customSepolia,
+    accountType,
     bundlerUrl: undefined,
     paymasterUrl: undefined,
     sponsorshipPolicyId: undefined,
