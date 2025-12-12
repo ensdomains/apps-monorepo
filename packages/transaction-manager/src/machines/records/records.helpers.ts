@@ -103,17 +103,24 @@ const encodeCoinValue = (
   coder: ReturnType<typeof getCoderFromCoin>,
   value: string | null,
 ): Hex => {
-  let encoded: Hex | Uint8Array = value ? coder.decode(value) : '0x'
+  try {
+    let encoded: Hex | Uint8Array =
+      value && value.trim() !== '' ? coder.decode(value) : '0x'
 
-  if (coder.coinType === 60 && encoded === '0x') {
-    encoded = coder.decode(zeroAddress)
+    if (coder.coinType === 60 && encoded === '0x') {
+      encoded = coder.decode(zeroAddress)
+    }
+
+    if (typeof encoded !== 'string') {
+      encoded = bytesToHex(encoded)
+    }
+
+    return encoded
+  } catch (_error) {
+    const coinName =
+      (coder as any)?.name ?? `coin type ${String((coder as any)?.coinType)}`
+    throw new Error(`Invalid ${coinName} address`)
   }
-
-  if (typeof encoded !== 'string') {
-    encoded = bytesToHex(encoded)
-  }
-
-  return encoded
 }
 
 const buildTextCalls = (options: {
