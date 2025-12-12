@@ -7,7 +7,7 @@ import { DidYouKnowSection } from '@/features/dashboard/components/DidYouKnowSec
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
-import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
+import { profileQuery } from '@/features/profile/service/profile'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useSmartAccount } from '@/lib/smart-account'
 
@@ -23,21 +23,25 @@ export const DashboardPage = () => {
   const { data: reverseName, isPending: isReverseNameLoading } = useQuery({
     ...profileReverseNameQuery(address),
   })
-  const { data: reverseMetadata, isPending: isReverseMetadataLoading } =
-    useQuery({
-      ...profileMetadataQuery(reverseName),
-    })
 
   const normalizedPrimaryName = wallet?.ensName?.toLowerCase()
   const primaryLabel = normalizedPrimaryName ?? null
 
   const defaultName = reverseName ?? wallet?.ensName ?? primaryLabel ?? null
 
-  const registeredDate = reverseMetadata?.registeredDate ?? null
-  const expiryDate = reverseMetadata?.expiryDate ?? null
-  const avatarUrl = reverseMetadata?.avatarUrl ?? wallet?.ensAvatar ?? null
+  const { data: profile, isPending: isProfileLoading } = useQuery({
+    ...profileQuery(defaultName ?? ''),
+    enabled: Boolean(defaultName),
+  })
 
-  const isPrimaryLoading = isReverseNameLoading || isReverseMetadataLoading
+  const registeredDate = profile?.createdAt
+    ? new Date(profile.createdAt * 1000)
+    : null
+  const expiryDate = profile?.expiryDate
+    ? new Date(profile.expiryDate * 1000)
+    : null
+  const avatarUrl = profile?.records.base.avatar ?? wallet?.ensAvatar ?? null
+  const isPrimaryLoading = isReverseNameLoading || isProfileLoading
 
   const displayName = defaultName ?? formatAddress(accountAddress)
   const hasProfile = Boolean(defaultName)

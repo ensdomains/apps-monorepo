@@ -29,15 +29,12 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { NotificationsDropdown } from '@/features/notifications/components'
-import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { type SmartAccountState, useSmartAccount } from '@/lib/smart-account'
 
 // Reusable menu content component
 const UserMenuContent = ({
-  account,
-  address,
   accountAddress,
   isLoading,
   stablecoinBalances,
@@ -51,8 +48,6 @@ const UserMenuContent = ({
   ensAvatar,
   autoFundingMutation,
 }: {
-  account: ReturnType<typeof useAccount>
-  address: string | undefined
   accountAddress: string | null | undefined
   isLoading: boolean
   stablecoinBalances:
@@ -227,17 +222,13 @@ const ConnectedContent = () => {
     autoFundingMutation,
   } = useSmartAccount()
 
-  const address = wallet?.address as Address | undefined
   const ensName = wallet?.ensName
   const ensAvatar = wallet?.ensAvatar
+  const address = wallet?.address as Address | undefined
 
   const { data: reverseName } = useQuery({
     ...profileReverseNameQuery(address),
   })
-  const { data: reverseMetadata } = useQuery({
-    ...profileMetadataQuery(reverseName),
-  })
-  const avatarUrl = reverseMetadata?.avatarUrl ?? ensAvatar
 
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -308,6 +299,7 @@ const ConnectedContent = () => {
   }
 
   const displayName = getDisplayName()
+  const avatarUrl = ensAvatar
 
   // Shared trigger button
   const triggerButton = (
@@ -349,8 +341,6 @@ const ConnectedContent = () => {
 
   // Shared menu content props
   const menuContentProps: ComponentProps<typeof UserMenuContent> = {
-    account,
-    address,
     accountAddress,
     isLoading,
     stablecoinBalances,
