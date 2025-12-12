@@ -9,6 +9,8 @@ type DiffEntry = {
   type: 'added' | 'removed' | 'modified'
   sectionLabel?: string
   fieldLabel?: string
+  sectionKey?: string
+  fieldKey?: string
 }
 
 type Diff = Record<string, DiffEntry>
@@ -109,6 +111,8 @@ const addKeyValueDiffs = (
       const sectionLabel = getSectionDisplayName(section)
       diffEntry.sectionLabel = sectionLabel
       diffEntry.fieldLabel = displayName
+      diffEntry.sectionKey = section
+      diffEntry.fieldKey = String(key)
       target[`${sectionLabel}: ${displayName}`] = diffEntry
     }
   }
@@ -208,6 +212,8 @@ export const createDiff = (
       ...linksDiffEntry,
       sectionLabel,
       fieldLabel: 'Links',
+      sectionKey: 'links',
+      fieldKey: 'links',
     }
   }
 

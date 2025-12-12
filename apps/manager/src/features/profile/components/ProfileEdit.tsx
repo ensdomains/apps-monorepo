@@ -50,24 +50,42 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     input: { chainId: customSepolia.id },
   })
 
-  const { txHash, isSubmitting, isSuccess, isError, updateErrorMessage } =
-    useSelector(recordsActor, (state) => {
-      const isSubmitting =
-        state.matches('submittingUpdate') || state.matches('waitingForUpdate')
-      const isSuccess = state.matches('success')
-      const isError = state.matches('error')
-      const updateErrorMessage = isError
-        ? (state.context.error?.message ?? 'Failed to update profile')
+  const {
+    txHash,
+    isSubmitting,
+    isSuccess,
+    isError,
+    updateErrorMessage,
+    validationIssues,
+  } = useSelector(recordsActor, (state) => {
+    const isSubmitting =
+      state.matches('submittingUpdate') || state.matches('waitingForUpdate')
+    const isSuccess = state.matches('success')
+    const isError = state.matches('error')
+
+    const error = state.context.error
+    const issues =
+      error && 'issues' in error && Array.isArray((error as any).issues)
+        ? ((error as any).issues as Array<{
+            sectionKey?: string
+            fieldKey?: string
+            message: string
+          }>)
         : null
 
-      return {
-        txHash: state.context.txHash,
-        isSubmitting,
-        isSuccess,
-        isError,
-        updateErrorMessage,
-      }
-    })
+    const updateErrorMessage = isError
+      ? (error?.message ?? 'Failed to update profile')
+      : null
+
+    return {
+      txHash: state.context.txHash,
+      isSubmitting,
+      isSuccess,
+      isError,
+      updateErrorMessage,
+      validationIssues: issues,
+    }
+  })
 
   const defaultValues = recordsData ?? defaultProfileRecords
 
@@ -219,6 +237,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
                 isError ? (updateErrorMessage ?? undefined) : undefined
               }
               txHash={txHash}
+              validationIssues={validationIssues ?? undefined}
             />
           </div>
         </div>
