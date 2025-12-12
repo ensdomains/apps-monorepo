@@ -5,7 +5,7 @@ import type {
   SpecialSection,
   StaticRecordKey,
 } from '../data/records/types'
-import type { ProfileRecordsResult } from '../service/profileRecords'
+import type { ProfileRecordsResult } from '../service/profile'
 import type { ProfileRecords } from '../types'
 
 export const newEmptyProfileRecords = (): ProfileRecords => ({
