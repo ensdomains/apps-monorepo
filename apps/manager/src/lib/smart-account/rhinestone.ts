@@ -89,12 +89,21 @@ export async function initializeRhinestoneAccount(
 
   const accountAddress = rhinestoneAccount.getAddress()
 
-  // Register HCA ownership if requested
+  // Register HCA ownership via smart account (sponsored) if requested
   if (registerHCA) {
+    const signer = {
+      type: 'rhinestone' as const,
+      account: rhinestoneAccount,
+      config: {
+        chain: customSepolia,
+        accountAddress,
+        rhinestoneApiKey: apiKey,
+      },
+    }
     await registerHCAOwnershipSafe({
       smartAccountAddress: accountAddress,
       eoaAddress,
-      walletClient,
+      signer,
       publicClient,
       accountType: 'rhinestone',
     })

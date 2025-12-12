@@ -86,16 +86,6 @@ export async function initializePimlicoAccount(
     entryPoint: { address: entryPoint07Address, version: '0.7' },
   })
 
-  if (registerHCA && eoaAddress && walletClient) {
-    await registerHCAOwnershipSafe({
-      smartAccountAddress: smartAccount.address,
-      eoaAddress,
-      walletClient,
-      publicClient,
-      accountType: 'pimlico',
-    })
-  }
-
   const pimlicoClient = createPimlicoClient({
     transport: http(PIMLICO_URL),
     entryPoint: { address: entryPoint07Address, version: '0.7' },
@@ -111,6 +101,30 @@ export async function initializePimlicoAccount(
         (await pimlicoClient.getUserOperationGasPrice()).fast,
     },
   })
+
+  // Register HCA ownership via smart account (sponsored) if requested
+  if (registerHCA && eoaAddress) {
+    const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
+    if (pimlicoApiKey) {
+      const signer = {
+        type: 'pimlico' as const,
+        account: client,
+        config: {
+          chain: customSepolia,
+          accountAddress: smartAccount.address,
+          accountType,
+          pimlicoApiKey,
+        },
+      }
+      await registerHCAOwnershipSafe({
+        smartAccountAddress: smartAccount.address,
+        eoaAddress,
+        signer,
+        publicClient,
+        accountType: 'pimlico',
+      })
+    }
+  }
 
   const config: PimlicoConfig = {
     chain: customSepolia,
