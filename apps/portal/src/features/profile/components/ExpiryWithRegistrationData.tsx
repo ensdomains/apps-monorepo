@@ -86,7 +86,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
     queries: [
       getV2RegistrationDateQueryOptions({
         label,
-        fromBlock: 9792514n,
+        fromBlock: 9792514n, // V2 Registry deployment block on namechain-sepolia
       }),
       getV2ExpiryQueryOptions({ name }),
     ],
@@ -108,7 +108,13 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
   return (
     <>
       {registrationDate.data && (
-        <RegistrationData blockNumber={registrationDate.data} />
+        <div className="flex flex-col gap-1">
+          <Label>Registered</Label>
+          <span className="flex flex-row gap-1 items-center h-[38px]">
+            <CalendarIcon className="size-3.5" />
+            {new Date(Number(registrationDate.data) * 1000).toUTCString()}
+          </span>
+        </div>
       )}
       {expiry.data && (
         <div className="flex flex-col gap-1">
