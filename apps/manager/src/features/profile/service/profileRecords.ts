@@ -66,62 +66,66 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
 
   const node = namehash(name)
 
-  for (const key of texts) {
-    try {
-      const value = await readContract(client, {
-        address: resolverAddress,
-        abi: DEDICATED_RESOLVER_ABI,
-        functionName: 'text',
-        args: [node, key],
-      })
+  await Promise.all(
+    texts.map(async (key) => {
+      try {
+        const value = await readContract(client, {
+          address: resolverAddress,
+          abi: DEDICATED_RESOLVER_ABI,
+          functionName: 'text',
+          args: [node, key],
+        })
 
-      if (typeof value === 'string' && value.trim() !== '') {
-        result.texts.push({ key, value })
+        if (typeof value === 'string' && value.trim() !== '') {
+          result.texts.push({ key, value })
+        }
+      } catch (error) {
+        console.warn('Failed to fetch text record', { name, key, error })
       }
-    } catch (error) {
-      console.warn('Failed to fetch text record', { name, key, error })
-    }
-  }
+    }),
+  )
 
-  for (const coin of coinTypes) {
-    const coinTypeNumber = Number.parseInt(String(coin), 10)
-    if (Number.isNaN(coinTypeNumber)) continue
-
-    try {
-      const raw = await readContract(client, {
-        address: resolverAddress,
-        abi: DEDICATED_RESOLVER_ABI,
-        functionName: 'addr',
-        args: [node, BigInt(coinTypeNumber)],
-      })
-
-      if (raw === '0x' || raw === null) continue
-
-      let value: string
+  await Promise.all(
+    coinTypes.map(async (coin) => {
+      const coinTypeNumber = Number.parseInt(String(coin), 10)
+      if (Number.isNaN(coinTypeNumber)) return
 
       try {
-        const coder = getCoderByCoinType(coinTypeNumber)
-        const bytes = hexToBytes(raw as `0x${string}`)
-        value = coder.encode(bytes)
-      } catch {
-        value = raw as string
+        const raw = await readContract(client, {
+          address: resolverAddress,
+          abi: DEDICATED_RESOLVER_ABI,
+          functionName: 'addr',
+          args: [node, BigInt(coinTypeNumber)],
+        })
+
+        if (raw === '0x' || raw === null) return
+
+        let value: string
+
+        try {
+          const coder = getCoderByCoinType(coinTypeNumber)
+          const bytes = hexToBytes(raw as `0x${string}`)
+          value = coder.encode(bytes)
+        } catch {
+          value = raw as string
+        }
+
+        const symbolEntry = COIN_TYPE_NAME_MAP[String(coinTypeNumber)]
+
+        result.coins.push({
+          coinType: coinTypeNumber,
+          value,
+          ...(symbolEntry ? { symbol: symbolEntry[0] } : {}),
+        })
+      } catch (error) {
+        console.warn('Failed to fetch address record', {
+          name,
+          coinType: coin,
+          error,
+        })
       }
-
-      const symbolEntry = COIN_TYPE_NAME_MAP[String(coinTypeNumber)]
-
-      result.coins.push({
-        coinType: coinTypeNumber,
-        value,
-        ...(symbolEntry ? { symbol: symbolEntry[0] } : {}),
-      })
-    } catch (error) {
-      console.warn('Failed to fetch address record', {
-        name,
-        coinType: coin,
-        error,
-      })
-    }
-  }
+    }),
+  )
 
   return ok(result)
 })
