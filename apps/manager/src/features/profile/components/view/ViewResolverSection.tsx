@@ -1,16 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
 import { CopyableButton } from '@/components/atoms/CopyableButton'
-import { profileResolverQuery } from '../../service/profileResolver'
 
 interface ViewResolverSectionProps {
-  name: string
+  resolver?: string | null
 }
 
-export const ViewResolverSection = ({ name }: ViewResolverSectionProps) => {
-  const { data: resolver } = useQuery({
-    ...profileResolverQuery(name),
-  })
-
+export const ViewResolverSection = ({ resolver }: ViewResolverSectionProps) => {
   return (
     <div className="space-y-2">
       <div className="font-medium">Public Resolver</div>
