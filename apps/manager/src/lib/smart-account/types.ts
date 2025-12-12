@@ -2,7 +2,7 @@ import type { Signer } from '@ens-apps/transaction-manager'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { UseMutationResult } from '@tanstack/react-query'
 import type { SmartAccountClient } from 'permissionless'
-import type { Address } from 'viem'
+import type { Account, Address } from 'viem'
 import type { PimlicoConfig } from './pimlico'
 import type { RhinestoneConfig } from './rhinestone'
 
@@ -68,6 +68,8 @@ export interface PimlicoAccountState extends BaseAccountState {
   type: 'pimlico'
   client: SmartAccountClient | null
   config: PimlicoConfig | null
+  eoaAccount: RhinestoneAccount | null
+  eoaAccountSigner: Account | null
 }
 
 /**
@@ -77,6 +79,8 @@ export interface RhinestoneAccountState extends BaseAccountState {
   type: 'rhinestone'
   client: RhinestoneAccount | null
   config: RhinestoneConfig | null
+  eoaAccount: RhinestoneAccount | null
+  eoaAccountSigner: Account | null
 }
 
 /**

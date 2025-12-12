@@ -116,7 +116,11 @@ export function Registration({ initialName }: RegistrationProps) {
   } = useCheckAvailability({ initialName, autoSearch: true })
 
   const isAccountReady = Boolean(
-    accountAddress && account.client && account.config,
+    accountAddress &&
+      account.client &&
+      account.config &&
+      account.eoaAccount &&
+      account.eoaAccountSigner,
   )
 
   const step = useSelector(actor, (state) => {

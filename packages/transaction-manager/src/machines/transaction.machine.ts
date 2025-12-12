@@ -1,6 +1,6 @@
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
-import type { Hash, PublicClient, TransactionReceipt } from 'viem'
+import type { Account, Hash, PublicClient, TransactionReceipt } from 'viem'
 import { assign, fromPromise as fromPromiseXState, setup } from 'xstate'
 import { submitEOATransaction } from '../actors/eoa-transport.actor'
 import { submitPimlicoTransaction } from '../actors/plimlico-transport.actor'
@@ -44,6 +44,7 @@ export const transactionMachine = setup({
       options: TransactionOptions
       chainId?: number
       useSmartAccount: boolean
+      eoaAccountSigner: Account
       estimatedCost?: bigint
       hash?: Hash
       userOpHash?: Hash
@@ -61,6 +62,7 @@ export const transactionMachine = setup({
       options?: TransactionOptions
       chainId?: number
       useSmartAccount?: boolean
+      eoaAccountSigner: Account
     },
     events: {} as
       | {
@@ -125,10 +127,12 @@ export const transactionMachine = setup({
         request,
         signer,
         publicClient,
+        eoaAccountSigner,
       }: {
         request?: TransactionRequest
         signer?: Signer
         publicClient: PublicClient
+        eoaAccountSigner: Account
       }): ResultAsync<Hash, TransactionSubmissionError> => {
         console.log('🔧 [TRANSACTION] submitTransaction actor invoked:', {
           requestType: request?.type,
@@ -163,6 +167,7 @@ export const transactionMachine = setup({
               request,
               signer,
               publicClient,
+              eoaAccountSigner,
             })
 
           case 'pimlico':
@@ -383,6 +388,7 @@ export const transactionMachine = setup({
     return {
       publicClient: input.publicClient!,
       signer: input.signer,
+      eoaAccountSigner: input.eoaAccountSigner,
       intent: input.intent,
       request,
       options: input.options || {},
@@ -537,6 +543,7 @@ export const transactionMachine = setup({
           request: context.request,
           signer: context.signer,
           publicClient: context.publicClient,
+          eoaAccountSigner: context.eoaAccountSigner,
         }),
         onDone: {
           target: 'pending',

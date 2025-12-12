@@ -32,7 +32,8 @@ export const UpdateResolverDialog = ({
   const [resolver, setResolver] = useState(currentResolver ?? '')
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
 
-  const { accountAddress, isConnected, signer } = useSmartAccount()
+  const { accountAddress, isConnected, signer, eoaAccountSigner } =
+    useSmartAccount()
 
   const resolverActor = useActorRef(resolverMachine, {
     input: { chainId: customSepolia.id },
@@ -78,7 +79,7 @@ export const UpdateResolverDialog = ({
       return
     }
 
-    if (!isConnected || !signer || !accountAddress) {
+    if (!isConnected || !signer || !accountAddress || !eoaAccountSigner) {
       setErrorMessage(
         'Connect your wallet and smart account before updating the resolver.',
       )
@@ -92,6 +93,7 @@ export const UpdateResolverDialog = ({
       signer,
       accountAddress: accountAddress as Address,
       publicClient,
+      eoaAccountSigner,
     })
   }
 

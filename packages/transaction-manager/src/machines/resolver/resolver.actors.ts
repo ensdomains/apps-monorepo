@@ -1,5 +1,10 @@
 import { fromPromise, type ResultAsync } from 'neverthrow'
-import { type Address, encodeFunctionData, type PublicClient } from 'viem'
+import {
+  type Account,
+  type Address,
+  encodeFunctionData,
+  type PublicClient,
+} from 'viem'
 import { sepolia } from 'viem/chains'
 import { ETH_REGISTRY_ABI } from '../../contracts/abis/ETHRegistry.abi'
 import { ENS_SEPOLIA_CONTRACTS } from '../../contracts/ens-sepolia'
@@ -11,6 +16,7 @@ export function submitResolverUpdateActor(input: {
   newResolver: Address
   signer: import('../..').Signer
   publicClient: PublicClient
+  eoaAccountSigner: Account
 }): ResultAsync<string, Error> {
   return fromPromise(
     (async () => {
@@ -56,6 +62,7 @@ export function submitResolverUpdateActor(input: {
           description: `Update resolver for ${input.name}.eth`,
           publicClient: input.publicClient,
         },
+        input.eoaAccountSigner,
       )
 
       return txId

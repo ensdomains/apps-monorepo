@@ -84,5 +84,6 @@ export function handleStartRegistration(
     publicClient,
     useFastRegistrar,
     sponsored: enableSponsorship,
+    eoaAccountSigner: account.eoaAccountSigner!,
   })
 }

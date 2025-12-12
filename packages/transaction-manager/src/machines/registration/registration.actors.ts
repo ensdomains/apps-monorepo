@@ -5,7 +5,14 @@
  */
 
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
-import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
+import type {
+  Account,
+  Address,
+  Hash,
+  Hex,
+  PublicClient,
+  TransactionReceipt,
+} from 'viem'
 import {
   decodeEventLog,
   encodeFunctionData,
@@ -334,6 +341,7 @@ export function submitResolverDeploymentActor(input: {
   signer: import('../..').Signer
   publicClient: PublicClient
   sponsored?: boolean
+  eoaAccountSigner: Account
 }): ResultAsync<{ txId: string; salt: bigint }, Error> {
   return ResultAsync.fromSafePromise(
     Promise.resolve().then(() => {
@@ -374,6 +382,7 @@ export function submitResolverDeploymentActor(input: {
           description: `Deploy dedicated resolver for ${input.name}.eth`,
           publicClient: input.publicClient,
         },
+        input.eoaAccountSigner,
       )
 
       return { txId, salt }
@@ -441,6 +450,7 @@ export function submitCommitmentActor(input: {
   publicClient: PublicClient
   useFastRegistrar: boolean
   sponsored?: boolean
+  eoaAccountSigner: Account
 }): ResultAsync<string, Error> {
   const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
 
@@ -492,6 +502,7 @@ export function submitCommitmentActor(input: {
           description: `Commit to register ${input.name}.eth`,
           publicClient: input.publicClient,
         },
+        input.eoaAccountSigner,
       )
 
       return txId
@@ -630,6 +641,7 @@ export function submitApprovalActor(input: {
   publicClient: PublicClient
   useFastRegistrar: boolean
   sponsored?: boolean
+  eoaAccountSigner: Account
 }): ResultAsync<string, Error> {
   const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
 
@@ -676,6 +688,7 @@ export function submitApprovalActor(input: {
           description: `Approve ${input.selectedToken} for registration`,
           publicClient: input.publicClient,
         },
+        input.eoaAccountSigner,
       )
 
       return txId
@@ -698,6 +711,7 @@ export function submitRegistrationActor(input: {
   useFastRegistrar: boolean
   sponsored?: boolean
   resolverAddress: Address
+  eoaAccountSigner: Account
 }): ResultAsync<string, Error> {
   const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
 
@@ -767,6 +781,7 @@ export function submitRegistrationActor(input: {
           description: `Register ${input.name}.eth`,
           publicClient: input.publicClient,
         },
+        input.eoaAccountSigner,
       )
 
       return txId

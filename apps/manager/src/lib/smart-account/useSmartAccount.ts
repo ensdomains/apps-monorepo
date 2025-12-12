@@ -6,10 +6,11 @@ import {
   useClient as useParaClient,
   useWallet as useParaWallet,
 } from '@getpara/react-sdk-lite'
+import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { type Address, formatUnits } from 'viem'
+import { type Account, type Address, formatUnits } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
 import { customSepolia, publicClient } from '@/lib/wagmi'
@@ -90,6 +91,8 @@ export function useSmartAccount(
   >(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [eoaAccount, setEoaAccount] = useState<RhinestoneAccount | null>(null)
+  const [eoaAccountSigner, setEoaAccountSigner] = useState<Account | null>(null)
 
   const initializedRef = useRef<string | null>(null)
 
@@ -245,7 +248,9 @@ export function useSmartAccount(
         setAccountConfig(result.config)
       } else if (providerType === 'rhinestone') {
         if (!wagmiWalletClient) {
-          throw new Error('Rhinestone requires an external wallet connection')
+          // Return early if wallet client is not yet available
+          setIsLoading(false)
+          return
         }
         const result = await initializeRhinestoneAccount({
           walletClient: wagmiWalletClient,
@@ -253,6 +258,8 @@ export function useSmartAccount(
         setClient(result.client)
         setAccountAddress(result.address)
         setAccountConfig(result.config)
+        setEoaAccount(result.eoaAccount)
+        setEoaAccountSigner(result.eoaAccountSigner)
       }
 
       initializedRef.current = key
@@ -321,6 +328,7 @@ export function useSmartAccount(
           accountAddress,
           rhinestoneApiKey,
         },
+        eoaAccountSigner: eoaAccountSigner ?? undefined,
       }
     }
 
@@ -366,6 +374,8 @@ export function useSmartAccount(
       type: 'rhinestone' as const,
       client: client as RhinestoneAccountState['client'],
       config: accountConfig as RhinestoneConfig | null,
+      eoaAccount,
+      eoaAccountSigner,
     }
   }
 
@@ -374,5 +384,7 @@ export function useSmartAccount(
     type: 'pimlico' as const,
     client: client as PimlicoAccountState['client'],
     config: accountConfig as PimlicoConfig | null,
+    eoaAccount: null,
+    eoaAccountSigner: null,
   }
 }

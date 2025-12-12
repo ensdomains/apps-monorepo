@@ -1,5 +1,5 @@
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
-import type { Hash, Hex, PublicClient } from 'viem'
+import type { Account, Hash, PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import { TransactionSubmissionError } from '../errors/transaction.errors'
 import type { RhinestoneSigner } from '../types/signer.types'
@@ -21,9 +21,17 @@ export function submitRhinestoneTransaction(input: {
   request: TransactionRequest
   signer: RhinestoneSigner
   publicClient: PublicClient
+  eoaAccountSigner: Account
 }): ResultAsync<Hash, TransactionSubmissionError> {
-  const { request, signer } = input
-  const { account, config } = signer
+  const { request, signer, eoaAccountSigner: eoaAccountSignerFromInput } = input
+  const {
+    account,
+    config,
+    eoaAccountSigner: eoaAccountSignerFromSigner,
+  } = signer
+  // Prefer eoaAccountSigner from signer config, fallback to input parameter
+  const eoaAccountSigner =
+    eoaAccountSignerFromSigner ?? eoaAccountSignerFromInput
   const rhinestoneRequest = request as RhinestoneTransactionRequest
 
   console.log(
@@ -76,12 +84,26 @@ export function submitRhinestoneTransaction(input: {
           data: call.data,
           value: call.value.toString(),
         })),
+        hasEoaAccountSigner: !!eoaAccountSigner,
+        eoaAccountSignerAddress: eoaAccountSigner?.address,
       })
+
+      // Pass signers with the EOA account signer
+      if (!eoaAccountSigner) {
+        throw new Error(
+          'eoaAccountSigner is required for Rhinestone transactions with multi-owner accounts',
+        )
+      }
 
       const transaction = await account.sendTransaction({
         chain: chain,
         calls: rhinestoneRequest.rhinestoneParams.calls,
         sponsored: rhinestoneRequest.rhinestoneParams.sponsored ?? true,
+        signers: {
+          type: 'owner',
+          kind: 'ecdsa',
+          accounts: [eoaAccountSigner],
+        },
       })
       const receipt = await account.waitForExecution(transaction, false)
 

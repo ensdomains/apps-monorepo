@@ -1,5 +1,6 @@
 import { ResultAsync } from 'neverthrow'
 import {
+  type Account,
   type Address,
   encodeFunctionData,
   type Hex,
@@ -89,6 +90,7 @@ export const submitProfileRecordsUpdateActor = (input: {
   chainId: number
   accountAddress: Address
   resolverAddress?: Address
+  eoaAccountSigner: Account
 }): ResultAsync<string, Error> =>
   ResultAsync.fromSafePromise(
     Promise.resolve().then(() => {
@@ -152,6 +154,7 @@ export const submitProfileRecordsUpdateActor = (input: {
           publicClient: input.publicClient,
           chainId: input.chainId,
         },
+        input.eoaAccountSigner,
       )
 
       return txId

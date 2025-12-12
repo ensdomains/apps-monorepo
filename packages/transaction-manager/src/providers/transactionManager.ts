@@ -1,4 +1,4 @@
-import type { PublicClient } from 'viem'
+import type { Account, PublicClient } from 'viem'
 import { type ActorRefFrom, createActor } from 'xstate'
 import {
   type PersistedTransaction,
@@ -97,6 +97,7 @@ class TransactionManager {
       chainId?: number
       useSmartAccount?: boolean
     },
+    eoaAccountSigner: Account,
   ): string {
     const {
       publicClient: optionsPublicClient,
@@ -173,6 +174,7 @@ class TransactionManager {
         options: transactionOptions,
         chainId,
         useSmartAccount,
+        eoaAccountSigner,
       },
     })
 

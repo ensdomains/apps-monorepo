@@ -47,6 +47,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     accountAddress,
     isConnected: isSmartAccountConnected,
     signer,
+    eoaAccountSigner,
   } = useSmartAccount()
 
   const { data: wagmiWalletClient } = useWalletClient()
@@ -108,11 +109,12 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       eoaAddress && eoaAddress.toLowerCase() === owner && wagmiWalletClient
 
     const signerChoice = smartValid
-      ? { signer, account: smartAccountAddress }
+      ? { signer, account: smartAccountAddress, eoaAccountSigner }
       : eoaValid
         ? {
             signer: { type: 'eoa', walletClient: wagmiWalletClient },
             account: eoaAddress,
+            eoaAccountSigner: wagmiWalletClient.account,
           }
         : null
 
@@ -120,6 +122,11 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       console.warn(
         'Cannot save profile - Connected account does not match the ENS owner.',
       )
+      return
+    }
+
+    if (!signerChoice.eoaAccountSigner) {
+      console.warn('Cannot save profile - EOA account signer is not available.')
       return
     }
 
@@ -135,6 +142,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       resolverAddress: resolver,
       accountAddress: signerChoice.account,
       publicClient: publicClient as PublicClient,
+      eoaAccountSigner: signerChoice.eoaAccountSigner,
     })
   }
 

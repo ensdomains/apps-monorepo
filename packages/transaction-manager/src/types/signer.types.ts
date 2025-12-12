@@ -1,6 +1,6 @@
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { SmartAccountClient } from 'permissionless'
-import type { WalletClient } from 'viem'
+import type { Account, WalletClient } from 'viem'
 import type { SmartAccountConfig } from './transaction.types'
 
 /**
@@ -26,6 +26,7 @@ export interface RhinestoneSigner {
   type: 'rhinestone'
   account: RhinestoneAccount // RhinestoneAccount from @rhinestone/sdk
   config: SmartAccountConfig
+  eoaAccountSigner?: Account
 }
 
 /**

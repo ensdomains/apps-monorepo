@@ -1,5 +1,5 @@
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
-import type { Address, PublicClient } from 'viem'
+import type { Account, Address, PublicClient } from 'viem'
 import { assign, setup } from 'xstate'
 import { pollTransactionStatus } from '../../helpers/pollTransactionStatus.actor'
 import * as auditTrail from '../../services/audit-trail.service'
@@ -19,6 +19,7 @@ export type RecordsContext = {
   updateTxId?: string
   txHash?: string
   error?: Error
+  eoaAccountSigner?: Account
 }
 
 export type RecordsEvent =
@@ -31,6 +32,7 @@ export type RecordsEvent =
       accountAddress: Address
       publicClient: PublicClient
       resolverAddress?: Address
+      eoaAccountSigner: Account
     }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
@@ -48,6 +50,7 @@ const startUpdateAssignment = {
   publicClient: ({ event }: any) => event.publicClient,
   resolverAddress: ({ event, context }: any) =>
     event.resolverAddress ?? context.resolverAddress,
+  eoaAccountSigner: ({ event }: any) => event.eoaAccountSigner,
 }
 
 export const recordsMachine = setup({
@@ -68,6 +71,7 @@ export const recordsMachine = setup({
         chainId: number
         accountAddress: Address
         resolverAddress?: Address
+        eoaAccountSigner: Account
       }) => submitProfileRecordsUpdateActor(input),
     ),
     pollTransactionStatus: fromResultAsync((input: { txId: string }) =>
@@ -165,6 +169,7 @@ export const recordsMachine = setup({
           chainId: context.chainId,
           accountAddress: context.accountAddress!,
           resolverAddress: context.resolverAddress,
+          eoaAccountSigner: context.eoaAccountSigner!,
         }),
         onDone: {
           target: 'waitingForUpdate',

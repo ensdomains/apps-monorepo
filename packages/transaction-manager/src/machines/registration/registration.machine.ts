@@ -1,5 +1,5 @@
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
-import type { Address, Hash, Hex, PublicClient } from 'viem'
+import type { Account, Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
 import * as auditTrail from '../../services/audit-trail.service'
 import type { Signer } from '../../types/signer.types'
@@ -42,6 +42,7 @@ const COMMITMENT_WAIT_DURATION_MS = 60_000
 export type RegistrationContext = {
   // Account & client
   signer?: Signer
+  eoaAccountSigner?: Account
   accountAddress?: Address
   publicClient?: PublicClient
   chainId: number
@@ -76,6 +77,7 @@ export type RegistrationEvent =
       token: 'USDC' | 'DAI'
       price: bigint
       signer: Signer
+      eoaAccountSigner: Account
       accountAddress: Address
       publicClient: PublicClient
       useFastRegistrar?: boolean
@@ -103,6 +105,7 @@ export const registrationMachine = setup({
         signer: Signer
         publicClient: PublicClient
         sponsored?: boolean
+        eoaAccountSigner: Account
       }) => {
         return submitResolverDeploymentActor(input)
       },
@@ -148,6 +151,7 @@ export const registrationMachine = setup({
         publicClient: PublicClient
         useFastRegistrar: boolean
         sponsored?: boolean
+        eoaAccountSigner: Account
       }) => {
         return submitCommitmentActor(input)
       },
@@ -160,6 +164,7 @@ export const registrationMachine = setup({
         publicClient: PublicClient
         useFastRegistrar: boolean
         sponsored?: boolean
+        eoaAccountSigner: Account
       }) => {
         return submitApprovalActor(input)
       },
@@ -176,6 +181,7 @@ export const registrationMachine = setup({
         useFastRegistrar: boolean
         sponsored?: boolean
         resolverAddress: Address
+        eoaAccountSigner: Account
       }) => {
         return submitRegistrationActor(input)
       },
@@ -282,6 +288,7 @@ export const registrationMachine = setup({
             selectedToken: ({ event }) => event.token,
             tokenPrice: ({ event }) => event.price,
             signer: ({ event }) => event.signer,
+            eoaAccountSigner: ({ event }) => event.eoaAccountSigner,
             accountAddress: ({ event }) => event.accountAddress,
             publicClient: ({ event }) => event.publicClient,
             registerReadyTimestamp: () => undefined,
@@ -323,6 +330,7 @@ export const registrationMachine = setup({
           signer: context.signer!,
           publicClient: context.publicClient!,
           sponsored: context.sponsored,
+          eoaAccountSigner: context.eoaAccountSigner!,
         }),
         onDone: {
           target: 'waitingForResolverDeployment',
@@ -441,6 +449,7 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,
+          eoaAccountSigner: context.eoaAccountSigner!,
         }),
         onDone: {
           target: 'waitingForCommitment',
@@ -575,6 +584,7 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,
+          eoaAccountSigner: context.eoaAccountSigner!,
         }),
         onDone: {
           target: 'waitingForApproval',
@@ -643,6 +653,7 @@ export const registrationMachine = setup({
           useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,
           resolverAddress: context.resolverAddress!,
+          eoaAccountSigner: context.eoaAccountSigner!,
         }),
         onDone: {
           target: 'waitingForRegistration',
