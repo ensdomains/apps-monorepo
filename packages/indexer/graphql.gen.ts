@@ -100,6 +100,7 @@ export type EacRoleAssignment = {
 export type Event = {
   __typename?: 'Event';
   blockNumber: Scalars['Int']['output'];
+  chain: Scalars['String']['output'];
   contractAddress: Scalars['String']['output'];
   domain?: Maybe<Domain>;
   id: Scalars['String']['output'];
@@ -126,7 +127,7 @@ export type EventEdge = {
 export type EventFilter = {
   blockNumber_gt?: InputMaybe<Scalars['Int']['input']>;
   blockNumber_lt?: InputMaybe<Scalars['Int']['input']>;
-  contractAddress: Scalars['String']['input'];
+  contractAddress?: InputMaybe<Scalars['String']['input']>;
   domain?: InputMaybe<Scalars['String']['input']>;
   namehash?: InputMaybe<Scalars['String']['input']>;
   timestamp_gt?: InputMaybe<Scalars['Int']['input']>;
@@ -260,6 +261,7 @@ export type QueryRolesArgs = {
 
 export type Registration = {
   __typename?: 'Registration';
+  chain: Scalars['String']['output'];
   domain: Domain;
   expiryDate: Scalars['Int']['output'];
   id: Scalars['String']['output'];
@@ -282,6 +284,7 @@ export type RegistrationEdge = {
 };
 
 export type RegistrationFilter = {
+  chain?: InputMaybe<Scalars['String']['input']>;
   expiryDate_gt?: InputMaybe<Scalars['Int']['input']>;
   expiryDate_gte?: InputMaybe<Scalars['Int']['input']>;
   expiryDate_lt?: InputMaybe<Scalars['Int']['input']>;
@@ -367,6 +370,16 @@ export type DomainFragment = { __typename?: 'Domain', id: string, name?: string 
 
 export type ResolverFragment = { __typename?: 'Resolver', id: string, address: string, avatar?: string | null, description?: string | null, header?: string | null, url?: string | null, email?: string | null, location?: string | null, phone?: string | null, mail?: string | null, timezone?: string | null, twitter?: string | null, telegram?: string | null, farcaster?: string | null, instagram?: string | null, discord?: string | null, github?: string | null, linkedin?: string | null, youtube?: string | null, reddit?: string | null, tiktok?: string | null, twitch?: string | null, mastodon?: string | null };
 
+export type DomainQueryVariables = Exact<{
+  id: Scalars['String']['input'];
+}>;
+
+
+export type DomainQuery = { __typename?: 'Query', domain?: (
+    { __typename?: 'Domain' }
+    & DomainFragment
+  ) | null };
+
 export type DomainsQueryVariables = Exact<{
   where: DomainFilter;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -430,6 +443,13 @@ export const Domain = gql`
 }
     ${Resolver}
 ${Account}`;
+export const DomainDocument = gql`
+    query Domain($id: String!) {
+  domain(id: $id) {
+    ...Domain
+  }
+}
+    ${Domain}`;
 export const DomainsDocument = gql`
     query Domains($where: DomainFilter!, $first: Int, $skip: Int, $orderBy: Domain_orderBy, $orderDirection: OrderDirection) {
   domains(
