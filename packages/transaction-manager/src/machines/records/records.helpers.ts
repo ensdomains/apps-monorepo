@@ -143,17 +143,44 @@ const buildCoinCalls = (options: {
     coinType: number,
     encoded: Hex,
   ) => readonly [bigint, `0x${string}`]
-}): Hex[] =>
-  options.coins.map(({ coin, value }) => {
-    const coder = getCoderFromCoin(coin)
-    const encoded = encodeCoinValue(coder, value)
+}): Hex[] => {
+  const calls: Hex[] = []
+  const errors: string[] = []
 
-    return encodeFunctionData({
-      abi: options.abi,
-      functionName: 'setAddr',
-      args: options.buildArgs(coder.coinType, encoded),
-    })
-  })
+  for (const { coin, value } of options.coins) {
+    const coder = getCoderFromCoin(coin)
+
+    try {
+      const encoded = encodeCoinValue(coder, value)
+
+      calls.push(
+        encodeFunctionData({
+          abi: options.abi,
+          functionName: 'setAddr',
+          args: options.buildArgs(coder.coinType, encoded),
+        }),
+      )
+    } catch (error) {
+      if (error instanceof Error) {
+        errors.push(error.message)
+      } else {
+        errors.push('Invalid coin address')
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    const uniqueMessages = Array.from(new Set(errors))
+
+    if (uniqueMessages.length === 1) {
+      throw new Error(uniqueMessages[0]!)
+    }
+
+    throw new Error(uniqueMessages.join(', '))
+  }
+
+  return calls
+}
 
 export const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => [
   ...buildTextCalls({
