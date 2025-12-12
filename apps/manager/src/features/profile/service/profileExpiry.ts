@@ -23,12 +23,7 @@ export const getExpiry = ResultFn(async function* (name: string) {
       args: [cleanName],
     }),
     (e) => new GetExpiryError({ cause: e }),
-  )) as unknown as [
-    bigint,
-    {
-      expiry: bigint
-    },
-  ]
+  )) as unknown as [bigint, { expiry: bigint }]
 
   if (!entry || entry.expiry === 0n) {
     return ok({ expiry: undefined as unknown as bigint })
