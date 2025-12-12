@@ -61,6 +61,14 @@ function RouteComponent() {
   const label = name.split('.')[0]
 
   // Check if connected user has ROLE_SET_SUBREGISTRY permission on the parent registry
+  // Note: We check this even if the name doesn't have a registry yet, because
+  // the user needs this role to deploy a new registry
+  const roleQueryEnabled =
+    !!connectedAddress &&
+    !!parentRegistry &&
+    parentRegistry !== zeroAddress &&
+    !isV1Name // Only V1 names can't have registries
+
   const { data: hasSetSubregistryRole } = useQuery({
     ...getHasRolesQueryOptions({
       registryAddress: parentRegistry ?? zeroAddress,
@@ -68,12 +76,7 @@ function RouteComponent() {
       roles: ['ROLE_SET_SUBREGISTRY'],
       account: connectedAddress ?? zeroAddress,
     }),
-    enabled:
-      !!connectedAddress &&
-      !!parentRegistry &&
-      parentRegistry !== zeroAddress &&
-      hasNameRegistry &&
-      !isV1Name,
+    enabled: roleQueryEnabled,
   })
 
   // Fetch parent owner separately
@@ -145,7 +148,21 @@ function RouteComponent() {
   if (!hasNameRegistry) {
     return (
       <div className="max-w-360 mx-auto w-full flex flex-col p-6 gap-6">
-        <h1 className="text-[28px] font-medium leading-none">Registry</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-[28px] font-medium leading-none">Registry</h1>
+          {hasSetSubregistryRole && (
+            <Button
+              variant="outline"
+              className="flex items-center gap-2"
+              asChild
+            >
+              <Link to="/$name/deploy-registry" params={{ name }}>
+                <EditIcon className="size-4" />
+                Deploy registry
+              </Link>
+            </Button>
+          )}
+        </div>
 
         {isLoadingOwner || isLoadingRegistry ? (
           <LoadingSpinner title="Loading registry data..." />
