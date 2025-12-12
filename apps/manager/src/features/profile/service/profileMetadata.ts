@@ -9,6 +9,7 @@ import type { GetNameHistoryErrorType } from '@ensdomains/ensjs/subgraph'
 import { getNameHistory as ensjs_getNameHistory } from '@ensdomains/ensjs/subgraph'
 import { skipToken } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
+import { getBlock } from 'viem/actions'
 import { parseAvatarRecord } from 'viem/ens'
 import { publicClient } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -77,7 +78,7 @@ export const getProfileMetadata = ResultFn(async function* (name: string) {
     if (registrationEvent?.blockNumber) {
       // Get block timestamp using publicClient
       const block = yield* await fromPromise(
-        publicClient.getBlock({
+        getBlock(publicClient, {
           blockNumber: BigInt(registrationEvent.blockNumber),
         }),
         (e) =>

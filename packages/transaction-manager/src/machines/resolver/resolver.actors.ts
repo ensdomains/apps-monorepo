@@ -1,5 +1,6 @@
 import { fromPromise, type ResultAsync } from 'neverthrow'
 import { type Address, encodeFunctionData, type PublicClient } from 'viem'
+import { readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import { ETH_REGISTRY_ABI } from '../../contracts/abis/ETHRegistry.abi'
 import { ENS_SEPOLIA_CONTRACTS } from '../../contracts/ens-sepolia'
@@ -17,7 +18,7 @@ export function submitResolverUpdateActor(input: {
       const smartAccountAddress = getSmartAccountAddress(input.signer)
       const cleanName = input.name.replace('.eth', '')
 
-      const [tokenId] = (await input.publicClient.readContract({
+      const [tokenId] = (await readContract(input.publicClient, {
         address: ENS_SEPOLIA_CONTRACTS.ETHRegistry,
         abi: ETH_REGISTRY_ABI,
         functionName: 'getNameData',
