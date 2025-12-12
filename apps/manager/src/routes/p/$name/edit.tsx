@@ -6,7 +6,7 @@ import { Suspense } from 'react'
 import { LinkButton } from '@/components/ui/button'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { ProfileEdit } from '@/features/profile/components/ProfileEdit'
-import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
+import { profileQuery } from '@/features/profile/service/profile'
 import { useSmartAccount } from '@/lib/smart-account'
 
 export const Route = createFileRoute('/p/$name/edit')({
@@ -29,8 +29,8 @@ function ProfileEditRouteError({ error }: ErrorComponentProps) {
 function RouteComponent() {
   const { name } = Route.useParams()
   const { data: wallet, isLoading: isWalletLoading } = useWallet()
-  const { data: ownerData, isLoading: isOwnerLoading } = useQuery({
-    ...profileOwnerQuery(name),
+  const { data: profile, isLoading: isProfileLoading } = useQuery({
+    ...profileQuery(name),
   })
 
   const {
@@ -38,7 +38,7 @@ function RouteComponent() {
     isLoading: isSmartAccountLoading,
   } = useSmartAccount()
 
-  const normalizedOwner = ownerData?.owner?.toLowerCase()
+  const normalizedOwner = profile?.ownerAddress?.toLowerCase()
   const connectedAddresses = [wallet?.address, smartAccountAddress]
     .filter((addr): addr is string => Boolean(addr))
     .map((addr) => addr.toLowerCase())
@@ -48,7 +48,7 @@ function RouteComponent() {
   )
 
   const isCheckingOwnership =
-    isWalletLoading || isOwnerLoading || (!isOwner && isSmartAccountLoading)
+    isWalletLoading || isProfileLoading || (!isOwner && isSmartAccountLoading)
 
   if (isCheckingOwnership) {
     return <ProfileLoading />
