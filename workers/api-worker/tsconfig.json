@@ -12,5 +12,5 @@
     "baseUrl": ".",
     "rootDir": "."
   },
-  "include": ["src/**/*", "worker-configuration.gen.d.ts"]
+  "include": ["src/**/*", "worker-configuration.gen.d.ts", "drizzle.config.ts"]
 }

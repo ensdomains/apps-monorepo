@@ -15,7 +15,11 @@
     {
       "path": "packages",
       "name": "Packages"
-    }
+    },
+    {
+      "path": "workers/api-worker",
+      "name": "API Worker"
+    },
   ],
   "settings": {
     // Required for biome to work in multi-root workspaces
