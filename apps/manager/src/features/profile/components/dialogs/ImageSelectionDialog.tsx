@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { useMachine } from '@xstate/react'
 import clsx from 'clsx'
 import {
@@ -28,7 +28,6 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import {
   type ImageType,
   uploadImageMutationOptions,
@@ -79,15 +78,7 @@ export const ImageSelectionDialog = ({
   const dropZoneRef = useRef<HTMLButtonElement>(null)
 
   const hasImage = currentImage && currentImage.trim() !== ''
-
-  // Resolve the current image if it's an IPFS/NFT URL
-  const resolvedImage = useQuery({
-    ...parseAvatarQuery(currentImage),
-    enabled: !!currentImage && open, // Only resolve when dialog is open
-  })
-
-  // Use resolved image if available, otherwise fall back to original
-  const displayImage = resolvedImage.data || currentImage
+  const displayImage = currentImage
 
   const { address, isConnected } = useAccount()
   const chainId = useChainId()

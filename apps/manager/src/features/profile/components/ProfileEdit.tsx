@@ -1,5 +1,5 @@
 import { recordsMachine, type Signer } from '@ens-apps/transaction-manager'
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { useSuspenseQuery } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
 import type { Address, PublicClient } from 'viem'
 import { useWalletClient } from 'wagmi'
@@ -7,13 +7,10 @@ import { Alert } from '@/components/molecules/Alert'
 import { Button } from '@/components/ui/button'
 import { useSmartAccount } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
-import { profileOwnerQuery } from '../service/profileOwner'
-import { profileRecordsQuery } from '../service/profileRecords'
-import { profileResolverQuery } from '../service/profileResolver'
+import { profileQuery } from '../service/profile'
 import { createDiff } from '../utils/createDiff'
 import {
   defaultProfileRecords,
-  transformProfileRecords,
   transformToServiceFormat,
 } from '../utils/transformRecords'
 import { UpdateResolverDialog } from './dialogs/UpdateResolverDialog'
@@ -30,17 +27,8 @@ interface ProfileEditProps {
 }
 
 export const ProfileEdit = ({ name }: ProfileEditProps) => {
-  const { data: recordsData, refetch: refetchRecords } = useSuspenseQuery({
-    ...profileRecordsQuery(name),
-    select: transformProfileRecords,
-  })
-
-  const { data: ownerData, refetch: refetchOwner } = useQuery({
-    ...profileOwnerQuery(name),
-  })
-
-  const { data: resolver, refetch: refetchResolver } = useQuery({
-    ...profileResolverQuery(name),
+  const { data: profile, refetch: refetchProfile } = useSuspenseQuery({
+    ...profileQuery(name),
   })
 
   const {
@@ -74,13 +62,18 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       }
     })
 
-  const defaultValues = recordsData ?? defaultProfileRecords
+  const defaultValues = profile?.records ?? defaultProfileRecords
 
   const form = useAppForm({
     defaultValues,
   })
 
-  const ownerAddress = ownerData?.owner as Address | undefined
+  const ownerAddress = profile?.ownerAddress as Address | undefined
+  const resolver = profile?.resolverAddress ?? undefined
+  const expiry =
+    typeof profile?.expiryDate === 'number' && profile.expiryDate > 0
+      ? new Date(profile.expiryDate * 1000)
+      : null
   const eoaAddress = wagmiWalletClient?.account?.address as Address | undefined
   const smartAccountAddress = accountAddress as Address | undefined
 
@@ -140,9 +133,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
   const handleReset = () => {
     form.reset()
-    refetchRecords()
-    refetchOwner()
-    refetchResolver()
+    refetchProfile()
   }
 
   return (
@@ -180,7 +171,12 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
           />
         </div>
       )}
-      <HeaderSection form={form} name={name} owner={ownerAddress} />
+      <HeaderSection
+        form={form}
+        name={name}
+        owner={ownerAddress}
+        expiryDate={expiry}
+      />
 
       <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
         <div className="space-y-4 md:col-span-7 lg:col-span-8">
@@ -194,7 +190,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
           <UpdateResolverDialog
             name={name}
             currentResolver={resolver}
-            onUpdated={refetchResolver}
+            onUpdated={refetchProfile}
           />
           <div className="space-y-2 pt-2">
             <form.Subscribe
