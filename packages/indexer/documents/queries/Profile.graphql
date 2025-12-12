@@ -1,0 +1,5 @@
+query Profile($name: String!) {
+  domains(where: { name: $name }, first: 1) {
+    ...Domain
+  }
+}
