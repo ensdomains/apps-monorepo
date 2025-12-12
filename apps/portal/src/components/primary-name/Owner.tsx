@@ -3,7 +3,13 @@ import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 
-export const Owner = ({ owner }: { owner?: Address }) => {
+export const Owner = ({
+  owner,
+  label = 'Owner',
+}: {
+  owner?: Address
+  label?: string
+}) => {
   const {
     data: ownerName,
     error,
@@ -35,7 +41,7 @@ export const Owner = ({ owner }: { owner?: Address }) => {
         name={ownerName || shortenedAddress}
       />
       <div className="flex flex-col">
-        <span className="font-medium">Owner</span>
+        <span className="font-medium">{label}</span>
         <span>{ownerName || shortenedAddress}</span>
       </div>
     </Link>

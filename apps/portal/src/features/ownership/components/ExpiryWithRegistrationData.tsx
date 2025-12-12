@@ -30,7 +30,7 @@ type RegistrationDataProps = RegistrationDateProps
 
 const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
   return (
-    <div className="w-full flex flex-row gap-4 sm:gap-6 p-4 sm:p-6 items-center border border-gray-300 rounded-2xl">
+    <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
       <CalendarIcon className="p-2 size-9 rounded-4xl bg-secondary" />
       <div className="flex flex-col">
         <span className="font-medium">Registered</span>
@@ -65,7 +65,7 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
   return (
     <>
       {expiry.data && (
-        <div className="flex flex-row gap-4 w-full sm:gap-6 p-4 sm:p-6 items-center border border-gray-300 rounded-2xl">
+        <div className="flex flex-row gap-4 w-full lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
           <ClockIcon className="p-2 size-9 rounded-4xl bg-secondary" />
           <div className="flex flex-col">
             <span className="font-medium">Expiry</span>
@@ -77,7 +77,7 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
       )}
       {blockNumber && <RegistrationData blockNumber={blockNumber} />}
       {expiry.data?.gracePeriod && (
-        <div className="flex flex-row gap-4 w-full sm:gap-6 p-4 sm:p-6 items-center border border-gray-300 rounded-2xl">
+        <div className="flex flex-row gap-4 w-full lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
           <CalendarIcon className="p-2 size-9 rounded-4xl bg-secondary" />
           <div className="flex flex-col">
             <span className="font-medium">Grace</span>
@@ -111,14 +111,14 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
 
   return (
     <>
-      <div className="w-full flex flex-row gap-4 sm:gap-6 p-4 sm:p-6 items-center border border-gray-300 rounded-2xl">
-        <CalendarIcon className="p-2 size-9 rounded-4xl bg-secondary" />
+      <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
+        <ClockIcon className="p-2 size-9 rounded-4xl bg-secondary" />
         <div className="flex flex-col">
           <span className="font-medium">Registered</span>
           <Timestamp timestamp={data.registeredAt} />
         </div>
       </div>
-      <div className="w-full flex flex-row gap-4 sm:gap-6 p-4 sm:p-6 items-center border border-gray-300 rounded-2xl">
+      <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
         <CalendarIcon className="p-2 size-9 rounded-4xl bg-secondary" />
         <div className="flex flex-col">
           <span className="font-medium">Expiry</span>
@@ -139,7 +139,7 @@ export const ExpiryWithRegistrationData = ({
   network,
 }: ExpiryWithRegistrationDataProps) => {
   return (
-    <div className="w-full flex flex-col sm:flex-row gap-4 sm:gap-6">
+    <div className="w-full flex flex-col lg:flex-row gap-4 lg:gap-6">
       {network === 'sepolia' ? (
         <V1ExpiryWithRegistrationData name={name} />
       ) : (
