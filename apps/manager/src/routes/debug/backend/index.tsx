@@ -21,9 +21,10 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { wagmiConfig } from '@/lib/wagmi'
 import {
-  backendAuthStore,
   backendClient,
   isBackendAuthed,
+  logoutBackend,
+  setBackendAuth,
 } from '@/utils/backend-client'
 
 export const Route = createFileRoute('/debug/backend/')({
@@ -231,7 +232,7 @@ const loginMutation = async () => {
 
   const token = await response.json().then((data) => data.token)
 
-  backendAuthStore.trigger.signIn({ authKey: token, address: account.address })
+  setBackendAuth(token, account.address)
 }
 
 function RouteComponent() {
@@ -308,11 +309,7 @@ const AuthedComponent = () => {
             Inspect account and favorites via the API
           </div>
         </div>
-        <Button
-          variant="outline"
-          type="button"
-          onClick={() => backendAuthStore.trigger.signOut()}
-        >
+        <Button variant="outline" type="button" onClick={() => logoutBackend()}>
           Logout
         </Button>
       </div>

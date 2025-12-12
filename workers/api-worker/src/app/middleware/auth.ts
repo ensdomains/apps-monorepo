@@ -17,6 +17,7 @@ export const verifyJWT = createMiddleware<
     Variables<{
       user_id: string
       address: string
+      session_id: string
     }>
 >(async (c, next) => {
   const payload = v.safeParse(AuthPayload, c.get('jwtPayload'))
@@ -27,6 +28,7 @@ export const verifyJWT = createMiddleware<
 
   c.set('address', payload.output.address)
   c.set('user_id', payload.output.user_id)
+  c.set('session_id', payload.output.session_id)
 
   await next()
 })

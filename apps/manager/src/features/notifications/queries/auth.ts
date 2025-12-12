@@ -1,7 +1,7 @@
 import { mutationOptions } from '@tanstack/react-query'
 import type { WalletClient } from 'viem'
 import { createSiweMessage } from 'viem/siwe'
-import { backendAuthStore, backendClient } from '@/utils/backend-client'
+import { backendClient, setBackendAuth } from '@/utils/backend-client'
 
 const getNonce = async () => {
   const response = await backendClient.auth.nonce.$post()
@@ -58,9 +58,6 @@ export const signInBackendMutation = mutationOptions({
 
     const token = await response.json().then((data) => data.token)
 
-    backendAuthStore.trigger.signIn({
-      authKey: token,
-      address: account.address,
-    })
+    setBackendAuth(token, account.address)
   },
 })

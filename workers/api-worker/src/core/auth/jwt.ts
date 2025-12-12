@@ -2,13 +2,13 @@ import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { sign, verify } from 'hono/jwt'
 import { err, fromAsyncThrowable, ok } from 'neverthrow'
 import * as v from 'valibot'
-import { error } from '#utils/result.js'
 
-const JWT_EXPIRATION = 60 * 60 * 3 // 3 hours
+const JWT_EXPIRATION = 60 * 15 // 15 minutes
 
 export const AuthPayload = v.object({
   user_id: v.string(),
   address: v.string(),
+  session_id: v.string(),
 })
 
 export type AuthPayload = v.InferOutput<typeof AuthPayload>
@@ -53,7 +53,10 @@ export const signJWT = (
   )
 }
 
-export const verifyJWT = <TSchema extends v.ObjectSchema<any, any>>(
+export const verifyJWT = <
+  // biome-ignore lint/suspicious/noExplicitAny: Schema generic passthrough
+  TSchema extends v.ObjectSchema<any, any>,
+>(
   token: string,
   env: CloudflareBindings,
   schema: TSchema,
