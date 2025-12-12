@@ -8,12 +8,17 @@ import { sharedOptions, withForm } from '@/features/profile/components/form'
 interface HeaderSectionProps {
   name: string
   owner?: Address
+  expiryDate?: Date | null
 }
 
 export const HeaderSection = withForm({
   ...sharedOptions,
-  props: { name: '', owner: undefined } as HeaderSectionProps,
-  render: ({ form, name, owner }) => (
+  props: {
+    name: '',
+    owner: undefined,
+    expiryDate: undefined,
+  } as HeaderSectionProps,
+  render: ({ form, name, owner, expiryDate }) => (
     <div className="overflow-hidden md:rounded-xl">
       {/* Header BG */}
       <div className="relative w-full">
@@ -74,7 +79,7 @@ export const HeaderSection = withForm({
           </div>
         </div>
       </div>
-      <ProfileHeaderInfo name={name} owner={owner} />
+      <ProfileHeaderInfo name={name} owner={owner} expiryDate={expiryDate} />
     </div>
   ),
 })

@@ -1,12 +1,9 @@
 import { useWallet } from '@getpara/react-sdk-lite'
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
-import type { Address } from 'viem'
+import { useSuspenseQuery } from '@tanstack/react-query'
 import { LinkButton } from '@/components/ui/button'
 import { useSmartAccount } from '@/lib/smart-account'
 import { sectionsList } from '../../data/records'
-import { profileOwnerQuery } from '../../service/profileOwner'
-import { profileRecordsQuery } from '../../service/profileRecords'
-import { transformProfileRecords } from '../../utils/transformRecords'
+import { profileQuery } from '../../service/profile'
 import { ViewBioSection } from './ViewBioSection'
 import { ViewCryptoSection } from './ViewCryptoSection'
 import { ViewDynamicSection } from './ViewDynamicSection'
@@ -19,20 +16,21 @@ interface ProfileViewProps {
 }
 
 export const ProfileView = ({ name }: ProfileViewProps) => {
-  const { data: records } = useSuspenseQuery({
-    ...profileRecordsQuery(name),
-    select: transformProfileRecords,
-  })
-
-  const { data: ownerData } = useQuery({
-    ...profileOwnerQuery(name),
+  const { data: profile } = useSuspenseQuery({
+    ...profileQuery(name),
   })
 
   const { data: wallet } = useWallet()
 
   const { accountAddress: smartAccountAddress } = useSmartAccount()
 
-  const normalizedOwner = ownerData?.owner?.toLowerCase()
+  if (!profile) {
+    return null
+  }
+
+  const { records, ownerAddress, expiryDate, resolverAddress } = profile
+
+  const normalizedOwner = ownerAddress?.toLowerCase()
   const connectedAddresses = [wallet?.address, smartAccountAddress]
     .filter((addr): addr is string => Boolean(addr))
     .map((addr) => addr.toLowerCase())
@@ -41,16 +39,18 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     normalizedOwner && connectedAddresses.includes(normalizedOwner),
   )
 
-  if (!records) {
-    return null
-  }
+  const expiry =
+    typeof expiryDate === 'number' && expiryDate > 0
+      ? new Date(expiryDate * 1000)
+      : null
 
   return (
     <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)] md:space-y-4">
       <ViewHeaderSection
         name={name}
         records={records}
-        owner={ownerData?.owner as Address | undefined}
+        owner={ownerAddress ?? undefined}
+        expiryDate={expiry}
       />
       <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
         {/* Left/main column */}
@@ -68,7 +68,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
         {/* Right/side column */}
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
           <ViewCryptoSection records={records} />
-          <ViewResolverSection name={name} />
+          <ViewResolverSection resolver={resolverAddress ?? undefined} />
           <ViewLinksSection records={records} />
 
           {/* Edit Button */}
