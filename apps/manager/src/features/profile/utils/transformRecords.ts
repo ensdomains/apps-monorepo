@@ -76,7 +76,11 @@ export const transformProfileRecords = (
   }
 
   const baseRecords = newEmptyProfileRecords()
-  const withAddresses = { ...baseRecords, addresses: profile.coins }
+  const withAddresses: ProfileRecords = {
+    ...baseRecords,
+    addresses: profile.coins,
+    resolverAddress: profile.resolverAddress,
+  }
 
   return profile.texts.reduce(processTextRecord, withAddresses)
 }

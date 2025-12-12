@@ -9,7 +9,6 @@ import { useSmartAccount } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { profileOwnerQuery } from '../service/profileOwner'
 import { profileRecordsQuery } from '../service/profileRecords'
-import { profileResolverQuery } from '../service/profileResolver'
 import { createDiff } from '../utils/createDiff'
 import {
   defaultProfileRecords,
@@ -37,10 +36,6 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
   const { data: ownerData, refetch: refetchOwner } = useQuery({
     ...profileOwnerQuery(name),
-  })
-
-  const { data: resolver, refetch: refetchResolver } = useQuery({
-    ...profileResolverQuery(name),
   })
 
   const {
@@ -81,6 +76,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   })
 
   const ownerAddress = ownerData?.owner as Address | undefined
+  const resolverAddress = recordsData?.resolverAddress as Address | undefined
   const eoaAddress = wagmiWalletClient?.account?.address as Address | undefined
   const smartAccountAddress = accountAddress as Address | undefined
 
@@ -132,7 +128,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       before,
       after,
       signer: signerChoice.signer as Signer,
-      resolverAddress: resolver,
+      resolverAddress,
       accountAddress: signerChoice.account,
       publicClient: publicClient as PublicClient,
     })
@@ -142,7 +138,6 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     form.reset()
     refetchRecords()
     refetchOwner()
-    refetchResolver()
   }
 
   return (
@@ -193,8 +188,8 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
           <WalletAddressesSection form={form} />
           <UpdateResolverDialog
             name={name}
-            currentResolver={resolver}
-            onUpdated={refetchResolver}
+            currentResolver={resolverAddress}
+            onUpdated={refetchRecords}
           />
           <div className="space-y-2 pt-2">
             <form.Subscribe
