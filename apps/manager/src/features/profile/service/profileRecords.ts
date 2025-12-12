@@ -1,5 +1,5 @@
 import { DEDICATED_RESOLVER_ABI } from '@ens-apps/transaction-manager/contracts/abis/DedicatedResolver.abi'
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
@@ -8,7 +8,7 @@ import {
 } from '@ensdomains/address-encoder'
 import { ok } from 'neverthrow'
 import { type Address, hexToBytes, namehash } from 'viem'
-import { readContract } from 'viem/actions'
+import { multicall } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { alwaysProbeAddressRecords, forceFetchRecords } from '../data/records'
 import { DEBUG_PROFILE } from '../MOCK'
@@ -66,66 +66,81 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
 
   const node = namehash(name)
 
-  await Promise.all(
-    texts.map(async (key) => {
-      try {
-        const value = await readContract(client, {
-          address: resolverAddress,
-          abi: DEDICATED_RESOLVER_ABI,
-          functionName: 'text',
-          args: [node, key],
-        })
+  const textContracts = texts.map((key) => ({
+    address: resolverAddress,
+    abi: DEDICATED_RESOLVER_ABI,
+    functionName: 'text' as const,
+    args: [node, key] as const,
+  }))
 
-        if (typeof value === 'string' && value.trim() !== '') {
-          result.texts.push({ key, value })
-        }
-      } catch (error) {
-        console.warn('Failed to fetch text record', { name, key, error })
-      }
-    }),
-  )
+  const textResults = await multicall(client, {
+    contracts: textContracts,
+    allowFailure: true,
+  })
 
-  await Promise.all(
-    coinTypes.map(async (coin) => {
-      const coinTypeNumber = Number.parseInt(String(coin), 10)
-      if (Number.isNaN(coinTypeNumber)) return
+  textResults.forEach((entry, index) => {
+    const key = texts[index]
 
-      try {
-        const raw = await readContract(client, {
-          address: resolverAddress,
-          abi: DEDICATED_RESOLVER_ABI,
-          functionName: 'addr',
-          args: [node, BigInt(coinTypeNumber)],
-        })
+    if (!key) return
 
-        if (raw === '0x' || raw === null) return
+    if (entry.status !== 'success') {
+      return
+    }
 
-        let value: string
+    const value = entry.result as string
 
-        try {
-          const coder = getCoderByCoinType(coinTypeNumber)
-          const bytes = hexToBytes(raw as `0x${string}`)
-          value = coder.encode(bytes)
-        } catch {
-          value = raw as string
-        }
+    if (typeof value === 'string' && value.trim() !== '') {
+      result.texts.push({ key, value })
+    }
+  })
 
-        const symbolEntry = COIN_TYPE_NAME_MAP[String(coinTypeNumber)]
+  const coinTypeNumbers = coinTypes
+    .map((coin) => Number.parseInt(String(coin), 10))
+    .filter((coinType) => !Number.isNaN(coinType))
 
-        result.coins.push({
-          coinType: coinTypeNumber,
-          value,
-          ...(symbolEntry ? { symbol: symbolEntry[0] } : {}),
-        })
-      } catch (error) {
-        console.warn('Failed to fetch address record', {
-          name,
-          coinType: coin,
-          error,
-        })
-      }
-    }),
-  )
+  const coinContracts = coinTypeNumbers.map((coinTypeNumber) => ({
+    address: resolverAddress,
+    abi: DEDICATED_RESOLVER_ABI,
+    functionName: 'addr' as const,
+    args: [node, BigInt(coinTypeNumber)] as const,
+  }))
+
+  const coinResults = await multicall(client, {
+    contracts: coinContracts,
+    allowFailure: true,
+  })
+
+  coinResults.forEach((entry, index) => {
+    const coinTypeNumber = coinTypeNumbers[index]
+
+    if (coinTypeNumber === undefined) return
+
+    if (entry.status !== 'success') {
+      return
+    }
+
+    const raw = entry.result as `0x${string}` | string | null
+
+    if (!raw || raw === '0x') return
+
+    let value: string
+
+    try {
+      const coder = getCoderByCoinType(coinTypeNumber)
+      const bytes = hexToBytes(raw as `0x${string}`)
+      value = coder.encode(bytes)
+    } catch {
+      value = raw as string
+    }
+
+    const symbolEntry = COIN_TYPE_NAME_MAP[String(coinTypeNumber)]
+
+    result.coins.push({
+      coinType: coinTypeNumber,
+      value,
+      ...(symbolEntry ? { symbol: symbolEntry[0] } : {}),
+    })
+  })
 
   return ok(result)
 })
