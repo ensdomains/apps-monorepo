@@ -7,7 +7,9 @@ import { DidYouKnowSection } from '@/features/dashboard/components/DidYouKnowSec
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
-import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
+import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
+import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useSmartAccount } from '@/lib/smart-account'
 
@@ -23,21 +25,43 @@ export const DashboardPage = () => {
   const { data: reverseName, isPending: isReverseNameLoading } = useQuery({
     ...profileReverseNameQuery(address),
   })
-  const { data: reverseMetadata, isPending: isReverseMetadataLoading } =
-    useQuery({
-      ...profileMetadataQuery(reverseName),
-    })
+  const { data: reverseRecords, isPending: isReverseRecordsLoading } = useQuery(
+    {
+      ...profileRecordsQuery(reverseName ?? ''),
+      enabled: !!reverseName,
+    },
+  )
+  const { data: reverseExpiry, isPending: isReverseExpiryLoading } = useQuery({
+    ...profileExpiryQuery(reverseName ?? ''),
+    enabled: !!reverseName,
+  })
+
+  const avatarRecord = reverseRecords?.texts.find(
+    (text) => text.key === 'avatar',
+  )?.value
+
+  const { data: parsedAvatar, isPending: isAvatarPending } = useQuery({
+    ...parseAvatarQuery(avatarRecord),
+    enabled: !!avatarRecord,
+  })
 
   const normalizedPrimaryName = wallet?.ensName?.toLowerCase()
   const primaryLabel = normalizedPrimaryName ?? null
 
   const defaultName = reverseName ?? wallet?.ensName ?? primaryLabel ?? null
 
-  const registeredDate = reverseMetadata?.registeredDate ?? null
-  const expiryDate = reverseMetadata?.expiryDate ?? null
-  const avatarUrl = reverseMetadata?.avatarUrl ?? wallet?.ensAvatar ?? null
+  const registeredDate = null
+  const expiryDate =
+    reverseExpiry?.expiry != null
+      ? new Date(Number(reverseExpiry.expiry) * 1000)
+      : null
+  const avatarUrl = parsedAvatar ?? wallet?.ensAvatar ?? null
 
-  const isPrimaryLoading = isReverseNameLoading || isReverseMetadataLoading
+  const isPrimaryLoading =
+    isReverseNameLoading ||
+    isReverseRecordsLoading ||
+    isReverseExpiryLoading ||
+    isAvatarPending
 
   const displayName = defaultName ?? formatAddress(accountAddress)
   const hasProfile = Boolean(defaultName)
