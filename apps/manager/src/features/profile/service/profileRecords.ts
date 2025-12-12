@@ -1,4 +1,3 @@
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager'
 import { DEDICATED_RESOLVER_ABI } from '@ens-apps/transaction-manager/contracts/abis/DedicatedResolver.abi'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
@@ -7,27 +6,21 @@ import {
   coinTypeToNameMap,
   getCoderByCoinType,
 } from '@ensdomains/address-encoder'
-import { fromPromise, ok } from 'neverthrow'
-import { type Address, hexToBytes, namehash, zeroAddress } from 'viem'
+import { ok } from 'neverthrow'
+import { type Address, hexToBytes, namehash } from 'viem'
 import { readContract } from 'viem/actions'
-import { ETH_REGISTRY_ABI } from '@/lib/eth-registry.abi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { alwaysProbeAddressRecords, forceFetchRecords } from '../data/records'
 import { DEBUG_PROFILE } from '../MOCK'
 import { getSubgraphRecords } from './getSubgraphRecords'
+import { getResolver } from './profileResolver'
 
 const COIN_TYPE_NAME_MAP = coinTypeToNameMap as Record<
   string,
   readonly [string, string]
 >
 
-class RecordsError extends TaggedError('RecordsError')<{
-  cause: unknown
-}> {}
-
 export const getProfileRecords = ResultFn(async function* (name: string) {
-  const cleanName = name.replace('.eth', '')
-
   if (name === 'debug') {
     return ok({
       ...DEBUG_PROFILE,
@@ -40,19 +33,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
 
   const client = yield* safeGetClient()
   const subgraphRecords = yield* getSubgraphRecords(name)
-
-  const resolverAddress = yield* await fromPromise(
-    readContract(client, {
-      address: ENS_SEPOLIA_CONTRACTS.ETHRegistry,
-      abi: ETH_REGISTRY_ABI,
-      functionName: 'getResolver',
-      args: [cleanName],
-    }),
-    (e) => new RecordsError({ cause: e }),
-  )
-
-  const resolvedResolverAddress =
-    resolverAddress === zeroAddress ? undefined : (resolverAddress as Address)
+  const resolverAddress = (yield* getResolver(name)) as Address | undefined
 
   const texts = [
     ...forceFetchRecords.always,
@@ -75,11 +56,11 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   const result: ProfileRecordsResult = {
     texts: [],
     coins: [],
-    resolverAddress: resolvedResolverAddress,
+    resolverAddress,
     _rawSubgraphRecords: subgraphRecords,
   }
 
-  if (!resolvedResolverAddress) {
+  if (!resolverAddress) {
     return ok(result)
   }
 
@@ -88,7 +69,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   for (const key of texts) {
     try {
       const value = await readContract(client, {
-        address: resolvedResolverAddress,
+        address: resolverAddress,
         abi: DEDICATED_RESOLVER_ABI,
         functionName: 'text',
         args: [node, key],
@@ -108,7 +89,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
 
     try {
       const raw = await readContract(client, {
-        address: resolvedResolverAddress,
+        address: resolverAddress,
         abi: DEDICATED_RESOLVER_ABI,
         functionName: 'addr',
         args: [node, BigInt(coinTypeNumber)],
