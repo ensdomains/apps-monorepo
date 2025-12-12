@@ -59,7 +59,7 @@ export const NavBar = () => {
           </div>
           {/* Full logo with text for desktop */}
           <div className="relative hidden md:flex">
-            <LogoWithTextSVG width={72} />
+            <LogoWithTextSVG width={72} height="auto" />
             <Badge
               variant="secondary"
               className="absolute -top-3 -right-25 text-xs z-10"

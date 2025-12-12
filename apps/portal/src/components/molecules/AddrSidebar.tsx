@@ -52,7 +52,7 @@ export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
           to="/"
           className="flex md:hidden flex-row gap-2 items-center mb-4"
         >
-          <LogoWithTextSVG width={72} />
+          <LogoWithTextSVG width={72} height="auto" />
           <span className="font-bold">Explorer</span>
         </Link>
         <div className="flex flex-row gap-2 items-start">
