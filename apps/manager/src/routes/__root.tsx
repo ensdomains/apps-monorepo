@@ -1,4 +1,11 @@
-import { ParaProvider } from '@getpara/react-sdk-lite'
+import type ParaWeb from '@getpara/react-sdk-lite'
+import {
+  getClient,
+  ParaProvider,
+  useAccount,
+  useClient,
+  useWalletState,
+} from '@getpara/react-sdk-lite'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   createRootRouteWithContext,
@@ -16,6 +23,25 @@ import { ApolloProvider } from '@apollo/client'
 import apolloClient from '@ens-apps/indexer/apollo'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { customSepolia } from '@/lib/wagmi'
+import { backendAuthStore } from '@/utils/backend-client'
+
+const onWalletChange = () => {
+  const client = getClient() as ParaWeb
+
+  const wallet = client.findWallet(undefined, undefined, {
+    type: ['EVM'],
+  })
+
+  if (!wallet) return
+
+  const previousAuthAddress = backendAuthStore.get().context.address
+
+  // If the previous auth address is the same as the current wallet address, do nothing
+  // Or if the previous auth address is not set, do nothing
+  if (!previousAuthAddress || previousAuthAddress === wallet.address) return
+
+  backendAuthStore.trigger.signOut()
+}
 
 const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
   const VITE_PARA_API_KEY = import.meta.env.VITE_PARA_API_KEY
@@ -33,6 +59,14 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
           paraClientConfig={{
             apiKey: VITE_PARA_API_KEY,
             env: 'BETA' as any,
+          }}
+          callbacks={{
+            onLogin: onWalletChange,
+            onLogout() {
+              backendAuthStore.trigger.signOut()
+            },
+            onExternalWalletChange: onWalletChange,
+            onWalletsChange: onWalletChange,
           }}
           config={{
             appName: 'ENS Manager',
