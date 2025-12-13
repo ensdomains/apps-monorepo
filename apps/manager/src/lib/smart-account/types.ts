@@ -1,4 +1,5 @@
 import type { Signer } from '@ens-apps/transaction-manager'
+import type { useClient as useParaClient } from '@getpara/react-sdk-lite'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { UseMutationResult } from '@tanstack/react-query'
 import type { SmartAccountClient } from 'permissionless'
@@ -9,6 +10,11 @@ import type { RhinestoneConfig } from './rhinestone'
 /**
  * Shared types for smart account hooks
  */
+
+/**
+ * Para client type for smart account initialization
+ */
+export type ParaClient = ReturnType<typeof useParaClient>
 
 export type WalletSource = 'para-embedded' | 'external-wallet' | null
 

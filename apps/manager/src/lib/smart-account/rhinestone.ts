@@ -8,7 +8,7 @@
 import { type RhinestoneAccount, RhinestoneSDK } from '@rhinestone/sdk'
 import type { Address, WalletClient } from 'viem'
 import { customSepolia, publicClient } from '@/lib/wagmi'
-import { registerHCAOwnershipSafe } from './hca-registry'
+import { registerHCAOwnership } from './hca-registry'
 import type { SmartAccountType } from './types'
 import { walletClientToAccount, wrapParaAccount } from './utils'
 
@@ -100,13 +100,21 @@ export async function initializeRhinestoneAccount(
         rhinestoneApiKey: apiKey,
       },
     }
-    await registerHCAOwnershipSafe({
+
+    const result = await registerHCAOwnership({
       smartAccountAddress: accountAddress,
       eoaAddress,
       signer,
       publicClient,
-      accountType: 'rhinestone',
     })
+
+    if (result.isErr()) {
+      throw new Error(
+        `HCA registration failed: ${result.error.reason} - ${result.error.details}`,
+      )
+    }
+
+    console.log('✅ HCA registration result:', result.value)
   }
 
   const config: RhinestoneConfig = {

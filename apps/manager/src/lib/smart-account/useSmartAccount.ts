@@ -29,6 +29,7 @@ import type {
 } from './types'
 
 export type {
+  ParaClient,
   PimlicoAccountState,
   RhinestoneAccountState,
   SmartAccountState,
@@ -60,7 +61,6 @@ export { isPimlicoAccount, isRhinestoneAccount } from './types'
  *   // account.client is SmartAccountClient
  * }
  */
-export type ParaClient = ReturnType<typeof useParaClient>
 export function useSmartAccount(
   config?: UseSmartAccountConfig,
 ): SmartAccountState {

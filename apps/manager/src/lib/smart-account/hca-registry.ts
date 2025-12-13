@@ -1,21 +1,63 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import {
   ENS_SEPOLIA_CONTRACTS,
+  pollTransactionStatus,
   type TransactionRequest,
   transactionManager,
 } from '@ens-apps/transaction-manager'
+import { errAsync, fromPromise, okAsync, type ResultAsync } from 'neverthrow'
 import type { Address, Hex, PublicClient } from 'viem'
-import { encodeFunctionData } from 'viem'
+import { encodeFunctionData, zeroAddress } from 'viem'
 import { customSepolia } from '@/lib/wagmi'
 import { HCA_FACTORY_ABI } from '../hca-factory.abi'
-import type { SmartAccountProvider } from './types'
 
-export async function registerHCAOwnership(params: {
+/**
+ * Tagged error for HCA registration failures
+ */
+export class HCARegistrationError extends Error {
+  readonly _tag = 'HCARegistrationError'
+
+  constructor(
+    public readonly reason:
+      | 'different-owner'
+      | 'tx-failed'
+      | 'tx-not-found'
+      | 'read-failed',
+    public readonly details?: unknown,
+  ) {
+    super(`HCA registration failed: ${reason}`)
+    this.name = 'HCARegistrationError'
+  }
+}
+
+/**
+ * Discriminated union result type for HCA registration
+ */
+export type HCARegistrationResult =
+  | { status: 'already-registered' }
+  | { status: 'registered'; hash: string }
+
+/**
+ * Parameters for HCA registration
+ */
+export interface HCARegistrationParams {
   smartAccountAddress: Address
   eoaAddress: Address
   signer: Signer
   publicClient: PublicClient
-}): Promise<`0x${string}`> {
+}
+
+/**
+ * Register HCA ownership mapping via smart account transaction (sponsored)
+ *
+ * This links the smart account address to its EOA owner in the HCA Factory contract.
+ * The transaction is gas-sponsored via the smart account.
+ *
+ * @returns ResultAsync with either success status or HCARegistrationError
+ */
+export function registerHCAOwnership(
+  params: HCARegistrationParams,
+): ResultAsync<HCARegistrationResult, HCARegistrationError> {
   const { smartAccountAddress, eoaAddress, signer, publicClient } = params
 
   console.log('🔐 Registering HCA ownership via smart account (sponsored):', {
@@ -25,151 +67,118 @@ export async function registerHCAOwnership(params: {
     signerType: signer.type,
   })
 
-  const currentOwner = await publicClient.readContract({
-    address: ENS_SEPOLIA_CONTRACTS.HCAFactory,
-    abi: HCA_FACTORY_ABI,
-    functionName: 'getAccountOwner',
-    args: [smartAccountAddress],
-  })
+  // Check current owner on-chain
+  return fromPromise(
+    publicClient.readContract({
+      address: ENS_SEPOLIA_CONTRACTS.HCAFactory,
+      abi: HCA_FACTORY_ABI,
+      functionName: 'getAccountOwner',
+      args: [smartAccountAddress],
+    }),
+    (error) => new HCARegistrationError('read-failed', error),
+  ).andThen((currentOwner) => {
+    // Already registered to same owner - success (no-op)
+    if (currentOwner.toLowerCase() === eoaAddress.toLowerCase()) {
+      console.log('✅ HCA ownership already registered to this EOA')
+      return okAsync({ status: 'already-registered' as const })
+    }
 
-  if (currentOwner.toLowerCase() === eoaAddress.toLowerCase()) {
-    console.log('✅ HCA ownership already registered')
-    return '0x0' as `0x${string}`
-  }
+    // Different owner already registered - error
+    if (currentOwner !== zeroAddress) {
+      console.error('❌ HCA already has a different owner:', currentOwner)
+      return errAsync(
+        new HCARegistrationError('different-owner', { currentOwner }),
+      )
+    }
 
-  if (currentOwner !== '0x0000000000000000000000000000000000000000') {
-    console.warn(
-      '⚠️ HCA already has a different owner registered:',
-      currentOwner,
+    // Build transaction to register ownership
+    const data = encodeFunctionData({
+      abi: HCA_FACTORY_ABI,
+      functionName: 'setAccountOwner',
+      args: [smartAccountAddress, eoaAddress],
+    }) as Hex
+
+    const calls = [
+      {
+        to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
+        data,
+        value: 0n,
+      },
+    ]
+
+    const request: TransactionRequest =
+      signer.type === 'pimlico'
+        ? ({
+            type: 'pimlico',
+            from: smartAccountAddress,
+            to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
+            data,
+            value: 0n,
+            chainId: customSepolia.id,
+            pimlicoParams: {
+              calls,
+              sponsored: true,
+            },
+          } as TransactionRequest)
+        : ({
+            type: 'rhinestone-intent',
+            from: smartAccountAddress,
+            to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
+            data,
+            value: 0n,
+            chainId: customSepolia.id,
+            rhinestoneParams: {
+              calls,
+              sponsored: true,
+            },
+          } as TransactionRequest)
+
+    // Submit transaction
+    const txId = transactionManager.startTransaction(
+      {
+        type: 'custom',
+        request,
+      },
+      signer,
+      {
+        description: 'Register HCA ownership',
+        publicClient,
+      },
     )
-    return '0x0' as `0x${string}`
-  }
 
-  const data = encodeFunctionData({
-    abi: HCA_FACTORY_ABI,
-    functionName: 'setAccountOwner',
-    args: [smartAccountAddress, eoaAddress],
-  }) as Hex
+    console.log('📤 HCA ownership registration tx submitted, txId:', txId)
 
-  const calls = [
-    {
-      to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
-      data,
-      value: 0n,
-    },
-  ]
-
-  const request: TransactionRequest =
-    signer.type === 'pimlico'
-      ? ({
-          type: 'pimlico',
-          from: smartAccountAddress,
-          to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
-          data,
-          value: 0n,
-          chainId: customSepolia.id,
-          pimlicoParams: {
-            calls,
-            sponsored: true,
-          },
-        } as TransactionRequest)
-      : ({
-          type: 'rhinestone-intent',
-          from: smartAccountAddress,
-          to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
-          data,
-          value: 0n,
-          chainId: customSepolia.id,
-          rhinestoneParams: {
-            calls,
-            sponsored: true,
-          },
-        } as TransactionRequest)
-
-  const txId = transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request,
-    },
-    signer,
-    {
-      description: 'Register HCA ownership',
-      publicClient,
-    },
-  )
-
-  console.log(
-    '✅ HCA ownership registration transaction submitted (sponsored), txId:',
-    txId,
-  )
-
-  const txActor = transactionManager.getTransaction(txId)
-  if (txActor) {
-    const subscription = txActor.subscribe((snapshot) => {
-      if (snapshot.value === 'success') {
-        const context = snapshot.context
-        const hash = context?.hash || context?.receipt?.transactionHash
-        if (hash) {
-          console.log('✅ HCA ownership registration transaction hash:', hash)
-        }
-        subscription.unsubscribe()
-      } else if (
-        typeof snapshot.value === 'object' &&
-        snapshot.value !== null &&
-        'error' in snapshot.value
-      ) {
-        const errorContext = snapshot.context
-        console.error(
-          '❌ HCA ownership registration transaction failed:',
-          errorContext?.error,
-        )
-        subscription.unsubscribe()
-      }
-    })
-  }
-
-  return txId as `0x${string}`
+    // Await transaction completion
+    return pollTransactionStatus(txId)
+      .map((hash) => {
+        console.log('✅ HCA ownership registration confirmed, hash:', hash)
+        return { status: 'registered' as const, hash: hash ?? '' }
+      })
+      .mapErr((error) => {
+        console.error('❌ HCA ownership registration failed:', error)
+        return new HCARegistrationError('tx-failed', error)
+      })
+  })
 }
 
-export async function getHCAOwner(params: {
+/**
+ * Get the registered owner of an HCA smart account
+ *
+ * @returns The EOA owner address, or zeroAddress if not registered
+ */
+export function getHCAOwner(params: {
   smartAccountAddress: Address
   publicClient: PublicClient
-}): Promise<Address> {
+}): ResultAsync<Address, HCARegistrationError> {
   const { smartAccountAddress, publicClient } = params
 
-  const owner = await publicClient.readContract({
-    address: ENS_SEPOLIA_CONTRACTS.HCAFactory,
-    abi: HCA_FACTORY_ABI,
-    functionName: 'getAccountOwner',
-    args: [smartAccountAddress],
-  })
-
-  return owner
-}
-
-export async function registerHCAOwnershipSafe(params: {
-  smartAccountAddress: Address
-  eoaAddress: Address
-  signer: Signer
-  publicClient: PublicClient
-  accountType?: SmartAccountProvider
-}): Promise<void> {
-  const { accountType = 'pimlico' } = params
-
-  try {
-    console.log(
-      `🔐 Registering HCA ownership for ${accountType} account (sponsored)...`,
-    )
-    await registerHCAOwnership({
-      smartAccountAddress: params.smartAccountAddress,
-      eoaAddress: params.eoaAddress,
-      signer: params.signer,
-      publicClient: params.publicClient,
-    })
-    console.log(
-      '✅ HCA ownership registration submitted successfully (sponsored)',
-    )
-  } catch (error) {
-    console.error('⚠️ Failed to register HCA ownership:', error)
-  }
+  return fromPromise(
+    publicClient.readContract({
+      address: ENS_SEPOLIA_CONTRACTS.HCAFactory,
+      abi: HCA_FACTORY_ABI,
+      functionName: 'getAccountOwner',
+      args: [smartAccountAddress],
+    }),
+    (error) => new HCARegistrationError('read-failed', error),
+  )
 }

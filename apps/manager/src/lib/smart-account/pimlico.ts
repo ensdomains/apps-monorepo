@@ -17,9 +17,8 @@ import type { Address, WalletClient } from 'viem'
 import { http } from 'viem'
 import { entryPoint07Address } from 'viem/account-abstraction'
 import { customSepolia, publicClient } from '@/lib/wagmi'
-import { registerHCAOwnershipSafe } from './hca-registry'
-import type { SmartAccountType, WalletSource } from './types'
-import type { ParaClient } from './useSmartAccount'
+import { registerHCAOwnership } from './hca-registry'
+import type { ParaClient, SmartAccountType, WalletSource } from './types'
 import { wrapParaAccount } from './utils'
 
 export interface PimlicoConfig {
@@ -116,13 +115,21 @@ export async function initializePimlicoAccount(
           pimlicoApiKey,
         },
       }
-      await registerHCAOwnershipSafe({
+
+      const result = await registerHCAOwnership({
         smartAccountAddress: smartAccount.address,
         eoaAddress,
         signer,
         publicClient,
-        accountType: 'pimlico',
       })
+
+      if (result.isErr()) {
+        throw new Error(
+          `HCA registration failed: ${result.error.reason} - ${result.error.details}`,
+        )
+      }
+
+      console.log('✅ HCA registration result:', result.value)
     }
   }
 
