@@ -14,6 +14,7 @@ import {
   normalizeQuery,
   validateENSName,
 } from '@/features/register/utils'
+import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 
 export type DisplayState =
   | { type: 'idle' }
@@ -77,6 +78,8 @@ export const useCheckAvailability = ({
     enabled: availabilityQuery.data?.isAvailable === true,
   })
 
+  const discountsEnabled = useFeatureFlag('DISCOUNTS_APPLIED')
+
   // Compute pricing options from query data
   const pricing = useMemo((): PricingOptions => {
     const pricingData = pricingQuery.data
@@ -86,8 +89,10 @@ export const useCheckAvailability = ({
     const newPricing = { ...INITIAL_PRICING_OPTIONS }
 
     for (const duration of PRICING_DURATIONS) {
-      const discount = INITIAL_PRICING_OPTIONS[duration].discount
-      const discountMultiplier = 1 - discount / 100
+      const discount = discountsEnabled
+        ? INITIAL_PRICING_OPTIONS[duration].discount
+        : 0
+      const discountMultiplier = discountsEnabled ? 1 - discount / 100 : 1
       const perYearPrice = basePerYear * discountMultiplier
       const totalPrice = perYearPrice * duration
 
@@ -100,7 +105,7 @@ export const useCheckAvailability = ({
     }
 
     return newPricing
-  }, [pricingQuery.data])
+  }, [pricingQuery.data, discountsEnabled])
 
   // Derive display state
   const displayState = useMemo((): DisplayState => {

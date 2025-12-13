@@ -3,7 +3,7 @@ import {
   calculateDurationFromDate,
   calculateExpirationDate,
   createEmptyPricingQuoteMap,
-  INITIAL_PRICING_OPTIONS,
+  getInitialPricingOptions,
 } from './utils'
 
 export type PricingState = {
@@ -30,13 +30,22 @@ export type PricingAction =
     }
   | { type: 'FETCH_PRICING_ERROR' }
 
-const initialState: PricingState = {
-  pricingOptions: INITIAL_PRICING_OPTIONS,
-  selectedDuration: 1,
-  selectedExpirationDate: null,
-  isPricingLoading: false,
-  pricingQuotes: createEmptyPricingQuoteMap(),
-  basePricePerYear: null,
+export function createInitialStateFactory(discountsEnabled: boolean) {
+  const initialState: PricingState = {
+    pricingOptions: getInitialPricingOptions(discountsEnabled),
+    selectedDuration: 1,
+    selectedExpirationDate: null,
+    isPricingLoading: false,
+    pricingQuotes: createEmptyPricingQuoteMap(),
+    basePricePerYear: null,
+  }
+
+  return function createInitialState(duration: number): PricingState {
+    return {
+      ...initialState,
+      selectedDuration: duration,
+    }
+  }
 }
 
 export function pricingReducer(
@@ -91,23 +100,20 @@ export function pricingReducer(
         pricingQuotes: action.payload.pricingQuotes,
       }
 
-    case 'FETCH_PRICING_ERROR':
+    case 'FETCH_PRICING_ERROR': {
+      const initialOptions = getInitialPricingOptions(
+        state.pricingOptions[1]?.discount !== 0,
+      )
       return {
         ...state,
         isPricingLoading: false,
         basePricePerYear: null,
-        pricingOptions: INITIAL_PRICING_OPTIONS,
+        pricingOptions: initialOptions,
         pricingQuotes: createEmptyPricingQuoteMap(),
       }
+    }
 
     default:
       return state
-  }
-}
-
-export function createInitialState(duration: number): PricingState {
-  return {
-    ...initialState,
-    selectedDuration: duration,
   }
 }

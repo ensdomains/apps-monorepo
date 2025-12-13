@@ -44,6 +44,37 @@ export const INITIAL_PRICING_OPTIONS: PricingOptions = {
   },
 }
 
+export function getInitialPricingOptions(
+  discountsEnabled: boolean,
+): PricingOptions {
+  if (discountsEnabled) {
+    return INITIAL_PRICING_OPTIONS
+  }
+
+  return {
+    1: {
+      ...INITIAL_PRICING_OPTIONS[1],
+      discount: 0,
+    },
+    2: {
+      ...INITIAL_PRICING_OPTIONS[2],
+      discount: 0,
+    },
+    3: {
+      ...INITIAL_PRICING_OPTIONS[3],
+      discount: 0,
+    },
+    4: {
+      ...INITIAL_PRICING_OPTIONS[4],
+      discount: 0,
+    },
+    5: {
+      ...INITIAL_PRICING_OPTIONS[5],
+      discount: 0,
+    },
+  }
+}
+
 export function sanitizePricingDuration(
   value: number | undefined | null,
 ): PricingDuration {
