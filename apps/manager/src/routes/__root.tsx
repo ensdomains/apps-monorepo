@@ -22,6 +22,7 @@ import '@getpara/react-sdk-lite/styles.css'
 import { ApolloProvider } from '@apollo/client'
 import apolloClient from '@ens-apps/indexer/apollo'
 import { QueryClientProvider } from '@tanstack/react-query'
+import { ParaWagmiSyncWatcher } from '@/features/wallet/components/ParaWagmiSyncWatcher'
 import { customSepolia } from '@/lib/wagmi'
 import { backendAuthStore } from '@/utils/backend-client'
 
@@ -152,6 +153,7 @@ function RootComponent() {
         <Layout>
           <Outlet />
         </Layout>
+        <ParaWagmiSyncWatcher />
         <Toaster position="bottom-center" />
       </ProvidersWrapper>
 
