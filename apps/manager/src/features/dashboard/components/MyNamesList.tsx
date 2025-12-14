@@ -197,7 +197,10 @@ export const MyNamesList = ({
                         <div className="flex items-center justify-center gap-[3.28px]">
                           <Link
                             to="/auto-renewal"
-                            onClick={() => toast('Renewal coming soon')}
+                            onClick={(event) => {
+                              event.preventDefault()
+                              toast('Renewal coming soon')
+                            }}
                             className="flex items-center gap-[4.92px] text-[#0080bc]"
                           >
                             <span className="font-sans text-[11px] leading-[1.6] md:text-[12px] md:leading-[1.8]">
