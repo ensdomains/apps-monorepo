@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 export interface AlertProps extends HTMLAttributes<HTMLDivElement> {
   variant?: 'default' | 'destructive' | 'success' | 'warning' | 'info'
   title?: string
-  description?: string
+  description?: ReactNode
   icon?: ReactNode
   children?: ReactNode
 }

@@ -6,6 +6,6 @@ export default defineConfig({
   schema: './src/core/database/schema/index.ts',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB!,
+    url: process.env.DATABASE_URL,
   },
 })

@@ -46,6 +46,16 @@ export const isBackendAuthed = backendAuthStore.select(
 
 const baseUrl = import.meta.env.VITE_API_URL ?? '/api'
 
+const authFetch: typeof fetch = async (input, init) => {
+  const response = await fetch(input, init)
+
+  if (response.status === 401) {
+    backendAuthStore.trigger.signOut()
+  }
+
+  return response
+}
+
 export const backendClient = hc<AppRouter>(baseUrl, {
   headers: () => {
     const auth = backendAuthStore.get().context.authKey
@@ -58,4 +68,6 @@ export const backendClient = hc<AppRouter>(baseUrl, {
       Authorization: `Bearer ${auth}`,
     }
   },
+
+  fetch: authFetch,
 })

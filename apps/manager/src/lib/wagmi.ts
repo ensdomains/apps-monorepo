@@ -66,7 +66,7 @@ export const wagmiConfig = createConfig({
   multiInjectedProviderDiscovery: true,
   chains: [sepoliaWithEns, namechainSepolia],
   transports: {
-    [customSepolia.id]: http(SEPOLIA_RPC_URL),
+    [customSepolia.id]: http(SEPOLIA_RPC_URL, { batch: { batchSize: 30 } }),
   },
   ccipRead: ccipReadConfig,
   connectors: [

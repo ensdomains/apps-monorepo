@@ -1,6 +1,5 @@
 export const RESOLVER_INTERFACE_IDS = {
   AddressResolver: '0x3b3b57de',
-  MultiCoinAddressResolver: '0xf1cb7e06',
   NameResolver: '0x691f3431',
   AbiResolver: '0x2203ab56',
   TextResolver: '0x59d1d43c',
@@ -16,13 +15,37 @@ export type ResolverInterfaceName = keyof typeof RESOLVER_INTERFACE_IDS
 export type ResolverInterfaceId =
   (typeof RESOLVER_INTERFACE_IDS)[ResolverInterfaceName]
 
-// @ts-expect-error not all feature names are display yet
-export const RESOLVER_FEATURE_NAMES: Record<ResolverInterfaceName, string> = {
-  ContentHashResolver: 'Content hash resolution',
-  MultiCoinAddressResolver: 'Multicoin support',
-  InterfaceResolver: 'Interface detection',
-  AbiResolver: 'ABI resolution for contracts',
-  TextResolver: 'Text records',
-  DedicatedResolver: 'Dedicated resolver',
-  CompositeExtendedResolver: 'Composite',
+// @ts-expect-error not all features are displayed yet
+export const RESOLVER_FEATURES: Record<
+  ResolverInterfaceName,
+  { name: string; link: string }
+> = {
+  ContentHashResolver: {
+    name: 'Content hash resolution',
+    link: 'https://github.com/ensdomains/ens-contracts/blob/be53b9c25be5b2c7326f524bbd34a3939374ab1f/contracts/resolvers/profiles/IContentHashResolver.sol',
+  },
+  AddressResolver: {
+    name: 'Address resolver',
+    link: 'https://github.com/ensdomains/ens-contracts/blob/be53b9c25be5b2c7326f524bbd34a3939374ab1f/contracts/resolvers/profiles/IAddressResolver.sol',
+  },
+  InterfaceResolver: {
+    name: 'Interface detection',
+    link: 'https://github.com/ensdomains/ens-contracts/blob/be53b9c25be5b2c7326f524bbd34a3939374ab1f/contracts/resolvers/profiles/InterfaceResolver.sol',
+  },
+  AbiResolver: {
+    name: 'ABI resolution for contracts',
+    link: 'https://github.com/ensdomains/ens-contracts/blob/be53b9c25be5b2c7326f524bbd34a3939374ab1f/contracts/resolvers/profiles/ABIResolver.sol',
+  },
+  TextResolver: {
+    name: 'Text records',
+    link: 'https://github.com/ensdomains/ens-contracts/blob/be53b9c25be5b2c7326f524bbd34a3939374ab1f/contracts/resolvers/profiles/TextResolver.sol',
+  },
+  DedicatedResolver: {
+    name: 'Dedicated resolver',
+    link: 'https://github.com/ensdomains/namechain/blob/b0478e71449be67a3cf21c308e84842fdfc18d45/contracts/src/common/resolver/libraries/DedicatedResolverLib.sol',
+  },
+  CompositeExtendedResolver: {
+    name: 'Composite',
+    link: 'https://github.com/ensdomains/ens-contracts/blob/be53b9c25be5b2c7326f524bbd34a3939374ab1f/contracts/resolvers/profiles/ICompositeResolver.sol#L8',
+  },
 } as const

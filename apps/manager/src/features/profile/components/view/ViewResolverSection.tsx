@@ -1,16 +1,14 @@
-import { useQuery } from '@tanstack/react-query'
+import type { Address } from 'viem'
 import { CopyableButton } from '@/components/atoms/CopyableButton'
-import { profileResolverQuery } from '../../service/profileResolver'
 
 interface ViewResolverSectionProps {
-  name: string
+  resolverAddress?: Address
 }
 
-export const ViewResolverSection = ({ name }: ViewResolverSectionProps) => {
-  const { data: resolver } = useQuery({
-    ...profileResolverQuery(name),
-  })
-
+export const ViewResolverSection = ({
+  resolverAddress,
+}: ViewResolverSectionProps) => {
+  const resolver = resolverAddress
   return (
     <div className="space-y-2">
       <div className="font-medium">Public Resolver</div>
