@@ -7,8 +7,8 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleAlert,
-  MoreHorizontal,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { match, P } from 'ts-pattern'
 import {
   formatDashboardDate,
@@ -69,6 +69,8 @@ export const MyNamesList = ({
     handleSort,
   } = useDashboardNames({ searchQuery })
 
+  const hasNextPage = names.length === pageSize
+
   if (isError) {
     return (
       <div className="py-8 text-center font-sans text-red-500 text-sm">
@@ -102,7 +104,7 @@ export const MyNamesList = ({
             </div>
           </div>
         </div>
-        <div className="flex items-start justify-between gap-4 md:gap-[30px]">
+        <div className="flex items-start gap-4 md:gap-[30px]">
           <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px]">
             <div className="flex items-center gap-[8px]">
               <button
@@ -122,7 +124,6 @@ export const MyNamesList = ({
               </button>
             </div>
           </div>
-          <div className="size-[24px] shrink-0" />
         </div>
       </div>
 
@@ -186,7 +187,7 @@ export const MyNamesList = ({
                       </div>
                     </div>
 
-                    <div className="flex items-start justify-between gap-4 md:gap-[30px]">
+                    <div className="flex items-start gap-4 md:gap-[30px]">
                       <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:gap-[4px]">
                         <div className="flex flex-col items-start">
                           <span className="font-sans text-[#515151] text-[12px] leading-[1.6] md:text-[14px] md:leading-[1.8]">
@@ -196,6 +197,10 @@ export const MyNamesList = ({
                         <div className="flex items-center justify-center gap-[3.28px]">
                           <Link
                             to="/auto-renewal"
+                            onClick={(event) => {
+                              event.preventDefault()
+                              toast('Renewal coming soon')
+                            }}
                             className="flex items-center gap-[4.92px] text-[#0080bc]"
                           >
                             <span className="font-sans text-[11px] leading-[1.6] md:text-[12px] md:leading-[1.8]">
@@ -207,7 +212,6 @@ export const MyNamesList = ({
                             />
                           </Link>
                         </div>
-
                         {expiringSoon && daysUntilExpiry !== null && (
                           <div className="flex items-center gap-[3px] rounded-[20px] bg-[#fff8f0] p-[3px] md:gap-[4px] md:p-[4px]">
                             <CircleAlert
@@ -220,13 +224,6 @@ export const MyNamesList = ({
                           </div>
                         )}
                       </div>
-
-                      <button
-                        type="button"
-                        className="size-[24px] shrink-0 text-[#d9d9d9]"
-                      >
-                        <MoreHorizontal className="size-full" />
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -246,15 +243,17 @@ export const MyNamesList = ({
             <ChevronLeft className="size-[14px]" />
             <span>Previous</span>
           </button>
-          <button
-            type="button"
-            onClick={handleNext}
-            disabled={isLoading || names.length < pageSize}
-            className="flex items-center gap-1 rounded-[6px] border border-[#d3d3d3] px-3 py-1 text-[#7d7d7d] text-[11px] disabled:border-[#f0f0f0] disabled:text-[#d3d3d3] md:text-[12px]"
-          >
-            <span>Next</span>
-            <ChevronRight className="size-[14px]" />
-          </button>
+          {hasNextPage && (
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={isLoading}
+              className="flex items-center gap-1 rounded-[6px] border border-[#d3d3d3] px-3 py-1 text-[#7d7d7d] text-[11px] disabled:border-[#f0f0f0] disabled:text-[#d3d3d3] md:text-[12px]"
+            >
+              <span>Next</span>
+              <ChevronRight className="size-[14px]" />
+            </button>
+          )}
         </div>
         <span className="text-center font-sans text-[#7d7d7d] text-[11px] leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
           Showing your names
