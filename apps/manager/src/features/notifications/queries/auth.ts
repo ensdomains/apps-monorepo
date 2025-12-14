@@ -1,5 +1,6 @@
 import { mutationOptions } from '@tanstack/react-query'
 import type { WalletClient } from 'viem'
+import { signMessage } from 'viem/actions'
 import { createSiweMessage } from 'viem/siwe'
 import { backendAuthStore, backendClient } from '@/utils/backend-client'
 
@@ -35,7 +36,7 @@ export const signInBackendMutation = mutationOptions({
       version: '1',
     })
 
-    const signedMessage = await walletClient.signMessage({
+    const signedMessage = await signMessage(walletClient, {
       message: siweMessage,
       account,
     })

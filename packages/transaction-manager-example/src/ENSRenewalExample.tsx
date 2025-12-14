@@ -10,6 +10,7 @@ import type React from 'react'
 import { useEffect, useReducer, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, formatEther, type Hex, parseEther } from 'viem'
+import { getBalance } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import { initialUIState, uiStateReducer } from './uiState.reducer'
@@ -202,7 +203,7 @@ function useSmartAccountBalance(params: {
     const fetchBalance = async () => {
       if (smartAccountAddress && publicClient) {
         try {
-          const balance = await publicClient.getBalance({
+          const balance = await getBalance(publicClient, {
             address: smartAccountAddress as Address,
           })
           dispatch({ type: 'SET_SMART_ACCOUNT_BALANCE', payload: balance })

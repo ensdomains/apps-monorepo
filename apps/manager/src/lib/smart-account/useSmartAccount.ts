@@ -10,6 +10,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { type Address, formatUnits } from 'viem'
+import { getBalance, readContract } from 'viem/actions'
 import { useWalletClient } from 'wagmi'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
 import { customSepolia, publicClient } from '@/lib/wagmi'
@@ -104,7 +105,7 @@ export function useSmartAccount(
       }),
       queryFn: async () => {
         if (!accountAddress) return null
-        const balance = await publicClient.getBalance({
+        const balance = await getBalance(publicClient, {
           address: accountAddress,
         })
         return {
@@ -130,13 +131,13 @@ export function useSmartAccount(
           SUPPORTED_TOKENS,
         )) {
           try {
-            const balance = await publicClient.readContract({
+            const balance = await readContract(publicClient, {
               address: tokenAddress,
               abi: ERC20_ABI,
               functionName: 'balanceOf',
               args: [accountAddress],
             })
-            const decimals = await publicClient.readContract({
+            const decimals = await readContract(publicClient, {
               address: tokenAddress,
               abi: ERC20_ABI,
               functionName: 'decimals',

@@ -53,7 +53,7 @@ function RouteComponent() {
               </p>
               <Button
                 onClick={handleSignIn}
-                disabled={signIn.isPending}
+                disabled={signIn.isPending || !walletClient}
                 className="w-full"
                 size="lg"
               >
@@ -63,6 +63,14 @@ function RouteComponent() {
                 <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3">
                   <p className="text-destructive text-sm">
                     Failed to sign in. Please try again.
+                  </p>
+                </div>
+              )}
+              {!walletClient && (
+                <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3">
+                  <p className="text-destructive text-sm">
+                    Wallet client missing, please reconnect your wallet and try
+                    again.
                   </p>
                 </div>
               )}
