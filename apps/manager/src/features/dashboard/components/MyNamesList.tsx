@@ -68,6 +68,8 @@ export const MyNamesList = ({
     handleSort,
   } = useDashboardNames({ searchQuery })
 
+  const hasNextPage = names.length === pageSize
+
   if (isError) {
     return (
       <div className="py-8 text-center font-sans text-red-500 text-sm">
@@ -238,15 +240,17 @@ export const MyNamesList = ({
             <ChevronLeft className="size-[14px]" />
             <span>Previous</span>
           </button>
-          <button
-            type="button"
-            onClick={handleNext}
-            disabled={isLoading || names.length < pageSize}
-            className="flex items-center gap-1 rounded-[6px] border border-[#d3d3d3] px-3 py-1 text-[#7d7d7d] text-[11px] disabled:border-[#f0f0f0] disabled:text-[#d3d3d3] md:text-[12px]"
-          >
-            <span>Next</span>
-            <ChevronRight className="size-[14px]" />
-          </button>
+          {hasNextPage && (
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={isLoading}
+              className="flex items-center gap-1 rounded-[6px] border border-[#d3d3d3] px-3 py-1 text-[#7d7d7d] text-[11px] disabled:border-[#f0f0f0] disabled:text-[#d3d3d3] md:text-[12px]"
+            >
+              <span>Next</span>
+              <ChevronRight className="size-[14px]" />
+            </button>
+          )}
         </div>
         <span className="text-center font-sans text-[#7d7d7d] text-[11px] leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
           Showing your names
