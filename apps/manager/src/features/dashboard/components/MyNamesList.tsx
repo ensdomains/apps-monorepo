@@ -8,6 +8,7 @@ import {
   ChevronRight,
   CircleAlert,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { match, P } from 'ts-pattern'
 import {
   formatDashboardDate,
@@ -196,6 +197,10 @@ export const MyNamesList = ({
                         <div className="flex items-center justify-center gap-[3.28px]">
                           <Link
                             to="/auto-renewal"
+                            onClick={(event) => {
+                              event.preventDefault()
+                              toast('Renewal coming soon')
+                            }}
                             className="flex items-center gap-[4.92px] text-[#0080bc]"
                           >
                             <span className="font-sans text-[11px] leading-[1.6] md:text-[12px] md:leading-[1.8]">
@@ -207,7 +212,6 @@ export const MyNamesList = ({
                             />
                           </Link>
                         </div>
-
                         {expiringSoon && daysUntilExpiry !== null && (
                           <div className="flex items-center gap-[3px] rounded-[20px] bg-[#fff8f0] p-[3px] md:gap-[4px] md:p-[4px]">
                             <CircleAlert
