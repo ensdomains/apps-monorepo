@@ -103,7 +103,7 @@ export const MyNamesList = ({
             </div>
           </div>
         </div>
-        <div className="flex items-start justify-between gap-4 md:gap-[30px]">
+        <div className="flex items-start gap-4 md:gap-[30px]">
           <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px]">
             <div className="flex items-center gap-[8px]">
               <button
@@ -123,7 +123,6 @@ export const MyNamesList = ({
               </button>
             </div>
           </div>
-          <div className="size-[24px] shrink-0" />
         </div>
       </div>
 
@@ -187,7 +186,7 @@ export const MyNamesList = ({
                       </div>
                     </div>
 
-                    <div className="flex items-start justify-between gap-4 md:gap-[30px]">
+                    <div className="flex items-start gap-4 md:gap-[30px]">
                       <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:gap-[4px]">
                         <div className="flex flex-col items-start">
                           <span className="font-sans text-[#515151] text-[12px] leading-[1.6] md:text-[14px] md:leading-[1.8]">
