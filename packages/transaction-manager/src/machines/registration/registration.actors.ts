@@ -14,6 +14,7 @@ import {
   stringToBytes,
   toHex,
 } from 'viem'
+import { getBlock, readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import type { Signer } from '../..'
 import { ERC20_ABI } from '../../contracts/abis/ERC20.abi'
@@ -148,7 +149,7 @@ function generateCommitment(
 
   return fromPromise(
     (async () => {
-      const commitment = await publicClient.readContract({
+      const commitment = await readContract(publicClient, {
         address: registrarAddress,
         abi: FAST_TEST_ETH_REGISTRAR_ABI,
         functionName: 'makeCommitment',
@@ -523,7 +524,7 @@ export function validateCommitmentActor(input: {
       // Check MIN_COMMITMENT_AGE from contract
       let minAge: bigint
       try {
-        minAge = (await input.publicClient.readContract({
+        minAge = (await readContract(input.publicClient, {
           address: registrarAddress,
           abi: FAST_TEST_ETH_REGISTRAR_ABI,
           functionName: 'MIN_COMMITMENT_AGE',
@@ -546,7 +547,7 @@ export function validateCommitmentActor(input: {
 
       while (committedAt === 0n && attempts < maxAttempts) {
         try {
-          committedAt = (await input.publicClient.readContract({
+          committedAt = (await readContract(input.publicClient, {
             address: registrarAddress,
             abi: FAST_TEST_ETH_REGISTRAR_ABI,
             functionName: 'commitmentAt',
@@ -593,7 +594,7 @@ export function validateCommitmentActor(input: {
       }
 
       // Otherwise, wait until MIN_COMMITMENT_AGE has elapsed
-      const latestBlock = await input.publicClient.getBlock()
+      const latestBlock = await getBlock(input.publicClient)
       const nowTs = latestBlock.timestamp as bigint
       const elapsed = nowTs - committedAt
 
@@ -713,7 +714,7 @@ export function submitRegistrationActor(input: {
       )
 
       // Check if the payment token is supported
-      const isSupported = await input.publicClient.readContract({
+      const isSupported = await readContract(input.publicClient, {
         address: registrarAddress,
         abi: FAST_TEST_ETH_REGISTRAR_ABI,
         functionName: 'isPaymentToken',

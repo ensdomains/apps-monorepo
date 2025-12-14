@@ -563,6 +563,68 @@ function fetchData(): ResultAsync<Data, Error> {
 - `.map(fn)` / `.mapErr(fn)` → transform values/errors
 - `fromResultAsync(fn)` → integrate with XState actors (from `@ens-apps/utils/xstate/neverthrow`)
 
+### Viem Import Patterns (Tree-Shaking)
+
+**Principle**: Use standalone function imports from `viem/actions` instead of client method calls. This enables tree-shaking and reduces bundle size.
+
+**Guidelines**:
+- ✅ **DO**: Import actions as standalone functions from `viem/actions`
+- ❌ **DON'T**: Call methods directly on client instances
+
+**Why This Matters**:
+1. **Bundle size**: Standalone imports allow bundlers to tree-shake unused functions
+2. **Explicit dependencies**: Clear what viem features your code uses
+3. **Consistency**: Same pattern across all files
+
+**Examples**:
+
+```typescript
+// ❌ AVOID: Client method calls (not tree-shakeable)
+const balance = await publicClient.getBalance({ address })
+const block = await publicClient.getBlock({ blockNumber })
+const result = await publicClient.readContract({ ... })
+const hash = await walletClient.sendTransaction({ ... })
+
+// ✅ CORRECT: Standalone function imports (tree-shakeable)
+import { getBalance, getBlock, readContract } from 'viem/actions'
+import { sendTransaction } from 'viem/actions'
+
+const balance = await getBalance(publicClient, { address })
+const block = await getBlock(publicClient, { blockNumber })
+const result = await readContract(publicClient, { ... })
+const hash = await sendTransaction(walletClient, { ... })
+```
+
+**For wallet actions with accounts**:
+```typescript
+// Option 1: Attach account to client at creation
+const walletClient = createWalletClient({
+  account: myAccount,
+  chain: mainnet,
+  transport: http()
+})
+await sendTransaction(walletClient, { to: '0x...', value: 1n })
+
+// Option 2: Pass account as parameter
+await sendTransaction(walletClient, {
+  account: myAccount,
+  to: '0x...',
+  value: 1n
+})
+```
+
+**Common imports**:
+```typescript
+// Read operations
+import { readContract, getBalance, getBlock, getChainId, estimateGas } from 'viem/actions'
+
+// Write operations
+import { sendTransaction, writeContract, signMessage, signTypedData } from 'viem/actions'
+
+// ENS-specific
+import { getEnsResolver, getEnsAddress } from 'viem/actions'
+```
+
 ### TypeScript
 - Strict mode is enabled
 - Avoid `any` types
