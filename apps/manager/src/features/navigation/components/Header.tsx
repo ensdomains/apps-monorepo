@@ -1,4 +1,9 @@
-import { useAccount, useModal, useWallet } from '@getpara/react-sdk-lite'
+import {
+  useAccount,
+  useLogout,
+  useModal,
+  useWallet,
+} from '@getpara/react-sdk-lite'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
@@ -216,6 +221,7 @@ const ConnectedContent = () => {
   const { data: wallet } = useWallet()
   const account = useAccount()
   const { openModal } = useModal()
+  const { logout } = useLogout()
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const {
     client: smartAccountClient,
@@ -406,7 +412,7 @@ const ConnectedContent = () => {
               Manage Wallet
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => openModal()}
+              onClick={() => logout()}
               className="text-ens-blue-dark"
             >
               <Unlink className="mr-2 size-4 text-ens-blue" />
