@@ -73,7 +73,8 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
           }}
           externalWalletConfig={{
             wallets: ['METAMASK', 'WALLETCONNECT'],
-            // createLinkedEmbeddedForExternalWallets: ['METAMASK'],
+            // Do not create Para accounts for external wallet connections
+            createLinkedEmbeddedForExternalWallets: [],
             evmConnector: {
               config: {
                 chains: [customSepolia],

@@ -4,3 +4,5 @@ coverage
 dist
 **/.DS_Store
 package-lock.json
+.worktrees/
+*.workspace
