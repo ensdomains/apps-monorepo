@@ -1,11 +1,5 @@
 import type ParaWeb from '@getpara/react-sdk-lite'
-import {
-  getClient,
-  ParaProvider,
-  useAccount,
-  useClient,
-  useWalletState,
-} from '@getpara/react-sdk-lite'
+import { getClient, ParaProvider } from '@getpara/react-sdk-lite'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   createRootRouteWithContext,
@@ -58,7 +52,6 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
         <ParaProvider
           paraClientConfig={{
             apiKey: VITE_PARA_API_KEY,
-            env: 'BETA' as any,
           }}
           callbacks={{
             onLogin: onWalletChange,
