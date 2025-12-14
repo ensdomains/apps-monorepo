@@ -109,15 +109,17 @@ export const DashboardPage = () => {
             Hello {displayName}
           </h1>
         </div>
-        <PrimaryNameCard
-          primaryName={defaultName}
-          registeredDate={registeredDate}
-          expiryDate={expiryDate}
-          avatarUrl={avatarUrl}
-          names={[]}
-          primaryLabel={primaryLabel}
-          isLoading={isPrimaryLoading}
-        />
+        {(hasProfile || isPrimaryLoading) && (
+          <PrimaryNameCard
+            primaryName={defaultName}
+            registeredDate={registeredDate}
+            expiryDate={expiryDate}
+            avatarUrl={avatarUrl}
+            names={[]}
+            primaryLabel={primaryLabel}
+            isLoading={isPrimaryLoading}
+          />
+        )}
         <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:px-[24px] md:py-[32px]">
           <div className="space-y-5">
             <NamesTable primaryLabel={primaryLabel} />
