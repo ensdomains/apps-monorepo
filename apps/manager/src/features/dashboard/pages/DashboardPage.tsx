@@ -84,7 +84,7 @@ export const DashboardPage = () => {
                   You have a new wallet.
                 </p>
                 <p className="font-sans text-[#5c5b5b] text-[11px] leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
-                  You created a new wallet to put your name in. Go to
+                  You created a new wallet to put your name in. Go to{' '}
                   <a
                     href="https://getpara.com"
                     target="_blank"
