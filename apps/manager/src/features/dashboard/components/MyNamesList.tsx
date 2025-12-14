@@ -7,7 +7,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleAlert,
-  MoreHorizontal,
 } from 'lucide-react'
 import { match, P } from 'ts-pattern'
 import {
@@ -220,13 +219,6 @@ export const MyNamesList = ({
                           </div>
                         )}
                       </div>
-
-                      <button
-                        type="button"
-                        className="size-[24px] shrink-0 text-[#d9d9d9]"
-                      >
-                        <MoreHorizontal className="size-full" />
-                      </button>
                     </div>
                   </div>
                 </div>
