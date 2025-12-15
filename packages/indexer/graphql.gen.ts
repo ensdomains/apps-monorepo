@@ -368,7 +368,7 @@ export type DomainFragment = { __typename?: 'Domain', id: string, name?: string 
     & AccountFragment
   ) };
 
-export type ResolverFragment = { __typename?: 'Resolver', id: string, address: string, texts?: Array<string> | null, avatar?: string | null, description?: string | null, header?: string | null, url?: string | null, email?: string | null, location?: string | null, phone?: string | null, mail?: string | null, timezone?: string | null, twitter?: string | null, telegram?: string | null, farcaster?: string | null, instagram?: string | null, discord?: string | null, github?: string | null, linkedin?: string | null, youtube?: string | null, reddit?: string | null, tiktok?: string | null, twitch?: string | null, mastodon?: string | null };
+export type ResolverFragment = { __typename?: 'Resolver', id: string, address: string, texts?: Array<string> | null };
 
 export type DomainQueryVariables = Exact<{
   id: Scalars['String']['input'];
@@ -399,27 +399,6 @@ export const Resolver = gql`
   id
   address
   texts
-  avatar: text(key: "avatar")
-  description: text(key: "description")
-  header: text(key: "header")
-  url: text(key: "url")
-  email: text(key: "email")
-  location: text(key: "location")
-  phone: text(key: "phone")
-  mail: text(key: "mail")
-  timezone: text(key: "timezone")
-  twitter: text(key: "com.twitter")
-  telegram: text(key: "org.telegram")
-  farcaster: text(key: "xyz.farcaster")
-  instagram: text(key: "com.instagram")
-  discord: text(key: "com.discord")
-  github: text(key: "com.github")
-  linkedin: text(key: "com.linkedin")
-  youtube: text(key: "com.youtube")
-  reddit: text(key: "com.reddit")
-  tiktok: text(key: "com.tiktok")
-  twitch: text(key: "com.twitch")
-  mastodon: text(key: "com.mastodon")
 }
     `;
 export const Account = gql`

@@ -2,25 +2,4 @@ fragment Resolver on Resolver {
   id
   address
   texts
-  avatar: text(key: "avatar")
-  description: text(key: "description")
-  header: text(key: "header")
-  url: text(key: "url")
-  email: text(key: "email")
-  location: text(key: "location")
-  phone: text(key: "phone")
-  mail: text(key: "mail")
-  timezone: text(key: "timezone")
-  twitter: text(key: "com.twitter")
-  telegram: text(key: "org.telegram")
-  farcaster: text(key: "xyz.farcaster")
-  instagram: text(key: "com.instagram")
-  discord: text(key: "com.discord")
-  github: text(key: "com.github")
-  linkedin: text(key: "com.linkedin")
-  youtube: text(key: "com.youtube")
-  reddit: text(key: "com.reddit")
-  tiktok: text(key: "com.tiktok")
-  twitch: text(key: "com.twitch")
-  mastodon: text(key: "com.mastodon")
 }
