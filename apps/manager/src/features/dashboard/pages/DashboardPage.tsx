@@ -1,5 +1,5 @@
 import { useWallet } from '@getpara/react-sdk-lite'
-import { useQuery } from '@tanstack/react-query'
+import { useSuspenseQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store/react'
 import { CircleAlert, X } from 'lucide-react'
 import type { Address } from 'viem'
@@ -68,14 +68,13 @@ export const DashboardPage = () => {
     | Address
     | undefined
 
-  const { data: reverseName, isPending: isReverseNameLoading } = useQuery({
-    ...profileReverseNameQuery(reverseAddress),
+  const { data: reverseName } = useSuspenseQuery({
+    ...profileReverseNameQuery(reverseAddress as Address),
   })
 
   const normalizedPrimaryName = wallet?.ensName?.toLowerCase()
   const primaryLabel = normalizedPrimaryName ?? null
   const defaultName = reverseName ?? wallet?.ensName ?? primaryLabel ?? null
-  const isPrimaryLoading = isReverseNameLoading
 
   const displayName =
     defaultName ?? formatAddress(smartAccountAddress ?? eoaAddress)
@@ -103,12 +102,11 @@ export const DashboardPage = () => {
             Hello {displayName}
           </h1>
         </div>
-        {(hasProfile || isPrimaryLoading) && (
+        {hasProfile && (
           <PrimaryNameCard
             primaryName={defaultName}
             reverseName={reverseName}
             ensAvatarFallback={wallet?.ensAvatar ?? null}
-            isLoading={isPrimaryLoading}
           />
         )}
         <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:px-[24px] md:py-[32px]">
