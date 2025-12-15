@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
+import * as v from 'valibot'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -10,6 +11,45 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { staticTextRecords, textRecords } from '../../data/records'
+
+const reservedTextRecordKeys = new Set<string>([
+  ...staticTextRecords,
+  ...textRecords.map((record) => record.key),
+])
+
+const linkUrlSchema = v.pipe(v.string(), v.trim(), v.url('Enter a valid URL'))
+
+const validateLinkName = (name: string): string | null => {
+  const trimmed = name.trim()
+
+  if (!trimmed) {
+    return 'Enter a name'
+  }
+
+  if (reservedTextRecordKeys.has(trimmed)) {
+    return 'Choose a different name (reserved key)'
+  }
+
+  return null
+}
+
+const validateLinkUrl = (url: string): string | null => {
+  const trimmed = url.trim()
+
+  if (!trimmed) {
+    return 'Enter a link'
+  }
+
+  const result = v.safeParse(linkUrlSchema, trimmed)
+
+  if (!result.success) {
+    const issue = result.issues[0]
+    return issue?.message ?? 'Enter a valid URL'
+  }
+
+  return null
+}
 
 interface AddLinkDialogProps {
   buttonLabel?: string
@@ -25,10 +65,14 @@ export const AddLinkDialog = ({
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
+  const [nameError, setNameError] = useState<string | null>(null)
+  const [urlError, setUrlError] = useState<string | null>(null)
 
   const resetState = () => {
     setName('')
     setUrl('')
+    setNameError(null)
+    setUrlError(null)
   }
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -42,11 +86,31 @@ export const AddLinkDialog = ({
     const trimmedName = name.trim()
     const trimmedUrl = url.trim()
 
-    if (!trimmedName || !trimmedUrl) return
+    const nextNameError = validateLinkName(trimmedName)
+    const nextUrlError = validateLinkUrl(trimmedUrl)
+
+    setNameError(nextNameError)
+    setUrlError(nextUrlError)
+
+    if (nextNameError || nextUrlError) return
 
     onAdd({ name: trimmedName, url: trimmedUrl })
     resetState()
     setOpen(false)
+  }
+
+  const handleNameChange = (value: string) => {
+    setName(value)
+    if (nameError) {
+      setNameError(null)
+    }
+  }
+
+  const handleUrlChange = (value: string) => {
+    setUrl(value)
+    if (urlError) {
+      setUrlError(null)
+    }
   }
 
   const canSubmit = name.trim().length > 0 && url.trim().length > 0
@@ -68,13 +132,15 @@ export const AddLinkDialog = ({
             label="Name"
             placeholder="Personal Site"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => handleNameChange(e.target.value)}
+            errorText={nameError ?? undefined}
           />
           <Input
             label="Link"
             placeholder="https://example.com"
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={(e) => handleUrlChange(e.target.value)}
+            errorText={urlError ?? undefined}
           />
         </div>
         <DialogFooter>
