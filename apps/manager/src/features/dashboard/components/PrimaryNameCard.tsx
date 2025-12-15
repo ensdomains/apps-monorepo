@@ -1,38 +1,76 @@
 import type { DomainFragment } from '@ens-apps/indexer'
+import { useQuery } from '@tanstack/react-query'
 import { Calendar, ChevronDown, Clock } from 'lucide-react'
 import { match } from 'ts-pattern'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { formatDashboardDate } from '@/features/dashboard/utils'
+import {
+  formatDashboardDate,
+  toDateFromSeconds,
+} from '@/features/dashboard/utils'
+import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
+import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { PrimaryBadge } from './PrimaryBadge'
-import { PrimaryNameDialog } from './PrimaryNameDialog'
 
 type PrimaryNameCardProps = {
   primaryName?: string | null
-  registeredDate?: Date | null
-  expiryDate?: Date | null
-  avatarUrl?: string | null
-  names: DomainFragment[]
-  primaryLabel?: string | null
+  reverseName?: string | null
+  ensAvatarFallback?: string | null
   isLoading?: boolean
 }
 
 export const PrimaryNameCard = ({
   primaryName,
-  registeredDate,
-  expiryDate,
-  avatarUrl,
-  names,
-  primaryLabel,
+  reverseName,
+  ensAvatarFallback,
   isLoading,
 }: PrimaryNameCardProps) => {
+  const { data: reverseRecords } = useQuery({
+    ...profileRecordsQuery(reverseName ?? ''),
+    enabled: !!reverseName,
+  })
+
+  const avatarRecord = reverseRecords?.texts.find(
+    (text) => text.key === 'avatar',
+  )?.value
+
+  const { data: parsedAvatar } = useQuery({
+    ...parseAvatarQuery(avatarRecord),
+    enabled: !!avatarRecord,
+  })
+
+  const { data: reverseExpiry, isPending: isReverseExpiryLoading } = useQuery({
+    ...profileExpiryQuery(reverseName ?? ''),
+    enabled: !!reverseName,
+  })
+
+  const { data: registration, isPending: isRegistrationLoading } = useQuery({
+    ...profileRegistrationQuery(primaryName ?? ''),
+    enabled: !!primaryName,
+  })
+
+  const registeredDate = toDateFromSeconds(
+    registration?.registrationDate ?? null,
+  )
+  const expiryDate = toDateFromSeconds(
+    typeof reverseExpiry?.expiry === 'bigint'
+      ? Number(reverseExpiry.expiry)
+      : (reverseExpiry?.expiry ?? null),
+  )
   const formattedRegisteredDate = formatDashboardDate(registeredDate)
   const formattedExpiryDate = formatDashboardDate(expiryDate)
+  const isDetailsLoading =
+    isLoading || isReverseExpiryLoading || isRegistrationLoading
+  const avatarUrl = parsedAvatar ?? ensAvatarFallback ?? null
   const hasAvatar = Boolean(avatarUrl)
   const displayName =
     isLoading && !primaryName ? 'Loading...' : (primaryName ?? 'Your ENS name')
-  const registeredLabel = isLoading ? 'Loading...' : formattedRegisteredDate
-  const expiryLabel = isLoading ? 'Loading...' : formattedExpiryDate
+  const registeredLabel = isDetailsLoading
+    ? 'Loading...'
+    : formattedRegisteredDate
+  const expiryLabel = isDetailsLoading ? 'Loading...' : formattedExpiryDate
   const canViewProfile = Boolean(primaryName)
 
   return (
@@ -52,22 +90,15 @@ export const PrimaryNameCard = ({
                 <div className="size-full bg-linear-to-br from-blue-400 via-blue-600 to-blue-900" />
               ))}
           </div>
-
           <div className="flex min-h-0 flex-col justify-between md:h-[200px]">
-            <PrimaryNameDialog primaryLabel={primaryLabel} names={names}>
-              <div className="flex flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-[12px]">
-                <div className="inline-flex items-center rounded-[4px] bg-[#0080bc] px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
-                  <span className="font-medium font-mono text-[20px] text-ens-white leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]">
-                    {displayName}
-                  </span>
-                </div>
-                <div className="flex items-center gap-[2px]">
-                  <PrimaryBadge />
-                  <ChevronDown className="size-[17.5px] text-[#0080bc]" />
-                </div>
+            <div className="flex flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-[12px]">
+              <div className="inline-flex items-center rounded-[4px] bg-[#0080bc] px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
+                <span className="font-medium font-mono text-[20px] text-ens-white leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]">
+                  {displayName}
+                </span>
               </div>
-            </PrimaryNameDialog>
-
+              <PrimaryBadge />
+            </div>
             <div className="flex flex-col gap-[8.5px]">
               <div className="flex items-center gap-[8px]">
                 <Calendar
