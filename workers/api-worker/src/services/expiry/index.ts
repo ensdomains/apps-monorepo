@@ -74,7 +74,7 @@ export const getExpiry = ResultFn(async function* (names: string[]) {
   const domains = parsedData.domains.map((domain) => ({
     name: domain.name,
     expiryDate: domain.expiryDate
-      ? new Date(parseInt(domain.expiryDate) * 1000)
+      ? new Date(parseInt(domain.expiryDate, 10) * 1000)
       : null,
     owner: domain.wrappedOwnerId ?? domain.ownerId ?? domain.registrantId,
   }))

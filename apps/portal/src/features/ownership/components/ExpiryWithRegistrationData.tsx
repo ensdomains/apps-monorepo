@@ -2,12 +2,11 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { CalendarIcon, ClockIcon } from 'lucide-react'
 import { useBlock } from 'wagmi'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
-import { Label } from '@/components/ui/label'
+import { Timestamp } from '@/features/profile/components/Timestamp'
+import { getNameHistoryQueryOptions } from '@/features/profile/hooks/useNameHistory'
+import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
+import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
 import type { EnsNetworkName } from '@/utils/types'
-import { getNameHistoryQueryOptions } from '../hooks/useNameHistory'
-import { getV1ExpiryQueryOptions } from '../hooks/useV1Expiry'
-import { getV2RegistrationDataQueryOptions } from '../hooks/useV2RegistrationData'
-import { Timestamp } from './Timestamp'
 
 interface RegistrationDateProps {
   blockNumber: number | bigint
@@ -30,12 +29,12 @@ type RegistrationDataProps = RegistrationDateProps
 
 const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
   return (
-    <div className="flex flex-col gap-1">
-      <Label>Registered</Label>
-      <span className="flex flex-row gap-1 items-center h-[38px]">
-        <CalendarIcon className="size-3.5" />
+    <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
+      <CalendarIcon className="p-2 size-9 rounded-4xl bg-secondary" />
+      <div className="flex flex-col">
+        <span className="font-medium">Registered</span>
         <RegistrationDate blockNumber={blockNumber} />
-      </span>
+      </div>
     </div>
   )
 }
@@ -64,14 +63,27 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
 
   return (
     <>
-      {blockNumber && <RegistrationData blockNumber={blockNumber} />}
       {expiry.data && (
-        <div className="flex flex-col gap-1">
-          <Label>Expires</Label>
-          <span className="flex flex-row gap-1 items-center h-[38px]">
-            <ClockIcon className="size-3.5" />
-            <Timestamp timestamp={expiry.data.expiry} />
-          </span>
+        <div className="flex flex-row gap-4 w-full lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
+          <ClockIcon className="p-2 size-9 rounded-4xl bg-secondary" />
+          <div className="flex flex-col">
+            <span className="font-medium">Expiry</span>
+            <span className="flex flex-row gap-1 items-center">
+              <Timestamp timestamp={expiry.data.expiry} />
+            </span>
+          </div>
+        </div>
+      )}
+      {blockNumber && <RegistrationData blockNumber={blockNumber} />}
+      {expiry.data?.gracePeriod && (
+        <div className="flex flex-row gap-4 w-full lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
+          <CalendarIcon className="p-2 size-9 rounded-4xl bg-secondary" />
+          <div className="flex flex-col">
+            <span className="font-medium">Grace</span>
+            <span className="flex flex-row gap-1 items-center">
+              <Timestamp timestamp={expiry.data.gracePeriod} />
+            </span>
+          </div>
         </div>
       )}
     </>
@@ -98,20 +110,19 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
 
   return (
     <>
-      <div className="flex flex-col gap-1">
-        <Label>Registered</Label>
-        <span className="flex flex-row gap-1 items-center h-[38px]">
-          <CalendarIcon className="size-3.5" />
-          {new Date(Number(data.registeredAt) * 1000).toUTCString()}
-        </span>
+      <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
+        <ClockIcon className="p-2 size-9 rounded-4xl bg-secondary" />
+        <div className="flex flex-col">
+          <span className="font-medium">Registered</span>
+          <Timestamp timestamp={data.registeredAt} />
+        </div>
       </div>
-
-      <div className="flex flex-col gap-1">
-        <Label>Expires</Label>
-        <span className="flex flex-row gap-1 items-center h-[38px]">
-          <ClockIcon className="size-3.5" />
-          {new Date(Number(data.expiry) * 1000).toUTCString()}
-        </span>
+      <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
+        <CalendarIcon className="p-2 size-9 rounded-4xl bg-secondary" />
+        <div className="flex flex-col">
+          <span className="font-medium">Expiry</span>
+          <Timestamp timestamp={data.expiry} />
+        </div>
       </div>
     </>
   )
@@ -127,7 +138,7 @@ export const ExpiryWithRegistrationData = ({
   network,
 }: ExpiryWithRegistrationDataProps) => {
   return (
-    <div className="w-full flex flex-col p-6 gap-4 rounded-lg border border-gray-300 lg:col-span-1">
+    <div className="w-full flex flex-col lg:flex-row gap-4 lg:gap-6">
       {network === 'sepolia' ? (
         <V1ExpiryWithRegistrationData name={name} />
       ) : (
