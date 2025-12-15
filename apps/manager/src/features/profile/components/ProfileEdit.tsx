@@ -43,7 +43,9 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     accountAddress,
     isConnected: isSmartAccountConnected,
     signer,
-  } = useSmartAccount()
+    ownerAddress: smartOwnerAddress,
+    config: smartAccountConfig,
+  } = useSmartAccount({ type: 'pimlico', accountType: 'hca' })
 
   const { data: wagmiWalletClient } = useWalletClient()
 
@@ -112,12 +114,16 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     }
 
     const owner = ownerAddress.toLowerCase()
+    const smartOwnerLower = smartOwnerAddress?.toLowerCase()
+    const isHcaAccount =
+      smartAccountConfig?.accountType === 'hca' && !!smartOwnerLower
 
     const smartValid =
       smartAccountAddress &&
-      smartAccountAddress.toLowerCase() === owner &&
       signer &&
-      isSmartAccountConnected
+      isSmartAccountConnected &&
+      (smartAccountAddress.toLowerCase() === owner ||
+        (isHcaAccount && smartOwnerLower === owner))
 
     const eoaValid =
       eoaAddress && eoaAddress.toLowerCase() === owner && wagmiWalletClient
