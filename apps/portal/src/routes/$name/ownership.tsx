@@ -6,6 +6,8 @@ import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
 import { NameSubgraphHistory } from '@/components/organisms/NameSubgraphHistory/NameSubgraphHistory'
 import { Owner } from '@/components/primary-name/Owner'
 import { ExpiryWithRegistrationData } from '@/features/ownership/components/ExpiryWithRegistrationData'
+import { V1NameManagerRecord } from '@/features/ownership/components/V1NameManagerRecord'
+import { ParentName } from '@/features/profile/components/ParentName'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 
 export const Route = createFileRoute('/$name/ownership')({
@@ -37,7 +39,13 @@ function RouteComponent() {
       </div>
       <div className="flex flex-col gap-4 sm:gap-6">
         <ExpiryWithRegistrationData name={name} network={data.network} />
-        <Owner owner={data.owner} label="Name owner" />
+        <div className="flex flex-col gap-4 sm:gap-6 md:flex-row justify-between">
+          <Owner owner={data.owner} label="Name owner" className="w-full" />
+          {data.network === 'sepolia' && (
+            <V1NameManagerRecord name={name} className="w-full" />
+          )}
+        </div>
+        <ParentName name={name} />
         <NameSubgraphHistory name={name} category="domain" />
       </div>
     </div>

@@ -2,13 +2,16 @@ import { Link } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { cn } from '@/lib/utils'
 
 export const Owner = ({
   owner,
   label = 'Owner',
+  className,
 }: {
   owner?: Address
   label?: string
+  className?: string
 }) => {
   const {
     data: ownerName,
@@ -21,8 +24,13 @@ export const Owner = ({
 
   if (!owner)
     return (
-      <div className="p-6 flex flex-col rounded-2xl border border-gray-300 hover:bg-gray-100">
-        <span className="font-medium">Owner</span>
+      <div
+        className={cn(
+          'p-6 flex flex-col rounded-2xl border border-gray-300 hover:bg-gray-100',
+          className,
+        )}
+      >
+        <span className="font-medium">{label}</span>
         <span>No data</span>
       </div>
     )
@@ -33,7 +41,10 @@ export const Owner = ({
     <Link
       to="/addr/$addr"
       params={{ addr: owner }}
-      className="p-6 flex flex-row rounded-2xl gap-6 items-center border border-gray-300 hover:bg-gray-100"
+      className={cn(
+        'p-6 flex flex-row rounded-2xl gap-6 items-center border border-gray-300 hover:bg-gray-100',
+        className,
+      )}
     >
       <NameAvatar
         width="40px"
