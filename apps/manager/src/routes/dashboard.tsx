@@ -1,7 +1,19 @@
+import { useWallet } from '@getpara/react-sdk-lite'
 import { createFileRoute } from '@tanstack/react-router'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
+import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
 
 function RouteComponent() {
+  const { data: wallet, isLoading } = useWallet()
+
+  if (isLoading) {
+    return null
+  }
+
+  if (!wallet) {
+    return <NotFoundPage />
+  }
+
   return <DashboardPage />
 }
 
