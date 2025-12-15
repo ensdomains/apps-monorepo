@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
 import { ValidationError } from '@/features/register/components/CheckAvailability/ValidationError'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -64,6 +65,11 @@ export const CheckAvailability = ({
 
   const { data: unavailableExpiry } = useQuery({
     ...profileExpiryQuery(selectedName ?? ''),
+    enabled: displayState.type === 'unavailable' && !!selectedName,
+  })
+
+  const { data: unavailableRegistration } = useQuery({
+    ...profileRegistrationQuery(selectedName ?? ''),
     enabled: displayState.type === 'unavailable' && !!selectedName,
   })
 
@@ -137,7 +143,13 @@ export const CheckAvailability = ({
                     <DomainProfileCard
                       domainName={displayState.domainName}
                       avatarUrl={unavailableAvatar}
-                      registeredDate={null}
+                      registeredDate={
+                        unavailableRegistration?.registrationDate != null
+                          ? new Date(
+                              unavailableRegistration.registrationDate * 1000,
+                            )
+                          : null
+                      }
                       expiryDate={
                         unavailableExpiry?.expiry != null
                           ? new Date(Number(unavailableExpiry.expiry) * 1000)
