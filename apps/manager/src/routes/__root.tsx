@@ -11,6 +11,7 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import type { ReactNode } from 'react'
 import { Toaster } from 'sonner'
 import { Layout } from '@/components/Layout'
+import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
 import appCss from '@/styles/index.css?url'
 import '@getpara/react-sdk-lite/styles.css'
 import { ApolloProvider } from '@apollo/client'
@@ -137,7 +138,7 @@ export const Route = createRootRouteWithContext<RootRouterContext>()({
 })
 
 function NotFoundComponent() {
-  return <div>Not Found</div>
+  return <NotFoundPage />
 }
 
 function RootComponent() {
