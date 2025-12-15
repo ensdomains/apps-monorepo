@@ -15,6 +15,7 @@ import {
 } from '@zerodev/sdk'
 import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
 import type { Signer as ZeroDevSigner } from '@zerodev/sdk/types'
+import { createPimlicoClient } from 'permissionless/clients/pimlico'
 import type { Address, WalletClient } from 'viem'
 import { http } from 'viem'
 import { entryPoint07Address } from 'viem/account-abstraction'
@@ -26,24 +27,6 @@ export interface KernelConfig {
   accountType: SmartAccountType
   kernelVersion: typeof KERNEL_V3_1
   pimlicoApiKey: string
-}
-
-/**
- * Pimlico paymaster response type
- * The result contains paymaster data needed for UserOperation sponsorship
- */
-interface PaymasterResponse {
-  result?: {
-    paymasterAndData?: `0x${string}`
-    paymaster?: `0x${string}`
-    paymasterData?: `0x${string}`
-    preVerificationGas?: `0x${string}`
-    verificationGasLimit?: `0x${string}`
-    callGasLimit?: `0x${string}`
-    paymasterVerificationGasLimit?: `0x${string}`
-    paymasterPostOpGasLimit?: `0x${string}`
-  }
-  error?: { message: string }
 }
 
 export interface InitializeKernelParams {
@@ -118,33 +101,24 @@ export async function initializeKernelAccount(
 
   console.log('✅ [KERNEL] Kernel account created:', kernelAccount.address)
 
+  // Create Pimlico client for gas estimation and paymaster
+  const pimlicoClient = createPimlicoClient({
+    transport: http(PIMLICO_URL),
+    entryPoint,
+  })
+
   // Create account client with Pimlico bundler
   const client = createKernelAccountClient({
     account: kernelAccount,
     chain: customSepolia,
     bundlerTransport: http(PIMLICO_URL),
-    paymaster: {
-      getPaymasterData: async (userOperation) => {
-        // Use Pimlico's paymaster for gas sponsorship
-        const response = await fetch(PIMLICO_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'pm_sponsorUserOperation',
-            params: [userOperation, entryPoint.address],
-            id: 1,
-          }),
-        })
-        const data = (await response.json()) as PaymasterResponse
-        if (data.error) {
-          throw new Error(data.error.message)
-        }
-        // Return type is validated by the paymaster response
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return data.result as any
+    // Use Pimlico client for gas estimation (avoids zd_getUserOperationGasPrice error)
+    userOperation: {
+      estimateFeesPerGas: async () => {
+        return (await pimlicoClient.getUserOperationGasPrice()).fast
       },
     },
+    paymaster: pimlicoClient,
   })
 
   const accountAddress = kernelAccount.address

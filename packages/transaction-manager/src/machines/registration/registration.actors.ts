@@ -27,6 +27,7 @@ import {
 } from '../../contracts/ens-sepolia'
 import { transactionManager } from '../../providers/transactionManager'
 import type {
+  KernelTransactionRequest,
   PimlicoTransactionRequest,
   RhinestoneTransactionRequest,
   TransactionRequest,
@@ -266,8 +267,29 @@ function getSmartAccountAddress(signer: Signer): Address {
     )
   }
 
+  if (signer.type === 'kernel') {
+    // First, try to get address from config if available
+    if (signer.config.accountAddress) {
+      return signer.config.accountAddress
+    }
+
+    // signer.account is a KernelAccountClient from @zerodev/sdk
+    // The KernelAccountClient has an account property with an address property
+    const kernelClient = signer.account as any
+    if (kernelClient?.account?.address) {
+      return kernelClient.account.address as Address
+    }
+    // Fallback: try to get address directly if it's a string
+    if (typeof kernelClient?.address === 'string') {
+      return kernelClient.address as Address
+    }
+    throw new Error(
+      'Unable to get smart account address from KernelAccountClient',
+    )
+  }
+
   throw new Error(
-    'Only Rhinestone or Pimlico signer is supported for registration',
+    'Only Rhinestone, Pimlico, or Kernel signer is supported for registration',
   )
 }
 
@@ -315,6 +337,21 @@ function createTransactionRequest(params: {
         sponsored: sponsored ?? true,
       },
     } as PimlicoTransactionRequest
+  }
+
+  if (signer.type === 'kernel') {
+    return {
+      type: 'kernel',
+      from,
+      to,
+      data,
+      value,
+      chainId,
+      kernelParams: {
+        calls,
+        sponsored: sponsored ?? true,
+      },
+    } as KernelTransactionRequest
   }
 
   throw new Error(

@@ -1,11 +1,5 @@
 import type ParaWeb from '@getpara/react-sdk-lite'
-import {
-  getClient,
-  ParaProvider,
-  useAccount,
-  useClient,
-  useWalletState,
-} from '@getpara/react-sdk-lite'
+import { getClient, ParaProvider } from '@getpara/react-sdk-lite'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   createRootRouteWithContext,
@@ -23,6 +17,7 @@ import '@getpara/react-sdk-lite/styles.css'
 import { ApolloProvider } from '@apollo/client'
 import apolloClient from '@ens-apps/indexer/apollo'
 import { QueryClientProvider } from '@tanstack/react-query'
+import { ParaWagmiSyncWatcher } from '@/features/wallet/components/ParaWagmiSyncWatcher'
 import { customSepolia } from '@/lib/wagmi'
 import { backendAuthStore } from '@/utils/backend-client'
 
@@ -59,7 +54,6 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
         <ParaProvider
           paraClientConfig={{
             apiKey: VITE_PARA_API_KEY,
-            env: 'BETA' as any,
           }}
           callbacks={{
             onLogin: onWalletChange,
@@ -155,6 +149,7 @@ function RootComponent() {
         <Layout>
           <Outlet />
         </Layout>
+        <ParaWagmiSyncWatcher />
         <Toaster position="bottom-center" />
       </ProvidersWrapper>
 
