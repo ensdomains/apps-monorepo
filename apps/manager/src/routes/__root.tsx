@@ -12,6 +12,7 @@ import type { ReactNode } from 'react'
 import { Toaster } from 'sonner'
 import { Layout } from '@/components/Layout'
 import { SmartSessionProvider } from '@/features/wallet/components/SmartSessionProvider'
+import { SmartAccountContextProvider } from '@/lib/smart-account'
 import appCss from '@/styles/index.css?url'
 import '@getpara/react-sdk-lite/styles.css'
 import { ApolloProvider } from '@apollo/client'
@@ -101,8 +102,10 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
             twoFactorAuthEnabled: false,
           }}
         >
-          {children}
-          <SmartSessionProvider />
+          <SmartAccountContextProvider>
+            {children}
+            <SmartSessionProvider />
+          </SmartAccountContextProvider>
         </ParaProvider>
       </QueryClientProvider>
     </ApolloProvider>

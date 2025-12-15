@@ -1,7 +1,6 @@
 'use client'
 
-import type { KernelAccountState } from '@/lib/smart-account'
-import { isKernelAccount, useSmartAccount } from '@/lib/smart-account'
+import { useSmartAccountContext } from '@/lib/smart-account'
 import { useSessionManager } from '@/lib/smart-account/sessions/useSessionManager'
 import { EnableSessionModal } from './EnableSessionModal'
 
@@ -14,23 +13,16 @@ import { EnableSessionModal } from './EnableSessionModal'
  * Place this component high in the tree, inside wallet providers.
  */
 export function SmartSessionProvider() {
-  const smartAccount = useSmartAccount({ type: 'kernel' })
-
-  // Only manage sessions for kernel accounts
-  if (!isKernelAccount(smartAccount)) {
-    return null
-  }
-
-  // Type narrowing confirms this is a KernelAccountState
-  const kernelAccount = smartAccount as KernelAccountState
+  // Use shared context (already initialized by SmartAccountContextProvider)
+  const smartAccount = useSmartAccountContext()
 
   return (
     <SmartSessionManager
-      ownerAddress={kernelAccount.ownerAddress}
-      smartAccountAddress={kernelAccount.accountAddress}
-      ecdsaValidator={kernelAccount.ecdsaValidator}
-      isAccountReady={kernelAccount.isAccountReady}
-      onSessionCreated={kernelAccount.setSessionData}
+      ownerAddress={smartAccount.ownerAddress}
+      smartAccountAddress={smartAccount.accountAddress}
+      ecdsaValidator={smartAccount.ecdsaValidator}
+      isAccountReady={smartAccount.isAccountReady}
+      onSessionCreated={smartAccount.setSessionData}
     />
   )
 }

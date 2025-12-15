@@ -3,7 +3,12 @@ export {
   initializeRhinestoneAccount,
   type RhinestoneConfig,
 } from './rhinestone'
-
+// Context-based smart account (shared state across components)
+export {
+  SmartAccountContextProvider,
+  useSmartAccountContext,
+  useSmartAccountContextSafe,
+} from './SmartAccountContext'
 export type {
   EthBalance,
   SmartAccountProvider,

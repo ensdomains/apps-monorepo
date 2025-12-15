@@ -14,7 +14,7 @@ import { RegistrationInProgress } from '@/features/register/components/Registrat
 import { VerifyWalletModal } from '@/features/register/components/VerifyWalletModal'
 import { useCountdown } from '@/hooks/useCountdown'
 import { useWalletVerification } from '@/hooks/useWalletVerification'
-import { useSmartAccount } from '@/lib/smart-account'
+import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import { inspect } from '@/utils/xstate'
 import { handleStartRegistration } from './RegistrationPage.handlers'
@@ -84,8 +84,8 @@ export function Registration({ initialName }: RegistrationProps) {
     inspect,
   })
 
-  // Use unified smart account hook with Kernel (smart sessions - sign once)
-  const account = useSmartAccount({ type: 'kernel', accountType: 'hca' })
+  // Use shared smart account context (smart sessions - sign once)
+  const account = useSmartAccountContext()
 
   // Extract account info
   const accountAddress = account.accountAddress
