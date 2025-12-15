@@ -1,7 +1,8 @@
-import { primaryNameMachine } from '@ens-apps/transaction-manager'
+import { primaryNameMachine, type Signer } from '@ens-apps/transaction-manager'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useEffect, useState } from 'react'
 import type { Address, PublicClient } from 'viem'
+import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -17,16 +18,23 @@ import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 interface SetPrimaryNameDialogProps {
   name: string
+  owner?: Address
   onUpdated?: () => void
 }
 
 export const SetPrimaryNameDialog = ({
   name,
+  owner,
   onUpdated,
 }: SetPrimaryNameDialogProps) => {
   const [open, setOpen] = useState(false)
 
-  const { accountAddress, isConnected, signer } = useSmartAccount()
+  const {
+    accountAddress: smartAccountAddress,
+    isConnected: isSmartAccountConnected,
+    signer,
+  } = useSmartAccount()
+  const { data: wagmiWalletClient } = useWalletClient()
 
   const primaryNameActor = useActorRef(primaryNameMachine, {
     input: { chainId: customSepolia.id },
@@ -54,9 +62,37 @@ export const SetPrimaryNameDialog = ({
   }, [isSuccess, onUpdated])
 
   const handleSave = () => {
-    if (!isConnected || !signer || !accountAddress) {
+    if (!owner) {
+      console.warn('Cannot set primary name - ENS owner is not available.')
+      return
+    }
+
+    const ownerLower = owner.toLowerCase()
+    const eoaAddress = wagmiWalletClient?.account?.address as
+      | Address
+      | undefined
+
+    const smartValid =
+      smartAccountAddress &&
+      smartAccountAddress.toLowerCase() === ownerLower &&
+      signer &&
+      isSmartAccountConnected
+
+    const eoaValid =
+      eoaAddress && eoaAddress.toLowerCase() === ownerLower && wagmiWalletClient
+
+    const signerChoice = smartValid
+      ? { signer, account: smartAccountAddress }
+      : eoaValid
+        ? {
+            signer: { type: 'eoa', walletClient: wagmiWalletClient },
+            account: eoaAddress,
+          }
+        : null
+
+    if (!signerChoice) {
       console.warn(
-        'Connect your wallet and smart account before setting the primary name.',
+        'Cannot set primary name - connected account does not match the ENS owner.',
       )
       return
     }
@@ -64,8 +100,8 @@ export const SetPrimaryNameDialog = ({
     primaryNameActor.send({
       type: 'START_UPDATE',
       name,
-      signer,
-      accountAddress: accountAddress as Address,
+      signer: signerChoice.signer as Signer,
+      accountAddress: signerChoice.account,
       publicClient: publicClient as PublicClient,
     })
   }
