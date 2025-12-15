@@ -60,6 +60,7 @@ export const SetPrimaryNameDialog = ({
   useEffect(() => {
     if (isSuccess) {
       onUpdated?.()
+      setOpen(false)
     }
   }, [isSuccess, onUpdated])
 
