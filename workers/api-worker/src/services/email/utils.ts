@@ -7,11 +7,6 @@ import { parseIntoResult } from '#utils/validation.js'
 
 const BASE_URL = 'https://api.sendgrid.com'
 
-// SendGrid API response schema
-const SendGridSuccessResponseSchema = v.object({
-  message: v.literal('success'),
-})
-
 const SendGridErrorResponseSchema = v.object({
   errors: v.array(
     v.object({
