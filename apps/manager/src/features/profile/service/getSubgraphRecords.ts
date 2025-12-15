@@ -1,33 +1,33 @@
-import { ResultFn } from '@ens-apps/utils/neverthrow'
+import { DomainDocument, type DomainQuery } from '@ens-apps/indexer'
+import apolloClient from '@ens-apps/indexer/apollo'
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { ok } from 'neverthrow'
+import { ok, ResultAsync } from 'neverthrow'
 
-// biome-ignore lint/correctness/useYield: stubbed implementation does not need to yield
-export const getSubgraphRecords = ResultFn(async function* (_name: string) {
-  // TODO: Remove this once we have a real subgraph records from ensjs
+class GetSubgraphRecordsError extends TaggedError('GetSubgraphRecordsError')<{
+  cause: unknown
+}> {}
+
+export const getSubgraphRecords = ResultFn(async function* (name: string) {
+  const result = yield* await ResultAsync.fromPromise(
+    apolloClient.query<DomainQuery>({
+      query: DomainDocument,
+      variables: { id: name },
+      fetchPolicy: 'network-only',
+    }),
+    (error) => new GetSubgraphRecordsError({ cause: error }),
+  )
+
+  const domain = result.data.domain
+
+  const texts = domain?.resolver?.texts ?? []
+
   const subgraphRecords = {
     isMigrated: true,
     createdAt: { date: new Date(), value: Date.now() },
-    texts: [
-      'com.twitter',
-      'com.discord',
-      'com.github',
-      'com.linkedin',
-      'com.instagram',
-      'com.reddit',
-      'com.twitch',
-      'com.tiktok',
-      'co.zora',
-      'avatar',
-      'header',
-      'org.telegram',
-      'url',
-      'name',
-      'email',
-      'location',
-      'description',
-    ],
+    texts,
+    // TODO: Get coins from GraphQL
     coins: [
       '2147483648',
       '60',
