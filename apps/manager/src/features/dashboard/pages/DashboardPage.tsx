@@ -34,8 +34,16 @@ const NewWalletBanner = ({ onClose }: { onClose: () => void }) => {
             You have a new wallet.
           </p>
           <p className="font-sans text-[#5c5b5b] text-[11px] leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
-            You created a new wallet to put your name in. Go to Para.com to get
-            your private keys.
+            You created a new wallet to put your name in. Go to{' '}
+            <a
+              href="https://getpara.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#0080bc] underline"
+            >
+              getpara.com
+            </a>{' '}
+            to get your private keys.
           </p>
         </div>
       </div>
@@ -68,12 +76,10 @@ export const DashboardPage = () => {
   const { data: reverseName, isPending: isReverseNameLoading } = useQuery({
     ...profileReverseNameQuery(reverseAddress),
   })
-  const { data: reverseRecords, isPending: isReverseRecordsLoading } = useQuery(
-    {
-      ...profileRecordsQuery(reverseName ?? ''),
-      enabled: !!reverseName,
-    },
-  )
+  const { data: reverseRecords } = useQuery({
+    ...profileRecordsQuery(reverseName ?? ''),
+    enabled: !!reverseName,
+  })
   const { data: reverseExpiry, isPending: isReverseExpiryLoading } = useQuery({
     ...profileExpiryQuery(reverseName ?? ''),
     enabled: !!reverseName,
@@ -83,7 +89,7 @@ export const DashboardPage = () => {
     (text) => text.key === 'avatar',
   )?.value
 
-  const { data: parsedAvatar, isPending: isAvatarPending } = useQuery({
+  const { data: parsedAvatar } = useQuery({
     ...parseAvatarQuery(avatarRecord),
     enabled: !!avatarRecord,
   })
