@@ -85,7 +85,7 @@ export function Registration({ initialName }: RegistrationProps) {
   })
 
   // Use unified smart account hook (defaults to Pimlico)
-  const account = useSmartAccount({ type: 'rhinestone' })
+  const account = useSmartAccount({ type: 'pimlico', accountType: 'hca' })
 
   // Extract account info
   const accountAddress = account.accountAddress
@@ -203,15 +203,17 @@ export function Registration({ initialName }: RegistrationProps) {
         onVerified={handleVerificationComplete}
       />
       <div className="mx-6 flex flex-col items-start gap-4 md:flex-row">
-        <div className="absolute flex items-center justify-between">
-          <Button
-            variant="ghost"
-            onClick={handleBack}
-            className="h-auto p-2 text-ens-lapis-surface uppercase"
-          >
-            <ArrowLeftIcon className="h-6 w-6 font-bold" /> Back
-          </Button>
-        </div>
+        {!(hasSkippedNotifications || hasConfirmedNotifications) && (
+          <div className="absolute flex items-center justify-between">
+            <Button
+              variant="ghost"
+              onClick={handleBack}
+              className="h-auto p-2 text-ens-lapis-surface uppercase"
+            >
+              <ArrowLeftIcon className="h-6 w-6 font-bold" /> Back
+            </Button>
+          </div>
+        )}
 
         {step === RegistrationStep.PRICING && displayDomainName && (
           <div className="w-full py-6 md:py-6">

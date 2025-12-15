@@ -35,7 +35,11 @@ export const usePricing = ({
   | 'onSelectCrypto'
   | 'onConfirmPayment'
 >) => {
-  const { client: smartAccountClient } = useSmartAccount()
+  // Use HCA config to match registration page
+  const { client: smartAccountClient } = useSmartAccount({
+    type: 'pimlico',
+    accountType: 'hca',
+  })
   const { openModal } = useModal()
   const discountsEnabled = useFeatureFlag('DISCOUNTS_APPLIED')
 

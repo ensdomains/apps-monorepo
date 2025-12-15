@@ -5,10 +5,7 @@
  * with Pimlico bundler/paymaster. Supports both Para-embedded and external wallets.
  */
 
-import {
-  createParaAccount,
-  type ParaClient,
-} from '@getpara/viem-v2-integration'
+import { createParaAccount } from '@getpara/viem-v2-integration'
 import {
   createSmartAccountClient,
   type SmartAccountClient,
@@ -20,7 +17,8 @@ import type { Address, WalletClient } from 'viem'
 import { http } from 'viem'
 import { entryPoint07Address } from 'viem/account-abstraction'
 import { customSepolia, publicClient } from '@/lib/wagmi'
-import type { SmartAccountType, WalletSource } from './types'
+import { registerHCAOwnership } from './hca-registry'
+import type { ParaClient, SmartAccountType, WalletSource } from './types'
 import { wrapParaAccount } from './utils'
 
 export interface PimlicoConfig {
@@ -33,6 +31,7 @@ export interface InitializePimlicoParams {
   walletClient?: WalletClient
   paraClient?: ParaClient
   accountType?: SmartAccountType
+  registerHCA?: boolean // Whether to register HCA ownership after account creation
 }
 
 export interface PimlicoInitResult {
@@ -56,6 +55,7 @@ export async function initializePimlicoAccount(
     walletClient,
     paraClient,
     accountType = 'simple',
+    registerHCA = accountType === 'hca', // Auto-register if accountType is 'hca'
   } = params
 
   const PIMLICO_API_KEY = import.meta.env.VITE_PIMLICO_API_KEY
@@ -66,9 +66,11 @@ export async function initializePimlicoAccount(
   const PIMLICO_URL = `https://api.pimlico.io/v2/${customSepolia.id}/rpc?apikey=${PIMLICO_API_KEY}`
 
   let ownerAccount: Parameters<typeof toSimpleSmartAccount>[0]['owner']
+  let eoaAddress: Address | null = null
 
   if (walletSource === 'external-wallet' && walletClient) {
     ownerAccount = await toOwner({ owner: walletClient })
+    eoaAddress = walletClient.account?.address ?? null
   } else if (walletSource === 'para-embedded' && paraClient) {
     ownerAccount = wrapParaAccount(
       createParaAccount(paraClient),
@@ -98,6 +100,38 @@ export async function initializePimlicoAccount(
         (await pimlicoClient.getUserOperationGasPrice()).fast,
     },
   })
+
+  // Register HCA ownership via smart account (sponsored) if requested
+  if (registerHCA && eoaAddress) {
+    const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
+    if (pimlicoApiKey) {
+      const signer = {
+        type: 'pimlico' as const,
+        account: client,
+        config: {
+          chain: customSepolia,
+          accountAddress: smartAccount.address,
+          accountType,
+          pimlicoApiKey,
+        },
+      }
+
+      const result = await registerHCAOwnership({
+        smartAccountAddress: smartAccount.address,
+        eoaAddress,
+        signer,
+        publicClient,
+      })
+
+      if (result.isErr()) {
+        throw new Error(
+          `HCA registration failed: ${result.error.reason} - ${result.error.details}`,
+        )
+      }
+
+      console.log('✅ HCA registration result:', result.value)
+    }
+  }
 
   const config: PimlicoConfig = {
     chain: customSepolia,

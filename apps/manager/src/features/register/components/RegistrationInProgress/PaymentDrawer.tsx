@@ -146,7 +146,11 @@ export const CryptoPaymentDrawer = ({
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const { data: wallet } = useWallet()
   const isConnected = !!wallet?.address
-  const { stablecoinBalances, isLoadingBalances } = useSmartAccount()
+  // Use HCA config to check EOA balance (tokens are held by EOA, not smart account)
+  const { stablecoinBalances, isLoadingBalances } = useSmartAccount({
+    type: 'pimlico',
+    accountType: 'hca',
+  })
 
   const hasBalances = (stablecoinBalances?.length || 0) > 0
   const stablecoinLoading = isLoadingBalances

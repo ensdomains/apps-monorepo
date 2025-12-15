@@ -32,6 +32,8 @@ export { ETH_REGISTRAR_CONTROLLER_ABI } from './contracts/abis/ETHRegistrarContr
 export { ENS_SEPOLIA_CONTRACTS } from './contracts/ens-sepolia'
 // Errors
 export { TransactionSubmissionError } from './errors/transaction.errors'
+// Helpers
+export { pollTransactionStatus } from './helpers/pollTransactionStatus.actor'
 export {
   type ENSRenewalParams,
   executeENSRenewal,
