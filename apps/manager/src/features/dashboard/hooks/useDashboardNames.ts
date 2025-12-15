@@ -3,10 +3,10 @@ import {
   type DomainFragment,
   OrderDirection,
 } from '@ens-apps/indexer'
+import { useWallet } from '@getpara/react-sdk-lite'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
-import { useSmartAccount } from '@/lib/smart-account'
 import { getDomainsQuery } from '../service/dashboardDomains'
 
 const PAGE_SIZE = 5
@@ -18,7 +18,7 @@ export const useDashboardNames = ({
 }: {
   searchQuery?: string
 }) => {
-  const { accountAddress } = useSmartAccount()
+  const { data: wallet } = useWallet()
   const [page, setPage] = useState(1)
   const [sortField, setSortField] = useState<SortField>('registration')
   const [sortDirection, setSortDirection] = useState<OrderDirection>(
@@ -28,9 +28,9 @@ export const useDashboardNames = ({
   // biome-ignore lint/correctness/useExhaustiveDependencies: Reset page on search change
   useEffect(() => {
     setPage(1)
-  }, [searchQuery, accountAddress])
+  }, [searchQuery, wallet?.address])
 
-  const normalizedAddress = accountAddress?.toLowerCase()
+  const normalizedAddress = wallet?.address?.toLowerCase()
 
   const orderBy = match(sortField)
     .with('name', () => Domain_OrderBy.Name)

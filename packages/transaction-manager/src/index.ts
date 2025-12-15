@@ -65,6 +65,12 @@ export {
   saveTransaction,
 } from './helpers/transaction-persistence'
 export type {
+  PrimaryNameContext,
+  PrimaryNameEvent,
+  PrimaryNameInput,
+} from './machines/primary-name/primaryName.machine'
+export { primaryNameMachine } from './machines/primary-name/primaryName.machine'
+export type {
   RecordsContext,
   RecordsEvent,
   RecordsInput,

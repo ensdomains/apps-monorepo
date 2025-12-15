@@ -36,7 +36,7 @@ function RouteComponent() {
   const {
     accountAddress: smartAccountAddress,
     isLoading: isSmartAccountLoading,
-  } = useSmartAccount()
+  } = useSmartAccount({ type: 'pimlico', accountType: 'hca' })
 
   const normalizedOwner = ownerData?.owner?.toLowerCase()
   const connectedAddresses = [wallet?.address, smartAccountAddress]

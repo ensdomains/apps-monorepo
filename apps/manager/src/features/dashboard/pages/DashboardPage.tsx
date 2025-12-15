@@ -34,8 +34,16 @@ const NewWalletBanner = ({ onClose }: { onClose: () => void }) => {
             You have a new wallet.
           </p>
           <p className="font-sans text-[#5c5b5b] text-[11px] leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
-            You created a new wallet to put your name in. Go to Para.com to get
-            your private keys.
+            You created a new wallet to put your name in. Go to{' '}
+            <a
+              href="https://getpara.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#0080bc] underline"
+            >
+              getpara.com
+            </a>{' '}
+            to get your private keys.
           </p>
         </div>
       </div>
@@ -54,20 +62,24 @@ const NewWalletBanner = ({ onClose }: { onClose: () => void }) => {
 export const DashboardPage = () => {
   const account = useAccount()
   const { data: wallet } = useWallet()
-  const { accountAddress } = useSmartAccount()
+  const { accountAddress: smartAccountAddress } = useSmartAccount({
+    type: 'pimlico',
+    accountType: 'hca',
+  })
   const hasDismissedNewWalletBanner = useAtom(hasDismissedNewWalletBannerAtom)
 
-  const address = wallet?.address as Address | undefined
+  const eoaAddress = wallet?.address as Address | undefined
+  const reverseAddress = (smartAccountAddress ?? eoaAddress) as
+    | Address
+    | undefined
 
   const { data: reverseName, isPending: isReverseNameLoading } = useQuery({
-    ...profileReverseNameQuery(address),
+    ...profileReverseNameQuery(reverseAddress),
   })
-  const { data: reverseRecords, isPending: isReverseRecordsLoading } = useQuery(
-    {
-      ...profileRecordsQuery(reverseName ?? ''),
-      enabled: !!reverseName,
-    },
-  )
+  const { data: reverseRecords } = useQuery({
+    ...profileRecordsQuery(reverseName ?? ''),
+    enabled: !!reverseName,
+  })
   const { data: reverseExpiry, isPending: isReverseExpiryLoading } = useQuery({
     ...profileExpiryQuery(reverseName ?? ''),
     enabled: !!reverseName,
@@ -77,7 +89,7 @@ export const DashboardPage = () => {
     (text) => text.key === 'avatar',
   )?.value
 
-  const { data: parsedAvatar, isPending: isAvatarPending } = useQuery({
+  const { data: parsedAvatar } = useQuery({
     ...parseAvatarQuery(avatarRecord),
     enabled: !!avatarRecord,
   })
@@ -94,13 +106,10 @@ export const DashboardPage = () => {
       : null
   const avatarUrl = parsedAvatar ?? wallet?.ensAvatar ?? null
 
-  const isPrimaryLoading =
-    isReverseNameLoading ||
-    isReverseRecordsLoading ||
-    isReverseExpiryLoading ||
-    isAvatarPending
+  const isPrimaryLoading = isReverseNameLoading || isReverseExpiryLoading
 
-  const displayName = defaultName ?? formatAddress(accountAddress)
+  const displayName =
+    defaultName ?? formatAddress(smartAccountAddress ?? eoaAddress)
   const hasProfile = Boolean(defaultName)
 
   const handleDismissNewWalletBanner = () => {
@@ -119,10 +128,7 @@ export const DashboardPage = () => {
             connectionType: account.connectionType,
             dismissed: hasDismissedNewWalletBanner,
           })
-            .with({ dismissed: false, connectionType: 'embedded' }, () => (
-              <NewWalletBanner onClose={handleDismissNewWalletBanner} />
-            ))
-            .with({ dismissed: false, connectionType: 'both' }, () => (
+            .with({ dismissed: false, connectionType: 'external' }, () => (
               <NewWalletBanner onClose={handleDismissNewWalletBanner} />
             ))
             .otherwise(() => null)}
