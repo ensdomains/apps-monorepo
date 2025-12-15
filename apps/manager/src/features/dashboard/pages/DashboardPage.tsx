@@ -128,10 +128,7 @@ export const DashboardPage = () => {
             connectionType: account.connectionType,
             dismissed: hasDismissedNewWalletBanner,
           })
-            .with({ dismissed: false, connectionType: 'embedded' }, () => (
-              <NewWalletBanner onClose={handleDismissNewWalletBanner} />
-            ))
-            .with({ dismissed: false, connectionType: 'both' }, () => (
+            .with({ dismissed: false, connectionType: 'external' }, () => (
               <NewWalletBanner onClose={handleDismissNewWalletBanner} />
             ))
             .otherwise(() => null)}
