@@ -2,7 +2,6 @@ import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { sign, verify } from 'hono/jwt'
 import { err, fromAsyncThrowable, ok } from 'neverthrow'
 import * as v from 'valibot'
-import { error } from '#utils/result.js'
 
 const JWT_EXPIRATION = 60 * 60 * 3 // 3 hours
 
