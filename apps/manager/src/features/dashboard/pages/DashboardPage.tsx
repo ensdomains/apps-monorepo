@@ -11,6 +11,7 @@ import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useSmartAccount } from '@/lib/smart-account'
 import {
@@ -97,14 +98,23 @@ export const DashboardPage = () => {
 
   const defaultName = reverseName ?? wallet?.ensName ?? primaryLabel ?? null
 
-  const registeredDate = null
+  const { data: registration, isPending: isRegistrationLoading } = useQuery({
+    ...profileRegistrationQuery(defaultName ?? ''),
+    enabled: !!defaultName,
+  })
+
+  const registeredDate =
+    registration?.registrationDate != null
+      ? new Date(registration.registrationDate * 1000)
+      : null
   const expiryDate =
     reverseExpiry?.expiry != null
       ? new Date(Number(reverseExpiry.expiry) * 1000)
       : null
   const avatarUrl = parsedAvatar ?? wallet?.ensAvatar ?? null
 
-  const isPrimaryLoading = isReverseNameLoading || isReverseExpiryLoading
+  const isPrimaryLoading =
+    isReverseNameLoading || isReverseExpiryLoading || isRegistrationLoading
 
   const displayName =
     defaultName ?? formatAddress(smartAccountAddress ?? eoaAddress)
