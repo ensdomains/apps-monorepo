@@ -239,7 +239,7 @@ const ConnectedContent = () => {
   const ensAvatar = wallet?.ensAvatar
 
   const { data: reverseName } = useQuery({
-    ...profileReverseNameQuery(address),
+    ...profileReverseNameQuery(address as Address),
   })
   const { data: reverseRecords } = useQuery({
     ...profileRecordsQuery(reverseName ?? ''),
