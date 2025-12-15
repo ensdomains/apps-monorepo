@@ -84,8 +84,8 @@ export function Registration({ initialName }: RegistrationProps) {
     inspect,
   })
 
-  // Use unified smart account hook (defaults to Pimlico)
-  const account = useSmartAccount({ type: 'pimlico', accountType: 'hca' })
+  // Use unified smart account hook with Kernel (smart sessions - sign once)
+  const account = useSmartAccount({ type: 'kernel', accountType: 'hca' })
 
   // Extract account info
   const accountAddress = account.accountAddress

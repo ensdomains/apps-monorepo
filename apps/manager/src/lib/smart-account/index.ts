@@ -12,12 +12,14 @@ export type {
   WalletSource,
 } from './types'
 export type {
+  KernelAccountState,
   PimlicoAccountState,
   RhinestoneAccountState,
   SmartAccountState,
   UseSmartAccountConfig,
 } from './useSmartAccount'
 export {
+  isKernelAccount,
   isPimlicoAccount,
   isRhinestoneAccount,
   useSmartAccount,

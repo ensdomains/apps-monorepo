@@ -7,6 +7,7 @@ import {
   useWallet as useParaWallet,
 } from '@getpara/react-sdk-lite'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import type { KernelValidator } from '@zerodev/sdk'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { type Address, formatUnits } from 'viem'
@@ -21,36 +22,44 @@ import {
   initializeRhinestoneAccount,
   type RhinestoneConfig,
 } from './rhinestone'
+import type { StoredSession } from './sessions/types'
 import type {
+  KernelAccountState,
   PimlicoAccountState,
   RhinestoneAccountState,
   SmartAccountState,
   UseSmartAccountConfig,
   WalletSource,
 } from './types'
+import { initializeKernelAccount, type KernelConfig } from './zerodev/kernel'
 
 export type {
+  KernelAccountState,
   ParaClient,
   PimlicoAccountState,
   RhinestoneAccountState,
   SmartAccountState,
   UseSmartAccountConfig,
 } from './types'
-export { isPimlicoAccount, isRhinestoneAccount } from './types'
+export { isKernelAccount, isPimlicoAccount, isRhinestoneAccount } from './types'
 
 /**
  * Unified Smart Account Hook
  *
  * Single entry point for smart account management. Supports multiple providers
- * (Pimlico, Rhinestone) with a consistent interface.
+ * (Pimlico, Rhinestone, Kernel) with a consistent interface.
  *
  * @example
- * // Use Rhinestone (default) - gas sponsorship enabled by default on testnet
+ * // Use Kernel (default) - ZeroDev with smart sessions, sign once transact many times
  * const account = useSmartAccount()
+ * const account = useSmartAccount({ type: 'kernel' })
+ *
+ * @example
+ * // Use Rhinestone (no sessions)
  * const account = useSmartAccount({ type: 'rhinestone' })
  *
  * @example
- * // Use Pimlico
+ * // Use Pimlico (no sessions)
  * const account = useSmartAccount({ type: 'pimlico' })
  *
  * @example
@@ -61,11 +70,15 @@ export { isPimlicoAccount, isRhinestoneAccount } from './types'
  * if (isPimlicoAccount(account)) {
  *   // account.client is SmartAccountClient
  * }
+ * if (isKernelAccount(account)) {
+ *   // account.client is KernelAccountClient
+ *   // account.session contains the active session
+ * }
  */
 export function useSmartAccount(
   config?: UseSmartAccountConfig,
 ): SmartAccountState {
-  const providerType = config?.type ?? 'rhinestone'
+  const providerType = config?.type ?? 'kernel'
   const accountType = config?.accountType ?? 'simple'
 
   const paraClient = useParaClient()
@@ -89,10 +102,16 @@ export function useSmartAccount(
   const [client, setClient] = useState<SmartAccountState['client']>(null)
   const [accountAddress, setAccountAddress] = useState<Address | null>(null)
   const [accountConfig, setAccountConfig] = useState<
-    PimlicoConfig | RhinestoneConfig | null
+    PimlicoConfig | RhinestoneConfig | KernelConfig | null
   >(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Kernel-specific state for sessions
+  const [session, setSession] = useState<StoredSession | null>(null)
+  const [isSessionClient, setIsSessionClient] = useState(false)
+  const [ecdsaValidator, setEcdsaValidator] =
+    useState<KernelValidator<'ECDSAValidator'> | null>(null)
+  const [isAccountReady, setIsAccountReady] = useState(false)
 
   const initializedRef = useRef<string | null>(null)
 
@@ -221,6 +240,10 @@ export function useSmartAccount(
       setClient(null)
       setAccountAddress(null)
       setAccountConfig(null)
+      setSession(null)
+      setIsSessionClient(false)
+      setEcdsaValidator(null)
+      setIsAccountReady(false)
       setError(null)
       return
     }
@@ -259,6 +282,28 @@ export function useSmartAccount(
         setClient(result.client)
         setAccountAddress(result.address)
         setAccountConfig(result.config)
+      } else if (providerType === 'kernel') {
+        if (!wagmiWalletClient) {
+          throw new Error('Kernel requires an external wallet connection')
+        }
+
+        // Initialize the master kernel account
+        const result = await initializeKernelAccount({
+          walletClient: wagmiWalletClient,
+          accountType,
+        })
+
+        // Use the master kernel account directly
+        setClient(result.client)
+        setSession(null)
+        setIsSessionClient(false)
+        setAccountAddress(result.address)
+        setAccountConfig(result.config)
+        // Store the ECDSA validator for session creation
+        setEcdsaValidator(result.ecdsaValidator)
+        setIsAccountReady(true)
+
+        console.log('🔐 Kernel account initialized:', result.address)
       }
 
       initializedRef.current = key
@@ -330,6 +375,29 @@ export function useSmartAccount(
       }
     }
 
+    if (providerType === 'kernel') {
+      const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
+      if (!pimlicoApiKey) {
+        console.error(
+          'Pimlico API key not configured - cannot create kernel signer',
+        )
+        return null
+      }
+
+      const kernelConfig = accountConfig as KernelConfig | null
+      return {
+        type: 'kernel' as const,
+        account: client as NonNullable<KernelAccountState['client']>,
+        config: {
+          chain: customSepolia,
+          accountAddress,
+          accountType: kernelConfig?.accountType,
+          pimlicoApiKey,
+          isSessionClient,
+        },
+      }
+    }
+
     const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
     if (!pimlicoApiKey) {
       console.error('Pimlico API key not configured - cannot create signer')
@@ -347,7 +415,21 @@ export function useSmartAccount(
         pimlicoApiKey,
       },
     }
-  }, [client, accountAddress, providerType, accountConfig])
+  }, [client, accountAddress, providerType, accountConfig, isSessionClient])
+
+  // Callback to update session data when a session is created
+  const setSessionData = useCallback(
+    (
+      newSession: StoredSession,
+      sessionClient: KernelAccountState['client'],
+    ) => {
+      console.log('📦 Setting session data:', newSession.id)
+      setSession(newSession)
+      setClient(sessionClient)
+      setIsSessionClient(true)
+    },
+    [],
+  )
 
   const baseState = {
     accountAddress,
@@ -372,6 +454,20 @@ export function useSmartAccount(
       type: 'rhinestone' as const,
       client: client as RhinestoneAccountState['client'],
       config: accountConfig as RhinestoneConfig | null,
+    }
+  }
+
+  if (providerType === 'kernel') {
+    return {
+      ...baseState,
+      type: 'kernel' as const,
+      client: client as KernelAccountState['client'],
+      config: accountConfig as KernelConfig | null,
+      session,
+      isSessionClient,
+      ecdsaValidator,
+      isAccountReady,
+      setSessionData,
     }
   }
 
