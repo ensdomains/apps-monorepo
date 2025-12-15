@@ -607,7 +607,7 @@ importers:
         specifier: ^0.2.57
         version: 0.2.57(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       valibot:
-        specifier: ^1.1.0
+        specifier: ^1.2.0
         version: 1.2.0(typescript@5.9.3)
       viem:
         specifier: ^2.21.58
