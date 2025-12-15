@@ -100,11 +100,7 @@ export const DashboardPage = () => {
       : null
   const avatarUrl = parsedAvatar ?? wallet?.ensAvatar ?? null
 
-  const isPrimaryLoading =
-    isReverseNameLoading ||
-    isReverseRecordsLoading ||
-    isReverseExpiryLoading ||
-    isAvatarPending
+  const isPrimaryLoading = isReverseNameLoading || isReverseExpiryLoading
 
   const displayName =
     defaultName ?? formatAddress(smartAccountAddress ?? eoaAddress)
