@@ -1,4 +1,3 @@
-import { Link } from '@tanstack/react-router'
 import { AvailabilityCheckIcon } from '@/components/atoms/AvailabilityCheckIcon'
 import type { PremiumLabel } from '@/features/register/utils'
 import { cn } from '@/lib/utils'
