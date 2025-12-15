@@ -1,6 +1,5 @@
-import type { DomainFragment } from '@ens-apps/indexer'
 import { useQuery } from '@tanstack/react-query'
-import { Calendar, ChevronDown, Clock } from 'lucide-react'
+import { Calendar, Clock } from 'lucide-react'
 import { match } from 'ts-pattern'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -18,14 +17,12 @@ type PrimaryNameCardProps = {
   primaryName?: string | null
   reverseName?: string | null
   ensAvatarFallback?: string | null
-  isLoading?: boolean
 }
 
 export const PrimaryNameCard = ({
   primaryName,
   reverseName,
   ensAvatarFallback,
-  isLoading,
 }: PrimaryNameCardProps) => {
   const { data: reverseRecords } = useQuery({
     ...profileRecordsQuery(reverseName ?? ''),
@@ -61,16 +58,15 @@ export const PrimaryNameCard = ({
   )
   const formattedRegisteredDate = formatDashboardDate(registeredDate)
   const formattedExpiryDate = formatDashboardDate(expiryDate)
-  const isDetailsLoading =
-    isLoading || isReverseExpiryLoading || isRegistrationLoading
   const avatarUrl = parsedAvatar ?? ensAvatarFallback ?? null
   const hasAvatar = Boolean(avatarUrl)
-  const displayName =
-    isLoading && !primaryName ? 'Loading...' : (primaryName ?? 'Your ENS name')
-  const registeredLabel = isDetailsLoading
+  const displayName = primaryName ?? 'Your ENS name'
+  const registeredLabel = isReverseExpiryLoading
     ? 'Loading...'
     : formattedRegisteredDate
-  const expiryLabel = isDetailsLoading ? 'Loading...' : formattedExpiryDate
+  const expiryLabel = isReverseExpiryLoading
+    ? 'Loading...'
+    : formattedExpiryDate
   const canViewProfile = Boolean(primaryName)
 
   return (
