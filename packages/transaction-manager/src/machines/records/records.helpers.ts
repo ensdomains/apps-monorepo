@@ -116,25 +116,7 @@ export const computeRecordChanges = (
   return { texts: textChanges, coins: coinChanges }
 }
 
-const bioUrlSchema = v.pipe(
-  v.string(),
-  v.trim(),
-  v.custom((value: unknown) => {
-    if (typeof value !== 'string') return false
-
-    if (value === '') {
-      return true
-    }
-
-    try {
-      const url = new URL(value)
-
-      return url.protocol === 'http:' || url.protocol === 'https:'
-    } catch {
-      return false
-    }
-  }, 'Invalid Bio URL'),
-)
+const bioUrlSchema = v.pipe(v.string(), v.trim(), v.url('Invalid Bio URL'))
 
 const validateTextChange = ({ key, value }: TextChange): RecordIssue[] => {
   const trimmed = value?.trim() ?? ''
