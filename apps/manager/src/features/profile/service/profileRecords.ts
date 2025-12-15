@@ -12,7 +12,7 @@ import { multicall } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { alwaysProbeAddressRecords, forceFetchRecords } from '../data/records'
 import { DEBUG_PROFILE } from '../MOCK'
-import { getSubgraphRecords } from './getSubgraphRecords'
+import { getIndexerRecords } from './getIndexerRecords'
 import { getResolver } from './profileResolver'
 
 const COIN_TYPE_NAME_MAP = coinTypeToNameMap as Record<
@@ -27,26 +27,26 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
       _rawSubgraphRecords: {
         isMigrated: false,
         createdAt: new Date(),
-      } as unknown as NonNullable<typeof subgraphRecords>,
+      } as unknown as NonNullable<typeof indexerRecords>,
     })
   }
 
   const client = yield* safeGetClient()
-  const subgraphRecords = yield* getSubgraphRecords(name)
+  const indexerRecords = yield* getIndexerRecords(name)
   const resolverAddress = yield* getResolver(name)
 
   const texts = [
     ...forceFetchRecords.always,
-    ...(subgraphRecords
-      ? subgraphRecords.texts.filter(
+    ...(indexerRecords
+      ? indexerRecords.texts.filter(
           (t) => !forceFetchRecords.always.includes(t),
         )
       : forceFetchRecords.whenNotIndexed),
   ]
 
-  const coinTypes = subgraphRecords
+  const coinTypes = indexerRecords
     ? [
-        ...subgraphRecords.coins.filter(
+        ...indexerRecords.coins.filter(
           (c) => !alwaysProbeAddressRecords.includes(c),
         ),
         ...alwaysProbeAddressRecords,
@@ -57,7 +57,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     texts: [],
     coins: [],
     resolverAddress,
-    _rawSubgraphRecords: subgraphRecords,
+    _rawSubgraphRecords: indexerRecords,
   }
 
   if (!resolverAddress) {
