@@ -15,6 +15,9 @@ export const ENS_SEPOLIA_CONTRACTS = {
   // V2 Fast Registrar - no commitment wait time required (with HCAEquivalence)
   FastTestETHRegistrar: '0xe37a1366c827d18dc0ad57f3767de4b3025ceac2' as const,
   DedicatedResolverImpl: '0xa20b41dc7336c4d974e3c9a6ea01b77647559c46' as const,
+  // Default reverse registrar (sets primary/default ENS name per coin type)
+  DefaultReverseRegistrar:
+    '0xeb8269fb39290f31c4c29cec548807ca2133abb4' as const,
   // Additional contracts
   BridgeController: '0xbb84d5d658bbdb48bf99689f3a14f780ab2f9220' as const,
   DedicatedResolver: '0xa20b41dc7336c4d974e3c9a6ea01b77647559c46' as const,
