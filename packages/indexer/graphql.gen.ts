@@ -370,6 +370,16 @@ export type DomainFragment = { __typename?: 'Domain', id: string, name?: string 
 
 export type ResolverFragment = { __typename?: 'Resolver', id: string, address: string, texts?: Array<string> | null, avatar?: string | null, description?: string | null, header?: string | null, url?: string | null, email?: string | null, location?: string | null, phone?: string | null, mail?: string | null, timezone?: string | null, twitter?: string | null, telegram?: string | null, farcaster?: string | null, instagram?: string | null, discord?: string | null, github?: string | null, linkedin?: string | null, youtube?: string | null, reddit?: string | null, tiktok?: string | null, twitch?: string | null, mastodon?: string | null };
 
+export type DomainQueryVariables = Exact<{
+  id: Scalars['String']['input'];
+}>;
+
+
+export type DomainQuery = { __typename?: 'Query', domain?: (
+    { __typename?: 'Domain' }
+    & DomainFragment
+  ) | null };
+
 export type DomainsQueryVariables = Exact<{
   where: DomainFilter;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -434,6 +444,13 @@ export const Domain = gql`
 }
     ${Resolver}
 ${Account}`;
+export const DomainDocument = gql`
+    query Domain($id: String!) {
+  domain(id: $id) {
+    ...Domain
+  }
+}
+    ${Domain}`;
 export const DomainsDocument = gql`
     query Domains($where: DomainFilter!, $first: Int, $skip: Int, $orderBy: Domain_orderBy, $orderDirection: OrderDirection) {
   domains(
