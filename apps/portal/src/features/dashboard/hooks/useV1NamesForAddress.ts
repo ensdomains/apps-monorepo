@@ -9,13 +9,13 @@ import { getNamesForAddress as ensjs_getNamesForAddress } from '@ensdomains/ensj
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class GetNamesForAddressError extends TaggedError(
-  'GetNamesForAddressError',
+export class GetV1NamesForAddressError extends TaggedError(
+  'GetV1NamesForAddressError',
 )<{
   cause: GetNamesForAddressErrorType
 }> {}
 
-export const getNamesForAddress = ResultFn(async function* (
+export const getV1NamesForAddress = ResultFn(async function* (
   params: GetNamesForAddressParameters,
 ) {
   const client = yield* safeGetClient()
@@ -23,22 +23,22 @@ export const getNamesForAddress = ResultFn(async function* (
   const names = yield* await fromPromise(
     ensjs_getNamesForAddress(client, params),
     (e) =>
-      new GetNamesForAddressError({
+      new GetV1NamesForAddressError({
         cause: e as GetNamesForAddressErrorType,
       }),
   )
   return ok(names)
 })
 
-export const getNamesForAddressQueryKey = createQueryKey<
+export const getV1NamesForAddressQueryKey = createQueryKey<
   'get-names-for-address',
   GetNamesForAddressParameters
 >('get-names-for-address')
 
-export const getNamesForAddressQueryOptions = (
+export const getV1NamesForAddressQueryOptions = (
   params: GetNamesForAddressParameters,
 ) =>
   resultQueryOptions({
-    queryKey: getNamesForAddressQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getNamesForAddress(params),
+    queryKey: getV1NamesForAddressQueryKey(params),
+    queryFn: ({ queryKey: [, params] }) => getV1NamesForAddress(params),
   })

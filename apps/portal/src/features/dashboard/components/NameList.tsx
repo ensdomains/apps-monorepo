@@ -1,5 +1,5 @@
 import type { NameWithRelation } from '@ensdomains/ensjs/subgraph'
-import { useQuery } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { Address } from 'viem/accounts'
 import { NamechainSVG } from '@/assets/chains'
@@ -7,7 +7,9 @@ import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { DataTable } from '@/components/molecules/DataTable/DataTable'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import { getNamesForAddressQueryOptions } from '../hooks/useNamesForAddress'
+import type { EnsNetworkName, WithEnsNetwork } from '@/utils/types'
+import { getV1NamesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
+import { getV2NamesForAddressQueryOptions } from '../hooks/useV2NamesForAddress'
 
 interface NameListProps {
   address: Address
@@ -19,7 +21,12 @@ const formatter = new Intl.DateTimeFormat('en-US', {
   day: 'numeric',
 })
 
-const columns: ColumnDef<NameWithRelation & { network: 'sepolia' }>[] = [
+type column = WithEnsNetwork<{
+  name: string | null
+  expiryDate?: Date
+}>
+
+const columns: ColumnDef<column>[] = [
   {
     accessorKey: 'name',
     header: 'Name',
@@ -44,41 +51,60 @@ const columns: ColumnDef<NameWithRelation & { network: 'sepolia' }>[] = [
   {
     id: 'expiryDate',
     header: 'Expiry',
-    accessorFn: ({ expiryDate }) => formatter.format(expiryDate?.date),
+    accessorFn: ({ expiryDate }) => formatter.format(expiryDate),
   },
   {
     accessorKey: 'network',
     header: 'Network',
     cell(cell) {
-      const network = cell.getValue() as 'sepolia'
+      const network = cell.getValue() as EnsNetworkName
 
-      return (
-        <div className="flex flex-row gap-1 items-center">
-          <NamechainSVG height={20} width={20} />
-          <span>{network === 'sepolia' ? 'Sepolia' : 'Unknown'}</span>
-        </div>
-      )
+      if (network === 'sepolia') {
+        return (
+          <div className="flex flex-row gap-1 items-center">
+            <NamechainSVG height={20} width={20} />
+            <span>Sepolia</span>
+          </div>
+        )
+      } else if (network === 'namechainSepolia') {
+        return (
+          <div className="flex flex-row gap-1 items-center">
+            <NamechainSVG height={20} width={20} />
+            <span>Namechain Sepolia</span>
+          </div>
+        )
+      }
     },
   },
 ]
 
 export const NameList = ({ address }: NameListProps) => {
-  const {
-    data: names,
-    isLoading,
-    error,
-  } = useQuery(getNamesForAddressQueryOptions({ address }))
+  const [v1NamesQuery, v2NamesQuery] = useQueries({
+    queries: [
+      getV1NamesForAddressQueryOptions({ address }),
+      getV2NamesForAddressQueryOptions({ address }),
+    ],
+  })
 
-  if (error) {
-    if (error._tag === 'Wagmi/ClientError')
-      return <div>Error connecting to Ethereum</div>
-    return <div>Error: {error.cause?.message}</div>
+  if (v1NamesQuery.error) {
+    return <div>Error: {v1NamesQuery.error.cause?.message}</div>
   }
-  if (isLoading) return <LoadingSpinner title="Loading..." />
+  if (v1NamesQuery.isLoading) return <LoadingSpinner title="Loading V1 names" />
+  if (v2NamesQuery.isLoading) return <LoadingSpinner title="Loading V2 names" />
+  if (!v2NamesQuery.data && !v1NamesQuery.data) return <>No names</>
 
-  if (!names) return <>No names</>
-
-  const data = names.map((name) => ({ ...name, network: 'sepolia' }) as const)
+  const data = [
+    ...((v1NamesQuery.data || []).map(({ name, expiryDate }) => ({
+      name,
+      expiryDate: expiryDate?.date,
+      network: 'sepolia',
+    })) as column[]),
+    ...((v2NamesQuery.data || []).map(({ name, expiryDate }) => ({
+      name,
+      expiryDate: new Date(Number(expiryDate) * 1000),
+      network: 'namechainSepolia',
+    })) as column[]),
+  ] as const satisfies column[]
 
   return (
     <div className="border rounded-2xl border-gray-300">

@@ -1,9 +1,10 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { type ClientError, GraphQLClient, gql } from 'graphql-request'
+import { type ClientError, gql } from 'graphql-request'
 import { fromPromise, ok } from 'neverthrow'
 import { namechainEthRegistryAddress } from '@/lib/constants/registry'
+import { graphqlIndexerClient } from '@/lib/indexer'
 
 export class GetV2RegistrationDataError extends TaggedError(
   'GetV2RegistrationDataError',
@@ -13,13 +14,11 @@ export class GetV2RegistrationDataError extends TaggedError(
 
 export type GetRegistrationDataParameters = { name: string }
 
-const client = new GraphQLClient('https://ensv2.pff.sh/graphql')
-
 export const getV2RegistrationData = ResultFn(async function* ({
   name,
 }: GetRegistrationDataParameters) {
   const data = yield* fromPromise(
-    client.request<{
+    graphqlIndexerClient.request<{
       events: [{ timestamp: number }]
       domains: [{ expiryDate: number }]
     }>(gql`
