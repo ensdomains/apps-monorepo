@@ -48,8 +48,13 @@ export const primaryNameMachine = setup({
 
   actors: {
     submitPrimaryNameUpdate: fromResultAsync(
-      (input: { name: string; signer: Signer; publicClient: PublicClient }) =>
-        submitPrimaryNameUpdateActor(input),
+      (input: {
+        name: string
+        signer: Signer
+        accountAddress: Address
+        publicClient: PublicClient
+        chainId: number
+      }) => submitPrimaryNameUpdateActor(input),
     ),
     pollTransactionStatus: fromResultAsync((input: { txId: string }) =>
       pollTransactionStatus(input.txId),
@@ -137,7 +142,9 @@ export const primaryNameMachine = setup({
         input: ({ context }) => ({
           name: context.name,
           signer: context.signer!,
+          accountAddress: context.accountAddress!,
           publicClient: context.publicClient!,
+          chainId: context.chainId,
         }),
         onDone: {
           target: 'waitingForUpdate',
