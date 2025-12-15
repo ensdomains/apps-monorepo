@@ -33,7 +33,9 @@ export const SetPrimaryNameDialog = ({
     accountAddress: smartAccountAddress,
     isConnected: isSmartAccountConnected,
     signer,
-  } = useSmartAccount()
+    ownerAddress: smartOwnerAddress,
+    config: smartAccountConfig,
+  } = useSmartAccount({ type: 'pimlico', accountType: 'hca' })
   const { data: wagmiWalletClient } = useWalletClient()
 
   const primaryNameActor = useActorRef(primaryNameMachine, {
@@ -74,9 +76,11 @@ export const SetPrimaryNameDialog = ({
 
     const smartValid =
       smartAccountAddress &&
-      smartAccountAddress.toLowerCase() === ownerLower &&
       signer &&
-      isSmartAccountConnected
+      isSmartAccountConnected &&
+      (smartAccountAddress.toLowerCase() === ownerLower ||
+        (smartAccountConfig?.accountType === 'hca' &&
+          smartOwnerAddress?.toLowerCase() === ownerLower))
 
     const eoaValid =
       eoaAddress && eoaAddress.toLowerCase() === ownerLower && wagmiWalletClient
