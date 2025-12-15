@@ -15,6 +15,7 @@ import {
   transformProfileRecords,
   transformToServiceFormat,
 } from '../utils/transformRecords'
+import { SetPrimaryNameDialog } from './dialogs/SetPrimaryNameDialog'
 import { UpdateResolverDialog } from './dialogs/UpdateResolverDialog'
 import { useAppForm } from './form'
 import { SaveChanges } from './SaveChanges'
@@ -209,6 +210,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
             currentResolver={resolverAddress}
             onUpdated={refetchRecords}
           />
+          <SetPrimaryNameDialog name={name} onUpdated={refetchRecords} />
           <div className="space-y-2 pt-2">
             <form.Subscribe
               selector={(state) => createDiff(defaultValues, state.values)}
