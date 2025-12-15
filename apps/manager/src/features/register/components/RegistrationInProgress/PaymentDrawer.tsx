@@ -24,6 +24,12 @@ import { STABLECOINS } from '@/features/register/utils'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSmartAccount } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
+import {
+  checkSelectedCoinBalance,
+  formatPrice,
+  hasInsufficientBalance,
+  parseBalance,
+} from '@/utils/payment'
 
 interface PaymentDrawerProps {
   domainName?: string
@@ -128,6 +134,7 @@ export const CreditCardPaymentDrawer = ({
 export const CryptoPaymentDrawer = ({
   isLoading = false,
   disabled = false,
+  priceUSD = 0,
   onPaymentSelect,
   onCryptoSelect,
   onConfirmPayment,
@@ -165,8 +172,16 @@ export const CryptoPaymentDrawer = ({
   const selectedCoinBalance = stablecoinBalances?.find(
     (c) => c.address === selectedCoin,
   )
+
+  const { isInsufficient: hasInsufficientBalanceCheck } =
+    checkSelectedCoinBalance(selectedCoinBalance, priceUSD)
+
   const actionDisabled =
-    isLoading || stablecoinLoading || !selectedCoinBalance || !hasBalances
+    isLoading ||
+    stablecoinLoading ||
+    !selectedCoinBalance ||
+    !hasBalances ||
+    hasInsufficientBalanceCheck
 
   const handleCryptoContinue = (options?: { fast?: boolean }) => {
     if (actionDisabled || !selectedCoinBalance) return
@@ -286,16 +301,27 @@ export const CryptoPaymentDrawer = ({
                   )
                   const IconComponent = coinConfig?.icon || USDCIcon
 
+                  // Check if this coin has insufficient balance
+                  const coinBalanceUSD = parseBalance(
+                    stablecoin.formattedBalance,
+                  )
+                  const hasInsufficientBalanceForCoin =
+                    priceUSD > 0 &&
+                    hasInsufficientBalance(coinBalanceUSD, priceUSD)
+
                   return (
                     <button
                       key={stablecoin.address}
                       type="button"
                       onClick={() => setSelectedCoin(stablecoin.address)}
+                      disabled={hasInsufficientBalanceForCoin}
                       className={cn(
                         'flex h-11 items-center justify-between rounded px-2.5 py-4 transition-colors',
                         isSelected
                           ? 'bg-ens-blue-light'
                           : 'hover:bg-ens-gray-two/50',
+                        hasInsufficientBalanceForCoin &&
+                          'cursor-not-allowed opacity-50',
                       )}
                     >
                       <div className="flex items-center gap-2">
@@ -313,16 +339,23 @@ export const CryptoPaymentDrawer = ({
                           Sepolia {stablecoin.symbol}
                         </p>
                       </div>
-                      <p className="text-right text-base text-ens-gray-dark tracking-wide">
-                        $
-                        {parseFloat(stablecoin.formattedBalance).toLocaleString(
-                          'en-US',
-                          {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          },
+                      <div className="flex flex-col items-end">
+                        <p
+                          className={cn(
+                            'text-right text-base tracking-wide',
+                            hasInsufficientBalanceForCoin
+                              ? 'text-ens-error'
+                              : 'text-ens-gray-dark',
+                          )}
+                        >
+                          ${formatPrice(coinBalanceUSD)}
+                        </p>
+                        {hasInsufficientBalanceForCoin && priceUSD > 0 && (
+                          <p className="text-ens-error text-xs">
+                            Need ${formatPrice(priceUSD)}
+                          </p>
                         )}
-                      </p>
+                      </div>
                     </button>
                   )
                 })}
