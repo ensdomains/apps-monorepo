@@ -101,16 +101,19 @@ export const AddLinkDialog = ({
 
   const handleNameChange = (value: string) => {
     setName(value)
-    setNameError(validateLinkName(value))
+    if (nameError) {
+      setNameError(null)
+    }
   }
 
   const handleUrlChange = (value: string) => {
     setUrl(value)
-    setUrlError(validateLinkUrl(value))
+    if (urlError) {
+      setUrlError(null)
+    }
   }
 
-  const canSubmit =
-    name.trim().length > 0 && url.trim().length > 0 && !nameError && !urlError
+  const canSubmit = name.trim().length > 0 && url.trim().length > 0
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
