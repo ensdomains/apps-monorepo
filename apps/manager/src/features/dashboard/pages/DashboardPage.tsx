@@ -54,13 +54,19 @@ const NewWalletBanner = ({ onClose }: { onClose: () => void }) => {
 export const DashboardPage = () => {
   const account = useAccount()
   const { data: wallet } = useWallet()
-  const { accountAddress } = useSmartAccount()
+  const { accountAddress: smartAccountAddress } = useSmartAccount({
+    type: 'pimlico',
+    accountType: 'hca',
+  })
   const hasDismissedNewWalletBanner = useAtom(hasDismissedNewWalletBannerAtom)
 
-  const address = wallet?.address as Address | undefined
+  const eoaAddress = wallet?.address as Address | undefined
+  const reverseAddress = (smartAccountAddress ?? eoaAddress) as
+    | Address
+    | undefined
 
   const { data: reverseName, isPending: isReverseNameLoading } = useQuery({
-    ...profileReverseNameQuery(address),
+    ...profileReverseNameQuery(reverseAddress),
   })
   const { data: reverseRecords, isPending: isReverseRecordsLoading } = useQuery(
     {
@@ -100,7 +106,8 @@ export const DashboardPage = () => {
     isReverseExpiryLoading ||
     isAvatarPending
 
-  const displayName = defaultName ?? formatAddress(accountAddress)
+  const displayName =
+    defaultName ?? formatAddress(smartAccountAddress ?? eoaAddress)
   const hasProfile = Boolean(defaultName)
 
   const handleDismissNewWalletBanner = () => {
