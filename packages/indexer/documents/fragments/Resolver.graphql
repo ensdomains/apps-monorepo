@@ -1,6 +1,7 @@
 fragment Resolver on Resolver {
   id
   address
+  texts
   avatar: text(key: "avatar")
   description: text(key: "description")
   header: text(key: "header")
