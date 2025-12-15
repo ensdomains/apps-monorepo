@@ -2,8 +2,8 @@ import {
   getCoderByCoinName,
   getCoderByCoinType,
 } from '@ensdomains/address-encoder'
+import * as v from 'valibot'
 import { bytesToHex, encodeFunctionData, type Hex, zeroAddress } from 'viem'
-import { z } from 'zod'
 import { DEDICATED_RESOLVER_ABI } from '../../contracts/abis/DedicatedResolver.abi'
 import type { ServiceRecordSnapshot } from './records.types'
 
@@ -116,30 +116,25 @@ export const computeRecordChanges = (
   return { texts: textChanges, coins: coinChanges }
 }
 
-const bioUrlSchema = z
-  .string()
-  .trim()
-  .superRefine((value, ctx) => {
+const bioUrlSchema = v.pipe(
+  v.string(),
+  v.trim(),
+  v.custom((value: unknown) => {
+    if (typeof value !== 'string') return false
+
     if (value === '') {
-      return
+      return true
     }
 
     try {
       const url = new URL(value)
 
-      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Invalid Bio URL',
-        })
-      }
+      return url.protocol === 'http:' || url.protocol === 'https:'
     } catch {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Invalid Bio URL',
-      })
+      return false
     }
-  })
+  }, 'Invalid Bio URL'),
+)
 
 const validateTextChange = ({ key, value }: TextChange): RecordIssue[] => {
   const trimmed = value?.trim() ?? ''
@@ -149,13 +144,13 @@ const validateTextChange = ({ key, value }: TextChange): RecordIssue[] => {
   }
 
   if (key === 'url') {
-    const result = bioUrlSchema.safeParse(trimmed)
+    const result = v.safeParse(bioUrlSchema, trimmed)
 
     if (!result.success) {
-      return result.error.issues.map((issue) => ({
+      return result.issues.map((issue: { message?: string }) => ({
         sectionKey: 'bio',
         fieldKey: 'url',
-        message: issue.message,
+        message: issue.message ?? 'Invalid Bio URL',
       }))
     }
   }
