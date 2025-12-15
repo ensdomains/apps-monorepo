@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { LayoutGrid, Search, User } from 'lucide-react'
+import { match } from 'ts-pattern'
 import { Button, LinkButton } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -41,26 +42,29 @@ export const DashboardSidebar = ({
                 </Link>
               </Button>
 
-              {hasProfile ? (
-                <LinkButton
-                  to="/p/$name"
-                  params={{ name: profileName ?? '' }}
-                  variant="ghost"
-                  className="h-auto w-full justify-start rounded-[8px] bg-transparent p-3 text-[#6b6b6b] hover:bg-gray-100 hover:text-[#6b6b6b]"
-                >
-                  <User className="size-6" />
-                  <span className="font-sans text-[14px]">Profile</span>
-                </LinkButton>
-              ) : (
-                <Button
-                  variant="ghost"
-                  className="h-auto w-full justify-start rounded-[8px] bg-transparent p-3 text-[#6b6b6b] hover:bg-gray-100 hover:text-[#6b6b6b]"
-                  disabled
-                >
-                  <User className="size-6" />
-                  <span className="font-sans text-[14px]">Profile</span>
-                </Button>
-              )}
+              {match(hasProfile)
+                .with(true, () => (
+                  <LinkButton
+                    to="/p/$name"
+                    params={{ name: profileName ?? '' }}
+                    variant="ghost"
+                    className="h-auto w-full justify-start rounded-[8px] bg-transparent p-3 text-[#6b6b6b] hover:bg-gray-100 hover:text-[#6b6b6b]"
+                  >
+                    <User className="size-6" />
+                    <span className="font-sans text-[14px]">Profile</span>
+                  </LinkButton>
+                ))
+                .with(false, () => (
+                  <Button
+                    variant="ghost"
+                    className="h-auto w-full justify-start rounded-[8px] bg-transparent p-3 text-[#6b6b6b] hover:bg-gray-100 hover:text-[#6b6b6b]"
+                    disabled
+                  >
+                    <User className="size-6" />
+                    <span className="font-sans text-[14px]">Profile</span>
+                  </Button>
+                ))
+                .exhaustive()}
             </nav>
           </div>
         </div>

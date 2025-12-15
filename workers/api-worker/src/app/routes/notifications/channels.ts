@@ -73,92 +73,85 @@ const emailRoutes = createApp()
         )
       }
 
-      const result = await c.var.db.transaction(async (tx) => {
-        // Upsert the channel
-        const channel = await tx
-          .insert(TABLE.userChannels)
-          .values({
-            user_id: userId,
-            channel: 'email',
+      // Upsert the channel
+      const channel = await c.var.db
+        .insert(TABLE.userChannels)
+        .values({
+          user_id: userId,
+          channel: 'email',
+          status: 'pending',
+          target: email,
+        })
+        .onConflictDoUpdate({
+          target: [
+            TABLE.userChannels.user_id,
+            TABLE.userChannels.channel,
+            TABLE.userChannels.target,
+          ],
+          set: {
             status: 'pending',
-            target: email,
-          })
-          .onConflictDoUpdate({
-            target: [
-              TABLE.userChannels.user_id,
-              TABLE.userChannels.channel,
-              TABLE.userChannels.target,
-            ],
-            set: {
-              status: 'pending',
-              last_verification_sent_at: new Date(),
-            },
-          })
-          .returning({
-            id: TABLE.userChannels.id,
-          })
-          .then((channels) => channels.at(0))
+            last_verification_sent_at: new Date(),
+          },
+        })
+        .returning({
+          id: TABLE.userChannels.id,
+        })
+        .then((channels) => channels.at(0))
 
-        if (!channel) {
-          throw new Error('Failed to create channel')
-        }
+      if (!channel) {
+        return c.json({ error: 'Failed to create channel' }, 500)
+      }
 
-        // Create verification token
-        const verification = await tx
-          .insert(TABLE.channelVerifications)
-          .values({
-            user_id: userId,
-            channel_id: channel.id,
-            channel: 'email',
-            purpose: 'verify',
-            token: generateToken(),
-            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-            attempts: 0,
-          })
-          .returning({
-            id: TABLE.channelVerifications.id,
-            token: TABLE.channelVerifications.token,
-            expires_at: TABLE.channelVerifications.expires_at,
-          })
-          .then((verifications) => verifications.at(0))
+      // Create verification token
+      const verification = await c.var.db
+        .insert(TABLE.channelVerifications)
+        .values({
+          user_id: userId,
+          channel_id: channel.id,
+          channel: 'email',
+          purpose: 'verify',
+          token: generateToken(),
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+          attempts: 0,
+        })
+        .returning({
+          id: TABLE.channelVerifications.id,
+          token: TABLE.channelVerifications.token,
+          expires_at: TABLE.channelVerifications.expires_at,
+        })
+        .then((verifications) => verifications.at(0))
 
-        if (!verification) {
-          throw new Error('Failed to create verification')
-        }
-
-        return {
-          channel,
-          verification,
-        }
-      })
+      if (!verification) {
+        return c.json({ error: 'Failed to create verification' }, 500)
+      }
 
       // Send verification email
       const emailResult = await sendVerificationEmail(
         c.env.SENDGRID_API_KEY,
         c.env.EMAIL_FROM_ADDRESS,
         email,
-        result.verification.token,
+        verification.token,
         c.env.MANAGER_APP_URL,
       )
 
       if (emailResult.isErr()) {
-        // Log error but don't fail the request - user can resend
         logger.error('Failed to send verification email', {
-          channelId: result.channel.id,
+          channelId: channel.id,
           email,
           error: emailResult.error,
         })
-      } else {
-        logger.info('Verification email sent', {
-          channelId: result.channel.id,
-          email,
-        })
+        return c.json({ error: 'Failed to send verification email' }, 500)
       }
+
+      logger.info('Verification email sent', {
+        channelId: channel.id,
+        email,
+      })
 
       return c.json({
         message: 'Verification email sent',
-        expires_at: result.verification.expires_at,
-        channelId: result.channel.id,
+        expires_at: verification.expires_at,
+        channelId: channel.id,
       })
     },
   )

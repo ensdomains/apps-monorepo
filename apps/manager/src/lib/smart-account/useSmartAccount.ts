@@ -10,6 +10,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { type Address, formatUnits } from 'viem'
+import { getBalance, readContract } from 'viem/actions'
 import { useWalletClient } from 'wagmi'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
 import { customSepolia, publicClient } from '@/lib/wagmi'
@@ -29,6 +30,7 @@ import type {
 } from './types'
 
 export type {
+  ParaClient,
   PimlicoAccountState,
   RhinestoneAccountState,
   SmartAccountState,
@@ -67,6 +69,7 @@ export function useSmartAccount(
   const accountType = config?.accountType ?? 'simple'
 
   const paraClient = useParaClient()
+
   const { data: paraWallet } = useParaWallet()
   const { data: wagmiWalletClient } = useWalletClient()
 
@@ -102,7 +105,7 @@ export function useSmartAccount(
       }),
       queryFn: async () => {
         if (!accountAddress) return null
-        const balance = await publicClient.getBalance({
+        const balance = await getBalance(publicClient, {
           address: accountAddress,
         })
         return {
@@ -114,27 +117,31 @@ export function useSmartAccount(
       refetchInterval: 30000,
     })
 
+  // For HCA accounts, check EOA balance since EOA holds tokens
+  // For non-HCA accounts, check smart account balance
+  const balanceAddress = accountType === 'hca' ? wagmiAddress : accountAddress
+
   const { data: stablecoinBalances = [], isLoading: isLoadingBalances } =
     useQuery({
       queryKey: $qk({
         $scope: 'wallet',
         $action: 'stablecoinBalances',
-        address: accountAddress,
+        address: balanceAddress,
       }),
       queryFn: async () => {
-        if (!accountAddress) return []
+        if (!balanceAddress) return []
         const balances = []
         for (const [tokenName, tokenAddress] of Object.entries(
           SUPPORTED_TOKENS,
         )) {
           try {
-            const balance = await publicClient.readContract({
+            const balance = await readContract(publicClient, {
               address: tokenAddress,
               abi: ERC20_ABI,
               functionName: 'balanceOf',
-              args: [accountAddress],
+              args: [balanceAddress],
             })
-            const decimals = await publicClient.readContract({
+            const decimals = await readContract(publicClient, {
               address: tokenAddress,
               abi: ERC20_ABI,
               functionName: 'decimals',
@@ -152,7 +159,7 @@ export function useSmartAccount(
         }
         return balances
       },
-      enabled: !!accountAddress,
+      enabled: !!balanceAddress,
       refetchInterval: 30000,
     })
 
@@ -239,6 +246,7 @@ export function useSmartAccount(
           walletClient: wagmiWalletClient ?? undefined,
           paraClient: paraClient ?? undefined,
           accountType,
+          registerHCA: accountType === 'hca', // Register HCA if accountType is 'hca'
         })
         setClient(result.client)
         setAccountAddress(result.address)
@@ -249,6 +257,8 @@ export function useSmartAccount(
         }
         const result = await initializeRhinestoneAccount({
           walletClient: wagmiWalletClient,
+          accountType,
+          registerHCA: accountType === 'hca', // Register HCA if accountType is 'hca'
         })
         setClient(result.client)
         setAccountAddress(result.address)
@@ -276,10 +286,14 @@ export function useSmartAccount(
     initializeAccount()
   }, [initializeAccount])
 
+  // For HCA accounts, we fund the EOA (wagmiAddress) since the EOA holds tokens
+  // For non-HCA accounts, we fund the smart account (accountAddress)
+  const addressToFund = accountType === 'hca' ? wagmiAddress : accountAddress
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: Should not attempt to rerun from mutation status
   useEffect(() => {
     if (
-      !accountAddress ||
+      !addressToFund ||
       isLoading ||
       isLoadingBalances ||
       !autoFundingMutation.isIdle
@@ -298,8 +312,8 @@ export function useSmartAccount(
       return
     }
 
-    autoFundingMutation.mutate(accountAddress as Address)
-  }, [accountAddress, isLoading, isLoadingBalances, stablecoinBalances])
+    autoFundingMutation.mutate(addressToFund as Address)
+  }, [addressToFund, isLoading, isLoadingBalances, stablecoinBalances])
 
   const signer: Signer | null = useMemo(() => {
     if (!client || !accountAddress) return null

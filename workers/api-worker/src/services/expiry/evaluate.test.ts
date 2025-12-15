@@ -27,9 +27,7 @@ function createMockDatabase() {
  */
 function createMockCloudflareBindings(): CloudflareBindings {
   return {
-    DB: {
-      connectionString: 'postgresql://test',
-    } as any,
+    DATABASE_URL: 'postgresql://test',
     TELEGRAM_QUEUE: {
       send: vi.fn(),
       sendBatch: vi.fn(),

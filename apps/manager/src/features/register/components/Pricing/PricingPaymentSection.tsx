@@ -38,8 +38,9 @@ export const PricingPaymentSection = ({
   onCryptoSelect,
   onConfirmPayment,
 }: PricingPaymentSectionProps) => {
+  // Use HCA config to check EOA balance (tokens are held by EOA, not smart account)
   const { isLoadingSmartAccountEth, stablecoinBalances, isLoadingBalances } =
-    useSmartAccount()
+    useSmartAccount({ type: 'pimlico', accountType: 'hca' })
 
   const hasStablecoins =
     (stablecoinBalances?.length || 0) > 0 &&

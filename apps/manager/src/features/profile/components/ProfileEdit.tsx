@@ -9,13 +9,13 @@ import { useSmartAccount } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { profileOwnerQuery } from '../service/profileOwner'
 import { profileRecordsQuery } from '../service/profileRecords'
-import { profileResolverQuery } from '../service/profileResolver'
 import { createDiff } from '../utils/createDiff'
 import {
   defaultProfileRecords,
   transformProfileRecords,
   transformToServiceFormat,
 } from '../utils/transformRecords'
+import { SetPrimaryNameDialog } from './dialogs/SetPrimaryNameDialog'
 import { UpdateResolverDialog } from './dialogs/UpdateResolverDialog'
 import { useAppForm } from './form'
 import { SaveChanges } from './SaveChanges'
@@ -39,15 +39,13 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     ...profileOwnerQuery(name),
   })
 
-  const { data: resolver, refetch: refetchResolver } = useQuery({
-    ...profileResolverQuery(name),
-  })
-
   const {
     accountAddress,
     isConnected: isSmartAccountConnected,
     signer,
-  } = useSmartAccount()
+    ownerAddress: smartOwnerAddress,
+    config: smartAccountConfig,
+  } = useSmartAccount({ type: 'pimlico', accountType: 'hca' })
 
   const { data: wagmiWalletClient } = useWalletClient()
 
@@ -55,24 +53,42 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     input: { chainId: customSepolia.id },
   })
 
-  const { txHash, isSubmitting, isSuccess, isError, updateErrorMessage } =
-    useSelector(recordsActor, (state) => {
-      const isSubmitting =
-        state.matches('submittingUpdate') || state.matches('waitingForUpdate')
-      const isSuccess = state.matches('success')
-      const isError = state.matches('error')
-      const updateErrorMessage = isError
-        ? (state.context.error?.message ?? 'Failed to update profile')
+  const {
+    txHash,
+    isSubmitting,
+    isSuccess,
+    isError,
+    updateErrorMessage,
+    validationIssues,
+  } = useSelector(recordsActor, (state) => {
+    const isSubmitting =
+      state.matches('submittingUpdate') || state.matches('waitingForUpdate')
+    const isSuccess = state.matches('success')
+    const isError = state.matches('error')
+
+    const error = state.context.error
+    const issues =
+      error && 'issues' in error && Array.isArray((error as any).issues)
+        ? ((error as any).issues as Array<{
+            sectionKey?: string
+            fieldKey?: string
+            message: string
+          }>)
         : null
 
-      return {
-        txHash: state.context.txHash,
-        isSubmitting,
-        isSuccess,
-        isError,
-        updateErrorMessage,
-      }
-    })
+    const updateErrorMessage = isError
+      ? (error?.message ?? 'Failed to update profile')
+      : null
+
+    return {
+      txHash: state.context.txHash,
+      isSubmitting,
+      isSuccess,
+      isError,
+      updateErrorMessage,
+      validationIssues: issues,
+    }
+  })
 
   const defaultValues = recordsData ?? defaultProfileRecords
 
@@ -81,6 +97,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   })
 
   const ownerAddress = ownerData?.owner as Address | undefined
+  const resolverAddress = recordsData?.resolverAddress as Address | undefined
   const eoaAddress = wagmiWalletClient?.account?.address as Address | undefined
   const smartAccountAddress = accountAddress as Address | undefined
 
@@ -97,12 +114,15 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     }
 
     const owner = ownerAddress.toLowerCase()
+    const smartOwnerLower = smartOwnerAddress?.toLowerCase()
 
     const smartValid =
       smartAccountAddress &&
-      smartAccountAddress.toLowerCase() === owner &&
       signer &&
-      isSmartAccountConnected
+      isSmartAccountConnected &&
+      (smartAccountAddress.toLowerCase() === owner ||
+        (smartAccountConfig?.accountType === 'hca' &&
+          smartOwnerLower === owner))
 
     const eoaValid =
       eoaAddress && eoaAddress.toLowerCase() === owner && wagmiWalletClient
@@ -132,7 +152,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       before,
       after,
       signer: signerChoice.signer as Signer,
-      resolverAddress: resolver,
+      resolverAddress,
       accountAddress: signerChoice.account,
       publicClient: publicClient as PublicClient,
     })
@@ -142,7 +162,6 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     form.reset()
     refetchRecords()
     refetchOwner()
-    refetchResolver()
   }
 
   return (
@@ -193,8 +212,13 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
           <WalletAddressesSection form={form} />
           <UpdateResolverDialog
             name={name}
-            currentResolver={resolver}
-            onUpdated={refetchResolver}
+            currentResolver={resolverAddress}
+            onUpdated={refetchRecords}
+          />
+          <SetPrimaryNameDialog
+            name={name}
+            owner={ownerAddress}
+            onUpdated={refetchRecords}
           />
           <div className="space-y-2 pt-2">
             <form.Subscribe
@@ -224,6 +248,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
                 isError ? (updateErrorMessage ?? undefined) : undefined
               }
               txHash={txHash}
+              validationIssues={validationIssues ?? undefined}
             />
           </div>
         </div>

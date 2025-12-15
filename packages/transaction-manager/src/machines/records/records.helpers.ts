@@ -2,6 +2,7 @@ import {
   getCoderByCoinName,
   getCoderByCoinType,
 } from '@ensdomains/address-encoder'
+import * as v from 'valibot'
 import { bytesToHex, encodeFunctionData, type Hex, zeroAddress } from 'viem'
 import { DEDICATED_RESOLVER_ABI } from '../../contracts/abis/DedicatedResolver.abi'
 import type { ServiceRecordSnapshot } from './records.types'
@@ -19,6 +20,22 @@ type CoinChange = {
 export type RecordChanges = {
   texts: TextChange[]
   coins: CoinChange[]
+}
+
+export type RecordIssue = {
+  sectionKey: string
+  fieldKey: string
+  message: string
+}
+
+export class RecordsValidationError extends Error {
+  issues: RecordIssue[]
+
+  constructor(issues: RecordIssue[]) {
+    super(issues.map((issue) => issue.message).join('\n'))
+    this.name = 'RecordsValidationError'
+    this.issues = issues
+  }
 }
 
 const normalizeCoinId = (
@@ -99,35 +116,85 @@ export const computeRecordChanges = (
   return { texts: textChanges, coins: coinChanges }
 }
 
+const bioUrlSchema = v.pipe(v.string(), v.trim(), v.url('Invalid Bio URL'))
+
+const validateTextChange = ({ key, value }: TextChange): RecordIssue[] => {
+  const trimmed = value?.trim() ?? ''
+
+  if (trimmed === '') {
+    return []
+  }
+
+  if (key === 'url') {
+    const result = v.safeParse(bioUrlSchema, trimmed)
+
+    if (!result.success) {
+      return result.issues.map((issue: { message?: string }) => ({
+        sectionKey: 'bio',
+        fieldKey: 'url',
+        message: issue.message ?? 'Invalid Bio URL',
+      }))
+    }
+  }
+
+  return []
+}
+
 const encodeCoinValue = (
   coder: ReturnType<typeof getCoderFromCoin>,
   value: string | null,
 ): Hex => {
-  let encoded: Hex | Uint8Array = value ? coder.decode(value) : '0x'
+  try {
+    let encoded: Hex | Uint8Array =
+      value && value.trim() !== '' ? coder.decode(value) : '0x'
 
-  if (coder.coinType === 60 && encoded === '0x') {
-    encoded = coder.decode(zeroAddress)
+    if (coder.coinType === 60 && encoded === '0x') {
+      encoded = coder.decode(zeroAddress)
+    }
+
+    if (typeof encoded !== 'string') {
+      encoded = bytesToHex(encoded)
+    }
+
+    return encoded
+  } catch (_error) {
+    const coinName =
+      (coder as any)?.name ?? `coin type ${String((coder as any)?.coinType)}`
+    throw new Error(`Invalid ${coinName} address`)
   }
-
-  if (typeof encoded !== 'string') {
-    encoded = bytesToHex(encoded)
-  }
-
-  return encoded
 }
 
 const buildTextCalls = (options: {
   abi: typeof DEDICATED_RESOLVER_ABI
   texts: TextChange[]
   buildArgs: (key: string, value: string | null) => readonly [string, string]
-}): Hex[] =>
-  options.texts.map(({ key, value }) =>
-    encodeFunctionData({
-      abi: options.abi,
-      functionName: 'setText',
-      args: options.buildArgs(key, value ?? ''),
-    }),
-  )
+}): Hex[] => {
+  const calls: Hex[] = []
+  const issues: RecordIssue[] = []
+
+  for (const change of options.texts) {
+    const changeIssues = validateTextChange(change)
+
+    if (changeIssues.length > 0) {
+      issues.push(...changeIssues)
+      continue
+    }
+
+    calls.push(
+      encodeFunctionData({
+        abi: options.abi,
+        functionName: 'setText',
+        args: options.buildArgs(change.key, change.value ?? ''),
+      }),
+    )
+  }
+
+  if (issues.length > 0) {
+    throw new RecordsValidationError(issues)
+  }
+
+  return calls
+}
 
 const buildCoinCalls = (options: {
   abi: typeof DEDICATED_RESOLVER_ABI
@@ -136,17 +203,41 @@ const buildCoinCalls = (options: {
     coinType: number,
     encoded: Hex,
   ) => readonly [bigint, `0x${string}`]
-}): Hex[] =>
-  options.coins.map(({ coin, value }) => {
-    const coder = getCoderFromCoin(coin)
-    const encoded = encodeCoinValue(coder, value)
+}): Hex[] => {
+  const calls: Hex[] = []
+  const issues: RecordIssue[] = []
 
-    return encodeFunctionData({
-      abi: options.abi,
-      functionName: 'setAddr',
-      args: options.buildArgs(coder.coinType, encoded),
-    })
-  })
+  for (const { coin, value } of options.coins) {
+    const coder = getCoderFromCoin(coin)
+
+    try {
+      const encoded = encodeCoinValue(coder, value)
+
+      calls.push(
+        encodeFunctionData({
+          abi: options.abi,
+          functionName: 'setAddr',
+          args: options.buildArgs(coder.coinType, encoded),
+        }),
+      )
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Invalid coin address'
+
+      issues.push({
+        sectionKey: 'address',
+        fieldKey: String(coder.coinType),
+        message,
+      })
+    }
+  }
+
+  if (issues.length > 0) {
+    throw new RecordsValidationError(issues)
+  }
+
+  return calls
+}
 
 export const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => [
   ...buildTextCalls({

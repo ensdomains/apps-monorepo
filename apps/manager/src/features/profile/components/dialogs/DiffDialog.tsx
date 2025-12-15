@@ -24,6 +24,11 @@ interface DiffDialogProps {
   isSuccess?: boolean
   errorMessage?: string
   txHash?: string
+  validationIssues?: Array<{
+    sectionKey?: string
+    fieldKey?: string
+    message: string
+  }>
 }
 
 export const DiffDialog = ({
@@ -35,6 +40,7 @@ export const DiffDialog = ({
   isSuccess,
   errorMessage,
   txHash,
+  validationIssues,
 }: DiffDialogProps) => {
   const [open, setOpen] = useState(false)
   const diff = useMemo(
@@ -84,6 +90,24 @@ export const DiffDialog = ({
     }
   }
 
+  const issuesByField =
+    validationIssues?.reduce<Record<string, string[]>>((acc, issue) => {
+      const sectionKey = issue.sectionKey ?? ''
+      const fieldKey = issue.fieldKey ?? ''
+
+      if (!sectionKey || !fieldKey) return acc
+
+      const key = `${sectionKey}:${fieldKey}`
+
+      if (!acc[key]) {
+        acc[key] = []
+      }
+
+      acc[key]!.push(issue.message)
+
+      return acc
+    }, {}) ?? {}
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -101,6 +125,7 @@ export const DiffDialog = ({
           isSuccess={isSuccess}
           errorMessage={errorMessage}
           txHash={txHash}
+          hasValidationIssues={Boolean(validationIssues?.length)}
         />
         {!isSuccess && (
           <div className="max-h-96 overflow-y-auto">
@@ -146,6 +171,26 @@ export const DiffDialog = ({
                         </div>
                       </div>
                     )}
+                    {change.sectionKey && change.fieldKey
+                      ? (issuesByField[
+                          `${change.sectionKey}:${change.fieldKey}`
+                        ] ??
+                          null) && (
+                          <div className="mt-3 space-y-1">
+                            {issuesByField[
+                              `${change.sectionKey}:${change.fieldKey}`
+                            ]!.map((message, index) => (
+                              // biome-ignore lint/suspicious/noArrayIndexKey: error list is stable for this render
+                              <div
+                                key={index}
+                                className="rounded border border-red-200 bg-red-50 px-2 py-1 text-red-700 text-xs"
+                              >
+                                {message}
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      : null}
                   </div>
                 ))}
               </div>

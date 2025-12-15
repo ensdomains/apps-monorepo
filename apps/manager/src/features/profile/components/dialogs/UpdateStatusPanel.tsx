@@ -6,6 +6,7 @@ interface UpdateStatusPanelProps {
   isSuccess?: boolean
   errorMessage?: string
   txHash?: string
+  hasValidationIssues?: boolean
 }
 
 export const UpdateStatusPanel = ({
@@ -13,6 +14,7 @@ export const UpdateStatusPanel = ({
   isSuccess,
   errorMessage,
   txHash,
+  hasValidationIssues,
 }: UpdateStatusPanelProps) => {
   if (!isSaving && !isSuccess && !errorMessage) {
     return null
@@ -54,7 +56,7 @@ export const UpdateStatusPanel = ({
     )
   }
 
-  if (errorMessage) {
+  if (errorMessage && !hasValidationIssues) {
     return (
       <div className="mb-3">
         <Alert

@@ -30,7 +30,10 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
 
   const { data: wallet } = useWallet()
 
-  const { accountAddress: smartAccountAddress } = useSmartAccount()
+  const { accountAddress: smartAccountAddress } = useSmartAccount({
+    type: 'pimlico',
+    accountType: 'hca',
+  })
 
   const normalizedOwner = ownerData?.owner?.toLowerCase()
   const connectedAddresses = [wallet?.address, smartAccountAddress]
@@ -68,7 +71,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
         {/* Right/side column */}
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
           <ViewCryptoSection records={records} />
-          <ViewResolverSection name={name} />
+          <ViewResolverSection resolverAddress={records.resolverAddress} />
           <ViewLinksSection records={records} />
 
           {/* Edit Button */}

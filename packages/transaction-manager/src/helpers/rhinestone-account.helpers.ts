@@ -14,6 +14,7 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
+import { readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import { ETH_REGISTRAR_CONTROLLER_ABI } from '../contracts/abis/ETHRegistrarController.abi'
 import { ENS_SEPOLIA_CONTRACTS } from '../contracts/ens-sepolia'
@@ -129,7 +130,7 @@ export function getENSRenewalPrice(
 ): ResultAsync<bigint, RhinestoneAccountError> {
   return fromPromise(
     (async () => {
-      const price = await publicClient.readContract({
+      const price = await readContract(publicClient, {
         address: ENS_SEPOLIA_CONTRACTS.ETHRegistrarController,
         abi: ETH_REGISTRAR_CONTROLLER_ABI,
         functionName: 'rentPrice',

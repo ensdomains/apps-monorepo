@@ -74,14 +74,16 @@ export const RegistrationDetails = ({
             </p>
           </div>
 
-          <div className="flex items-center justify-between">
-            <p className="text-base text-ens-peridot-core">
-              Multi-year Discount ({discountPercentage}%)
-            </p>
-            <p className="text-base text-ens-peridot-core">
-              -${formattedDiscount}
-            </p>
-          </div>
+          {discountAmount > 0 && (
+            <div className="flex items-center justify-between">
+              <p className="text-base text-ens-peridot-core">
+                Multi-year Discount ({discountPercentage}%)
+              </p>
+              <p className="text-base text-ens-peridot-core">
+                -${formattedDiscount}
+              </p>
+            </div>
+          )}
 
           <div className="h-px bg-black/10" />
 

@@ -36,7 +36,7 @@ export const FaqSection = () => (
         Frequently Asked Questions
       </h2>
       <a
-        href="https://para.com/support"
+        href="https://support.ens.domains"
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center gap-[4.92px] text-[#0080bc] hover:text-[#006699]"

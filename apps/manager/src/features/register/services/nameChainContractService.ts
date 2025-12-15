@@ -13,6 +13,7 @@ import {
   zeroAddress,
   zeroHash,
 } from 'viem'
+import { getBlock, getChainId, readContract } from 'viem/actions'
 import { ERC20_ABI, FASTTESTETHREGISTRAR_ABI } from '@/lib/ens.abi'
 import type { RhinestoneTransactionResult } from '@/lib/smart-account/utils'
 import { customSepolia, SEPOLIA_RPC_URL } from '@/lib/wagmi'
@@ -34,8 +35,8 @@ export const EMPTY_ADDRESS = zeroAddress
 export const REFERER_ADDRESS = zeroHash
 
 export const SUPPORTED_TOKENS = {
-  USDC: '0xeb704373997b676d111e4767e281b9fb3852ecef' as Address, // MockUSDC
-  DAI: '0x8817e87e865b75db8b6a7e0d882b6dcba88d913e' as Address, // MockDAI
+  USDC: '0x2c3d8dfac22def2947e94432bcd6bb51e1ac55e6' as Address, // MockUSDC
+  DAI: '0xd030a2465ee661338de1f02d05042bbf20d5d127' as Address, // MockDAI
 } as const
 
 // Default payment token - USDC
@@ -55,7 +56,7 @@ export const generateCommitment = async (
     const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
     const secret = keccak256(toHex(Math.random().toString()) as Hex)
 
-    const commitment = await publicClient.readContract({
+    const commitment = await readContract(publicClient, {
       address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
       abi: FASTTESTETHREGISTRAR_ABI,
       functionName: 'makeCommitment',
@@ -98,14 +99,14 @@ export const commitToRegistration = async (
     ])
 
     try {
-      const minAge = (await publicClient.readContract({
+      const minAge = (await readContract(publicClient, {
         address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
         abi: FASTTESTETHREGISTRAR_ABI,
         functionName: 'MIN_COMMITMENT_AGE',
       })) as bigint
 
       if (minAge !== 0n) {
-        const committedAt = (await publicClient.readContract({
+        const committedAt = (await readContract(publicClient, {
           address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
           abi: FASTTESTETHREGISTRAR_ABI,
           functionName: 'commitmentAt',
@@ -116,7 +117,7 @@ export const commitToRegistration = async (
           await new Promise((resolve) => setTimeout(resolve, 3000))
         }
 
-        const latestBlock = await publicClient.getBlock()
+        const latestBlock = await getBlock(publicClient)
         const nowTs = latestBlock.timestamp as bigint
         const elapsed = nowTs - committedAt
         if (elapsed < minAge) {
@@ -166,7 +167,7 @@ export const approveTokenForRegistration = async (
     ])
 
     try {
-      const currentAllowance = await publicClient.readContract({
+      const currentAllowance = await readContract(publicClient, {
         address: normalizedTokenAddress,
         abi: ERC20_ABI,
         functionName: 'allowance',
@@ -221,7 +222,7 @@ export const registerDomain = async (
 
   try {
     // Check if the payment token is supported
-    const isSupported = await publicClient.readContract({
+    const isSupported = await readContract(publicClient, {
       address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
       abi: FASTTESTETHREGISTRAR_ABI,
       functionName: 'isPaymentToken',
@@ -300,7 +301,7 @@ export const checkRealNameAvailability = ResultFn(async function* (
 
   try {
     // First, let's test if the network is reachable
-    yield* await fromPromise(publicClient.getChainId(), (e) => {
+    yield* await fromPromise(getChainId(publicClient), (e) => {
       return new NameChainContractError({
         cause: `Network unreachable: ${e}`,
       })
@@ -308,7 +309,7 @@ export const checkRealNameAvailability = ResultFn(async function* (
 
     // Check availability using the registrar's isAvailable function
     const availability = yield* await fromPromise(
-      publicClient.readContract({
+      readContract(publicClient, {
         address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
         abi: FASTTESTETHREGISTRAR_ABI,
         functionName: 'isAvailable',
@@ -344,7 +345,7 @@ export const getENSNameInfo = ResultFn(async function* (
   try {
     // Check availability
     const availability = yield* await fromPromise(
-      publicClient.readContract({
+      readContract(publicClient, {
         address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
         abi: FASTTESTETHREGISTRAR_ABI,
         functionName: 'isAvailable',
@@ -357,7 +358,7 @@ export const getENSNameInfo = ResultFn(async function* (
     let _priceResult: any
     try {
       _priceResult = yield* await fromPromise(
-        publicClient.readContract({
+        readContract(publicClient, {
           address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
           abi: FASTTESTETHREGISTRAR_ABI,
           functionName: 'rentPrice',
@@ -368,7 +369,7 @@ export const getENSNameInfo = ResultFn(async function* (
     } catch (_error) {
       // Fallback to ETH pricing
       _priceResult = yield* await fromPromise(
-        publicClient.readContract({
+        readContract(publicClient, {
           address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
           abi: FASTTESTETHREGISTRAR_ABI,
           functionName: 'rentPrice',
@@ -415,7 +416,7 @@ export const getTokenPrices = ResultFn(async function* (
       try {
         let priceResult: any
         priceResult = yield* await fromPromise(
-          publicClient.readContract({
+          readContract(publicClient, {
             address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
             abi: FASTTESTETHREGISTRAR_ABI,
             functionName: 'rentPrice',
@@ -471,7 +472,7 @@ export const isPaymentTokenSupported = ResultFn(async function* (
 ) {
   try {
     const isSupported = yield* await fromPromise(
-      publicClient.readContract({
+      readContract(publicClient, {
         address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
         abi: FASTTESTETHREGISTRAR_ABI,
         functionName: 'isPaymentToken',

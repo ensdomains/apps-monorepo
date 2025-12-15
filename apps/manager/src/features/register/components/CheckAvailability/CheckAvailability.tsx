@@ -8,7 +8,9 @@ import {
 } from '@/components/molecules/DomainResultCard'
 import { SearchField } from '@/components/molecules/SearchField'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { profileMetadataQuery } from '@/features/profile/service/profileMetadata'
+import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
+import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
 import { ValidationError } from '@/features/register/components/CheckAvailability/ValidationError'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -45,8 +47,23 @@ export const CheckAvailability = ({
     setInputValue(event.target.value)
   }
 
-  const { data: unavailableMetadata } = useQuery({
-    ...profileMetadataQuery(selectedName ?? ''),
+  const { data: unavailableRecords } = useQuery({
+    ...profileRecordsQuery(selectedName ?? ''),
+    enabled: displayState.type === 'unavailable' && !!selectedName,
+  })
+
+  const avatarRecord = unavailableRecords?.texts.find(
+    (text) => text.key === 'avatar',
+  )?.value
+
+  const { data: unavailableAvatar } = useQuery({
+    ...parseAvatarQuery(avatarRecord),
+    enabled:
+      displayState.type === 'unavailable' && !!selectedName && !!avatarRecord,
+  })
+
+  const { data: unavailableExpiry } = useQuery({
+    ...profileExpiryQuery(selectedName ?? ''),
     enabled: displayState.type === 'unavailable' && !!selectedName,
   })
 
@@ -119,9 +136,13 @@ export const CheckAvailability = ({
                   >
                     <DomainProfileCard
                       domainName={displayState.domainName}
-                      avatarUrl={unavailableMetadata?.avatarUrl}
-                      registeredDate={unavailableMetadata?.registeredDate}
-                      expiryDate={unavailableMetadata?.expiryDate}
+                      avatarUrl={unavailableAvatar}
+                      registeredDate={null}
+                      expiryDate={
+                        unavailableExpiry?.expiry != null
+                          ? new Date(Number(unavailableExpiry.expiry) * 1000)
+                          : null
+                      }
                       clickable
                     />
                   </Link>

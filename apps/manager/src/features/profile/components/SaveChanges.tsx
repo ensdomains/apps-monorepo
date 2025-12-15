@@ -11,6 +11,11 @@ interface SaveChangesProps {
   isSuccess?: boolean
   errorMessage?: string
   txHash?: string
+  validationIssues?: Array<{
+    sectionKey?: string
+    fieldKey?: string
+    message: string
+  }>
 }
 
 export const SaveChanges = withForm({
@@ -29,6 +34,7 @@ export const SaveChanges = withForm({
     isSuccess,
     errorMessage,
     txHash,
+    validationIssues,
   }) => (
     <form.Subscribe selector={(state) => state.values}>
       {(currentData) => (
@@ -41,6 +47,7 @@ export const SaveChanges = withForm({
           isSuccess={isSuccess}
           errorMessage={errorMessage}
           txHash={txHash}
+          validationIssues={validationIssues}
         />
       )}
     </form.Subscribe>

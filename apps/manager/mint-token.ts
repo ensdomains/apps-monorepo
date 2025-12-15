@@ -14,13 +14,13 @@ import { customSepolia, SEPOLIA_RPC_URL } from './src/lib/wagmi'
 
 // Configuration
 const SMART_ACCOUNT: Address =
-  '0xC260ad10Dc178b43d8DdE30CC165350053e13863' as Address // Replace with the actual Rhinestone account address
+  '0x56112041329C8a3ef00Ce3A1688715273e3b7629' as Address // EOA address to fund
 const MINT_AMOUNT = parseUnits('1000', 18) // 1000 tokens (DAI has 18 decimals)
 const USDC_MINT_AMOUNT = parseUnits('1000', 6) // 1000 USDC (USDC has 6 decimals)
 
 // Mock token addresses on Sepolia
-const MOCK_USDC_ADDRESS: Address = '0xeb704373997b676d111e4767e281b9fb3852ecef'
-const MOCK_DAI_ADDRESS: Address = '0x8817e87e865b75db8b6a7e0d882b6dcba88d913e'
+const MOCK_USDC_ADDRESS: Address = '0x2c3d8dfac22def2947e94432bcd6bb51e1ac55e6'
+const MOCK_DAI_ADDRESS: Address = '0xd030a2465ee661338de1f02d05042bbf20d5d127'
 
 // ERC20 ABI for mint function (assuming these are mock tokens with mint function)
 const ERC20_ABI = [

@@ -21,14 +21,6 @@
     }
   },
 
-  "hyperdrive": [
-    {
-      "binding": "DB",
-      "id": "0ad2db5f510d4e699b140c3c11cda8bb",
-      "localConnectionString": "postgresql://postgres:postgres@localhost/postgres"
-    }
-  ],
-
   "kv_namespaces": [
     {
       "binding": "KV",

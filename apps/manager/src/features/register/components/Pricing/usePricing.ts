@@ -2,9 +2,10 @@ import { useModal } from '@getpara/react-sdk-lite'
 import { useEffect, useMemo, useReducer } from 'react'
 import type { PricingDuration } from '@/features/register/components/Pricing/types'
 import { getPremiumLabel } from '@/features/register/utils'
+import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { useSmartAccount } from '@/lib/smart-account'
 import { getTokenPrices } from '../../services/nameChainContractService'
-import { createInitialState, pricingReducer } from './pricing.reducer'
+import { createInitialStateFactory, pricingReducer } from './pricing.reducer'
 import type { PricingProps } from './types'
 import {
   calculateDurationFromDate,
@@ -34,14 +35,24 @@ export const usePricing = ({
   | 'onSelectCrypto'
   | 'onConfirmPayment'
 >) => {
+  // Use HCA config to match registration page
+  const { client: smartAccountClient } = useSmartAccount({
+    type: 'pimlico',
+    accountType: 'hca',
+  })
+  const { openModal } = useModal()
+  const discountsEnabled = useFeatureFlag('DISCOUNTS_APPLIED')
+
+  const createInitialState = useMemo(
+    () => createInitialStateFactory(discountsEnabled),
+    [discountsEnabled],
+  )
+
   const [state, dispatch] = useReducer(
     pricingReducer,
     sanitizePricingDuration(duration),
     createInitialState,
   )
-
-  const { client: smartAccountClient } = useSmartAccount()
-  const { openModal } = useModal()
 
   const premiumLabel = useMemo(() => getPremiumLabel(domainName), [domainName])
 
@@ -54,7 +65,9 @@ export const usePricing = ({
     ? state.pricingQuotes[state.selectedDuration as PricingDuration]
     : undefined
 
-  const bestDiscountMultiplier = 1 - (PRICING_YEAR_DISCOUNTS[5] ?? 0) / 100
+  const bestDiscountMultiplier = discountsEnabled
+    ? 1 - (PRICING_YEAR_DISCOUNTS[5] ?? 0) / 100
+    : 1
   const customDurationPrice =
     isCustomDuration && basePerYear > 0
       ? basePerYear * state.selectedDuration * bestDiscountMultiplier
@@ -73,15 +86,17 @@ export const usePricing = ({
 
   const theoreticalTotal =
     basePerYear > 0 ? basePerYear * state.selectedDuration : 0
-  const discountAmount =
-    finalPrice && theoreticalTotal > 0
+  const discountAmount = discountsEnabled
+    ? finalPrice && theoreticalTotal > 0
       ? Math.max(0, theoreticalTotal - finalPrice)
       : 0
-  const bestDiscount = PRICING_YEAR_DISCOUNTS[5] ?? 0
-  const discountPercentage =
-    theoreticalTotal > 0 && finalPrice
+    : 0
+  const bestDiscount = discountsEnabled ? (PRICING_YEAR_DISCOUNTS[5] ?? 0) : 0
+  const discountPercentage = discountsEnabled
+    ? theoreticalTotal > 0 && finalPrice
       ? Math.max(0, Math.round((discountAmount / theoreticalTotal) * 100))
       : (selectedOption?.discount ?? (isCustomDuration ? bestDiscount : 0))
+    : 0
 
   const expirationDate = useMemo(() => {
     if (state.selectedExpirationDate) {
@@ -128,8 +143,10 @@ export const usePricing = ({
           const updatedQuotes = createEmptyPricingQuoteMap()
 
           PRICING_DURATIONS.forEach((duration: PricingDuration) => {
-            const discount = INITIAL_PRICING_OPTIONS[duration].discount
-            const discountMultiplier = 1 - discount / 100
+            const discount = discountsEnabled
+              ? INITIAL_PRICING_OPTIONS[duration].discount
+              : 0
+            const discountMultiplier = discountsEnabled ? 1 - discount / 100 : 1
             const perYearPrice = basePerYear * discountMultiplier
             const totalPrice = perYearPrice * duration
 
@@ -178,7 +195,7 @@ export const usePricing = ({
     return () => {
       isCancelled = true
     }
-  }, [domainName])
+  }, [domainName, discountsEnabled])
 
   const handleChange = (input: Date | number | undefined) => {
     if (input === undefined) {
