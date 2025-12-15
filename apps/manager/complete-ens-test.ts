@@ -56,8 +56,8 @@ const ENS_CONTRACTS = {
 
 // Supported payment tokens on Sepolia ENS
 const SUPPORTED_TOKENS = {
-  USDC: '0xeb704373997b676d111e4767e281b9fb3852ecef' as `0x${string}`, // MockUSDC
-  DAI: '0x8817e87e865b75db8b6a7e0d882b6dcba88d913e' as `0x${string}`, // MockDAI
+  USDC: '0x2c3d8dfac22def2947e94432bcd6bb51e1ac55e6' as `0x${string}`, // MockUSDC
+  DAI: '0xd030a2465ee661338de1f02d05042bbf20d5d127' as `0x${string}`, // MockDAI
 }
 
 const PIMLICO_API_KEY = ''
