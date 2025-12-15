@@ -151,22 +151,22 @@ export const DiffDialog = ({
                       </Badge>
                     </div>
                     {change.type === 'added' && (
-                      <div className="rounded bg-green-50 p-2 text-green-700 text-sm">
+                      <div className="break-words rounded bg-green-50 p-2 text-green-700 text-sm">
                         <strong>New value:</strong>{' '}
                         {change.current || '(empty)'}
                       </div>
                     )}
                     {change.type === 'removed' && (
-                      <div className="rounded bg-red-50 p-2 text-red-700 text-sm">
+                      <div className="break-words rounded bg-red-50 p-2 text-red-700 text-sm">
                         <strong>Removed:</strong> {change.original || '(empty)'}
                       </div>
                     )}
                     {change.type === 'modified' && (
                       <div className="space-y-2">
-                        <div className="rounded bg-red-50 p-2 text-red-700 text-sm">
+                        <div className="break-words rounded bg-red-50 p-2 text-red-700 text-sm">
                           <strong>From:</strong> {change.original || '(empty)'}
                         </div>
-                        <div className="rounded bg-green-50 p-2 text-green-700 text-sm">
+                        <div className="break-words rounded bg-green-50 p-2 text-green-700 text-sm">
                           <strong>To:</strong> {change.current || '(empty)'}
                         </div>
                       </div>
