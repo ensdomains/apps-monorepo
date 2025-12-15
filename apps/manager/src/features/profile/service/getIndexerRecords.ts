@@ -5,25 +5,25 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ok, ResultAsync } from 'neverthrow'
 
-class GetSubgraphRecordsError extends TaggedError('GetSubgraphRecordsError')<{
+class GetIndexerRecordsError extends TaggedError('GetIndexerRecordsError')<{
   cause: unknown
 }> {}
 
-export const getSubgraphRecords = ResultFn(async function* (name: string) {
+export const getIndexerRecords = ResultFn(async function* (name: string) {
   const result = yield* await ResultAsync.fromPromise(
     apolloClient.query<DomainQuery>({
       query: DomainDocument,
       variables: { id: name },
       fetchPolicy: 'network-only',
     }),
-    (error) => new GetSubgraphRecordsError({ cause: error }),
+    (error) => new GetIndexerRecordsError({ cause: error }),
   )
 
   const domain = result.data.domain
 
   const texts = domain?.resolver?.texts ?? []
 
-  const subgraphRecords = {
+  const indexerRecords = {
     isMigrated: true,
     createdAt: { date: new Date(), value: Date.now() },
     texts,
@@ -40,16 +40,16 @@ export const getSubgraphRecords = ResultFn(async function* (name: string) {
     ],
   }
 
-  return ok(subgraphRecords)
+  return ok(indexerRecords)
 })
 
-export const subgraphRecordsQueryKey = createQueryKey<
-  'subgraph-records',
+export const indexerRecordsQueryKey = createQueryKey<
+  'indexer-records',
   { name: string }
->('subgraph-records')
+>('indexer-records')
 
-export const getSubgraphRecordsQueryOptions = (name: string) =>
+export const getIndexerRecordsQueryOptions = (name: string) =>
   resultQueryOptions({
-    queryKey: subgraphRecordsQueryKey({ name }),
-    queryFn: ({ queryKey: [, { name }] }) => getSubgraphRecords(name),
+    queryKey: indexerRecordsQueryKey({ name }),
+    queryFn: ({ queryKey: [, { name }] }) => getIndexerRecords(name),
   })
