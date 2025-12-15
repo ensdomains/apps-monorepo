@@ -57,8 +57,6 @@ function mapMachineStateToProgressStage(
     case 'registeringDomain':
     case 'waitingForRegistration':
       return 'registering'
-    case 'settingDefaultName':
-      return 'registering'
     case 'success':
       return 'complete'
     case 'error':

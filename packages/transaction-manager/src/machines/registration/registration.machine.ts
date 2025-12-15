@@ -700,6 +700,7 @@ export const registrationMachine = setup({
         CANCEL: 'idle',
       },
     },
+
     success: {
       type: 'final',
       entry: ['logTransition', 'recordTransition', 'clearSnapshot'],
