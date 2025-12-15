@@ -7,7 +7,6 @@ import {
   generateCommitmentActor,
   pollTransactionStatusActor,
   resolveResolverDeploymentActor,
-  setDefaultNameIfNoneActor,
   submitApprovalActor,
   submitCommitmentActor,
   submitRegistrationActor,
@@ -199,16 +198,6 @@ export const registrationMachine = setup({
         useFastRegistrar: boolean
       }) => {
         return validateCommitmentActor(input)
-      },
-    ),
-    setDefaultNameIfNone: fromResultAsync(
-      (input: {
-        name: string
-        owner: Address
-        signer: Signer
-        publicClient: PublicClient
-      }) => {
-        return setDefaultNameIfNoneActor(input)
       },
     ),
   },
@@ -691,7 +680,7 @@ export const registrationMachine = setup({
       invoke: {
         src: 'pollTransactionStatus',
         input: ({ context }) => ({ txId: context.registrationTxId! }),
-        onDone: 'settingDefaultName',
+        onDone: 'success',
         onError: {
           target: 'error',
           actions: [
@@ -701,34 +690,6 @@ export const registrationMachine = setup({
             ({ event }) => {
               console.error(
                 '❌ [REGISTRATION] Registration transaction failed:',
-                event.error,
-              )
-            },
-          ],
-        },
-      },
-      on: {
-        CANCEL: 'idle',
-      },
-    },
-    settingDefaultName: {
-      entry: ['logTransition', 'recordTransition'],
-      invoke: {
-        src: 'setDefaultNameIfNone',
-        input: ({ context }) => ({
-          name: context.name,
-          owner: context.ownerAddress ?? context.accountAddress!,
-          signer: context.signer!,
-          publicClient: context.publicClient!,
-        }),
-        onDone: 'success',
-        onError: {
-          // Default name setting is best-effort; failures should not break registration.
-          target: 'success',
-          actions: [
-            ({ event }) => {
-              console.error(
-                '❌ [REGISTRATION] Setting default ENS name failed (non-fatal):',
                 event.error,
               )
             },
