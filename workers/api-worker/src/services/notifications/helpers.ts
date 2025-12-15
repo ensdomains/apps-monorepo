@@ -18,10 +18,10 @@ const channelSanitizers = {
 
     return `${username.slice(0, 1)}${'*'.repeat(username.length - 1)}@${domain}`
   },
-  telegram: (target, data) => {
+  telegram: (_target, data) => {
     return `@${data.username}`
   },
-  push: (target, data) => {
+  push: (_target, _data) => {
     // TODO: sanitize push token
     return 'Push Notification'
   },

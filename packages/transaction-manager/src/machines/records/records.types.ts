@@ -1,5 +1,3 @@
-import type { Address } from 'viem'
-
 export type ServiceRecordSnapshot = {
   texts: Array<{ key: string; value: string }>
   coins: Array<{ coinType: number; value: string }>

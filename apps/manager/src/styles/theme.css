@@ -33,7 +33,7 @@
   --color-ens-garnet-surface: #f886b6;
   --color-ens-garnet-core: #f53293;
   --color-ens-garnet-dense: #8a0a49;
-  --color-ens-error: #F53F3F;
+  --color-ens-error: #f53f3f;
 
   /* Old brand colors */
   --color-ens-blue: #0080bc;
@@ -137,4 +137,3 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
 }
-

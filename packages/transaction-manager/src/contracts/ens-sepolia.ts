@@ -10,11 +10,14 @@ export const ENS_SEPOLIA_CONTRACTS = {
   // Universal Resolver
   UniversalResolver: '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce' as const,
   // L2 Registration-specific contracts (V2 deployment)
-  ETHRegistry: '0xf332544e6234f1ca149907d0d4658afd5feb6831' as const,
+  ETHRegistry: '0xF332544e6234f1CA149907D0d4658afD5feB6831' as const,
   ETHRegistrar: '0x3334f0ebcbc4b5b7067f3aff25c6da8973690d54' as const,
   // V2 Fast Registrar - no commitment wait time required (with HCAEquivalence)
   FastTestETHRegistrar: '0xe37a1366c827d18dc0ad57f3767de4b3025ceac2' as const,
   DedicatedResolverImpl: '0xa20b41dc7336c4d974e3c9a6ea01b77647559c46' as const,
+  // Default reverse registrar (sets primary/default ENS name per coin type)
+  DefaultReverseRegistrar:
+    '0xeb8269fb39290f31c4c29cec548807ca2133abb4' as const,
   // Additional contracts
   BridgeController: '0xbb84d5d658bbdb48bf99689f3a14f780ab2f9220' as const,
   DedicatedResolver: '0xa20b41dc7336c4d974e3c9a6ea01b77647559c46' as const,

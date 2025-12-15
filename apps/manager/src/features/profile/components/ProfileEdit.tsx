@@ -15,6 +15,7 @@ import {
   transformProfileRecords,
   transformToServiceFormat,
 } from '../utils/transformRecords'
+import { SetPrimaryNameDialog } from './dialogs/SetPrimaryNameDialog'
 import { UpdateResolverDialog } from './dialogs/UpdateResolverDialog'
 import { useAppForm } from './form'
 import { SaveChanges } from './SaveChanges'
@@ -42,7 +43,9 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     accountAddress,
     isConnected: isSmartAccountConnected,
     signer,
-  } = useSmartAccount()
+    ownerAddress: smartOwnerAddress,
+    config: smartAccountConfig,
+  } = useSmartAccount({ type: 'pimlico', accountType: 'hca' })
 
   const { data: wagmiWalletClient } = useWalletClient()
 
@@ -111,12 +114,15 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     }
 
     const owner = ownerAddress.toLowerCase()
+    const smartOwnerLower = smartOwnerAddress?.toLowerCase()
 
     const smartValid =
       smartAccountAddress &&
-      smartAccountAddress.toLowerCase() === owner &&
       signer &&
-      isSmartAccountConnected
+      isSmartAccountConnected &&
+      (smartAccountAddress.toLowerCase() === owner ||
+        (smartAccountConfig?.accountType === 'hca' &&
+          smartOwnerLower === owner))
 
     const eoaValid =
       eoaAddress && eoaAddress.toLowerCase() === owner && wagmiWalletClient
@@ -207,6 +213,11 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
           <UpdateResolverDialog
             name={name}
             currentResolver={resolverAddress}
+            onUpdated={refetchRecords}
+          />
+          <SetPrimaryNameDialog
+            name={name}
+            owner={ownerAddress}
             onUpdated={refetchRecords}
           />
           <div className="space-y-2 pt-2">

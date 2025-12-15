@@ -1,8 +1,6 @@
-import type { Signer } from '@ens-apps/transaction-manager'
 import type {
   Account,
   Address,
-  Chain,
   HashTypedDataParameters,
   Hex,
   SignableMessage,
@@ -10,8 +8,6 @@ import type {
   TypedDataDefinition,
   WalletClient,
 } from 'viem'
-import type { SmartAccountState } from './types'
-import { isPimlicoAccount, isRhinestoneAccount } from './types'
 
 /**
  * Error thrown when wallet client has no connected account

@@ -22,9 +22,9 @@
     "idb": "^8.0.3",
     "neverthrow": "^8.1.1",
     "permissionless": "^0.2.57",
+    "valibot": "^1.2.0",
     "viem": "^2.21.58",
-    "xstate": "catalog:",
-    "zod": "^4.1.0"
+    "xstate": "catalog:"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.87.1",

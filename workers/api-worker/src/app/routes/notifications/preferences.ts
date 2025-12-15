@@ -1,6 +1,5 @@
 import { vValidator } from '@hono/valibot-validator'
 import { and, eq } from 'drizzle-orm'
-import { BatchItem } from 'drizzle-orm/batch'
 import * as v from 'valibot'
 import { requireAuth } from '#app/middleware/auth.js'
 import { injectDb } from '#app/middleware/database.js'
@@ -8,9 +7,7 @@ import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
 import {
   USER_NOTIFICATION_METADATA,
-  type UserChannel,
   UserChannelSchema,
-  type UserNotificationKind,
   UserNotificationKindSchema,
 } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
