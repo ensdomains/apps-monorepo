@@ -115,15 +115,14 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
     const owner = ownerAddress.toLowerCase()
     const smartOwnerLower = smartOwnerAddress?.toLowerCase()
-    const isHcaAccount =
-      smartAccountConfig?.accountType === 'hca' && !!smartOwnerLower
 
     const smartValid =
       smartAccountAddress &&
       signer &&
       isSmartAccountConnected &&
       (smartAccountAddress.toLowerCase() === owner ||
-        (isHcaAccount && smartOwnerLower === owner))
+        (smartAccountConfig?.accountType === 'hca' &&
+          smartOwnerLower === owner))
 
     const eoaValid =
       eoaAddress && eoaAddress.toLowerCase() === owner && wagmiWalletClient
