@@ -30,7 +30,10 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
 
   const { data: wallet } = useWallet()
 
-  const { accountAddress: smartAccountAddress } = useSmartAccount()
+  const { accountAddress: smartAccountAddress } = useSmartAccount({
+    type: 'pimlico',
+    accountType: 'hca',
+  })
 
   const normalizedOwner = ownerData?.owner?.toLowerCase()
   const connectedAddresses = [wallet?.address, smartAccountAddress]
