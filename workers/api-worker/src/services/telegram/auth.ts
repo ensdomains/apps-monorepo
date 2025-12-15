@@ -24,7 +24,7 @@ export const TelegramAuthSchema = v.object({
   first_name: v.string(),
   last_name: v.string(),
   username: v.string(),
-  photo_url: v.string(),
+  photo_url: v.optional(v.string()),
   auth_date: v.pipe(
     v.number(),
     v.description('Unix timestamp in seconds since epoch'),

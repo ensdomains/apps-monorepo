@@ -1,8 +1,7 @@
-import { useAccount, useWallet } from '@getpara/react-sdk-lite'
+import { useWallet } from '@getpara/react-sdk-lite'
 import { useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store/react'
 import { CircleAlert, X } from 'lucide-react'
-import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { DashboardSidebar } from '@/features/dashboard/components/DashboardSidebar'
 import { DidYouKnowSection } from '@/features/dashboard/components/DidYouKnowSection'
@@ -12,6 +11,7 @@ import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useSmartAccount } from '@/lib/smart-account'
 import {
@@ -60,7 +60,6 @@ const NewWalletBanner = ({ onClose }: { onClose: () => void }) => {
 }
 
 export const DashboardPage = () => {
-  const account = useAccount()
   const { data: wallet } = useWallet()
   const { accountAddress: smartAccountAddress } = useSmartAccount({
     type: 'pimlico',
@@ -99,14 +98,23 @@ export const DashboardPage = () => {
 
   const defaultName = reverseName ?? wallet?.ensName ?? primaryLabel ?? null
 
-  const registeredDate = null
+  const { data: registration, isPending: isRegistrationLoading } = useQuery({
+    ...profileRegistrationQuery(defaultName ?? ''),
+    enabled: !!defaultName,
+  })
+
+  const registeredDate =
+    registration?.registrationDate != null
+      ? new Date(registration.registrationDate * 1000)
+      : null
   const expiryDate =
     reverseExpiry?.expiry != null
       ? new Date(Number(reverseExpiry.expiry) * 1000)
       : null
   const avatarUrl = parsedAvatar ?? wallet?.ensAvatar ?? null
 
-  const isPrimaryLoading = isReverseNameLoading || isReverseExpiryLoading
+  const isPrimaryLoading =
+    isReverseNameLoading || isReverseExpiryLoading || isRegistrationLoading
 
   const displayName =
     defaultName ?? formatAddress(smartAccountAddress ?? eoaAddress)
@@ -116,6 +124,9 @@ export const DashboardPage = () => {
     dashboardUiStore.trigger.dismissNewWalletBanner()
   }
 
+  const shouldShowNewWalletBanner =
+    !hasDismissedNewWalletBanner && !!wallet && wallet.isExternal !== true
+
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 px-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-[40px]">
       <DashboardSidebar
@@ -124,14 +135,9 @@ export const DashboardPage = () => {
       />
       <div className="min-w-0 flex-1 space-y-6 md:space-y-8">
         <div className="space-y-4 md:space-y-8">
-          {match({
-            connectionType: account.connectionType,
-            dismissed: hasDismissedNewWalletBanner,
-          })
-            .with({ dismissed: false, connectionType: 'external' }, () => (
-              <NewWalletBanner onClose={handleDismissNewWalletBanner} />
-            ))
-            .otherwise(() => null)}
+          {shouldShowNewWalletBanner && (
+            <NewWalletBanner onClose={handleDismissNewWalletBanner} />
+          )}
           <h1 className="font-serif text-[#232222] text-[28px] leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]">
             Hello {displayName}
           </h1>

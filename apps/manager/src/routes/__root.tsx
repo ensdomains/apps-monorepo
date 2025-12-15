@@ -13,6 +13,7 @@ import { Toaster } from 'sonner'
 import { Layout } from '@/components/Layout'
 import { SmartSessionProvider } from '@/features/wallet/components/SmartSessionProvider'
 import { SmartAccountContextProvider } from '@/lib/smart-account'
+import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
 import appCss from '@/styles/index.css?url'
 import '@getpara/react-sdk-lite/styles.css'
 import { ApolloProvider } from '@apollo/client'
@@ -142,7 +143,7 @@ export const Route = createRootRouteWithContext<RootRouterContext>()({
 })
 
 function NotFoundComponent() {
-  return <div>Not Found</div>
+  return <NotFoundPage />
 }
 
 function RootComponent() {
