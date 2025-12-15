@@ -8,7 +8,16 @@ import {
 } from '@getpara/react-sdk-lite'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import type { KernelValidator } from '@zerodev/sdk'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { toast } from 'sonner'
 import { type Address, formatUnits } from 'viem'
 import { getBalance, readContract } from 'viem/actions'
@@ -17,72 +26,44 @@ import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContract
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
 import { ERC20_ABI } from '../ens.abi'
-import { initializePimlicoAccount, type PimlicoConfig } from './pimlico'
-import {
-  initializeRhinestoneAccount,
-  type RhinestoneConfig,
-} from './rhinestone'
 import type { StoredSession } from './sessions/types'
-import type {
-  KernelAccountState,
-  PimlicoAccountState,
-  RhinestoneAccountState,
-  SmartAccountState,
-  UseSmartAccountConfig,
-  WalletSource,
-} from './types'
+import type { KernelAccountState, WalletSource } from './types'
 import { initializeKernelAccount, type KernelConfig } from './zerodev/kernel'
 
-export type {
-  KernelAccountState,
-  ParaClient,
-  PimlicoAccountState,
-  RhinestoneAccountState,
-  SmartAccountState,
-  UseSmartAccountConfig,
-} from './types'
-export { isKernelAccount, isPimlicoAccount, isRhinestoneAccount } from './types'
+/**
+ * Smart Account Context
+ *
+ * Provides shared kernel account state across all components.
+ * This ensures session data is shared between SmartSessionProvider and RegistrationPage.
+ */
+
+interface SmartAccountContextValue extends KernelAccountState {
+  /** Callback to update session data when a session is created */
+  setSessionData: (
+    session: StoredSession,
+    sessionClient: KernelAccountState['client'],
+  ) => void
+}
+
+const SmartAccountContext = createContext<SmartAccountContextValue | null>(null)
+
+interface SmartAccountContextProviderProps {
+  children: ReactNode
+  /** Account type - 'simple' or 'hca' (Hierarchical Control Account) */
+  accountType?: 'simple' | 'hca'
+}
 
 /**
- * Unified Smart Account Hook
+ * Smart Account Context Provider
  *
- * Single entry point for smart account management. Supports multiple providers
- * (Pimlico, Rhinestone, Kernel) with a consistent interface.
- *
- * @example
- * // Use Kernel (default) - ZeroDev with smart sessions, sign once transact many times
- * const account = useSmartAccount()
- * const account = useSmartAccount({ type: 'kernel' })
- *
- * @example
- * // Use Rhinestone (no sessions)
- * const account = useSmartAccount({ type: 'rhinestone' })
- *
- * @example
- * // Use Pimlico (no sessions)
- * const account = useSmartAccount({ type: 'pimlico' })
- *
- * @example
- * // Type-safe usage
- * if (isRhinestoneAccount(account)) {
- *   // account.client is RhinestoneAccount
- * }
- * if (isPimlicoAccount(account)) {
- *   // account.client is SmartAccountClient
- * }
- * if (isKernelAccount(account)) {
- *   // account.client is KernelAccountClient
- *   // account.session contains the active session
- * }
+ * Wraps the application and provides shared kernel account state.
+ * Place this inside wallet providers (ParaProvider, wagmi).
  */
-export function useSmartAccount(
-  config?: UseSmartAccountConfig,
-): SmartAccountState {
-  const providerType = config?.type ?? 'kernel'
-  const accountType = config?.accountType ?? 'simple'
-
+export function SmartAccountContextProvider({
+  children,
+  accountType = 'hca',
+}: SmartAccountContextProviderProps) {
   const paraClient = useParaClient()
-
   const { data: paraWallet } = useParaWallet()
   const { data: wagmiWalletClient } = useWalletClient()
 
@@ -99,14 +80,11 @@ export function useSmartAccount(
 
   const isWalletReady = (paraWallet?.isExternal && hasWagmi) || hasPara
 
-  const [client, setClient] = useState<SmartAccountState['client']>(null)
+  const [client, setClient] = useState<KernelAccountState['client']>(null)
   const [accountAddress, setAccountAddress] = useState<Address | null>(null)
-  const [accountConfig, setAccountConfig] = useState<
-    PimlicoConfig | RhinestoneConfig | KernelConfig | null
-  >(null)
+  const [accountConfig, setAccountConfig] = useState<KernelConfig | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // Kernel-specific state for sessions
   const [session, setSession] = useState<StoredSession | null>(null)
   const [isSessionClient, setIsSessionClient] = useState(false)
   const [ecdsaValidator, setEcdsaValidator] =
@@ -115,6 +93,7 @@ export function useSmartAccount(
 
   const initializedRef = useRef<string | null>(null)
 
+  // Balance queries
   const { data: smartAccountEthBalance, isLoading: isLoadingSmartAccountEth } =
     useQuery({
       queryKey: $qk({
@@ -136,8 +115,6 @@ export function useSmartAccount(
       refetchInterval: 30000,
     })
 
-  // For HCA accounts, check EOA balance since EOA holds tokens
-  // For non-HCA accounts, check smart account balance
   const balanceAddress = accountType === 'hca' ? wagmiAddress : accountAddress
 
   const { data: stablecoinBalances = [], isLoading: isLoadingBalances } =
@@ -182,6 +159,7 @@ export function useSmartAccount(
       refetchInterval: 30000,
     })
 
+  // Auto-funding mutation
   const autoFundingMutation = useMutation({
     mutationKey: $qk({
       $scope: 'wallet',
@@ -193,37 +171,25 @@ export function useSmartAccount(
         description: `Funding wallet ${address} with mock USDC & DAI tokens`,
         id: `fund-wallet-${address}`,
       })
-      console.debug('Wallet Funder: Funding wallet', address)
-
       const response = await backendClient.wallet.fund.$post({
-        json: {
-          address,
-        },
+        json: { address },
       })
       if (!response.ok) {
         throw new Error(
           `Failed to fund wallet: ${response.statusText} ${await response.text()}`,
         )
       }
-
       return response.json()
     },
     onSuccess: (data, address, _, context) => {
       if (!data || data.usdcTxHash || !data.daiTxHash) {
-        console.log(
-          'Wallet Funder: No transaction hashes received, assuming already funded',
-        )
         toast.dismiss(`fund-wallet-${address}`)
         return
       }
-
       toast.success('Wallet funded successfully', {
         description: `Wallet ${address} funded successfully`,
         id: `fund-wallet-${address}`,
       })
-
-      console.log('Wallet Funder: Successfully funded wallet', address, data)
-
       context.client.invalidateQueries({
         queryKey: $qk({
           $scope: 'wallet',
@@ -239,6 +205,7 @@ export function useSmartAccount(
     },
   })
 
+  // Initialize kernel account
   const initializeAccount = useCallback(async () => {
     if (!isWalletReady) {
       setClient(null)
@@ -254,8 +221,8 @@ export function useSmartAccount(
 
     const key =
       walletSource === 'external-wallet'
-        ? `${providerType}-external-${wagmiAddress}`
-        : `${providerType}-para-${paraClient?.toString()}`
+        ? `kernel-external-${wagmiAddress}`
+        : `kernel-para-${paraClient?.toString()}`
 
     if (initializedRef.current === key) return
 
@@ -263,56 +230,28 @@ export function useSmartAccount(
     setError(null)
 
     try {
-      if (providerType === 'pimlico') {
-        const result = await initializePimlicoAccount({
-          walletSource,
-          walletClient: wagmiWalletClient ?? undefined,
-          paraClient: paraClient ?? undefined,
-          accountType,
-          registerHCA: accountType === 'hca', // Register HCA if accountType is 'hca'
-        })
-        setClient(result.client)
-        setAccountAddress(result.address)
-        setAccountConfig(result.config)
-      } else if (providerType === 'rhinestone') {
-        if (!wagmiWalletClient) {
-          throw new Error('Rhinestone requires an external wallet connection')
-        }
-        const result = await initializeRhinestoneAccount({
-          walletClient: wagmiWalletClient,
-          accountType,
-          registerHCA: accountType === 'hca', // Register HCA if accountType is 'hca'
-        })
-        setClient(result.client)
-        setAccountAddress(result.address)
-        setAccountConfig(result.config)
-      } else if (providerType === 'kernel') {
-        if (!wagmiWalletClient) {
-          throw new Error('Kernel requires an external wallet connection')
-        }
-
-        // Initialize the master kernel account
-        const result = await initializeKernelAccount({
-          walletClient: wagmiWalletClient,
-          accountType,
-        })
-
-        // Use the master kernel account directly
-        setClient(result.client)
-        setSession(null)
-        setIsSessionClient(false)
-        setAccountAddress(result.address)
-        setAccountConfig(result.config)
-        // Store the ECDSA validator for session creation
-        setEcdsaValidator(result.ecdsaValidator)
-        setIsAccountReady(true)
-
-        console.log('🔐 Kernel account initialized:', result.address)
+      if (!wagmiWalletClient) {
+        throw new Error('Kernel requires an external wallet connection')
       }
+
+      const result = await initializeKernelAccount({
+        walletClient: wagmiWalletClient,
+        accountType,
+      })
+
+      setClient(result.client)
+      setSession(null)
+      setIsSessionClient(false)
+      setAccountAddress(result.address)
+      setAccountConfig(result.config)
+      setEcdsaValidator(result.ecdsaValidator)
+      setIsAccountReady(true)
+
+      console.log('🔐 [CONTEXT] Kernel account initialized:', result.address)
 
       initializedRef.current = key
     } catch (err) {
-      console.error(`Failed to initialize ${providerType} account:`, err)
+      console.error('[CONTEXT] Failed to initialize kernel account:', err)
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setIsLoading(false)
@@ -323,7 +262,6 @@ export function useSmartAccount(
     wagmiAddress,
     wagmiWalletClient,
     paraClient,
-    providerType,
     accountType,
   ])
 
@@ -331,11 +269,10 @@ export function useSmartAccount(
     initializeAccount()
   }, [initializeAccount])
 
-  // For HCA accounts, we fund the EOA (wagmiAddress) since the EOA holds tokens
-  // For non-HCA accounts, we fund the smart account (accountAddress)
+  // Auto-fund if balance is low
   const addressToFund = accountType === 'hca' ? wagmiAddress : accountAddress
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Should not attempt to rerun from mutation status
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Should not rerun from mutation status
   useEffect(() => {
     if (
       !addressToFund ||
@@ -351,60 +288,14 @@ export function useSmartAccount(
       0n,
     )
 
-    // Don't fund if the address already has enough tokens
-    if (totalBalance >= 500n) {
-      console.debug('Wallet Funder: Address already has enough tokens')
-      return
-    }
+    if (totalBalance >= 500n) return
 
     autoFundingMutation.mutate(addressToFund as Address)
   }, [addressToFund, isLoading, isLoadingBalances, stablecoinBalances])
 
+  // Create signer
   const signer: Signer | null = useMemo(() => {
     if (!client || !accountAddress) return null
-
-    if (providerType === 'rhinestone') {
-      const rhinestoneApiKey = import.meta.env.VITE_RHINESTONE_API_KEY
-      if (!rhinestoneApiKey) {
-        console.error(
-          'Rhinestone API key not configured - cannot create signer',
-        )
-        return null
-      }
-
-      return {
-        type: 'rhinestone' as const,
-        account: client as NonNullable<RhinestoneAccountState['client']>,
-        config: {
-          chain: customSepolia,
-          accountAddress,
-          rhinestoneApiKey,
-        },
-      }
-    }
-
-    if (providerType === 'kernel') {
-      const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
-      if (!pimlicoApiKey) {
-        console.error(
-          'Pimlico API key not configured - cannot create kernel signer',
-        )
-        return null
-      }
-
-      const kernelConfig = accountConfig as KernelConfig | null
-      return {
-        type: 'kernel' as const,
-        account: client as NonNullable<KernelAccountState['client']>,
-        config: {
-          chain: customSepolia,
-          accountAddress,
-          accountType: kernelConfig?.accountType,
-          pimlicoApiKey,
-          isSessionClient,
-        },
-      }
-    }
 
     const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
     if (!pimlicoApiKey) {
@@ -412,26 +303,26 @@ export function useSmartAccount(
       return null
     }
 
-    const pimlicoConfig = accountConfig as PimlicoConfig | null
     return {
-      type: 'pimlico' as const,
-      account: client as NonNullable<PimlicoAccountState['client']>,
+      type: 'kernel' as const,
+      account: client,
       config: {
         chain: customSepolia,
         accountAddress,
-        accountType: pimlicoConfig?.accountType,
+        accountType: accountConfig?.accountType,
         pimlicoApiKey,
+        isSessionClient,
       },
     }
-  }, [client, accountAddress, providerType, accountConfig, isSessionClient])
+  }, [client, accountAddress, accountConfig, isSessionClient])
 
-  // Callback to update session data when a session is created
+  // Callback to update session data
   const setSessionData = useCallback(
     (
       newSession: StoredSession,
       sessionClient: KernelAccountState['client'],
     ) => {
-      console.log('📦 Setting session data:', newSession.id)
+      console.log('📦 [CONTEXT] Setting session data:', newSession.id)
       setSession(newSession)
       setClient(sessionClient)
       setIsSessionClient(true)
@@ -439,7 +330,10 @@ export function useSmartAccount(
     [],
   )
 
-  const baseState = {
+  const contextValue: SmartAccountContextValue = {
+    type: 'kernel',
+    client,
+    config: accountConfig,
     accountAddress,
     isLoading,
     error,
@@ -454,35 +348,41 @@ export function useSmartAccount(
     isLoadingSmartAccountEth,
     autoFundingMutation,
     signer,
+    session,
+    isSessionClient,
+    ecdsaValidator,
+    isAccountReady,
+    setSessionData,
   }
 
-  if (providerType === 'rhinestone') {
-    return {
-      ...baseState,
-      type: 'rhinestone' as const,
-      client: client as RhinestoneAccountState['client'],
-      config: accountConfig as RhinestoneConfig | null,
-    }
-  }
+  return (
+    <SmartAccountContext.Provider value={contextValue}>
+      {children}
+    </SmartAccountContext.Provider>
+  )
+}
 
-  if (providerType === 'kernel') {
-    return {
-      ...baseState,
-      type: 'kernel' as const,
-      client: client as KernelAccountState['client'],
-      config: accountConfig as KernelConfig | null,
-      session,
-      isSessionClient,
-      ecdsaValidator,
-      isAccountReady,
-      setSessionData,
-    }
+/**
+ * Hook to access shared smart account state
+ *
+ * Must be used within SmartAccountProvider.
+ * Returns the shared kernel account state including session data.
+ */
+export function useSmartAccountContext(): SmartAccountContextValue {
+  const context = useContext(SmartAccountContext)
+  if (!context) {
+    throw new Error(
+      'useSmartAccountContext must be used within SmartAccountProvider',
+    )
   }
+  return context
+}
 
-  return {
-    ...baseState,
-    type: 'pimlico' as const,
-    client: client as PimlicoAccountState['client'],
-    config: accountConfig as PimlicoConfig | null,
-  }
+/**
+ * Hook to check if smart account context is available
+ *
+ * Returns null if outside SmartAccountProvider (safe to use anywhere).
+ */
+export function useSmartAccountContextSafe(): SmartAccountContextValue | null {
+  return useContext(SmartAccountContext)
 }

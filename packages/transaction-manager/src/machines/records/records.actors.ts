@@ -12,6 +12,7 @@ import { ENS_SEPOLIA_CONTRACTS } from '../../contracts/ens-sepolia'
 import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
 import { transactionManager } from '../../providers/transactionManager'
 import type {
+  KernelTransactionRequest,
   PimlicoTransactionRequest,
   RhinestoneTransactionRequest,
   TransactionRequest,
@@ -75,6 +76,21 @@ function createTransactionRequest(params: {
     } as PimlicoTransactionRequest
   }
 
+  if (signer.type === 'kernel') {
+    return {
+      type: 'kernel',
+      from,
+      to,
+      data,
+      value,
+      chainId,
+      kernelParams: {
+        calls,
+        sponsored: sponsored ?? true,
+      },
+    } as KernelTransactionRequest
+  }
+
   throw new Error(
     `Unsupported signer type for transaction request: ${signer.type}`,
   )
@@ -104,12 +120,13 @@ export const submitProfileRecordsUpdateActor = (input: {
         fromAddress = input.accountAddress
       } else if (
         input.signer.type === 'rhinestone' ||
-        input.signer.type === 'pimlico'
+        input.signer.type === 'pimlico' ||
+        input.signer.type === 'kernel'
       ) {
         fromAddress = getSmartAccountAddress(input.signer)
       } else {
         throw new Error(
-          'Only EOA, Rhinestone, or Pimlico signers are supported for profile updates',
+          'Only EOA, Rhinestone, Pimlico, or Kernel signers are supported for profile updates',
         )
       }
 

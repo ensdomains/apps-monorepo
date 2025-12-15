@@ -1,4 +1,5 @@
 import type { RhinestoneAccount } from '@rhinestone/sdk'
+import type { KernelAccountClient } from '@zerodev/sdk'
 import type { SmartAccountClient } from 'permissionless'
 import type { WalletClient } from 'viem'
 import type { SmartAccountConfig } from './transaction.types'
@@ -39,6 +40,19 @@ export interface PimlicoSigner {
 }
 
 /**
+ * Kernel Smart Account Signer (ZeroDev)
+ * Uses ZeroDev Kernel with smart sessions for sign-once UX
+ */
+export interface KernelSigner {
+  type: 'kernel'
+  account: KernelAccountClient // KernelAccountClient from @zerodev/sdk
+  config: SmartAccountConfig & {
+    /** Whether this client is a session-derived client */
+    isSessionClient?: boolean
+  }
+}
+
+/**
  * ERC-4337 Account Abstraction Signer
  * (Future implementation)
  */
@@ -75,6 +89,7 @@ export type Signer =
   | EOASigner
   | RhinestoneSigner
   | PimlicoSigner
+  | KernelSigner
   | ERC4337Signer
   | PrivySigner
   | SafeSigner
@@ -98,6 +113,13 @@ export function isRhinestoneSigner(signer: Signer): signer is RhinestoneSigner {
  */
 export function isPimlicoSigner(signer: Signer): signer is PimlicoSigner {
   return signer.type === 'pimlico'
+}
+
+/**
+ * Type guard to check if signer is Kernel (ZeroDev)
+ */
+export function isKernelSigner(signer: Signer): signer is KernelSigner {
+  return signer.type === 'kernel'
 }
 
 /**

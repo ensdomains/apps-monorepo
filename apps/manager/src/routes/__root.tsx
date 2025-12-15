@@ -11,6 +11,8 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import type { ReactNode } from 'react'
 import { Toaster } from 'sonner'
 import { Layout } from '@/components/Layout'
+import { SmartSessionProvider } from '@/features/wallet/components/SmartSessionProvider'
+import { SmartAccountContextProvider } from '@/lib/smart-account'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
 import appCss from '@/styles/index.css?url'
 import '@getpara/react-sdk-lite/styles.css'
@@ -101,7 +103,10 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
             twoFactorAuthEnabled: false,
           }}
         >
-          {children}
+          <SmartAccountContextProvider>
+            {children}
+            <SmartSessionProvider />
+          </SmartAccountContextProvider>
         </ParaProvider>
       </QueryClientProvider>
     </ApolloProvider>

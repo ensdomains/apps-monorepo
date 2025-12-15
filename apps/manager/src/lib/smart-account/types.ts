@@ -2,10 +2,13 @@ import type { Signer } from '@ens-apps/transaction-manager'
 import type { useClient as useParaClient } from '@getpara/react-sdk-lite'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { UseMutationResult } from '@tanstack/react-query'
+import type { KernelAccountClient, KernelValidator } from '@zerodev/sdk'
 import type { SmartAccountClient } from 'permissionless'
 import type { Address } from 'viem'
 import type { PimlicoConfig } from './pimlico'
 import type { RhinestoneConfig } from './rhinestone'
+import type { StoredSession } from './sessions/types'
+import type { KernelConfig } from './zerodev/kernel'
 
 /**
  * Shared types for smart account hooks
@@ -20,7 +23,7 @@ export type WalletSource = 'para-embedded' | 'external-wallet' | null
 
 export type SmartAccountType = 'simple' | 'hca'
 
-export type SmartAccountProvider = 'pimlico' | 'rhinestone'
+export type SmartAccountProvider = 'pimlico' | 'rhinestone' | 'kernel'
 
 export interface StablecoinBalance {
   address: Address
@@ -86,9 +89,32 @@ export interface RhinestoneAccountState extends BaseAccountState {
 }
 
 /**
+ * Kernel account result (ZeroDev with smart sessions)
+ */
+export interface KernelAccountState extends BaseAccountState {
+  type: 'kernel'
+  /** The client - may be session client after session is created */
+  client: KernelAccountClient | null
+  config: KernelConfig | null
+  /** Active session if any */
+  session: StoredSession | null
+  /** Whether the client is a session client (vs master account) */
+  isSessionClient: boolean
+  /** ECDSA validator - needed for session creation */
+  ecdsaValidator: KernelValidator<'ECDSAValidator'> | null
+  /** Whether the kernel account is initialized and ready */
+  isAccountReady: boolean
+  /** Update the session data (called when session is created) */
+  setSessionData: (session: StoredSession, client: KernelAccountClient) => void
+}
+
+/**
  * Discriminated union of all account states
  */
-export type SmartAccountState = PimlicoAccountState | RhinestoneAccountState
+export type SmartAccountState =
+  | PimlicoAccountState
+  | RhinestoneAccountState
+  | KernelAccountState
 
 /**
  * Hook configuration
@@ -123,4 +149,13 @@ export function isRhinestoneAccount(
   account: SmartAccountState,
 ): account is RhinestoneAccountState {
   return account.type === 'rhinestone'
+}
+
+/**
+ * Type guard to check if account is Kernel (ZeroDev with sessions)
+ */
+export function isKernelAccount(
+  account: SmartAccountState,
+): account is KernelAccountState {
+  return account.type === 'kernel'
 }

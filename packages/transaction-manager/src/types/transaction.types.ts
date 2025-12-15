@@ -13,6 +13,7 @@ export type TransactionType =
   | 'erc4337'
   | 'rhinestone-intent'
   | 'pimlico'
+  | 'kernel'
 
 export interface BaseTransactionRequest {
   type: TransactionType
@@ -78,11 +79,31 @@ export interface PimlicoTransactionRequest extends BaseTransactionRequest {
   }
 }
 
+/**
+ * Kernel Transaction Request (ZeroDev)
+ * Uses KernelAccountClient with calls array (similar to Pimlico)
+ * Works with both master account and session-derived clients
+ */
+export interface KernelCall {
+  to: Address
+  data: Hex
+  value: bigint
+}
+
+export interface KernelTransactionRequest extends BaseTransactionRequest {
+  type: 'kernel'
+  kernelParams: {
+    calls: KernelCall[]
+    sponsored?: boolean
+  }
+}
+
 export type TransactionRequest =
   | EOATransactionRequest
   | ERC4337UserOperation
   | RhinestoneTransactionRequest
   | PimlicoTransactionRequest
+  | KernelTransactionRequest
 
 // Transaction Intents - High-level descriptions of what the user wants to do
 // (Distinct from Rhinestone intents, which are chain abstraction intents)
