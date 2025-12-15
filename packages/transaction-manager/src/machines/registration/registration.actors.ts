@@ -17,6 +17,7 @@ import {
 import { getBlock, readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import type { Signer } from '../..'
+import { DEFAULT_REVERSE_REGISTRAR_ABI } from '../../contracts/abis/DefaultReverseRegistrar.abi'
 import { ERC20_ABI } from '../../contracts/abis/ERC20.abi'
 import { FAST_TEST_ETH_REGISTRAR_ABI } from '../../contracts/abis/FastTestETHRegistrar.abi'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
@@ -36,6 +37,33 @@ type CommitmentData = {
   commitment: Hash
   secret: Hash
 }
+
+// Reverse resolver used to determine if a profile already has a reverse/default name set.
+// If a reverse name exists for the owner address, we skip setting a new default name.
+const REVERSE_RESOLVER_ADDRESS =
+  '0x7cd0016f722f34394110738eec10265b00c6c7d9' as const
+
+const REVERSE_RESOLVER_ABI = [
+  {
+    inputs: [
+      {
+        internalType: 'address[]',
+        name: 'addrs',
+        type: 'address[]',
+      },
+    ],
+    name: 'resolveNames',
+    outputs: [
+      {
+        internalType: 'string[]',
+        name: 'names',
+        type: 'string[]',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const
 
 const DEDICATED_RESOLVER_INIT_ABI = parseAbi([
   'function initialize(address owner, uint256 bitmap)',
@@ -223,6 +251,17 @@ function encodeRegistrationData(
       paymentToken,
       REFERER_ADDRESS,
     ],
+  })
+}
+
+/**
+ * Encode setName transaction data for the DefaultReverseRegistrar
+ */
+function encodeSetDefaultNameData(name: string): Hash {
+  return encodeFunctionData({
+    abi: DEFAULT_REVERSE_REGISTRAR_ABI,
+    functionName: 'setName',
+    args: [name],
   })
 }
 
@@ -815,5 +854,140 @@ export function pollTransactionStatusActor(input: {
       })
     }),
     (error) => error as Error,
+  )
+}
+
+/**
+ * Best-effort: set default ENS name for the owner if no reverse name is set yet.
+ *
+ * This:
+ * 1. Checks the reverse resolver for an existing name for the owner address.
+ * 2. If a name exists, it does nothing.
+ * 3. If no name exists, it sends a sponsored transaction via the smart account to
+ *    DefaultReverseRegistrar.setName(name).
+ *
+ * Any errors are logged but do not propagate as machine errors.
+ */
+export function setDefaultNameIfNoneActor(input: {
+  name: string
+  owner: Address
+  signer: Signer
+  publicClient: PublicClient
+}): ResultAsync<void, Error> {
+  return ResultAsync.fromSafePromise(
+    Promise.resolve().then(async () => {
+      const { name, owner, signer, publicClient } = input
+
+      // 1. Check existing reverse/default name via reverse resolver
+      try {
+        const result = await readContract(publicClient, {
+          address: REVERSE_RESOLVER_ADDRESS,
+          abi: REVERSE_RESOLVER_ABI,
+          functionName: 'resolveNames',
+          args: [[owner]],
+        })
+
+        const existingName = Array.isArray(result) ? result[0] : undefined
+
+        if (existingName && existingName.length > 0) {
+          console.log(
+            '[DEFAULT NAME] Reverse name already set, skipping default-name update:',
+            {
+              owner,
+              existingName,
+            },
+          )
+          return
+        }
+      } catch (error) {
+        console.error(
+          '[DEFAULT NAME] Failed to check existing reverse name, skipping default-name update:',
+          error,
+        )
+        // On failure to read, we skip to avoid accidentally overwriting.
+        return
+      }
+
+      const registrarAddress = ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrar
+
+      if (!registrarAddress) {
+        console.warn(
+          '[DEFAULT NAME] DefaultReverseRegistrar address not configured, skipping.',
+        )
+        return
+      }
+
+      console.log(
+        '[DEFAULT NAME] No existing reverse name, setting default name:',
+        {
+          owner,
+          name,
+          registrarAddress,
+        },
+      )
+
+      // 2. Build and submit setName transaction via smart account
+      try {
+        const smartAccountAddress = getSmartAccountAddress(signer)
+        const data = encodeSetDefaultNameData(name)
+
+        const request = createTransactionRequest({
+          signer,
+          from: smartAccountAddress,
+          to: registrarAddress,
+          data,
+          value: 0n,
+          chainId: sepolia.id,
+          calls: [
+            {
+              to: registrarAddress,
+              data,
+              value: 0n,
+            },
+          ],
+          sponsored: true,
+        })
+
+        const txId = transactionManager.startTransaction(
+          {
+            type: 'custom',
+            request,
+          },
+          signer,
+          {
+            description: `Set default ENS name for ${name}`,
+            publicClient,
+          },
+        )
+
+        console.log(
+          '[DEFAULT NAME] Started DefaultReverseRegistrar.setName transaction:',
+          {
+            txId,
+          },
+        )
+
+        // 3. Wait for confirmation best-effort
+        try {
+          await waitForTransactionReceiptById(txId)
+          console.log(
+            '[DEFAULT NAME] Default ENS name transaction confirmed:',
+            {
+              txId,
+            },
+          )
+        } catch (receiptError) {
+          console.error(
+            '[DEFAULT NAME] Default ENS name transaction failed (non-fatal):',
+            receiptError,
+          )
+        }
+      } catch (txError) {
+        console.error(
+          '[DEFAULT NAME] Failed to submit default ENS name transaction (non-fatal):',
+          txError,
+        )
+      }
+    }),
   )
 }
