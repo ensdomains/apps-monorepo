@@ -1,14 +1,11 @@
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getAvailable } from '@ensdomains/ensjs/public'
 import { skipToken } from '@tanstack/react-query'
-import { fromPromise, ok } from 'neverthrow'
 import {
   checkRealNameAvailability,
   getTokenPrices,
 } from '@/features/register/services/nameChainContractService'
-import { safeGetClient } from '@/lib/wagmi/helpers'
 
 export class NameAvailabilityError extends TaggedError(
   'NameAvailabilityError',

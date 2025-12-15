@@ -1,6 +1,6 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
-import { err, ok } from 'neverthrow'
+import { ok } from 'neverthrow'
 import type { Database } from '#core/database/index.js'
 import { TABLE } from '#core/database/index.js'
 import {
