@@ -35,10 +35,6 @@ class ReverseResolverError extends TaggedError('ReverseResolverError')<{
   cause: unknown
 }> {}
 
-class MissingReverseNameError extends TaggedError(
-  'MissingReverseNameError',
-)<{}> {}
-
 export const getReverseName = ResultFn(async function* (address: Address) {
   const client = yield* safeGetClient()
 
@@ -55,16 +51,14 @@ export const getReverseName = ResultFn(async function* (address: Address) {
   const [name] = result ?? []
 
   if (!name) {
-    return yield* new MissingReverseNameError({
-      cause: new Error('No reverse name found'),
-    })
+    return ok(null)
   }
 
   return ok(name)
 })
 
-export const profileReverseNameQuery = (address: Address) =>
+export const profileReverseNameQuery = (address: Address | undefined) =>
   resultQueryOptions({
     queryKey: qk('profile', 'reverse_name', { address }),
-    queryFn: ({ queryKey: [{ address }] }) => getReverseName(address),
+    queryFn: address ? () => getReverseName(address) : skipToken,
   })
