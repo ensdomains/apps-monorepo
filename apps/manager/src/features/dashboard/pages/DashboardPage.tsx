@@ -1,5 +1,5 @@
 import { useWallet } from '@getpara/react-sdk-lite'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store/react'
 import { CircleAlert, X } from 'lucide-react'
 import type { Address } from 'viem'
@@ -9,9 +9,7 @@ import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
-import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
-import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import {
@@ -69,15 +67,12 @@ export const DashboardPage = () => {
     | Address
     | undefined
 
-  const { data: reverseName, isPending: isReverseNameLoading } = useQuery({
-    ...profileReverseNameQuery(reverseAddress),
-  })
+  const { data: reverseName, isPending: isReverseNameLoading } =
+    useSuspenseQuery({
+      ...profileReverseNameQuery(reverseAddress as Address),
+    })
   const { data: reverseRecords } = useQuery({
     ...profileRecordsQuery(reverseName ?? ''),
-    enabled: !!reverseName,
-  })
-  const { data: reverseExpiry, isPending: isReverseExpiryLoading } = useQuery({
-    ...profileExpiryQuery(reverseName ?? ''),
     enabled: !!reverseName,
   })
 
@@ -92,26 +87,8 @@ export const DashboardPage = () => {
 
   const normalizedPrimaryName = wallet?.ensName?.toLowerCase()
   const primaryLabel = normalizedPrimaryName ?? null
-
   const defaultName = reverseName ?? wallet?.ensName ?? primaryLabel ?? null
-
-  const { data: registration, isPending: isRegistrationLoading } = useQuery({
-    ...profileRegistrationQuery(defaultName ?? ''),
-    enabled: !!defaultName,
-  })
-
-  const registeredDate =
-    registration?.registrationDate != null
-      ? new Date(registration.registrationDate * 1000)
-      : null
-  const expiryDate =
-    reverseExpiry?.expiry != null
-      ? new Date(Number(reverseExpiry.expiry) * 1000)
-      : null
   const avatarUrl = parsedAvatar ?? wallet?.ensAvatar ?? null
-
-  const isPrimaryLoading =
-    isReverseNameLoading || isReverseExpiryLoading || isRegistrationLoading
 
   const displayName =
     defaultName ?? formatAddress(smartAccountAddress ?? eoaAddress)
@@ -139,15 +116,12 @@ export const DashboardPage = () => {
             Hello {displayName}
           </h1>
         </div>
-        {(hasProfile || isPrimaryLoading) && (
+        {(hasProfile || isReverseNameLoading) && (
           <PrimaryNameCard
             primaryName={defaultName}
-            registeredDate={registeredDate}
-            expiryDate={expiryDate}
             avatarUrl={avatarUrl}
             names={[]}
             primaryLabel={primaryLabel}
-            isLoading={isPrimaryLoading}
           />
         )}
         <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:px-[24px] md:py-[32px]">

@@ -1,38 +1,56 @@
 import type { DomainFragment } from '@ens-apps/indexer'
+import { useQuery } from '@tanstack/react-query'
 import { Calendar, ChevronDown, Clock } from 'lucide-react'
 import { match } from 'ts-pattern'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { formatDashboardDate } from '@/features/dashboard/utils'
+import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
+import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { PrimaryBadge } from './PrimaryBadge'
 import { PrimaryNameDialog } from './PrimaryNameDialog'
 
 type PrimaryNameCardProps = {
   primaryName?: string | null
-  registeredDate?: Date | null
-  expiryDate?: Date | null
   avatarUrl?: string | null
   names: DomainFragment[]
   primaryLabel?: string | null
-  isLoading?: boolean
 }
 
 export const PrimaryNameCard = ({
   primaryName,
-  registeredDate,
-  expiryDate,
   avatarUrl,
   names,
   primaryLabel,
-  isLoading,
 }: PrimaryNameCardProps) => {
+  const { data: registration, isLoading: isRegistrationLoading } = useQuery({
+    ...profileRegistrationQuery(primaryName ?? ''),
+    enabled: !!primaryName,
+  })
+
+  const { data: reverseExpiry, isLoading: isReverseExpiryLoading } = useQuery({
+    ...profileExpiryQuery(primaryName ?? ''),
+    enabled: !!primaryName,
+  })
+
+  const registeredDate =
+    registration?.registrationDate != null
+      ? new Date(registration.registrationDate * 1000)
+      : null
+  const expiryDate =
+    reverseExpiry?.expiry != null
+      ? new Date(Number(reverseExpiry.expiry) * 1000)
+      : null
   const formattedRegisteredDate = formatDashboardDate(registeredDate)
   const formattedExpiryDate = formatDashboardDate(expiryDate)
   const hasAvatar = Boolean(avatarUrl)
-  const displayName =
-    isLoading && !primaryName ? 'Loading...' : (primaryName ?? 'Your ENS name')
-  const registeredLabel = isLoading ? 'Loading...' : formattedRegisteredDate
-  const expiryLabel = isLoading ? 'Loading...' : formattedExpiryDate
+  const displayName = primaryName ?? 'Your ENS name'
+  const registeredLabel = isRegistrationLoading
+    ? 'Loading...'
+    : formattedRegisteredDate
+  const expiryLabel = isReverseExpiryLoading
+    ? 'Loading...'
+    : formattedExpiryDate
   const canViewProfile = Boolean(primaryName)
 
   return (
