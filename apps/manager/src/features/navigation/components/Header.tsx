@@ -6,16 +6,7 @@ import {
 } from '@getpara/react-sdk-lite'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import {
-  Bell,
-  ChevronDown,
-  Copy,
-  CreditCard,
-  RefreshCcw,
-  ShieldCheck,
-  Unlink,
-  User,
-} from 'lucide-react'
+import { Bell, ChevronDown, Copy, Unlink, User } from 'lucide-react'
 import { type ComponentProps, useState } from 'react'
 import type { Address } from 'viem'
 import ensLogo from '@/assets/icons/ens.svg'
@@ -398,30 +389,6 @@ const ConnectedContent = () => {
           <DropdownMenuContent align="end" className="w-96">
             <UserMenuContent {...menuContentProps} />
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link to="/auto-renewal" className="text-ens-blue-dark">
-                <RefreshCcw className="mr-2 size-4 text-ens-blue" />
-                Renewals
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/payment/list" className="text-ens-blue-dark">
-                <CreditCard className="mr-2 size-4 text-ens-blue" />
-                Payment Methods
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {smartAccountClient &&
-              !session &&
-              walletSource === 'external-wallet' && (
-                <DropdownMenuItem
-                  onClick={() => openSessionModal()}
-                  className="text-ens-blue-dark"
-                >
-                  <ShieldCheck className="mr-2 size-4 text-ens-blue" />
-                  Enable Smart Sessions
-                </DropdownMenuItem>
-              )}
             <DropdownMenuItem
               onClick={() => openModal()}
               className="text-ens-blue-dark"
@@ -445,38 +412,6 @@ const ConnectedContent = () => {
             <div className="max-h-[80vh] overflow-y-auto">
               <UserMenuContent {...menuContentProps} />
               <div className="border-ens-blue-light border-t">
-                <Link
-                  to="/auto-renewal"
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust"
-                >
-                  <RefreshCcw className="size-4 text-ens-blue" />
-                  Renewals
-                </Link>
-                <Link
-                  to="/payment/list"
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust"
-                >
-                  <CreditCard className="size-4 text-ens-blue" />
-                  Payment Methods
-                </Link>
-                <div className="border-ens-blue-light border-t" />
-                {smartAccountClient &&
-                  !session &&
-                  walletSource === 'external-wallet' && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        openSessionModal()
-                        setMenuOpen(false)
-                      }}
-                      className="flex w-full items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust"
-                    >
-                      <ShieldCheck className="size-4 text-ens-blue" />
-                      Enable Smart Sessions
-                    </button>
-                  )}
                 <button
                   type="button"
                   onClick={() => {
