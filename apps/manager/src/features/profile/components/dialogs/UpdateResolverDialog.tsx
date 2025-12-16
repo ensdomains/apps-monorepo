@@ -1,4 +1,4 @@
-import { resolverMachine } from '@ens-apps/transaction-manager'
+import { resolverMachine, type Signer } from '@ens-apps/transaction-manager'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useEffect, useState } from 'react'
 import type { Address } from 'viem'
@@ -31,9 +31,7 @@ export const UpdateResolverDialog = ({
   const [open, setOpen] = useState(false)
   const [resolver, setResolver] = useState(currentResolver ?? '')
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
-
-  const { accountAddress, isConnected, signer, isAccountReady } =
-    useSmartAccountContext()
+  const account = useSmartAccountContext()
 
   const resolverActor = useActorRef(resolverMachine, {
     input: { chainId: customSepolia.id },
@@ -79,19 +77,13 @@ export const UpdateResolverDialog = ({
       return
     }
 
-    if (!isConnected || !signer || !accountAddress || !isAccountReady) {
-      setErrorMessage(
-        'Connect your wallet and smart account before updating the resolver.',
-      )
-      return
-    }
-
     resolverActor.send({
       type: 'START_UPDATE',
       name,
       resolver: resolver as Address,
-      signer,
-      accountAddress: accountAddress as Address,
+      signer: account.signer as Signer,
+      accountAddress: (account.ownerAddress ??
+        account.accountAddress) as Address,
       publicClient,
     })
   }

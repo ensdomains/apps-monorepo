@@ -2,7 +2,6 @@ import { primaryNameMachine, type Signer } from '@ens-apps/transaction-manager'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useEffect, useState } from 'react'
 import type { Address, PublicClient } from 'viem'
-import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -28,16 +27,7 @@ export const SetPrimaryNameDialog = ({
   onUpdated,
 }: SetPrimaryNameDialogProps) => {
   const [open, setOpen] = useState(false)
-
-  const {
-    accountAddress: smartAccountAddress,
-    isConnected: isSmartAccountConnected,
-    signer,
-    ownerAddress: smartOwnerAddress,
-    config: smartAccountConfig,
-    isAccountReady,
-  } = useSmartAccountContext()
-  const { data: wagmiWalletClient } = useWalletClient()
+  const account = useSmartAccountContext()
 
   const primaryNameActor = useActorRef(primaryNameMachine, {
     input: { chainId: customSepolia.id },
@@ -71,44 +61,12 @@ export const SetPrimaryNameDialog = ({
       return
     }
 
-    const ownerLower = owner.toLowerCase()
-    const eoaAddress = wagmiWalletClient?.account?.address as
-      | Address
-      | undefined
-
-    const smartValid =
-      isAccountReady &&
-      smartAccountAddress &&
-      signer &&
-      isSmartAccountConnected &&
-      (smartAccountAddress.toLowerCase() === ownerLower ||
-        (smartAccountConfig?.accountType === 'hca' &&
-          smartOwnerAddress?.toLowerCase() === ownerLower))
-
-    const eoaValid =
-      eoaAddress && eoaAddress.toLowerCase() === ownerLower && wagmiWalletClient
-
-    const signerChoice = smartValid
-      ? { signer, account: smartAccountAddress }
-      : eoaValid
-        ? {
-            signer: { type: 'eoa', walletClient: wagmiWalletClient },
-            account: eoaAddress,
-          }
-        : null
-
-    if (!signerChoice) {
-      console.warn(
-        'Cannot set primary name - connected account does not match the ENS owner.',
-      )
-      return
-    }
-
     primaryNameActor.send({
       type: 'START_UPDATE',
       name,
-      signer: signerChoice.signer as Signer,
-      accountAddress: signerChoice.account,
+      signer: account.signer as Signer,
+      accountAddress: (account.ownerAddress ??
+        account.accountAddress) as Address,
       publicClient: publicClient as PublicClient,
     })
   }

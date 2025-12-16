@@ -2,7 +2,6 @@ import { recordsMachine, type Signer } from '@ens-apps/transaction-manager'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
 import type { Address, PublicClient } from 'viem'
-import { useWalletClient } from 'wagmi'
 import { Alert } from '@/components/molecules/Alert'
 import { Button } from '@/components/ui/button'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -39,16 +38,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     ...profileOwnerQuery(name),
   })
 
-  const {
-    accountAddress,
-    isConnected: isSmartAccountConnected,
-    signer,
-    ownerAddress: smartOwnerAddress,
-    config: smartAccountConfig,
-    isAccountReady,
-  } = useSmartAccountContext()
-
-  const { data: wagmiWalletClient } = useWalletClient()
+  const account = useSmartAccountContext()
 
   const recordsActor = useActorRef(recordsMachine, {
     input: { chainId: customSepolia.id },
@@ -99,8 +89,6 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
   const ownerAddress = ownerData?.owner as Address | undefined
   const resolverAddress = recordsData?.resolverAddress as Address | undefined
-  const eoaAddress = wagmiWalletClient?.account?.address as Address | undefined
-  const smartAccountAddress = accountAddress as Address | undefined
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = (e) => {
     e.preventDefault()
@@ -114,37 +102,6 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       return
     }
 
-    const owner = ownerAddress.toLowerCase()
-    const smartOwnerLower = smartOwnerAddress?.toLowerCase()
-
-    const smartValid =
-      isAccountReady &&
-      smartAccountAddress &&
-      signer &&
-      isSmartAccountConnected &&
-      (smartAccountAddress.toLowerCase() === owner ||
-        (smartAccountConfig?.accountType === 'hca' &&
-          smartOwnerLower === owner))
-
-    const eoaValid =
-      eoaAddress && eoaAddress.toLowerCase() === owner && wagmiWalletClient
-
-    const signerChoice = smartValid
-      ? { signer, account: smartAccountAddress }
-      : eoaValid
-        ? {
-            signer: { type: 'eoa', walletClient: wagmiWalletClient },
-            account: eoaAddress,
-          }
-        : null
-
-    if (!signerChoice) {
-      console.warn(
-        'Cannot save profile - Connected account does not match the ENS owner.',
-      )
-      return
-    }
-
     const before = transformToServiceFormat(defaultValues)
     const after = transformToServiceFormat(form.state.values)
 
@@ -153,9 +110,10 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       name,
       before,
       after,
-      signer: signerChoice.signer as Signer,
+      signer: account.signer as Signer,
       resolverAddress,
-      accountAddress: signerChoice.account,
+      accountAddress: (account.ownerAddress ??
+        account.accountAddress) as Address,
       publicClient: publicClient as PublicClient,
     })
   }
