@@ -16,10 +16,10 @@ export const Route = createFileRoute('/p/$name/')({
 
     if (isAddress(name, { strict: false })) {
       const reverseName = await queryClient.ensureQueryData(
-        profileReverseNameQuery(name as Address),
+        profileReverseNameQuery(name),
       )
 
-      resolvedName = reverseName
+      resolvedName = reverseName ?? ''
     }
 
     const [profileRecords] = await Promise.all([

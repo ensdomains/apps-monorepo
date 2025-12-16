@@ -227,9 +227,6 @@ const ConnectedContent = () => {
     isLoadingSmartAccountEth,
     error,
     autoFundingMutation,
-    openSessionModal,
-    session,
-    walletSource,
   } = useSmartAccountContext()
 
   const address = wallet?.address as Address | undefined
@@ -237,7 +234,7 @@ const ConnectedContent = () => {
   const ensAvatar = wallet?.ensAvatar
 
   const { data: reverseName } = useQuery({
-    ...profileReverseNameQuery(address as Address),
+    ...profileReverseNameQuery(address),
   })
   const { data: reverseRecords } = useQuery({
     ...profileRecordsQuery(reverseName ?? ''),
