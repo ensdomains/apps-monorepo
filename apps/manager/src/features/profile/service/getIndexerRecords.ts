@@ -22,22 +22,14 @@ export const getIndexerRecords = ResultFn(async function* (name: string) {
   const domain = result.data.domain
 
   const texts = domain?.resolver?.texts ?? []
+  const coins =
+    domain?.resolver?.addresses?.map((address) => address.coinType) ?? []
 
   const indexerRecords = {
     isMigrated: true,
     createdAt: { date: new Date(), value: Date.now() },
     texts,
-    // TODO: Get coins from GraphQL
-    coins: [
-      '2147483648',
-      '60',
-      '2147492101',
-      '2147483658',
-      '2147525809',
-      '2147542792',
-      '2148018000',
-      '2147483785',
-    ],
+    coins,
   }
 
   return ok(indexerRecords)

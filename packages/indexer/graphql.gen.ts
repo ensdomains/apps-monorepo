@@ -22,6 +22,12 @@ export type Account = {
   registrations: Array<Registration>;
 };
 
+export type CoinAddress = {
+  __typename?: 'CoinAddress';
+  address: Scalars['String']['output'];
+  coinType: Scalars['Int']['output'];
+};
+
 export type Domain = {
   __typename?: 'Domain';
   canonicalId?: Maybe<Scalars['String']['output']>;
@@ -49,6 +55,7 @@ export type Domain = {
 
 export type DomainEventsArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<EventFilter>;
 };
 
 export type DomainConnection = {
@@ -314,10 +321,16 @@ export type Resolver = {
   __typename?: 'Resolver';
   addr?: Maybe<Scalars['String']['output']>;
   address: Scalars['String']['output'];
+  addresses?: Maybe<Array<CoinAddress>>;
   contentHash?: Maybe<Scalars['String']['output']>;
   id: Scalars['String']['output'];
   text?: Maybe<Scalars['String']['output']>;
   texts?: Maybe<Array<Scalars['String']['output']>>;
+};
+
+
+export type ResolverAddrArgs = {
+  coinType?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -368,7 +381,7 @@ export type DomainFragment = { __typename?: 'Domain', id: string, name?: string 
     & AccountFragment
   ) };
 
-export type ResolverFragment = { __typename?: 'Resolver', id: string, address: string, texts?: Array<string> | null };
+export type ResolverFragment = { __typename?: 'Resolver', id: string, address: string, texts?: Array<string> | null, addresses?: Array<{ __typename?: 'CoinAddress', coinType: number }> | null };
 
 export type DomainQueryVariables = Exact<{
   id: Scalars['String']['input'];
@@ -399,6 +412,9 @@ export const Resolver = gql`
   id
   address
   texts
+  addresses {
+    coinType
+  }
 }
     `;
 export const Account = gql`
