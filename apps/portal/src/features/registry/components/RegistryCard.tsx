@@ -3,7 +3,7 @@ import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import type { ProtocolVersion } from '@/utils/types'
 
 export type RegistryInfo = {
-  address: Address
+  address?: Address
   protocol: ProtocolVersion
   factory?: Address | null
 }
@@ -21,15 +21,17 @@ export function RegistryCard({ registry }: RegistryCardProps) {
           <span className="text-sm font-medium">{registry.protocol}</span>
         </div>
 
-        <div className="flex items-center justify-start gap-3">
-          <span className="text-sm text-gray-600 shrink-0 min-w-[60px]">
-            Contract
-          </span>
-          <CopyableRecord
-            href={`https://sepolia.etherscan.io/address/${registry.address}`}
-            value={registry.address}
-          />
-        </div>
+        {registry.address && (
+          <div className="flex items-center justify-start gap-3">
+            <span className="text-sm text-gray-600 shrink-0 min-w-[60px]">
+              Contract
+            </span>
+            <CopyableRecord
+              href={`https://sepolia.etherscan.io/address/${registry.address}`}
+              value={registry.address}
+            />
+          </div>
+        )}
 
         {registry.factory && (
           <div className="flex items-center justify-start gap-3">

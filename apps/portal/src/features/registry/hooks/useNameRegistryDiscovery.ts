@@ -7,21 +7,21 @@ import {
 } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
-import type {
-  GetEnsOwnerError,
-  GetEnsOwnerReturnType,
-} from '@/features/profile/hooks/useEnsOwner'
+import type { GetEnsOwnerError } from '@/features/profile/hooks/useEnsOwner'
 import { l2RegistryFinderAddress } from '@/lib/constants/registry'
 import {
   safeGetClient,
   safeGetNamechainSepoliaClient,
 } from '@/lib/wagmi/helpers'
-import type { EnsNetworkName, ProtocolVersion } from '@/utils/types'
+import type {
+  EnsNetworkName,
+  ProtocolVersion,
+  WithEnsNetwork,
+} from '@/utils/types'
 
-export type GetNameRegistriesParameters = {
+export type GetNameRegistriesParameters = WithEnsNetwork<{
   name: string
-  ownerData: GetEnsOwnerReturnType
-}
+}>
 
 type Root = [root: Address | null]
 type TLD = [tld: Address, ...Root]
@@ -52,15 +52,15 @@ export class NameRegistriesError extends TaggedError('NameRegistriesError')<{
  * For V2 registries, ensjs getNameRegistries efficiently fetches all registry addresses at once.
  */
 export const getNameRegistries = ResultFn(async function* ({
-  ownerData,
+  network,
   name,
 }: GetNameRegistriesParameters) {
   const l1Client = yield* safeGetClient()
   const l2Client = yield* safeGetNamechainSepoliaClient()
 
-  if (!ownerData) return ok(null)
+  if (!network) return ok(null)
 
-  if (ownerData.network === 'sepolia') {
+  if (network === 'sepolia') {
     const registries = (yield* fromPromise(
       ensjsGetNameRegistries(l1Client, { name }),
       (e) =>
@@ -71,7 +71,7 @@ export const getNameRegistries = ResultFn(async function* ({
       network: 'sepolia',
       protocolVersion: 'ENSv1',
     } as const satisfies NameRegistriesReturnType)
-  } else if (ownerData.network === 'namechainSepolia') {
+  } else if (network === 'namechainSepolia') {
     const registries = (yield* fromPromise(
       ensjsGetNameRegistries(l2Client, {
         name,
