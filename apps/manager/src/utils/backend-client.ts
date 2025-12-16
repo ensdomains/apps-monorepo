@@ -1,5 +1,6 @@
 import type { AppRouter } from 'api-worker/hc'
 import { hc } from 'hono/client'
+import posthog from 'posthog-js'
 import { createPersistedStore } from './xstate-store'
 
 const BACKEND_AUTH_STORAGE_KEY = '@manager-v4/backend_auth'
@@ -59,13 +60,17 @@ const authFetch: typeof fetch = async (input, init) => {
 export const backendClient = hc<AppRouter>(baseUrl, {
   headers: () => {
     const auth = backendAuthStore.get().context.authKey
+    const posthogId = posthog.get_distinct_id()
 
     if (!auth) {
-      return {} as Record<string, string>
+      return {
+        'X-PostHog-Distinct-ID': posthogId,
+      } as Record<string, string>
     }
 
     return {
       Authorization: `Bearer ${auth}`,
+      'X-PostHog-Distinct-ID': posthogId,
     }
   },
 
