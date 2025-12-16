@@ -13,7 +13,7 @@ import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
-import { useSmartAccount } from '@/lib/smart-account'
+import { useSmartAccountContext } from '@/lib/smart-account'
 import {
   dashboardUiStore,
   hasDismissedNewWalletBannerAtom,
@@ -61,10 +61,7 @@ const NewWalletBanner = ({ onClose }: { onClose: () => void }) => {
 
 export const DashboardPage = () => {
   const { data: wallet } = useWallet()
-  const { accountAddress: smartAccountAddress } = useSmartAccount({
-    type: 'pimlico',
-    accountType: 'hca',
-  })
+  const { accountAddress: smartAccountAddress } = useSmartAccountContext()
   const hasDismissedNewWalletBanner = useAtom(hasDismissedNewWalletBannerAtom)
 
   const eoaAddress = wallet?.address as Address | undefined
