@@ -1,8 +1,7 @@
-import { recordsMachine, type Signer } from '@ens-apps/transaction-manager'
+import { recordsMachine } from '@ens-apps/transaction-manager'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
 import type { Address, PublicClient } from 'viem'
-import { useWalletClient } from 'wagmi'
 import { Alert } from '@/components/molecules/Alert'
 import { Button } from '@/components/ui/button'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -13,11 +12,15 @@ import { createDiff } from '../utils/createDiff'
 import {
   defaultProfileRecords,
   transformProfileRecords,
-  transformToServiceFormat,
 } from '../utils/transformRecords'
 import { SetPrimaryNameDialog } from './dialogs/SetPrimaryNameDialog'
 import { UpdateResolverDialog } from './dialogs/UpdateResolverDialog'
 import { useAppForm } from './form'
+import {
+  handleProfileFormSubmit,
+  handleProfileReset,
+  handleProfileSave,
+} from './ProfileEdit.handlers'
 import { SaveChanges } from './SaveChanges'
 import { BioSection } from './sections/BioSection'
 import { HeaderSection } from './sections/HeaderSection'
@@ -39,16 +42,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     ...profileOwnerQuery(name),
   })
 
-  const {
-    accountAddress,
-    isConnected: isSmartAccountConnected,
-    signer,
-    ownerAddress: smartOwnerAddress,
-    config: smartAccountConfig,
-    isAccountReady,
-  } = useSmartAccountContext()
-
-  const { data: wagmiWalletClient } = useWalletClient()
+  const account = useSmartAccountContext()
 
   const recordsActor = useActorRef(recordsMachine, {
     input: { chainId: customSepolia.id },
@@ -99,72 +93,32 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
   const ownerAddress = ownerData?.owner as Address | undefined
   const resolverAddress = recordsData?.resolverAddress as Address | undefined
-  const eoaAddress = wagmiWalletClient?.account?.address as Address | undefined
-  const smartAccountAddress = accountAddress as Address | undefined
 
-  const handleSubmit: React.FormEventHandler<HTMLFormElement> = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    form.handleSubmit()
-  }
+  const handleSubmit: React.FormEventHandler<HTMLFormElement> = (event) =>
+    handleProfileFormSubmit(event, form.handleSubmit)
 
-  const handleSave = () => {
-    if (!ownerAddress) {
-      console.warn('Cannot save profile - ENS owner is not available.')
-      return
-    }
+  const handleSave = () =>
+    handleProfileSave(
+      {
+        name,
+        ownerAddress,
+        resolverAddress,
+        defaultValues,
+        currentValues: form.state.values,
+      },
+      {
+        account,
+        recordsActor,
+        publicClient: publicClient as PublicClient,
+      },
+    )
 
-    const owner = ownerAddress.toLowerCase()
-    const smartOwnerLower = smartOwnerAddress?.toLowerCase()
-
-    const smartValid =
-      isAccountReady &&
-      smartAccountAddress &&
-      signer &&
-      isSmartAccountConnected &&
-      (smartAccountAddress.toLowerCase() === owner ||
-        (smartAccountConfig?.accountType === 'hca' &&
-          smartOwnerLower === owner))
-
-    const eoaValid =
-      eoaAddress && eoaAddress.toLowerCase() === owner && wagmiWalletClient
-
-    const signerChoice = smartValid
-      ? { signer, account: smartAccountAddress }
-      : eoaValid
-        ? {
-            signer: { type: 'eoa', walletClient: wagmiWalletClient },
-            account: eoaAddress,
-          }
-        : null
-
-    if (!signerChoice) {
-      console.warn(
-        'Cannot save profile - Connected account does not match the ENS owner.',
-      )
-      return
-    }
-
-    const before = transformToServiceFormat(defaultValues)
-    const after = transformToServiceFormat(form.state.values)
-
-    recordsActor.send({
-      type: 'START_UPDATE',
-      name,
-      before,
-      after,
-      signer: signerChoice.signer as Signer,
-      resolverAddress,
-      accountAddress: signerChoice.account,
-      publicClient: publicClient as PublicClient,
+  const handleReset = () =>
+    handleProfileReset({
+      resetForm: form.reset,
+      refetchRecords,
+      refetchOwner,
     })
-  }
-
-  const handleReset = () => {
-    form.reset()
-    refetchRecords()
-    refetchOwner()
-  }
 
   return (
     <form

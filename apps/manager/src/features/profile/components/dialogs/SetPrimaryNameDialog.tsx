@@ -1,8 +1,7 @@
-import { primaryNameMachine, type Signer } from '@ens-apps/transaction-manager'
+import { primaryNameMachine } from '@ens-apps/transaction-manager'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useEffect, useState } from 'react'
 import type { Address, PublicClient } from 'viem'
-import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -14,6 +13,10 @@ import {
 } from '@/components/ui/dialog'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
+import {
+  handlePrimaryNameCancel,
+  handleSetPrimaryName,
+} from '../ProfileEdit.handlers'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 interface SetPrimaryNameDialogProps {
@@ -28,16 +31,7 @@ export const SetPrimaryNameDialog = ({
   onUpdated,
 }: SetPrimaryNameDialogProps) => {
   const [open, setOpen] = useState(false)
-
-  const {
-    accountAddress: smartAccountAddress,
-    isConnected: isSmartAccountConnected,
-    signer,
-    ownerAddress: smartOwnerAddress,
-    config: smartAccountConfig,
-    isAccountReady,
-  } = useSmartAccountContext()
-  const { data: wagmiWalletClient } = useWalletClient()
+  const account = useSmartAccountContext()
 
   const primaryNameActor = useActorRef(primaryNameMachine, {
     input: { chainId: customSepolia.id },
@@ -66,56 +60,19 @@ export const SetPrimaryNameDialog = ({
   }, [isSuccess, onUpdated])
 
   const handleSave = () => {
-    if (!owner) {
-      console.warn('Cannot set primary name - ENS owner is not available.')
-      return
-    }
-
-    const ownerLower = owner.toLowerCase()
-    const eoaAddress = wagmiWalletClient?.account?.address as
-      | Address
-      | undefined
-
-    const smartValid =
-      isAccountReady &&
-      smartAccountAddress &&
-      signer &&
-      isSmartAccountConnected &&
-      (smartAccountAddress.toLowerCase() === ownerLower ||
-        (smartAccountConfig?.accountType === 'hca' &&
-          smartOwnerAddress?.toLowerCase() === ownerLower))
-
-    const eoaValid =
-      eoaAddress && eoaAddress.toLowerCase() === ownerLower && wagmiWalletClient
-
-    const signerChoice = smartValid
-      ? { signer, account: smartAccountAddress }
-      : eoaValid
-        ? {
-            signer: { type: 'eoa', walletClient: wagmiWalletClient },
-            account: eoaAddress,
-          }
-        : null
-
-    if (!signerChoice) {
-      console.warn(
-        'Cannot set primary name - connected account does not match the ENS owner.',
-      )
-      return
-    }
-
-    primaryNameActor.send({
-      type: 'START_UPDATE',
-      name,
-      signer: signerChoice.signer as Signer,
-      accountAddress: signerChoice.account,
-      publicClient: publicClient as PublicClient,
-    })
+    handleSetPrimaryName(
+      { name, owner },
+      {
+        account,
+        primaryNameActor,
+        publicClient: publicClient as PublicClient,
+      },
+    )
   }
 
   const handleCancel = () => {
     setOpen(false)
-    primaryNameActor.send({ type: 'CANCEL' })
+    handlePrimaryNameCancel(primaryNameActor)
   }
 
   return (

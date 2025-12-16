@@ -1,8 +1,7 @@
 import { resolverMachine } from '@ens-apps/transaction-manager'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useEffect, useState } from 'react'
-import type { Address } from 'viem'
-import { isAddress } from 'viem'
+import type { PublicClient } from 'viem'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -15,6 +14,10 @@ import {
 import { Input } from '@/components/ui/input'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
+import {
+  handleResolverCancel,
+  handleResolverUpdate,
+} from '../ProfileEdit.handlers'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 interface UpdateResolverDialogProps {
@@ -31,9 +34,7 @@ export const UpdateResolverDialog = ({
   const [open, setOpen] = useState(false)
   const [resolver, setResolver] = useState(currentResolver ?? '')
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
-
-  const { accountAddress, isConnected, signer, isAccountReady } =
-    useSmartAccountContext()
+  const account = useSmartAccountContext()
 
   const resolverActor = useActorRef(resolverMachine, {
     input: { chainId: customSepolia.id },
@@ -67,39 +68,25 @@ export const UpdateResolverDialog = ({
   }, [isSuccess, onUpdated])
 
   const handleSave = () => {
-    setErrorMessage(undefined)
+    const error = handleResolverUpdate(
+      {
+        name,
+        resolverInput: resolver,
+      },
+      {
+        account,
+        resolverActor,
+        publicClient: publicClient as PublicClient,
+      },
+    )
 
-    if (!resolver) {
-      setErrorMessage('Resolver address is required.')
-      return
-    }
-
-    if (!isAddress(resolver, { strict: false })) {
-      setErrorMessage('Please enter a valid resolver contract address.')
-      return
-    }
-
-    if (!isConnected || !signer || !accountAddress || !isAccountReady) {
-      setErrorMessage(
-        'Connect your wallet and smart account before updating the resolver.',
-      )
-      return
-    }
-
-    resolverActor.send({
-      type: 'START_UPDATE',
-      name,
-      resolver: resolver as Address,
-      signer,
-      accountAddress: accountAddress as Address,
-      publicClient,
-    })
+    setErrorMessage(error)
   }
 
   const handleCancel = () => {
     setOpen(false)
     setErrorMessage(undefined)
-    resolverActor.send({ type: 'CANCEL' })
+    handleResolverCancel(resolverActor)
   }
 
   return (
