@@ -44,13 +44,8 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
       : forceFetchRecords.whenNotIndexed),
   ]
 
-  const coinTypes = indexerRecords
-    ? [
-        ...indexerRecords.coins.filter(
-          (c) => !alwaysProbeAddressRecords.includes(c),
-        ),
-        ...alwaysProbeAddressRecords,
-      ]
+  const coinTypeCandidates = indexerRecords
+    ? [...indexerRecords.coins, ...alwaysProbeAddressRecords]
     : alwaysProbeAddressRecords
 
   const result: ProfileRecordsResult = {
@@ -94,9 +89,11 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     }
   })
 
-  const coinTypeNumbers = coinTypes
-    .map((coin) => Number.parseInt(String(coin), 10))
-    .filter((coinType) => !Number.isNaN(coinType))
+  const coinTypeNumbers = Array.from(
+    new Set(
+      coinTypeCandidates.map((coin) => Number.parseInt(String(coin), 10)),
+    ),
+  ).filter((coinType) => !Number.isNaN(coinType))
 
   const coinContracts = coinTypeNumbers.map((coinTypeNumber) => ({
     address: resolverAddress,
