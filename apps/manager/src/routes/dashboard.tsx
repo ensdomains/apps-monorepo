@@ -10,15 +10,7 @@ export const Route = createFileRoute('/dashboard')({
 })
 
 function RouteComponent() {
-  const {
-    accountAddress: smartAccountAddress,
-    isAccountReady,
-    isLoading,
-  } = useSmartAccountContext()
-
-  if (isLoading || !isAccountReady) {
-    return <DashboardLoading />
-  }
+  const { accountAddress: smartAccountAddress } = useSmartAccountContext()
 
   if (!smartAccountAddress) {
     return <NotFoundPage />
