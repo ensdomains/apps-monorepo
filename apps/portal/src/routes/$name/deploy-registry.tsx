@@ -39,7 +39,9 @@ function RouteComponent() {
     data: registryData,
     isLoading,
     error: registryError,
-  } = useQuery(getNameRegistriesQueryOptions({ name }))
+  } = useQuery(
+    getNameRegistriesQueryOptions({ name, network: 'namechainSepolia' }),
+  )
 
   const network = registryData?.network ?? 'sepolia'
   const isNamechain = network === 'namechainSepolia'
