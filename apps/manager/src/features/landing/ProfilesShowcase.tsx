@@ -1,4 +1,7 @@
 import { GithubIcon, GlobeIcon, MailIcon, TwitterIcon } from 'lucide-react'
+import erniAvatar from '@/assets/pages/landing/erni.webp'
+import nickAvatar from '@/assets/pages/landing/nick.webp'
+import vitalikAvatar from '@/assets/pages/landing/vitalik.webp'
 import { ProfileCard } from './components/ProfileCard'
 
 export const ProfilesShowcase = () => {
@@ -19,7 +22,7 @@ export const ProfilesShowcase = () => {
       <div className="mt-20 flex gap-11 max-md:flex-col">
         <ProfileCard
           name="vitalik.eth"
-          avatarUrl="https://enstate.rs/i/vitalik.eth"
+          avatarUrl={vitalikAvatar}
           registeredDate={new Date('2020-02-06')}
           description="mi pinxe lo crino tcati"
           links={[
@@ -44,7 +47,7 @@ export const ProfilesShowcase = () => {
         />
         <ProfileCard
           name="nick.eth"
-          avatarUrl="https://enstate.rs/i/nick.eth"
+          avatarUrl={nickAvatar}
           registeredDate={new Date('2020-02-04')}
           description="Lead developer of ENS & Ethereum Foundation alum. Certified rat tickler. he/him."
           links={[
@@ -69,7 +72,7 @@ export const ProfilesShowcase = () => {
         />
         <ProfileCard
           name="erni.eth"
-          avatarUrl="https://enstate.rs/i/erni.eth"
+          avatarUrl={erniAvatar}
           registeredDate={new Date('2024-08-28')}
           description="A scrappy generalist builder with taste. Senior Product Designer and Researcher at ENS Labs, dedicated to making web3 feel straightforward to newcomers."
           links={[
