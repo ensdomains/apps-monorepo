@@ -110,20 +110,24 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
 
   return (
     <>
-      <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
-        <ClockIcon className="p-2 size-9 rounded-4xl bg-secondary" />
-        <div className="flex flex-col">
-          <span className="font-medium">Registered</span>
-          <Timestamp timestamp={data.registeredAt} />
+      {data.registeredAt && (
+        <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
+          <ClockIcon className="p-2 size-9 rounded-4xl bg-secondary" />
+          <div className="flex flex-col">
+            <span className="font-medium">Registered</span>
+            <Timestamp timestamp={data.registeredAt} />
+          </div>
         </div>
-      </div>
-      <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
-        <CalendarIcon className="p-2 size-9 rounded-4xl bg-secondary" />
-        <div className="flex flex-col">
-          <span className="font-medium">Expiry</span>
-          <Timestamp timestamp={data.expiry} />
+      )}
+      {data.expiry && (
+        <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
+          <CalendarIcon className="p-2 size-9 rounded-4xl bg-secondary" />
+          <div className="flex flex-col">
+            <span className="font-medium">Expiry</span>
+            <Timestamp timestamp={data.expiry} />
+          </div>
         </div>
-      </div>
+      )}
     </>
   )
 }

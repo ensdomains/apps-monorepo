@@ -103,10 +103,7 @@ export const NameList = ({ address }: NameListProps) => {
     })) as column[]),
     ...((v2NamesQuery.data || []).map(({ name, expiryDate }) => ({
       name,
-      expiryDate:
-        expiryDate < 18446744073709552
-          ? new Date(Number(expiryDate) * 1000)
-          : null,
+      expiryDate: expiryDate ? new Date(Number(expiryDate) * 1000) : null,
       network: 'namechainSepolia',
     })) as column[]),
   ] as const satisfies column[]

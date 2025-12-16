@@ -4,20 +4,49 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { coinNameToTypeMap } from '@ensdomains/address-encoder'
 import type { GetRecordsErrorType } from '@ensdomains/ensjs/public'
 import type { GetSubgraphRecordsErrorType } from '@ensdomains/ensjs/subgraph'
-import { ok } from 'neverthrow'
+import { type ClientError, gql } from 'graphql-request'
+import { fromPromise, ok } from 'neverthrow'
+import { graphqlIndexerClient } from '@/lib/indexer'
 import { getRecords } from './useRecords'
 import { getSubgraphRecords } from './useSubgraphRecords'
 
 export class GetProfileError extends TaggedError('RecordsError')<{
-  cause: GetRecordsErrorType | GetSubgraphRecordsErrorType
+  cause: GetRecordsErrorType | GetSubgraphRecordsErrorType | ClientError
 }> {}
 
 export const getProfile = ResultFn(async function* (name: string) {
-  const subgraphRecords = yield* getSubgraphRecords(name)
+  const subgraphV1Records = yield* getSubgraphRecords(name)
+
+  const result = yield* fromPromise(
+    graphqlIndexerClient.request<
+      {
+        domains: [
+          {
+            resolver: {
+              texts: string[]
+            } | null
+          },
+        ]
+      },
+      { name: string }
+    >(
+      gql`query getRecords($name: String!) {
+    domains(where: {name: $name}) {
+      resolver {
+        texts
+      }
+    }
+  }`,
+      { name },
+    ),
+    (e) => new GetProfileError({ cause: e as ClientError }),
+  )
+
+  const subgraphV2Records = result.domains[0].resolver
 
   const coins = Array.from(
     new Set([
-      ...(subgraphRecords?.coins.map((coin) => Number(coin)) || []),
+      ...(subgraphV1Records?.coins.map((coin) => Number(coin)) || []),
 
       // default requested coins
 
@@ -38,20 +67,21 @@ export const getProfile = ResultFn(async function* (name: string) {
   // default requested texts
   const texts = Array.from(
     new Set([
-      ...(subgraphRecords?.texts || []),
+      ...(subgraphV1Records?.texts || []),
+      ...(subgraphV2Records?.texts || []),
 
       'name',
       'description',
       'com.twitter',
       'org.telegram',
-      'banner',
+      'header',
       'avatar',
     ]),
   )
 
   const records = yield* getRecords({
     name,
-    ...subgraphRecords,
+    ...subgraphV1Records,
     coins,
     texts,
     contentHash: true,
@@ -61,7 +91,7 @@ export const getProfile = ResultFn(async function* (name: string) {
 
   return ok({
     records,
-    subgraphRecords,
+    subgraphRecords: { ...subgraphV1Records },
   })
 })
 

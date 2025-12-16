@@ -8,9 +8,11 @@ import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { RolesTable } from '@/features/roles/components/RolesTable'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
+import { namechainEthRegistryAddress } from '@/lib/constants/registry'
 
 export const Route = createFileRoute('/$name/roles/')({
   component: RouteComponent,
@@ -54,18 +56,57 @@ const V2NameRoles = ({
   return <RolesTable roles={nameRolesQuery.data} />
 }
 
+const AddUserButton = ({
+  name,
+  address,
+}: {
+  name: string
+  address: Address
+}) => {
+  const label = name.split('.')[0]
+
+  const { data: hasRoles, isLoading } = useQuery(
+    getHasRolesQueryOptions({
+      registryAddress: namechainEthRegistryAddress,
+      label,
+      roles: [
+        'ROLE_CAN_TRANSFER_ADMIN',
+        'ROLE_BURN_ADMIN',
+        'ROLE_RENEW_ADMIN',
+        'ROLE_REGISTRAR_ADMIN',
+        'ROLE_SET_RESOLVER_ADMIN',
+        'ROLE_SET_SUBREGISTRY_ADMIN',
+        'ROLE_SET_TOKEN_OBSERVER_ADMIN',
+      ],
+      account: address,
+    }),
+  )
+
+  if (isLoading) return <div>Loading</div>
+  if (!hasRoles) return null
+
+  return (
+    <Button variant="outline" className="flex items-center gap-2" asChild>
+      <Link to="/$name/roles/add-user" params={{ name }}>
+        <Plus className="size-4" />
+        Add user
+      </Link>
+    </Button>
+  )
+}
+
 function RouteComponent() {
   const { name } = Route.useParams()
 
-  const { isConnected } = useConnection()
+  const { address } = useConnection()
 
   const { data, isLoading, error } = useQuery({
     ...getEnsOwnerQueryOptions({ name }),
     enabled: name.endsWith('.eth'),
   })
 
-  if (!name.endsWith('.eth'))
-    return <ErrorMessage title="Only .eth is supported" />
+  if (!name.endsWith('.eth') || name.split('.').length !== 2)
+    return <ErrorMessage title="Only 2LD .eth is supported" />
   if (isLoading) return <LoadingSpinner title="Loading name owner" />
   if (error)
     return (
@@ -80,18 +121,7 @@ function RouteComponent() {
       <div className="max-w-360 w-full mx-auto flex flex-col gap-6 m-6 px-4">
         <div className="flex items-center justify-between">
           <h1 className="text-[28px] font-medium leading-none">Roles</h1>
-          {isConnected && (
-            <Button
-              variant="outline"
-              className="flex items-center gap-2"
-              asChild
-            >
-              <Link to="/$name/roles/add-user" params={{ name }}>
-                <Plus className="size-4" />
-                Add user
-              </Link>
-            </Button>
-          )}
+          {address && <AddUserButton name={name} address={address} />}
         </div>
         <V2NameRoles name={name} registryAddress={data.registryAddress} />
       </div>

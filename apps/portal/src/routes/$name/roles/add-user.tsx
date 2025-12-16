@@ -153,7 +153,7 @@ function RouteComponent() {
                       <Checkbox
                         name={`${permission.key}_ADMIN`}
                         id={`${permission.key}_ADMIN`}
-                        disabled={disabledRole}
+                        disabled={true}
                       />
                       <Label
                         htmlFor={`${permission.key}_ADMIN`}
@@ -166,6 +166,28 @@ function RouteComponent() {
                 </div>
               )
             })}
+            <div className={cn('flex items-center justify-between p-4 gap-4')}>
+              <div className="flex flex-col gap-1 flex-1">
+                <div className="font-medium">Can transfer admin</div>
+                <div className="text-sm text-gray-600">
+                  Administrator role to transfer a name
+                </div>
+              </div>
+              <div className="flex items-center gap-8">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    name="ROLE_CAN_TRANSFER_ADMIN"
+                    id="ROLE_CAN_TRANSFER_ADMIN"
+                  />
+                  <Label
+                    htmlFor="ROLE_CAN_TRANSFER_ADMIN"
+                    className="font-normal cursor-pointer text-gray-600"
+                  >
+                    Admin
+                  </Label>
+                </div>
+              </div>
+            </div>
           </div>
           <Button
             type="submit"
