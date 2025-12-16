@@ -98,21 +98,25 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
 
   return (
     <>
-      <div className="flex flex-col gap-1">
-        <Label>Registered</Label>
-        <span className="flex flex-row gap-1 items-center h-[38px]">
-          <CalendarIcon className="size-3.5" />
-          {new Date(Number(data.registeredAt) * 1000).toUTCString()}
-        </span>
-      </div>
+      {data.registeredAt && (
+        <div className="flex flex-col gap-1">
+          <Label>Registered</Label>
+          <span className="flex flex-row gap-1 items-center h-[38px]">
+            <CalendarIcon className="size-3.5" />
+            {new Date(Number(data.registeredAt) * 1000).toUTCString()}
+          </span>
+        </div>
+      )}
 
-      <div className="flex flex-col gap-1">
-        <Label>Expires</Label>
-        <span className="flex flex-row gap-1 items-center h-[38px]">
-          <ClockIcon className="size-3.5" />
-          {new Date(Number(data.expiry) * 1000).toUTCString()}
-        </span>
-      </div>
+      {data.expiry && (
+        <div className="flex flex-col gap-1">
+          <Label>Expires</Label>
+          <span className="flex flex-row gap-1 items-center h-[38px]">
+            <ClockIcon className="size-3.5" />
+            {new Date(Number(data.expiry) * 1000).toUTCString()}
+          </span>
+        </div>
+      )}
     </>
   )
 }
