@@ -3,22 +3,23 @@ export {
   initializeRhinestoneAccount,
   type RhinestoneConfig,
 } from './rhinestone'
-
+// Context-based smart account (shared state across components)
+export {
+  SmartAccountContextProvider,
+  useSmartAccountContext,
+  useSmartAccountContextSafe,
+} from './SmartAccountContext'
 export type {
   EthBalance,
-  SmartAccountProvider,
-  SmartAccountType,
-  StablecoinBalance,
-  WalletSource,
-} from './types'
-export type {
+  KernelAccountState,
   PimlicoAccountState,
   RhinestoneAccountState,
+  SmartAccountProvider,
   SmartAccountState,
+  SmartAccountType,
+  StablecoinBalance,
   UseSmartAccountConfig,
-} from './useSmartAccount'
-export {
-  isPimlicoAccount,
-  isRhinestoneAccount,
-  useSmartAccount,
-} from './useSmartAccount'
+  WalletSource,
+} from './types'
+// Deprecated hook - maintained for backward compatibility
+export { useSmartAccount } from './useSmartAccount'

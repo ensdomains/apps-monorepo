@@ -6,15 +6,7 @@ import {
 } from '@getpara/react-sdk-lite'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import {
-  Bell,
-  ChevronDown,
-  Copy,
-  CreditCard,
-  RefreshCcw,
-  Unlink,
-  User,
-} from 'lucide-react'
+import { Bell, ChevronDown, Copy, Unlink, User } from 'lucide-react'
 import { type ComponentProps, useState } from 'react'
 import type { Address } from 'viem'
 import ensLogo from '@/assets/icons/ens.svg'
@@ -38,12 +30,15 @@ import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { type SmartAccountState, useSmartAccount } from '@/lib/smart-account'
+import {
+  type SmartAccountState,
+  useSmartAccountContext,
+} from '@/lib/smart-account'
 
 // Reusable menu content component
 const UserMenuContent = ({
-  account,
-  address,
+  account: _account,
+  address: _address,
   accountAddress,
   isLoading,
   stablecoinBalances,
@@ -232,7 +227,10 @@ const ConnectedContent = () => {
     isLoadingSmartAccountEth,
     error,
     autoFundingMutation,
-  } = useSmartAccount()
+    openSessionModal,
+    session,
+    walletSource,
+  } = useSmartAccountContext()
 
   const address = wallet?.address as Address | undefined
   const ensName = wallet?.ensName
@@ -391,19 +389,6 @@ const ConnectedContent = () => {
           <DropdownMenuContent align="end" className="w-96">
             <UserMenuContent {...menuContentProps} />
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link to="/auto-renewal" className="text-ens-blue-dark">
-                <RefreshCcw className="mr-2 size-4 text-ens-blue" />
-                Renewals
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/payment/list" className="text-ens-blue-dark">
-                <CreditCard className="mr-2 size-4 text-ens-blue" />
-                Payment Methods
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => openModal()}
               className="text-ens-blue-dark"
@@ -427,23 +412,6 @@ const ConnectedContent = () => {
             <div className="max-h-[80vh] overflow-y-auto">
               <UserMenuContent {...menuContentProps} />
               <div className="border-ens-blue-light border-t">
-                <Link
-                  to="/auto-renewal"
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust"
-                >
-                  <RefreshCcw className="size-4 text-ens-blue" />
-                  Renewals
-                </Link>
-                <Link
-                  to="/payment/list"
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust"
-                >
-                  <CreditCard className="size-4 text-ens-blue" />
-                  Payment Methods
-                </Link>
-                <div className="border-ens-blue-light border-t" />
                 <button
                   type="button"
                   onClick={() => {
@@ -458,7 +426,7 @@ const ConnectedContent = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    openModal()
+                    logout()
                     setMenuOpen(false)
                   }}
                   className="flex w-full items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust"
@@ -521,22 +489,28 @@ export const Header = () => {
 
   return (
     <nav className="sticky top-0 z-10 flex min-w-0 items-center justify-between gap-4 bg-background px-4 py-4 md:px-10 md:py-7">
-      <div className="flex shrink-0 items-center gap-3">
-        <Link to="/" className="shrink-0 py-2">
-          <img
-            src={ensMobileLogo}
-            alt="ENS Logo"
-            className="h-8 shrink-0 md:hidden"
-          />
-          <img
-            src={ensLogo}
-            alt="ENS Logo"
-            className="hidden h-8 shrink-0 md:block"
-          />
-        </Link>
-        {/* Sepolia Chain Badge */}
-        <span className="rounded-full border border-ens-blue-light bg-ens-lapis-dust px-2.5 py-1 font-medium font-mono text-ens-blue-dark text-xs uppercase tracking-wide">
-          Sepolia
+      <div className="flex shrink-0 flex-col md:flex-row md:items-center md:gap-3">
+        <div className="flex items-center gap-3">
+          <Link to="/" className="shrink-0 py-2">
+            <img
+              src={ensMobileLogo}
+              alt="ENS Logo"
+              className="h-8 shrink-0 md:hidden"
+            />
+            <img
+              src={ensLogo}
+              alt="ENS Logo"
+              className="hidden h-8 shrink-0 md:block"
+            />
+          </Link>
+          {/* Sepolia Chain Badge */}
+          <span className="rounded-full border border-ens-blue-light bg-ens-lapis-dust px-2.5 py-1 font-medium font-mono text-ens-blue-dark text-xs uppercase tracking-wide">
+            Sepolia
+          </span>
+        </div>
+        {/* Chrome recommendation badge */}
+        <span className="w-fit rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 font-medium text-amber-700 text-xs">
+          Works best on Chrome
         </span>
       </div>
       <div className="flex min-w-0 items-center gap-2 md:gap-4">

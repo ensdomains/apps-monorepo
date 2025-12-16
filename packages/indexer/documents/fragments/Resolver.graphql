@@ -2,4 +2,7 @@ fragment Resolver on Resolver {
   id
   address
   texts
+  addresses {
+    coinType
+  }
 }
