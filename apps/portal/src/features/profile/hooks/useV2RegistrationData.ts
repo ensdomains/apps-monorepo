@@ -3,7 +3,6 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { type ClientError, gql } from 'graphql-request'
 import { fromPromise, ok } from 'neverthrow'
-import { namechainEthRegistryAddress } from '@/lib/constants/registry'
 import { graphqlIndexerClient } from '@/lib/indexer'
 
 export class GetV2RegistrationDataError extends TaggedError(
@@ -25,7 +24,7 @@ export const getV2RegistrationData = ResultFn(async function* ({
       query getRegistrationAndExpiry {
         events(
           first: 1
-          where: {domain: "${name}", type: "NameRegistered", contractAddress: "${namechainEthRegistryAddress.toLowerCase()}"}
+          where: {domain: "${name}", type: "NameRegistered"}
         ) {
           timestamp
         }

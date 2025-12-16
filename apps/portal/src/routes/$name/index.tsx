@@ -50,27 +50,30 @@ const Profile = ({
   const network = ownerQuery.data?.network || 'sepolia'
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-      <div className="lg:col-span-2 xl:col-span-2">
-        <NameProfileCard name={name} />
-      </div>
-      <ExpiryWithRegistrationData name={name} network={network} />
-      <Owner owner={ownerQuery.data?.owner} />
-      <ParentName name={name} />
-      <TokenLocation name={name} network={network} />
-      {resolverAddress && (
-        <RecordCount
+    <>
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 xl:col-span-2">
+          <NameProfileCard name={name} />
+        </div>
+        <ExpiryWithRegistrationData name={name} network={network} />
+        <Owner owner={ownerQuery.data?.owner} />
+        <ParentName name={name} />
+        <TokenLocation name={name} network={network} />
+        {resolverAddress && (
+          <RecordCount
+            name={name}
+            records={profileQuery.data?.records}
+            resolverAddress={resolverAddress}
+          />
+        )}
+        <SubnameCount
           name={name}
-          records={profileQuery.data?.records}
-          resolverAddress={resolverAddress}
+          registryAddress={ownerQuery.data?.registryAddress}
         />
-      )}
-      <SubnameCount
-        name={name}
-        registryAddress={ownerQuery.data?.registryAddress}
-      />
-      <ProtocolVersionWithCounter name={name} network={network} />
-    </div>
+        <ProtocolVersionWithCounter name={name} network={network} />
+      </div>
+      {network === 'sepolia' && <RecentActivity name={name} />}
+    </>
   )
 }
 
@@ -110,7 +113,6 @@ function App() {
         <h1 className="text-[28px] font-medium leading-none">Overview</h1>
       </div>
       <Profile name={name} resolverAddress={resolverAddress} />
-      <RecentActivity name={name} />
     </div>
   )
 }
