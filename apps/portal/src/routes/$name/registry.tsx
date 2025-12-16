@@ -6,6 +6,7 @@ import { type Address, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/molecules/ErrorMessage'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { NameSubgraphHistory } from '@/components/organisms/NameSubgraphHistory/NameSubgraphHistory'
 import { Button } from '@/components/ui/button'
 import {
   type GetEnsOwnerReturnType,
@@ -268,6 +269,9 @@ const RegistryInfo = ({
           },
         )
         .run()}
+      {data.protocolVersion === 'ENSv1' && (
+        <NameSubgraphHistory name={name} category="registration" />
+      )}
     </div>
   )
 }
