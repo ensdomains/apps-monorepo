@@ -213,7 +213,6 @@ const UserMenuContent = ({
 }
 
 const ConnectedContent = () => {
-  const { data: wallet } = useWallet()
   const account = useAccount()
   const { openModal } = useModal()
   const { logout } = useLogout()
@@ -221,6 +220,7 @@ const ConnectedContent = () => {
   const {
     client: smartAccountClient,
     accountAddress,
+    ownerAddress,
     isLoading,
     stablecoinBalances,
     smartAccountEthBalance,
@@ -229,12 +229,8 @@ const ConnectedContent = () => {
     autoFundingMutation,
   } = useSmartAccountContext()
 
-  const address = wallet?.address as Address | undefined
-  const ensName = wallet?.ensName
-  const ensAvatar = wallet?.ensAvatar
-
   const { data: reverseName } = useQuery({
-    ...profileReverseNameQuery(address as Address),
+    ...profileReverseNameQuery(ownerAddress as Address),
   })
   const { data: reverseRecords } = useQuery({
     ...profileRecordsQuery(reverseName ?? ''),
@@ -249,8 +245,6 @@ const ConnectedContent = () => {
     ...parseAvatarQuery(avatarRecord),
     enabled: !!avatarRecord,
   })
-
-  const avatarUrl = parsedAvatar ?? ensAvatar
 
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -310,13 +304,10 @@ const ConnectedContent = () => {
       }
     }
 
-    if (ensName) {
-      return ensName
+    if (ownerAddress) {
+      return `${ownerAddress.slice(0, 6)}...${ownerAddress.slice(-4)}`
     }
 
-    if (address) {
-      return `${address.slice(0, 6)}...${address.slice(-4)}`
-    }
     return 'Connected'
   }
 
@@ -329,9 +320,9 @@ const ConnectedContent = () => {
       className="flex min-w-0 max-w-full items-center gap-0.5 rounded-full border border-gray-300 py-1 pr-1.5 pl-1 transition-colors hover:bg-gray-50 md:gap-1 md:pr-2"
     >
       <div className="flex min-w-0 items-center gap-1 md:gap-2">
-        {avatarUrl ? (
+        {parsedAvatar ? (
           <img
-            src={avatarUrl}
+            src={parsedAvatar}
             alt="ENS Avatar"
             className="size-[36px] shrink-0 rounded-full md:size-[46px]"
           />
@@ -363,7 +354,7 @@ const ConnectedContent = () => {
   // Shared menu content props
   const menuContentProps: ComponentProps<typeof UserMenuContent> = {
     account,
-    address,
+    address: ownerAddress as Address,
     accountAddress,
     isLoading,
     stablecoinBalances,
@@ -374,7 +365,7 @@ const ConnectedContent = () => {
     copied,
     handleCopyAddress,
     getDisplayName,
-    ensAvatar: avatarUrl,
+    ensAvatar: parsedAvatar,
     autoFundingMutation,
   }
 
