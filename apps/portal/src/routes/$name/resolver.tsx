@@ -1,9 +1,8 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { createFileRoute, useParams } from '@tanstack/react-router'
-import { EditIcon, XIcon } from 'lucide-react'
 import { type Address, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
-import { useAccount, useEnsResolver } from 'wagmi'
+import { useConnection, useEnsResolver } from 'wagmi'
 import { useQuery } from 'wagmi/query'
 import { ErrorMessage } from '@/components/molecules/ErrorMessage'
 import { LoadingMessage } from '@/components/molecules/LoadingMessage'
@@ -34,24 +33,26 @@ const EditButtons = ({ address, name }: EditButtonsProps) => {
 
   if (data?.owner !== address) return null
 
-  return (
-    <div className="flex flex-row gap-2">
-      <button
-        type="button"
-        className="text-base font-medium flex flex-row gap-1 items-center px-4 py-2 bg-secondary hover:bg-gray-400 cursor-pointer h-[38px] rounded-sm"
-      >
-        <XIcon className="w-4 h-4" />
-        <span>Clear records</span>
-      </button>
-      <a
-        href="#change"
-        className="text-base font-medium flex flex-row gap-1 items-center px-4 py-2 bg-secondary hover:bg-gray-400 cursor-pointer h-[38px] rounded-sm"
-      >
-        <EditIcon className="w-4 h-4" />
-        <span>Change resolver</span>
-      </a>
-    </div>
-  )
+  return null
+
+  // return (
+  //   <div className="flex flex-row gap-2">
+  //     <button
+  //       type="button"
+  //       className="text-base font-medium flex flex-row gap-1 items-center px-4 py-2 bg-secondary hover:bg-gray-400 cursor-pointer h-[38px] rounded-sm"
+  //     >
+  //       <XIcon className="w-4 h-4" />
+  //       <span>Clear records</span>
+  //     </button>
+  //     <a
+  //       href="#change"
+  //       className="text-base font-medium flex flex-row gap-1 items-center px-4 py-2 bg-secondary hover:bg-gray-400 cursor-pointer h-[38px] rounded-sm"
+  //     >
+  //       <EditIcon className="w-4 h-4" />
+  //       <span>Change resolver</span>
+  //     </a>
+  //   </div>
+  // )
 }
 
 const sepoliaUrl = sepolia.blockExplorers.default.url
@@ -158,7 +159,7 @@ interface ResolverViewProps {
 }
 
 const ResolverView = ({ name, resolverAddress }: ResolverViewProps) => {
-  const { address } = useAccount()
+  const { address } = useConnection()
 
   return (
     <div className="max-w-360 mx-auto w-full flex flex-col p-6 gap-6">
@@ -191,18 +192,13 @@ function RouteComponent() {
   const { name } = useParams({ from: '/$name/resolver' })
 
   const {
-    data: tempResolverAddress,
+    data: resolverAddress,
     isLoading,
     error,
   } = useEnsResolver({
     name,
+    universalResolverAddress: '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce',
   })
-
-  // TODO: remove this hack for when devnet and namechain is ready
-  const resolverAddress =
-    tempResolverAddress === '0x2AFF1ceDDDd4c8C214ebFaAE10DBe63a8AB38400'
-      ? tempResolverAddress
-      : '0x2AFF1ceDDDd4c8C214ebFaAE10DBe63a8AB38400'
 
   if (error) {
     const message =
