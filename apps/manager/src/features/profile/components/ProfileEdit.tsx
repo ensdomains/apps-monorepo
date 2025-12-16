@@ -1,4 +1,4 @@
-import { recordsMachine, type Signer } from '@ens-apps/transaction-manager'
+import { recordsMachine } from '@ens-apps/transaction-manager'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
 import type { Address, PublicClient } from 'viem'
@@ -12,11 +12,15 @@ import { createDiff } from '../utils/createDiff'
 import {
   defaultProfileRecords,
   transformProfileRecords,
-  transformToServiceFormat,
 } from '../utils/transformRecords'
 import { SetPrimaryNameDialog } from './dialogs/SetPrimaryNameDialog'
 import { UpdateResolverDialog } from './dialogs/UpdateResolverDialog'
 import { useAppForm } from './form'
+import {
+  handleProfileFormSubmit,
+  handleProfileReset,
+  handleProfileSave,
+} from './ProfileEdit.handlers'
 import { SaveChanges } from './SaveChanges'
 import { BioSection } from './sections/BioSection'
 import { HeaderSection } from './sections/HeaderSection'
@@ -90,39 +94,31 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   const ownerAddress = ownerData?.owner as Address | undefined
   const resolverAddress = recordsData?.resolverAddress as Address | undefined
 
-  const handleSubmit: React.FormEventHandler<HTMLFormElement> = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    form.handleSubmit()
-  }
+  const handleSubmit: React.FormEventHandler<HTMLFormElement> = (event) =>
+    handleProfileFormSubmit(event, form.handleSubmit)
 
-  const handleSave = () => {
-    if (!ownerAddress) {
-      console.warn('Cannot save profile - ENS owner is not available.')
-      return
-    }
+  const handleSave = () =>
+    handleProfileSave(
+      {
+        name,
+        ownerAddress,
+        resolverAddress,
+        defaultValues,
+        currentValues: form.state.values,
+      },
+      {
+        account,
+        recordsActor,
+        publicClient: publicClient as PublicClient,
+      },
+    )
 
-    const before = transformToServiceFormat(defaultValues)
-    const after = transformToServiceFormat(form.state.values)
-
-    recordsActor.send({
-      type: 'START_UPDATE',
-      name,
-      before,
-      after,
-      signer: account.signer as Signer,
-      resolverAddress,
-      accountAddress: (account.ownerAddress ??
-        account.accountAddress) as Address,
-      publicClient: publicClient as PublicClient,
+  const handleReset = () =>
+    handleProfileReset({
+      resetForm: form.reset,
+      refetchRecords,
+      refetchOwner,
     })
-  }
-
-  const handleReset = () => {
-    form.reset()
-    refetchRecords()
-    refetchOwner()
-  }
 
   return (
     <form

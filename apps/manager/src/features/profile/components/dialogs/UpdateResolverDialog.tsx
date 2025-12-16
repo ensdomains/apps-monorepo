@@ -1,8 +1,7 @@
-import { resolverMachine, type Signer } from '@ens-apps/transaction-manager'
+import { resolverMachine } from '@ens-apps/transaction-manager'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useEffect, useState } from 'react'
-import type { Address } from 'viem'
-import { isAddress } from 'viem'
+import type { PublicClient } from 'viem'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -15,6 +14,10 @@ import {
 import { Input } from '@/components/ui/input'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
+import {
+  handleResolverCancel,
+  handleResolverUpdate,
+} from '../ProfileEdit.handlers'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 interface UpdateResolverDialogProps {
@@ -65,33 +68,25 @@ export const UpdateResolverDialog = ({
   }, [isSuccess, onUpdated])
 
   const handleSave = () => {
-    setErrorMessage(undefined)
+    const error = handleResolverUpdate(
+      {
+        name,
+        resolverInput: resolver,
+      },
+      {
+        account,
+        resolverActor,
+        publicClient: publicClient as PublicClient,
+      },
+    )
 
-    if (!resolver) {
-      setErrorMessage('Resolver address is required.')
-      return
-    }
-
-    if (!isAddress(resolver, { strict: false })) {
-      setErrorMessage('Please enter a valid resolver contract address.')
-      return
-    }
-
-    resolverActor.send({
-      type: 'START_UPDATE',
-      name,
-      resolver: resolver as Address,
-      signer: account.signer as Signer,
-      accountAddress: (account.ownerAddress ??
-        account.accountAddress) as Address,
-      publicClient,
-    })
+    setErrorMessage(error)
   }
 
   const handleCancel = () => {
     setOpen(false)
     setErrorMessage(undefined)
-    resolverActor.send({ type: 'CANCEL' })
+    handleResolverCancel(resolverActor)
   }
 
   return (

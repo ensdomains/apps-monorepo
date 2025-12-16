@@ -1,4 +1,4 @@
-import { primaryNameMachine, type Signer } from '@ens-apps/transaction-manager'
+import { primaryNameMachine } from '@ens-apps/transaction-manager'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useEffect, useState } from 'react'
 import type { Address, PublicClient } from 'viem'
@@ -13,6 +13,10 @@ import {
 } from '@/components/ui/dialog'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
+import {
+  handlePrimaryNameCancel,
+  handleSetPrimaryName,
+} from '../ProfileEdit.handlers'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 interface SetPrimaryNameDialogProps {
@@ -56,24 +60,19 @@ export const SetPrimaryNameDialog = ({
   }, [isSuccess, onUpdated])
 
   const handleSave = () => {
-    if (!owner) {
-      console.warn('Cannot set primary name - ENS owner is not available.')
-      return
-    }
-
-    primaryNameActor.send({
-      type: 'START_UPDATE',
-      name,
-      signer: account.signer as Signer,
-      accountAddress: (account.ownerAddress ??
-        account.accountAddress) as Address,
-      publicClient: publicClient as PublicClient,
-    })
+    handleSetPrimaryName(
+      { name, owner },
+      {
+        account,
+        primaryNameActor,
+        publicClient: publicClient as PublicClient,
+      },
+    )
   }
 
   const handleCancel = () => {
     setOpen(false)
-    primaryNameActor.send({ type: 'CANCEL' })
+    handlePrimaryNameCancel(primaryNameActor)
   }
 
   return (
