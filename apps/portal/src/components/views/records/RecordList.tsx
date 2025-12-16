@@ -8,15 +8,8 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import {
-  FileInputIcon,
-  PencilLineIcon,
-  Search,
-  TrashIcon,
-  XIcon,
-} from 'lucide-react'
+import { Search, XIcon } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
-import { Button } from '@/components/ui/button'
 import {
   InputGroup,
   InputGroupAddon,
@@ -84,7 +77,7 @@ export const RecordList = ({
               </button>
               {rowCount} selected
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+            {/*<div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
               <Button variant="secondary" className="w-auto whitespace-nowrap">
                 <PencilLineIcon className="size-6" /> Edit
               </Button>
@@ -94,7 +87,7 @@ export const RecordList = ({
               <Button variant="secondary" className="w-auto whitespace-nowrap">
                 <TrashIcon className="size-6" /> Delete
               </Button>
-            </div>
+            </div>*/}
           </div>
         ) : (
           <InputGroup className="bg-white rounded-sm">
