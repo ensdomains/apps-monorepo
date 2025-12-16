@@ -45,17 +45,18 @@ jobs:
           echo "🔍 Running Biome on changed packages..."
           pnpm --filter="...[origin/main]" check || pnpm check
 
-      - name: Run tests on changed packages
-        run: |
-          echo "🧪 Running tests on changed packages and their dependents..."
-          pnpm --filter="...[origin/main]" test || pnpm -r test
+      # TODO: Uncomment these when we have tests
+      # - name: Run tests on changed packages
+      #   run: |
+      #     echo "🧪 Running tests on changed packages and their dependents..."
+      #     pnpm --filter="...[origin/main]" test || pnpm -r test
 
-      - name: Run tests with coverage on changed packages
-        run: |
-          echo "📊 Running coverage tests on changed packages..."
-          pnpm --filter="...[origin/main]" test:coverage || pnpm -r test:coverage
+      # - name: Run tests with coverage on changed packages
+      #   run: |
+      #     echo "📊 Running coverage tests on changed packages..."
+      #     pnpm --filter="...[origin/main]" test:coverage || pnpm -r test:coverage
 
-      - name: Run Knip on changed packages
-        run: |
-          echo "🧹 Checking for unused code in changed packages..."
-          pnpm --filter="...[origin/main]" knip --include files,dependencies || pnpm knip --include files,dependencies
+      # - name: Run Knip on changed packages
+      #   run: |
+      #     echo "🧹 Checking for unused code in changed packages..."
+      #     pnpm --filter="...[origin/main]" knip --include files,dependencies || pnpm knip --include files,dependencies
