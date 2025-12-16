@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
-import { type Address, zeroAddress } from 'viem'
+import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/molecules/ErrorMessage'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import {

@@ -12,7 +12,6 @@ import type {
   GetEnsOwnerReturnType,
 } from '@/features/profile/hooks/useEnsOwner'
 import { l2RegistryFinderAddress } from '@/lib/constants/registry'
-import { namechainVerifiableFactory } from '@/lib/constants/verifiableFactory'
 import {
   safeGetClient,
   safeGetNamechainSepoliaClient,
