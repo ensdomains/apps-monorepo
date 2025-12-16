@@ -5,14 +5,14 @@ export const ProfilesShowcase = () => {
   return (
     <div className="mx-auto mt-20 mb-28 w-full-[4rem] max-w-6xl">
       <div className="space-y-6">
-        <h2 className="font-medium text-ens-lapis-core text-temp-32px leading-ens-none">
-          Look at these profiles
+        <h2 className="max-w-md font-medium text-ens-lapis-core text-temp-32px leading-ens-none">
+          Customize your profile to share what matters
         </h2>
         <p className="max-w-md font-serif text-lg leading-ens-normal">
-          Lorem ipsum, dolor sit amet consectetur adipisicing elit.
-          Exercitationem, accusantium tenetur quasi aspernatur quos vero nostrum
-          veritatis. Nemo nesciunt debitis ducimus nihil exercitationem, vero et
-          earum maxime officiis quod sit.
+          Your ENS name is your onchain identity. Personalize it with an avatar,
+          a banner, and the links that matter most. Showcase your work, connect
+          your socials, and make it easy for anyone to verify and follow you
+          across the web.
         </p>
       </div>
 
@@ -20,7 +20,7 @@ export const ProfilesShowcase = () => {
         <ProfileCard
           name="vitalik.eth"
           avatarUrl="https://enstate.rs/i/vitalik.eth"
-          registeredDate={new Date('2020-02-04')}
+          registeredDate={new Date('2020-02-06')}
           description="mi pinxe lo crino tcati"
           links={[
             {
@@ -70,8 +70,8 @@ export const ProfilesShowcase = () => {
         <ProfileCard
           name="erni.eth"
           avatarUrl="https://enstate.rs/i/erni.eth"
-          registeredDate={new Date('2020-02-04')}
-          description="This is placeholder. Maybe I could make my profile really educational and it would make sense. Put Paris Hilton on here instead fr. "
+          registeredDate={new Date('2024-08-28')}
+          description="A scrappy generalist builder with taste. Senior Product Designer and Researcher at ENS Labs, dedicated to making web3 feel straightforward to newcomers."
           links={[
             {
               icon: <TwitterIcon className="size-full" />,
