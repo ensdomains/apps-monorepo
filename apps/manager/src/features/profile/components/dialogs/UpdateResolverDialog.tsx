@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { useSmartAccount } from '@/lib/smart-account'
+import { useSmartAccountContext } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
@@ -32,10 +32,8 @@ export const UpdateResolverDialog = ({
   const [resolver, setResolver] = useState(currentResolver ?? '')
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
 
-  const { accountAddress, isConnected, signer } = useSmartAccount({
-    type: 'pimlico',
-    accountType: 'hca',
-  })
+  const { accountAddress, isConnected, signer, isAccountReady } =
+    useSmartAccountContext()
 
   const resolverActor = useActorRef(resolverMachine, {
     input: { chainId: customSepolia.id },
@@ -81,7 +79,7 @@ export const UpdateResolverDialog = ({
       return
     }
 
-    if (!isConnected || !signer || !accountAddress) {
+    if (!isConnected || !signer || !accountAddress || !isAccountReady) {
       setErrorMessage(
         'Connect your wallet and smart account before updating the resolver.',
       )
