@@ -22,7 +22,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { STABLECOINS } from '@/features/register/utils'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { useSmartAccount } from '@/lib/smart-account'
+import { useSmartAccountContext } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 import {
   checkSelectedCoinBalance,
@@ -146,11 +146,7 @@ export const CryptoPaymentDrawer = ({
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const { data: wallet } = useWallet()
   const isConnected = !!wallet?.address
-  // Use HCA config to check EOA balance (tokens are held by EOA, not smart account)
-  const { stablecoinBalances, isLoadingBalances } = useSmartAccount({
-    type: 'pimlico',
-    accountType: 'hca',
-  })
+  const { stablecoinBalances, isLoadingBalances } = useSmartAccountContext()
 
   const hasBalances = (stablecoinBalances?.length || 0) > 0
   const stablecoinLoading = isLoadingBalances
