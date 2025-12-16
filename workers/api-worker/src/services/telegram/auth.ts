@@ -16,6 +16,8 @@ const hmacSha256 = async (
     ['sign'],
   )
 
+  // biome-ignore lint/suspicious/noTsIgnore: TODO: Fix TS issues
+  // @ts-ignore
   return crypto.subtle.sign('HMAC', cryptoKey, data)
 }
 

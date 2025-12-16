@@ -12,14 +12,14 @@ import { seo } from '@/utils/seo'
 
 export const Route = createFileRoute('/p/$name/')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
-    let resolvedName = name
+    let resolvedName: string = name
 
     if (isAddress(name, { strict: false })) {
       const reverseName = await queryClient.ensureQueryData(
         profileReverseNameQuery(name as Address),
       )
 
-      resolvedName = reverseName
+      resolvedName = reverseName ?? ''
     }
 
     const [profileRecords] = await Promise.all([

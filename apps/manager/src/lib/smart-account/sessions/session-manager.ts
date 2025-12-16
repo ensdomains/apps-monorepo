@@ -38,24 +38,6 @@ const ENTRY_POINT = {
 }
 
 /**
- * Pimlico paymaster response type
- * The result contains paymaster data needed for UserOperation sponsorship
- */
-interface PaymasterResponse {
-  result?: {
-    paymasterAndData?: `0x${string}`
-    paymaster?: `0x${string}`
-    paymasterData?: `0x${string}`
-    preVerificationGas?: `0x${string}`
-    verificationGasLimit?: `0x${string}`
-    callGasLimit?: `0x${string}`
-    paymasterVerificationGasLimit?: `0x${string}`
-    paymasterPostOpGasLimit?: `0x${string}`
-  }
-  error?: { message: string }
-}
-
-/**
  * Error types for session operations
  */
 export class SessionError extends Error {

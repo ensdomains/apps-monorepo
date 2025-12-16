@@ -118,6 +118,8 @@ export function decodeTelegramAuthDataFromUrlHash(
   if (!match) return null
   try {
     let data = match[1]?.replace(/-/g, '+').replace(/_/g, '/')
+    if (!data) return null
+
     const pad = data.length % 4
     if (pad > 1) data += '='.repeat(4 - pad)
     const decoded = atob(data)
