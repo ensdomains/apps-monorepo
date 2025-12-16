@@ -12,6 +12,7 @@ import {
   Copy,
   CreditCard,
   RefreshCcw,
+  ShieldCheck,
   Unlink,
   User,
 } from 'lucide-react'
@@ -38,12 +39,15 @@ import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { type SmartAccountState, useSmartAccount } from '@/lib/smart-account'
+import {
+  type SmartAccountState,
+  useSmartAccountContext,
+} from '@/lib/smart-account'
 
 // Reusable menu content component
 const UserMenuContent = ({
-  account,
-  address,
+  account: _account,
+  address: _address,
   accountAddress,
   isLoading,
   stablecoinBalances,
@@ -232,7 +236,10 @@ const ConnectedContent = () => {
     isLoadingSmartAccountEth,
     error,
     autoFundingMutation,
-  } = useSmartAccount()
+    openSessionModal,
+    session,
+    walletSource,
+  } = useSmartAccountContext()
 
   const address = wallet?.address as Address | undefined
   const ensName = wallet?.ensName
@@ -404,6 +411,17 @@ const ConnectedContent = () => {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            {smartAccountClient &&
+              !session &&
+              walletSource === 'external-wallet' && (
+                <DropdownMenuItem
+                  onClick={() => openSessionModal()}
+                  className="text-ens-blue-dark"
+                >
+                  <ShieldCheck className="mr-2 size-4 text-ens-blue" />
+                  Enable Smart Sessions
+                </DropdownMenuItem>
+              )}
             <DropdownMenuItem
               onClick={() => openModal()}
               className="text-ens-blue-dark"
@@ -444,6 +462,21 @@ const ConnectedContent = () => {
                   Payment Methods
                 </Link>
                 <div className="border-ens-blue-light border-t" />
+                {smartAccountClient &&
+                  !session &&
+                  walletSource === 'external-wallet' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        openSessionModal()
+                        setMenuOpen(false)
+                      }}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust"
+                    >
+                      <ShieldCheck className="size-4 text-ens-blue" />
+                      Enable Smart Sessions
+                    </button>
+                  )}
                 <button
                   type="button"
                   onClick={() => {
@@ -458,7 +491,7 @@ const ConnectedContent = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    openModal()
+                    logout()
                     setMenuOpen(false)
                   }}
                   className="flex w-full items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust"

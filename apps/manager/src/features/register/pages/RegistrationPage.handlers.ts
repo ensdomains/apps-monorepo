@@ -61,13 +61,14 @@ export function handleStartRegistration(
       ? true // Default to true for testnet
       : import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === 'true'
 
-  // For HCA accounts, use the EOA address as the owner
-  // The smart account will still be used for the transaction (sponsorship),
-  // but the ENS name will be owned by the EOA
-  const ownerAddress =
-    account.config?.accountType === 'hca' && account.ownerAddress
-      ? account.ownerAddress
-      : account.accountAddress
+  // For HCA accounts:
+  //   - Use the EOA address as the owner (ownerAddress is set)
+  //   - The smart account will be used for the transaction (sponsorship)
+  //   - But the ENS name will be owned by the EOA
+  // For Para embedded wallets, ownerAddress contains the EOA address from the Para account
+  // For external wallets, ownerAddress contains the wagmi address (EOA)
+  // If ownerAddress is not set, fall back to smart account address (for simple accounts)
+  const ownerAddress = account.ownerAddress ?? account.accountAddress
 
   console.log(`✅ Creating START_REGISTRATION event with ${account.type}:`, {
     name,
