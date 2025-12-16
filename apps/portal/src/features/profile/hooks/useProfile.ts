@@ -44,6 +44,8 @@ export const getProfile = ResultFn(async function* (name: string) {
       'description',
       'com.twitter',
       'org.telegram',
+      'banner',
+      'avatar',
     ]),
   )
 

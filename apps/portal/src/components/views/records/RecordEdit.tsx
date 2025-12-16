@@ -12,6 +12,7 @@ export const RecordEdit = () => {
         <ArrowLeft className="size-5" /> Back to View
       </Link>
       <h1 className="text-[26px] font-medium">Edit Records</h1>
+      <div>TBD</div>
     </header>
   )
 }
