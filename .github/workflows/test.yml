@@ -33,7 +33,7 @@ jobs:
       - name: Build dependencies of changed packages
         run: |
           echo "🏗️ Building dependencies of changed packages..."
-          pnpm --filter="...^[origin/main]" build || pnpm -r build
+          pnpm --filter="[origin/main]^..." build || pnpm -r build
 
       - name: Type check changed packages
         run: |
