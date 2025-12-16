@@ -30,12 +30,15 @@ import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { type SmartAccountState, useSmartAccount } from '@/lib/smart-account'
+import {
+  type SmartAccountState,
+  useSmartAccountContext,
+} from '@/lib/smart-account'
 
 // Reusable menu content component
 const UserMenuContent = ({
-  account,
-  address,
+  account: _account,
+  address: _address,
   accountAddress,
   isLoading,
   stablecoinBalances,
@@ -224,7 +227,10 @@ const ConnectedContent = () => {
     isLoadingSmartAccountEth,
     error,
     autoFundingMutation,
-  } = useSmartAccount()
+    openSessionModal,
+    session,
+    walletSource,
+  } = useSmartAccountContext()
 
   const address = wallet?.address as Address | undefined
   const ensName = wallet?.ensName
@@ -420,7 +426,7 @@ const ConnectedContent = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    openModal()
+                    logout()
                     setMenuOpen(false)
                   }}
                   className="flex w-full items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust"

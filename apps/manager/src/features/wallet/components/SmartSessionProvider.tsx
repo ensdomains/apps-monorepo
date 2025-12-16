@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { useSessionManager } from '@/lib/smart-account/sessions/useSessionManager'
 import { EnableSessionModal } from './EnableSessionModal'
@@ -13,8 +14,11 @@ import { EnableSessionModal } from './EnableSessionModal'
  * Place this component high in the tree, inside wallet providers.
  */
 export function SmartSessionProvider() {
-  // Use shared context (already initialized by SmartAccountContextProvider)
   const smartAccount = useSmartAccountContext()
+
+  if (smartAccount.walletSource !== 'external-wallet') {
+    return null
+  }
 
   return (
     <SmartSessionManager
@@ -23,26 +27,28 @@ export function SmartSessionProvider() {
       ecdsaValidator={smartAccount.ecdsaValidator}
       isAccountReady={smartAccount.isAccountReady}
       onSessionCreated={smartAccount.setSessionData}
+      shouldShowSessionModal={smartAccount.shouldShowSessionModal}
+      clearSessionModalTrigger={smartAccount.clearSessionModalTrigger}
     />
   )
 }
 
-/**
- * Internal component that manages the session modal
- * Separated to ensure hooks are called unconditionally
- */
 function SmartSessionManager({
   ownerAddress,
   smartAccountAddress,
   ecdsaValidator,
   isAccountReady,
   onSessionCreated,
+  shouldShowSessionModal,
+  clearSessionModalTrigger,
 }: {
   ownerAddress: string | null
   smartAccountAddress: string | null
   ecdsaValidator: Parameters<typeof useSessionManager>[0]['ecdsaValidator']
   isAccountReady: boolean
   onSessionCreated: Parameters<typeof useSessionManager>[0]['onSessionCreated']
+  shouldShowSessionModal: boolean
+  clearSessionModalTrigger: () => void
 }) {
   const { showEnableModal, setShowEnableModal, enableSession, dismissModal } =
     useSessionManager({
@@ -52,6 +58,13 @@ function SmartSessionManager({
       isAccountReady,
       onSessionCreated,
     })
+
+  useEffect(() => {
+    if (shouldShowSessionModal) {
+      setShowEnableModal(true)
+      clearSessionModalTrigger()
+    }
+  }, [shouldShowSessionModal, setShowEnableModal, clearSessionModalTrigger])
 
   const handleEnableSession = async () => {
     await enableSession()

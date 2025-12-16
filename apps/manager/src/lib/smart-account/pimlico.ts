@@ -38,6 +38,8 @@ export interface PimlicoInitResult {
   client: SmartAccountClient
   address: Address
   config: PimlicoConfig
+  /** EOA address - the owner address for HCA accounts */
+  eoaAddress?: Address | null
 }
 
 /**
@@ -69,12 +71,14 @@ export async function initializePimlicoAccount(
   let eoaAddress: Address | null = null
 
   if (walletSource === 'external-wallet' && walletClient) {
-    ownerAccount = await toOwner({ owner: walletClient })
+    // Type assertion needed due to permissionless type definitions
+    ownerAccount = await toOwner({ owner: walletClient as any })
     eoaAddress = walletClient.account?.address ?? null
   } else if (walletSource === 'para-embedded' && paraClient) {
-    ownerAccount = wrapParaAccount(
-      createParaAccount(paraClient),
-    ) as typeof ownerAccount
+    const paraAccount = createParaAccount(paraClient)
+    // Extract EOA address from Para account - this is the actual EOA that controls the smart account
+    eoaAddress = paraAccount.address as Address
+    ownerAccount = wrapParaAccount(paraAccount) as typeof ownerAccount
   } else {
     throw new Error('No valid wallet connection for Pimlico initialization')
   }
@@ -142,5 +146,6 @@ export async function initializePimlicoAccount(
     client,
     address: smartAccount.address,
     config,
+    eoaAddress,
   }
 }

@@ -7,7 +7,8 @@ import {
   useWallet as useParaWallet,
 } from '@getpara/react-sdk-lite'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import type { KernelValidator } from '@zerodev/sdk'
+import type { KernelAccountClient, KernelValidator } from '@zerodev/sdk'
+import type { SmartAccountClient } from 'permissionless'
 import {
   createContext,
   type ReactNode,
@@ -26,6 +27,7 @@ import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContract
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
 import { ERC20_ABI } from '../ens.abi'
+import { initializePimlicoAccount, type PimlicoConfig } from './pimlico'
 import type { StoredSession } from './sessions/types'
 import type { KernelAccountState, WalletSource } from './types'
 import { initializeKernelAccount, type KernelConfig } from './zerodev/kernel'
@@ -43,6 +45,10 @@ interface SmartAccountContextValue extends KernelAccountState {
     session: StoredSession,
     sessionClient: KernelAccountState['client'],
   ) => void
+  /** Open the smart session enable modal */
+  openSessionModal: () => void
+  shouldShowSessionModal: boolean
+  clearSessionModalTrigger: () => void
 }
 
 const SmartAccountContext = createContext<SmartAccountContextValue | null>(null)
@@ -80,9 +86,14 @@ export function SmartAccountContextProvider({
 
   const isWalletReady = (paraWallet?.isExternal && hasWagmi) || hasPara
 
-  const [client, setClient] = useState<KernelAccountState['client']>(null)
+  const [client, setClient] = useState<
+    KernelAccountClient | SmartAccountClient | null
+  >(null)
   const [accountAddress, setAccountAddress] = useState<Address | null>(null)
-  const [accountConfig, setAccountConfig] = useState<KernelConfig | null>(null)
+  const [accountConfig, setAccountConfig] = useState<
+    KernelConfig | PimlicoConfig | null
+  >(null)
+  const [ownerAddress, setOwnerAddress] = useState<Address | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [session, setSession] = useState<StoredSession | null>(null)
@@ -90,6 +101,7 @@ export function SmartAccountContextProvider({
   const [ecdsaValidator, setEcdsaValidator] =
     useState<KernelValidator<'ECDSAValidator'> | null>(null)
   const [isAccountReady, setIsAccountReady] = useState(false)
+  const [shouldShowSessionModal, setShouldShowSessionModal] = useState(false)
 
   const initializedRef = useRef<string | null>(null)
 
@@ -115,8 +127,19 @@ export function SmartAccountContextProvider({
       refetchInterval: 30000,
     })
 
+  // For HCA accounts, check balances on the EOA address (tokens are held by EOA)
+  // For simple accounts, check balances on the smart account
+  // Note: wagmiAddress is available for both external wallets and Para embedded wallets
   const balanceAddress = accountType === 'hca' ? wagmiAddress : accountAddress
 
+  console.log('💰 [CONTEXT] Balance check:', {
+    accountType,
+    walletSource,
+    wagmiAddress,
+    accountAddress,
+    balanceAddress,
+    willQueryBalances: !!balanceAddress,
+  })
   const { data: stablecoinBalances = [], isLoading: isLoadingBalances } =
     useQuery({
       queryKey: $qk({
@@ -125,6 +148,7 @@ export function SmartAccountContextProvider({
         address: balanceAddress,
       }),
       queryFn: async () => {
+        console.log('🔍 [CONTEXT] Fetching balances for:', balanceAddress)
         if (!balanceAddress) return []
         const balances = []
         for (const [tokenName, tokenAddress] of Object.entries(
@@ -205,12 +229,12 @@ export function SmartAccountContextProvider({
     },
   })
 
-  // Initialize kernel account
   const initializeAccount = useCallback(async () => {
     if (!isWalletReady) {
       setClient(null)
       setAccountAddress(null)
       setAccountConfig(null)
+      setOwnerAddress(null)
       setSession(null)
       setIsSessionClient(false)
       setEcdsaValidator(null)
@@ -222,7 +246,7 @@ export function SmartAccountContextProvider({
     const key =
       walletSource === 'external-wallet'
         ? `kernel-external-${wagmiAddress}`
-        : `kernel-para-${paraClient?.toString()}`
+        : `pimlico-para-${paraClient?.toString()}`
 
     if (initializedRef.current === key) return
 
@@ -230,28 +254,53 @@ export function SmartAccountContextProvider({
     setError(null)
 
     try {
-      if (!wagmiWalletClient) {
-        throw new Error('Kernel requires an external wallet connection')
+      if (walletSource === 'external-wallet') {
+        if (!wagmiWalletClient) {
+          throw new Error('External wallet requires wagmi wallet client')
+        }
+
+        const result = await initializeKernelAccount({
+          walletClient: wagmiWalletClient,
+          accountType,
+        })
+
+        setClient(result.client)
+        setSession(null)
+        setIsSessionClient(false)
+        setAccountAddress(result.address)
+        setAccountConfig(result.config)
+        // For external wallets, use the wagmi address as owner (EOA)
+        setOwnerAddress(wagmiAddress ?? null)
+        setEcdsaValidator(result.ecdsaValidator)
+        setIsAccountReady(true)
+
+        console.log('🔐 [CONTEXT] Kernel account initialized:', result.address)
+      } else if (walletSource === 'para-embedded') {
+        const result = await initializePimlicoAccount({
+          walletSource,
+          paraClient,
+          accountType,
+        })
+
+        setClient(result.client)
+        setSession(null)
+        setIsSessionClient(false)
+        setAccountAddress(result.address)
+        setAccountConfig(result.config)
+        // For Para embedded wallets, use the EOA address from the Para account
+        setOwnerAddress(result.eoaAddress ?? null)
+        setEcdsaValidator(null)
+        setIsAccountReady(true)
+
+        console.log('🔐 [CONTEXT] Pimlico account initialized:', {
+          smartAccount: result.address,
+          eoaAddress: result.eoaAddress,
+        })
       }
-
-      const result = await initializeKernelAccount({
-        walletClient: wagmiWalletClient,
-        accountType,
-      })
-
-      setClient(result.client)
-      setSession(null)
-      setIsSessionClient(false)
-      setAccountAddress(result.address)
-      setAccountConfig(result.config)
-      setEcdsaValidator(result.ecdsaValidator)
-      setIsAccountReady(true)
-
-      console.log('🔐 [CONTEXT] Kernel account initialized:', result.address)
 
       initializedRef.current = key
     } catch (err) {
-      console.error('[CONTEXT] Failed to initialize kernel account:', err)
+      console.error('[CONTEXT] Failed to initialize smart account:', err)
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setIsLoading(false)
@@ -270,6 +319,7 @@ export function SmartAccountContextProvider({
   }, [initializeAccount])
 
   // Auto-fund if balance is low
+  // Must match balanceAddress to fund the same address we're checking
   const addressToFund = accountType === 'hca' ? wagmiAddress : accountAddress
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Should not rerun from mutation status
@@ -293,7 +343,6 @@ export function SmartAccountContextProvider({
     autoFundingMutation.mutate(addressToFund as Address)
   }, [addressToFund, isLoading, isLoadingBalances, stablecoinBalances])
 
-  // Create signer
   const signer: Signer | null = useMemo(() => {
     if (!client || !accountAddress) return null
 
@@ -303,20 +352,32 @@ export function SmartAccountContextProvider({
       return null
     }
 
+    if (walletSource === 'external-wallet') {
+      return {
+        type: 'kernel' as const,
+        account: client as KernelAccountClient,
+        config: {
+          chain: customSepolia,
+          accountAddress,
+          accountType: accountConfig?.accountType,
+          pimlicoApiKey,
+          isSessionClient,
+        },
+      }
+    }
+
     return {
-      type: 'kernel' as const,
-      account: client,
+      type: 'pimlico' as const,
+      account: client as SmartAccountClient,
       config: {
         chain: customSepolia,
         accountAddress,
         accountType: accountConfig?.accountType,
         pimlicoApiKey,
-        isSessionClient,
       },
     }
-  }, [client, accountAddress, accountConfig, isSessionClient])
+  }, [client, accountAddress, accountConfig, isSessionClient, walletSource])
 
-  // Callback to update session data
   const setSessionData = useCallback(
     (
       newSession: StoredSession,
@@ -330,18 +391,24 @@ export function SmartAccountContextProvider({
     [],
   )
 
+  const openSessionModal = useCallback(() => {
+    setShouldShowSessionModal(true)
+  }, [])
+
+  const clearSessionModalTrigger = useCallback(() => {
+    setShouldShowSessionModal(false)
+  }, [])
+
   const contextValue: SmartAccountContextValue = {
     type: 'kernel',
-    client,
-    config: accountConfig,
+    client: client as KernelAccountClient | null,
+    config: accountConfig as KernelConfig | null,
     accountAddress,
     isLoading,
     error,
     isConnected: isWalletReady && !!client,
     walletSource,
-    ownerAddress: (walletSource === 'external-wallet'
-      ? wagmiAddress
-      : null) as Address | null,
+    ownerAddress,
     stablecoinBalances,
     isLoadingBalances,
     smartAccountEthBalance: smartAccountEthBalance ?? null,
@@ -353,6 +420,9 @@ export function SmartAccountContextProvider({
     ecdsaValidator,
     isAccountReady,
     setSessionData,
+    openSessionModal,
+    shouldShowSessionModal,
+    clearSessionModalTrigger,
   }
 
   return (

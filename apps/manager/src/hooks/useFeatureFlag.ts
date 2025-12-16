@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
 import { useParaAccount } from '@/features/wallet/hooks/useParaAccount'
-import { useSmartAccount } from '@/lib/smart-account'
+import { useSmartAccountContext } from '@/lib/smart-account'
 import { type FeatureFlag, isFeatureEnabled } from '@/utils/feature-flags'
 
 export function useFeatureFlag(flag: FeatureFlag): boolean {
-  const { accountAddress } = useSmartAccount()
+  const { accountAddress } = useSmartAccountContext()
   const { userProfile } = useParaAccount()
 
   return useMemo(
