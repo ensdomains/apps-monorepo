@@ -1,6 +1,5 @@
-import type { DomainFragment } from '@ens-apps/indexer'
 import { useQuery } from '@tanstack/react-query'
-import { Calendar, ChevronDown, Clock } from 'lucide-react'
+import { Calendar, Clock } from 'lucide-react'
 import { match } from 'ts-pattern'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -8,20 +7,15 @@ import { formatDashboardDate } from '@/features/dashboard/utils'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { PrimaryBadge } from './PrimaryBadge'
-import { PrimaryNameDialog } from './PrimaryNameDialog'
 
 type PrimaryNameCardProps = {
   primaryName?: string | null
   avatarUrl?: string | null
-  names: DomainFragment[]
-  primaryLabel?: string | null
 }
 
 export const PrimaryNameCard = ({
   primaryName,
   avatarUrl,
-  names,
-  primaryLabel,
 }: PrimaryNameCardProps) => {
   const { data: registration, isLoading: isRegistrationLoading } = useQuery({
     ...profileRegistrationQuery(primaryName ?? ''),
@@ -72,20 +66,14 @@ export const PrimaryNameCard = ({
           </div>
 
           <div className="flex min-h-0 flex-col justify-between md:h-[200px]">
-            <PrimaryNameDialog primaryLabel={primaryLabel} names={names}>
-              <div className="flex flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-[12px]">
-                <div className="inline-flex items-center rounded-[4px] bg-[#0080bc] px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
-                  <span className="font-medium font-mono text-[20px] text-ens-white leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]">
-                    {displayName}
-                  </span>
-                </div>
-                <div className="flex items-center gap-[2px]">
-                  <PrimaryBadge />
-                  <ChevronDown className="size-[17.5px] text-[#0080bc]" />
-                </div>
+            <div className="flex flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-[12px]">
+              <div className="inline-flex items-center rounded-[4px] bg-[#0080bc] px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
+                <span className="font-medium font-mono text-[20px] text-ens-white leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]">
+                  {displayName}
+                </span>
               </div>
-            </PrimaryNameDialog>
-
+              <PrimaryBadge />
+            </div>
             <div className="flex flex-col gap-[8.5px]">
               <div className="flex items-center gap-[8px]">
                 <Calendar
