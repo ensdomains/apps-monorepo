@@ -16,12 +16,9 @@ const formatAddress = (value?: string | null) =>
 export const DashboardPage = () => {
   const { ownerAddress } = useSmartAccountContext()
 
-  const { data: reverseName, isPending: isReverseNameLoading } =
-    useSuspenseQuery({
-      ...profileReverseNameQuery(ownerAddress as Address),
-    })
-
-  console.log('reverseName', ownerAddress, reverseName)
+  const { data: reverseName } = useSuspenseQuery({
+    ...profileReverseNameQuery(ownerAddress as Address),
+  })
 
   const { data: reverseRecords } = useQuery({
     ...profileRecordsQuery(reverseName ?? ''),
@@ -55,7 +52,7 @@ export const DashboardPage = () => {
             Hello {displayName}
           </h1>
         </div>
-        {(hasProfile || isReverseNameLoading) && (
+        {hasProfile && (
           <PrimaryNameCard
             primaryName={defaultName}
             avatarUrl={avatarUrl}
