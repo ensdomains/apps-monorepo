@@ -117,29 +117,6 @@ const UserMenuContent = ({
           </div>
         </div>
 
-        {/* EOA Wallet Address */}
-        {address && (
-          <div className="mb-4">
-            <div className="mb-2 font-medium text-ens-blue-midnight text-xs uppercase tracking-wide">
-              Wallet Address
-            </div>
-            <div className="flex items-center justify-between rounded-lg border border-ens-blue-light bg-ens-lapis-dust p-3">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-ens-blue-dark text-sm">
-                  {`${address.slice(0, 6)}...${address.slice(-4)}`}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleCopyAddress(address)}
-                  className="rounded p-1 text-ens-blue transition-colors hover:bg-ens-blue-light"
-                >
-                  <Copy className="size-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Smart Account Information */}
         {(isLoading || smartAccountClient || accountAddress) && (
           <div className="mb-4">
