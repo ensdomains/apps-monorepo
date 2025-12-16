@@ -42,6 +42,7 @@ export const registrationMachineMock = setup({
       ResultFn(async function* ({ name }: { name: string }) {
         const client = yield* safeGetClient()
         const availability = yield* await fromPromise(
+          // @ts-expect-error - Issue with client types
           getAvailable(client, { name }),
           (error) => {
             return new NameAvailabilityError({ cause: error })

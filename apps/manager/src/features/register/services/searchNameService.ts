@@ -16,6 +16,7 @@ export const checkNameAvailability = ResultFn(async function* (name: string) {
 
   const nameWithEth = name.endsWith('.eth') ? name : `${name}.eth`
   const availability = yield* await fromPromise(
+    // @ts-expect-error - Issue with client types
     getAvailable(client, { name: nameWithEth }),
     (e) => new NameAvailabilityError({ cause: e }),
   )
