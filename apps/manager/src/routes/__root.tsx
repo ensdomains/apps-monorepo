@@ -1,3 +1,4 @@
+import { transactionManager } from '@ens-apps/transaction-manager'
 import type ParaWeb from '@getpara/react-sdk-lite'
 import { getClient, ParaProvider } from '@getpara/react-sdk-lite'
 import type { QueryClient } from '@tanstack/react-query'
@@ -39,6 +40,9 @@ const onWalletChange = () => {
   // Or if the previous auth address is not set, do nothing
   if (!previousAuthAddress || previousAuthAddress === wallet.address) return
 
+  // Clear all transactions when wallet changes
+  transactionManager.clearAllAndPersistence()
+
   backendAuthStore.trigger.signOut()
 }
 
@@ -60,6 +64,9 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
         callbacks={{
           onLogin: onWalletChange,
           onLogout() {
+            // Clear all active transactions when wallet disconnects
+            transactionManager.clearAllAndPersistence()
+
             // Clear the backend auth store
             backendAuthStore.trigger.signOut()
 
