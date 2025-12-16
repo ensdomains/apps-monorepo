@@ -3,7 +3,7 @@ import {
   type DomainsQuery,
   type DomainsQueryVariables,
 } from '@ens-apps/indexer'
-import apolloClient from '@ens-apps/indexer/apollo'
+import indexerClient from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -17,16 +17,19 @@ export class GetDomainsError extends TaggedError('GetDomainsError')<{
 export const getDomains = ResultFn(async function* (
   variables: DomainsQueryVariables,
 ) {
-  const result = yield* await ResultAsync.fromPromise(
-    apolloClient.query<DomainsQuery, DomainsQueryVariables>({
-      query: DomainsDocument,
-      variables,
-      fetchPolicy: 'network-only',
-    }),
+  const data = yield* await ResultAsync.fromPromise(
+    indexerClient
+      .query<DomainsQuery, DomainsQueryVariables>(DomainsDocument, variables)
+      .toPromise()
+      .then((result) => {
+        if (result.error) throw result.error
+        if (!result.data) throw new Error('Indexer query returned no data')
+        return result.data
+      }),
     (error) => new GetDomainsError({ cause: error }),
   )
 
-  return ok(result.data)
+  return ok(data)
 })
 
 export const getDomainsQuery = (variables: DomainsQueryVariables | undefined) =>

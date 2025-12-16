@@ -17,7 +17,6 @@
     "lint:fix": "biome check --fix"
   },
   "dependencies": {
-    "@apollo/client": "3.14.0",
     "@ens-apps/indexer": "workspace:*",
     "@ens-apps/l2-primary": "workspace:*",
     "@ens-apps/transaction-manager": "workspace:*",
