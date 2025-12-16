@@ -83,6 +83,25 @@ export function submitPrimaryNameUpdateActor(input: {
               sponsored: true,
             },
           }
+        } else if (input.signer.type === 'kernel') {
+          request = {
+            type: 'kernel' as const,
+            from: fromAddress,
+            to: registrarAddress,
+            data,
+            value: 0n,
+            chainId: input.chainId,
+            kernelParams: {
+              calls: [
+                {
+                  to: registrarAddress,
+                  data,
+                  value: 0n,
+                },
+              ],
+              sponsored: true,
+            },
+          }
         } else {
           throw new Error(
             `Unsupported signer type for primary name update: ${input.signer.type}`,

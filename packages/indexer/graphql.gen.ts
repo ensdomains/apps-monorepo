@@ -22,6 +22,12 @@ export type Account = {
   registrations: Array<Registration>;
 };
 
+export type CoinAddress = {
+  __typename?: 'CoinAddress';
+  address: Scalars['String']['output'];
+  coinType: Scalars['Int']['output'];
+};
+
 export type Domain = {
   __typename?: 'Domain';
   canonicalId?: Maybe<Scalars['String']['output']>;
@@ -49,6 +55,7 @@ export type Domain = {
 
 export type DomainEventsArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<EventFilter>;
 };
 
 export type DomainConnection = {
@@ -100,6 +107,7 @@ export type EacRoleAssignment = {
 export type Event = {
   __typename?: 'Event';
   blockNumber: Scalars['Int']['output'];
+  chain: Scalars['String']['output'];
   contractAddress: Scalars['String']['output'];
   domain?: Maybe<Domain>;
   id: Scalars['String']['output'];
@@ -126,7 +134,7 @@ export type EventEdge = {
 export type EventFilter = {
   blockNumber_gt?: InputMaybe<Scalars['Int']['input']>;
   blockNumber_lt?: InputMaybe<Scalars['Int']['input']>;
-  contractAddress: Scalars['String']['input'];
+  contractAddress?: InputMaybe<Scalars['String']['input']>;
   domain?: InputMaybe<Scalars['String']['input']>;
   namehash?: InputMaybe<Scalars['String']['input']>;
   timestamp_gt?: InputMaybe<Scalars['Int']['input']>;
@@ -260,6 +268,7 @@ export type QueryRolesArgs = {
 
 export type Registration = {
   __typename?: 'Registration';
+  chain: Scalars['String']['output'];
   domain: Domain;
   expiryDate: Scalars['Int']['output'];
   id: Scalars['String']['output'];
@@ -282,6 +291,7 @@ export type RegistrationEdge = {
 };
 
 export type RegistrationFilter = {
+  chain?: InputMaybe<Scalars['String']['input']>;
   expiryDate_gt?: InputMaybe<Scalars['Int']['input']>;
   expiryDate_gte?: InputMaybe<Scalars['Int']['input']>;
   expiryDate_lt?: InputMaybe<Scalars['Int']['input']>;
@@ -311,10 +321,16 @@ export type Resolver = {
   __typename?: 'Resolver';
   addr?: Maybe<Scalars['String']['output']>;
   address: Scalars['String']['output'];
+  addresses?: Maybe<Array<CoinAddress>>;
   contentHash?: Maybe<Scalars['String']['output']>;
   id: Scalars['String']['output'];
   text?: Maybe<Scalars['String']['output']>;
   texts?: Maybe<Array<Scalars['String']['output']>>;
+};
+
+
+export type ResolverAddrArgs = {
+  coinType?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -365,7 +381,17 @@ export type DomainFragment = { __typename?: 'Domain', id: string, name?: string 
     & AccountFragment
   ) };
 
-export type ResolverFragment = { __typename?: 'Resolver', id: string, address: string, avatar?: string | null, description?: string | null, header?: string | null, url?: string | null, email?: string | null, location?: string | null, phone?: string | null, mail?: string | null, timezone?: string | null, twitter?: string | null, telegram?: string | null, farcaster?: string | null, instagram?: string | null, discord?: string | null, github?: string | null, linkedin?: string | null, youtube?: string | null, reddit?: string | null, tiktok?: string | null, twitch?: string | null, mastodon?: string | null };
+export type ResolverFragment = { __typename?: 'Resolver', id: string, address: string, texts?: Array<string> | null, addresses?: Array<{ __typename?: 'CoinAddress', coinType: number }> | null };
+
+export type DomainQueryVariables = Exact<{
+  id: Scalars['String']['input'];
+}>;
+
+
+export type DomainQuery = { __typename?: 'Query', domain?: (
+    { __typename?: 'Domain' }
+    & DomainFragment
+  ) | null };
 
 export type DomainsQueryVariables = Exact<{
   where: DomainFilter;
@@ -385,27 +411,10 @@ export const Resolver = gql`
     fragment Resolver on Resolver {
   id
   address
-  avatar: text(key: "avatar")
-  description: text(key: "description")
-  header: text(key: "header")
-  url: text(key: "url")
-  email: text(key: "email")
-  location: text(key: "location")
-  phone: text(key: "phone")
-  mail: text(key: "mail")
-  timezone: text(key: "timezone")
-  twitter: text(key: "com.twitter")
-  telegram: text(key: "org.telegram")
-  farcaster: text(key: "xyz.farcaster")
-  instagram: text(key: "com.instagram")
-  discord: text(key: "com.discord")
-  github: text(key: "com.github")
-  linkedin: text(key: "com.linkedin")
-  youtube: text(key: "com.youtube")
-  reddit: text(key: "com.reddit")
-  tiktok: text(key: "com.tiktok")
-  twitch: text(key: "com.twitch")
-  mastodon: text(key: "com.mastodon")
+  texts
+  addresses {
+    coinType
+  }
 }
     `;
 export const Account = gql`
@@ -430,6 +439,13 @@ export const Domain = gql`
 }
     ${Resolver}
 ${Account}`;
+export const DomainDocument = gql`
+    query Domain($id: String!) {
+  domain(id: $id) {
+    ...Domain
+  }
+}
+    ${Domain}`;
 export const DomainsDocument = gql`
     query Domains($where: DomainFilter!, $first: Int, $skip: Int, $orderBy: Domain_orderBy, $orderDirection: OrderDirection) {
   domains(

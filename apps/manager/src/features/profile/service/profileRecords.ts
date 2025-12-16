@@ -12,7 +12,7 @@ import { multicall } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { alwaysProbeAddressRecords, forceFetchRecords } from '../data/records'
 import { DEBUG_PROFILE } from '../MOCK'
-import { getSubgraphRecords } from './getSubgraphRecords'
+import { getIndexerRecords } from './getIndexerRecords'
 import { getResolver } from './profileResolver'
 
 const COIN_TYPE_NAME_MAP = coinTypeToNameMap as Record<
@@ -27,37 +27,32 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
       _rawSubgraphRecords: {
         isMigrated: false,
         createdAt: new Date(),
-      } as unknown as NonNullable<typeof subgraphRecords>,
+      } as unknown as NonNullable<typeof indexerRecords>,
     })
   }
 
   const client = yield* safeGetClient()
-  const subgraphRecords = yield* getSubgraphRecords(name)
+  const indexerRecords = yield* getIndexerRecords(name)
   const resolverAddress = yield* getResolver(name)
 
   const texts = [
     ...forceFetchRecords.always,
-    ...(subgraphRecords
-      ? subgraphRecords.texts.filter(
+    ...(indexerRecords
+      ? indexerRecords.texts.filter(
           (t) => !forceFetchRecords.always.includes(t),
         )
       : forceFetchRecords.whenNotIndexed),
   ]
 
-  const coinTypes = subgraphRecords
-    ? [
-        ...subgraphRecords.coins.filter(
-          (c) => !alwaysProbeAddressRecords.includes(c),
-        ),
-        ...alwaysProbeAddressRecords,
-      ]
+  const coinTypeCandidates = indexerRecords
+    ? [...indexerRecords.coins, ...alwaysProbeAddressRecords]
     : alwaysProbeAddressRecords
 
   const result: ProfileRecordsResult = {
     texts: [],
     coins: [],
     resolverAddress,
-    _rawSubgraphRecords: subgraphRecords,
+    _rawSubgraphRecords: indexerRecords,
   }
 
   if (!resolverAddress) {
@@ -94,9 +89,11 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     }
   })
 
-  const coinTypeNumbers = coinTypes
-    .map((coin) => Number.parseInt(String(coin), 10))
-    .filter((coinType) => !Number.isNaN(coinType))
+  const coinTypeNumbers = Array.from(
+    new Set(
+      coinTypeCandidates.map((coin) => Number.parseInt(String(coin), 10)),
+    ),
+  ).filter((coinType) => !Number.isNaN(coinType))
 
   const coinContracts = coinTypeNumbers.map((coinTypeNumber) => ({
     address: resolverAddress,

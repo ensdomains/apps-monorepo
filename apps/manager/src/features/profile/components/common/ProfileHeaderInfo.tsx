@@ -14,7 +14,7 @@ interface OwnerLinkProps {
 
 const OwnerLink = ({ address, profileName }: OwnerLinkProps) => {
   const ownerName = useQuery({
-    ...profileReverseNameQuery(address),
+    ...profileReverseNameQuery(address as Address),
   })
 
   if (!address) {
@@ -24,8 +24,8 @@ const OwnerLink = ({ address, profileName }: OwnerLinkProps) => {
   if (!ownerName.data) {
     return (
       <Link
-        to="/p/$address"
-        params={{ address: address }}
+        to="/p/$name"
+        params={{ name: address }}
         className="font-medium underline underline-offset-2"
       >
         {address}

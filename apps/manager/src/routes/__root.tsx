@@ -11,10 +11,11 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import type { ReactNode } from 'react'
 import { Toaster } from 'sonner'
 import { Layout } from '@/components/Layout'
+import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
+import { SmartSessionProvider } from '@/features/wallet/components/SmartSessionProvider'
+import { SmartAccountContextProvider } from '@/lib/smart-account'
 import appCss from '@/styles/index.css?url'
 import '@getpara/react-sdk-lite/styles.css'
-import { ApolloProvider } from '@apollo/client'
-import apolloClient from '@ens-apps/indexer/apollo'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { ParaWagmiSyncWatcher } from '@/features/wallet/components/ParaWagmiSyncWatcher'
 import { customSepolia } from '@/lib/wagmi'
@@ -48,62 +49,63 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
   const { queryClient } = Route.useRouteContext()
 
   return (
-    <ApolloProvider client={apolloClient}>
-      <QueryClientProvider client={queryClient}>
-        <ParaProvider
-          paraClientConfig={{
-            apiKey: VITE_PARA_API_KEY,
-          }}
-          callbacks={{
-            onLogin: onWalletChange,
-            onLogout() {
-              backendAuthStore.trigger.signOut()
+    <QueryClientProvider client={queryClient}>
+      <ParaProvider
+        paraClientConfig={{
+          apiKey: VITE_PARA_API_KEY,
+        }}
+        callbacks={{
+          onLogin: onWalletChange,
+          onLogout() {
+            backendAuthStore.trigger.signOut()
+          },
+          onExternalWalletChange: onWalletChange,
+          onWalletsChange: onWalletChange,
+        }}
+        config={{
+          appName: 'ENS Manager',
+        }}
+        externalWalletConfig={{
+          wallets: ['METAMASK', 'WALLETCONNECT'],
+          // Do not create Para accounts for external wallet connections
+          createLinkedEmbeddedForExternalWallets: [],
+          evmConnector: {
+            config: {
+              chains: [customSepolia],
             },
-            onExternalWalletChange: onWalletChange,
-            onWalletsChange: onWalletChange,
-          }}
-          config={{
-            appName: 'ENS Manager',
-          }}
-          externalWalletConfig={{
-            wallets: ['METAMASK', 'WALLETCONNECT'],
-            // Do not create Para accounts for external wallet connections
-            createLinkedEmbeddedForExternalWallets: [],
-            evmConnector: {
-              config: {
-                chains: [customSepolia],
-              },
-            },
-            walletConnect: {
-              projectId: '21fef48091f12692cad574a6f7753643',
-            },
-          }}
-          paraModalConfig={{
-            disableEmailLogin: false,
-            disablePhoneLogin: true,
-            onRampTestMode: true,
-            oAuthMethods: ['GOOGLE', 'TWITTER', 'TELEGRAM'],
-            authLayout: ['AUTH:FULL', 'EXTERNAL:FULL'],
-            recoverySecretStepEnabled: true,
+          },
+          walletConnect: {
+            projectId: '21fef48091f12692cad574a6f7753643',
+          },
+        }}
+        paraModalConfig={{
+          disableEmailLogin: false,
+          disablePhoneLogin: true,
+          onRampTestMode: true,
+          oAuthMethods: ['GOOGLE', 'TWITTER', 'TELEGRAM'],
+          authLayout: ['AUTH:FULL', 'EXTERNAL:FULL'],
+          recoverySecretStepEnabled: true,
 
-            theme: {
-              foregroundColor: '#2D3648',
-              backgroundColor: '#FFFFFF',
-              accentColor: '#0066CC',
-              darkForegroundColor: '#E8EBF2',
-              darkBackgroundColor: '#1A1F2B',
-              darkAccentColor: '#4D9FFF',
-              mode: 'light',
-              borderRadius: 'lg',
-              font: 'Inter',
-            },
-            twoFactorAuthEnabled: false,
-          }}
-        >
+          theme: {
+            foregroundColor: '#2D3648',
+            backgroundColor: '#FFFFFF',
+            accentColor: '#0066CC',
+            darkForegroundColor: '#E8EBF2',
+            darkBackgroundColor: '#1A1F2B',
+            darkAccentColor: '#4D9FFF',
+            mode: 'light',
+            borderRadius: 'lg',
+            font: 'Inter',
+          },
+          twoFactorAuthEnabled: false,
+        }}
+      >
+        <SmartAccountContextProvider>
           {children}
-        </ParaProvider>
-      </QueryClientProvider>
-    </ApolloProvider>
+          <SmartSessionProvider />
+        </SmartAccountContextProvider>
+      </ParaProvider>
+    </QueryClientProvider>
   )
 }
 
@@ -137,7 +139,7 @@ export const Route = createRootRouteWithContext<RootRouterContext>()({
 })
 
 function NotFoundComponent() {
-  return <div>Not Found</div>
+  return <NotFoundPage />
 }
 
 function RootComponent() {

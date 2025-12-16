@@ -6,7 +6,7 @@
   "private": true,
   "exports": {
     ".": "./graphql.gen.ts",
-    "./apollo": "./apollo/client.ts"
+    "./urql": "./urql/client.ts"
   },
   "scripts": {
     "codegen": "graphql-codegen",
@@ -22,7 +22,8 @@
   },
   "keywords": [],
   "dependencies": {
-    "@apollo/client": "3.14.0",
+    "@urql/core": "^6.0.1",
+    "@urql/exchange-retry": "^2.0.0",
     "graphql": "^16.11.0",
     "graphql-tag": "^2.12.6"
   }
