@@ -21,3 +21,5 @@ export type {
   UseSmartAccountConfig,
   WalletSource,
 } from './types'
+// Deprecated hook - maintained for backward compatibility
+export { useSmartAccount } from './useSmartAccount'
