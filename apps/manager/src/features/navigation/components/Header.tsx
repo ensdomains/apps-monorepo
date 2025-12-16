@@ -38,7 +38,7 @@ import {
 // Reusable menu content component
 const UserMenuContent = ({
   account: _account,
-  address,
+  address: _address,
   accountAddress,
   ownerAddress,
   isLoading,
