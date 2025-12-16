@@ -37,7 +37,8 @@ const Profile = ({
   if (profileQuery.error)
     return (
       <div>
-        Failed to fetch the profile: {profileQuery.error.cause?.message}
+        Failed to fetch the profile:{' '}
+        {profileQuery.error.cause?.message || profileQuery.error.message}
       </div>
     )
   if (ownerQuery.error)

@@ -108,31 +108,26 @@ function RouteComponent() {
             <h2 className="text-2xl font-bold">ENSv2 name examples</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <ExampleNameCard
-                name="v1rtl.eth"
-                description="Name with records on the new Dedicated Resolver"
-                link="resolver"
+                name="ens2.eth"
+                description="Name with records on a new Dedicated Resolver"
               />
               <ExampleNameCard
-                name="fast.eth"
-                description="Name with subnames on the new Registry contract"
+                name="fresh.eth"
+                description="Name with a cloned Dedicated Resolver from ens2.eth"
               />
               <ExampleNameCard
-                name="sub.fast.eth"
-                description="Subname on the new Registry contract"
+                name="ens1.eth"
+                description="Name with a subregistry"
+              />
+              <ExampleNameCard
+                name="2.sugh101.eth"
+                description="Subname on the new UserRegistry contract"
                 link="registry"
               />
               <ExampleNameCard
-                name="fast.eth"
-                description="Name with custom Roles created"
+                name="withroles.eth"
+                description="Name with custom roles created"
                 link="roles"
-              />
-              <ExampleNameCard
-                name="raffy.eth"
-                description="Name migrated to ENSv2"
-              />
-              <ExampleNameCard
-                name="fast.eth"
-                description="Name with multiple L2 Primary set"
               />
             </div>
           </section>
@@ -143,32 +138,23 @@ function RouteComponent() {
               <WhatsNewItem
                 icon={Clock}
                 to="/$name/history"
-                params={{ name: 'example.eth' }}
+                params={{ name: 'v1rtl.eth' }}
                 title="Transaction history"
                 description="View renewals and ownership changes over time."
               />
               <WhatsNewItem
                 icon={Repeat}
                 to="/$name/resolver"
-                params={{ name: 'example.eth' }}
+                params={{ name: 'fresh.eth' }}
                 title="Dedicated resolvers"
                 description="Each name now supports its own resolver."
               />
               <WhatsNewItem
                 icon={Users}
                 to="/$name"
-                params={{ name: 'example.eth' }}
+                params={{ name: 'withroles.eth' }}
                 title="Roles"
                 description="See which accounts hold key permissions."
-              />
-              <WhatsNewItem
-                icon={Grid3x3}
-                to="/addr/$addr/reverse-resolution"
-                params={{
-                  addr: '0x205d2686da3Bf33f64C17f21462c51B5eaD462CF',
-                }}
-                title="L2 Primary Names"
-                description="Set and view primary names on other networks."
               />
             </div>
           </section>
@@ -218,6 +204,12 @@ function RouteComponent() {
                 icon={Grid3x3}
                 title="Managing names"
                 description="Browse, filter, organize and manage ENS names in one place."
+                status="Up next"
+              />
+              <UpNextItem
+                icon={Grid3x3}
+                title="L2 Primary Names"
+                description="Set and view primary names on other networks."
                 status="Up next"
               />
               <UpNextItem

@@ -42,7 +42,7 @@ export const getProfile = ResultFn(async function* (name: string) {
     (e) => new GetProfileError({ cause: e as ClientError }),
   )
 
-  const subgraphV2Records = result.domains[0].resolver
+  const subgraphV2Records = result.domains[0]?.resolver
 
   const coins = Array.from(
     new Set([
