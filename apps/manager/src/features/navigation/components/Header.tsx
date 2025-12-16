@@ -40,6 +40,7 @@ const UserMenuContent = ({
   account: _account,
   address: _address,
   accountAddress,
+  ownerAddress,
   isLoading,
   stablecoinBalances,
   smartAccountEthBalance,
@@ -51,10 +52,12 @@ const UserMenuContent = ({
   getDisplayName,
   ensAvatar,
   autoFundingMutation,
+  walletSource,
 }: {
   account: ReturnType<typeof useAccount>
   address: string | undefined
   accountAddress: string | null | undefined
+  ownerAddress: string | null | undefined
   isLoading: boolean
   stablecoinBalances:
     | Array<{ address: string; symbol: string; formattedBalance?: string }>
@@ -68,7 +71,9 @@ const UserMenuContent = ({
   getDisplayName: () => string
   ensAvatar: string | null | undefined
   autoFundingMutation: SmartAccountState['autoFundingMutation']
+  walletSource: 'para-embedded' | 'external-wallet' | null
 }) => {
+  const isExternalWallet = walletSource === 'external-wallet'
   return (
     <>
       <div className="p-4 md:p-4">
@@ -90,8 +95,19 @@ const UserMenuContent = ({
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <div className="truncate font-medium text-ens-blue-dark text-lg">
-              {getDisplayName()}
+            <div className="flex items-center gap-2">
+              <span className="truncate font-medium text-ens-blue-dark text-lg">
+                {getDisplayName()}
+              </span>
+              {isExternalWallet && ownerAddress && (
+                <button
+                  type="button"
+                  onClick={() => handleCopyAddress(ownerAddress)}
+                  className="shrink-0 rounded p-1 text-ens-blue transition-colors hover:bg-ens-blue-light"
+                >
+                  <Copy className="size-4" />
+                </button>
+              )}
             </div>
             {isLoading && (
               <div className="mt-0.5 text-ens-blue text-xs">
@@ -221,6 +237,7 @@ const ConnectedContent = () => {
     client: smartAccountClient,
     accountAddress,
     ownerAddress,
+    walletSource,
     isLoading,
     stablecoinBalances,
     smartAccountEthBalance,
@@ -356,6 +373,8 @@ const ConnectedContent = () => {
     account,
     address: ownerAddress as Address,
     accountAddress,
+    ownerAddress,
+    walletSource,
     isLoading,
     stablecoinBalances,
     smartAccountEthBalance,
