@@ -64,7 +64,6 @@ export const PrimaryNameCard = ({
                 <div className="size-full bg-linear-to-br from-blue-400 via-blue-600 to-blue-900" />
               ))}
           </div>
-
           <div className="flex min-h-0 flex-col justify-between md:h-[200px]">
             <div className="flex flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-[12px]">
               <div className="inline-flex items-center rounded-[4px] bg-[#0080bc] px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
