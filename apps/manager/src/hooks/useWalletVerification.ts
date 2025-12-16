@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useAccount, useAccountEffect } from 'wagmi'
+import { useConnection, useConnectionEffect } from 'wagmi'
+import { useSmartAccountContextSafe } from '@/lib/smart-account/SmartAccountContext'
 
 interface UseWalletVerificationOptions {
   enabled?: boolean
@@ -10,9 +11,11 @@ export const useWalletVerification = ({
   enabled = true,
   storageKey = 'wallet_verified',
 }: UseWalletVerificationOptions = {}) => {
-  const { address, isConnected } = useAccount()
+  const { address, isConnected } = useConnection()
+  const smartAccount = useSmartAccountContextSafe()
   const [showVerifyModal, setShowVerifyModal] = useState(false)
   const [isVerified, setIsVerified] = useState(false)
+  const isExternalWallet = smartAccount?.walletSource === 'external-wallet'
 
   const getStorageKey = useCallback(
     (addr: `0x${string}`) => `${storageKey}_${addr}`,
@@ -34,9 +37,15 @@ export const useWalletVerification = ({
     setIsVerified(false)
   }, [address, getStorageKey])
 
-  useAccountEffect({
-    onConnect({ address: connectedAddress }) {
-      if (enabled && connectedAddress && typeof window !== 'undefined') {
+  useConnectionEffect({
+    onConnect({ address }) {
+      // Skip verification for embedded wallets
+      if (
+        enabled &&
+        isExternalWallet &&
+        address &&
+        typeof window !== 'undefined'
+      ) {
         const verified = localStorage.getItem(getStorageKey(connectedAddress))
         if (verified !== 'true') {
           setTimeout(() => {
@@ -53,7 +62,14 @@ export const useWalletVerification = ({
   })
 
   useEffect(() => {
-    if (enabled && isConnected && address && typeof window !== 'undefined') {
+    // Skip verification for embedded wallets
+    if (
+      enabled &&
+      isExternalWallet &&
+      isConnected &&
+      address &&
+      typeof window !== 'undefined'
+    ) {
       const verified = localStorage.getItem(getStorageKey(address))
       if (verified !== 'true') {
         setTimeout(() => {
@@ -63,7 +79,7 @@ export const useWalletVerification = ({
         setIsVerified(true)
       }
     }
-  }, [enabled, isConnected, address, getStorageKey])
+  }, [enabled, isExternalWallet, isConnected, address, getStorageKey])
 
   return {
     showVerifyModal,
