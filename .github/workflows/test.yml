@@ -30,6 +30,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build dependencies of changed packages
+        run: |
+          echo "🏗️ Building dependencies of changed packages..."
+          pnpm --filter="...^[origin/main]" build || pnpm -r build
+
       - name: Type check changed packages
         run: |
           echo "🔍 Type checking changed packages and their dependents..."
