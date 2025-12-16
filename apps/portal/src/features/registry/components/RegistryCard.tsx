@@ -5,7 +5,7 @@ import type { ProtocolVersion } from '@/utils/types'
 export type RegistryInfo = {
   address: Address
   protocol: ProtocolVersion
-  factory: Address | null
+  factory?: Address | null
 }
 
 type RegistryCardProps = {
@@ -26,8 +26,8 @@ export function RegistryCard({ registry }: RegistryCardProps) {
             Contract
           </span>
           <CopyableRecord
+            href={`https://sepolia.etherscan.io/address/${registry.address}`}
             value={registry.address}
-            className="underline decoration-dotted underline-offset-4 flex-1 min-w-0"
           />
         </div>
 
@@ -37,8 +37,8 @@ export function RegistryCard({ registry }: RegistryCardProps) {
               Factory
             </span>
             <CopyableRecord
+              href={`https://sepolia.etherscan.io/address/${registry.factory}`}
               value={registry.factory}
-              className="underline decoration-dotted underline-offset-4 flex-1 min-w-0"
             />
           </div>
         )}
