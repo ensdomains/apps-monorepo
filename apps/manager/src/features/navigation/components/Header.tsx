@@ -489,22 +489,28 @@ export const Header = () => {
 
   return (
     <nav className="sticky top-0 z-10 flex min-w-0 items-center justify-between gap-4 bg-background px-4 py-4 md:px-10 md:py-7">
-      <div className="flex shrink-0 items-center gap-3">
-        <Link to="/" className="shrink-0 py-2">
-          <img
-            src={ensMobileLogo}
-            alt="ENS Logo"
-            className="h-8 shrink-0 md:hidden"
-          />
-          <img
-            src={ensLogo}
-            alt="ENS Logo"
-            className="hidden h-8 shrink-0 md:block"
-          />
-        </Link>
-        {/* Sepolia Chain Badge */}
-        <span className="rounded-full border border-ens-blue-light bg-ens-lapis-dust px-2.5 py-1 font-medium font-mono text-ens-blue-dark text-xs uppercase tracking-wide">
-          Sepolia
+      <div className="flex shrink-0 flex-col md:flex-row md:items-center md:gap-3">
+        <div className="flex items-center gap-3">
+          <Link to="/" className="shrink-0 py-2">
+            <img
+              src={ensMobileLogo}
+              alt="ENS Logo"
+              className="h-8 shrink-0 md:hidden"
+            />
+            <img
+              src={ensLogo}
+              alt="ENS Logo"
+              className="hidden h-8 shrink-0 md:block"
+            />
+          </Link>
+          {/* Sepolia Chain Badge */}
+          <span className="rounded-full border border-ens-blue-light bg-ens-lapis-dust px-2.5 py-1 font-medium font-mono text-ens-blue-dark text-xs uppercase tracking-wide">
+            Sepolia
+          </span>
+        </div>
+        {/* Chrome recommendation badge */}
+        <span className="w-fit rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 font-medium text-amber-700 text-xs">
+          Works best on Chrome
         </span>
       </div>
       <div className="flex min-w-0 items-center gap-2 md:gap-4">

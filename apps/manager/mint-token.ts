@@ -14,7 +14,7 @@ import { customSepolia, SEPOLIA_RPC_URL } from './src/lib/wagmi'
 
 // Configuration
 const SMART_ACCOUNT: Address =
-  '0x56112041329C8a3ef00Ce3A1688715273e3b7629' as Address // EOA address to fund
+  '0x89b22e5D4f18186F459dF61cea9A489Cedb1028d' as Address // EOA address to fund
 const MINT_AMOUNT = parseUnits('1000', 18) // 1000 tokens (DAI has 18 decimals)
 const USDC_MINT_AMOUNT = parseUnits('1000', 6) // 1000 USDC (USDC has 6 decimals)
 
