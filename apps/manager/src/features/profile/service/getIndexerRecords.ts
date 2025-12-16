@@ -1,5 +1,5 @@
 import { DomainDocument, type DomainQuery } from '@ens-apps/indexer'
-import apolloClient from '@ens-apps/indexer/apollo'
+import indexerClient from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -10,16 +10,19 @@ class GetIndexerRecordsError extends TaggedError('GetIndexerRecordsError')<{
 }> {}
 
 export const getIndexerRecords = ResultFn(async function* (name: string) {
-  const result = yield* await ResultAsync.fromPromise(
-    apolloClient.query<DomainQuery>({
-      query: DomainDocument,
-      variables: { id: name },
-      fetchPolicy: 'network-only',
-    }),
+  const data = yield* await ResultAsync.fromPromise(
+    indexerClient
+      .query<DomainQuery>(DomainDocument, { id: name })
+      .toPromise()
+      .then((result) => {
+        if (result.error) throw result.error
+        if (!result.data) throw new Error('Indexer query returned no data')
+        return result.data
+      }),
     (error) => new GetIndexerRecordsError({ cause: error }),
   )
 
-  const domain = result.data.domain
+  const domain = data.domain
 
   const texts = domain?.resolver?.texts ?? []
   const coins =
