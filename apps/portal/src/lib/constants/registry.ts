@@ -8,4 +8,4 @@ export const sepoliaEthRegistryAddress =
   sepoliaWithEns.contracts.ensRegistry.address
 
 export const l2RegistryFinderAddress =
-  '0x1d4a4326C8a51aaD8C286b553EfA855C35890B26'
+  '0x55E9161e41D420f035010ADAaeDB663Ce9106D92'

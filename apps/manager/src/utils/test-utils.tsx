@@ -5,7 +5,7 @@ import {
 } from '@testing-library/react'
 import { createConfig, mock, WagmiProvider } from 'wagmi'
 import '@testing-library/jest-dom'
-import { addEnsContracts } from '@ensdomains/ensjs'
+import { extendChainWithL1Ens } from '@ensdomains/ensjs/chain'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createClient, http } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
@@ -14,7 +14,7 @@ import { beforeEach } from 'vitest'
 
 import { hashFn } from 'wagmi/query'
 
-const mainnetWithEns = addEnsContracts(mainnet)
+const mainnetWithEns = extendChainWithL1Ens(mainnet)
 
 const client = createClient({
   transport: http('http://mock.local'),

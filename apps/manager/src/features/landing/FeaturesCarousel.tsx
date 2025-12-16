@@ -30,7 +30,7 @@ const FEATURE_CARDS: FeatureCard[] = [
     ),
     description: (
       <>
-        Your name lives onchain — you own it, not a platform. Sign in to web3
+        Your name lives onchain - you own it, not a platform. Sign in to web3
         apps with your <span className="font-medium font-sans">.eth name</span>{' '}
         and your ENS profile will load automatically.
       </>
@@ -66,9 +66,9 @@ const FEATURE_CARDS: FeatureCard[] = [
     title: <>Verify authenticity and stay safe.</>,
     description: (
       <>
-        Companies and projects use ENS because it's secured with ethereum, so
-        you can be sure it's the real deal. Avoid impersonation scams and stay
-        safe out there &lt;3.
+        Companies and projects use ENS because it's secured by ethereum, so you
+        can be sure it's the real deal. Avoid impersonation scams and stay safe
+        out there &lt;3.
       </>
     ),
     children: (
@@ -122,7 +122,7 @@ const FEATURE_CARDS: FeatureCard[] = [
       <>
         Your ENS name replaces your wallet addresses so friends and clients can
         send money to <span className="font-medium font-sans">friend.eth</span>{' '}
-        instead of a scary jumble of letters and numbers.
+        instead of a confusing jumble of letters and numbers.
       </>
     ),
     children: (

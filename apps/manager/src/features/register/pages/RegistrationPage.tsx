@@ -13,6 +13,7 @@ import type { NotificationPreferences } from '@/features/register/components/Reg
 import { RegistrationInProgress } from '@/features/register/components/RegistrationInProgress/RegistrationInProgress'
 import { VerifyWalletModal } from '@/features/register/components/VerifyWalletModal'
 import { useCountdown } from '@/hooks/useCountdown'
+import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { useWalletVerification } from '@/hooks/useWalletVerification'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
@@ -103,6 +104,8 @@ export function Registration({ initialName }: RegistrationProps) {
     finalPrice: number
     discountAmount: number
   } | null>(null)
+
+  const skipNotificationSettings = useFeatureFlag('SKIP_NOTIFICATION_SETTINGS')
 
   const [hasSkippedNotifications, setHasSkippedNotifications] = useState(false)
   const [hasConfirmedNotifications, setHasConfirmedNotifications] =
@@ -203,7 +206,11 @@ export function Registration({ initialName }: RegistrationProps) {
         onVerified={handleVerificationComplete}
       />
       <div className="mx-6 flex flex-col items-start gap-4 md:flex-row">
-        {!(hasSkippedNotifications || hasConfirmedNotifications) && (
+        {!(
+          skipNotificationSettings ||
+          hasSkippedNotifications ||
+          hasConfirmedNotifications
+        ) && (
           <div className="absolute flex items-center justify-between">
             <Button
               variant="ghost"
@@ -310,7 +317,9 @@ export function Registration({ initialName }: RegistrationProps) {
             onGoToDashboard={handleGoToDashboard}
             onCreateProfile={handleCreateProfile}
             showRegistrationDetails={
-              hasSkippedNotifications || hasConfirmedNotifications
+              skipNotificationSettings ||
+              hasSkippedNotifications ||
+              hasConfirmedNotifications
             }
           />
         )}

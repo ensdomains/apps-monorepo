@@ -1,7 +1,7 @@
 import { AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { PricingDuration } from '@/features/register/components/Pricing/types'
-import { useSmartAccount } from '@/lib/smart-account'
+import { useSmartAccountContext } from '@/lib/smart-account'
 import {
   CreditCardPaymentDrawer,
   CryptoPaymentDrawer,
@@ -38,9 +38,8 @@ export const PricingPaymentSection = ({
   onCryptoSelect,
   onConfirmPayment,
 }: PricingPaymentSectionProps) => {
-  // Use HCA config to check EOA balance (tokens are held by EOA, not smart account)
   const { isLoadingSmartAccountEth, stablecoinBalances, isLoadingBalances } =
-    useSmartAccount({ type: 'pimlico', accountType: 'hca' })
+    useSmartAccountContext()
 
   const hasStablecoins =
     (stablecoinBalances?.length || 0) > 0 &&

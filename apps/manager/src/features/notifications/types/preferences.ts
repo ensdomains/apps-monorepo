@@ -13,7 +13,7 @@ export type PreferenceUpdateRequest = InferRequestType<
 export type BatchPreferencesRequest = Record<string, Record<string, boolean>>
 
 // Frontend types
-export type ChannelType = 'email' | 'telegram' | 'web_push'
+export type ChannelType = 'email' | 'telegram'
 
 export type PreferenceState = {
   [channel in ChannelType]?: {

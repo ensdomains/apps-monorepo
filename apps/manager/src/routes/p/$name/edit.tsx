@@ -7,7 +7,7 @@ import { LinkButton } from '@/components/ui/button'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { ProfileEdit } from '@/features/profile/components/ProfileEdit'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
-import { useSmartAccount } from '@/lib/smart-account'
+import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const Route = createFileRoute('/p/$name/edit')({
   component: RouteComponent,
@@ -36,7 +36,8 @@ function RouteComponent() {
   const {
     accountAddress: smartAccountAddress,
     isLoading: isSmartAccountLoading,
-  } = useSmartAccount({ type: 'pimlico', accountType: 'hca' })
+    isAccountReady,
+  } = useSmartAccountContext()
 
   const normalizedOwner = ownerData?.owner?.toLowerCase()
   const connectedAddresses = [wallet?.address, smartAccountAddress]
@@ -48,7 +49,9 @@ function RouteComponent() {
   )
 
   const isCheckingOwnership =
-    isWalletLoading || isOwnerLoading || (!isOwner && isSmartAccountLoading)
+    isWalletLoading ||
+    isOwnerLoading ||
+    (!isOwner && (isSmartAccountLoading || !isAccountReady))
 
   if (isCheckingOwnership) {
     return <ProfileLoading />

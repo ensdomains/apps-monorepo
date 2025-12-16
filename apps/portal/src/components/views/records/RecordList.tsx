@@ -1,5 +1,4 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
-import { Link } from '@tanstack/react-router'
 import {
   type ColumnFiltersState,
   getCoreRowModel,
@@ -9,15 +8,8 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import {
-  FileInputIcon,
-  PencilLineIcon,
-  Search,
-  TrashIcon,
-  XIcon,
-} from 'lucide-react'
+import { Search, XIcon } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
-import { Button } from '@/components/ui/button'
 import {
   InputGroup,
   InputGroupAddon,
@@ -25,7 +17,6 @@ import {
 } from '@/components/ui/input-group'
 import { columns } from '@/features/records/components/RecordsTable/columns'
 import { RecordsTable } from '@/features/records/components/RecordsTable/RecordsTable'
-import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
 export const RecordList = ({
@@ -34,10 +25,7 @@ export const RecordList = ({
 }: {
   name: string
   records: GetRecordsReturnType
-  view: 'list' | 'edit'
 }) => {
-  const { data: canEditRecords } = useCanEditRecords({ name })
-
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
   const rowCount = useMemo(
@@ -76,14 +64,6 @@ export const RecordList = ({
       <header className="bg-gray-100 px-8 pb-4 pt-12 flex flex-col gap-4">
         <div className="flex flex-row justify-between">
           <h1 className="text-[28px] font-medium">{recordCount} Records</h1>
-          {canEditRecords && (
-            <Link from="/$name/records" search={{ view: 'edit' }}>
-              <Button variant="secondary" disabled={rowCount > 0} type="button">
-                <PencilLineIcon className="size-6" />
-                Records
-              </Button>
-            </Link>
-          )}
         </div>
         {rowCount > 0 ? (
           <div className="flex flex-col lg:flex-row w-full lg:justify-between lg:items-center gap-4">
@@ -97,7 +77,7 @@ export const RecordList = ({
               </button>
               {rowCount} selected
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+            {/*<div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
               <Button variant="secondary" className="w-auto whitespace-nowrap">
                 <PencilLineIcon className="size-6" /> Edit
               </Button>
@@ -107,7 +87,7 @@ export const RecordList = ({
               <Button variant="secondary" className="w-auto whitespace-nowrap">
                 <TrashIcon className="size-6" /> Delete
               </Button>
-            </div>
+            </div>*/}
           </div>
         ) : (
           <InputGroup className="bg-white rounded-sm">

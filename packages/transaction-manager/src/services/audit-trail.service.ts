@@ -297,7 +297,9 @@ function calculatePerformanceMetrics(
 
   const durations: number[] = []
   for (let i = 1; i < transitions.length; i++) {
-    durations.push(transitions[i].timestamp - transitions[i - 1].timestamp)
+    durations.push(
+      (transitions[i]?.timestamp ?? 0) - (transitions[i - 1]?.timestamp ?? 0),
+    )
   }
 
   return {

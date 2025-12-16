@@ -51,7 +51,9 @@ const columns: ColumnDef<column>[] = [
   {
     id: 'expiryDate',
     header: 'Expiry',
-    accessorFn: ({ expiryDate }) => formatter.format(expiryDate),
+    accessorFn: ({ expiryDate }) => {
+      return expiryDate ? formatter.format(expiryDate) : null
+    },
   },
   {
     accessorKey: 'network',
@@ -96,12 +98,12 @@ export const NameList = ({ address }: NameListProps) => {
   const data = [
     ...((v1NamesQuery.data || []).map(({ name, expiryDate }) => ({
       name,
-      expiryDate: expiryDate?.date,
+      expiryDate: expiryDate ? expiryDate.date : null,
       network: 'sepolia',
     })) as column[]),
     ...((v2NamesQuery.data || []).map(({ name, expiryDate }) => ({
       name,
-      expiryDate: new Date(Number(expiryDate) * 1000),
+      expiryDate: expiryDate ? new Date(Number(expiryDate) * 1000) : null,
       network: 'namechainSepolia',
     })) as column[]),
   ] as const satisfies column[]

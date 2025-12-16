@@ -168,7 +168,7 @@ const buildTextCalls = (options: {
   abi: typeof DEDICATED_RESOLVER_ABI
   texts: TextChange[]
   buildArgs: (key: string, value: string | null) => readonly [string, string]
-}): Hex[] => {
+}): { calls: Hex[]; issues: RecordIssue[] } => {
   const calls: Hex[] = []
   const issues: RecordIssue[] = []
 
@@ -189,11 +189,7 @@ const buildTextCalls = (options: {
     )
   }
 
-  if (issues.length > 0) {
-    throw new RecordsValidationError(issues)
-  }
-
-  return calls
+  return { calls, issues }
 }
 
 const buildCoinCalls = (options: {
@@ -203,7 +199,7 @@ const buildCoinCalls = (options: {
     coinType: number,
     encoded: Hex,
   ) => readonly [bigint, `0x${string}`]
-}): Hex[] => {
+}): { calls: Hex[]; issues: RecordIssue[] } => {
   const calls: Hex[] = []
   const issues: RecordIssue[] = []
 
@@ -232,23 +228,30 @@ const buildCoinCalls = (options: {
     }
   }
 
-  if (issues.length > 0) {
-    throw new RecordsValidationError(issues)
-  }
-
-  return calls
+  return { calls, issues }
 }
 
-export const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => [
-  ...buildTextCalls({
+export const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => {
+  const allIssues: RecordIssue[] = []
+
+  const { calls: textCalls, issues: textIssues } = buildTextCalls({
     abi: DEDICATED_RESOLVER_ABI,
     texts: changes.texts,
     // biome-ignore lint/style/noNonNullAssertion: value is never null
     buildArgs: (key, value) => [key, value!],
-  }),
-  ...buildCoinCalls({
+  })
+  allIssues.push(...textIssues)
+
+  const { calls: coinCalls, issues: coinIssues } = buildCoinCalls({
     abi: DEDICATED_RESOLVER_ABI,
     coins: changes.coins,
     buildArgs: (coinType, encoded) => [BigInt(coinType), encoded],
-  }),
-]
+  })
+  allIssues.push(...coinIssues)
+
+  if (allIssues.length > 0) {
+    throw new RecordsValidationError(allIssues)
+  }
+
+  return [...textCalls, ...coinCalls]
+}

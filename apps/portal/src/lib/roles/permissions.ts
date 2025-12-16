@@ -15,11 +15,6 @@ export type Permission = {
 
 export const permissions: Permission[] = [
   {
-    key: 'ROLE_REGISTRAR',
-    title: 'Registrar',
-    description: 'Can register new names',
-  },
-  {
     key: 'ROLE_RENEW',
     title: 'Renew',
     description: 'Can renew name registrations',

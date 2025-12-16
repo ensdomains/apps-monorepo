@@ -30,6 +30,9 @@ export const FEATURE_FLAGS: Record<string, FeatureFlagConfig | boolean> = {
   DISCOUNTS_APPLIED: {
     enabled: import.meta.env.VITE_FF_DISCOUNTS_APPLIED === 'true',
   },
+  SKIP_NOTIFICATION_SETTINGS: {
+    enabled: import.meta.env.VITE_FF_SKIP_NOTIFICATION_SETTINGS === 'true',
+  },
 } as const
 
 export type FeatureFlag = keyof typeof FEATURE_FLAGS

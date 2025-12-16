@@ -5,13 +5,13 @@ import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import {
   type GetOwnerErrorType as ensjsv1_GetOwnerErrorType,
   getOwner as ensjsv1_getOwner,
-  type GetOwnerParameters,
 } from '@ensdomains/ensjs/public/v1'
 import {
   type GetOwnerErrorType as ensjsv2_GetOwnerErrorType,
   getOwner as ensjsv2_getOwner,
+  type GetNameRegistryAddressErrorType,
+  getNameRegistryAddress,
 } from '@ensdomains/ensjs/public/v2'
-import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
 import { namechainSepolia, sepoliaWithEns } from '@/lib/wagmi'
@@ -30,32 +30,34 @@ export type GetEnsOwnerReturnType = WithEnsNetwork<{
   registryAddress: Address
 }> | null
 
-export const getEnsOwner = ResultFn(async function* (
-  params: GetOwnerParameters,
-) {
+const v2EthRegistry = getChainContractAddress({
+  chain: namechainSepolia,
+  contract: 'ensV2EthRegistry',
+})
+
+const v1EthRegistry = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensRegistry',
+})
+
+export type GetEnsOwnerParameters = {
+  name: string
+}
+
+export const getEnsOwner = ResultFn(async function* ({
+  name,
+}: GetEnsOwnerParameters) {
   const client = yield* safeGetClient()
 
-  const l1v1Owner = yield* await fromPromise(
-    ensjsv1_getOwner(client, params),
+  const l1v1Owner = yield* fromPromise(
+    ensjsv1_getOwner(client, { name }),
     (e) =>
       new GetEnsOwnerError({
         cause: e as ensjsv1_GetOwnerErrorType,
       }),
   )
 
-  const { label } = makeLabelNodeAndParent(params.name)
-
   const namechainClient = yield* safeGetNamechainSepoliaClient()
-
-  const v2EthRegistry = getChainContractAddress({
-    chain: namechainSepolia,
-    contract: 'ensV2EthRegistry',
-  })
-
-  const v1EthRegistry = getChainContractAddress({
-    chain: sepoliaWithEns,
-    contract: 'ensRegistry',
-  })
 
   if (l1v1Owner?.owner)
     return ok<GetEnsOwnerReturnType>({
@@ -64,10 +66,24 @@ export const getEnsOwner = ResultFn(async function* (
       network: 'sepolia',
     })
 
-  const l2v2Owner = yield* await fromPromise(
+  const labels = name.split('.')
+  let registryAddress: Address = v2EthRegistry
+  if (labels.length > 2) {
+    registryAddress = yield* fromPromise(
+      getNameRegistryAddress(namechainClient, {
+        registryAddress: v2EthRegistry,
+        label: labels[1],
+      }),
+      (e) =>
+        new GetEnsOwnerError({ cause: e as GetNameRegistryAddressErrorType }),
+    )
+    console.log({ registryAddress, labels })
+  }
+
+  const l2v2Owner = yield* fromPromise(
     ensjsv2_getOwner(namechainClient, {
-      label,
-      registryAddress: v2EthRegistry,
+      label: labels[0],
+      registryAddress,
     }),
     (e) => new GetEnsOwnerError({ cause: e as ensjsv2_GetOwnerErrorType }),
   )
@@ -75,21 +91,19 @@ export const getEnsOwner = ResultFn(async function* (
   if (l2v2Owner && l2v2Owner !== zeroAddress)
     return ok<GetEnsOwnerReturnType>({
       owner: l2v2Owner,
-      registryAddress: v2EthRegistry,
+      registryAddress,
       network: 'namechainSepolia',
     })
-
-  console.log({ l2v2Owner, l1v1Owner, v1EthRegistry, v2EthRegistry })
 
   return ok(null)
 })
 
 export const getEnsOwnerQueryKey = createQueryKey<
   'get-ens-owner',
-  GetOwnerParameters
+  GetEnsOwnerParameters
 >('get-ens-owner')
 
-export const getEnsOwnerQueryOptions = (params: GetOwnerParameters) =>
+export const getEnsOwnerQueryOptions = (params: GetEnsOwnerParameters) =>
   resultQueryOptions({
     queryKey: getEnsOwnerQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getEnsOwner(params),
