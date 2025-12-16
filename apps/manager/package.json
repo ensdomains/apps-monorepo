@@ -7,7 +7,7 @@
     "dev:inspect": "VITE_INSPECT_XSTATE=true vite dev",
     "build": "NODE_OPTIONS='--max-old-space-size=8192' vite build",
     "preview": "wrangler dev",
-    "cf-typegen": "wrangler types --env-interface Env worker-configuration.gen.d.ts",
+    "cf-typegen": "pnpm dlx wrangler types --env-interface Env worker-configuration.gen.d.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
