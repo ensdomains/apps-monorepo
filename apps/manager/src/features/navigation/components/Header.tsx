@@ -227,9 +227,6 @@ const ConnectedContent = () => {
     isLoadingSmartAccountEth,
     error,
     autoFundingMutation,
-    openSessionModal,
-    session,
-    walletSource,
   } = useSmartAccountContext()
 
   const address = wallet?.address as Address | undefined

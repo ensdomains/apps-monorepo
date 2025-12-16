@@ -3,7 +3,7 @@ import { useEffect, useMemo, useReducer } from 'react'
 import type { PricingDuration } from '@/features/register/components/Pricing/types'
 import { getPremiumLabel } from '@/features/register/utils'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
-import { useSmartAccount } from '@/lib/smart-account'
+import { useSmartAccountContext } from '@/lib/smart-account'
 import { getTokenPrices } from '../../services/nameChainContractService'
 import { createInitialStateFactory, pricingReducer } from './pricing.reducer'
 import type { PricingProps } from './types'
@@ -35,11 +35,7 @@ export const usePricing = ({
   | 'onSelectCrypto'
   | 'onConfirmPayment'
 >) => {
-  // Use HCA config to match registration page
-  const { client: smartAccountClient } = useSmartAccount({
-    type: 'pimlico',
-    accountType: 'hca',
-  })
+  const { client: smartAccountClient } = useSmartAccountContext()
   const { openModal } = useModal()
   const discountsEnabled = useFeatureFlag('DISCOUNTS_APPLIED')
 

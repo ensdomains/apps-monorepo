@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { useSmartAccount } from '@/lib/smart-account'
+import { useSmartAccountContext } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
@@ -35,7 +35,8 @@ export const SetPrimaryNameDialog = ({
     signer,
     ownerAddress: smartOwnerAddress,
     config: smartAccountConfig,
-  } = useSmartAccount({ type: 'pimlico', accountType: 'hca' })
+    isAccountReady,
+  } = useSmartAccountContext()
   const { data: wagmiWalletClient } = useWalletClient()
 
   const primaryNameActor = useActorRef(primaryNameMachine, {
@@ -76,6 +77,7 @@ export const SetPrimaryNameDialog = ({
       | undefined
 
     const smartValid =
+      isAccountReady &&
       smartAccountAddress &&
       signer &&
       isSmartAccountConnected &&

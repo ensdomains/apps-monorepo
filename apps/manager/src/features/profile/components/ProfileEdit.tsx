@@ -5,7 +5,7 @@ import type { Address, PublicClient } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { Alert } from '@/components/molecules/Alert'
 import { Button } from '@/components/ui/button'
-import { useSmartAccount } from '@/lib/smart-account'
+import { useSmartAccountContext } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { profileOwnerQuery } from '../service/profileOwner'
 import { profileRecordsQuery } from '../service/profileRecords'
@@ -45,7 +45,8 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     signer,
     ownerAddress: smartOwnerAddress,
     config: smartAccountConfig,
-  } = useSmartAccount({ type: 'pimlico', accountType: 'hca' })
+    isAccountReady,
+  } = useSmartAccountContext()
 
   const { data: wagmiWalletClient } = useWalletClient()
 
@@ -117,6 +118,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     const smartOwnerLower = smartOwnerAddress?.toLowerCase()
 
     const smartValid =
+      isAccountReady &&
       smartAccountAddress &&
       signer &&
       isSmartAccountConnected &&
