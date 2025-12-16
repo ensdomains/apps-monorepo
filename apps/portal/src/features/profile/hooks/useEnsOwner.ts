@@ -30,12 +30,22 @@ export type GetEnsOwnerReturnType = WithEnsNetwork<{
   registryAddress: Address
 }> | null
 
+const v2EthRegistry = getChainContractAddress({
+  chain: namechainSepolia,
+  contract: 'ensV2EthRegistry',
+})
+
+const v1EthRegistry = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensRegistry',
+})
+
 export const getEnsOwner = ResultFn(async function* (
   params: GetOwnerParameters,
 ) {
   const client = yield* safeGetClient()
 
-  const l1v1Owner = yield* await fromPromise(
+  const l1v1Owner = yield* fromPromise(
     ensjsv1_getOwner(client, params),
     (e) =>
       new GetEnsOwnerError({
@@ -47,16 +57,6 @@ export const getEnsOwner = ResultFn(async function* (
 
   const namechainClient = yield* safeGetNamechainSepoliaClient()
 
-  const v2EthRegistry = getChainContractAddress({
-    chain: namechainSepolia,
-    contract: 'ensV2EthRegistry',
-  })
-
-  const v1EthRegistry = getChainContractAddress({
-    chain: sepoliaWithEns,
-    contract: 'ensRegistry',
-  })
-
   if (l1v1Owner?.owner)
     return ok<GetEnsOwnerReturnType>({
       owner: l1v1Owner?.owner,
@@ -64,7 +64,7 @@ export const getEnsOwner = ResultFn(async function* (
       network: 'sepolia',
     })
 
-  const l2v2Owner = yield* await fromPromise(
+  const l2v2Owner = yield* fromPromise(
     ensjsv2_getOwner(namechainClient, {
       label,
       registryAddress: v2EthRegistry,
@@ -78,8 +78,6 @@ export const getEnsOwner = ResultFn(async function* (
       registryAddress: v2EthRegistry,
       network: 'namechainSepolia',
     })
-
-  console.log({ l2v2Owner, l1v1Owner, v1EthRegistry, v2EthRegistry })
 
   return ok(null)
 })

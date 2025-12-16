@@ -20,6 +20,8 @@ function RouteComponent() {
 
   const { data, isLoading, error } = useQuery(getEnsOwnerQueryOptions({ name }))
 
+  console.log(data)
+
   if (error)
     return (
       <ErrorMessage
