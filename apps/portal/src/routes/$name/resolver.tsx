@@ -70,7 +70,7 @@ interface UnderlyingResolverInfoProps {
 
 const UnderlyingResolverInfo = ({
   underlyingResolverData: data,
-  resolverAddress,
+  resolverAddress: _resolverAddress,
 }: UnderlyingResolverInfoProps) => {
   if (!data) {
     return <div>Introspection of non .eth names is not supported yet</div>
