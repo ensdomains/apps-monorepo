@@ -26,7 +26,7 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 import {
   checkSelectedCoinBalance,
-  formatPrice,
+  formatAmount,
   hasInsufficientBalance,
   parseBalance,
 } from '@/utils/payment'
@@ -344,11 +344,11 @@ export const CryptoPaymentDrawer = ({
                               : 'text-ens-gray-dark',
                           )}
                         >
-                          ${formatPrice(coinBalanceUSD)}
+                          ${formatAmount(coinBalanceUSD, 2)}
                         </p>
                         {hasInsufficientBalanceForCoin && priceUSD > 0 && (
                           <p className="text-ens-error text-xs">
-                            Need ${formatPrice(priceUSD)}
+                            Need ${formatAmount(priceUSD)}
                           </p>
                         )}
                       </div>

@@ -1,8 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { Suspense, useEffect, useState } from 'react'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { Suspense, useEffect } from 'react'
 import { DashboardLoading } from '@/features/dashboard/components/DashboardLoading'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
-import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const Route = createFileRoute('/dashboard')({
@@ -10,6 +9,7 @@ export const Route = createFileRoute('/dashboard')({
 })
 
 function RouteComponent() {
+  const navigate = useNavigate()
   const {
     accountAddress: smartAccountAddress,
     isLoading,
@@ -17,24 +17,17 @@ function RouteComponent() {
     hasInitialized,
   } = useSmartAccountContext()
 
-  const [showNotFound, setShowNotFound] = useState(false)
-  const shouldShowNotFound =
+  const shouldRedirect =
     hasInitialized && !isLoading && (!smartAccountAddress || !isAccountReady)
 
   useEffect(() => {
-    if (shouldShowNotFound) {
-      const timer = setTimeout(() => setShowNotFound(true), 150)
-      return () => clearTimeout(timer)
+    if (shouldRedirect) {
+      navigate({ to: '/' })
     }
-    setShowNotFound(false)
-  }, [shouldShowNotFound])
+  }, [shouldRedirect, navigate])
 
-  if (!hasInitialized || isLoading || (!smartAccountAddress && !showNotFound)) {
+  if (!hasInitialized || isLoading || shouldRedirect) {
     return <DashboardLoading />
-  }
-
-  if (showNotFound) {
-    return <NotFoundPage />
   }
 
   return (
