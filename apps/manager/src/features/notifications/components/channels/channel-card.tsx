@@ -8,7 +8,7 @@ import {
   MessageSquare,
   MoreHorizontal,
   RefreshCw,
-  TestTube,
+  // TestTube, // Hidden for now
   Trash2,
   XCircle,
 } from 'lucide-react'
@@ -37,7 +37,7 @@ import {
 import {
   type Channel,
   deleteChannelMutationOptions,
-  testChannelMutationOptions,
+  // testChannelMutationOptions, // Hidden for now
 } from '../../queries/channels'
 
 interface ChannelCardProps {
@@ -80,7 +80,7 @@ const statusConfig = {
 export function ChannelCard({ channel }: ChannelCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const deleteChannelMutation = useMutation(deleteChannelMutationOptions)
-  const testChannelMutation = useMutation(testChannelMutationOptions)
+  // const testChannelMutation = useMutation(testChannelMutationOptions) // Hidden for now
 
   const Icon =
     channelIcons[channel.channel as keyof typeof channelIcons] || MessageSquare
@@ -89,16 +89,17 @@ export function ChannelCard({ channel }: ChannelCardProps) {
     statusConfig.pending
   const StatusIcon = status.icon
 
-  const handleTest = async () => {
-    testChannelMutation.mutate(channel.id, {
-      onSuccess: () => {
-        toast.success('Test notification sent successfully')
-      },
-      onError: () => {
-        toast.error('Failed to send test notification')
-      },
-    })
-  }
+  // Hidden for now
+  // const handleTest = async () => {
+  //   testChannelMutation.mutate(channel.id, {
+  //     onSuccess: () => {
+  //       toast.success('Test notification sent successfully')
+  //     },
+  //     onError: () => {
+  //       toast.error('Failed to send test notification')
+  //     },
+  //   })
+  // }
 
   const handleDelete = async () => {
     deleteChannelMutation.mutate(channel.id, {
@@ -157,6 +158,7 @@ export function ChannelCard({ channel }: ChannelCardProps) {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Test button hidden for now
               {channel.status === 'verified' && (
                 <Button
                   size="sm"
@@ -168,6 +170,7 @@ export function ChannelCard({ channel }: ChannelCardProps) {
                   {testChannelMutation.isPending ? 'Testing...' : 'Test'}
                 </Button>
               )}
+              */}
 
               {channel.status === 'pending' &&
                 channel.channel === 'telegram' && (
