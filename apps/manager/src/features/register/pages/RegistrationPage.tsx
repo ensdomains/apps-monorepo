@@ -194,126 +194,124 @@ export function Registration({ initialName }: RegistrationProps) {
   const displayDomainName = domainName || ''
 
   return (
-    <>
-      <div className="mx-6 flex flex-col items-start gap-4 md:flex-row">
-        {!(
-          skipNotificationSettings ||
-          hasSkippedNotifications ||
-          hasConfirmedNotifications
-        ) && (
-          <div className="absolute flex items-center justify-between">
-            <Button
-              variant="ghost"
-              onClick={handleBack}
-              className="h-auto p-2 text-ens-lapis-surface uppercase"
-            >
-              <ArrowLeftIcon className="h-6 w-6 font-bold" /> Back
-            </Button>
-          </div>
-        )}
+    <div className="mx-6 flex flex-col items-start gap-4 md:flex-row">
+      {!(
+        skipNotificationSettings ||
+        hasSkippedNotifications ||
+        hasConfirmedNotifications
+      ) && (
+        <div className="absolute flex items-center justify-between">
+          <Button
+            variant="ghost"
+            onClick={handleBack}
+            className="h-auto p-2 text-ens-lapis-surface uppercase"
+          >
+            <ArrowLeftIcon className="h-6 w-6 font-bold" /> Back
+          </Button>
+        </div>
+      )}
 
-        {step === RegistrationStep.PRICING && displayDomainName && (
-          <div className="w-full py-6 md:py-6">
-            {isCheckingAvailability && initialName && (
-              <div className="flex min-h-[400px] items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="h-12 w-12 animate-spin rounded-full border-4 border-ens-lapis-surface border-t-transparent" />
-                  <p className="text-ens-gray">
-                    Checking availability for {displayDomainName}...
-                  </p>
+      {step === RegistrationStep.PRICING && displayDomainName && (
+        <div className="w-full py-6 md:py-6">
+          {isCheckingAvailability && initialName && (
+            <div className="flex min-h-[400px] items-center justify-center">
+              <div className="flex flex-col items-center gap-4">
+                <div className="h-12 w-12 animate-spin rounded-full border-4 border-ens-lapis-surface border-t-transparent" />
+                <p className="text-ens-gray">
+                  Checking availability for {displayDomainName}...
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!isCheckingAvailability &&
+            initialName &&
+            selectedName &&
+            isAvailable === false && (
+              <div className="flex min-h-[400px] items-center justify-center px-4">
+                <div className="flex w-full max-w-2xl flex-col items-center gap-8 rounded-lg border border-ens-gray-two bg-white p-8 text-center">
+                  <AlertCircle className="h-16 w-16 text-ens-gray" />
+
+                  <div className="flex w-full flex-col items-center gap-4">
+                    <div className="w-full opacity-40">
+                      <PricingDomainHeader
+                        domainName={displayDomainName}
+                        premiumLabel={undefined}
+                      />
+                    </div>
+
+                    <p className="text-ens-gray text-sm">
+                      {availabilityError || 'This name is not available'}
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={() => navigate({ to: '/' })}
+                    className="h-14 w-full rounded bg-ens-blue font-mono text-sm text-white uppercase tracking-wider hover:bg-ens-blue-hover"
+                  >
+                    Back to Search
+                  </Button>
                 </div>
               </div>
             )}
 
-            {!isCheckingAvailability &&
-              initialName &&
-              selectedName &&
-              isAvailable === false && (
-                <div className="flex min-h-[400px] items-center justify-center px-4">
-                  <div className="flex w-full max-w-2xl flex-col items-center gap-8 rounded-lg border border-ens-gray-two bg-white p-8 text-center">
-                    <AlertCircle className="h-16 w-16 text-ens-gray" />
+          {(!initialName ||
+            (!isCheckingAvailability && isAvailable !== false)) && (
+            <Pricing
+              domainName={displayDomainName}
+              duration={ui.duration}
+              isConnected={isConnected}
+              isLoading={
+                isCommitPending || isApprovePending || isRegisterPending
+              }
+              onSetDuration={handleSetDuration}
+              onSelectPayment={handleSelectPayment}
+              onSelectCrypto={handleSelectCrypto}
+              onConfirmPayment={(tokenPrice, selectedToken, options) => {
+                handleStartRegistration(
+                  {
+                    name: ui.name,
+                    duration: ui.duration,
+                    selectedToken: selectedToken as Address,
+                    tokenPrice,
+                  },
+                  account,
+                  actor,
+                  {
+                    publicClient: publicClient as PublicClient,
+                    fast: options?.fast ?? true,
+                  },
+                )
+              }}
+              onPricingDataChange={handlePricingDataChange}
+            />
+          )}
+        </div>
+      )}
 
-                    <div className="flex w-full flex-col items-center gap-4">
-                      <div className="w-full opacity-40">
-                        <PricingDomainHeader
-                          domainName={displayDomainName}
-                          premiumLabel={undefined}
-                        />
-                      </div>
-
-                      <p className="text-ens-gray text-sm">
-                        {availabilityError || 'This name is not available'}
-                      </p>
-                    </div>
-
-                    <Button
-                      onClick={() => navigate({ to: '/' })}
-                      className="h-14 w-full rounded bg-ens-blue font-mono text-sm text-white uppercase tracking-wider hover:bg-ens-blue-hover"
-                    >
-                      Back to Search
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-            {(!initialName ||
-              (!isCheckingAvailability && isAvailable !== false)) && (
-              <Pricing
-                domainName={displayDomainName}
-                duration={ui.duration}
-                isConnected={isConnected}
-                isLoading={
-                  isCommitPending || isApprovePending || isRegisterPending
-                }
-                onSetDuration={handleSetDuration}
-                onSelectPayment={handleSelectPayment}
-                onSelectCrypto={handleSelectCrypto}
-                onConfirmPayment={(tokenPrice, selectedToken, options) => {
-                  handleStartRegistration(
-                    {
-                      name: ui.name,
-                      duration: ui.duration,
-                      selectedToken: selectedToken as Address,
-                      tokenPrice,
-                    },
-                    account,
-                    actor,
-                    {
-                      publicClient: publicClient as PublicClient,
-                      fast: options?.fast ?? true,
-                    },
-                  )
-                }}
-                onPricingDataChange={handlePricingDataChange}
-              />
-            )}
-          </div>
-        )}
-
-        {(step === RegistrationStep.COMMITTING ||
-          step === RegistrationStep.APPROVING ||
-          step === RegistrationStep.REGISTERING ||
-          step === RegistrationStep.SUCCESS ||
-          step === RegistrationStep.ERROR) && (
-          <RegistrationInProgress
-            domainName={displayDomainName}
-            actor={actor}
-            duration={ui.duration}
-            totalPrice={pricingData?.finalPrice ?? 0}
-            discountAmount={pricingData?.discountAmount ?? 0}
-            registerWaitSeconds={registerWaitSeconds}
-            onNotificationConfirm={handleNotificationConfirm}
-            onNotificationSkip={handleNotificationSkip}
-            onGoToDashboard={handleGoToDashboard}
-            onCreateProfile={handleCreateProfile}
-            showRegistrationDetails={
-              skipNotificationSettings ||
-              hasSkippedNotifications ||
-              hasConfirmedNotifications
-            }
-          />
-        )}
-      </div>
-    </>
+      {(step === RegistrationStep.COMMITTING ||
+        step === RegistrationStep.APPROVING ||
+        step === RegistrationStep.REGISTERING ||
+        step === RegistrationStep.SUCCESS ||
+        step === RegistrationStep.ERROR) && (
+        <RegistrationInProgress
+          domainName={displayDomainName}
+          actor={actor}
+          duration={ui.duration}
+          totalPrice={pricingData?.finalPrice ?? 0}
+          discountAmount={pricingData?.discountAmount ?? 0}
+          registerWaitSeconds={registerWaitSeconds}
+          onNotificationConfirm={handleNotificationConfirm}
+          onNotificationSkip={handleNotificationSkip}
+          onGoToDashboard={handleGoToDashboard}
+          onCreateProfile={handleCreateProfile}
+          showRegistrationDetails={
+            skipNotificationSettings ||
+            hasSkippedNotifications ||
+            hasConfirmedNotifications
+          }
+        />
+      )}
+    </div>
   )
 }
