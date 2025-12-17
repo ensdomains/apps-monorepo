@@ -1,3 +1,4 @@
+import { transactionManager } from '@ens-apps/transaction-manager'
 import type ParaWeb from '@getpara/react-sdk-lite'
 import { getClient, ParaProvider } from '@getpara/react-sdk-lite'
 import type { QueryClient } from '@tanstack/react-query'
@@ -17,7 +18,10 @@ import { SmartAccountContextProvider } from '@/lib/smart-account'
 import appCss from '@/styles/index.css?url'
 import '@getpara/react-sdk-lite/styles.css'
 import { QueryClientProvider } from '@tanstack/react-query'
+import posthog from 'posthog-js'
 import { ParaWagmiSyncWatcher } from '@/features/wallet/components/ParaWagmiSyncWatcher'
+import { track } from '@/lib/posthog/events'
+import { PHProvider } from '@/lib/posthog/provider'
 import { customSepolia } from '@/lib/wagmi'
 import { backendAuthStore } from '@/utils/backend-client'
 
@@ -35,6 +39,9 @@ const onWalletChange = () => {
   // If the previous auth address is the same as the current wallet address, do nothing
   // Or if the previous auth address is not set, do nothing
   if (!previousAuthAddress || previousAuthAddress === wallet.address) return
+
+  // Clear all transactions when wallet changes
+  transactionManager.clearAllAndPersistence()
 
   backendAuthStore.trigger.signOut()
 }
@@ -57,7 +64,15 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
         callbacks={{
           onLogin: onWalletChange,
           onLogout() {
+            // Clear all active transactions when wallet disconnects
+            transactionManager.clearAllAndPersistence()
+
+            // Clear the backend auth store
             backendAuthStore.trigger.signOut()
+
+            // Clear the posthog session
+            track('wallet:disconnect')
+            posthog.reset()
           },
           onExternalWalletChange: onWalletChange,
           onWalletsChange: onWalletChange,
@@ -66,7 +81,7 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
           appName: 'ENS Manager',
         }}
         externalWalletConfig={{
-          wallets: ['METAMASK', 'WALLETCONNECT'],
+          wallets: ['METAMASK'],
           // Do not create Para accounts for external wallet connections
           createLinkedEmbeddedForExternalWallets: [],
           evmConnector: {
@@ -100,10 +115,12 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
           twoFactorAuthEnabled: false,
         }}
       >
-        <SmartAccountContextProvider>
-          {children}
-          <SmartSessionProvider />
-        </SmartAccountContextProvider>
+        <PHProvider>
+          <SmartAccountContextProvider>
+            {children}
+            <SmartSessionProvider />
+          </SmartAccountContextProvider>
+        </PHProvider>
       </ParaProvider>
     </QueryClientProvider>
   )

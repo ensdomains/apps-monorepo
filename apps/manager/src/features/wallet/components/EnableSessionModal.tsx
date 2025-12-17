@@ -1,6 +1,6 @@
 'use client'
 
-import { CheckCircle2, Loader2, ShieldCheck, X } from 'lucide-react'
+import { BrainCircuit, CheckCircle2, Loader2, X } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -112,7 +112,7 @@ export const EnableSessionModal = ({
             ) : status === 'signing' ? (
               <Loader2 className="h-8 w-8 animate-spin text-ens-blue" />
             ) : (
-              <ShieldCheck className="h-8 w-8 text-ens-blue" />
+              <BrainCircuit className="h-8 w-8 text-ens-blue" />
             )}
           </div>
 

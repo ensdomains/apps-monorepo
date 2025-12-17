@@ -6,7 +6,15 @@ import {
 } from '@getpara/react-sdk-lite'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Bell, ChevronDown, Copy, Unlink, User } from 'lucide-react'
+import {
+  Bell,
+  BrainCircuit,
+  ChevronDown,
+  Copy,
+  LayoutDashboard,
+  Unlink,
+  User,
+} from 'lucide-react'
 import { type ComponentProps, useState } from 'react'
 import type { Address } from 'viem'
 import ensLogo from '@/assets/icons/ens.svg'
@@ -40,6 +48,7 @@ const UserMenuContent = ({
   account: _account,
   address: _address,
   accountAddress,
+  ownerAddress,
   isLoading,
   stablecoinBalances,
   smartAccountEthBalance,
@@ -51,10 +60,12 @@ const UserMenuContent = ({
   getDisplayName,
   ensAvatar,
   autoFundingMutation,
+  walletSource,
 }: {
   account: ReturnType<typeof useAccount>
   address: string | undefined
   accountAddress: string | null | undefined
+  ownerAddress: string | null | undefined
   isLoading: boolean
   stablecoinBalances:
     | Array<{ address: string; symbol: string; formattedBalance?: string }>
@@ -68,7 +79,9 @@ const UserMenuContent = ({
   getDisplayName: () => string
   ensAvatar: string | null | undefined
   autoFundingMutation: SmartAccountState['autoFundingMutation']
+  walletSource: 'para-embedded' | 'external-wallet' | null
 }) => {
+  const isExternalWallet = walletSource === 'external-wallet'
   return (
     <>
       <div className="p-4 md:p-4">
@@ -90,8 +103,19 @@ const UserMenuContent = ({
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <div className="truncate font-medium text-ens-blue-dark text-lg">
-              {getDisplayName()}
+            <div className="flex items-center gap-2">
+              <span className="truncate font-medium text-ens-blue-dark text-lg">
+                {getDisplayName()}
+              </span>
+              {isExternalWallet && ownerAddress && (
+                <button
+                  type="button"
+                  onClick={() => handleCopyAddress(ownerAddress)}
+                  className="shrink-0 rounded p-1 text-ens-blue transition-colors hover:bg-ens-blue-light"
+                >
+                  <Copy className="size-4" />
+                </button>
+              )}
             </div>
             {isLoading && (
               <div className="mt-0.5 text-ens-blue text-xs">
@@ -221,12 +245,15 @@ const ConnectedContent = () => {
     client: smartAccountClient,
     accountAddress,
     ownerAddress,
+    walletSource,
     isLoading,
     stablecoinBalances,
     smartAccountEthBalance,
     isLoadingSmartAccountEth,
     error,
     autoFundingMutation,
+    openSessionModal,
+    isSessionClient,
   } = useSmartAccountContext()
 
   const { data: reverseName } = useQuery({
@@ -356,6 +383,8 @@ const ConnectedContent = () => {
     account,
     address: ownerAddress as Address,
     accountAddress,
+    ownerAddress,
+    walletSource,
     isLoading,
     stablecoinBalances,
     smartAccountEthBalance,
@@ -384,6 +413,18 @@ const ConnectedContent = () => {
               <User className="mr-2 size-4 text-ens-blue" />
               Manage Wallet
             </DropdownMenuItem>
+            {walletSource === 'external-wallet' && (
+              <DropdownMenuItem
+                onClick={() => openSessionModal()}
+                className="text-ens-blue-dark"
+                disabled={isSessionClient}
+              >
+                <BrainCircuit className="mr-2 size-4 text-ens-blue" />
+                {isSessionClient
+                  ? 'Smart Session Active'
+                  : 'Enable Smart Session'}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               onClick={() => logout()}
               className="text-ens-blue-dark"
@@ -411,6 +452,22 @@ const ConnectedContent = () => {
                   <User className="size-4 text-ens-blue" />
                   Manage Wallet
                 </button>
+                {walletSource === 'external-wallet' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      openSessionModal()
+                      setMenuOpen(false)
+                    }}
+                    disabled={isSessionClient}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust disabled:opacity-50"
+                  >
+                    <BrainCircuit className="size-4 text-ens-blue" />
+                    {isSessionClient
+                      ? 'Smart Session Active'
+                      : 'Enable Smart Session'}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -441,6 +498,13 @@ const ConnectedContent = () => {
           <NotificationsDropdown onAction={() => setNotificationsOpen(false)} />
         </PopoverContent>
       </Popover>
+
+      <Link
+        to="/dashboard"
+        className="flex items-center justify-center rounded-full border border-gray-300 p-2 transition-colors hover:bg-gray-50 md:p-[11px]"
+      >
+        <LayoutDashboard className="size-5 md:size-6" />
+      </Link>
     </div>
   )
 }

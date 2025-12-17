@@ -106,32 +106,48 @@ export function registerHCAOwnership(
       },
     ]
 
-    const request: TransactionRequest =
-      signer.type === 'pimlico'
-        ? ({
-            type: 'pimlico',
-            from: smartAccountAddress,
-            to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
-            data,
-            value: 0n,
-            chainId: customSepolia.id,
-            pimlicoParams: {
-              calls,
-              sponsored: true,
-            },
-          } as TransactionRequest)
-        : ({
-            type: 'rhinestone-intent',
-            from: smartAccountAddress,
-            to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
-            data,
-            value: 0n,
-            chainId: customSepolia.id,
-            rhinestoneParams: {
-              calls,
-              sponsored: true,
-            },
-          } as TransactionRequest)
+    // Build request based on signer type
+    let request: TransactionRequest
+    if (signer.type === 'pimlico') {
+      request = {
+        type: 'pimlico',
+        from: smartAccountAddress,
+        to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
+        data,
+        value: 0n,
+        chainId: customSepolia.id,
+        pimlicoParams: {
+          calls,
+          sponsored: true,
+        },
+      } as TransactionRequest
+    } else if (signer.type === 'kernel') {
+      request = {
+        type: 'kernel',
+        from: smartAccountAddress,
+        to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
+        data,
+        value: 0n,
+        chainId: customSepolia.id,
+        kernelParams: {
+          calls,
+          sponsored: true,
+        },
+      } as TransactionRequest
+    } else {
+      request = {
+        type: 'rhinestone-intent',
+        from: smartAccountAddress,
+        to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
+        data,
+        value: 0n,
+        chainId: customSepolia.id,
+        rhinestoneParams: {
+          calls,
+          sponsored: true,
+        },
+      } as TransactionRequest
+    }
 
     // Submit transaction
     const txId = transactionManager.startTransaction(

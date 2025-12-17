@@ -1,6 +1,7 @@
 import type { PublicClient } from 'viem'
 import { type ActorRefFrom, createActor } from 'xstate'
 import {
+  clearAllTransactions,
   type PersistedTransaction,
   removeTransaction,
   saveTransaction,
@@ -300,6 +301,39 @@ class TransactionManager {
     })
     this.transactions.clear()
     this.notifyListeners()
+  }
+
+  /**
+   * Cancel and clear all active transactions
+   */
+  async clearAllAndPersistence(): Promise<void> {
+    console.log(
+      `🧹 [TRANSACTION MANAGER ${this.instanceId}] Clearing all transactions and persistence`,
+    )
+
+    this.transactions.forEach((actor, id) => {
+      console.log(
+        `🛑 [TRANSACTION MANAGER ${this.instanceId}] Stopping transaction ${id}`,
+      )
+
+      actor.send({ type: 'CANCEL' })
+      actor.stop()
+    })
+
+    this.transactions.clear()
+    this.notifyListeners()
+
+    try {
+      await clearAllTransactions()
+      console.log(
+        `✅ [TRANSACTION MANAGER ${this.instanceId}] Cleared all persisted transactions`,
+      )
+    } catch (err) {
+      console.error(
+        `❌ [TRANSACTION MANAGER ${this.instanceId}] Failed to clear persisted transactions:`,
+        err,
+      )
+    }
   }
 }
 

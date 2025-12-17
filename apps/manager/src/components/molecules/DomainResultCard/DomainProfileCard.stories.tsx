@@ -56,9 +56,6 @@ export const WithAction: Story = {
     domainName: 'ens.eth',
     registeredDate: new Date('2021-03-20'),
     expiryDate: new Date('2026-03-20'),
-    onAction: (domainName) => {
-      alert(`Action triggered for ${domainName}`)
-    },
   },
 }
 
@@ -115,20 +112,12 @@ export const WithActionHandlers: Story = {
         domainName="action1.eth"
         registeredDate={new Date('2023-01-15')}
         expiryDate={new Date('2024-01-15')}
-        onAction={(domainName) => {
-          console.log('Action triggered:', domainName)
-          alert(`Profile action for ${domainName}`)
-        }}
       />
       <DomainProfileCard
         domainName="action2.eth"
         avatarUrl="https://i.imgur.com/3QXU8wR.png"
         registeredDate={new Date('2022-05-10')}
         expiryDate={new Date('2025-05-10')}
-        onAction={(domainName) => {
-          console.log('Action triggered:', domainName)
-          alert(`Profile action for ${domainName}`)
-        }}
       />
     </div>
   ),

@@ -1,5 +1,9 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { NOTIFICATION_METADATA, type Prettify } from 'api-worker/types'
+import {
+  NOTIFICATION_METADATA,
+  type NotificationKind,
+  type Prettify,
+} from 'api-worker/types'
 import { ArrowRightLeft, Calendar, Info, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -69,7 +73,7 @@ export function NotificationPreferences() {
   const hasVerifiedChannels = verifiedChannels.length > 0
 
   const handlePreferenceChange = (
-    kindId: string,
+    kindId: NotificationKind,
     channel: ChannelType,
     enabled: boolean,
   ) => {
@@ -87,7 +91,7 @@ export function NotificationPreferences() {
   }
 
   const isPreferenceEnabled = (
-    kindId: string,
+    kindId: NotificationKind,
     channel: ChannelType,
   ): boolean => {
     return preferences[channel]?.[kindId]?.enabled ?? true // Default to enabled
@@ -138,7 +142,7 @@ export function NotificationPreferences() {
             <div key={category} className="mt-6">
               <h3 className="mb-4 font-semibold text-lg">{category}</h3>
               <div className="space-y-4">
-                {kinds.map((kind) => {
+                {kinds.map((kind: (typeof kindsData)[number]) => {
                   const KindIcon = kind.icon
                   return (
                     <div
@@ -169,7 +173,7 @@ export function NotificationPreferences() {
                             (c) => c.channel === channelType,
                           )
                           const isEnabled = isPreferenceEnabled(
-                            kind.id,
+                            kind.id as NotificationKind,
                             channelType as ChannelType,
                           )
 
@@ -182,7 +186,7 @@ export function NotificationPreferences() {
                                 checked={isEnabled}
                                 onCheckedChange={(checked) =>
                                   handlePreferenceChange(
-                                    kind.id,
+                                    kind.id as NotificationKind,
                                     channelType as ChannelType,
                                     checked,
                                   )

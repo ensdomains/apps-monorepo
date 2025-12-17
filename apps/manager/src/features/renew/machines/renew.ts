@@ -49,6 +49,7 @@ export const renewMachine = setup({
       }) {
         const client = yield* safeGetClient()
         const price = yield* await fromPromise(
+          // @ts-expect-error - Issue with client types
           getPrice(client, {
             nameOrNames: name,
             duration,

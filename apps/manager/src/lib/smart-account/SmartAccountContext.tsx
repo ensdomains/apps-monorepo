@@ -20,7 +20,7 @@ import {
   useState,
 } from 'react'
 import { toast } from 'sonner'
-import { type Address, formatUnits } from 'viem'
+import { type Address, formatUnits, type WalletClient } from 'viem'
 import { getBalance, readContract } from 'viem/actions'
 import { useWalletClient } from 'wagmi'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
@@ -49,6 +49,8 @@ interface SmartAccountContextValue extends KernelAccountState {
   openSessionModal: () => void
   shouldShowSessionModal: boolean
   clearSessionModalTrigger: () => void
+  /** Raw wallet client for EOA operations (e.g., setting primary name) */
+  walletClient: WalletClient | null
 }
 
 const SmartAccountContext = createContext<SmartAccountContextValue | null>(null)
@@ -129,13 +131,13 @@ export function SmartAccountContextProvider({
 
   // For HCA accounts, check balances on the EOA address (tokens are held by EOA)
   // For simple accounts, check balances on the smart account
-  // Note: wagmiAddress is available for both external wallets and Para embedded wallets
-  const balanceAddress = accountType === 'hca' ? wagmiAddress : accountAddress
+  // Note: ownerAddress is available for both external wallets and Para embedded wallets
+  const balanceAddress = accountType === 'hca' ? ownerAddress : accountAddress
 
   console.log('💰 [CONTEXT] Balance check:', {
     accountType,
     walletSource,
-    wagmiAddress,
+    ownerAddress,
     accountAddress,
     balanceAddress,
     willQueryBalances: !!balanceAddress,
@@ -206,7 +208,7 @@ export function SmartAccountContextProvider({
       return response.json()
     },
     onSuccess: (data, address, _, context) => {
-      if (!data || data.usdcTxHash || !data.daiTxHash) {
+      if (!data || (!data.usdcTxHash && !data.daiTxHash)) {
         toast.dismiss(`fund-wallet-${address}`)
         return
       }
@@ -320,7 +322,7 @@ export function SmartAccountContextProvider({
 
   // Auto-fund if balance is low
   // Must match balanceAddress to fund the same address we're checking
-  const addressToFund = accountType === 'hca' ? wagmiAddress : accountAddress
+  const addressToFund = accountType === 'hca' ? ownerAddress : accountAddress
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Should not rerun from mutation status
   useEffect(() => {
@@ -423,6 +425,7 @@ export function SmartAccountContextProvider({
     openSessionModal,
     shouldShowSessionModal,
     clearSessionModalTrigger,
+    walletClient: (wagmiWalletClient as WalletClient | undefined) ?? null,
   }
 
   return (
