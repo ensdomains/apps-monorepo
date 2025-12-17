@@ -11,10 +11,8 @@ import { Pricing } from '@/features/register/components/Pricing'
 import { PricingDomainHeader } from '@/features/register/components/Pricing/PricingDomainHeader'
 import type { NotificationPreferences } from '@/features/register/components/RegistrationInProgress/NotificationSettings'
 import { RegistrationInProgress } from '@/features/register/components/RegistrationInProgress/RegistrationInProgress'
-import { VerifyWalletModal } from '@/features/register/components/VerifyWalletModal'
 import { useCountdown } from '@/hooks/useCountdown'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
-import { useWalletVerification } from '@/hooks/useWalletVerification'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import { inspect } from '@/utils/xstate'
@@ -96,9 +94,6 @@ export function Registration({ initialName }: RegistrationProps) {
     registrationUIReducer,
     createInitialUIState(initialName),
   )
-
-  const { showVerifyModal, setShowVerifyModal, handleVerificationComplete } =
-    useWalletVerification()
 
   const [pricingData, setPricingData] = useState<{
     finalPrice: number
@@ -200,11 +195,6 @@ export function Registration({ initialName }: RegistrationProps) {
 
   return (
     <>
-      <VerifyWalletModal
-        open={showVerifyModal}
-        onOpenChange={setShowVerifyModal}
-        onVerified={handleVerificationComplete}
-      />
       <div className="mx-6 flex flex-col items-start gap-4 md:flex-row">
         {!(
           skipNotificationSettings ||
