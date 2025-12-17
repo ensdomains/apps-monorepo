@@ -166,7 +166,7 @@ function RouteComponent() {
                 </div>
               )
             })}
-            <div className={cn('flex items-center justify-between p-4 gap-4')}>
+            <div className="flex items-center justify-between p-4 gap-4 text-gray-500">
               <div className="flex flex-col gap-1 flex-1">
                 <div className="font-medium">Can transfer admin</div>
                 <div className="text-sm text-gray-600">
@@ -178,6 +178,7 @@ function RouteComponent() {
                   <Checkbox
                     name="ROLE_CAN_TRANSFER_ADMIN"
                     id="ROLE_CAN_TRANSFER_ADMIN"
+                    disabled
                   />
                   <Label
                     htmlFor="ROLE_CAN_TRANSFER_ADMIN"
