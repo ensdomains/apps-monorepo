@@ -70,6 +70,7 @@ const Profile = ({
         <SubnameCount
           name={name}
           registryAddress={ownerQuery.data?.registryAddress}
+          network={network}
         />
         <ProtocolVersionWithCounter name={name} network={network} />
       </div>

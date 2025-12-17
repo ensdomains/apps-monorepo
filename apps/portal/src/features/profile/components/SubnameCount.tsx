@@ -4,6 +4,7 @@ import { ChevronRight, ListIcon, ListStartIcon } from 'lucide-react'
 import type { Address } from 'viem'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import type { WithEnsNetwork } from '@/utils/types'
 import { getSubnamesQueryOptions } from '../hooks/useSubnames'
 import { RegistryLocation } from './RegistryLocation'
 
@@ -12,11 +13,14 @@ const v1EnsRegistry = sepoliaWithEns.contracts.ensRegistry.address
 export const SubnameCount = ({
   name,
   registryAddress,
-}: {
+  network,
+}: WithEnsNetwork<{
   name: string
   registryAddress?: Address
-}) => {
-  const { data, isLoading, error } = useQuery(getSubnamesQueryOptions({ name }))
+}>) => {
+  const { data, isLoading, error } = useQuery(
+    getSubnamesQueryOptions({ name, network }),
+  )
 
   if (error) return <div>Error: {error.cause?.message}</div>
   if (isLoading) return <LoadingSpinner title="Loading..." />
