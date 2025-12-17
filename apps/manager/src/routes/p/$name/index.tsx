@@ -3,8 +3,10 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Suspense } from 'react'
 import { type Address, isAddress } from 'viem'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
+import { AddressProfileView } from '@/features/profile/components/view/AddressProfileView'
 import { ProfileView } from '@/features/profile/components/view/ProfileView'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
+import { profileOwnedNamesQuery } from '@/features/profile/service/profileOwnedNames'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
@@ -12,14 +14,27 @@ import { seo } from '@/utils/seo'
 
 export const Route = createFileRoute('/p/$name/')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
-    let resolvedName: string = name
+    const isAddressParam = isAddress(name, { strict: false })
+    const reverseName = isAddressParam
+      ? await queryClient.ensureQueryData(
+          profileReverseNameQuery(name as Address),
+        )
+      : undefined
 
-    if (isAddress(name, { strict: false })) {
-      const reverseName = await queryClient.ensureQueryData(
-        profileReverseNameQuery(name as Address),
-      )
+    const resolvedName =
+      reverseName ?? (isAddressParam ? undefined : (name as string))
 
-      resolvedName = reverseName ?? ''
+    if (!resolvedName) {
+      if (isAddressParam) {
+        await queryClient.prefetchQuery(profileOwnedNamesQuery(name as Address))
+      }
+
+      return {
+        description: undefined,
+        resolvedName,
+        address: isAddressParam ? (name as Address) : undefined,
+        reverseName,
+      }
     }
 
     const [profileRecords] = await Promise.all([
@@ -32,7 +47,12 @@ export const Route = createFileRoute('/p/$name/')({
       (r) => r.key === 'description',
     )?.value
 
-    return { description, resolvedName }
+    return {
+      description,
+      resolvedName,
+      address: isAddressParam ? (name as Address) : undefined,
+      reverseName,
+    }
   },
   ssr: false,
   pendingComponent: () => <ProfileLoading />,
@@ -40,7 +60,10 @@ export const Route = createFileRoute('/p/$name/')({
     const { description, resolvedName } = loaderData || {}
     const effectiveName = resolvedName ?? name
     const metaDescription =
-      description || `View the ENS profile for ${effectiveName}`
+      description ||
+      (resolvedName
+        ? `View the ENS profile for ${effectiveName}`
+        : `View ENS names for ${effectiveName}`)
 
     return {
       meta: seo({
@@ -70,9 +93,14 @@ function RouteComponent() {
   const { name } = Route.useParams()
   const { resolvedName } = Route.useLoaderData() as {
     resolvedName?: string
+    address?: Address
   }
 
   const effectiveName = resolvedName ?? name
+
+  if (!resolvedName && isAddress(name, { strict: false })) {
+    return <AddressProfileView address={name as Address} />
+  }
 
   return (
     <Suspense fallback={<ProfileLoading />}>
