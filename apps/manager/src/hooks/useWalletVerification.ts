@@ -46,7 +46,7 @@ export const useWalletVerification = ({
         address &&
         typeof window !== 'undefined'
       ) {
-        const verified = localStorage.getItem(getStorageKey(connectedAddress))
+        const verified = localStorage.getItem(getStorageKey(address))
         if (verified !== 'true') {
           setTimeout(() => {
             setShowVerifyModal(true)
