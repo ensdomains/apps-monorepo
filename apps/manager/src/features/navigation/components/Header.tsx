@@ -6,7 +6,14 @@ import {
 } from '@getpara/react-sdk-lite'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Bell, ChevronDown, Copy, Unlink, User } from 'lucide-react'
+import {
+  Bell,
+  ChevronDown,
+  Copy,
+  ShieldCheck,
+  Unlink,
+  User,
+} from 'lucide-react'
 import { type ComponentProps, useState } from 'react'
 import type { Address } from 'viem'
 import ensLogo from '@/assets/icons/ens.svg'
@@ -244,6 +251,8 @@ const ConnectedContent = () => {
     isLoadingSmartAccountEth,
     error,
     autoFundingMutation,
+    openSessionModal,
+    isSessionClient,
   } = useSmartAccountContext()
 
   const { data: reverseName } = useQuery({
@@ -403,6 +412,18 @@ const ConnectedContent = () => {
               <User className="mr-2 size-4 text-ens-blue" />
               Manage Wallet
             </DropdownMenuItem>
+            {walletSource === 'external-wallet' && (
+              <DropdownMenuItem
+                onClick={() => openSessionModal()}
+                className="text-ens-blue-dark"
+                disabled={isSessionClient}
+              >
+                <ShieldCheck className="mr-2 size-4 text-ens-blue" />
+                {isSessionClient
+                  ? 'Smart Session Active'
+                  : 'Enable Smart Session'}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               onClick={() => logout()}
               className="text-ens-blue-dark"
@@ -430,6 +451,22 @@ const ConnectedContent = () => {
                   <User className="size-4 text-ens-blue" />
                   Manage Wallet
                 </button>
+                {walletSource === 'external-wallet' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      openSessionModal()
+                      setMenuOpen(false)
+                    }}
+                    disabled={isSessionClient}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust disabled:opacity-50"
+                  >
+                    <ShieldCheck className="size-4 text-ens-blue" />
+                    {isSessionClient
+                      ? 'Smart Sessions Active'
+                      : 'Enable Smart Sessions'}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
