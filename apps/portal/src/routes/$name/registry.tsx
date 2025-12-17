@@ -42,7 +42,6 @@ const DeploySubregistryButton = ({
       roles: ['ROLE_SET_SUBREGISTRY'],
       account,
     }),
-    enabled: name.split('.').length === 2,
   })
 
   if (hasSetSubregistryRole)
@@ -124,7 +123,8 @@ const RegistryInfo = ({
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
         {ethRegistryAddress &&
           account &&
-          subregistryAddress === zeroAddress && (
+          labels.length === 2 &&
+          subregistryAddress && ( // as long as it returns one, even if zero
             <DeploySubregistryButton
               name={name}
               registryAddress={ethRegistryAddress}
