@@ -2,7 +2,8 @@ import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import type { RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Address } from 'viem'
 import { checksumAddress, isAddress } from 'viem'
 import { Input } from '@/components/ui/input'
@@ -17,6 +18,29 @@ type Suggestion = {
   label: string
   description: string
   value: string
+}
+
+const useCloseOnOutsideClick = ({
+  containerRef,
+  enabled,
+  onClose,
+}: {
+  containerRef: RefObject<HTMLElement | null>
+  enabled: boolean
+  onClose: () => void
+}) => {
+  useEffect(() => {
+    if (!enabled) return
+
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as Node | null
+      if (!containerRef.current || !target) return
+      if (!containerRef.current.contains(target)) onClose()
+    }
+
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [containerRef, enabled, onClose])
 }
 
 const normalizeSearchTarget = (value: string) => {
@@ -35,7 +59,9 @@ export const DashboardSidebarSearch = ({
   onSelect?: (value: string) => void
 }) => {
   const navigate = useNavigate({ from: '/dashboard' })
+  const containerRef = useRef<HTMLDivElement>(null)
   const [searchValue, setSearchValue] = useState('')
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
   const normalizedInput = searchValue.trim()
   const isAddressInput = isAddress(normalizedInput, { strict: false })
@@ -110,6 +136,8 @@ export const DashboardSidebarSearch = ({
 
   const handleSuggestionSelect = useCallback(
     (value: string) => {
+      setIsDropdownOpen(false)
+
       if (onSelect) {
         onSelect(value)
         return
@@ -135,8 +163,20 @@ export const DashboardSidebarSearch = ({
     [handleSuggestionSelect, searchValue, suggestions],
   )
 
+  const closeSuggestions = useCallback(() => {
+    setIsDropdownOpen(false)
+  }, [])
+
+  const shouldShowSuggestions = isDropdownOpen && suggestions.length > 0
+
+  useCloseOnOutsideClick({
+    containerRef,
+    enabled: shouldShowSuggestions,
+    onClose: closeSuggestions,
+  })
+
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <form onSubmit={handleSearchSubmit}>
         <Input
           size="default"
@@ -144,12 +184,15 @@ export const DashboardSidebarSearch = ({
           startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
           className="h-[44px] rounded-[4px] border-[#e5e5e5] border-[0.4px] bg-white text-[#8c8c8c] placeholder:text-[#8c8c8c]"
           value={searchValue}
-          onChange={(event) => setSearchValue(event.target.value)}
+          onChange={(event) => {
+            setSearchValue(event.target.value)
+            setIsDropdownOpen(true)
+          }}
           autoComplete="off"
+          onFocus={() => setIsDropdownOpen(true)}
         />
       </form>
-
-      {suggestions.length > 0 && (
+      {shouldShowSuggestions && (
         <div className="absolute z-10 mt-2 w-full rounded-md border border-slate-200 bg-white shadow-md">
           <ul className="divide-y divide-slate-100">
             {suggestions.map((suggestion) => (
