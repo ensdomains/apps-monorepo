@@ -45,6 +45,8 @@ interface SmartAccountContextValue extends KernelAccountState {
     session: StoredSession,
     sessionClient: KernelAccountState['client'],
   ) => void
+  /** Indicates initial smart account bootstrap has completed (success or not) */
+  hasInitialized: boolean
   /** Open the smart session enable modal */
   openSessionModal: () => void
   shouldShowSessionModal: boolean
@@ -103,6 +105,7 @@ export function SmartAccountContextProvider({
   const [ecdsaValidator, setEcdsaValidator] =
     useState<KernelValidator<'ECDSAValidator'> | null>(null)
   const [isAccountReady, setIsAccountReady] = useState(false)
+  const [hasInitialized, setHasInitialized] = useState(false)
   const [shouldShowSessionModal, setShouldShowSessionModal] = useState(false)
 
   const initializedRef = useRef<string | null>(null)
@@ -242,6 +245,7 @@ export function SmartAccountContextProvider({
       setEcdsaValidator(null)
       setIsAccountReady(false)
       setError(null)
+      setHasInitialized(true)
       return
     }
 
@@ -306,6 +310,7 @@ export function SmartAccountContextProvider({
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setIsLoading(false)
+      setHasInitialized(true)
     }
   }, [
     isWalletReady,
@@ -421,6 +426,7 @@ export function SmartAccountContextProvider({
     isSessionClient,
     ecdsaValidator,
     isAccountReady,
+    hasInitialized,
     setSessionData,
     openSessionModal,
     shouldShowSessionModal,
