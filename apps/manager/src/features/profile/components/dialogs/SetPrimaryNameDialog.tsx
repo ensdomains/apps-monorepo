@@ -1,6 +1,8 @@
 import { primaryNameMachine } from '@ens-apps/transaction-manager'
+import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import type { Address, PublicClient } from 'viem'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,12 +27,32 @@ interface SetPrimaryNameDialogProps {
   onUpdated?: () => void
 }
 
+function usePrimaryNameSuccessRedirect(params: {
+  isSuccess: boolean
+  name: string
+  onUpdated?: () => void
+  navigate: ReturnType<typeof useNavigate>
+  setOpen: (open: boolean) => void
+}) {
+  const { isSuccess, name, navigate, onUpdated, setOpen } = params
+
+  useEffect(() => {
+    if (!isSuccess) return
+
+    onUpdated?.()
+    setOpen(false)
+    toast.success('Primary name set successfully')
+    navigate({ to: '/p/$name', params: { name } })
+  }, [isSuccess, name, navigate, onUpdated, setOpen])
+}
+
 export const SetPrimaryNameDialog = ({
   name,
   owner,
   onUpdated,
 }: SetPrimaryNameDialogProps) => {
   const [open, setOpen] = useState(false)
+  const navigate = useNavigate()
   const account = useSmartAccountContext()
 
   const primaryNameActor = useActorRef(primaryNameMachine, {
@@ -52,12 +74,13 @@ export const SetPrimaryNameDialog = ({
     (isError && 'Failed to set primary name') ||
     undefined
 
-  useEffect(() => {
-    if (isSuccess) {
-      onUpdated?.()
-      setOpen(false)
-    }
-  }, [isSuccess, onUpdated])
+  usePrimaryNameSuccessRedirect({
+    isSuccess,
+    name,
+    navigate,
+    onUpdated,
+    setOpen,
+  })
 
   const handleSave = () => {
     handleSetPrimaryName(
