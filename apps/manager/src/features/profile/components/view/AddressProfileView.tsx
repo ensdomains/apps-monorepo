@@ -33,7 +33,17 @@ export const AddressProfileView = ({ address }: { address: Address }) => {
     isError,
     hasNames: names.length > 0,
   })
-    .with({ isPending: true }, () => <div className="text-sm">Loading...</div>)
+    .with({ isPending: true }, () => (
+      <div className="grid gap-3 md:grid-cols-2">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: TODO: We need to fix this
+            key={index}
+            className="h-[92px] animate-pulse rounded-lg border border-slate-200 bg-slate-50"
+          />
+        ))}
+      </div>
+    ))
     .with({ isError: true }, () => (
       <div className="rounded-lg border border-rose-100 bg-rose-50 px-4 py-3 text-rose-700 text-sm">
         Unable to load names for this address. Please try again.
