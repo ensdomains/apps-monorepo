@@ -8,9 +8,10 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
   Bell,
+  BrainCircuit,
   ChevronDown,
   Copy,
-  ShieldCheck,
+  LayoutDashboard,
   Unlink,
   User,
 } from 'lucide-react'
@@ -418,7 +419,7 @@ const ConnectedContent = () => {
                 className="text-ens-blue-dark"
                 disabled={isSessionClient}
               >
-                <ShieldCheck className="mr-2 size-4 text-ens-blue" />
+                <BrainCircuit className="mr-2 size-4 text-ens-blue" />
                 {isSessionClient
                   ? 'Smart Session Active'
                   : 'Enable Smart Session'}
@@ -461,10 +462,10 @@ const ConnectedContent = () => {
                     disabled={isSessionClient}
                     className="flex w-full items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust disabled:opacity-50"
                   >
-                    <ShieldCheck className="size-4 text-ens-blue" />
+                    <BrainCircuit className="size-4 text-ens-blue" />
                     {isSessionClient
-                      ? 'Smart Sessions Active'
-                      : 'Enable Smart Sessions'}
+                      ? 'Smart Session Active'
+                      : 'Enable Smart Session'}
                   </button>
                 )}
                 <button
@@ -497,6 +498,13 @@ const ConnectedContent = () => {
           <NotificationsDropdown onAction={() => setNotificationsOpen(false)} />
         </PopoverContent>
       </Popover>
+
+      <Link
+        to="/dashboard"
+        className="flex items-center justify-center rounded-full border border-gray-300 p-2 transition-colors hover:bg-gray-50 md:p-[11px]"
+      >
+        <LayoutDashboard className="size-5 md:size-6" />
+      </Link>
     </div>
   )
 }
