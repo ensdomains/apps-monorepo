@@ -48,7 +48,7 @@ export const RegistrationDetails = ({
 
   return (
     <div
-      className={cn('flex w-full flex-col gap-8 bg-gray-100 py-6', className)}
+      className={cn('flex w-full flex-col gap-8 bg-gray-100 p-6', className)}
     >
       <div className="flex flex-col items-center gap-6">
         <DomainCard domainName={domainName} variant="garnet" />
