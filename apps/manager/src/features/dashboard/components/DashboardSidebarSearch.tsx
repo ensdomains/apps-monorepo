@@ -1,16 +1,19 @@
 import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
-import { useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
 import type { RefObject } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Address } from 'viem'
 import { checksumAddress, isAddress } from 'viem'
+import placeholderAvatar from '@/assets/placeholder-avatar.svg'
+import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { Input } from '@/components/ui/input'
 import {
   formatDashboardDate,
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
+import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { getDomainsQuery } from '../service/dashboardDomains'
 
 type Suggestion = {
@@ -18,6 +21,7 @@ type Suggestion = {
   label: string
   description: string
   value: string
+  avatarRecord?: string | null
 }
 
 const useCloseOnOutsideClick = ({
@@ -119,6 +123,7 @@ export const DashboardSidebarSearch = ({
           toDateFromSeconds(domain.createdAt),
         )}`,
         value: label.toLowerCase(),
+        avatarRecord: domain.resolver?.avatar ?? null,
       })
     })
 
@@ -169,6 +174,12 @@ export const DashboardSidebarSearch = ({
 
   const shouldShowSuggestions = isDropdownOpen && suggestions.length > 0
 
+  const avatarQueries = useQueries({
+    queries: suggestions.map((suggestion) =>
+      parseAvatarQuery(suggestion.avatarRecord ?? undefined),
+    ),
+  })
+
   useCloseOnOutsideClick({
     containerRef,
     enabled: shouldShowSuggestions,
@@ -195,25 +206,49 @@ export const DashboardSidebarSearch = ({
       {shouldShowSuggestions && (
         <div className="absolute z-10 mt-2 w-full rounded-md border border-slate-200 bg-white shadow-md">
           <ul className="divide-y divide-slate-100">
-            {suggestions.map((suggestion) => (
-              <li key={suggestion.id}>
-                <button
-                  type="button"
-                  className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left transition hover:bg-slate-50"
-                  onMouseDown={(event) => {
-                    event.preventDefault()
-                    handleSuggestionSelect(suggestion.value)
-                  }}
-                >
-                  <span className="font-medium text-slate-900 text-sm">
-                    {suggestion.label}
-                  </span>
-                  <span className="text-slate-600 text-xs">
-                    {suggestion.description}
-                  </span>
-                </button>
-              </li>
-            ))}
+            {suggestions.map((suggestion, index) => {
+              const avatarUrl = avatarQueries[index]?.data
+
+              return (
+                <li key={suggestion.id}>
+                  <button
+                    type="button"
+                    className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left transition hover:bg-slate-50"
+                    onMouseDown={(event) => {
+                      event.preventDefault()
+                      handleSuggestionSelect(suggestion.value)
+                    }}
+                  >
+                    <div className="flex w-full items-center gap-3">
+                      <div className="relative size-8 overflow-hidden rounded-full bg-slate-100">
+                        <ImageFallback.Root className="contents">
+                          <ImageFallback.Image
+                            src={avatarUrl}
+                            alt={`${suggestion.label} avatar`}
+                            className="size-full object-cover"
+                          />
+                          <ImageFallback.Fallback>
+                            <img
+                              src={placeholderAvatar}
+                              alt={`${suggestion.label} avatar placeholder`}
+                              className="size-full object-cover"
+                            />
+                          </ImageFallback.Fallback>
+                        </ImageFallback.Root>
+                      </div>
+                      <div className="flex min-w-0 flex-col">
+                        <span className="font-medium text-slate-900 text-sm">
+                          {suggestion.label}
+                        </span>
+                        <span className="text-slate-600 text-xs">
+                          {suggestion.description}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}
