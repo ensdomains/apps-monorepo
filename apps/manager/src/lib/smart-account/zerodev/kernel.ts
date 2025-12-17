@@ -20,6 +20,7 @@ import type { Address, WalletClient } from 'viem'
 import { http } from 'viem'
 import { entryPoint07Address } from 'viem/account-abstraction'
 import { customSepolia, publicClient } from '@/lib/wagmi'
+import { registerHCAOwnership } from '../hca-registry'
 import type { SmartAccountType } from '../types'
 
 export interface KernelConfig {
@@ -122,6 +123,40 @@ export async function initializeKernelAccount(
   })
 
   const accountAddress = kernelAccount.address
+  const eoaAddress = account.address
+
+  // Register HCA ownership if using HCA account type
+  // This maps the smart account to its EOA owner in the HCA Factory
+  // Required for HCAEquivalence to work (tokens + registrar see EOA as msg.sender)
+  if (accountType === 'hca') {
+    console.log('🔧 [KERNEL] Registering HCA ownership...')
+
+    const kernelSigner = {
+      type: 'kernel' as const,
+      account: client as KernelAccountClient,
+      config: {
+        chain: customSepolia,
+        accountAddress,
+        accountType,
+        pimlicoApiKey,
+      },
+    }
+
+    const result = await registerHCAOwnership({
+      smartAccountAddress: accountAddress,
+      eoaAddress,
+      signer: kernelSigner,
+      publicClient,
+    })
+
+    if (result.isErr()) {
+      throw new Error(
+        `HCA registration failed: ${result.error.reason} - ${JSON.stringify(result.error.details)}`,
+      )
+    }
+
+    console.log('✅ [KERNEL] HCA registration result:', result.value)
+  }
 
   const config: KernelConfig = {
     chain: customSepolia,

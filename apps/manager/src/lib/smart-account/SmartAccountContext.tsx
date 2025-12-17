@@ -129,13 +129,13 @@ export function SmartAccountContextProvider({
 
   // For HCA accounts, check balances on the EOA address (tokens are held by EOA)
   // For simple accounts, check balances on the smart account
-  // Note: wagmiAddress is available for both external wallets and Para embedded wallets
-  const balanceAddress = accountType === 'hca' ? wagmiAddress : accountAddress
+  // Note: ownerAddress is available for both external wallets and Para embedded wallets
+  const balanceAddress = accountType === 'hca' ? ownerAddress : accountAddress
 
   console.log('💰 [CONTEXT] Balance check:', {
     accountType,
     walletSource,
-    wagmiAddress,
+    ownerAddress,
     accountAddress,
     balanceAddress,
     willQueryBalances: !!balanceAddress,
@@ -320,7 +320,7 @@ export function SmartAccountContextProvider({
 
   // Auto-fund if balance is low
   // Must match balanceAddress to fund the same address we're checking
-  const addressToFund = accountType === 'hca' ? wagmiAddress : accountAddress
+  const addressToFund = accountType === 'hca' ? ownerAddress : accountAddress
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Should not rerun from mutation status
   useEffect(() => {

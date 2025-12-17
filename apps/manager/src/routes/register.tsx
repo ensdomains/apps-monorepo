@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Registration } from '@/features/register/pages/RegistrationPage'
+import { useSmartAccountContext } from '@/lib/smart-account'
 
 interface RegisterSearch {
   name?: string
@@ -8,8 +9,16 @@ interface RegisterSearch {
 
 function RegisterPage() {
   const { name, duration } = Route.useSearch()
+  const { ownerAddress } = useSmartAccountContext()
 
-  return <Registration initialName={name} initialDuration={duration} />
+  // Key the Registration component by owner address to force re-mount
+  return (
+    <Registration
+      key={ownerAddress ?? 'disconnected'}
+      initialName={name}
+      initialDuration={duration}
+    />
+  )
 }
 
 export const Route = createFileRoute('/register')({
