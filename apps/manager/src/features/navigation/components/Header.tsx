@@ -6,7 +6,14 @@ import {
 } from '@getpara/react-sdk-lite'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Bell, ChevronDown, Copy, Unlink, User } from 'lucide-react'
+import {
+  Bell,
+  ChevronDown,
+  Copy,
+  LayoutDashboard,
+  Unlink,
+  User,
+} from 'lucide-react'
 import { type ComponentProps, useState } from 'react'
 import type { Address } from 'viem'
 import ensLogo from '@/assets/icons/ens.svg'
@@ -460,6 +467,13 @@ const ConnectedContent = () => {
           <NotificationsDropdown onAction={() => setNotificationsOpen(false)} />
         </PopoverContent>
       </Popover>
+
+      <Link
+        to="/dashboard"
+        className="flex items-center justify-center rounded-full border border-gray-300 p-2 transition-colors hover:bg-gray-50 md:p-[11px]"
+      >
+        <LayoutDashboard className="size-5 md:size-6" />
+      </Link>
     </div>
   )
 }
