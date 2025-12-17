@@ -381,7 +381,7 @@ export type DomainFragment = { __typename?: 'Domain', id: string, name?: string 
     & AccountFragment
   ) };
 
-export type ResolverFragment = { __typename?: 'Resolver', id: string, address: string, texts?: Array<string> | null, addresses?: Array<{ __typename?: 'CoinAddress', coinType: number }> | null };
+export type ResolverFragment = { __typename?: 'Resolver', id: string, address: string, texts?: Array<string> | null, avatar?: string | null, addresses?: Array<{ __typename?: 'CoinAddress', coinType: number }> | null };
 
 export type DomainQueryVariables = Exact<{
   id: Scalars['String']['input'];
@@ -412,6 +412,7 @@ export const Resolver = gql`
   id
   address
   texts
+  avatar: text(key: "avatar")
   addresses {
     coinType
   }

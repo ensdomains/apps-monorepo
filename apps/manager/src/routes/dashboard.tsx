@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Suspense } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { DashboardLoading } from '@/features/dashboard/components/DashboardLoading'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
@@ -10,9 +10,30 @@ export const Route = createFileRoute('/dashboard')({
 })
 
 function RouteComponent() {
-  const { accountAddress: smartAccountAddress } = useSmartAccountContext()
+  const {
+    accountAddress: smartAccountAddress,
+    isLoading,
+    isAccountReady,
+    hasInitialized,
+  } = useSmartAccountContext()
 
-  if (!smartAccountAddress) {
+  const [showNotFound, setShowNotFound] = useState(false)
+  const shouldShowNotFound =
+    hasInitialized && !isLoading && (!smartAccountAddress || !isAccountReady)
+
+  useEffect(() => {
+    if (shouldShowNotFound) {
+      const timer = setTimeout(() => setShowNotFound(true), 150)
+      return () => clearTimeout(timer)
+    }
+    setShowNotFound(false)
+  }, [shouldShowNotFound])
+
+  if (!hasInitialized || isLoading || (!smartAccountAddress && !showNotFound)) {
+    return <DashboardLoading />
+  }
+
+  if (showNotFound) {
     return <NotFoundPage />
   }
 

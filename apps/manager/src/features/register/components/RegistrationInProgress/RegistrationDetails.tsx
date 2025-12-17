@@ -12,7 +12,7 @@ interface RegistrationDetailsProps {
   expiresDate: Date
   className?: string
   onGoToDashboard?: () => void
-  onCreateProfile?: () => void
+  onProfileNavigate?: () => void
   isRegistrationComplete?: boolean
 }
 
@@ -24,7 +24,7 @@ export const RegistrationDetails = ({
   expiresDate,
   className,
   onGoToDashboard,
-  onCreateProfile,
+  onProfileNavigate,
   isRegistrationComplete = false,
 }: RegistrationDetailsProps) => {
   const formattedExpiresDate = expiresDate.toLocaleDateString('en-US', {
@@ -48,7 +48,7 @@ export const RegistrationDetails = ({
 
   return (
     <div
-      className={cn('flex w-full flex-col gap-8 bg-gray-100 py-6', className)}
+      className={cn('flex w-full flex-col gap-8 bg-gray-100 p-6', className)}
     >
       <div className="flex flex-col items-center gap-6">
         <DomainCard domainName={domainName} variant="garnet" />
@@ -108,10 +108,10 @@ export const RegistrationDetails = ({
       <div className="flex flex-col gap-3">
         <Button
           disabled={!isRegistrationComplete}
-          onClick={onCreateProfile}
+          onClick={onProfileNavigate}
           className="h-20 w-full rounded bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-ens-blue-hover disabled:bg-ens-gray-two disabled:text-ens-gray"
         >
-          Create Profile
+          Go to Profile
         </Button>
         <Button
           variant="outline"

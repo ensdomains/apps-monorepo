@@ -26,6 +26,9 @@ export const ViewHeaderSection = ({
     ],
   })
 
+  const avatarUrl = avatar.data ?? records.base.avatar
+  const headerUrl = header.data ?? records.base.header
+
   const url = `${
     typeof window !== 'undefined'
       ? window.location.origin
@@ -38,7 +41,7 @@ export const ViewHeaderSection = ({
       <div className="relative w-full">
         <ImageFallback.Root className="aspect-[3/1] w-full md:aspect-[5/1]">
           <ImageFallback.Image
-            src={header.data}
+            src={headerUrl}
             alt={`${name} header`}
             className="size-full object-cover"
           />
@@ -52,13 +55,13 @@ export const ViewHeaderSection = ({
           </ImageFallback.Fallback>
         </ImageFallback.Root>
         <div className="absolute top-4 right-4">
-          <ShareProfileDialog name={name} url={url} avatarUrl={avatar.data} />
+          <ShareProfileDialog name={name} url={url} avatarUrl={avatarUrl} />
         </div>
         <div className="-bottom-10 max-md:-translate-x-1/2 absolute left-1/2 size-24 md:left-6 md:size-36 lg:size-40">
           <div className="size-full overflow-hidden rounded-xl bg-gray-200 shadow-md ring-2 ring-white">
             <ImageFallback.Root className="contents">
               <ImageFallback.Image
-                src={avatar.data}
+                src={avatarUrl}
                 alt={`${name} avatar`}
                 className="h-full w-full object-cover"
               />

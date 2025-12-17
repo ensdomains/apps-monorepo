@@ -22,7 +22,7 @@ interface RegistrationInProgressProps {
   onNotificationConfirm?: (preferences: NotificationPreferences) => void
   onNotificationSkip?: () => void
   onGoToDashboard?: () => void
-  onCreateProfile?: () => void
+  onProfileNavigate?: () => void
   showRegistrationDetails?: boolean
 }
 
@@ -75,7 +75,7 @@ export const RegistrationInProgress = ({
   onNotificationConfirm,
   onNotificationSkip,
   onGoToDashboard,
-  onCreateProfile,
+  onProfileNavigate,
   showRegistrationDetails = false,
 }: RegistrationInProgressProps) => {
   // Get the raw state value (can be string or object for nested states)
@@ -139,7 +139,7 @@ export const RegistrationInProgress = ({
             discountAmount={discountAmount}
             expiresDate={expiresDate}
             onGoToDashboard={onGoToDashboard}
-            onCreateProfile={onCreateProfile}
+            onProfileNavigate={onProfileNavigate}
           />
         ) : (
           <NotificationSettings

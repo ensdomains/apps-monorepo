@@ -24,8 +24,8 @@ const meta = {
     onGoToDashboard: () => {
       console.log('Go to Dashboard clicked')
     },
-    onCreateProfile: () => {
-      console.log('Create Profile clicked')
+    onProfileNavigate: () => {
+      console.log('Go to Profile clicked')
     },
   },
 } satisfies Meta<typeof RegistrationDetails>

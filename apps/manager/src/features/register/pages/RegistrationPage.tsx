@@ -180,8 +180,9 @@ export function Registration({ initialName }: RegistrationProps) {
     navigate({ to: '/dashboard' })
   }
 
-  const handleCreateProfile = () => {
-    console.log('Create profile clicked')
+  const handleProfileNavigate = () => {
+    if (!displayDomainName) return
+    navigate({ to: '/p/$name', params: { name: displayDomainName } })
   }
 
   const handlePricingDataChange = useCallback(
@@ -304,7 +305,7 @@ export function Registration({ initialName }: RegistrationProps) {
           onNotificationConfirm={handleNotificationConfirm}
           onNotificationSkip={handleNotificationSkip}
           onGoToDashboard={handleGoToDashboard}
-          onCreateProfile={handleCreateProfile}
+          onProfileNavigate={handleProfileNavigate}
           showRegistrationDetails={
             skipNotificationSettings ||
             hasSkippedNotifications ||
