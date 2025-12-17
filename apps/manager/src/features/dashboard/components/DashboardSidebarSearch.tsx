@@ -207,7 +207,10 @@ export const DashboardSidebarSearch = ({
         <div className="absolute z-10 mt-2 w-full rounded-md border border-slate-200 bg-white shadow-md">
           <ul className="divide-y divide-slate-100">
             {suggestions.map((suggestion, index) => {
-              const avatarUrl = avatarQueries[index]?.data
+              const avatarUrl =
+                avatarQueries[index]?.data ??
+                suggestion.avatarRecord ??
+                undefined
 
               return (
                 <li key={suggestion.id}>

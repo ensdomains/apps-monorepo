@@ -162,7 +162,8 @@ export const MyNamesList = ({
               const isPrimary =
                 primaryLabel !== undefined &&
                 label.toLowerCase() === primaryLabel?.toLowerCase()
-              const avatarUrl = avatarQueries[index]?.data
+              const avatarUrl =
+                avatarQueries[index]?.data ?? name.resolver?.avatar ?? undefined
 
               return (
                 <div
