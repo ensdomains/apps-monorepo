@@ -48,7 +48,12 @@ export interface PrimaryNameParams {
 }
 
 export interface PrimaryNameOptions {
-  account: SmartAccountState
+  account: {
+    walletClient?: import('viem').WalletClient | null
+    ownerAddress?: Address | null
+    signer?: import('@ens-apps/transaction-manager').Signer | null
+    accountAddress?: Address | null
+  }
   primaryNameActor: ActorRefFrom<typeof primaryNameMachine>
   publicClient: PublicClient
 }
@@ -190,6 +195,13 @@ export function handleResolverCancel(
 /**
  * Starts the primary name update flow.
  *
+ * Uses the signature flow when a smart account is available:
+ * 1. EOA signs an authorization message (free, no gas)
+ * 2. Smart account submits the transaction (gasless via paymaster)
+ * 3. Primary name is set for the EOA address
+ *
+ * Falls back to direct EOA signing if no smart account is available.
+ *
  * Returns an error message for missing prerequisites so the caller can surface it.
  */
 export function handleSetPrimaryName(
@@ -206,34 +218,70 @@ export function handleSetPrimaryName(
     return message
   }
 
-  if (!account.signer || !account.accountAddress) {
-    const message = 'Account not ready. Please wait for wallet to connect.'
-    console.error('❌ Smart account not connected or not initialized', {
-      accountAddress: account.accountAddress,
-      hasSigner: !!account.signer,
-      type: account.type,
+  const walletClient = account.walletClient
+  if (!walletClient || !account.ownerAddress) {
+    const message =
+      'Cannot set primary name - wallet not connected. Please connect your wallet.'
+    console.error('❌ EOA wallet not available for primary name', {
+      hasWalletClient: !!walletClient,
+      ownerAddress: account.ownerAddress,
     })
     alert(message)
     return message
   }
 
-  const accountAddress = (account.ownerAddress ??
-    account.accountAddress) as Address
+  // Check if we have a smart account signer available
+  const hasSmartAccountSigner =
+    account.signer && account.signer.type !== 'eoa' && account.accountAddress
 
-  console.log('✅ Creating START_UPDATE event for primary name:', {
-    name,
-    accountAddress,
-    hasSigner: !!account.signer,
-    hasPublicClient: !!publicClient,
-  })
+  if (hasSmartAccountSigner) {
+    // Use signature flow: EOA signs, smart account submits
+    console.log(
+      '✅ Creating START_UPDATE event for primary name (signature flow):',
+      {
+        name,
+        eoaAddress: account.ownerAddress,
+        smartAccountAddress: account.accountAddress,
+        signerType: account.signer?.type,
+        hasPublicClient: !!publicClient,
+      },
+    )
 
-  primaryNameActor.send({
-    type: 'START_UPDATE',
-    name,
-    signer: account.signer,
-    accountAddress,
-    publicClient,
-  })
+    primaryNameActor.send({
+      type: 'START_UPDATE',
+      name,
+      signer: account.signer!,
+      accountAddress: account.accountAddress as Address,
+      publicClient,
+      // Signature flow fields
+      walletClient,
+      eoaAddress: account.ownerAddress as Address,
+    })
+  } else {
+    // Fallback: direct EOA signing
+    const eoaSigner = {
+      type: 'eoa' as const,
+      walletClient,
+    }
+
+    console.log(
+      '✅ Creating START_UPDATE event for primary name (EOA direct):',
+      {
+        name,
+        accountAddress: account.ownerAddress,
+        signerType: 'eoa',
+        hasPublicClient: !!publicClient,
+      },
+    )
+
+    primaryNameActor.send({
+      type: 'START_UPDATE',
+      name,
+      signer: eoaSigner,
+      accountAddress: account.ownerAddress as Address,
+      publicClient,
+    })
+  }
 
   return undefined
 }

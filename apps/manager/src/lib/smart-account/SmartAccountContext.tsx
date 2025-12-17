@@ -20,7 +20,7 @@ import {
   useState,
 } from 'react'
 import { toast } from 'sonner'
-import { type Address, formatUnits } from 'viem'
+import { type Address, formatUnits, type WalletClient } from 'viem'
 import { getBalance, readContract } from 'viem/actions'
 import { useWalletClient } from 'wagmi'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
@@ -49,6 +49,8 @@ interface SmartAccountContextValue extends KernelAccountState {
   openSessionModal: () => void
   shouldShowSessionModal: boolean
   clearSessionModalTrigger: () => void
+  /** Raw wallet client for EOA operations (e.g., setting primary name) */
+  walletClient: WalletClient | null
 }
 
 const SmartAccountContext = createContext<SmartAccountContextValue | null>(null)
@@ -423,6 +425,7 @@ export function SmartAccountContextProvider({
     openSessionModal,
     shouldShowSessionModal,
     clearSessionModalTrigger,
+    walletClient: (wagmiWalletClient as WalletClient | undefined) ?? null,
   }
 
   return (
