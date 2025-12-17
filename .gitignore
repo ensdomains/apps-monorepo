@@ -6,3 +6,4 @@ dist
 package-lock.json
 .worktrees/
 *.workspace
+.mcp.json

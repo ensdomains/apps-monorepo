@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
   Bell,
+  BrainCircuit,
   ChevronDown,
   Copy,
   LayoutDashboard,
@@ -251,6 +252,8 @@ const ConnectedContent = () => {
     isLoadingSmartAccountEth,
     error,
     autoFundingMutation,
+    openSessionModal,
+    isSessionClient,
   } = useSmartAccountContext()
 
   const { data: reverseName } = useQuery({
@@ -410,6 +413,18 @@ const ConnectedContent = () => {
               <User className="mr-2 size-4 text-ens-blue" />
               Manage Wallet
             </DropdownMenuItem>
+            {walletSource === 'external-wallet' && (
+              <DropdownMenuItem
+                onClick={() => openSessionModal()}
+                className="text-ens-blue-dark"
+                disabled={isSessionClient}
+              >
+                <BrainCircuit className="mr-2 size-4 text-ens-blue" />
+                {isSessionClient
+                  ? 'Smart Session Active'
+                  : 'Enable Smart Session'}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               onClick={() => logout()}
               className="text-ens-blue-dark"
@@ -437,6 +452,22 @@ const ConnectedContent = () => {
                   <User className="size-4 text-ens-blue" />
                   Manage Wallet
                 </button>
+                {walletSource === 'external-wallet' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      openSessionModal()
+                      setMenuOpen(false)
+                    }}
+                    disabled={isSessionClient}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust disabled:opacity-50"
+                  >
+                    <BrainCircuit className="size-4 text-ens-blue" />
+                    {isSessionClient
+                      ? 'Smart Session Active'
+                      : 'Enable Smart Session'}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
