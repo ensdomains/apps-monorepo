@@ -1,7 +1,12 @@
-export function formatPrice(price: number): string {
-  return price.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+// TODO: Add support for other locales
+export function formatAmount(
+  amount: number,
+  decimals: 0 | 2 = 0,
+  locale: 'en-US' = 'en-US',
+): string {
+  return amount.toLocaleString(locale, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
   })
 }
 
