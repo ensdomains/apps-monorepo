@@ -29,7 +29,11 @@ const normalizeSearchTarget = (value: string) => {
   return normalizedName.toLowerCase()
 }
 
-export const DashboardSidebarSearch = () => {
+export const DashboardSidebarSearch = ({
+  onSelect,
+}: {
+  onSelect?: (value: string) => void
+}) => {
   const navigate = useNavigate({ from: '/dashboard' })
   const [searchValue, setSearchValue] = useState('')
 
@@ -106,12 +110,17 @@ export const DashboardSidebarSearch = () => {
 
   const handleSuggestionSelect = useCallback(
     (value: string) => {
+      if (onSelect) {
+        onSelect(value)
+        return
+      }
+
       navigate({
         to: '/p/$name',
         params: { name: value },
       })
     },
-    [navigate],
+    [navigate, onSelect],
   )
 
   const handleSearchSubmit = useCallback(
