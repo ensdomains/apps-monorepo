@@ -2,6 +2,7 @@ fragment Resolver on Resolver {
   id
   address
   texts
+  avatar: text(key: "avatar")
   addresses {
     coinType
   }
