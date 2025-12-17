@@ -208,7 +208,7 @@ export function SmartAccountContextProvider({
       return response.json()
     },
     onSuccess: (data, address, _, context) => {
-      if (!data || data.usdcTxHash || !data.daiTxHash) {
+      if (!data || (!data.usdcTxHash && !data.daiTxHash)) {
         toast.dismiss(`fund-wallet-${address}`)
         return
       }
