@@ -8,10 +8,10 @@ import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { RolesTable } from '@/features/roles/components/RolesTable'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
+import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { namechainEthRegistryAddress } from '@/lib/constants/registry'
 
 export const Route = createFileRoute('/$name/roles/')({
@@ -65,25 +65,20 @@ const AddUserButton = ({
 }) => {
   const label = name.split('.')[0]
 
-  const { data: hasRoles, isLoading } = useQuery(
-    getHasRolesQueryOptions({
+  const { data: roles, isLoading } = useQuery(
+    getNameRolesForAccountQueryOptions({
       registryAddress: namechainEthRegistryAddress,
       label,
-      roles: [
-        'ROLE_CAN_TRANSFER_ADMIN',
-        'ROLE_BURN_ADMIN',
-        'ROLE_RENEW_ADMIN',
-        'ROLE_REGISTRAR_ADMIN',
-        'ROLE_SET_RESOLVER_ADMIN',
-        'ROLE_SET_SUBREGISTRY_ADMIN',
-        'ROLE_SET_TOKEN_OBSERVER_ADMIN',
-      ],
       account: address,
     }),
   )
 
+  const hasAdmin = Boolean(
+    roles?.decoded.find((role) => role.endsWith('_ADMIN')),
+  )
+
   if (isLoading) return <div>Loading</div>
-  if (!hasRoles) return null
+  if (!hasAdmin) return null
 
   return (
     <Button variant="outline" className="flex items-center gap-2" asChild>
