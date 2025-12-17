@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "chrome-devtools-mcp@latest",
+        "--chromeArg=--enable-extensions",
+        "--chromeArg=--load-extension=/Users/leon/.claude/extensions/metamask/extracted"
+      ]
+    }
+  }
+}
