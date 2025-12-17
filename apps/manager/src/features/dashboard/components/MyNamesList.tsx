@@ -1,4 +1,5 @@
 import { OrderDirection } from '@ens-apps/indexer'
+import { useQueries } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
   ArrowRight,
@@ -10,6 +11,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { match, P } from 'ts-pattern'
+import placeholderAvatar from '@/assets/placeholder-avatar.svg'
+import * as ImageFallback from '@/components/atoms/ImageFallback'
 import {
   formatDashboardDate,
   getDaysUntil,
@@ -17,6 +20,7 @@ import {
   resolveDomainLabel,
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
+import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { useDashboardNames } from '../hooks/useDashboardNames'
 import { PrimaryBadge } from './PrimaryBadge'
 
@@ -68,6 +72,11 @@ export const MyNamesList = ({
     sortDirection,
     handleSort,
   } = useDashboardNames({ searchQuery })
+  const avatarQueries = useQueries({
+    queries: names.map((domain) =>
+      parseAvatarQuery(domain.resolver?.avatar ?? undefined),
+    ),
+  })
 
   const hasNextPage = names.length === pageSize
 
@@ -140,7 +149,7 @@ export const MyNamesList = ({
             </div>
           ))
           .otherwise(({ names }) =>
-            names.map((name) => {
+            names.map((name, index) => {
               const label = resolveDomainLabel(name)
               const expiryDate = toDateFromSeconds(name.expiryDate ?? null)
               const daysUntilExpiry = getDaysUntil(expiryDate)
@@ -153,6 +162,7 @@ export const MyNamesList = ({
               const isPrimary =
                 primaryLabel !== undefined &&
                 label.toLowerCase() === primaryLabel?.toLowerCase()
+              const avatarUrl = avatarQueries[index]?.data
 
               return (
                 <div
@@ -169,7 +179,20 @@ export const MyNamesList = ({
                     <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[25px]">
                       <div className="flex items-center gap-2 md:gap-[12px]">
                         <div className="relative size-[32px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
-                          <div className="absolute inset-0 bg-linear-to-br from-purple-200 to-blue-200" />
+                          <ImageFallback.Root className="contents">
+                            <ImageFallback.Image
+                              src={avatarUrl}
+                              alt={`${label} avatar`}
+                              className="size-full object-cover"
+                            />
+                            <ImageFallback.Fallback>
+                              <img
+                                src={placeholderAvatar}
+                                alt={`${label} avatar placeholder`}
+                                className="size-full object-cover"
+                              />
+                            </ImageFallback.Fallback>
+                          </ImageFallback.Root>
                         </div>
                         <div className="flex min-w-0 flex-1 items-center justify-center rounded-[2.8px] bg-[#e5f7ff] px-2 py-1 md:h-[24px] md:px-[8px] md:py-[4px]">
                           <Link
