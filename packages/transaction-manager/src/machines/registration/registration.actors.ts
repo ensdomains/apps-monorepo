@@ -13,6 +13,7 @@ import {
   parseAbi,
   stringToBytes,
   toHex,
+  zeroAddress,
 } from 'viem'
 import { getBlock, readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
@@ -158,7 +159,7 @@ function generateCommitment(
           cleanName,
           ownerAddress,
           secret,
-          ENS_SEPOLIA_CONTRACTS.ETHRegistry,
+          zeroAddress,
           resolverAddress,
           duration,
           REFERER_ADDRESS,
@@ -218,7 +219,7 @@ function encodeRegistrationData(
       cleanName,
       ownerAddress,
       secret,
-      ENS_SEPOLIA_CONTRACTS.ETHRegistry,
+      zeroAddress,
       resolverAddress,
       duration,
       paymentToken,
