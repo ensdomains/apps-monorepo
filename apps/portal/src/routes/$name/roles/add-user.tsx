@@ -64,6 +64,8 @@ function RouteComponent() {
                 } else {
                   const address = await getEnsAddress(client, {
                     name: nameOrAddress,
+                    universalResolverAddress:
+                      '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce',
                   })
                   setAddress(address)
                 }
