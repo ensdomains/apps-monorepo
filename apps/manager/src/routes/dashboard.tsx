@@ -1,11 +1,18 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { Suspense, useEffect } from 'react'
+import { Suspense, useEffect, useRef } from 'react'
 import { DashboardLoading } from '@/features/dashboard/components/DashboardLoading'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
+let isSpaNavigation = false
+
 export const Route = createFileRoute('/dashboard')({
   component: RouteComponent,
+  beforeLoad: () => {
+    // Marks that we arrived here via SPA navigation (Link click)
+    // This does NOT run on manual URL entry or page refresh, this is hacky way to detect SPA navigation
+    isSpaNavigation = true
+  },
 })
 
 function RouteComponent() {
@@ -15,10 +22,34 @@ function RouteComponent() {
     isLoading,
     isAccountReady,
     hasInitialized,
+    hasWalletInStorage,
   } = useSmartAccountContext()
 
+  const wasSpaNavigation = useRef(isSpaNavigation)
+  const isFullPageLoad = !wasSpaNavigation.current
+
+  // Track if wallet was ever ready (to detect disconnect)
+  const wasEverReady = useRef(false)
+  if (isAccountReady && smartAccountAddress) {
+    wasEverReady.current = true
+  }
+
+  // Full page load without wallet: redirect immediately
+  useEffect(() => {
+    if (isFullPageLoad && !hasWalletInStorage) {
+      navigate({ to: '/' })
+    }
+  }, [isFullPageLoad, hasWalletInStorage, navigate])
+
+  const isWalletFullyReady = isFullPageLoad
+    ? hasInitialized && !isLoading && isAccountReady
+    : hasInitialized
+
+  const didDisconnect =
+    wasEverReady.current && hasInitialized && !smartAccountAddress
+
   const shouldRedirect =
-    hasInitialized && !isLoading && (!smartAccountAddress || !isAccountReady)
+    (isWalletFullyReady && !smartAccountAddress) || didDisconnect
 
   useEffect(() => {
     if (shouldRedirect) {
@@ -26,7 +57,11 @@ function RouteComponent() {
     }
   }, [shouldRedirect, navigate])
 
-  if (!hasInitialized || isLoading || shouldRedirect) {
+  if (!isWalletFullyReady && !shouldRedirect) {
+    return <DashboardLoading />
+  }
+
+  if (shouldRedirect) {
     return <DashboardLoading />
   }
 
