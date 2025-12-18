@@ -81,16 +81,16 @@ const ProvidersWrapper = ({ children }: { children: React.ReactNode }) => {
           appName: 'ENS Manager',
         }}
         externalWalletConfig={{
-          wallets: ['METAMASK'],
+          wallets: ['METAMASK', 'WALLETCONNECT'],
+          walletConnect: {
+            projectId: '21fef48091f12692cad574a6f7753643',
+          },
           // Do not create Para accounts for external wallet connections
           createLinkedEmbeddedForExternalWallets: [],
           evmConnector: {
             config: {
               chains: [customSepolia],
             },
-          },
-          walletConnect: {
-            projectId: '21fef48091f12692cad574a6f7753643',
           },
         }}
         paraModalConfig={{
