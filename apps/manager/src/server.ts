@@ -211,6 +211,18 @@ export default createServerEntry({
       return handler.fetch(request)
     }
 
+    // Debug endpoint to check if password is configured
+    if (url.pathname === '/__auth-debug') {
+      const sitePassword = await getSitePassword()
+      return new Response(
+        JSON.stringify({
+          passwordConfigured: !!sitePassword,
+          passwordLength: sitePassword?.length ?? 0,
+        }),
+        { headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
     // Get SITE_PASSWORD from environment (Cloudflare Workers or local dev)
     const sitePassword = await getSitePassword()
 
