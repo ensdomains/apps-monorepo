@@ -7,3 +7,4 @@ package-lock.json
 .worktrees/
 *.workspace
 .mcp.json
+.dev.vars
