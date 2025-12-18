@@ -1,7 +1,6 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
-import type { Address } from 'viem'
 import { Button } from '@/components/ui/button'
 import { DashboardSidebar } from '@/features/dashboard/components/DashboardSidebar'
 import { DidYouKnowSection } from '@/features/dashboard/components/DidYouKnowSection'
@@ -20,7 +19,7 @@ export const DashboardPage = () => {
   const { ownerAddress } = useSmartAccountContext()
 
   const { data: reverseName } = useSuspenseQuery({
-    ...profileReverseNameQuery(ownerAddress as Address),
+    ...profileReverseNameQuery(ownerAddress ?? undefined),
   })
 
   const { data: reverseRecords } = useQuery({

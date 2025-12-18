@@ -32,28 +32,6 @@ import type { StoredSession } from './sessions/types'
 import type { KernelAccountState, WalletSource } from './types'
 import { initializeKernelAccount, type KernelConfig } from './zerodev/kernel'
 
-const PARA_PROVIDER_STATE_STORAGE_KEY = '@PARA/provider-state'
-
-type ParaProviderState = {
-  state?: {
-    selectedWalletId?: string | null
-  }
-}
-
-function getHasParaWalletInStorage(): boolean {
-  if (typeof window === 'undefined') return false
-  try {
-    const paraState = window.localStorage.getItem(
-      PARA_PROVIDER_STATE_STORAGE_KEY,
-    )
-    if (!paraState) return false
-    const parsed = JSON.parse(paraState) as ParaProviderState | null
-    return !!parsed?.state?.selectedWalletId
-  } catch {
-    return false
-  }
-}
-
 /**
  * Smart Account Context
  *
@@ -62,7 +40,6 @@ function getHasParaWalletInStorage(): boolean {
  */
 
 interface SmartAccountContextValue extends KernelAccountState {
-  hasWalletInStorage: boolean
   /** Callback to update session data when a session is created */
   setSessionData: (
     session: StoredSession,
@@ -99,8 +76,6 @@ export function SmartAccountContextProvider({
   const paraClient = useParaClient()
   const { data: paraWallet, isPending: isParaWalletPending } = useParaWallet()
   const { data: wagmiWalletClient } = useWalletClient()
-
-  const hasWalletInStorage = useMemo(() => getHasParaWalletInStorage(), [])
 
   const wagmiAddress = wagmiWalletClient?.account?.address
   const hasWagmi = !!wagmiAddress
@@ -162,14 +137,6 @@ export function SmartAccountContextProvider({
   // Note: ownerAddress is available for both external wallets and Para embedded wallets
   const balanceAddress = accountType === 'hca' ? ownerAddress : accountAddress
 
-  console.log('💰 [CONTEXT] Balance check:', {
-    accountType,
-    walletSource,
-    ownerAddress,
-    accountAddress,
-    balanceAddress,
-    willQueryBalances: !!balanceAddress,
-  })
   const { data: stablecoinBalances = [], isLoading: isLoadingBalances } =
     useQuery({
       queryKey: $qk({
@@ -441,7 +408,6 @@ export function SmartAccountContextProvider({
     client: client as KernelAccountClient | null,
     config: accountConfig as KernelConfig | null,
     accountAddress,
-    hasWalletInStorage,
     isLoading,
     error,
     isConnected: isWalletReady && !!client,
