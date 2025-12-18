@@ -34,7 +34,9 @@ class ReverseResolverError extends TaggedError('ReverseResolverError')<{
   cause: unknown
 }> {}
 
-export const getReverseName = ResultFn(async function* (address: Address) {
+export const getReverseName = ResultFn(async function* (address?: Address) {
+  if (!address) return ok(null)
+
   const client = yield* safeGetClient()
 
   const result = yield* await fromPromise(
@@ -56,7 +58,7 @@ export const getReverseName = ResultFn(async function* (address: Address) {
   return ok(name)
 })
 
-export const profileReverseNameQuery = (address: Address) =>
+export const profileReverseNameQuery = (address?: Address) =>
   resultQueryOptions({
     queryKey: qk('profile', 'reverse_name', { address }),
     queryFn: ({ queryKey: [{ address }] }) => getReverseName(address),

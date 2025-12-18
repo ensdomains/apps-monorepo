@@ -20,7 +20,7 @@ export const DashboardPage = () => {
   const { ownerAddress } = useSmartAccountContext()
 
   const { data: reverseName } = useSuspenseQuery({
-    ...profileReverseNameQuery(ownerAddress as Address),
+    ...profileReverseNameQuery(ownerAddress ?? undefined),
   })
 
   const { data: reverseRecords } = useQuery({
