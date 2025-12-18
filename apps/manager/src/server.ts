@@ -59,7 +59,7 @@ function getLoginPage(error?: string): Response {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Access Protected</title>
+  <title>ENS Manager Alpha</title>
   <style>
     * {
       box-sizing: border-box;
@@ -177,7 +177,7 @@ function getLoginPage(error?: string): Response {
         <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="#3b82f6" fill="none"/>
       </svg>
     </div>
-    <h1>Protected Area</h1>
+    <h1>ENS Manager Alpha</h1>
     <p>Enter the password to continue</p>
     ${error ? `<div class="error">${error}</div>` : ''}
     <form method="POST" action="/__auth">
@@ -209,18 +209,6 @@ export default createServerEntry({
       url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|map)$/)
     ) {
       return handler.fetch(request)
-    }
-
-    // Debug endpoint to check if password is configured
-    if (url.pathname === '/__auth-debug') {
-      const sitePassword = await getSitePassword()
-      return new Response(
-        JSON.stringify({
-          passwordConfigured: !!sitePassword,
-          passwordLength: sitePassword?.length ?? 0,
-        }),
-        { headers: { 'Content-Type': 'application/json' } },
-      )
     }
 
     // Get SITE_PASSWORD from environment (Cloudflare Workers or local dev)
