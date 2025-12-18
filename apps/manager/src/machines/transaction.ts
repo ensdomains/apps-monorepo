@@ -38,12 +38,10 @@ export const transactionMachine = setup({
         tranactionRequest,
       }: {
         tranactionRequest: SendTransactionRequest<ChainType>
-        // @ts-expect-error - Issue with config types
       }) => safeSendTransaction(wagmiConfig, tranactionRequest),
     ),
     waitForReceipt: fromResultAsync(
       ({ transactionHash }: { transactionHash: Hex }) =>
-        // @ts-expect-error - Issue with config types
         safeWaitForTransactionReceipt(wagmiConfig, { hash: transactionHash }),
     ),
   },

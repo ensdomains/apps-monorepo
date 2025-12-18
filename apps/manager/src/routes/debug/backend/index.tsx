@@ -191,7 +191,6 @@ const QueryTester = <TData, TError>({
 }
 
 const loginMutation = async () => {
-  // @ts-expect-error - Issue with config types
   const account = getAccount(wagmiConfig)
 
   if (!account || !account.address) {
@@ -210,7 +209,6 @@ const loginMutation = async () => {
     version: '1',
   })
 
-  // @ts-expect-error - Issue with config types
   const signedMessage = await signMessage(wagmiConfig, {
     message: siweMessage,
   })
