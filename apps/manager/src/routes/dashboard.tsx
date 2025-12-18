@@ -1,5 +1,5 @@
-import { createFileRoute useNavigate } from '@tanstack/react-router'
-import { Suspense useEffect, useRef } from 'react'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { Suspense, useEffect, useRef } from 'react'
 import { DashboardLoading } from '@/features/dashboard/components/DashboardLoading'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 
