@@ -237,6 +237,8 @@ export function SmartAccountContextProvider({
       setEcdsaValidator(null)
       setIsAccountReady(false)
       setError(null)
+      // Reset the initialization ref so reconnecting with the same wallet works
+      initializedRef.current = null
       // Don't mark as initialized if Para wallet data is still loading
       // Once Para resolves, we'll know if user is connected or not
       if (!isParaWalletPending) {
