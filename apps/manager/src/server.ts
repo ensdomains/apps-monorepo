@@ -1,12 +1,20 @@
 /**
- * Password Protection Middleware
+ * TanStack Start Server Entry Point
  *
- * Protects the entire app with a simple password.
- * Set the SITE_PASSWORD environment variable in Cloudflare Pages.
+ * Adds password protection middleware for the entire application.
+ * Set the SITE_PASSWORD environment variable in Cloudflare Workers.
  */
 
-interface Env {
-  SITE_PASSWORD: string
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error - cloudflare:workers is only available in Cloudflare Workers runtime
+import { env } from 'cloudflare:workers'
+import handler, { createServerEntry } from '@tanstack/react-start/server-entry'
+
+// Extend the Env interface to include SITE_PASSWORD
+declare global {
+  interface Env {
+    SITE_PASSWORD?: string
+  }
 }
 
 const COOKIE_NAME = 'auth_token'
@@ -17,8 +25,16 @@ function generateToken(password: string): string {
   return btoa(password).split('').reverse().join('')
 }
 
-function getLoginPage(error?: string): string {
-  return `<!DOCTYPE html>
+function getCookie(request: Request, name: string): string | null {
+  const cookies = request.headers.get('Cookie')
+  if (!cookies) return null
+
+  const match = cookies.match(new RegExp(`(^| )${name}=([^;]+)`))
+  return match ? match[2] : null
+}
+
+function getLoginPage(error?: string): Response {
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -144,7 +160,7 @@ function getLoginPage(error?: string): string {
     <h1>Protected Area</h1>
     <p>Enter the password to continue</p>
     ${error ? `<div class="error">${error}</div>` : ''}
-    <form method="POST">
+    <form method="POST" action="/__auth">
       <input
         type="password"
         name="password"
@@ -157,74 +173,67 @@ function getLoginPage(error?: string): string {
   </div>
 </body>
 </html>`
-}
 
-function getCookie(request: Request, name: string): string | null {
-  const cookies = request.headers.get('Cookie')
-  if (!cookies) return null
-
-  const match = cookies.match(new RegExp(`(^| )${name}=([^;]+)`))
-  return match ? match[2] : null
-}
-
-export const onRequest: PagesFunction<Env> = async (context) => {
-  const { request, env } = context
-  const url = new URL(request.url)
-
-  // Skip auth for static assets
-  if (url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2)$/)) {
-    return context.next()
-  }
-
-  const sitePassword = env.SITE_PASSWORD
-  if (!sitePassword) {
-    // No password configured, allow access
-    console.warn('SITE_PASSWORD not set - site is not protected')
-    return context.next()
-  }
-
-  const expectedToken = generateToken(sitePassword)
-
-  // Check for valid auth cookie
-  const authCookie = getCookie(request, COOKIE_NAME)
-  if (authCookie === expectedToken) {
-    return context.next()
-  }
-
-  // Handle form submission
-  if (request.method === 'POST') {
-    try {
-      const formData = await request.formData()
-      const password = formData.get('password')
-
-      if (password === sitePassword) {
-        // Password correct - set cookie and redirect
-        const response = new Response(null, {
-          status: 302,
-          headers: {
-            Location: url.pathname + url.search,
-            'Set-Cookie': `${COOKIE_NAME}=${expectedToken}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${COOKIE_MAX_AGE}`,
-          },
-        })
-        return response
-      }
-
-      // Wrong password
-      return new Response(getLoginPage('Incorrect password'), {
-        status: 401,
-        headers: { 'Content-Type': 'text/html' },
-      })
-    } catch {
-      return new Response(getLoginPage('An error occurred'), {
-        status: 500,
-        headers: { 'Content-Type': 'text/html' },
-      })
-    }
-  }
-
-  // Show login page
-  return new Response(getLoginPage(), {
+  return new Response(html, {
     status: 401,
     headers: { 'Content-Type': 'text/html' },
   })
 }
+
+export default createServerEntry({
+  async fetch(request) {
+    const url = new URL(request.url)
+
+    // Skip auth for static assets
+    if (
+      url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|map)$/)
+    ) {
+      return handler.fetch(request)
+    }
+
+    // Get SITE_PASSWORD from Cloudflare environment
+    // Uses the cloudflare:workers import for production
+    const sitePassword = env?.SITE_PASSWORD
+
+    // If no password configured, allow access
+    if (!sitePassword) {
+      console.warn('SITE_PASSWORD not set - site is not protected')
+      return handler.fetch(request)
+    }
+
+    const expectedToken = generateToken(sitePassword)
+
+    // Check for valid auth cookie
+    const authCookie = getCookie(request, COOKIE_NAME)
+    if (authCookie === expectedToken) {
+      return handler.fetch(request)
+    }
+
+    // Handle auth form submission
+    if (url.pathname === '/__auth' && request.method === 'POST') {
+      try {
+        const formData = await request.formData()
+        const password = formData.get('password')
+
+        if (password === sitePassword) {
+          // Password correct - set cookie and redirect to home
+          return new Response(null, {
+            status: 302,
+            headers: {
+              Location: '/',
+              'Set-Cookie': `${COOKIE_NAME}=${expectedToken}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${COOKIE_MAX_AGE}`,
+            },
+          })
+        }
+
+        // Wrong password
+        return getLoginPage('Incorrect password')
+      } catch {
+        return getLoginPage('An error occurred')
+      }
+    }
+
+    // Show login page for unauthenticated requests
+    return getLoginPage()
+  },
+})
