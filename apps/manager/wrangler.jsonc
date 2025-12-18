@@ -3,7 +3,7 @@
   "name": "manager-app-v4",
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry",
+  "main": "./src/server.ts",
   "preview_urls": true,
   "observability": {
     "enabled": true

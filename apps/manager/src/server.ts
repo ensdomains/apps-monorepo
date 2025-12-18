@@ -5,9 +5,6 @@
  * Set the SITE_PASSWORD environment variable in Cloudflare Workers.
  */
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-expect-error - cloudflare:workers is only available in Cloudflare Workers runtime
-import { env } from 'cloudflare:workers'
 import handler, { createServerEntry } from '@tanstack/react-start/server-entry'
 
 // Extend the Env interface to include SITE_PASSWORD
@@ -15,6 +12,29 @@ declare global {
   interface Env {
     SITE_PASSWORD?: string
   }
+}
+
+// Get SITE_PASSWORD from environment
+// In Cloudflare Workers: uses cloudflare:workers import
+// In local dev: uses process.env (populated from .dev.vars by wrangler)
+async function getSitePassword(): Promise<string | undefined> {
+  // Try Cloudflare Workers environment first
+  try {
+    // Dynamic import to avoid build errors in non-CF environments
+    const { env } = await import('cloudflare:workers')
+    if (env?.SITE_PASSWORD) {
+      return env.SITE_PASSWORD
+    }
+  } catch {
+    // Not in Cloudflare Workers runtime
+  }
+
+  // Fallback to process.env for local development
+  if (typeof process !== 'undefined' && process.env?.SITE_PASSWORD) {
+    return process.env.SITE_PASSWORD
+  }
+
+  return undefined
 }
 
 const COOKIE_NAME = 'auth_token'
@@ -191,9 +211,8 @@ export default createServerEntry({
       return handler.fetch(request)
     }
 
-    // Get SITE_PASSWORD from Cloudflare environment
-    // Uses the cloudflare:workers import for production
-    const sitePassword = env?.SITE_PASSWORD
+    // Get SITE_PASSWORD from environment (Cloudflare Workers or local dev)
+    const sitePassword = await getSitePassword()
 
     // If no password configured, allow access
     if (!sitePassword) {
