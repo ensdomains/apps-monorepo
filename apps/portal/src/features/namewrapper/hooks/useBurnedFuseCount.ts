@@ -32,8 +32,6 @@ export const getBurnedFuseCount = ResultFn(async function* ({
 
   const { fuses } = wrapperData
 
-  console.log(fuses.child)
-
   const totalBurned = countBurned(fuses.child)
 
   return ok(totalBurned)

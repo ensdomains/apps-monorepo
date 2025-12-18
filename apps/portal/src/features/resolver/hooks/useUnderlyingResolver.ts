@@ -27,8 +27,6 @@ export const getUnderlyingResolver = ResultFn(async function* (
     interfaces: [RESOLVER_INTERFACE_IDS.CompositeExtendedResolver],
   })
 
-  console.log({ isComposite, params })
-
   if (!isComposite) return ok(null)
 
   const result = yield* fromPromise(
