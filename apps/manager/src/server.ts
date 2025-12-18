@@ -7,13 +7,6 @@
 
 import handler, { createServerEntry } from '@tanstack/react-start/server-entry'
 
-// Extend the Env interface to include SITE_PASSWORD
-declare global {
-  interface Env {
-    SITE_PASSWORD?: string
-  }
-}
-
 // Get SITE_PASSWORD from environment
 // In Cloudflare Workers: uses cloudflare:workers import
 // In local dev: uses process.env (populated from .dev.vars by wrangler)
@@ -50,7 +43,7 @@ function getCookie(request: Request, name: string): string | null {
   if (!cookies) return null
 
   const match = cookies.match(new RegExp(`(^| )${name}=([^;]+)`))
-  return match ? match[2] : null
+  return match?.[2] ?? null
 }
 
 function getLoginPage(error?: string): Response {

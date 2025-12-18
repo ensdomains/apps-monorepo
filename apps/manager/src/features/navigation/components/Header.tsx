@@ -82,6 +82,7 @@ const UserMenuContent = ({
   walletSource: 'para-embedded' | 'external-wallet' | null
 }) => {
   const isExternalWallet = walletSource === 'external-wallet'
+  const isParaEmbedded = walletSource === 'para-embedded'
   return (
     <>
       <div className="p-4 md:p-4">
@@ -117,6 +118,24 @@ const UserMenuContent = ({
                 </button>
               )}
             </div>
+            {isParaEmbedded && ownerAddress && (
+              <div className="flex min-w-0 items-center gap-2">
+                <span
+                  className="truncate font-mono text-ens-blue text-xs"
+                  title={ownerAddress}
+                >
+                  {`${ownerAddress.slice(0, 6)}...${ownerAddress.slice(-4)}`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleCopyAddress(ownerAddress)}
+                  className="shrink-0 rounded p-1 text-ens-blue transition-colors hover:bg-ens-blue-light"
+                  aria-label="Copy EOA address"
+                >
+                  <Copy className="size-4" />
+                </button>
+              </div>
+            )}
             {isLoading && (
               <div className="mt-0.5 text-ens-blue text-xs">
                 Creating smart account...
@@ -561,7 +580,7 @@ export const Header = () => {
           </span>
         </div>
         {/* Chrome recommendation badge */}
-        <span className="w-fit rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 font-medium text-amber-700 text-xs">
+        <span className="hidden w-fit rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 font-medium text-amber-700 text-xs md:inline-flex">
           Works best on Chrome
         </span>
       </div>

@@ -11,6 +11,7 @@ declare namespace Cloudflare {
 		VITE_FF_DISCOUNTS_APPLIED: string;
 		VITE_PUBLIC_POSTHOG_KEY: string;
 		VITE_PUBLIC_POSTHOG_HOST: string;
+		SITE_PASSWORD?: string;
 	}
 }
 interface Env extends Cloudflare.Env {}
