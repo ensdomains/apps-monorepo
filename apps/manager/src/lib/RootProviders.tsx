@@ -65,6 +65,9 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
             // Clear the backend auth store
             backendAuthStore.trigger.signOut()
 
+            // Clear all local storage for the app
+            localStorage.clear()
+
             // Clear the posthog session
             track('wallet:disconnect')
             posthog.reset()
