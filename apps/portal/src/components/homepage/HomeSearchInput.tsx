@@ -38,20 +38,8 @@ export const HomeSearchInput = () => {
   const [searchValue, setSearchValue] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState<number>(-1)
-  const [popoverWidth, setPopoverWidth] = useState<number | undefined>(
-    undefined,
-  )
-  const triggerRef = useRef<HTMLDivElement | null>(null)
 
-  useEffect(() => {
-    if (!triggerRef.current) return
-    const el = triggerRef.current
-    const update = () => setPopoverWidth(el.offsetWidth)
-    update()
-    const ro = new ResizeObserver(update)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
+  const triggerRef = useRef<HTMLDivElement | null>(null)
 
   const debouncedSearchValue = useDebouncedValue(
     searchValue,
@@ -162,40 +150,42 @@ export const HomeSearchInput = () => {
       }}
     >
       <PopoverTrigger asChild>
-        <div ref={triggerRef} className="w-full max-w-3xl">
-          <InputGroup className="bg-white rounded-sm max-w-3xl">
-            <InputGroupInput
-              id={searchNamesAndAddressesId}
-              role="combobox"
-              aria-expanded={menuOpen && suggestions.length > 0}
-              aria-controls={`${searchNamesAndAddressesId}-listbox`}
-              aria-activedescendant={activeOptionId}
-              aria-autocomplete="list"
-              className="w-full"
-              placeholder="Search name or address..."
-              value={searchValue}
-              onFocus={() => {
-                if (trimmedSearch) setMenuOpen(true)
-              }}
-              onChange={handleSearchChange}
-              onKeyDown={handleSearchKeyDown}
-            />
-            <InputGroupAddon align="inline-end">
-              <Search />
-            </InputGroupAddon>
-          </InputGroup>
-        </div>
+        <InputGroup
+          ref={triggerRef}
+          className="bg-white rounded-sm max-w-3xl w-full"
+          // Popover trigger is controlling the open state based on the onClick event, since we want to control it ourselves we need to prevent the default event
+          onClick={(event) => event.preventDefault()}
+        >
+          <InputGroupInput
+            id={searchNamesAndAddressesId}
+            role="combobox"
+            aria-expanded={menuOpen && suggestions.length > 0}
+            aria-controls={`${searchNamesAndAddressesId}-listbox`}
+            aria-activedescendant={activeOptionId}
+            aria-autocomplete="list"
+            className="w-full"
+            placeholder="Search name or address..."
+            value={searchValue}
+            onFocus={(event) => {
+              if (event.target.value.trim()) setMenuOpen(true)
+            }}
+            onChange={handleSearchChange}
+            onKeyDown={handleSearchKeyDown}
+          />
+          <InputGroupAddon align="inline-end">
+            <Search />
+          </InputGroupAddon>
+        </InputGroup>
       </PopoverTrigger>
 
-      {suggestions.length > 0 && (
-        <PopoverContent
-          align="start"
-          className="p-1"
-          sideOffset={4}
-          style={{ width: popoverWidth }}
-          onOpenAutoFocus={(event) => event.preventDefault()}
-          onCloseAutoFocus={(event) => event.preventDefault()}
-        >
+      <PopoverContent
+        align="start"
+        className="p-1 w-(--radix-popover-trigger-width)"
+        sideOffset={4}
+        onOpenAutoFocus={(event) => event.preventDefault()}
+        onCloseAutoFocus={(event) => event.preventDefault()}
+      >
+        {suggestions.length > 0 && (
           <div
             role="listbox"
             id={`${searchNamesAndAddressesId}-listbox`}
@@ -228,8 +218,8 @@ export const HomeSearchInput = () => {
               )
             })}
           </div>
-        </PopoverContent>
-      )}
+        )}
+      </PopoverContent>
     </Popover>
   )
 }
