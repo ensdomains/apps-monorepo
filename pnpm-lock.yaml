@@ -370,6 +370,9 @@ importers:
       '@metamask/sdk':
         specifier: ~0.33.1
         version: 0.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      '@posthog/react':
+        specifier: ^1.5.2
+        version: 1.5.2(@types/react@19.2.7)(posthog-js@1.306.1)(react@19.2.1)
       '@radix-ui/react-accordion':
         specifier: ^1.2.12
         version: 1.2.12(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
@@ -463,6 +466,9 @@ importers:
       neverthrow:
         specifier: ^8.2.0
         version: 8.2.0
+      posthog-js:
+        specifier: ^1.306.1
+        version: 1.306.1
       react:
         specifier: ^19.2.0
         version: 19.2.1
