@@ -9,8 +9,6 @@ interface DeployRegistryFormProps {
   setUseCustomRegistry: (value: boolean) => void
   contractAddress: string
   setContractAddress: (value: string) => void
-  migrateSubnames: boolean
-  setMigrateSubnames: (value: boolean) => void
   onSubmit: () => void
   isSubmitDisabled: boolean
   buttonText: string
@@ -21,8 +19,6 @@ export const DeployRegistryForm = ({
   setUseCustomRegistry,
   contractAddress,
   setContractAddress,
-  migrateSubnames,
-  setMigrateSubnames,
   onSubmit,
   isSubmitDisabled,
   buttonText,
@@ -63,23 +59,6 @@ export const DeployRegistryForm = ({
           />
         </div>
       )}
-
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-3">
-          <Switch
-            checked={migrateSubnames}
-            onCheckedChange={setMigrateSubnames}
-            className="shrink-0"
-            id="migrate-subnames"
-          />
-          <Label htmlFor="migrate-subnames" className="cursor-pointer">
-            Migrate subnames
-          </Label>
-        </div>
-        <span className="text-sm text-muted-foreground">
-          All subnames on your current subregistry will be lost.
-        </span>
-      </div>
 
       <Button onClick={onSubmit} disabled={isSubmitDisabled} className="w-fit">
         <span className="flex items-center gap-2">

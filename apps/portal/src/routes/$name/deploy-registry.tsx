@@ -33,7 +33,6 @@ function RouteComponent() {
   const { address: connectedAddress } = useConnection()
   const [useCustomRegistry, setUseCustomRegistry] = useState(false)
   const [contractAddress, setContractAddress] = useState('')
-  const [migrateSubnames, setMigrateSubnames] = useState(false)
 
   const {
     data: registryData,
@@ -244,8 +243,6 @@ function RouteComponent() {
         setUseCustomRegistry={setUseCustomRegistry}
         contractAddress={contractAddress}
         setContractAddress={setContractAddress}
-        migrateSubnames={migrateSubnames}
-        setMigrateSubnames={setMigrateSubnames}
         onSubmit={deploySubregistry}
         isSubmitDisabled={isSubmitDisabled}
         buttonText={getButtonText()}
