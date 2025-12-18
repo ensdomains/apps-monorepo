@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { Suspense, useEffect, useRef } from 'react'
+import { createFileRoute } from '@tanstack/react-router'
+import { Suspense, useRef } from 'react'
 import { DashboardLoading } from '@/features/dashboard/components/DashboardLoading'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -16,13 +16,12 @@ export const Route = createFileRoute('/dashboard')({
 })
 
 function RouteComponent() {
-  const navigate = useNavigate()
   const {
     accountAddress: smartAccountAddress,
     isLoading,
     isAccountReady,
     hasInitialized,
-    hasWalletInStorage,
+    // hasWalletInStorage, // TODO: Re-enable when fixing Para wallet redirect logic
   } = useSmartAccountContext()
 
   const wasSpaNavigation = useRef(isSpaNavigation)
@@ -35,11 +34,12 @@ function RouteComponent() {
   }
 
   // Full page load without wallet: redirect immediately
-  useEffect(() => {
-    if (isFullPageLoad && !hasWalletInStorage) {
-      navigate({ to: '/' })
-    }
-  }, [isFullPageLoad, hasWalletInStorage, navigate])
+  // TODO: Fix redirect logic for Para wallets
+  // useEffect(() => {
+  //   if (isFullPageLoad && !hasWalletInStorage) {
+  //     navigate({ to: '/' })
+  //   }
+  // }, [isFullPageLoad, hasWalletInStorage, navigate])
 
   const isWalletFullyReady = isFullPageLoad
     ? hasInitialized && !isLoading && isAccountReady
@@ -51,11 +51,12 @@ function RouteComponent() {
   const shouldRedirect =
     (isWalletFullyReady && !smartAccountAddress) || didDisconnect
 
-  useEffect(() => {
-    if (shouldRedirect) {
-      navigate({ to: '/' })
-    }
-  }, [shouldRedirect, navigate])
+  // TODO: Fix redirect logic for Para wallets
+  // useEffect(() => {
+  //   if (shouldRedirect) {
+  //     navigate({ to: '/' })
+  //   }
+  // }, [shouldRedirect, navigate])
 
   if (!isWalletFullyReady && !shouldRedirect) {
     return <DashboardLoading />
