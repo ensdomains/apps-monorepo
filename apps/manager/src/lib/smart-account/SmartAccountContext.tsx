@@ -97,7 +97,7 @@ export function SmartAccountContextProvider({
   accountType = 'hca',
 }: SmartAccountContextProviderProps) {
   const paraClient = useParaClient()
-  const { data: paraWallet } = useParaWallet()
+  const { data: paraWallet, isPending: isParaWalletPending } = useParaWallet()
   const { data: wagmiWalletClient } = useWalletClient()
 
   const hasWalletInStorage = useMemo(() => getHasParaWalletInStorage(), [])
@@ -270,7 +270,11 @@ export function SmartAccountContextProvider({
       setEcdsaValidator(null)
       setIsAccountReady(false)
       setError(null)
-      setHasInitialized(true)
+      // Don't mark as initialized if Para wallet data is still loading
+      // Once Para resolves, we'll know if user is connected or not
+      if (!isParaWalletPending) {
+        setHasInitialized(true)
+      }
       return
     }
 
@@ -344,6 +348,7 @@ export function SmartAccountContextProvider({
     wagmiWalletClient,
     paraClient,
     accountType,
+    isParaWalletPending,
   ])
 
   useEffect(() => {
