@@ -55,6 +55,9 @@ function useImageLoadingStatus(src: string | undefined) {
   )
 
   useLayoutEffect(() => {
+    if (!imageRef.current) {
+      imageRef.current = new window.Image()
+    }
     setLoadingStatus(resolveLoadingStatus(imageRef.current, src))
   }, [src])
 
