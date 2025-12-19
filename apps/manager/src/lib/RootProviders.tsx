@@ -79,7 +79,7 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
           appName: 'ENS Manager',
         }}
         externalWalletConfig={{
-          wallets: ['METAMASK', 'WALLETCONNECT'],
+          wallets: ['METAMASK'],
           // Do not create Para accounts for external wallet connections
           createLinkedEmbeddedForExternalWallets: [],
           evmConnector: {
