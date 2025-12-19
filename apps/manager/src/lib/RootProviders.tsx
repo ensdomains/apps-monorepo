@@ -8,9 +8,9 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import posthog from 'posthog-js'
 import { track } from '@/lib/posthog/events'
 import { PHProvider } from '@/lib/posthog/provider'
-import { customSepolia } from '@/lib/wagmi'
 import { backendAuthStore } from '@/utils/backend-client'
 import { getParaClient, setParaConnectionCookie } from './para'
+import { customSepolia } from './wagmi'
 
 const onWalletChange = () => {
   const client = getParaClient()
@@ -79,7 +79,7 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
           appName: 'ENS Manager',
         }}
         externalWalletConfig={{
-          wallets: ['METAMASK'],
+          wallets: ['METAMASK', 'WALLETCONNECT'],
           // Do not create Para accounts for external wallet connections
           createLinkedEmbeddedForExternalWallets: [],
           evmConnector: {
@@ -88,7 +88,7 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
             },
           },
           walletConnect: {
-            projectId: '21fef48091f12692cad574a6f7753643',
+            projectId: '1cb2e088d817de31a39a54154b265f68',
           },
         }}
         paraModalConfig={{
