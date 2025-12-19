@@ -15,7 +15,7 @@ import {
   Unlink,
   User,
 } from 'lucide-react'
-import { type ComponentProps, useState } from 'react'
+import { type ComponentProps, useEffect, useRef, useState } from 'react'
 import type { Address } from 'viem'
 import ensLogo from '@/assets/icons/ens.svg'
 import ensMobileLogo from '@/assets/icons/ens-mobile.svg'
@@ -43,6 +43,107 @@ import {
   useSmartAccountContext,
 } from '@/lib/smart-account'
 
+type ParaAccount = ReturnType<typeof useAccount>
+
+const formatAddress = (address?: string | null) => {
+  if (!address) return ''
+  return `${address.slice(0, 6)}...${address.slice(-4)}`
+}
+
+const getHeaderDisplayName = ({
+  account,
+  isLoading,
+  ownerAddress,
+  reverseName,
+}: {
+  account: ParaAccount
+  isLoading: boolean
+  ownerAddress: string | null | undefined
+  reverseName: string | null
+}) => {
+  if (isLoading) {
+    return 'Initializing...'
+  }
+
+  if (reverseName) {
+    return reverseName
+  }
+
+  const embeddedAccount = account?.embedded
+
+  if (embeddedAccount?.isConnected && embeddedAccount.authType) {
+    switch (embeddedAccount.authType) {
+      case 'email':
+        if (embeddedAccount.email) {
+          return embeddedAccount.email
+        }
+        break
+      case 'phone':
+        if (embeddedAccount.phone) {
+          return embeddedAccount.phone
+        }
+        break
+      case 'farcaster':
+        if (embeddedAccount.farcasterUsername) {
+          return `@${embeddedAccount.farcasterUsername}`
+        }
+        break
+      case 'telegram':
+        if (embeddedAccount.telegramUserId) {
+          return `Telegram: ${embeddedAccount.telegramUserId}`
+        }
+        break
+      case 'externalWallet':
+        if (embeddedAccount.externalWalletAddress) {
+          return formatAddress(embeddedAccount.externalWalletAddress)
+        }
+        break
+    }
+  }
+
+  if (ownerAddress) {
+    return formatAddress(ownerAddress)
+  }
+
+  return 'Connected'
+}
+
+const useStableReverseName = ({
+  ownerAddress,
+  reverseName,
+  isReverseNameSuccess,
+}: {
+  ownerAddress: string | null | undefined
+  reverseName: string | null | undefined
+  isReverseNameSuccess: boolean
+}) => {
+  const lastOwnerAddressRef = useRef<string | null>(null)
+  const [stableReverseName, setStableReverseName] = useState<string | null>(
+    null,
+  )
+
+  useEffect(() => {
+    const normalizedOwnerAddress = ownerAddress ?? null
+
+    if (normalizedOwnerAddress !== lastOwnerAddressRef.current) {
+      lastOwnerAddressRef.current = normalizedOwnerAddress
+      setStableReverseName(reverseName ?? null)
+      return
+    }
+
+    if (reverseName) {
+      setStableReverseName(reverseName)
+      return
+    }
+
+    if (isReverseNameSuccess) {
+      setStableReverseName(null)
+    }
+  }, [ownerAddress, reverseName, isReverseNameSuccess])
+
+  return stableReverseName
+}
+
 // Reusable menu content component
 const UserMenuContent = ({
   account: _account,
@@ -57,7 +158,7 @@ const UserMenuContent = ({
   error,
   copied,
   handleCopyAddress,
-  getDisplayName,
+  displayName,
   ensAvatar,
   autoFundingMutation,
   walletSource,
@@ -76,7 +177,7 @@ const UserMenuContent = ({
   error: string | null
   copied: boolean
   handleCopyAddress: (address: string) => void
-  getDisplayName: () => string
+  displayName: string
   ensAvatar: string | null | undefined
   autoFundingMutation: SmartAccountState['autoFundingMutation']
   walletSource: 'para-embedded' | 'external-wallet' | null
@@ -106,7 +207,7 @@ const UserMenuContent = ({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="truncate font-medium text-ens-blue-dark text-lg">
-                {getDisplayName()}
+                {displayName}
               </span>
               {isExternalWallet && ownerAddress && (
                 <button
@@ -275,8 +376,9 @@ const ConnectedContent = () => {
     isSessionClient,
   } = useSmartAccountContext()
 
-  const { data: reverseName } = useQuery({
+  const { data: reverseName, isSuccess: isReverseNameSuccess } = useQuery({
     ...profileReverseNameQuery(ownerAddress as Address),
+    enabled: !!ownerAddress,
   })
   const { data: reverseRecords } = useQuery({
     ...profileRecordsQuery(reverseName ?? ''),
@@ -306,58 +408,17 @@ const ConnectedContent = () => {
     }
   }
 
-  const getDisplayName = () => {
-    // Show loading state while Rhinestone account is being created
-    if (isLoading) {
-      return 'Initializing...'
-    }
-
-    // Check embedded account with auth type
-    if (account?.embedded?.isConnected && account.embedded.authType) {
-      if (reverseName) {
-        return reverseName
-      }
-
-      const authType = account.embedded.authType
-
-      switch (authType) {
-        case 'email':
-          if (account.embedded.email) {
-            return account.embedded.email
-          }
-          break
-        case 'phone':
-          if (account.embedded.phone) {
-            return account.embedded.phone
-          }
-          break
-        case 'farcaster':
-          if (account.embedded.farcasterUsername) {
-            return `@${account.embedded.farcasterUsername}`
-          }
-          break
-        case 'telegram':
-          if (account.embedded.telegramUserId) {
-            return `Telegram: ${account.embedded.telegramUserId}`
-          }
-          break
-        case 'externalWallet':
-          if (account.embedded.externalWalletAddress) {
-            const addr = account.embedded.externalWalletAddress
-            return `${addr.slice(0, 6)}...${addr.slice(-4)}`
-          }
-          break
-      }
-    }
-
-    if (ownerAddress) {
-      return `${ownerAddress.slice(0, 6)}...${ownerAddress.slice(-4)}`
-    }
-
-    return 'Connected'
-  }
-
-  const displayName = getDisplayName()
+  const stableReverseName = useStableReverseName({
+    ownerAddress,
+    reverseName,
+    isReverseNameSuccess,
+  })
+  const displayName = getHeaderDisplayName({
+    account,
+    isLoading,
+    ownerAddress,
+    reverseName: stableReverseName,
+  })
 
   // Shared trigger button
   const triggerButton = (
@@ -412,7 +473,7 @@ const ConnectedContent = () => {
     error,
     copied,
     handleCopyAddress,
-    getDisplayName,
+    displayName,
     ensAvatar: parsedAvatar,
     autoFundingMutation,
   }
