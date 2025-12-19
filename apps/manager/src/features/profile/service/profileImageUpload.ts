@@ -1,6 +1,7 @@
 import { mutationOptions } from '@tanstack/react-query'
 import { sha256 } from 'viem'
 import type { EventFrom } from 'xstate'
+import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
 import type { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
 
 const UPLOAD_TIMEOUT_MS = 30000
@@ -104,7 +105,7 @@ export const uploadImageMutationOptions = ({
       const dataURL = await fileToJpegDataURL(uploadFile)
 
       const chainName = getChainName(chainId)
-      const baseUrlRoot = 'https://avatar-upload-staging.ens-cf.workers.dev'
+      const baseUrlRoot = AVATAR_UPLOAD_BASE_URL
 
       let endpoint: string
       if (type === 'avatar') {
