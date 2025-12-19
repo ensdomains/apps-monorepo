@@ -59,6 +59,7 @@ export const ViewHeaderSection = ({
         </div>
         <div className="-bottom-10 max-md:-translate-x-1/2 absolute left-1/2 size-24 md:left-6 md:size-36 lg:size-40">
           <div className="size-full overflow-hidden rounded-xl bg-gray-200 shadow-md ring-2 ring-white">
+            <>{avatarUrl}</>
             <ImageFallback.Root className="contents">
               <ImageFallback.Image
                 src={avatarUrl}
