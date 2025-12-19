@@ -22,12 +22,8 @@ export const HeaderSection = withForm({
             <ImageSelectionDialog
               currentImage={field.state.value}
               defaultImage=""
-              onImageChange={(url) => {
-                field.handleChange(url)
-              }}
-              onImageRemove={() => {
-                field.handleChange('')
-              }}
+              onImageChange={(url) => field.handleChange(url)}
+              onImageRemove={() => field.handleChange('')}
               title="Change Header Image"
               description="Choose a header image for your profile"
               type="header"
@@ -58,12 +54,8 @@ export const HeaderSection = withForm({
                 <ImageSelectionDialog
                   currentImage={field.state.value}
                   defaultImage={placeholderAvatar}
-                  onImageChange={(url) => {
-                    field.handleChange(url)
-                  }}
-                  onImageRemove={() => {
-                    field.handleChange('')
-                  }}
+                  onImageChange={(url) => field.handleChange(url)}
+                  onImageRemove={() => field.handleChange('')}
                   title="Change Avatar"
                   description="Choose an avatar for your profile"
                   type="avatar"
