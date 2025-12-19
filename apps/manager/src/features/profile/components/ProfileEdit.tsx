@@ -2,7 +2,6 @@ import { recordsMachine } from '@ens-apps/transaction-manager'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
 import type { Address, PublicClient } from 'viem'
-import { Alert } from '@/components/molecules/Alert'
 import { Button } from '@/components/ui/button'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
@@ -125,38 +124,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]"
       onSubmit={handleSubmit}
     >
-      {isSubmitting && (
-        <div className="px-4">
-          <Alert
-            variant="info"
-            title="Updating profile"
-            description="Your profile changes are being submitted. This may take a few moments."
-            className="mb-4"
-          />
-        </div>
-      )}
-      {isSuccess && !isSubmitting && (
-        <div className="px-4">
-          <Alert
-            variant="success"
-            title="Profile updated"
-            description="Your ENS profile has been updated successfully."
-            className="mb-4"
-          />
-        </div>
-      )}
-      {isError && updateErrorMessage && (
-        <div className="px-4">
-          <Alert
-            variant="destructive"
-            title="Update failed"
-            description={updateErrorMessage}
-            className="mb-4"
-          />
-        </div>
-      )}
       <HeaderSection form={form} name={name} owner={ownerAddress} />
-
       <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
         <div className="space-y-4 md:col-span-7 lg:col-span-8">
           <BioSection form={form} />
