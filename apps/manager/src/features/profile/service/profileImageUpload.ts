@@ -5,6 +5,7 @@ import type { imageSelectionMachine } from '@/features/profile/machines/imageSel
 
 const UPLOAD_TIMEOUT_MS = 30000
 const ONE_WEEK_MS = 1000 * 60 * 60 * 24 * 7
+const JPEG_QUALITY = 0.9
 
 export type ImageType = 'avatar' | 'header'
 
@@ -15,6 +16,39 @@ const fileToDataURL = (file: File) =>
     reader.onerror = (err) => reject(err)
     reader.readAsDataURL(file)
   })
+
+const dataURLToImage = (dataURL: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = (err) => reject(err)
+    image.src = dataURL
+  })
+
+const fileToJpegDataURL = async (file: File) => {
+  if (file.type === 'image/jpeg') return fileToDataURL(file)
+
+  const dataURL = await fileToDataURL(file)
+  const image = await dataURLToImage(dataURL)
+  const canvas = document.createElement('canvas')
+  const width = image.naturalWidth || image.width
+  const height = image.naturalHeight || image.height
+  const context = canvas.getContext('2d')
+
+  if (!context || !width || !height) {
+    throw new Error('Unable to process image for upload')
+  }
+
+  canvas.width = width
+  canvas.height = height
+
+  // JPEG has no alpha channel, so paint a white background first.
+  context.fillStyle = '#ffffff'
+  context.fillRect(0, 0, width, height)
+  context.drawImage(image, 0, 0, width, height)
+
+  return canvas.toDataURL('image/jpeg', JPEG_QUALITY)
+}
 
 const dataURLToBytes = (dataURL: string) => {
   const [, base64 = ''] = dataURL.split(',')
@@ -67,10 +101,10 @@ export const uploadImageMutationOptions = ({
       if (!isConnected || !address)
         throw new Error('Please connect your wallet before uploading an image')
 
-      const dataURL = await fileToDataURL(uploadFile)
+      const dataURL = await fileToJpegDataURL(uploadFile)
 
       const chainName = getChainName(chainId)
-      const baseUrlRoot = 'https://euc.li'
+      const baseUrlRoot = 'https://avatar-upload-staging.ens-cf.workers.dev'
 
       let endpoint: string
       if (type === 'avatar') {
@@ -85,10 +119,8 @@ export const uploadImageMutationOptions = ({
             : `${baseUrlRoot}/${chainName}/${name}/h`
       }
 
-      const hashBytes = sha256(dataURLToBytes(dataURL))
-      const urlHash = Array.from(hashBytes)
-        .map((b) => b.toString().padStart(2, '0'))
-        .join('')
+      const hash = sha256(dataURLToBytes(dataURL), 'hex')
+      const urlHash = hash.startsWith('0x') ? hash.slice(2) : hash
       const expiry = `${Date.now() + ONE_WEEK_MS}`
 
       const sig = await signTypedDataAsync({
