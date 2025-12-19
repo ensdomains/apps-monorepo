@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useSelector } from '@xstate/react'
 import { CheckCircle, LoaderIcon, WalletIcon, XCircle } from 'lucide-react'
 import { useConnect, useConnection, useDisconnect } from 'wagmi'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -11,7 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { paraMachine } from '@/features/wallet/machines/para'
 
 export const Route = createFileRoute('/wallet')({
   component: RouteComponent,
@@ -34,11 +32,6 @@ const ConnectMenu = () => {
     status,
     variables,
   })
-
-  const isParaModalOpen = useSelector(
-    paraMachine,
-    (state) => state.value !== 'closed',
-  )
 
   const handleConnect = (connector: any) => {
     console.log('Connecting to:', connector)
@@ -195,29 +188,6 @@ const ConnectMenu = () => {
           </AlertDescription>
         </Alert>
       )}
-
-      {/* Para Modal Debug Info */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-gray-600 text-sm">Debug Info</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-gray-600 text-sm">
-            Para modal open: {isParaModalOpen.toString()}
-          </p>
-          {isParaModalOpen && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => paraMachine.send({ type: 'CLOSE' })}
-              className="mt-2"
-            >
-              Close Para Modal
-            </Button>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Wallet Connectors */}
       <Card>
