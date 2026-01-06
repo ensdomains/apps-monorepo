@@ -72,7 +72,7 @@ export const wagmiConfig = createConfig({
   connectors: [
     injected(),
     walletConnect({
-      projectId: '21fef48091f12692cad574a6f7753643',
+      projectId: '1cb2e088d817de31a39a54154b265f68',
       name: 'WalletConnect',
     }),
   ],

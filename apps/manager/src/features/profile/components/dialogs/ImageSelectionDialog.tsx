@@ -194,14 +194,14 @@ export const ImageSelectionDialog = ({
       <ErrorDisplay error={state.context.error} />
 
       <div className="space-y-4">
-        <Button
+        {/* <Button
           onClick={() => send({ type: 'OPEN_NFT_SELECTION' })}
           variant="outline"
           className="w-full justify-start"
         >
           <Image className="size-4" />
           Choose an NFT
-        </Button>
+        </Button> */}
 
         <div className="space-y-2">
           <div className="flex items-center gap-2">
