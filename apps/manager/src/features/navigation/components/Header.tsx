@@ -16,6 +16,7 @@ import {
   User,
 } from 'lucide-react'
 import { type ComponentProps, useEffect, useRef, useState } from 'react'
+import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import ensLogo from '@/assets/icons/ens.svg'
 import ensMobileLogo from '@/assets/icons/ens-mobile.svg'
@@ -72,32 +73,25 @@ const getHeaderDisplayName = ({
   const embeddedAccount = account?.embedded
 
   if (embeddedAccount?.isConnected && embeddedAccount.authType) {
-    switch (embeddedAccount.authType) {
-      case 'email':
-        if (embeddedAccount.email) {
-          return embeddedAccount.email
-        }
-        break
-      case 'phone':
-        if (embeddedAccount.phone) {
-          return embeddedAccount.phone
-        }
-        break
-      case 'farcaster':
-        if (embeddedAccount.farcasterUsername) {
-          return `@${embeddedAccount.farcasterUsername}`
-        }
-        break
-      case 'telegram':
-        if (embeddedAccount.telegramUserId) {
-          return `Telegram: ${embeddedAccount.telegramUserId}`
-        }
-        break
-      case 'externalWallet':
-        if (embeddedAccount.externalWalletAddress) {
-          return formatAddress(embeddedAccount.externalWalletAddress)
-        }
-        break
+    const embeddedDisplayName = match(embeddedAccount)
+      .with({ authType: 'email', email: P.string }, ({ email }) => email)
+      .with({ authType: 'phone', phone: P.string }, ({ phone }) => phone)
+      .with(
+        { authType: 'farcaster', farcasterUsername: P.string },
+        ({ farcasterUsername }) => `@${farcasterUsername}`,
+      )
+      .with(
+        { authType: 'telegram', telegramUserId: P.string },
+        ({ telegramUserId }) => `Telegram: ${telegramUserId}`,
+      )
+      .with(
+        { authType: 'externalWallet', externalWalletAddress: P.string },
+        ({ externalWalletAddress }) => formatAddress(externalWalletAddress),
+      )
+      .otherwise(() => null)
+
+    if (embeddedDisplayName) {
+      return embeddedDisplayName
     }
   }
 
