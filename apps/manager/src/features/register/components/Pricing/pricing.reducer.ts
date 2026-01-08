@@ -1,3 +1,4 @@
+import { match } from 'ts-pattern'
 import type { PricingOptions, PricingQuoteMap } from './types'
 import {
   calculateDurationFromDate,
@@ -52,55 +53,46 @@ export function pricingReducer(
   state: PricingState,
   action: PricingAction,
 ): PricingState {
-  switch (action.type) {
-    case 'SET_DURATION': {
-      const newExpirationDate = calculateExpirationDate(action.payload)
+  return match(action)
+    .with({ type: 'SET_DURATION' }, ({ payload }) => {
+      const newExpirationDate = calculateExpirationDate(payload)
       return {
         ...state,
-        selectedDuration: action.payload,
+        selectedDuration: payload,
         selectedExpirationDate: newExpirationDate,
       }
-    }
-
-    case 'SET_DATE': {
-      if (action.payload === null) {
+    })
+    .with({ type: 'SET_DATE' }, ({ payload }) => {
+      if (payload === null) {
         return {
           ...state,
           selectedExpirationDate: null,
         }
       }
-      const calculatedDuration = calculateDurationFromDate(action.payload)
+      const calculatedDuration = calculateDurationFromDate(payload)
       return {
         ...state,
-        selectedExpirationDate: action.payload,
+        selectedExpirationDate: payload,
         selectedDuration: calculatedDuration,
       }
-    }
-
-    case 'SET_DURATION_AND_DATE': {
-      return {
-        ...state,
-        selectedDuration: action.payload.duration,
-        selectedExpirationDate: action.payload.date,
-      }
-    }
-
-    case 'FETCH_PRICING_START':
-      return {
-        ...state,
-        isPricingLoading: true,
-      }
-
-    case 'FETCH_PRICING_SUCCESS':
-      return {
-        ...state,
-        isPricingLoading: false,
-        basePricePerYear: action.payload.basePricePerYear,
-        pricingOptions: action.payload.pricingOptions,
-        pricingQuotes: action.payload.pricingQuotes,
-      }
-
-    case 'FETCH_PRICING_ERROR': {
+    })
+    .with({ type: 'SET_DURATION_AND_DATE' }, ({ payload }) => ({
+      ...state,
+      selectedDuration: payload.duration,
+      selectedExpirationDate: payload.date,
+    }))
+    .with({ type: 'FETCH_PRICING_START' }, () => ({
+      ...state,
+      isPricingLoading: true,
+    }))
+    .with({ type: 'FETCH_PRICING_SUCCESS' }, ({ payload }) => ({
+      ...state,
+      isPricingLoading: false,
+      basePricePerYear: payload.basePricePerYear,
+      pricingOptions: payload.pricingOptions,
+      pricingQuotes: payload.pricingQuotes,
+    }))
+    .with({ type: 'FETCH_PRICING_ERROR' }, () => {
       const initialOptions = getInitialPricingOptions(
         state.pricingOptions[1]?.discount !== 0,
       )
@@ -111,9 +103,6 @@ export function pricingReducer(
         pricingOptions: initialOptions,
         pricingQuotes: createEmptyPricingQuoteMap(),
       }
-    }
-
-    default:
-      return state
-  }
+    })
+    .otherwise(() => state)
 }
