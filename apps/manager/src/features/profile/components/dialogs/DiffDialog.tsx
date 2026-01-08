@@ -103,7 +103,7 @@ export const DiffDialog = ({
         acc[key] = []
       }
 
-      acc[key]!.push(issue.message)
+      acc[key].push(issue.message)
 
       return acc
     }, {}) ?? {}
@@ -151,45 +151,46 @@ export const DiffDialog = ({
                       </Badge>
                     </div>
                     {change.type === 'added' && (
-                      <div className="break-words rounded bg-green-50 p-2 text-green-700 text-sm">
+                      <div className="wrap-break-word rounded bg-green-50 p-2 text-green-700 text-sm">
                         <strong>New value:</strong>{' '}
                         {change.current || '(empty)'}
                       </div>
                     )}
                     {change.type === 'removed' && (
-                      <div className="break-words rounded bg-red-50 p-2 text-red-700 text-sm">
+                      <div className="wrap-break-word rounded bg-red-50 p-2 text-red-700 text-sm">
                         <strong>Removed:</strong> {change.original || '(empty)'}
                       </div>
                     )}
                     {change.type === 'modified' && (
                       <div className="space-y-2">
-                        <div className="break-words rounded bg-red-50 p-2 text-red-700 text-sm">
+                        <div className="wrap-break-word rounded bg-red-50 p-2 text-red-700 text-sm">
                           <strong>From:</strong> {change.original || '(empty)'}
                         </div>
-                        <div className="break-words rounded bg-green-50 p-2 text-green-700 text-sm">
+                        <div className="wrap-break-word rounded bg-green-50 p-2 text-green-700 text-sm">
                           <strong>To:</strong> {change.current || '(empty)'}
                         </div>
                       </div>
                     )}
                     {change.sectionKey && change.fieldKey
-                      ? (issuesByField[
-                          `${change.sectionKey}:${change.fieldKey}`
-                        ] ??
-                          null) && (
-                          <div className="mt-3 space-y-1">
-                            {issuesByField[
-                              `${change.sectionKey}:${change.fieldKey}`
-                            ]!.map((message, index) => (
-                              // biome-ignore lint/suspicious/noArrayIndexKey: error list is stable for this render
-                              <div
-                                key={index}
-                                className="rounded border border-red-200 bg-red-50 px-2 py-1 text-red-700 text-xs"
-                              >
-                                {message}
-                              </div>
-                            ))}
-                          </div>
-                        )
+                      ? (() => {
+                          const issueKey = `${change.sectionKey}:${change.fieldKey}`
+                          const issueMessages = issuesByField[issueKey]
+
+                          if (!issueMessages?.length) return null
+
+                          return (
+                            <div className="mt-3 space-y-1">
+                              {issueMessages.map((message) => (
+                                <div
+                                  key={`${issueKey}:${message}`}
+                                  className="rounded border border-red-200 bg-red-50 px-2 py-1 text-red-700 text-xs"
+                                >
+                                  {message}
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        })()
                       : null}
                   </div>
                 ))}
