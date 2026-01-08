@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ChangeEvent, useState } from 'react'
@@ -48,10 +48,28 @@ export const CheckAvailability = ({
     setInputValue(event.target.value)
   }
 
-  const { data: unavailableRecords } = useQuery({
-    ...useProfileRecordsQuery(selectedName ?? ''),
-    enabled: displayState.type === 'unavailable' && !!selectedName,
+  const [
+    unavailableRecordsQuery,
+    unavailableExpiryQuery,
+    unavailableRegistrationQuery,
+  ] = useQueries({
+    queries: [
+      {
+        ...useProfileRecordsQuery(selectedName ?? ''),
+        enabled: displayState.type === 'unavailable' && !!selectedName,
+      },
+      {
+        ...useProfileExpiryQuery(selectedName ?? ''),
+        enabled: displayState.type === 'unavailable' && !!selectedName,
+      },
+      {
+        ...useProfileRegistrationQuery(selectedName ?? ''),
+        enabled: displayState.type === 'unavailable' && !!selectedName,
+      },
+    ],
   })
+
+  const unavailableRecords = unavailableRecordsQuery.data
 
   const avatarRecord = unavailableRecords?.texts.find(
     (text) => text.key === 'avatar',
@@ -63,15 +81,8 @@ export const CheckAvailability = ({
       displayState.type === 'unavailable' && !!selectedName && !!avatarRecord,
   })
 
-  const { data: unavailableExpiry } = useQuery({
-    ...useProfileExpiryQuery(selectedName ?? ''),
-    enabled: displayState.type === 'unavailable' && !!selectedName,
-  })
-
-  const { data: unavailableRegistration } = useQuery({
-    ...useProfileRegistrationQuery(selectedName ?? ''),
-    enabled: displayState.type === 'unavailable' && !!selectedName,
-  })
+  const unavailableExpiry = unavailableExpiryQuery.data
+  const unavailableRegistration = unavailableRegistrationQuery.data
 
   return (
     <div className="relative flex flex-col gap-2">

@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQueries } from '@tanstack/react-query'
 import {
   NOTIFICATION_METADATA,
   type NotificationKind,
@@ -61,8 +61,11 @@ const groupedKinds = Object.entries(
 }))
 
 export function NotificationPreferences() {
-  const { data: channels = [] } = useQuery(channelsQueryOptions)
-  const { data: preferences = {} } = useQuery(preferencesQueryOptions)
+  const [channelsQuery, preferencesQuery] = useQueries({
+    queries: [channelsQueryOptions, preferencesQueryOptions],
+  })
+  const channels = channelsQuery.data ?? []
+  const preferences = preferencesQuery.data ?? {}
   const updatePreferenceMutation = useMutation(updatePreferenceMutationOptions)
 
   const [hasAutoRenew] = useState(false) // This would come from user data

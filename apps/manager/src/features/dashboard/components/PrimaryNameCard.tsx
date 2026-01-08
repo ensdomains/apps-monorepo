@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import { Calendar, Clock } from 'lucide-react'
 import { match } from 'ts-pattern'
 import { LinkButton } from '@/components/ui/button'
@@ -17,14 +17,20 @@ export const PrimaryNameCard = ({
   primaryName,
   avatarUrl,
 }: PrimaryNameCardProps) => {
-  const { data: registration, isLoading: isRegistrationLoading } = useQuery({
-    ...useProfileRegistrationQuery(primaryName ?? ''),
-    enabled: !!primaryName,
-  })
-
-  const { data: reverseExpiry, isLoading: isReverseExpiryLoading } = useQuery({
-    ...useProfileExpiryQuery(primaryName ?? ''),
-    enabled: !!primaryName,
+  const [
+    { data: registration, isLoading: isRegistrationLoading },
+    { data: reverseExpiry, isLoading: isReverseExpiryLoading },
+  ] = useQueries({
+    queries: [
+      {
+        ...useProfileRegistrationQuery(primaryName ?? ''),
+        enabled: !!primaryName,
+      },
+      {
+        ...useProfileExpiryQuery(primaryName ?? ''),
+        enabled: !!primaryName,
+      },
+    ],
   })
 
   const registeredDate =
