@@ -4,6 +4,7 @@
  * Manages local UI state (form inputs) separate from registration flow state.
  */
 
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { SUPPORTED_TOKENS } from '../services/nameChainContractService'
 
@@ -33,16 +34,18 @@ export function registrationUIReducer(
   state: RegistrationUIState,
   action: RegistrationUIAction,
 ): RegistrationUIState {
-  switch (action.type) {
-    case 'SET_NAME':
-      return { ...state, name: action.name }
-    case 'SET_DURATION':
-      return { ...state, duration: action.duration }
-    case 'SET_TOKEN':
-      return { ...state, selectedToken: action.token }
-    case 'RESET':
-      return createInitialUIState(action.initialName)
-    default:
-      return state
-  }
+  return match(action)
+    .with({ type: 'SET_NAME' }, ({ name }) => ({ ...state, name }))
+    .with({ type: 'SET_DURATION' }, ({ duration }) => ({
+      ...state,
+      duration,
+    }))
+    .with({ type: 'SET_TOKEN' }, ({ token }) => ({
+      ...state,
+      selectedToken: token,
+    }))
+    .with({ type: 'RESET' }, ({ initialName }) =>
+      createInitialUIState(initialName),
+    )
+    .otherwise(() => state)
 }
