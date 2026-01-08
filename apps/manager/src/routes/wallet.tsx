@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { CheckCircle, LoaderIcon, WalletIcon, XCircle } from 'lucide-react'
+import { match, P } from 'ts-pattern'
 import { useConnect, useConnection, useDisconnect } from 'wagmi'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -39,110 +40,112 @@ const ConnectMenu = () => {
   }
 
   // Enhanced error message handling
-  const getErrorMessage = (error: any) => {
-    if (!error) return 'An unknown error occurred while connecting'
+  const getErrorMessage = (error: any) =>
+    match(error)
+      .with(P.nullish, () => 'An unknown error occurred while connecting')
+      .with(
+        { name: 'ConnectorAlreadyConnectedError' },
+        () =>
+          'This wallet is already connected. Please disconnect first or try a different wallet.',
+      )
+      .with(
+        { name: 'UserRejectedRequestError' },
+        () =>
+          'Connection was rejected. Please approve the connection request in your wallet.',
+      )
+      .with(
+        { name: 'ResourceUnavailableRpcError' },
+        () =>
+          'Network error. Please check your internet connection and try again.',
+      )
+      .with(
+        { name: 'SwitchChainError' },
+        () =>
+          'Failed to switch network. Please try switching networks manually in your wallet.',
+      )
+      .with(
+        { name: 'ChainMismatchError' },
+        () =>
+          'Network mismatch. Please ensure your wallet is connected to the correct network.',
+      )
+      .with(
+        { name: 'InsufficientFundsError' },
+        () =>
+          'Insufficient funds for transaction fees. Please add more funds to your wallet.',
+      )
+      .with({ message: P.string }, ({ message }) => {
+        const lowerMessage = message.toLowerCase()
 
-    // Handle specific wagmi error types
-    if (error.name === 'ConnectorAlreadyConnectedError') {
-      return 'This wallet is already connected. Please disconnect first or try a different wallet.'
-    }
+        return match(lowerMessage)
+          .with(
+            P.when(
+              (value) =>
+                value.includes('user rejected') ||
+                value.includes('user denied'),
+            ),
+            () =>
+              'Connection was rejected. Please approve the connection request in your wallet.',
+          )
+          .with(
+            P.when(
+              (value) => value.includes('network') || value.includes('rpc'),
+            ),
+            () => 'Network error. Please check your connection and try again.',
+          )
+          .with(
+            P.when(
+              (value) =>
+                value.includes('timeout') || value.includes('timed out'),
+            ),
+            () => 'Connection timed out. Please try again.',
+          )
+          .with(
+            P.when((value) => value.includes('already connected')),
+            () =>
+              'This wallet is already connected. Please try a different wallet.',
+          )
+          .with(
+            P.when(
+              (value) =>
+                value.includes('no provider') || value.includes('no wallet'),
+            ),
+            () =>
+              'No wallet detected. Please install a wallet extension and refresh the page.',
+          )
+          .with(
+            P.when((value) => value.includes('unsupported chain')),
+            () =>
+              'Unsupported network. Please switch to a supported network in your wallet.',
+          )
+          .otherwise(() => message)
+      })
+      .otherwise(
+        () =>
+          error?.message ||
+          'An unexpected error occurred while connecting to your wallet',
+      )
 
-    if (error.name === 'UserRejectedRequestError') {
-      return 'Connection was rejected. Please approve the connection request in your wallet.'
-    }
+  const getErrorIcon = (error: any) =>
+    match(error)
+      .with(P.nullish, () => <XCircle className="h-4 w-4 text-red-600" />)
+      .with({ name: 'UserRejectedRequestError' }, () => (
+        <XCircle className="h-4 w-4 text-orange-600" />
+      ))
+      .with({ name: 'ConnectorAlreadyConnectedError' }, () => (
+        <XCircle className="h-4 w-4 text-blue-600" />
+      ))
+      .with({ name: 'ResourceUnavailableRpcError' }, () => (
+        <XCircle className="h-4 w-4 text-yellow-600" />
+      ))
+      .otherwise(() => <XCircle className="h-4 w-4 text-red-600" />)
 
-    if (error.name === 'ResourceUnavailableRpcError') {
-      return 'Network error. Please check your internet connection and try again.'
-    }
-
-    if (error.name === 'SwitchChainError') {
-      return 'Failed to switch network. Please try switching networks manually in your wallet.'
-    }
-
-    if (error.name === 'ChainMismatchError') {
-      return 'Network mismatch. Please ensure your wallet is connected to the correct network.'
-    }
-
-    if (error.name === 'InsufficientFundsError') {
-      return 'Insufficient funds for transaction fees. Please add more funds to your wallet.'
-    }
-
-    // Handle common error messages
-    if (error.message) {
-      const message = error.message.toLowerCase()
-
-      if (
-        message.includes('user rejected') ||
-        message.includes('user denied')
-      ) {
-        return 'Connection was rejected. Please approve the connection request in your wallet.'
-      }
-
-      if (message.includes('network') || message.includes('rpc')) {
-        return 'Network error. Please check your connection and try again.'
-      }
-
-      if (message.includes('timeout') || message.includes('timed out')) {
-        return 'Connection timed out. Please try again.'
-      }
-
-      if (message.includes('already connected')) {
-        return 'This wallet is already connected. Please try a different wallet.'
-      }
-
-      if (message.includes('no provider') || message.includes('no wallet')) {
-        return 'No wallet detected. Please install a wallet extension and refresh the page.'
-      }
-
-      if (message.includes('unsupported chain')) {
-        return 'Unsupported network. Please switch to a supported network in your wallet.'
-      }
-    }
-
-    // Fallback to original error message or generic message
-    return (
-      error.message ||
-      'An unexpected error occurred while connecting to your wallet'
-    )
-  }
-
-  const getErrorIcon = (error: any) => {
-    if (!error) return <XCircle className="h-4 w-4 text-red-600" />
-
-    // Different icons for different error types
-    if (error.name === 'UserRejectedRequestError') {
-      return <XCircle className="h-4 w-4 text-orange-600" />
-    }
-
-    if (error.name === 'ConnectorAlreadyConnectedError') {
-      return <XCircle className="h-4 w-4 text-blue-600" />
-    }
-
-    if (error.name === 'ResourceUnavailableRpcError') {
-      return <XCircle className="h-4 w-4 text-yellow-600" />
-    }
-
-    return <XCircle className="h-4 w-4 text-red-600" />
-  }
-
-  const getErrorVariant = (error: any) => {
-    if (!error) return 'destructive'
-
-    // Different alert variants for different error types
-    if (error.name === 'UserRejectedRequestError') {
-      return 'default' // Less severe - user action
-    }
-
-    if (error.name === 'ConnectorAlreadyConnectedError') {
-      return 'secondary' // Informational
-    }
-
-    if (error.name === 'ResourceUnavailableRpcError') {
-      return 'default' // Network issues
-    }
-
-    return 'destructive' // Default for other errors
-  }
+  const getErrorVariant = (error: any) =>
+    match(error)
+      .with(P.nullish, () => 'destructive')
+      .with({ name: 'UserRejectedRequestError' }, () => 'default')
+      .with({ name: 'ConnectorAlreadyConnectedError' }, () => 'secondary')
+      .with({ name: 'ResourceUnavailableRpcError' }, () => 'default')
+      .otherwise(() => 'destructive')
 
   return (
     <>
