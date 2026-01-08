@@ -33,7 +33,7 @@ export const getRegistration = ResultFn(async function* (name: string) {
   } as { registrationDate: number })
 })
 
-export const useProfileRegistrationQuery = (name: string) =>
+export const profileRegistrationQuery = (name: string) =>
   resultQueryOptions({
     queryKey: qk('profile', 'registration', { name }),
     queryFn: ({ queryKey: [{ name }] }) => getRegistration(name),

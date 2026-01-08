@@ -9,7 +9,7 @@ import {
   resolveDomainLabel,
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
-import { useProfileOwnedNamesQuery } from '../../service/useProfileOwnedNames'
+import { profileOwnedNamesQuery } from '../../service/profileOwnedNames'
 
 const shortenAddress = (value: string) =>
   `${value.slice(0, 6)}...${value.slice(-4)}`
@@ -23,7 +23,7 @@ const formatExpiry = (expiry?: number | null) => {
 
 export const AddressProfileView = ({ address }: { address: Address }) => {
   const { data, isPending, isError } = useQuery({
-    ...useProfileOwnedNamesQuery(address),
+    ...profileOwnedNamesQuery(address),
   })
 
   const names = data?.domains ?? []

@@ -5,7 +5,7 @@ import { skipToken } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { getDomains } from '@/features/dashboard/service/dashboardDomains'
 
-export const useProfileOwnedNamesQuery = (address?: Address) =>
+export const profileOwnedNamesQuery = (address?: Address) =>
   resultQueryOptions({
     queryKey: qk('profile', 'owned_names', { address }),
     queryFn: address

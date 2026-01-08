@@ -1,5 +1,5 @@
 import { zeroAddress } from 'viem'
-import type { ProfileRecordsResult } from './service/useProfileRecords'
+import type { ProfileRecordsResult } from './service/profileRecords'
 
 export const DEBUG_PROFILE: ProfileRecordsResult = {
   texts: [

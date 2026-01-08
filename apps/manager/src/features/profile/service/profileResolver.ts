@@ -34,7 +34,7 @@ export const getResolver = ResultFn(async function* (name: string) {
   return ok(resolverAddress)
 })
 
-export const useProfileResolverQuery = (name: string) =>
+export const profileResolverQuery = (name: string) =>
   resultQueryOptions({
     queryKey: qk('profile', 'resolver', { name }),
     queryFn: ({ queryKey: [{ name }] }) => getResolver(name),

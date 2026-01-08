@@ -8,10 +8,10 @@ import {
 } from '@/components/molecules/DomainResultCard'
 import { SearchField } from '@/components/molecules/SearchField'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { parseAvatarQuery } from '@/features/profile/service/useProfileAvatar'
-import { useProfileExpiryQuery } from '@/features/profile/service/useProfileExpiry'
-import { useProfileRecordsQuery } from '@/features/profile/service/useProfileRecords'
-import { useProfileRegistrationQuery } from '@/features/profile/service/useProfileRegistration'
+import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
+import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
 import { ValidationError } from '@/features/register/components/CheckAvailability/ValidationError'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -55,15 +55,15 @@ export const CheckAvailability = ({
   ] = useQueries({
     queries: [
       {
-        ...useProfileRecordsQuery(selectedName ?? ''),
+        ...profileRecordsQuery(selectedName ?? ''),
         enabled: displayState.type === 'unavailable' && !!selectedName,
       },
       {
-        ...useProfileExpiryQuery(selectedName ?? ''),
+        ...profileExpiryQuery(selectedName ?? ''),
         enabled: displayState.type === 'unavailable' && !!selectedName,
       },
       {
-        ...useProfileRegistrationQuery(selectedName ?? ''),
+        ...profileRegistrationQuery(selectedName ?? ''),
         enabled: displayState.type === 'unavailable' && !!selectedName,
       },
     ],

@@ -13,7 +13,7 @@ import { safeGetClient } from '@/lib/wagmi/helpers'
 import { alwaysProbeAddressRecords, forceFetchRecords } from '../data/records'
 import { DEBUG_PROFILE } from '../MOCK'
 import { getIndexerRecords } from './getIndexerRecords'
-import { getResolver } from './useProfileResolver'
+import { getResolver } from './profileResolver'
 
 const COIN_TYPE_NAME_MAP = coinTypeToNameMap as Record<
   string,
@@ -149,7 +149,7 @@ export type ProfileRecordsResult = {
   _rawSubgraphRecords?: unknown
 }
 
-export const useProfileRecordsQuery = (name: string) =>
+export const profileRecordsQuery = (name: string) =>
   resultQueryOptions({
     queryKey: qk('profile', 'get_records', { name }),
     queryFn: ({ queryKey: [{ name }] }) => getProfileRecords(name),

@@ -4,8 +4,8 @@ import type { Address } from 'viem'
 import { LinkButton } from '@/components/ui/button'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { sectionsList } from '../../data/records'
-import { useProfileOwnerQuery } from '../../service/useProfileOwner'
-import { useProfileRecordsQuery } from '../../service/useProfileRecords'
+import { profileOwnerQuery } from '../../service/profileOwner'
+import { profileRecordsQuery } from '../../service/profileRecords'
 import { transformProfileRecords } from '../../utils/transformRecords'
 import { ViewBioSection } from './ViewBioSection'
 import { ViewCryptoSection } from './ViewCryptoSection'
@@ -20,12 +20,12 @@ interface ProfileViewProps {
 
 export const ProfileView = ({ name }: ProfileViewProps) => {
   const { data: records } = useSuspenseQuery({
-    ...useProfileRecordsQuery(name),
+    ...profileRecordsQuery(name),
     select: transformProfileRecords,
   })
 
   const { data: ownerData } = useQuery({
-    ...useProfileOwnerQuery(name),
+    ...profileOwnerQuery(name),
   })
 
   const { data: wallet } = useWallet()

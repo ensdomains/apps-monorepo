@@ -5,8 +5,8 @@ import type { Address, PublicClient } from 'viem'
 import { Button } from '@/components/ui/button'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
-import { useProfileOwnerQuery } from '../service/useProfileOwner'
-import { useProfileRecordsQuery } from '../service/useProfileRecords'
+import { profileOwnerQuery } from '../service/profileOwner'
+import { profileRecordsQuery } from '../service/profileRecords'
 import { createDiff } from '../utils/createDiff'
 import {
   defaultProfileRecords,
@@ -33,12 +33,12 @@ interface ProfileEditProps {
 
 export const ProfileEdit = ({ name }: ProfileEditProps) => {
   const { data: recordsData, refetch: refetchRecords } = useSuspenseQuery({
-    ...useProfileRecordsQuery(name),
+    ...profileRecordsQuery(name),
     select: transformProfileRecords,
   })
 
   const { data: ownerData, refetch: refetchOwner } = useQuery({
-    ...useProfileOwnerQuery(name),
+    ...profileOwnerQuery(name),
   })
 
   const account = useSmartAccountContext()

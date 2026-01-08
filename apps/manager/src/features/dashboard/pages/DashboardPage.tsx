@@ -7,9 +7,9 @@ import { DidYouKnowSection } from '@/features/dashboard/components/DidYouKnowSec
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
-import { parseAvatarQuery } from '@/features/profile/service/useProfileAvatar'
-import { useProfileRecordsQuery } from '@/features/profile/service/useProfileRecords'
-import { useProfileReverseNameQuery } from '@/features/profile/service/useProfileReverseName'
+import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 const formatAddress = (value?: string | null) =>
@@ -19,11 +19,11 @@ export const DashboardPage = () => {
   const { ownerAddress } = useSmartAccountContext()
 
   const { data: reverseName } = useSuspenseQuery({
-    ...useProfileReverseNameQuery(ownerAddress ?? undefined),
+    ...profileReverseNameQuery(ownerAddress ?? undefined),
   })
 
   const { data: reverseRecords } = useQuery({
-    ...useProfileRecordsQuery(reverseName ?? ''),
+    ...profileRecordsQuery(reverseName ?? ''),
     enabled: !!reverseName,
   })
 
