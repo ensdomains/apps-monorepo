@@ -599,7 +599,7 @@ export const ImageSelectionDialog = ({
           className={clsx(
             'group relative block w-full cursor-pointer overflow-hidden',
             type === 'avatar' && 'rounded-md',
-            type === 'header' && 'aspect-[3/1] md:aspect-[5/1]',
+            type === 'header' && 'aspect-3/1 md:aspect-5/1',
           )}
           title={`Change ${type}`}
         >
