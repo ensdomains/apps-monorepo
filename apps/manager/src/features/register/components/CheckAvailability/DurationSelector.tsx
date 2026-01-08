@@ -1,3 +1,4 @@
+import { match } from 'ts-pattern'
 import type {
   PricingDuration,
   PricingOptions,
@@ -21,18 +22,12 @@ export const DurationSelector = ({
 }: DurationSelectorProps) => {
   // Map discount badges to darker colors for higher durations
   const getBadgeColor = (duration: PricingDuration) => {
-    switch (duration) {
-      case 2:
-        return 'bg-slate-400' // 15% off
-      case 3:
-        return 'bg-slate-500' // 40% off
-      case 4:
-        return 'bg-slate-600' // 45% off
-      case 5:
-        return 'bg-slate-700' // 50% off
-      default:
-        return 'bg-slate-400'
-    }
+    return match(duration)
+      .with(2, () => 'bg-slate-400') // 15% off
+      .with(3, () => 'bg-slate-500') // 40% off
+      .with(4, () => 'bg-slate-600') // 45% off
+      .with(5, () => 'bg-slate-700') // 50% off
+      .otherwise(() => 'bg-slate-400')
   }
 
   return (
