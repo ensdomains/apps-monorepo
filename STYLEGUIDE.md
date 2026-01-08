@@ -102,6 +102,7 @@ These rules protect against bugs, security issues, or severe maintainability pro
 
 These rules represent best practices but allow pragmatic exceptions:
 
+- **TanStack Query for async data** - Don't manually manage loading/error states with useState
 - **Extract useEffect** - Effects should be in custom hooks (≤5 lines can stay inline)
 - **Pattern matching over conditionals** - Use ts-pattern for complex conditions
 - **Readonly modifiers** - Mark data as readonly when it won't change
@@ -730,9 +731,49 @@ export const RegistrationFlow = ({ name }: { name: string }) => {
 }
 ```
 
-### Use TanStack Query for Server State
+### Use TanStack Query for Server State 🟡 Default
 
-TanStack Query handles server state, caching, and synchronization. See the **Data Fetching with TanStack Query** section for complete examples.
+**Always use TanStack Query for async data fetching**—don't reinvent the wheel with manual `useState`, loading, and error state management.
+
+```typescript
+// ❌ AVOID: Manual state management for async data
+export const ProfilePage = ({ name }: { name: string }) => {
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+  
+  useEffect(() => {
+    setLoading(true)
+    fetchProfile(name)
+      .then(setProfile)
+      .catch(setError)
+      .finally(() => setLoading(false))
+  }, [name])
+  
+  if (loading) return <LoadingState />
+  if (error) return <ErrorState error={error} />
+  return <ProfileView profile={profile} />
+}
+
+// ✅ CORRECT: Use TanStack Query
+export const ProfilePage = ({ name }: { name: string }) => {
+  const { data: profile, isLoading, error } = useProfile(name)
+  
+  if (isLoading) return <LoadingState />
+  if (error) return <ErrorState error={error} />
+  return <ProfileView profile={profile} />
+}
+```
+
+**Benefits of TanStack Query:**
+- ✅ **Automatic caching** - No duplicate requests
+- ✅ **Background refetching** - Keep data fresh
+- ✅ **Error handling** - Built-in retry logic
+- ✅ **Loading states** - `isLoading`, `isFetching`, `isError`
+- ✅ **Optimistic updates** - Better UX for mutations
+- ✅ **Devtools** - Debug queries and cache
+
+See the **Data Fetching with TanStack Query** section for complete patterns and integration with `neverthrow`.
 
 ## Business Logic Extraction
 
@@ -2719,7 +2760,7 @@ const data: any = externalLibrary.getData()
 
 21. **React state for UI** - Forms, toggles, simple caching
 22. **XState for workflows** - Complex multi-step flows
-23. **TanStack Query for server state** - Data fetching and caching
+23. **TanStack Query for async data** - Don't reinvent loading/error states with useState (🟡 Default)
 
 #### Web3 & Contracts
 
@@ -2759,6 +2800,7 @@ Ask yourself these questions when writing code:
 - Is this testable in isolation? → **Extract to pure function**
 
 #### State Management
+- Is this async data fetching? → **Use TanStack Query, not useState**
 - Is this UI state or business state? → **React state vs XState**
 - Does this need to be cached? → **Use TanStack Query**
 - Is this a multi-step flow? → **Use XState machine**
