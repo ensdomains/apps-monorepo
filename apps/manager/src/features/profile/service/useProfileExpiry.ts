@@ -34,7 +34,7 @@ export const getExpiry = ResultFn(async function* (name: string) {
   } as { expiry: bigint })
 })
 
-export const profileExpiryQuery = (name: string) =>
+export const useProfileExpiryQuery = (name: string) =>
   resultQueryOptions({
     queryKey: qk('profile', 'expiry', { name }),
     queryFn: ({ queryKey: [{ name }] }) => getExpiry(name),

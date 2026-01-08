@@ -20,7 +20,7 @@ import {
   resolveDomainLabel,
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { parseAvatarQuery } from '@/features/profile/service/useProfileAvatar'
 import { useDashboardNames } from '../hooks/useDashboardNames'
 import { PrimaryBadge } from './PrimaryBadge'
 

@@ -34,9 +34,9 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { NotificationsDropdown } from '@/features/notifications/components'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
-import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
-import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { parseAvatarQuery } from '@/features/profile/service/useProfileAvatar'
+import { useProfileRecordsQuery } from '@/features/profile/service/useProfileRecords'
+import { useProfileReverseNameQuery } from '@/features/profile/service/useProfileReverseName'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import {
   type SmartAccountState,
@@ -377,11 +377,11 @@ const ConnectedContent = () => {
   } = useSmartAccountContext()
 
   const { data: reverseName, isSuccess: isReverseNameSuccess } = useQuery({
-    ...profileReverseNameQuery(ownerAddress as Address),
+    ...useProfileReverseNameQuery(ownerAddress as Address),
     enabled: !!ownerAddress,
   })
   const { data: reverseRecords } = useQuery({
-    ...profileRecordsQuery(reverseName ?? ''),
+    ...useProfileRecordsQuery(reverseName ?? ''),
     enabled: !!reverseName,
   })
 

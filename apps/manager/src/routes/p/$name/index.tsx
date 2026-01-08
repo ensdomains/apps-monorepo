@@ -5,11 +5,11 @@ import { type Address, isAddress } from 'viem'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { AddressProfileView } from '@/features/profile/components/view/AddressProfileView'
 import { ProfileView } from '@/features/profile/components/view/ProfileView'
-import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
-import { profileOwnedNamesQuery } from '@/features/profile/service/profileOwnedNames'
-import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
-import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
-import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { useProfileExpiryQuery } from '@/features/profile/service/useProfileExpiry'
+import { useProfileOwnedNamesQuery } from '@/features/profile/service/useProfileOwnedNames'
+import { useProfileOwnerQuery } from '@/features/profile/service/useProfileOwner'
+import { useProfileRecordsQuery } from '@/features/profile/service/useProfileRecords'
+import { useProfileReverseNameQuery } from '@/features/profile/service/useProfileReverseName'
 import { seo } from '@/utils/seo'
 
 export const Route = createFileRoute('/p/$name/')({
@@ -17,7 +17,7 @@ export const Route = createFileRoute('/p/$name/')({
     const isAddressParam = isAddress(name, { strict: false })
     const reverseName = isAddressParam
       ? await queryClient.ensureQueryData(
-          profileReverseNameQuery(name as Address),
+          useProfileReverseNameQuery(name as Address),
         )
       : undefined
 
@@ -26,7 +26,7 @@ export const Route = createFileRoute('/p/$name/')({
 
     if (!resolvedName) {
       if (isAddressParam) {
-        await queryClient.prefetchQuery(profileOwnedNamesQuery(name as Address))
+        await queryClient.prefetchQuery(useProfileOwnedNamesQuery(name as Address))
       }
 
       return {
@@ -37,13 +37,13 @@ export const Route = createFileRoute('/p/$name/')({
       }
     }
 
-    const [profileRecords] = await Promise.all([
-      queryClient.ensureQueryData(profileRecordsQuery(resolvedName)),
-      queryClient.prefetchQuery(profileOwnerQuery(resolvedName)),
-      queryClient.prefetchQuery(profileExpiryQuery(resolvedName)),
+    const [useProfileRecords] = await Promise.all([
+      queryClient.ensureQueryData(useProfileRecordsQuery(resolvedName)),
+      queryClient.prefetchQuery(useProfileOwnerQuery(resolvedName)),
+      queryClient.prefetchQuery(useProfileExpiryQuery(resolvedName)),
     ])
 
-    const description = profileRecords.texts.find(
+    const description = useProfileRecords.texts.find(
       (r) => r.key === 'description',
     )?.value
 

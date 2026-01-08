@@ -6,7 +6,7 @@ import { Suspense } from 'react'
 import { LinkButton } from '@/components/ui/button'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { ProfileEdit } from '@/features/profile/components/ProfileEdit'
-import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
+import { useProfileOwnerQuery } from '@/features/profile/service/useProfileOwner'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const Route = createFileRoute('/p/$name/edit')({
@@ -30,7 +30,7 @@ function RouteComponent() {
   const { name } = Route.useParams()
   const { data: wallet, isLoading: isWalletLoading } = useWallet()
   const { data: ownerData, isLoading: isOwnerLoading } = useQuery({
-    ...profileOwnerQuery(name),
+    ...useProfileOwnerQuery(name),
   })
 
   const {

@@ -28,11 +28,11 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { parseAvatarQuery } from '@/features/profile/service/useProfileAvatar'
 import {
   type ImageType,
   uploadImageMutationOptions,
-} from '@/features/profile/service/profileImageUpload'
+} from '@/features/profile/service/useProfileImageUpload'
 import { cn } from '@/lib/utils'
 import { inspect } from '@/utils/xstate'
 

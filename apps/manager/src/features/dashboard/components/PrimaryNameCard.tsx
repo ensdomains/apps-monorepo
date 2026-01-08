@@ -4,8 +4,8 @@ import { match } from 'ts-pattern'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { formatDashboardDate } from '@/features/dashboard/utils'
-import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
-import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
+import { useProfileExpiryQuery } from '@/features/profile/service/useProfileExpiry'
+import { useProfileRegistrationQuery } from '@/features/profile/service/useProfileRegistration'
 import { PrimaryBadge } from './PrimaryBadge'
 
 type PrimaryNameCardProps = {
@@ -18,12 +18,12 @@ export const PrimaryNameCard = ({
   avatarUrl,
 }: PrimaryNameCardProps) => {
   const { data: registration, isLoading: isRegistrationLoading } = useQuery({
-    ...profileRegistrationQuery(primaryName ?? ''),
+    ...useProfileRegistrationQuery(primaryName ?? ''),
     enabled: !!primaryName,
   })
 
   const { data: reverseExpiry, isLoading: isReverseExpiryLoading } = useQuery({
-    ...profileExpiryQuery(primaryName ?? ''),
+    ...useProfileExpiryQuery(primaryName ?? ''),
     enabled: !!primaryName,
   })
 

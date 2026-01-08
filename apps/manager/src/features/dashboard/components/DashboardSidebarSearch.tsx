@@ -13,7 +13,7 @@ import {
   formatDashboardDate,
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { parseAvatarQuery } from '@/features/profile/service/useProfileAvatar'
 import { getDomainsQuery } from '../service/dashboardDomains'
 
 type Suggestion = {

@@ -4,8 +4,8 @@ import { Calendar, Wallet } from 'lucide-react'
 import type { Address } from 'viem'
 import { CopyToClipboard } from '@/components/atoms/CopyToClipboard'
 import { Highlight } from '@/components/atoms/Highlight'
-import { profileExpiryQuery } from '../../service/profileExpiry'
-import { profileReverseNameQuery } from '../../service/profileReverseName'
+import { useProfileExpiryQuery } from '../../service/useProfileExpiry'
+import { useProfileReverseNameQuery } from '../../service/useProfileReverseName'
 
 interface OwnerLinkProps {
   address?: Address
@@ -14,7 +14,7 @@ interface OwnerLinkProps {
 
 const OwnerLink = ({ address, profileName }: OwnerLinkProps) => {
   const ownerName = useQuery({
-    ...profileReverseNameQuery(address as Address),
+    ...useProfileReverseNameQuery(address as Address),
   })
 
   if (!address) {
@@ -63,7 +63,7 @@ interface ProfileHeaderInfoProps {
 
 export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
   const expiry = useSuspenseQuery({
-    ...profileExpiryQuery(name),
+    ...useProfileExpiryQuery(name),
   })
 
   return (

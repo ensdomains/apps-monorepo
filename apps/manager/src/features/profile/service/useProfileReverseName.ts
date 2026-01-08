@@ -58,7 +58,7 @@ export const getReverseName = ResultFn(async function* (address?: Address) {
   return ok(name)
 })
 
-export const profileReverseNameQuery = (address?: Address) =>
+export const useProfileReverseNameQuery = (address?: Address) =>
   resultQueryOptions({
     queryKey: qk('profile', 'reverse_name', { address }),
     queryFn: ({ queryKey: [{ address }] }) => getReverseName(address),
