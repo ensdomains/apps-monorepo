@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from 'react'
+import { match, P } from 'ts-pattern'
 import { cn } from '@/lib/utils'
 
 type TextElement =
@@ -104,28 +105,11 @@ export const Text = ({
 }
 
 function getSemanticElement(variant: TextVariant): TextElement {
-  switch (variant) {
-    case 'h1':
-      return 'h1'
-    case 'h2':
-      return 'h2'
-    case 'h3':
-      return 'h3'
-    case 'h4':
-      return 'h4'
-    case 'h5':
-      return 'h5'
-    case 'h6':
-      return 'h6'
-    case 'body':
-    case 'bodySmall':
-      return 'p'
-    case 'caption':
-    case 'overline':
-      return 'span'
-    default:
-      return 'p'
-  }
+  return match<TextVariant, TextElement>(variant)
+    .with(P.union('h1', 'h2', 'h3', 'h4', 'h5', 'h6'), (heading) => heading)
+    .with(P.union('body', 'bodySmall'), () => 'p')
+    .with(P.union('caption', 'overline'), () => 'span')
+    .otherwise(() => 'p')
 }
 
 Text.displayName = 'Text'
