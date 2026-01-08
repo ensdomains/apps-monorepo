@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from 'react'
+import { match, P } from 'ts-pattern'
 import {
   AlertDescription,
   AlertTitle,
@@ -24,19 +25,12 @@ export const Alert = ({
   ...props
 }: AlertProps) => {
   const getDefaultIcon = () => {
-    switch (variant) {
-      case 'success':
-        return <CheckCircleIcon />
-      case 'destructive':
-        return <XCircleIcon />
-      case 'warning':
-        return <ExclamationIcon />
-      case 'info':
-      case 'default':
-        return <InfoIcon />
-      default:
-        return null
-    }
+    return match(variant)
+      .with('success', () => <CheckCircleIcon />)
+      .with('destructive', () => <XCircleIcon />)
+      .with('warning', () => <ExclamationIcon />)
+      .with(P.union('info', 'default'), () => <InfoIcon />)
+      .otherwise(() => null)
   }
 
   const displayIcon = icon || getDefaultIcon()
