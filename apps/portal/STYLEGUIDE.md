@@ -440,9 +440,11 @@ export const NameProfileCard = ({ name }: { name: string }) => {
 }
 ```
 
-### Pattern Matching for Conditional Rendering
+### Pattern Matching for Conditional Rendering (🟡 Default)
 
-Use `ts-pattern` instead of ternaries or `&&` operators:
+Use `ts-pattern` for complex conditional logic over ternaries or `&&` operators:
+
+> **Performance Note**: `ts-pattern` has some overhead due to JIT compilation ([benchmark details](https://github.com/bdbaraban/ts-pattern-benchmark/pull/1)). For simple conditions or hot paths, native conditionals may be faster. Measure if performance is critical (see [Performance Guidelines](#performance-guidelines)).
 
 ```typescript
 import { match } from 'ts-pattern'
@@ -604,14 +606,23 @@ export const AutoFocusInput = () => {
 
 **If an effect grows beyond these constraints, extract it immediately.**
 
-### Component Size and Complexity
+### Component Size and Complexity (🟢 Guideline)
 
-- Components should be focused and small (< 80 lines recommended)
-- Break large components into smaller ones
-- Extract complex logic into hooks or helper functions
+**Split components based on complexity, not arbitrary line counts.**
+
+**When to split:**
+- ✅ Component has multiple concerns (data fetching + rendering + form logic)
+- ✅ Logic is reusable across multiple parents
+- ✅ Component is hard to understand due to complexity (not size)
+- ✅ Different parts change for different reasons
+
+**When NOT to split:**
+- ❌ Component is mostly static JSX (navigation would take longer than reading)
+- ❌ Split components are 50% type definitions and props drilling
+- ❌ You're only splitting to hit a line count target
 
 ```typescript
-// Good - Focused components with arrow functions
+// ❌ Over-split - Harder to follow, mostly definitions
 const ProfileHeader = ({ name, avatar }: ProfileHeaderProps) => {
   return (
     <header className="flex items-center gap-4">
@@ -621,27 +632,40 @@ const ProfileHeader = ({ name, avatar }: ProfileHeaderProps) => {
   )
 }
 
-const ProfileRecords = ({ records }: ProfileRecordsProps) => {
-  return (
-    <section>
-      {records.map(record => (
-        <RecordItem key={record.key} record={record} />
-      ))}
-    </section>
-  )
+// ✅ Good - Split when there's actual complexity
+const ProfileRecordsEditor = ({ records, onChange }: Props) => {
+  const [editMode, setEditMode] = useState(false)
+  const { writeContractAsync } = useWriteContract()
+  
+  const handleSave = async () => {
+    // 30+ lines of validation, encoding, transaction logic
+  }
+  
+  return editMode ? <Editor /> : <Display />
 }
 
-export const ProfilePage = ({ name }: ProfilePageProps) => {
+const ProfilePage = ({ name }: ProfilePageProps) => {
   const profile = useProfile(name)
   
   return (
     <div>
-      <ProfileHeader name={profile.name} avatar={profile.avatar} />
-      <ProfileRecords records={profile.records} />
+      {/* ✅ Static header stays inline - easy to read */}
+      <header className="flex items-center gap-4">
+        <Avatar src={profile.avatar} />
+        <h1>{profile.name}</h1>
+      </header>
+      
+      {/* ✅ Complex editor extracted - manages its own state and logic */}
+      <ProfileRecordsEditor 
+        records={profile.records}
+        onChange={handleUpdate}
+      />
     </div>
   )
 }
 ```
+
+**Rule of thumb**: If finding the split component takes longer than scanning the original, don't split it.
 
 ## State Management
 
@@ -870,7 +894,7 @@ export const getProfile = ResultFn(async function* (name: string) {
   )
   
   if (!profile) {
-    return err(new ProfileNotFoundError({ name }))
+    yield* new ProfileNotFoundError({ name })
   }
   
   return ok(profile)
@@ -933,21 +957,57 @@ try {
   return errAsync(new Error(String(error)))
 }
 
-// ✅ CORRECT
-return ResultAsync.fromSafePromise(
-  Promise.resolve().then(() => processSync())
-).mapErr((error) => new ProcessError({ cause: error }))
+// ✅ CORRECT - Use fromSync for synchronous code that might throw
+import { fromSync } from '@ens-apps/utils/neverthrow'
+
+return fromSync(
+  () => processSync(),
+  (error) => new ProcessError({ cause: error })
+)
+
+// ✅ Also correct - Use fromThrowable for reusable sync wrappers
+import { fromThrowable } from 'neverthrow'
+
+const safeJsonParse = fromThrowable(
+  JSON.parse,
+  (error) => new ParseError({ cause: error })
+)
+
+const result = safeJsonParse('{"valid": true}') // Result<any, ParseError>
+
+// ✅ Real-world example with fromSync
+import { normalize } from 'viem/ens'
+import { fromSync } from '@ens-apps/utils/neverthrow'
+
+class NormalizationError extends TaggedError('NormalizationError')<{
+  cause: unknown
+}> {}
+
+export function normalizeEnsName(name: string): Result<string, NormalizationError> {
+  return fromSync(
+    () => normalize(name),
+    (error) => new NormalizationError({ cause: error })
+  )
+}
 ```
 
 ### Quick Reference
 
+**Creating Results:**
 - `ok(value)` / `err(error)` → for `Result<T, E>` (sync)
 - `okAsync(value)` / `errAsync(error)` → for `ResultAsync<T, E>` (async)
-- `ResultAsync.fromPromise(promise, errorFn)` → wrap Promises
+- `fromPromise(promise, errorFn)` → wrap async code that might throw
+- `fromSync(() => fn(), errorFn)` → wrap sync code that might throw (from `@ens-apps/utils`)
+- `fromThrowable(fn, errorFn)` → create reusable sync wrapper (from `neverthrow`)
+
+**Transforming Results:**
 - `.andThen(fn)` → chain Results (flatMap)
 - `.map(fn)` / `.mapErr(fn)` → transform values/errors
 - `.match(onOk, onErr)` → handle both cases
-- `ResultFn(function* ...)` → generator-based composition
+
+**Advanced Composition:**
+- `ResultFn(function* ...)` → generator-based composition with `yield*`
+- `yield* new TaggedError(...)` → early error return in ResultFn generators (no need for `return err(...)`)
 
 ## Data Fetching with TanStack Query
 
@@ -999,19 +1059,69 @@ export const useProfile = (name: string) => {
 
 ### Query Key Patterns
 
-1. Use tuple format: `[feature, params]`
-2. Always use `as const` for type inference
-3. Make params an object with named properties
+**Use `createQueryKey` helper for type-safe, invalidation-friendly keys:**
 
 ```typescript
-// Good
-queryKey: ['profile', { name }] as const
-queryKey: ['records', { name, types: ['text', 'addr'] }] as const
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 
-// Avoid
-queryKey: ['profile', name]
-queryKey: [name, 'profile']
+// Define query key factory with typed variables
+export const profileQueryKey = createQueryKey<
+  'profile',
+  { name: string }
+>('profile')
+
+// Usage
+const key = profileQueryKey({ name: 'vitalik.eth' })
+// Returns: ['profile', { name: 'vitalik.eth' }] as const
 ```
+
+**Why object-based params?**
+
+Using an object for the second element enables **partial matching for invalidation**:
+
+```typescript
+// Invalidate ALL profile queries
+queryClient.invalidateQueries({ queryKey: ['profile'] })
+
+// Invalidate specific profile
+queryClient.invalidateQueries({ 
+  queryKey: ['profile', { name: 'vitalik.eth' }] 
+})
+
+// Partial match - invalidate all profiles on a specific network
+queryClient.invalidateQueries({
+  predicate: (query) => {
+    const [key, params] = query.queryKey as ['profile', { network?: string }]
+    return key === 'profile' && params?.network === 'mainnet'
+  }
+})
+```
+
+**Query Key Best Practices:**
+
+1. ✅ **Use `createQueryKey` helper** - Type-safe and consistent
+2. ✅ **Object for params** - Enables partial matching for invalidation
+3. ✅ **Named properties** - `{ name }` not just `name`
+4. ✅ **Consistent naming** - Standardize keys across features
+
+```typescript
+// ✅ Good - Type-safe, invalidation-friendly
+export const recordsQueryKey = createQueryKey<
+  'records',
+  GetRecordsParameters
+>('records')
+
+const key = recordsQueryKey({ name: 'vitalik.eth', texts: true })
+// ['records', { name: 'vitalik.eth', texts: true }]
+
+// ❌ Avoid - Positional params, hard to invalidate partially
+queryKey: ['records', name, texts]
+
+// ❌ Avoid - Reversed order
+queryKey: [name, 'records']
+```
+
+**Standardization note**: Query key naming should be standardized across features for easier invalidation patterns. Consider documenting common keys in a central location.
 
 ### Using Queries in Components
 
@@ -1998,6 +2108,8 @@ export const Button = ({ className, variant, size, ...props }: ButtonProps) => {
 }
 ```
 
+> **Note**: For complex multi-part components (e.g., Card with separate Header, Body, Footer styles), consider [tailwind-variants](https://www.tailwind-variants.org/) which extends CVA with slots and built-in class merging. For single-part components, CVA + `cn()` is sufficient.
+
 ### Conditional Classes
 
 Use the `cn` utility for conditional classes:
@@ -2257,9 +2369,9 @@ class ValidationError extends TaggedError('VALIDATION_ERROR')<{ field?: string }
 class NetworkError extends TaggedError('NETWORK_ERROR')<{ cause?: unknown }> {}
 
 const processUserRegistration = ResultFn(async function* (userData: { email: string; name: string }) {
-  // Early return for validation
+  // Early error return - TaggedErrors can be yielded directly
   if (!userData.email) {
-    return err(new ValidationError({ message: 'Email is required', field: 'email' }))
+    yield* new ValidationError({ message: 'Email is required', field: 'email' })
   }
   
   // yield* automatically unwraps Results and propagates errors
@@ -2269,7 +2381,7 @@ const processUserRegistration = ResultFn(async function* (userData: { email: str
   )
   
   if (existingUser) {
-    return err(new ValidationError({ message: 'User already exists', field: 'email' }))
+    yield* new ValidationError({ message: 'User already exists', field: 'email' })
   }
   
   const newUser = yield* await ResultAsync.fromPromise(
@@ -2282,6 +2394,25 @@ const processUserRegistration = ResultFn(async function* (userData: { email: str
 ```
 
 **Benefits**: Automatic error propagation, no manual chaining, type-safe, early returns.
+
+**TaggedError yielding**: Since `TaggedError` extends [`YieldableError`](https://github.com/ensdomains/apps-monorepo/blob/main/packages/utils/src/neverthrow/error-classes.ts), you can yield errors directly in generator functions:
+
+```typescript
+// Inside ResultFn generators
+if (!userData.email) {
+  yield* new ValidationError({ message: 'Email is required' })
+  // Immediately returns with error - no need for return err(...)
+}
+
+// In regular functions (not generators)
+function validateData(data: unknown): Result<Data, ValidationError> {
+  if (!data) {
+    return err(new ValidationError({ message: 'Data is required' }))
+    // Use return err() - yield* only works in generators
+  }
+  return ok(data as Data)
+}
+```
 
 ### Pattern Matching with Tagged Errors
 
