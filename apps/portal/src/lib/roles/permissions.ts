@@ -47,8 +47,3 @@ export const getPermissionByKey = (
 ): Permission | undefined => {
   return permissions.find((p) => p.key === key)
 }
-
-// Helper to get all permission keys
-export const getPermissionKeys = (): PermissionKey[] => {
-  return permissions.map((p) => p.key)
-}

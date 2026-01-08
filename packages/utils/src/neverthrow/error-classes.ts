@@ -24,7 +24,7 @@ type AnyErrorBody = Record<string & {}, unknown>
  * ```typescript
  * const processData = ResultFn(function* (data: string) {
  *   if (!data) {
- *     yield new YieldableError('Data is required')
+ *     yield* new YieldableError('Data is required')
  *     // This is equivalent to: return err(new YieldableError('Data is required'))
  *   }
  *   return ok(processData(data))
