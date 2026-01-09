@@ -1,5 +1,6 @@
 import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
+
 export const filterRecordHistoryByRecord = (
   events: ReturnResolverEvent[],
   record: NameRecord,
