@@ -4,6 +4,28 @@ A comprehensive guide for writing clean, maintainable, and type-safe code for th
 
 > **Note for Contributors**: This guide is opinionated by design to maintain consistency across the codebase. When in doubt, follow existing patterns and favor clarity. Reasonable exceptions are allowed when justified—see the **Rule Severity** section for guidance on when rules are mandatory vs. preferred.
 
+## Breaking the Rules
+
+**Every rule can and will be broken in certain cases.** When you deviate from these guidelines:
+
+1. ✅ **Leave a comment in the code** explaining why
+2. ✅ **Make it intentional** - not accidental
+3. ✅ **Document the trade-off** - what you gained vs what you gave up
+
+```typescript
+// ✅ GOOD - Rule break is documented
+function processLargeDataset(data: any) { // Using 'any' because third-party library has no types
+  return transform(data)
+}
+
+// ❌ BAD - Silent rule break
+function processLargeDataset(data: any) {
+  return transform(data)
+}
+```
+
+**Rule breaks should always be intentional, not accidental.**
+
 ## Table of Contents
 
 - [Core Principles](#core-principles)
@@ -94,9 +116,10 @@ These rules protect against bugs, security issues, or severe maintainability pro
 
 - **Thin React Layer** - Business logic must be extracted from components
 - **Use neverthrow for Result types** - Never mix Result with try-catch
-- **Type safety** - No `any` types, use `unknown` + type guards
+- **Type safety** - No `any` types, use `unknown` + type guards (use `Record<string, unknown>` for objects)
 - **BigInt for blockchain values** - All numeric blockchain values use BigInt
 - **Immutability** - Don't mutate data structures
+- **Never use useEffect for data fetching** - Always use TanStack Query
 
 ### 🟡 Default (Follow unless there is a clear reason not to)
 
@@ -104,6 +127,10 @@ These rules represent best practices but allow pragmatic exceptions:
 
 - **TanStack Query for async data** - Don't manually manage loading/error states with useState
 - **Extract useEffect** - Effects should be in custom hooks (≤5 lines can stay inline)
+- **Avoid query waterfalls** - Split dependent queries into separate components
+- **Handle query states independently** - Don't group loading/error states with `||`
+- **Use useQueries for parallel queries** - More concise than multiple useQuery calls
+- **Use generics to preserve types** - Don't lose type information in utility functions
 - **Pattern matching over conditionals** - Use ts-pattern for complex conditions
 - **Readonly modifiers** - Mark data as readonly when it won't change
 - **Custom hooks for logic** - Avoid custom hooks for business logic (use for DOM/framework APIs)
@@ -190,8 +217,70 @@ src/
 - **Utility Files**: `camelCase.ts` (e.g., `formatEther.ts`)
 - **Hooks**: `use*.ts` (e.g., `useProfile.ts`)
 - **Types**: `*.types.ts` (e.g., `profile.types.ts`)
+- **Handlers**: `*.handlers.ts` (e.g., `ProfileEdit.handlers.ts`)
+- **State Machines**: `*.machine.ts` (e.g., `registration.machine.ts`)
+- **Mock Data**: `*.mock.ts` or `MOCK.ts` (e.g., `profile.mock.ts`)
 - **Test Files**: `*.test.ts(x)` (e.g., `UserProfile.test.tsx`)
 - **Route Files**: TanStack Router conventions (e.g., `$name.tsx`)
+
+**Co-location with handlers:**
+
+```
+features/profile/components/
+├── ProfileEdit.tsx
+├── ProfileEdit.handlers.ts    # Event handlers for ProfileEdit
+└── ProfileEdit.test.tsx
+```
+
+**Benefits of `*.handlers.ts`:**
+- ✅ Clear separation of UI from logic
+- ✅ Easy to test handlers independently
+- ✅ Co-located with the component that uses them
+
+### Mock Data Policy 🟡 Default
+
+**All mock data must live in `*.mock.ts` or `MOCK.ts` files and be gated by dev flags.**
+
+```typescript
+// ❌ AVOID - Mock data in production code
+export const ProfileCard = ({ userId }: Props) => {
+  const mockUser = { id: 1, name: 'Test User' } // Don't do this
+  const user = userId ? fetchUser(userId) : mockUser
+  return <div>{user.name}</div>
+}
+
+// ✅ CORRECT - Mock data in separate file, dev-only
+// profile.mock.ts
+export const mockUser = {
+  id: 1,
+  name: 'Test User',
+  email: 'test@example.com',
+}
+
+export const mockUsers = [mockUser, /* ... */]
+
+// ProfileCard.tsx
+import { mockUser } from './profile.mock'
+
+export const ProfileCard = ({ userId }: Props) => {
+  const user = import.meta.env.DEV 
+    ? mockUser 
+    : fetchUser(userId)
+  
+  return <div>{user.name}</div>
+}
+```
+
+**Benefits:**
+- ✅ **No mock data in production** - Gated by dev flags
+- ✅ **Easy to find** - All mocks in `*.mock.ts` files
+- ✅ **Reusable** - Share mocks across tests and dev mode
+- ✅ **Type-safe** - Mocks match real data structures
+
+**Dev flag options:**
+- `import.meta.env.DEV` - Vite dev mode
+- `process.env.NODE_ENV === 'development'` - Node/general
+- Feature flags - For gradual rollout
 
 ### Co-location Examples
 
@@ -364,22 +453,86 @@ function isAddress(value: unknown): value is Address {
 }
 ```
 
-### Avoid `any`, Use `unknown`
+### Avoid `any`, Use `unknown` 🔴 Must
 
 ```typescript
-// Avoid
+// ❌ AVOID - any bypasses type checks
 function parseData(data: any) {
   return data.value
 }
 
-// Good
+// ✅ CORRECT - unknown with type guard
 function parseData(data: unknown): string {
   if (typeof data === 'object' && data !== null && 'value' in data) {
     return String(data.value)
   }
   throw new Error('Invalid data')
 }
+
+// ✅ CORRECT - Record for unknown object shapes
+function processConfig(config: Record<string, unknown>) {
+  // Type-safe access to object properties
+  const name = typeof config.name === 'string' ? config.name : 'default'
+  return name
+}
+
+// ✅ ACCEPTABLE - Record<string, any> when structure is truly unknown
+// Use sparingly, prefer Record<string, unknown> for stricter type safety
+function processApiResponse(response: Record<string, any>) {
+  // When you need flexibility but know it's an object
+  return response
+}
 ```
+
+**Guidelines:**
+- ✅ **Use `unknown`** - For values of unknown type (requires type guards)
+- ✅ **Use `Record<string, unknown>`** - For objects with unknown shape (stricter)
+- ⚠️ **Use `Record<string, any>`** - Only when you need flexibility and know it's an object
+- ❌ **Never use `any`** - Bypasses all type safety
+
+### Use Generics to Preserve Types 🟡 Default
+
+When working with strongly typed objects, use generics to preserve type information:
+
+```typescript
+// ✅ CORRECT - Generic preserves type
+function getObjectValue<T extends object, K extends keyof T>(
+  obj: T,
+  key: K
+): T[K] {
+  return obj[key]
+}
+
+// Usage - return type is automatically inferred
+interface User {
+  name: string
+  age: number
+}
+
+const user: User = { name: 'Alice', age: 30 }
+const userName = getObjectValue(user, 'name') // Type: string
+const userAge = getObjectValue(user, 'age')   // Type: number
+
+// ✅ CORRECT - Generic with constraints
+function mapObject<T extends object, R>(
+  obj: T,
+  mapper: (value: T[keyof T], key: keyof T) => R
+): R[] {
+  return Object.entries(obj).map(([key, value]) => 
+    mapper(value as T[keyof T], key as keyof T)
+  )
+}
+
+// ❌ AVOID - Loses type information
+function getObjectValue(obj: object, key: string): unknown {
+  return (obj as any)[key] // No type safety
+}
+```
+
+**Benefits:**
+- ✅ **Type preservation** - Return types inferred from input types
+- ✅ **IntelliSense support** - Better autocomplete
+- ✅ **Compile-time safety** - Catch errors before runtime
 
 ## React Patterns
 
@@ -534,22 +687,32 @@ export const RegistrationForm = () => {
 }
 ```
 
-### useEffect Usage Policy (🟡 Default)
+### Never Use useEffect for Data Fetching 🔴 Must
 
-**Default rule**: Extract `useEffect` into a named custom hook to document intent and keep components readable.
+**Always use TanStack Query for data fetching** - never fetch data in `useEffect`.
 
 ```typescript
-// ❌ AVOID: Naked useEffect in component
+// ❌ NEVER DO THIS - Data fetching in useEffect
 export const ProfilePage = ({ name }: { name: string }) => {
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
   
   useEffect(() => {
     let cancelled = false
     
     async function fetchProfile() {
-      const result = await getProfile(name)
-      if (!cancelled && result.isOk()) {
-        setProfile(result.value)
+      setLoading(true)
+      try {
+        const result = await getProfile(name)
+        if (!cancelled && result.isOk()) {
+          setProfile(result.value)
+          setError(null)
+        }
+      } catch (e) {
+        if (!cancelled) setError(e as Error)
+      } finally {
+        if (!cancelled) setLoading(false)
       }
     }
     
@@ -557,24 +720,72 @@ export const ProfilePage = ({ name }: { name: string }) => {
     return () => { cancelled = true }
   }, [name])
   
+  if (loading) return <LoadingSpinner />
+  if (error) return <ErrorMessage error={error} />
+  return <ProfileView profile={profile} />
+}
+
+// ✅ ALWAYS DO THIS - Use TanStack Query
+export const ProfilePage = ({ name }: { name: string }) => {
+  const { data: profile, isLoading, error } = useQuery(getProfileQueryOptions(name))
+  
+  if (isLoading) return <LoadingSpinner />
+  if (error) return <ErrorMessage error={error} />
+  if (!profile) return null
+  return <ProfileView profile={profile} />
+}
+```
+
+**Why useEffect is problematic for data fetching:**
+- ❌ **Waterfalls** - Dependencies cause sequential fetches
+- ❌ **Race conditions** - React 18+ concurrent mode can race effects
+- ❌ **No caching** - Same data fetched multiple times
+- ❌ **Messy error handling** - Manual state management
+- ❌ **No retry logic** - Must implement yourself
+- ❌ **No stale data** - Can't show stale while revalidating
+
+**TanStack Query solves all of these** - use it for ALL data fetching.
+
+### useEffect Usage Policy (🟡 Default)
+
+**Default rule**: Extract `useEffect` into a named custom hook to document intent and keep components readable.
+
+**Valid use cases for useEffect:**
+- DOM manipulation (focus, scroll, resize observers)
+- Setting up/tearing down subscriptions
+- Syncing with external systems (localStorage, WebSocket)
+- Side effects triggered by prop/state changes
+
+```typescript
+// ❌ AVOID: Naked useEffect in component
+export const ModalComponent = ({ isOpen }: { isOpen: boolean }) => {
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isOpen])
+  
   return <div>...</div>
 }
 
 // ✅ CORRECT: Extract into named hook
-function useProfileData(name: string, onProfileChange: (profile: Profile | null) => void) {
+function useLockBodyScroll(isLocked: boolean) {
   useEffect(() => {
-    let cancelled = false
-    
-    async function fetchProfile() {
-      const result = await getProfile(name)
-      if (!cancelled && result.isOk()) {
-        onProfileChange(result.value)
-      }
+    if (isLocked) {
+      document.body.style.overflow = 'hidden'
     }
-    
-    fetchProfile()
-    return () => { cancelled = true }
-  }, [name, onProfileChange])
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isLocked])
+}
+
+export const ModalComponent = ({ isOpen }: { isOpen: boolean }) => {
+  useLockBodyScroll(isOpen)
+  return <div>...</div>
 }
 
 export const ProfilePage = ({ name }: { name: string }) => {
@@ -674,7 +885,134 @@ const ProfilePage = ({ name }: ProfilePageProps) => {
 
 **Rule of thumb**: If finding the split component takes longer than scanning the original, don't split it.
 
+### Avoid Prop Drilling 🟡 Default
+
+**Don't pass props through intermediate components just to reach a deeply nested child.** Use hooks or context to access data where it's needed.
+
+```typescript
+// ❌ AVOID - Prop drilling
+function Page() {
+  const user = useUser()
+  return <Sidebar user={user} />
+}
+
+function Sidebar({ user }: { user: User }) {
+  return (
+    <div>
+      <Navigation />
+      <ProfileCard user={user} />
+    </div>
+  )
+}
+
+function ProfileCard({ user }: { user: User }) {
+  return <div>{user.name}</div>
+}
+
+// ✅ CORRECT - Access data where needed
+function Page() {
+  return <Sidebar />
+}
+
+function Sidebar() {
+  return (
+    <div>
+      <Navigation />
+      <ProfileCard />
+    </div>
+  )
+}
+
+function ProfileCard() {
+  const user = useUser() // Get data directly
+  return <div>{user.name}</div>
+}
+```
+
+**When to use each approach:**
+
+✅ **Use hooks/context for app state:**
+- User authentication
+- Theme/locale
+- Global feature flags
+- Data used in multiple places
+
+✅ **Pass props for component-specific data:**
+- Direct parent-child communication
+- Props that configure component behavior
+- Data that flows naturally down one level
+
+❌ **Don't prop drill:**
+- Through 3+ component levels
+- For data that's not used by intermediate components
+- For global app state
+
+**Benefits:**
+- ✅ **Less coupling** - Components don't depend on parent structure
+- ✅ **Easier refactoring** - Move components without updating props
+- ✅ **Clearer intent** - Each component declares what it needs
+- ✅ **Better composition** - Intermediate components stay simple
+
 ## State Management
+
+### The State Complexity Ladder 🟢 Guideline
+
+As state management needs grow, follow this progression:
+
+```typescript
+// 1️⃣ Simple: One or two useState
+export const Modal = () => {
+  const [isOpen, setIsOpen] = useState(false)
+  const [selectedOption, setSelectedOption] = useState<string | null>(null)
+  return <Dialog open={isOpen} onOpenChange={setIsOpen}>...</Dialog>
+}
+
+// 2️⃣ More complex: useReducer
+type State = { count: number; status: 'idle' | 'loading' | 'error'; data: Data | null }
+type Action = 
+  | { type: 'increment' }
+  | { type: 'fetch_start' }
+  | { type: 'fetch_success'; data: Data }
+  | { type: 'fetch_error' }
+
+export const Counter = () => {
+  const [state, dispatch] = useReducer(reducer, initialState)
+  return <button onClick={() => dispatch({ type: 'increment' })}>{state.count}</button>
+}
+
+// 3️⃣ Even more complex: XState store (context/global state)
+import { createStore } from '@xstate/store'
+
+const userStore = createStore({
+  context: { user: null, isAuthenticated: false },
+  on: {
+    login: (context, event) => ({ user: event.user, isAuthenticated: true }),
+    logout: () => ({ user: null, isAuthenticated: false }),
+  }
+})
+
+// 4️⃣ Most complex: XState state machines (workflows with transitions)
+const registrationMachine = createMachine({
+  initial: 'idle',
+  states: {
+    idle: { on: { START: 'validating' } },
+    validating: { on: { VALID: 'submitting', INVALID: 'error' } },
+    submitting: { on: { SUCCESS: 'success', FAILURE: 'error' } },
+    success: { type: 'final' },
+    error: { on: { RETRY: 'validating' } },
+  }
+})
+```
+
+**When to move up the ladder:**
+- **useState → useReducer**: When you have 3+ related state values or complex update logic
+- **useReducer → XState Store**: When you need global state or subscriptions
+- **XState Store → State Machine**: When you have complex workflows with state transitions, guards, or side effects
+
+**When to stay put:**
+- Don't over-engineer - simple state should stay simple
+- Most components only need useState
+- State machines are for complex multi-step flows (transactions, wizards, onboarding)
 
 ### Use React State for Simple UI State
 
@@ -819,37 +1157,66 @@ export function prepareENSRenewal(
 export const RenewalButton = ({ name }: { name: string }) => {
   const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
+  const { writeContractAsync } = useWriteContract()
+  const [isPending, setIsPending] = useState(false)
   
   const handleRenew = async () => {
-    const result = await prepareENSRenewal({
-      name,
-      duration: YEAR_IN_SECONDS,
-      publicClient,
-      walletClient,
-    })
+    if (!walletClient) return
     
-    result.match(
-      (data) => console.log('Success:', data),
-      (error) => console.error('Error:', error)
-    )
+    setIsPending(true)
+    try {
+      const result = await prepareENSRenewal({
+        name,
+        duration: YEAR_IN_SECONDS,
+        publicClient,
+        walletClient,
+      })
+      
+      // If helper returns Result, check for errors
+      if (result.isErr()) {
+        console.error('Failed to prepare renewal:', result.error.message)
+        return
+      }
+      
+      // Use the prepared data
+      const hash = await writeContractAsync(result.value)
+      console.log('Transaction sent:', hash)
+    } catch (error) {
+      console.error('Failed to renew:', error)
+    } finally {
+      setIsPending(false)
+    }
   }
   
-  return <button onClick={handleRenew}>Renew</button>
+  return (
+    <button onClick={handleRenew} disabled={isPending}>
+      {isPending ? 'Renewing...' : 'Renew'}
+    </button>
+  )
 }
 ```
 
 ### When to Use a Custom Hook (🟡 Default)
 
-Use a custom hook when:
+**The core problem with custom hooks for business logic**: Hooks are triggered by React's render cycle, but business logic should be triggered by user actions (clicks, form submits, page loads).
+
+**This is a fundamental mismatch:**
+- ❌ **React renders** → Run hook → Execute business logic (wrong trigger)
+- ✅ **User action** → Call pure function → Execute business logic (correct trigger)
+
+Custom hooks make you carefully manage _when they run_ (dependencies, conditionals) because they're running at the wrong time. Pure functions called from event handlers run exactly when you want them to.
+
+**Use a custom hook when:**
 
 - ✅ **Wrapping framework or browser APIs** - DOM access, localStorage, Web3 hooks
 - ✅ **Integrating third-party hooks** - wagmi, TanStack Query, XState
 - ✅ **Managing reusable UI state** - Modal disclosure, toggle patterns, form state
 - ✅ **Extracting `useEffect` logic** - See useEffect Usage Policy above
 
-Do NOT use a custom hook when:
+**Do NOT use a custom hook when:**
 
 - ❌ **It primarily performs business logic** - Use pure functions instead
+- ❌ **Business logic is triggered by user actions** - Call pure function from event handler
 - ❌ **It hides domain rules** - Business rules should be explicit
 - ❌ **It mixes IO, state, and transformations** - Separate concerns
 
@@ -896,7 +1263,7 @@ export const calculateRenewalPrice = ResultFn(async function* (
 ) {
   const client = yield* safeGetClient()
   
-  const price = yield* await ResultAsync.fromPromise(
+  const price = yield* ResultAsync.fromPromise(
     getRenewalPrice(client, { name, duration }),
     (error) => new RenewalPriceError({ cause: error })
   )
@@ -935,7 +1302,7 @@ export class ProfileFetchError extends TaggedError('ProfileFetchError')<{
 export const getProfile = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
   
-  const profile = yield* await ResultAsync.fromPromise(
+  const profile = yield* ResultAsync.fromPromise(
     fetchProfile(client, name),
     (error) => new ProfileFetchError({ cause: error })
   )
@@ -950,36 +1317,121 @@ export const getProfile = ResultFn(async function* (name: string) {
 
 ### Consuming Results
 
+**With TanStack Query** (most common in components):
+
+The `resultQueryOptions` wrapper automatically unwraps Results, so you use standard TanStack Query patterns:
+
 ```typescript
-// Good - Explicit handling
-const result = await getProfile('vitalik.eth')
+// ✅ Standard pattern with TanStack Query
+export const ProfileCard = ({ name }: { name: string }) => {
+  const { data, isLoading, error } = useQuery(getProfileQueryOptions(name))
 
-result.match(
-  (profile) => {
-    console.log('Success:', profile)
-  },
-  (error) => {
-    if (error instanceof ProfileNotFoundError) {
-      console.log('Profile not found:', error.name)
-    } else {
-      console.error('Unexpected error:', error)
-    }
+  if (isLoading) return <LoadingMessage />
+
+  if (error) {
+    // error is the TaggedError instance
+    const message = error.cause?.message || error.message || 'Could not load profile'
+    return <ErrorMessage title="Profile unavailable" description={message} />
   }
-)
 
-// Good - Early return
-if (result.isErr()) {
-  return <ErrorMessage error={result.error} />
+  if (!data) {
+    return <ErrorMessage title="Profile unavailable" />
+  }
+
+  // data is already unwrapped - use directly!
+  return <ProfileView records={data.records} />
 }
+```
 
-const profile = result.value
+**How `resultQueryOptions` works**:
 
-// Good - Chaining operations
+```typescript
+// Internally, resultQueryOptions calls .match() for you:
+queryFn: (context) =>
+  rawQueryFn(context).match(
+    (value) => value,        // Returns unwrapped value → becomes `data`
+    (error) => { throw error } // Throws error → becomes `error`
+  )
+```
+
+**Outside TanStack Query** (in helper functions):
+
+When composing Results in helper functions, use chaining:
+
+```typescript
+// ✅ Chaining operations
 const finalResult = await getProfile('vitalik.eth')
   .andThen((profile) => validateProfile(profile))
   .andThen((validProfile) => saveProfile(validProfile))
   .map((savedProfile) => formatProfile(savedProfile))
+
+// ✅ Using .match() for final handling
+finalResult.match(
+  (profile) => console.log('Success:', profile),
+  (error) => console.error('Failed:', error.message)
+)
+
+// ✅ Early return pattern
+if (result.isErr()) {
+  console.error('Error:', result.error.message)
+  return null
+}
+const profile = result.value
 ```
+
+**Checking Result types manually** (rare, when not using TanStack Query):
+
+```typescript
+// Only needed outside TanStack Query
+const result = yield* getProfile('vitalik.eth')
+
+if (result.isOk()) {
+  const canEdit = yield* canEditRecords(result.value)
+  return ok(canEdit)
+}
+```
+
+**In event handlers and mutations** (prefer early returns over `.match()`):
+
+```typescript
+// ✅ PREFERRED: Early return pattern
+const handleSubmit = async () => {
+  const result = await registerUser({ email, name })
+  
+  if (result.isErr()) {
+    console.error('Registration failed:', result.error.message)
+    return
+  }
+  
+  console.log('Success:', result.value)
+  navigate('/dashboard')
+}
+
+// ⚠️ AVOID: .match() in event handlers (feels awkward)
+const handleSubmit = async () => {
+  const result = await registerUser({ email, name })
+  
+  result.match(
+    (user) => {
+      console.log('Success:', user)
+      navigate('/dashboard')
+    },
+    (error) => console.error('Failed:', error)
+  )
+}
+
+// ✅ ALSO GOOD: try-catch when helper throws
+const handleSubmit = async () => {
+  try {
+    await sendTransaction(params)
+    console.log('Success')
+  } catch (error) {
+    console.error('Failed:', error)
+  }
+}
+```
+
+> **Why avoid `.match()` in handlers?** Early returns and try-catch are more idiomatic for imperative control flow in event handlers. Reserve `.match()` for functional composition in helpers.
 
 ### Critical Anti-Patterns
 
@@ -1055,6 +1507,18 @@ export function normalizeEnsName(name: string): Result<string, NormalizationErro
 **Advanced Composition:**
 - `ResultFn(function* ...)` → generator-based composition with `yield*`
 - `yield* new TaggedError(...)` → early error return in ResultFn generators (no need for `return err(...)`)
+- `yield* resultFn()` → unwrap Results (no `await` needed, `yield*` handles async)
+
+**Important**: Use `yield*` for Results, not `yield* await`. The `yield*` operator already handles async operations:
+
+```typescript
+// ✅ CORRECT - yield* handles async
+const profile = yield* ResultAsync.fromPromise(fetchData(), errorFn)
+const records = yield* getRecords(params)
+
+// ❌ WRONG - redundant await
+const profile = yield* await ResultAsync.fromPromise(fetchData(), errorFn)
+```
 
 ## Data Fetching with TanStack Query
 
@@ -1077,7 +1541,7 @@ export class GetProfileError extends TaggedError('GetProfileError')<{
 export const getProfile = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
   
-  const profile = yield* await ResultAsync.fromPromise(
+  const profile = yield* ResultAsync.fromPromise(
     fetchProfile(client, { name }),
     (error) => new GetProfileError({ cause: error })
   )
@@ -1173,56 +1637,261 @@ queryKey: [name, 'records']
 
 ### Using Queries in Components
 
+**Standard pattern** - `data` is already unwrapped, use directly:
+
 ```typescript
-// Basic usage with useQuery
+// ✅ Basic usage - data is unwrapped, error is TaggedError
 export const ProfileCard = ({ name }: { name: string }) => {
-  const { data: result, isLoading } = useQuery(getProfileQueryOptions(name))
+  const { data, isLoading, error } = useQuery(getProfileQueryOptions(name))
   
-  // Pattern match on query state (see React Patterns for more examples)
-  return match({ result, isLoading })
-    .with({ isLoading: true }, () => <LoadingSpinner />)
-    .with({ result: { isOk: () => true } }, ({ result }) => (
-      <ProfileDetails profile={result._unsafeUnwrap()} />
-    ))
-    .with({ result: { isErr: () => true } }, ({ result }) => (
-      <ErrorMessage error={result._unsafeUnwrapErr()} />
-    ))
-    .otherwise(() => null)
+  if (isLoading) return <LoadingMessage />
+  
+  if (error) {
+    // error is the TaggedError instance
+    const message = error.cause?.message || error.message || 'Could not load profile'
+    return <ErrorMessage title="Profile unavailable" description={message} />
+  }
+  
+  if (!data) {
+    return <ErrorMessage title="Profile unavailable" description="No data returned" />
+  }
+  
+  // data is already unwrapped - use directly!
+  return <ProfileDetails records={data.records} />
 }
 
-// With custom options
+// ✅ With custom options
 export const LiveProfileCard = ({ name }: { name: string }) => {
-  const { data: result } = useQuery({
+  const { data, isLoading, error } = useQuery({
     ...getProfileQueryOptions(name),
     staleTime: 5000, // Refetch every 5s
     refetchInterval: 5000,
   })
-  return <ProfileDetails profile={result} />
+  
+  if (isLoading) return <LoadingSpinner />
+  if (error) return <ErrorMessage title="Error" description={error.message} />
+  if (!data) return null
+  
+  return <ProfileDetails records={data.records} />
 }
 
-// With suspense
+// ✅ With suspense
 export const SuspenseProfileCard = ({ name }: { name: string }) => {
-  const { data: result } = useSuspenseQuery(getProfileQueryOptions(name))
+  const { data, error } = useSuspenseQuery(getProfileQueryOptions(name))
   // No loading state needed - suspense handles it
-  return <ProfileDetails profile={result._unsafeUnwrap()} />
+  
+  if (error) return <ErrorMessage error={error} />
+  if (!data) return null
+  
+  return <ProfileDetails records={data.records} />
 }
 
-// Multiple queries with useQueries
+// ✅ Multiple queries with useQueries
 export const MultiProfileCard = ({ names }: { names: string[] }) => {
   const queries = useQueries({
     queries: names.map(name => getProfileQueryOptions(name)),
   })
-  return queries.map((q, i) => <ProfileCard key={names[i]} result={q.data} />)
+  
+  return (
+    <div>
+      {queries.map((q, i) => {
+        if (q.isLoading) return <LoadingSpinner key={names[i]} />
+        if (q.error) return <ErrorMessage key={names[i]} error={q.error} />
+        if (!q.data) return null
+        return <ProfileCard key={names[i]} data={q.data} />
+      })}
+    </div>
+  )
 }
 
-// Preloading in router loader
-export const Route = createFileRoute('/profile/$name')({
+// ✅ Preloading in router loader
+export const Route = createFileRoute('/$name/records')({
   loader: ({ context: { queryClient }, params: { name } }) => {
-    queryClient.ensureQueryData(getProfileQueryOptions(name))
+    return queryClient.prefetchQuery(getProfileQueryOptions(name))
   },
   component: ProfilePage,
 })
 ```
+
+**Key points**:
+- ✅ `data` is the **unwrapped value** (not a Result)
+- ✅ `error` is the **TaggedError instance** thrown by the query
+- ✅ Always check `isLoading`, `error`, and `!data` before using `data`
+- ✅ Access error details via `error.cause?.message` or `error.message`
+
+### Avoid Query Waterfalls 🟡 Default
+
+**Don't run dependent queries in the same component** - move them to separate components.
+
+```typescript
+// ❌ AVOID - Waterfall queries in same component
+export const ProfilePage = ({ name }: { name: string }) => {
+  const { data: profile, isLoading: isLoadingProfile, error: profileError } = 
+    useQuery(getProfileQueryOptions(name))
+  
+  // This waits for profile to load before fetching
+  const { data: records, isLoading: isLoadingRecords, error: recordsError } = 
+    useQuery({
+      ...getRecordsQueryOptions(profile?.address),
+      enabled: !!profile?.address, // Dependent query
+    })
+  
+  // Now you have 4 states to manage: 2 loading, 2 errors
+  if (isLoadingProfile || isLoadingRecords) return <LoadingSpinner />
+  if (profileError || recordsError) return <ErrorMessage />
+  
+  return <div>{/* Complex state management */}</div>
+}
+
+// ✅ CORRECT - Split into separate components
+export const ProfilePage = ({ name }: { name: string }) => {
+  const { data: profile, isLoading, error } = useQuery(getProfileQueryOptions(name))
+  
+  if (isLoading) return <LoadingSpinner />
+  if (error) return <ErrorMessage error={error} />
+  if (!profile) return null
+  
+  // Pass profile to child component that handles records
+  return <ProfileWithRecords profile={profile} />
+}
+
+export const ProfileWithRecords = ({ profile }: { profile: Profile }) => {
+  const { data: records, isLoading, error } = useQuery(
+    getRecordsQueryOptions(profile.address)
+  )
+  
+  if (isLoading) return <LoadingSpinner />
+  if (error) return <ErrorMessage error={error} />
+  if (!records) return null
+  
+  return <RecordsView profile={profile} records={records} />
+}
+```
+
+**Benefits of splitting**:
+- ✅ **Clearer state management** - One query per component
+- ✅ **Better loading UX** - Show profile while records load
+- ✅ **Easier error handling** - Each error is specific to its data
+- ✅ **Better composability** - Components are more reusable
+
+### Handle Query States Independently 🟡 Default
+
+**Don't group error or loading states** - handle each query separately.
+
+```typescript
+// ❌ AVOID - Grouped loading/error states
+export const DashboardPage = () => {
+  const { data: profile, isLoading: isLoadingProfile, error: profileError } = 
+    useQuery(getProfileQueryOptions())
+  const { data: names, isLoading: isLoadingNames, error: namesError } = 
+    useQuery(getNamesQueryOptions())
+  
+  // This hides which data is loading/erroring
+  if (isLoadingProfile || isLoadingNames) return <LoadingSpinner />
+  if (profileError || namesError) return <ErrorMessage />
+  
+  return <Dashboard profile={profile} names={names} />
+}
+
+// ✅ CORRECT - Handle each query independently
+export const DashboardPage = () => {
+  const { data: profile, isLoading: isLoadingProfile, error: profileError } = 
+    useQuery(getProfileQueryOptions())
+  const { data: names, isLoading: isLoadingNames, error: namesError } = 
+    useQuery(getNamesQueryOptions())
+  
+  return (
+    <div>
+      {/* Show profile section state independently */}
+      {isLoadingProfile ? (
+        <LoadingSpinner />
+      ) : profileError ? (
+        <ErrorMessage error={profileError} />
+      ) : (
+        <ProfileSection profile={profile} />
+      )}
+      
+      {/* Show names section state independently */}
+      {isLoadingNames ? (
+        <LoadingSpinner />
+      ) : namesError ? (
+        <ErrorMessage error={namesError} />
+      ) : (
+        <NamesSection names={names} />
+      )}
+    </div>
+  )
+}
+```
+
+**Why this matters**:
+- ✅ **Different errors mean different things** - Profile error ≠ names error
+- ✅ **Show partial data** - Display profile even if names fails
+- ✅ **Better UX** - User sees some content immediately
+- ✅ **Specific error messages** - Tell user exactly what failed
+
+### Use useQueries for Parallel Queries 🟡 Default
+
+**For multiple parallel queries, use `useQueries`** - cleaner and more concise.
+
+```typescript
+// ❌ AVOID - Multiple parallel useQuery calls
+export const MultiProfilePage = ({ names }: { names: string[] }) => {
+  const profile1 = useQuery(getProfileQueryOptions(names[0]))
+  const profile2 = useQuery(getProfileQueryOptions(names[1]))
+  const profile3 = useQuery(getProfileQueryOptions(names[2]))
+  
+  // Verbose state management
+  const isLoading = profile1.isLoading || profile2.isLoading || profile3.isLoading
+  const errors = [profile1.error, profile2.error, profile3.error].filter(Boolean)
+  
+  if (isLoading) return <LoadingSpinner />
+  if (errors.length > 0) return <ErrorMessage />
+  
+  return <div>...</div>
+}
+
+// ✅ CORRECT - Use useQueries
+export const MultiProfilePage = ({ names }: { names: string[] }) => {
+  const queries = useQueries({
+    queries: names.map(name => getProfileQueryOptions(name)),
+  })
+  
+  return (
+    <div>
+      {queries.map((query, i) => {
+        if (query.isLoading) return <LoadingSpinner key={names[i]} />
+        if (query.error) return <ErrorMessage key={names[i]} error={query.error} />
+        if (!query.data) return null
+        return <ProfileCard key={names[i]} data={query.data} />
+      })}
+    </div>
+  )
+}
+
+// ✅ ALSO GOOD - Aggregate states when appropriate
+export const MultiProfilePage = ({ names }: { names: string[] }) => {
+  const queries = useQueries({
+    queries: names.map(name => getProfileQueryOptions(name)),
+  })
+  
+  const isLoading = queries.some(q => q.isLoading)
+  const errors = queries.filter(q => q.error).map(q => q.error)
+  const allData = queries.every(q => q.data) ? queries.map(q => q.data) : null
+  
+  if (isLoading) return <LoadingSpinner />
+  if (errors.length > 0) return <ErrorList errors={errors} />
+  if (!allData) return null
+  
+  return <ProfileList profiles={allData} />
+}
+```
+
+**Benefits**:
+- ✅ **Less verbose** - One hook instead of many
+- ✅ **Dynamic** - Works with variable-length arrays
+- ✅ **Type-safe** - Proper TypeScript inference
+- ✅ **Consistent pattern** - Standard way to handle parallel queries
 
 ### File Organization for Queries
 
@@ -1726,7 +2395,7 @@ export const getNameOwner = ResultFn(async function* (name: string) {
   // Safely get client with error handling
   const client = yield* safeGetClient()
   
-  const owner = yield* await ResultAsync.fromPromise(
+  const owner = yield* ResultAsync.fromPromise(
     getOwner(client, { name }),
     (error) => new GetOwnerError({ cause: error })
   )
@@ -1768,7 +2437,7 @@ export const getRecords = ResultFn(async function* (
   const client = yield* safeGetClient()
   
   // Use fromPromise with proper ENSjs error typing
-  const records = yield* await fromPromise(
+  const records = yield* fromPromise(
     ensjs_getRecords(client, params),
     (e) => new RecordsError({ cause: e as GetRecordsErrorType }),
   )
@@ -2216,6 +2885,60 @@ export const Card = ({ isActive, className }: CardProps) => {
 }
 ```
 
+### Choose One Class Helper 🟡 Default
+
+**Pick either `cn` or `tw` and use it consistently across the codebase.**
+
+```typescript
+// Option 1: cn (clsx + tailwind-merge)
+import { cn } from '@/lib/utils'
+
+<Button className={cn('px-4 py-2', isActive && 'bg-primary')} />
+
+// Option 2: tw (tailwind-variants)
+import { tw } from '@/lib/utils'
+
+<Button className={tw`px-4 py-2 ${isActive ? 'bg-primary' : ''}`} />
+```
+
+**Benefits of consistency:**
+- ✅ **One import** - Team knows where to look
+- ✅ **Better IDE support** - Configure once
+- ✅ **Easier onboarding** - One pattern to learn
+- ✅ **Biome integration** - `useSortedClasses` works with `tw` helper
+
+### Avoid Arbitrary Values 🟡 Default
+
+**Use design system tokens instead of arbitrary values.** Only use arbitrary values when justified.
+
+```typescript
+// ❌ AVOID - Arbitrary values break design system
+<div className="w-[37px] h-[23px] text-[#3B82F6]" />
+
+// ✅ CORRECT - Use design tokens
+<div className="size-9 text-blue-500" />
+<div className="w-8 h-6 text-primary" />
+
+// ✅ ACCEPTABLE - When design system doesn't have the value
+// Always leave a comment explaining why
+<div 
+  className="w-[120px]" // Specific width needed to align with external component
+/>
+```
+
+**Why avoid arbitrary values:**
+- ❌ **Breaks consistency** - Diverges from design system
+- ❌ **Hard to maintain** - Magic numbers scattered everywhere
+- ❌ **No type safety** - Easy to make typos
+- ❌ **Larger bundle** - Each arbitrary value adds CSS
+
+**When arbitrary values are justified:**
+- ✅ Interfacing with third-party components with fixed dimensions
+- ✅ Dynamic values from props/API that can't use tokens
+- ✅ One-off exceptions that don't fit the design system (document why!)
+
+**Always ask**: "Could this use a design token instead?"
+
 ### Icon Sizing with Lucide
 
 ```typescript
@@ -2459,7 +3182,7 @@ const processUserRegistration = ResultFn(async function* (userData: { email: str
   }
   
   // yield* automatically unwraps Results and propagates errors
-  const existingUser = yield* await ResultAsync.fromPromise(
+  const existingUser = yield* ResultAsync.fromPromise(
     checkUserExists(userData.email),
     (error) => new NetworkError({ message: 'Failed to check user', cause: error })
   )
@@ -2468,7 +3191,7 @@ const processUserRegistration = ResultFn(async function* (userData: { email: str
     yield* new ValidationError({ message: 'User already exists', field: 'email' })
   }
   
-  const newUser = yield* await ResultAsync.fromPromise(
+  const newUser = yield* ResultAsync.fromPromise(
     createUser(userData),
     (error) => new NetworkError({ message: 'Failed to create user', cause: error })
   )
@@ -2582,7 +3305,7 @@ export function validateRegistration(data: { email: string; name: string }): Res
 
 export const registerUser = ResultFn(async function* (data) {
   const validated = yield* validateRegistration(data)
-  const user = yield* await ResultAsync.fromPromise(api.register(validated), ...)
+  const user = yield* ResultAsync.fromPromise(api.register(validated), ...)
   return ok(user)
 })
 
@@ -2590,7 +3313,14 @@ export const registerUser = ResultFn(async function* (data) {
 export const RegistrationForm = () => {
   const handleSubmit = async () => {
     const result = await registerUser({ email, name })
-    result.match(onSuccess, onError)
+    
+    // Early return pattern (preferred)
+    if (result.isErr()) {
+      onError(result.error)
+      return
+    }
+    
+    onSuccess(result.value)
   }
   return <form onSubmit={handleSubmit}>...</form>
 }
@@ -2770,69 +3500,85 @@ const data: any = externalLibrary.getData()
 2. **Co-locate code** - Keep files next to their usage (🟢 Guideline)
 3. **Be explicit** - Make data flow and dependencies clear (🟡 Default)
 4. **Separation of concerns** - Business logic separate from presentation (🔴 Must)
+5. **File naming conventions** - Use `*.handlers.ts`, `*.machine.ts`, `*.mock.ts` (🟡 Default)
+6. **Mock data policy** - All mocks in `*.mock.ts` files, gated by dev flags (🟡 Default)
 
 #### TypeScript & Code Quality
 
-5. **Type everything** - Leverage TypeScript's strict mode (🔴 Must)
-6. **No `any` types** - Use `unknown` for type-safe handling (🔴 Must)
-7. **Use readonly** - Enforce immutability at type level (🟡 Default)
-8. **Discriminated unions** - For state management and variants (🟡 Default)
+7. **Type everything** - Leverage TypeScript's strict mode (🔴 Must)
+8. **No `any` types** - Use `unknown` or `Record<string, unknown>` for type-safe handling (🔴 Must)
+9. **Use generics** - Preserve type information in utility functions (🟡 Default)
+10. **Use readonly** - Enforce immutability at type level (🟡 Default)
+11. **Discriminated unions** - For state management and variants (🟡 Default)
 
 #### Functional Programming
 
-9. **Pure functions** - Same input → same output, no side effects (🟡 Default)
-10. **Immutability** - Transform data, don't mutate (🔴 Must)
-11. **Prefer array methods** - Use `map`, `filter`, `reduce` (🟢 Guideline)
-12. **Composition** - Build complex operations from simple ones (🟡 Default)
+12. **Pure functions** - Same input → same output, no side effects (🟡 Default)
+13. **Immutability** - Transform data, don't mutate (🔴 Must)
+14. **Prefer array methods** - Use `map`, `filter`, `reduce` (🟢 Guideline)
+15. **Composition** - Build complex operations from simple ones (🟡 Default)
 
 #### Error Handling
 
-13. **Use neverthrow** - Functional error handling with `Result` types (🔴 Must)
-14. **TaggedError classes** - For discriminated error unions (🟡 Default)
-15. **ResultFn generators** - For clean error composition (🟡 Default)
-16. **Never mix Result with try-catch** - Choose one approach (🔴 Must)
+16. **Use neverthrow** - Functional error handling with `Result` types (🔴 Must)
+17. **TaggedError classes** - For discriminated error unions (🟡 Default)
+18. **ResultFn generators** - For clean error composition (🟡 Default)
+19. **Never mix Result with try-catch** - Choose one approach (🔴 Must)
 
 #### React Patterns
 
-17. **Extract effects** - Extract `useEffect` to custom hooks (🟡 Default, ≤5 lines OK)
-18. **Pattern match** - Use ts-pattern over conditionals (🟡 Default)
-19. **Custom hooks for APIs** - Only for DOM/framework APIs, not business logic (🟡 Default)
-20. **Component composition** - Build flexible UIs with composition (🟢 Guideline)
+20. **Never useEffect for data fetching** - Always use TanStack Query (🔴 Must)
+21. **Extract effects** - Extract `useEffect` to custom hooks (🟡 Default, ≤5 lines OK)
+22. **Pattern match** - Use ts-pattern over conditionals (🟡 Default)
+23. **Custom hooks for APIs** - Only for DOM/framework APIs, not business logic (🟡 Default)
+24. **Component composition** - Build flexible UIs with composition (🟢 Guideline)
+25. **Avoid prop drilling** - Use hooks/context for app state, props for local data (🟡 Default)
 
-#### State Management
+#### State Management & Data Fetching
 
-21. **React state for UI** - Forms, toggles, simple caching
-22. **XState for workflows** - Complex multi-step flows
-23. **TanStack Query for async data** - Don't reinvent loading/error states with useState (🟡 Default)
-24. **Object-based query keys** - Use singular object for params to enable partial invalidation (🟡 Default)
+26. **React state for UI** - Forms, toggles, simple caching
+27. **XState for workflows** - Complex multi-step flows
+28. **TanStack Query for async data** - Don't reinvent loading/error states with useState (🟡 Default)
+29. **Avoid query waterfalls** - Split dependent queries into separate components (🟡 Default)
+30. **Handle query states independently** - Don't group loading/error states with `||` (🟡 Default)
+31. **Use useQueries for parallel queries** - More concise than multiple useQuery calls (🟡 Default)
+32. **Object-based query keys** - Use singular object for params to enable partial invalidation (🟡 Default)
 
 #### Web3 & Contracts
 
-25. **Simple request builders** - For app-level contract helpers (🟡 Default)
-26. **ENSjs two-part pattern** - For library-level contract functions (🟡 Default)
-27. **Safe client access** - Use `safeGetClient` helper (🟡 Default)
-28. **BigInt for blockchain values** - All numeric blockchain values (🔴 Must)
+33. **Simple request builders** - For app-level contract helpers (🟡 Default)
+34. **ENSjs two-part pattern** - For library-level contract functions (🟡 Default)
+35. **Safe client access** - Use `safeGetClient` helper (🟡 Default)
+36. **BigInt for blockchain values** - All numeric blockchain values (🔴 Must)
+37. **Instantiate clients once** - Never create clients inside components (🔴 Must)
+38. **Define contracts once** - Contract address + ABI in one place (🟡 Default)
+39. **Use wagmi hooks for reads** - In React components, never call contracts directly (🟡 Default)
 
 #### Testing & Quality
 
-29. **Write testable code** - Pure functions with explicit dependencies (🟡 Default)
-30. **Test business logic** - Unit test pure functions thoroughly (🟡 Default)
-31. **Test user behavior** - Component tests from user perspective (🟡 Default)
-32. **70/20/10 test distribution** - Unit/Integration/E2E (🟢 Guideline)
+40. **Write testable code** - Pure functions with explicit dependencies (🟡 Default)
+41. **Test business logic** - Unit test pure functions thoroughly (🟡 Default)
+42. **Test user behavior** - Component tests from user perspective (🟡 Default)
+43. **70/20/10 test distribution** - Unit/Integration/E2E (🟢 Guideline)
 
 #### Performance & Reliability
 
-33. **Measure before optimizing** - Use React DevTools Profiler (🟢 Guideline)
-34. **Avoid premature memoization** - Only memoize when proven necessary (🟢 Guideline)
-35. **Route-level error boundaries** - Catch rendering errors (🟡 Default)
-36. **Result errors ≠ rendering errors** - Use both neverthrow and error boundaries (🟡 Default)
+44. **Measure before optimizing** - Use React DevTools Profiler (🟢 Guideline)
+45. **Avoid premature memoization** - Only memoize when proven necessary (🟢 Guideline)
+46. **Route-level error boundaries** - Catch rendering errors (🟡 Default)
+47. **Result errors ≠ rendering errors** - Use both neverthrow and error boundaries (🟡 Default)
+
+#### Styling & UI
+
+48. **Choose one class helper** - Use `cn` or `tw` consistently (🟡 Default)
+49. **Avoid arbitrary values** - Use design tokens, not `w-[37px]` (🟡 Default)
 
 #### Code Formatting
 
-37. **Use Biome** - Format and lint with one tool (🔴 Must)
-38. **Single quotes** - For string literals (🟢 Guideline)
-39. **2-space indentation** - Consistent formatting (🟢 Guideline)
-40. **Organize imports** - Let Biome handle import sorting (🟢 Guideline)
+50. **Use Biome** - Format and lint with one tool (🔴 Must)
+51. **Single quotes** - For string literals (🟢 Guideline)
+52. **2-space indentation** - Consistent formatting (🟢 Guideline)
+53. **Organize imports** - Let Biome handle import sorting (🟢 Guideline)
 
 ### Decision Framework
 
@@ -2880,15 +3626,19 @@ Ask yourself these questions when writing code:
 #### ❌ Anti-Patterns
 
 1. **Business logic in components** - Extract to helpers
-2. **Naked `useEffect` in components** - Create custom hooks
-3. **Using `any` type** - Use `unknown` or proper types
-4. **Mutating data** - Use immutable transformations
-5. **Mixing Result with try-catch** - Choose one approach
-6. **Non-null assertions (`!`)** - Use type guards or optional chaining
-7. **Complex nested conditionals** - Use pattern matching
-8. **Magic numbers and strings** - Extract to named constants
-9. **Direct dependency imports** - Use dependency injection
-10. **Testing implementation details** - Test user behavior
+2. **Data fetching in useEffect** - Use TanStack Query
+3. **Naked `useEffect` in components** - Create custom hooks
+4. **Query waterfalls in one component** - Split into separate components
+5. **Grouping query loading/error states** - Handle independently
+6. **Using `any` type** - Use `unknown` or `Record<string, unknown>`
+7. **Losing type information** - Use generics to preserve types
+8. **Mutating data** - Use immutable transformations
+9. **Mixing Result with try-catch** - Choose one approach
+10. **Non-null assertions (`!`)** - Use type guards or optional chaining
+11. **Complex nested conditionals** - Use pattern matching
+12. **Magic numbers and strings** - Extract to named constants
+13. **Direct dependency imports** - Use dependency injection
+14. **Testing implementation details** - Test user behavior
 
 #### ✅ Best Practices
 
