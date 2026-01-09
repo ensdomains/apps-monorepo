@@ -146,7 +146,7 @@ The Portal app uses modern web and Web3 technologies:
 - **Shadcn UI** - Beautifully designed components built on Radix UI (in `components/ui/`)
 - **Radix UI** - Unstyled, accessible component primitives
 - **class-variance-authority** - Type-safe variant styling
-- **Lucide React** - Icon library
+- **Lucide React** - Icon library (Temporary until icons are provided by UX team)
 
 ### Testing & Quality
 - **Vitest** - Unit testing framework
@@ -160,12 +160,12 @@ The Portal app uses modern web and Web3 technologies:
 ```
 src/
 ├── components/          # Reusable UI components
-│   ├── ui/             # Shadcn UI components (built on Radix)
-│   ├── molecules/      # Composed components
-│   └── organisms/      # Complex feature components
+│   ├── ui/             # Shadcn UI components (built on Radix) - Base primitives
+│   ├── molecules/      # Composed components (2-3 ui/* components combined)
+│   └── organisms/      # Complex shared components (business logic + multiple molecules)
 ├── features/           # Feature-based modules
 │   └── profile/
-│       ├── components/ # Feature-specific components
+│       ├── components/ # Feature-specific components (not reused elsewhere)
 │       ├── hooks/      # Feature-specific hooks
 │       └── utils/      # Feature-specific utilities (2+ files)
 ├── hooks/              # Shared custom hooks (2+ files)
@@ -177,6 +177,12 @@ src/
 ├── styles/             # Global styles
 └── utils/              # Shared utility functions (2+ files)
 ```
+
+**Component hierarchy**:
+- **`ui/`** → Single-purpose primitives (Button, Input, Dialog)
+- **`molecules/`** → Composition of 2-3 UI components, minimal logic (SearchBar = Input + Button, FormField = Label + Input + ErrorText)
+- **`organisms/`** → Complex shared components with business logic, used across features (ConnectWalletModal, TransactionStatusCard)
+- **`features/*/components/`** → Feature-specific components, any complexity, not reused outside the feature
 
 ### File Naming Conventions
 
@@ -646,7 +652,7 @@ const ProfileRecordsEditor = ({ records, onChange }: Props) => {
 }
 
 const ProfilePage = ({ name }: ProfilePageProps) => {
-  const profile = useProfile(name)
+  const { data: profile } = useQuery(getProfileQueryOptions(name))
   
   return (
     <div>
@@ -757,7 +763,7 @@ export const ProfilePage = ({ name }: { name: string }) => {
 
 // ✅ CORRECT: Use TanStack Query
 export const ProfilePage = ({ name }: { name: string }) => {
-  const { data: profile, isLoading, error } = useProfile(name)
+  const { data: profile, isLoading, error } = useQuery(getProfileQueryOptions(name))
   
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState error={error} />
@@ -1085,20 +1091,21 @@ export const profileQueryKey = createQueryKey<
   { name: string }
 >('profile')
 
-// 4. Create query options
+// 4. Create query options factory
 export const getProfileQueryOptions = (name: string) =>
   resultQueryOptions({
     queryKey: profileQueryKey({ name }),
     queryFn: ({ queryKey: [, { name }] }) => getProfile(name),
   })
-
-// 5. Create custom hook (optional but recommended)
-export const useProfile = (name: string) => {
-  return useQuery(getProfileQueryOptions(name))
-}
 ```
 
-### Query Key Patterns
+**Why no custom hook wrapper?**
+- ✅ **Works with all query hooks** - `useQuery`, `useSuspenseQuery`, `useQueries`
+- ✅ **Preloading in router loaders** - Can use options directly in `loader`
+- ✅ **Customizable per use case** - Add `staleTime`, `enabled`, etc. in component
+- ✅ **Simpler types** - No need to handle custom option overrides
+
+### Query Key Patterns 🟡 Default
 
 **Use `createQueryKey` helper for type-safe, invalidation-friendly keys:**
 
@@ -1118,7 +1125,7 @@ const key = profileQueryKey({ name: 'vitalik.eth' })
 
 **Why object-based params?**
 
-Using an object for the second element enables **partial matching for invalidation**:
+Using a **singular object for query key parameters** enables powerful **partial matching for invalidation**:
 
 ```typescript
 // Invalidate ALL profile queries
@@ -1140,10 +1147,10 @@ queryClient.invalidateQueries({
 
 **Query Key Best Practices:**
 
-1. ✅ **Use `createQueryKey` helper** - Type-safe and consistent
+1. ✅ **Use `createQueryKey` helper** - Type-safe and consistent ([see implementation](https://github.com/ensdomains/apps-monorepo/blob/main/packages/utils/src/tanstack-query/queryKey.ts))
 2. ✅ **Object for params** - Enables partial matching for invalidation
 3. ✅ **Named properties** - `{ name }` not just `name`
-4. ✅ **Consistent naming** - Standardize keys across features
+4. ✅ **Consider scope-based keys** - Group related queries for easier invalidation
 
 ```typescript
 // ✅ Good - Type-safe, invalidation-friendly
@@ -1162,13 +1169,14 @@ queryKey: ['records', name, texts]
 queryKey: [name, 'records']
 ```
 
-**Standardization note**: Query key naming should be standardized across features for easier invalidation patterns. Consider documenting common keys in a central location.
+> **⚠️ Standardization In Progress**: Query key structure is evolving toward better standardization with scope-based invalidation patterns (e.g., `$qk({ $scope: 'wallet' })` to invalidate all wallet-related queries). The `createQueryKey` helper is the current recommended approach, but standardized key structures and common scopes are being defined to make cross-feature invalidations easier. When defining new query keys, consider how they might be grouped with related queries for bulk invalidation.
 
 ### Using Queries in Components
 
 ```typescript
+// Basic usage with useQuery
 export const ProfileCard = ({ name }: { name: string }) => {
-  const { data: result, isLoading } = useProfile(name)
+  const { data: result, isLoading } = useQuery(getProfileQueryOptions(name))
   
   // Pattern match on query state (see React Patterns for more examples)
   return match({ result, isLoading })
@@ -1181,6 +1189,39 @@ export const ProfileCard = ({ name }: { name: string }) => {
     ))
     .otherwise(() => null)
 }
+
+// With custom options
+export const LiveProfileCard = ({ name }: { name: string }) => {
+  const { data: result } = useQuery({
+    ...getProfileQueryOptions(name),
+    staleTime: 5000, // Refetch every 5s
+    refetchInterval: 5000,
+  })
+  return <ProfileDetails profile={result} />
+}
+
+// With suspense
+export const SuspenseProfileCard = ({ name }: { name: string }) => {
+  const { data: result } = useSuspenseQuery(getProfileQueryOptions(name))
+  // No loading state needed - suspense handles it
+  return <ProfileDetails profile={result._unsafeUnwrap()} />
+}
+
+// Multiple queries with useQueries
+export const MultiProfileCard = ({ names }: { names: string[] }) => {
+  const queries = useQueries({
+    queries: names.map(name => getProfileQueryOptions(name)),
+  })
+  return queries.map((q, i) => <ProfileCard key={names[i]} result={q.data} />)
+}
+
+// Preloading in router loader
+export const Route = createFileRoute('/profile/$name')({
+  loader: ({ context: { queryClient }, params: { name } }) => {
+    queryClient.ensureQueryData(getProfileQueryOptions(name))
+  },
+  component: ProfilePage,
+})
 ```
 
 ### File Organization for Queries
@@ -1189,12 +1230,14 @@ export const ProfileCard = ({ name }: { name: string }) => {
 features/
 └── profile/
     ├── hooks/
-    │   ├── useProfile.ts       # Query + hook + options
-    │   ├── useRecords.ts
-    │   └── useSubnames.ts
+    │   ├── useProfile.ts       # getProfile + getProfileQueryOptions
+    │   ├── useRecords.ts       # getRecords + getRecordsQueryOptions
+    │   └── useSubnames.ts      # getSubnames + getSubnamesQueryOptions
     └── components/
-        └── ProfileCard.tsx      # Uses the hooks
+        └── ProfileCard.tsx      # useQuery(getProfileQueryOptions(...))
 ```
+
+**File naming**: Keep `use*.ts` convention even though they export query options, not hooks. This maintains consistency and groups query-related code in the `hooks/` folder.
 
 ## Web3 & Blockchain Patterns
 
@@ -1837,7 +1880,7 @@ Build flexible components through composition:
 ```typescript
 // Good - Composition
 export const ProfilePage = ({ name }: { name: string }) => {
-  const profile = useProfile(name)
+  const { data: profile } = useQuery(getProfileQueryOptions(name))
   
   return (
     <Card>
@@ -2761,34 +2804,35 @@ const data: any = externalLibrary.getData()
 21. **React state for UI** - Forms, toggles, simple caching
 22. **XState for workflows** - Complex multi-step flows
 23. **TanStack Query for async data** - Don't reinvent loading/error states with useState (🟡 Default)
+24. **Object-based query keys** - Use singular object for params to enable partial invalidation (🟡 Default)
 
 #### Web3 & Contracts
 
-24. **Simple request builders** - For app-level contract helpers (🟡 Default)
-25. **ENSjs two-part pattern** - For library-level contract functions (🟡 Default)
-26. **Safe client access** - Use `safeGetClient` helper (🟡 Default)
-27. **BigInt for blockchain values** - All numeric blockchain values (🔴 Must)
+25. **Simple request builders** - For app-level contract helpers (🟡 Default)
+26. **ENSjs two-part pattern** - For library-level contract functions (🟡 Default)
+27. **Safe client access** - Use `safeGetClient` helper (🟡 Default)
+28. **BigInt for blockchain values** - All numeric blockchain values (🔴 Must)
 
 #### Testing & Quality
 
-28. **Write testable code** - Pure functions with explicit dependencies (🟡 Default)
-29. **Test business logic** - Unit test pure functions thoroughly (🟡 Default)
-30. **Test user behavior** - Component tests from user perspective (🟡 Default)
-31. **70/20/10 test distribution** - Unit/Integration/E2E (🟢 Guideline)
+29. **Write testable code** - Pure functions with explicit dependencies (🟡 Default)
+30. **Test business logic** - Unit test pure functions thoroughly (🟡 Default)
+31. **Test user behavior** - Component tests from user perspective (🟡 Default)
+32. **70/20/10 test distribution** - Unit/Integration/E2E (🟢 Guideline)
 
 #### Performance & Reliability
 
-32. **Measure before optimizing** - Use React DevTools Profiler (🟢 Guideline)
-33. **Avoid premature memoization** - Only memoize when proven necessary (🟢 Guideline)
-34. **Route-level error boundaries** - Catch rendering errors (🟡 Default)
-35. **Result errors ≠ rendering errors** - Use both neverthrow and error boundaries (🟡 Default)
+33. **Measure before optimizing** - Use React DevTools Profiler (🟢 Guideline)
+34. **Avoid premature memoization** - Only memoize when proven necessary (🟢 Guideline)
+35. **Route-level error boundaries** - Catch rendering errors (🟡 Default)
+36. **Result errors ≠ rendering errors** - Use both neverthrow and error boundaries (🟡 Default)
 
 #### Code Formatting
 
-36. **Use Biome** - Format and lint with one tool (🔴 Must)
-37. **Single quotes** - For string literals (🟢 Guideline)
-38. **2-space indentation** - Consistent formatting (🟢 Guideline)
-39. **Organize imports** - Let Biome handle import sorting (🟢 Guideline)
+37. **Use Biome** - Format and lint with one tool (🔴 Must)
+38. **Single quotes** - For string literals (🟢 Guideline)
+39. **2-space indentation** - Consistent formatting (🟢 Guideline)
+40. **Organize imports** - Let Biome handle import sorting (🟢 Guideline)
 
 ### Decision Framework
 
@@ -2804,6 +2848,7 @@ Ask yourself these questions when writing code:
 - Is this UI state or business state? → **React state vs XState**
 - Does this need to be cached? → **Use TanStack Query**
 - Is this a multi-step flow? → **Use XState machine**
+- Creating a query key? → **Use `createQueryKey` with object params for easy invalidation**
 
 #### Type Safety
 - Am I using `any`? → **Use `unknown` or proper types**
