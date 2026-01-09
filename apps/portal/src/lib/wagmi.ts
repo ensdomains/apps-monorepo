@@ -61,4 +61,3 @@ export const wagmiConfig = createConfig({
 })
 
 export type ClientType = ReturnType<typeof wagmiConfig.getClient>
-export type ChainType = ClientType['chain']
