@@ -103,7 +103,7 @@ export const DiffDialog = ({
         acc[key] = []
       }
 
-      acc[key]!.push(issue.message)
+      acc[key]?.push(issue.message)
 
       return acc
     }, {}) ?? {}
@@ -179,7 +179,7 @@ export const DiffDialog = ({
                           <div className="mt-3 space-y-1">
                             {issuesByField[
                               `${change.sectionKey}:${change.fieldKey}`
-                            ]!.map((message, index) => (
+                            ]?.map((message, index) => (
                               // biome-ignore lint/suspicious/noArrayIndexKey: error list is stable for this render
                               <div
                                 key={index}

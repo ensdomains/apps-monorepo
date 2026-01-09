@@ -120,7 +120,13 @@ export function useSessionManager(
     }
 
     setHasCheckedSession(true)
-  }, [isAccountReady, ownerAddress, hasCheckedSession, hasSkippedSession])
+  }, [
+    isAccountReady,
+    ownerAddress,
+    hasCheckedSession,
+    hasSkippedSession, // Notify parent that session is ready
+    onSessionCreated,
+  ])
 
   // Reset state when wallet disconnects
   useEffect(() => {
