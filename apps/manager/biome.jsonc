@@ -26,6 +26,9 @@
             "functions": ["cn", "cva", "clsx"]
           }
         }
+      },
+      "style": {
+        "noUselessElse": "error"
       }
     }
   },

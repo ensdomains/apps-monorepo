@@ -173,14 +173,13 @@ export const ImageSelectionDialog = ({
         large: 'size-40',
       }
       return `${baseClasses} ${sizeClasses[size]}`
-    } else {
-      const sizeClasses = {
-        small: 'h-20 w-full',
-        medium: 'h-32 w-full',
-        large: 'h-40 w-full',
-      }
-      return `${baseClasses} ${sizeClasses[size]}`
     }
+    const sizeClasses = {
+      small: 'h-20 w-full',
+      medium: 'h-32 w-full',
+      large: 'h-40 w-full',
+    }
+    return `${baseClasses} ${sizeClasses[size]}`
   }
 
   // Main step - shows all options
