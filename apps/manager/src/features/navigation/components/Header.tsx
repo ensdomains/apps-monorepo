@@ -646,16 +646,14 @@ export const Header = () => {
         </span>
       </div>
       <div className="flex min-w-0 items-center gap-2 md:gap-4">
-        {!walletLoading ? (
-          isConnected ? (
-            <ConnectedContent />
-          ) : (
-            <DisconnectedContent />
-          )
-        ) : (
+        {walletLoading ? (
           <div className="flex items-center gap-4">
             <div className="h-8 w-28 animate-pulse rounded bg-gray-200" />
           </div>
+        ) : isConnected ? (
+          <ConnectedContent />
+        ) : (
+          <DisconnectedContent />
         )}
       </div>
     </nav>

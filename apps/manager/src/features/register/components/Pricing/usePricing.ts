@@ -54,12 +54,12 @@ export const usePricing = ({
 
   const basePerYear = state.basePricePerYear ?? 0
   const isCustomDuration = state.selectedDuration > 5
-  const selectedOption = !isCustomDuration
-    ? state.pricingOptions[state.selectedDuration as PricingDuration]
-    : undefined
-  const selectedQuote = !isCustomDuration
-    ? state.pricingQuotes[state.selectedDuration as PricingDuration]
-    : undefined
+  const selectedOption = isCustomDuration
+    ? undefined
+    : state.pricingOptions[state.selectedDuration as PricingDuration]
+  const selectedQuote = isCustomDuration
+    ? undefined
+    : state.pricingQuotes[state.selectedDuration as PricingDuration]
 
   const bestDiscountMultiplier = discountsEnabled
     ? 1 - (PRICING_YEAR_DISCOUNTS[5] ?? 0) / 100
