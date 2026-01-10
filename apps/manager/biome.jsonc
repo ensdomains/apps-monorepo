@@ -4,6 +4,10 @@
   "extends": "//",
   "linter": {
     "rules": {
+      "complexity": {
+        "noUselessFragments": "error",
+        "noForEach": "warn"
+      },
       "nursery": {
         "useSortedClasses": {
           "level": "error",

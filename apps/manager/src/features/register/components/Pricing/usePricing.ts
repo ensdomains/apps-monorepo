@@ -138,7 +138,7 @@ export const usePricing = ({
           const updatedOptions = { ...INITIAL_PRICING_OPTIONS }
           const updatedQuotes = createEmptyPricingQuoteMap()
 
-          PRICING_DURATIONS.forEach((duration: PricingDuration) => {
+          for (const duration of PRICING_DURATIONS) {
             const discount = discountsEnabled
               ? INITIAL_PRICING_OPTIONS[duration].discount
               : 0
@@ -161,7 +161,7 @@ export const usePricing = ({
                   duration
                 : undefined,
             }
-          })
+          }
 
           if (!isCancelled) {
             dispatch({

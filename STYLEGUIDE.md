@@ -2338,15 +2338,15 @@ export const SetPrimaryNameFlow = ({ name, address }: Props) => {
 
 **Key Differences:**
 
-| Aspect | Simple Builders | ENSjs Pattern |
-|--------|----------------|---------------|
-| **Structure** | Single function | Two functions (writeParameters + action) |
-| **Returns** | Contract params object | writeParameters: params, action: Hash |
-| **Client** | Not required | Required (uses `getAction`) |
-| **Type safety** | `as const` for args | `satisfies WriteContractParameters` |
-| **JSDoc** | Basic documentation | Comprehensive with examples |
-| **Error handling** | Throws directly | Typed error unions |
-| **Use case** | Direct component usage | Library API + component usage |
+| Aspect             | Simple Builders        | ENSjs Pattern                            |
+| ------------------ | ---------------------- | ---------------------------------------- |
+| **Structure**      | Single function        | Two functions (writeParameters + action) |
+| **Returns**        | Contract params object | writeParameters: params, action: Hash    |
+| **Client**         | Not required           | Required (uses `getAction`)              |
+| **Type safety**    | `as const` for args    | `satisfies WriteContractParameters`      |
+| **JSDoc**          | Basic documentation    | Comprehensive with examples              |
+| **Error handling** | Throws directly        | Typed error unions                       |
+| **Use case**       | Direct component usage | Library API + component usage            |
 
 ### Working with wagmi
 
@@ -2760,12 +2760,12 @@ export const Route = createFileRoute('/$name')({
 
 **Result errors (neverthrow) ≠ Rendering errors (Error Boundaries)**
 
-| Error Type | Handling | Example |
-|------------|----------|---------|
-| **Data fetching errors** | `Result<T, E>` + pattern matching | API failure, validation error |
-| **Business logic errors** | `Result<T, E>` + early returns | Invalid input, auth failure |
-| **Rendering errors** | Error Boundary | Component crash, ref error |
-| **Unexpected errors** | Error Boundary + logging | Third-party lib bugs |
+| Error Type                | Handling                          | Example                       |
+| ------------------------- | --------------------------------- | ----------------------------- |
+| **Data fetching errors**  | `Result<T, E>` + pattern matching | API failure, validation error |
+| **Business logic errors** | `Result<T, E>` + early returns    | Invalid input, auth failure   |
+| **Rendering errors**      | Error Boundary                    | Component crash, ref error    |
+| **Unexpected errors**     | Error Boundary + logging          | Third-party lib bugs          |
 
 ### Error Boundary Implementation
 
@@ -3458,13 +3458,14 @@ import { Button } from '@/components/ui/button'
 
 ### Key Linting Rules
 
-| Rule | Purpose | Fix |
-|------|---------|-----|
-| `noExplicitAny` | Avoid `any` types | Use `unknown` + type guards |
-| `noNonNullAssertion` | Avoid `!` operator | Use `?.` or type guards |
-| `useButtonType` | Explicit button types | Add `type="button"` |
-| `useKeyWithClickEvents` | Keyboard accessibility | Add `onKeyDown` or use `<button>` |
-| `noNestedComponentDefinitions` | Don't nest components | Define outside parent |
+| Rule                           | Purpose                                      | Fix                               |
+| ------------------------------ | -------------------------------------------- | --------------------------------- |
+| `noExplicitAny`                | Avoid `any` types                            | Use `unknown` + type guards       |
+| `noNonNullAssertion`           | Avoid `!` operator                           | Use `?.` or type guards           |
+| `useButtonType`                | Explicit button types                        | Add `type="button"`               |
+| `useKeyWithClickEvents`        | Keyboard accessibility                       | Add `onKeyDown` or use `<button>` |
+| `noNestedComponentDefinitions` | Don't nest components                        | Define outside parent             |
+| `noForEach`                    | Prefer `for...of` loops over `Array.forEach` | Use `for...of`                    |
 
 ### Running Biome
 
@@ -3685,4 +3686,3 @@ Ask yourself these questions when writing code:
 ---
 
 *This style guide is a living document. As the ENS Portal evolves, so should these guidelines. When in doubt, follow existing patterns in the codebase and prioritize clarity and maintainability.*
-
