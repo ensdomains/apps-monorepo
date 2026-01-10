@@ -2338,15 +2338,15 @@ export const SetPrimaryNameFlow = ({ name, address }: Props) => {
 
 **Key Differences:**
 
-| Aspect | Simple Builders | ENSjs Pattern |
-|--------|----------------|---------------|
-| **Structure** | Single function | Two functions (writeParameters + action) |
-| **Returns** | Contract params object | writeParameters: params, action: Hash |
-| **Client** | Not required | Required (uses `getAction`) |
-| **Type safety** | `as const` for args | `satisfies WriteContractParameters` |
-| **JSDoc** | Basic documentation | Comprehensive with examples |
-| **Error handling** | Throws directly | Typed error unions |
-| **Use case** | Direct component usage | Library API + component usage |
+| Aspect             | Simple Builders        | ENSjs Pattern                            |
+| ------------------ | ---------------------- | ---------------------------------------- |
+| **Structure**      | Single function        | Two functions (writeParameters + action) |
+| **Returns**        | Contract params object | writeParameters: params, action: Hash    |
+| **Client**         | Not required           | Required (uses `getAction`)              |
+| **Type safety**    | `as const` for args    | `satisfies WriteContractParameters`      |
+| **JSDoc**          | Basic documentation    | Comprehensive with examples              |
+| **Error handling** | Throws directly        | Typed error unions                       |
+| **Use case**       | Direct component usage | Library API + component usage            |
 
 ### Working with wagmi
 
@@ -2760,12 +2760,12 @@ export const Route = createFileRoute('/$name')({
 
 **Result errors (neverthrow) ≠ Rendering errors (Error Boundaries)**
 
-| Error Type | Handling | Example |
-|------------|----------|---------|
-| **Data fetching errors** | `Result<T, E>` + pattern matching | API failure, validation error |
-| **Business logic errors** | `Result<T, E>` + early returns | Invalid input, auth failure |
-| **Rendering errors** | Error Boundary | Component crash, ref error |
-| **Unexpected errors** | Error Boundary + logging | Third-party lib bugs |
+| Error Type                | Handling                          | Example                       |
+| ------------------------- | --------------------------------- | ----------------------------- |
+| **Data fetching errors**  | `Result<T, E>` + pattern matching | API failure, validation error |
+| **Business logic errors** | `Result<T, E>` + early returns    | Invalid input, auth failure   |
+| **Rendering errors**      | Error Boundary                    | Component crash, ref error    |
+| **Unexpected errors**     | Error Boundary + logging          | Third-party lib bugs          |
 
 ### Error Boundary Implementation
 
@@ -3030,6 +3030,33 @@ export const Navigation = () => {
 ```
 
 ## Accessibility
+
+Use WCAG 2 guidelines wherever possible (prefer WCAG 2.2).
+
+Quick references:
+- WCAG overview: https://www.w3.org/WAI/standards-guidelines/wcag/
+- How to Meet WCAG 2.2 (Quick Reference): https://www.w3.org/WAI/WCAG22/quickref/
+
+### WCAG 2 Examples
+
+#### Focus Visible (WCAG 2.4.7)
+
+Never remove focus styles without a clear replacement. Prefer `:focus-visible` so mouse users don’t get distracting rings.
+
+```typescript
+// Good - visible keyboard focus ring
+<button
+  type="button"
+  className="rounded-sm px-3 py-2 outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+>
+  Save
+</button>
+
+// Avoid - removing outlines with no replacement
+<button type="button" className="outline-none">
+  Save
+</button>
+```
 
 ### Semantic HTML
 
@@ -3458,13 +3485,13 @@ import { Button } from '@/components/ui/button'
 
 ### Key Linting Rules
 
-| Rule | Purpose | Fix |
-|------|---------|-----|
-| `noExplicitAny` | Avoid `any` types | Use `unknown` + type guards |
-| `noNonNullAssertion` | Avoid `!` operator | Use `?.` or type guards |
-| `useButtonType` | Explicit button types | Add `type="button"` |
-| `useKeyWithClickEvents` | Keyboard accessibility | Add `onKeyDown` or use `<button>` |
-| `noNestedComponentDefinitions` | Don't nest components | Define outside parent |
+| Rule                           | Purpose                | Fix                               |
+| ------------------------------ | ---------------------- | --------------------------------- |
+| `noExplicitAny`                | Avoid `any` types      | Use `unknown` + type guards       |
+| `noNonNullAssertion`           | Avoid `!` operator     | Use `?.` or type guards           |
+| `useButtonType`                | Explicit button types  | Add `type="button"`               |
+| `useKeyWithClickEvents`        | Keyboard accessibility | Add `onKeyDown` or use `<button>` |
+| `noNestedComponentDefinitions` | Don't nest components  | Define outside parent             |
 
 ### Running Biome
 
