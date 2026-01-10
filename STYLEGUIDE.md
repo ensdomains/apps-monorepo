@@ -3468,6 +3468,7 @@ import { Button } from '@/components/ui/button'
 | `noForEach`                    | Prefer `for...of` loops over `Array.forEach` | Use `for...of`                    |
 | `noDangerouslySetInnerHtml`    | Rule is turned off in the manager app        | Use sanitized content only        |
 | `noUselessElse`                | Avoid unnecessary else blocks after returns  | Prefer early returns              |
+| `noUnusedTemplateLiteral`      | Avoid template literals without interpolation| Use regular strings               |
 
 ### Running Biome
 

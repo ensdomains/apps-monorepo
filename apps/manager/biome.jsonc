@@ -28,7 +28,9 @@
         }
       },
       "style": {
-        "noUselessElse": "error"
+        "noUselessElse": "error",
+        "noNegationElse": "error",
+        "noUnusedTemplateLiteral": "error"
       }
     }
   },
