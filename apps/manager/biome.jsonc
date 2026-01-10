@@ -8,6 +8,16 @@
         "noUselessFragments": "error",
         "noForEach": "warn"
       },
+      "correctness": {
+        "noUnusedImports": {
+          "fix": "safe",
+          "level": "error"
+        },
+        "noUnusedVariables": "error"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
+      },
       "nursery": {
         "useSortedClasses": {
           "level": "error",

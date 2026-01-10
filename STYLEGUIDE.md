@@ -3466,6 +3466,7 @@ import { Button } from '@/components/ui/button'
 | `useKeyWithClickEvents`        | Keyboard accessibility                       | Add `onKeyDown` or use `<button>` |
 | `noNestedComponentDefinitions` | Don't nest components                        | Define outside parent             |
 | `noForEach`                    | Prefer `for...of` loops over `Array.forEach` | Use `for...of`                    |
+| `noDangerouslySetInnerHtml`    | Rule is turned off in the manager app        | Use sanitized content only        |
 
 ### Running Biome
 
