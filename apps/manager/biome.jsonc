@@ -18,9 +18,6 @@
         },
         "noUnusedVariables": "error"
       },
-      "security": {
-        "noDangerouslySetInnerHtml": "off"
-      },
       "nursery": {
         "useSortedClasses": {
           "level": "error",
