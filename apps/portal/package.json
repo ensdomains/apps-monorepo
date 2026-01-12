@@ -44,6 +44,7 @@
     "@tanstack/react-router-devtools": "^1.139.14",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/router-plugin": "^1.139.10",
+    "@testing-library/user-event": "^14.6.1",
     "@wagmi/connectors": "^7.1.1",
     "@wagmi/core": "^3.0.0",
     "@xstate/react": "^6.0.0",
