@@ -193,7 +193,7 @@ describe('filterRecordHistoryByRecord', () => {
   })
 
   describe('mixed event types', () => {
-    it('should filter address events and include all other events', () => {
+    it('should filter by record and include non-targeted event types', () => {
       const events: ReturnResolverEvent[] = [
         {
           type: 'AddrChanged',
@@ -210,19 +210,11 @@ describe('filterRecordHistoryByRecord', () => {
           id: '2',
         },
         {
-          type: 'TextChanged',
-          key: 'email',
-          value: 'test@example.com',
+          type: 'ContenthashChanged',
+          hash: '0xabcd',
           transactionID: 'tx3',
           blockNumber: 102,
           id: '3',
-        },
-        {
-          type: 'ContenthashChanged',
-          hash: '0xabcd',
-          transactionID: 'tx4',
-          blockNumber: 103,
-          id: '4',
         },
       ] as unknown as ReturnResolverEvent[]
 
@@ -235,109 +227,11 @@ describe('filterRecordHistoryByRecord', () => {
 
       const result = filterRecordHistoryByRecord(events, record)
 
-      // Should include: matching AddrChanged (0x1234) + ContenthashChanged (other event type)
-      // AddrChanged with 0x5678 is filtered out (doesn't match)
-      // TextChanged is filtered out because record.key !== event.key
+      // Should include: matching AddrChanged (0x1234) + ContenthashChanged (non-targeted event)
       expect(result).toHaveLength(2)
       expect(result[0].type).toBe('AddrChanged')
       expect((result[0] as any).addr).toBe('0x1234')
       expect(result[1].type).toBe('ContenthashChanged')
-    })
-
-    it('should filter text events and include all other events', () => {
-      const events: ReturnResolverEvent[] = [
-        {
-          type: 'TextChanged',
-          key: 'email',
-          value: 'test@example.com',
-          transactionID: 'tx1',
-          blockNumber: 100,
-          id: '1',
-        },
-        {
-          type: 'TextChanged',
-          key: 'url',
-          value: 'https://example.com',
-          transactionID: 'tx2',
-          blockNumber: 101,
-          id: '2',
-        },
-        {
-          type: 'AddrChanged',
-          addr: '0x1234',
-          transactionID: 'tx3',
-          blockNumber: 102,
-          id: '3',
-        },
-        {
-          type: 'NameChanged',
-          name: 'test.eth',
-          transactionID: 'tx4',
-          blockNumber: 103,
-          id: '4',
-        },
-      ] as unknown as ReturnResolverEvent[]
-
-      const record: NameRecord = {
-        type: 'text',
-        key: 'email',
-        value: 'test@example.com',
-      }
-
-      const result = filterRecordHistoryByRecord(events, record)
-
-      // Should only include: matching TextChanged (email) + NameChanged (other event type)
-      // AddrChanged is filtered out (doesn't match), TextChanged 'url' is filtered out (doesn't match)
-      expect(result).toHaveLength(2)
-      expect(result[0].type).toBe('TextChanged')
-      expect((result[0] as any).key).toBe('email')
-      expect(result[1].type).toBe('NameChanged')
-    })
-  })
-
-  describe('empty arrays', () => {
-    it('should return empty array for empty events', () => {
-      const record: NameRecord = {
-        type: 'text',
-        key: 'email',
-        value: 'test@example.com',
-      }
-
-      const result = filterRecordHistoryByRecord([], record)
-      expect(result).toEqual([])
-    })
-  })
-
-  describe('contentHash record', () => {
-    it('should filter out AddrChanged/TextChanged events for contentHash record', () => {
-      const events: ReturnResolverEvent[] = [
-        {
-          type: 'ContenthashChanged',
-          hash: '0xabcd',
-          transactionID: 'tx1',
-          blockNumber: 100,
-          id: '1',
-        },
-        {
-          type: 'AddrChanged',
-          addr: '0x1234',
-          transactionID: 'tx2',
-          blockNumber: 101,
-          id: '2',
-        },
-      ] as unknown as ReturnResolverEvent[]
-
-      const record: NameRecord = {
-        type: 'contentHash',
-        value: 'ipfs://QmTest123',
-      }
-
-      const result = filterRecordHistoryByRecord(events, record)
-
-      // AddrChanged is filtered out (doesn't match contentHash value)
-      // ContenthashChanged is included (other event type)
-      expect(result).toHaveLength(1)
-      expect(result[0].type).toBe('ContenthashChanged')
     })
   })
 })

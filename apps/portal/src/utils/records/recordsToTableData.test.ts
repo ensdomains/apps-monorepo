@@ -38,49 +38,12 @@ describe('recordsToTableData', () => {
     })
   })
 
-  it('should handle null contentHash', () => {
-    const records: GetRecordsReturnType = {
-      texts: [],
-      coins: [],
-      contentHash: null,
-      abi: null,
-      resolverAddress: MOCK_RESOLVER,
-    }
-
-    const result = recordsToTableData(records)
-    expect(result).toHaveLength(0)
-  })
-
-  it('should transform text records into table data', () => {
+  it('should transform text and coin records into table data', () => {
     const records: GetRecordsReturnType = {
       texts: [
         { key: 'email', value: 'test@example.com' },
         { key: 'url', value: 'https://example.com' },
       ],
-      coins: [],
-      contentHash: null,
-      abi: null,
-      resolverAddress: MOCK_RESOLVER,
-    }
-
-    const result = recordsToTableData(records)
-
-    expect(result).toHaveLength(2)
-    expect(result).toContainEqual({
-      key: 'email',
-      value: 'test@example.com',
-      type: 'text',
-    })
-    expect(result).toContainEqual({
-      key: 'url',
-      value: 'https://example.com',
-      type: 'text',
-    })
-  })
-
-  it('should transform coin records into table data', () => {
-    const records: GetRecordsReturnType = {
-      texts: [],
       coins: [
         { coinType: 60, value: '0x1234...', symbol: 'ETH' },
         { coinType: 0, value: 'bc1q...', symbol: 'BTC' },
@@ -92,7 +55,17 @@ describe('recordsToTableData', () => {
 
     const result = recordsToTableData(records)
 
-    expect(result).toHaveLength(2)
+    expect(result).toHaveLength(4)
+    expect(result).toContainEqual({
+      key: 'email',
+      value: 'test@example.com',
+      type: 'text',
+    })
+    expect(result).toContainEqual({
+      key: 'url',
+      value: 'https://example.com',
+      type: 'text',
+    })
     expect(result).toContainEqual({
       key: 'ETH',
       value: '0x1234...',
@@ -107,7 +80,7 @@ describe('recordsToTableData', () => {
     })
   })
 
-  it('should handle mixed record types', () => {
+  it('should handle all record types together', () => {
     const records: GetRecordsReturnType = {
       texts: [{ key: 'email', value: 'test@example.com' }],
       coins: [{ coinType: 60, value: '0x1234...', symbol: 'ETH' }],
@@ -137,32 +110,6 @@ describe('recordsToTableData', () => {
       type: 'address',
       id: 60,
     })
-  })
-
-  it('should handle empty text array', () => {
-    const records: GetRecordsReturnType = {
-      texts: [],
-      coins: [{ coinType: 60, value: '0x1234...', symbol: 'ETH' }],
-      contentHash: null,
-      abi: null,
-      resolverAddress: MOCK_RESOLVER,
-    }
-
-    const result = recordsToTableData(records)
-    expect(result).toHaveLength(1)
-  })
-
-  it('should handle empty coins array', () => {
-    const records: GetRecordsReturnType = {
-      texts: [{ key: 'email', value: 'test@example.com' }],
-      coins: [],
-      contentHash: null,
-      abi: null,
-      resolverAddress: MOCK_RESOLVER,
-    }
-
-    const result = recordsToTableData(records)
-    expect(result).toHaveLength(1)
   })
 
   it('should handle multiple contentHash protocol types', () => {

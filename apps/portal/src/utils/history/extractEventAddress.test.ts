@@ -5,10 +5,10 @@ import {
   findAddressFromEvents,
 } from './extractEventAddress'
 
-describe('extractEventAddress', () => {
-  const TEST_ADDRESS = '0x1234567890123456789012345678901234567890' as Address
-  const TEST_ADDRESS_2 = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address
+const TEST_ADDRESS = '0x1234567890123456789012345678901234567890' as Address
+const TEST_ADDRESS_2 = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address
 
+describe('extractEventAddress', () => {
   describe('owner field extraction', () => {
     it('should extract owner address', () => {
       const event = { owner: TEST_ADDRESS }
@@ -125,9 +125,6 @@ describe('extractEventAddress', () => {
 })
 
 describe('findAddressFromEvents', () => {
-  const TEST_ADDRESS = '0x1234567890123456789012345678901234567890' as Address
-  const TEST_ADDRESS_2 = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address
-
   it('should find address from first event with valid address', () => {
     const events = [
       { details: { name: 'test.eth' } },

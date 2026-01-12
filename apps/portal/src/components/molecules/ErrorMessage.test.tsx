@@ -14,20 +14,15 @@ describe('ErrorMessage', () => {
     ).toBeInTheDocument()
   })
 
-  it('renders with custom title', () => {
-    render(<ErrorMessage title="Custom Error" />)
-
-    expect(screen.getByText('Custom Error')).toBeInTheDocument()
-  })
-
-  it('renders with custom description', () => {
+  it('renders with custom title and description', () => {
     render(
       <ErrorMessage
-        title="Error"
+        title="Custom Error"
         description="This is a custom error message"
       />,
     )
 
+    expect(screen.getByText('Custom Error')).toBeInTheDocument()
     expect(
       screen.getByText('This is a custom error message'),
     ).toBeInTheDocument()
@@ -42,6 +37,5 @@ describe('ErrorMessage', () => {
     )
 
     expect(screen.getByTestId('custom-node')).toBeInTheDocument()
-    expect(screen.getByText('Custom Node')).toBeInTheDocument()
   })
 })

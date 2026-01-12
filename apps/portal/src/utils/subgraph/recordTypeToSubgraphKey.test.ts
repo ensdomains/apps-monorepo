@@ -2,15 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { recordTypeToSubgraphKey } from './recordTypeToSubgraphKey'
 
 describe('recordTypeToSubgraphKey', () => {
-  it('should map "address" to "coins"', () => {
+  it('should map record types to subgraph keys', () => {
     expect(recordTypeToSubgraphKey('address')).toBe('coins')
-  })
-
-  it('should map "text" to "texts"', () => {
     expect(recordTypeToSubgraphKey('text')).toBe('texts')
-  })
-
-  it('should return the same value for "contentHash"', () => {
     expect(recordTypeToSubgraphKey('contentHash')).toBe('contentHash')
   })
 

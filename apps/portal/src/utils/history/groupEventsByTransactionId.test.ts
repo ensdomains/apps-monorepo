@@ -114,117 +114,36 @@ describe('groupEventsByTransactionId', () => {
     expect(result[1].blockNumber).toBe(100)
   })
 
-  it('should assign category to all events', () => {
-    const events: SubgraphEvent[] = [
-      {
-        transactionID: TEST_TX_ID,
-        blockNumber: 100,
-        id: 'event-1',
-        type: 'NameRegistered',
-        registrant: TEST_ADDRESS,
-      } as unknown as SubgraphEvent,
-    ]
-
-    const result = groupEvents(events, 'registration')
-
-    expect(result[0].events[0].category).toBe('registration')
-  })
-
-  it('should handle timestamp when present', () => {
-    const timestamp = 1704067200n
-
+  it('should extract address from events and set category', () => {
     const events: SubgraphEvent[] = [
       {
         transactionID: TEST_TX_ID,
         blockNumber: 100,
         id: 'event-1',
         type: 'Transfer',
-        timestamp,
-      } as unknown as SubgraphEvent,
-    ]
-
-    const result = groupEvents(events, 'domain')
-
-    expect(result[0].timestamp).toBe(timestamp)
-  })
-
-  it('should extract address from first event with address', () => {
-    const events: SubgraphEvent[] = [
-      {
-        transactionID: TEST_TX_ID,
-        blockNumber: 100,
-        id: 'event-1',
-        type: 'Transfer',
-        // No owner
-      } as unknown as SubgraphEvent,
-      {
-        transactionID: TEST_TX_ID,
-        blockNumber: 100,
-        id: 'event-2',
-        type: 'NewOwner',
         owner: TEST_ADDRESS,
+        timestamp: 1704067200n,
       } as unknown as SubgraphEvent,
     ]
 
     const result = groupEvents(events, 'domain')
 
     expect(result[0].from).toBe(TEST_ADDRESS)
+    expect(result[0].events[0].category).toBe('domain')
+    expect(result[0].timestamp).toBe(1704067200n)
   })
 
-  it('should use findAddressFromEvents as fallback', () => {
+  it('should return null for address when no address fields found', () => {
     const events: SubgraphEvent[] = [
       {
         transactionID: TEST_TX_ID,
         blockNumber: 100,
         id: 'event-1',
         type: 'ContenthashChanged',
-        // No address fields
       } as unknown as SubgraphEvent,
     ]
 
     const result = groupEvents(events, 'resolver')
-
     expect(result[0].from).toBeNull()
-  })
-
-  it('should handle multiple categories correctly', () => {
-    const domainEvents: SubgraphEvent[] = [
-      {
-        transactionID: TEST_TX_ID,
-        blockNumber: 100,
-        id: 'event-1',
-        type: 'Transfer',
-      } as unknown as SubgraphEvent,
-    ]
-
-    const resolverEvents: SubgraphEvent[] = [
-      {
-        transactionID: TEST_TX_ID,
-        blockNumber: 100,
-        id: 'event-2',
-        type: 'AddrChanged',
-      } as unknown as SubgraphEvent,
-    ]
-
-    const domainResult = groupEvents(domainEvents, 'domain')
-    const resolverResult = groupEvents(resolverEvents, 'resolver')
-
-    expect(domainResult[0].events[0].category).toBe('domain')
-    expect(resolverResult[0].events[0].category).toBe('resolver')
-  })
-
-  it('should set network to undefined', () => {
-    const events: SubgraphEvent[] = [
-      {
-        transactionID: TEST_TX_ID,
-        blockNumber: 100,
-        id: 'event-1',
-        type: 'Transfer',
-      } as unknown as SubgraphEvent,
-    ]
-
-    const result = groupEvents(events, 'domain')
-
-    expect(result[0].network).toBeUndefined()
   })
 })

@@ -27,49 +27,44 @@ describe('permissions', () => {
 })
 
 describe('getPermissionByKey', () => {
-  it('should return permission for ROLE_RENEW', () => {
-    const permission = getPermissionByKey('ROLE_RENEW')
-    expect(permission).toEqual({
-      key: 'ROLE_RENEW',
-      title: 'Renew',
-      description: 'Can renew name registrations',
-    })
-  })
+  it('should return correct permissions for all valid keys', () => {
+    const allPermissions = {
+      ROLE_RENEW: getPermissionByKey('ROLE_RENEW'),
+      ROLE_SET_SUBREGISTRY: getPermissionByKey('ROLE_SET_SUBREGISTRY'),
+      ROLE_SET_RESOLVER: getPermissionByKey('ROLE_SET_RESOLVER'),
+      ROLE_SET_TOKEN_OBSERVER: getPermissionByKey('ROLE_SET_TOKEN_OBSERVER'),
+      ROLE_BURN: getPermissionByKey('ROLE_BURN'),
+    }
 
-  it('should return permission for ROLE_SET_SUBREGISTRY', () => {
-    const permission = getPermissionByKey('ROLE_SET_SUBREGISTRY')
-    expect(permission).toEqual({
-      key: 'ROLE_SET_SUBREGISTRY',
-      title: 'Set Subregistry',
-      description: 'Can change subregistry addresses',
-    })
-  })
-
-  it('should return permission for ROLE_SET_RESOLVER', () => {
-    const permission = getPermissionByKey('ROLE_SET_RESOLVER')
-    expect(permission).toEqual({
-      key: 'ROLE_SET_RESOLVER',
-      title: 'Set Resolver',
-      description: 'Can change the resolver addresses',
-    })
-  })
-
-  it('should return permission for ROLE_SET_TOKEN_OBSERVER', () => {
-    const permission = getPermissionByKey('ROLE_SET_TOKEN_OBSERVER')
-    expect(permission).toEqual({
-      key: 'ROLE_SET_TOKEN_OBSERVER',
-      title: 'Set Token Observer',
-      description: 'Can set token observer contracts',
-    })
-  })
-
-  it('should return permission for ROLE_BURN', () => {
-    const permission = getPermissionByKey('ROLE_BURN')
-    expect(permission).toEqual({
-      key: 'ROLE_BURN',
-      title: 'Burn',
-      description: 'Can burn (delete) the name',
-    })
+    expect(allPermissions).toMatchInlineSnapshot(`
+      {
+        "ROLE_BURN": {
+          "description": "Can burn (delete) the name",
+          "key": "ROLE_BURN",
+          "title": "Burn",
+        },
+        "ROLE_RENEW": {
+          "description": "Can renew name registrations",
+          "key": "ROLE_RENEW",
+          "title": "Renew",
+        },
+        "ROLE_SET_RESOLVER": {
+          "description": "Can change the resolver addresses",
+          "key": "ROLE_SET_RESOLVER",
+          "title": "Set Resolver",
+        },
+        "ROLE_SET_SUBREGISTRY": {
+          "description": "Can change subregistry addresses",
+          "key": "ROLE_SET_SUBREGISTRY",
+          "title": "Set Subregistry",
+        },
+        "ROLE_SET_TOKEN_OBSERVER": {
+          "description": "Can set token observer contracts",
+          "key": "ROLE_SET_TOKEN_OBSERVER",
+          "title": "Set Token Observer",
+        },
+      }
+    `)
   })
 
   it('should return undefined for unknown permission key', () => {
