@@ -119,9 +119,9 @@ const saveToStorage = (key: string, value: string) => {
 
 const clearStorage = () => {
   if (isBrowser) {
-    Object.values(STORAGE_KEYS).forEach((key) => {
+    for (const key of Object.values(STORAGE_KEYS)) {
       localStorage.removeItem(key)
-    })
+    }
   }
 }
 

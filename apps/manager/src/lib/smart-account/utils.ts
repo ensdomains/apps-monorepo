@@ -194,7 +194,8 @@ export const getTxHashResult = (result: any) => {
     // legacy structure
     if ('fillTransactionHash' in result) {
       return result.fillTransactionHash
-    } else if ('transactionHash' in result) {
+    }
+    if ('transactionHash' in result) {
       return result.transactionHash
     }
   }

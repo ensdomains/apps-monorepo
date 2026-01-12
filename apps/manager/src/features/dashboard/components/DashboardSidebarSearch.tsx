@@ -112,9 +112,9 @@ export const DashboardSidebarSearch = ({
       : `${normalizedInput}.eth`
     const loweredName = normalizedName.toLowerCase()
 
-    searchData?.domains?.forEach((domain) => {
+    for (const domain of searchData?.domains ?? []) {
       const label = domain.normalizedName ?? domain.name
-      if (!label) return
+      if (!label) continue
 
       addSuggestion({
         id: `domain:${domain.id}`,
@@ -125,7 +125,7 @@ export const DashboardSidebarSearch = ({
         value: label.toLowerCase(),
         avatarRecord: domain.resolver?.avatar ?? null,
       })
-    })
+    }
 
     if (!isAddressInput) {
       addSuggestion({

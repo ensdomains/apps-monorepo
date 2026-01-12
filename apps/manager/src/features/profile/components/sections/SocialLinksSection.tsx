@@ -39,9 +39,9 @@ export const SocialLinksSection = withForm({
                 'social',
               )}
               onAdd={(keys) => {
-                keys.forEach((key) => {
+                for (const key of keys) {
                   socialField.pushValue({ key, value: '' })
-                })
+                }
               }}
             />
           </div>

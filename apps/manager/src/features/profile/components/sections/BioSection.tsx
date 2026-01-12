@@ -82,9 +82,9 @@ export const BioSection = withForm({
                   'contact',
                 )}
                 onAdd={(keys) => {
-                  keys.forEach((key) => {
+                  for (const key of keys) {
                     contactField.pushValue({ key, value: '' })
-                  })
+                  }
                 }}
               />
             </div>

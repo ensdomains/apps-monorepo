@@ -2,8 +2,22 @@
   "$schema": "../../node_modules/@biomejs/biome/configuration_schema.json",
   "root": false,
   "extends": "//",
+  "formatter": {
+    "indentStyle": "space"
+  },
   "linter": {
     "rules": {
+      "complexity": {
+        "noUselessFragments": "error",
+        "noForEach": "warn"
+      },
+      "correctness": {
+        "noUnusedImports": {
+          "fix": "safe",
+          "level": "error"
+        },
+        "noUnusedVariables": "error"
+      },
       "nursery": {
         "useSortedClasses": {
           "level": "error",
@@ -12,6 +26,11 @@
             "functions": ["cn", "cva", "clsx"]
           }
         }
+      },
+      "style": {
+        "noUselessElse": "error",
+        "noNegationElse": "error",
+        "noUnusedTemplateLiteral": "error"
       }
     }
   },
