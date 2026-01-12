@@ -44,7 +44,7 @@ jobs:
         id: deploy
         run: |
           echo "🚀 Deploying Portal to IPFS..."
-          output=$(pnpm blumen deploy --ens ${{ vars.PORTAL_ENS }} --safe ${{ vars.PORTAL_SAFE }})
+          output=$(pnpm omnipin deploy --ens ${{ vars.PORTAL_ENS }} --safe ${{ vars.PORTAL_SAFE }})
           echo "$output"
 
           # Extract CID from output
@@ -64,8 +64,8 @@ jobs:
           echo "🌐 **IPFS Gateway URLs:**" >> $GITHUB_STEP_SUMMARY
           echo "- dweb.link: https://$cid.ipfs.dweb.link" >> $GITHUB_STEP_SUMMARY
         env:
-          BLUMEN_STORACHA_PROOF: ${{ secrets.BLUMEN_STORACHA_PROOF }}
-          BLUMEN_STORACHA_TOKEN: ${{ secrets.BLUMEN_STORACHA_TOKEN }}
+          OMNIPIN_STORACHA_PROOF: ${{ secrets.OMNIPIN_STORACHA_PROOF }}
+          OMNIPIN_STORACHA_TOKEN: ${{ secrets.OMNIPIN_STORACHA_TOKEN }}
 
       - name: Notify deployment status
         if: always()

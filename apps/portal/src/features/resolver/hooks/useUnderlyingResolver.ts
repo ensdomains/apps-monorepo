@@ -11,13 +11,13 @@ import { getSupportsInterfaces } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class GetUnderlyingResolverError extends TaggedError(
+class GetUnderlyingResolverError extends TaggedError(
   'GetUnderlyingResolverError',
 )<{
   cause: GetUnderlyingResolverErrorType
 }> {}
 
-export const getUnderlyingResolver = ResultFn(async function* (
+const getUnderlyingResolver = ResultFn(async function* (
   params: GetUnderlyingResolverParameters,
 ) {
   const client = yield* safeGetClient()
@@ -42,7 +42,7 @@ export const getUnderlyingResolver = ResultFn(async function* (
   return ok(result)
 })
 
-export const getUnderlyingAddressQueryKey = createQueryKey<
+const getUnderlyingAddressQueryKey = createQueryKey<
   'get-underlying-resolver',
   GetUnderlyingResolverParameters
 >('get-underlying-resolver')

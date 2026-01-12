@@ -19,7 +19,7 @@ import type {
   WithEnsNetwork,
 } from '@/utils/types'
 
-export type GetNameRegistriesParameters = WithEnsNetwork<{
+type GetNameRegistriesParameters = WithEnsNetwork<{
   name: string
 }>
 
@@ -30,13 +30,13 @@ type ThreeLD = [nameAddress: Address, ...TwoLD]
 
 type NameRegistries = Root | TLD | TwoLD | ThreeLD
 
-export type NameRegistriesReturnType = {
+type NameRegistriesReturnType = {
   registries: NameRegistries
   network: EnsNetworkName
   protocolVersion: ProtocolVersion
 } | null
 
-export class NameRegistriesError extends TaggedError('NameRegistriesError')<{
+class NameRegistriesError extends TaggedError('NameRegistriesError')<{
   cause: GetNameRegistriesErrorType | GetEnsOwnerError
 }> {}
 
@@ -51,7 +51,7 @@ export class NameRegistriesError extends TaggedError('NameRegistriesError')<{
  * For V1 registries, all subnames live on the same registry.
  * For V2 registries, ensjs getNameRegistries efficiently fetches all registry addresses at once.
  */
-export const getNameRegistries = ResultFn(async function* ({
+const getNameRegistries = ResultFn(async function* ({
   network,
   name,
 }: GetNameRegistriesParameters) {
@@ -89,7 +89,7 @@ export const getNameRegistries = ResultFn(async function* ({
   return ok(null)
 })
 
-export const nameRegistriesQueryKey = createQueryKey<
+const nameRegistriesQueryKey = createQueryKey<
   'nameRegistries',
   GetNameRegistriesParameters
 >('nameRegistries')

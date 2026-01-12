@@ -1,7 +1,5 @@
-import type { Address } from 'viem'
-import { zeroAddress } from 'viem'
 import { describe, expect, it } from 'vitest'
-import { cn, fromCoinType, isZeroAddress } from './utils'
+import { cn, fromCoinType } from './utils'
 
 describe('cn', () => {
   it('should merge class names', () => {
@@ -60,25 +58,5 @@ describe('fromCoinType', () => {
     expect(fromCoinType(8453n)).toBe(8453) // Base
     expect(fromCoinType(59144n)).toBe(59144) // Linea
     expect(fromCoinType(534352n)).toBe(534352) // Scroll
-  })
-})
-
-describe('isZeroAddress', () => {
-  it('should return true for zero/null/undefined addresses', () => {
-    expect(isZeroAddress(zeroAddress as Address)).toBe(true)
-    expect(
-      isZeroAddress('0x0000000000000000000000000000000000000000' as Address),
-    ).toBe(true)
-    expect(isZeroAddress(null)).toBe(true)
-    expect(isZeroAddress(undefined)).toBe(true)
-  })
-
-  it('should return false for valid non-zero addresses', () => {
-    expect(
-      isZeroAddress('0x1234567890123456789012345678901234567890' as Address),
-    ).toBe(false)
-    expect(
-      isZeroAddress('0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as Address),
-    ).toBe(false)
   })
 })

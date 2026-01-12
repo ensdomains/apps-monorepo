@@ -22,7 +22,7 @@ export type BaseEvent<
 /**
  * Network information for a transaction
  */
-export type NetworkInfo = {
+type NetworkInfo = {
   name: string
   icon?: string
   chainId?: number

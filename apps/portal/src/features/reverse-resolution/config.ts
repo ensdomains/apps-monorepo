@@ -12,7 +12,7 @@ import { icons, names } from '@/lib/reverseRegistrarChainId'
 /**
  * Chain/network configuration for reverse resolution display
  */
-export type ReverseResolutionNetwork = {
+type ReverseResolutionNetwork = {
   /**
    * Chain ID or coin type to use with getName
    * - 60: Default reverse record (uses reverseRegistrarChainId parameter)

@@ -3,16 +3,15 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { hasRoles as ensjsHasRoles } from '@ensdomains/ensjs/public/v2'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
-import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class HasRolesError extends TaggedError('HasRolesError')<{
+class HasRolesError extends TaggedError('HasRolesError')<{
   cause: unknown
 }> {}
 
-export type GetHasRolesParameters = {
+type GetHasRolesParameters = {
   /** The registry address to check */
   registryAddress: Address
   /** The label to check roles for */
@@ -23,7 +22,7 @@ export type GetHasRolesParameters = {
   account: Address
 }
 
-export const getHasRoles = ResultFn(async function* ({
+const getHasRoles = ResultFn(async function* ({
   registryAddress,
   label,
   roles,
@@ -44,16 +43,12 @@ export const getHasRoles = ResultFn(async function* ({
   return ok(result)
 })
 
-export const hasRolesQueryKey = createQueryKey<
+const hasRolesQueryKey = createQueryKey<'hasRoles', GetHasRolesParameters>(
   'hasRoles',
-  GetHasRolesParameters
->('hasRoles')
+)
 
 export const getHasRolesQueryOptions = (params: GetHasRolesParameters) =>
   resultQueryOptions({
     queryKey: hasRolesQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getHasRoles(params),
   })
-
-export const useHasRoles = (params: GetHasRolesParameters) =>
-  useQuery(getHasRolesQueryOptions(params))

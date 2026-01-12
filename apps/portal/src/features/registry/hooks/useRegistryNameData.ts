@@ -11,13 +11,11 @@ import {
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class GetRegistryNameDataError extends TaggedError(
-  'GetRegistryNameDataError',
-)<{
+class GetRegistryNameDataError extends TaggedError('GetRegistryNameDataError')<{
   cause: GetRegistryNameDataErrorType
 }> {}
 
-export const getRegistryNameData = ResultFn(async function* (
+const getRegistryNameData = ResultFn(async function* (
   params: GetRegistryNameDataParameters,
 ) {
   const client = yield* safeGetClient()
@@ -33,7 +31,7 @@ export const getRegistryNameData = ResultFn(async function* (
   return ok(registryData)
 })
 
-export const getRegistryNameDataQueryKey = createQueryKey<
+const getRegistryNameDataQueryKey = createQueryKey<
   'get-registry-name-data',
   GetRegistryNameDataParameters
 >('get-registry-name-data')

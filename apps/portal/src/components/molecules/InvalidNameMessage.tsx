@@ -1,7 +1,7 @@
 import { AlertTriangle } from 'lucide-react'
 import { MessageCard } from '@/components/ui/message-card'
 
-export interface InvalidNameMessageProps {
+interface InvalidNameMessageProps {
   title?: string
   description?: React.ReactNode
 }

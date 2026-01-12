@@ -1,7 +1,7 @@
 import { AlertCircle } from 'lucide-react'
 import { MessageCard } from '@/components/ui/message-card'
 
-export interface ErrorMessageProps {
+interface ErrorMessageProps {
   title?: string
   description?: React.ReactNode
 }
