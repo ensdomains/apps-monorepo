@@ -2,7 +2,6 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getNameRolesForAccount as ensjsGetNameRolesForAccount } from '@ensdomains/ensjs/public/v2'
-import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -50,6 +49,3 @@ export const getNameRolesForAccountQueryOptions = (
     queryKey: getNameRolesForAccountQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getNameRolesForAccount(params),
   })
-
-const useGetNameRolesForAccount = (params: GetNameRolesForAccountParameters) =>
-  useQuery(getNameRolesForAccountQueryOptions(params))

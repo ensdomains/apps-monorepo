@@ -1,7 +1,6 @@
 import { type CxOptions, cx } from 'class-variance-authority'
 import { twMerge } from 'tailwind-merge'
-import type { Address } from 'viem'
-import { EnsInvalidChainIdError, zeroAddress } from 'viem'
+import { EnsInvalidChainIdError } from 'viem'
 
 export function cn(...inputs: CxOptions) {
   return twMerge(cx(inputs))

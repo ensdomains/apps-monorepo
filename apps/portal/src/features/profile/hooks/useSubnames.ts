@@ -27,8 +27,6 @@ type GetSubnamesParameters = WithEnsNetwork<{
   name: string
 }>
 
-type GetSubnamesReturnType = Subname[]
-
 const getSubnames = ResultFn(async function* ({
   name,
   network,

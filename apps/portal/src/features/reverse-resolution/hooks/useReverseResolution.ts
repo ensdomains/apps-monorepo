@@ -1,10 +1,7 @@
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import type {
-  GetNameErrorType,
-  GetNameReturnType,
-} from '@ensdomains/ensjs/public'
+import type { GetNameReturnType } from '@ensdomains/ensjs/public'
 import { getName } from '@ensdomains/ensjs/public'
 import { ok } from 'neverthrow'
 import type { Address } from 'viem'
@@ -21,12 +18,6 @@ export type ReverseResolutionResult = {
   forwardMatch: boolean
   defaultName: string | null
 }
-
-class GetReverseResolutionError extends TaggedError(
-  'GetReverseResolutionError',
-)<{
-  cause: GetNameErrorType
-}> {}
 
 const getReverseResolution = ResultFn(async function* ({
   address,

@@ -1,17 +1,12 @@
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { DecodedFuses } from '@ensdomains/ensjs/utils'
 import { ok } from 'neverthrow'
 import {
-  type GetNameWrapperDataError,
   type GetNameWrapperDataParameters,
   getNameWrapperData,
 } from './useNameWrapperData'
-
-class BurnedFuseCountError extends TaggedError('BurnedFuseCountError')<{
-  cause: GetNameWrapperDataError
-}> {}
 
 type BurnedFuseCountParameters = GetNameWrapperDataParameters
 

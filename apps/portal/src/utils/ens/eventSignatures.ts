@@ -119,20 +119,3 @@ export function getEventFieldType(
   const mapping = TYPE_MAPPING[eventType] as Record<string, string>
   return mapping[fieldKey] ?? 'unknown'
 }
-
-/**
- * Get all field type mappings for a given event type
- * @param eventType - The event type key
- * @returns Record of field names to their Solidity types
- */
-function getEventFieldTypes<T extends EventKey>(
-  eventType: T,
-): EventFieldTypes<T>
-function getEventFieldTypes(
-  eventType: string,
-): Record<string, string> | undefined
-function getEventFieldTypes(
-  eventType: EventKey | string,
-): Record<string, string> | undefined {
-  return isEventKey(eventType) ? TYPE_MAPPING[eventType] : undefined
-}
