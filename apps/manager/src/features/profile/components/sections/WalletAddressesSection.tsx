@@ -53,9 +53,9 @@ export const WalletAddressesSection = withForm({
                 ),
               )}
               onAdd={(coinTypes) => {
-                coinTypes.forEach((coinType) => {
+                for (const coinType of coinTypes) {
                   addressField.pushValue({ coinType, value: '' })
-                })
+                }
               }}
             />
           </div>

@@ -54,12 +54,12 @@ export const usePricing = ({
 
   const basePerYear = state.basePricePerYear ?? 0
   const isCustomDuration = state.selectedDuration > 5
-  const selectedOption = !isCustomDuration
-    ? state.pricingOptions[state.selectedDuration as PricingDuration]
-    : undefined
-  const selectedQuote = !isCustomDuration
-    ? state.pricingQuotes[state.selectedDuration as PricingDuration]
-    : undefined
+  const selectedOption = isCustomDuration
+    ? undefined
+    : state.pricingOptions[state.selectedDuration as PricingDuration]
+  const selectedQuote = isCustomDuration
+    ? undefined
+    : state.pricingQuotes[state.selectedDuration as PricingDuration]
 
   const bestDiscountMultiplier = discountsEnabled
     ? 1 - (PRICING_YEAR_DISCOUNTS[5] ?? 0) / 100
@@ -138,7 +138,7 @@ export const usePricing = ({
           const updatedOptions = { ...INITIAL_PRICING_OPTIONS }
           const updatedQuotes = createEmptyPricingQuoteMap()
 
-          PRICING_DURATIONS.forEach((duration: PricingDuration) => {
+          for (const duration of PRICING_DURATIONS) {
             const discount = discountsEnabled
               ? INITIAL_PRICING_OPTIONS[duration].discount
               : 0
@@ -161,7 +161,7 @@ export const usePricing = ({
                   duration
                 : undefined,
             }
-          })
+          }
 
           if (!isCancelled) {
             dispatch({

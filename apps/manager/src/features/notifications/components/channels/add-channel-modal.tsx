@@ -117,7 +117,7 @@ export function AddChannelModal({ open, onOpenChange }: AddChannelModalProps) {
               <Card
                 key={option.type}
                 className={`cursor-pointer transition-colors hover:bg-muted/50 ${
-                  !option.available ? 'cursor-not-allowed opacity-50' : ''
+                  option.available ? '' : 'cursor-not-allowed opacity-50'
                 }`}
                 onClick={() => option.available && setSelectedType(option.type)}
               >

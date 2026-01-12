@@ -50,7 +50,7 @@ const FEATURE_CARDS: FeatureCard[] = [
         <img
           src={card_1_1}
           alt="card-1-1"
-          className={`-left-8 -top-7 pointer-events-none absolute w-58 sm:top-4 sm:left-[22px] md:top-[22px] lg:w-64`}
+          className="-left-8 -top-7 pointer-events-none absolute w-58 sm:top-4 sm:left-[22px] md:top-[22px] lg:w-64"
         />
         <img
           src={card_1_3}
