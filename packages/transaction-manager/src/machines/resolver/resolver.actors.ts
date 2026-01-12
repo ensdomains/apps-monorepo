@@ -36,25 +36,13 @@ function createTransactionRequest(params: {
       }
     }
   | {
-      type: 'pimlico'
+      type: 'zerodev'
       from: Address
       to: Address
       data: `0x${string}`
       value: bigint
       chainId: number
-      pimlicoParams: {
-        calls: Array<{ to: Address; data: `0x${string}`; value: bigint }>
-        sponsored: boolean
-      }
-    }
-  | {
-      type: 'kernel'
-      from: Address
-      to: Address
-      data: `0x${string}`
-      value: bigint
-      chainId: number
-      kernelParams: {
+      zerodevParams: {
         calls: Array<{ to: Address; data: `0x${string}`; value: bigint }>
         sponsored: boolean
       }
@@ -87,30 +75,15 @@ function createTransactionRequest(params: {
     }
   }
 
-  if (signer.type === 'pimlico') {
+  if (signer.type === 'zerodev') {
     return {
-      type: 'pimlico',
+      type: 'zerodev',
       from,
       to,
       data,
       value,
       chainId,
-      pimlicoParams: {
-        calls,
-        sponsored: true,
-      },
-    }
-  }
-
-  if (signer.type === 'kernel') {
-    return {
-      type: 'kernel',
-      from,
-      to,
-      data,
-      value,
-      chainId,
-      kernelParams: {
+      zerodevParams: {
         calls,
         sponsored: true,
       },

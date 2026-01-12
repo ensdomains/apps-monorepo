@@ -1,5 +1,5 @@
 /**
- * ZeroDev Kernel Account Initialization
+ * ZeroDev Account Initialization
  *
  * Creates a Kernel smart account using ZeroDev SDK with Pimlico bundler.
  * This is the base account setup - sessions are handled separately by session-manager.ts
@@ -14,7 +14,7 @@ import {
   toSigner,
 } from '@zerodev/sdk'
 import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
-import type { Signer as ZeroDevSigner } from '@zerodev/sdk/types'
+import type { Signer as ZeroDevSDKSigner } from '@zerodev/sdk/types'
 import { createPimlicoClient } from 'permissionless/clients/pimlico'
 import type { Address, WalletClient } from 'viem'
 import { http } from 'viem'
@@ -23,28 +23,28 @@ import { customSepolia, publicClient } from '@/lib/wagmi'
 import { registerHCAOwnership } from '../hca-registry'
 import type { SmartAccountType } from '../types'
 
-export interface KernelConfig {
+export interface ZeroDevConfig {
   chain: typeof customSepolia
   accountType: SmartAccountType
   kernelVersion: typeof KERNEL_V3_1
   pimlicoApiKey: string
 }
 
-export interface InitializeKernelParams {
+export interface InitializeZeroDevParams {
   walletClient: WalletClient
   accountType?: SmartAccountType
 }
 
-export interface KernelInitResult {
+export interface ZeroDevInitResult {
   client: KernelAccountClient
   address: Address
-  config: KernelConfig
+  config: ZeroDevConfig
   /** The ECDSA validator used by the kernel account - needed for session creation */
   ecdsaValidator: KernelValidator<'ECDSAValidator'>
 }
 
 /**
- * Initialize a ZeroDev Kernel smart account
+ * Initialize a ZeroDev smart account
  *
  * Uses Pimlico as bundler for UserOperation submission.
  * Creates a Kernel v3.1 account with ECDSA validator.
@@ -53,9 +53,9 @@ export interface KernelInitResult {
  * @returns KernelAccountClient, address, and config
  * @throws Error if initialization fails
  */
-export async function initializeKernelAccount(
-  params: InitializeKernelParams,
-): Promise<KernelInitResult> {
+export async function initializeZeroDevAccount(
+  params: InitializeZeroDevParams,
+): Promise<ZeroDevInitResult> {
   const { walletClient, accountType = 'simple' } = params
 
   const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
@@ -75,11 +75,11 @@ export async function initializeKernelAccount(
     throw new Error('Wallet client must have an account')
   }
 
-  console.log('🔧 [KERNEL] Creating ECDSA validator for:', account.address)
+  console.log('🔧 [ZERODEV] Creating ECDSA validator for:', account.address)
 
   // Convert wallet client to ZeroDev Signer type
   // Type assertion is safe because we've validated account exists above
-  const signer = await toSigner({ signer: walletClient as ZeroDevSigner })
+  const signer = await toSigner({ signer: walletClient as ZeroDevSDKSigner })
 
   // Create ECDSA validator from signer
   // This works with external wallets (MetaMask, etc.) that don't expose private keys
@@ -89,7 +89,7 @@ export async function initializeKernelAccount(
     kernelVersion: KERNEL_V3_1,
   })
 
-  console.log('🔧 [KERNEL] Creating kernel account...')
+  console.log('🔧 [ZERODEV] Creating kernel account...')
 
   // Create Kernel account with ECDSA validator
   const kernelAccount = await createKernelAccount(publicClient, {
@@ -100,7 +100,7 @@ export async function initializeKernelAccount(
     },
   })
 
-  console.log('✅ [KERNEL] Kernel account created:', kernelAccount.address)
+  console.log('✅ [ZERODEV] Kernel account created:', kernelAccount.address)
 
   // Create Pimlico client for gas estimation and paymaster
   const pimlicoClient = createPimlicoClient({
@@ -129,10 +129,10 @@ export async function initializeKernelAccount(
   // This maps the smart account to its EOA owner in the HCA Factory
   // Required for HCAEquivalence to work (tokens + registrar see EOA as msg.sender)
   if (accountType === 'hca') {
-    console.log('🔧 [KERNEL] Registering HCA ownership...')
+    console.log('🔧 [ZERODEV] Registering HCA ownership...')
 
-    const kernelSigner = {
-      type: 'kernel' as const,
+    const zerodevSigner = {
+      type: 'zerodev' as const,
       account: client as KernelAccountClient,
       config: {
         chain: customSepolia,
@@ -145,7 +145,7 @@ export async function initializeKernelAccount(
     const result = await registerHCAOwnership({
       smartAccountAddress: accountAddress,
       eoaAddress,
-      signer: kernelSigner,
+      signer: zerodevSigner,
       publicClient,
     })
 
@@ -155,10 +155,10 @@ export async function initializeKernelAccount(
       )
     }
 
-    console.log('✅ [KERNEL] HCA registration result:', result.value)
+    console.log('✅ [ZERODEV] HCA registration result:', result.value)
   }
 
-  const config: KernelConfig = {
+  const config: ZeroDevConfig = {
     chain: customSepolia,
     accountType,
     kernelVersion: KERNEL_V3_1,

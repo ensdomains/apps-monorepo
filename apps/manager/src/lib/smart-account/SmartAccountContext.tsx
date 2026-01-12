@@ -27,23 +27,29 @@ import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContract
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
 import { ERC20_ABI } from '../ens.abi'
-import { initializePimlicoAccount, type PimlicoConfig } from './pimlico'
+import { initializePimlicoAccount } from './pimlico'
 import type { StoredSession } from './sessions/types'
-import type { KernelAccountState, WalletSource } from './types'
-import { initializeKernelAccount, type KernelConfig } from './zerodev/kernel'
+import type { WalletSource, ZeroDevAccountState } from './types'
+import { initializeZeroDevAccount, type ZeroDevConfig } from './zerodev/kernel'
 
 /**
  * Smart Account Context
  *
- * Provides shared kernel account state across all components.
+ * Provides shared ZeroDev account state across all components.
  * This ensures session data is shared between SmartSessionProvider and RegistrationPage.
+ *
+ * Internally handles two wallet types:
+ * - External wallets (MetaMask, etc.) → ZeroDev Kernel with smart sessions
+ * - Para-embedded wallets → ZeroDev Kernel without sessions (Para signature adjustment)
+ *
+ * Both are exposed externally as `zerodev` signer type for unified API.
  */
 
-interface SmartAccountContextValue extends KernelAccountState {
+interface SmartAccountContextValue extends ZeroDevAccountState {
   /** Callback to update session data when a session is created */
   setSessionData: (
     session: StoredSession,
-    sessionClient: KernelAccountState['client'],
+    sessionClient: ZeroDevAccountState['client'],
   ) => void
   /** Indicates initial smart account bootstrap has completed (success or not) */
   hasInitialized: boolean
@@ -66,7 +72,7 @@ interface SmartAccountContextProviderProps {
 /**
  * Smart Account Context Provider
  *
- * Wraps the application and provides shared kernel account state.
+ * Wraps the application and provides shared ZeroDev account state.
  * Place this inside wallet providers (ParaProvider, wagmi).
  */
 export function SmartAccountContextProvider({
@@ -94,9 +100,7 @@ export function SmartAccountContextProvider({
     KernelAccountClient | SmartAccountClient | null
   >(null)
   const [accountAddress, setAccountAddress] = useState<Address | null>(null)
-  const [accountConfig, setAccountConfig] = useState<
-    KernelConfig | PimlicoConfig | null
-  >(null)
+  const [accountConfig, setAccountConfig] = useState<ZeroDevConfig | null>(null)
   const [ownerAddress, setOwnerAddress] = useState<Address | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -107,6 +111,8 @@ export function SmartAccountContextProvider({
   const [isAccountReady, setIsAccountReady] = useState(false)
   const [hasInitialized, setHasInitialized] = useState(false)
   const [shouldShowSessionModal, setShouldShowSessionModal] = useState(false)
+  // Track if this is a Para-embedded account (no sessions support)
+  const [isParaEmbedded, setIsParaEmbedded] = useState(false)
 
   const initializedRef = useRef<string | null>(null)
 
@@ -237,6 +243,7 @@ export function SmartAccountContextProvider({
       setEcdsaValidator(null)
       setIsAccountReady(false)
       setError(null)
+      setIsParaEmbedded(false)
       // Reset the initialization ref so reconnecting with the same wallet works
       initializedRef.current = null
       // Don't mark as initialized if Para wallet data is still loading
@@ -249,8 +256,8 @@ export function SmartAccountContextProvider({
 
     const key =
       walletSource === 'external-wallet'
-        ? `kernel-external-${wagmiAddress}`
-        : `pimlico-para-${paraClient?.toString()}`
+        ? `zerodev-external-${wagmiAddress}`
+        : `zerodev-para-${paraClient?.toString()}`
 
     if (initializedRef.current === key) return
 
@@ -259,11 +266,12 @@ export function SmartAccountContextProvider({
 
     try {
       if (walletSource === 'external-wallet') {
+        // External wallet → ZeroDev Kernel with smart sessions
         if (!wagmiWalletClient) {
           throw new Error('External wallet requires wagmi wallet client')
         }
 
-        const result = await initializeKernelAccount({
+        const result = await initializeZeroDevAccount({
           walletClient: wagmiWalletClient,
           accountType,
         })
@@ -277,9 +285,14 @@ export function SmartAccountContextProvider({
         setOwnerAddress(wagmiAddress ?? null)
         setEcdsaValidator(result.ecdsaValidator)
         setIsAccountReady(true)
+        setIsParaEmbedded(false)
 
-        console.log('🔐 [CONTEXT] Kernel account initialized:', result.address)
+        console.log(
+          '🔐 [CONTEXT] ZeroDev account initialized (external):',
+          result.address,
+        )
       } else if (walletSource === 'para-embedded') {
+        // Para-embedded → ZeroDev Kernel without sessions (Para signature adjustment)
         const result = await initializePimlicoAccount({
           walletSource,
           paraClient,
@@ -290,13 +303,21 @@ export function SmartAccountContextProvider({
         setSession(null)
         setIsSessionClient(false)
         setAccountAddress(result.address)
-        setAccountConfig(result.config)
+        // Map Pimlico config to ZeroDev config structure
+        setAccountConfig({
+          chain: result.config.chain,
+          accountType: result.config.accountType,
+          kernelVersion: 'v3.1' as any, // Para uses same Kernel internally
+          pimlicoApiKey: result.config.pimlicoApiKey,
+        })
         // For Para embedded wallets, use the EOA address from the Para account
         setOwnerAddress(result.eoaAddress ?? null)
+        // Para-embedded doesn't support sessions
         setEcdsaValidator(null)
         setIsAccountReady(true)
+        setIsParaEmbedded(true)
 
-        console.log('🔐 [CONTEXT] Pimlico account initialized:', {
+        console.log('🔐 [CONTEXT] ZeroDev account initialized (Para):', {
           smartAccount: result.address,
           eoaAddress: result.eoaAddress,
         })
@@ -349,6 +370,7 @@ export function SmartAccountContextProvider({
     autoFundingMutation.mutate(addressToFund as Address)
   }, [addressToFund, isLoading, isLoadingBalances, stablecoinBalances])
 
+  // Create unified zerodev signer for both wallet types
   const signer: Signer | null = useMemo(() => {
     if (!client || !accountAddress) return null
 
@@ -358,57 +380,56 @@ export function SmartAccountContextProvider({
       return null
     }
 
-    if (walletSource === 'external-wallet') {
-      return {
-        type: 'kernel' as const,
-        account: client as KernelAccountClient,
-        config: {
-          chain: customSepolia,
-          accountAddress,
-          accountType: accountConfig?.accountType,
-          pimlicoApiKey,
-          isSessionClient,
-        },
-      }
-    }
-
+    // Both external and Para-embedded use 'zerodev' signer type externally
+    // The transport actor handles both KernelAccountClient and SmartAccountClient
     return {
-      type: 'pimlico' as const,
-      account: client as SmartAccountClient,
+      type: 'zerodev' as const,
+      account: client as KernelAccountClient,
       config: {
         chain: customSepolia,
         accountAddress,
         accountType: accountConfig?.accountType,
         pimlicoApiKey,
+        isSessionClient,
       },
     }
-  }, [client, accountAddress, accountConfig, isSessionClient, walletSource])
+  }, [client, accountAddress, accountConfig, isSessionClient])
 
   const setSessionData = useCallback(
     (
       newSession: StoredSession,
-      sessionClient: KernelAccountState['client'],
+      sessionClient: ZeroDevAccountState['client'],
     ) => {
+      // Sessions only supported for external wallets, not Para-embedded
+      if (isParaEmbedded) {
+        console.warn(
+          '[CONTEXT] Sessions not supported for Para-embedded wallets',
+        )
+        return
+      }
       console.log('📦 [CONTEXT] Setting session data:', newSession.id)
       setSession(newSession)
       setClient(sessionClient)
       setIsSessionClient(true)
     },
-    [],
+    [isParaEmbedded],
   )
 
   const openSessionModal = useCallback(() => {
-    setShouldShowSessionModal(true)
-  }, [])
+    // Only open session modal for external wallets
+    if (!isParaEmbedded) {
+      setShouldShowSessionModal(true)
+    }
+  }, [isParaEmbedded])
 
   const clearSessionModalTrigger = useCallback(() => {
     setShouldShowSessionModal(false)
   }, [])
 
   const contextValue: SmartAccountContextValue = {
-    type: 'kernel',
+    type: 'zerodev',
     client: client as KernelAccountClient | null,
-    config: accountConfig as KernelConfig | null,
+    config: accountConfig,
     accountAddress,
     isLoading,
     error,
@@ -444,7 +465,7 @@ export function SmartAccountContextProvider({
  * Hook to access shared smart account state
  *
  * Must be used within SmartAccountProvider.
- * Returns the shared kernel account state including session data.
+ * Returns the shared ZeroDev account state including session data.
  */
 export function useSmartAccountContext(): SmartAccountContextValue {
   const context = useContext(SmartAccountContext)

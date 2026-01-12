@@ -5,14 +5,13 @@ import { useSmartAccountContext } from './SmartAccountContext'
 import type { SmartAccountState, UseSmartAccountConfig } from './types'
 
 export type {
-  KernelAccountState,
   ParaClient,
-  PimlicoAccountState,
   RhinestoneAccountState,
   SmartAccountState,
   UseSmartAccountConfig,
+  ZeroDevAccountState,
 } from './types'
-export { isKernelAccount, isPimlicoAccount, isRhinestoneAccount } from './types'
+export { isRhinestoneAccount, isZeroDevAccount } from './types'
 
 /**
  * @deprecated Use `useSmartAccountContext` instead. This hook is maintained for backward compatibility
@@ -22,7 +21,7 @@ export { isKernelAccount, isPimlicoAccount, isRhinestoneAccount } from './types'
  *
  * This hook now uses the shared SmartAccountContext under the hood, ensuring all components
  * use the same smart account state. The config parameter is accepted for backward compatibility
- * but the context always uses kernel accounts.
+ * but the context always uses ZeroDev accounts.
  *
  * @example
  * // Use the context-based hook (recommended)
@@ -31,11 +30,11 @@ export { isKernelAccount, isPimlicoAccount, isRhinestoneAccount } from './types'
  * @example
  * // Legacy usage (still works, but deprecated)
  * const account = useSmartAccount()
- * const account = useSmartAccount({ type: 'kernel', accountType: 'hca' })
+ * const account = useSmartAccount({ type: 'zerodev', accountType: 'hca' })
  *
  * @example
  * // Type-safe usage
- * if (isKernelAccount(account)) {
+ * if (isZeroDevAccount(account)) {
  *   // account.client is KernelAccountClient
  *   // account.session contains the active session
  * }
@@ -46,11 +45,11 @@ export function useSmartAccount(
   // Show deprecation warning in development
   useEffect(() => {
     if (import.meta.env.DEV) {
-      const providerType = config?.type ?? 'kernel'
-      if (providerType !== 'kernel') {
+      const providerType = config?.type ?? 'zerodev'
+      if (providerType !== 'zerodev') {
         console.warn(
           `[DEPRECATED] useSmartAccount with type '${providerType}' is deprecated. ` +
-            `The context only supports 'kernel' accounts. Please use useSmartAccountContext() instead.`,
+            `The context only supports 'zerodev' accounts. Please use useSmartAccountContext() instead.`,
         )
       } else {
         console.warn(
@@ -63,6 +62,6 @@ export function useSmartAccount(
   // Delegate to the shared context - single source of truth
   const contextValue = useSmartAccountContext()
 
-  // The context always returns a KernelAccountState, which is compatible with SmartAccountState
+  // The context always returns a ZeroDevAccountState, which is compatible with SmartAccountState
   return contextValue as SmartAccountState
 }

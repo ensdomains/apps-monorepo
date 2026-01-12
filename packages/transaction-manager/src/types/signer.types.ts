@@ -2,13 +2,14 @@ import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { KernelAccountClient } from '@zerodev/sdk'
 import type { SmartAccountClient } from 'permissionless'
 import type { WalletClient } from 'viem'
+
 import type { SmartAccountConfig } from './transaction.types'
 
 /**
  * Signer Types
  *
  * Abstract signer interface that decouples transaction submission
- * from specific account implementations (EOA, Rhinestone, Pimlico, Privy, Safe, etc.)
+ * from specific account implementations (EOA, Rhinestone, ZeroDev, etc.)
  */
 
 /**
@@ -30,22 +31,17 @@ export interface RhinestoneSigner {
 }
 
 /**
- * Pimlico Smart Account Signer
- * Uses permissionless SmartAccountClient with Para + Pimlico bundler
- */
-export interface PimlicoSigner {
-  type: 'pimlico'
-  account: SmartAccountClient // SmartAccountClient from permissionless
-  config: SmartAccountConfig
-}
-
-/**
- * Kernel Smart Account Signer (ZeroDev)
+ * ZeroDev Smart Account Signer
  * Uses ZeroDev Kernel with smart sessions for sign-once UX
+ * Bundled via Pimlico
+ *
+ * Supports both:
+ * - KernelAccountClient (external wallets with sessions)
+ * - SmartAccountClient (Para-embedded wallets without sessions)
  */
-export interface KernelSigner {
-  type: 'kernel'
-  account: KernelAccountClient // KernelAccountClient from @zerodev/sdk
+export interface ZeroDevSigner {
+  type: 'zerodev'
+  account: KernelAccountClient | SmartAccountClient // Both use Pimlico bundler
   config: SmartAccountConfig & {
     /** Whether this client is a session-derived client */
     isSessionClient?: boolean
@@ -88,8 +84,7 @@ export interface SafeSigner {
 export type Signer =
   | EOASigner
   | RhinestoneSigner
-  | PimlicoSigner
-  | KernelSigner
+  | ZeroDevSigner
   | ERC4337Signer
   | PrivySigner
   | SafeSigner
@@ -109,17 +104,10 @@ export function isRhinestoneSigner(signer: Signer): signer is RhinestoneSigner {
 }
 
 /**
- * Type guard to check if signer is Pimlico
+ * Type guard to check if signer is ZeroDev
  */
-export function isPimlicoSigner(signer: Signer): signer is PimlicoSigner {
-  return signer.type === 'pimlico'
-}
-
-/**
- * Type guard to check if signer is Kernel (ZeroDev)
- */
-export function isKernelSigner(signer: Signer): signer is KernelSigner {
-  return signer.type === 'kernel'
+export function isZeroDevSigner(signer: Signer): signer is ZeroDevSigner {
+  return signer.type === 'zerodev'
 }
 
 /**
