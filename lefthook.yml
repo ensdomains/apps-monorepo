@@ -1,7 +1,7 @@
 # Lefthook configuration for automatic code formatting
 # https://github.com/evilmartians/lefthook
 
-# Pre-commit hook: Run Biome formatting on staged files
+# Pre-commit hook: Run Biome formatting on staged files and tests
 # Note: Uses fail_text instead of failing to allow commits even with linting errors
 # Formatting errors will still be fixed, but linting errors won't block commits
 pre-commit:
@@ -11,6 +11,11 @@ pre-commit:
       glob: "*.{js,ts,jsx,tsx,json,jsonc}"
       run: pnpm biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files} || true
       stage_fixed: true
+    
+    test-portal:
+      # Run portal tests on commit
+      # Remove '|| true' if you want tests to block commits on failure
+      run: pnpm test:portal || true
 
 # Pre-push hook: Ensure all files pass Biome checks before pushing (warnings only)
 pre-push:
