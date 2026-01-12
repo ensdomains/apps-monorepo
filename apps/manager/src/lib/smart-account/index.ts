@@ -19,8 +19,6 @@ export type {
   WalletSource,
   ZeroDevAccountState,
 } from './types'
-// Deprecated hook - maintained for backward compatibility
-export { useSmartAccount } from './useSmartAccount'
 export {
   initializeZeroDevAccount,
   type ZeroDevConfig,
