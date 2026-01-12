@@ -4,7 +4,7 @@ import type {
   ResolverEventKey,
 } from '@ensdomains/ensjs/subgraph'
 
-export type EventKey = DomainEventKey | RegistrationEventKey | ResolverEventKey
+type EventKey = DomainEventKey | RegistrationEventKey | ResolverEventKey
 
 // Event signatures mapping based on ENS subgraph types
 const EVENT_SIGNATURES = {
@@ -125,13 +125,13 @@ export function getEventFieldType(
  * @param eventType - The event type key
  * @returns Record of field names to their Solidity types
  */
-export function getEventFieldTypes<T extends EventKey>(
+function getEventFieldTypes<T extends EventKey>(
   eventType: T,
 ): EventFieldTypes<T>
-export function getEventFieldTypes(
+function getEventFieldTypes(
   eventType: string,
 ): Record<string, string> | undefined
-export function getEventFieldTypes(
+function getEventFieldTypes(
   eventType: EventKey | string,
 ): Record<string, string> | undefined {
   return isEventKey(eventType) ? TYPE_MAPPING[eventType] : undefined

@@ -59,5 +59,3 @@ export const wagmiConfig = createConfig({
       }),
     }),
 })
-
-export type ClientType = ReturnType<typeof wagmiConfig.getClient>

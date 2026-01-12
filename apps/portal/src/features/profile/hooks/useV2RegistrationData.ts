@@ -5,15 +5,15 @@ import { type ClientError, gql } from 'graphql-request'
 import { fromPromise, ok } from 'neverthrow'
 import { graphqlIndexerClient } from '@/lib/indexer'
 
-export class GetV2RegistrationDataError extends TaggedError(
+class GetV2RegistrationDataError extends TaggedError(
   'GetV2RegistrationDataError',
 )<{
   cause: ClientError
 }> {}
 
-export type GetRegistrationDataParameters = { name: string }
+type GetRegistrationDataParameters = { name: string }
 
-export const getV2RegistrationData = ResultFn(async function* ({
+const getV2RegistrationData = ResultFn(async function* ({
   name,
 }: GetRegistrationDataParameters) {
   const { events, domains } = yield* fromPromise(
@@ -45,7 +45,7 @@ export const getV2RegistrationData = ResultFn(async function* ({
   })
 })
 
-export const getV2RegistrationDataQueryKey = createQueryKey<
+const getV2RegistrationDataQueryKey = createQueryKey<
   'get-v2-reg-data',
   GetRegistrationDataParameters
 >('get-v2-reg-data')

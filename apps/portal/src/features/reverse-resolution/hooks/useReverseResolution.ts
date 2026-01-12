@@ -22,13 +22,13 @@ export type ReverseResolutionResult = {
   defaultName: string | null
 }
 
-export class GetReverseResolutionError extends TaggedError(
+class GetReverseResolutionError extends TaggedError(
   'GetReverseResolutionError',
 )<{
   cause: GetNameErrorType
 }> {}
 
-export const getReverseResolution = ResultFn(async function* ({
+const getReverseResolution = ResultFn(async function* ({
   address,
   networks,
 }: {
@@ -122,7 +122,7 @@ export const getReverseResolution = ResultFn(async function* ({
   return ok(resultsWithDefault)
 })
 
-export const getReverseResolutionQueryKey = createQueryKey<
+const getReverseResolutionQueryKey = createQueryKey<
   'get-reverse-resolution',
   { address: Address }
 >('get-reverse-resolution')

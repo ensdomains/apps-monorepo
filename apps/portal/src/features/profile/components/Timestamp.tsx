@@ -1,4 +1,4 @@
-export type TimestampProps = {
+type TimestampProps = {
   timestamp: number | bigint
 }
 

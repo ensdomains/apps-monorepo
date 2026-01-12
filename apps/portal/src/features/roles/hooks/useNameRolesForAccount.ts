@@ -7,19 +7,19 @@ import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class GetNameRolesForAccountError extends TaggedError(
+class GetNameRolesForAccountError extends TaggedError(
   'GetNameRolesForAccountError',
 )<{
   cause: unknown
 }> {}
 
-export type GetNameRolesForAccountParameters = {
+type GetNameRolesForAccountParameters = {
   registryAddress: Address
   label: string
   account: Address
 }
 
-export const getNameRolesForAccount = ResultFn(async function* ({
+const getNameRolesForAccount = ResultFn(async function* ({
   registryAddress,
   label,
   account,
@@ -38,7 +38,7 @@ export const getNameRolesForAccount = ResultFn(async function* ({
   return ok(result)
 })
 
-export const getNameRolesForAccountQueryKey = createQueryKey<
+const getNameRolesForAccountQueryKey = createQueryKey<
   'getNameRolesForAccount',
   GetNameRolesForAccountParameters
 >('getNameRolesForAccount')
@@ -51,6 +51,5 @@ export const getNameRolesForAccountQueryOptions = (
     queryFn: ({ queryKey: [, params] }) => getNameRolesForAccount(params),
   })
 
-export const useGetNameRolesForAccount = (
-  params: GetNameRolesForAccountParameters,
-) => useQuery(getNameRolesForAccountQueryOptions(params))
+const useGetNameRolesForAccount = (params: GetNameRolesForAccountParameters) =>
+  useQuery(getNameRolesForAccountQueryOptions(params))

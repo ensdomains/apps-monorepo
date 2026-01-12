@@ -9,13 +9,11 @@ import {
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class GetExpiryError extends TaggedError('GetExpiryError')<{
+class GetExpiryError extends TaggedError('GetExpiryError')<{
   cause: GetExpiryErrorType
 }> {}
 
-export const getV1Expiry = ResultFn(async function* (
-  params: GetExpiryParameters,
-) {
+const getV1Expiry = ResultFn(async function* (params: GetExpiryParameters) {
   const client = yield* safeGetClient()
 
   const expiry = yield* await fromPromise(
@@ -28,7 +26,7 @@ export const getV1Expiry = ResultFn(async function* (
   return ok(expiry)
 })
 
-export const getV1ExpiryQueryKey = createQueryKey<
+const getV1ExpiryQueryKey = createQueryKey<
   'get-v1-expiry',
   GetExpiryParameters
 >('get-v1-expiry')

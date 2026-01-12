@@ -10,13 +10,11 @@ import { getRecordHistory as ensjs_getRecordHistory } from '@ensdomains/ensjs/su
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class GetRecordHistoryError extends TaggedError(
-  'GetRecordHistoryError',
-)<{
+class GetRecordHistoryError extends TaggedError('GetRecordHistoryError')<{
   cause: GetRecordHistoryErrorType
 }> {}
 
-export const getRecordHistory = ResultFn(async function* (
+const getRecordHistory = ResultFn(async function* (
   params: GetRecordHistoryParameters,
 ) {
   const client = yield* safeGetClient()
@@ -32,7 +30,7 @@ export const getRecordHistory = ResultFn(async function* (
   return ok(events || [])
 })
 
-export const getRecordHistoryQueryKey = createQueryKey<
+const getRecordHistoryQueryKey = createQueryKey<
   'get-record-history',
   GetRecordHistoryParameters
 >('get-record-history')

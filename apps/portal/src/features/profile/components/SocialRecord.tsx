@@ -2,7 +2,7 @@ import { ExternalLink } from 'react-external-link'
 
 type RecordKey = 'com.twitter' | 'org.telegram'
 
-export type SocialRecordType = {
+type SocialRecordType = {
   key: RecordKey
   value?: string
 }

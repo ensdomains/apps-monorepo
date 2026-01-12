@@ -8,11 +8,11 @@ import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class HasRolesError extends TaggedError('HasRolesError')<{
+class HasRolesError extends TaggedError('HasRolesError')<{
   cause: unknown
 }> {}
 
-export type GetHasRolesParameters = {
+type GetHasRolesParameters = {
   /** The registry address to check */
   registryAddress: Address
   /** The label to check roles for */
@@ -23,7 +23,7 @@ export type GetHasRolesParameters = {
   account: Address
 }
 
-export const getHasRoles = ResultFn(async function* ({
+const getHasRoles = ResultFn(async function* ({
   registryAddress,
   label,
   roles,
@@ -44,16 +44,12 @@ export const getHasRoles = ResultFn(async function* ({
   return ok(result)
 })
 
-export const hasRolesQueryKey = createQueryKey<
+const hasRolesQueryKey = createQueryKey<'hasRoles', GetHasRolesParameters>(
   'hasRoles',
-  GetHasRolesParameters
->('hasRoles')
+)
 
 export const getHasRolesQueryOptions = (params: GetHasRolesParameters) =>
   resultQueryOptions({
     queryKey: hasRolesQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getHasRoles(params),
   })
-
-export const useHasRoles = (params: GetHasRolesParameters) =>
-  useQuery(getHasRolesQueryOptions(params))

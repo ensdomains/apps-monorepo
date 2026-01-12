@@ -6,7 +6,7 @@ import { namehash } from 'viem/ens'
  * @param name - ENS name like "domico.eth"
  * @returns Array of labels like ["domico", "eth"]
  */
-export function splitLabels(name: string): string[] {
+function splitLabels(name: string): string[] {
   return name.split('.')
 }
 
@@ -21,7 +21,7 @@ export function splitLabels(name: string): string[] {
  *   { label: "eth", full: "eth", node: namehash("eth") }
  * ]
  */
-export function suffixNamehashes(
+function suffixNamehashes(
   labels: string[],
 ): Array<{ label: string; full: string; node: Hex }> {
   const result: Array<{ label: string; full: string; node: Hex }> = []
@@ -43,7 +43,7 @@ export function suffixNamehashes(
  * @param name - ENS name like "domico.eth"
  * @returns Parent name like "eth", or empty string if no parent
  */
-export function getParentName(name: string): string {
+function getParentName(name: string): string {
   const labels = splitLabels(name)
   if (labels.length <= 1) return ''
   return labels.slice(1).join('.')

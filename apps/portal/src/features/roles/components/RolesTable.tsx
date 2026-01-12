@@ -4,7 +4,7 @@ import type { Address } from 'viem'
 import { AddressDisplay } from '@/components/organisms/HistoryTable/AddressDisplay'
 import { GroupedDataTable } from '@/components/table/GroupedDataTable'
 
-export type RolesTableProps = {
+type RolesTableProps = {
   title?: string
   roles: GetNameRolesAccountsReturnType
 }

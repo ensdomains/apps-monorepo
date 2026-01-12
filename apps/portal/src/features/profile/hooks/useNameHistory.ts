@@ -14,7 +14,7 @@ export class GetNameHistoryError extends TaggedError('GetNameHistoryError')<{
   cause: GetNameHistoryErrorType
 }> {}
 
-export const getNameHistory = ResultFn(async function* (
+const getNameHistory = ResultFn(async function* (
   params: GetNameHistoryParameters,
 ) {
   const client = yield* safeGetClient()
@@ -29,7 +29,7 @@ export const getNameHistory = ResultFn(async function* (
   return ok(events)
 })
 
-export const getNameHistoryQueryKey = createQueryKey<
+const getNameHistoryQueryKey = createQueryKey<
   'get-name-history',
   GetNameHistoryParameters
 >('get-name-history')

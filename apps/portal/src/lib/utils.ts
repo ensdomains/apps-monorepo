@@ -18,6 +18,3 @@ export function fromCoinType(coinType: bigint): number {
 
   return chainId
 }
-
-export const isZeroAddress = (addr: Address | null | undefined) =>
-  !addr || addr === (zeroAddress as Address)

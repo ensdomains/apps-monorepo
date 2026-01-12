@@ -24,14 +24,14 @@ export const getSubgraphRecords = ResultFn(async function* (name: string) {
   return ok(subgraphRecords)
 })
 
-export const subgraphRecordsQueryKey = createQueryKey<
+const subgraphRecordsQueryKey = createQueryKey<
   'subgraph-records',
   {
     name: string
   }
 >('subgraph-records')
 
-export const getSubgraphRecordsQueryOptions = (name: string) =>
+const getSubgraphRecordsQueryOptions = (name: string) =>
   resultQueryOptions({
     queryKey: subgraphRecordsQueryKey({ name }),
     queryFn: ({ queryKey: [, { name }] }) => getSubgraphRecords(name),

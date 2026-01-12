@@ -2,7 +2,7 @@ import type { Address } from 'viem'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import type { ProtocolVersion } from '@/utils/types'
 
-export type RegistryInfo = {
+type RegistryInfo = {
   address?: Address
   protocol: ProtocolVersion
   factory?: Address | null

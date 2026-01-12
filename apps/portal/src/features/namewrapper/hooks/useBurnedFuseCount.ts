@@ -9,11 +9,11 @@ import {
   getNameWrapperData,
 } from './useNameWrapperData'
 
-export class BurnedFuseCountError extends TaggedError('BurnedFuseCountError')<{
+class BurnedFuseCountError extends TaggedError('BurnedFuseCountError')<{
   cause: GetNameWrapperDataError
 }> {}
 
-export type BurnedFuseCountParameters = GetNameWrapperDataParameters
+type BurnedFuseCountParameters = GetNameWrapperDataParameters
 
 const countBurned = (
   f: DecodedFuses['child'] | DecodedFuses['parent'],
@@ -23,7 +23,7 @@ const countBurned = (
     return acc + countBurned(v) // recurse
   }, 0)
 
-export const getBurnedFuseCount = ResultFn(async function* ({
+const getBurnedFuseCount = ResultFn(async function* ({
   name,
 }: BurnedFuseCountParameters) {
   const wrapperData = yield* getNameWrapperData({ name })
@@ -37,7 +37,7 @@ export const getBurnedFuseCount = ResultFn(async function* ({
   return ok(totalBurned)
 })
 
-export const burnedFuseCountQueryKey = createQueryKey<
+const burnedFuseCountQueryKey = createQueryKey<
   'burnedFuseCountQueryKey',
   BurnedFuseCountParameters
 >('burnedFuseCountQueryKey')

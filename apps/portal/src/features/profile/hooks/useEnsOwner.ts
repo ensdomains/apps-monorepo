@@ -40,13 +40,11 @@ const v1EthRegistry = getChainContractAddress({
   contract: 'ensRegistry',
 })
 
-export type GetEnsOwnerParameters = {
+type GetEnsOwnerParameters = {
   name: string
 }
 
-export const getEnsOwner = ResultFn(async function* ({
-  name,
-}: GetEnsOwnerParameters) {
+const getEnsOwner = ResultFn(async function* ({ name }: GetEnsOwnerParameters) {
   const client = yield* safeGetClient()
 
   const l1v1Owner = yield* fromPromise(
@@ -97,7 +95,7 @@ export const getEnsOwner = ResultFn(async function* ({
   return ok(null)
 })
 
-export const getEnsOwnerQueryKey = createQueryKey<
+const getEnsOwnerQueryKey = createQueryKey<
   'get-ens-owner',
   GetEnsOwnerParameters
 >('get-ens-owner')

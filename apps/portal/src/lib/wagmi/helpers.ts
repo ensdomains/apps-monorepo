@@ -12,11 +12,11 @@ import type { Client, CreateClientErrorType, Transport } from 'viem'
 import { sepolia } from 'viem/chains'
 import { namechainSepolia, type sepoliaWithEns, wagmiConfig } from '../wagmi'
 
-export class WagmiClientError extends TaggedError('Wagmi/ClientError')<{
+class WagmiClientError extends TaggedError('Wagmi/ClientError')<{
   cause: CreateClientErrorType
 }> {}
 
-export const safeGetMultichainClient = fromThrowable(
+const safeGetMultichainClient = fromThrowable(
   wagmiConfig.getClient,
   (e) => new WagmiClientError({ cause: e as CreateClientErrorType }),
 )
@@ -37,7 +37,7 @@ export const safeGetNamechainSepoliaClient = fromThrowable(
   (e) => new WagmiClientError({ cause: e as CreateClientErrorType }),
 )
 
-export class WagmiConnectorClientError extends TaggedError(
+class WagmiConnectorClientError extends TaggedError(
   'Wagmi/ConnectorClientError',
 )<{
   cause: GetConnectorClientErrorType
@@ -49,25 +49,13 @@ export const safeGetConnectorClient = fromAsyncThrowable(
     new WagmiConnectorClientError({ cause: e as GetConnectorClientErrorType }),
 )
 
-export class WagmiSendTransactionError extends TaggedError(
-  'Wagmi/SendTransactionError',
-)<{
-  cause: SendTransactionErrorType
-}> {}
-
-export const safeSendTransaction = fromAsyncThrowable(
-  sendTransaction,
-  (e) =>
-    new WagmiSendTransactionError({ cause: e as SendTransactionErrorType }),
-)
-
-export class WagmiWaitForTransactionReceiptError extends TaggedError(
+class WagmiWaitForTransactionReceiptError extends TaggedError(
   'Wagmi/WaitForTransactionReceiptError',
 )<{
   cause: WaitForTransactionReceiptErrorType
 }> {}
 
-export const safeWaitForTransactionReceipt = fromAsyncThrowable(
+const safeWaitForTransactionReceipt = fromAsyncThrowable(
   waitForTransactionReceipt,
   (e) =>
     new WagmiWaitForTransactionReceiptError({

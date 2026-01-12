@@ -33,7 +33,7 @@ import {
   TableRow,
 } from '../ui/table'
 
-export type GroupedDataTableProps<
+type GroupedDataTableProps<
   TData extends { items: string[] },
   TValue,
 > = DataTableProps<TData, TValue> & {

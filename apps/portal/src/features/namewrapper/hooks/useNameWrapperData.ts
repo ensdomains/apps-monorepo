@@ -31,14 +31,12 @@ export const getNameWrapperData = ResultFn(async function* ({
   return ok(result)
 })
 
-export const getNameWrapperDataQueryKey = createQueryKey<
+const getNameWrapperDataQueryKey = createQueryKey<
   'getNameWrapperDataQueryKey',
   GetNameWrapperDataParameters
 >('getNameWrapperDataQueryKey')
 
-export const getNameWrapperDataQueryOptions = (
-  params: GetNameWrapperDataParameters,
-) =>
+const getNameWrapperDataQueryOptions = (params: GetNameWrapperDataParameters) =>
   resultQueryOptions({
     queryKey: getNameWrapperDataQueryKey(params),
     queryFn: ({ queryKey: [, p] }) => getNameWrapperData(p),
