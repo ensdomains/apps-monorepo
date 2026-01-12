@@ -2,8 +2,8 @@
 # https://github.com/evilmartians/lefthook
 
 # Pre-commit hook: Run Biome formatting on staged files
-# Note: Uses '|| true' to allow commits even with linting errors
-# Formatting errors will still be fixed and staged
+# Note: Uses fail_text instead of failing to allow commits even with linting errors
+# Formatting errors will still be fixed, but linting errors won't block commits
 pre-commit:
   parallel: true
   commands:
@@ -12,8 +12,7 @@ pre-commit:
       run: pnpm biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files} || true
       stage_fixed: true
 
-# Pre-push hook: Ensure all files pass Biome checks before pushing
-# Note: Tests are run in CI, not in git hooks, for better developer experience
+# Pre-push hook: Ensure all files pass Biome checks before pushing (warnings only)
 pre-push:
   commands:
     biome-ci:
