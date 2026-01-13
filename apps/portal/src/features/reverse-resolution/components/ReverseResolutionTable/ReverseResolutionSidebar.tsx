@@ -223,13 +223,6 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     useWaitForTransactionReceipt({ hash: forwardHash })
 
   useEffect(() => {
-    setReverseHash(undefined)
-    setForwardHash(undefined)
-    setIsWritingReverse(false)
-    setIsWritingForward(false)
-  }, [])
-
-  useEffect(() => {
     if (isReverseSuccess || isForwardSuccess) {
       invalidateReverseResolutionQuery()
     }
