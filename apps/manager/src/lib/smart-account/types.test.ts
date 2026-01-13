@@ -5,6 +5,7 @@
  * Rhinestone and ZeroDev account states.
  */
 
+// biome-ignore-all lint/suspicious/noExplicitAny: Test mocks require flexible typing
 import { describe, expect, it } from 'vitest'
 
 import {

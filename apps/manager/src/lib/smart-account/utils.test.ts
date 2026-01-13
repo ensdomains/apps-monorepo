@@ -6,6 +6,7 @@
  * transaction hash extraction, and wallet client adaptation.
  */
 
+// biome-ignore-all lint/suspicious/noExplicitAny: Test mocks require flexible typing
 import type { Account, Hex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -169,7 +170,7 @@ describe('walletClientToAccount', () => {
     const account = walletClientToAccount(walletClient as any)
     const message = 'Hello, World!'
 
-    const signature = await account.signMessage!({ message })
+    const signature = await account.signMessage?.({ message })
 
     expect(signature).toBe(expectedSignature)
     expect(walletClient.signMessage).toHaveBeenCalledWith({
@@ -199,7 +200,7 @@ describe('walletClientToAccount', () => {
       message: { value: 123n },
     }
 
-    const signature = await account.signTypedData!(typedData as any)
+    const signature = await account.signTypedData?.(typedData as any)
 
     expect(signature).toBe(expectedSignature)
     expect(walletClient.signTypedData).toHaveBeenCalledWith({
@@ -227,7 +228,7 @@ describe('walletClientToAccount', () => {
       value: 1000n,
     }
 
-    const signature = await account.signTransaction!(transaction as any)
+    const signature = await account.signTransaction?.(transaction as any)
 
     expect(signature).toBe(expectedSignature)
     expect(walletClient.signTransaction).toHaveBeenCalledWith({
@@ -300,7 +301,7 @@ describe('wrapParaAccount', () => {
       })
 
       const wrapped = wrapParaAccount(mockAccount)
-      const result = await wrapped.signMessage!({ message: 'test' })
+      const result = await wrapped.signMessage?.({ message: 'test' })
 
       // v should be adjusted from 0 to 27 (0x1b), replacing last 2 chars
       expect(result).toBe(
@@ -318,7 +319,7 @@ describe('wrapParaAccount', () => {
       })
 
       const wrapped = wrapParaAccount(mockAccount)
-      const result = await wrapped.signMessage!({ message: 'test' })
+      const result = await wrapped.signMessage?.({ message: 'test' })
 
       // v should be adjusted from 1 to 28 (0x1c), replacing last 2 chars
       expect(result).toBe(
@@ -336,7 +337,7 @@ describe('wrapParaAccount', () => {
       })
 
       const wrapped = wrapParaAccount(mockAccount)
-      const result = await wrapped.signMessage!({ message: 'test' })
+      const result = await wrapped.signMessage?.({ message: 'test' })
 
       // v should remain 27 (0x1b)
       expect(result).toBe(
@@ -354,7 +355,7 @@ describe('wrapParaAccount', () => {
       })
 
       const wrapped = wrapParaAccount(mockAccount)
-      const result = await wrapped.signMessage!({ message: 'test' })
+      const result = await wrapped.signMessage?.({ message: 'test' })
 
       // v should remain 28 (0x1c)
       expect(result).toBe(
@@ -369,7 +370,7 @@ describe('wrapParaAccount', () => {
 
       const wrapped = wrapParaAccount(mockAccount)
 
-      await expect(wrapped.signMessage!({ message: 'test' })).rejects.toThrow(
+      await expect(wrapped.signMessage?.({ message: 'test' })).rejects.toThrow(
         'Account does not support signMessage',
       )
     })
@@ -394,7 +395,7 @@ describe('wrapParaAccount', () => {
         message: { value: 12345678901234567890n },
       }
 
-      await wrapped.signTypedData!(typedData as any)
+      await wrapped.signTypedData?.(typedData as any)
 
       // Verify BigInt was converted to string in the call
       expect(signTypedDataMock).toHaveBeenCalledWith(
@@ -427,7 +428,7 @@ describe('wrapParaAccount', () => {
         },
       }
 
-      await wrapped.signTypedData!(typedData as any)
+      await wrapped.signTypedData?.(typedData as any)
 
       expect(signTypedDataMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -458,7 +459,7 @@ describe('wrapParaAccount', () => {
         message: { value: 'test' },
       }
 
-      const result = await wrapped.signTypedData!(typedData as any)
+      const result = await wrapped.signTypedData?.(typedData as any)
 
       // v should be adjusted from 1 to 28 (0x1c), replacing last 2 chars
       expect(result).toBe(
@@ -480,7 +481,7 @@ describe('wrapParaAccount', () => {
         message: { value: 'test' },
       }
 
-      await expect(wrapped.signTypedData!(typedData as any)).rejects.toThrow(
+      await expect(wrapped.signTypedData?.(typedData as any)).rejects.toThrow(
         'Account does not support signTypedData',
       )
     })
@@ -504,7 +505,7 @@ describe('wrapParaAccount', () => {
       ;(mockAccount as any).signAuthorization = signAuthorizationMock
 
       const wrapped = wrapParaAccount(mockAccount)
-      const result = await wrapped.signAuthorization!({} as any)
+      const result = await wrapped.signAuthorization?.({} as any)
 
       // Should return original result without v-byte adjustment
       expect(result).toEqual(expectedResult)
@@ -566,7 +567,7 @@ describe('internal function behavior', () => {
 
       const mockAccount = createSigningAccount(signatureWithPrefix)
       const wrapped = wrapParaAccount(mockAccount)
-      const result = await wrapped.signMessage!({ message: 'test' })
+      const result = await wrapped.signMessage?.({ message: 'test' })
 
       expect(result.startsWith('0x')).toBe(true)
     })
@@ -578,7 +579,7 @@ describe('internal function behavior', () => {
 
       const mockAccount = createSigningAccount(signatureWithV0)
       const wrapped = wrapParaAccount(mockAccount)
-      const result = await wrapped.signMessage!({ message: 'test' })
+      const result = await wrapped.signMessage?.({ message: 'test' })
 
       // Result should have 132 characters (0x + 128 + 2 for v)
       expect(result.length).toBe(132)
@@ -613,7 +614,7 @@ describe('internal function behavior', () => {
 
       // Should not throw
       await expect(
-        wrapped.signTypedData!(typedData as any),
+        wrapped.signTypedData?.(typedData as any),
       ).resolves.toBeDefined()
 
       expect(mockAccount.signTypedData).toHaveBeenCalledWith(
@@ -634,7 +635,7 @@ describe('internal function behavior', () => {
         message: { str: 'hello', num: 42, bool: true },
       }
 
-      await wrapped.signTypedData!(typedData as any)
+      await wrapped.signTypedData?.(typedData as any)
 
       expect(mockAccount.signTypedData).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -662,7 +663,7 @@ describe('internal function behavior', () => {
         },
       }
 
-      await wrapped.signTypedData!(typedData as any)
+      await wrapped.signTypedData?.(typedData as any)
 
       expect(mockAccount.signTypedData).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -692,7 +693,7 @@ describe('internal function behavior', () => {
         },
       }
 
-      await wrapped.signTypedData!(typedData as any)
+      await wrapped.signTypedData?.(typedData as any)
 
       expect(mockAccount.signTypedData).toHaveBeenCalledWith(
         expect.objectContaining({

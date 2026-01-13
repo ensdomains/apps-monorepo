@@ -4,6 +4,7 @@
  * Tests for the React context provider and hooks.
  */
 
+// biome-ignore-all lint/suspicious/noExplicitAny: Test mocks require flexible typing
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'

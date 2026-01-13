@@ -2,6 +2,7 @@
  * Pimlico Account Initialization Tests
  */
 
+// biome-ignore-all lint/suspicious/noExplicitAny: Test mocks require flexible typing
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.stubEnv('VITE_PIMLICO_API_KEY', 'test-pimlico-key')

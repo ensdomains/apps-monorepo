@@ -5,6 +5,7 @@
  * Uses mocked SDK dependencies to avoid actual blockchain calls.
  */
 
+// biome-ignore-all lint/suspicious/noExplicitAny: Test mocks require flexible typing
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Set up environment before any imports
@@ -223,7 +224,6 @@ describe('initializeRhinestoneAccount', () => {
         reason: 'registration_failed',
         details: 'Transaction reverted',
       },
-      // biome-ignore lint/suspicious/noExplicitAny: Test mock type
     } as any)
 
     await expect(
