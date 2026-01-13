@@ -141,8 +141,8 @@ export function ChannelCard({ channel }: ChannelCardProps) {
                     {channel.channel}
                   </span>
                   <Badge
-                    variant={status.variant}
                     className={`text-xs ${status.className}`}
+                    variant={status.variant}
                   >
                     <StatusIcon className="mr-1 h-3 w-3" />
                     {status.label}
@@ -174,11 +174,11 @@ export function ChannelCard({ channel }: ChannelCardProps) {
 
               {channel.status === 'pending' &&
                 channel.channel === 'telegram' && (
-                  <Button size="sm" variant="outline" asChild>
+                  <Button asChild size="sm" variant="outline">
                     <a
                       href={`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'ensnotifications_bot'}`}
-                      target="_blank"
                       rel="noopener noreferrer"
+                      target="_blank"
                     >
                       <ExternalLink className="mr-1 h-4 w-4" />
                       Start Bot
@@ -201,8 +201,8 @@ export function ChannelCard({ channel }: ChannelCardProps) {
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() => setShowDeleteDialog(true)}
                     className="text-destructive"
+                    onClick={() => setShowDeleteDialog(true)}
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
                     Remove
@@ -214,7 +214,7 @@ export function ChannelCard({ channel }: ChannelCardProps) {
         </CardContent>
       </Card>
 
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog onOpenChange={setShowDeleteDialog} open={showDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove Channel</AlertDialogTitle>
@@ -226,8 +226,8 @@ export function ChannelCard({ channel }: ChannelCardProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDelete}
             >
               Remove
             </AlertDialogAction>

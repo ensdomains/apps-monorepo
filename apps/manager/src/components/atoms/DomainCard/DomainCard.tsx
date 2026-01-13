@@ -73,7 +73,7 @@ export function DomainCard({
         </div>
       </div>
       <div className="h-48 w-full rounded">
-        <DomainCardPattern variant={selectedVariant} domainName={domainName} />
+        <DomainCardPattern domainName={domainName} variant={selectedVariant} />
       </div>
     </div>
   )

@@ -54,9 +54,9 @@ export const DomainProfileCard = ({
         <div className="relative size-[113px] shrink-0">
           <div className="size-[113px] overflow-clip rounded-[5.215px] bg-ens-white">
             <img
-              src={avatarUrl || placeholderAvatar}
               alt={`${domainName} avatar`}
               className="size-full object-cover"
+              src={avatarUrl || placeholderAvatar}
             />
           </div>
         </div>

@@ -24,7 +24,7 @@ export const NotificationHeader = ({
       {formatRelativeTime(timestamp)}
     </span>
     {onRemove && (
-      <button type="button" onClick={onRemove} className="cursor-pointer">
+      <button className="cursor-pointer" onClick={onRemove} type="button">
         <X className="size-5 text-gray-500" />
       </button>
     )}

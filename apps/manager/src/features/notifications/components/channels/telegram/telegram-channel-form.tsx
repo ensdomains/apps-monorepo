@@ -95,5 +95,5 @@ export function TelegramChannelForm({
     onCancel,
   }
 
-  return <TelegramSteps state={state} actions={actions} />
+  return <TelegramSteps actions={actions} state={state} />
 }

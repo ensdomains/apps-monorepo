@@ -19,22 +19,22 @@ function RouteComponent() {
         </p>
       </div>
 
-      <Tabs defaultValue="channels" className="w-full">
+      <Tabs className="w-full" defaultValue="channels">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="channels">Channels</TabsTrigger>
           <TabsTrigger value="preferences">Preferences</TabsTrigger>
           <TabsTrigger value="advanced">Advanced</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="channels" className="mt-6">
+        <TabsContent className="mt-6" value="channels">
           <NotificationSettings />
         </TabsContent>
 
-        <TabsContent value="preferences" className="mt-6">
+        <TabsContent className="mt-6" value="preferences">
           <NotificationPreferences />
         </TabsContent>
 
-        <TabsContent value="advanced" className="mt-6">
+        <TabsContent className="mt-6" value="advanced">
           <div className="py-8 text-center text-muted-foreground">
             Advanced settings coming soon...
           </div>

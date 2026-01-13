@@ -61,8 +61,8 @@ export function NotificationSettings() {
             <div className="space-y-3">
               {[1, 2].map((i) => (
                 <div
-                  key={i}
                   className="h-16 animate-pulse rounded-lg bg-muted"
+                  key={i}
                 />
               ))}
             </div>
@@ -77,7 +77,7 @@ export function NotificationSettings() {
           ) : (
             <div className="space-y-3">
               {channels.map((channel) => (
-                <ChannelCard key={channel.id} channel={channel} />
+                <ChannelCard channel={channel} key={channel.id} />
               ))}
             </div>
           )}
@@ -85,7 +85,7 @@ export function NotificationSettings() {
       </Card>
 
       {/* Add Channel Modal */}
-      <AddChannelModal open={showAddModal} onOpenChange={setShowAddModal} />
+      <AddChannelModal onOpenChange={setShowAddModal} open={showAddModal} />
     </div>
   )
 }

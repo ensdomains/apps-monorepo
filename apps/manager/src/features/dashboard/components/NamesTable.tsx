@@ -14,9 +14,9 @@ type TabButtonProps = {
 
 const DashboardTabButton = ({ label, isActive, onClick }: TabButtonProps) => (
   <button
-    type="button"
-    onClick={onClick}
     className="flex shrink-0 items-center"
+    onClick={onClick}
+    type="button"
   >
     <span
       className={`font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px] ${isActive ? 'text-[#232222]' : 'text-[#a9a9a9]'}`}
@@ -48,9 +48,9 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
 
             return (
               <DashboardTabButton
+                isActive={isActive}
                 key={tab.key}
                 label={tab.label}
-                isActive={isActive}
                 onClick={() => setActiveTab(tab.key)}
               />
             )
@@ -61,12 +61,12 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
           .with('myNames', () => (
             <div className="w-full md:w-[292px]">
               <Input
-                size="sm"
-                placeholder="Search my name..."
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
                 className="h-[32px] rounded-[4.1px] border-none bg-ens-white text-[#8c8c8c] text-[13.12px] placeholder:text-[#8c8c8c]"
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search my name..."
+                size="sm"
+                startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
+                value={searchQuery}
               />
             </div>
           ))

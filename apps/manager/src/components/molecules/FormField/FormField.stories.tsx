@@ -73,27 +73,27 @@ export const DifferentTypes: Story = {
       <FormField
         label="Email"
         name="email"
-        type="email"
         placeholder="your@email.com"
+        type="email"
       />
       <FormField
         label="Phone Number"
         name="phone"
-        type="tel"
         placeholder="+1 (555) 123-4567"
+        type="tel"
       />
       <FormField
         label="Website"
         name="website"
-        type="url"
         placeholder="https://example.com"
+        type="url"
       />
-      <FormField label="Age" name="age" type="number" placeholder="25" />
+      <FormField label="Age" name="age" placeholder="25" type="number" />
       <FormField
         label="Search"
         name="search"
-        type="search"
         placeholder="Search domains..."
+        type="search"
       />
     </div>
   ),
@@ -110,11 +110,11 @@ export const WithIcons: Story = {
         startIcon={<span>🔍</span>}
       />
       <FormField
+        endIcon={<span>📧</span>}
         label="Email Address"
         name="email"
-        type="email"
         placeholder="your@email.com"
-        endIcon={<span>📧</span>}
+        type="email"
       />
     </div>
   ),
@@ -133,27 +133,27 @@ export const FormExample: Story = {
       />
       <FormField label="Last Name" name="lastName" placeholder="Doe" required />
       <FormField
+        helperText="We'll never share your email"
         label="Email"
         name="email"
-        type="email"
         placeholder="john@example.com"
         required
-        helperText="We'll never share your email"
+        type="email"
       />
       <FormField
+        helperText="Must be at least 8 characters"
         label="Password"
         name="password"
-        type="password"
         placeholder="Enter a secure password"
         required
-        helperText="Must be at least 8 characters"
+        type="password"
       />
       <FormField
         label="Confirm Password"
         name="confirmPassword"
-        type="password"
         placeholder="Confirm your password"
         required
+        type="password"
       />
     </div>
   ),
@@ -170,11 +170,11 @@ export const ValidationStates: Story = {
         variant="success"
       />
       <FormField
+        errorText="This field is required"
         label="Error Field"
         name="error"
         placeholder="This field has an error"
         variant="error"
-        errorText="This field is required"
       />
       <FormField
         label="Normal Field"
@@ -190,16 +190,16 @@ export const Disabled: Story = {
   render: () => (
     <div className="flex flex-col gap-4">
       <FormField
+        disabled
         label="Disabled Field"
         name="disabled"
         placeholder="This field is disabled"
-        disabled
       />
       <FormField
+        disabled
         label="Disabled with Value"
         name="disabledValue"
         value="Cannot edit this"
-        disabled
       />
     </div>
   ),

@@ -15,17 +15,17 @@ export const BioSection = withForm({
             <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <span className="font-medium">Bio</span>
-                <button type="button" onClick={() => field.handleChange('')}>
+                <button onClick={() => field.handleChange('')} type="button">
                   <X className="size-4" />
                 </button>
               </div>
               <Textarea
                 className="w-full"
-                placeholder="Add a short bio to your profile"
-                value={field.state.value}
                 onChange={(e) => {
                   field.handleChange(e.target.value)
                 }}
+                placeholder="Add a short bio to your profile"
+                value={field.state.value}
               />
             </div>
           )}
@@ -37,16 +37,16 @@ export const BioSection = withForm({
           {(field) => (
             <RecordEntry
               name="Add a link to bio"
-              placeholder="https://example.com"
-              value={field.state.value}
               onChange={field.handleChange}
               onRemove={() => field.handleChange('')}
+              placeholder="https://example.com"
+              value={field.state.value}
             />
           )}
         </form.Field>
       </div>
 
-      <form.Field name="contact" mode="array">
+      <form.Field mode="array" name="contact">
         {(contactField) => (
           <div className="space-y-2">
             {contactField.state.value.map(
@@ -59,12 +59,12 @@ export const BioSection = withForm({
                     return (
                       <RecordEntry
                         name={record.name}
-                        placeholder={record.placeholder}
-                        value={field.state.value}
                         onChange={field.handleChange}
                         onRemove={() => {
                           contactField.removeValue(i)
                         }}
+                        placeholder={record.placeholder}
+                        value={field.state.value}
                       />
                     )
                   }}
@@ -74,18 +74,18 @@ export const BioSection = withForm({
             <div className="mt-3 flex justify-end">
               <AddTextRecordsDialog
                 buttonLabel="Add Contact Information"
-                title="Add Contact Information"
+                onAdd={(keys) => {
+                  for (const key of keys) {
+                    contactField.pushValue({ key, value: '' })
+                  }
+                }}
                 records={getAvailableRecords(
                   contactField.state.value.map(
                     ({ key }: { key: string }) => key,
                   ),
                   'contact',
                 )}
-                onAdd={(keys) => {
-                  for (const key of keys) {
-                    contactField.pushValue({ key, value: '' })
-                  }
-                }}
+                title="Add Contact Information"
               />
             </div>
           </div>

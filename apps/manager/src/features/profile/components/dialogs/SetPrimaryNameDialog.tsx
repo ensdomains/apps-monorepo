@@ -99,9 +99,9 @@ export const SetPrimaryNameDialog = ({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="w-full">
+        <Button className="w-full" variant="outline">
           Set Primary Name
         </Button>
       </DialogTrigger>
@@ -111,9 +111,9 @@ export const SetPrimaryNameDialog = ({
         </DialogHeader>
 
         <UpdateStatusPanel
+          errorMessage={machineErrorMessage}
           isSaving={isSubmitting}
           isSuccess={isSuccess}
-          errorMessage={machineErrorMessage}
           txHash={txHash}
         />
 
@@ -125,13 +125,13 @@ export const SetPrimaryNameDialog = ({
 
         <DialogFooter>
           <Button
-            variant="outline"
-            onClick={handleCancel}
             disabled={isSubmitting}
+            onClick={handleCancel}
+            variant="outline"
           >
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={isSubmitting}>
+          <Button disabled={isSubmitting} onClick={handleSave}>
             {isSubmitting ? 'Setting…' : 'Set as Primary'}
           </Button>
         </DialogFooter>

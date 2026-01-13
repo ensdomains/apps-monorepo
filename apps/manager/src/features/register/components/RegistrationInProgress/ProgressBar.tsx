@@ -175,8 +175,8 @@ export const ProgressBar = ({
       {isComplete ? (
         <div className="flex items-start gap-3 rounded-lg border border-ens-peridot-border bg-ens-peridot-bg p-4">
           <CheckCircle2
-            className="h-4 w-4 shrink-0 text-ens-peridot-text-dark"
             aria-hidden="true"
+            className="h-4 w-4 shrink-0 text-ens-peridot-text-dark"
           />
           <div className="flex flex-col gap-1">
             <p className="font-medium text-ens-peridot-text-dark text-sm leading-5">
@@ -191,8 +191,8 @@ export const ProgressBar = ({
       ) : isError ? (
         <div className="mx-auto flex max-w-2xl items-start gap-3 rounded-[10px] border border-red-200 bg-red-50 p-4">
           <AlertCircle
-            className="h-4 w-4 shrink-0 text-red-500"
             aria-hidden="true"
+            className="h-4 w-4 shrink-0 text-red-500"
           />
           <div className="flex flex-col gap-1">
             <p className="font-medium text-red-600 text-sm leading-5">

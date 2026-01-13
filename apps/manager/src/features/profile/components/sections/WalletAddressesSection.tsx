@@ -10,7 +10,7 @@ import {
 export const WalletAddressesSection = withForm({
   ...sharedOptions,
   render: ({ form }) => (
-    <form.Field name="addresses" mode="array">
+    <form.Field mode="array" name="addresses">
       {(addressField) => (
         <div className="space-y-2">
           <h3 className="font-medium">Wallet Addresses</h3>
@@ -27,16 +27,16 @@ export const WalletAddressesSection = withForm({
                   if (!record) return null
                   return (
                     <RecordEntry
-                      name={record.name}
                       badge={
-                        <Badge variant="outline" className="uppercase">
+                        <Badge className="uppercase" variant="outline">
                           {record.notation}
                         </Badge>
                       }
-                      placeholder="Enter wallet address"
-                      value={field.state.value}
+                      name={record.name}
                       onChange={field.handleChange}
                       onRemove={() => addressField.removeValue(i)}
+                      placeholder="Enter wallet address"
+                      value={field.state.value}
                     />
                   )
                 }}
@@ -46,17 +46,17 @@ export const WalletAddressesSection = withForm({
           <div className="mt-3 flex justify-end">
             <AddAddressRecordsDialog
               buttonLabel="Add Crypto Address"
-              title="Add Crypto Address"
-              records={getAvailableAddressRecords(
-                addressField.state.value.map(
-                  ({ coinType }: { coinType: number }) => coinType,
-                ),
-              )}
               onAdd={(coinTypes) => {
                 for (const coinType of coinTypes) {
                   addressField.pushValue({ coinType, value: '' })
                 }
               }}
+              records={getAvailableAddressRecords(
+                addressField.state.value.map(
+                  ({ coinType }: { coinType: number }) => coinType,
+                ),
+              )}
+              title="Add Crypto Address"
             />
           </div>
         </div>

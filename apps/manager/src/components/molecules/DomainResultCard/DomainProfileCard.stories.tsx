@@ -110,14 +110,14 @@ export const WithActionHandlers: Story = {
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
       <DomainProfileCard
         domainName="action1.eth"
-        registeredDate={new Date('2023-01-15')}
         expiryDate={new Date('2024-01-15')}
+        registeredDate={new Date('2023-01-15')}
       />
       <DomainProfileCard
-        domainName="action2.eth"
         avatarUrl="https://i.imgur.com/3QXU8wR.png"
-        registeredDate={new Date('2022-05-10')}
+        domainName="action2.eth"
         expiryDate={new Date('2025-05-10')}
+        registeredDate={new Date('2022-05-10')}
       />
     </div>
   ),

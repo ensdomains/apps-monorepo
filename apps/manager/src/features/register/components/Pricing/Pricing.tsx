@@ -84,10 +84,10 @@ export const Pricing = ({
         {/* Left Column: Duration Selector */}
         <div className="flex flex-col space-y-2 duration-selector-container">
           <DurationSelector
+            disabled={isPricingLoading || isLoading}
+            onSelect={(duration: PricingDuration) => handleChange(duration)}
             pricing={pricingOptions}
             selectedDuration={selectedDuration as PricingDuration}
-            onSelect={(duration: PricingDuration) => handleChange(duration)}
-            disabled={isPricingLoading || isLoading}
           />
           {isPricingLoading && (
             <div className="text-center">
@@ -100,36 +100,36 @@ export const Pricing = ({
         <div className="summary-cards-container flex w-full flex-col gap-2">
           {/* Registration Summary Card */}
           <PricingRegistrationSummaryCard
-            paddedDuration={paddedDuration}
-            formattedExpiration={formattedExpiration}
             expirationDate={expirationDate}
+            formattedExpiration={formattedExpiration}
             onChange={handleChange}
+            paddedDuration={paddedDuration}
           />
 
           {/* Total & Payment Card */}
           <div className="total-payment-card h-full space-y-6 rounded-2xl border border-ens-gray-two bg-white px-6 py-6 shadow-sm">
             {/* Total Price Section */}
             <PricingTotalPriceCard
-              isPriceLoading={isPriceLoading}
-              finalPrice={finalPrice}
-              discountPercentage={discountPercentage}
               discountAmount={discountAmount}
+              discountPercentage={discountPercentage}
+              finalPrice={finalPrice}
+              isPriceLoading={isPriceLoading}
               theoreticalTotal={theoreticalTotal}
             />
 
             {/* Payment Section */}
             <PricingPaymentSection
+              domainName={domainName}
               isConnected={isConnected}
               isLoading={isLoading}
-              domainName={domainName}
-              selectedDuration={selectedDuration as PricingDuration}
-              priceUSD={finalPrice}
               isPriceLoading={isPriceLoading}
               isUsingAA={isUsingAA}
-              onConnect={handleConnect}
-              onPaymentSelect={onSelectPayment}
-              onCryptoSelect={onSelectCrypto}
               onConfirmPayment={handleConfirmPayment}
+              onConnect={handleConnect}
+              onCryptoSelect={onSelectCrypto}
+              onPaymentSelect={onSelectPayment}
+              priceUSD={finalPrice}
+              selectedDuration={selectedDuration as PricingDuration}
             />
           </div>
         </div>

@@ -25,10 +25,8 @@
   }
 
   body {
-    @apply bg-background text-foreground;
-
-    /* Improve text rendering */
     -webkit-font-smoothing: antialiased;
+    @apply bg-background text-foreground;
   }
 
   ::-webkit-scrollbar {

@@ -86,14 +86,14 @@ export const PricingRegistrationSummaryCard = ({
             </span>
             <div className="rounded-sm bg-ens-gray-two px-1 py-0.5">
               <input
-                type="number"
-                min="1"
-                max={MAX_DURATION_YEARS}
-                value={durationInput}
-                onChange={(e) => handleDurationInputChange(e.target.value)}
-                onBlur={handleDurationInputBlur}
-                onKeyDown={handleDurationInputKeyDown}
                 className="w-10 bg-transparent text-center font-medium text-ens-blue text-xl leading-none tracking-tight outline-none [appearance:textfield] md:text-2xl [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                max={MAX_DURATION_YEARS}
+                min="1"
+                onBlur={handleDurationInputBlur}
+                onChange={(e) => handleDurationInputChange(e.target.value)}
+                onKeyDown={handleDurationInputKeyDown}
+                type="number"
+                value={durationInput}
               />
             </div>
             <span className="font-normal text-ens-blue-midnight text-xl leading-none tracking-tight md:text-2xl">
@@ -106,15 +106,15 @@ export const PricingRegistrationSummaryCard = ({
               expiring on
             </span>
             <Popover
-              open={isDatePopoverOpen}
               onOpenChange={setIsDatePopoverOpen}
+              open={isDatePopoverOpen}
             >
               <PopoverTrigger asChild>
                 <button
-                  type="button"
                   className={cn(
                     'relative inline-flex cursor-pointer items-center gap-2 rounded-sm bg-ens-gray-two px-1 py-0.5 shadow-sm transition-shadow hover:shadow-lg',
                   )}
+                  type="button"
                 >
                   <div className="relative z-10 flex items-center gap-2">
                     <CalendarIcon className="size-4 text-ens-blue" />
@@ -124,15 +124,9 @@ export const PricingRegistrationSummaryCard = ({
                   </div>
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="center">
+              <PopoverContent align="center" className="w-auto p-0">
                 <Calendar
-                  selected={expirationDate}
-                  onSelect={handleDateSelect}
-                  showClearButton
-                  showTodayButton
                   captionLayout="dropdown"
-                  startMonth={new Date()}
-                  endMonth={addMonths(new Date(), 1200)}
                   defaultMonth={expirationDate}
                   disabled={(date) => {
                     const today = new Date()
@@ -141,6 +135,12 @@ export const PricingRegistrationSummaryCard = ({
                     dateToCheck.setHours(0, 0, 0, 0)
                     return dateToCheck.getTime() < today.getTime()
                   }}
+                  endMonth={addMonths(new Date(), 1200)}
+                  onSelect={handleDateSelect}
+                  selected={expirationDate}
+                  showClearButton
+                  showTodayButton
+                  startMonth={new Date()}
                 />
               </PopoverContent>
             </Popover>

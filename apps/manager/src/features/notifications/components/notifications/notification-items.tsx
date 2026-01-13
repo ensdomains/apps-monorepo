@@ -33,9 +33,9 @@ const NameTransferredNotificationItem = ({
 }: NotificationItemProps<'name-transferred'>) => (
   <NotificationWrapper>
     <NotificationHeader
-      timestamp={timestamp}
       onMarkAsRead={onMarkAsRead}
       onRemove={onRemove}
+      timestamp={timestamp}
     >
       <Badge variant="lightBlue">Transferred</Badge>
     </NotificationHeader>
@@ -43,10 +43,10 @@ const NameTransferredNotificationItem = ({
     <ActionRow>
       <div className="flex items-center gap-2">
         <a
-          href={`https://etherscan.io/tx/${payload.txHash}`}
-          target="_blank"
-          rel="noopener noreferrer"
           className="text-blue-600 text-sm underline hover:text-blue-800"
+          href={`https://etherscan.io/tx/${payload.txHash}`}
+          rel="noopener noreferrer"
+          target="_blank"
         >
           View on Etherscan
         </a>
@@ -67,16 +67,16 @@ export const NameExpiryNotificationItem = ({
   return (
     <NotificationWrapper>
       <NotificationHeader
-        timestamp={timestamp}
         onMarkAsRead={onMarkAsRead}
         onRemove={onRemove}
+        timestamp={timestamp}
       >
         <Badge variant="lightOrange">{expiryText}</Badge>
       </NotificationHeader>
       <NameDisplay name={payload.name} />
       <ActionRow>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={onAction}>
+          <Button onClick={onAction} size="sm" variant="outline">
             {isExpired ? 'View' : 'Extend'}
           </Button>
         </div>
@@ -94,16 +94,16 @@ export const BlogPostBroadcastItem = ({
 }: BroadcastItemProps<'blog-post'>) => (
   <NotificationWrapper>
     <NotificationHeader
-      timestamp={timestamp}
       onMarkAsRead={onMarkAsRead}
       onRemove={onRemove}
+      timestamp={timestamp}
     />
     <div className="flex items-center gap-4">
       <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded">
         <img
-          src={payload.imageUrl}
           alt={payload.title}
           className="h-full w-full object-cover"
+          src={payload.imageUrl}
         />
       </div>
       <div className="flex flex-col justify-center space-y-1">
@@ -112,11 +112,11 @@ export const BlogPostBroadcastItem = ({
         </h3>
         <div className="flex items-center gap-2">
           <a
-            href={payload.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={onAction}
             className="text-blue-600 text-sm underline hover:text-blue-800"
+            href={payload.url}
+            onClick={onAction}
+            rel="noopener noreferrer"
+            target="_blank"
           >
             Go to post
           </a>
@@ -148,11 +148,11 @@ export const NotificationItem = ({
   const Item = NotificationItems[notification.kind]
   return (
     <Item
-      payload={notification.payload as any}
-      timestamp={notification.timestamp}
       onAction={onAction}
       onMarkAsRead={onMarkAsRead}
       onRemove={onRemove}
+      payload={notification.payload as any}
+      timestamp={notification.timestamp}
     />
   )
 }

@@ -30,9 +30,6 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
         )}
       >
         <input
-          ref={ref}
-          type="text"
-          onKeyDown={handleKeyDown}
           className={cn(
             'size-full self-stretch',
             'font-sans font-semibold text-xl leading-[110%] tracking-[-0.4px]',
@@ -47,6 +44,9 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
             'disabled:cursor-not-allowed',
             className,
           )}
+          onKeyDown={handleKeyDown}
+          ref={ref}
+          type="text"
           {...props}
         />
         <Search

@@ -24,9 +24,7 @@ function PopoverContent({
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content
-        data-slot="popover-content"
         align={align}
-        sideOffset={sideOffset}
         className={cn(
           'z-50 w-72',
           'origin-(--radix-popover-content-transform-origin)',
@@ -38,6 +36,8 @@ function PopoverContent({
           'data-[state=closed]:animate-out data-[state=open]:animate-in',
           className,
         )}
+        data-slot="popover-content"
+        sideOffset={sideOffset}
         {...props}
       />
     </PopoverPrimitive.Portal>

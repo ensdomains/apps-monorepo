@@ -72,30 +72,30 @@ export function EmailChannelForm({
   return (
     <div className="space-y-4">
       <StepIndicator
+        completedSteps={getCompletedSteps()}
         currentStep={getCurrentStepNumber()}
         totalSteps={2}
-        completedSteps={getCompletedSteps()}
       />
 
       {currentStep === 'send' && (
         <EmailSendStep
-          isSendingEmail={addEmailChannelMutation.isPending}
           emailError={addEmailChannelMutation.error?.message || null}
-          onSendEmail={handleSendEmail}
+          isSendingEmail={addEmailChannelMutation.isPending}
           onCancel={onCancel}
+          onSendEmail={handleSendEmail}
         />
       )}
 
       {currentStep === 'verify' && (
         <EmailVerifyStep
           channelId={addEmailChannelMutation.data?.channelId || ''}
-          isVerifying={verifyEmailMutation.isPending}
           isVerified={verifyEmailMutation.isSuccess}
-          verificationError={verifyEmailMutation.error?.message || null}
-          onVerifyCode={handleVerifyCode}
+          isVerifying={verifyEmailMutation.isPending}
           onBackToSend={handleBackToSend}
           onCancel={onCancel}
           onSuccess={onSuccess}
+          onVerifyCode={handleVerifyCode}
+          verificationError={verifyEmailMutation.error?.message || null}
         />
       )}
     </div>

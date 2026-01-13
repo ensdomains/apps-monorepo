@@ -14,9 +14,9 @@ function RegisterPage() {
   // Key the Registration component by owner address to force re-mount
   return (
     <Registration
-      key={ownerAddress ?? 'disconnected'}
-      initialName={name}
       initialDuration={duration}
+      initialName={name}
+      key={ownerAddress ?? 'disconnected'}
     />
   )
 }

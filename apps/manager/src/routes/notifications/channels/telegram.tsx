@@ -224,8 +224,8 @@ function TelegramConnectPage() {
 
                 {!isAuthenticating && !authError && (
                   <Button
-                    onClick={handleTelegramAuth}
                     className="w-full"
+                    onClick={handleTelegramAuth}
                     size="lg"
                   >
                     <MessageSquare className="mr-2 h-5 w-5" />
@@ -235,13 +235,13 @@ function TelegramConnectPage() {
 
                 {authError && (
                   <div className="space-y-2">
-                    <Button onClick={handleTelegramAuth} className="w-full">
+                    <Button className="w-full" onClick={handleTelegramAuth}>
                       Try Again
                     </Button>
                     <Button
+                      className="w-full"
                       onClick={handleContinue}
                       variant="outline"
-                      className="w-full"
                     >
                       Skip for Now
                     </Button>
@@ -278,8 +278,8 @@ function TelegramConnectPage() {
 
                 {!isCreatingChannel && !isChannelCreated && !channelError && (
                   <Button
-                    onClick={handleCreateChannel}
                     className="w-full"
+                    onClick={handleCreateChannel}
                     size="lg"
                   >
                     <ArrowRight className="mr-2 h-5 w-5" />
@@ -289,13 +289,13 @@ function TelegramConnectPage() {
 
                 {channelError && (
                   <div className="space-y-2">
-                    <Button onClick={handleCreateChannel} className="w-full">
+                    <Button className="w-full" onClick={handleCreateChannel}>
                       Try Again
                     </Button>
                     <Button
+                      className="w-full"
                       onClick={handleBackToAuth}
                       variant="outline"
-                      className="w-full"
                     >
                       Use Different Account
                     </Button>
@@ -304,9 +304,9 @@ function TelegramConnectPage() {
 
                 {!isChannelCreated && (
                   <Button
+                    className="w-full"
                     onClick={handleBackToAuth}
                     variant="outline"
-                    className="w-full"
                   >
                     Back to Authentication
                   </Button>

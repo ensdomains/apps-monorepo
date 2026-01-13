@@ -83,17 +83,17 @@ export function EmailVerifyStep({
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form className="space-y-4" onSubmit={handleSubmit}>
         <div className="space-y-2">
           <Label htmlFor={verificationCodeId}>Verification Code</Label>
           <Input
-            id={verificationCodeId}
-            type="text"
-            placeholder="Enter 6-digit code"
-            value={verificationCode}
-            onChange={(e) => setVerificationCode(e.target.value)}
             disabled={isVerifying || isVerified}
+            id={verificationCodeId}
+            onChange={(e) => setVerificationCode(e.target.value)}
+            placeholder="Enter 6-digit code"
             required
+            type="text"
+            value={verificationCode}
           />
         </div>
 
@@ -107,19 +107,19 @@ export function EmailVerifyStep({
 
         <div className="flex gap-2 pt-4">
           <Button
+            className="flex-1"
+            disabled={isVerifying}
+            onClick={onBackToSend}
             type="button"
             variant="outline"
-            onClick={onBackToSend}
-            disabled={isVerifying}
-            className="flex-1"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
           <Button
-            type="submit"
-            disabled={isVerifying || isVerified || !verificationCode.trim()}
             className="flex-1"
+            disabled={isVerifying || isVerified || !verificationCode.trim()}
+            type="submit"
           >
             {isVerifying ? 'Verifying...' : 'Verify Code'}
           </Button>
@@ -129,24 +129,24 @@ export function EmailVerifyStep({
       {verificationError && (
         <div className="space-y-2">
           <Button
-            onClick={() => onVerifyCode(verificationCode)}
-            disabled={isVerifying}
             className="w-full"
+            disabled={isVerifying}
+            onClick={() => onVerifyCode(verificationCode)}
           >
             Try Again
           </Button>
-          <Button onClick={onBackToSend} variant="outline" className="w-full">
+          <Button className="w-full" onClick={onBackToSend} variant="outline">
             Use Different Email
           </Button>
         </div>
       )}
 
       <Button
+        className="w-full"
+        disabled={isVerifying}
+        onClick={onCancel}
         type="button"
         variant="outline"
-        onClick={onCancel}
-        disabled={isVerifying}
-        className="w-full"
       >
         Cancel
       </Button>

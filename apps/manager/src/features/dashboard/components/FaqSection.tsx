@@ -36,10 +36,10 @@ export const FaqSection = () => (
         Frequently Asked Questions
       </h2>
       <a
-        href="https://support.ens.domains"
-        target="_blank"
-        rel="noopener noreferrer"
         className="flex items-center gap-[4.92px] text-[#0080bc] hover:text-[#006699]"
+        href="https://support.ens.domains"
+        rel="noopener noreferrer"
+        target="_blank"
       >
         <span className="font-sans text-[13px] leading-[1.6] md:text-[14px] md:leading-[1.8]">
           Get support

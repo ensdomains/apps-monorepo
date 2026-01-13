@@ -109,7 +109,7 @@ export const DiffDialog = ({
     }, {}) ?? {}
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>
         <Button className="w-full" disabled={!hasChanges}>
           <Save className="mr-2 size-4" />
@@ -121,18 +121,18 @@ export const DiffDialog = ({
           <DialogTitle>Review Changes</DialogTitle>
         </DialogHeader>
         <UpdateStatusPanel
+          errorMessage={errorMessage}
+          hasValidationIssues={Boolean(validationIssues?.length)}
           isSaving={isSaving}
           isSuccess={isSuccess}
-          errorMessage={errorMessage}
           txHash={txHash}
-          hasValidationIssues={Boolean(validationIssues?.length)}
         />
         {!isSuccess && (
           <div className="max-h-96 overflow-y-auto">
             {isSaving ? null : hasChanges ? (
               <div className="space-y-4">
                 {Object.entries(diff).map(([key, change]) => (
-                  <div key={key} className="rounded-lg border p-4">
+                  <div className="rounded-lg border p-4" key={key}>
                     <div className="mb-2 flex items-center gap-2">
                       {getChangeIcon(change.type)}
                       <span className="flex items-center gap-1 font-medium">
@@ -182,8 +182,8 @@ export const DiffDialog = ({
                             ]?.map((message, index) => (
                               // biome-ignore lint/suspicious/noArrayIndexKey: error list is stable for this render
                               <div
-                                key={index}
                                 className="rounded border border-red-200 bg-red-50 px-2 py-1 text-red-700 text-xs"
+                                key={index}
                               >
                                 {message}
                               </div>
@@ -202,21 +202,21 @@ export const DiffDialog = ({
         <DialogFooter>
           {isSuccess ? (
             <LinkButton
-              to="/p/$name"
-              params={{ name }}
               className="w-full"
               onClick={() => setOpen(false)}
+              params={{ name }}
+              to="/p/$name"
             >
               Go to Profile
             </LinkButton>
           ) : (
             <>
-              <Button variant="outline" onClick={handleCancel}>
+              <Button onClick={handleCancel} variant="outline">
                 Cancel
               </Button>
               <Button
-                onClick={handleSave}
                 disabled={!hasChanges || Boolean(isSaving)}
+                onClick={handleSave}
               >
                 {isSaving ? (
                   <>

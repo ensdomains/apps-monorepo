@@ -108,7 +108,6 @@ export function StablecoinList({
 
           return (
             <ItemComponent
-              key={stablecoin.address}
               className={cn(
                 'flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-all duration-200',
                 'hover:shadow-sm',
@@ -117,6 +116,7 @@ export function StablecoinList({
                 interactive && 'cursor-pointer',
                 isSelected && 'ring-2 ring-blue-500',
               )}
+              key={stablecoin.address}
               onClick={() => handleStablecoinClick(stablecoin)}
               type={interactive ? 'button' : undefined}
             >
@@ -127,7 +127,6 @@ export function StablecoinList({
                 )}
               >
                 <img
-                  src={tokenInfo.icon}
                   alt={tokenInfo.name}
                   className="h-5 w-5 rounded-full"
                   onError={(e) => {
@@ -136,6 +135,7 @@ export function StablecoinList({
                     target.style.display = 'none'
                     target.nextElementSibling?.classList.remove('hidden')
                   }}
+                  src={tokenInfo.icon}
                 />
                 <span className="hidden text-lg">
                   {tokenInfo.icon === '🪙' ? tokenInfo.icon : '🪙'}
