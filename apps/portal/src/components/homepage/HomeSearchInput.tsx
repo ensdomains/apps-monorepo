@@ -21,6 +21,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { useDebouncedValue } from '@/hooks/useDebounce'
+import { normalizeEnsName } from '@/utils/ens/normalizeEnsName'
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -69,9 +70,7 @@ export const HomeSearchInput = () => {
           return []
         }
       }
-      const normalizedName = (
-        value.includes('.') ? value : `${value}.eth`
-      ).toLowerCase()
+      const normalizedName = normalizeEnsName(value)
       items.push({
         id: `name:${normalizedName}`,
         label: normalizedName,
