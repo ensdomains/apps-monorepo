@@ -6,7 +6,7 @@
     "**/node_modules/**"
   ],
   "ignoreDependencies": [
-    "blumen",
+    "omnipin",
     "@vitest/coverage-v8",
     "@storybook/react-vite",
     "storybook"

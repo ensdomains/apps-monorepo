@@ -30,7 +30,7 @@ export const getRecords = ResultFn(async function* (
 })
 
 // Query key factory
-export const recordsQueryKey = createQueryKey<'records', GetRecordsParameters>(
+const recordsQueryKey = createQueryKey<'records', GetRecordsParameters>(
   'records',
 )
 

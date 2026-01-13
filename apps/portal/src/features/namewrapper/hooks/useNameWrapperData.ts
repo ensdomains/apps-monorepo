@@ -1,6 +1,4 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
-import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   type GetWrapperDataErrorType,
   getWrapperData,
@@ -30,16 +28,3 @@ export const getNameWrapperData = ResultFn(async function* ({
 
   return ok(result)
 })
-
-export const getNameWrapperDataQueryKey = createQueryKey<
-  'getNameWrapperDataQueryKey',
-  GetNameWrapperDataParameters
->('getNameWrapperDataQueryKey')
-
-export const getNameWrapperDataQueryOptions = (
-  params: GetNameWrapperDataParameters,
-) =>
-  resultQueryOptions({
-    queryKey: getNameWrapperDataQueryKey(params),
-    queryFn: ({ queryKey: [, p] }) => getNameWrapperData(p),
-  })

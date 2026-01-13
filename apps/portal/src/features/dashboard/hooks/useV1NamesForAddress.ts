@@ -9,13 +9,13 @@ import { getNamesForAddress as ensjs_getNamesForAddress } from '@ensdomains/ensj
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class GetV1NamesForAddressError extends TaggedError(
+class GetV1NamesForAddressError extends TaggedError(
   'GetV1NamesForAddressError',
 )<{
   cause: GetNamesForAddressErrorType
 }> {}
 
-export const getV1NamesForAddress = ResultFn(async function* (
+const getV1NamesForAddress = ResultFn(async function* (
   params: GetNamesForAddressParameters,
 ) {
   const client = yield* safeGetClient()
@@ -30,7 +30,7 @@ export const getV1NamesForAddress = ResultFn(async function* (
   return ok(names)
 })
 
-export const getV1NamesForAddressQueryKey = createQueryKey<
+const getV1NamesForAddressQueryKey = createQueryKey<
   'get-names-for-address',
   GetNamesForAddressParameters
 >('get-names-for-address')

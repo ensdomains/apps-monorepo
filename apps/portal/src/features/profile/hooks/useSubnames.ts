@@ -12,7 +12,7 @@ import { graphqlIndexerClient } from '@/lib/indexer'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import type { WithEnsNetwork } from '@/utils/types'
 
-export class GetSubnamesError extends TaggedError('GetSubnamesError')<{
+class GetSubnamesError extends TaggedError('GetSubnamesError')<{
   cause: GetSubnamesErrorType | ClientError
 }> {}
 
@@ -27,9 +27,7 @@ type GetSubnamesParameters = WithEnsNetwork<{
   name: string
 }>
 
-export type GetSubnamesReturnType = Subname[]
-
-export const getSubnames = ResultFn(async function* ({
+const getSubnames = ResultFn(async function* ({
   name,
   network,
 }: GetSubnamesParameters) {
@@ -84,7 +82,7 @@ export const getSubnames = ResultFn(async function* ({
   }
 })
 
-export const getSubnamesQueryKey = createQueryKey<
+const getSubnamesQueryKey = createQueryKey<
   'get-subnames',
   GetSubnamesParameters
 >('get-subnames')

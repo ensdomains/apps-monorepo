@@ -11,15 +11,11 @@ import { fromPromise, ok } from 'neverthrow'
 import type { Hex } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class SupportsInterfacesError extends TaggedError(
-  'SupportsInterfacesError',
-)<{
+class SupportsInterfacesError extends TaggedError('SupportsInterfacesError')<{
   cause: GetSupportedInterfacesErrorType
 }> {}
 
-export type GetSupportsInterfacesParameters = GetSupportedInterfacesParameters<
-  Hex[]
->
+type GetSupportsInterfacesParameters = GetSupportedInterfacesParameters<Hex[]>
 
 export const getSupportsInterfaces = ResultFn(async function* (
   params: GetSupportsInterfacesParameters,
@@ -36,7 +32,7 @@ export const getSupportsInterfaces = ResultFn(async function* (
   return ok(interfaces)
 })
 
-export const supportsInterfacesQueryKey = createQueryKey<
+const supportsInterfacesQueryKey = createQueryKey<
   'supported-interfaces',
   GetSupportsInterfacesParameters
 >('supported-interfaces')

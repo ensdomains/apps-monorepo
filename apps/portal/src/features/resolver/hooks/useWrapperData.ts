@@ -9,11 +9,11 @@ import {
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class GetWrapperDataError extends TaggedError('GetWrapperDataError')<{
+class GetWrapperDataError extends TaggedError('GetWrapperDataError')<{
   cause: GetWrapperDataErrorType
 }> {}
 
-export const getWrapperData = ResultFn(async function* (
+const getWrapperData = ResultFn(async function* (
   params: GetWrapperDataParameters,
 ) {
   const client = yield* safeGetClient()
@@ -28,7 +28,7 @@ export const getWrapperData = ResultFn(async function* (
   return ok(data)
 })
 
-export const getWrapperDataQueryKey = createQueryKey<
+const getWrapperDataQueryKey = createQueryKey<
   'get-wrapper-data',
   GetWrapperDataParameters
 >('get-wrapper-data')

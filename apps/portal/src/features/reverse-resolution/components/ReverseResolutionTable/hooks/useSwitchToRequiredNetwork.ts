@@ -5,7 +5,7 @@ import {
 } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
 import { useAccount, useSwitchChain } from 'wagmi'
 
-export type UseNetworkSwitchingParams = {
+type UseNetworkSwitchingParams = {
   reverseRegistrarChainId: ReverseRegistrarChainId
   /** Target deployment; defaults to 'sepolia' */
   network?: NetworkKey // 'mainnet' | 'sepolia'

@@ -11,11 +11,11 @@ import { getSupportsInterfaces } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class GetResolverNameError extends TaggedError('GetResolverNameError')<{
+class GetResolverNameError extends TaggedError('GetResolverNameError')<{
   cause: GetResolverNameErrorType
 }> {}
 
-export const getResolverName = ResultFn(async function* (
+const getResolverName = ResultFn(async function* (
   params: GetResolverNameParameters,
 ) {
   const client = yield* safeGetClient()
@@ -39,7 +39,7 @@ export const getResolverName = ResultFn(async function* (
   return ok(name)
 })
 
-export const getResolverNameQueryKey = createQueryKey<
+const getResolverNameQueryKey = createQueryKey<
   'get-resolver-name',
   GetResolverNameParameters
 >('get-resolver-name')

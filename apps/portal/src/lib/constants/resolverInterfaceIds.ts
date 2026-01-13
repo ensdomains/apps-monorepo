@@ -12,8 +12,6 @@ export const RESOLVER_INTERFACE_IDS = {
   CompositeExtendedResolver: '0xc7e45d73',
 } as const
 export type ResolverInterfaceName = keyof typeof RESOLVER_INTERFACE_IDS
-export type ResolverInterfaceId =
-  (typeof RESOLVER_INTERFACE_IDS)[ResolverInterfaceName]
 
 // @ts-expect-error not all features are displayed yet
 export const RESOLVER_FEATURES: Record<

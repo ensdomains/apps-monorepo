@@ -17,12 +17,12 @@ import { useConnection, useEnsResolver, useWalletClient } from 'wagmi'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { sepoliaWithEns } from '@/lib/wagmi'
 
-export type UseReverseResolutionMutationsParams = {
+type UseReverseResolutionMutationsParams = {
   reverseRegistrarChainId: ReverseRegistrarChainId
   displayName: string | null
 }
 
-export type ReverseResolutionWriteRequest =
+type ReverseResolutionWriteRequest =
   | {
       kind: 'l1'
       request: SetPrimaryNameWriteParametersReturnType

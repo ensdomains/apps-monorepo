@@ -7,7 +7,7 @@ import type { Address, Hash } from 'viem'
 import { type GetTransactionErrorType, getTransaction } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class GetTransactionSendersError extends TaggedError(
+class GetTransactionSendersError extends TaggedError(
   'GetTransactionSendersError',
 )<{
   cause: GetTransactionErrorType
@@ -17,7 +17,7 @@ type GetTransactionSendersParameters = {
   transactionHashes: Hash[]
 }
 
-export const getTransactionSenders = ResultFn(async function* ({
+const getTransactionSenders = ResultFn(async function* ({
   transactionHashes,
 }: GetTransactionSendersParameters) {
   const client = yield* safeGetClient()
@@ -45,12 +45,12 @@ export const getTransactionSenders = ResultFn(async function* ({
   return ok(senders)
 })
 
-export const getTransactionSendersQueryKey = createQueryKey<
+const getTransactionSendersQueryKey = createQueryKey<
   'getTransactionSendersQueryKey',
   GetTransactionSendersParameters
 >('getTransactionSendersQueryKey')
 
-export const getTransactionSendersQueryOptions = (
+const getTransactionSendersQueryOptions = (
   params: GetTransactionSendersParameters,
 ) =>
   resultQueryOptions({

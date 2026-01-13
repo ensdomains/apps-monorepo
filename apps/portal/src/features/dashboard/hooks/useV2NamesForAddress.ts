@@ -6,19 +6,19 @@ import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
 
-export class GetV2NamesForAddressError extends TaggedError(
+class GetV2NamesForAddressError extends TaggedError(
   'GetV2NamesForAddressError',
 )<{
   cause: GetV2NamesForAddressErrorType
 }> {}
 
-export type GetV2NamesForAddressErrorType = ClientError
+type GetV2NamesForAddressErrorType = ClientError
 
-export type GetV2NamesForAddressParameters = {
+type GetV2NamesForAddressParameters = {
   address: Address
 }
 
-export const getV2NamesForAddress = ResultFn(async function* ({
+const getV2NamesForAddress = ResultFn(async function* ({
   address,
 }: GetV2NamesForAddressParameters) {
   const { domains } = yield* await fromPromise(
@@ -45,7 +45,7 @@ export const getV2NamesForAddress = ResultFn(async function* ({
   return ok(domains)
 })
 
-export const getV2NamesForAddressQueryKey = createQueryKey<
+const getV2NamesForAddressQueryKey = createQueryKey<
   'get-v2-names-for-address',
   GetV2NamesForAddressParameters
 >('get-v2-names-for-address')

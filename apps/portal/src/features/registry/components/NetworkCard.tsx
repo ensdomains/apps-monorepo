@@ -1,7 +1,7 @@
 import { NamechainSVG } from '@/assets/chains'
 import type { EnsNetworkName } from '../../../utils/types'
 
-export type NetworkCardProps = {
+type NetworkCardProps = {
   network: EnsNetworkName
 }
 
