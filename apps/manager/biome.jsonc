@@ -3,15 +3,9 @@
   "assist": {
     "actions": {
       "source": {
-        "organizeImports": "on",
         "useSortedAttributes": "on",
         "useSortedProperties": "on"
       }
-    }
-  },
-  "css": {
-    "parser": {
-      "tailwindDirectives": true
     }
   },
   "extends": "//",
@@ -29,9 +23,6 @@
       "!!**/.nitro",
       "!!**/.wrangler"
     ]
-  },
-  "formatter": {
-    "indentStyle": "space"
   },
   "linter": {
     "rules": {
