@@ -10,11 +10,11 @@ import { graphqlIndexerClient } from '@/lib/indexer'
 import { getRecords } from './useRecords'
 import { getSubgraphRecords } from './useSubgraphRecords'
 
-export class GetProfileError extends TaggedError('RecordsError')<{
+class GetProfileError extends TaggedError('RecordsError')<{
   cause: GetRecordsErrorType | GetSubgraphRecordsErrorType | ClientError
 }> {}
 
-export const getProfile = ResultFn(async function* (name: string) {
+const getProfile = ResultFn(async function* (name: string) {
   const subgraphV1Records = yield* getSubgraphRecords(name)
 
   const result = yield* fromPromise(
@@ -95,7 +95,7 @@ export const getProfile = ResultFn(async function* (name: string) {
   })
 })
 
-export const profileQueryKey = createQueryKey<
+const profileQueryKey = createQueryKey<
   'profile',
   {
     name: string

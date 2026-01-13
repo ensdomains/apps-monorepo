@@ -6,9 +6,7 @@ import { fromPromise, ok } from 'neverthrow'
 import { type GetBlockErrorType, getBlock } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class GetBlockTimestampsError extends TaggedError(
-  'GetBlockTimestampsError',
-)<{
+class GetBlockTimestampsError extends TaggedError('GetBlockTimestampsError')<{
   cause: GetBlockErrorType
 }> {}
 
@@ -16,7 +14,7 @@ type GetBlockTimestampsParameters = {
   blocks: bigint[]
 }
 
-export const getBlockTimestamps = ResultFn(async function* ({
+const getBlockTimestamps = ResultFn(async function* ({
   blocks,
 }: GetBlockTimestampsParameters) {
   const client = yield* safeGetClient()
@@ -41,14 +39,12 @@ export const getBlockTimestamps = ResultFn(async function* ({
   return ok(timestamps)
 })
 
-export const getBlockTimestampsQueryKey = createQueryKey<
+const getBlockTimestampsQueryKey = createQueryKey<
   'getBlockTimestampsQueryKey',
   GetBlockTimestampsParameters
 >('getBlockTimestampsQueryKey')
 
-export const getBlockTimestampsQueryOptions = (
-  params: GetBlockTimestampsParameters,
-) =>
+const getBlockTimestampsQueryOptions = (params: GetBlockTimestampsParameters) =>
   resultQueryOptions({
     queryKey: getBlockTimestampsQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getBlockTimestamps(params),

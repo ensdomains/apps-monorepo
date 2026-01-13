@@ -1,6 +1,4 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
-import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   getSubgraphRecords as ensjs_getSubgraphRecords,
   type GetSubgraphRecordsErrorType,
@@ -23,16 +21,3 @@ export const getSubgraphRecords = ResultFn(async function* (name: string) {
 
   return ok(subgraphRecords)
 })
-
-export const subgraphRecordsQueryKey = createQueryKey<
-  'subgraph-records',
-  {
-    name: string
-  }
->('subgraph-records')
-
-export const getSubgraphRecordsQueryOptions = (name: string) =>
-  resultQueryOptions({
-    queryKey: subgraphRecordsQueryKey({ name }),
-    queryFn: ({ queryKey: [, { name }] }) => getSubgraphRecords(name),
-  })

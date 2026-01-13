@@ -1,7 +1,7 @@
 import { Loader2 } from 'lucide-react'
 import { MessageCard } from '@/components/ui/message-card'
 
-export interface LoadingMessageProps {
+interface LoadingMessageProps {
   title?: string
   description?: React.ReactNode
 }

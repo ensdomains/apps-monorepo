@@ -5,9 +5,9 @@
 
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 
-export type PermissionKey = Exclude<Role, `${string}_ADMIN`>
+type PermissionKey = Exclude<Role, `${string}_ADMIN`>
 
-export type Permission = {
+type Permission = {
   key: PermissionKey
   title: string
   description: string
@@ -40,10 +40,3 @@ export const permissions: Permission[] = [
     description: 'Can burn (delete) the name',
   },
 ] as const
-
-// Helper to get permission by key
-export const getPermissionByKey = (
-  key: PermissionKey,
-): Permission | undefined => {
-  return permissions.find((p) => p.key === key)
-}

@@ -10,13 +10,13 @@ import { getNameRoleAccounts as ensjs_getNameRoleAccounts } from '@ensdomains/en
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class GetNameRolesAccountsError extends TaggedError(
+class GetNameRolesAccountsError extends TaggedError(
   'GetNameRolesAccountsError',
 )<{
   cause: GetNameRolesAccountsErrorType
 }> {}
 
-export const getNameRolesAccounts = ResultFn(async function* (
+const getNameRolesAccounts = ResultFn(async function* (
   params: GetNameRolesAccountsParameters,
 ) {
   const client = yield* safeGetClient()
@@ -32,7 +32,7 @@ export const getNameRolesAccounts = ResultFn(async function* (
   return ok(result as GetNameRolesAccountsReturnType)
 })
 
-export const getNameRolesAccountsQueryKey = createQueryKey<
+const getNameRolesAccountsQueryKey = createQueryKey<
   'get-name-roles-accounts',
   GetNameRolesAccountsParameters
 >('get-name-roles-accounts')

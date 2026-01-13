@@ -1,6 +1,6 @@
 import { Network } from 'lucide-react'
 
-export type NetworkCardProps = {
+type NetworkCardProps = {
   label: string
 }
 

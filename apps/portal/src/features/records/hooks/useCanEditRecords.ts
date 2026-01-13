@@ -28,7 +28,7 @@ class CanEditRecordsError extends TaggedError('CanEditRecordsError')<{
     | GetEnsResolverErrorType
 }> {}
 
-export const canEditRecords = ResultFn(async function* ({
+const canEditRecords = ResultFn(async function* ({
   name,
   resolverAddress,
 }: CanEditRecordsParameters) {
@@ -74,19 +74,17 @@ export const canEditRecords = ResultFn(async function* ({
   return ok(!(gasResult.isErr() || gasResult.value === 0n))
 })
 
-export const canEditRecordsQueryKey = createQueryKey<
+const canEditRecordsQueryKey = createQueryKey<
   'canEditRecordsQueryKey',
   CanEditRecordsParameters
 >('canEditRecordsQueryKey')
 
-export type CanEditRecordsParameters = {
+type CanEditRecordsParameters = {
   name: string
   resolverAddress?: Address
 }
 
-export const getCanEditRecordsQueryOptions = (
-  params: CanEditRecordsParameters,
-) =>
+const getCanEditRecordsQueryOptions = (params: CanEditRecordsParameters) =>
   resultQueryOptions({
     queryKey: canEditRecordsQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => canEditRecords(params),

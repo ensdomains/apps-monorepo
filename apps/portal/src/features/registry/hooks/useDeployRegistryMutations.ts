@@ -95,15 +95,11 @@ export const useDeployRegistryMutations = ({
     const deployedAddress =
       deployReceipt.contractAddress || deployReceipt.logs[0]?.address
 
-    if (!deployedAddress) {
-      return
-    }
-
-    if (protocolVersion === 'ENSv1') {
-      return
-    }
-
-    if (currentNameRegistry === zeroAddress) {
+    if (
+      !deployedAddress ||
+      protocolVersion === 'ENSv1' ||
+      currentNameRegistry === zeroAddress
+    ) {
       return
     }
 

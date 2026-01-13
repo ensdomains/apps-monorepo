@@ -2,24 +2,23 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getNameRolesForAccount as ensjsGetNameRolesForAccount } from '@ensdomains/ensjs/public/v2'
-import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-export class GetNameRolesForAccountError extends TaggedError(
+class GetNameRolesForAccountError extends TaggedError(
   'GetNameRolesForAccountError',
 )<{
   cause: unknown
 }> {}
 
-export type GetNameRolesForAccountParameters = {
+type GetNameRolesForAccountParameters = {
   registryAddress: Address
   label: string
   account: Address
 }
 
-export const getNameRolesForAccount = ResultFn(async function* ({
+const getNameRolesForAccount = ResultFn(async function* ({
   registryAddress,
   label,
   account,
@@ -38,7 +37,7 @@ export const getNameRolesForAccount = ResultFn(async function* ({
   return ok(result)
 })
 
-export const getNameRolesForAccountQueryKey = createQueryKey<
+const getNameRolesForAccountQueryKey = createQueryKey<
   'getNameRolesForAccount',
   GetNameRolesForAccountParameters
 >('getNameRolesForAccount')
@@ -50,7 +49,3 @@ export const getNameRolesForAccountQueryOptions = (
     queryKey: getNameRolesForAccountQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getNameRolesForAccount(params),
   })
-
-export const useGetNameRolesForAccount = (
-  params: GetNameRolesForAccountParameters,
-) => useQuery(getNameRolesForAccountQueryOptions(params))

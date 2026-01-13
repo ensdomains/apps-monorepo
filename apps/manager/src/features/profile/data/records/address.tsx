@@ -25,10 +25,10 @@ const PREFERRED_ADDRESS_ORDER: Array<number | { notation: string }> = [
 ]
 
 const addressPreferenceIndex = new Map<string, number>()
-PREFERRED_ADDRESS_ORDER.forEach((pref, index) => {
+for (const [index, pref] of PREFERRED_ADDRESS_ORDER.entries()) {
   if (typeof pref === 'number') addressPreferenceIndex.set(`ct:${pref}`, index)
   else addressPreferenceIndex.set(`nt:${pref.notation}`, index)
-})
+}
 
 const getAddressPreference = ({ coinType, notation }: AddressRecordDef) => {
   return Math.min(

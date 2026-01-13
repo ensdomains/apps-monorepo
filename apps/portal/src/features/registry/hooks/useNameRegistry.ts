@@ -14,11 +14,11 @@ import {
 } from '@/lib/wagmi/helpers'
 import type { WithEnsNetwork } from '@/utils/types'
 
-export class NameRegistryError extends TaggedError('nameRegistryError')<{
+class NameRegistryError extends TaggedError('nameRegistryError')<{
   cause: GetNameRegistryAddressErrorType
 }> {}
 
-export type GetNameRegistryReturnType = WithEnsNetwork<{
+type GetNameRegistryReturnType = WithEnsNetwork<{
   registryAddress: Address
   parentRegistryAddress: Address
 }>
@@ -26,7 +26,7 @@ export type GetNameRegistryReturnType = WithEnsNetwork<{
 /**
  * Fetches name subregistry and ETH registry
  */
-export const getNameRegistry = ResultFn(async function* (
+const getNameRegistry = ResultFn(async function* (
   params: GetNameRegistryAddressParameters,
 ) {
   const l1Client = yield* safeGetClient()
@@ -60,7 +60,7 @@ export const getNameRegistry = ResultFn(async function* (
 })
 
 // Query key factory
-export const nameRegistryQueryKey = createQueryKey<
+const nameRegistryQueryKey = createQueryKey<
   'nameRegistry',
   GetNameRegistryAddressParameters
 >('nameRegistry')

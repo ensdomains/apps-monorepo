@@ -885,74 +885,6 @@ const ProfilePage = ({ name }: ProfilePageProps) => {
 
 **Rule of thumb**: If finding the split component takes longer than scanning the original, don't split it.
 
-### Avoid Prop Drilling 🟡 Default
-
-**Don't pass props through intermediate components just to reach a deeply nested child.** Use hooks or context to access data where it's needed.
-
-```typescript
-// ❌ AVOID - Prop drilling
-function Page() {
-  const user = useUser()
-  return <Sidebar user={user} />
-}
-
-function Sidebar({ user }: { user: User }) {
-  return (
-    <div>
-      <Navigation />
-      <ProfileCard user={user} />
-    </div>
-  )
-}
-
-function ProfileCard({ user }: { user: User }) {
-  return <div>{user.name}</div>
-}
-
-// ✅ CORRECT - Access data where needed
-function Page() {
-  return <Sidebar />
-}
-
-function Sidebar() {
-  return (
-    <div>
-      <Navigation />
-      <ProfileCard />
-    </div>
-  )
-}
-
-function ProfileCard() {
-  const user = useUser() // Get data directly
-  return <div>{user.name}</div>
-}
-```
-
-**When to use each approach:**
-
-✅ **Use hooks/context for app state:**
-- User authentication
-- Theme/locale
-- Global feature flags
-- Data used in multiple places
-
-✅ **Pass props for component-specific data:**
-- Direct parent-child communication
-- Props that configure component behavior
-- Data that flows naturally down one level
-
-❌ **Don't prop drill:**
-- Through 3+ component levels
-- For data that's not used by intermediate components
-- For global app state
-
-**Benefits:**
-- ✅ **Less coupling** - Components don't depend on parent structure
-- ✅ **Easier refactoring** - Move components without updating props
-- ✅ **Clearer intent** - Each component declares what it needs
-- ✅ **Better composition** - Intermediate components stay simple
-
 ## State Management
 
 ### The State Complexity Ladder 🟢 Guideline
@@ -3485,13 +3417,17 @@ import { Button } from '@/components/ui/button'
 
 ### Key Linting Rules
 
-| Rule                           | Purpose                | Fix                               |
-| ------------------------------ | ---------------------- | --------------------------------- |
-| `noExplicitAny`                | Avoid `any` types      | Use `unknown` + type guards       |
-| `noNonNullAssertion`           | Avoid `!` operator     | Use `?.` or type guards           |
-| `useButtonType`                | Explicit button types  | Add `type="button"`               |
-| `useKeyWithClickEvents`        | Keyboard accessibility | Add `onKeyDown` or use `<button>` |
-| `noNestedComponentDefinitions` | Don't nest components  | Define outside parent             |
+| Rule                           | Purpose                                       | Fix                               |
+| ------------------------------ | --------------------------------------------- | --------------------------------- |
+| `noExplicitAny`                | Avoid `any` types                             | Use `unknown` + type guards       |
+| `noNonNullAssertion`           | Avoid `!` operator                            | Use `?.` or type guards           |
+| `useButtonType`                | Explicit button types                         | Add `type="button"`               |
+| `useKeyWithClickEvents`        | Keyboard accessibility                        | Add `onKeyDown` or use `<button>` |
+| `noNestedComponentDefinitions` | Don't nest components                         | Define outside parent             |
+| `noForEach`                    | Prefer `for...of` loops over `Array.forEach`  | Use `for...of`                    |
+| `noUselessElse`                | Avoid unnecessary else blocks after returns   | Prefer early returns              |
+| `noUnusedTemplateLiteral`      | Avoid template literals without interpolation | Use regular strings               |
+| `noNegationElse`               | Avoid negated conditions with else branches   | Invert the condition              |
 
 ### Running Biome
 
@@ -3712,4 +3648,3 @@ Ask yourself these questions when writing code:
 ---
 
 *This style guide is a living document. As the ENS Portal evolves, so should these guidelines. When in doubt, follow existing patterns in the codebase and prioritize clarity and maintainability.*
-

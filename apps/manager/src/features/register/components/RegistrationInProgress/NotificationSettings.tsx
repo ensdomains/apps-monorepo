@@ -197,7 +197,7 @@ export const NotificationSettings = ({
           name="email"
           validators={{
             onChange: ({ value }) =>
-              !isValidEmail(value) ? 'Please enter a valid email' : undefined,
+              isValidEmail(value) ? undefined : 'Please enter a valid email',
           }}
         >
           {(field) => {

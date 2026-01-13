@@ -1,19 +1,14 @@
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { DecodedFuses } from '@ensdomains/ensjs/utils'
 import { ok } from 'neverthrow'
 import {
-  type GetNameWrapperDataError,
   type GetNameWrapperDataParameters,
   getNameWrapperData,
 } from './useNameWrapperData'
 
-export class BurnedFuseCountError extends TaggedError('BurnedFuseCountError')<{
-  cause: GetNameWrapperDataError
-}> {}
-
-export type BurnedFuseCountParameters = GetNameWrapperDataParameters
+type BurnedFuseCountParameters = GetNameWrapperDataParameters
 
 const countBurned = (
   f: DecodedFuses['child'] | DecodedFuses['parent'],
@@ -23,7 +18,7 @@ const countBurned = (
     return acc + countBurned(v) // recurse
   }, 0)
 
-export const getBurnedFuseCount = ResultFn(async function* ({
+const getBurnedFuseCount = ResultFn(async function* ({
   name,
 }: BurnedFuseCountParameters) {
   const wrapperData = yield* getNameWrapperData({ name })
@@ -37,7 +32,7 @@ export const getBurnedFuseCount = ResultFn(async function* ({
   return ok(totalBurned)
 })
 
-export const burnedFuseCountQueryKey = createQueryKey<
+const burnedFuseCountQueryKey = createQueryKey<
   'burnedFuseCountQueryKey',
   BurnedFuseCountParameters
 >('burnedFuseCountQueryKey')

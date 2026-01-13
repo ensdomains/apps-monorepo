@@ -73,13 +73,13 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     allowFailure: true,
   })
 
-  textResults.forEach((entry, index) => {
+  for (const [index, entry] of textResults.entries()) {
     const key = texts[index]
 
-    if (!key) return
+    if (!key) continue
 
     if (entry.status !== 'success') {
-      return
+      continue
     }
 
     const value = entry.result as string
@@ -87,7 +87,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     if (typeof value === 'string' && value.trim() !== '') {
       result.texts.push({ key, value })
     }
-  })
+  }
 
   const coinTypeNumbers = Array.from(
     new Set(
@@ -107,18 +107,18 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     allowFailure: true,
   })
 
-  coinResults.forEach((entry, index) => {
+  for (const [index, entry] of coinResults.entries()) {
     const coinTypeNumber = coinTypeNumbers[index]
 
-    if (coinTypeNumber === undefined) return
+    if (coinTypeNumber === undefined) continue
 
     if (entry.status !== 'success') {
-      return
+      continue
     }
 
     const raw = entry.result as `0x${string}` | string | null
 
-    if (!raw || raw === '0x') return
+    if (!raw || raw === '0x') continue
 
     let value: string
 
@@ -137,7 +137,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
       value,
       ...(symbolEntry ? { symbol: symbolEntry[0] } : {}),
     })
-  })
+  }
 
   return ok(result)
 })
