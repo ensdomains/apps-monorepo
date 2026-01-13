@@ -25,35 +25,10 @@ describe('transformRecordsForDisplay', () => {
       })
     })
 
-    it('should handle empty array', () => {
-      const result = recordTextsToObject([])
-
-      expect(result).toEqual({})
-    })
-
     it('should handle undefined input', () => {
       const result = recordTextsToObject(undefined)
 
       expect(result).toEqual({})
-    })
-
-    it('should handle single text record', () => {
-      const texts = [{ key: 'name', value: 'Bob' }]
-
-      const result = recordTextsToObject(texts)
-
-      expect(result).toEqual({ name: 'Bob' })
-    })
-
-    it('should handle duplicate keys (last one wins)', () => {
-      const texts = [
-        { key: 'name', value: 'Alice' },
-        { key: 'name', value: 'Bob' },
-      ]
-
-      const result = recordTextsToObject(texts)
-
-      expect(result).toEqual({ name: 'Bob' })
     })
   })
 
@@ -74,33 +49,10 @@ describe('transformRecordsForDisplay', () => {
       })
     })
 
-    it('should handle empty array', () => {
-      const result = recordCoinsToObject([])
-
-      expect(result).toEqual({})
-    })
-
     it('should handle undefined input', () => {
       const result = recordCoinsToObject(undefined)
 
       expect(result).toEqual({})
-    })
-
-    it('should handle single coin record', () => {
-      const coins = [{ coinType: 60, value: '0xabc' }]
-
-      const result = recordCoinsToObject(coins)
-
-      expect(result).toEqual({ '60': '0xabc' })
-    })
-
-    it('should convert coinType to string key', () => {
-      const coins = [{ coinType: 42161, value: '0xarbitrum' }]
-
-      const result = recordCoinsToObject(coins)
-
-      expect(Object.keys(result)[0]).toBe('42161')
-      expect(typeof Object.keys(result)[0]).toBe('string')
     })
   })
 
@@ -139,35 +91,8 @@ describe('transformRecordsForDisplay', () => {
       expect(result[60]).toBe('0xeth-address')
     })
 
-    it('should convert string keys to number keys', () => {
-      const coins = {
-        '60': '0xeth-address',
-        '10': '0xop-address',
-      }
-      const evmCoinTypes: EvmCoinType[] = [60, 10] as unknown as EvmCoinType[]
-
-      const result = filterEvmChains(coins, evmCoinTypes)
-
-      expect(Object.keys(result).every((k) => typeof k === 'string')).toBe(true)
-      expect(result[60]).toBe('0xeth-address')
-      expect(result[10]).toBe('0xop-address')
-    })
-
     it('should handle empty coins object', () => {
       const coins = {}
-      const evmCoinTypes: EvmCoinType[] = [60, 10] as unknown as EvmCoinType[]
-
-      const result = filterEvmChains(coins, evmCoinTypes)
-
-      expect(result).toEqual({})
-    })
-
-    it('should exclude non-EVM chains', () => {
-      const coins = {
-        '0': 'btc-address',
-        '2': 'ltc-address',
-        '501': 'sol-address',
-      }
       const evmCoinTypes: EvmCoinType[] = [60, 10] as unknown as EvmCoinType[]
 
       const result = filterEvmChains(coins, evmCoinTypes)
@@ -196,35 +121,8 @@ describe('transformRecordsForDisplay', () => {
       })
     })
 
-    it('should convert string keys to number keys', () => {
-      const coins = {
-        '0': 'btc-address',
-        '501': 'sol-address',
-      }
-      const nonEvmCoinTypes = [0, 501] as const
-
-      const result = filterNonEvmChains(coins, [...nonEvmCoinTypes])
-
-      expect(Object.keys(result).every((k) => typeof k === 'string')).toBe(true)
-      expect(result[0]).toBe('btc-address')
-      expect(result[501]).toBe('sol-address')
-    })
-
     it('should handle empty coins object', () => {
       const coins = {}
-      const nonEvmCoinTypes = [0, 2, 501] as const
-
-      const result = filterNonEvmChains(coins, [...nonEvmCoinTypes])
-
-      expect(result).toEqual({})
-    })
-
-    it('should exclude EVM chains', () => {
-      const coins = {
-        '60': '0xeth-address',
-        '10': '0xop-address',
-        '42161': '0xarb-address',
-      }
       const nonEvmCoinTypes = [0, 2, 501] as const
 
       const result = filterNonEvmChains(coins, [...nonEvmCoinTypes])

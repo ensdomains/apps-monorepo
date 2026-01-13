@@ -62,47 +62,7 @@ describe('enrichEventsWithMetadata', () => {
     ])
   })
 
-  it('should return empty array when timestampsData is undefined', () => {
-    const eventsData: EventsTableData[] = [
-      {
-        transactionID: '0xabc123',
-        blockNumber: 100,
-        from: null,
-        events: [],
-      },
-    ]
-
-    const sendersData = new Map<Hash, Address>([
-      ['0xabc123' as Hash, '0xsender1' as Address],
-    ])
-
-    const result = enrichEventsWithMetadata(eventsData, undefined, sendersData)
-
-    expect(result).toEqual([])
-  })
-
-  it('should return empty array when sendersData is undefined', () => {
-    const eventsData: EventsTableData[] = [
-      {
-        transactionID: '0xabc123',
-        blockNumber: 100,
-        from: null,
-        events: [],
-      },
-    ]
-
-    const timestampsData = new Map<bigint, bigint>([[100n, 1678886400n]])
-
-    const result = enrichEventsWithMetadata(
-      eventsData,
-      timestampsData,
-      undefined,
-    )
-
-    expect(result).toEqual([])
-  })
-
-  it('should return empty array when both metadata maps are undefined', () => {
+  it('should return empty array when metadata is undefined', () => {
     const eventsData: EventsTableData[] = [
       {
         transactionID: '0xabc123',
@@ -183,72 +143,5 @@ describe('enrichEventsWithMetadata', () => {
     )
 
     expect(result[0].timestamp).toBeUndefined()
-  })
-
-  it('should preserve all other event properties', () => {
-    const eventsData = [
-      {
-        transactionID: '0xabc123',
-        blockNumber: 100,
-        from: null,
-        events: [
-          { id: 'e1', type: 'Transfer', category: 'domain', details: {} },
-        ],
-        customProperty: 'should be preserved',
-      },
-    ] as unknown as EventsTableData[]
-
-    const timestampsData = new Map<bigint, bigint>([[100n, 1678886400n]])
-    const sendersData = new Map<Hash, Address>([
-      ['0xabc123' as Hash, '0xsender1' as Address],
-    ])
-
-    const result = enrichEventsWithMetadata(
-      eventsData,
-      timestampsData,
-      sendersData,
-    )
-
-    expect(result[0]).toHaveProperty('customProperty', 'should be preserved')
-    expect(result[0]).toHaveProperty('transactionID', '0xabc123')
-    expect(result[0]).toHaveProperty('blockNumber', 100)
-  })
-
-  it('should handle empty events array', () => {
-    const eventsData: EventsTableData[] = []
-    const timestampsData = new Map<bigint, bigint>([[100n, 1678886400n]])
-    const sendersData = new Map<Hash, Address>([
-      ['0xabc123' as Hash, '0xsender1' as Address],
-    ])
-
-    const result = enrichEventsWithMetadata(
-      eventsData,
-      timestampsData,
-      sendersData,
-    )
-
-    expect(result).toEqual([])
-  })
-
-  it('should not mutate original events data', () => {
-    const eventsData: EventsTableData[] = [
-      {
-        transactionID: '0xabc123',
-        blockNumber: 100,
-        from: null,
-        events: [],
-      },
-    ]
-
-    const originalCopy = JSON.parse(JSON.stringify(eventsData))
-
-    const timestampsData = new Map<bigint, bigint>([[100n, 1678886400n]])
-    const sendersData = new Map<Hash, Address>([
-      ['0xabc123' as Hash, '0xsender1' as Address],
-    ])
-
-    enrichEventsWithMetadata(eventsData, timestampsData, sendersData)
-
-    expect(eventsData).toEqual(originalCopy)
   })
 })

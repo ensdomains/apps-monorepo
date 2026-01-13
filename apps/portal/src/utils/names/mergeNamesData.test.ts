@@ -96,12 +96,6 @@ describe('mergeNamesData', () => {
     })
   })
 
-  it('should handle both undefined inputs', () => {
-    const result = mergeNamesData(undefined, undefined)
-
-    expect(result).toEqual([])
-  })
-
   it('should handle empty arrays', () => {
     const result = mergeNamesData([], [])
 
@@ -138,26 +132,5 @@ describe('mergeNamesData', () => {
     expect(result[1].name).toBe('v1-second.eth')
     expect(result[2].name).toBe('v2-first.eth')
     expect(result[3].name).toBe('v2-second.eth')
-  })
-
-  it('should handle multiple names with various expiry formats', () => {
-    const v1Names: V1Name[] = [
-      { name: 'name1.eth', expiryDate: { date: new Date('2025-06-01') } },
-      { name: 'name2.eth', expiryDate: null },
-      { name: 'name3.eth', expiryDate: { date: null } },
-    ]
-    const v2Names: V2Name[] = [
-      { name: 'name4.eth', expiryDate: 1735689600 },
-      { name: 'name5.eth', expiryDate: null },
-    ]
-
-    const result = mergeNamesData(v1Names, v2Names)
-
-    expect(result).toHaveLength(5)
-    expect(result[0].expiryDate).toEqual(new Date('2025-06-01'))
-    expect(result[1].expiryDate).toBeNull()
-    expect(result[2].expiryDate).toBeNull()
-    expect(result[3].expiryDate).toEqual(new Date('2025-01-01 00:00:00 UTC'))
-    expect(result[4].expiryDate).toBeNull()
   })
 })

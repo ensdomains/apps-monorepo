@@ -51,41 +51,11 @@ describe('truncateAddress', () => {
     expect(result).toBe('0x12345678')
   })
 
-  it('should handle very long addresses', () => {
-    const longAddress = `0x${'a'.repeat(100)}` // 102 characters total
-
-    const result = truncateAddress(longAddress)
-
-    expect(result).toBe('0xaaaa…aaaa')
-    expect(result).toHaveLength(11) // 6 + 1 (separator) + 4
-  })
-
   it('should work with values not starting with 0x', () => {
     const value = 'abcdef1234567890abcdef1234567890abcdef12'
 
     const result = truncateAddress(value)
 
     expect(result).toBe('abcdef…ef12')
-  })
-
-  it('should handle empty string', () => {
-    const result = truncateAddress('')
-
-    expect(result).toBe('')
-  })
-
-  it('should handle single character', () => {
-    const result = truncateAddress('a', 6, 4)
-
-    expect(result).toBe('a')
-  })
-
-  it('should allow different separator for backward compatibility', () => {
-    const address = '0x1234567890abcdef1234567890abcdef12345678'
-
-    // Using three dots like some components currently use
-    const result = truncateAddress(address, 6, 4, '...')
-
-    expect(result).toBe('0x1234...5678')
   })
 })

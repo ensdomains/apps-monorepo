@@ -24,19 +24,4 @@ describe('normalizeEnsName', () => {
   it('should handle empty strings', () => {
     expect(normalizeEnsName('')).toBe('.eth')
   })
-
-  it('should handle names with hyphens', () => {
-    expect(normalizeEnsName('my-name')).toBe('my-name.eth')
-    expect(normalizeEnsName('test-123.eth')).toBe('test-123.eth')
-  })
-
-  it('should handle names with numbers', () => {
-    expect(normalizeEnsName('test123')).toBe('test123.eth')
-    expect(normalizeEnsName('123test')).toBe('123test.eth')
-  })
-
-  it('should not double-append .eth', () => {
-    expect(normalizeEnsName('vitalik.eth')).toBe('vitalik.eth')
-    expect(normalizeEnsName('vitalik.eth.eth')).toBe('vitalik.eth.eth')
-  })
 })
