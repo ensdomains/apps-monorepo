@@ -14,6 +14,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
 import { TransactionEvents } from './TransactionEvents'
 
@@ -70,13 +71,7 @@ const TransactionDetails = ({
     hash: txHash,
   })
 
-  const formattedTimestamp = timestamp
-    ? new Date(Number(timestamp) * 1000)
-        .toISOString()
-        .replace('T', ' ')
-        .replace(/\..+/, '')
-        .replace(/-/g, '/')
-    : null
+  const formattedTimestamp = formatTimestamp(timestamp)
 
   if (isLoading) {
     return (

@@ -3,6 +3,7 @@ import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export const Owner = ({
   owner,
@@ -35,7 +36,7 @@ export const Owner = ({
       </div>
     )
 
-  const shortenedAddress = `${owner.slice(0, 6)}...${owner.slice(-4)}`
+  const shortenedAddress = truncateAddress(owner, 6, 4, '...')
 
   return (
     <Link

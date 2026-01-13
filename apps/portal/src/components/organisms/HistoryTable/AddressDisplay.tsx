@@ -2,6 +2,7 @@ import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 interface AddressDisplayProps {
   address: Address
@@ -23,8 +24,7 @@ export const AddressDisplay = ({
     )
   }
 
-  const displayName =
-    ensName || (short ? `${address.slice(0, 6)}…${address.slice(-4)}` : address)
+  const displayName = ensName || (short ? truncateAddress(address) : address)
 
   return (
     <div className="flex flex-row items-center gap-2">

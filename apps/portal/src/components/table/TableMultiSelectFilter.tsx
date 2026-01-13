@@ -9,11 +9,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
-
-type FilterGroup = {
-  title: string
-  options: Array<{ label: string; value: string }>
-}
+import {
+  type FilterGroup,
+  getAllValuesFromGroups,
+  isGroupFullySelected,
+  toggleGroupSelection,
+  toggleValue,
+} from '@/utils/filtering/multiSelectFilter'
 
 export const TableMultiSelectFilter = ({
   label,
@@ -30,38 +32,21 @@ export const TableMultiSelectFilter = ({
 }) => {
   const [open, setOpen] = useState(false)
 
-  const allValues = groups.flatMap((group) =>
-    group.options.map((opt) => opt.value),
-  )
+  const allValues = getAllValuesFromGroups(groups)
   const selectedCount = selectedValues.length
 
   const handleToggle = (value: string) => {
-    if (selectedValues.includes(value)) {
-      onChange(selectedValues.filter((v) => v !== value))
-    } else {
-      onChange([...selectedValues, value])
-    }
+    onChange(toggleValue(selectedValues, value))
   }
 
   const handleGroupSelectAll = (groupOptions: Array<{ value: string }>) => {
     const groupValues = groupOptions.map((opt) => opt.value)
-    const allSelected = groupValues.every((val) => selectedValues.includes(val))
-
-    if (allSelected) {
-      onChange(selectedValues.filter((v) => !groupValues.includes(v)))
-    } else {
-      const newValues = [...selectedValues]
-      groupValues.forEach((val) => {
-        if (!newValues.includes(val)) {
-          newValues.push(val)
-        }
-      })
-      onChange(newValues)
-    }
+    onChange(toggleGroupSelection(selectedValues, groupValues))
   }
 
   const isGroupAllSelected = (groupOptions: Array<{ value: string }>) => {
-    return groupOptions.every((opt) => selectedValues.includes(opt.value))
+    const groupValues = groupOptions.map((opt) => opt.value)
+    return isGroupFullySelected(selectedValues, groupValues)
   }
 
   return (
