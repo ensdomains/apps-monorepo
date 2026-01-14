@@ -139,15 +139,15 @@ export function NotificationPreferences() {
           </div>
 
           {groupedKinds.map(({ category, kinds }) => (
-            <div key={category} className="mt-6">
+            <div className="mt-6" key={category}>
               <h3 className="mb-4 font-semibold text-lg">{category}</h3>
               <div className="space-y-4">
                 {kinds.map((kind: (typeof kindsData)[number]) => {
                   const KindIcon = kind.icon
                   return (
                     <div
-                      key={kind.id}
                       className="grid grid-cols-[1fr_repeat(2,minmax(0,max-content))] items-center gap-4 border-b pb-4 last:border-b-0 last:pb-0"
+                      key={kind.id}
                     >
                       <div>
                         <div className="flex items-center gap-2">
@@ -179,20 +179,20 @@ export function NotificationPreferences() {
 
                           return (
                             <div
-                              key={channelType}
                               className="flex flex-col items-center gap-1"
+                              key={channelType}
                             >
                               <Switch
                                 checked={isEnabled}
+                                disabled={
+                                  !hasVerifiedChannels || !isChannelVerified
+                                }
                                 onCheckedChange={(checked) =>
                                   handlePreferenceChange(
                                     kind.id as NotificationKind,
                                     channelType as ChannelType,
                                     checked,
                                   )
-                                }
-                                disabled={
-                                  !hasVerifiedChannels || !isChannelVerified
                                 }
                               />
                             </div>

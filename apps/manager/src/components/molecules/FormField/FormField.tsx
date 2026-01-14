@@ -32,16 +32,16 @@ export const FormField = ({
       )}
 
       {description && (
-        <Text variant="caption" color="secondary">
+        <Text color="secondary" variant="caption">
           {description}
         </Text>
       )}
 
       <Input
-        name={name}
-        label={undefined}
-        helperText={helperText}
         errorText={errorText}
+        helperText={helperText}
+        label={undefined}
+        name={name}
         required={required}
         {...inputProps}
       />

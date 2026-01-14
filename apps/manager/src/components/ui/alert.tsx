@@ -32,9 +32,9 @@ function Alert({
 }: React.ComponentProps<'div'> & VariantProps<typeof alertVariants>) {
   return (
     <div
+      className={cn(alertVariants({ variant }), className)}
       data-slot="alert"
       role="alert"
-      className={cn(alertVariants({ variant }), className)}
       {...props}
     />
   )
@@ -43,13 +43,13 @@ function Alert({
 function AlertTitle({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
-      data-slot="alert-title"
       className={cn(
         'col-start-2 min-h-4',
         'line-clamp-1',
         'font-medium tracking-tight',
         className,
       )}
+      data-slot="alert-title"
       {...props}
     />
   )
@@ -61,13 +61,13 @@ function AlertDescription({
 }: React.ComponentProps<'div'>) {
   return (
     <div
-      data-slot="alert-description"
       className={cn(
         'col-start-2 grid justify-items-start gap-1',
         'text-muted-foreground text-sm',
         '[&_p]:leading-relaxed',
         className,
       )}
+      data-slot="alert-description"
       {...props}
     />
   )

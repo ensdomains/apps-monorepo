@@ -7,7 +7,7 @@ export const IconRenderer = ({ icon: Icon, className }: IconRendererProps) => {
   if (!Icon) return null
 
   if (typeof Icon === 'string') {
-    return <img src={Icon} alt="icon" className={className} />
+    return <img alt="icon" className={className} src={Icon} />
   }
 
   return <Icon className={className} />

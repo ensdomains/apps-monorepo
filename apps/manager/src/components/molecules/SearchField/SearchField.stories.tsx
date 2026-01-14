@@ -77,21 +77,21 @@ export const DifferentSizes: Story = {
   render: () => (
     <div className="flex flex-col gap-4">
       <SearchField
-        placeholder="Small search field..."
+        onSearch={(query) => console.log('Small search:', query)}
         // size="sm"
         // buttonProps={{ size: 'sm' }}
-        onSearch={(query) => console.log('Small search:', query)}
+        placeholder="Small search field..."
       />
       <SearchField
-        placeholder="Default search field..."
-        // size="default"
         onSearch={(query) => console.log('Default search:', query)}
+        // size="default"
+        placeholder="Default search field..."
       />
       <SearchField
-        placeholder="Large search field..."
+        onSearch={(query) => console.log('Large search:', query)}
         // size="lg"
         // buttonProps={{ size: 'lg' }}
-        onSearch={(query) => console.log('Large search:', query)}
+        placeholder="Large search field..."
       />
     </div>
   ),
@@ -102,11 +102,11 @@ export const Interactive: Story = {
     <div className="max-w-md">
       <h3 className="mb-4 font-semibold text-lg">Domain Search</h3>
       <SearchField
-        placeholder="Enter domain name..."
         onSearch={(query) => {
           console.log('Searching for:', query)
           alert(`Searching for: ${query}`)
         }}
+        placeholder="Enter domain name..."
       />
     </div>
   ),
@@ -117,15 +117,15 @@ export const FormIntegration: Story = {
     <div className="max-w-lg space-y-4">
       <h3 className="font-semibold text-lg">ENS Domain Search</h3>
       <SearchField
-        placeholder="Search for available domains..."
-        // buttonText="Check Availability"
-        // buttonProps={{ variant: 'default' }}
         onSearch={(query) => {
           console.log('Searching for domains:', query)
           setTimeout(() => {
             console.log('Search results for:', query)
           }, 1000)
         }}
+        // buttonText="Check Availability"
+        // buttonProps={{ variant: 'default' }}
+        placeholder="Search for available domains..."
       />
       <p className="text-gray-600 text-sm">
         Search for .eth domains to check availability and pricing

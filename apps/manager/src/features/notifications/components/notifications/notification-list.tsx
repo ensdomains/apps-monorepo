@@ -54,12 +54,12 @@ export const AllNotifications = ({ onAction }: { onAction?: () => void }) => {
     return (
       <div className="space-y-6">
         <NotificationsTitleRow
-          title="All Notifications"
           rightSlot={
             <LinkButton to="/notifications/settings" variant="link">
               Notification Settings
             </LinkButton>
           }
+          title="All Notifications"
         />
         <div className="py-8 text-center text-muted-foreground text-sm">
           Loading notifications...
@@ -72,12 +72,12 @@ export const AllNotifications = ({ onAction }: { onAction?: () => void }) => {
     return (
       <div className="space-y-6">
         <NotificationsTitleRow
-          title="All Notifications"
           rightSlot={
             <LinkButton to="/notifications/settings" variant="link">
               Notification Settings
             </LinkButton>
           }
+          title="All Notifications"
         />
         <div className="py-8 text-center text-destructive text-sm">
           Failed to load notifications
@@ -89,12 +89,12 @@ export const AllNotifications = ({ onAction }: { onAction?: () => void }) => {
   return (
     <div className="space-y-6">
       <NotificationsTitleRow
-        title="All Notifications"
         rightSlot={
           <LinkButton to="/notifications/settings" variant="link">
             Notification Settings
           </LinkButton>
         }
+        title="All Notifications"
       />
 
       {allNotifications.length === 0 ? (
@@ -104,19 +104,19 @@ export const AllNotifications = ({ onAction }: { onAction?: () => void }) => {
           {groups.map((group) => (
             <NotificationGroup
               key={group.title}
-              title={group.title}
               notifications={group.notifications}
               onAction={onAction}
+              title={group.title}
             />
           ))}
 
           {hasNextPage && (
             <div className="p-2">
               <button
-                type="button"
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
                 className="w-full rounded-md border border-gray-200 bg-white px-4 py-2 font-medium text-gray-700 text-sm hover:bg-gray-50 disabled:opacity-50"
+                disabled={isFetchingNextPage}
+                onClick={() => fetchNextPage()}
+                type="button"
               >
                 {isFetchingNextPage
                   ? 'Loading more...'

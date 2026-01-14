@@ -135,14 +135,14 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
           <WalletAddressesSection form={form} />
           <UpdateResolverDialog
-            name={name}
             currentResolver={resolverAddress}
+            name={name}
             onUpdated={refetchRecords}
           />
           <SetPrimaryNameDialog
             name={name}
-            owner={ownerAddress}
             onUpdated={refetchRecords}
+            owner={ownerAddress}
           />
           <div className="space-y-2 pt-2">
             <form.Subscribe
@@ -151,10 +151,10 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
               {(diff) =>
                 Object.keys(diff).length > 0 && (
                   <Button
-                    type="button"
-                    variant="outline"
                     className="w-full"
                     onClick={handleReset}
+                    type="button"
+                    variant="outline"
                   >
                     Reset Changes
                   </Button>
@@ -162,15 +162,15 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
               }
             </form.Subscribe>
             <SaveChanges
-              form={form}
-              name={name}
-              originalData={defaultValues}
-              onSave={handleSave}
-              isSaving={isSubmitting}
-              isSuccess={isSuccess}
               errorMessage={
                 isError ? (updateErrorMessage ?? undefined) : undefined
               }
+              form={form}
+              isSaving={isSubmitting}
+              isSuccess={isSuccess}
+              name={name}
+              onSave={handleSave}
+              originalData={defaultValues}
               txHash={txHash}
               validationIssues={validationIssues ?? undefined}
             />

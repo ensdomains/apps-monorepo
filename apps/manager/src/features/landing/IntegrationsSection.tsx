@@ -97,13 +97,13 @@ export const IntegrationsSection = () => {
           {INTEGRATIONS.map((integration) => (
             <div
               // biome-ignore lint/suspicious/noArrayIndexKey: Hardcoded list
-              key={integration.name}
               className="flex items-center gap-2 border-ens-lapis-dust border-t py-4"
+              key={integration.name}
             >
               <img
-                src={integration.icon}
                 alt={integration.name}
                 className="size-10 object-fit"
+                src={integration.icon}
               />
               <span className="font-medium text-base text-ens-blue-midnight md:text-lg lg:text-[22px]">
                 {integration.name}

@@ -209,19 +209,19 @@ const ConnectMenu = () => {
 
               return (
                 <Button
-                  key={connector.id}
-                  variant={isCurrentlyConnecting ? 'default' : 'secondary'}
-                  type="button"
                   className="h-14 justify-start"
                   disabled={isDisabled}
+                  key={connector.id}
                   onClick={() => handleConnect(connector)}
+                  type="button"
+                  variant={isCurrentlyConnecting ? 'default' : 'secondary'}
                 >
                   <div className="flex w-full items-center gap-3">
                     {connector.icon && (
                       <img
-                        src={connector.icon}
                         alt={connector.name}
                         className="h-8 w-8 rounded-full border border-gray-200 bg-white"
+                        src={connector.icon}
                       />
                     )}
                     <span className="flex-1 text-left font-medium">
@@ -295,9 +295,9 @@ const DisconnectMenu = () => {
           </div>
 
           <Button
+            className="w-full"
             onClick={() => disconnect()}
             variant="destructive"
-            className="w-full"
           >
             Disconnect Wallet
           </Button>

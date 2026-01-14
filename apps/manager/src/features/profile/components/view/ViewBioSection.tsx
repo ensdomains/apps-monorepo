@@ -20,7 +20,7 @@ const ContactItem = ({ record }: ContactItemProps) => {
     <>
       <span className="text-gray-900 text-sm">
         {recordDef?.icon ? (
-          <IconRenderer icon={recordDef.icon} className="size-4" />
+          <IconRenderer className="size-4" icon={recordDef.icon} />
         ) : (
           recordDef?.name || record.key
         )}
@@ -35,10 +35,10 @@ const ContactItem = ({ record }: ContactItemProps) => {
   if (href) {
     return (
       <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
         className="flex items-center gap-1.5 transition-opacity hover:opacity-80"
+        href={href}
+        rel="noopener noreferrer"
+        target="_blank"
       >
         {inner}
       </a>
@@ -47,10 +47,10 @@ const ContactItem = ({ record }: ContactItemProps) => {
 
   return (
     <button
-      type="button"
       className="flex cursor-pointer items-center gap-1.5 transition-opacity hover:opacity-80"
       onClick={() => copyToClipboard(displayValue || record.value || '')}
       title="Click to copy"
+      type="button"
     >
       {inner}
     </button>
@@ -70,10 +70,10 @@ export const ViewBioSection = ({ records }: ViewBioSectionProps) => {
 
       {records.base.url ? (
         <a
-          href={records.base.url}
-          target="_blank"
-          rel="noopener noreferrer"
           className="w-fit text-gray-500 text-sm"
+          href={records.base.url}
+          rel="noopener noreferrer"
+          target="_blank"
         >
           {records.base.url}
         </a>

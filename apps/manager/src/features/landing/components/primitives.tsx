@@ -10,32 +10,32 @@ export const BgPattern = (props: React.SVGProps<SVGSVGElement>) => {
   const id = useId()
   return (
     <svg
-      viewBox="0 0 200 200"
-      width="100%"
-      height="100%"
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      height="100%"
       preserveAspectRatio="xMidYMid slice"
       role="presentation"
+      viewBox="0 0 200 200"
+      width="100%"
+      xmlns="http://www.w3.org/2000/svg"
       {...props}
     >
       <defs>
         <pattern
-          id={`bg-weave-pattern-${id}`}
-          width="200"
           height="200"
-          patternUnits="userSpaceOnUse"
+          id={`bg-weave-pattern-${id}`}
           patternContentUnits="userSpaceOnUse"
           patternTransform="scale(0.0156)"
+          patternUnits="userSpaceOnUse"
+          width="200"
         >
-          <rect x="160" width="40" height="40" fill="currentColor" />
-          <rect x="80" y="40" width="40" height="40" fill="currentColor" />
-          <rect y="80" width="40" height="40" fill="currentColor" />
-          <rect x="120" y="120" width="40" height="40" fill="currentColor" />
-          <rect x="40" y="160" width="40" height="40" fill="currentColor" />
+          <rect fill="currentColor" height="40" width="40" x="160" />
+          <rect fill="currentColor" height="40" width="40" x="80" y="40" />
+          <rect fill="currentColor" height="40" width="40" y="80" />
+          <rect fill="currentColor" height="40" width="40" x="120" y="120" />
+          <rect fill="currentColor" height="40" width="40" x="40" y="160" />
         </pattern>
       </defs>
-      <rect width="100%" height="100%" fill={`url(#bg-weave-pattern-${id})`} />
+      <rect fill={`url(#bg-weave-pattern-${id})`} height="100%" width="100%" />
     </svg>
   )
 }
@@ -43,12 +43,12 @@ export const BgPattern = (props: React.SVGProps<SVGSVGElement>) => {
 export const Sparkle = (props: React.SVGProps<SVGSVGElement>) => {
   return (
     <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="43"
-      height="53"
-      viewBox="0 0 43 53"
       fill="none"
+      height="53"
       role="presentation"
+      viewBox="0 0 43 53"
+      width="43"
+      xmlns="http://www.w3.org/2000/svg"
       {...props}
     >
       <path
@@ -93,17 +93,17 @@ export const ChatBubble = ({
 
       {/* Tail SVG - positioned at the bottom */}
       <svg
-        width={tailWidth}
-        height={tailHeight}
-        viewBox="0 0 21 14"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
         className={cn(
           'absolute top-full',
           kind === 'message' ? 'left-3' : '-scale-x-100 right-3',
         )}
-        style={{ marginTop: -0.5 }} // Slight overlap to prevent gap
-        aria-hidden="true"
+        fill="none"
+        height={tailHeight}
+        style={{ marginTop: -0.5 }}
+        viewBox="0 0 21 14"
+        width={tailWidth} // Slight overlap to prevent gap
+        xmlns="http://www.w3.org/2000/svg"
       >
         {/* 
           Path extracted from original design's tail portion.
@@ -111,10 +111,10 @@ export const ChatBubble = ({
           then diagonals back up to top-right edge.
         */}
         <path
-          d="M0 0C1.4386 0 2.6048 1.1662 2.6048 2.6048V9.9616C2.6048 12.2534 5.3511 13.4281 7.0085 11.8453L18.6574 0.721C19.142 0.2582 19.7863 0 20.4563 0Z"
           className={
             kind === 'message' ? 'fill-ens-white' : 'fill-ens-lapis-core'
           }
+          d="M0 0C1.4386 0 2.6048 1.1662 2.6048 2.6048V9.9616C2.6048 12.2534 5.3511 13.4281 7.0085 11.8453L18.6574 0.721C19.142 0.2582 19.7863 0 20.4563 0Z"
         />
       </svg>
     </div>

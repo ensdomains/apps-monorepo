@@ -84,27 +84,27 @@ export const ProfileCard = ({
 }) => {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 40, scale: 0.95 }}
-      whileInView={{ opacity: 1, y: 0, scale: 1 }}
-      viewport={{ once: false, margin: '-80px' }}
-      transition={{
-        duration: 0.5,
-        delay,
-        ease: 'easeOut',
-      }}
       className={twm(
         'w-full overflow-hidden rounded-xl',
         COLOR_VARIANTS[variant].bg,
         className,
       )}
+      initial={{ opacity: 0, y: 40, scale: 0.95 }}
+      transition={{
+        duration: 0.5,
+        delay,
+        ease: 'easeOut',
+      }}
+      viewport={{ once: false, margin: '-80px' }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
     >
       <div
         className={tw`relative mb-18 h-32 w-full ${COLOR_VARIANTS[variant].surface.bg}`}
       >
         <img
-          src={avatarUrl}
           alt={name}
           className={tw`-bottom-1/2 absolute left-5 size-32 rounded-full border-4 ${COLOR_VARIANTS[variant].border}`}
+          src={avatarUrl}
         />
       </div>
 
@@ -142,11 +142,11 @@ export const ProfileCard = ({
         <div className="flex flex-wrap gap-2">
           {links.map(({ icon, href, title }) => (
             <a
-              key={href}
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
               className={tw`flex items-center gap-1 rounded-sm p-2 ${COLOR_VARIANTS[variant].bg2}`}
+              href={href}
+              key={href}
+              rel="noopener noreferrer"
+              target="_blank"
             >
               <span
                 className={tw`size-4 ${COLOR_VARIANTS[variant].surface.text}`}

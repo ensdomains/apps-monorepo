@@ -6,7 +6,7 @@ import { getAvailableRecords, getRecordDef } from '../../data/records'
 export const SocialLinksSection = withForm({
   ...sharedOptions,
   render: ({ form }) => (
-    <form.Field name="social" mode="array">
+    <form.Field mode="array" name="social">
       {(socialField) => (
         <div className="space-y-2">
           <h3 className="font-medium">Social Links</h3>
@@ -19,12 +19,12 @@ export const SocialLinksSection = withForm({
                 return (
                   <RecordEntry
                     name={record.name}
-                    placeholder={record.placeholder}
-                    value={field.state.value}
                     onChange={field.handleChange}
                     onRemove={() => {
                       socialField.removeValue(i)
                     }}
+                    placeholder={record.placeholder}
+                    value={field.state.value}
                   />
                 )
               }}
@@ -33,16 +33,16 @@ export const SocialLinksSection = withForm({
           <div className="mt-3 flex justify-end">
             <AddTextRecordsDialog
               buttonLabel="Add Social Link"
-              title="Add Social Link"
-              records={getAvailableRecords(
-                socialField.state.value.map(({ key }) => key),
-                'social',
-              )}
               onAdd={(keys) => {
                 for (const key of keys) {
                   socialField.pushValue({ key, value: '' })
                 }
               }}
+              records={getAvailableRecords(
+                socialField.state.value.map(({ key }) => key),
+                'social',
+              )}
+              title="Add Social Link"
             />
           </div>
         </div>

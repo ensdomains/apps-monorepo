@@ -26,11 +26,11 @@ export const RecordEntry = ({
     <div className="flex items-center gap-2">
       <Input
         className="w-full flex-1"
+        onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder}
         value={value}
-        onChange={(e) => onChange?.(e.target.value)}
       />
-      <button type="button" onClick={onRemove}>
+      <button onClick={onRemove} type="button">
         <X className="size-4" />
       </button>
     </div>

@@ -37,10 +37,10 @@ export const DashboardSidebar = ({
             <nav className="space-y-[2px]">
               <Button
                 asChild
-                variant="ghost"
                 className="h-auto w-full justify-start rounded-[8px] bg-[#e2f1f5] p-3 text-[#0080bc] hover:bg-[#e2f1f5]/80 hover:text-[#0080bc]"
+                variant="ghost"
               >
-                <Link to="/dashboard" className="flex items-center gap-[10px]">
+                <Link className="flex items-center gap-[10px]" to="/dashboard">
                   <LayoutGrid className="size-6" />
                   <span className="font-medium font-sans text-[14px]">
                     Dashboard
@@ -51,10 +51,10 @@ export const DashboardSidebar = ({
               {match(hasProfile)
                 .with(true, () => (
                   <LinkButton
-                    to="/p/$name"
-                    params={{ name: profileName ?? '' }}
-                    variant="ghost"
                     className="h-auto w-full justify-start rounded-[8px] bg-transparent p-3 text-[#6b6b6b] hover:bg-gray-100 hover:text-[#6b6b6b]"
+                    params={{ name: profileName ?? '' }}
+                    to="/p/$name"
+                    variant="ghost"
                   >
                     <User className="size-6" />
                     <span className="font-sans text-[14px]">Profile</span>
@@ -62,9 +62,9 @@ export const DashboardSidebar = ({
                 ))
                 .with(false, () => (
                   <Button
-                    variant="ghost"
                     className="h-auto w-full justify-start rounded-[8px] bg-transparent p-3 text-[#6b6b6b] hover:bg-gray-100 hover:text-[#6b6b6b]"
                     disabled
+                    variant="ghost"
                   >
                     <User className="size-6" />
                     <span className="font-sans text-[14px]">Profile</span>

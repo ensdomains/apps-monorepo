@@ -90,9 +90,9 @@ export const UpdateResolverDialog = ({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="w-full">
+        <Button className="w-full" variant="outline">
           Update Resolver
         </Button>
       </DialogTrigger>
@@ -102,37 +102,37 @@ export const UpdateResolverDialog = ({
         </DialogHeader>
 
         <UpdateStatusPanel
+          errorMessage={errorMessage ?? machineErrorMessage}
           isSaving={isSubmitting}
           isSuccess={isSuccess}
-          errorMessage={errorMessage ?? machineErrorMessage}
           txHash={txHash}
         />
 
         <div className="space-y-2">
           <label
-            htmlFor="resolver-address"
             className="block font-medium text-sm"
+            htmlFor="resolver-address"
           >
             Resolver address
           </label>
           <Input
+            disabled={isSubmitting}
             id="resolver-address"
+            onChange={(e) => setResolver(e.target.value)}
             placeholder="0x..."
             value={resolver}
-            onChange={(e) => setResolver(e.target.value)}
-            disabled={isSubmitting}
           />
         </div>
 
         <DialogFooter>
           <Button
-            variant="outline"
-            onClick={handleCancel}
             disabled={isSubmitting}
+            onClick={handleCancel}
+            variant="outline"
           >
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={isSubmitting}>
+          <Button disabled={isSubmitting} onClick={handleSave}>
             {isSubmitting ? 'Saving…' : 'Save'}
           </Button>
         </DialogFooter>

@@ -22,13 +22,13 @@ export function SmartSessionProvider() {
 
   return (
     <SmartSessionManager
-      ownerAddress={smartAccount.ownerAddress}
-      smartAccountAddress={smartAccount.accountAddress}
+      clearSessionModalTrigger={smartAccount.clearSessionModalTrigger}
       ecdsaValidator={smartAccount.ecdsaValidator}
       isAccountReady={smartAccount.isAccountReady}
       onSessionCreated={smartAccount.setSessionData}
+      ownerAddress={smartAccount.ownerAddress}
       shouldShowSessionModal={smartAccount.shouldShowSessionModal}
-      clearSessionModalTrigger={smartAccount.clearSessionModalTrigger}
+      smartAccountAddress={smartAccount.accountAddress}
     />
   )
 }
@@ -80,11 +80,11 @@ function SmartSessionManager({
 
   return (
     <EnableSessionModal
-      open={showEnableModal}
-      onOpenChange={handleOpenChange}
       onEnableSession={handleEnableSession}
-      walletAddress={ownerAddress ?? undefined}
+      onOpenChange={handleOpenChange}
+      open={showEnableModal}
       smartAccountAddress={smartAccountAddress ?? undefined}
+      walletAddress={ownerAddress ?? undefined}
     />
   )
 }

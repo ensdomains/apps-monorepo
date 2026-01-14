@@ -20,14 +20,14 @@ function BaseInput({
 }: React.ComponentProps<'input'>) {
   return (
     <input
-      type={type}
-      data-slot="input"
       className={cn(
         'flex h-9 w-full min-w-0 rounded-sm border border-input bg-transparent px-3 py-1 text-base shadow-xs outline-none transition-[color,box-shadow] selection:bg-primary selection:text-primary-foreground file:inline-flex file:h-7 file:border-0 file:bg-transparent file:font-medium file:text-foreground file:text-sm placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
         'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
         'aria-invalid:border-destructive aria-invalid:ring-destructive/20',
         className,
       )}
+      data-slot="input"
+      type={type}
       {...props}
     />
   )
@@ -72,7 +72,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {startIcon}
           </div>
         )}
-        <BaseInput ref={ref} id={inputId} className={inputClasses} {...props} />
+        <BaseInput className={inputClasses} id={inputId} ref={ref} {...props} />
         {endIcon && (
           <div className="absolute right-3 z-10 flex items-center text-muted-foreground">
             {endIcon}
@@ -85,7 +85,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       return (
         <div className="flex flex-col gap-1">
           {label && (
-            <Label htmlFor={inputId} className="font-medium text-sm">
+            <Label className="font-medium text-sm" htmlFor={inputId}>
               {label}
             </Label>
           )}

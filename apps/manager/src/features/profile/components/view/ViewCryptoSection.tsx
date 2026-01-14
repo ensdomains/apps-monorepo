@@ -11,13 +11,13 @@ const CryptoAddress = ({ address }: CryptoAddressProps) => {
   const record = getAddressRecordDef(address.coinType)
   return (
     <CopyableButton
-      value={address.value || ''}
       className="w-full min-w-1/3 max-w-1/2 flex-1 items-center justify-between"
-      title={address.value || ''}
       disabled={!address.value}
       iconClassName="size-3.5"
+      title={address.value || ''}
+      value={address.value || ''}
     >
-      <IconRenderer icon={record?.icon} className="size-3.5" />
+      <IconRenderer className="size-3.5" icon={record?.icon} />
       <div className="flex min-w-0 items-center gap-2">
         <span className="select-none text-gray-600 text-xs uppercase">
           {record?.notation || `#${address.coinType}`}
@@ -41,7 +41,7 @@ export const ViewCryptoSection = ({ records }: ViewCryptoSectionProps) => {
       {records.addresses.length > 0 ? (
         <div className="flex flex-wrap gap-2">
           {records.addresses.map((address, i) => (
-            <CryptoAddress key={`${address.coinType}-${i}`} address={address} />
+            <CryptoAddress address={address} key={`${address.coinType}-${i}`} />
           ))}
         </div>
       ) : (

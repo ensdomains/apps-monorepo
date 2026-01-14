@@ -44,9 +44,9 @@ export const AddTextRecordsDialog = ({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>
-        <Button variant="secondary" size="sm" className="rounded-full">
+        <Button className="rounded-full" size="sm" variant="secondary">
           <Plus className="size-5" />
           {buttonLabel}
         </Button>
@@ -61,12 +61,12 @@ export const AddTextRecordsDialog = ({
               const isSelected = selectedKeys.includes(record.key)
               return (
                 <Button
-                  key={record.key}
-                  variant={isSelected ? 'default' : 'secondary'}
-                  onClick={() => handleToggle(record.key)}
                   className="flex items-center gap-2 rounded-full"
+                  key={record.key}
+                  onClick={() => handleToggle(record.key)}
+                  variant={isSelected ? 'default' : 'secondary'}
                 >
-                  <IconRenderer icon={record.icon} className="size-4" />
+                  <IconRenderer className="size-4" icon={record.icon} />
                   <span>{record.name}</span>
                   {isSelected ? (
                     <CircleCheck className="size-4" />
@@ -82,9 +82,9 @@ export const AddTextRecordsDialog = ({
         )}
         <DialogFooter>
           <Button
-            onClick={handleAdd}
             className="w-full"
             disabled={selectedKeys.length === 0}
+            onClick={handleAdd}
           >
             Add
           </Button>

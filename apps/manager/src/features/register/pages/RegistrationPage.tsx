@@ -203,9 +203,9 @@ export function Registration({ initialName }: RegistrationProps) {
       ) && (
         <div className="absolute flex items-center justify-between">
           <Button
-            variant="ghost"
-            onClick={handleBack}
             className="h-auto p-2 text-ens-lapis-surface uppercase"
+            onClick={handleBack}
+            variant="ghost"
           >
             <ArrowLeftIcon className="h-6 w-6 font-bold" /> Back
           </Button>
@@ -247,8 +247,8 @@ export function Registration({ initialName }: RegistrationProps) {
                   </div>
 
                   <Button
-                    onClick={() => navigate({ to: '/' })}
                     className="h-14 w-full rounded bg-ens-blue font-mono text-sm text-white uppercase tracking-wider hover:bg-ens-blue-hover"
+                    onClick={() => navigate({ to: '/' })}
                   >
                     Back to Search
                   </Button>
@@ -265,9 +265,6 @@ export function Registration({ initialName }: RegistrationProps) {
               isLoading={
                 isCommitPending || isApprovePending || isRegisterPending
               }
-              onSetDuration={handleSetDuration}
-              onSelectPayment={handleSelectPayment}
-              onSelectCrypto={handleSelectCrypto}
               onConfirmPayment={(tokenPrice, selectedToken, options) => {
                 handleStartRegistration(
                   {
@@ -285,6 +282,9 @@ export function Registration({ initialName }: RegistrationProps) {
                 )
               }}
               onPricingDataChange={handlePricingDataChange}
+              onSelectCrypto={handleSelectCrypto}
+              onSelectPayment={handleSelectPayment}
+              onSetDuration={handleSetDuration}
             />
           )}
         </div>
@@ -296,21 +296,21 @@ export function Registration({ initialName }: RegistrationProps) {
         step === RegistrationStep.SUCCESS ||
         step === RegistrationStep.ERROR) && (
         <RegistrationInProgress
-          domainName={displayDomainName}
           actor={actor}
-          duration={ui.duration}
-          totalPrice={pricingData?.finalPrice ?? 0}
           discountAmount={pricingData?.discountAmount ?? 0}
-          registerWaitSeconds={registerWaitSeconds}
+          domainName={displayDomainName}
+          duration={ui.duration}
+          onGoToDashboard={handleGoToDashboard}
           onNotificationConfirm={handleNotificationConfirm}
           onNotificationSkip={handleNotificationSkip}
-          onGoToDashboard={handleGoToDashboard}
           onProfileNavigate={handleProfileNavigate}
+          registerWaitSeconds={registerWaitSeconds}
           showRegistrationDetails={
             skipNotificationSettings ||
             hasSkippedNotifications ||
             hasConfirmedNotifications
           }
+          totalPrice={pricingData?.finalPrice ?? 0}
         />
       )}
     </div>
