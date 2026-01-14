@@ -2963,6 +2963,33 @@ export const Navigation = () => {
 
 ## Accessibility
 
+Use WCAG 2 guidelines wherever possible (prefer WCAG 2.2).
+
+Quick references:
+- WCAG overview: https://www.w3.org/WAI/standards-guidelines/wcag/
+- How to Meet WCAG 2.2 (Quick Reference): https://www.w3.org/WAI/WCAG22/quickref/
+
+### WCAG 2 Examples
+
+#### Focus Visible (WCAG 2.4.7)
+
+Never remove focus styles without a clear replacement. Prefer `:focus-visible` so mouse users don’t get distracting rings.
+
+```typescript
+// Good - visible keyboard focus ring
+<button
+  type="button"
+  className="rounded-sm px-3 py-2 outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+>
+  Save
+</button>
+
+// Avoid - removing outlines with no replacement
+<button type="button" className="outline-none">
+  Save
+</button>
+```
+
 ### Semantic HTML
 
 Use semantic HTML elements:
