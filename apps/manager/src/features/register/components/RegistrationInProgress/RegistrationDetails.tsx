@@ -107,17 +107,17 @@ export const RegistrationDetails = ({
 
       <div className="flex flex-col gap-3">
         <Button
+          className="h-20 w-full rounded bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-ens-blue-hover disabled:bg-ens-gray-two disabled:text-ens-gray"
           disabled={!isRegistrationComplete}
           onClick={onProfileNavigate}
-          className="h-20 w-full rounded bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-ens-blue-hover disabled:bg-ens-gray-two disabled:text-ens-gray"
         >
           Go to Profile
         </Button>
         <Button
-          variant="outline"
+          className="h-20 w-full rounded border-ens-blue bg-white font-mono text-sm uppercase tracking-wider transition-colors hover:bg-ens-blue-light disabled:border-ens-gray-two disabled:text-ens-gray disabled:hover:bg-white"
           disabled={!isRegistrationComplete}
           onClick={onGoToDashboard}
-          className="h-20 w-full rounded border-ens-blue bg-white font-mono text-sm uppercase tracking-wider transition-colors hover:bg-ens-blue-light disabled:border-ens-gray-two disabled:text-ens-gray disabled:hover:bg-white"
+          variant="outline"
         >
           Go to Dashboard
         </Button>

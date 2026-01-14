@@ -95,9 +95,9 @@ export const Autorenewal = ({
               Add credit card
             </Button>
             <Button
+              className="w-full text-gray-600"
               onClick={handleSkipAutorenewal}
               variant="ghost"
-              className="w-full text-gray-600"
             >
               Skip →
             </Button>

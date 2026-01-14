@@ -38,13 +38,13 @@ export function CopyableButton({
 
   return (
     <Button
+      className={className}
+      disabled={isDisabled}
+      onClick={handleClick}
+      size="sm"
+      title={title ?? value}
       type="button"
       variant="outline"
-      size="sm"
-      className={className}
-      onClick={handleClick}
-      disabled={isDisabled}
-      title={title ?? value}
       {...props}
     >
       {children}

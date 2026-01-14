@@ -124,22 +124,22 @@ export const RegistrationInProgress = ({
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-0 pt-10 pb-6 md:px-6">
       <ProgressBar
-        stage={progressStage}
-        machineState={typeof stateValue === 'string' ? stateValue : 'error'}
         error={error}
+        machineState={typeof stateValue === 'string' ? stateValue : 'error'}
+        stage={progressStage}
       />
 
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
         {showRegistrationDetails ? (
           <RegistrationDetails
-            isRegistrationComplete={isRegistrationComplete}
+            discountAmount={discountAmount}
             domainName={domainName}
             duration={duration}
-            totalPrice={totalPrice}
-            discountAmount={discountAmount}
             expiresDate={expiresDate}
+            isRegistrationComplete={isRegistrationComplete}
             onGoToDashboard={onGoToDashboard}
             onProfileNavigate={onProfileNavigate}
+            totalPrice={totalPrice}
           />
         ) : (
           <NotificationSettings

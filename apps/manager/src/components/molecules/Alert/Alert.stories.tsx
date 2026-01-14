@@ -30,24 +30,24 @@ export const Variants: Story = {
   render: () => (
     <div className="flex flex-col gap-4">
       <Alert
-        variant="default"
-        title="Information"
         description="This is an informational message."
+        title="Information"
+        variant="default"
       />
       <Alert
-        variant="success"
-        title="Success"
         description="Your action was completed successfully."
+        title="Success"
+        variant="success"
       />
       <Alert
-        variant="warning"
-        title="Warning"
         description="Please review this information carefully."
+        title="Warning"
+        variant="warning"
       />
       <Alert
-        variant="destructive"
-        title="Error"
         description="Something went wrong. Please try again."
+        title="Error"
+        variant="destructive"
       />
     </div>
   ),
@@ -56,10 +56,10 @@ export const Variants: Story = {
 export const TitleOnly: Story = {
   render: () => (
     <div className="flex flex-col gap-4">
-      <Alert variant="default" title="Just a title" />
-      <Alert variant="success" title="Success!" />
-      <Alert variant="warning" title="Warning!" />
-      <Alert variant="destructive" title="Error!" />
+      <Alert title="Just a title" variant="default" />
+      <Alert title="Success!" variant="success" />
+      <Alert title="Warning!" variant="warning" />
+      <Alert title="Error!" variant="destructive" />
     </div>
   ),
 }
@@ -68,15 +68,15 @@ export const DescriptionOnly: Story = {
   render: () => (
     <div className="flex flex-col gap-4">
       <Alert
-        variant="default"
         description="Just a description without title."
+        variant="default"
       />
       <Alert
-        variant="success"
         description="Operation completed successfully."
+        variant="success"
       />
-      <Alert variant="warning" description="This action cannot be undone." />
-      <Alert variant="destructive" description="Failed to save changes." />
+      <Alert description="This action cannot be undone." variant="warning" />
+      <Alert description="Failed to save changes." variant="destructive" />
     </div>
   ),
 }
@@ -85,16 +85,16 @@ export const CustomIcons: Story = {
   render: () => (
     <div className="flex flex-col gap-4">
       <Alert
-        variant="default"
-        title="Custom Icon"
         description="This alert uses a custom icon."
         icon={<span>🔔</span>}
+        title="Custom Icon"
+        variant="default"
       />
       <Alert
-        variant="success"
-        title="Custom Success"
         description="Custom icon for success state."
         icon={<span>🎉</span>}
+        title="Custom Success"
+        variant="success"
       />
     </div>
   ),
@@ -102,11 +102,11 @@ export const CustomIcons: Story = {
 
 export const WithChildren: Story = {
   render: () => (
-    <Alert variant="warning" title="Action Required">
+    <Alert title="Action Required" variant="warning">
       <p>Your subscription expires in 3 days.</p>
       <button
-        type="button"
         className="mt-2 rounded bg-yellow-600 px-4 py-2 text-white hover:bg-yellow-700"
+        type="button"
       >
         Renew Subscription
       </button>
@@ -118,27 +118,27 @@ export const RealWorldExamples: Story = {
   render: () => (
     <div className="flex max-w-2xl flex-col gap-4">
       <Alert
-        variant="success"
-        title="Domain registered successfully!"
         description="example.eth has been registered to your wallet."
+        title="Domain registered successfully!"
+        variant="success"
       />
 
       <Alert
-        variant="warning"
-        title="Gas fees are high"
         description="Current network congestion may result in higher transaction costs."
+        title="Gas fees are high"
+        variant="warning"
       />
 
       <Alert
-        variant="destructive"
-        title="Transaction failed"
         description="Insufficient funds to complete the registration."
+        title="Transaction failed"
+        variant="destructive"
       />
 
       <Alert
-        variant="default"
-        title="ENS Domain Available"
         description="The domain you searched for is available for registration."
+        title="ENS Domain Available"
+        variant="default"
       />
     </div>
   ),

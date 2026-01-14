@@ -76,7 +76,7 @@ export const EnableSessionModal = ({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog onOpenChange={handleClose} open={open}>
       <DialogContent
         className="max-w-md border-ens-gray-two p-6"
         onInteractOutside={(e) => e.preventDefault()}
@@ -90,11 +90,11 @@ export const EnableSessionModal = ({
               </h2>
             </DialogTitle>
             <Button
-              variant="ghost"
-              size="icon"
               className="h-6 w-6 p-0"
-              onClick={handleClose}
               disabled={status === 'signing'}
+              onClick={handleClose}
+              size="icon"
+              variant="ghost"
             >
               <X className="h-4 w-4 text-ens-gray" />
             </Button>
@@ -163,8 +163,8 @@ export const EnableSessionModal = ({
                   'hover:bg-ens-blue-hover',
                   'disabled:cursor-not-allowed disabled:opacity-50',
                 )}
-                onClick={handleEnable}
                 disabled={status === 'signing'}
+                onClick={handleEnable}
               >
                 {status === 'signing'
                   ? 'Waiting for signature...'
@@ -174,10 +174,10 @@ export const EnableSessionModal = ({
               </Button>
 
               <Button
-                variant="ghost"
                 className="h-11 w-full text-ens-gray hover:text-ens-blue-midnight"
-                onClick={handleSkip}
                 disabled={status === 'signing'}
+                onClick={handleSkip}
+                variant="ghost"
               >
                 Skip for now
               </Button>

@@ -38,8 +38,8 @@ export const AddressProfileView = ({ address }: { address: Address }) => {
         {Array.from({ length: 4 }).map((_, index) => (
           <div
             // biome-ignore lint/suspicious/noArrayIndexKey: TODO: We need to fix this
-            key={index}
             className="h-[92px] animate-pulse rounded-lg border border-slate-200 bg-slate-50"
+            key={index}
           />
         ))}
       </div>
@@ -61,10 +61,10 @@ export const AddressProfileView = ({ address }: { address: Address }) => {
 
           return (
             <Link
-              key={domain.id}
-              to="/p/$name"
-              params={{ name: label }}
               className="group hover:-translate-y-0.5 rounded-lg border border-slate-200 p-4 transition hover:border-slate-400 hover:shadow-sm"
+              key={domain.id}
+              params={{ name: label }}
+              to="/p/$name"
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate font-mono text-base text-slate-900">
@@ -97,8 +97,8 @@ export const AddressProfileView = ({ address }: { address: Address }) => {
           </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-slate-50">
             <CopyToClipboard
-              value={address}
               className="size-4 text-slate-700"
+              value={address}
             />
           </div>
         </div>

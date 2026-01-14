@@ -89,20 +89,20 @@ function EmailVerificationPage() {
     return (
       <VerificationCard>
         <VerificationHeader
+          description="Enter the verification code from your email to verify your address."
           icon={<Mail className="h-6 w-6 text-gray-400" />}
           title="Enter Verification Code"
-          description="Enter the verification code from your email to verify your address."
         />
         <CardContent>
           <EmailVerifyStep
             channelId=""
-            isVerifying={verifyEmailMutation.isPending}
             isVerified={verifyEmailMutation.isSuccess}
-            verificationError={verifyEmailMutation.error?.message || null}
-            onVerifyCode={(code) => handleVerify(code)}
-            onBackToSend={() => {}} // Not applicable for this route
+            isVerifying={verifyEmailMutation.isPending}
+            onBackToSend={() => {}}
             onCancel={handleContinue}
-            onSuccess={handleContinue}
+            onSuccess={handleContinue} // Not applicable for this route
+            onVerifyCode={(code) => handleVerify(code)}
+            verificationError={verifyEmailMutation.error?.message || null}
           />
         </CardContent>
       </VerificationCard>
@@ -143,7 +143,7 @@ function EmailVerificationPage() {
 
   return (
     <VerificationCard>
-      <VerificationHeader icon={icon} title={title} description={description} />
+      <VerificationHeader description={description} icon={icon} title={title} />
       <CardContent className="space-y-4">
         {/* Error message */}
         {isError && (
@@ -176,27 +176,27 @@ function EmailVerificationPage() {
         {/* Action buttons */}
         {isError ? (
           <div className="space-y-2">
-            <Button onClick={() => handleVerify()} className="w-full">
+            <Button className="w-full" onClick={() => handleVerify()}>
               Try Again
             </Button>
             <Button
-              variant="outline"
-              onClick={handleContinue}
               className="w-full"
+              onClick={handleContinue}
+              variant="outline"
             >
               Continue to Settings
             </Button>
           </div>
         ) : isSuccess ? (
-          <Button onClick={handleContinue} className="w-full">
+          <Button className="w-full" onClick={handleContinue}>
             Continue to Settings
           </Button>
         ) : (
           <div className="space-y-2">
-            <Button onClick={() => handleVerify()} className="w-full">
+            <Button className="w-full" onClick={() => handleVerify()}>
               Verify Email Address
             </Button>
-            <Button variant="outline" className="w-full" asChild>
+            <Button asChild className="w-full" variant="outline">
               <Link to="/notifications/settings">Back to Settings</Link>
             </Button>
           </div>

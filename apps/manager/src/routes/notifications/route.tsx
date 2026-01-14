@@ -49,9 +49,9 @@ const UnauthenticatedContent = () => {
           </div>
 
           <Button
-            onClick={handleSignIn}
-            disabled={signIn.isPending || !walletClient}
             className="w-full"
+            disabled={signIn.isPending || !walletClient}
+            onClick={handleSignIn}
             size="lg"
           >
             {signIn.isPending ? 'Signing in...' : 'Sign in with Wallet'}

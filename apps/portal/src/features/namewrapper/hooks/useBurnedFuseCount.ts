@@ -10,7 +10,7 @@ import {
 
 type BurnedFuseCountParameters = GetNameWrapperDataParameters
 
-const countBurned = (
+export const countBurned = (
   f: DecodedFuses['child'] | DecodedFuses['parent'],
 ): number =>
   Object.values(f).reduce<number>((acc, v) => {

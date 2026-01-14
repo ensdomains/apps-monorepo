@@ -104,7 +104,7 @@ export const CreditCardPaymentDrawer = ({
   // Desktop Dialog
   if (isDesktop) {
     return (
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog onOpenChange={setOpen} open={open}>
         <DialogTrigger asChild>{triggerButton}</DialogTrigger>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -118,7 +118,7 @@ export const CreditCardPaymentDrawer = ({
 
   // Mobile Drawer
   return (
-    <Drawer open={open} onOpenChange={setOpen}>
+    <Drawer onOpenChange={setOpen} open={open}>
       <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
       <DrawerContent>
         <DrawerHeader className="text-left">
@@ -236,12 +236,12 @@ export const CryptoPaymentDrawer = ({
           {/* Search Input */}
           <div className="w-2/3">
             <Input
-              type="text"
-              placeholder="Search coins"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              startIcon={<Search className="h-4 w-4 text-ens-gray" />}
               className="h-9 rounded border-ens-gray-two"
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search coins"
+              startIcon={<Search className="h-4 w-4 text-ens-gray" />}
+              type="text"
+              value={searchQuery}
             />
           </div>
         </div>
@@ -307,10 +307,6 @@ export const CryptoPaymentDrawer = ({
 
                   return (
                     <button
-                      key={stablecoin.address}
-                      type="button"
-                      onClick={() => setSelectedCoin(stablecoin.address)}
-                      disabled={hasInsufficientBalanceForCoin}
                       className={cn(
                         'flex h-11 items-center justify-between rounded px-2.5 py-4 transition-colors',
                         isSelected
@@ -319,6 +315,10 @@ export const CryptoPaymentDrawer = ({
                         hasInsufficientBalanceForCoin &&
                           'cursor-not-allowed opacity-50',
                       )}
+                      disabled={hasInsufficientBalanceForCoin}
+                      key={stablecoin.address}
+                      onClick={() => setSelectedCoin(stablecoin.address)}
+                      type="button"
                     >
                       <div className="flex items-center gap-2">
                         {/* Coin icon with chain badge */}
@@ -379,7 +379,7 @@ export const CryptoPaymentDrawer = ({
   // Desktop Dialog
   if (isDesktop) {
     return (
-      <Dialog open={open} onOpenChange={handleOpenChange}>
+      <Dialog onOpenChange={handleOpenChange} open={open}>
         <DialogTrigger asChild>{triggerButton}</DialogTrigger>
         <DialogContent className="min-h-[500px]" showCloseButton={true}>
           <DialogHeader>
@@ -393,7 +393,7 @@ export const CryptoPaymentDrawer = ({
 
   // Mobile Drawer
   return (
-    <Drawer open={open} onOpenChange={handleOpenChange}>
+    <Drawer onOpenChange={handleOpenChange} open={open}>
       <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
       <DrawerContent>
         <DrawerHeader className="px-4 pt-5 pb-5 text-left">
@@ -422,17 +422,17 @@ export const PaymentDrawer = ({
         <CreditCardPaymentDrawer
           domainName={domainName}
           duration={duration}
-          priceUSD={priceUSD}
           onPaymentSelect={onPaymentSelect}
+          priceUSD={priceUSD}
         />
         <CryptoPaymentDrawer
           domainName={domainName}
           duration={duration}
-          priceUSD={priceUSD}
           isUsingAA={isUsingAA}
-          onPaymentSelect={onPaymentSelect}
-          onCryptoSelect={onCryptoSelect}
           onConfirmPayment={onConfirmPayment}
+          onCryptoSelect={onCryptoSelect}
+          onPaymentSelect={onPaymentSelect}
+          priceUSD={priceUSD}
         />
       </div>
     </div>

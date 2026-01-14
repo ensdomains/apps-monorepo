@@ -19,14 +19,14 @@ function RouteComponent() {
       <h1 className="font-bold text-2xl">Manage Renewals</h1>
       <div className="space-y-4">
         {RENEWALS.map((renewal) => (
-          <AutoRenewalItem key={renewal.name} autoRenewal={renewal} />
+          <AutoRenewalItem autoRenewal={renewal} key={renewal.name} />
         ))}
       </div>
       <PaymentMethodAdd />
       <ClientOnly>
         <PaymentMethodList />
       </ClientOnly>
-      <Button variant="default" className="w-full" size="lg">
+      <Button className="w-full" size="lg" variant="default">
         Confirm
       </Button>
     </div>

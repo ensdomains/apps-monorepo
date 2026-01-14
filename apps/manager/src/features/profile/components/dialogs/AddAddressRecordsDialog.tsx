@@ -44,9 +44,9 @@ export const AddAddressRecordsDialog = ({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>
-        <Button variant="secondary" size="sm" className="rounded-full">
+        <Button className="rounded-full" size="sm" variant="secondary">
           <Plus className="size-5" />
           {buttonLabel}
         </Button>
@@ -61,12 +61,12 @@ export const AddAddressRecordsDialog = ({
               const isSelected = selectedCoinTypes.includes(record.coinType)
               return (
                 <Button
-                  key={record.coinType}
-                  variant={isSelected ? 'default' : 'outline'}
-                  onClick={() => handleToggle(record.coinType)}
                   className="flex min-w-fit max-w-1/2 flex-1 items-center gap-2"
+                  key={record.coinType}
+                  onClick={() => handleToggle(record.coinType)}
+                  variant={isSelected ? 'default' : 'outline'}
                 >
-                  <IconRenderer icon={record.icon} className="size-4" />
+                  <IconRenderer className="size-4" icon={record.icon} />
                   <span>{record.name}</span>
                   {isSelected ? (
                     <Check className="size-4" />
@@ -82,9 +82,9 @@ export const AddAddressRecordsDialog = ({
         )}
         <DialogFooter>
           <Button
-            onClick={handleAdd}
             className="w-full"
             disabled={selectedCoinTypes.length === 0}
+            onClick={handleAdd}
           >
             Add
           </Button>

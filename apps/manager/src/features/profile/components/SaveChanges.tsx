@@ -39,13 +39,13 @@ export const SaveChanges = withForm({
     <form.Subscribe selector={(state) => state.values}>
       {(currentData) => (
         <DiffDialog
-          name={name}
-          originalData={originalData}
           currentData={currentData}
-          onSave={onSave}
+          errorMessage={errorMessage}
           isSaving={isSaving}
           isSuccess={isSuccess}
-          errorMessage={errorMessage}
+          name={name}
+          onSave={onSave}
+          originalData={originalData}
           txHash={txHash}
           validationIssues={validationIssues}
         />

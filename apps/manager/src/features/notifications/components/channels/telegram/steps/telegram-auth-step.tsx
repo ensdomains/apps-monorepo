@@ -26,10 +26,10 @@ export function TelegramAuthStep({ state, actions }: TelegramStepProps) {
 
       <div className="text-center">
         <Button
-          onClick={onTelegramAuth}
-          disabled={isAuthenticating}
-          size="lg"
           className="w-full"
+          disabled={isAuthenticating}
+          onClick={onTelegramAuth}
+          size="lg"
         >
           <MessageSquare className="mr-2 h-5 w-5" />
           {isAuthenticating ? 'Authenticating...' : 'Sign in to Telegram'}
@@ -48,11 +48,11 @@ export function TelegramAuthStep({ state, actions }: TelegramStepProps) {
 
       <div className="flex gap-2">
         <Button
+          className="flex-1"
+          disabled={isAuthenticating}
+          onClick={onCancel}
           type="button"
           variant="outline"
-          onClick={onCancel}
-          disabled={isAuthenticating}
-          className="flex-1"
         >
           Cancel
         </Button>

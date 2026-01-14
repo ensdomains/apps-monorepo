@@ -44,7 +44,6 @@ export const Badge = ({
 
   return (
     <ShadcnBadge
-      variant={shadcnVariant}
       className={cn(
         sizeClasses[size],
         isCustomVariant &&
@@ -53,6 +52,7 @@ export const Badge = ({
           ],
         className,
       )}
+      variant={shadcnVariant}
       {...props}
     >
       {children}

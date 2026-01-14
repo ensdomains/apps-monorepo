@@ -29,12 +29,12 @@ export const RegistrationPanel = ({
   const isAvailable = result.isAvailable
 
   const header = isAvailable ? (
-    <Link to="/register" search={{ name: result.name }}>
+    <Link search={{ name: result.name }} to="/register">
       <DomainResultCard
-        domainName={result.name}
-        status={result.isPremium ? 'premium' : 'available'}
-        premiumLabel={getPremiumLabel(result.name)}
         clickable
+        domainName={result.name}
+        premiumLabel={getPremiumLabel(result.name)}
+        status={result.isPremium ? 'premium' : 'available'}
       />
     </Link>
   ) : null

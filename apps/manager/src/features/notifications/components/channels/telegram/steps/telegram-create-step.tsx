@@ -33,10 +33,10 @@ export function TelegramCreateStep({ state, actions }: TelegramStepProps) {
 
       <div className="text-center">
         <Button
-          onClick={onCreateChannel}
-          disabled={isCreatingChannel}
-          size="lg"
           className="w-full"
+          disabled={isCreatingChannel}
+          onClick={onCreateChannel}
+          size="lg"
         >
           <ArrowRight className="mr-2 h-5 w-5" />
           {isCreatingChannel
@@ -48,11 +48,11 @@ export function TelegramCreateStep({ state, actions }: TelegramStepProps) {
       <div className="flex gap-2">
         {!isChannelCreated && (
           <Button
+            className="flex-1"
+            disabled={isCreatingChannel}
+            onClick={onBackToAuth}
             type="button"
             variant="outline"
-            onClick={onBackToAuth}
-            disabled={isCreatingChannel}
-            className="flex-1"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Authentication

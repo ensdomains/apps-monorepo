@@ -52,13 +52,13 @@ export const SearchForm = ({
   return (
     <div className="relative w-full">
       <SearchField
-        value={query}
         onChange={handleInputChange}
+        onSearch={handleSearch}
         // TODO: Add this back in with fixed SearchField component
         // onFocus={handleInputFocus}
         // onBlur={handleInputBlur}
-        onSearch={handleSearch}
         placeholder={placeholder}
+        value={query}
         // buttonProps={{
         //   loading,
         //   disabled: !query.trim() || loading,
@@ -69,16 +69,16 @@ export const SearchForm = ({
       {showRecent && recentSearches.length > 0 && (
         <div className="absolute top-full right-0 left-0 z-10 mt-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-background shadow-lg">
           <div className="border-border border-b px-4 py-3">
-            <Text variant="caption" color="secondary" weight="medium">
+            <Text color="secondary" variant="caption" weight="medium">
               Recent Searches
             </Text>
           </div>
           {recentSearches.map((recentQuery) => (
             <button
-              key={recentQuery}
-              type="button"
-              onClick={() => handleRecentSearchClick(recentQuery)}
               className="w-full px-4 py-3 text-left text-base text-foreground transition-colors duration-200 hover:bg-secondary"
+              key={recentQuery}
+              onClick={() => handleRecentSearchClick(recentQuery)}
+              type="button"
             >
               {recentQuery}
             </button>

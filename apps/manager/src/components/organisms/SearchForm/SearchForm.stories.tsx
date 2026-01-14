@@ -56,11 +56,11 @@ export const Interactive: Story = {
     <div className="max-w-2xl">
       <h2 className="mb-6 font-bold text-2xl">Find Your Perfect Domain</h2>
       <SearchForm
-        placeholder="Enter your desired domain name"
         onSearch={(query) => {
           console.log('Searching for:', query)
           alert(`Starting search for: ${query}`)
         }}
+        placeholder="Enter your desired domain name"
       />
       <p className="mt-4 text-muted-foreground text-sm">
         Search for .eth domains to check availability and pricing
@@ -74,18 +74,18 @@ export const FullFeatured: Story = {
   render: () => (
     <div className="max-w-2xl">
       <SearchForm
-        placeholder="Search domains..."
-        recentSearches={['alice.eth', 'bob.eth', 'crypto.eth', 'web3.eth']}
         loading={false}
+        onRecentSearchSelect={(query: string) => {
+          console.log('Using recent search:', query)
+        }}
         onSearch={(query) => {
           console.log('Full search for:', query)
           setTimeout(() => {
             console.log('Search completed for:', query)
           }, 2000)
         }}
-        onRecentSearchSelect={(query: string) => {
-          console.log('Using recent search:', query)
-        }}
+        placeholder="Search domains..."
+        recentSearches={['alice.eth', 'bob.eth', 'crypto.eth', 'web3.eth']}
       />
     </div>
   ),
@@ -96,8 +96,8 @@ export const MobileView: Story = {
   render: () => (
     <div className="max-w-sm">
       <SearchForm
-        placeholder="Search..."
         onSearch={(query) => console.log('Mobile search:', query)}
+        placeholder="Search..."
       />
     </div>
   ),
@@ -125,14 +125,14 @@ export const RealWorldExample: Story = {
       </div>
 
       <SearchForm
-        placeholder="Enter your dream domain name"
-        recentSearches={['vitalik.eth', 'ethereum.eth', 'defi.eth']}
-        onSearch={(query) => {
-          console.log('Real world search:', query)
-        }}
         onRecentSearchSelect={(query: string) => {
           console.log('Recent search selected:', query)
         }}
+        onSearch={(query) => {
+          console.log('Real world search:', query)
+        }}
+        placeholder="Enter your dream domain name"
+        recentSearches={['vitalik.eth', 'ethereum.eth', 'defi.eth']}
       />
 
       <div className="mt-6 text-center">

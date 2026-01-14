@@ -8,6 +8,7 @@ import {
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { AddressDisplay } from '@/components/organisms/HistoryTable/AddressDisplay'
 import { Button } from '@/components/ui/button'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { BaseEvent, EventsTableData } from './types'
 
 const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
@@ -97,7 +98,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
       ),
       cell: ({ row }) => {
         const txId = row.original.transactionID
-        const shortTxId = `${txId.slice(0, 6)}…${txId.slice(-4)}`
+        const shortTxId = truncateAddress(txId)
         return (
           <CopyableRecord
             value={txId}

@@ -94,7 +94,7 @@ export const VerifyWalletModal = ({
   const isLoading = isSigning || isWagmiSigning
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog onOpenChange={handleClose} open={open}>
       <DialogContent
         className="max-w-md border-ens-gray-two p-6"
         onInteractOutside={(e) => e.preventDefault()}
@@ -112,21 +112,21 @@ export const VerifyWalletModal = ({
           </DialogDescription>
           <div className="flex items-center justify-between">
             <Button
-              variant="ghost"
-              size="icon"
               className="h-6 w-6 p-0"
-              onClick={handleClose}
               disabled={isLoading}
+              onClick={handleClose}
+              size="icon"
+              variant="ghost"
             >
               <ArrowLeft className="h-4 w-4 text-ens-blue" />
             </Button>
             <div />
             <Button
-              variant="ghost"
-              size="icon"
               className="h-6 w-6 p-0"
-              onClick={handleClose}
               disabled={isLoading}
+              onClick={handleClose}
+              size="icon"
+              variant="ghost"
             >
               <X className="h-4 w-4 text-ens-blue" />
             </Button>
@@ -174,8 +174,8 @@ export const VerifyWalletModal = ({
             'hover:bg-ens-blue-hover',
             'disabled:cursor-not-allowed disabled:opacity-50',
           )}
-          onClick={handleSign}
           disabled={isLoading || hasVerified}
+          onClick={handleSign}
         >
           {hasVerified
             ? 'Verified!'

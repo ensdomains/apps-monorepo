@@ -5,7 +5,7 @@ import { AddLinkDialog } from '../dialogs/AddLinkDialog'
 export const LinksSection = withForm({
   ...sharedOptions,
   render: ({ form }) => (
-    <form.Field name="links" mode="array">
+    <form.Field mode="array" name="links">
       {(linksField) => (
         <div className="space-y-2">
           <h3 className="font-medium">Links</h3>
@@ -16,12 +16,12 @@ export const LinksSection = withForm({
                 return (
                   <RecordEntry
                     name={name}
-                    placeholder="https://example.com"
-                    value={field.state.value}
                     onChange={field.handleChange}
                     onRemove={() => {
                       linksField.removeValue(i)
                     }}
+                    placeholder="https://example.com"
+                    value={field.state.value}
                   />
                 )
               }}
@@ -30,10 +30,10 @@ export const LinksSection = withForm({
           <div className="mt-3 flex justify-end">
             <AddLinkDialog
               buttonLabel="Add Link"
-              title="Add Link"
               onAdd={(link) => {
                 linksField.pushValue(link)
               }}
+              title="Add Link"
             />
           </div>
         </div>

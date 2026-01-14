@@ -55,9 +55,9 @@ export const PrimaryNameCard = ({
             {match(hasAvatar)
               .with(true, () => (
                 <img
-                  src={avatarUrl as string}
                   alt={displayName}
                   className="size-full object-cover"
+                  src={avatarUrl as string}
                 />
               ))
               .otherwise(() => (
@@ -98,11 +98,11 @@ export const PrimaryNameCard = ({
           </div>
         </div>
         <LinkButton
-          to="/p/$name"
-          params={{ name: primaryName ?? '' }}
-          variant="outline"
-          disabled={!canViewProfile}
           className="h-[34px] w-full rounded-[4px] border border-[#0080bc] px-[8.5px] py-[4.25px] text-[#0080bc] hover:bg-[#0080bc]/5 hover:text-[#0080bc] md:w-auto"
+          disabled={!canViewProfile}
+          params={{ name: primaryName ?? '' }}
+          to="/p/$name"
+          variant="outline"
         >
           <span className="font-sans text-[14px] leading-normal">
             View profile

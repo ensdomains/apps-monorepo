@@ -29,20 +29,20 @@ export function EmailSendStep({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form className="space-y-4" onSubmit={handleSubmit}>
       <div className="space-y-2">
         <Label htmlFor={emailId}>Email Address</Label>
         <div className="relative">
           <Mail className="-translate-y-1/2 absolute top-1/2 left-3 h-4 w-4 text-muted-foreground" />
           <Input
-            id={emailId}
-            type="email"
-            placeholder="your@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             className="pl-10"
             disabled={isSendingEmail}
+            id={emailId}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="your@email.com"
             required
+            type="email"
+            value={email}
           />
         </div>
       </div>
@@ -64,18 +64,18 @@ export function EmailSendStep({
 
       <div className="flex gap-2 pt-4">
         <Button
+          className="flex-1"
+          disabled={isSendingEmail}
+          onClick={onCancel}
           type="button"
           variant="outline"
-          onClick={onCancel}
-          disabled={isSendingEmail}
-          className="flex-1"
         >
           Cancel
         </Button>
         <Button
-          type="submit"
-          disabled={isSendingEmail || !email.trim()}
           className="flex-1"
+          disabled={isSendingEmail || !email.trim()}
+          type="submit"
         >
           {isSendingEmail ? 'Sending...' : 'Send Verification'}
         </Button>

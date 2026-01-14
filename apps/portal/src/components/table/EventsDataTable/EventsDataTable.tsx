@@ -20,6 +20,12 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
+import {
+  filterByDateRange,
+  filterByEventTypes,
+  groupEventTypesByCategory,
+  matchesSearchFilter,
+} from '@/utils/table/eventsTableFilters'
 import { createEventsColumns } from './createEventsColumns'
 import { EventsTable } from './EventsTable'
 import type { BaseEvent, EventsTableConfig, EventsTableData } from './types'
@@ -46,60 +52,15 @@ export const EventsDataTable = <TEvent extends BaseEvent = BaseEvent>({
   const [globalFilter, setGlobalFilter] = useState('')
 
   // Group event types by category for filters
-  const eventTypesByCategory = useMemo(() => {
-    const categories = new Map<string, Set<string>>()
-
-    data.forEach((tx) => {
-      tx.events.forEach((event) => {
-        const category = event.category || 'other'
-        if (!categories.has(category)) {
-          categories.set(category, new Set())
-        }
-        categories.get(category)?.add(event.type)
-      })
-    })
-
-    // Convert to the format expected by TableMultiSelectFilter
-    return Array.from(categories.entries()).map(([category, types]) => ({
-      title: `${category.charAt(0).toUpperCase() + category.slice(1)} events`,
-      options: Array.from(types)
-        .sort()
-        .map((type) => ({
-          label: type,
-          value: type,
-        })),
-    }))
-  }, [data])
+  const eventTypesByCategory = useMemo(
+    () => groupEventTypesByCategory(data),
+    [data],
+  )
 
   const filteredData = useMemo(() => {
     let filtered = data
-
-    if (selectedEventTypes.length > 0) {
-      filtered = filtered.filter((tx) => {
-        return tx.events.some((event) =>
-          selectedEventTypes.includes(event.type),
-        )
-      })
-    }
-
-    if (dateRange.from || dateRange.to) {
-      filtered = filtered.filter((tx) => {
-        if (!tx.timestamp) return false
-        const txDate = new Date(Number(tx.timestamp) * 1000)
-        if (dateRange.from && txDate < dateRange.from) {
-          return false
-        }
-        if (dateRange.to) {
-          const toEndOfDay = new Date(dateRange.to)
-          toEndOfDay.setHours(23, 59, 59, 999)
-          if (txDate > toEndOfDay) {
-            return false
-          }
-        }
-        return true
-      })
-    }
-
+    filtered = filterByEventTypes(filtered, selectedEventTypes)
+    filtered = filterByDateRange(filtered, dateRange)
     return filtered
   }, [data, selectedEventTypes, dateRange])
 
@@ -131,17 +92,7 @@ export const EventsDataTable = <TEvent extends BaseEvent = BaseEvent>({
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
     globalFilterFn: (row, _columnId, filterValue) => {
-      const searchValue = filterValue.toLowerCase()
-      const tx = row.original
-
-      if (tx.transactionID.toLowerCase().includes(searchValue)) return true
-
-      if (tx.events.some((e) => e.type.toLowerCase().includes(searchValue)))
-        return true
-
-      if (tx.from?.toLowerCase().includes(searchValue)) return true
-
-      return false
+      return matchesSearchFilter(row.original, filterValue)
     },
     meta: {
       onMoreClick: (row: Row<EventsTableData<TEvent>>) => {

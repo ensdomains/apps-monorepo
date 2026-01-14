@@ -64,7 +64,7 @@ function RouteComponent() {
           <div className="text-gray-700">
             You don&apos;t have permission to edit this profile.
           </div>
-          <LinkButton to="/p/$name" params={{ name }}>
+          <LinkButton params={{ name }} to="/p/$name">
             View profile
           </LinkButton>
         </div>

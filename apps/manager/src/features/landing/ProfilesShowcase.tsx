@@ -21,9 +21,8 @@ export const ProfilesShowcase = () => {
 
       <div className="mt-20 flex gap-11 max-md:flex-col">
         <ProfileCard
-          name="vitalik.eth"
           avatarUrl={vitalikAvatar}
-          registeredDate={new Date('2020-02-06')}
+          delay={0}
           description="mi pinxe lo crino tcati"
           links={[
             {
@@ -42,13 +41,13 @@ export const ProfilesShowcase = () => {
               title: 'vitalik.eth.limo',
             },
           ]}
+          name="vitalik.eth"
+          registeredDate={new Date('2020-02-06')}
           variant="peridot"
-          delay={0}
         />
         <ProfileCard
-          name="nick.eth"
           avatarUrl={nickAvatar}
-          registeredDate={new Date('2020-02-04')}
+          delay={0.05}
           description="Lead developer of ENS & Ethereum Foundation alum. Certified rat tickler. he/him."
           links={[
             {
@@ -67,13 +66,13 @@ export const ProfilesShowcase = () => {
               title: 'arachnied@notdot',
             },
           ]}
+          name="nick.eth"
+          registeredDate={new Date('2020-02-04')}
           variant="lapis"
-          delay={0.05}
         />
         <ProfileCard
-          name="erni.eth"
           avatarUrl={erniAvatar}
-          registeredDate={new Date('2024-08-28')}
+          delay={0.1}
           description="A scrappy generalist builder with taste. Senior Product Designer and Researcher at ENS Labs, dedicated to making web3 feel straightforward to newcomers."
           links={[
             {
@@ -87,8 +86,9 @@ export const ProfilesShowcase = () => {
               title: 'myemail.me.com',
             },
           ]}
+          name="erni.eth"
+          registeredDate={new Date('2024-08-28')}
           variant="garnet"
-          delay={0.1}
         />
       </div>
     </div>

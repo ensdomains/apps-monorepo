@@ -7,6 +7,7 @@ import type { Address } from 'viem'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
 export const RecordCount = ({
@@ -59,7 +60,12 @@ export const RecordCount = ({
           <span className="font-medium">Resolver</span>
           {underlyingResolverAddress ? (
             <CopyableRecord
-              displayValue={`${underlyingResolverAddress.slice(0, 6)}...${underlyingResolverAddress.slice(-4)}`}
+              displayValue={truncateAddress(
+                underlyingResolverAddress,
+                6,
+                4,
+                '...',
+              )}
               value={underlyingResolverAddress}
             />
           ) : (

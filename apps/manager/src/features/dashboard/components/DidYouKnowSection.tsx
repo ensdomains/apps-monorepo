@@ -14,8 +14,8 @@ export const DidYouKnowSection = () => (
 
       <div className="flex items-center justify-end gap-[8px]">
         <button
-          type="button"
           className="relative size-[28px] shrink-0 text-[#bcbcbc] hover:text-[#232222] md:size-[32px]"
+          type="button"
         >
           <ChevronLeft className="size-full" strokeWidth={1} />
         </button>
@@ -23,8 +23,8 @@ export const DidYouKnowSection = () => (
           2 of 10
         </span>
         <button
-          type="button"
           className="relative size-[28px] shrink-0 text-[#bcbcbc] hover:text-[#232222] md:size-[32px]"
+          type="button"
         >
           <ChevronRight className="size-full" strokeWidth={1} />
         </button>
@@ -34,10 +34,10 @@ export const DidYouKnowSection = () => (
     <div className="flex flex-col gap-4 md:flex-row md:gap-[20px]">
       {CARDS.slice(0, 2).map((card) => (
         <div
-          key={card.id}
           className={`w-full shrink-0 overflow-hidden rounded-[6px] p-4 md:w-[428px] md:p-[20px] ${
             card.variant === 'green' ? 'bg-[#c5ddcc]' : 'bg-[#fff0f6]'
           }`}
+          key={card.id}
         >
           <div className="space-y-2">
             {card.variant === 'green' ? (

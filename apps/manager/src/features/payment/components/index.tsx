@@ -48,7 +48,7 @@ const PaymentMethodItem = ({
       <div className="flex items-center gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="secondary" size="icon">
+            <Button size="icon" variant="secondary">
               <EllipsisIcon />
             </Button>
           </DropdownMenuTrigger>
@@ -86,9 +86,9 @@ export const PaymentMethodList = () => {
       </div>
       {defaultPaymentMethod ? (
         <PaymentMethodItem
+          isDefault
           key={defaultPaymentMethod.id}
           paymentMethod={defaultPaymentMethod}
-          isDefault
         />
       ) : (
         <div className="text-gray-500">No default payment method set.</div>
@@ -107,7 +107,7 @@ export const PaymentMethodList = () => {
           <PaymentMethodItem key={pm.id} paymentMethod={pm} />
         ))
       ) : (
-        <LinkButton to="/payment/add" variant="secondary" className="w-full">
+        <LinkButton className="w-full" to="/payment/add" variant="secondary">
           Add Backup Card
         </LinkButton>
       )}

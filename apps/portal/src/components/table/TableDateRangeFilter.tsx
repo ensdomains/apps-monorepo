@@ -13,11 +13,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-
-type DateRange = {
-  from?: Date
-  to?: Date
-}
+import {
+  type DateRange,
+  formatDate,
+  getDateRangeLabel,
+} from '@/utils/formatting/formatDateRange'
 
 export const TableDateRangeFilter = ({
   label,
@@ -39,35 +39,11 @@ export const TableDateRangeFilter = ({
     setOpen(false)
   }
 
-  const formatDate = (date?: Date) => {
-    if (!date) return undefined
-    return new Intl.DateTimeFormat(undefined, {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    })
-      .format(date)
-      .replace(/-/g, '/')
-  }
-
-  const getDisplayLabel = () => {
-    if (dateRange.from && dateRange.to) {
-      return `${formatDate(dateRange.from)} - ${formatDate(dateRange.to)}`
-    }
-    if (dateRange.from) {
-      return `From ${formatDate(dateRange.from)}`
-    }
-    if (dateRange.to) {
-      return `Until ${formatDate(dateRange.to)}`
-    }
-    return 'All'
-  }
-
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant={variant} className="flex items-center gap-2">
-          {label}: {getDisplayLabel()}
+          {label}: {getDateRangeLabel(dateRange)}
           <ChevronDown className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>

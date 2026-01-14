@@ -15,7 +15,7 @@ export const PaymentMethodAdd = () => {
           This card will be charged for your subscription.
         </div>
       </div>
-      <LinkButton to="/payment/add" variant="default" className="w-full">
+      <LinkButton className="w-full" to="/payment/add" variant="default">
         <PlusIcon />
         Add Payment Method
       </LinkButton>
@@ -55,7 +55,6 @@ export const PaymentMethodAddScreen = () => {
 
       <div className="space-y-3">
         <Button
-          variant="secondary"
           className="w-full justify-start"
           onClick={() => {
             paymentMethodsStore.trigger.add({
@@ -68,6 +67,7 @@ export const PaymentMethodAddScreen = () => {
             })
             navigate({ to: '/payment/list' })
           }}
+          variant="secondary"
         >
           <div className="flex items-center gap-3">
             <div className="flex h-6 w-6 items-center justify-center rounded bg-blue-500">
@@ -78,7 +78,6 @@ export const PaymentMethodAddScreen = () => {
         </Button>
 
         <Button
-          variant="secondary"
           className="w-full justify-start"
           onClick={() => {
             paymentMethodsStore.trigger.add({
@@ -91,6 +90,7 @@ export const PaymentMethodAddScreen = () => {
             })
             navigate({ to: '/payment/list' })
           }}
+          variant="secondary"
         >
           <div className="flex items-center gap-3">
             <div className="flex h-6 w-6 items-center justify-center rounded bg-black">
@@ -101,7 +101,6 @@ export const PaymentMethodAddScreen = () => {
         </Button>
 
         <Button
-          variant="secondary"
           className="w-full justify-start"
           onClick={() => {
             paymentMethodsStore.trigger.add({
@@ -114,6 +113,7 @@ export const PaymentMethodAddScreen = () => {
             })
             navigate({ to: '/payment/list' })
           }}
+          variant="secondary"
         >
           <div className="flex items-center gap-3">
             <div className="flex h-6 w-6 items-center justify-center rounded bg-blue-600">
@@ -131,9 +131,9 @@ export const PaymentMethodAddScreen = () => {
       </div>
 
       <Button
-        variant="default"
         className="w-full"
         onClick={() => setCardDetailsExpanded(true)}
+        variant="default"
       >
         <PlusIcon />
         Add a credit card
@@ -156,7 +156,6 @@ export const PaymentMethodAddScreen = () => {
 
       <div className="mt-12">
         <Button
-          variant="default"
           className="w-full"
           onClick={() => {
             paymentMethodsStore.trigger.add({
@@ -169,6 +168,7 @@ export const PaymentMethodAddScreen = () => {
             })
             navigate({ to: '/payment/list' })
           }}
+          variant="default"
         >
           Confirm
         </Button>

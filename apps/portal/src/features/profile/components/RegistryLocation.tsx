@@ -4,6 +4,7 @@ import { zeroAddress } from 'viem'
 import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { getNameRegistryQueryOptions } from '@/features/registry/hooks/useNameRegistry'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export const RegistryLocation = ({
   name,
@@ -29,7 +30,7 @@ export const RegistryLocation = ({
 
       {hasSubregistry ? (
         <CopyableRecord
-          displayValue={`${data.registryAddress.slice(0, 6)}...${data.registryAddress.slice(-4)}`}
+          displayValue={truncateAddress(data.registryAddress, 6, 4, '...')}
           value={data.registryAddress}
         />
       ) : (

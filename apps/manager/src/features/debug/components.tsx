@@ -65,8 +65,8 @@ export const MutationTester = <TData, TError, TVariables, TContext>({
 
         <div className="flex gap-2">
           <Button
-            onClick={() => mutation.mutate(variables?.() as TVariables)}
             disabled={mutation.isPending}
+            onClick={() => mutation.mutate(variables?.() as TVariables)}
             type="button"
           >
             {mutation.isPending ? `${label}...` : label}

@@ -190,17 +190,17 @@ export const DashboardSidebarSearch = ({
     <div className="relative" ref={containerRef}>
       <form onSubmit={handleSearchSubmit}>
         <Input
-          size="default"
-          placeholder="Search name, address..."
-          startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
+          autoComplete="off"
           className="h-[44px] rounded-[4px] border-[#e5e5e5] border-[0.4px] bg-white text-[#8c8c8c] placeholder:text-[#8c8c8c]"
-          value={searchValue}
           onChange={(event) => {
             setSearchValue(event.target.value)
             setIsDropdownOpen(true)
           }}
-          autoComplete="off"
           onFocus={() => setIsDropdownOpen(true)}
+          placeholder="Search name, address..."
+          size="default"
+          startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
+          value={searchValue}
         />
       </form>
       {shouldShowSuggestions && (
@@ -215,26 +215,26 @@ export const DashboardSidebarSearch = ({
               return (
                 <li key={suggestion.id}>
                   <button
-                    type="button"
                     className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left transition hover:bg-slate-50"
                     onMouseDown={(event) => {
                       event.preventDefault()
                       handleSuggestionSelect(suggestion.value)
                     }}
+                    type="button"
                   >
                     <div className="flex w-full items-center gap-3">
                       <div className="relative size-8 overflow-hidden rounded-full bg-slate-100">
                         <ImageFallback.Root className="contents">
                           <ImageFallback.Image
-                            src={avatarUrl}
                             alt={`${suggestion.label} avatar`}
                             className="size-full object-cover"
+                            src={avatarUrl}
                           />
                           <ImageFallback.Fallback>
                             <img
-                              src={placeholderAvatar}
                               alt={`${suggestion.label} avatar placeholder`}
                               className="size-full object-cover"
+                              src={placeholderAvatar}
                             />
                           </ImageFallback.Fallback>
                         </ImageFallback.Root>

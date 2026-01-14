@@ -44,7 +44,7 @@ const ErrorDisplay = ({ error }: ErrorDisplayProps) => {
   if (!error) return null
 
   return (
-    <Alert variant="destructive" className="mb-4">
+    <Alert className="mb-4" variant="destructive">
       <AlertCircle className="h-4 w-4" />
       <AlertDescription>{error}</AlertDescription>
     </Alert>
@@ -208,12 +208,12 @@ export const ImageSelectionDialog = ({
             <span className="font-medium text-sm">Upload or drag & drop</span>
           </div>
           <button
-            ref={dropZoneRef}
+            className="w-full rounded-lg border-2 border-gray-300 border-dashed p-6 text-center transition-colors hover:border-gray-400"
+            onClick={() => fileInputRef.current?.click()}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
-            className="w-full rounded-lg border-2 border-gray-300 border-dashed p-6 text-center transition-colors hover:border-gray-400"
+            ref={dropZoneRef}
             type="button"
-            onClick={() => fileInputRef.current?.click()}
           >
             <Upload className="mx-auto mb-2 size-8 text-gray-400" />
             <p className="mb-2 text-gray-600 text-sm">
@@ -226,9 +226,9 @@ export const ImageSelectionDialog = ({
         </div>
 
         <Button
+          className="w-full justify-start"
           onClick={() => send({ type: 'OPEN_MANUAL_INPUT' })}
           variant="outline"
-          className="w-full justify-start"
         >
           <Keyboard className="size-4" />
           Enter URL Manually
@@ -236,9 +236,9 @@ export const ImageSelectionDialog = ({
 
         {hasImage && (
           <Button
+            className="w-full justify-start text-red-600 hover:bg-red-50 hover:text-red-700"
             onClick={() => send({ type: 'OPEN_REMOVE_CONFIRMATION' })}
             variant="outline"
-            className="w-full justify-start text-red-600 hover:bg-red-50 hover:text-red-700"
           >
             <Trash2 className="mr-2 size-4" />
             Remove {type === 'avatar' ? 'Avatar' : 'Header'}
@@ -254,9 +254,9 @@ export const ImageSelectionDialog = ({
       <DialogHeader>
         <div className="flex items-center gap-2">
           <Button
-            variant="ghost"
-            size="sm"
             onClick={() => send({ type: 'BACK' })}
+            size="sm"
+            variant="ghost"
           >
             <ArrowLeft className="size-4" />
           </Button>
@@ -276,9 +276,9 @@ export const ImageSelectionDialog = ({
             <p className="mb-2 font-medium text-sm">Current</p>
             <ImageFallback.Root>
               <ImageFallback.Image
-                src={displayImage}
                 alt={`Current ${type}`}
                 className={getImageStyles('small')}
+                src={displayImage}
               />
               <ImageFallback.Fallback>
                 <div
@@ -295,16 +295,16 @@ export const ImageSelectionDialog = ({
           <div className="text-center">
             <p className="mb-2 font-medium text-sm">Default</p>
             <img
-              src={defaultImage || placeholderAvatar}
               alt={`Default ${type}`}
               className={getImageStyles('small')}
+              src={defaultImage || placeholderAvatar}
             />
           </div>
         </div>
       </div>
 
       <DialogFooter>
-        <Button variant="outline" onClick={() => send({ type: 'CANCEL' })}>
+        <Button onClick={() => send({ type: 'CANCEL' })} variant="outline">
           Cancel
         </Button>
         <Button
@@ -323,9 +323,9 @@ export const ImageSelectionDialog = ({
       <DialogHeader>
         <div className="flex items-center gap-2">
           <Button
-            variant="ghost"
-            size="sm"
             onClick={() => send({ type: 'BACK' })}
+            size="sm"
+            variant="ghost"
           >
             <ArrowLeft className="size-4" />
           </Button>
@@ -339,27 +339,27 @@ export const ImageSelectionDialog = ({
         <div className="relative">
           <Search className="-translate-y-1/2 absolute top-1/2 left-3 size-4 text-gray-400" />
           <Input
-            placeholder="Search your NFTs..."
-            value={state.context.searchQuery}
+            className="pl-10"
             onChange={(e) =>
               send({ type: 'UPDATE_SEARCH_QUERY', query: e.target.value })
             }
-            className="pl-10"
+            placeholder="Search your NFTs..."
+            value={state.context.searchQuery}
           />
         </div>
 
         <div className="grid max-h-64 grid-cols-2 gap-4 overflow-y-auto">
           {state.context.filteredNFTs.map((nft) => (
             <button
-              type="button"
+              className="rounded-md p-2 text-left transition-colors hover:bg-gray-50"
               key={nft.id}
               onClick={() => send({ type: 'SELECT_NFT', nft })}
-              className="rounded-md p-2 text-left transition-colors hover:bg-gray-50"
+              type="button"
             >
               <img
-                src={nft.image}
                 alt={nft.name}
                 className="mb-2 h-24 w-full rounded-md object-cover"
+                src={nft.image}
               />
               <p className="truncate font-medium text-sm">{nft.name}</p>
               <p className="truncate text-gray-500 text-xs">{nft.collection}</p>
@@ -380,9 +380,9 @@ export const ImageSelectionDialog = ({
         <DialogHeader>
           <div className="flex items-center gap-2">
             <Button
-              variant="ghost"
-              size="sm"
               onClick={() => send({ type: 'BACK' })}
+              size="sm"
+              variant="ghost"
             >
               <ArrowLeft className="size-4" />
             </Button>
@@ -393,9 +393,9 @@ export const ImageSelectionDialog = ({
         <div className="space-y-4">
           <div className="text-center">
             <img
-              src={nft.image}
               alt={nft.name}
               className={getImageStyles('large')}
+              src={nft.image}
             />
             <p className="mt-2 font-medium">{nft.name}</p>
             <p className="text-gray-500 text-sm">{nft.collection}</p>
@@ -403,7 +403,7 @@ export const ImageSelectionDialog = ({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => send({ type: 'BACK' })}>
+          <Button onClick={() => send({ type: 'BACK' })} variant="outline">
             Back
           </Button>
           <Button onClick={() => send({ type: 'CONFIRM_NFT' })}>
@@ -420,9 +420,9 @@ export const ImageSelectionDialog = ({
       <DialogHeader>
         <div className="flex items-center gap-2">
           <Button
-            variant="ghost"
-            size="sm"
             onClick={() => send({ type: 'BACK' })}
+            size="sm"
+            variant="ghost"
           >
             <ArrowLeft className="size-4" />
           </Button>
@@ -439,9 +439,9 @@ export const ImageSelectionDialog = ({
       <div className="space-y-4">
         <div className="text-center">
           <img
-            src={uploadPreviewUrl || ''}
             alt="Uploaded"
             className={getImageStyles('large')}
+            src={uploadPreviewUrl || ''}
           />
           <p className="mt-2 text-gray-500 text-sm">
             <Crop className="mr-1 inline size-4" />
@@ -451,10 +451,10 @@ export const ImageSelectionDialog = ({
       </div>
 
       <DialogFooter>
-        <Button variant="outline" onClick={() => send({ type: 'BACK' })}>
+        <Button onClick={() => send({ type: 'BACK' })} variant="outline">
           Back
         </Button>
-        <Button onClick={() => uploadImage()} disabled={isUploading}>
+        <Button disabled={isUploading} onClick={() => uploadImage()}>
           {isUploading ? 'Uploading…' : 'Upload & Use Image'}
         </Button>
       </DialogFooter>
@@ -467,9 +467,9 @@ export const ImageSelectionDialog = ({
       <DialogHeader>
         <div className="flex items-center gap-2">
           <Button
-            variant="ghost"
-            size="sm"
             onClick={() => send({ type: 'BACK' })}
+            size="sm"
+            variant="ghost"
           >
             <ArrowLeft className="size-4" />
           </Button>
@@ -478,10 +478,10 @@ export const ImageSelectionDialog = ({
         <p className="text-gray-600 text-sm">
           Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP.
           <a
-            href="https://docs.ens.domains/ens-app/profile/records/avatar"
-            target="_blank"
-            rel="noopener noreferrer"
             className="ml-1 text-blue-600 hover:underline"
+            href="https://docs.ens.domains/ens-app/profile/records/avatar"
+            rel="noopener noreferrer"
+            target="_blank"
           >
             Learn more
           </a>
@@ -492,8 +492,6 @@ export const ImageSelectionDialog = ({
 
       <div className="space-y-4">
         <Input
-          placeholder="https://example.com/image.jpg"
-          value={state.context.manualUrl}
           onChange={(e) =>
             send({ type: 'UPDATE_MANUAL_URL', url: e.target.value })
           }
@@ -502,11 +500,13 @@ export const ImageSelectionDialog = ({
               send({ type: 'PREVIEW_MANUAL_URL' })
             }
           }}
+          placeholder="https://example.com/image.jpg"
+          value={state.context.manualUrl}
         />
         <Button
-          onClick={() => send({ type: 'PREVIEW_MANUAL_URL' })}
-          disabled={!state.context.manualUrl.trim()}
           className="w-full"
+          disabled={!state.context.manualUrl.trim()}
+          onClick={() => send({ type: 'PREVIEW_MANUAL_URL' })}
         >
           Preview Image
         </Button>
@@ -520,9 +520,9 @@ export const ImageSelectionDialog = ({
       <DialogHeader>
         <div className="flex items-center gap-2">
           <Button
-            variant="ghost"
-            size="sm"
             onClick={() => send({ type: 'BACK' })}
+            size="sm"
+            variant="ghost"
           >
             <ArrowLeft className="size-4" />
           </Button>
@@ -535,7 +535,6 @@ export const ImageSelectionDialog = ({
       <div className="space-y-4">
         <div className="text-center">
           <img
-            src={state.context.manualUrl}
             alt="Preview"
             className={getImageStyles('large')}
             onError={(e) => {
@@ -546,6 +545,7 @@ export const ImageSelectionDialog = ({
                   'Failed to load image. Please check that the URL points to a valid image file.',
               })
             }}
+            src={state.context.manualUrl}
           />
           <p className="mt-2 text-gray-500 text-sm">
             <Eye className="mr-1 inline size-4" />
@@ -555,7 +555,7 @@ export const ImageSelectionDialog = ({
       </div>
 
       <DialogFooter>
-        <Button variant="outline" onClick={() => send({ type: 'BACK' })}>
+        <Button onClick={() => send({ type: 'BACK' })} variant="outline">
           Back
         </Button>
         <Button onClick={() => send({ type: 'CONFIRM_MANUAL_URL' })}>
@@ -584,23 +584,23 @@ export const ImageSelectionDialog = ({
 
   return (
     <Dialog
-      open={open}
       onOpenChange={(isOpen) => {
         if (isOpen) {
           send({ type: 'RESET' })
         }
         setOpen(isOpen)
       }}
+      open={open}
     >
       <DialogTrigger asChild>
         <button
-          type="button"
           className={clsx(
             'group relative block w-full cursor-pointer overflow-hidden',
             type === 'avatar' && 'rounded-md',
             type === 'header' && 'aspect-[3/1] md:aspect-[5/1]',
           )}
           title={`Change ${type}`}
+          type="button"
         >
           <div
             className={clsx(
@@ -614,16 +614,16 @@ export const ImageSelectionDialog = ({
           </div>
           <ImageFallback.Root>
             <ImageFallback.Image
-              src={displayImage}
               alt={`${name || 'Profile'} ${type}`}
               className="h-full w-full object-cover"
+              src={displayImage}
             />
             <ImageFallback.Fallback>
               {defaultImage ? (
                 <img
-                  src={defaultImage}
                   alt={`Default ${type}`}
                   className="h-full w-full object-cover"
+                  src={defaultImage}
                 />
               ) : (
                 <div
@@ -643,11 +643,11 @@ export const ImageSelectionDialog = ({
         {renderStep()}
 
         <input
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileChange}
           ref={fileInputRef}
           type="file"
-          accept="image/*"
-          onChange={handleFileChange}
-          className="hidden"
         />
       </DialogContent>
     </Dialog>

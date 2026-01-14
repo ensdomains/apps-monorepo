@@ -1,14 +1,17 @@
+import { extendChainWithL1Ens } from '@ensdomains/ensjs/chain'
 import { mock } from '@wagmi/connectors'
 import { http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
+
+export const sepoliaWithEns = extendChainWithL1Ens(sepolia)
 
 /**
  * Mock wagmi config for testing
  * Uses the mock connector with predefined test accounts
  */
 export const mockWagmiConfig = createConfig({
-  chains: [sepolia],
+  chains: [sepoliaWithEns],
   connectors: [
     mock({
       accounts: [
@@ -19,7 +22,7 @@ export const mockWagmiConfig = createConfig({
     }),
   ],
   transports: {
-    [sepolia.id]: http(),
+    [sepoliaWithEns.id]: http(),
   },
 })
 

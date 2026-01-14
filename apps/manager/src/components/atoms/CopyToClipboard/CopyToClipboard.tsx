@@ -23,11 +23,11 @@ export const CopyToClipboard = ({ value, className }: CopyToClipboardProps) => {
 
   return (
     <button
-      type="button"
-      onClick={handleClick}
-      title="Copy to clipboard"
       aria-label="Copy to clipboard"
       className="inline-flex items-center justify-center"
+      onClick={handleClick}
+      title="Copy to clipboard"
+      type="button"
     >
       {copied ? (
         <Check className={className} />

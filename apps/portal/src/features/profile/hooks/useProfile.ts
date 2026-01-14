@@ -7,6 +7,7 @@ import type { GetSubgraphRecordsErrorType } from '@ensdomains/ensjs/subgraph'
 import { type ClientError, gql } from 'graphql-request'
 import { fromPromise, ok } from 'neverthrow'
 import { graphqlIndexerClient } from '@/lib/indexer'
+import { mergeCoinTypes, mergeTextKeys } from '@/utils/records/mergeRecordKeys'
 import { getRecords } from './useRecords'
 import { getSubgraphRecords } from './useSubgraphRecords'
 
@@ -44,39 +45,33 @@ const getProfile = ResultFn(async function* (name: string) {
 
   const subgraphV2Records = result.domains[0]?.resolver
 
-  const coins = Array.from(
-    new Set([
-      ...(subgraphV1Records?.coins.map((coin) => Number(coin)) || []),
+  const coins = mergeCoinTypes(subgraphV1Records?.coins, [
+    // default requested coins
+    // EVM
+    coinNameToTypeMap.eth,
+    coinNameToTypeMap.arb1,
+    coinNameToTypeMap.op,
+    coinNameToTypeMap.base,
 
-      // default requested coins
+    // Non-EVM
+    coinNameToTypeMap.btc,
+    coinNameToTypeMap.doge,
+    coinNameToTypeMap.sol,
+    coinNameToTypeMap.strk,
+  ])
 
-      // EVM
-      coinNameToTypeMap.eth,
-      coinNameToTypeMap.arb1,
-      coinNameToTypeMap.op,
-      coinNameToTypeMap.base,
-
-      // Non-EVM
-      coinNameToTypeMap.btc,
-      coinNameToTypeMap.doge,
-      coinNameToTypeMap.sol,
-      coinNameToTypeMap.strk,
-    ]),
-  )
-
-  // default requested texts
-  const texts = Array.from(
-    new Set([
-      ...(subgraphV1Records?.texts || []),
-      ...(subgraphV2Records?.texts || []),
-
+  const texts = mergeTextKeys(
+    subgraphV1Records?.texts,
+    subgraphV2Records?.texts,
+    [
+      // default requested texts
       'name',
       'description',
       'com.twitter',
       'org.telegram',
       'header',
       'avatar',
-    ]),
+    ],
   )
 
   const records = yield* getRecords({

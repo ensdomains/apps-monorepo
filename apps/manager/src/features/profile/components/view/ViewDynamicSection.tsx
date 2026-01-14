@@ -26,9 +26,9 @@ const DynamicRecord = ({ record }: DynamicRecordProps) => {
 
   if (href) {
     return (
-      <Button asChild variant="outline" size="sm" className="justify-start">
-        <a href={href} target="_blank" rel="noopener noreferrer">
-          <IconRenderer icon={recordDef?.icon} className="size-3.5" />
+      <Button asChild className="justify-start" size="sm" variant="outline">
+        <a href={href} rel="noopener noreferrer" target="_blank">
+          <IconRenderer className="size-3.5" icon={recordDef?.icon} />
           <span className="select-none text-gray-700">
             {recordDef?.name ?? record.key}
           </span>
@@ -43,11 +43,11 @@ const DynamicRecord = ({ record }: DynamicRecordProps) => {
 
   return (
     <CopyableButton
-      value={displayValue}
       className="justify-start"
       title={record.value}
+      value={displayValue}
     >
-      <IconRenderer icon={recordDef?.icon} className="size-3.5" />
+      <IconRenderer className="size-3.5" icon={recordDef?.icon} />
       <span className="select-none text-gray-700">
         {recordDef?.name ?? record.key}
       </span>
