@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { truncateAddress } from './truncateAddress'
 
+const TEST_ADDRESS = '0x1234567890abcdef1234567890abcdef12345678'
+
 describe('truncateAddress', () => {
   it('should truncate a standard Ethereum address with defaults', () => {
-    const address = '0x1234567890abcdef1234567890abcdef12345678'
-
-    const result = truncateAddress(address)
+    const result = truncateAddress(TEST_ADDRESS)
 
     expect(result).toBe('0x1234…5678')
   })
@@ -20,17 +20,13 @@ describe('truncateAddress', () => {
   })
 
   it('should use custom start and end character counts', () => {
-    const address = '0x1234567890abcdef1234567890abcdef12345678'
-
-    const result = truncateAddress(address, 10, 6)
+    const result = truncateAddress(TEST_ADDRESS, 10, 6)
 
     expect(result).toBe('0x12345678…345678')
   })
 
   it('should use custom separator', () => {
-    const address = '0x1234567890abcdef1234567890abcdef12345678'
-
-    const result = truncateAddress(address, 6, 4, '...')
+    const result = truncateAddress(TEST_ADDRESS, 6, 4, '...')
 
     expect(result).toBe('0x1234...5678')
   })
