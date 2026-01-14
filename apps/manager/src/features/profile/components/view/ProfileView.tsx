@@ -49,8 +49,8 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)] md:space-y-4">
       <ViewHeaderSection
         name={name}
-        records={records}
         owner={ownerData?.owner as Address | undefined}
+        records={records}
       />
       <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
         {/* Left/main column */}
@@ -75,9 +75,9 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
           {isOwner && (
             <div>
               <LinkButton
-                to="/p/$name/edit"
-                params={{ name }}
                 className="w-full md:w-auto"
+                params={{ name }}
+                to="/p/$name/edit"
               >
                 Edit Profile
               </LinkButton>

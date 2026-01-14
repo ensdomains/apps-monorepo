@@ -22,12 +22,12 @@ export const HeaderSection = withForm({
             <ImageSelectionDialog
               currentImage={field.state.value}
               defaultImage=""
+              description="Choose a header image for your profile"
+              name={name}
               onImageChange={(url) => field.handleChange(url)}
               onImageRemove={() => field.handleChange('')}
               title="Change Header Image"
-              description="Choose a header image for your profile"
               type="header"
-              name={name}
             />
           )}
         </form.Field>
@@ -36,8 +36,8 @@ export const HeaderSection = withForm({
           <form.Subscribe selector={(state) => state.values.base.avatar}>
             {(avatarUrl) => (
               <ShareProfileDialog
-                name={name}
                 avatarUrl={avatarUrl}
+                name={name}
                 url={`${
                   typeof window !== 'undefined'
                     ? window.location.origin
@@ -54,12 +54,12 @@ export const HeaderSection = withForm({
                 <ImageSelectionDialog
                   currentImage={field.state.value}
                   defaultImage={placeholderAvatar}
+                  description="Choose an avatar for your profile"
+                  name={name}
                   onImageChange={(url) => field.handleChange(url)}
                   onImageRemove={() => field.handleChange('')}
                   title="Change Avatar"
-                  description="Choose an avatar for your profile"
                   type="avatar"
-                  name={name}
                 />
               )}
             </form.Field>

@@ -93,8 +93,8 @@ const MutationTester = <TData, TError, TVariables, TContext>({
 
         <div className="flex gap-2">
           <Button
-            onClick={() => mutation.mutate(variables?.() as TVariables)}
             disabled={mutation.isPending}
+            onClick={() => mutation.mutate(variables?.() as TVariables)}
             type="button"
           >
             {mutation.isPending ? `${label}...` : label}
@@ -130,9 +130,9 @@ const QueryTester = <TData, TError>({
       <CardContent className="flex flex-col gap-3">
         <div className="flex gap-2">
           <Button
-            type="button"
-            onClick={() => query.refetch()}
             disabled={query.isFetching}
+            onClick={() => query.refetch()}
+            type="button"
             variant="outline"
           >
             {query.isFetching ? 'Refetching...' : 'Refetch'}
@@ -309,15 +309,15 @@ const AuthedComponent = () => {
           </div>
         </div>
         <Button
-          variant="outline"
-          type="button"
           onClick={() => backendAuthStore.trigger.signOut()}
+          type="button"
+          variant="outline"
         >
           Logout
         </Button>
       </div>
 
-      <Tabs defaultValue="account" className="w-full gap-4">
+      <Tabs className="w-full gap-4" defaultValue="account">
         <TabsList>
           <TabsTrigger value="account">Account</TabsTrigger>
           <TabsTrigger value="favorites">Favorites</TabsTrigger>
@@ -408,19 +408,19 @@ const FavoritesComponent = () => {
       <CardContent className="flex flex-col gap-4">
         <div className="flex items-center gap-2">
           <Input
+            onChange={(e) => setNewFavorite(e.target.value)}
             placeholder="Add favorite"
             value={newFavorite}
-            onChange={(e) => setNewFavorite(e.target.value)}
           />
           <Button
-            type="button"
+            disabled={addFavorite.isPending || newFavorite.length === 0}
             onClick={() => {
               if (!newFavorite) return
               addFavorite.mutate(newFavorite, {
                 onSuccess: () => setNewFavorite(''),
               })
             }}
-            disabled={addFavorite.isPending || newFavorite.length === 0}
+            type="button"
           >
             {addFavorite.isPending ? 'Adding…' : 'Add'}
           </Button>
@@ -430,15 +430,15 @@ const FavoritesComponent = () => {
           {favorites.data && favorites.data.length > 0 ? (
             favorites.data.map((favorite) => (
               <div
-                key={favorite.name}
                 className="flex items-center justify-between px-3 py-2"
+                key={favorite.name}
               >
                 <div className="font-mono text-sm">{favorite.name}</div>
                 <Button
+                  disabled={deleteFavorite.isPending}
+                  onClick={() => deleteFavorite.mutate(favorite.name)}
                   type="button"
                   variant="outline"
-                  onClick={() => deleteFavorite.mutate(favorite.name)}
-                  disabled={deleteFavorite.isPending}
                 >
                   {deleteFavorite.isPending ? 'Removing…' : 'Remove'}
                 </Button>

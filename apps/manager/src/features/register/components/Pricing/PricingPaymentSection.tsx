@@ -50,9 +50,9 @@ export const PricingPaymentSection = ({
     return (
       <div className="px-5 md:px-0">
         <Button
-          variant="default"
           className="h-16 w-full rounded bg-ens-blue hover:bg-ens-blue-hover md:h-20"
           onClick={onConnect}
+          variant="default"
         >
           <span className="font-medium font-mono text-sm text-white uppercase tracking-wider">
             Connect or sign in to register
@@ -81,22 +81,22 @@ export const PricingPaymentSection = ({
       )}
 
       <CryptoPaymentDrawer
+        disabled={disableCryptoButton}
         domainName={domainName}
         duration={selectedDuration}
-        priceUSD={isPriceLoading ? 0 : priceUSD}
         isLoading={isLoading}
-        disabled={disableCryptoButton}
-        onPaymentSelect={onPaymentSelect}
-        onCryptoSelect={onCryptoSelect}
-        onConfirmPayment={onConfirmPayment}
         isUsingAA={isUsingAA}
+        onConfirmPayment={onConfirmPayment}
+        onCryptoSelect={onCryptoSelect}
+        onPaymentSelect={onPaymentSelect}
+        priceUSD={isPriceLoading ? 0 : priceUSD}
       />
       <CreditCardPaymentDrawer
+        disabled={false}
         domainName={domainName}
         duration={selectedDuration}
-        priceUSD={isPriceLoading ? 0 : priceUSD}
-        disabled={false}
         onPaymentSelect={onPaymentSelect}
+        priceUSD={isPriceLoading ? 0 : priceUSD}
       />
     </div>
   )

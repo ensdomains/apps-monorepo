@@ -213,7 +213,7 @@ export function NotificationPreferences() {
             {kinds.map((kind) => {
               const Icon = kind.icon
               return (
-                <div key={kind.id} className="space-y-4">
+                <div className="space-y-4" key={kind.id}>
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
                       <Icon className="h-4 w-4" />
@@ -222,7 +222,7 @@ export function NotificationPreferences() {
                       <div className="flex items-center gap-2">
                         <Label className="font-medium">{kind.label}</Label>
                         {kind.recommended && (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge className="text-xs" variant="secondary">
                             Recommended
                           </Badge>
                         )}
@@ -249,8 +249,8 @@ export function NotificationPreferences() {
 
                       return (
                         <div
-                          key={channel.id}
                           className="flex items-center justify-between"
+                          key={channel.id}
                         >
                           <div className="flex items-center gap-2">
                             <ChannelIcon className="h-4 w-4" />
@@ -263,6 +263,7 @@ export function NotificationPreferences() {
                           </div>
                           <Switch
                             checked={isEnabled}
+                            disabled={!hasVerifiedChannels}
                             onCheckedChange={(enabled) =>
                               handlePreferenceChange(
                                 kind.id,
@@ -270,7 +271,6 @@ export function NotificationPreferences() {
                                 enabled,
                               )
                             }
-                            disabled={!hasVerifiedChannels}
                           />
                         </div>
                       )

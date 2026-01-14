@@ -58,7 +58,6 @@ export function AddChannelModal({ open, onOpenChange }: AddChannelModalProps) {
   if (selectedType) {
     return (
       <Dialog
-        open={open}
         onOpenChange={() => {
           const confirmed = confirm(
             'Are you sure you want to close this modal?',
@@ -67,6 +66,7 @@ export function AddChannelModal({ open, onOpenChange }: AddChannelModalProps) {
             handleClose()
           }
         }}
+        open={open}
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -84,15 +84,15 @@ export function AddChannelModal({ open, onOpenChange }: AddChannelModalProps) {
 
           {selectedType === 'email' && (
             <EmailChannelForm
-              onSuccess={handleSuccess}
               onCancel={() => setSelectedType(null)}
+              onSuccess={handleSuccess}
             />
           )}
 
           {selectedType === 'telegram' && (
             <TelegramChannelForm
-              onSuccess={handleSuccess}
               onCancel={() => setSelectedType(null)}
+              onSuccess={handleSuccess}
             />
           )}
         </DialogContent>
@@ -101,7 +101,7 @@ export function AddChannelModal({ open, onOpenChange }: AddChannelModalProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add Delivery Channel</DialogTitle>
@@ -115,10 +115,10 @@ export function AddChannelModal({ open, onOpenChange }: AddChannelModalProps) {
             const Icon = option.icon
             return (
               <Card
-                key={option.type}
                 className={`cursor-pointer transition-colors hover:bg-muted/50 ${
                   option.available ? '' : 'cursor-not-allowed opacity-50'
                 }`}
+                key={option.type}
                 onClick={() => option.available && setSelectedType(option.type)}
               >
                 <CardContent className="p-4">
@@ -131,7 +131,7 @@ export function AddChannelModal({ open, onOpenChange }: AddChannelModalProps) {
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{option.title}</span>
                           {!option.available && (
-                            <Badge variant="secondary" className="text-xs">
+                            <Badge className="text-xs" variant="secondary">
                               Coming Soon
                             </Badge>
                           )}

@@ -116,9 +116,9 @@ export const AddLinkDialog = ({
   const canSubmit = name.trim().length > 0 && url.trim().length > 0
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogTrigger asChild>
-        <Button variant="secondary" size="sm" className="rounded-full">
+        <Button className="rounded-full" size="sm" variant="secondary">
           <Plus className="size-5" />
           {buttonLabel}
         </Button>
@@ -129,22 +129,22 @@ export const AddLinkDialog = ({
         </DialogHeader>
         <div className="space-y-4">
           <Input
+            errorText={nameError ?? undefined}
             label="Name"
+            onChange={(e) => handleNameChange(e.target.value)}
             placeholder="Personal Site"
             value={name}
-            onChange={(e) => handleNameChange(e.target.value)}
-            errorText={nameError ?? undefined}
           />
           <Input
+            errorText={urlError ?? undefined}
             label="Link"
+            onChange={(e) => handleUrlChange(e.target.value)}
             placeholder="https://example.com"
             value={url}
-            onChange={(e) => handleUrlChange(e.target.value)}
-            errorText={urlError ?? undefined}
           />
         </div>
         <DialogFooter>
-          <Button onClick={handleAdd} className="w-full" disabled={!canSubmit}>
+          <Button className="w-full" disabled={!canSubmit} onClick={handleAdd}>
             Add
           </Button>
         </DialogFooter>

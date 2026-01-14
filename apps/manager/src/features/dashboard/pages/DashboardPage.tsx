@@ -57,14 +57,14 @@ export const DashboardPage = () => {
             asChild
             className="h-12 gap-2 rounded bg-transparent px-6 font-mono text-foreground text-sm uppercase tracking-wider hover:bg-ens-blue-hover hover:text-white"
           >
-            <Link to="/" className="flex items-center gap-2">
+            <Link className="flex items-center gap-2" to="/">
               <Search className="size-4" />
               Search new name
             </Link>
           </Button>
         </div>
         {hasProfile && (
-          <PrimaryNameCard primaryName={defaultName} avatarUrl={avatarUrl} />
+          <PrimaryNameCard avatarUrl={avatarUrl} primaryName={defaultName} />
         )}
         <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:px-[24px] md:py-[32px]">
           <div className="space-y-5">

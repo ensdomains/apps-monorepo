@@ -77,11 +77,11 @@ export const CheckAvailability = ({
     <div className="relative flex flex-col gap-2">
       <div className="relative">
         <SearchField
+          className="w-full"
+          isLoading={isLoading}
+          onChange={handleInputChange}
           placeholder=".eth"
           value={inputValue}
-          onChange={handleInputChange}
-          isLoading={isLoading}
-          className="w-full"
         />
 
         <div className="absolute top-full z-10 mt-2 w-full space-y-4">
@@ -112,37 +112,43 @@ export const CheckAvailability = ({
                 {displayState.type === 'searching' && (
                   <DomainResultCard
                     domainName={displayState.domainName}
-                    status="available"
+                    isLoading={true}
                     premiumLabel={premiumLabel}
                     price={pricing[1]?.price}
-                    isLoading={true}
+                    status="available"
                   />
                 )}
 
                 {displayState.type === 'available' && (
                   <Link
-                    to="/register"
                     search={{ name: displayState.domainName, duration: 1 }}
+                    to="/register"
                   >
                     <DomainResultCard
+                      clickable
                       domainName={displayState.domainName}
-                      status="available"
+                      isLoading={false}
                       premiumLabel={premiumLabel}
                       price={pricing[1]?.price}
-                      isLoading={false}
-                      clickable
+                      status="available"
                     />
                   </Link>
                 )}
 
                 {displayState.type === 'unavailable' && (
                   <Link
-                    to="/p/$name"
                     params={{ name: displayState.domainName }}
+                    to="/p/$name"
                   >
                     <DomainProfileCard
-                      domainName={displayState.domainName}
                       avatarUrl={unavailableAvatar}
+                      clickable
+                      domainName={displayState.domainName}
+                      expiryDate={
+                        unavailableExpiry?.expiry != null
+                          ? new Date(Number(unavailableExpiry.expiry) * 1000)
+                          : null
+                      }
                       registeredDate={
                         unavailableRegistration?.registrationDate != null
                           ? new Date(
@@ -150,12 +156,6 @@ export const CheckAvailability = ({
                             )
                           : null
                       }
-                      expiryDate={
-                        unavailableExpiry?.expiry != null
-                          ? new Date(Number(unavailableExpiry.expiry) * 1000)
-                          : null
-                      }
-                      clickable
                     />
                   </Link>
                 )}

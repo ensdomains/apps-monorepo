@@ -111,7 +111,7 @@ const ImageFallback = forwardRef<HTMLDivElement, RootProps>(
           onImageLoadingStatusChange,
         }}
       >
-        <div ref={ref} className={className ?? 'contents'} {...props} />
+        <div className={className ?? 'contents'} ref={ref} {...props} />
       </ImageFallbackContext.Provider>
     )
   },
@@ -152,7 +152,7 @@ const ImageFallbackImage = forwardRef<HTMLImageElement, ImageProps>(
     }, [imageLoadingStatus, handleLoadingStatusChange])
 
     return imageLoadingStatus === 'loaded' ? (
-      <img ref={ref} src={src} alt={alt} className={className} {...props} />
+      <img alt={alt} className={className} ref={ref} src={src} {...props} />
     ) : null
   },
 )
@@ -183,7 +183,7 @@ const ImageFallbackFallback = forwardRef<HTMLDivElement, FallbackProps>(
       canRender && context.imageLoadingStatus !== 'loaded'
 
     return shouldShowFallback ? (
-      <div ref={ref} className={className ?? 'contents'} {...props}>
+      <div className={className ?? 'contents'} ref={ref} {...props}>
         {children || <div>Image not available</div>}
       </div>
     ) : null
@@ -204,7 +204,7 @@ const ImageFallbackLoading = forwardRef<HTMLDivElement, LoadingProps>(
     const shouldShowLoading = context.imageLoadingStatus === 'loading'
 
     return shouldShowLoading ? (
-      <div ref={ref} className={className} {...props}>
+      <div className={className} ref={ref} {...props}>
         {children || <div>Loading...</div>}
       </div>
     ) : null

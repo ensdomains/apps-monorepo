@@ -20,17 +20,17 @@ export function TelegramSteps({ state, actions }: TelegramStepProps) {
   return (
     <div className="space-y-4">
       <StepIndicator
+        completedSteps={getCompletedSteps()}
         currentStep={getCurrentStepNumber()}
         totalSteps={2}
-        completedSteps={getCompletedSteps()}
       />
 
       {currentStep === 'auth' && (
-        <TelegramAuthStep state={state} actions={actions} />
+        <TelegramAuthStep actions={actions} state={state} />
       )}
 
       {currentStep === 'create' && (
-        <TelegramCreateStep state={state} actions={actions} />
+        <TelegramCreateStep actions={actions} state={state} />
       )}
     </div>
   )

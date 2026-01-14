@@ -73,15 +73,15 @@ export const ShareProfileDialog = ({
 
   return (
     <Dialog
-      open={open}
       onOpenChange={(isOpen) => {
         setOpen(isOpen)
         if (!isOpen) setCopied(false)
       }}
+      open={open}
     >
       <DialogTrigger asChild>
         {trigger ?? (
-          <Button variant="outline" size="sm">
+          <Button size="sm" variant="outline">
             <ShareIcon className="size-3" />
             Share
           </Button>
@@ -91,20 +91,20 @@ export const ShareProfileDialog = ({
         <div className="flex justify-center">
           <div className="relative w-full max-w-xs rounded-2xl bg-gray-100 p-5">
             <div className="flex flex-col items-center">
-              <img src={ensLogo} alt="ENS" className="size-16" />
+              <img alt="ENS" className="size-16" src={ensLogo} />
               <div className="inline-block rounded-lg bg-black p-2">
                 <QRCode
-                  value={safeUrl}
-                  size={120}
-                  fgColor="#fff"
                   bgColor="#000"
+                  fgColor="#fff"
+                  size={120}
+                  value={safeUrl}
                 />
               </div>
               <div className="mt-5 rounded-lg bg-white p-1 shadow">
                 <img
-                  src={avatarUrl || placeholderAvatar}
                   alt={`${name} avatar`}
                   className="size-14 rounded md:size-20"
+                  src={avatarUrl || placeholderAvatar}
                 />
               </div>
               <div className="mt-2 rounded-md bg-black px-2 py-1 text-sm text-white">
@@ -114,11 +114,11 @@ export const ShareProfileDialog = ({
           </div>
         </div>
         <DialogFooter className="mx-auto grid grid-cols-2 gap-2">
-          <Button variant="outline" onClick={handleNativeShare}>
+          <Button onClick={handleNativeShare} variant="outline">
             <ShareIcon className="mr-2 size-4" />
             Share
           </Button>
-          <Button variant="outline" onClick={handleCopy}>
+          <Button onClick={handleCopy} variant="outline">
             {copied ? (
               <CheckIcon className="mr-2 size-4" />
             ) : (

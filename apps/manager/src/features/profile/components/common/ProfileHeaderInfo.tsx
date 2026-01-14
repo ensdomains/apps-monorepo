@@ -24,9 +24,9 @@ const OwnerLink = ({ address, profileName }: OwnerLinkProps) => {
   if (!ownerName.data) {
     return (
       <Link
-        to="/p/$name"
-        params={{ name: address }}
         className="font-medium underline underline-offset-2"
+        params={{ name: address }}
+        to="/p/$name"
       >
         {address}
       </Link>
@@ -39,9 +39,9 @@ const OwnerLink = ({ address, profileName }: OwnerLinkProps) => {
 
   return (
     <Link
-      to="/p/$name"
-      params={{ name: ownerName.data }}
       className="font-medium underline underline-offset-2"
+      params={{ name: ownerName.data }}
+      to="/p/$name"
     >
       {ownerName.data}
     </Link>
@@ -84,17 +84,17 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
       )}
       <div className="flex items-center gap-x-2">
         <Link
-          to="/p/$name"
-          target="_blank"
-          rel="noopener noreferrer"
-          params={{ name }}
           className="underline underline-offset-2"
+          params={{ name }}
+          rel="noopener noreferrer"
+          target="_blank"
+          to="/p/$name"
         >
           app.ens.domains/p/{name}
         </Link>
         <CopyToClipboard
-          value={`https://app.ens.domains/p/${name}`}
           className="size-4"
+          value={`https://app.ens.domains/p/${name}`}
         />
       </div>
     </div>

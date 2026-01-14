@@ -43,19 +43,19 @@ const FEATURE_CARDS: FeatureCard[] = [
         </div>
 
         <img
-          src={card_1_2}
           alt="card-1-2"
           className="-bottom-2 pointer-events-none absolute left-8 w-64 max-sm:hidden md:left-[10%] lg:bottom-3 lg:left-[27.5%]"
+          src={card_1_2}
         />
         <img
-          src={card_1_1}
           alt="card-1-1"
           className="-left-8 -top-7 pointer-events-none absolute w-58 sm:top-4 sm:left-[22px] md:top-[22px] lg:w-64"
+          src={card_1_1}
         />
         <img
-          src={card_1_3}
           alt="card-1-3"
           className="-right-5 -bottom-20 pointer-events-none absolute w-58 sm:right-4 sm:bottom-12 lg:w-64"
+          src={card_1_3}
         />
       </>
     ),
@@ -242,24 +242,16 @@ export const FeaturesCarousel = () => {
             return (
               <CarouselCard
                 // biome-ignore lint/suspicious/noArrayIndexKey: Hardcoded list
-                key={index}
                 className={clsx(className, 'basis-(--s2-basis)')}
                 data={data}
-                style={{
-                  zIndex: FEATURE_CARDS.length - cardIndex,
-                  order: cardIndex,
-                  position: 'relative',
-                  right:
-                    cardIndex === 0
-                      ? undefined
-                      : `calc((var(--s2-basis) - (100% - var(--s2-basis)) / ${FEATURE_CARDS.length - 1}) * ${cardIndex})`,
-                }}
-                layout="position"
                 drag={cardIndex === 0 ? 'x' : false}
                 dragConstraints={{
                   left: 0,
                   right: 0,
                 }}
+                key={index}
+                layout="position"
+                onClick={() => setOffset(index)}
                 onDragEnd={(_, info) => {
                   const constraintWidth =
                     constraintRef.current?.getBoundingClientRect().width ?? 0
@@ -272,7 +264,15 @@ export const FeaturesCarousel = () => {
                     incrementOffset()
                   }
                 }}
-                onClick={() => setOffset(index)}
+                style={{
+                  zIndex: FEATURE_CARDS.length - cardIndex,
+                  order: cardIndex,
+                  position: 'relative',
+                  right:
+                    cardIndex === 0
+                      ? undefined
+                      : `calc((var(--s2-basis) - (100% - var(--s2-basis)) / ${FEATURE_CARDS.length - 1}) * ${cardIndex})`,
+                }}
               >
                 {children}
               </CarouselCard>
@@ -281,27 +281,27 @@ export const FeaturesCarousel = () => {
         </div>
         {/* Prev button, dots for each slide, next button */}
         <div className="my-9 flex items-center justify-center gap-4 pb-4">
-          <button type="button" onClick={decrementOffset}>
+          <button onClick={decrementOffset} type="button">
             <ChevronLeftIcon className="size-6" />
           </button>
           <div className="flex items-center justify-center gap-2">
             {FEATURE_CARDS.map(({ indicatorClass }, index) => {
               return (
                 <button
-                  type="button"
-                  // biome-ignore lint/suspicious/noArrayIndexKey: Hardcoded list
-                  key={index}
                   className={clsx(
                     'size-4 rounded-xs border-2 bg-transparent transition-colors',
                     indicatorClass,
                   )}
-                  onClick={() => setOffset(index)}
+                  // biome-ignore lint/suspicious/noArrayIndexKey: Hardcoded list
                   data-active={index === offset ? true : undefined}
+                  key={index}
+                  onClick={() => setOffset(index)}
+                  type="button"
                 ></button>
               )
             })}
           </div>
-          <button type="button" onClick={incrementOffset}>
+          <button onClick={incrementOffset} type="button">
             <ChevronRightIcon className="size-6" />
           </button>
         </div>

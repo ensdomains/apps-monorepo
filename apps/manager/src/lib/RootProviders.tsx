@@ -52,9 +52,6 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
   return (
     <QueryClientProvider client={queryClient}>
       <ParaProvider
-        paraClientConfig={{
-          apiKey: VITE_PARA_API_KEY,
-        }}
         callbacks={{
           onLogin: onWalletChange,
           onLogout() {
@@ -90,6 +87,9 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
           walletConnect: {
             projectId: '1cb2e088d817de31a39a54154b265f68',
           },
+        }}
+        paraClientConfig={{
+          apiKey: VITE_PARA_API_KEY,
         }}
         paraModalConfig={{
           disableEmailLogin: false,

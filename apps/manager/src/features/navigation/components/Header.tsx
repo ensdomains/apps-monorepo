@@ -191,9 +191,9 @@ const UserMenuContent = ({
         <div className="mb-6 flex items-center gap-3">
           {ensAvatar ? (
             <img
-              src={ensAvatar}
               alt="ENS Avatar"
               className="size-12 shrink-0 rounded-full border-2 border-ens-blue-light object-cover"
+              src={ensAvatar}
             />
           ) : (
             <div className="flex size-12 shrink-0 items-center justify-center rounded-full border-2 border-ens-blue-light bg-ens-lapis-dust">
@@ -211,9 +211,9 @@ const UserMenuContent = ({
               </span>
               {isExternalWallet && ownerAddress && (
                 <button
-                  type="button"
-                  onClick={() => handleCopyAddress(ownerAddress)}
                   className="shrink-0 rounded p-1 text-ens-blue transition-colors hover:bg-ens-blue-light"
+                  onClick={() => handleCopyAddress(ownerAddress)}
+                  type="button"
                 >
                   <Copy className="size-4" />
                 </button>
@@ -228,10 +228,10 @@ const UserMenuContent = ({
                   {`${ownerAddress.slice(0, 6)}...${ownerAddress.slice(-4)}`}
                 </span>
                 <button
-                  type="button"
-                  onClick={() => handleCopyAddress(ownerAddress)}
-                  className="shrink-0 rounded p-1 text-ens-blue transition-colors hover:bg-ens-blue-light"
                   aria-label="Copy EOA address"
+                  className="shrink-0 rounded p-1 text-ens-blue transition-colors hover:bg-ens-blue-light"
+                  onClick={() => handleCopyAddress(ownerAddress)}
+                  type="button"
                 >
                   <Copy className="size-4" />
                 </button>
@@ -273,9 +273,9 @@ const UserMenuContent = ({
                     {`${accountAddress.slice(0, 6)}...${accountAddress.slice(-4)}`}
                   </span>
                   <button
-                    type="button"
-                    onClick={() => handleCopyAddress(accountAddress)}
                     className="rounded p-1 text-ens-blue transition-colors hover:bg-ens-blue-light"
+                    onClick={() => handleCopyAddress(accountAddress)}
+                    type="button"
                   >
                     <Copy className="size-4" />
                   </button>
@@ -305,8 +305,8 @@ const UserMenuContent = ({
             <div className="space-y-2">
               {stablecoinBalances?.map((balance, index) => (
                 <div
-                  key={`${balance.address}-${index}`}
                   className="flex items-center justify-between rounded-lg border border-ens-blue-light bg-ens-lapis-dust p-3"
+                  key={`${balance.address}-${index}`}
                 >
                   <span className="font-medium text-ens-blue-dark text-sm">
                     {balance.symbol}
@@ -423,15 +423,15 @@ const ConnectedContent = () => {
   // Shared trigger button
   const triggerButton = (
     <button
-      type="button"
       className="flex min-w-0 max-w-full items-center gap-0.5 rounded-full border border-gray-300 py-1 pr-1.5 pl-1 transition-colors hover:bg-gray-50 md:gap-1 md:pr-2"
+      type="button"
     >
       <div className="flex min-w-0 items-center gap-1 md:gap-2">
         {parsedAvatar ? (
           <img
-            src={parsedAvatar}
             alt="ENS Avatar"
             className="size-[36px] shrink-0 rounded-full md:size-[46px]"
+            src={parsedAvatar}
           />
         ) : (
           <div className="flex size-[36px] shrink-0 items-center justify-center rounded-full bg-muted md:size-[46px]">
@@ -487,17 +487,17 @@ const ConnectedContent = () => {
             <UserMenuContent {...menuContentProps} />
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() => openModal()}
               className="text-ens-blue-dark"
+              onClick={() => openModal()}
             >
               <User className="mr-2 size-4 text-ens-blue" />
               Manage Wallet
             </DropdownMenuItem>
             {walletSource === 'external-wallet' && (
               <DropdownMenuItem
-                onClick={() => openSessionModal()}
                 className="text-ens-blue-dark"
                 disabled={isSessionClient}
+                onClick={() => openSessionModal()}
               >
                 <BrainCircuit className="mr-2 size-4 text-ens-blue" />
                 {isSessionClient
@@ -506,8 +506,8 @@ const ConnectedContent = () => {
               </DropdownMenuItem>
             )}
             <DropdownMenuItem
-              onClick={() => logout()}
               className="text-ens-blue-dark"
+              onClick={() => logout()}
             >
               <Unlink className="mr-2 size-4 text-ens-blue" />
               Disconnect
@@ -515,32 +515,32 @@ const ConnectedContent = () => {
           </DropdownMenuContent>
         </DropdownMenu>
       ) : (
-        <Drawer open={menuOpen} onOpenChange={setMenuOpen}>
+        <Drawer onOpenChange={setMenuOpen} open={menuOpen}>
           <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
           <DrawerContent>
             <div className="max-h-[80vh] overflow-y-auto">
               <UserMenuContent {...menuContentProps} />
               <div className="border-ens-blue-light border-t">
                 <button
-                  type="button"
+                  className="flex w-full items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust"
                   onClick={() => {
                     openModal()
                     setMenuOpen(false)
                   }}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust"
+                  type="button"
                 >
                   <User className="size-4 text-ens-blue" />
                   Manage Wallet
                 </button>
                 {walletSource === 'external-wallet' && (
                   <button
-                    type="button"
+                    className="flex w-full items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust disabled:opacity-50"
+                    disabled={isSessionClient}
                     onClick={() => {
                       openSessionModal()
                       setMenuOpen(false)
                     }}
-                    disabled={isSessionClient}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust disabled:opacity-50"
+                    type="button"
                   >
                     <BrainCircuit className="size-4 text-ens-blue" />
                     {isSessionClient
@@ -549,12 +549,12 @@ const ConnectedContent = () => {
                   </button>
                 )}
                 <button
-                  type="button"
+                  className="flex w-full items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust"
                   onClick={() => {
                     logout()
                     setMenuOpen(false)
                   }}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-ens-blue-dark text-sm transition-colors hover:bg-ens-lapis-dust"
+                  type="button"
                 >
                   <Unlink className="size-4 text-ens-blue" />
                   Disconnect
@@ -565,11 +565,11 @@ const ConnectedContent = () => {
         </Drawer>
       )}
 
-      <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
+      <Popover onOpenChange={setNotificationsOpen} open={notificationsOpen}>
         <PopoverTrigger asChild>
           <button
-            type="button"
             className="flex items-center justify-center rounded-full border border-gray-300 p-2 transition-colors hover:bg-gray-50 md:p-[11px]"
+            type="button"
           >
             <Bell className="size-5 md:size-6" />
           </button>
@@ -580,8 +580,8 @@ const ConnectedContent = () => {
       </Popover>
 
       <Link
-        to="/dashboard"
         className="flex items-center justify-center rounded-full border border-gray-300 p-2 transition-colors hover:bg-gray-50 md:p-[11px]"
+        to="/dashboard"
       >
         <LayoutDashboard className="size-5 md:size-6" />
       </Link>
@@ -604,10 +604,10 @@ const DisconnectedContent = () => {
   return (
     <div className="mr-6 flex items-center gap-4">
       <Button
-        variant="connectWallet"
-        onClick={handleConnect}
         disabled={walletLoading}
+        onClick={handleConnect}
         size="lg"
+        variant="connectWallet"
       >
         {walletLoading ? 'Loading...' : 'Connect'}
       </Button>
@@ -623,16 +623,16 @@ export const Header = () => {
     <nav className="sticky top-0 z-10 flex min-w-0 items-center justify-between gap-4 bg-background px-4 py-4 md:px-10 md:py-7">
       <div className="flex shrink-0 flex-col md:flex-row md:items-center md:gap-3">
         <div className="flex items-center gap-3">
-          <Link to="/" className="shrink-0 py-2">
+          <Link className="shrink-0 py-2" to="/">
             <img
-              src={ensMobileLogo}
               alt="ENS Logo"
               className="h-8 shrink-0 md:hidden"
+              src={ensMobileLogo}
             />
             <img
-              src={ensLogo}
               alt="ENS Logo"
               className="hidden h-8 shrink-0 md:block"
+              src={ensLogo}
             />
           </Link>
           {/* Sepolia Chain Badge */}

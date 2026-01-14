@@ -175,12 +175,12 @@ export const NotificationSettings = ({
 
   return (
     <form
+      className={cn('flex flex-col gap-6 bg-gray-100 px-5 py-6', className)}
       onSubmit={(e) => {
         e.preventDefault()
         e.stopPropagation()
         form.handleSubmit()
       }}
-      className={cn('flex flex-col gap-6 bg-gray-100 px-5 py-6', className)}
     >
       <div className="flex flex-col gap-2">
         <h2 className="text-2xl text-ens-blue-dark leading-9 tracking-tight">
@@ -224,9 +224,11 @@ export const NotificationSettings = ({
                 <div className="flex flex-col gap-3">
                   <div className="relative flex flex-col gap-1">
                     <Input
-                      type="email"
-                      placeholder="enter email"
-                      value={field.state.value || ''}
+                      className={cn(
+                        'h-12 rounded border-ens-blue bg-white pr-10 text-sm placeholder:text-ens-gray-three',
+                        field.state.meta.errors.length > 0 && 'border-red-500',
+                      )}
+                      onBlur={field.handleBlur}
                       onChange={(e) => {
                         field.handleChange(e.target.value)
                         // Reset verification sent status when email changes
@@ -234,11 +236,9 @@ export const NotificationSettings = ({
                           setEmailVerificationSent(false)
                         }
                       }}
-                      onBlur={field.handleBlur}
-                      className={cn(
-                        'h-12 rounded border-ens-blue bg-white pr-10 text-sm placeholder:text-ens-gray-three',
-                        field.state.meta.errors.length > 0 && 'border-red-500',
-                      )}
+                      placeholder="enter email"
+                      type="email"
+                      value={field.state.value || ''}
                     />
                     {hasValidEmail && (
                       <CheckCircle className="absolute top-3 right-3 h-6 w-6 text-ens-peridot-core" />
@@ -257,10 +257,10 @@ export const NotificationSettings = ({
                         This email has not been verified. Click the link in the
                         email to verify or{' '}
                         <button
-                          type="button"
-                          onClick={handleResendVerification}
-                          disabled={isResendingVerification}
                           className="font-medium underline transition-opacity hover:opacity-80 disabled:opacity-50"
+                          disabled={isResendingVerification}
+                          onClick={handleResendVerification}
+                          type="button"
                         >
                           {isResendingVerification
                             ? 'sending...'
@@ -280,9 +280,6 @@ export const NotificationSettings = ({
           {(field) => (
             <div className="flex flex-col gap-2">
               <button
-                type="button"
-                onClick={handleTelegramSignup}
-                disabled={isTelegramConnecting || field.state.value}
                 className={cn(
                   'flex w-fit items-center justify-center gap-3.5 rounded-full px-4 py-2.5 transition-colors',
                   field.state.value
@@ -290,6 +287,9 @@ export const NotificationSettings = ({
                     : 'bg-ens-lapis-core hover:bg-ens-lapis-core/90',
                   isTelegramConnecting && 'cursor-wait opacity-50',
                 )}
+                disabled={isTelegramConnecting || field.state.value}
+                onClick={handleTelegramSignup}
+                type="button"
               >
                 <MessageCircle className="h-5 w-5 text-white" />
                 <span className="font-medium text-base text-white leading-[15.36px] tracking-tight">
@@ -330,8 +330,8 @@ export const NotificationSettings = ({
               </div>
               <Switch
                 checked={field.state.value}
-                onCheckedChange={(checked) => field.handleChange(checked)}
                 className="shrink-0"
+                onCheckedChange={(checked) => field.handleChange(checked)}
               />
             </div>
           )}
@@ -359,8 +359,8 @@ export const NotificationSettings = ({
               </div>
               <Switch
                 checked={field.state.value}
-                onCheckedChange={(checked) => field.handleChange(checked)}
                 className="shrink-0"
+                onCheckedChange={(checked) => field.handleChange(checked)}
               />
             </div>
           )}
@@ -382,8 +382,8 @@ export const NotificationSettings = ({
               </div>
               <Switch
                 checked={field.state.value}
-                onCheckedChange={(checked) => field.handleChange(checked)}
                 className="shrink-0"
+                onCheckedChange={(checked) => field.handleChange(checked)}
               />
             </div>
           )}
@@ -396,14 +396,14 @@ export const NotificationSettings = ({
             const isValid = isFormValid()
             return (
               <Button
-                type="submit"
-                disabled={!isValid || isSubmitting}
                 className={cn(
                   'h-[74px] w-full rounded font-medium font-mono text-sm uppercase tracking-wider transition-colors',
                   isValid
                     ? 'bg-ens-blue text-white hover:bg-ens-blue-hover'
                     : 'cursor-not-allowed bg-ens-gray-two text-ens-gray hover:bg-ens-gray-two',
                 )}
+                disabled={!isValid || isSubmitting}
+                type="submit"
               >
                 {isSubmitting ? 'Saving...' : 'Confirm Preferences'}
               </Button>
@@ -411,10 +411,10 @@ export const NotificationSettings = ({
           }}
         </form.Subscribe>
         <Button
+          className="h-[74px] w-full rounded border-ens-blue bg-ens-white font-medium font-mono text-ens-blue text-sm uppercase tracking-wider hover:bg-ens-white"
+          onClick={onSkip}
           type="button"
           variant="outline"
-          onClick={onSkip}
-          className="h-[74px] w-full rounded border-ens-blue bg-ens-white font-medium font-mono text-ens-blue text-sm uppercase tracking-wider hover:bg-ens-white"
         >
           Skip
         </Button>

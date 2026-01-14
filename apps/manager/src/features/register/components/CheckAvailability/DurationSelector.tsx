@@ -51,11 +51,7 @@ export const DurationSelector = ({
 
         return (
           <button
-            key={duration}
-            type="button"
-            disabled={disabled}
             aria-pressed={isSelected}
-            onClick={() => onSelect(duration)}
             className={cn(
               'group relative',
               'flex h-[58px] w-full items-center justify-between md:h-[100px]',
@@ -67,6 +63,10 @@ export const DurationSelector = ({
               'focus-visible:outline-2 focus-visible:outline-offset-2',
               'focus-visible:outline-ens-blue',
             )}
+            disabled={disabled}
+            key={duration}
+            onClick={() => onSelect(duration)}
+            type="button"
           >
             {/* Left: Year label */}
             <div className="flex w-[50%] items-center gap-3 md:w-[60%] md:gap-5 lg:w-[40%] xl:w-[60%]">

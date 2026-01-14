@@ -96,23 +96,13 @@ function Calendar({
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
       <DayPicker
-        mode="single"
-        showOutsideDays={showOutsideDays}
-        selected={selectedDate}
-        onSelect={handleSelect}
+        captionLayout={captionLayout}
         className={cn(
           'group/calendar [--cell-size:2.5rem] data-[slot=card-content]:bg-transparent data-[slot=popover-content]:bg-transparent',
           String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
           String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
           className,
         )}
-        captionLayout={captionLayout}
-        formatters={{
-          formatMonthDropdown: (date) =>
-            date.toLocaleString('default', { month: 'long' }),
-          formatYearDropdown: (date) => date.getFullYear().toString(),
-          ...formatters,
-        }}
         classNames={{
           root: cn('w-fit', defaultClassNames.root),
           months: cn(
@@ -196,9 +186,9 @@ function Calendar({
           Root: ({ className, rootRef, ...props }) => {
             return (
               <div
+                className={cn(className)}
                 data-slot="calendar"
                 ref={rootRef}
-                className={cn(className)}
                 {...props}
               />
             )
@@ -238,24 +228,34 @@ function Calendar({
           },
           ...components,
         }}
+        formatters={{
+          formatMonthDropdown: (date) =>
+            date.toLocaleString('default', { month: 'long' }),
+          formatYearDropdown: (date) => date.getFullYear().toString(),
+          ...formatters,
+        }}
+        mode="single"
+        onSelect={handleSelect}
+        selected={selectedDate}
+        showOutsideDays={showOutsideDays}
         {...props}
       />
       {(showClearButton || showTodayButton) && (
         <div className="mt-4 flex items-center justify-between border-gray-200 border-t pt-4">
           {showClearButton && (
             <button
-              type="button"
-              onClick={handleClear}
               className="font-normal text-[#101828] text-sm transition-colors hover:text-[#6a7282]"
+              onClick={handleClear}
+              type="button"
             >
               Clear
             </button>
           )}
           {showTodayButton && (
             <button
-              type="button"
-              onClick={handleToday}
               className="ml-auto font-normal text-[#101828] text-sm transition-colors hover:text-[#6a7282]"
+              onClick={handleToday}
+              type="button"
             >
               Today
             </button>
@@ -281,19 +281,6 @@ function CalendarDayButton({
 
   return (
     <Button
-      ref={ref}
-      variant="ghost"
-      size="icon"
-      data-day={day.date.toLocaleDateString()}
-      data-selected-single={
-        modifiers.selected &&
-        !modifiers.range_start &&
-        !modifiers.range_end &&
-        !modifiers.range_middle
-      }
-      data-range-start={modifiers.range_start}
-      data-range-end={modifiers.range_end}
-      data-range-middle={modifiers.range_middle}
       className={cn(
         'flex aspect-square size-auto w-full min-w-(--cell-size) items-center justify-center font-normal text-[#101828] text-sm leading-none',
         'rounded-[10px] transition-colors',
@@ -308,6 +295,19 @@ function CalendarDayButton({
         defaultClassNames.day,
         className,
       )}
+      data-day={day.date.toLocaleDateString()}
+      data-range-end={modifiers.range_end}
+      data-range-middle={modifiers.range_middle}
+      data-range-start={modifiers.range_start}
+      data-selected-single={
+        modifiers.selected &&
+        !modifiers.range_start &&
+        !modifiers.range_end &&
+        !modifiers.range_middle
+      }
+      ref={ref}
+      size="icon"
+      variant="ghost"
       {...props}
     />
   )

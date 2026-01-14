@@ -27,10 +27,10 @@ export const UpdateStatusPanel = ({
       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
         <span className="font-medium text-gray-700">Transaction:</span>
         <a
-          href={`https://sepolia.etherscan.io/tx/${txHash}`}
-          target="_blank"
-          rel="noreferrer"
           className="font-mono text-blue-600 underline-offset-2 hover:underline"
+          href={`https://sepolia.etherscan.io/tx/${txHash}`}
+          rel="noreferrer"
+          target="_blank"
         >
           {txHash.slice(0, 10)}...{txHash.slice(-8)}
         </a>
@@ -42,9 +42,9 @@ export const UpdateStatusPanel = ({
     return (
       <div className="mb-3">
         <Alert
-          variant="info"
-          title="Updating profile"
           description="Submitting your ENS profile update. This may take a few moments."
+          title="Updating profile"
+          variant="info"
         >
           <div className="mt-2 flex items-center gap-2 text-blue-700 text-xs">
             <Loader2 className="h-3 w-3 animate-spin" />
@@ -60,9 +60,9 @@ export const UpdateStatusPanel = ({
     return (
       <div className="mb-3">
         <Alert
-          variant="destructive"
-          title="Update failed"
           description={errorMessage}
+          title="Update failed"
+          variant="destructive"
         >
           {renderTxLink()}
         </Alert>
@@ -74,9 +74,9 @@ export const UpdateStatusPanel = ({
     return (
       <div className="mb-3">
         <Alert
-          variant="success"
-          title="Profile updated"
           description="Your profile changes have been confirmed on-chain."
+          title="Profile updated"
+          variant="success"
         >
           {renderTxLink()}
         </Alert>

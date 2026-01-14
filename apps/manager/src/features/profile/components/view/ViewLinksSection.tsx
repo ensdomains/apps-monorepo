@@ -14,17 +14,17 @@ export const ViewLinksSection = ({ records }: ViewLinksSectionProps) => {
         <div className="flex flex-wrap gap-2">
           {records.links.map((link, i) => (
             <Button
-              key={`${link.name}-${i}`}
               asChild
-              variant="outline"
-              size="sm"
               className="w-full min-w-1/3 flex-1 justify-between"
+              key={`${link.name}-${i}`}
+              size="sm"
+              variant="outline"
             >
               <a
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="flex w-full min-w-0 items-center justify-between gap-2"
+                href={link.url}
+                rel="noopener noreferrer"
+                target="_blank"
                 title={link.url}
               >
                 <span className="truncate">{link.name}</span>

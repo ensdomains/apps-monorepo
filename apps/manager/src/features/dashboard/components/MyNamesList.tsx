@@ -96,9 +96,9 @@ export const MyNamesList = ({
             <div className="size-[32px] shrink-0 md:size-[36.9px]" />
             <div className="flex items-center gap-[8px]">
               <button
-                type="button"
-                onClick={() => handleSort('name')}
                 className="flex cursor-pointer items-center gap-[8px]"
+                onClick={() => handleSort('name')}
+                type="button"
               >
                 <span
                   className={`font-sans text-[12px] tracking-[0.24px] ${sortField === 'name' ? 'font-bold text-[#232222]' : 'text-[#7d7d7d]'}`}
@@ -106,8 +106,8 @@ export const MyNamesList = ({
                   Name
                 </span>
                 <SortIndicator
-                  isActive={sortField === 'name'}
                   direction={sortDirection}
+                  isActive={sortField === 'name'}
                 />
               </button>
             </div>
@@ -117,9 +117,9 @@ export const MyNamesList = ({
           <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px]">
             <div className="flex items-center gap-[8px]">
               <button
-                type="button"
-                onClick={() => handleSort('expiry')}
                 className="flex cursor-pointer items-center gap-[8px]"
+                onClick={() => handleSort('expiry')}
+                type="button"
               >
                 <span
                   className={`font-sans text-[12px] tracking-[0.24px] ${sortField === 'expiry' ? 'font-bold text-[#232222]' : 'text-[#7d7d7d]'}`}
@@ -127,8 +127,8 @@ export const MyNamesList = ({
                   Expiry
                 </span>
                 <SortIndicator
-                  isActive={sortField === 'expiry'}
                   direction={sortDirection}
+                  isActive={sortField === 'expiry'}
                 />
               </button>
             </div>
@@ -167,8 +167,8 @@ export const MyNamesList = ({
 
               return (
                 <div
-                  key={name.id}
                   className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
+                  key={name.id}
                 >
                   {isPrimary && (
                     <div className="mb-[10px] px-[24px]">
@@ -182,24 +182,24 @@ export const MyNamesList = ({
                         <div className="relative size-[32px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
                           <ImageFallback.Root className="contents">
                             <ImageFallback.Image
-                              src={avatarUrl}
                               alt={`${label} avatar`}
                               className="size-full object-cover"
+                              src={avatarUrl}
                             />
                             <ImageFallback.Fallback>
                               <img
-                                src={placeholderAvatar}
                                 alt={`${label} avatar placeholder`}
                                 className="size-full object-cover"
+                                src={placeholderAvatar}
                               />
                             </ImageFallback.Fallback>
                           </ImageFallback.Root>
                         </div>
                         <div className="flex min-w-0 flex-1 items-center justify-center rounded-[2.8px] bg-[#e5f7ff] px-2 py-1 md:h-[24px] md:px-[8px] md:py-[4px]">
                           <Link
-                            to="/p/$name"
-                            params={{ name: label }}
                             className="mr-1 truncate font-medium font-mono text-[#0080bc] text-[14px] tracking-[-0.28px] md:mr-2 md:text-[16px] md:tracking-[-0.32px]"
+                            params={{ name: label }}
+                            to="/p/$name"
                           >
                             {label}
                           </Link>
@@ -220,12 +220,12 @@ export const MyNamesList = ({
                         </div>
                         <div className="flex items-center justify-center gap-[3.28px]">
                           <Link
-                            to="/auto-renewal"
+                            className="flex items-center gap-[4.92px] text-[#0080bc]"
                             onClick={(event) => {
                               event.preventDefault()
                               toast('Renewal coming soon')
                             }}
-                            className="flex items-center gap-[4.92px] text-[#0080bc]"
+                            to="/auto-renewal"
                           >
                             <span className="font-sans text-[11px] leading-[1.6] md:text-[12px] md:leading-[1.8]">
                               Extend
@@ -259,20 +259,20 @@ export const MyNamesList = ({
       <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
         <div className="flex items-center justify-center gap-3 md:gap-[12px]">
           <button
-            type="button"
-            onClick={handlePrev}
-            disabled={isLoading || page === 1}
             className="flex items-center gap-1 rounded-[6px] border border-[#d3d3d3] px-3 py-1 text-[#7d7d7d] text-[11px] disabled:border-[#f0f0f0] disabled:text-[#d3d3d3] md:text-[12px]"
+            disabled={isLoading || page === 1}
+            onClick={handlePrev}
+            type="button"
           >
             <ChevronLeft className="size-[14px]" />
             <span>Previous</span>
           </button>
           {hasNextPage && (
             <button
-              type="button"
-              onClick={handleNext}
-              disabled={isLoading}
               className="flex items-center gap-1 rounded-[6px] border border-[#d3d3d3] px-3 py-1 text-[#7d7d7d] text-[11px] disabled:border-[#f0f0f0] disabled:text-[#d3d3d3] md:text-[12px]"
+              disabled={isLoading}
+              onClick={handleNext}
+              type="button"
             >
               <span>Next</span>
               <ChevronRight className="size-[14px]" />

@@ -3,16 +3,16 @@ import { SearchField } from './SearchField'
 export default {
   Default: (
     <SearchField
-      placeholder="Search domains..."
       onSearch={(query) => console.log('Searching for:', query)}
+      placeholder="Search domains..."
     />
   ),
 
   WithValue: (
     <SearchField
       defaultValue="erni"
-      placeholder="Search domains..."
       onSearch={(query) => console.log('Searching for:', query)}
+      placeholder="Search domains..."
     />
   ),
 
@@ -20,17 +20,17 @@ export default {
     <div className="max-w-lg">
       <SearchField
         defaultValue="erni"
-        onSearch={(query) => console.log('Searching for:', query)}
         onChange={(e) => console.log('Input changed:', e.target.value)}
+        onSearch={(query) => console.log('Searching for:', query)}
       />
     </div>
   ),
 
   Disabled: (
     <SearchField
-      placeholder="Search disabled..."
       disabled={true}
       onSearch={(query) => console.log('Searching for:', query)}
+      placeholder="Search disabled..."
     />
   ),
 
@@ -38,11 +38,11 @@ export default {
     <div className="max-w-md">
       <h3 className="mb-4 font-semibold text-lg">Domain Search</h3>
       <SearchField
-        placeholder="Enter domain name..."
         onSearch={(query) => {
           console.log('Searching for:', query)
           alert(`Searching for: ${query}`)
         }}
+        placeholder="Enter domain name..."
       />
     </div>
   ),
@@ -59,8 +59,8 @@ export default {
 
       <SearchField
         defaultValue="erni"
-        onSearch={(query) => alert(`Searching for: ${query}`)}
         onChange={(e) => console.log('Typing:', e.target.value)}
+        onSearch={(query) => alert(`Searching for: ${query}`)}
       />
     </div>
   ),
@@ -68,8 +68,8 @@ export default {
   FullWidth: (
     <div className="w-full max-w-2xl">
       <SearchField
-        placeholder="Search for the perfect domain name..."
         onSearch={(query) => console.log('Full width search:', query)}
+        placeholder="Search for the perfect domain name..."
       />
     </div>
   ),
@@ -78,11 +78,6 @@ export default {
     <div className="max-w-lg space-y-4">
       <h3 className="font-semibold text-lg">Search with All Handlers</h3>
       <SearchField
-        placeholder="Type and press Enter or click search..."
-        onSearch={(query) => {
-          console.log('Search triggered:', query)
-          alert(`Search: ${query}`)
-        }}
         onChange={(e) => {
           console.log('Input changed:', e.target.value)
         }}
@@ -93,6 +88,11 @@ export default {
             console.log('Cleared input')
           }
         }}
+        onSearch={(query) => {
+          console.log('Search triggered:', query)
+          alert(`Search: ${query}`)
+        }}
+        placeholder="Type and press Enter or click search..."
       />
       <p className="text-gray-600 text-sm">
         Try typing, pressing Enter, clicking the mic (logs to console), or
@@ -113,11 +113,11 @@ export default {
       </div>
 
       <SearchField
-        placeholder="Enter your dream domain name"
         onSearch={(query) => {
           console.log('Real world search:', query)
           // In a real app, this would trigger domain availability checking
         }}
+        placeholder="Enter your dream domain name"
       />
 
       <div className="mt-6 text-center">

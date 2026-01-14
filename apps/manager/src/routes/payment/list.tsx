@@ -22,7 +22,7 @@ function RouteComponent() {
       ) : (
         <>
           <div className="text-gray-500">No payment methods found.</div>
-          <LinkButton to="/payment/add" variant="secondary" className="w-full">
+          <LinkButton className="w-full" to="/payment/add" variant="secondary">
             Add Payment Method
           </LinkButton>
         </>

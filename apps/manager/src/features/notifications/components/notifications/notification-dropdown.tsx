@@ -60,9 +60,9 @@ const UnauthenticatedContent = () => {
           </div>
 
           <Button
-            onClick={handleSignIn}
-            disabled={signIn.isPending || !walletClient}
             className="w-full"
+            disabled={signIn.isPending || !walletClient}
+            onClick={handleSignIn}
             size="lg"
           >
             {signIn.isPending ? 'Signing in...' : 'Sign in with Wallet'}
@@ -136,16 +136,15 @@ const AuthenticatedContent = ({ onAction }: AuthenticatedContentProps) => {
     <div>
       <div className="p-2">
         <NotificationsTitleRow
-          title="Notifications"
           rightSlot={
             unreadCount > 0 ? (
               <button
-                type="button"
                 className="inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-gray-50"
                 onClick={() => {
                   // TODO: Implement mark all as read
                   console.log('Mark all as read')
                 }}
+                type="button"
               >
                 <span>Mark all as read</span>
                 <span className="rounded-md bg-gray-200 px-1.5 py-0.5 text-gray-900 text-xs">
@@ -156,13 +155,14 @@ const AuthenticatedContent = ({ onAction }: AuthenticatedContentProps) => {
               <a
                 className="inline-flex items-center gap-1 text-muted-foreground text-sm hover:underline"
                 href="https://ens.domains/blog"
-                target="_blank"
                 rel="noreferrer"
+                target="_blank"
               >
                 what's new at ENS <ArrowUpRight className="size-3.5" />
               </a>
             )
           }
+          title="Notifications"
         />
       </div>
 
@@ -172,10 +172,10 @@ const AuthenticatedContent = ({ onAction }: AuthenticatedContentProps) => {
             <SmileIcon className="size-10" />
             <div className="text-muted-foreground text-sm">All caught up!</div>
             <LinkButton
-              to="/notifications/all"
-              variant="ghost"
               className="mt-1 inline-flex items-center gap-2"
               onClick={onAction}
+              to="/notifications/all"
+              variant="ghost"
             >
               View all notifications <ArrowRight className="size-4" />
             </LinkButton>
@@ -196,10 +196,10 @@ const AuthenticatedContent = ({ onAction }: AuthenticatedContentProps) => {
       {allNotifications.length > 3 && (
         <div className="border-gray-100 border-t px-4 pt-3 pb-2">
           <LinkButton
-            to="/notifications/all"
-            variant="ghost"
             className="inline-flex w-full items-center justify-center gap-2"
             onClick={onAction}
+            to="/notifications/all"
+            variant="ghost"
           >
             View all notifications <ArrowRight className="size-4" />
           </LinkButton>

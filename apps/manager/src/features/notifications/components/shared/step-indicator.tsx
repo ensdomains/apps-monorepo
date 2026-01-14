@@ -17,7 +17,7 @@ export function StepIndicator({
         const isCompleted = completedSteps.includes(stepNumber)
 
         return (
-          <div key={stepNumber} className="flex items-center">
+          <div className="flex items-center" key={stepNumber}>
             <div
               className={`flex h-8 w-8 items-center justify-center rounded-full font-medium text-sm ${
                 isCurrent

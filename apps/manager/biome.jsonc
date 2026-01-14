@@ -1,15 +1,34 @@
 {
   "$schema": "../../node_modules/@biomejs/biome/configuration_schema.json",
-  "root": false,
+  "assist": {
+    "actions": {
+      "source": {
+        "useSortedAttributes": "on",
+        "useSortedProperties": "on"
+      }
+    }
+  },
   "extends": "//",
-  "formatter": {
-    "indentStyle": "space"
+  "files": {
+    "includes": [
+      "./**",
+      "!**/node_modules",
+      "!**/public",
+      // Generated files
+      "!**/*.gen.ts",
+      "!**/*.gen.d.ts",
+      // Build & Temp files
+      "!**/.tanstack",
+      "!!**/.output",
+      "!!**/.nitro",
+      "!!**/.wrangler"
+    ]
   },
   "linter": {
     "rules": {
       "complexity": {
-        "noUselessFragments": "error",
-        "noForEach": "warn"
+        "noForEach": "warn",
+        "noUselessFragments": "error"
       },
       "correctness": {
         "noUnusedImports": {
@@ -20,41 +39,19 @@
       },
       "nursery": {
         "useSortedClasses": {
-          "level": "error",
           "fix": "safe",
+          "level": "error",
           "options": {
             "functions": ["cn", "cva", "clsx"]
           }
         }
       },
       "style": {
-        "noUselessElse": "error",
         "noNegationElse": "error",
-        "noUnusedTemplateLiteral": "error"
+        "noUnusedTemplateLiteral": "error",
+        "noUselessElse": "error"
       }
     }
   },
-  "css": {
-    "parser": {
-      "tailwindDirectives": true
-    }
-  },
-  "files": {
-    "includes": [
-      "./**",
-
-      "!**/node_modules",
-      "!**/public",
-
-      // Generated files
-      "!**/*.gen.ts",
-      "!**/*.gen.d.ts",
-
-      // Build & Temp files
-      "!**/.tanstack",
-      "!!**/.output",
-      "!!**/.nitro",
-      "!!**/.wrangler"
-    ]
-  }
+  "root": false
 }
