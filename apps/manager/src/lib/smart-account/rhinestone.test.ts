@@ -121,8 +121,8 @@ describe('initializeRhinestoneAccount', () => {
     })
 
     // Verify createAccount was called with ECDSA owner
-    const mockSdk = vi.mocked(RhinestoneSDK).mock.results[0].value
-    expect(mockSdk.createAccount).toHaveBeenCalledWith({
+    const mockSdk = vi.mocked(RhinestoneSDK).mock.results[0]?.value
+    expect(mockSdk?.createAccount).toHaveBeenCalledWith({
       owners: {
         type: 'ecdsa',
         accounts: expect.any(Array),

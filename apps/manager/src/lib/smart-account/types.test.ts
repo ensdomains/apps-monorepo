@@ -20,7 +20,7 @@ const createBaseState = () => ({
   isLoading: false,
   error: null,
   isConnected: false,
-  walletSource: null as const,
+  walletSource: null,
   ownerAddress: null,
   stablecoinBalances: [],
   isLoadingBalances: false,
@@ -106,7 +106,7 @@ describe('isZeroDevAccount', () => {
       config: {
         chain: {} as any,
         accountType: 'hca',
-        kernelVersion: '3.1',
+        kernelVersion: '3.1' as any,
         pimlicoApiKey: 'test-key',
       },
       isSessionClient: true,

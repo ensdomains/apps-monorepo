@@ -86,7 +86,7 @@ describe('session-storage', () => {
       const sessions = getAllSessions()
 
       expect(sessions).toHaveLength(1)
-      expect(sessions[0].id).toBe('session-123')
+      expect(sessions[0]?.id).toBe('session-123')
     })
 
     it('returns empty array for invalid JSON', () => {
@@ -196,7 +196,7 @@ describe('session-storage', () => {
 
       saveSession(mockSession)
 
-      const stored = JSON.parse(mockLocalStorage[SESSION_STORAGE_KEY])
+      const stored = JSON.parse(mockLocalStorage[SESSION_STORAGE_KEY] ?? '[]')
       expect(stored).toHaveLength(1)
       expect(stored[0].id).toBe('session-123')
     })

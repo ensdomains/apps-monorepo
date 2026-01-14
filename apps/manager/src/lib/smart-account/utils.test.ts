@@ -239,16 +239,17 @@ describe('walletClientToAccount', () => {
 })
 
 describe('wrapParaAccount', () => {
-  const createMockAccount = (overrides: Partial<Account> = {}): Account => ({
-    address: '0x1234567890123456789012345678901234567890' as const,
-    type: 'local',
-    publicKey: '0x' as Hex,
-    source: 'custom',
-    signMessage: vi.fn(),
-    signTypedData: vi.fn(),
-    signTransaction: vi.fn(),
-    ...overrides,
-  })
+  const createMockAccount = (overrides: Partial<Account> = {}): Account =>
+    ({
+      address: '0x1234567890123456789012345678901234567890' as const,
+      type: 'local',
+      publicKey: '0x' as Hex,
+      source: 'custom',
+      signMessage: vi.fn(),
+      signTypedData: vi.fn(),
+      signTransaction: vi.fn(),
+      ...overrides,
+    }) as Account
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -569,7 +570,7 @@ describe('internal function behavior', () => {
       const wrapped = wrapParaAccount(mockAccount)
       const result = await wrapped.signMessage?.({ message: 'test' })
 
-      expect(result.startsWith('0x')).toBe(true)
+      expect(result?.startsWith('0x')).toBe(true)
     })
 
     it('pads v-byte to 2 characters', async () => {
@@ -582,7 +583,7 @@ describe('internal function behavior', () => {
       const result = await wrapped.signMessage?.({ message: 'test' })
 
       // Result should have 132 characters (0x + 128 + 2 for v)
-      expect(result.length).toBe(132)
+      expect(result?.length).toBe(132)
     })
   })
 

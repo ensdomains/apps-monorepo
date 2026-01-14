@@ -255,7 +255,7 @@ describe('SmartAccountContext', () => {
         sessionPrivateKey: '0xkey' as const,
       }
 
-      const mockSessionClient = { account: { address: '0xSession' } }
+      const mockSessionClient = { account: { address: '0xSession' } } as any
 
       act(() => {
         result.current.setSessionData(mockSession, mockSessionClient)
