@@ -33,13 +33,10 @@ describe('getEnsOwner', () => {
 
     const result = await getEnsOwner({ name: 'v1rtl.eth' })
 
-    expect(result.isOk()).toBe(true)
-    if (result.isOk()) {
-      expect(result.value).toMatchObject({
-        owner: mockOwnerAddress,
-        network: 'sepolia',
-      })
-    }
+    expect(result._unsafeUnwrap()).toMatchObject({
+      owner: mockOwnerAddress,
+      network: 'sepolia',
+    })
   })
 
   it('returns a V2 owner when V1 has no owner', async () => {
@@ -49,13 +46,10 @@ describe('getEnsOwner', () => {
 
     const result = await getEnsOwner({ name: 'test.eth' })
 
-    expect(result.isOk()).toBe(true)
-    if (result.isOk()) {
-      expect(result.value).toMatchObject({
-        owner: mockOwnerAddress,
-        network: 'namechainSepolia',
-      })
-    }
+    expect(result._unsafeUnwrap()).toMatchObject({
+      owner: mockOwnerAddress,
+      network: 'namechainSepolia',
+    })
   })
 
   it('returns null when no owner found on either network', async () => {
@@ -64,9 +58,6 @@ describe('getEnsOwner', () => {
 
     const result = await getEnsOwner({ name: 'unowned.eth' })
 
-    expect(result.isOk()).toBe(true)
-    if (result.isOk()) {
-      expect(result.value).toBeNull()
-    }
+    expect(result._unsafeUnwrap()).toBeNull()
   })
 })
