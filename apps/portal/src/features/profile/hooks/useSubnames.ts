@@ -27,7 +27,7 @@ type GetSubnamesParameters = WithEnsNetwork<{
   name: string
 }>
 
-const getSubnames = ResultFn(async function* ({
+export const getSubnames = ResultFn(async function* ({
   name,
   network,
 }: GetSubnamesParameters) {
