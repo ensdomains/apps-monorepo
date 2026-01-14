@@ -39,10 +39,7 @@ describe('getSubnames', () => {
 
     const result = await getSubnames({ name: 'test.eth', network: 'sepolia' })
 
-    expect(result.isOk()).toBe(true)
-    if (result.isOk()) {
-      expect(result.value).toEqual(mockSubnames)
-    }
+    expect(result._unsafeUnwrap()).toEqual(mockSubnames)
     expect(mockEnsjsGetSubnames).toHaveBeenCalledWith(mockClient, {
       name: 'test.eth',
     })
@@ -70,16 +67,27 @@ describe('getSubnames', () => {
       network: 'namechainSepolia',
     })
 
-    expect(result.isOk()).toBe(true)
-    if (result.isOk()) {
-      expect(result.value).toEqual([
-        {
-          name: 'sub.test.eth',
-          labelName: 'sub',
-          labelhash: '0xabcd',
-          owner: '0xABcdEFABcdEFabcdEfAbCdefabcdeFABcDEFabCD',
-        },
-      ])
+    expect(result._unsafeUnwrap()).toEqual([
+      {
+        name: 'sub.test.eth',
+        labelName: 'sub',
+        labelhash: '0xabcd',
+        owner: '0xABcdEFABcdEFabcdEfAbCdefabcdeFABcDEFabCD',
+      },
+    ])
+  })
+
+  it('returns empty array when domain has no subdomains', async () => {
+    const mockGraphqlResponse = {
+      domains: [{ subdomains: [] }],
     }
+    mockGraphqlRequest.mockResolvedValue(mockGraphqlResponse)
+
+    const result = await getSubnames({
+      name: 'empty.eth',
+      network: 'namechainSepolia',
+    })
+
+    expect(result._unsafeUnwrap()).toEqual([])
   })
 })
