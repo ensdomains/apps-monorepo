@@ -50,6 +50,11 @@ jobs:
           echo "📊 Running coverage tests on changed packages..."
           pnpm --filter="...[origin/main]" test:coverage || pnpm -r test:coverage
 
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
       # TODO: Uncomment when Knip is configured for all packages
       # - name: Run Knip on changed packages
       #   run: |
