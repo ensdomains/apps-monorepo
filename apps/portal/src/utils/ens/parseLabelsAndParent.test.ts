@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { parseName } from './parseName'
+import { parseLabelsAndParent } from './parseLabelsAndParent'
 
-describe('parseName', () => {
+describe('parseLabelsAndParent', () => {
   it('should parse a standard second-level domain', () => {
-    const result = parseName('vitalik.eth')
+    const result = parseLabelsAndParent('vitalik.eth')
 
     expect(result).toEqual({
       labels: ['vitalik'],
@@ -12,7 +12,7 @@ describe('parseName', () => {
   })
 
   it('should parse a subdomain', () => {
-    const result = parseName('sub.vitalik.eth')
+    const result = parseLabelsAndParent('sub.vitalik.eth')
 
     expect(result).toEqual({
       labels: ['sub', 'vitalik'],
@@ -21,7 +21,7 @@ describe('parseName', () => {
   })
 
   it('should parse a TLD-only name', () => {
-    const result = parseName('eth')
+    const result = parseLabelsAndParent('eth')
 
     expect(result).toEqual({
       labels: [],
@@ -30,7 +30,7 @@ describe('parseName', () => {
   })
 
   it('should handle empty string', () => {
-    const result = parseName('')
+    const result = parseLabelsAndParent('')
 
     expect(result).toEqual({
       labels: [],

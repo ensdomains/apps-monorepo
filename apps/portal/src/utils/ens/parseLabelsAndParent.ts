@@ -13,18 +13,18 @@ export type ParsedName = {
  * @returns Object containing labels array and parent TLD
  *
  * @example
- * parseName("vitalik.eth")
+ * parseLabelsAndParent("vitalik.eth")
  * // { labels: ["vitalik"], parent: "eth" }
  *
  * @example
- * parseName("sub.vitalik.eth")
+ * parseLabelsAndParent("sub.vitalik.eth")
  * // { labels: ["sub", "vitalik"], parent: "eth" }
  *
  * @example
- * parseName("eth")
+ * parseLabelsAndParent("eth")
  * // { labels: [], parent: "eth" }
  */
-export const parseName = (name: string): ParsedName => {
+export const parseLabelsAndParent = (name: string): ParsedName => {
   const parts = name.split('.')
   return {
     labels: parts.slice(0, -1),

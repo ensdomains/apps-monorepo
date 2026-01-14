@@ -6,7 +6,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
-import { parseName } from '@/utils/ens/parseName'
+import { parseLabelsAndParent } from '@/utils/ens/parseLabelsAndParent'
 import {
   filterEvmChains,
   filterNonEvmChains,
@@ -23,7 +23,7 @@ const evmCoinTypes = Object.values(evmCoinNameToTypeMap)
 const nonEvmCoinTypes = Object.values(nonEvmCoinNameToTypeMap)
 
 export const NameProfileCard = ({ name }: { name: string }) => {
-  const { labels, parent } = parseName(name)
+  const { labels, parent } = parseLabelsAndParent(name)
 
   const {
     data: records,
