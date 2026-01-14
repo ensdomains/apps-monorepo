@@ -30,8 +30,8 @@ import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
+import { computeDisplayNameState } from '@/utils/reverseResolution/computeDisplayNameState'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
 import { useReverseResolutionMutations } from './hooks/useReverseResolutionMutations'
 import { useSwitchToRequiredNetwork } from './hooks/useSwitchToRequiredNetwork'
@@ -171,13 +171,13 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     }
   }, [row])
 
-  const isL1 = isL1ReverseRegistrarChainId(reverseRegistrarChainId)
-  const displayName = name || (defaultName && !isL1 ? defaultName : null)
-  const isInheritingDefault = !name && defaultName && !isL1
-  const isPrimaryName = forwardMatch || isInheritingDefault
-  // Only show "Set primary name" button for L1 chains (L2 doesn't need forward resolution)
-  const showSetPrimaryButton =
-    isL1 && displayName && !isPrimaryName && name !== null
+  const { displayName, isInheritingDefault, isPrimaryName, canSetAsPrimary } =
+    computeDisplayNameState({
+      name,
+      defaultName,
+      forwardMatch,
+      reverseRegistrarChainId,
+    })
 
   const [nameInput, setNameInput] = useState('')
 
@@ -319,7 +319,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
               <SheetTitle className="font-sans text-[28px] font-medium">
                 {label} resolution
               </SheetTitle>
-              {showSetPrimaryButton && (
+              {canSetAsPrimary && (
                 <Button
                   onClick={handleSetPrimaryName}
                   variant="default"

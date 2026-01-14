@@ -4,6 +4,7 @@ import type { Hash } from 'viem'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
+import { enrichEventsWithMetadata } from '@/utils/history/enrichEventsWithMetadata'
 import {
   type ENSEvent,
   transformHistoryToEvents,
@@ -38,14 +39,10 @@ export const HistoryDataTable = ({
   })
 
   // Add timestamps and senders to the events data
-  const eventsDataWithTimestampsAndSenders = useMemo(() => {
-    if (!timestampsData || !sendersData) return []
-    return eventsData.map((tx) => ({
-      ...tx,
-      timestamp: timestampsData.get(BigInt(tx.blockNumber)),
-      from: sendersData.get(tx.transactionID as Hash) || tx.from,
-    }))
-  }, [eventsData, timestampsData, sendersData])
+  const eventsDataWithTimestampsAndSenders = useMemo(
+    () => enrichEventsWithMetadata(eventsData, timestampsData, sendersData),
+    [eventsData, timestampsData, sendersData],
+  )
 
   if (isLoadingTimestamps && isLoadingSenders) {
     return <div>Loading transaction data...</div>

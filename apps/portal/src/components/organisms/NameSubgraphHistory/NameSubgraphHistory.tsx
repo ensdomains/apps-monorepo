@@ -8,6 +8,7 @@ import {
   getNameHistoryQueryOptions,
 } from '@/features/profile/hooks/useNameHistory'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
+import { enrichEventsWithMetadata } from '@/utils/history/enrichEventsWithMetadata'
 import {
   groupEventsByTransactionId,
   type SubgraphEvent,
@@ -76,11 +77,11 @@ const NameSubgraphHistoryTable = ({
     return <div>No data available</div>
   }
 
-  const dataWithTimestampsAndSenders = groupedData.map((tx) => ({
-    ...tx,
-    timestamp: timestampsData.get(BigInt(tx.blockNumber)),
-    from: sendersData.get(tx.transactionID as Hash) || tx.from,
-  }))
+  const dataWithTimestampsAndSenders = enrichEventsWithMetadata(
+    groupedData,
+    timestampsData,
+    sendersData,
+  )
 
   return (
     <EventsDataTable

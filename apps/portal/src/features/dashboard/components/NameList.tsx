@@ -7,6 +7,7 @@ import { CopyableRecord } from '@/components/molecules/CopyableRecord'
 import { DataTable } from '@/components/molecules/DataTable/DataTable'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { mergeNamesData } from '@/utils/names/mergeNamesData'
 import type { EnsNetworkName, WithEnsNetwork } from '@/utils/types'
 import { getV1NamesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
 import { getV2NamesForAddressQueryOptions } from '../hooks/useV2NamesForAddress'
@@ -23,7 +24,7 @@ const formatter = new Intl.DateTimeFormat('en-US', {
 
 type column = WithEnsNetwork<{
   name: string | null
-  expiryDate?: Date
+  expiryDate?: Date | null
 }>
 
 const columns: ColumnDef<column>[] = [
@@ -95,18 +96,7 @@ export const NameList = ({ address }: NameListProps) => {
   if (v2NamesQuery.isLoading) return <LoadingSpinner title="Loading V2 names" />
   if (!v2NamesQuery.data && !v1NamesQuery.data) return <>No names</>
 
-  const data = [
-    ...((v1NamesQuery.data || []).map(({ name, expiryDate }) => ({
-      name,
-      expiryDate: expiryDate ? expiryDate.date : null,
-      network: 'sepolia',
-    })) as column[]),
-    ...((v2NamesQuery.data || []).map(({ name, expiryDate }) => ({
-      name,
-      expiryDate: expiryDate ? new Date(Number(expiryDate) * 1000) : null,
-      network: 'namechainSepolia',
-    })) as column[]),
-  ] as const satisfies column[]
+  const data = mergeNamesData(v1NamesQuery.data, v2NamesQuery.data)
 
   return (
     <div className="border rounded-2xl border-gray-300">

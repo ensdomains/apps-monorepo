@@ -1,0 +1,136 @@
+import { describe, expect, it } from 'vitest'
+import type { V1Name, V2Name } from './mergeNamesData'
+import { mergeNamesData } from './mergeNamesData'
+
+describe('mergeNamesData', () => {
+  it('should merge V1 and V2 names with proper network labels', () => {
+    const v1Names: V1Name[] = [
+      { name: 'vitalik.eth', expiryDate: { date: new Date('2025-01-01') } },
+    ]
+    const v2Names: V2Name[] = [
+      { name: 'alice.eth', expiryDate: 1735689600 }, // 2025-01-01 00:00:00 UTC
+    ]
+
+    const result = mergeNamesData(v1Names, v2Names)
+
+    expect(result).toHaveLength(2)
+    expect(result[0]).toEqual({
+      name: 'vitalik.eth',
+      expiryDate: new Date('2025-01-01'),
+      network: 'sepolia',
+    })
+    expect(result[1]).toEqual({
+      name: 'alice.eth',
+      expiryDate: new Date('2025-01-01 00:00:00 UTC'),
+      network: 'namechainSepolia',
+    })
+  })
+
+  it('should handle V1 names with null expiryDate', () => {
+    const v1Names: V1Name[] = [{ name: 'test.eth', expiryDate: null }]
+    const v2Names: V2Name[] = []
+
+    const result = mergeNamesData(v1Names, v2Names)
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).toEqual({
+      name: 'test.eth',
+      expiryDate: null,
+      network: 'sepolia',
+    })
+  })
+
+  it('should handle V1 names with expiryDate.date as null', () => {
+    const v1Names: V1Name[] = [{ name: 'test.eth', expiryDate: { date: null } }]
+    const v2Names: V2Name[] = []
+
+    const result = mergeNamesData(v1Names, v2Names)
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).toEqual({
+      name: 'test.eth',
+      expiryDate: null,
+      network: 'sepolia',
+    })
+  })
+
+  it('should handle V2 names with null expiryDate', () => {
+    const v1Names: V1Name[] = []
+    const v2Names: V2Name[] = [{ name: 'test.eth', expiryDate: null }]
+
+    const result = mergeNamesData(v1Names, v2Names)
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).toEqual({
+      name: 'test.eth',
+      expiryDate: null,
+      network: 'namechainSepolia',
+    })
+  })
+
+  it('should handle undefined V1 names', () => {
+    const v2Names: V2Name[] = [{ name: 'alice.eth', expiryDate: 1735689600 }]
+
+    const result = mergeNamesData(undefined, v2Names)
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).toEqual({
+      name: 'alice.eth',
+      expiryDate: new Date('2025-01-01 00:00:00 UTC'),
+      network: 'namechainSepolia',
+    })
+  })
+
+  it('should handle undefined V2 names', () => {
+    const v1Names: V1Name[] = [
+      { name: 'vitalik.eth', expiryDate: { date: new Date('2025-01-01') } },
+    ]
+
+    const result = mergeNamesData(v1Names, undefined)
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).toEqual({
+      name: 'vitalik.eth',
+      expiryDate: new Date('2025-01-01'),
+      network: 'sepolia',
+    })
+  })
+
+  it('should handle empty arrays', () => {
+    const result = mergeNamesData([], [])
+
+    expect(result).toEqual([])
+  })
+
+  it('should correctly convert V2 number timestamps to dates', () => {
+    const v2Names: V2Name[] = [
+      { name: 'test1.eth', expiryDate: 0 }, // Unix epoch
+      { name: 'test2.eth', expiryDate: 1609459200 }, // 2021-01-01 00:00:00 UTC
+    ]
+
+    const result = mergeNamesData([], v2Names)
+
+    expect(result).toHaveLength(2)
+    expect(result[0].expiryDate).toEqual(new Date('1970-01-01 00:00:00 UTC'))
+    expect(result[1].expiryDate).toEqual(new Date('2021-01-01 00:00:00 UTC'))
+  })
+
+  it('should preserve order: V1 names first, then V2 names', () => {
+    const v1Names: V1Name[] = [
+      { name: 'v1-first.eth', expiryDate: null },
+      { name: 'v1-second.eth', expiryDate: null },
+    ]
+    const v2Names: V2Name[] = [
+      { name: 'v2-first.eth', expiryDate: null },
+      { name: 'v2-second.eth', expiryDate: null },
+    ]
+
+    const result = mergeNamesData(v1Names, v2Names)
+
+    expect(result).toHaveLength(4)
+    expect(result[0].name).toBe('v1-first.eth')
+    expect(result[1].name).toBe('v1-second.eth')
+    expect(result[2].name).toBe('v2-first.eth')
+    expect(result[3].name).toBe('v2-second.eth')
+  })
+})

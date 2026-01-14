@@ -3,6 +3,7 @@ import { disconnect } from '@wagmi/core'
 import { useConnection, useEnsName } from 'wagmi'
 import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
 import { wagmiConfig } from '@/lib/wagmi'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { NameProfileCard } from '../../features/profile/components/NameProfileCard'
 import { CopyableRecord } from '../molecules/CopyableRecord'
 import { Button } from '../ui/button'
@@ -33,7 +34,7 @@ export const DashboardProfilePreview = () => {
             <CopyableRecord
               className="font-mono text-gray-500 font-medium"
               value={address}
-              displayValue={`${address.slice(0, 6)}...${address.slice(-4)}`}
+              displayValue={truncateAddress(address, 6, 4, '...')}
               href={`/addr/${address}`}
             />
           </div>
