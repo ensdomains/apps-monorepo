@@ -13,6 +13,8 @@ import {
   getEventSignature,
 } from '@/utils/ens/eventSignatures'
 import { formatEventValue } from '@/utils/ens/formatEventValue'
+import { filterEventDetailsMetadata } from '@/utils/history/filterEventDetailsMetadata'
+import { parseEventLogIndex } from '@/utils/history/parseEventLogIndex'
 import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
 
 interface EventDataProps {
@@ -28,16 +30,13 @@ const EventData = ({ event, txHash }: EventDataProps) => {
   })
 
   // Find the matching log for this event by matching the log index from the event ID
-  const eventLogIndex = event.id.split('-')[1]
-  const parsedLogIndex = Number.parseInt(eventLogIndex, 10)
+  const parsedLogIndex = parseEventLogIndex(event.id)
 
   // Match by logIndex property
   const eventLog = receipt?.logs.find((log) => log.logIndex === parsedLogIndex)
 
   // Filter out metadata fields from details
-  const dataFields = Object.entries(event.details).filter(
-    ([key]) => !['id', 'blockNumber', 'transactionID', 'type'].includes(key),
-  )
+  const dataFields = filterEventDetailsMetadata(event.details)
 
   return (
     <div>
