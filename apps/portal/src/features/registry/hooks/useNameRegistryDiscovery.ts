@@ -51,7 +51,7 @@ class NameRegistriesError extends TaggedError('NameRegistriesError')<{
  * For V1 registries, all subnames live on the same registry.
  * For V2 registries, ensjs getNameRegistries efficiently fetches all registry addresses at once.
  */
-const getNameRegistries = ResultFn(async function* ({
+export const getNameRegistries = ResultFn(async function* ({
   network,
   name,
 }: GetNameRegistriesParameters) {
