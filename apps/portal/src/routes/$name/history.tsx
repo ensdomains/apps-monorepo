@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { ErrorMessage } from '@/components/molecules/ErrorMessage'
-import { LoadingMessage } from '@/components/molecules/LoadingMessage'
-import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
-import { HistoryDataTable } from '@/components/views/history/HistoryDataTable'
+import { ErrorMessage } from '@/components/ErrorMessage'
+import { LoadingMessage } from '@/components/LoadingMessage'
+import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { HistoryDataTable } from '@/features/history/components/HistoryDataTable'
 import { getNameHistoryQueryOptions } from '@/features/profile/hooks/useNameHistory'
 import { queryClient } from '@/utils/queryClient'
 

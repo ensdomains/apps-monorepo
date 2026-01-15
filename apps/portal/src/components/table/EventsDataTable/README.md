@@ -124,7 +124,7 @@ Default columns:
 
 - `@tanstack/react-table` - Table state management
 - `lucide-react` - Icons
-- ENS components: `AddressDisplay`, `HistorySidebar`
+- ENS components: `AddressDisplay`, `EventsSidebar`
 - Table components: `TableDateRangeFilter`, `TableMultiSelectFilter`, `CollapseAllButton`
 
 ## Migration from HistoryList

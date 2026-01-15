@@ -1,7 +1,7 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { CalendarIcon, ClockIcon } from 'lucide-react'
 import { useBlock } from 'wagmi'
-import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Timestamp } from '@/features/profile/components/Timestamp'
 import { getNameHistoryQueryOptions } from '@/features/profile/hooks/useNameHistory'
 import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'

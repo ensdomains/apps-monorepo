@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
-import { CopyableRecord } from '@/components/molecules/CopyableRecord'
-import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { CopyableRecord } from '@/components/CopyableRecord'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { getNameRegistryQueryOptions } from '@/features/registry/hooks/useNameRegistry'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 

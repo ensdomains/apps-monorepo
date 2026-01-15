@@ -2,9 +2,9 @@ import type { Row } from '@tanstack/react-table'
 import type { FC, PropsWithChildren, ReactNode } from 'react'
 import type { Hash } from 'viem'
 import { useTransaction } from 'wagmi'
-import { CopyableRecord } from '@/components/molecules/CopyableRecord'
-import { AddressDisplay } from '@/components/organisms/HistoryTable/AddressDisplay'
+import { CopyableRecord } from '@/components/CopyableRecord'
 import type { EventsTableData } from '@/components/table/EventsDataTable'
+import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import {
   Sheet,
   SheetContent,
@@ -155,14 +155,14 @@ const TransactionDetails = ({
   )
 }
 
-interface HistorySidebarProps extends PropsWithChildren {
+interface EventsSidebarProps extends PropsWithChildren {
   row: Row<ENSTransaction> | null
   name: string
   open: boolean
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
 }
 
-export const HistorySidebar: FC<HistorySidebarProps> = ({
+export const EventsSidebar: FC<EventsSidebarProps> = ({
   children,
   row,
   name,

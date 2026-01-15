@@ -5,7 +5,7 @@ import type {
 } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import type { Hash } from 'viem'
-import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import { useBlockTimestamps } from '../hooks/useBlockTimestamps'

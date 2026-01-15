@@ -1,6 +1,6 @@
 import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
-import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { CopyableRecord } from '@/components/CopyableRecord'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 

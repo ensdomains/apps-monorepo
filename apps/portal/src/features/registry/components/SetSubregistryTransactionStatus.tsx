@@ -1,6 +1,6 @@
 import { AlertCircle, CheckCircle } from 'lucide-react'
 import type { Hash } from 'viem'
-import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 interface SetSubregistryTransactionStatusProps {

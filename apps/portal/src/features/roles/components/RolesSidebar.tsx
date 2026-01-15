@@ -1,6 +1,6 @@
 import type { Row } from '@tanstack/react-table'
 import type { PropsWithChildren } from 'react'
-import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { CopyableRecord } from '@/components/CopyableRecord'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import {

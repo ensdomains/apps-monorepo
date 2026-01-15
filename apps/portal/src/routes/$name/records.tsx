@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { ErrorMessage } from '@/components/molecules/ErrorMessage'
-import { LoadingMessage } from '@/components/molecules/LoadingMessage'
-import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
-import { RecordList } from '@/components/views/records/RecordList'
+import { ErrorMessage } from '@/components/ErrorMessage'
+import { LoadingMessage } from '@/components/LoadingMessage'
+import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import { RecordList } from '@/features/records/components/RecordList'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/$name/records')({

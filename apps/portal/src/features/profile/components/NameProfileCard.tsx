@@ -5,7 +5,7 @@ import {
 } from '@ensdomains/address-encoder'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { parseLabelsAndParent } from '@/utils/ens/parseLabelsAndParent'
 import {
   filterEvmChains,

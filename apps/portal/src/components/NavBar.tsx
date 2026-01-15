@@ -9,10 +9,10 @@ import {
 import { lazy, Suspense } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
-import { HomeSearchInput } from '@/components/homepage'
+import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
 import { TableViewSwitch } from '@/features/records/components/RecordsTable/TableViewSwitch'
-import { Badge } from '../ui/badge'
-import { Button } from '../ui/button'
+import { Badge } from './ui/badge'
+import { Button } from './ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,12 +22,12 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from '../ui/dropdown-menu'
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
+} from './ui/dropdown-menu'
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 
 // Lazy load SidebarTrigger to prevent hook errors in production when sidebar isn't available
 const SidebarTrigger = lazy(() =>
-  import('../ui/sidebar').then((mod) => ({ default: mod.SidebarTrigger })),
+  import('./ui/sidebar').then((mod) => ({ default: mod.SidebarTrigger })),
 )
 
 export const NavBar = () => {
