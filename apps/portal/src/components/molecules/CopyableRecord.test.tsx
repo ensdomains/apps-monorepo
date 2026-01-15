@@ -37,4 +37,24 @@ describe('CopyableRecord', () => {
       expect(afterIcon).not.toBe(beforeIcon)
     })
   })
+
+  it('copies the raw value even when a display value is provided', async () => {
+    render(
+      <CopyableRecord
+        value="0x1234567890abcdef"
+        href="https://example.com"
+        displayValue={<span>0x1234…cdef</span>}
+      />,
+    )
+
+    expect(screen.getByRole('link')).toHaveTextContent('0x1234…cdef')
+
+    fireEvent.click(screen.getByRole('button'))
+
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        '0x1234567890abcdef',
+      )
+    })
+  })
 })
