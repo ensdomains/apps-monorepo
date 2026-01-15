@@ -30,7 +30,9 @@ type RegistrationDataProps = RegistrationDateProps
 const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
   return (
     <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
-      <CalendarIcon className="p-2 size-9 rounded-4xl bg-secondary" />
+      <div className="flex items-center justify-center size-9 rounded-full bg-secondary">
+        <CalendarIcon className="size-5" />
+      </div>
       <div className="flex flex-col">
         <span className="font-medium">Registered</span>
         <RegistrationDate blockNumber={blockNumber} />
@@ -65,7 +67,9 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
     <>
       {expiry.data && (
         <div className="flex flex-row gap-4 w-full lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
-          <ClockIcon className="p-2 size-9 rounded-4xl bg-secondary" />
+          <div className="flex items-center justify-center size-9 rounded-full bg-secondary">
+            <ClockIcon className="size-5" />
+          </div>
           <div className="flex flex-col">
             <span className="font-medium">Expiry</span>
             <span className="flex flex-row gap-1 items-center">
@@ -77,7 +81,9 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
       {blockNumber && <RegistrationData blockNumber={blockNumber} />}
       {expiry.data?.gracePeriod && (
         <div className="flex flex-row gap-4 w-full lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
-          <CalendarIcon className="p-2 size-9 rounded-4xl bg-secondary" />
+          <div className="flex items-center justify-center size-9 rounded-full bg-secondary">
+            <CalendarIcon className="size-5" />
+          </div>
           <div className="flex flex-col">
             <span className="font-medium">Grace</span>
             <span className="flex flex-row gap-1 items-center">
@@ -112,7 +118,9 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
     <>
       {data.registeredAt && (
         <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
-          <ClockIcon className="p-2 size-9 rounded-4xl bg-secondary" />
+          <div className="flex items-center justify-center size-9 rounded-full bg-secondary">
+            <CalendarIcon className="size-5" />
+          </div>
           <div className="flex flex-col">
             <span className="font-medium">Registered</span>
             <Timestamp timestamp={data.registeredAt} />
@@ -121,7 +129,9 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
       )}
       {data.expiry && (
         <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-gray-300 rounded-2xl">
-          <CalendarIcon className="p-2 size-9 rounded-4xl bg-secondary" />
+          <div className="flex items-center justify-center size-9 rounded-full bg-secondary">
+            <ClockIcon className="size-5" />
+          </div>
           <div className="flex flex-col">
             <span className="font-medium">Expiry</span>
             <Timestamp timestamp={data.expiry} />

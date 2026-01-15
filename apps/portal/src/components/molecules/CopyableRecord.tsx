@@ -39,7 +39,7 @@ export const CopyableRecord = ({
       {href ? (
         <ExternalLink
           className={cn(
-            'text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4',
+            'text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4 min-w-0 flex-1',
             truncate && 'truncate',
           )}
           href={href}
@@ -49,7 +49,7 @@ export const CopyableRecord = ({
       ) : (
         <div
           className={cn(
-            'text-sm sm:text-base font-mono',
+            'text-sm sm:text-base font-mono min-w-0 flex-1',
             truncate && 'truncate',
           )}
         >
