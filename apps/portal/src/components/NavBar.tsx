@@ -85,10 +85,13 @@ export const NavBar = () => {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>
-              <Link to="." className="flex flex-row items-center gap-2">
+              <ExternalLink
+                className="flex flex-row items-center gap-2"
+                href="https://ens.domains/ensv2"
+              >
                 <CircleQuestionMarkIcon className="size-4" />
                 Help
-              </Link>
+              </ExternalLink>
             </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
