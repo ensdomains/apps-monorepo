@@ -17,12 +17,12 @@ import {
   UserLockIcon,
 } from 'lucide-react'
 import { Fragment, type ReactNode, useState } from 'react'
-import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { CopyableRecord } from '@/components/CopyableRecord'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { RolesSidebar } from '@/features/roles/components/RolesSidebar'
 import { roleToPermissions } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
-import type { DataTableProps } from '../molecules/DataTable/DataTable'
+import type { DataTableProps } from '../DataTable'
 import { Button } from '../ui/button'
 import {
   Table,

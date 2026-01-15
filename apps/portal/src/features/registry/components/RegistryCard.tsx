@@ -1,5 +1,5 @@
 import type { Address } from 'viem'
-import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { CopyableRecord } from '@/components/CopyableRecord'
 import type { ProtocolVersion } from '@/utils/types'
 
 type RegistryInfo = {
@@ -29,6 +29,7 @@ export function RegistryCard({ registry }: RegistryCardProps) {
             <CopyableRecord
               href={`https://sepolia.etherscan.io/address/${registry.address}`}
               value={registry.address}
+              className="min-w-0 flex-1"
             />
           </div>
         )}
@@ -41,6 +42,7 @@ export function RegistryCard({ registry }: RegistryCardProps) {
             <CopyableRecord
               href={`https://sepolia.etherscan.io/address/${registry.factory}`}
               value={registry.factory}
+              className="min-w-0 flex-1"
             />
           </div>
         )}

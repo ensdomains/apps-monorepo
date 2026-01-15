@@ -1,7 +1,7 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { CalendarIcon, ClockIcon } from 'lucide-react'
 import { useBlock } from 'wagmi'
-import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Label } from '@/components/ui/label'
 import type { EnsNetworkName } from '@/utils/types'
 import { getNameHistoryQueryOptions } from '../hooks/useNameHistory'

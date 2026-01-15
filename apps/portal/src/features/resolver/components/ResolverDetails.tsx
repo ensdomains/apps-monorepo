@@ -1,13 +1,13 @@
 import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
-import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useSupportsInterfaces } from '@/hooks/useSupportsInterfaces'
 import {
   RESOLVER_FEATURES,
   RESOLVER_INTERFACE_IDS,
   type ResolverInterfaceName,
 } from '@/lib/constants/resolverInterfaceIds'
-import { Datapoint, type DatapointProps } from '../molecules/Datapoint'
+import { Datapoint, type DatapointProps } from '../../../components/Datapoint'
 
 const SupportedFeatures = ({
   resolverAddress,

@@ -1,7 +1,7 @@
 import type { GetNameRolesAccountsReturnType } from '@ensdomains/ensjs/public/v2'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { Address } from 'viem'
-import { AddressDisplay } from '@/components/organisms/HistoryTable/AddressDisplay'
+import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { GroupedDataTable } from '@/components/table/GroupedDataTable'
 
 type RolesTableProps = {

@@ -9,10 +9,10 @@ import {
 import { lazy, Suspense } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
-import { HomeSearchInput } from '@/components/homepage'
+import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
 import { TableViewSwitch } from '@/features/records/components/RecordsTable/TableViewSwitch'
-import { Badge } from '../ui/badge'
-import { Button } from '../ui/button'
+import { Badge } from './ui/badge'
+import { Button } from './ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,12 +22,12 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from '../ui/dropdown-menu'
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
+} from './ui/dropdown-menu'
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 
 // Lazy load SidebarTrigger to prevent hook errors in production when sidebar isn't available
 const SidebarTrigger = lazy(() =>
-  import('../ui/sidebar').then((mod) => ({ default: mod.SidebarTrigger })),
+  import('./ui/sidebar').then((mod) => ({ default: mod.SidebarTrigger })),
 )
 
 export const NavBar = () => {
@@ -85,10 +85,13 @@ export const NavBar = () => {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>
-              <Link to="." className="flex flex-row items-center gap-2">
+              <ExternalLink
+                className="flex flex-row items-center gap-2"
+                href="https://ens.domains/ensv2"
+              >
                 <CircleQuestionMarkIcon className="size-4" />
                 Help
-              </Link>
+              </ExternalLink>
             </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
@@ -118,9 +121,12 @@ export const NavBar = () => {
 
         {/* Desktop icons */}
         <div className="hidden md:flex gap-2 flex-row items-center">
-          <Link className="flex flex-row items-center gap-1" to=".">
+          <ExternalLink
+            className="flex flex-row items-center gap-1"
+            href="https://ens.domains/ensv2"
+          >
             <CircleQuestionMarkIcon className="size-4" />
-          </Link>
+          </ExternalLink>
 
           <Popover>
             <PopoverTrigger className="cursor-pointer">

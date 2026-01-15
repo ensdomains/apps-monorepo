@@ -1,5 +1,5 @@
 import type { Address } from 'viem'
-import { Owner } from '@/components/primary-name/Owner'
+import { Owner } from '@/features/profile/components/Owner'
 import { cn } from '@/lib/utils'
 import type { EnsNetworkName } from '@/utils/types'
 import { LabelCard } from './LabelCard'

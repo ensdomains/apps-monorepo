@@ -4,7 +4,7 @@ import {
   type Table as TableData,
 } from '@tanstack/react-table'
 import { useState } from 'react'
-import { SidebarTriggerRow } from '@/components/molecules/SidebarTriggerRow'
+import { SidebarTriggerRow } from '@/components/SidebarTriggerRow'
 import {
   Table,
   TableBody,

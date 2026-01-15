@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { useEnsAvatar } from 'wagmi'
-import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { cn } from '@/lib/utils'
 
 export const NameAvatar = ({

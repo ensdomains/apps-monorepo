@@ -44,7 +44,9 @@ type GetEnsOwnerParameters = {
   name: string
 }
 
-const getEnsOwner = ResultFn(async function* ({ name }: GetEnsOwnerParameters) {
+export const getEnsOwner = ResultFn(async function* ({
+  name,
+}: GetEnsOwnerParameters) {
   const client = yield* safeGetClient()
 
   const l1v1Owner = yield* fromPromise(

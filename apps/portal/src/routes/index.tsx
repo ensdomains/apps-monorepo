@@ -10,16 +10,16 @@ import {
   Users,
 } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
+import { NavBar } from '@/components/NavBar'
+import { NotFoundMessage } from '@/components/NotFoundMessage'
 import {
   ExampleNameCard,
   HomeSearchInput,
   LinkBlock,
   UpNextItem,
   WhatsNewItem,
-} from '@/components/homepage'
-import { DashboardProfilePreview } from '@/components/homepage/DashboardProfilePreview'
-import { NavBar } from '@/components/molecules/NavBar'
-import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
+} from '@/features/dashboard/components'
+import { DashboardProfilePreview } from '@/features/dashboard/components/DashboardProfilePreview'
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,
