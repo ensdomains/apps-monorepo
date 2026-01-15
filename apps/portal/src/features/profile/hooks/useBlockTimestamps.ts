@@ -14,29 +14,24 @@ type GetBlockTimestampsParameters = {
   blocks: bigint[]
 }
 
-const getBlockTimestamps = ResultFn(async function* ({
+export const getBlockTimestamps = ResultFn(async function* ({
   blocks,
 }: GetBlockTimestampsParameters) {
   const client = yield* safeGetClient()
 
   const uniqueBlocks = [...new Set(blocks)]
 
-  const result = yield* await fromPromise(
+  const result = yield* fromPromise(
     Promise.all(
       uniqueBlocks.map(async (blockNumber) => {
         const block = await getBlock(client, { blockNumber })
-        return { blockNumber, timestamp: block.timestamp }
+        return [blockNumber, block.timestamp] as const
       }),
     ),
     (e) => new GetBlockTimestampsError({ cause: e as GetBlockErrorType }),
   )
 
-  const timestamps = new Map<bigint, bigint>()
-  for (const { blockNumber, timestamp } of result) {
-    timestamps.set(blockNumber, timestamp)
-  }
-
-  return ok(timestamps)
+  return ok(new Map(result))
 })
 
 const getBlockTimestampsQueryKey = createQueryKey<
