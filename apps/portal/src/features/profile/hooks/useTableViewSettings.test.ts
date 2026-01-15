@@ -2,9 +2,9 @@ import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { useTableViewSettings } from './useTableViewSettings'
 
-describe('useTableViewSettings', () => {
-  const STORAGE_KEY = 'records-table-view-settings'
+const STORAGE_KEY = 'records-table-view-settings'
 
+describe('useTableViewSettings', () => {
   beforeEach(() => {
     localStorage.clear()
   })

@@ -28,6 +28,11 @@ class CanEditRecordsError extends TaggedError('CanEditRecordsError')<{
     | GetEnsResolverErrorType
 }> {}
 
+type CanEditRecordsParameters = {
+  name: string
+  resolverAddress?: Address
+}
+
 const canEditRecords = ResultFn(async function* ({
   name,
   resolverAddress,
@@ -78,11 +83,6 @@ const canEditRecordsQueryKey = createQueryKey<
   'canEditRecordsQueryKey',
   CanEditRecordsParameters
 >('canEditRecordsQueryKey')
-
-type CanEditRecordsParameters = {
-  name: string
-  resolverAddress?: Address
-}
 
 const getCanEditRecordsQueryOptions = (params: CanEditRecordsParameters) =>
   resultQueryOptions({
