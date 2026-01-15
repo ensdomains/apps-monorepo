@@ -118,9 +118,12 @@ export const NavBar = () => {
 
         {/* Desktop icons */}
         <div className="hidden md:flex gap-2 flex-row items-center">
-          <Link className="flex flex-row items-center gap-1" to=".">
+          <ExternalLink
+            className="flex flex-row items-center gap-1"
+            href="https://ens.domains/ensv2"
+          >
             <CircleQuestionMarkIcon className="size-4" />
-          </Link>
+          </ExternalLink>
 
           <Popover>
             <PopoverTrigger className="cursor-pointer">

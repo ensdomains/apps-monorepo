@@ -243,7 +243,7 @@ const HistoryView = ({ name, record }: HistoryViewProps) => {
   if (isLoading) return <LoadingSpinner title="Loading..." />
 
   return (
-    <div className="flex flex-col gap-6 p-6 border border-gray-300 rounded-lg overflow-y-scroll">
+    <div className="flex flex-col gap-6 p-6 border border-gray-300 rounded-lg">
       <h3 className="text-2xl font-medium">History</h3>
       <DataTable
         data={filterRecordHistoryByRecord(history || [], record)}
@@ -283,7 +283,7 @@ export const RecordDetails = ({ record, name }: RecordDetailsProps) => {
   const { data: canEditRecords } = useCanEditRecords({ name })
 
   return (
-    <div className="p-6 flex flex-col gap-6 h-screen">
+    <div className="p-6 flex flex-col gap-6 min-h-0">
       <SheetHeader className="flex flex-row justify-between">
         <SheetTitle className="font-sans text-[28px] font-medium capitalize">
           {record.type} record
