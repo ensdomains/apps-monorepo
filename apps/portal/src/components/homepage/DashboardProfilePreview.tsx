@@ -1,11 +1,11 @@
 import { Link } from '@tanstack/react-router'
 import { disconnect } from '@wagmi/core'
 import { useConnection, useEnsName } from 'wagmi'
-import { LoadingSpinner } from '@/components/molecules/LoadingSpinner'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { wagmiConfig } from '@/lib/wagmi'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { NameProfileCard } from '../../features/profile/components/NameProfileCard'
-import { CopyableRecord } from '../molecules/CopyableRecord'
+import { CopyableRecord } from '../CopyableRecord'
 import { Button } from '../ui/button'
 
 export const DashboardProfilePreview = () => {

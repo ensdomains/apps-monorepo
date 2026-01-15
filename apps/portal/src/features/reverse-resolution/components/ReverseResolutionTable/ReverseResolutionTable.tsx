@@ -5,7 +5,7 @@ import {
 } from '@tanstack/react-table'
 import { useState } from 'react'
 import type { Address } from 'viem'
-import { SidebarTriggerRow } from '@/components/molecules/SidebarTriggerRow'
+import { SidebarTriggerRow } from '@/components/SidebarTriggerRow'
 import {
   Table,
   TableBody,

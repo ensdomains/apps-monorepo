@@ -1,5 +1,5 @@
 import type { Address } from 'viem'
-import { CopyableRecord } from '../molecules/CopyableRecord'
+import { CopyableRecord } from '../CopyableRecord'
 
 export const ResolverField = ({
   label,

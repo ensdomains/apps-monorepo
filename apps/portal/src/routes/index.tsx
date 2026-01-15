@@ -18,8 +18,8 @@ import {
   WhatsNewItem,
 } from '@/components/homepage'
 import { DashboardProfilePreview } from '@/components/homepage/DashboardProfilePreview'
-import { NavBar } from '@/components/molecules/NavBar'
-import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
+import { NavBar } from '@/components/NavBar'
+import { NotFoundMessage } from '@/components/NotFoundMessage'
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,

@@ -1,5 +1,5 @@
 import type { Address } from 'viem'
-import { CopyableRecord } from '@/components/molecules/CopyableRecord'
+import { CopyableRecord } from '@/components/CopyableRecord'
 import type { ProtocolVersion } from '@/utils/types'
 
 type RegistryInfo = {

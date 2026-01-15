@@ -10,9 +10,9 @@ import {
 import { Search } from 'lucide-react'
 import { useId, useState } from 'react'
 import type { Address } from 'viem'
-import { InvalidNameMessage } from '@/components/molecules/InvalidNameMessage'
-import { LoadingMessage } from '@/components/molecules/LoadingMessage'
-import { NotFoundMessage } from '@/components/molecules/NotFoundMessage'
+import { InvalidNameMessage } from '@/components/InvalidNameMessage'
+import { LoadingMessage } from '@/components/LoadingMessage'
+import { NotFoundMessage } from '@/components/NotFoundMessage'
 import {
   InputGroup,
   InputGroupAddon,
