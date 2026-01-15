@@ -11,8 +11,8 @@ import {
 } from '@tanstack/react-table'
 import { Search } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
-import { HistorySidebar } from '@/components/organisms/HistoryTable/HistorySidebar'
 import { CollapseAllButton } from '@/components/table/CollapseAllButton'
+import { HistorySidebar } from '@/components/table/HistoryTable/HistorySidebar'
 import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
 import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
 import {

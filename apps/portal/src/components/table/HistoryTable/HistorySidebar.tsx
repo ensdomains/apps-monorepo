@@ -3,8 +3,8 @@ import type { FC, PropsWithChildren, ReactNode } from 'react'
 import type { Hash } from 'viem'
 import { useTransaction } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
-import { AddressDisplay } from '@/components/organisms/HistoryTable/AddressDisplay'
 import type { EventsTableData } from '@/components/table/EventsDataTable'
+import { AddressDisplay } from '@/components/table/HistoryTable/AddressDisplay'
 import {
   Sheet,
   SheetContent,

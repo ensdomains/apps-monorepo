@@ -1,6 +1,6 @@
 import { flexRender, type Row } from '@tanstack/react-table'
 import type { Address } from 'viem'
-import { AddressDisplay } from '@/components/organisms/HistoryTable/AddressDisplay'
+import { AddressDisplay } from '@/components/table/HistoryTable/AddressDisplay'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'

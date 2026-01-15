@@ -6,7 +6,7 @@ import {
   PanelRightOpen,
 } from 'lucide-react'
 import { CopyableRecord } from '@/components/CopyableRecord'
-import { AddressDisplay } from '@/components/organisms/HistoryTable/AddressDisplay'
+import { AddressDisplay } from '@/components/table/HistoryTable/AddressDisplay'
 import { Button } from '@/components/ui/button'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { BaseEvent, EventsTableData } from './types'
