@@ -7,7 +7,7 @@ import {
   RESOLVER_INTERFACE_IDS,
   type ResolverInterfaceName,
 } from '@/lib/constants/resolverInterfaceIds'
-import { Datapoint, type DatapointProps } from '../Datapoint'
+import { Datapoint, type DatapointProps } from '../../../components/Datapoint'
 
 const SupportedFeatures = ({
   resolverAddress,

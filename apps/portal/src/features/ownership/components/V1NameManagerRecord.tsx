@@ -3,7 +3,7 @@ import { namehash } from 'viem'
 import { useReadContract } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
-import { Owner } from '@/components/primary-name/Owner'
+import { Owner } from '@/features/profile/components/Owner'
 import { sepoliaWithEns } from '@/lib/wagmi'
 
 const abi = [

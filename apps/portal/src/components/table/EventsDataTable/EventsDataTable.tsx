@@ -12,7 +12,7 @@ import {
 import { Search } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { CollapseAllButton } from '@/components/table/CollapseAllButton'
-import { HistorySidebar } from '@/components/table/HistoryTable/HistorySidebar'
+import { EventsSidebar } from '@/components/table/EventsDataTable/EventsSidebar'
 import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
 import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
 import {
@@ -173,14 +173,14 @@ export const EventsDataTable = <TEvent extends BaseEvent = BaseEvent>({
       ) : null}
 
       {enableSidebar ? (
-        <HistorySidebar
+        <EventsSidebar
           row={clickedRow as Row<EventsTableData> | null}
           name={name}
           open={sidebarOpen}
           setOpen={setSidebarOpen}
         >
           <EventsTable<TEvent> table={table} />
-        </HistorySidebar>
+        </EventsSidebar>
       ) : (
         <EventsTable<TEvent> table={table} />
       )}

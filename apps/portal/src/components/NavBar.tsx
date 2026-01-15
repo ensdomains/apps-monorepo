@@ -9,7 +9,7 @@ import {
 import { lazy, Suspense } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
-import { HomeSearchInput } from '@/components/homepage'
+import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
 import { TableViewSwitch } from '@/features/records/components/RecordsTable/TableViewSwitch'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
