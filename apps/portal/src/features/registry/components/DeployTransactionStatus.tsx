@@ -1,28 +1,32 @@
-import { AlertCircle, CheckCircle } from 'lucide-react'
+import { CheckCircle } from 'lucide-react'
+import type { ReactElement } from 'react'
 import type { Hash } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
+import { TransactionErrorAlert } from './TransactionErrorAlert'
 
 interface DeployTransactionStatusProps {
-  txHash: Hash | undefined
-  isConfirming: boolean
-  txError: string | null
+  readonly txHash: Hash | undefined
+  readonly isConfirming: boolean
+  readonly txError: unknown | null
 }
 
 export const DeployTransactionStatus = ({
   txHash,
   isConfirming,
   txError,
-}: DeployTransactionStatusProps) => {
+}: DeployTransactionStatusProps): ReactElement | null => {
   if (txError) {
+    const { summary, details } = getTransactionErrorInfo(txError)
     return (
-      <Alert variant="destructive" className="max-w-full">
-        <AlertCircle />
-        <AlertTitle>Transaction Failed</AlertTitle>
-        <AlertDescription className="break-all whitespace-normal max-w-full overflow-wrap-anywhere">
-          {txError}
-        </AlertDescription>
-      </Alert>
+      <TransactionErrorAlert
+        title="Transaction Failed"
+        summary={summary}
+        details={details}
+        txHash={txHash}
+        txHashLabel="Deploy tx hash:"
+      />
     )
   }
 
