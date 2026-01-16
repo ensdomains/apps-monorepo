@@ -1,4 +1,5 @@
 import { AlertCircle } from 'lucide-react'
+import type { ReactElement } from 'react'
 import type { Hash } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -17,7 +18,7 @@ export const TransactionErrorAlert = ({
   details,
   txHash,
   txHashLabel = 'Tx hash:',
-}: TransactionErrorAlertProps) => {
+}: TransactionErrorAlertProps): ReactElement => {
   return (
     <Alert variant="destructive" className="max-w-full">
       <AlertCircle />

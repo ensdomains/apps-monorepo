@@ -1,4 +1,5 @@
 import { CheckCircle } from 'lucide-react'
+import type { ReactElement } from 'react'
 import { match, P } from 'ts-pattern'
 import type { Hash } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
@@ -24,7 +25,7 @@ export const SetSubregistryTransactionStatus = ({
   isReverted,
   txError,
   receiptError,
-}: SetSubregistryTransactionStatusProps) => {
+}: SetSubregistryTransactionStatusProps): ReactElement | null => {
   const hasError = txError || receiptError || isReverted
 
   if (hasError) {

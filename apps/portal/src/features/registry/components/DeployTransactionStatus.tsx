@@ -1,4 +1,5 @@
 import { CheckCircle } from 'lucide-react'
+import type { ReactElement } from 'react'
 import type { Hash } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -15,7 +16,7 @@ export const DeployTransactionStatus = ({
   txHash,
   isConfirming,
   txError,
-}: DeployTransactionStatusProps) => {
+}: DeployTransactionStatusProps): ReactElement | null => {
   if (txError) {
     const { summary, details } = getTransactionErrorInfo(txError)
     return (
