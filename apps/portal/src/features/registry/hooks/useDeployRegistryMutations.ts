@@ -145,7 +145,7 @@ export const useDeployRegistryMutations = ({
     isWriting,
     isConfirming,
     isConfirmed,
-    deployError: writeError?.message ?? null,
+    deployError: writeError ?? null,
 
     // Set subregistry mutation
     setSubregistryTxHash,
@@ -153,8 +153,8 @@ export const useDeployRegistryMutations = ({
     isConfirmingSetSubregistry,
     isSetSubregistryConfirmed,
     isSetSubregistryReverted,
-    setSubregistryError: setSubregistryError?.message ?? null,
-    setSubregistryReceiptError: setSubregistryReceiptError?.message ?? null,
+    setSubregistryError: setSubregistryError ?? null,
+    setSubregistryReceiptError: setSubregistryReceiptError ?? null,
 
     // Wallet state
     hasWallet: !!walletClient,

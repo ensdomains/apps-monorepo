@@ -1,16 +1,20 @@
-import { AlertCircle, CheckCircle } from 'lucide-react'
+import { CheckCircle } from 'lucide-react'
+import type { ReactElement } from 'react'
+import { match, P } from 'ts-pattern'
 import type { Hash } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
+import { TransactionErrorAlert } from './TransactionErrorAlert'
 
 interface SetSubregistryTransactionStatusProps {
-  txHash: Hash | undefined
-  isSettingSubregistry: boolean
-  isConfirming: boolean
-  isConfirmed: boolean
-  isReverted: boolean
-  txError: string | null
-  receiptError: string | null
+  readonly txHash: Hash | undefined
+  readonly isSettingSubregistry: boolean
+  readonly isConfirming: boolean
+  readonly isConfirmed: boolean
+  readonly isReverted: boolean
+  readonly txError: unknown | null
+  readonly receiptError: unknown | null
 }
 
 export const SetSubregistryTransactionStatus = ({
@@ -21,35 +25,28 @@ export const SetSubregistryTransactionStatus = ({
   isReverted,
   txError,
   receiptError,
-}: SetSubregistryTransactionStatusProps) => {
+}: SetSubregistryTransactionStatusProps): ReactElement | null => {
   const hasError = txError || receiptError || isReverted
 
   if (hasError) {
+    const errorInfo = match({ txError, receiptError })
+      .with({ txError: P.not(P.nullish) }, ({ txError }) =>
+        getTransactionErrorInfo(txError),
+      )
+      .with({ receiptError: P.not(P.nullish) }, ({ receiptError }) =>
+        getTransactionErrorInfo(receiptError),
+      )
+      .otherwise(() => null)
     return (
-      <Alert variant="destructive" className="max-w-full">
-        <AlertCircle />
-        <AlertTitle>Set Subregistry Failed</AlertTitle>
-        <AlertDescription className="break-all whitespace-normal max-w-full overflow-wrap-anywhere">
-          <div className="flex flex-col gap-2">
-            <span>
-              {txError ||
-                receiptError ||
-                'Transaction reverted - you may not have permission to set the subregistry on this registry.'}
-            </span>
-            {txHash && (
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground">Tx hash:</span>
-                <CopyableRecord
-                  value={txHash}
-                  href={`https://sepolia.etherscan.io/tx/${txHash}`}
-                  className="text-xs"
-                  truncate={false}
-                />
-              </div>
-            )}
-          </div>
-        </AlertDescription>
-      </Alert>
+      <TransactionErrorAlert
+        title="Set Subregistry Failed"
+        summary={
+          errorInfo?.summary ||
+          'Transaction reverted - you may not have permission to set the subregistry on this registry.'
+        }
+        details={errorInfo?.details}
+        txHash={txHash}
+      />
     )
   }
 
