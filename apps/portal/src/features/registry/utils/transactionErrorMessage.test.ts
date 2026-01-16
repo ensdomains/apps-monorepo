@@ -48,4 +48,36 @@ describe('getTransactionErrorInfo', () => {
     expect(result.summary).toBe('Execution reverted: Registry not found.')
     expect(result.details).toContain('Execution reverted: Registry not found.')
   })
+
+  it('dedupes and caps details, including cause/meta messages', () => {
+    const error = {
+      message: 'Duplicate message',
+      metaMessages: ['Duplicate message', 'Meta detail'],
+      cause: { message: 'Duplicate message', details: 'Extra detail' },
+    }
+
+    const result = getTransactionErrorInfo(error)
+
+    const details = result.details ?? ''
+    expect(details.match(/Duplicate message/g)?.length).toBe(1)
+    expect(details).toContain('Meta detail')
+    expect(details).toContain('Extra detail')
+
+    const longError = {
+      message: 'a'.repeat(4100),
+    }
+    const longResult = getTransactionErrorInfo(longError)
+    expect(longResult.details).toContain('…(truncated)')
+  })
+
+  it('handles reason string format', () => {
+    const error = {
+      message:
+        "VM Exception while processing transaction: reason string 'Nope'",
+    }
+
+    const result = getTransactionErrorInfo(error)
+
+    expect(result.summary).toBe('Execution reverted: Nope.')
+  })
 })

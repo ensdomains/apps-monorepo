@@ -1,9 +1,9 @@
 type ErrorLike = {
-  shortMessage?: string
-  message?: string
-  details?: string
-  metaMessages?: string[]
-  cause?: unknown
+  readonly shortMessage?: string
+  readonly message?: string
+  readonly details?: string
+  readonly metaMessages?: readonly string[]
+  readonly cause?: unknown
 }
 
 const uniq = (arr: string[]) => [
@@ -21,13 +21,10 @@ const trimErrorDetails = (message: string) => {
     '\nDetails:',
     '\nMeta Messages:',
   ]
-  let trimmed = message
-  for (const marker of markers) {
-    const index = trimmed.indexOf(marker)
-    if (index !== -1) {
-      trimmed = trimmed.slice(0, index).trim()
-    }
-  }
+  const trimmed = markers.reduce((current, marker) => {
+    const index = current.indexOf(marker)
+    return index !== -1 ? current.slice(0, index).trim() : current
+  }, message)
 
   return trimmed
     .replace(/^Transaction Failed\s*/i, '')
@@ -94,7 +91,7 @@ export const getTransactionErrorInfo = (error: unknown) => {
   const addPeriod = (s: string) => (/[.!?]$/.test(s) ? s : `${s}.`)
   if (revertReason !== undefined) {
     const summary = revertReason
-      ? addPeriod(`Execution reverted: ${revertReason}.`)
+      ? addPeriod(`Execution reverted: ${revertReason}`)
       : 'Transaction reverted by the contract.'
     return {
       summary,

@@ -1,4 +1,5 @@
 import { AlertCircle, CheckCircle } from 'lucide-react'
+import { match, P } from 'ts-pattern'
 import type { Hash } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -26,11 +27,14 @@ export const SetSubregistryTransactionStatus = ({
   const hasError = txError || receiptError || isReverted
 
   if (hasError) {
-    const errorInfo = txError
-      ? getTransactionErrorInfo(txError)
-      : receiptError
-        ? getTransactionErrorInfo(receiptError)
-        : null
+    const errorInfo = match({ txError, receiptError })
+      .with({ txError: P.not(P.nullish) }, ({ txError }) =>
+        getTransactionErrorInfo(txError),
+      )
+      .with({ receiptError: P.not(P.nullish) }, ({ receiptError }) =>
+        getTransactionErrorInfo(receiptError),
+      )
+      .otherwise(() => null)
     return (
       <Alert variant="destructive" className="max-w-full">
         <AlertCircle />
