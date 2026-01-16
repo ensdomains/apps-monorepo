@@ -58,7 +58,7 @@ function RouteComponent() {
                   Need an ENSv2 name?
                 </span>
                 <ExternalLink
-                  href="https://app.ens.dev/"
+                  href="https://manager.ens.dev/"
                   className="underline hover:no-underline"
                 >
                   Register one in the new Manager →
