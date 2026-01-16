@@ -6,8 +6,7 @@ type ErrorLike = {
   readonly cause?: unknown
 }
 
-const uniq = (arr: readonly string[]): readonly string[] =>
-  [...new Set(arr.map((entry) => entry.trim()).filter(Boolean))]
+const uniq = (arr: readonly string[]): readonly string[] => [
   ...new Set(arr.map((entry) => entry.trim()).filter(Boolean)),
 ]
 

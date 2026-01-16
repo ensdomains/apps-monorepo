@@ -1,9 +1,10 @@
-import { AlertCircle, CheckCircle } from 'lucide-react'
+import { CheckCircle } from 'lucide-react'
 import { match, P } from 'ts-pattern'
 import type { Hash } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
+import { TransactionErrorAlert } from './TransactionErrorAlert'
 
 interface SetSubregistryTransactionStatusProps {
   txHash: Hash | undefined
@@ -36,38 +37,15 @@ export const SetSubregistryTransactionStatus = ({
       )
       .otherwise(() => null)
     return (
-      <Alert variant="destructive" className="max-w-full">
-        <AlertCircle />
-        <AlertTitle>Set Subregistry Failed</AlertTitle>
-        <AlertDescription className="break-all whitespace-normal max-w-full overflow-wrap-anywhere">
-          <div className="flex flex-col gap-2">
-            <span>
-              {errorInfo
-                ? errorInfo.summary
-                : 'Transaction reverted - you may not have permission to set the subregistry on this registry.'}
-            </span>
-            {errorInfo?.details && (
-              <details className="text-xs text-muted-foreground">
-                <summary className="cursor-pointer">Show details</summary>
-                <pre className="whitespace-pre-wrap wrap-break-word max-h-48 overflow-auto">
-                  {errorInfo.details}
-                </pre>
-              </details>
-            )}
-            {txHash && (
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground">Tx hash:</span>
-                <CopyableRecord
-                  value={txHash}
-                  href={`https://sepolia.etherscan.io/tx/${txHash}`}
-                  className="text-xs"
-                  truncate={false}
-                />
-              </div>
-            )}
-          </div>
-        </AlertDescription>
-      </Alert>
+      <TransactionErrorAlert
+        title="Set Subregistry Failed"
+        summary={
+          errorInfo?.summary ||
+          'Transaction reverted - you may not have permission to set the subregistry on this registry.'
+        }
+        details={errorInfo?.details}
+        txHash={txHash}
+      />
     )
   }
 
