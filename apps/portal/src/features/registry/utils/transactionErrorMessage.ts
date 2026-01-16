@@ -6,14 +6,15 @@ type ErrorLike = {
   readonly cause?: unknown
 }
 
-const uniq = (arr: string[]) => [
+const uniq = (arr: readonly string[]): readonly string[] =>
+  [...new Set(arr.map((entry) => entry.trim()).filter(Boolean))]
   ...new Set(arr.map((entry) => entry.trim()).filter(Boolean)),
 ]
 
-const cap = (text: string, max = 4000) =>
+const cap = (text: string, max = 4000): string =>
   text.length > max ? `${text.slice(0, max)}\n…(truncated)` : text
 
-const trimErrorDetails = (message: string) => {
+const trimErrorDetails = (message: string): string => {
   const markers = [
     '\nRequest Arguments:',
     '\nContract Call:',
@@ -37,7 +38,7 @@ const getErrorLike = (error: unknown): ErrorLike | null => {
   return error as ErrorLike
 }
 
-const collectErrorStrings = (error: unknown): string[] => {
+const collectErrorStrings = (error: unknown): readonly string[] => {
   const errorLike = getErrorLike(error)
   if (!errorLike) return []
 
@@ -62,7 +63,9 @@ const findFirstValue = (error: unknown, key: keyof ErrorLike) => {
   return undefined
 }
 
-export const getTransactionErrorInfo = (error: unknown) => {
+export const getTransactionErrorInfo = (
+  error: unknown,
+): { readonly summary: string; readonly details: string | undefined } => {
   const messages = collectErrorStrings(error)
   const uniqueMessages = uniq(messages)
   const detailsText = uniqueMessages.length
