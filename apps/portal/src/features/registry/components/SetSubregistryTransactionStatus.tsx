@@ -2,6 +2,7 @@ import { AlertCircle, CheckCircle } from 'lucide-react'
 import type { Hash } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 
 interface SetSubregistryTransactionStatusProps {
   txHash: Hash | undefined
@@ -9,8 +10,8 @@ interface SetSubregistryTransactionStatusProps {
   isConfirming: boolean
   isConfirmed: boolean
   isReverted: boolean
-  txError: string | null
-  receiptError: string | null
+  txError: unknown | null
+  receiptError: unknown | null
 }
 
 export const SetSubregistryTransactionStatus = ({
@@ -25,6 +26,11 @@ export const SetSubregistryTransactionStatus = ({
   const hasError = txError || receiptError || isReverted
 
   if (hasError) {
+    const errorInfo = txError
+      ? getTransactionErrorInfo(txError)
+      : receiptError
+        ? getTransactionErrorInfo(receiptError)
+        : null
     return (
       <Alert variant="destructive" className="max-w-full">
         <AlertCircle />
@@ -32,10 +38,18 @@ export const SetSubregistryTransactionStatus = ({
         <AlertDescription className="break-all whitespace-normal max-w-full overflow-wrap-anywhere">
           <div className="flex flex-col gap-2">
             <span>
-              {txError ||
-                receiptError ||
-                'Transaction reverted - you may not have permission to set the subregistry on this registry.'}
+              {errorInfo
+                ? errorInfo.summary
+                : 'Transaction reverted - you may not have permission to set the subregistry on this registry.'}
             </span>
+            {errorInfo?.details && (
+              <details className="text-xs text-muted-foreground">
+                <summary className="cursor-pointer">Show details</summary>
+                <pre className="whitespace-pre-wrap wrap-break-word max-h-48 overflow-auto">
+                  {errorInfo.details}
+                </pre>
+              </details>
+            )}
             {txHash && (
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground">Tx hash:</span>
