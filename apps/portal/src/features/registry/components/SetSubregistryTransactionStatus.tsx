@@ -7,13 +7,13 @@ import { getTransactionErrorInfo } from '@/features/registry/utils/transactionEr
 import { TransactionErrorAlert } from './TransactionErrorAlert'
 
 interface SetSubregistryTransactionStatusProps {
-  txHash: Hash | undefined
-  isSettingSubregistry: boolean
-  isConfirming: boolean
-  isConfirmed: boolean
-  isReverted: boolean
-  txError: unknown | null
-  receiptError: unknown | null
+  readonly txHash: Hash | undefined
+  readonly isSettingSubregistry: boolean
+  readonly isConfirming: boolean
+  readonly isConfirmed: boolean
+  readonly isReverted: boolean
+  readonly txError: unknown | null
+  readonly receiptError: unknown | null
 }
 
 export const SetSubregistryTransactionStatus = ({

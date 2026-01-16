@@ -6,9 +6,9 @@ import { getTransactionErrorInfo } from '@/features/registry/utils/transactionEr
 import { TransactionErrorAlert } from './TransactionErrorAlert'
 
 interface DeployTransactionStatusProps {
-  txHash: Hash | undefined
-  isConfirming: boolean
-  txError: unknown | null
+  readonly txHash: Hash | undefined
+  readonly isConfirming: boolean
+  readonly txError: unknown | null
 }
 
 export const DeployTransactionStatus = ({

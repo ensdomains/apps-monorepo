@@ -44,11 +44,12 @@ const collectErrorStrings = (error: unknown): readonly string[] => {
     ...(errorLike.shortMessage ? [errorLike.shortMessage] : []),
     ...(errorLike.message ? [errorLike.message] : []),
     ...(errorLike.details ? [errorLike.details] : []),
-    ...(errorLike.metaMessages ?? []),
-    ...(errorLike.cause ? collectErrorStrings(errorLike.cause) : []),
+    ...(errorLike.metaMessages?.length ? errorLike.metaMessages : []),
   ]
 
-  return messages
+  return errorLike.cause
+    ? [...messages, ...collectErrorStrings(errorLike.cause)]
+    : messages
 }
 
 const findFirstValue = (error: unknown, key: keyof ErrorLike) => {
