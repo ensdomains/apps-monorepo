@@ -1,6 +1,7 @@
 'use client'
 
 import type { Signer } from '@ens-apps/transaction-manager'
+import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   useClient as useParaClient,
@@ -8,6 +9,7 @@ import {
 } from '@getpara/react-sdk-lite'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import type { KernelAccountClient, KernelValidator } from '@zerodev/sdk'
+import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
 import type { SmartAccountClient } from 'permissionless'
 import {
   createContext,
@@ -151,7 +153,7 @@ export function SmartAccountContextProvider({
         address: balanceAddress,
       }),
       queryFn: async () => {
-        console.log('🔍 [CONTEXT] Fetching balances for:', balanceAddress)
+        logger.info('🔍 [CONTEXT] Fetching balances for:', balanceAddress)
         if (!balanceAddress) return []
         const balances = []
         for (const [tokenName, tokenAddress] of Object.entries(
@@ -287,7 +289,7 @@ export function SmartAccountContextProvider({
         setIsAccountReady(true)
         setIsParaEmbedded(false)
 
-        console.log(
+        logger.info(
           '🔐 [CONTEXT] ZeroDev account initialized (external):',
           result.address,
         )
@@ -307,7 +309,7 @@ export function SmartAccountContextProvider({
         setAccountConfig({
           chain: result.config.chain,
           accountType: result.config.accountType,
-          kernelVersion: 'v3.1' as any, // Para uses same Kernel internally
+          kernelVersion: KERNEL_V3_1, // Para uses same Kernel internally
           pimlicoApiKey: result.config.pimlicoApiKey,
         })
         // For Para embedded wallets, use the EOA address from the Para account
@@ -317,7 +319,7 @@ export function SmartAccountContextProvider({
         setIsAccountReady(true)
         setIsParaEmbedded(true)
 
-        console.log('🔐 [CONTEXT] ZeroDev account initialized (Para):', {
+        logger.info('🔐 [CONTEXT] ZeroDev account initialized (Para):', {
           smartAccount: result.address,
           eoaAddress: result.eoaAddress,
         })
@@ -325,7 +327,7 @@ export function SmartAccountContextProvider({
 
       initializedRef.current = key
     } catch (err) {
-      console.error('[CONTEXT] Failed to initialize smart account:', err)
+      logger.error('[CONTEXT] Failed to initialize smart account:', err)
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setIsLoading(false)
@@ -376,7 +378,7 @@ export function SmartAccountContextProvider({
 
     const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
     if (!pimlicoApiKey) {
-      console.error('Pimlico API key not configured - cannot create signer')
+      logger.error('Pimlico API key not configured - cannot create signer')
       return null
     }
 
@@ -402,12 +404,12 @@ export function SmartAccountContextProvider({
     ) => {
       // Sessions only supported for external wallets, not Para-embedded
       if (isParaEmbedded) {
-        console.warn(
+        logger.warn(
           '[CONTEXT] Sessions not supported for Para-embedded wallets',
         )
         return
       }
-      console.log('📦 [CONTEXT] Setting session data:', newSession.id)
+      logger.info('📦 [CONTEXT] Setting session data:', newSession.id)
       setSession(newSession)
       setClient(sessionClient)
       setIsSessionClient(true)

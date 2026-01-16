@@ -1,3 +1,4 @@
+import { logger } from '@ens-apps/utils/logger'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { Hash, PublicClient } from 'viem'
 import { TransactionSubmissionError } from '../errors/transaction.errors'
@@ -24,14 +25,14 @@ export function submitZeroDevTransaction(input: {
 
   const isSession = signer.config.isSessionClient ?? false
 
-  console.log('🔧 [ZERODEV TRANSPORT] Submitting transaction:', {
+  logger.info('🔧 [ZERODEV TRANSPORT] Submitting transaction:', {
     isSessionClient: isSession,
     hasParams: !!zerodevRequest.zerodevParams,
     callCount: zerodevRequest.zerodevParams?.calls?.length,
   })
 
   if (!zerodevRequest.zerodevParams) {
-    console.error('❌ [ZERODEV TRANSPORT] Missing zerodevParams')
+    logger.error('❌ [ZERODEV TRANSPORT] Missing zerodevParams')
     return errAsync(
       new TransactionSubmissionError(
         zerodevRequest,
@@ -44,7 +45,7 @@ export function submitZeroDevTransaction(input: {
     !zerodevRequest.zerodevParams.calls ||
     zerodevRequest.zerodevParams.calls.length === 0
   ) {
-    console.error('❌ [ZERODEV TRANSPORT] Missing or empty calls array')
+    logger.error('❌ [ZERODEV TRANSPORT] Missing or empty calls array')
     return errAsync(
       new TransactionSubmissionError(
         zerodevRequest,
@@ -56,7 +57,7 @@ export function submitZeroDevTransaction(input: {
   const kernelClient = signer.account
 
   if (!kernelClient) {
-    console.error('❌ [ZERODEV TRANSPORT] Kernel account client not found')
+    logger.error('❌ [ZERODEV TRANSPORT] Kernel account client not found')
     return errAsync(
       new TransactionSubmissionError(
         zerodevRequest,
@@ -68,7 +69,7 @@ export function submitZeroDevTransaction(input: {
   }
 
   if (typeof kernelClient.sendUserOperation !== 'function') {
-    console.error('❌ [ZERODEV TRANSPORT] Invalid Kernel account client')
+    logger.error('❌ [ZERODEV TRANSPORT] Invalid Kernel account client')
     return errAsync(
       new TransactionSubmissionError(
         zerodevRequest,
@@ -81,7 +82,7 @@ export function submitZeroDevTransaction(input: {
 
   return fromPromise(
     (async () => {
-      console.log(
+      logger.info(
         '📤 [ZERODEV TRANSPORT] Sending user operation via Kernel client:',
         {
           isSessionClient: isSession,
@@ -98,7 +99,7 @@ export function submitZeroDevTransaction(input: {
         calls: zerodevRequest.zerodevParams.calls,
       })
 
-      console.log('✅ [ZERODEV TRANSPORT] User operation hash:', userOpHash)
+      logger.info('✅ [ZERODEV TRANSPORT] User operation hash:', userOpHash)
 
       const receipt = await kernelClient.waitForUserOperationReceipt({
         hash: userOpHash,
@@ -106,15 +107,15 @@ export function submitZeroDevTransaction(input: {
 
       const txHash = receipt.receipt.transactionHash as Hash
 
-      console.log('✅ [ZERODEV TRANSPORT] Transaction submitted:', txHash, {
+      logger.info('✅ [ZERODEV TRANSPORT] Transaction submitted:', txHash, {
         isSessionClient: isSession,
       })
 
       return txHash as Hash
     })(),
     (error) => {
-      console.error('❌ [ZERODEV TRANSPORT] Transaction failed:', error)
-      console.error('❌ [ZERODEV TRANSPORT] Error details:', {
+      logger.error('❌ [ZERODEV TRANSPORT] Transaction failed:', error)
+      logger.error('❌ [ZERODEV TRANSPORT] Error details:', {
         name: (error as Error)?.name,
         message: (error as Error)?.message,
         cause: (error as Error)?.cause,

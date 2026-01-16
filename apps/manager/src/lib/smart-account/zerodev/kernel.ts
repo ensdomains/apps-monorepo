@@ -5,6 +5,7 @@
  * This is the base account setup - sessions are handled separately by session-manager.ts
  */
 
+import { logger } from '@ens-apps/utils/logger'
 import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
 import {
   createKernelAccount,
@@ -75,7 +76,7 @@ export async function initializeZeroDevAccount(
     throw new Error('Wallet client must have an account')
   }
 
-  console.log('🔧 [ZERODEV] Creating ECDSA validator for:', account.address)
+  logger.info('🔧 [ZERODEV] Creating ECDSA validator for:', account.address)
 
   // Convert wallet client to ZeroDev Signer type
   // Type assertion is safe because we've validated account exists above
@@ -89,7 +90,7 @@ export async function initializeZeroDevAccount(
     kernelVersion: KERNEL_V3_1,
   })
 
-  console.log('🔧 [ZERODEV] Creating kernel account...')
+  logger.info('🔧 [ZERODEV] Creating kernel account...')
 
   // Create Kernel account with ECDSA validator
   const kernelAccount = await createKernelAccount(publicClient, {
@@ -100,7 +101,7 @@ export async function initializeZeroDevAccount(
     },
   })
 
-  console.log('✅ [ZERODEV] Kernel account created:', kernelAccount.address)
+  logger.info('✅ [ZERODEV] Kernel account created:', kernelAccount.address)
 
   // Create Pimlico client for gas estimation and paymaster
   const pimlicoClient = createPimlicoClient({
@@ -129,7 +130,7 @@ export async function initializeZeroDevAccount(
   // This maps the smart account to its EOA owner in the HCA Factory
   // Required for HCAEquivalence to work (tokens + registrar see EOA as msg.sender)
   if (accountType === 'hca') {
-    console.log('🔧 [ZERODEV] Registering HCA ownership...')
+    logger.info('🔧 [ZERODEV] Registering HCA ownership...')
 
     const zerodevSigner = {
       type: 'zerodev' as const,
@@ -155,7 +156,7 @@ export async function initializeZeroDevAccount(
       )
     }
 
-    console.log('✅ [ZERODEV] HCA registration result:', result.value)
+    logger.info('✅ [ZERODEV] HCA registration result:', result.value)
   }
 
   const config: ZeroDevConfig = {

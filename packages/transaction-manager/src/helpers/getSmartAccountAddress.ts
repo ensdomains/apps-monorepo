@@ -16,13 +16,24 @@ export function getSmartAccountAddress(signer: Signer): Address {
       return signer.config.accountAddress
     }
 
-    // signer.account is a KernelAccountClient from @zerodev/sdk
-    const kernelClient = signer.account as any
-    if (kernelClient?.account?.address) {
+    const kernelClient = signer.account
+    if (
+      kernelClient &&
+      typeof kernelClient === 'object' &&
+      'account' in kernelClient &&
+      kernelClient.account &&
+      typeof kernelClient.account === 'object' &&
+      'address' in kernelClient.account
+    ) {
       return kernelClient.account.address as Address
     }
     // Fallback: try to get address directly if it's a string
-    if (typeof kernelClient?.address === 'string') {
+    if (
+      kernelClient &&
+      typeof kernelClient === 'object' &&
+      'address' in kernelClient &&
+      typeof kernelClient.address === 'string'
+    ) {
       return kernelClient.address as Address
     }
     throw new Error(
