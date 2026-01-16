@@ -6,9 +6,8 @@ type ErrorLike = {
   readonly cause?: unknown
 }
 
-const uniq = (arr: readonly string[]): readonly string[] => [
-  ...new Set(arr.map((entry) => entry.trim()).filter(Boolean)),
-]
+const uniq = (arr: readonly string[]): readonly string[] =>
+  Array.from(new Set(arr.map((entry) => entry.trim()).filter(Boolean)))
 
 const cap = (text: string, max = 4000): string =>
   text.length > max ? `${text.slice(0, max)}\n…(truncated)` : text
@@ -41,15 +40,13 @@ const collectErrorStrings = (error: unknown): readonly string[] => {
   const errorLike = getErrorLike(error)
   if (!errorLike) return []
 
-  const messages: string[] = []
-  if (errorLike.shortMessage) messages.push(errorLike.shortMessage)
-  if (errorLike.message) messages.push(errorLike.message)
-  if (errorLike.details) messages.push(errorLike.details)
-  if (errorLike.metaMessages?.length) messages.push(...errorLike.metaMessages)
-
-  if (errorLike.cause) {
-    messages.push(...collectErrorStrings(errorLike.cause))
-  }
+  const messages: readonly string[] = [
+    ...(errorLike.shortMessage ? [errorLike.shortMessage] : []),
+    ...(errorLike.message ? [errorLike.message] : []),
+    ...(errorLike.details ? [errorLike.details] : []),
+    ...(errorLike.metaMessages ?? []),
+    ...(errorLike.cause ? collectErrorStrings(errorLike.cause) : []),
+  ]
 
   return messages
 }
