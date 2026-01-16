@@ -52,7 +52,10 @@ const collectErrorStrings = (error: unknown): readonly string[] => {
     : messages
 }
 
-const findFirstValue = (error: unknown, key: keyof ErrorLike) => {
+const findFirstValue = (
+  error: unknown,
+  key: keyof ErrorLike,
+): string | undefined => {
   const errorLike = getErrorLike(error)
   if (!errorLike) return undefined
   if (errorLike[key]) return errorLike[key] as string
@@ -88,7 +91,7 @@ export const getTransactionErrorInfo = (
   const revertReason =
     messagesText.match(/execution reverted(?::\s*([^\n.]+))?/i)?.[1]?.trim() ??
     messagesText.match(/reason string\s+'([^']+)'/i)?.[1]?.trim()
-  const addPeriod = (s: string) => (/[.!?]$/.test(s) ? s : `${s}.`)
+  const addPeriod = (s: string): string => (/[.!?]$/.test(s) ? s : `${s}.`)
   if (revertReason !== undefined) {
     const summary = revertReason
       ? addPeriod(`Execution reverted: ${revertReason}`)
