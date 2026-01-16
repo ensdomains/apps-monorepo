@@ -1,0 +1,53 @@
+name: Claude Style Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  issue_comment:
+    types: [created]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    # Run on PR events, or on issue comments that mention @claude
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-opus-4-5-20251101
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+
+            Review this pull request against the project's STYLEGUIDE.md.
+
+            First, read the STYLEGUIDE.md file to understand the project's coding standards.
+            Then review the PR changes and check for violations of those standards.
+
+            Focus on:
+            - Rule violations marked as 🔴 Must (these are critical)
+            - Rule violations marked as 🟡 Default (flag these but they may have valid exceptions)
+            - 🟢 Guidelines are suggestions only
+
+            For each issue found:
+            1. Reference the specific rule from STYLEGUIDE.md
+            2. Explain what's wrong
+            3. Suggest how to fix it
+
+            Use inline comments for specific code issues.
+            Post a summary comment with overall findings.
+
+          claude_args: |
+            --allowedTools "Read,Glob,Grep,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
