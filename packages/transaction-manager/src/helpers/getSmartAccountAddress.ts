@@ -1,5 +1,36 @@
-import type { Address } from 'viem'
+import { type Address, isAddress } from 'viem'
 import type { Signer } from '../types/signer.types'
+
+/**
+ * Type guard for kernel client with nested account.address structure
+ */
+function hasAccountAddress(
+  client: unknown,
+): client is { account: { address: Address } } {
+  return (
+    typeof client === 'object' &&
+    client !== null &&
+    'account' in client &&
+    typeof client.account === 'object' &&
+    client.account !== null &&
+    'address' in client.account &&
+    typeof client.account.address === 'string' &&
+    isAddress(client.account.address)
+  )
+}
+
+/**
+ * Type guard for kernel client with direct address property
+ */
+function hasDirectAddress(client: unknown): client is { address: Address } {
+  return (
+    typeof client === 'object' &&
+    client !== null &&
+    'address' in client &&
+    typeof client.address === 'string' &&
+    isAddress(client.address)
+  )
+}
 
 /**
  * Get the smart account address from a signer
@@ -17,25 +48,17 @@ export function getSmartAccountAddress(signer: Signer): Address {
     }
 
     const kernelClient = signer.account
-    if (
-      kernelClient &&
-      typeof kernelClient === 'object' &&
-      'account' in kernelClient &&
-      kernelClient.account &&
-      typeof kernelClient.account === 'object' &&
-      'address' in kernelClient.account
-    ) {
-      return kernelClient.account.address as Address
+
+    // Check for nested account.address structure
+    if (hasAccountAddress(kernelClient)) {
+      return kernelClient.account.address
     }
-    // Fallback: try to get address directly if it's a string
-    if (
-      kernelClient &&
-      typeof kernelClient === 'object' &&
-      'address' in kernelClient &&
-      typeof kernelClient.address === 'string'
-    ) {
-      return kernelClient.address as Address
+
+    // Fallback: try to get address directly
+    if (hasDirectAddress(kernelClient)) {
+      return kernelClient.address
     }
+
     throw new Error(
       'Unable to get smart account address from KernelAccountClient',
     )
