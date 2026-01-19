@@ -3,12 +3,10 @@ import type { useClient as useParaClient } from '@getpara/react-sdk-lite'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { UseMutationResult } from '@tanstack/react-query'
 import type { KernelAccountClient, KernelValidator } from '@zerodev/sdk'
-import type { SmartAccountClient } from 'permissionless'
 import type { Address } from 'viem'
-import type { PimlicoConfig } from './pimlico'
 import type { RhinestoneConfig } from './rhinestone'
 import type { StoredSession } from './sessions/types'
-import type { KernelConfig } from './zerodev/kernel'
+import type { ZeroDevConfig } from './zerodev/kernel'
 
 /**
  * Shared types for smart account hooks
@@ -23,7 +21,7 @@ export type WalletSource = 'para-embedded' | 'external-wallet' | null
 
 export type SmartAccountType = 'simple' | 'hca'
 
-export type SmartAccountProvider = 'pimlico' | 'rhinestone' | 'kernel'
+export type SmartAccountProvider = 'zerodev' | 'rhinestone'
 
 export interface StablecoinBalance {
   address: Address
@@ -71,15 +69,6 @@ export interface BaseAccountState {
 }
 
 /**
- * Pimlico account result
- */
-export interface PimlicoAccountState extends BaseAccountState {
-  type: 'pimlico'
-  client: SmartAccountClient | null
-  config: PimlicoConfig | null
-}
-
-/**
  * Rhinestone account result
  */
 export interface RhinestoneAccountState extends BaseAccountState {
@@ -89,20 +78,20 @@ export interface RhinestoneAccountState extends BaseAccountState {
 }
 
 /**
- * Kernel account result (ZeroDev with smart sessions)
+ * ZeroDev account result (with smart sessions)
  */
-export interface KernelAccountState extends BaseAccountState {
-  type: 'kernel'
+export interface ZeroDevAccountState extends BaseAccountState {
+  type: 'zerodev'
   /** The client - may be session client after session is created */
   client: KernelAccountClient | null
-  config: KernelConfig | null
+  config: ZeroDevConfig | null
   /** Active session if any */
   session: StoredSession | null
   /** Whether the client is a session client (vs master account) */
   isSessionClient: boolean
   /** ECDSA validator - needed for session creation */
   ecdsaValidator: KernelValidator<'ECDSAValidator'> | null
-  /** Whether the kernel account is initialized and ready */
+  /** Whether the ZeroDev account is initialized and ready */
   isAccountReady: boolean
   /** Update the session data (called when session is created) */
   setSessionData: (session: StoredSession, client: KernelAccountClient) => void
@@ -111,10 +100,7 @@ export interface KernelAccountState extends BaseAccountState {
 /**
  * Discriminated union of all account states
  */
-export type SmartAccountState =
-  | PimlicoAccountState
-  | RhinestoneAccountState
-  | KernelAccountState
+export type SmartAccountState = RhinestoneAccountState | ZeroDevAccountState
 
 /**
  * Hook configuration
@@ -122,7 +108,7 @@ export type SmartAccountState =
 export interface UseSmartAccountConfig {
   /**
    * Which smart account provider to use
-   * @default 'pimlico'
+   * @default 'zerodev'
    */
   type?: SmartAccountProvider
 
@@ -131,15 +117,6 @@ export interface UseSmartAccountConfig {
    * @default 'simple'
    */
   accountType?: SmartAccountType
-}
-
-/**
- * Type guard to check if account is Pimlico
- */
-export function isPimlicoAccount(
-  account: SmartAccountState,
-): account is PimlicoAccountState {
-  return account.type === 'pimlico'
 }
 
 /**
@@ -152,10 +129,10 @@ export function isRhinestoneAccount(
 }
 
 /**
- * Type guard to check if account is Kernel (ZeroDev with sessions)
+ * Type guard to check if account is ZeroDev
  */
-export function isKernelAccount(
+export function isZeroDevAccount(
   account: SmartAccountState,
-): account is KernelAccountState {
-  return account.type === 'kernel'
+): account is ZeroDevAccountState {
+  return account.type === 'zerodev'
 }

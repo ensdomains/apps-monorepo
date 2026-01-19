@@ -12,8 +12,7 @@ export type TransactionType =
   | 'eoa'
   | 'erc4337'
   | 'rhinestone-intent'
-  | 'pimlico'
-  | 'kernel'
+  | 'zerodev'
 
 export interface BaseTransactionRequest {
   type: TransactionType
@@ -62,38 +61,21 @@ export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
 }
 
 /**
- * Pimlico Transaction Request
- * Uses permissionless SmartAccountClient with calls array (similar to Rhinestone)
- */
-export interface PimlicoCall {
-  to: Address
-  data: Hex
-  value: bigint
-}
-
-export interface PimlicoTransactionRequest extends BaseTransactionRequest {
-  type: 'pimlico'
-  pimlicoParams: {
-    calls: PimlicoCall[]
-    sponsored?: boolean
-  }
-}
-
-/**
- * Kernel Transaction Request (ZeroDev)
- * Uses KernelAccountClient with calls array (similar to Pimlico)
+ * ZeroDev Transaction Request
+ * Uses ZeroDev KernelAccountClient with calls array
  * Works with both master account and session-derived clients
+ * Bundled via Pimlico
  */
-export interface KernelCall {
+export interface ZeroDevCall {
   to: Address
   data: Hex
   value: bigint
 }
 
-export interface KernelTransactionRequest extends BaseTransactionRequest {
-  type: 'kernel'
-  kernelParams: {
-    calls: KernelCall[]
+export interface ZeroDevTransactionRequest extends BaseTransactionRequest {
+  type: 'zerodev'
+  zerodevParams: {
+    calls: ZeroDevCall[]
     sponsored?: boolean
   }
 }
@@ -102,8 +84,7 @@ export type TransactionRequest =
   | EOATransactionRequest
   | ERC4337UserOperation
   | RhinestoneTransactionRequest
-  | PimlicoTransactionRequest
-  | KernelTransactionRequest
+  | ZeroDevTransactionRequest
 
 // Transaction Intents - High-level descriptions of what the user wants to do
 // (Distinct from Rhinestone intents, which are chain abstraction intents)

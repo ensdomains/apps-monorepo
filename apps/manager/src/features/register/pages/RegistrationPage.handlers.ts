@@ -25,11 +25,11 @@ export interface HandleRegistrationOptions {
 /**
  * Unified handler that starts registration with any smart account type
  *
- * Uses the pre-computed signer from the smart account hook.
+ * Uses the pre-computed signer from the smart account context hook.
  * This is the main entry point for starting registration.
  *
  * @example
- * const account = useSmartAccount() // defaults to rhinestone
+ * const account = useSmartAccountContext()
  * handleStartRegistration(params, account, actor, { publicClient, fast: true })
  */
 export function handleStartRegistration(

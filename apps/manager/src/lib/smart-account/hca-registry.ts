@@ -108,33 +108,21 @@ export function registerHCAOwnership(
 
     // Build request based on signer type
     let request: TransactionRequest
-    if (signer.type === 'pimlico') {
+    if (signer.type === 'zerodev') {
       request = {
-        type: 'pimlico',
+        type: 'zerodev',
         from: smartAccountAddress,
         to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
         data,
         value: 0n,
         chainId: customSepolia.id,
-        pimlicoParams: {
-          calls,
-          sponsored: true,
-        },
-      } as TransactionRequest
-    } else if (signer.type === 'kernel') {
-      request = {
-        type: 'kernel',
-        from: smartAccountAddress,
-        to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
-        data,
-        value: 0n,
-        chainId: customSepolia.id,
-        kernelParams: {
+        zerodevParams: {
           calls,
           sponsored: true,
         },
       } as TransactionRequest
     } else {
+      // Rhinestone fallback
       request = {
         type: 'rhinestone-intent',
         from: smartAccountAddress,

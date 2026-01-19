@@ -12,10 +12,9 @@ import { ENS_SEPOLIA_CONTRACTS } from '../../contracts/ens-sepolia'
 import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
 import { transactionManager } from '../../providers/transactionManager'
 import type {
-  KernelTransactionRequest,
-  PimlicoTransactionRequest,
   RhinestoneTransactionRequest,
   TransactionRequest,
+  ZeroDevTransactionRequest,
 } from '../../types/transaction.types'
 import {
   buildDedicatedResolverCalls,
@@ -61,34 +60,19 @@ function createTransactionRequest(params: {
     } as RhinestoneTransactionRequest
   }
 
-  if (signer.type === 'pimlico') {
+  if (signer.type === 'zerodev') {
     return {
-      type: 'pimlico',
+      type: 'zerodev',
       from,
       to,
       data,
       value,
       chainId,
-      pimlicoParams: {
+      zerodevParams: {
         calls,
         sponsored: sponsored ?? true,
       },
-    } as PimlicoTransactionRequest
-  }
-
-  if (signer.type === 'kernel') {
-    return {
-      type: 'kernel',
-      from,
-      to,
-      data,
-      value,
-      chainId,
-      kernelParams: {
-        calls,
-        sponsored: sponsored ?? true,
-      },
-    } as KernelTransactionRequest
+    } as ZeroDevTransactionRequest
   }
 
   throw new Error(
@@ -120,13 +104,12 @@ export const submitProfileRecordsUpdateActor = (input: {
         fromAddress = input.accountAddress
       } else if (
         input.signer.type === 'rhinestone' ||
-        input.signer.type === 'pimlico' ||
-        input.signer.type === 'kernel'
+        input.signer.type === 'zerodev'
       ) {
         fromAddress = getSmartAccountAddress(input.signer)
       } else {
         throw new Error(
-          'Only EOA, Rhinestone, Pimlico, or Kernel signers are supported for profile updates',
+          'Only EOA, Rhinestone, or ZeroDev signers are supported for profile updates',
         )
       }
 

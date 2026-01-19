@@ -3,10 +3,9 @@ import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Hash, PublicClient, TransactionReceipt } from 'viem'
 import { assign, fromPromise as fromPromiseXState, setup } from 'xstate'
 import { submitEOATransaction } from '../actors/eoa-transport.actor'
-import { submitKernelTransaction } from '../actors/kernel-transport.actor'
-import { submitPimlicoTransaction } from '../actors/plimlico-transport.actor'
 import { prepareTransaction } from '../actors/prepare-transaction.actor'
 import { submitRhinestoneTransaction } from '../actors/rhinestone-transport.actor'
+import { submitZeroDevTransaction } from '../actors/zerodev-transport.actor'
 import {
   EthCallFallbackError,
   TransactionRevertedError,
@@ -30,8 +29,7 @@ import type {
  * based on transaction type:
  * - EOA: Standard wallet transactions via submitEOATransaction
  * - Rhinestone: Smart account transactions via submitRhinestoneTransaction
- * - Pimlico: Smart account via Pimlico bundler via submitPimlicoTransaction
- * - Kernel: ZeroDev Kernel with sessions via submitKernelTransaction
+ * - ZeroDev: ZeroDev Kernel with sessions via submitZeroDevTransaction
  * - ERC-4337: User operations (not yet implemented)
  *
  * This machine focuses solely on transaction lifecycle (submit → pending → confirm).
@@ -168,15 +166,8 @@ export const transactionMachine = setup({
               publicClient,
             })
 
-          case 'pimlico':
-            return submitPimlicoTransaction({
-              request,
-              signer,
-              publicClient,
-            })
-
-          case 'kernel':
-            return submitKernelTransaction({
+          case 'zerodev':
+            return submitZeroDevTransaction({
               request,
               signer,
               publicClient,
@@ -262,10 +253,9 @@ export const transactionMachine = setup({
         if (
           request.type === 'erc4337' ||
           request.type === 'rhinestone-intent' ||
-          request.type === 'pimlico' ||
-          request.type === 'kernel'
+          request.type === 'zerodev'
         ) {
-          // For 4337, Rhinestone, Pimlico, and Kernel, we'd need different simulation methods
+          // For 4337, Rhinestone, and ZeroDev, we'd need different simulation methods
           return ResultAsync.fromSafePromise(
             Promise.resolve({ wouldSucceed: true }),
           )
@@ -556,8 +546,7 @@ export const transactionMachine = setup({
               hash: ({ event }) => event.output,
               userOpHash: ({ event, context }) =>
                 context.request?.type === 'erc4337' ||
-                context.request?.type === 'pimlico' ||
-                context.request?.type === 'kernel'
+                context.request?.type === 'zerodev'
                   ? event.output
                   : undefined,
             }),

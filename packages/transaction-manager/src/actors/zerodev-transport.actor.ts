@@ -1,54 +1,55 @@
+import { logger } from '@ens-apps/utils/logger'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { Hash, PublicClient } from 'viem'
 import { TransactionSubmissionError } from '../errors/transaction.errors'
-import type { KernelSigner } from '../types/signer.types'
+import type { ZeroDevSigner } from '../types/signer.types'
 import type {
-  KernelTransactionRequest,
   TransactionRequest,
+  ZeroDevTransactionRequest,
 } from '../types/transaction.types'
 
 /**
- * Kernel Transport Actor
+ * ZeroDev Transport Actor
  *
  * Submits transactions via ZeroDev KernelAccountClient.
  * Works with both master account and session-derived clients.
- * The Kernel client is created in useSmartAccount hook with kernel type.
+ * The Kernel client is created in SmartAccountContext with zerodev type.
  */
-export function submitKernelTransaction(input: {
+export function submitZeroDevTransaction(input: {
   request: TransactionRequest
-  signer: KernelSigner
+  signer: ZeroDevSigner
   publicClient?: PublicClient
 }): ResultAsync<Hash, TransactionSubmissionError> {
   const { request, signer } = input
-  const kernelRequest = request as KernelTransactionRequest
+  const zerodevRequest = request as ZeroDevTransactionRequest
 
   const isSession = signer.config.isSessionClient ?? false
 
-  console.log('🔧 [KERNEL TRANSPORT] Submitting transaction:', {
+  logger.info('🔧 [ZERODEV TRANSPORT] Submitting transaction:', {
     isSessionClient: isSession,
-    hasParams: !!kernelRequest.kernelParams,
-    callCount: kernelRequest.kernelParams?.calls?.length,
+    hasParams: !!zerodevRequest.zerodevParams,
+    callCount: zerodevRequest.zerodevParams?.calls?.length,
   })
 
-  if (!kernelRequest.kernelParams) {
-    console.error('❌ [KERNEL TRANSPORT] Missing kernelParams')
+  if (!zerodevRequest.zerodevParams) {
+    logger.error('❌ [ZERODEV TRANSPORT] Missing zerodevParams')
     return errAsync(
       new TransactionSubmissionError(
-        kernelRequest,
-        new Error('kernelParams required for Kernel transactions'),
+        zerodevRequest,
+        new Error('zerodevParams required for ZeroDev transactions'),
       ),
     )
   }
 
   if (
-    !kernelRequest.kernelParams.calls ||
-    kernelRequest.kernelParams.calls.length === 0
+    !zerodevRequest.zerodevParams.calls ||
+    zerodevRequest.zerodevParams.calls.length === 0
   ) {
-    console.error('❌ [KERNEL TRANSPORT] Missing or empty calls array')
+    logger.error('❌ [ZERODEV TRANSPORT] Missing or empty calls array')
     return errAsync(
       new TransactionSubmissionError(
-        kernelRequest,
-        new Error('kernelParams.calls is required and must not be empty'),
+        zerodevRequest,
+        new Error('zerodevParams.calls is required and must not be empty'),
       ),
     )
   }
@@ -56,22 +57,22 @@ export function submitKernelTransaction(input: {
   const kernelClient = signer.account
 
   if (!kernelClient) {
-    console.error('❌ [KERNEL TRANSPORT] Kernel account client not found')
+    logger.error('❌ [ZERODEV TRANSPORT] Kernel account client not found')
     return errAsync(
       new TransactionSubmissionError(
-        kernelRequest,
+        zerodevRequest,
         new Error(
-          'Kernel account not initialized. Ensure useSmartAccount hook with kernel type has completed.',
+          'ZeroDev account not initialized. Ensure SmartAccountContext has completed initialization.',
         ),
       ),
     )
   }
 
   if (typeof kernelClient.sendUserOperation !== 'function') {
-    console.error('❌ [KERNEL TRANSPORT] Invalid Kernel account client')
+    logger.error('❌ [ZERODEV TRANSPORT] Invalid Kernel account client')
     return errAsync(
       new TransactionSubmissionError(
-        kernelRequest,
+        zerodevRequest,
         new Error(
           'Kernel account client does not have sendUserOperation method',
         ),
@@ -81,12 +82,12 @@ export function submitKernelTransaction(input: {
 
   return fromPromise(
     (async () => {
-      console.log(
-        '📤 [KERNEL TRANSPORT] Sending user operation via Kernel client:',
+      logger.info(
+        '📤 [ZERODEV TRANSPORT] Sending user operation via Kernel client:',
         {
           isSessionClient: isSession,
-          callCount: kernelRequest.kernelParams.calls.length,
-          calls: kernelRequest.kernelParams.calls.map((call) => ({
+          callCount: zerodevRequest.zerodevParams.calls.length,
+          calls: zerodevRequest.zerodevParams.calls.map((call) => ({
             to: call.to,
             value: call.value?.toString(),
             dataLength: call.data?.length || 0,
@@ -95,10 +96,10 @@ export function submitKernelTransaction(input: {
       )
 
       const userOpHash = await kernelClient.sendUserOperation({
-        calls: kernelRequest.kernelParams.calls,
+        calls: zerodevRequest.zerodevParams.calls,
       })
 
-      console.log('✅ [KERNEL TRANSPORT] User operation hash:', userOpHash)
+      logger.info('✅ [ZERODEV TRANSPORT] User operation hash:', userOpHash)
 
       const receipt = await kernelClient.waitForUserOperationReceipt({
         hash: userOpHash,
@@ -106,21 +107,21 @@ export function submitKernelTransaction(input: {
 
       const txHash = receipt.receipt.transactionHash as Hash
 
-      console.log('✅ [KERNEL TRANSPORT] Transaction submitted:', txHash, {
+      logger.info('✅ [ZERODEV TRANSPORT] Transaction submitted:', txHash, {
         isSessionClient: isSession,
       })
 
       return txHash as Hash
     })(),
     (error) => {
-      console.error('❌ [KERNEL TRANSPORT] Transaction failed:', error)
-      console.error('❌ [KERNEL TRANSPORT] Error details:', {
+      logger.error('❌ [ZERODEV TRANSPORT] Transaction failed:', error)
+      logger.error('❌ [ZERODEV TRANSPORT] Error details:', {
         name: (error as Error)?.name,
         message: (error as Error)?.message,
         cause: (error as Error)?.cause,
         isSessionClient: isSession,
       })
-      return new TransactionSubmissionError(kernelRequest, error as Error)
+      return new TransactionSubmissionError(zerodevRequest, error as Error)
     },
   )
 }
