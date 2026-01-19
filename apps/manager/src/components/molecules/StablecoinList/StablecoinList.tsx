@@ -25,7 +25,7 @@ interface StablecoinListProps {
   interactive?: boolean
 }
 
-export function StablecoinList({
+export const StablecoinList = ({
   stablecoins,
   title = 'Stablecoins',
   showTitle = true,
@@ -33,7 +33,7 @@ export function StablecoinList({
   selectedStablecoinId,
   className,
   interactive = false,
-}: StablecoinListProps) {
+}: StablecoinListProps) => {
   // Get token info from STABLECOINS constants
   const getTokenInfo = (symbol: string, index: number) => {
     const stablecoin = Object.values(STABLECOINS).find(

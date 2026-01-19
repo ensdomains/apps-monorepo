@@ -3,7 +3,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import type { TelegramStepProps } from './types'
 
-export function TelegramCreateStep({ state, actions }: TelegramStepProps) {
+export const TelegramCreateStep = ({ state, actions }: TelegramStepProps) => {
   const {
     telegramAuthData,
     isCreatingChannel,

@@ -73,7 +73,7 @@ function mapMachineStateToStep(
   }
 }
 
-export function Registration({ initialName }: RegistrationProps) {
+export const Registration = ({ initialName }: RegistrationProps) => {
   const navigate = useNavigate()
 
   const actor = useActorRef(registrationMachine, {

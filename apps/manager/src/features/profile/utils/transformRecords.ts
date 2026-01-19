@@ -152,7 +152,9 @@ export const debugServiceRecords = (
 /**
  * Debug utility to log the transformed ProfileRecords structure
  */
-export const debugProfileRecords = (records: ProfileRecords | undefined) => {
+export const debugProfileRecords = (
+  records: ProfileRecords | undefined,
+): void => {
   if (!records) {
     return
   }

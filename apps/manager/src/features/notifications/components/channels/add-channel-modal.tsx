@@ -43,7 +43,10 @@ const channelOptions = [
   },
 ]
 
-export function AddChannelModal({ open, onOpenChange }: AddChannelModalProps) {
+export const AddChannelModal = ({
+  open,
+  onOpenChange,
+}: AddChannelModalProps) => {
   const [selectedType, setSelectedType] = useState<ChannelType>(null)
 
   const handleClose = () => {

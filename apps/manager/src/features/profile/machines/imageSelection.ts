@@ -2,10 +2,10 @@ import { assign, setup } from 'xstate'
 
 // Types for better type safety
 export interface NFT {
-  id: string
-  name: string
-  image: string
-  collection: string
+  readonly id: string
+  readonly name: string
+  readonly image: string
+  readonly collection: string
 }
 
 export interface ImageSelectionContext {

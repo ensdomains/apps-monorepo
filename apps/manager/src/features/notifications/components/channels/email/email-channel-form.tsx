@@ -10,10 +10,10 @@ import { StepIndicator } from '../../shared/step-indicator'
 import { EmailSendStep } from './email-send-step'
 import { EmailVerifyStep } from './email-verify-step'
 
-export function EmailChannelForm({
+export const EmailChannelForm = ({
   onSuccess,
   onCancel,
-}: EmailChannelFormProps) {
+}: EmailChannelFormProps) => {
   const [currentStep, setCurrentStep] = useState<EmailStep>('send')
 
   const addEmailChannelMutation = useMutation({

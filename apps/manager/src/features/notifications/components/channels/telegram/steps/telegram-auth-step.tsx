@@ -3,7 +3,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import type { TelegramStepProps } from './types'
 
-export function TelegramAuthStep({ state, actions }: TelegramStepProps) {
+export const TelegramAuthStep = ({ state, actions }: TelegramStepProps) => {
   const { isAuthenticating, authError } = state
   const { onTelegramAuth, onCancel } = actions
 

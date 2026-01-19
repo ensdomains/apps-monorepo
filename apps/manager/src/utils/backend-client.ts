@@ -45,7 +45,7 @@ export const isBackendAuthed = backendAuthStore.select(
   (state) => state.authKey !== undefined,
 )
 
-const baseUrl = import.meta.env.VITE_API_URL ?? '/api'
+const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
 
 const authFetch: typeof fetch = async (input, init) => {
   const response = await fetch(input, init)
@@ -57,7 +57,7 @@ const authFetch: typeof fetch = async (input, init) => {
   return response
 }
 
-export const backendClient = hc<AppRouter>(baseUrl, {
+export const backendClient = hc<AppRouter>(BASE_URL, {
   headers: () => {
     const auth = backendAuthStore.get().context.authKey
     const posthogId = posthog.get_distinct_id()

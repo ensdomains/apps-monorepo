@@ -9,7 +9,7 @@ const sizeMap = {
   lg: 'h-40 w-40',
 }
 
-export function QRPattern({ size = 'md', className = '' }: QRPatternProps) {
+export const QRPattern = ({ size = 'md', className = '' }: QRPatternProps) => {
   return (
     <div className={`grid grid-cols-8 gap-1 ${sizeMap[size]} ${className}`}>
       <div className="h-3 w-3 bg-gray-800" />
