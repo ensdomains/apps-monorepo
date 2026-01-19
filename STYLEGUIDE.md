@@ -2866,7 +2866,7 @@ const myVar = "text-red-500"
 // Intellisense enabled from var name
 const className = "text-red-500"
 
-// Intellisense manually enabled (worker everywhere)
+// Intellisense manually enabled (works everywhere)
 const myVar = tw`text-red-500`
 ```
 
