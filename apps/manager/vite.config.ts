@@ -30,9 +30,15 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'happy-dom',
+    setupFiles: ['./src/utils/test-utils.tsx'],
     coverage: {
       provider: 'v8',
       reporter: ['lcovonly', 'text', 'html'],
+    },
+    server: {
+      deps: {
+        inline: ['tiny-warning'],
+      },
     },
   },
   resolve: {
@@ -43,5 +49,6 @@ export default defineConfig({
   define: {
     global: 'globalThis',
     'process.env': {},
+    module: 'globalThis',
   },
 })
