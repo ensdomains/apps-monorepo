@@ -20,23 +20,23 @@ export interface SessionConfig {
  */
 export interface StoredSession {
   /** Unique session identifier */
-  id: string
+  readonly id: string
   /** Address of the session key */
-  sessionKeyAddress: Address
+  readonly sessionKeyAddress: Address
   /** Smart account address this session controls */
-  smartAccountAddress: Address
+  readonly smartAccountAddress: Address
   /** EOA owner address that created the session */
-  ownerAddress: Address
+  readonly ownerAddress: Address
   /** Unix timestamp when session was created */
-  createdAt: number
+  readonly createdAt: number
   /** Chain ID the session is valid for */
-  chainId: number
+  readonly chainId: number
   /** Optional expiry timestamp */
-  validUntil?: number
+  readonly validUntil?: number
   /** Serialized session account data from ZeroDev SDK */
-  serializedSessionAccount: string
+  readonly serializedSessionAccount: string
   /** Session private key (hex) for signing */
-  sessionPrivateKey: Hex
+  readonly sessionPrivateKey: Hex
 }
 
 /**
@@ -44,16 +44,16 @@ export interface StoredSession {
  */
 export interface SessionState {
   /** Current session status */
-  status: 'none' | 'creating' | 'active' | 'expired' | 'error'
+  readonly status: 'none' | 'creating' | 'active' | 'expired' | 'error'
   /** Active session if any */
-  session: StoredSession | null
+  readonly session: StoredSession | null
   /** Error message if status is 'error' */
-  error?: string
+  readonly error?: string
 }
 
 /**
  * Result type for session operations
  */
 export type SessionResult<T> =
-  | { success: true; data: T }
-  | { success: false; error: string }
+  | { readonly success: true; readonly data: T }
+  | { readonly success: false; readonly error: string }
