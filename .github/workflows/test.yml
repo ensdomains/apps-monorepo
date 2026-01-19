@@ -30,9 +30,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Clear Vite cache
-        run: find . -type d -name ".vite" -exec rm -rf {} + 2>/dev/null || true
-
       - name: Build dependencies of changed packages
         run: |
           echo "🏗️ Building dependencies of changed packages..."
