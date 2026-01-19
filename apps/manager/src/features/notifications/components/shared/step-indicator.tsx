@@ -4,11 +4,11 @@ interface StepIndicatorProps {
   completedSteps: number[]
 }
 
-export function StepIndicator({
+export const StepIndicator = ({
   currentStep,
   totalSteps,
   completedSteps,
-}: StepIndicatorProps) {
+}: StepIndicatorProps) => {
   return (
     <div className="flex items-center justify-center space-x-4">
       {Array.from({ length: totalSteps }, (_, index) => {

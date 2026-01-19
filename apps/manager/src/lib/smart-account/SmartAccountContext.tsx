@@ -77,10 +77,10 @@ interface SmartAccountContextProviderProps {
  * Wraps the application and provides shared ZeroDev account state.
  * Place this inside wallet providers (ParaProvider, wagmi).
  */
-export function SmartAccountContextProvider({
+export const SmartAccountContextProvider = ({
   children,
   accountType = 'hca',
-}: SmartAccountContextProviderProps) {
+}: SmartAccountContextProviderProps) => {
   const paraClient = useParaClient()
   const { data: paraWallet, isPending: isParaWalletPending } = useParaWallet()
   const { data: wagmiWalletClient } = useWalletClient()

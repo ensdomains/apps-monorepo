@@ -59,7 +59,7 @@ export const getRecordHref = (
 export const getRecordDisplayValue = (
   record: TextRecordDef | undefined,
   value: string,
-) => {
+): string => {
   if (!record) return value
   if (record.displayPrefix && value.startsWith(record.displayPrefix)) {
     return value.slice(record.displayPrefix.length)
@@ -68,15 +68,24 @@ export const getRecordDisplayValue = (
 }
 
 // Helper accessors
-export const getRecordDef = (key: string) =>
+export const getRecordDef = (
+  key: string,
+): (typeof recordIndex)[keyof typeof recordIndex] | undefined =>
   recordIndex[key as keyof typeof recordIndex]
-export const getAddressRecordDef = (coinType: number) =>
+export const getAddressRecordDef = (
+  coinType: number,
+): (typeof addressRecordIndex)[number] | undefined =>
   addressRecordIndex[coinType]
 
-export const getAvailableRecords = (usedKeys: string[], section: AnySection) =>
+export const getAvailableRecords = (
+  usedKeys: string[],
+  section: AnySection,
+): typeof textRecords =>
   textRecords.filter(
     (record) => !usedKeys.includes(record.key) && record.section === section,
   )
 
-export const getAvailableAddressRecords = (usedCoinTypes: number[]) =>
+export const getAvailableAddressRecords = (
+  usedCoinTypes: number[],
+): typeof addressRecords =>
   addressRecords.filter((record) => !usedCoinTypes.includes(record.coinType))

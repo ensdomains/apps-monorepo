@@ -128,7 +128,7 @@ interface PreferenceState {
   }
 }
 
-export function NotificationPreferences() {
+export const NotificationPreferences = () => {
   const { data: channels = [] } = useQuery(channelsQueryOptions)
   const [preferences, setPreferences] = useState<PreferenceState>({})
   const [hasAutoRenew] = useState(false) // This would come from user data

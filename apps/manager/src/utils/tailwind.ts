@@ -79,4 +79,5 @@ export const tw = (
  * // => "bg-blue-500 p-4"
  * ```
  */
-export const twm = (...props: Parameters<typeof tw>) => twMerge(tw(...props))
+export const twm = (...props: Parameters<typeof tw>): string =>
+  twMerge(tw(...props))

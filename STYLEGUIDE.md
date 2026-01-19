@@ -2795,13 +2795,22 @@ export const Button = ({ className, variant, size, ...props }: ButtonProps) => {
 
 > **Note**: For complex multi-part components (e.g., Card with separate Header, Body, Footer styles), consider [tailwind-variants](https://www.tailwind-variants.org/) which extends CVA with slots and built-in class merging. For single-part components, CVA + `cn()` is sufficient.
 
-### Conditional Classes
+### Conditional Classes and Class Helpers 🟡 Default
 
-Use the `cn` utility for conditional classes:
+**Pick one approach (`clsx`/`cn` or `tw`/`twm`) and use it consistently across the codebase.**
+
+#### Using `clsx` and `cn`
+
+`clsx` merges class names conditionally. `cn` wraps `clsx` with `tailwind-merge` to resolve conflicting Tailwind utilities (e.g., `bg-red-500` vs `bg-blue-500`, `p-2` vs `p-4`).
 
 ```typescript
 import { cn } from '@/lib/utils'
+import clsx from 'clsx'
 
+// Use clsx when you just need to merge classes without Tailwind conflict resolution
+const simpleClasses = clsx('text-sm', isActive && 'font-bold')
+
+// Use cn when you need Tailwind conflict resolution
 export const Card = ({ isActive, className }: CardProps) => {
   return (
     <div
@@ -2817,20 +2826,48 @@ export const Card = ({ isActive, className }: CardProps) => {
 }
 ```
 
-### Choose One Class Helper 🟡 Default
+**When to use `clsx` vs `cn`:**
+- Use `clsx` when you just need to merge classes and don't have conflicting Tailwind utilities
+- Use `cn` when composing classes that might conflict (e.g., different padding/margin values, different background colors)
 
-**Pick either `cn` or `tw` and use it consistently across the codebase.**
+#### Using `tw` and `twm` (Alternative)
+
+`tw` and `twm` are custom utilities that provide a single API for all class name use cases. They handle single strings, template literals, and `clsx`-style function calls, choosing the most efficient method based on input.
 
 ```typescript
-// Option 1: cn (clsx + tailwind-merge)
-import { cn } from '@/lib/utils'
+import { tw, twm } from '@/utils/tailwind'
 
-<Button className={cn('px-4 py-2', isActive && 'bg-primary')} />
+// tw: Single string (returns directly, no clsx overhead)
+<Button className={tw`px-4 py-2`} />
 
-// Option 2: tw (tailwind-variants)
-import { tw } from '@/lib/utils'
-
+// tw: Tagged template with interpolations
 <Button className={tw`px-4 py-2 ${isActive ? 'bg-primary' : ''}`} />
+
+// tw: Function call form (clsx-compatible)
+<Button className={tw('px-4 py-2', isActive && 'bg-primary')} />
+
+// twm: Same as tw but with tailwind-merge for conflict resolution
+<Button className={twm('px-4 py-2', isActive && 'bg-primary')} />
+```
+
+**About `tw` and `twm`:**
+- `tw` is a unified utility that handles all use cases: single strings, template literals, and `clsx` function syntax
+- **Performance-optimized**: Only invokes `clsx` when there are multiple inputs; single string inputs are returned directly
+- Supports all `clsx` features: strings, arrays, objects, conditionals, nested structures
+- `twm` adds `twMerge` for Tailwind-aware conflict resolution (equivalent to `cn` but with the same unified API)
+- Prefer `tw` by default for the lightest helper; use `twm` when you need conflict resolution
+
+**Note**: Autocomplete is the same for `clsx`, `cn`, `tw`, and `twm` - they're all configured identically in the Tailwind config. The benefit of `tw`/`twm` is the unified API that enables Tailwind autocomplete even for simple string assignments where you'd normally just use a plain string:
+
+```typescript
+// No intellisense
+const myVar = "text-red-500"
+
+// Intellisense enabled from var name
+const className = "text-red-500"
+
+// Intellisense manually enabled (works everywhere)
+const myVar = tw`text-red-500`
 ```
 
 **Benefits of consistency:**

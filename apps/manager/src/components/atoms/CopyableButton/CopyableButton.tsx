@@ -9,7 +9,7 @@ type CopyableButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   iconClassName?: string
 }
 
-export function CopyableButton({
+export const CopyableButton = ({
   value,
   iconClassName,
   className,
@@ -18,7 +18,7 @@ export function CopyableButton({
   children,
   title,
   ...props
-}: CopyableButtonProps) {
+}: CopyableButtonProps) => {
   const [copied, setCopied] = useState(false)
 
   const isDisabled = disabled || !value

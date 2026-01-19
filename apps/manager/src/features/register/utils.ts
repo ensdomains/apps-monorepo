@@ -13,14 +13,14 @@ export const isNameAvailabilityError = (
   return error instanceof NameAvailabilityError
 }
 
-export const getErrorMessage = (error: unknown) => {
+export const getErrorMessage = (error: unknown): unknown => {
   if (isNameAvailabilityError(error)) {
     return error.cause
   }
   return error
 }
 
-export const normalizeQuery = (query: string) => {
+export const normalizeQuery = (query: string): string => {
   const trimmed = query.trim().toLowerCase()
   if (!trimmed) return ''
   return trimmed.endsWith('.eth') ? trimmed : `${trimmed}.eth`
