@@ -109,7 +109,9 @@ export const columns: ColumnDef<NameRow>[] = [
             <span>Sepolia</span>
           </div>
         )
-      } else if (network === 'namechainSepolia') {
+      }
+
+      if (network === 'namechainSepolia') {
         return (
           <div className="flex flex-row gap-1 items-center">
             <NamechainSVG height={20} width={20} />
@@ -117,6 +119,8 @@ export const columns: ColumnDef<NameRow>[] = [
           </div>
         )
       }
+
+      return null
     },
   },
 ]
