@@ -1,5 +1,3 @@
-/// <reference types="vitest" />
-
 import { fileURLToPath } from 'node:url'
 import { cloudflare } from '@cloudflare/vite-plugin'
 import tailwindcss from '@tailwindcss/vite'
@@ -27,28 +25,9 @@ export default defineConfig({
     viteReact(),
     tailwindcss(),
   ],
-  test: {
-    globals: true,
-    environment: 'happy-dom',
-    setupFiles: ['./src/utils/test-utils.tsx'],
-    coverage: {
-      provider: 'v8',
-      reporter: ['lcovonly', 'text', 'html'],
-    },
-    server: {
-      deps: {
-        inline: ['tiny-warning'],
-      },
-    },
-  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
-  },
-  define: {
-    global: 'globalThis',
-    'process.env': {},
-    module: 'globalThis',
   },
 })
