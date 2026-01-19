@@ -11,6 +11,7 @@ import {
 } from '@tanstack/react-table'
 import { Search, XIcon } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
+import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -24,6 +25,7 @@ import { getV1NamesForAddressQueryOptions } from '@/features/dashboard/hooks/use
 import { getV2NamesForAddressQueryOptions } from '@/features/dashboard/hooks/useV2NamesForAddress'
 import { columns } from '@/features/names/components/NamesTable/columns'
 import { NamesTable } from '@/features/names/components/NamesTable/NamesTable'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { mergeNamesData } from '@/utils/names/mergeNamesData'
 
 export const Route = createFileRoute('/addr/$addr/names')({
@@ -73,28 +75,30 @@ function RouteComponent() {
 
   const searchNamesId = useId()
 
-  if (v1NamesQuery.isLoading) {
+  const queryState = match({ v1: v1NamesQuery, v2: v2NamesQuery })
+    .with({ v1: { isLoading: true } }, () => ({ status: 'loading' as const }))
+    .with({ v2: { isLoading: true } }, () => ({ status: 'loading' as const }))
+    .with({ v1: { error: P.not(P.nullish) } }, ({ v1 }) => ({
+      status: 'error' as const,
+      error: v1.error,
+    }))
+    .with({ v2: { error: P.not(P.nullish) } }, ({ v2 }) => ({
+      status: 'error' as const,
+      error: v2.error,
+    }))
+    .otherwise(() => ({ status: 'success' as const }))
+
+  if (queryState.status === 'loading') {
     return <LoadingMessage />
   }
 
-  if (v2NamesQuery.isLoading) {
-    return <LoadingMessage />
-  }
-
-  if (v1NamesQuery.error) {
-    const message =
-      (v1NamesQuery.error.cause as Error | undefined)?.message ||
-      (v1NamesQuery.error as Error).message ||
-      'Could not load data.'
-    return <ErrorMessage title="Error loading names" description={message} />
-  }
-
-  if (v2NamesQuery.error) {
-    const message =
-      (v2NamesQuery.error.cause as Error | undefined)?.message ||
-      (v2NamesQuery.error as Error).message ||
-      'Could not load data.'
-    return <ErrorMessage title="Error loading names" description={message} />
+  if (queryState.status === 'error') {
+    return (
+      <ErrorMessage
+        title="Error loading names"
+        description={extractErrorMessage(queryState.error)}
+      />
+    )
   }
 
   const nameCount = data.length
