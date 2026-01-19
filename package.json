@@ -18,6 +18,10 @@
     "build": "pnpm -w --filter=portal build",
     "dev:manager": "pnpm -r --filter=manager dev",
     "test:manager": "pnpm -r --filter=manager test",
+    "test:manager:watch": "pnpm -r --filter=manager test:watch",
+    "test:manager:ui": "pnpm -r --filter=manager test:ui",
+    "test:manager:cov": "pnpm -r --filter=manager test:coverage",
+    "test:manager:cov:open": "pnpm -r --filter=manager test:coverage:open",
     "dev:tx-example": "pnpm -r --filter=@ens-apps/transaction-manager-example dev"
   },
   "packageManager": "pnpm@10.27.0",
