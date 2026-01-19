@@ -49,9 +49,12 @@ jobs:
           pnpm --filter="...[origin/main]" check || pnpm check
 
       - name: Run tests with coverage on changed packages
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
         run: |
           echo "📊 Running coverage tests on changed packages..."
-          pnpm --filter="...[origin/main]" test:coverage || pnpm -r test:coverage
+          # Run with limited parallelism to avoid esbuild deadlock
+          pnpm --filter="...[origin/main]" --workspace-concurrency=1 test:coverage || pnpm --workspace-concurrency=1 -r test:coverage
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
