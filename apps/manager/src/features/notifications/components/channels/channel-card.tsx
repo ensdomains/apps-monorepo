@@ -77,7 +77,7 @@ const statusConfig = {
   },
 } as const
 
-export function ChannelCard({ channel }: ChannelCardProps) {
+export const ChannelCard = ({ channel }: ChannelCardProps) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const deleteChannelMutation = useMutation(deleteChannelMutationOptions)
   // const testChannelMutation = useMutation(testChannelMutationOptions) // Hidden for now

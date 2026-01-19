@@ -19,7 +19,7 @@ interface EmailVerifyStepProps {
   onSuccess: () => void
 }
 
-export function EmailVerifyStep({
+export const EmailVerifyStep = ({
   channelId,
   isVerifying,
   isVerified,
@@ -28,7 +28,7 @@ export function EmailVerifyStep({
   onBackToSend,
   onCancel,
   onSuccess,
-}: EmailVerifyStepProps) {
+}: EmailVerifyStepProps) => {
   const [verificationCode, setVerificationCode] = useState('')
   const verificationCodeId = useId()
 

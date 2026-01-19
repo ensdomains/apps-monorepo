@@ -58,11 +58,11 @@ interface DomainCardProps
   className?: string
 }
 
-export function DomainCard({
+export const DomainCard = ({
   domainName,
   variant = 'garnet',
   className,
-}: DomainCardProps) {
+}: DomainCardProps) => {
   const selectedVariant = variant || 'garnet'
 
   return (

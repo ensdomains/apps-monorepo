@@ -3,7 +3,7 @@ import { TelegramAuthStep } from './telegram-auth-step'
 import { TelegramCreateStep } from './telegram-create-step'
 import type { TelegramStepProps } from './types'
 
-export function TelegramSteps({ state, actions }: TelegramStepProps) {
+export const TelegramSteps = ({ state, actions }: TelegramStepProps) => {
   const { currentStep, telegramAuthData, isChannelCreated } = state
 
   const getCurrentStepNumber = () => {

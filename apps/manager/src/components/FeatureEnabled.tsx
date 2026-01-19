@@ -8,11 +8,11 @@ interface FeatureEnabledProps {
   fallback?: ReactNode
 }
 
-export function FeatureEnabled({
+export const FeatureEnabled = ({
   flag,
   children,
   fallback = null,
-}: FeatureEnabledProps): React.ReactNode {
+}: FeatureEnabledProps): React.ReactNode => {
   const isEnabled = useFeatureFlag(flag)
 
   if (!isEnabled) {

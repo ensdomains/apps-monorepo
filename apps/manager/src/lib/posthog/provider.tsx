@@ -5,11 +5,11 @@ import { useEffect } from 'react'
 import { useConnectionEffect } from 'wagmi'
 import { track } from './events'
 
-export function PHProvider({
+export const PHProvider = ({
   children,
 }: {
   children: React.ReactNode
-}): React.ReactNode {
+}): React.ReactNode => {
   const isHydrated = useHydrated()
 
   useEffect(() => {

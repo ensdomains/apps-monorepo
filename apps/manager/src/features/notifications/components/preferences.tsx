@@ -60,7 +60,7 @@ const groupedKinds = Object.entries(
   kinds,
 }))
 
-export function NotificationPreferences() {
+export const NotificationPreferences = () => {
   const { data: channels = [] } = useQuery(channelsQueryOptions)
   const { data: preferences = {} } = useQuery(preferencesQueryOptions)
   const updatePreferenceMutation = useMutation(updatePreferenceMutationOptions)

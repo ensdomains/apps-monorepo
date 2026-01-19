@@ -13,7 +13,7 @@ import { EnableSessionModal } from './EnableSessionModal'
  *
  * Place this component high in the tree, inside wallet providers.
  */
-export function SmartSessionProvider() {
+export const SmartSessionProvider = () => {
   const smartAccount = useSmartAccountContext()
 
   if (smartAccount.walletSource !== 'external-wallet') {
