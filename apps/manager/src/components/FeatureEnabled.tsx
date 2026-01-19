@@ -12,7 +12,7 @@ export const FeatureEnabled = ({
   flag,
   children,
   fallback = null,
-}: FeatureEnabledProps): React.ReactNode => {
+}: FeatureEnabledProps) => {
   const isEnabled = useFeatureFlag(flag)
 
   if (!isEnabled) {
