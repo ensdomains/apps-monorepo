@@ -7,7 +7,7 @@ import { CopyableRecord } from '@/components/CopyableRecord'
 import { DataTable } from '@/components/DataTable'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import { mergeNamesData } from '@/utils/names/mergeNamesData'
+import { type MergedName, mergeNamesData } from '@/utils/names/mergeNamesData'
 import type { EnsNetworkName, WithEnsNetwork } from '@/utils/types'
 import { getV1NamesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
 import { getV2NamesForAddressQueryOptions } from '../hooks/useV2NamesForAddress'
@@ -22,10 +22,7 @@ const formatter = new Intl.DateTimeFormat('en-US', {
   day: 'numeric',
 })
 
-type column = WithEnsNetwork<{
-  name: string | null
-  expiryDate?: Date | null
-}>
+type column = WithEnsNetwork<MergedName>
 
 const columns: ColumnDef<column>[] = [
   {
@@ -77,6 +74,14 @@ const columns: ColumnDef<column>[] = [
           </div>
         )
       }
+    },
+  },
+  {
+    accessorKey: 'subdomainCount',
+    header: 'Subdomain Count',
+    cell(cell) {
+      const subdomainCount = cell.getValue() as number
+      return subdomainCount ? subdomainCount.toString() : ''
     },
   },
 ]
