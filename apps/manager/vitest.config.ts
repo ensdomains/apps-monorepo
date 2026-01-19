@@ -7,27 +7,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'happy-dom',
-    setupFiles: ['./src/utils/test-utils.tsx'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html', 'clover', 'json', 'lcovonly'],
-      exclude: [
-        'node_modules/',
-        'src/utils/test-utils.tsx',
-        '**/*.test.{ts,tsx}',
-        '**/*.spec.{ts,tsx}',
-        '**/*.d.ts',
-        '**/routeTree.gen.ts',
-        'vite.config.ts',
-        'vitest.config.ts',
-        '.vinxi/',
-        '.output/',
-      ],
-    },
-    server: {
-      deps: {
-        inline: ['tiny-warning'],
-      },
+      reporter: ['lcovonly', 'text', 'html'],
     },
   },
   resolve: {
@@ -38,6 +20,8 @@ export default defineConfig({
   define: {
     global: 'globalThis',
     'process.env': {},
-    module: 'globalThis',
+    'import.meta.env': {
+      VITE_PIMLICO_API_KEY: 'test-api-key',
+    },
   },
 })
