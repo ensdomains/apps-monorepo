@@ -48,6 +48,8 @@ jobs:
       - name: Run tests with coverage on changed packages
         run: |
           echo "📊 Running coverage tests on changed packages..."
+          # Clear vite cache to avoid module resolution issues
+          rm -rf apps/manager/node_modules/.vite
           pnpm --filter="...[origin/main]" test:coverage || pnpm -r test:coverage
 
       - name: Upload coverage reports to Codecov
