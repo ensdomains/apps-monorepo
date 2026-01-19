@@ -12,10 +12,10 @@ export function FeatureEnabled({
   flag,
   children,
   fallback = null,
-}: FeatureEnabledProps) {
-  const enabled = useFeatureFlag(flag)
+}: FeatureEnabledProps): React.ReactNode {
+  const isEnabled = useFeatureFlag(flag)
 
-  if (!enabled) {
+  if (!isEnabled) {
     return <>{fallback}</>
   }
 

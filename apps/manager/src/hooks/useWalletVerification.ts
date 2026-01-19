@@ -46,8 +46,8 @@ export const useWalletVerification = ({
         address &&
         typeof window !== 'undefined'
       ) {
-        const verified = localStorage.getItem(getStorageKey(address))
-        if (verified !== 'true') {
+        const wasVerified = localStorage.getItem(getStorageKey(address))
+        if (wasVerified !== 'true') {
           setTimeout(() => {
             setShowVerifyModal(true)
           }, 500)
@@ -70,8 +70,8 @@ export const useWalletVerification = ({
       address &&
       typeof window !== 'undefined'
     ) {
-      const verified = localStorage.getItem(getStorageKey(address))
-      if (verified !== 'true') {
+      const wasVerified = localStorage.getItem(getStorageKey(address))
+      if (wasVerified !== 'true') {
         setTimeout(() => {
           setShowVerifyModal(true)
         }, 500)

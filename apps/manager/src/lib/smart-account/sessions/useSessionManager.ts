@@ -79,10 +79,10 @@ export function useSessionManager(
   // Check if user has previously skipped session creation
   useEffect(() => {
     if (typeof window !== 'undefined' && ownerAddress) {
-      const skipped = localStorage.getItem(
+      const wasSkipped = localStorage.getItem(
         `${SKIPPED_SESSION_KEY}-${ownerAddress.toLowerCase()}`,
       )
-      setHasSkippedSession(skipped === 'true')
+      setHasSkippedSession(wasSkipped === 'true')
     }
   }, [ownerAddress])
 
