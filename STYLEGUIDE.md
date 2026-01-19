@@ -2832,7 +2832,7 @@ export const Card = ({ isActive, className }: CardProps) => {
 
 #### Using `tw` and `twm` (Alternative)
 
-`tw` and `twm` are custom utilities that provide a single for all class name use cases. They handle single strings, template literals, and `clsx`-style function calls, choosing the most efficient method based on input.
+`tw` and `twm` are custom utilities that provide a single API for all class name use cases. They handle single strings, template literals, and `clsx`-style function calls, choosing the most efficient method based on input.
 
 ```typescript
 import { tw, twm } from '@/utils/tailwind'
