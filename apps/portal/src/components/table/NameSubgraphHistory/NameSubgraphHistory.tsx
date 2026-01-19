@@ -19,6 +19,11 @@ type Category = 'domain' | 'registration' | 'resolver'
 interface NameSubgraphHistoryProps {
   name: string
   category?: Category
+  /**
+   * Optional pre-fetched V2 events data. When provided, skips V1 query and timestamp fetching.
+   * V2 events already include timestamps from the indexer.
+   */
+  v2Events?: SubgraphEvent[]
 }
 
 const categoryToEventType = (c: Category): `${Category}Events` => {
@@ -29,12 +34,18 @@ const NameSubgraphHistoryTable = ({
   name,
   data: history,
   category,
+  isV2,
 }: {
   name: string
   data: SubgraphEvent[]
   category: Category
+  isV2: boolean
 }) => {
   const groupedData = groupEventsByTransactionId(history, category)
+
+  // V2 events already have timestamps, so skip fetching for V2
+  const hasTimestamps =
+    isV2 && history.every((item) => item.timestamp !== undefined)
 
   const {
     data: timestampsData,
@@ -42,6 +53,7 @@ const NameSubgraphHistoryTable = ({
     error: timestampsError,
   } = useBlockTimestamps({
     blocks: history.map((item) => BigInt(item.blockNumber)),
+    enabled: !hasTimestamps,
   })
 
   const {
@@ -52,17 +64,17 @@ const NameSubgraphHistoryTable = ({
     transactionHashes: groupedData.map((tx) => tx.transactionID as Hash),
   })
 
-  if (isLoadingTimestamps && isLoadingSenders) {
+  if (!hasTimestamps && isLoadingTimestamps && isLoadingSenders) {
     return <LoadingSpinner title="Loading transaction data..." />
   }
-  if (isLoadingTimestamps) {
+  if (!hasTimestamps && isLoadingTimestamps) {
     return <LoadingSpinner title="Loading timestamps..." />
   }
   if (isLoadingSenders) {
     return <LoadingSpinner title="Loading transaction senders..." />
   }
 
-  if (timestampsError) {
+  if (!hasTimestamps && timestampsError) {
     return <div>Error loading timestamps: {timestampsError.cause?.message}</div>
   }
   if (sendersError) {
@@ -73,13 +85,23 @@ const NameSubgraphHistoryTable = ({
     )
   }
 
-  if (!timestampsData || !sendersData) {
-    return <div>No data available</div>
+  if (!hasTimestamps && !timestampsData) {
+    return <div>No timestamp data available</div>
   }
+  if (!sendersData) {
+    return <div>No sender data available</div>
+  }
+
+  // For V2, create a timestamp map from the events themselves
+  const finalTimestampsData = hasTimestamps
+    ? new Map(
+        history.map((event) => [BigInt(event.blockNumber), event.timestamp!]),
+      )
+    : timestampsData
 
   const dataWithTimestampsAndSenders = enrichEventsWithMetadata(
     groupedData,
-    timestampsData,
+    finalTimestampsData,
     sendersData,
   )
 
@@ -89,6 +111,7 @@ const NameSubgraphHistoryTable = ({
       enableSearch={false}
       enableTransactionCount={false}
       enableSidebar={false}
+      enableNetwork={false}
       data={dataWithTimestampsAndSenders}
       name={name}
     />
@@ -98,22 +121,37 @@ const NameSubgraphHistoryTable = ({
 export const NameSubgraphHistory = ({
   name,
   category = 'resolver',
+  v2Events,
 }: NameSubgraphHistoryProps) => {
+  const isV2 = !!v2Events
+
+  // Only fetch V1 history if V2 events weren't provided
   const {
     data: history,
     isLoading,
     error,
-  } = useQuery(getNameHistoryQueryOptions({ name }))
+  } = useQuery({
+    ...getNameHistoryQueryOptions({ name }),
+    enabled: !isV2,
+  })
 
-  if (isLoading) return <LoadingSpinner title="Loading..." />
-  if (error)
+  if (!isV2 && isLoading) return <LoadingSpinner title="Loading..." />
+  if (!isV2 && error)
     return <div>Error: {(error as GetNameHistoryError).cause?.message}</div>
 
-  const eventType = categoryToEventType(category)
+  // Use V2 events if provided, otherwise get from V1 history
+  let data: SubgraphEvent[] | undefined
 
-  const data = history?.[eventType]
+  if (isV2) {
+    data = v2Events
+  } else {
+    const eventType = categoryToEventType(category)
+    const rawData = history?.[eventType]
+    // Convert null to undefined and cast V1 event types to SubgraphEvent
+    data = rawData ? (rawData as SubgraphEvent[]) : undefined
+  }
 
-  if (!data)
+  if (!data || data.length === 0)
     return (
       <div className="flex flex-col gap-1 p-6 border border-gray-300 rounded-lg w-full">
         <div>
@@ -128,7 +166,7 @@ export const NameSubgraphHistory = ({
       <div>
         <h2 className="text-[26px] font-medium">History</h2>
       </div>
-      <NameSubgraphHistoryTable {...{ name, data, category }} />
+      <NameSubgraphHistoryTable {...{ name, data, category, isV2 }} />
     </div>
   )
 }

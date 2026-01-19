@@ -53,6 +53,7 @@ export type EventsTableConfig<TEvent extends BaseEvent = BaseEvent> = {
   enableFilters?: boolean
   enableSearch?: boolean
   enableTransactionCount?: boolean
+  enableNetwork?: boolean
 
   // Fallback network (used when transaction doesn't have network info)
   defaultNetwork?: NetworkInfo

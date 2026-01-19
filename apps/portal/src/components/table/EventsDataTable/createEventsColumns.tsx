@@ -26,6 +26,7 @@ const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
 
 type ColumnConfig = {
   enableSidebar?: boolean
+  enableNetwork?: boolean
   defaultNetworkName?: string
   defaultNetworkIcon?: string
 }
@@ -38,6 +39,7 @@ const formatter = new Intl.DateTimeFormat(undefined, {
 
 export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
   enableSidebar = true,
+  enableNetwork = true,
   defaultNetworkName = 'Sepolia',
   defaultNetworkIcon = '/icons/eth.svg',
 }: ColumnConfig = {}): ColumnDef<EventsTableData<TEvent>>[] => {
@@ -125,7 +127,10 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
         return <AddressDisplay address={from} />
       },
     },
-    {
+  ]
+
+  if (enableNetwork) {
+    baseColumns.push({
       accessorKey: 'network',
       header: ({ column }) => (
         <SortButton
@@ -151,8 +156,8 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
         const nameB = rowB.original.network?.name || defaultNetworkName
         return nameA.localeCompare(nameB)
       },
-    },
-  ]
+    })
+  }
 
   if (enableSidebar) {
     baseColumns.push({
