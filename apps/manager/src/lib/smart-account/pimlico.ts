@@ -24,6 +24,7 @@ import { wrapParaAccount } from './utils'
 export interface PimlicoConfig {
   chain: typeof customSepolia
   accountType: SmartAccountType
+  pimlicoApiKey: string
 }
 
 export interface InitializePimlicoParams {
@@ -110,7 +111,7 @@ export async function initializePimlicoAccount(
     const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
     if (pimlicoApiKey) {
       const signer = {
-        type: 'pimlico' as const,
+        type: 'zerodev' as const,
         account: client,
         config: {
           chain: customSepolia,
@@ -140,6 +141,7 @@ export async function initializePimlicoAccount(
   const config: PimlicoConfig = {
     chain: customSepolia,
     accountType,
+    pimlicoApiKey: PIMLICO_API_KEY,
   }
 
   return {

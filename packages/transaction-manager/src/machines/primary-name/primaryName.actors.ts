@@ -151,28 +151,15 @@ export function submitPrimaryNameWithSignatureActor(input: {
 
       let request: any
 
-      if (signer.type === 'pimlico') {
+      if (signer.type === 'zerodev') {
         request = {
-          type: 'pimlico' as const,
+          type: 'zerodev' as const,
           from: smartAccountAddress,
           to: registrarAddress,
           data,
           value: 0n,
           chainId,
-          pimlicoParams: {
-            calls: [{ to: registrarAddress, data, value: 0n }],
-            sponsored: true,
-          },
-        }
-      } else if (signer.type === 'kernel') {
-        request = {
-          type: 'kernel' as const,
-          from: smartAccountAddress,
-          to: registrarAddress,
-          data,
-          value: 0n,
-          chainId,
-          kernelParams: {
+          zerodevParams: {
             calls: [{ to: registrarAddress, data, value: 0n }],
             sponsored: true,
           },
@@ -272,34 +259,15 @@ export function submitPrimaryNameUpdateActor(input: {
               sponsored: true,
             },
           }
-        } else if (input.signer.type === 'pimlico') {
+        } else if (input.signer.type === 'zerodev') {
           request = {
-            type: 'pimlico' as const,
+            type: 'zerodev' as const,
             from: fromAddress,
             to: registrarAddress,
             data,
             value: 0n,
             chainId: input.chainId,
-            pimlicoParams: {
-              calls: [
-                {
-                  to: registrarAddress,
-                  data,
-                  value: 0n,
-                },
-              ],
-              sponsored: true,
-            },
-          }
-        } else if (input.signer.type === 'kernel') {
-          request = {
-            type: 'kernel' as const,
-            from: fromAddress,
-            to: registrarAddress,
-            data,
-            value: 0n,
-            chainId: input.chainId,
-            kernelParams: {
+            zerodevParams: {
               calls: [
                 {
                   to: registrarAddress,

@@ -28,10 +28,9 @@ import {
 } from '../../contracts/ens-sepolia'
 import { transactionManager } from '../../providers/transactionManager'
 import type {
-  KernelTransactionRequest,
-  PimlicoTransactionRequest,
   RhinestoneTransactionRequest,
   TransactionRequest,
+  ZeroDevTransactionRequest,
 } from '../../types/transaction.types'
 
 type CommitmentData = {
@@ -247,35 +246,13 @@ function getSmartAccountAddress(signer: Signer): Address {
     return signer.account.getAddress() as Address
   }
 
-  if (signer.type === 'pimlico') {
-    // First, try to get address from config if available
-    if (signer.config.accountAddress) {
-      return signer.config.accountAddress
-    }
-
-    // signer.account is a SmartAccountClient from permissionless
-    // The SmartAccountClient has an account property with an address property
-    const smartAccountClient = signer.account as any
-    if (smartAccountClient?.account?.address) {
-      return smartAccountClient.account.address as Address
-    }
-    // Fallback: try to get address directly if it's a string
-    if (typeof smartAccountClient?.address === 'string') {
-      return smartAccountClient.address as Address
-    }
-    throw new Error(
-      'Unable to get smart account address from SmartAccountClient',
-    )
-  }
-
-  if (signer.type === 'kernel') {
+  if (signer.type === 'zerodev') {
     // First, try to get address from config if available
     if (signer.config.accountAddress) {
       return signer.config.accountAddress
     }
 
     // signer.account is a KernelAccountClient from @zerodev/sdk
-    // The KernelAccountClient has an account property with an address property
     const kernelClient = signer.account as any
     if (kernelClient?.account?.address) {
       return kernelClient.account.address as Address
@@ -290,13 +267,13 @@ function getSmartAccountAddress(signer: Signer): Address {
   }
 
   throw new Error(
-    'Only Rhinestone, Pimlico, or Kernel signer is supported for registration',
+    'Only Rhinestone or ZeroDev signer is supported for registration',
   )
 }
 
 /**
  * Create transaction request based on signer type
- * Returns the appropriate transaction request type (rhinestone-intent or pimlico)
+ * Returns the appropriate transaction request type (rhinestone-intent or zerodev)
  */
 function createTransactionRequest(params: {
   signer: Signer
@@ -325,34 +302,19 @@ function createTransactionRequest(params: {
     } as RhinestoneTransactionRequest
   }
 
-  if (signer.type === 'pimlico') {
+  if (signer.type === 'zerodev') {
     return {
-      type: 'pimlico',
+      type: 'zerodev',
       from,
       to,
       data,
       value,
       chainId,
-      pimlicoParams: {
+      zerodevParams: {
         calls,
         sponsored: sponsored ?? true,
       },
-    } as PimlicoTransactionRequest
-  }
-
-  if (signer.type === 'kernel') {
-    return {
-      type: 'kernel',
-      from,
-      to,
-      data,
-      value,
-      chainId,
-      kernelParams: {
-        calls,
-        sponsored: sponsored ?? true,
-      },
-    } as KernelTransactionRequest
+    } as ZeroDevTransactionRequest
   }
 
   throw new Error(

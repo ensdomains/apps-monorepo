@@ -124,17 +124,17 @@ export type {
 export type {
   EOASigner,
   ERC4337Signer,
-  PimlicoSigner,
   PrivySigner,
   RhinestoneSigner,
   SafeSigner,
   Signer,
+  ZeroDevSigner,
 } from './types/signer.types'
 export {
   isEOASigner,
   isERC4337Signer,
-  isPimlicoSigner,
   isRhinestoneSigner,
+  isZeroDevSigner,
 } from './types/signer.types'
 export type {
   CustomTransactionIntent,

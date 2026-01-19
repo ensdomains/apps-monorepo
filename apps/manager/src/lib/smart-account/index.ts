@@ -1,4 +1,3 @@
-export { initializePimlicoAccount, type PimlicoConfig } from './pimlico'
 export {
   initializeRhinestoneAccount,
   type RhinestoneConfig,
@@ -11,8 +10,6 @@ export {
 } from './SmartAccountContext'
 export type {
   EthBalance,
-  KernelAccountState,
-  PimlicoAccountState,
   RhinestoneAccountState,
   SmartAccountProvider,
   SmartAccountState,
@@ -20,6 +17,9 @@ export type {
   StablecoinBalance,
   UseSmartAccountConfig,
   WalletSource,
+  ZeroDevAccountState,
 } from './types'
-// Deprecated hook - maintained for backward compatibility
-export { useSmartAccount } from './useSmartAccount'
+export {
+  initializeZeroDevAccount,
+  type ZeroDevConfig,
+} from './zerodev/kernel'
