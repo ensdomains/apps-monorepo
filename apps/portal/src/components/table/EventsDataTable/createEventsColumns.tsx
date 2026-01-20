@@ -8,6 +8,7 @@ import {
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { Button } from '@/components/ui/button'
+import { formatDate } from '@/utils/formatting/formatDateRange'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { BaseEvent, EventsTableData } from './types'
 
@@ -29,12 +30,6 @@ type ColumnConfig = {
   defaultNetworkName?: string
   defaultNetworkIcon?: string
 }
-
-const formatter = new Intl.DateTimeFormat(undefined, {
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-})
 
 export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
   enableSidebar = true,
@@ -83,8 +78,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
         if (!timestamp) return <div>-</div>
 
         const date = new Date(Number(timestamp) * 1000)
-        const formatted = formatter.format(date).replace(/-/g, '/')
-        return <div>{formatted}</div>
+        return <div>{formatDate(date)}</div>
       },
     },
     {
