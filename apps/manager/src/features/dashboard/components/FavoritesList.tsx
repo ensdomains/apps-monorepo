@@ -64,8 +64,6 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
     favorites,
     favoritesCount,
     toggleFavorite,
-    notificationsEnabled,
-    setNotificationsEnabled,
     isLoading: isFavoritesLoading,
   } = useFavorites()
 
@@ -155,8 +153,8 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
             Receive expiry notifications
           </span>
           <Switch
-            checked={notificationsEnabled}
-            onCheckedChange={setNotificationsEnabled}
+            checked={false}
+            onCheckedChange={() => alert('Coming Soon')}
           />
         </div>
       </div>
