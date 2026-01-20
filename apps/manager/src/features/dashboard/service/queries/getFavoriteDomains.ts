@@ -1,7 +1,7 @@
 import { OrderDirection } from '@ens-apps/indexer'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { queryOptions, skipToken } from '@tanstack/react-query'
-import type { FavoriteEntry } from '../hooks/useFavorites'
+import type { FavoriteEntry } from '../../hooks/useFavorites'
 
 export type FavoritesQueryVariables = {
   readonly favorites: readonly FavoriteEntry[]

@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { Switch } from '@/components/ui/switch'
 import { useFavorites } from '../hooks/useFavorites'
-import { getFavoritesQuery } from '../service/favoriteDomains'
+import { getFavoritesQuery } from '../service/queries/getFavoriteDomains'
 import { NameRow } from './NameRow'
 
 interface FavoritesListProps {
