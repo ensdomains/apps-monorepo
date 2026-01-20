@@ -14,13 +14,13 @@ interface StablecoinItemProps {
   className?: string
 }
 
-export function StablecoinItem({
+export const StablecoinItem = ({
   stablecoin,
   isSelected = false,
   selectable = false,
   onClick,
   className,
-}: StablecoinItemProps) {
+}: StablecoinItemProps) => {
   const handleClick = () => {
     if (selectable && onClick) {
       onClick(stablecoin)

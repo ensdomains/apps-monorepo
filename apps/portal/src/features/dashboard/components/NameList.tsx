@@ -6,6 +6,7 @@ import { CopyableRecord } from '@/components/CopyableRecord'
 import { DataTable } from '@/components/DataTable'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import { type MergedName, mergeNamesData } from '@/utils/names/mergeNamesData'
 import type { WithEnsNetwork } from '@/utils/types'
 import { getV1NamesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
@@ -14,12 +15,6 @@ import { getV2NamesForAddressQueryOptions } from '../hooks/useV2NamesForAddress'
 interface NameListProps {
   address: Address
 }
-
-const formatter = new Intl.DateTimeFormat('en-US', {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-})
 
 const MobileNameCard = ({ name }: { name: column }) => {
   return (
@@ -39,7 +34,7 @@ const MobileNameCard = ({ name }: { name: column }) => {
       {name.expiryDate && (
         <>
           <div className="text-sm font-medium">Expiry</div>
-          <div className="text-base">{formatter.format(name.expiryDate)}</div>
+          <div className="text-base">{formatDateTime(name.expiryDate)}</div>
         </>
       )}
 
@@ -86,7 +81,7 @@ const columns: ColumnDef<column>[] = [
     id: 'expiryDate',
     header: 'Expiry',
     accessorFn: ({ expiryDate }) => {
-      return expiryDate ? formatter.format(expiryDate) : null
+      return expiryDate ? formatDateTime(expiryDate) : null
     },
   },
   {

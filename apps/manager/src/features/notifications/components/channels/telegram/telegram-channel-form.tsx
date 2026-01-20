@@ -18,10 +18,10 @@ interface TelegramChannelFormProps {
   onCancel: () => void
 }
 
-export function TelegramChannelForm({
+export const TelegramChannelForm = ({
   onSuccess,
   onCancel,
-}: TelegramChannelFormProps) {
+}: TelegramChannelFormProps) => {
   const [currentStep, setCurrentStep] = useState<TelegramStep>('auth')
   const [telegramAuthData, setTelegramAuthData] =
     useState<TelegramAuthData | null>(null)

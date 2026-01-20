@@ -4,7 +4,7 @@ import { createClientOnlyFn, createIsomorphicFn } from '@tanstack/react-start'
 import { getCookie } from '@tanstack/react-start/server'
 import { useEffect } from 'react'
 
-export const getParaClient = () => {
+export const getParaClient = (): ParaWeb | undefined => {
   return getClient() as ParaWeb | undefined
 }
 
@@ -43,7 +43,7 @@ export const setParaConnectionCookie = createClientOnlyFn(
   },
 )
 
-export const isConnectedToPara = () => {
+export const isConnectedToPara = (): boolean => {
   return getParaConnectionCookie() !== null
 }
 

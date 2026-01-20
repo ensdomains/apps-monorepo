@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-export const useMediaQuery = (query: string) => {
+export const useMediaQuery = (query: string): boolean => {
   const [matches, setMatches] = useState(false)
 
   useEffect(() => {

@@ -12,12 +12,12 @@ interface EmailSendStepProps {
   onCancel: () => void
 }
 
-export function EmailSendStep({
+export const EmailSendStep = ({
   isSendingEmail,
   emailError,
   onSendEmail,
   onCancel,
-}: EmailSendStepProps) {
+}: EmailSendStepProps) => {
   const [email, setEmail] = useState('')
   const emailId = useId()
 

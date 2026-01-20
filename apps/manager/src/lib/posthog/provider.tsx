@@ -5,11 +5,15 @@ import { useEffect } from 'react'
 import { useConnectionEffect } from 'wagmi'
 import { track } from './events'
 
-export function PHProvider({ children }: { children: React.ReactNode }) {
-  const hydrated = useHydrated()
+export const PHProvider = ({
+  children,
+}: {
+  children: React.ReactNode
+}): React.ReactNode => {
+  const isHydrated = useHydrated()
 
   useEffect(() => {
-    if (!hydrated) return
+    if (!isHydrated) return
 
     posthog.init(import.meta.env.VITE_PUBLIC_POSTHOG_KEY, {
       api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
@@ -18,7 +22,7 @@ export function PHProvider({ children }: { children: React.ReactNode }) {
       defaults: '2025-11-30',
       person_profiles: 'identified_only',
     })
-  }, [hydrated])
+  }, [isHydrated])
 
   useConnectionEffect({
     onConnect(data) {
@@ -46,7 +50,7 @@ export function PHProvider({ children }: { children: React.ReactNode }) {
     },
   })
 
-  if (!hydrated) return <>{children}</>
+  if (!isHydrated) return <>{children}</>
 
   return <PostHogProvider client={posthog}>{children}</PostHogProvider>
 }

@@ -8,18 +8,18 @@ import type {
 
 // Record value types
 export type TextRecordValue = {
-  key: string
-  value: string
+  readonly key: string
+  readonly value: string
 }
 
 export type AddressRecordValue = {
-  coinType: number
-  value: string
+  readonly coinType: number
+  readonly value: string
 }
 
 export type LinkItem = {
-  name: string
-  url: string
+  readonly name: string
+  readonly url: string
 }
 
 export type ProfileRecords = Prettify<
