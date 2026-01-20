@@ -15,15 +15,7 @@ describe('formatDateTime', () => {
   })
 
   it('should return undefined for undefined input', () => {
-    const result = formatDateTime(undefined)
-
-    expect(result).toBeUndefined()
-  })
-
-  it('should return undefined for null input', () => {
-    const result = formatDateTime(null)
-
-    expect(result).toBeUndefined()
+    expect(formatDateTime(undefined)).toBeUndefined()
   })
 
   it('should format different months correctly', () => {

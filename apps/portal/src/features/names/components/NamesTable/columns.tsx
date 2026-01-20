@@ -1,4 +1,3 @@
-import type { NameWithRelation } from '@ensdomains/ensjs/subgraph'
 import type { ColumnDef } from '@tanstack/react-table'
 import { ArrowUpDown } from 'lucide-react'
 import { NamechainSVG } from '@/assets/chains'
@@ -58,7 +57,7 @@ export const columns: ColumnDef<NameRow>[] = [
       </SortButton>
     ),
     cell(cell) {
-      const name = cell.getValue() as NameWithRelation['name']
+      const name = cell.getValue() as string
 
       if (!name) return null
 
