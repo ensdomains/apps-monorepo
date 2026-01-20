@@ -1,126 +1,163 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
-import { MOCK_FAVORITES } from './useFavorites.mock'
+import {
+  addFavoriteMutationOptions,
+  type FavoriteEntry,
+  favoritesQueryOptions,
+  removeFavoriteMutationOptions,
+} from '../queries/favorites'
 
-const FAVORITES_STORAGE_KEY = 'ens-favorites'
+const NOTIFICATIONS_STORAGE_KEY = 'ens-favorites-notifications'
 
-export type FavoriteEntry = {
-  readonly label: string
-  readonly addedAt: number
-}
-
-type FavoritesState = {
-  readonly entries: readonly FavoriteEntry[]
-  readonly notificationsEnabled: boolean
-}
-
-const getInitialState = (): FavoritesState => {
-  if (typeof window === 'undefined') {
-    return import.meta.env.DEV
-      ? { entries: MOCK_FAVORITES, notificationsEnabled: true }
-      : { entries: [], notificationsEnabled: true }
-  }
+const getNotificationsEnabled = (): boolean => {
+  if (typeof window === 'undefined') return true
 
   try {
-    const stored = localStorage.getItem(FAVORITES_STORAGE_KEY)
-    if (stored) {
-      return JSON.parse(stored) as FavoritesState
+    const stored = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY)
+    if (stored !== null) {
+      return JSON.parse(stored) as boolean
     }
   } catch {
     // Invalid JSON, return default
   }
 
-  // Return mock data in dev mode, empty in production
-  return import.meta.env.DEV
-    ? { entries: MOCK_FAVORITES, notificationsEnabled: true }
-    : { entries: [], notificationsEnabled: true }
+  return true
 }
 
-const saveState = (state: FavoritesState): void => {
+const saveNotificationsEnabled = (enabled: boolean): void => {
   if (typeof window === 'undefined') return
 
   try {
-    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(state))
+    localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(enabled))
   } catch {
     // Storage full or unavailable
   }
 }
 
+export type LocalFavoriteEntry = {
+  readonly label: string
+  readonly addedAt: number
+}
+
+const toLocalEntry = (entry: FavoriteEntry): LocalFavoriteEntry => ({
+  label: entry.name,
+  addedAt: new Date(entry.created_at).getTime(),
+})
+
 export const useFavorites = () => {
-  const [state, setState] = useState<FavoritesState>(getInitialState)
+  const queryClient = useQueryClient()
+  const [notificationsEnabled, setNotificationsEnabledState] = useState(
+    getNotificationsEnabled,
+  )
 
-  // Sync state changes to localStorage
+  const { data: favorites = [], isLoading } = useQuery(favoritesQueryOptions)
+
+  const localFavorites: readonly LocalFavoriteEntry[] =
+    favorites.map(toLocalEntry)
+
+  const addMutation = useMutation(addFavoriteMutationOptions)
+  const removeMutation = useMutation(removeFavoriteMutationOptions)
+
+  // Sync notifications preference to localStorage
   useEffect(() => {
-    saveState(state)
-  }, [state])
+    saveNotificationsEnabled(notificationsEnabled)
+  }, [notificationsEnabled])
 
-  const addFavorite = useCallback((label: string) => {
-    setState((prev) => {
+  const addFavorite = useCallback(
+    (label: string) => {
       const normalizedLabel = label.toLowerCase()
-      const exists = prev.entries.some(
-        (entry) => entry.label.toLowerCase() === normalizedLabel,
+      const exists = favorites.some(
+        (entry) => entry.name.toLowerCase() === normalizedLabel,
       )
 
-      if (exists) return prev
+      if (exists) return
 
-      return {
-        ...prev,
-        entries: [...prev.entries, { label, addedAt: Date.now() }],
-      }
-    })
-  }, [])
+      // Optimistically update the cache
+      queryClient.setQueryData(
+        favoritesQueryOptions.queryKey,
+        (old: readonly FavoriteEntry[] | undefined) => [
+          ...(old ?? []),
+          { name: label, created_at: new Date().toISOString() },
+        ],
+      )
 
-  const removeFavorite = useCallback((label: string) => {
-    setState((prev) => ({
-      ...prev,
-      entries: prev.entries.filter(
-        (entry) => entry.label.toLowerCase() !== label.toLowerCase(),
-      ),
-    }))
-  }, [])
+      addMutation.mutate(
+        { name: label },
+        {
+          onError: () => {
+            // Revert optimistic update on error
+            queryClient.invalidateQueries({
+              queryKey: favoritesQueryOptions.queryKey,
+            })
+          },
+        },
+      )
+    },
+    [favorites, addMutation, queryClient],
+  )
 
-  const toggleFavorite = useCallback((label: string) => {
-    setState((prev) => {
+  const removeFavorite = useCallback(
+    (label: string) => {
       const normalizedLabel = label.toLowerCase()
-      const exists = prev.entries.some(
-        (entry) => entry.label.toLowerCase() === normalizedLabel,
+
+      // Optimistically update the cache
+      queryClient.setQueryData(
+        favoritesQueryOptions.queryKey,
+        (old: readonly FavoriteEntry[] | undefined) =>
+          (old ?? []).filter(
+            (entry) => entry.name.toLowerCase() !== normalizedLabel,
+          ),
+      )
+
+      removeMutation.mutate(
+        { name: label },
+        {
+          onError: () => {
+            // Revert optimistic update on error
+            queryClient.invalidateQueries({
+              queryKey: favoritesQueryOptions.queryKey,
+            })
+          },
+        },
+      )
+    },
+    [removeMutation, queryClient],
+  )
+
+  const toggleFavorite = useCallback(
+    (label: string) => {
+      const normalizedLabel = label.toLowerCase()
+      const exists = favorites.some(
+        (entry) => entry.name.toLowerCase() === normalizedLabel,
       )
 
       if (exists) {
-        return {
-          ...prev,
-          entries: prev.entries.filter(
-            (entry) => entry.label.toLowerCase() !== normalizedLabel,
-          ),
-        }
+        removeFavorite(label)
+      } else {
+        addFavorite(label)
       }
-
-      return {
-        ...prev,
-        entries: [...prev.entries, { label, addedAt: Date.now() }],
-      }
-    })
-  }, [])
+    },
+    [favorites, addFavorite, removeFavorite],
+  )
 
   const isFavorite = useCallback(
     (label: string) => {
-      return state.entries.some(
-        (entry) => entry.label.toLowerCase() === label.toLowerCase(),
+      return favorites.some(
+        (entry) => entry.name.toLowerCase() === label.toLowerCase(),
       )
     },
-    [state.entries],
+    [favorites],
   )
 
   const setNotificationsEnabled = useCallback((enabled: boolean) => {
-    setState((prev) => ({
-      ...prev,
-      notificationsEnabled: enabled,
-    }))
+    setNotificationsEnabledState(enabled)
   }, [])
 
   return {
-    favorites: state.entries,
-    favoritesCount: state.entries.length,
-    notificationsEnabled: state.notificationsEnabled,
+    favorites: localFavorites,
+    favoritesCount: favorites.length,
+    notificationsEnabled,
+    isLoading,
     addFavorite,
     removeFavorite,
     toggleFavorite,

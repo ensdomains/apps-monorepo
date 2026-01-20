@@ -58,11 +58,16 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
     toggleFavorite,
     notificationsEnabled,
     setNotificationsEnabled,
+    isLoading: isFavoritesLoading,
   } = useFavorites()
 
   const favoriteLabels = favorites.map((f) => f.label.toLowerCase())
 
-  const { data, isLoading, isError } = useQuery(
+  const {
+    data,
+    isLoading: isDomainsLoading,
+    isError,
+  } = useQuery(
     getFavoriteDomainsQuery({
       labels: favoriteLabels,
       page,
@@ -73,6 +78,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
     }),
   )
 
+  const isLoading = isFavoritesLoading || isDomainsLoading
   const names = data?.domains ?? []
   const totalCount = data?.totalCount ?? 0
   const totalPages = data?.totalPages ?? 0
