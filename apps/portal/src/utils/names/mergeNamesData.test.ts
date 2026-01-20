@@ -8,7 +8,11 @@ describe('mergeNamesData', () => {
       { name: 'vitalik.eth', expiryDate: { date: new Date('2025-01-01') } },
     ]
     const v2Names: V2Name[] = [
-      { name: 'alice.eth', expiryDate: 1735689600 }, // 2025-01-01 00:00:00 UTC
+      {
+        name: 'alice.eth',
+        expiryDate: 1735689600, // 2025-01-01 00:00:00 UTC
+        subdomains: [],
+      },
     ]
 
     const result = mergeNamesData(v1Names, v2Names)
@@ -23,6 +27,7 @@ describe('mergeNamesData', () => {
       name: 'alice.eth',
       expiryDate: new Date('2025-01-01 00:00:00 UTC'),
       network: 'namechainSepolia',
+      subdomainCount: 0,
     })
   })
 
@@ -56,7 +61,9 @@ describe('mergeNamesData', () => {
 
   it('should handle V2 names with null expiryDate', () => {
     const v1Names: V1Name[] = []
-    const v2Names: V2Name[] = [{ name: 'test.eth', expiryDate: null }]
+    const v2Names: V2Name[] = [
+      { name: 'test.eth', expiryDate: null, subdomains: [] },
+    ]
 
     const result = mergeNamesData(v1Names, v2Names)
 
@@ -65,11 +72,14 @@ describe('mergeNamesData', () => {
       name: 'test.eth',
       expiryDate: null,
       network: 'namechainSepolia',
+      subdomainCount: 0,
     })
   })
 
   it('should handle undefined V1 names', () => {
-    const v2Names: V2Name[] = [{ name: 'alice.eth', expiryDate: 1735689600 }]
+    const v2Names: V2Name[] = [
+      { name: 'alice.eth', expiryDate: 1735689600, subdomains: [] },
+    ]
 
     const result = mergeNamesData(undefined, v2Names)
 
@@ -78,6 +88,7 @@ describe('mergeNamesData', () => {
       name: 'alice.eth',
       expiryDate: new Date('2025-01-01 00:00:00 UTC'),
       network: 'namechainSepolia',
+      subdomainCount: 0,
     })
   })
 
@@ -104,8 +115,8 @@ describe('mergeNamesData', () => {
 
   it('should correctly convert V2 number timestamps to dates', () => {
     const v2Names: V2Name[] = [
-      { name: 'test1.eth', expiryDate: 0 }, // Unix epoch
-      { name: 'test2.eth', expiryDate: 1609459200 }, // 2021-01-01 00:00:00 UTC
+      { name: 'test1.eth', expiryDate: 0, subdomains: [] }, // Unix epoch
+      { name: 'test2.eth', expiryDate: 1609459200, subdomains: [] }, // 2021-01-01 00:00:00 UTC
     ]
 
     const result = mergeNamesData([], v2Names)
@@ -121,8 +132,8 @@ describe('mergeNamesData', () => {
       { name: 'v1-second.eth', expiryDate: null },
     ]
     const v2Names: V2Name[] = [
-      { name: 'v2-first.eth', expiryDate: null },
-      { name: 'v2-second.eth', expiryDate: null },
+      { name: 'v2-first.eth', expiryDate: null, subdomains: [] },
+      { name: 'v2-second.eth', expiryDate: null, subdomains: [] },
     ]
 
     const result = mergeNamesData(v1Names, v2Names)
@@ -132,5 +143,41 @@ describe('mergeNamesData', () => {
     expect(result[1].name).toBe('v1-second.eth')
     expect(result[2].name).toBe('v2-first.eth')
     expect(result[3].name).toBe('v2-second.eth')
+  })
+
+  it('should correctly count subdomains for V2 names', () => {
+    const v2Names: V2Name[] = [
+      {
+        name: 'parent.eth',
+        expiryDate: 1735689600,
+        subdomains: [
+          { name: 'sub1.parent.eth' },
+          { name: 'sub2.parent.eth' },
+          { name: 'sub3.parent.eth' },
+        ],
+      },
+      {
+        name: 'empty.eth',
+        expiryDate: 1735689600,
+        subdomains: [],
+      },
+    ]
+
+    const result = mergeNamesData([], v2Names)
+
+    expect(result).toHaveLength(2)
+    expect(result[0].subdomainCount).toBe(3)
+    expect(result[1].subdomainCount).toBe(0)
+  })
+
+  it('should not include subdomainCount for V1 names', () => {
+    const v1Names: V1Name[] = [
+      { name: 'test.eth', expiryDate: { date: new Date('2025-01-01') } },
+    ]
+
+    const result = mergeNamesData(v1Names, [])
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).not.toHaveProperty('subdomainCount')
   })
 })

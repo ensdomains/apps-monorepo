@@ -37,6 +37,7 @@ export const EventsDataTable = <TEvent extends BaseEvent = BaseEvent>({
   enableFilters = true,
   enableSearch = true,
   enableTransactionCount = true,
+  enableNetwork = true,
   defaultNetwork = { name: 'Sepolia', icon: '/icons/eth.svg' },
   onTransactionClick,
 }: EventsTableConfig<TEvent>) => {
@@ -68,10 +69,11 @@ export const EventsDataTable = <TEvent extends BaseEvent = BaseEvent>({
     () =>
       createEventsColumns<TEvent>({
         enableSidebar,
+        enableNetwork,
         defaultNetworkName: defaultNetwork.name,
         defaultNetworkIcon: defaultNetwork.icon,
       }),
-    [enableSidebar, defaultNetwork.name, defaultNetwork.icon],
+    [enableSidebar, enableNetwork, defaultNetwork.name, defaultNetwork.icon],
   )
 
   const table = useReactTable({
