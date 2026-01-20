@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
 import {
+  type FavoriteEntry as ApiFavoriteEntry,
   addFavoriteMutationOptions,
-  type FavoriteEntry,
   favoritesQueryOptions,
   removeFavoriteMutationOptions,
 } from '../queries/favorites'
@@ -34,12 +34,12 @@ const saveNotificationsEnabled = (enabled: boolean): void => {
   }
 }
 
-export type LocalFavoriteEntry = {
+export type FavoriteEntry = {
   readonly label: string
   readonly addedAt: number
 }
 
-const toLocalEntry = (entry: FavoriteEntry): LocalFavoriteEntry => ({
+const toLocalEntry = (entry: ApiFavoriteEntry): FavoriteEntry => ({
   label: entry.name,
   addedAt: new Date(entry.created_at).getTime(),
 })
@@ -52,8 +52,7 @@ export const useFavorites = () => {
 
   const { data: favorites = [], isLoading } = useQuery(favoritesQueryOptions)
 
-  const localFavorites: readonly LocalFavoriteEntry[] =
-    favorites.map(toLocalEntry)
+  const localFavorites: readonly FavoriteEntry[] = favorites.map(toLocalEntry)
 
   const addMutation = useMutation(addFavoriteMutationOptions)
   const removeMutation = useMutation(removeFavoriteMutationOptions)
@@ -75,7 +74,7 @@ export const useFavorites = () => {
       // Optimistically update the cache
       queryClient.setQueryData(
         favoritesQueryOptions.queryKey,
-        (old: readonly FavoriteEntry[] | undefined) => [
+        (old: readonly ApiFavoriteEntry[] | undefined) => [
           ...(old ?? []),
           { name: label, created_at: new Date().toISOString() },
         ],
@@ -103,7 +102,7 @@ export const useFavorites = () => {
       // Optimistically update the cache
       queryClient.setQueryData(
         favoritesQueryOptions.queryKey,
-        (old: readonly FavoriteEntry[] | undefined) =>
+        (old: readonly ApiFavoriteEntry[] | undefined) =>
           (old ?? []).filter(
             (entry) => entry.name.toLowerCase() !== normalizedLabel,
           ),
