@@ -11,12 +11,12 @@ import { getFavoriteDomainsQuery } from '../service/favoriteDomains'
 import { NameRow } from './NameRow'
 
 interface FavoritesListProps {
-  searchQuery?: string
+  readonly searchQuery?: string
 }
 
 type SortIndicatorProps = {
-  direction?: OrderDirection
-  isActive: boolean
+  readonly direction?: OrderDirection
+  readonly isActive: boolean
 }
 
 type SortField = 'name' | 'addedAt'
@@ -48,7 +48,9 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
 export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
   const [page, setPage] = useState(1)
   const [sortField, setSortField] = useState<SortField>('name')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [sortDirection, setSortDirection] = useState<OrderDirection>(
+    OrderDirection.Asc,
+  )
 
   const {
     favorites,
@@ -99,15 +101,14 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'))
+      setSortDirection((prev) =>
+        prev === OrderDirection.Desc ? OrderDirection.Asc : OrderDirection.Desc,
+      )
     } else {
       setSortField(field)
-      setSortDirection('asc')
+      setSortDirection(OrderDirection.Asc)
     }
   }
-
-  const orderDirection =
-    sortDirection === 'asc' ? OrderDirection.Asc : OrderDirection.Desc
 
   if (isError) {
     return (
@@ -136,7 +137,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                   Name
                 </span>
                 <SortIndicator
-                  direction={orderDirection}
+                  direction={sortDirection}
                   isActive={sortField === 'name'}
                 />
               </button>

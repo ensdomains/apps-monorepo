@@ -9,10 +9,10 @@ import { MyNamesList } from './MyNamesList'
 type TabKey = 'myNames' | 'favorites'
 
 type TabButtonProps = {
-  label: string
-  isActive: boolean
-  onClick: () => void
-  badge?: number
+  readonly label: string
+  readonly isActive: boolean
+  readonly onClick: () => void
+  readonly badge?: number
 }
 
 const DashboardTabButton = ({
@@ -40,7 +40,7 @@ const DashboardTabButton = ({
 )
 
 interface NamesTableProps {
-  primaryLabel?: string | null
+  readonly primaryLabel?: string | null
 }
 
 export const NamesTable = ({ primaryLabel }: NamesTableProps) => {

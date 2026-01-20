@@ -24,13 +24,13 @@ import { NameRow } from './NameRow'
 import { PrimaryBadge } from './PrimaryBadge'
 
 interface MyNamesListProps {
-  primaryLabel?: string | null
-  searchQuery?: string
+  readonly primaryLabel?: string | null
+  readonly searchQuery?: string
 }
 
 type SortIndicatorProps = {
-  direction?: OrderDirection
-  isActive: boolean
+  readonly direction?: OrderDirection
+  readonly isActive: boolean
 }
 
 const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {

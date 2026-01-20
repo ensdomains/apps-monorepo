@@ -1,4 +1,4 @@
-import type { DomainFragment } from '@ens-apps/indexer'
+import { type DomainFragment, OrderDirection } from '@ens-apps/indexer'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { queryOptions, skipToken } from '@tanstack/react-query'
 
@@ -41,7 +41,7 @@ export type FavoriteDomainsQueryVariables = {
   readonly page: number
   readonly pageSize: number
   readonly sortField: 'name' | 'addedAt'
-  readonly sortDirection: 'asc' | 'desc'
+  readonly sortDirection: OrderDirection
   readonly searchQuery?: string
 }
 
@@ -72,11 +72,15 @@ export const getFavoriteDomainsQuery = (
           const sortedLabels = [...filteredLabels].sort((a, b) => {
             if (sortField === 'name') {
               const comparison = a.localeCompare(b)
-              return sortDirection === 'asc' ? comparison : -comparison
+              return sortDirection === OrderDirection.Asc
+                ? comparison
+                : -comparison
             }
             // For addedAt, we'd need the timestamps - for now just use name
             const comparison = a.localeCompare(b)
-            return sortDirection === 'asc' ? comparison : -comparison
+            return sortDirection === OrderDirection.Asc
+              ? comparison
+              : -comparison
           })
 
           // Paginate

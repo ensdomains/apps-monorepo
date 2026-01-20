@@ -1,32 +1,23 @@
 import { useCallback, useEffect, useState } from 'react'
+import { MOCK_FAVORITES } from './useFavorites.mock'
 
 const FAVORITES_STORAGE_KEY = 'ens-favorites'
 
 export type FavoriteEntry = {
-  label: string
-  addedAt: number
+  readonly label: string
+  readonly addedAt: number
 }
 
 type FavoritesState = {
-  entries: FavoriteEntry[]
-  notificationsEnabled: boolean
+  readonly entries: readonly FavoriteEntry[]
+  readonly notificationsEnabled: boolean
 }
-
-// Mock favorites from Figma design
-const MOCK_FAVORITES: FavoriteEntry[] = [
-  { label: 'seraphinalee.eth', addedAt: Date.now() - 5 * 24 * 60 * 60 * 1000 },
-  { label: 'zenithnova.eth', addedAt: Date.now() - 4 * 24 * 60 * 60 * 1000 },
-  { label: 'luminaquest.eth', addedAt: Date.now() - 3 * 24 * 60 * 60 * 1000 },
-  { label: 'astralvoyager.eth', addedAt: Date.now() - 2 * 24 * 60 * 60 * 1000 },
-  {
-    label: 'celestialharbor.eth',
-    addedAt: Date.now() - 1 * 24 * 60 * 60 * 1000,
-  },
-]
 
 const getInitialState = (): FavoritesState => {
   if (typeof window === 'undefined') {
-    return { entries: MOCK_FAVORITES, notificationsEnabled: true }
+    return import.meta.env.DEV
+      ? { entries: MOCK_FAVORITES, notificationsEnabled: true }
+      : { entries: [], notificationsEnabled: true }
   }
 
   try {
@@ -35,11 +26,13 @@ const getInitialState = (): FavoritesState => {
       return JSON.parse(stored) as FavoritesState
     }
   } catch {
-    // Invalid JSON, return default with mock data
+    // Invalid JSON, return default
   }
 
-  // Return mock data as default
-  return { entries: MOCK_FAVORITES, notificationsEnabled: true }
+  // Return mock data in dev mode, empty in production
+  return import.meta.env.DEV
+    ? { entries: MOCK_FAVORITES, notificationsEnabled: true }
+    : { entries: [], notificationsEnabled: true }
 }
 
 const saveState = (state: FavoritesState): void => {

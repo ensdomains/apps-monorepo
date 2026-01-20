@@ -4,10 +4,10 @@ import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 
 interface NameRowProps {
-  label: string
-  avatarUrl?: string
-  isFavorite: boolean
-  onToggleFavorite: () => void
+  readonly label: string
+  readonly avatarUrl?: string
+  readonly isFavorite: boolean
+  readonly onToggleFavorite: () => void
 }
 
 export const NameRow = ({
