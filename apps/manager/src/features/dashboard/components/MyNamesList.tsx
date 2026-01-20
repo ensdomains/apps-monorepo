@@ -3,7 +3,6 @@ import { useQueries } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
   ArrowRight,
-  ArrowUpRight,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -11,8 +10,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { match, P } from 'ts-pattern'
-import placeholderAvatar from '@/assets/placeholder-avatar.svg'
-import * as ImageFallback from '@/components/atoms/ImageFallback'
 import {
   formatDashboardDate,
   getDaysUntil,
@@ -22,6 +19,8 @@ import {
 } from '@/features/dashboard/utils'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { useDashboardNames } from '../hooks/useDashboardNames'
+import { useFavorites } from '../hooks/useFavorites'
+import { NameRow } from './NameRow'
 import { PrimaryBadge } from './PrimaryBadge'
 
 interface MyNamesListProps {
@@ -72,6 +71,7 @@ export const MyNamesList = ({
     sortDirection,
     handleSort,
   } = useDashboardNames({ searchQuery })
+  const { toggleFavorite, isFavorite } = useFavorites()
   const avatarQueries = useQueries({
     queries: names.map((domain) =>
       parseAvatarQuery(domain.resolver?.avatar ?? undefined),
@@ -91,7 +91,8 @@ export const MyNamesList = ({
   return (
     <div className="w-full">
       <div className="mb-[16px] hidden w-full md:flex md:items-center md:justify-between">
-        <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[25px]">
+        <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[12px]">
+          <div className="size-[16px] shrink-0" />
           <div className="flex items-center gap-2 md:gap-[12px]">
             <div className="size-[32px] shrink-0 md:size-[36.9px]" />
             <div className="flex items-center gap-[8px]">
@@ -164,6 +165,7 @@ export const MyNamesList = ({
                 label.toLowerCase() === primaryLabel?.toLowerCase()
               const avatarUrl =
                 avatarQueries[index]?.data ?? name.resolver?.avatar ?? undefined
+              const favorited = isFavorite(label)
 
               return (
                 <div
@@ -177,39 +179,12 @@ export const MyNamesList = ({
                   )}
 
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[25px]">
-                      <div className="flex items-center gap-2 md:gap-[12px]">
-                        <div className="relative size-[32px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
-                          <ImageFallback.Root className="contents">
-                            <ImageFallback.Image
-                              alt={`${label} avatar`}
-                              className="size-full object-cover"
-                              src={avatarUrl}
-                            />
-                            <ImageFallback.Fallback>
-                              <img
-                                alt={`${label} avatar placeholder`}
-                                className="size-full object-cover"
-                                src={placeholderAvatar}
-                              />
-                            </ImageFallback.Fallback>
-                          </ImageFallback.Root>
-                        </div>
-                        <div className="flex min-w-0 flex-1 items-center justify-center rounded-[2.8px] bg-[#e5f7ff] px-2 py-1 md:h-[24px] md:px-[8px] md:py-[4px]">
-                          <Link
-                            className="mr-1 truncate font-medium font-mono text-[#0080bc] text-[14px] tracking-[-0.28px] md:mr-2 md:text-[16px] md:tracking-[-0.32px]"
-                            params={{ name: label }}
-                            to="/p/$name"
-                          >
-                            {label}
-                          </Link>
-                          <ArrowUpRight
-                            className="size-[6px] shrink-0 text-[#0080bc] md:size-[7px]"
-                            strokeWidth={3}
-                          />
-                        </div>
-                      </div>
-                    </div>
+                    <NameRow
+                      avatarUrl={avatarUrl}
+                      isFavorite={favorited}
+                      label={label}
+                      onToggleFavorite={() => toggleFavorite(label)}
+                    />
 
                     <div className="flex items-start gap-4 md:gap-[30px]">
                       <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:gap-[4px]">
