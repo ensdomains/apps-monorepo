@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { extractFromAddress } from '@/utils/events/extractFromAddress'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { EventsTableRow } from './EventsTableRow'
 import type { BaseEvent, EventsTableData } from './types'
@@ -129,21 +130,7 @@ const MobileHistoryCard = <TEvent extends BaseEvent = BaseEvent>({
       {row.getIsExpanded() &&
         row.original.events.map((event) => {
           const eventDetails = event.details as Record<string, unknown>
-          let fromAddress: string | null = null
-
-          if (eventDetails.owner && typeof eventDetails.owner === 'string') {
-            fromAddress = eventDetails.owner
-          } else if (
-            eventDetails.registrant &&
-            typeof eventDetails.registrant === 'string'
-          ) {
-            fromAddress = eventDetails.registrant
-          } else if (
-            eventDetails.newOwner &&
-            typeof eventDetails.newOwner === 'string'
-          ) {
-            fromAddress = eventDetails.newOwner
-          }
+          const fromAddress = extractFromAddress(eventDetails)
 
           return (
             <div
