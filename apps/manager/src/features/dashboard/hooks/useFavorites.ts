@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
+import { addFavoriteMutationOptions } from '../services/mutations/addFavorite'
+import { removeFavoriteMutationOptions } from '../services/mutations/removeFavorite'
 import {
   type FavoriteEntry as ApiFavoriteEntry,
-  addFavoriteMutationOptions,
   favoritesQueryOptions,
-  removeFavoriteMutationOptions,
-} from '../queries/favorites'
+} from '../services/queries/getFavorites'
 
 const NOTIFICATIONS_STORAGE_KEY = 'ens-favorites-notifications'
 
