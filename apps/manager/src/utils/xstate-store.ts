@@ -162,12 +162,17 @@ export const persist = <
 
     return {
       getInitialSnapshot() {
-        return loadPersistedState(
-          options.name,
-          storage,
-          options.serde,
-          logic.getInitialSnapshot(),
-        )
+        const initialSnapshot = logic.getInitialSnapshot()
+
+        return {
+          ...initialSnapshot,
+          context: loadPersistedState(
+            options.name,
+            storage,
+            options.serde,
+            initialSnapshot.context,
+          ),
+        }
       },
       transition(snapshot, event) {
         const [nextState, effects] = logic.transition(snapshot, event)
