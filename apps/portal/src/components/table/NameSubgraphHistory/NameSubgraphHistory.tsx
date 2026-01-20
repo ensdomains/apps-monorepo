@@ -24,6 +24,7 @@ interface NameSubgraphHistoryProps {
    * V2 events already include timestamps from the indexer.
    */
   v2Events?: SubgraphEvent[]
+  enableHeader?: boolean
 }
 
 const categoryToEventType = (c: Category): `${Category}Events` => {
@@ -122,6 +123,7 @@ export const NameSubgraphHistory = ({
   name,
   category = 'resolver',
   v2Events,
+  enableHeader = true,
 }: NameSubgraphHistoryProps) => {
   const isV2 = !!v2Events
 
@@ -154,18 +156,22 @@ export const NameSubgraphHistory = ({
   if (!data || data.length === 0)
     return (
       <div className="flex flex-col gap-1 p-6 border border-gray-300 rounded-lg w-full">
-        <div>
-          <h2 className="text-[26px] font-medium">History</h2>
-        </div>
+        {enableHeader && (
+          <div>
+            <h2 className="text-[26px] font-medium">History</h2>
+          </div>
+        )}
         <div>No recent activity.</div>
       </div>
     )
 
   return (
     <div className="flex flex-col gap-1 p-6 border border-gray-300 rounded-lg w-full">
-      <div>
-        <h2 className="text-[26px] font-medium">History</h2>
-      </div>
+      {enableHeader && (
+        <div>
+          <h2 className="text-[26px] font-medium">History</h2>
+        </div>
+      )}
       <NameSubgraphHistoryTable {...{ name, data, category, isV2 }} />
     </div>
   )

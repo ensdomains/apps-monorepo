@@ -61,6 +61,7 @@ const AddressHistory = ({ address }: AddressHistoryProps) => {
       name={address}
       category="domain"
       v2Events={transformedEvents}
+      enableHeader={false}
     />
   )
 }
@@ -84,6 +85,7 @@ function RouteComponent() {
       <PrimaryName address={addr} />
       <h2 className="font-medium text-[26px]">Names</h2>
       <NameList address={addr} />
+      <h2 className="font-medium text-[26px]">History</h2>
       <AddressHistory address={addr} />
     </div>
   )
