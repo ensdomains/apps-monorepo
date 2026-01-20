@@ -1,43 +1,10 @@
-import { type DomainFragment, OrderDirection } from '@ens-apps/indexer'
+import { OrderDirection } from '@ens-apps/indexer'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { queryOptions, skipToken } from '@tanstack/react-query'
+import type { FavoriteEntry } from '../hooks/useFavorites'
 
-/**
- * Creates a mock domain object for a given label.
- * This is temporary until the backend supports fetching favorite domains.
- */
-const createMockDomain = (label: string): DomainFragment => {
-  const fullName = label.endsWith('.eth') ? label : `${label}.eth`
-  const now = Math.floor(Date.now() / 1000)
-  const oneYear = 365 * 24 * 60 * 60
-
-  return {
-    __typename: 'Domain',
-    id: `0x${Math.random().toString(16).slice(2, 10)}`,
-    name: fullName,
-    normalizedName: fullName.toLowerCase(),
-    createdAt: now - oneYear,
-    expiryDate: now + oneYear,
-    owner: {
-      __typename: 'Account',
-      id: '0x1234567890123456789012345678901234567890',
-    },
-    resolver: null,
-  }
-}
-
-/**
- * Fetches domain data for a list of favorite labels.
- * Currently returns mock data - will be replaced with actual indexer query.
- */
-export const getFavoriteDomains = (
-  labels: readonly string[],
-): DomainFragment[] => {
-  return labels.map((label) => createMockDomain(label))
-}
-
-export type FavoriteDomainsQueryVariables = {
-  readonly labels: readonly string[]
+export type FavoritesQueryVariables = {
+  readonly favorites: readonly FavoriteEntry[]
   readonly page: number
   readonly pageSize: number
   readonly sortField: 'name' | 'addedAt'
@@ -45,15 +12,15 @@ export type FavoriteDomainsQueryVariables = {
   readonly searchQuery?: string
 }
 
-export const getFavoriteDomainsQuery = (
-  variables: FavoriteDomainsQueryVariables | undefined,
+export const getFavoritesQuery = (
+  variables: FavoritesQueryVariables | undefined,
 ) =>
   queryOptions({
-    queryKey: qk('dashboard', 'favoriteDomains', variables ?? {}),
+    queryKey: qk('dashboard', 'favorites', variables ?? {}),
     queryFn: variables
       ? () => {
           const {
-            labels,
+            favorites,
             page,
             pageSize,
             sortField,
@@ -62,22 +29,22 @@ export const getFavoriteDomainsQuery = (
           } = variables
 
           // Filter by search if provided
-          const filteredLabels = searchQuery
-            ? labels.filter((label) =>
-                label.toLowerCase().includes(searchQuery.toLowerCase()),
+          const filteredFavorites = searchQuery
+            ? favorites.filter((fav) =>
+                fav.label.toLowerCase().includes(searchQuery.toLowerCase()),
               )
-            : labels
+            : favorites
 
-          // Sort labels
-          const sortedLabels = [...filteredLabels].sort((a, b) => {
+          // Sort favorites
+          const sortedFavorites = [...filteredFavorites].sort((a, b) => {
             if (sortField === 'name') {
-              const comparison = a.localeCompare(b)
+              const comparison = a.label.localeCompare(b.label)
               return sortDirection === OrderDirection.Asc
                 ? comparison
                 : -comparison
             }
-            // For addedAt, we'd need the timestamps - for now just use name
-            const comparison = a.localeCompare(b)
+            // Sort by addedAt
+            const comparison = a.addedAt - b.addedAt
             return sortDirection === OrderDirection.Asc
               ? comparison
               : -comparison
@@ -86,19 +53,16 @@ export const getFavoriteDomainsQuery = (
           // Paginate
           const startIndex = (page - 1) * pageSize
           const endIndex = startIndex + pageSize
-          const paginatedLabels = sortedLabels.slice(startIndex, endIndex)
-
-          // Generate domain data
-          const domains = getFavoriteDomains(paginatedLabels)
+          const paginatedFavorites = sortedFavorites.slice(startIndex, endIndex)
 
           return {
-            domains,
-            totalCount: filteredLabels.length,
-            totalPages: Math.ceil(filteredLabels.length / pageSize),
-            hasNextPage: page < Math.ceil(filteredLabels.length / pageSize),
+            favorites: paginatedFavorites,
+            totalCount: filteredFavorites.length,
+            totalPages: Math.ceil(filteredFavorites.length / pageSize),
+            hasNextPage: page < Math.ceil(filteredFavorites.length / pageSize),
             hasPrevPage: page > 1,
             startIndex: startIndex + 1,
-            endIndex: Math.min(endIndex, filteredLabels.length),
+            endIndex: Math.min(endIndex, filteredFavorites.length),
           }
         }
       : skipToken,

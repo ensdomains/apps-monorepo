@@ -1,13 +1,11 @@
 import { OrderDirection } from '@ens-apps/indexer'
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { Switch } from '@/components/ui/switch'
-import { resolveDomainLabel } from '@/features/dashboard/utils'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { useFavorites } from '../hooks/useFavorites'
-import { getFavoriteDomainsQuery } from '../service/favoriteDomains'
+import { getFavoritesQuery } from '../service/favoriteDomains'
 import { NameRow } from './NameRow'
 
 interface FavoritesListProps {
@@ -61,15 +59,13 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
     isLoading: isFavoritesLoading,
   } = useFavorites()
 
-  const favoriteLabels = favorites.map((f) => f.label.toLowerCase())
-
   const {
     data,
-    isLoading: isDomainsLoading,
+    isLoading: isQueryLoading,
     isError,
   } = useQuery(
-    getFavoriteDomainsQuery({
-      labels: favoriteLabels,
+    getFavoritesQuery({
+      favorites,
       page,
       pageSize: PAGE_SIZE,
       sortField,
@@ -78,20 +74,14 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
     }),
   )
 
-  const isLoading = isFavoritesLoading || isDomainsLoading
-  const names = data?.domains ?? []
+  const isLoading = isFavoritesLoading || isQueryLoading
+  const paginatedFavorites = data?.favorites ?? []
   const totalCount = data?.totalCount ?? 0
   const totalPages = data?.totalPages ?? 0
   const hasNextPage = data?.hasNextPage ?? false
   const hasPrevPage = data?.hasPrevPage ?? false
   const startIndex = data?.startIndex ?? 0
   const endIndex = data?.endIndex ?? 0
-
-  const avatarQueries = useQueries({
-    queries: names.map((domain) =>
-      parseAvatarQuery(domain.resolver?.avatar ?? undefined),
-    ),
-  })
 
   const handlePrev = () => {
     if (page > 1) {
@@ -162,7 +152,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
       </div>
 
       <div className="flex w-full flex-col">
-        {match({ isLoading, names, favoritesCount })
+        {match({ isLoading, paginatedFavorites, favoritesCount })
           .with({ isLoading: true }, () => (
             <div className="py-8 text-center font-sans text-[#8c8c8c] text-sm">
               Loading favorites...
@@ -174,33 +164,26 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
               tab.
             </div>
           ))
-          .with({ names: P.when((n) => n.length === 0) }, () => (
+          .with({ paginatedFavorites: P.when((f) => f.length === 0) }, () => (
             <div className="py-8 text-center font-sans text-[#8c8c8c] text-sm">
               No favorites found
             </div>
           ))
-          .otherwise(({ names }) =>
-            names.map((name, index) => {
-              const label = resolveDomainLabel(name)
-              const avatarUrl =
-                avatarQueries[index]?.data ?? name.resolver?.avatar ?? undefined
-
-              return (
-                <div
-                  className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
-                  key={name.id}
-                >
-                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <NameRow
-                      avatarUrl={avatarUrl}
-                      isFavorite={true}
-                      label={label}
-                      onToggleFavorite={() => toggleFavorite(label)}
-                    />
-                  </div>
+          .otherwise(({ paginatedFavorites }) =>
+            paginatedFavorites.map((fav) => (
+              <div
+                className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
+                key={fav.label}
+              >
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <NameRow
+                    isFavorite={true}
+                    label={fav.label}
+                    onToggleFavorite={() => toggleFavorite(fav.label)}
+                  />
                 </div>
-              )
-            }),
+              </div>
+            )),
           )}
       </div>
 
