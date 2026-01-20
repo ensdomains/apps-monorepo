@@ -155,7 +155,7 @@ export const NameSubgraphHistory = ({
 
   if (!data || data.length === 0)
     return (
-      <div className="flex flex-col gap-1 p-6 border border-gray-300 rounded-lg w-full">
+      <div className="flex flex-col gap-1 p-4 sm:p-6 border border-gray-300 rounded-lg w-full">
         {enableHeader && (
           <div>
             <h2 className="text-[26px] font-medium">History</h2>
@@ -166,7 +166,7 @@ export const NameSubgraphHistory = ({
     )
 
   return (
-    <div className="flex flex-col gap-1 p-6 border border-gray-300 rounded-lg w-full">
+    <div className="flex flex-col gap-1 p-4 sm:p-6 border border-gray-300 rounded-lg w-full">
       {enableHeader && (
         <div>
           <h2 className="text-[26px] font-medium">History</h2>
