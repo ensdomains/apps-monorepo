@@ -1,7 +1,6 @@
 import { OrderDirection } from '@ens-apps/indexer'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
-import { motion } from 'motion/react'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { Switch } from '@/components/ui/switch'
@@ -166,30 +165,15 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
         {match({ isLoading, paginatedFavorites, favoritesCount })
           .with({ isLoading: true }, () => (
             <>
-              <motion.div
-                animate={{ opacity: 1 }}
-                className="border-[lightgrey] border-b-[0.41px] py-[24px]"
-                initial={{ opacity: 0 }}
-                transition={{ delay: 0 }}
-              >
+              <div className="border-[lightgrey] border-b-[0.41px] py-[24px]">
                 <NameRowSkeleton />
-              </motion.div>
-              <motion.div
-                animate={{ opacity: 1 }}
-                className="border-[lightgrey] border-b-[0.41px] py-[24px]"
-                initial={{ opacity: 0 }}
-                transition={{ delay: 0.1 }}
-              >
+              </div>
+              <div className="border-[lightgrey] border-b-[0.41px] py-[24px]">
                 <NameRowSkeleton />
-              </motion.div>
-              <motion.div
-                animate={{ opacity: 1 }}
-                className="py-[24px]"
-                initial={{ opacity: 0 }}
-                transition={{ delay: 0.2 }}
-              >
+              </div>
+              <div className="py-[24px]">
                 <NameRowSkeleton />
-              </motion.div>
+              </div>
             </>
           ))
           .with({ favoritesCount: 0 }, () => (
@@ -204,13 +188,10 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
             </div>
           ))
           .otherwise(({ paginatedFavorites }) =>
-            paginatedFavorites.map((fav, index) => (
-              <motion.div
-                animate={{ opacity: 1, y: 0 }}
+            paginatedFavorites.map((fav) => (
+              <div
                 className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
-                initial={{ opacity: 0, y: 10 }}
                 key={fav.label}
-                transition={{ delay: index * 0.05, duration: 0.2 }}
               >
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <NameRow
@@ -219,7 +200,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                     onToggleFavorite={() => toggleFavorite(fav.label)}
                   />
                 </div>
-              </motion.div>
+              </div>
             )),
           )}
       </div>
