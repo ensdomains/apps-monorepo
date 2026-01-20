@@ -8,7 +8,6 @@ import {
   ChevronRight,
   CircleAlert,
 } from 'lucide-react'
-import { motion } from 'motion/react'
 import { toast } from 'sonner'
 import { match, P } from 'ts-pattern'
 import {
@@ -160,30 +159,15 @@ export const MyNamesList = ({
         {match({ isLoading, names })
           .with({ isLoading: true }, () => (
             <>
-              <motion.div
-                animate={{ opacity: 1 }}
-                className="border-[lightgrey] border-b-[0.41px] py-[24px]"
-                initial={{ opacity: 0 }}
-                transition={{ delay: 0 }}
-              >
+              <div className="border-[lightgrey] border-b-[0.41px] py-[24px]">
                 <NameRowSkeleton />
-              </motion.div>
-              <motion.div
-                animate={{ opacity: 1 }}
-                className="border-[lightgrey] border-b-[0.41px] py-[24px]"
-                initial={{ opacity: 0 }}
-                transition={{ delay: 0.1 }}
-              >
+              </div>
+              <div className="border-[lightgrey] border-b-[0.41px] py-[24px]">
                 <NameRowSkeleton />
-              </motion.div>
-              <motion.div
-                animate={{ opacity: 1 }}
-                className="py-[24px]"
-                initial={{ opacity: 0 }}
-                transition={{ delay: 0.2 }}
-              >
+              </div>
+              <div className="py-[24px]">
                 <NameRowSkeleton />
-              </motion.div>
+              </div>
             </>
           ))
           .with({ names: P.when((n) => n.length === 0) }, () => (
@@ -210,12 +194,9 @@ export const MyNamesList = ({
               const favorited = isFavorite(label)
 
               return (
-                <motion.div
-                  animate={{ opacity: 1, y: 0 }}
+                <div
                   className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
-                  initial={{ opacity: 0, y: 10 }}
                   key={name.id}
-                  transition={{ delay: index * 0.05, duration: 0.2 }}
                 >
                   {isPrimary && (
                     <div className="mb-[10px] px-[24px]">
@@ -270,7 +251,7 @@ export const MyNamesList = ({
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               )
             }),
           )}
