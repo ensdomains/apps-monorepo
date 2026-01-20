@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowUpRight, Heart } from 'lucide-react'
+import { motion } from 'motion/react'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 
@@ -18,16 +19,18 @@ export const NameRow = ({
 }: NameRowProps) => {
   return (
     <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[12px]">
-      <button
+      <motion.button
         className="flex shrink-0 items-center justify-center"
         onClick={onToggleFavorite}
+        transition={{ duration: 0.1 }}
         type="button"
+        whileTap={{ scale: 0.8 }}
       >
         <Heart
           className={`size-[16px] ${isFavorite ? 'fill-[#f53293] text-[#f53293]' : 'text-[#d3d3d3]'}`}
           strokeWidth={2}
         />
-      </button>
+      </motion.button>
       <div className="flex items-center gap-2 md:gap-[12px]">
         <div className="relative size-[32px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
           <ImageFallback.Root className="contents">

@@ -8,6 +8,7 @@ import {
   ChevronRight,
   CircleAlert,
 } from 'lucide-react'
+import { motion } from 'motion/react'
 import { toast } from 'sonner'
 import { match, P } from 'ts-pattern'
 import {
@@ -32,6 +33,24 @@ type SortIndicatorProps = {
   readonly direction?: OrderDirection
   readonly isActive: boolean
 }
+
+const NameRowSkeleton = () => (
+  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[12px]">
+      <div className="size-[16px] shrink-0 animate-pulse rounded bg-gray-200" />
+      <div className="flex items-center gap-2 md:gap-[12px]">
+        <div className="size-[32px] shrink-0 animate-pulse rounded-full bg-gray-200 md:size-[36.9px]" />
+        <div className="h-[24px] w-[120px] animate-pulse rounded-[2.8px] bg-gray-200 md:w-[150px]" />
+      </div>
+    </div>
+    <div className="flex items-start gap-4 md:gap-[30px]">
+      <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:gap-[4px]">
+        <div className="h-[20px] w-[80px] animate-pulse rounded bg-gray-200" />
+        <div className="h-[16px] w-[50px] animate-pulse rounded bg-gray-200" />
+      </div>
+    </div>
+  </div>
+)
 
 const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
   if (!isActive) {
@@ -140,9 +159,32 @@ export const MyNamesList = ({
       <div className="flex w-full flex-col">
         {match({ isLoading, names })
           .with({ isLoading: true }, () => (
-            <div className="py-8 text-center font-sans text-[#8c8c8c] text-sm">
-              Loading names...
-            </div>
+            <>
+              <motion.div
+                animate={{ opacity: 1 }}
+                className="border-[lightgrey] border-b-[0.41px] py-[24px]"
+                initial={{ opacity: 0 }}
+                transition={{ delay: 0 }}
+              >
+                <NameRowSkeleton />
+              </motion.div>
+              <motion.div
+                animate={{ opacity: 1 }}
+                className="border-[lightgrey] border-b-[0.41px] py-[24px]"
+                initial={{ opacity: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                <NameRowSkeleton />
+              </motion.div>
+              <motion.div
+                animate={{ opacity: 1 }}
+                className="py-[24px]"
+                initial={{ opacity: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                <NameRowSkeleton />
+              </motion.div>
+            </>
           ))
           .with({ names: P.when((n) => n.length === 0) }, () => (
             <div className="py-8 text-center font-sans text-[#8c8c8c] text-sm">
@@ -168,9 +210,12 @@ export const MyNamesList = ({
               const favorited = isFavorite(label)
 
               return (
-                <div
+                <motion.div
+                  animate={{ opacity: 1, y: 0 }}
                   className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
+                  initial={{ opacity: 0, y: 10 }}
                   key={name.id}
+                  transition={{ delay: index * 0.05, duration: 0.2 }}
                 >
                   {isPrimary && (
                     <div className="mb-[10px] px-[24px]">
@@ -225,7 +270,7 @@ export const MyNamesList = ({
                       </div>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               )
             }),
           )}
