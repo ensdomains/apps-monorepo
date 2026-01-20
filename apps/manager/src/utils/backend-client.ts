@@ -2,44 +2,59 @@ import { createStore } from '@xstate/store-react'
 import type { AppRouter } from 'api-worker/hc'
 import { hc } from 'hono/client'
 import posthog from 'posthog-js'
-import { createPersistedStore } from './xstate-store'
+import { persist } from './xstate-store'
 
 const BACKEND_AUTH_STORAGE_KEY = '@manager-v4/backend_auth'
 
 type BackendAuthContext = {
   authKey: string | undefined
   address: string | undefined
+  modalDismissed: boolean
 }
 
 type BackendAuthEvents = {
   signIn: { authKey: string; address: string }
   signOut: Record<string, never>
+  dismissModal: Record<string, never>
+  resetModal: Record<string, never>
 }
 
-export const backendAuthStore = createPersistedStore<
+export const backendAuthStore = createStore<
   BackendAuthContext,
   BackendAuthEvents,
   never
->(
-  {
-    context: {
+>({
+  context: {
+    authKey: undefined,
+    address: undefined,
+    modalDismissed: false,
+  },
+  on: {
+    signIn: (context, event: { authKey: string; address: string }) => ({
+      ...context,
+      authKey: event.authKey,
+      address: event.address,
+      modalDismissed: false,
+    }),
+    signOut: (context) => ({
+      ...context,
       authKey: undefined,
       address: undefined,
-    },
-    on: {
-      signIn: (context, event: { authKey: string; address: string }) => ({
-        ...context,
-        authKey: event.authKey,
-        address: event.address,
-      }),
-      signOut: (context) => ({
-        ...context,
-        authKey: undefined,
-        address: undefined,
-      }),
-    },
+      modalDismissed: false,
+    }),
+    dismissModal: (context) => ({
+      ...context,
+      modalDismissed: true,
+    }),
+    resetModal: (context) => ({
+      ...context,
+      modalDismissed: false,
+    }),
   },
-  { key: BACKEND_AUTH_STORAGE_KEY },
+}).with(
+  persist({
+    name: BACKEND_AUTH_STORAGE_KEY,
+  }),
 )
 
 export const isBackendAuthed = backendAuthStore.select(
