@@ -2,7 +2,7 @@ import {
   createStore,
   type EventPayloadMap,
   type StoreConfig,
-} from '@xstate/store'
+} from '@xstate/store-react'
 
 export type PersistedStoreOptions = {
   key: string
