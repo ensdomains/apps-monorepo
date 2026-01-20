@@ -27,6 +27,7 @@ export type MergedName = WithEnsNetwork<{
   name: string | null
   expiryDate?: Date | null
   subdomainCount?: number
+  recordCount?: number
 }>
 
 /**
