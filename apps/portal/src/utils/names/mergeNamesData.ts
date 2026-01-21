@@ -13,7 +13,10 @@ export type V1Name = {
  * V2 name structure with timestamp-based expiry (seconds as number)
  */
 export type V2Name = {
-  name: NameWithRelation['name']
+  name: string
+  subdomains: {
+    name: string
+  }[]
   expiryDate?: number | null
 }
 
@@ -23,6 +26,8 @@ export type V2Name = {
 export type MergedName = WithEnsNetwork<{
   name: string | null
   expiryDate?: Date | null
+  subdomainCount?: number
+  recordCount?: number
 }>
 
 /**
@@ -57,13 +62,14 @@ export const mergeNamesData = (
   )
 
   const v2Transformed: MergedName[] = (v2Names || []).map(
-    ({ name, expiryDate }) => ({
+    ({ name, expiryDate, subdomains }) => ({
       name,
       expiryDate:
         expiryDate !== null && expiryDate !== undefined
           ? new Date(expiryDate * 1000)
           : null,
       network: 'namechainSepolia' as EnsNetworkName,
+      subdomainCount: subdomains.length,
     }),
   )
 

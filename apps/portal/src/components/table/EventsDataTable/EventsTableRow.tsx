@@ -4,6 +4,7 @@ import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDispla
 import { TableCell, TableRow } from '@/components/ui/table'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
+import { extractFromAddress } from '@/utils/events/extractFromAddress'
 import type { BaseEvent, EventsTableData } from './types'
 
 export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
@@ -32,23 +33,8 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
       </TableRow>
       {row.getIsExpanded() &&
         row.original.events.map((event) => {
-          // Extract "from" address from event details
           const eventDetails = event.details as Record<string, unknown>
-          let fromAddress: string | null = null
-
-          if (eventDetails.owner && typeof eventDetails.owner === 'string') {
-            fromAddress = eventDetails.owner
-          } else if (
-            eventDetails.registrant &&
-            typeof eventDetails.registrant === 'string'
-          ) {
-            fromAddress = eventDetails.registrant
-          } else if (
-            eventDetails.newOwner &&
-            typeof eventDetails.newOwner === 'string'
-          ) {
-            fromAddress = eventDetails.newOwner
-          }
+          const fromAddress = extractFromAddress(eventDetails)
 
           return (
             <TableRow key={event.id} className="hover:bg-gray-200">

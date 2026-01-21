@@ -1,13 +1,4 @@
-import {
-  type ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  type SortingState,
-  useReactTable,
-} from '@tanstack/react-table'
-import { useState } from 'react'
-
+import { flexRender, type Table as TableData } from '@tanstack/react-table'
 import {
   Table,
   TableBody,
@@ -16,30 +7,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { columns, type NameRow } from './columns'
 
-export interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[]
-  data: TData[]
+interface NamesTableProps {
+  table: TableData<NameRow>
 }
 
-export const DataTable = <TData, TValue>({
-  columns,
-  data,
-}: DataTableProps<TData, TValue>) => {
-  const [sorting, setSorting] = useState<SortingState>([])
-  const table = useReactTable({
-    data,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    onSortingChange: setSorting,
-    getSortedRowModel: getSortedRowModel(),
-    state: {
-      sorting,
-    },
-  })
-
+export const NamesTable = ({ table }: NamesTableProps) => {
   return (
-    <Table>
+    <Table className="relative">
       <TableHeader>
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
@@ -60,13 +36,13 @@ export const DataTable = <TData, TValue>({
       </TableHeader>
       <TableBody>
         {table.getRowModel().rows?.length ? (
-          table.getRowModel().rows.map((row, _i) => (
+          table.getRowModel().rows.map((row) => (
             <TableRow
               key={row.id}
               data-state={row.getIsSelected() && 'selected'}
             >
               {row.getVisibleCells().map((cell) => (
-                <TableCell className="px-4 sm:px-6 py-4" key={cell.id}>
+                <TableCell className="px-6 py-4" key={cell.id}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>
               ))}

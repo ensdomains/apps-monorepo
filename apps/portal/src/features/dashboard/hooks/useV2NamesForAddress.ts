@@ -5,6 +5,7 @@ import { type ClientError, gql } from 'graphql-request'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
+import type { V2Name } from '@/utils/names/mergeNamesData'
 
 class GetV2NamesForAddressError extends TaggedError(
   'GetV2NamesForAddressError',
@@ -23,15 +24,15 @@ const getV2NamesForAddress = ResultFn(async function* ({
 }: GetV2NamesForAddressParameters) {
   const { domains } = yield* await fromPromise(
     graphqlIndexerClient.request<{
-      domains: {
-        name: string
-        expiryDate: number
-      }[]
+      domains: V2Name[]
     }>(
       gql`query getNamesForAddress($addr: String!) {
       domains(where: {owner: $addr}) {
         name
         expiryDate
+        subdomains {
+          name
+        }
       }
     }`,
       { addr: address.toLowerCase() },

@@ -45,5 +45,12 @@ const getBlockTimestampsQueryOptions = (params: GetBlockTimestampsParameters) =>
     queryFn: ({ queryKey: [, params] }) => getBlockTimestamps(params),
   })
 
-export const useBlockTimestamps = (params: GetBlockTimestampsParameters) =>
-  useQuery(getBlockTimestampsQueryOptions(params))
+export const useBlockTimestamps = (
+  params: GetBlockTimestampsParameters & { enabled?: boolean },
+) => {
+  const { enabled = true, ...queryParams } = params
+  return useQuery({
+    ...getBlockTimestampsQueryOptions(queryParams),
+    enabled,
+  })
+}

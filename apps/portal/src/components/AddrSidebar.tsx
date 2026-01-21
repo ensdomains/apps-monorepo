@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { IdCardLanyard, WalletIcon } from 'lucide-react'
+import { IdCardLanyard, SquareUserIcon, WalletIcon } from 'lucide-react'
 import type { Address } from 'viem'
 import { LogoWithTextSVG } from '@/assets/logo'
 import {
@@ -19,6 +19,11 @@ const itemGroups = [
       title: 'Overview',
       url: '/addr/$addr',
       icon: IdCardLanyard,
+    },
+    {
+      title: 'Names',
+      url: '/addr/$addr/names',
+      icon: SquareUserIcon,
     },
   ],
   // [
