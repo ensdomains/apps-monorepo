@@ -24,8 +24,77 @@ export const useFavorites = () => {
 
   const localFavorites: readonly FavoriteEntry[] = favorites.map(toLocalEntry)
 
-  const addMutation = useMutation(addFavoriteMutationOptions)
-  const removeMutation = useMutation(removeFavoriteMutationOptions)
+  const addMutation = useMutation({
+    ...addFavoriteMutationOptions,
+    onMutate: async ({ name }) => {
+      await queryClient.cancelQueries({
+        queryKey: favoritesQueryOptions.queryKey,
+      })
+
+      const previousFavorites = queryClient.getQueryData<
+        readonly ApiFavoriteEntry[]
+      >(favoritesQueryOptions.queryKey)
+
+      queryClient.setQueryData<readonly ApiFavoriteEntry[]>(
+        favoritesQueryOptions.queryKey,
+        (old) => [
+          ...(old ?? []),
+          { name, created_at: new Date().toISOString() },
+        ],
+      )
+
+      return { previousFavorites }
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousFavorites) {
+        queryClient.setQueryData(
+          favoritesQueryOptions.queryKey,
+          context.previousFavorites,
+        )
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: favoritesQueryOptions.queryKey,
+      })
+    },
+  })
+
+  const removeMutation = useMutation({
+    ...removeFavoriteMutationOptions,
+    onMutate: async ({ name }) => {
+      await queryClient.cancelQueries({
+        queryKey: favoritesQueryOptions.queryKey,
+      })
+
+      const previousFavorites = queryClient.getQueryData<
+        readonly ApiFavoriteEntry[]
+      >(favoritesQueryOptions.queryKey)
+
+      queryClient.setQueryData<readonly ApiFavoriteEntry[]>(
+        favoritesQueryOptions.queryKey,
+        (old) =>
+          (old ?? []).filter(
+            (entry) => entry.name.toLowerCase() !== name.toLowerCase(),
+          ),
+      )
+
+      return { previousFavorites }
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousFavorites) {
+        queryClient.setQueryData(
+          favoritesQueryOptions.queryKey,
+          context.previousFavorites,
+        )
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: favoritesQueryOptions.queryKey,
+      })
+    },
+  })
 
   const addFavorite = useCallback(
     (label: string) => {
@@ -36,56 +105,16 @@ export const useFavorites = () => {
 
       if (exists) return
 
-      // Optimistically update the cache
-      queryClient.setQueryData(
-        favoritesQueryOptions.queryKey,
-        (old: readonly ApiFavoriteEntry[] | undefined) => [
-          ...(old ?? []),
-          { name: label, created_at: new Date().toISOString() },
-        ],
-      )
-
-      addMutation.mutate(
-        { name: label },
-        {
-          onError: () => {
-            // Revert optimistic update on error
-            queryClient.invalidateQueries({
-              queryKey: favoritesQueryOptions.queryKey,
-            })
-          },
-        },
-      )
+      addMutation.mutate({ name: label })
     },
-    [favorites, addMutation, queryClient],
+    [favorites, addMutation],
   )
 
   const removeFavorite = useCallback(
     (label: string) => {
-      const normalizedLabel = label.toLowerCase()
-
-      // Optimistically update the cache
-      queryClient.setQueryData(
-        favoritesQueryOptions.queryKey,
-        (old: readonly ApiFavoriteEntry[] | undefined) =>
-          (old ?? []).filter(
-            (entry) => entry.name.toLowerCase() !== normalizedLabel,
-          ),
-      )
-
-      removeMutation.mutate(
-        { name: label },
-        {
-          onError: () => {
-            // Revert optimistic update on error
-            queryClient.invalidateQueries({
-              queryKey: favoritesQueryOptions.queryKey,
-            })
-          },
-        },
-      )
+      removeMutation.mutate({ name: label })
     },
-    [removeMutation, queryClient],
+    [removeMutation],
   )
 
   const toggleFavorite = useCallback(
