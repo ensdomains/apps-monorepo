@@ -40,13 +40,10 @@ jobs:
             - Rule violations marked as 🟡 Default (flag these but they may have valid exceptions)
             - 🟢 Guidelines are suggestions only
 
-            For each issue found:
-            1. Reference the specific rule from STYLEGUIDE.md
-            2. Explain what's wrong
-            3. Suggest how to fix it
-
-            Use inline comments for specific code issues.
-            Post a summary comment with overall findings.
+            IMPORTANT - Comment guidelines:
+            - ONLY use inline comments for issues that need fixing. Never post positive/praise inline comments.
+            - For each issue, reference the specific rule from STYLEGUIDE.md, explain what's wrong, and suggest how to fix it.
+            - Post a summary comment with overall findings. Positive observations about the PR may be included in the summary only.
 
           claude_args: |
             --model claude-opus-4-5-20251101
