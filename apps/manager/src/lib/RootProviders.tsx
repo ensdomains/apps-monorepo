@@ -29,7 +29,11 @@ const onWalletChange = () => {
 
   // If the previous auth address is the same as the current wallet address, do nothing
   // Or if the previous auth address is not set, do nothing
-  if (!previousAuthAddress || previousAuthAddress === wallet.address) return
+  if (
+    !previousAuthAddress ||
+    previousAuthAddress.toLowerCase() === wallet.address?.toLowerCase()
+  )
+    return
 
   // Clear all transactions when wallet changes
   transactionManager.clearAllAndPersistence()
