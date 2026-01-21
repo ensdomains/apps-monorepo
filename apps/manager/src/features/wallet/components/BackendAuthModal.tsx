@@ -1,3 +1,4 @@
+import { useWallet } from '@getpara/react-sdk-lite'
 import { useMutation } from '@tanstack/react-query'
 import { useSelector } from '@xstate/store-react'
 import { useWalletClient } from 'wagmi'
@@ -7,17 +8,17 @@ import { signInBackendMutation } from '@/features/notifications/queries/auth'
 import { backendAuthStore } from '@/utils/backend-client'
 
 export const BackendAuthModal = () => {
-  const isAuthedAndNotDismissed = useSelector(
+  const isNotAuthedOrDismissed = useSelector(
     backendAuthStore,
-    (state) =>
-      state.context.authKey === undefined &&
-      state.context.modalDismissed === false,
+    (state) => !state.context.authKey && state.context.modalDismissed === false,
   )
-  const { data: walletClient } = useWalletClient()
   const signIn = useMutation(signInBackendMutation)
 
-  const isWalletConnected = !!walletClient
-  const shouldShowModal = isWalletConnected && isAuthedAndNotDismissed
+  const { data: wallet, isLoading: walletLoading } = useWallet()
+  const { data: walletClient } = useWalletClient()
+
+  const isWalletConnected = !!wallet && !walletLoading
+  const shouldShowModal = isWalletConnected && isNotAuthedOrDismissed
 
   const handleSignIn = async () => {
     if (!walletClient) {
