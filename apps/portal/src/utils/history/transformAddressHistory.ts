@@ -83,6 +83,22 @@ export const transformV2EventsToCommon = (
 }
 
 /**
+ * Transforms and merges V1 and V2 events into a single sorted array
+ * This is a convenience function that combines transformation and merging
+ */
+export const transformAndMergeAddressHistory = (
+  v1Events?: V1Events,
+  v2Events?: V2Event[],
+): EventsTableData<ENSEvent>[] => {
+  const v1Transformed = transformV1EventsToCommon(v1Events)
+  const v2Transformed = transformV2EventsToCommon(v2Events)
+
+  const merged = [...v1Transformed, ...v2Transformed]
+  return merged.sort((a, b) => b.blockNumber - a.blockNumber)
+}
+
+/**
+ * @deprecated Use transformAndMergeAddressHistory instead
  * Merges V1 and V2 events and sorts by block number descending
  */
 export const mergeAndSortEvents = <TEvent extends BaseEvent = ENSEvent>(

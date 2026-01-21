@@ -5,6 +5,7 @@ import {
   extractBlocksNeedingTimestamps,
   extractTransactionHashes,
   mergeAndSortEvents,
+  transformAndMergeAddressHistory,
   transformV1EventsToCommon,
   transformV2EventsToCommon,
   type V1Events,
@@ -424,6 +425,123 @@ describe('transformAddressHistory', () => {
       expect(result[0]).toBe('0x111')
       expect(result[1]).toBe('0x222')
       expect(result[2]).toBe('0x333')
+    })
+  })
+
+  describe('transformAndMergeAddressHistory', () => {
+    it('should return empty array when no events provided', () => {
+      const result = transformAndMergeAddressHistory(undefined, undefined)
+      expect(result).toEqual([])
+    })
+
+    it('should transform and merge V1 events only', () => {
+      const v1Events: V1Events = {
+        domainEvents: [
+          {
+            id: 'event1',
+            transactionID: '0xabc123',
+            blockNumber: 100,
+            type: 'Transfer',
+          },
+        ],
+        registrationEvents: [],
+        resolverEvents: [],
+      }
+
+      const result = transformAndMergeAddressHistory(v1Events, undefined)
+
+      expect(result).toHaveLength(1)
+      expect(result[0].transactionID).toBe('0xabc123')
+      expect(result[0].blockNumber).toBe(100)
+    })
+
+    it('should transform and merge V2 events only', () => {
+      const v2Events: V2Event[] = [
+        {
+          transactionHash: '0xdef456',
+          blockNumber: 200,
+          name: 'vitalik.eth',
+          type: 'Transfer',
+          timestamp: 1700000000,
+        },
+      ]
+
+      const result = transformAndMergeAddressHistory(undefined, v2Events)
+
+      expect(result).toHaveLength(1)
+      expect(result[0].transactionID).toBe('0xdef456')
+      expect(result[0].blockNumber).toBe(200)
+      expect(result[0].timestamp).toBe(1700000000n)
+    })
+
+    it('should transform and merge both V1 and V2 events', () => {
+      const v1Events: V1Events = {
+        domainEvents: [
+          {
+            id: 'event1',
+            transactionID: '0xabc123',
+            blockNumber: 100,
+            type: 'Transfer',
+          },
+        ],
+        registrationEvents: [],
+        resolverEvents: [],
+      }
+
+      const v2Events: V2Event[] = [
+        {
+          transactionHash: '0xdef456',
+          blockNumber: 200,
+          name: 'vitalik.eth',
+          type: 'Transfer',
+          timestamp: 1700000000,
+        },
+      ]
+
+      const result = transformAndMergeAddressHistory(v1Events, v2Events)
+
+      expect(result).toHaveLength(2)
+      // Should be sorted by block number descending
+      expect(result[0].blockNumber).toBe(200) // V2 event
+      expect(result[1].blockNumber).toBe(100) // V1 event
+    })
+
+    it('should sort merged events by block number descending', () => {
+      const v1Events: V1Events = {
+        domainEvents: [
+          {
+            id: 'event3',
+            transactionID: '0x333',
+            blockNumber: 300,
+            type: 'Transfer',
+          },
+          {
+            id: 'event1',
+            transactionID: '0x111',
+            blockNumber: 100,
+            type: 'Transfer',
+          },
+        ],
+        registrationEvents: [],
+        resolverEvents: [],
+      }
+
+      const v2Events: V2Event[] = [
+        {
+          transactionHash: '0x222',
+          blockNumber: 200,
+          name: 'vitalik.eth',
+          type: 'Transfer',
+          timestamp: 1700000000,
+        },
+      ]
+
+      const result = transformAndMergeAddressHistory(v1Events, v2Events)
+
+      expect(result).toHaveLength(3)
+      expect(result[0].blockNumber).toBe(300)
+      expect(result[1].blockNumber).toBe(200)
+      expect(result[2].blockNumber).toBe(100)
     })
   })
 })
