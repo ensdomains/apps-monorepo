@@ -18,27 +18,26 @@ declare module '@tanstack/react-query' {
   }
 }
 
-export function getRouter() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        // no caching, each request can optin to caching if needed
-        staleTime: 0,
-      },
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 0,
     },
-    mutationCache: new MutationCache({
-      onSuccess: (_data, _variables, _context, mutation) => {
-        if (mutation.meta?.invalidates) {
-          for (const invalidate of mutation.meta.invalidates) {
-            queryClient.invalidateQueries({
-              queryKey: invalidate,
-            })
-          }
+  },
+  mutationCache: new MutationCache({
+    onSuccess: (_data, _variables, _context, mutation) => {
+      if (mutation.meta?.invalidates) {
+        for (const invalidate of mutation.meta.invalidates) {
+          queryClient.invalidateQueries({
+            queryKey: invalidate,
+          })
         }
-      },
-    }),
-  })
+      }
+    },
+  }),
+})
 
+export function getRouter() {
   const router = createTanStackRouter({
     routeTree,
     scrollRestoration: true,

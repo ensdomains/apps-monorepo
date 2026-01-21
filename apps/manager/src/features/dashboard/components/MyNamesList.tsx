@@ -1,10 +1,5 @@
 import { OrderDirection } from '@ens-apps/indexer'
-import {
-  useMutation,
-  useQueries,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
   ArrowRight,
@@ -26,10 +21,7 @@ import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { useDashboardNames } from '../hooks/useDashboardNames'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
-import {
-  type FavoriteEntry as ApiFavoriteEntry,
-  favoritesQueryOptions,
-} from '../service/queries/getFavorites'
+import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import { NameRow } from './NameRow'
 import { PrimaryBadge } from './PrimaryBadge'
 
@@ -87,7 +79,6 @@ export const MyNamesList = ({
   primaryLabel,
   searchQuery = '',
 }: MyNamesListProps) => {
-  const queryClient = useQueryClient()
   const {
     names,
     isLoading,
@@ -102,77 +93,8 @@ export const MyNamesList = ({
   } = useDashboardNames({ searchQuery })
 
   const { data: favorites = [] } = useQuery(favoritesQueryOptions)
-
-  const addMutation = useMutation({
-    ...addFavoriteMutationOptions,
-    onMutate: async ({ name }) => {
-      await queryClient.cancelQueries({
-        queryKey: favoritesQueryOptions.queryKey,
-      })
-      const previousFavorites = queryClient.getQueryData<
-        readonly ApiFavoriteEntry[]
-      >(favoritesQueryOptions.queryKey)
-      const exists = previousFavorites?.some(
-        (entry) => entry.name.toLowerCase() === name.toLowerCase(),
-      )
-      if (exists) return { previousFavorites, skipped: true }
-      queryClient.setQueryData<readonly ApiFavoriteEntry[]>(
-        favoritesQueryOptions.queryKey,
-        (old) => [
-          ...(old ?? []),
-          { name, created_at: new Date().toISOString() },
-        ],
-      )
-      return { previousFavorites, skipped: false }
-    },
-    onError: (_err, _variables, context) => {
-      if (context?.previousFavorites) {
-        queryClient.setQueryData(
-          favoritesQueryOptions.queryKey,
-          context.previousFavorites,
-        )
-      }
-    },
-    onSettled: (_data, _error, _variables, context) => {
-      if (context?.skipped) return
-      queryClient.invalidateQueries({
-        queryKey: favoritesQueryOptions.queryKey,
-      })
-    },
-  })
-
-  const removeMutation = useMutation({
-    ...removeFavoriteMutationOptions,
-    onMutate: async ({ name }) => {
-      await queryClient.cancelQueries({
-        queryKey: favoritesQueryOptions.queryKey,
-      })
-      const previousFavorites = queryClient.getQueryData<
-        readonly ApiFavoriteEntry[]
-      >(favoritesQueryOptions.queryKey)
-      queryClient.setQueryData<readonly ApiFavoriteEntry[]>(
-        favoritesQueryOptions.queryKey,
-        (old) =>
-          (old ?? []).filter(
-            (entry) => entry.name.toLowerCase() !== name.toLowerCase(),
-          ),
-      )
-      return { previousFavorites }
-    },
-    onError: (_err, _variables, context) => {
-      if (context?.previousFavorites) {
-        queryClient.setQueryData(
-          favoritesQueryOptions.queryKey,
-          context.previousFavorites,
-        )
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: favoritesQueryOptions.queryKey,
-      })
-    },
-  })
+  const addMutation = useMutation(addFavoriteMutationOptions)
+  const removeMutation = useMutation(removeFavoriteMutationOptions)
 
   const isFavorite = (label: string) =>
     favorites.some((entry) => entry.name.toLowerCase() === label.toLowerCase())

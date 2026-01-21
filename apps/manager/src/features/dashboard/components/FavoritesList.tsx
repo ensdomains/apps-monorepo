@@ -1,5 +1,5 @@
 import { OrderDirection } from '@ens-apps/indexer'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
@@ -11,10 +11,7 @@ import {
   sortFavorites,
   toLocalEntry,
 } from '../service/queries/favorites.helpers'
-import {
-  type FavoriteEntry as ApiFavoriteEntry,
-  favoritesQueryOptions,
-} from '../service/queries/getFavorites'
+import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import { NameRow } from './NameRow'
 
 const NameRowSkeleton = () => (
@@ -63,7 +60,6 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
 }
 
 export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
-  const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [sortField, setSortField] = useState<SortField>('name')
   const [sortDirection, setSortDirection] = useState<OrderDirection>(
@@ -73,39 +69,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
   const { data: apiFavorites = [], isLoading } = useQuery(favoritesQueryOptions)
   const favorites = apiFavorites.map(toLocalEntry)
   const favoritesCount = apiFavorites.length
-
-  const removeMutation = useMutation({
-    ...removeFavoriteMutationOptions,
-    onMutate: async ({ name }) => {
-      await queryClient.cancelQueries({
-        queryKey: favoritesQueryOptions.queryKey,
-      })
-      const previousFavorites = queryClient.getQueryData<
-        readonly ApiFavoriteEntry[]
-      >(favoritesQueryOptions.queryKey)
-      queryClient.setQueryData<readonly ApiFavoriteEntry[]>(
-        favoritesQueryOptions.queryKey,
-        (old) =>
-          (old ?? []).filter(
-            (entry) => entry.name.toLowerCase() !== name.toLowerCase(),
-          ),
-      )
-      return { previousFavorites }
-    },
-    onError: (_err, _variables, context) => {
-      if (context?.previousFavorites) {
-        queryClient.setQueryData(
-          favoritesQueryOptions.queryKey,
-          context.previousFavorites,
-        )
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: favoritesQueryOptions.queryKey,
-      })
-    },
-  })
+  const removeMutation = useMutation(removeFavoriteMutationOptions)
 
   const toggleFavorite = (label: string) => {
     removeMutation.mutate({ name: label })
