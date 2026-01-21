@@ -1,5 +1,7 @@
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { queryOptions } from '@tanstack/react-query'
+import { ok, ResultAsync } from 'neverthrow'
 import { backendClient } from '@/utils/backend-client'
 
 export type FavoriteEntry = {
@@ -7,15 +9,26 @@ export type FavoriteEntry = {
   readonly created_at: string
 }
 
-export const favoritesQueryOptions = queryOptions({
+export class GetFavoritesError extends TaggedError('GetFavoritesError')<{
+  cause: unknown
+}> {}
+
+export const getFavorites = ResultFn(async function* () {
+  const data = yield* await ResultAsync.fromPromise(
+    backendClient.favorites.$get().then((response) => {
+      if (!response.ok)
+        throw new Error(`Failed to fetch favorites: ${response.statusText}`)
+      return response.json()
+    }),
+    (error) => new GetFavoritesError({ cause: error }),
+  )
+
+  return ok(data as readonly FavoriteEntry[])
+})
+
+export const favoritesQueryOptions = resultQueryOptions({
   queryKey: qk('favorites', 'list'),
-  queryFn: async (): Promise<readonly FavoriteEntry[]> => {
-    const response = await backendClient.favorites.$get()
-    if (!response.ok) {
-      throw new Error(`Failed to fetch favorites: ${response.statusText}`)
-    }
-    return response.json()
-  },
+  queryFn: () => getFavorites(),
   meta: {
     dependsOn: ['backend'],
   },
