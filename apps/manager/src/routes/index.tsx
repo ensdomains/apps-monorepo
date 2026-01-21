@@ -1,11 +1,17 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { useEffect } from 'react'
+import { getDomainsQuery } from '@/features/dashboard/service/dashboardDomains'
 import { FeaturesCarousel } from '@/features/landing/FeaturesCarousel'
 import { IntegrationsSection } from '@/features/landing/IntegrationsSection'
 import { ProfilesShowcase } from '@/features/landing/ProfilesShowcase'
 import { CheckAvailability } from '@/features/register/components/CheckAvailability/CheckAvailability'
+import { getParaConnectionCookie } from '@/lib/para'
+import { useSmartAccountContext } from '@/lib/smart-account'
 
 const LandingPage = () => {
   const navigate = useNavigate()
+  useRedirectToDashboard()
 
   return (
     <div>
@@ -39,6 +45,49 @@ const LandingPage = () => {
   )
 }
 
+const useRedirectToDashboard = () => {
+  const navigate = useNavigate()
+  const { ownerAddress } = useSmartAccountContext()
+
+  const hasDomains = useQuery({
+    ...getDomainsQuery({
+      where: {
+        owner: ownerAddress,
+      },
+      first: 1,
+    }),
+    enabled: !!ownerAddress,
+    select: (data) => data?.domains.length > 0,
+  })
+
+  useEffect(() => {
+    if (hasDomains.data && hasDomains.isSuccess && !hasDomains.isPaused) {
+      navigate({ to: '/dashboard' })
+    }
+  }, [hasDomains.data, hasDomains.isSuccess, hasDomains.isPaused, navigate])
+}
+
 export const Route = createFileRoute('/')({
   component: LandingPage,
+
+  beforeLoad: async ({ context: { queryClient } }) => {
+    // Cookie based check for wallet connection which allows server side redirects and faster loading times
+    const connectedAddress = getParaConnectionCookie()
+
+    // If the user is connected and has domains, redirect to the dashboard, otherwise let them stay on the landing page
+    if (connectedAddress) {
+      const domains = await queryClient.fetchQuery(
+        getDomainsQuery({
+          where: {
+            owner: connectedAddress,
+          },
+          first: 1,
+        }),
+      )
+
+      if (domains.domains.length > 0) {
+        throw redirect({ to: '/dashboard' })
+      }
+    }
+  },
 })
