@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback } from 'react'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import {
@@ -35,6 +34,12 @@ export const useFavorites = () => {
         readonly ApiFavoriteEntry[]
       >(favoritesQueryOptions.queryKey)
 
+      // Skip if already exists
+      const exists = previousFavorites?.some(
+        (entry) => entry.name.toLowerCase() === name.toLowerCase(),
+      )
+      if (exists) return { previousFavorites, skipped: true }
+
       queryClient.setQueryData<readonly ApiFavoriteEntry[]>(
         favoritesQueryOptions.queryKey,
         (old) => [
@@ -43,7 +48,7 @@ export const useFavorites = () => {
         ],
       )
 
-      return { previousFavorites }
+      return { previousFavorites, skipped: false }
     },
     onError: (_err, _variables, context) => {
       if (context?.previousFavorites) {
@@ -53,7 +58,8 @@ export const useFavorites = () => {
         )
       }
     },
-    onSettled: () => {
+    onSettled: (_data, _error, _variables, context) => {
+      if (context?.skipped) return
       queryClient.invalidateQueries({
         queryKey: favoritesQueryOptions.queryKey,
       })
@@ -96,58 +102,21 @@ export const useFavorites = () => {
     },
   })
 
-  const addFavorite = useCallback(
-    (label: string) => {
-      const normalizedLabel = label.toLowerCase()
-      const exists = favorites.some(
-        (entry) => entry.name.toLowerCase() === normalizedLabel,
-      )
+  const isFavorite = (label: string) =>
+    favorites.some((entry) => entry.name.toLowerCase() === label.toLowerCase())
 
-      if (exists) return
-
-      addMutation.mutate({ name: label })
-    },
-    [favorites, addMutation],
-  )
-
-  const removeFavorite = useCallback(
-    (label: string) => {
+  const toggleFavorite = (label: string) => {
+    if (isFavorite(label)) {
       removeMutation.mutate({ name: label })
-    },
-    [removeMutation],
-  )
-
-  const toggleFavorite = useCallback(
-    (label: string) => {
-      const normalizedLabel = label.toLowerCase()
-      const exists = favorites.some(
-        (entry) => entry.name.toLowerCase() === normalizedLabel,
-      )
-
-      if (exists) {
-        removeFavorite(label)
-      } else {
-        addFavorite(label)
-      }
-    },
-    [favorites, addFavorite, removeFavorite],
-  )
-
-  const isFavorite = useCallback(
-    (label: string) => {
-      return favorites.some(
-        (entry) => entry.name.toLowerCase() === label.toLowerCase(),
-      )
-    },
-    [favorites],
-  )
+    } else {
+      addMutation.mutate({ name: label })
+    }
+  }
 
   return {
     favorites: localFavorites,
     favoritesCount: favorites.length,
     isLoading,
-    addFavorite,
-    removeFavorite,
     toggleFavorite,
     isFavorite,
   }
