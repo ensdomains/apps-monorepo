@@ -7,6 +7,7 @@ import { gql } from 'graphql-request'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import type { V1EventBase } from '@/utils/history/transformAddressHistory'
 
 class GetV1HistoryForAddressError extends TaggedError(
   'GetV1HistoryForAddressError',
@@ -20,36 +21,14 @@ type GetV1HistoryForAddressParameters = {
   address: Address
 }
 
-// V1 event types from ENS subgraph
-export type V1DomainEvent = {
-  id: string
-  transactionID: string
-  blockNumber: number
-  type: string
-}
-
-export type V1RegistrationEvent = {
-  id: string
-  transactionID: string
-  blockNumber: number
-  type: string
-}
-
-export type V1ResolverEvent = {
-  id: string
-  transactionID: string
-  blockNumber: number
-  type: string
-}
-
 type V1HistoryResponse = {
   domains: Array<{
-    events: V1DomainEvent[]
+    events: V1EventBase[]
     registration?: {
-      events: V1RegistrationEvent[]
+      events: V1EventBase[]
     }
     resolver?: {
-      events: V1ResolverEvent[]
+      events: V1EventBase[]
     }
   }>
 }

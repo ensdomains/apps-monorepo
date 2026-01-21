@@ -8,9 +8,7 @@ import { enrichEventsWithMetadata } from '@/utils/history/enrichEventsWithMetada
 import {
   extractBlocksNeedingTimestamps,
   extractTransactionHashes,
-  mergeAndSortEvents,
-  transformV1EventsToCommon,
-  transformV2EventsToCommon,
+  transformAndMergeAddressHistory,
   type V1Events,
   type V2Event,
 } from '@/utils/history/transformAddressHistory'
@@ -28,22 +26,10 @@ export const AddressHistoryDataTable = ({
   address: string
   history: AddressHistoryData
 }) => {
-  // Transform V1 events to common format
-  const v1EventsData = useMemo(
-    () => transformV1EventsToCommon(history.v1Events),
-    [history.v1Events],
-  )
-
-  // Transform V2 events to common format
-  const v2EventsData = useMemo(
-    () => transformV2EventsToCommon(history.v2Events),
-    [history.v2Events],
-  )
-
-  // Merge V1 and V2 events
+  // Transform and merge V1 and V2 events into a single sorted array
   const eventsData = useMemo(
-    () => mergeAndSortEvents(v1EventsData, v2EventsData),
-    [v1EventsData, v2EventsData],
+    () => transformAndMergeAddressHistory(history.v1Events, history.v2Events),
+    [history.v1Events, history.v2Events],
   )
 
   // Extract blocks and transactions for metadata lookups
@@ -81,29 +67,28 @@ export const AddressHistoryDataTable = ({
   )
 
   if (isLoadingTimestamps && isLoadingSenders) {
-    return <LoadingMessage />
+    return <LoadingMessage title="Loading transaction data" />
   }
   if (isLoadingTimestamps) {
-    return <LoadingMessage />
+    return <LoadingMessage title="Loading timestamps" />
   }
   if (isLoadingSenders) {
-    return <LoadingMessage />
+    return <LoadingMessage title="Loading transaction senders" />
   }
 
   if (timestampsError) {
-    const message =
-      timestampsError.cause?.message || 'Could not load timestamps.'
     return (
-      <ErrorMessage title="Error loading timestamps" description={message} />
+      <ErrorMessage
+        title="Error loading timestamps"
+        description={timestampsError.cause?.message}
+      />
     )
   }
   if (sendersError) {
-    const message =
-      sendersError.cause?.message || 'Could not load transaction senders.'
     return (
       <ErrorMessage
         title="Error loading transaction senders"
-        description={message}
+        description={sendersError.cause?.message}
       />
     )
   }
