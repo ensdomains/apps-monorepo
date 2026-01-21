@@ -26,14 +26,25 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          use_sticky_comment: true
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
 
             Review this pull request against the project's STYLEGUIDE.md.
 
-            First, read the STYLEGUIDE.md file to understand the project's coding standards.
-            Then review the PR changes and check for violations of those standards.
+            STEP 1 - Check previous comments:
+            First, fetch any existing review comments on this PR using: gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number || github.event.issue.number }}/comments
+            Note which issues have already been flagged to avoid duplicate comments.
+
+            To get thread IDs for resolving comments, use:
+            gh api graphql -f query='query { repository(owner:"ensdomains", name:"apps-monorepo") { pullRequest(number:${{ github.event.pull_request.number || github.event.issue.number }}) { reviewThreads(first:100) { nodes { id isResolved comments(first:1) { nodes { body path line } } } } } } }'
+
+            STEP 2 - Read the style guide:
+            Read the STYLEGUIDE.md file to understand the project's coding standards.
+
+            STEP 3 - Review changes:
+            Review the PR changes and check for violations of those standards.
 
             Focus on:
             - Rule violations marked as 🔴 Must (these are critical)
@@ -41,10 +52,14 @@ jobs:
             - 🟢 Guidelines are suggestions only
 
             IMPORTANT - Comment guidelines:
-            - ONLY use inline comments for issues that need fixing. Never post positive/praise inline comments.
+            - ONLY use inline comments for NEW issues that need fixing. Do NOT duplicate comments that already exist.
+            - Never post positive/praise inline comments.
             - For each issue, reference the specific rule from STYLEGUIDE.md, explain what's wrong, and suggest how to fix it.
-            - Post a summary comment with overall findings. Positive observations about the PR may be included in the summary only.
+            - If a previous comment's issue has been FIXED in the current code, resolve that thread using:
+              gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "THREAD_ID"}) { thread { id } } }'
+            - In your summary comment, note which previous issues you resolved.
+            - Positive observations about the PR may be included in the summary only.
 
           claude_args: |
             --model claude-opus-4-5-20251101
-            --allowedTools "Read,Glob,Grep,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --allowedTools "Read,Glob,Grep,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api:*)"
