@@ -1,4 +1,6 @@
 import { useMemo } from 'react'
+import { ErrorMessage } from '@/components/ErrorMessage'
+import { LoadingMessage } from '@/components/LoadingMessage'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
@@ -79,23 +81,30 @@ export const AddressHistoryDataTable = ({
   )
 
   if (isLoadingTimestamps && isLoadingSenders) {
-    return <div>Loading transaction data...</div>
+    return <LoadingMessage />
   }
   if (isLoadingTimestamps) {
-    return <div>Loading timestamps...</div>
+    return <LoadingMessage />
   }
   if (isLoadingSenders) {
-    return <div>Loading transaction senders...</div>
+    return <LoadingMessage />
   }
 
   if (timestampsError) {
-    return <div>Error loading timestamps: {timestampsError.cause?.message}</div>
+    const message =
+      timestampsError.cause?.message || 'Could not load timestamps.'
+    return (
+      <ErrorMessage title="Error loading timestamps" description={message} />
+    )
   }
   if (sendersError) {
+    const message =
+      sendersError.cause?.message || 'Could not load transaction senders.'
     return (
-      <div>
-        Error loading transaction senders: {sendersError.cause?.message}
-      </div>
+      <ErrorMessage
+        title="Error loading transaction senders"
+        description={message}
+      />
     )
   }
 

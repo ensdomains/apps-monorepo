@@ -200,7 +200,7 @@ const getV1HistoryForAddress = ResultFn(async function* ({
     orderDirection: 'desc' as const,
   }
 
-  const result = yield* await fromPromise(
+  const result = yield* fromPromise(
     subgraphClient.request<V1HistoryResponse, typeof queryVars>(
       query,
       queryVars,

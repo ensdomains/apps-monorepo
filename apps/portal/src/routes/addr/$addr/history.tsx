@@ -30,10 +30,14 @@ function RouteComponent() {
     error: v2Error,
   } = useQuery(getV2HistoryForAddressQueryOptions({ address: addr }))
 
-  // Show loading if either query is loading
-  if (isLoadingV1 || isLoadingV2) return <LoadingMessage />
+  if (isLoadingV1) {
+    return <LoadingMessage />
+  }
 
-  // Show error if either query failed
+  if (isLoadingV2) {
+    return <LoadingMessage />
+  }
+
   if (v1Error) {
     const message =
       (v1Error.cause as Error | undefined)?.message ||
