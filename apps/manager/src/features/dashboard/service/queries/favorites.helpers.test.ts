@@ -1,7 +1,7 @@
 import { OrderDirection } from '@ens-apps/indexer'
 import { describe, expect, it } from 'vitest'
-import type { FavoriteEntry } from '../../hooks/useFavorites'
 import {
+  type FavoriteEntry,
   filterFavoritesBySearch,
   paginateFavorites,
   sortFavorites,

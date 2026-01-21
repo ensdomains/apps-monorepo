@@ -1,5 +1,15 @@
 import { OrderDirection } from '@ens-apps/indexer'
-import type { FavoriteEntry } from '../../hooks/useFavorites'
+import type { FavoriteEntry as ApiFavoriteEntry } from './getFavorites'
+
+export type FavoriteEntry = {
+  readonly label: string
+  readonly addedAt: number
+}
+
+export const toLocalEntry = (entry: ApiFavoriteEntry): FavoriteEntry => ({
+  label: entry.name,
+  addedAt: new Date(entry.created_at).getTime(),
+})
 
 export const filterFavoritesBySearch = (
   favorites: readonly FavoriteEntry[],

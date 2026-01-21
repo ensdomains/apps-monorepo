@@ -1,8 +1,9 @@
+import { useQuery } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
 import { Input } from '@/components/ui/input'
-import { useFavorites } from '../hooks/useFavorites'
+import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import { FavoritesList } from './FavoritesList'
 import { MyNamesList } from './MyNamesList'
 
@@ -46,7 +47,8 @@ interface NamesTableProps {
 export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>('myNames')
   const [searchQuery, setSearchQuery] = useState('')
-  const { favoritesCount } = useFavorites()
+  const { data: favorites = [] } = useQuery(favoritesQueryOptions)
+  const favoritesCount = favorites.length
 
   const tabs = [
     {
