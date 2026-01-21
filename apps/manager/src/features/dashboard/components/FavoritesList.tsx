@@ -1,11 +1,14 @@
 import { OrderDirection } from '@ens-apps/indexer'
-import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { Switch } from '@/components/ui/switch'
 import { useFavorites } from '../hooks/useFavorites'
-import { getFavoritesQuery } from '../service/queries/getFavoriteDomains'
+import {
+  filterFavoritesBySearch,
+  paginateFavorites,
+  sortFavorites,
+} from '../service/queries/favorites.helpers'
 import { NameRow } from './NameRow'
 
 const NameRowSkeleton = () => (
@@ -60,36 +63,22 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
     OrderDirection.Asc,
   )
 
-  const {
-    favorites,
-    favoritesCount,
-    toggleFavorite,
-    isLoading: isFavoritesLoading,
-  } = useFavorites()
+  const { favorites, favoritesCount, toggleFavorite, isLoading } =
+    useFavorites()
 
-  const {
-    data,
-    isLoading: isQueryLoading,
-    isError,
-  } = useQuery(
-    getFavoritesQuery({
-      favorites,
-      page,
-      pageSize: PAGE_SIZE,
-      sortField,
-      sortDirection,
-      searchQuery,
-    }),
-  )
+  const paginatedData = useMemo(() => {
+    const filtered = filterFavoritesBySearch(favorites, searchQuery)
+    const sorted = sortFavorites(filtered, sortField, sortDirection)
+    return paginateFavorites(sorted, page, PAGE_SIZE)
+  }, [favorites, searchQuery, sortField, sortDirection, page])
 
-  const isLoading = isFavoritesLoading || isQueryLoading
-  const paginatedFavorites = data?.favorites ?? []
-  const totalCount = data?.totalCount ?? 0
-  const totalPages = data?.totalPages ?? 0
-  const hasNextPage = data?.hasNextPage ?? false
-  const hasPrevPage = data?.hasPrevPage ?? false
-  const startIndex = data?.startIndex ?? 0
-  const endIndex = data?.endIndex ?? 0
+  const paginatedFavorites = paginatedData.favorites
+  const totalCount = paginatedData.totalCount
+  const totalPages = paginatedData.totalPages
+  const hasNextPage = paginatedData.hasNextPage
+  const hasPrevPage = paginatedData.hasPrevPage
+  const startIndex = paginatedData.startIndex
+  const endIndex = paginatedData.endIndex
 
   const handlePrev = () => {
     if (page > 1) {
@@ -112,14 +101,6 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
       setSortField(field)
       setSortDirection(OrderDirection.Asc)
     }
-  }
-
-  if (isError) {
-    return (
-      <div className="py-8 text-center font-sans text-red-500 text-sm">
-        Error loading favorites
-      </div>
-    )
   }
 
   return (
