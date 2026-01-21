@@ -1,5 +1,12 @@
 import { Link } from '@tanstack/react-router'
-import { IdCardLanyard, SquareUserIcon, WalletIcon } from 'lucide-react'
+import {
+  ClockIcon,
+  CopyIcon,
+  CopySlashIcon,
+  IdCardLanyard,
+  SquareUserIcon,
+  WalletIcon,
+} from 'lucide-react'
 import type { Address } from 'viem'
 import { LogoWithTextSVG } from '@/assets/logo'
 import {
@@ -26,18 +33,25 @@ const itemGroups = [
       icon: SquareUserIcon,
     },
   ],
-  // [
-  //   {
-  //     title: 'Address Resolution',
-  //     url: '/addr/$addr/resolution',
-  //     icon: CopyIcon,
-  //   },
-  //   {
-  //     title: 'Reverse Resolution',
-  //     url: '/addr/$addr/reverse-resolution',
-  //     icon: CopySlashIcon,
-  //   },
-  // ],
+  [
+    {
+      title: 'Address Resolution',
+      url: '/addr/$addr/resolution',
+      icon: CopyIcon,
+    },
+    {
+      title: 'Reverse Resolution',
+      url: '/addr/$addr/reverse-resolution',
+      icon: CopySlashIcon,
+    },
+  ],
+  [
+    {
+      title: 'History',
+      url: '/addr/$addr/history',
+      icon: ClockIcon,
+    },
+  ],
 ] as const
 
 interface AddrSidebarProps {
@@ -57,14 +71,14 @@ export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
         </Link>
         <div className="flex flex-row gap-2 items-start">
           <WalletIcon />
-          <span className="text-lg font-mono font-medium w-full max-w-md overflow-hidden break-words">
+          <span className="text-lg font-mono font-medium w-full max-w-md overflow-hidden wrap-break-word">
             {addr}
           </span>
         </div>
       </SidebarHeader>
       <SidebarContent>
         {itemGroups.map((items) => (
-          <SidebarGroup className="p-6" key={items.join(',')}>
+          <SidebarGroup className="p-6" key={items[0].url}>
             <SidebarGroupContent>
               <SidebarMenu>
                 {items.map((item) => (
