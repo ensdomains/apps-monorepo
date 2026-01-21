@@ -32,12 +32,15 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
         ))}
       </TableRow>
       {row.getIsExpanded() &&
-        row.original.events.map((event) => {
+        row.original.events.map((event, eventIndex) => {
           const eventDetails = event.details as Record<string, unknown>
           const fromAddress = extractFromAddress(eventDetails)
 
           return (
-            <TableRow key={event.id} className="hover:bg-gray-200">
+            <TableRow
+              key={`${row.original.transactionID}-${event.id}-${eventIndex}`}
+              className="hover:bg-gray-200"
+            >
               <TableCell colSpan={2} />
 
               {/* Transaction column - show event type */}

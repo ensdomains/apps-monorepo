@@ -157,7 +157,7 @@ export const TransactionEvents = ({
     return <div className="text-gray-400 text-center py-6">No events found</div>
   }
 
-  const firstEventId = events[0].id
+  const firstEventId = `${events[0].id}-0`
 
   return (
     <div className="flex flex-col gap-4">
@@ -170,8 +170,8 @@ export const TransactionEvents = ({
               <TabsList className="w-full justify-start rounded-none p-0 inline-flex">
                 {events.map((event, index) => (
                   <TabsTrigger
-                    key={event.id}
-                    value={event.id}
+                    key={`${event.id}-${index}`}
+                    value={`${event.id}-${index}`}
                     className="whitespace-nowrap"
                   >
                     {event.type}{' '}
@@ -183,8 +183,12 @@ export const TransactionEvents = ({
               </TabsList>
             </div>
 
-            {events.map((event) => (
-              <TabsContent key={event.id} value={event.id} className="p-6">
+            {events.map((event, index) => (
+              <TabsContent
+                key={`${event.id}-${index}`}
+                value={`${event.id}-${index}`}
+                className="p-6"
+              >
                 <div className="flex flex-col gap-8">
                   <div className="flex flex-col gap-4 w-full">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2 w-full">

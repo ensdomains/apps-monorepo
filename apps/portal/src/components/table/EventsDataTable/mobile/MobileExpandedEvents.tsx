@@ -12,13 +12,13 @@ export const MobileExpandedEvents = <TEvent extends BaseEvent = BaseEvent>({
 }: MobileExpandedEventsProps<TEvent>) => {
   return (
     <>
-      {events.map((event) => {
+      {events.map((event, eventIndex) => {
         const eventDetails = event.details as Record<string, unknown>
         const fromAddress = extractFromAddress(eventDetails)
 
         return (
           <div
-            key={event.id}
+            key={`${event.id}-${eventIndex}`}
             className="pl-4 border-l-2 border-gray-300 flex flex-col gap-2"
           >
             <div className="text-sm font-medium">Event</div>
