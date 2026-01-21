@@ -1,4 +1,4 @@
-/** biome-ignore-all lint/suspicious/noExplicitAny: <explanation> */
+/** biome-ignore-all lint/suspicious/noExplicitAny: Column definitions use internal TanStack Table types that require 'any' assertions for testing */
 import { describe, expect, it } from 'vitest'
 import { createEventsColumns } from './createEventsColumns'
 import type { BaseEvent } from './types'
