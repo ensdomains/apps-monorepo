@@ -78,6 +78,10 @@ const TransactionDetails = ({
 
   const formattedTimestamp = formatTimestamp(timestamp)
 
+  // Extract name from events if not provided at top level
+  const displayName =
+    name || events.find((e) => e.id && !e.id.startsWith('0x'))?.id || ''
+
   if (isLoading) {
     return (
       <div className="p-6 flex flex-col gap-4">
@@ -101,7 +105,9 @@ const TransactionDetails = ({
   return (
     <div className="p-6 flex flex-col gap-6 h-screen">
       <div className="flex flex-col gap-4">
-        <DetailRow label="Name" value={<NameDisplay name={name} />} />
+        {displayName && (
+          <DetailRow label="Name" value={<NameDisplay name={displayName} />} />
+        )}
 
         <DetailRow
           label="Tx Hash"

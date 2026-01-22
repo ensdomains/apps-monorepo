@@ -20,10 +20,8 @@ type AddressHistoryData = {
 }
 
 export const AddressHistoryDataTable = ({
-  address,
   history,
 }: {
-  address: string
   history: AddressHistoryData
 }) => {
   // Transform and merge V1 and V2 events into a single sorted array
@@ -96,7 +94,7 @@ export const AddressHistoryDataTable = ({
   return (
     <EventsDataTable<ENSEvent>
       data={eventsDataWithTimestampsAndSenders}
-      name={address}
+      name="" // Name will be extracted from individual transaction events in the sidebar
       enableSidebar={true}
       enableFilters={true}
       enableSearch={true}

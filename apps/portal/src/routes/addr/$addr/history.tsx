@@ -64,7 +64,6 @@ function RouteComponent() {
         History for {addr}
       </h1>
       <AddressHistoryDataTable
-        address={addr}
         history={{
           v1Events: v1Data,
           v2Events: v2Data,
