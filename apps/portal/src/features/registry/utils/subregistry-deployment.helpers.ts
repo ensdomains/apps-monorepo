@@ -6,11 +6,15 @@ import {
   deploySubregistryWriteParameters,
   setSubregistryWriteParameters,
 } from '@ensdomains/ensjs/wallet'
-import { errAsync, okAsync, type ResultAsync } from 'neverthrow'
+import { errAsync, fromThrowable, okAsync, type ResultAsync } from 'neverthrow'
 import type { Account, Address, Chain, Transport, WalletClient } from 'viem'
 import { encodeFunctionData } from 'viem'
 
 type WalletClientWithAccount = WalletClient<Transport, Chain, Account>
+
+const safeEncodeFunctionData = fromThrowable(encodeFunctionData, (e) =>
+  e instanceof Error ? e : new Error(String(e)),
+)
 
 interface PrepareDeploySubregistryParams {
   readonly factoryAddress: Address
@@ -55,17 +59,21 @@ export function prepareDeploySubregistryTransaction({
     implAddress,
   })
 
-  const data = encodeFunctionData({
+  const dataResult = safeEncodeFunctionData({
     abi: writeParams.abi,
     functionName: writeParams.functionName,
     args: writeParams.args,
   })
 
+  if (dataResult.isErr()) {
+    return errAsync(dataResult.error)
+  }
+
   const request: EOATransactionRequest = {
     type: 'eoa',
     from: walletClient.account.address,
     to: writeParams.address,
-    data,
+    data: dataResult.value,
     chainId,
   }
 
@@ -98,17 +106,21 @@ export function prepareSetSubregistryTransaction({
     subregistryAddress,
   })
 
-  const data = encodeFunctionData({
+  const dataResult = safeEncodeFunctionData({
     abi: writeParams.abi,
     functionName: writeParams.functionName,
     args: writeParams.args,
   })
 
+  if (dataResult.isErr()) {
+    return errAsync(dataResult.error)
+  }
+
   const request: EOATransactionRequest = {
     type: 'eoa',
     from: walletClient.account.address,
     to: writeParams.address,
-    data,
+    data: dataResult.value,
     chainId,
     gas: 500000n,
   }
