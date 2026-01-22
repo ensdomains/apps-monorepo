@@ -47,11 +47,7 @@ const NameDisplay = ({ name }: NameDisplayProps) => {
       <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
       <CopyableRecord
         value={name}
-        displayValue={
-          <span className="flex items-center gap-1">
-            {truncateAddress(name)}
-          </span>
-        }
+        displayValue={<span className="flex items-center gap-1">{name}</span>}
         className="underline decoration-dashed underline-offset-4"
         href={`/name/${name}`}
       />
