@@ -127,8 +127,15 @@ export const NavBar = () => {
         {/* Desktop icons */}
         <div className="hidden md:flex gap-2 flex-row items-center">
           <Popover>
-            <PopoverTrigger className="cursor-pointer">
-              <CircleQuestionMarkIcon className="size-4" />
+            <PopoverTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-7"
+                aria-label="Help menu"
+              >
+                <CircleQuestionMarkIcon className="size-4" />
+              </Button>
             </PopoverTrigger>
             <PopoverContent align="end">
               <HelpMenu />
@@ -136,8 +143,15 @@ export const NavBar = () => {
           </Popover>
 
           <Popover>
-            <PopoverTrigger className="cursor-pointer">
-              <SettingsIcon className="size-4" />
+            <PopoverTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-7"
+                aria-label="Settings"
+              >
+                <SettingsIcon className="size-4" />
+              </Button>
             </PopoverTrigger>
             <PopoverContent align="end">
               <TableViewSwitch />
@@ -146,6 +160,7 @@ export const NavBar = () => {
           <ExternalLink
             className="flex flex-row items-center gap-1"
             href="https://docs.ens.domains"
+            aria-label="Documentation"
           >
             <BookIcon className="size-4" />
           </ExternalLink>
