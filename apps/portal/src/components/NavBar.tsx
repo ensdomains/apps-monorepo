@@ -11,6 +11,7 @@ import { ExternalLink } from 'react-external-link'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
 import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
 import { TableViewSwitch } from '@/features/records/components/RecordsTable/TableViewSwitch'
+import { HelpMenu } from './HelpMenu'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import {
@@ -84,15 +85,19 @@ export const NavBar = () => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <ExternalLink
-                className="flex flex-row items-center gap-2"
-                href="https://ens.domains/ensv2"
-              >
-                <CircleQuestionMarkIcon className="size-4" />
-                Help
-              </ExternalLink>
-            </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <div className="flex flex-row items-center gap-2">
+                  <CircleQuestionMarkIcon className="size-4" />
+                  Help
+                </div>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <div className="p-2">
+                  <HelpMenu />
+                </div>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <div className="flex flex-row items-center gap-2">
@@ -121,12 +126,14 @@ export const NavBar = () => {
 
         {/* Desktop icons */}
         <div className="hidden md:flex gap-2 flex-row items-center">
-          <ExternalLink
-            className="flex flex-row items-center gap-1"
-            href="https://ens.domains/ensv2"
-          >
-            <CircleQuestionMarkIcon className="size-4" />
-          </ExternalLink>
+          <Popover>
+            <PopoverTrigger className="cursor-pointer">
+              <CircleQuestionMarkIcon className="size-4" />
+            </PopoverTrigger>
+            <PopoverContent align="end">
+              <HelpMenu />
+            </PopoverContent>
+          </Popover>
 
           <Popover>
             <PopoverTrigger className="cursor-pointer">
