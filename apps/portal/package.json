@@ -20,6 +20,7 @@
   "dependencies": {
     "@adraffy/ens-normalize": "^1.11.1",
     "@ens-apps/l2-primary": "workspace:*",
+    "@ens-apps/transaction-manager": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/address-encoder": "^1.1.4",
     "@ensdomains/ensjs": "catalog:",

@@ -12,9 +12,9 @@ import { Button } from '@/components/ui/button'
 import { DeployRegistryForm } from '@/features/registry/components/DeployRegistryForm'
 import { DeployTransactionStatus } from '@/features/registry/components/DeployTransactionStatus'
 import { SetSubregistryTransactionStatus } from '@/features/registry/components/SetSubregistryTransactionStatus'
-import { useDeployRegistryMutations } from '@/features/registry/hooks/useDeployRegistryMutations'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { useSubregistryDeployment } from '@/features/registry/hooks/useSubregistryDeployment'
 import {
   namechainUserRegistryAddress,
   sepoliaUserRegistryAddress,
@@ -77,44 +77,50 @@ function RouteComponent() {
     ? (contractAddress as Address)
     : factoryAddress
 
-  const {
-    deploySubregistry,
-    deployTxHash,
-    isWriting,
-    isConfirming,
-    deployError,
-    setSubregistryTxHash,
-    isSettingSubregistry,
-    isConfirmingSetSubregistry,
-    isSetSubregistryConfirmed,
-    isSetSubregistryReverted,
-    setSubregistryError,
-    setSubregistryReceiptError,
-    hasWallet,
-  } = useDeployRegistryMutations({
-    name,
-    factoryAddress: finalFactoryAddress,
-    implAddress,
-    currentNameRegistry,
-    protocolVersion: registryData?.protocolVersion ?? null,
-  })
+  const { deploySubregistry, deployState, setSubregistryState, hasWallet } =
+    useSubregistryDeployment({
+      name,
+      factoryAddress: finalFactoryAddress,
+      implAddress,
+      currentNameRegistry,
+      protocolVersion: registryData?.protocolVersion ?? null,
+    })
 
   const isSubmitDisabled =
     (useCustomRegistry && contractAddress.trim() === '') ||
-    isWriting ||
-    isConfirming ||
-    isSettingSubregistry ||
-    isConfirmingSetSubregistry ||
+    deployState.status === 'submitting' ||
+    deployState.status === 'pending' ||
+    setSubregistryState.status === 'submitting' ||
+    setSubregistryState.status === 'pending' ||
+    setSubregistryState.status === 'success' ||
     !hasWallet
 
   const getButtonText = () => {
-    if (isWriting) return 'Submitting...'
-    if (isConfirming) return 'Deploying...'
-    if (isSettingSubregistry || isConfirmingSetSubregistry)
+    if (deployState.status === 'submitting') return 'Submitting...'
+    if (deployState.status === 'pending') return 'Deploying...'
+    if (
+      setSubregistryState.status === 'submitting' ||
+      setSubregistryState.status === 'pending'
+    )
       return 'Setting subregistry...'
-    if (isSetSubregistryConfirmed) return 'Complete!'
+    if (setSubregistryState.status === 'success') return 'Complete!'
     return 'Deploy subregistry'
   }
+
+  // Derive props for UI components from discriminated union states
+  const deployTxHash =
+    deployState.status === 'pending' ||
+    deployState.status === 'success' ||
+    deployState.status === 'reverted'
+      ? deployState.hash
+      : undefined
+
+  const setSubregistryTxHash =
+    setSubregistryState.status === 'pending' ||
+    setSubregistryState.status === 'success' ||
+    setSubregistryState.status === 'reverted'
+      ? setSubregistryState.hash
+      : undefined
 
   if (isLoading) {
     return <LoadingSpinner title="Loading registry information" />
@@ -250,18 +256,27 @@ function RouteComponent() {
 
       <DeployTransactionStatus
         txHash={deployTxHash}
-        isConfirming={isConfirming}
-        txError={deployError}
+        isConfirming={deployState.status === 'pending'}
+        isConfirmed={deployState.status === 'success'}
+        txError={deployState.status === 'error' ? deployState.error : null}
       />
 
       <SetSubregistryTransactionStatus
         txHash={setSubregistryTxHash}
-        isSettingSubregistry={isSettingSubregistry}
-        isConfirming={isConfirmingSetSubregistry}
-        isConfirmed={isSetSubregistryConfirmed}
-        isReverted={isSetSubregistryReverted}
-        txError={setSubregistryError}
-        receiptError={setSubregistryReceiptError}
+        isSettingSubregistry={setSubregistryState.status === 'submitting'}
+        isConfirming={setSubregistryState.status === 'pending'}
+        isConfirmed={setSubregistryState.status === 'success'}
+        isReverted={setSubregistryState.status === 'reverted'}
+        txError={
+          setSubregistryState.status === 'error'
+            ? setSubregistryState.error
+            : null
+        }
+        receiptError={
+          setSubregistryState.status === 'reverted'
+            ? new Error('Transaction reverted')
+            : null
+        }
       />
     </div>
   )
