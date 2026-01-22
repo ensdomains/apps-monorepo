@@ -19,4 +19,22 @@ describe('parseEventLogIndex', () => {
 
     expect(result).toBeNaN()
   })
+
+  it('should return NaN for null event ID', () => {
+    const result = parseEventLogIndex(null)
+
+    expect(result).toBeNaN()
+  })
+
+  it('should return NaN for undefined event ID', () => {
+    const result = parseEventLogIndex(undefined)
+
+    expect(result).toBeNaN()
+  })
+
+  it('should return NaN for empty string', () => {
+    const result = parseEventLogIndex('')
+
+    expect(result).toBeNaN()
+  })
 })
