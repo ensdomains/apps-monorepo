@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
 import { TransactionEvents } from './TransactionEvents'
 
@@ -46,7 +47,11 @@ const NameDisplay = ({ name }: NameDisplayProps) => {
       <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
       <CopyableRecord
         value={name}
-        displayValue={<span>{name}</span>}
+        displayValue={
+          <span className="flex items-center gap-1">
+            {truncateAddress(name)}
+          </span>
+        }
         className="underline decoration-dashed underline-offset-4"
         href={`/name/${name}`}
       />
@@ -105,7 +110,7 @@ const TransactionDetails = ({
               value={txHash}
               displayValue={
                 <span className="flex items-center gap-1">
-                  {txHash.slice(0, 10)}...{txHash.slice(-8)}
+                  {truncateAddress(txHash, 10, 8, '...')}
                 </span>
               }
               href={`https://sepolia.etherscan.io/tx/${txHash}`}
