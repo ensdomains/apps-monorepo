@@ -106,7 +106,7 @@ export function prepareSetSubregistryTransaction({
 
   const request: EOATransactionRequest = {
     type: 'eoa',
-    from: walletClient.account?.address as Address,
+    from: walletClient.account.address,
     to: writeParams.address,
     data,
     chainId,
