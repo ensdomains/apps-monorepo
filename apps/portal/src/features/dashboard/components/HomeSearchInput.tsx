@@ -20,8 +20,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useDebouncedValue } from '@/hooks/useDebounce'
 import { ensureEthSuffix } from '@/utils/ens/ensureEthSuffix'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -36,6 +38,7 @@ type Suggestion = {
 export const HomeSearchInput = () => {
   const searchNamesAndAddressesId = useId()
   const navigate = useNavigate({ from: '/' })
+  const isMobile = useIsMobile()
   const [searchValue, setSearchValue] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState<number>(-1)
@@ -57,7 +60,7 @@ export const HomeSearchInput = () => {
           const checksum = checksumAddress(value as Address)
           items.push({
             id: `address:${checksum}`,
-            label: checksum,
+            label: isMobile ? truncateAddress(checksum) : checksum,
             description: 'View address details',
             inputValue: checksum,
             action: () =>
@@ -71,9 +74,14 @@ export const HomeSearchInput = () => {
         }
       }
       const normalizedName = ensureEthSuffix(value)
+      // Truncate ENS name label on mobile if it contains a long address (starts with 0x)
+      const displayLabel =
+        isMobile && normalizedName.startsWith('0x')
+          ? `${truncateAddress(normalizedName.replace('.eth', ''))}.eth`
+          : normalizedName
       items.push({
         id: `name:${normalizedName}`,
-        label: normalizedName,
+        label: displayLabel,
         description: 'View ENS name details',
         inputValue: normalizedName,
         action: () =>
@@ -84,7 +92,7 @@ export const HomeSearchInput = () => {
       })
       return items
     },
-    [navigate],
+    [navigate, isMobile],
   )
 
   const suggestions = useMemo<Suggestion[]>(
