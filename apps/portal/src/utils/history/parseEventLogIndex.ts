@@ -16,8 +16,17 @@
  * @example
  * parseEventLogIndex("invalid")
  * // NaN
+ *
+ * @example
+ * parseEventLogIndex(null)
+ * // NaN
  */
-export const parseEventLogIndex = (eventId: string): number => {
+export const parseEventLogIndex = (
+  eventId: string | null | undefined,
+): number => {
+  if (!eventId) {
+    return Number.NaN
+  }
   const logIndex = eventId.split('-')[1]
   return Number.parseInt(logIndex, 10)
 }
