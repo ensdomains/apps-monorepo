@@ -1,6 +1,6 @@
 import type { Row } from '@tanstack/react-table'
 import { getCoreRowModel, useReactTable } from '@tanstack/react-table'
-import { render, screen } from '@testing-library/react'
+import { render, renderHook, screen } from '@testing-library/react'
 import type { Hash } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import type { BaseEvent, EventsTableData } from './types'
@@ -108,20 +108,12 @@ const createMockRow = (data: EventsTableData): Row<EventsTableData> => {
   }
 
   const { result } = renderHook(() => TestComponent())
-  return result as Row<EventsTableData>
-}
 
-const renderHook = <T,>(hook: () => T): { result: T } => {
-  let result: T | undefined
-  const Component = () => {
-    result = hook()
-    return null
+  if (!result.current) {
+    throw new Error('Mock row was not created')
   }
-  render(<Component />)
-  if (!result) {
-    throw new Error('Hook did not return a value')
-  }
-  return { result }
+
+  return result.current
 }
 
 describe('EventsSidebar', () => {
@@ -223,7 +215,7 @@ describe('EventsSidebar', () => {
       </EventsSidebar>,
     )
 
-    expect(screen.getByText(/0x123abc.../)).toBeInTheDocument()
+    expect(screen.getByText('0x123abc')).toBeInTheDocument()
   })
 
   it('should display formatted timestamp when available', () => {

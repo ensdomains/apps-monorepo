@@ -38,7 +38,7 @@ vi.mock('@/utils/formatting/truncateAddress', () => ({
 import { useEnsName } from 'wagmi'
 
 describe('AddressDisplay', () => {
-  const mockAddress = '0x1234567890abcdef1234567890abcdef12345678' as Address
+  const mockAddress = '0x1234567890abcdef1234567890abcdef12345678'
 
   beforeEach(() => {
     vi.clearAllMocks()
