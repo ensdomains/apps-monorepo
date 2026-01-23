@@ -147,6 +147,24 @@ describe('HomeSearchInput', () => {
       })
     })
 
+    it('should NOT truncate ENS names starting with 0x but not being addresses on mobile', async () => {
+      vi.mocked(useIsMobile).mockReturnValue(true)
+      const user = userEvent.setup()
+
+      render(<HomeSearchInput />)
+
+      const input = screen.getByPlaceholderText('Search name or address...')
+      await user.click(input)
+      // Type a name that starts with "0x" but is too short to be an address
+      await user.type(input, '0xdev')
+
+      await waitFor(() => {
+        // Should show full name, NOT truncated (only 5 chars, not 42)
+        expect(screen.getByText('0xdev.eth')).toBeInTheDocument()
+        expect(screen.queryByText(/0xde…/)).not.toBeInTheDocument()
+      })
+    })
+
     it('should auto-append .eth suffix to ENS names', async () => {
       vi.mocked(useIsMobile).mockReturnValue(false)
       const user = userEvent.setup()

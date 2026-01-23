@@ -9,7 +9,6 @@ import {
   useRef,
   useState,
 } from 'react'
-import { type Address, checksumAddress, isAddress } from 'viem'
 import {
   InputGroup,
   InputGroupAddon,
@@ -22,18 +21,12 @@ import {
 } from '@/components/ui/popover'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useDebouncedValue } from '@/hooks/useDebounce'
-import { ensureEthSuffix } from '@/utils/ens/ensureEthSuffix'
-import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import {
+  buildSearchSuggestions,
+  type Suggestion,
+} from '../utils/buildSearchSuggestions'
 
 const SEARCH_DEBOUNCE_MS = 300
-
-type Suggestion = {
-  id: string
-  label: string
-  description?: string
-  action: () => void
-  inputValue: string
-}
 
 export const HomeSearchInput = () => {
   const searchNamesAndAddressesId = useId()
@@ -51,53 +44,36 @@ export const HomeSearchInput = () => {
   )
   const trimmedSearch = debouncedSearchValue.trim()
 
-  const buildSuggestions = useCallback(
-    (value: string): Suggestion[] => {
-      if (!value) return []
-      const items: Suggestion[] = []
-      if (isAddress(value, { strict: false })) {
-        try {
-          const checksum = checksumAddress(value as Address)
-          items.push({
-            id: `address:${checksum}`,
-            label: isMobile ? truncateAddress(checksum) : checksum,
-            description: 'View address details',
-            inputValue: checksum,
-            action: () =>
-              navigate({
-                to: '/addr/$addr',
-                params: { addr: checksum },
-              }),
-          })
-        } catch {
-          return []
-        }
-      }
-      const normalizedName = ensureEthSuffix(value)
-      // Truncate ENS name label on mobile if it contains a long address (starts with 0x)
-      const displayLabel =
-        isMobile && normalizedName.startsWith('0x')
-          ? `${truncateAddress(normalizedName.replace('.eth', ''))}.eth`
-          : normalizedName
-      items.push({
-        id: `name:${normalizedName}`,
-        label: displayLabel,
-        description: 'View ENS name details',
-        inputValue: normalizedName,
-        action: () =>
-          navigate({
-            to: '/$name',
-            params: { name: normalizedName },
-          }),
+  // Navigation callbacks for the pure function
+  const navigateToAddress = useCallback(
+    (address: string) => {
+      navigate({
+        to: '/addr/$addr',
+        params: { addr: address },
       })
-      return items
     },
-    [navigate, isMobile],
+    [navigate],
   )
 
-  const suggestions = useMemo<Suggestion[]>(
-    () => buildSuggestions(trimmedSearch),
-    [buildSuggestions, trimmedSearch],
+  const navigateToName = useCallback(
+    (name: string) => {
+      navigate({
+        to: '/$name',
+        params: { name },
+      })
+    },
+    [navigate],
+  )
+
+  const suggestions = useMemo(
+    () =>
+      buildSearchSuggestions({
+        value: trimmedSearch,
+        isMobile,
+        navigateToAddress,
+        navigateToName,
+      }),
+    [trimmedSearch, isMobile, navigateToAddress, navigateToName],
   )
 
   useEffect(() => {
