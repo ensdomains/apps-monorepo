@@ -4,7 +4,7 @@ import {
   type Table as TableData,
 } from '@tanstack/react-table'
 import { useState } from 'react'
-import type { Address } from 'viem'
+import { type Address, isAddressEqual } from 'viem'
 import { useConnection } from 'wagmi'
 import { SidebarTriggerRow } from '@/components/SidebarTriggerRow'
 import {
@@ -42,7 +42,8 @@ export const ReverseResolutionTable = ({
   const { address: account } = useConnection()
 
   // Only show "More" button if the displayed address matches the connected account
-  const canModify = account?.toLowerCase() === address.toLowerCase()
+  // Using isAddressEqual for case-insensitive comparison
+  const canModify = account ? isAddressEqual(account, address) : false
 
   return (
     <ReverseResolutionSidebar
