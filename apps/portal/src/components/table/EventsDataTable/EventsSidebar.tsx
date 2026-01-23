@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
 import { TransactionEvents } from './TransactionEvents'
 
@@ -46,7 +47,7 @@ const NameDisplay = ({ name }: NameDisplayProps) => {
       <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
       <CopyableRecord
         value={name}
-        displayValue={<span>{name}</span>}
+        displayValue={<span className="flex items-center gap-1">{name}</span>}
         className="underline decoration-dashed underline-offset-4"
         href={`/name/${name}`}
       />
@@ -73,6 +74,10 @@ const TransactionDetails = ({
 
   const formattedTimestamp = formatTimestamp(timestamp)
 
+  // Extract name from events if not provided at top level
+  const displayName =
+    name || events.find((e) => e.id && !e.id.startsWith('0x'))?.id || ''
+
   if (isLoading) {
     return (
       <div className="p-6 flex flex-col gap-4">
@@ -94,9 +99,11 @@ const TransactionDetails = ({
   }
 
   return (
-    <div className="p-6 flex flex-col gap-6 h-screen">
+    <div className="p-6 flex flex-col gap-6">
       <div className="flex flex-col gap-4">
-        <DetailRow label="Name" value={<NameDisplay name={name} />} />
+        {displayName && (
+          <DetailRow label="Name" value={<NameDisplay name={displayName} />} />
+        )}
 
         <DetailRow
           label="Tx Hash"
@@ -105,7 +112,7 @@ const TransactionDetails = ({
               value={txHash}
               displayValue={
                 <span className="flex items-center gap-1">
-                  {txHash.slice(0, 10)}...{txHash.slice(-8)}
+                  {truncateAddress(txHash, 10, 8, '...')}
                 </span>
               }
               href={`https://sepolia.etherscan.io/tx/${txHash}`}
@@ -176,24 +183,26 @@ export const EventsSidebar: FC<EventsSidebarProps> = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-white overflow-y-auto"
+        className="sm:max-w-[880px] bg-white p-0 flex flex-col h-dvh"
       >
-        <div className="p-6 flex flex-col gap-6 h-screen">
+        {/* Fixed header at the top */}
+        <div className="p-6 shrink-0 border-b">
           <SheetHeader>
             <SheetTitle className="font-sans text-[28px] font-medium">
               Transaction
             </SheetTitle>
           </SheetHeader>
+        </div>
 
+        {/* Scrollable content area */}
+        <div className="flex-1 overflow-y-auto">
           {row ? (
-            <div className="flex flex-col gap-6">
-              <TransactionDetails
-                txHash={row.original.transactionID as Hash}
-                name={name}
-                timestamp={row.original.timestamp}
-                events={row.original.events}
-              />
-            </div>
+            <TransactionDetails
+              txHash={row.original.transactionID as Hash}
+              name={name}
+              timestamp={row.original.timestamp}
+              events={row.original.events}
+            />
           ) : (
             <div className="text-gray-400 text-center py-12">
               No transaction selected
