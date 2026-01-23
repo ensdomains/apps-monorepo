@@ -6,7 +6,6 @@ import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { RecordList } from '@/features/records/components/RecordList'
-import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/$name/records')({
@@ -27,7 +26,7 @@ function App() {
     return (
       <ErrorMessage
         title="Records unavailable"
-        description={extractErrorMessage(error, 'Could not load records.')}
+        description={error.cause.message}
       />
     )
   }

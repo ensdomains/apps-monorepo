@@ -7,7 +7,6 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { HistoryDataTable } from '@/features/history/components/HistoryDataTable'
 import { getNameHistoryQueryOptions } from '@/features/profile/hooks/useNameHistory'
 import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
-import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/$name/history')({
