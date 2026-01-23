@@ -292,6 +292,135 @@ describe('transformAndMergeNameHistory', () => {
     })
   })
 
+  describe('Edge Cases', () => {
+    it('should handle V1 history with null registration events', () => {
+      const v1History: GetNameHistoryReturnType = {
+        domainEvents: [
+          {
+            id: 'vitalik.eth',
+            type: 'Transfer',
+            transactionID: '0x123',
+            blockNumber: 100,
+            owner: '0x123',
+          },
+        ],
+        registrationEvents: null,
+        resolverEvents: null,
+      }
+
+      const result = transformAndMergeNameHistory(v1History)
+
+      expect(result).toHaveLength(1)
+      expect(result[0].events).toHaveLength(1)
+      expect(result[0].events[0].type).toBe('Transfer')
+    })
+
+    it('should handle mixed event categories in same transaction', () => {
+      const v1History: GetNameHistoryReturnType = {
+        domainEvents: [
+          {
+            id: 'vitalik.eth',
+            type: 'Transfer',
+            transactionID: '0x123',
+            blockNumber: 100,
+            owner: '0x123',
+          },
+        ],
+        registrationEvents: [
+          {
+            id: 'vitalik.eth',
+            type: 'NameRegistered',
+            transactionID: '0x123',
+            blockNumber: 100,
+            registrant: '0x123',
+            expiryDate: '1000000',
+          },
+        ],
+        resolverEvents: [
+          {
+            id: 'vitalik.eth',
+            type: 'AddrChanged',
+            transactionID: '0x123',
+            blockNumber: 100,
+            addr: '0x123',
+          },
+        ],
+      }
+
+      const result = transformAndMergeNameHistory(v1History)
+
+      expect(result).toHaveLength(1)
+      expect(result[0].events).toHaveLength(3)
+      expect(result[0].events[0].category).toBe('domain')
+      expect(result[0].events[1].category).toBe('registration')
+      expect(result[0].events[2].category).toBe('resolver')
+    })
+
+    it('should handle empty arrays vs null for V1 events', () => {
+      const v1HistoryWithEmpty: GetNameHistoryReturnType = {
+        domainEvents: [],
+        registrationEvents: [],
+        resolverEvents: [],
+      }
+
+      const v1HistoryWithNull: GetNameHistoryReturnType = {
+        domainEvents: [],
+        registrationEvents: null,
+        resolverEvents: null,
+      }
+
+      const resultEmpty = transformAndMergeNameHistory(v1HistoryWithEmpty)
+      const resultNull = transformAndMergeNameHistory(v1HistoryWithNull)
+
+      expect(resultEmpty).toEqual([])
+      expect(resultNull).toEqual([])
+    })
+
+    it('should preserve event details in the output', () => {
+      const v1History: GetNameHistoryReturnType = {
+        domainEvents: [
+          {
+            id: 'vitalik.eth',
+            type: 'Transfer',
+            transactionID: '0x123',
+            blockNumber: 100,
+            owner: '0xabc',
+            // biome-ignore lint/suspicious/noExplicitAny: test data
+          } as any,
+        ],
+        registrationEvents: [],
+        resolverEvents: [],
+      }
+
+      const result = transformAndMergeNameHistory(v1History)
+
+      expect(result[0].events[0].details).toEqual({
+        id: 'vitalik.eth',
+        type: 'Transfer',
+        transactionID: '0x123',
+        blockNumber: 100,
+        owner: '0xabc',
+      })
+    })
+
+    it('should handle V2 events with null name field', () => {
+      const v2History: V2NameHistoryEvent[] = [
+        {
+          name: null as unknown as string,
+          type: 'TextChanged',
+          transactionHash: '0x123',
+          timestamp: 1000,
+          blockNumber: 100,
+        },
+      ]
+
+      const result = transformAndMergeNameHistory(undefined, v2History)
+
+      expect(result).toHaveLength(1)
+      expect(result[0].events[0].id).toBe(null)
+    })
+  })
+
   describe('Event Categorization', () => {
     it('should categorize registration events correctly', () => {
       const v2History: V2NameHistoryEvent[] = [
