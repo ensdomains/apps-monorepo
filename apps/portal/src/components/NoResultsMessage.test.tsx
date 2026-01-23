@@ -8,7 +8,7 @@ describe('NoResultsMessage', () => {
 
     expect(screen.getByText('No results found')).toBeInTheDocument()
     expect(
-      screen.getByText('There`s nothing here yet. Check back later!'),
+      screen.getByText("There's nothing here yet. Check back later!"),
     ).toBeInTheDocument()
   })
 
@@ -17,7 +17,7 @@ describe('NoResultsMessage', () => {
 
     expect(screen.getByText('Custom Title')).toBeInTheDocument()
     expect(
-      screen.getByText('There`s nothing here yet. Check back later!'),
+      screen.getByText("There's nothing here yet. Check back later!"),
     ).toBeInTheDocument()
   })
 
@@ -27,7 +27,7 @@ describe('NoResultsMessage', () => {
     expect(screen.getByText('No results found')).toBeInTheDocument()
     expect(screen.getByText('Custom description text')).toBeInTheDocument()
     expect(
-      screen.queryByText('There`s nothing here yet. Check back later!'),
+      screen.queryByText("There's nothing here yet. Check back later!"),
     ).not.toBeInTheDocument()
   })
 

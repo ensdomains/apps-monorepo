@@ -6,10 +6,10 @@ interface NoResultsMessageProps {
   description?: React.ReactNode
 }
 
-export function NoResultsMessage({
+export const NoResultsMessage = ({
   title = 'No results found',
   description,
-}: NoResultsMessageProps) {
+}: NoResultsMessageProps) => {
   const defaultDescription = "There's nothing here yet. Check back later!"
 
   return (
