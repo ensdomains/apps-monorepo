@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
@@ -87,6 +88,16 @@ export const AddressHistoryDataTable = ({
       <ErrorMessage
         title="Error loading transaction senders"
         description={sendersError.cause?.message}
+      />
+    )
+  }
+
+  // Check if there's no history data
+  if (eventsDataWithTimestampsAndSenders.length === 0) {
+    return (
+      <NoResultsMessage
+        title="No history yet"
+        description="This address doesn't have any recorded history. Activity will appear here once transactions are made."
       />
     )
   }

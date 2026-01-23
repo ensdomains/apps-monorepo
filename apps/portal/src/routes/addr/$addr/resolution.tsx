@@ -12,6 +12,7 @@ import { useId, useState } from 'react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import {
   InputGroup,
@@ -65,9 +66,9 @@ function RouteComponent() {
 
   if (!data) {
     return (
-      <ErrorMessage
-        title="Data unavailable"
-        description="Could not load data."
+      <NoResultsMessage
+        title="No names found"
+        description="This address doesn't resolve to any ENS names yet."
       />
     )
   }
