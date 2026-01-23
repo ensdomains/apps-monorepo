@@ -1,8 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import {
   ClockIcon,
-  CopyIcon,
-  CopySlashIcon,
   IdCardLanyard,
   SquareUserIcon,
   WalletIcon,
