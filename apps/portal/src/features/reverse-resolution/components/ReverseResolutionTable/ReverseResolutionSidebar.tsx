@@ -11,6 +11,7 @@ import {
   useMemo,
   useState,
 } from 'react'
+import { match } from 'ts-pattern'
 import type { Address, Hash } from 'viem'
 import {
   useConnection,
@@ -332,15 +333,17 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     !isConnected || isPendingForward || isSwitchingChain
                   }
                 >
-                  {!isConnected
-                    ? 'Connect Wallet'
-                    : isSwitchingChain
-                      ? 'Switching...'
-                      : isPendingForward
-                        ? 'Setting...'
-                        : isWrongChain
-                          ? 'Switch Network'
-                          : 'Set primary name'}
+                  {match({
+                    isConnected,
+                    isSwitchingChain,
+                    isPendingForward,
+                    isWrongChain,
+                  })
+                    .with({ isConnected: false }, () => 'Connect Wallet')
+                    .with({ isSwitchingChain: true }, () => 'Switching...')
+                    .with({ isPendingForward: true }, () => 'Setting...')
+                    .with({ isWrongChain: true }, () => 'Switch Network')
+                    .otherwise(() => 'Set primary name')}
                 </Button>
               )}
             </div>
@@ -396,9 +399,9 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     disabled={
                       !isConnected || isPendingUpdate || isSwitchingChain
                     }
-                    placeholder={
-                      !isConnected ? 'Connect wallet to update' : undefined
-                    }
+                    placeholder={match(isConnected)
+                      .with(false, () => 'Connect wallet to update')
+                      .otherwise(() => undefined)}
                     pattern=".*\.eth$"
                     title="Name must end with .eth"
                     required
@@ -414,15 +417,17 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     }
                     size="sm"
                   >
-                    {!isConnected
-                      ? 'Connect Wallet'
-                      : isSwitchingChain
-                        ? 'Switching...'
-                        : isPendingUpdate
-                          ? 'Setting...'
-                          : isWrongChain
-                            ? 'Switch Network'
-                            : 'Update'}
+                    {match({
+                      isConnected,
+                      isSwitchingChain,
+                      isPendingUpdate,
+                      isWrongChain,
+                    })
+                      .with({ isConnected: false }, () => 'Connect Wallet')
+                      .with({ isSwitchingChain: true }, () => 'Switching...')
+                      .with({ isPendingUpdate: true }, () => 'Setting...')
+                      .with({ isWrongChain: true }, () => 'Switch Network')
+                      .otherwise(() => 'Update')}
                   </Button>
                 </form>
               </div>
