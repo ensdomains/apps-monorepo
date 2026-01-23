@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -6,35 +6,64 @@ import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { HistoryDataTable } from '@/features/history/components/HistoryDataTable'
 import { getNameHistoryQueryOptions } from '@/features/profile/hooks/useNameHistory'
+import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/$name/history')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
   loader: ({ params }) => {
-    return queryClient.prefetchQuery(
-      getNameHistoryQueryOptions({ name: params.name }),
-    )
+    return Promise.all([
+      queryClient.prefetchQuery(
+        getNameHistoryQueryOptions({ name: params.name }),
+      ),
+      queryClient.prefetchQuery(
+        getV2NameHistoryQueryOptions({ name: params.name }),
+      ),
+    ])
   },
 })
 
 function RouteComponent() {
   const { name } = Route.useParams()
-  const { data, isLoading, error } = useQuery(
-    getNameHistoryQueryOptions({ name }),
-  )
 
-  if (isLoading) return <LoadingMessage />
+  const [v1Query, v2Query] = useQueries({
+    queries: [
+      getNameHistoryQueryOptions({ name }),
+      getV2NameHistoryQueryOptions({ name }),
+    ],
+  })
 
-  if (error) {
-    const message =
-      (error.cause as Error | undefined)?.message ||
-      (error as Error).message ||
-      'Could not load history.'
-    return <ErrorMessage title="Error loading history" description={message} />
+  if (v1Query.isLoading || v2Query.isLoading) {
+    return <LoadingMessage />
   }
 
-  if (!data) {
+  if (v1Query.error) {
+    return (
+      <ErrorMessage
+        title="Error loading V1 history"
+        description={v1Query.error.cause?.message}
+      />
+    )
+  }
+
+  if (v2Query.error) {
+    return (
+      <ErrorMessage
+        title="Error loading V2 history"
+        description={v2Query.error.cause?.message}
+      />
+    )
+  }
+
+  const hasV1Data =
+    v1Query.data &&
+    Object.values(v1Query.data).some(
+      (arr) => Array.isArray(arr) && arr.length > 0,
+    )
+  const hasV2Data = v2Query.data && v2Query.data.length > 0
+
+  if (!hasV1Data && !hasV2Data) {
     return (
       <NoResultsMessage
         title="No history yet"
@@ -43,5 +72,13 @@ function RouteComponent() {
     )
   }
 
-  return <HistoryDataTable name={name} history={data} />
+  return (
+    <HistoryDataTable
+      name={name}
+      history={{
+        v1History: v1Query.data,
+        v2History: v2Query.data,
+      }}
+    />
+  )
 }

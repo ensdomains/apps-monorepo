@@ -18,6 +18,7 @@ import { ResolverPrimaryName } from '@/features/resolver/components/ResolverPrim
 import { ResolverType } from '@/features/resolver/components/ResolverType'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
 import { namechainSepolia } from '@/lib/wagmi'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
 export const Route = createFileRoute('/$name/resolver')({
   component: RouteComponent,
@@ -209,13 +210,14 @@ function RouteComponent() {
   })
 
   if (error) {
-    const message =
-      (error.cause as Error | undefined)?.message ||
-      (error as Error).message ||
-      null
     if (error.name === 'ChainDoesNotSupportContract')
       return <ErrorMessage title="Chain does not have UniversalResolver" />
-    return <ErrorMessage title="Error loading resolver" description={message} />
+    return (
+      <ErrorMessage
+        title="Error loading resolver"
+        description={extractErrorMessage(error, '')}
+      />
+    )
   }
 
   if (isLoading) return <LoadingMessage />

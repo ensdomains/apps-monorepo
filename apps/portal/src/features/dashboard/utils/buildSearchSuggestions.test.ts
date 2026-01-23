@@ -192,4 +192,84 @@ describe('buildSearchSuggestions', () => {
       expect(result[0].label).toBe('sub.vitalik.eth')
     })
   })
+
+  describe('Long ENS Name Truncation', () => {
+    it('should truncate long ENS names on mobile', () => {
+      // Name without dots gets .eth added
+      const longName = 'verylongsubdomainanotherlongsubdomainvitalik'
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: longName,
+        isMobile: true,
+      })
+
+      expect(result.length).toBe(1)
+      // Label should be truncated
+      expect(result[0].label.length).toBeLessThanOrEqual(30)
+      expect(result[0].label).toContain('…')
+      expect(result[0].label.endsWith('.eth')).toBe(true)
+      // But inputValue should be full name
+      expect(result[0].inputValue).toBe(`${longName}.eth`)
+    })
+
+    it('should NOT truncate long ENS names on desktop', () => {
+      const longName = 'verylongsubdomainanotherlongsubdomainvitalik'
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: longName,
+        isMobile: false,
+      })
+
+      expect(result.length).toBe(1)
+      // Label should be full name on desktop
+      expect(result[0].label).toBe(`${longName}.eth`)
+      expect(result[0].label).not.toContain('…')
+      expect(result[0].inputValue).toBe(`${longName}.eth`)
+    })
+
+    it('should truncate long subdomain ENS names on mobile', () => {
+      // Name with .eth already present
+      const longName = 'verylongsubdomain.anotherlongsubdomain.vitalik.eth'
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: longName,
+        isMobile: true,
+      })
+
+      expect(result.length).toBe(1)
+      // Label should be truncated
+      expect(result[0].label.length).toBeLessThanOrEqual(30)
+      expect(result[0].label).toContain('…')
+      expect(result[0].label.endsWith('.eth')).toBe(true)
+      // inputValue should be the same (already has .eth)
+      expect(result[0].inputValue).toBe(longName)
+    })
+
+    it('should NOT truncate short ENS names on mobile', () => {
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: 'vitalik',
+        isMobile: true,
+      })
+
+      expect(result.length).toBe(1)
+      expect(result[0].label).toBe('vitalik.eth')
+      expect(result[0].label).not.toContain('…')
+    })
+
+    it('should truncate address-as-name on mobile', () => {
+      const longHexName = '0x1234567890abcdef1234567890abcdef12345678'
+      // This is not a valid address (would need proper checksum), so treated as name
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: `${longHexName}z`, // Add 'z' to make it invalid address
+        isMobile: true,
+      })
+
+      expect(result.length).toBe(1)
+      expect(result[0].label.length).toBeLessThanOrEqual(30)
+      expect(result[0].label).toContain('…')
+      expect(result[0].label.endsWith('.eth')).toBe(true)
+    })
+  })
 })

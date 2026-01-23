@@ -60,9 +60,15 @@ export const buildSearchSuggestions = ({
   // Add .eth suffix if not present
   const valueWithEthSuffix = ensureEthSuffix(trimmedValue)
 
+  // Truncate long names on mobile to prevent overflow
+  // Show 18 chars from start, 8 from end (including .eth) = ~27 chars total
+  const displayLabel = isMobile
+    ? truncateAddress(valueWithEthSuffix, 18, 8)
+    : valueWithEthSuffix
+
   items.push({
     id: `name:${valueWithEthSuffix}`,
-    label: valueWithEthSuffix,
+    label: displayLabel,
     description: 'View ENS name details',
     inputValue: valueWithEthSuffix,
     action: () => navigateToName(valueWithEthSuffix),

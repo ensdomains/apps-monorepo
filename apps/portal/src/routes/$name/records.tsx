@@ -23,11 +23,12 @@ function App() {
   if (isLoading) return <LoadingMessage />
 
   if (error) {
-    const message =
-      (error.cause as Error | undefined)?.message ||
-      (error as Error).message ||
-      'Could not load records.'
-    return <ErrorMessage title="Records unavailable" description={message} />
+    return (
+      <ErrorMessage
+        title="Records unavailable"
+        description={error.cause.message}
+      />
+    )
   }
 
   if (!data) {
