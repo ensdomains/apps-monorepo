@@ -10,7 +10,7 @@ export function NoResultsMessage({
   title = 'No results found',
   description,
 }: NoResultsMessageProps) {
-  const defaultDescription = 'There`s nothing here yet. Check back later!'
+  const defaultDescription = "There's nothing here yet. Check back later!"
 
   return (
     <MessageCard
