@@ -56,8 +56,8 @@ const getV2NameHistory = ResultFn(async function* ({
       }),
   )
 
-  // Flatten events from all domains (should be just one domain)
-  const events = domains.flatMap((domain) => domain.events)
+  // Query returns at most one domain (filtered by name)
+  const events = domains[0]?.events ?? []
 
   return ok(events)
 })
