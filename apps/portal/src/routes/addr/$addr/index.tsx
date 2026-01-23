@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { getV2HistoryForAddressQueryOptions } from '@/features/address/components/hooks/useV2HistoryForAddress'
 import { NameList } from '@/features/dashboard/components/NameList'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
 export const Route = createFileRoute('/addr/$addr/')({
   component: RouteComponent,
@@ -30,11 +31,12 @@ const PrimaryName = ({ address }: PrimaryNameProps) => {
   })
 
   if (error) {
-    const message =
-      (error.cause as Error | undefined)?.message ||
-      (error as Error).message ||
-      'Could not load data.'
-    return <ErrorMessage title="Error loading data" description={message} />
+    return (
+      <ErrorMessage
+        title="Error loading data"
+        description={extractErrorMessage(error)}
+      />
+    )
   }
 
   if (isLoading) return <LoadingMessage />

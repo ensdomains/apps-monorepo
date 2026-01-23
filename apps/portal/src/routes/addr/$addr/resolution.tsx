@@ -22,6 +22,7 @@ import {
 import { columns } from '@/features/forward-resolution/components/ForwardNamesTable/columns'
 import { ForwardNamesTable } from '@/features/forward-resolution/components/ForwardNamesTable/ForwardNamesTable'
 import { getResolvedNamesForAddressQueryOptions } from '@/features/forward-resolution/components/hooks/useNamesForResolvedAddress'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
 export const Route = createFileRoute('/addr/$addr/resolution')({
   component: RouteComponent,
@@ -57,11 +58,12 @@ function RouteComponent() {
   if (isLoading) return <LoadingMessage />
 
   if (error) {
-    const message =
-      (error.cause as Error | undefined)?.message ||
-      (error as Error).message ||
-      'Could not load data.'
-    return <ErrorMessage title="Data unavailable" description={message} />
+    return (
+      <ErrorMessage
+        title="Data unavailable"
+        description={extractErrorMessage(error)}
+      />
+    )
   }
 
   if (!data) {

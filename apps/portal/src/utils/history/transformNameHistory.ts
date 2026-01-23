@@ -48,9 +48,21 @@ export const transformAndMergeNameHistory = (
     }
   >()
 
-  // Process V1 domain events
-  if (v1History?.domainEvents) {
-    v1History.domainEvents.forEach((event) => {
+  // Helper function to process V1 events
+  const processV1Events = (
+    events:
+      | Array<{
+          transactionID: string
+          blockNumber: number
+          id: string
+          type: string
+          [key: string]: unknown
+        }>
+      | null
+      | undefined,
+    category: 'domain' | 'registration' | 'resolver',
+  ) => {
+    events?.forEach((event) => {
       if (!transactionMap.has(event.transactionID)) {
         transactionMap.set(event.transactionID, {
           transactionID: event.transactionID,
@@ -67,61 +79,16 @@ export const transformAndMergeNameHistory = (
       tx.events.push({
         id: event.id,
         type: event.type,
-        category: 'domain',
+        category,
         details: event,
       })
     })
   }
 
-  // Process V1 registration events
-  if (v1History?.registrationEvents) {
-    v1History.registrationEvents.forEach((event) => {
-      if (!transactionMap.has(event.transactionID)) {
-        transactionMap.set(event.transactionID, {
-          transactionID: event.transactionID,
-          blockNumber: event.blockNumber,
-          from: extractEventAddress(event),
-          events: [],
-        })
-      }
-      const tx = transactionMap.get(event.transactionID)
-      if (!tx) return
-      if (!tx.from) {
-        tx.from = extractEventAddress(event)
-      }
-      tx.events.push({
-        id: event.id,
-        type: event.type,
-        category: 'registration',
-        details: event,
-      })
-    })
-  }
-
-  // Process V1 resolver events
-  if (v1History?.resolverEvents) {
-    v1History.resolverEvents.forEach((event) => {
-      if (!transactionMap.has(event.transactionID)) {
-        transactionMap.set(event.transactionID, {
-          transactionID: event.transactionID,
-          blockNumber: event.blockNumber,
-          from: extractEventAddress(event),
-          events: [],
-        })
-      }
-      const tx = transactionMap.get(event.transactionID)
-      if (!tx) return
-      if (!tx.from) {
-        tx.from = extractEventAddress(event)
-      }
-      tx.events.push({
-        id: event.id,
-        type: event.type,
-        category: 'resolver',
-        details: event,
-      })
-    })
-  }
+  // Process all V1 events
+  processV1Events(v1History?.domainEvents, 'domain')
+  processV1Events(v1History?.registrationEvents, 'registration')
+  processV1Events(v1History?.resolverEvents, 'resolver')
 
   // Process V2 events
   if (v2History) {

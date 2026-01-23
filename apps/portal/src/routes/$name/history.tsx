@@ -7,6 +7,7 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { HistoryDataTable } from '@/features/history/components/HistoryDataTable'
 import { getNameHistoryQueryOptions } from '@/features/profile/hooks/useNameHistory'
 import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/$name/history')({
@@ -39,22 +40,26 @@ function RouteComponent() {
   }
 
   if (v1Query.error) {
-    const message =
-      (v1Query.error.cause as Error | undefined)?.message ||
-      (v1Query.error as Error).message ||
-      'Could not load V1 history.'
     return (
-      <ErrorMessage title="Error loading V1 history" description={message} />
+      <ErrorMessage
+        title="Error loading V1 history"
+        description={extractErrorMessage(
+          v1Query.error,
+          'Could not load V1 history.',
+        )}
+      />
     )
   }
 
   if (v2Query.error) {
-    const message =
-      (v2Query.error.cause as Error | undefined)?.message ||
-      (v2Query.error as Error).message ||
-      'Could not load V2 history.'
     return (
-      <ErrorMessage title="Error loading V2 history" description={message} />
+      <ErrorMessage
+        title="Error loading V2 history"
+        description={extractErrorMessage(
+          v2Query.error,
+          'Could not load V2 history.',
+        )}
+      />
     )
   }
 
