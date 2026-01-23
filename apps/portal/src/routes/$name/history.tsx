@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { HistoryDataTable } from '@/features/history/components/HistoryDataTable'
 import { getNameHistoryQueryOptions } from '@/features/profile/hooks/useNameHistory'
@@ -35,9 +36,9 @@ function RouteComponent() {
 
   if (!data) {
     return (
-      <ErrorMessage
-        title="History unavailable"
-        description="Could not load history."
+      <NoResultsMessage
+        title="No history yet"
+        description="This name doesn't have any recorded history. Activity will appear here once transactions are made."
       />
     )
   }
