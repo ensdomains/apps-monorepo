@@ -33,18 +33,18 @@ const itemGroups = [
       icon: SquareUserIcon,
     },
   ],
-  [
-    {
-      title: 'Address Resolution',
-      url: '/addr/$addr/resolution',
-      icon: CopyIcon,
-    },
-    {
-      title: 'Reverse Resolution',
-      url: '/addr/$addr/reverse-resolution',
-      icon: CopySlashIcon,
-    },
-  ],
+  // [
+  //   {
+  //     title: 'Address Resolution',
+  //     url: '/addr/$addr/resolution',
+  //     icon: CopyIcon,
+  //   },
+  //   {
+  //     title: 'Reverse Resolution',
+  //     url: '/addr/$addr/reverse-resolution',
+  //     icon: CopySlashIcon,
+  //   },
+  // ],
   [
     {
       title: 'History',
