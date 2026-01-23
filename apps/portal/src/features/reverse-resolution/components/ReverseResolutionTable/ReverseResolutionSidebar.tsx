@@ -12,7 +12,11 @@ import {
   useState,
 } from 'react'
 import type { Address, Hash } from 'viem'
-import { useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
+import {
+  useConnection,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
@@ -150,6 +154,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   setOpen,
 }) => {
   const isMobile = useIsMobile()
+  const { isConnected } = useConnection()
 
   const {
     reverseRegistrarChainId,
@@ -323,15 +328,19 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                 <Button
                   onClick={handleSetPrimaryName}
                   variant="default"
-                  disabled={isPendingForward || isSwitchingChain}
+                  disabled={
+                    !isConnected || isPendingForward || isSwitchingChain
+                  }
                 >
-                  {isSwitchingChain
-                    ? 'Switching...'
-                    : isPendingForward
-                      ? 'Setting...'
-                      : isWrongChain
-                        ? 'Switch Network'
-                        : 'Set primary name'}
+                  {!isConnected
+                    ? 'Connect Wallet'
+                    : isSwitchingChain
+                      ? 'Switching...'
+                      : isPendingForward
+                        ? 'Setting...'
+                        : isWrongChain
+                          ? 'Switch Network'
+                          : 'Set primary name'}
                 </Button>
               )}
             </div>
@@ -384,7 +393,12 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     name="name"
                     value={nameInput}
                     onChange={handleNameChange}
-                    disabled={isPendingUpdate || isSwitchingChain}
+                    disabled={
+                      !isConnected || isPendingUpdate || isSwitchingChain
+                    }
+                    placeholder={
+                      !isConnected ? 'Connect wallet to update' : undefined
+                    }
                     pattern=".*\.eth$"
                     title="Name must end with .eth"
                     required
@@ -392,16 +406,23 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   <Button
                     type="submit"
                     variant="secondary"
-                    disabled={!nameInput || isPendingUpdate || isSwitchingChain}
+                    disabled={
+                      !isConnected ||
+                      !nameInput ||
+                      isPendingUpdate ||
+                      isSwitchingChain
+                    }
                     size="sm"
                   >
-                    {isSwitchingChain
-                      ? 'Switching...'
-                      : isPendingUpdate
-                        ? 'Setting...'
-                        : isWrongChain
-                          ? 'Switch Network'
-                          : 'Update'}
+                    {!isConnected
+                      ? 'Connect Wallet'
+                      : isSwitchingChain
+                        ? 'Switching...'
+                        : isPendingUpdate
+                          ? 'Setting...'
+                          : isWrongChain
+                            ? 'Switch Network'
+                            : 'Update'}
                   </Button>
                 </form>
               </div>
