@@ -97,40 +97,6 @@ describe('HomeSearchInput', () => {
   })
 
   describe('ENS Name Suggestions', () => {
-    it('should truncate ENS name containing address on mobile', async () => {
-      vi.mocked(useIsMobile).mockReturnValue(true)
-      const user = userEvent.setup()
-
-      render(<HomeSearchInput />)
-
-      const input = screen.getByPlaceholderText('Search name or address...')
-      await user.click(input)
-      await user.type(input, '0x205d2686da3bf33f64c17f21462c51b5ead462cf')
-
-      await waitFor(() => {
-        // Should show truncated ENS name: "0x205d...62cf.eth"
-        expect(screen.getByText(/0x205d.*62cf\.eth/i)).toBeInTheDocument()
-      })
-    })
-
-    it('should NOT truncate ENS name containing address on desktop', async () => {
-      vi.mocked(useIsMobile).mockReturnValue(false)
-      const user = userEvent.setup()
-
-      render(<HomeSearchInput />)
-
-      const input = screen.getByPlaceholderText('Search name or address...')
-      await user.click(input)
-      await user.type(input, '0x205d2686da3bf33f64c17f21462c51b5ead462cf')
-
-      await waitFor(() => {
-        // Should show full ENS name
-        expect(
-          screen.getByText('0x205d2686da3bf33f64c17f21462c51b5ead462cf.eth'),
-        ).toBeInTheDocument()
-      })
-    })
-
     it('should NOT truncate normal ENS names on mobile', async () => {
       vi.mocked(useIsMobile).mockReturnValue(true)
       const user = userEvent.setup()
@@ -202,7 +168,7 @@ describe('HomeSearchInput', () => {
   })
 
   describe('Suggestion List Behavior', () => {
-    it('should show both address and ENS name suggestions for valid addresses', async () => {
+    it('should show ONLY address suggestion (not ENS name) for valid addresses', async () => {
       vi.mocked(useIsMobile).mockReturnValue(false)
       const user = userEvent.setup()
 
@@ -215,8 +181,10 @@ describe('HomeSearchInput', () => {
       await waitFor(() => {
         // Should show address suggestion
         expect(screen.getByText('View address details')).toBeInTheDocument()
-        // Should show ENS name suggestion
-        expect(screen.getByText('View ENS name details')).toBeInTheDocument()
+        // Should NOT show ENS name suggestion
+        expect(
+          screen.queryByText('View ENS name details'),
+        ).not.toBeInTheDocument()
       })
     })
 
@@ -258,7 +226,7 @@ describe('HomeSearchInput', () => {
   })
 
   describe('Mobile vs Desktop Consistency', () => {
-    it('should maintain suggestion structure across mobile and desktop', async () => {
+    it('should show only address suggestion for addresses on both mobile and desktop', async () => {
       const testAddress = '0x205d2686da3bf33f64c17f21462c51b5ead462cf'
       const user = userEvent.setup()
 
@@ -272,7 +240,9 @@ describe('HomeSearchInput', () => {
 
       await waitFor(() => {
         expect(screen.getByText('View address details')).toBeInTheDocument()
-        expect(screen.getByText('View ENS name details')).toBeInTheDocument()
+        expect(
+          screen.queryByText('View ENS name details'),
+        ).not.toBeInTheDocument()
       })
 
       unmount()
@@ -288,9 +258,11 @@ describe('HomeSearchInput', () => {
       await user.type(desktopInput, testAddress)
 
       await waitFor(() => {
-        // Same descriptions should appear
+        // Same descriptions should appear - only address
         expect(screen.getByText('View address details')).toBeInTheDocument()
-        expect(screen.getByText('View ENS name details')).toBeInTheDocument()
+        expect(
+          screen.queryByText('View ENS name details'),
+        ).not.toBeInTheDocument()
       })
     })
   })

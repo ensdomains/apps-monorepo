@@ -33,14 +33,15 @@ export const buildSearchSuggestions = ({
   navigateToAddress,
   navigateToName,
 }: BuildSuggestionsOptions): Suggestion[] => {
-  if (!value) return []
+  const trimmedValue = value.trim()
+  if (!trimmedValue) return []
 
   const items: Suggestion[] = []
 
   // Check if input is a valid Ethereum address
-  if (isAddress(value, { strict: false })) {
+  if (isAddress(trimmedValue, { strict: false })) {
     try {
-      const checksum = checksumAddress(value as Address)
+      const checksum = checksumAddress(trimmedValue as Address)
       items.push({
         id: `address:${checksum}`,
         label: isMobile ? truncateAddress(checksum) : checksum,
@@ -48,27 +49,20 @@ export const buildSearchSuggestions = ({
         inputValue: checksum,
         action: () => navigateToAddress(checksum),
       })
+      // Return early - don't show ENS name suggestion for valid addresses
+      return items
     } catch {
       return []
     }
   }
 
-  // Add .eth suffix if not present (could be a name or address)
-  const valueWithEthSuffix = ensureEthSuffix(value)
-
-  // Check if it's an address-as-name (0x + 40 hex chars)
-  const valueWithoutEth = valueWithEthSuffix.replace('.eth', '')
-  const isAddressAsName = /^0x[a-fA-F0-9]{40}$/.test(valueWithoutEth)
-
-  // Truncate on mobile if it's an address-as-name
-  const displayLabel =
-    isMobile && isAddressAsName
-      ? `${truncateAddress(valueWithoutEth)}.eth`
-      : valueWithEthSuffix
+  // Input is NOT a valid address, treat it as an ENS name
+  // Add .eth suffix if not present
+  const valueWithEthSuffix = ensureEthSuffix(trimmedValue)
 
   items.push({
     id: `name:${valueWithEthSuffix}`,
-    label: displayLabel,
+    label: valueWithEthSuffix,
     description: 'View ENS name details',
     inputValue: valueWithEthSuffix,
     action: () => navigateToName(valueWithEthSuffix),

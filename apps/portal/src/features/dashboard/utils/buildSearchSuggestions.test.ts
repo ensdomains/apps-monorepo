@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildSearchSuggestions } from './buildSearchSuggestions'
 
 describe('buildSearchSuggestions', () => {
@@ -10,6 +10,11 @@ describe('buildSearchSuggestions', () => {
     navigateToAddress: mockNavigateToAddress,
     navigateToName: mockNavigateToName,
   }
+
+  beforeEach(() => {
+    mockNavigateToAddress.mockClear()
+    mockNavigateToName.mockClear()
+  })
 
   describe('Empty Input', () => {
     it('should return empty array for empty value', () => {
@@ -27,7 +32,17 @@ describe('buildSearchSuggestions', () => {
         value: '   ',
       })
 
-      expect(result.length).toBeGreaterThan(0) // Will add .eth suffix
+      expect(result).toEqual([])
+    })
+
+    it('should trim leading and trailing whitespace', () => {
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: '  vitalik  ',
+      })
+
+      expect(result.length).toBe(1)
+      expect(result[0].label).toBe('vitalik.eth')
     })
   })
 
@@ -35,14 +50,14 @@ describe('buildSearchSuggestions', () => {
     const validAddress = '0x205d2686da3bf33f64c17f21462c51b5ead462cf'
     const checksummedAddress = '0x205d2686da3Bf33f64C17f21462c51B5eaD462CF'
 
-    it('should create address suggestion with checksummed address on desktop', () => {
+    it('should create ONLY address suggestion (no ENS name) on desktop', () => {
       const result = buildSearchSuggestions({
         ...defaultOptions,
         value: validAddress,
         isMobile: false,
       })
 
-      expect(result.length).toBe(2) // Address + ENS name
+      expect(result.length).toBe(1) // Only address, no ENS name
       expect(result[0].id).toBe(`address:${checksummedAddress}`)
       expect(result[0].label).toBe(checksummedAddress)
       expect(result[0].description).toBe('View address details')
@@ -56,6 +71,7 @@ describe('buildSearchSuggestions', () => {
         isMobile: true,
       })
 
+      expect(result.length).toBe(1) // Only address suggestion
       expect(result[0].label).not.toBe(checksummedAddress)
       expect(result[0].label).toContain('0x205d')
       expect(result[0].label).toContain('62CF')
@@ -117,40 +133,6 @@ describe('buildSearchSuggestions', () => {
 
       result[0].action()
       expect(mockNavigateToName).toHaveBeenCalledWith('vitalik.eth')
-    })
-  })
-
-  describe('Address-as-Name (0x + 40 hex chars)', () => {
-    const addressAsName = '0x205d2686da3bf33f64c17f21462c51b5ead462cf'
-    const lowercaseAddress = '0x205d2686da3bf33f64c17f21462c51b5ead462cf'
-
-    it('should truncate ENS name suggestion on mobile when it contains valid address', () => {
-      const result = buildSearchSuggestions({
-        ...defaultOptions,
-        value: addressAsName,
-        isMobile: true,
-      })
-
-      // Should have 2 suggestions: address + name
-      expect(result.length).toBe(2)
-
-      // Second suggestion is the ENS name (lowercase due to ensureEthSuffix)
-      const nameSuggestion = result[1]
-      expect(nameSuggestion.id).toBe(`name:${lowercaseAddress}.eth`)
-      expect(nameSuggestion.label).toContain('0x205d')
-      expect(nameSuggestion.label).toContain('62cf') // lowercase after ensureEthSuffix
-      expect(nameSuggestion.label).toContain('.eth')
-    })
-
-    it('should NOT truncate ENS name suggestion on desktop', () => {
-      const result = buildSearchSuggestions({
-        ...defaultOptions,
-        value: addressAsName,
-        isMobile: false,
-      })
-
-      const nameSuggestion = result[1]
-      expect(nameSuggestion.label).toBe(`${lowercaseAddress}.eth`)
     })
   })
 
