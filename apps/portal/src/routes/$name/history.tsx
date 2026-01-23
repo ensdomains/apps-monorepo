@@ -43,10 +43,7 @@ function RouteComponent() {
     return (
       <ErrorMessage
         title="Error loading V1 history"
-        description={extractErrorMessage(
-          v1Query.error,
-          'Could not load V1 history.',
-        )}
+        description={v1Query.error.cause?.message}
       />
     )
   }
@@ -55,10 +52,7 @@ function RouteComponent() {
     return (
       <ErrorMessage
         title="Error loading V2 history"
-        description={extractErrorMessage(
-          v2Query.error,
-          'Could not load V2 history.',
-        )}
+        description={v2Query.error.cause?.message}
       />
     )
   }

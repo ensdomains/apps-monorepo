@@ -39,22 +39,20 @@ function RouteComponent() {
   }
 
   if (v1Error) {
-    const message =
-      (v1Error.cause as Error | undefined)?.message ||
-      (v1Error as Error).message ||
-      'Could not load V1 history.'
     return (
-      <ErrorMessage title="Error loading V1 history" description={message} />
+      <ErrorMessage
+        title="Error loading V1 history"
+        description={v1Error.cause?.message}
+      />
     )
   }
 
   if (v2Error) {
-    const message =
-      (v2Error.cause as Error | undefined)?.message ||
-      (v2Error as Error).message ||
-      'Could not load V2 history.'
     return (
-      <ErrorMessage title="Error loading V2 history" description={message} />
+      <ErrorMessage
+        title="Error loading V2 history"
+        description={v2Error.cause?.message}
+      />
     )
   }
 
