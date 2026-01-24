@@ -4,7 +4,11 @@ import { useEffect } from 'react'
 import { useConnectionEffect } from 'wagmi'
 import { track } from './events'
 
-export function PHProvider({ children }: { children: React.ReactNode }) {
+export const PHProvider = ({
+  children,
+}: {
+  children: React.ReactNode
+}): React.ReactNode => {
   useEffect(() => {
     posthog.init(import.meta.env.VITE_PUBLIC_POSTHOG_KEY, {
       api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
