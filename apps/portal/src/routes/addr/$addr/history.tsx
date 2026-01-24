@@ -39,32 +39,29 @@ function RouteComponent() {
   }
 
   if (v1Error) {
-    const message =
-      (v1Error.cause as Error | undefined)?.message ||
-      (v1Error as Error).message ||
-      'Could not load V1 history.'
     return (
-      <ErrorMessage title="Error loading V1 history" description={message} />
+      <ErrorMessage
+        title="Error loading V1 history"
+        description={v1Error.cause?.message}
+      />
     )
   }
 
   if (v2Error) {
-    const message =
-      (v2Error.cause as Error | undefined)?.message ||
-      (v2Error as Error).message ||
-      'Could not load V2 history.'
     return (
-      <ErrorMessage title="Error loading V2 history" description={message} />
+      <ErrorMessage
+        title="Error loading V2 history"
+        description={v2Error.cause?.message}
+      />
     )
   }
 
   return (
     <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
-      <h1 className="text-[28px] font-medium leading-none">
+      <h1 className="text-2xl md:text-[28px] font-medium leading-none break-all">
         History for {addr}
       </h1>
       <AddressHistoryDataTable
-        address={addr}
         history={{
           v1Events: v1Data,
           v2Events: v2Data,
