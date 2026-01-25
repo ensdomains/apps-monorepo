@@ -1,5 +1,7 @@
 import { useModal, useWallet } from '@getpara/react-sdk-lite'
+import { WalletIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { tw } from '@/utils/tailwind'
 
 interface DisconnectedHeaderContentProps {
   isDesktop: boolean
@@ -26,8 +28,10 @@ export const DisconnectedHeaderContent = ({
         className="h-full w-30 md:w-40"
         disabled={walletLoading}
         onClick={handleConnect}
+        variant="ghost"
       >
         {walletLoading ? 'Loading...' : 'Connect'}
+        <WalletIcon className={tw('size-4', walletLoading && 'animate-spin')} />
       </Button>
     </div>
   )
