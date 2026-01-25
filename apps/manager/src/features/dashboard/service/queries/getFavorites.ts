@@ -1,6 +1,6 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
-import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ok, ResultAsync } from 'neverthrow'
 import { backendClient } from '@/utils/backend-client'
 
@@ -27,8 +27,13 @@ export const getFavorites = ResultFn(async function* () {
 })
 
 export const favoritesQueryOptions = resultQueryOptions({
-  queryKey: qk('favorites', 'list'),
+  queryKey: $qk({
+    $service: 'backend',
+    $scope: 'favorites',
+    $action: 'list',
+  }),
   queryFn: () => getFavorites(),
+  placeholderData: [],
   meta: {
     dependsOn: ['backend'],
   },

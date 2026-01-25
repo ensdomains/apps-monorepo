@@ -8,6 +8,11 @@ import {
 } from '../queries/getFavorites'
 
 export const removeFavoriteMutationOptions = mutationOptions({
+  mutationKey: $qk({
+    $service: 'backend',
+    $scope: 'favorites',
+    $action: 'remove',
+  }),
   mutationFn: async ({ name }: { name: string }) => {
     const response = await backendClient.favorites[':name'].$delete({
       param: { name },
@@ -38,11 +43,11 @@ export const removeFavoriteMutationOptions = mutationOptions({
 
     return { previousFavorites }
   },
-  onError: (err, variables, result, { client }) => {
-    if (result?.previousFavorites) {
+  onError: (err, variables, onMutateResult, { client }) => {
+    if (onMutateResult?.previousFavorites) {
       client.setQueryData(
         favoritesQueryOptions.queryKey,
-        result.previousFavorites,
+        onMutateResult.previousFavorites,
       )
     }
 
@@ -53,8 +58,5 @@ export const removeFavoriteMutationOptions = mutationOptions({
   },
   onSettled: (_data, _error, _variables, _result, { client }) => {
     client.invalidateQueries({ queryKey: favoritesQueryOptions.queryKey })
-  },
-  meta: {
-    invalidates: [$qk({ $scope: 'favorites' })],
   },
 })

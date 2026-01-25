@@ -1,4 +1,3 @@
-import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { mutationOptions } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { backendClient } from '@/utils/backend-client'
@@ -8,6 +7,13 @@ import {
 } from '../queries/getFavorites'
 
 export const addFavoriteMutationOptions = mutationOptions({
+  mutationKey: [
+    {
+      $service: 'backend',
+      $scope: 'favorites',
+      $action: 'add',
+    },
+  ],
   mutationFn: async ({ name }: { name: string }) => {
     const response = await backendClient.favorites[':name'].$put({
       param: { name },
@@ -31,21 +37,28 @@ export const addFavoriteMutationOptions = mutationOptions({
       (entry) => entry.name.toLowerCase() === name.toLowerCase(),
     )
 
-    if (exists) return { previousFavorites, skipped: true }
+    // No need to update the query data if it's already in the list
+    if (exists) {
+      return { previousFavorites, wasCacheUpdated: false }
+    }
 
     client.setQueryData<readonly FavoriteEntry[]>(
       favoritesQueryOptions.queryKey,
       (old) => [...(old ?? []), { name, created_at: new Date().toISOString() }],
     )
 
-    return { previousFavorites, skipped: false }
+    return { previousFavorites, wasCacheUpdated: true }
   },
-  onError: (err, variables, result, { client }) => {
-    if (result?.previousFavorites) {
+  onError: (err, variables, onMutateResult, { client }) => {
+    if (onMutateResult?.previousFavorites) {
       client.setQueryData(
         favoritesQueryOptions.queryKey,
-        result.previousFavorites,
+        onMutateResult?.previousFavorites,
       )
+    } else {
+      // previousFavorites is undefined if the query failed (for example, if the user is not logged in)
+      // so we need to reset the query to get the initial data
+      client.resetQueries({ queryKey: favoritesQueryOptions.queryKey })
     }
 
     toast.error(`Failed to add ${variables.name} to favorites`, {
@@ -53,12 +66,10 @@ export const addFavoriteMutationOptions = mutationOptions({
     })
     console.error(`Failed to add ${variables.name} to favorites`, err)
   },
-  onSettled: (_data, _error, _variables, result, { client }) => {
-    if (result?.skipped) return
+  onSettled: (_data, _error, _variables, onMutateResult, { client }) => {
+    // Don't invalidate if no changes were made
+    if (!onMutateResult?.wasCacheUpdated) return
 
     client.invalidateQueries({ queryKey: favoritesQueryOptions.queryKey })
-  },
-  meta: {
-    invalidates: [$qk({ $scope: 'favorites' })],
   },
 })
