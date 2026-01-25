@@ -1,14 +1,14 @@
 import { Link, type LinkOptions, linkOptions } from '@tanstack/react-router'
 import { LayoutDashboardIcon, UserIcon } from 'lucide-react'
+import { useConnectedReverseName } from '@/features/wallet/hooks/useConnectedReverseName'
 import { tw } from '@/utils/tailwind'
-import { useProfileData } from '../hooks/useProfileData'
 
 interface NavSectionProps {
   onAction: () => void
 }
 
 export const NavSection = ({ onAction }: NavSectionProps) => {
-  const { reverseName } = useProfileData()
+  const reverseNameQuery = useConnectedReverseName()
 
   const navItems: {
     icon: React.ReactNode
@@ -20,7 +20,7 @@ export const NavSection = ({ onAction }: NavSectionProps) => {
       label: (
         <>
           Profile
-          {!reverseName && (
+          {!reverseNameQuery.data && (
             <span className="ml-1 font-normal text-[#6B6B6B] text-sm">
               {' '}
               (No Name)
@@ -31,9 +31,9 @@ export const NavSection = ({ onAction }: NavSectionProps) => {
       link: linkOptions({
         to: '/p/$name',
         params: {
-          name: reverseName ?? '',
+          name: reverseNameQuery.data ?? '',
         },
-        disabled: !reverseName,
+        disabled: !reverseNameQuery.data,
       }),
     },
     {
