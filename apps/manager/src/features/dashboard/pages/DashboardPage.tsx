@@ -1,7 +1,4 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { Search } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { DidYouKnowSection } from '@/features/dashboard/components/DidYouKnowSection'
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
@@ -48,15 +45,6 @@ export const DashboardPage = () => {
           <h1 className="font-serif text-[#232222] text-[28px] leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]">
             Hello {displayName}
           </h1>
-          <Button
-            asChild
-            className="h-12 gap-2 rounded bg-transparent px-6 font-mono text-foreground text-sm uppercase tracking-wider hover:bg-ens-blue-hover hover:text-white"
-          >
-            <Link className="flex items-center gap-2" to="/">
-              <Search className="size-4" />
-              Search new name
-            </Link>
-          </Button>
         </div>
         {hasProfile && (
           <PrimaryNameCard avatarUrl={avatarUrl} primaryName={defaultName} />
