@@ -67,7 +67,9 @@ const authFetch: typeof fetch = async (input, init) => {
   const response = await fetch(input, init)
 
   if (response.status === 401) {
-    backendAuthStore.trigger.signOut()
+    if (isBackendAuthed.get()) {
+      backendAuthStore.trigger.signOut()
+    }
   }
 
   return response
