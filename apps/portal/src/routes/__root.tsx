@@ -5,6 +5,7 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { WagmiProvider } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PasswordModal } from '@/components/PasswordModal'
+import { PHProvider } from '@/lib/posthog/provider'
 import { wagmiConfig } from '@/lib/wagmi'
 import { queryClient } from '@/utils/queryClient'
 
@@ -24,7 +25,9 @@ export const Route = createRootRoute({
         <WagmiProvider config={wagmiConfig}>
           <QueryClientProvider client={queryClient}>
             <RainbowKitProvider>
-              <Outlet />
+              <PHProvider>
+                <Outlet />
+              </PHProvider>
             </RainbowKitProvider>
           </QueryClientProvider>
         </WagmiProvider>
