@@ -11,12 +11,14 @@ export const SidebarTriggerRow = <T extends RowData = RowData>({
   setOpen,
   setClickedRow,
   open,
+  showMoreButton = true,
 }: {
   row: Row<T>
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
   setClickedRow: React.Dispatch<React.SetStateAction<Row<T> | null>>
   tableView: TableViewSettings
   open: boolean
+  showMoreButton?: boolean
 }) => {
   return (
     <TableRow
@@ -35,19 +37,21 @@ export const SidebarTriggerRow = <T extends RowData = RowData>({
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
         </TableCell>
       ))}
-      <TableCell>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => {
-            setClickedRow(row)
-            setOpen(!open)
-          }}
-        >
-          <PanelRightOpenIcon className="h-4 w-4" />
-          <span className="text-sm font-medium">More</span>
-        </Button>
-      </TableCell>
+      {showMoreButton && (
+        <TableCell>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setClickedRow(row)
+              setOpen(!open)
+            }}
+          >
+            <PanelRightOpenIcon className="h-4 w-4" />
+            <span className="text-sm font-medium">More</span>
+          </Button>
+        </TableCell>
+      )}
     </TableRow>
   )
 }

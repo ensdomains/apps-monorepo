@@ -22,7 +22,7 @@ type GetV2NamesForAddressParameters = {
 const getV2NamesForAddress = ResultFn(async function* ({
   address,
 }: GetV2NamesForAddressParameters) {
-  const { domains } = yield* await fromPromise(
+  const { domains } = yield* fromPromise(
     graphqlIndexerClient.request<{
       domains: V2Name[]
     }>(

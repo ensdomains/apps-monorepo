@@ -54,7 +54,7 @@ export function useReverseResolutionMutations({
   })
 
   const invalidateReverseResolutionQuery = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['getReverseResolution'] })
+    queryClient.invalidateQueries({ queryKey: ['get-reverse-resolution'] })
   }, [queryClient])
 
   const getReverseResolutionRequest = useCallback(

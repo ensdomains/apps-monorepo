@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { getV2HistoryForAddressQueryOptions } from '@/features/address/components/hooks/useV2HistoryForAddress'
 import { NameList } from '@/features/dashboard/components/NameList'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
 export const Route = createFileRoute('/addr/$addr/')({
   component: RouteComponent,
@@ -30,11 +31,12 @@ const PrimaryName = ({ address }: PrimaryNameProps) => {
   })
 
   if (error) {
-    const message =
-      (error.cause as Error | undefined)?.message ||
-      (error as Error).message ||
-      'Could not load data.'
-    return <ErrorMessage title="Error loading data" description={message} />
+    return (
+      <ErrorMessage
+        title="Error loading data"
+        description={extractErrorMessage(error)}
+      />
+    )
   }
 
   if (isLoading) return <LoadingMessage />
@@ -74,8 +76,10 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
-      <div className="flex flex-row justify-between items-baseline">
-        <h1 className="text-[28px] font-medium leading-none">{addr}</h1>
+      <div className="flex flex-col gap-2 lg:flex-row justify-between items-baseline">
+        <h1 className="text-2xl md:text-[28px] font-medium leading-none break-all">
+          {addr}
+        </h1>
         {isConnected && (
           <Button variant="secondary" onClick={() => disconnect()}>
             Disconnect

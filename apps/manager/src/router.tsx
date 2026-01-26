@@ -19,10 +19,12 @@ declare module '@tanstack/react-query' {
 }
 
 export function getRouter() {
+  // Create a new QueryClient instance for each request to prevent query data from leaking between server requests.
+  // For more details, see: https://tanstack.com/router/latest/docs/integrations/query
+  // The QueryClient is available via the router context and can also be accessed in query/mutation handlers using their context argument.
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
-        // no caching, each request can optin to caching if needed
         staleTime: 0,
       },
     },
