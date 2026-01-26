@@ -1,6 +1,8 @@
 import type { NameWithRelation } from '@ensdomains/ensjs/subgraph'
 import type { EnsNetworkName, WithEnsNetwork } from '@/utils/types'
 
+const MS_PER_SECOND = 1000
+
 /**
  * V1 name structure with date-based expiry
  */
@@ -84,7 +86,7 @@ export const mergeNamesData = (
       name: item.name,
       expiryDate:
         item.expiryDate !== null && item.expiryDate !== undefined
-          ? new Date(item.expiryDate * 1000)
+          ? new Date(item.expiryDate * MS_PER_SECOND)
           : null,
       network: 'namechainSepolia' as EnsNetworkName,
       subdomainCount: hasSubdomainsArray

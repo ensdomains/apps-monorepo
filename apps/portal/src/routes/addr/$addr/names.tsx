@@ -34,6 +34,11 @@ import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 
+const MS_PER_SECOND = 1000
+const MS_PER_DAY = 24 * 60 * 60 * MS_PER_SECOND
+const GRACE_PERIOD_DAYS = 90
+const PREMIUM_PERIOD_DAYS = 21
+
 const STATUS_FILTER_GROUPS: FilterGroup[] = [
   {
     title: 'Active',
@@ -69,10 +74,10 @@ const getNameStatus = (expiryDate: Date | null | undefined): string => {
 
   const now = new Date()
   const gracePeriodEnd = new Date(
-    expiryDate.getTime() + 90 * 24 * 60 * 60 * 1000,
+    expiryDate.getTime() + GRACE_PERIOD_DAYS * MS_PER_DAY,
   )
   const premiumPeriodEnd = new Date(
-    gracePeriodEnd.getTime() + 21 * 24 * 60 * 60 * 1000,
+    gracePeriodEnd.getTime() + PREMIUM_PERIOD_DAYS * MS_PER_DAY,
   )
 
   // After grace + premium period = fully expired
@@ -131,7 +136,7 @@ function RouteComponent() {
     const v2Names: NameRow[] = (v2NamesQuery.data || []).map(
       ({ name, expiryDate, roleBitmap }) => ({
         name,
-        expiryDate: expiryDate ? new Date(expiryDate * 1000) : null,
+        expiryDate: expiryDate ? new Date(expiryDate * MS_PER_SECOND) : null,
         roleBitmap,
       }),
     )
