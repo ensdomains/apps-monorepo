@@ -1,3 +1,4 @@
+import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQueries } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
