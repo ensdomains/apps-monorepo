@@ -37,7 +37,12 @@ export const BackendAuthModal = () => {
   }
 
   return (
-    <AlertDialog.Root open={shouldShowModal}>
+    <AlertDialog.Root
+      onOpenChange={(open) => {
+        if (!open) handleSkip()
+      }}
+      open={shouldShowModal}
+    >
       <AlertDialog.Content>
         <AlertDialog.Header>
           <AlertDialog.Title>Verify your wallet</AlertDialog.Title>
