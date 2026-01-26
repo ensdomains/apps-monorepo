@@ -14,12 +14,16 @@ type RoleAssignment = {
 type DomainData = {
   name: string
   expiryDate: number | null
+  subdomainCount: number
+  recordCount: number
 }
 
 export type V2NameWithRoles = {
   name: string
   expiryDate: number | null
   roleBitmap: string
+  subdomainCount: number
+  recordCount: number
 }
 
 class GetV2NamesWithRolesForAddressError extends TaggedError(
@@ -51,6 +55,8 @@ const getV2NamesWithRolesForAddress = ResultFn(async function* ({
           domains(where: { owner: $account }) {
             name
             expiryDate
+            subdomainCount
+            recordCount
           }
         }
       `,
@@ -62,10 +68,17 @@ const getV2NamesWithRolesForAddress = ResultFn(async function* ({
       }),
   )
 
-  // Build a map of domain name -> expiry date
-  const expiryMap = new Map<string, number | null>()
+  // Build maps for domain data
+  const domainDataMap = new Map<
+    string,
+    { expiryDate: number | null; subdomainCount: number; recordCount: number }
+  >()
   for (const domain of domains) {
-    expiryMap.set(domain.name, domain.expiryDate)
+    domainDataMap.set(domain.name, {
+      expiryDate: domain.expiryDate,
+      subdomainCount: domain.subdomainCount,
+      recordCount: domain.recordCount,
+    })
   }
 
   // Build a map of domain name -> role bitmap (aggregate if multiple entries)
@@ -84,10 +97,13 @@ const getV2NamesWithRolesForAddress = ResultFn(async function* ({
   // Merge: use roles as primary source (shows all names where user has any role)
   const result: V2NameWithRoles[] = []
   for (const [name, roleBitmap] of rolesMap) {
+    const domainData = domainDataMap.get(name)
     result.push({
       name,
       roleBitmap,
-      expiryDate: expiryMap.get(name) ?? null,
+      expiryDate: domainData?.expiryDate ?? null,
+      subdomainCount: domainData?.subdomainCount ?? 0,
+      recordCount: domainData?.recordCount ?? 0,
     })
   }
 
