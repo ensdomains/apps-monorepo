@@ -6,12 +6,16 @@ import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
 import { sendVerificationEmail } from '#services/email/verification.js'
+import { sendWelcomeEmail } from '#services/email/welcome.js'
 import { sanitizeChannel } from '#services/notifications/helpers.js'
 import {
   TelegramAuthSchema,
   verifyTelegramAuth,
 } from '#services/telegram/auth.js'
-import { makeTelegramRequest } from '#services/telegram/utils.js'
+import {
+  createInlineKeyboard,
+  makeTelegramRequest,
+} from '#services/telegram/utils.js'
 import { logger } from '#utils/logger.js'
 
 // Generate a random token that's somewhat user readable
@@ -196,6 +200,30 @@ const emailRoutes = createApp()
         .delete(TABLE.channelVerifications)
         .where(eq(TABLE.channelVerifications.id, verification.id))
 
+      // Send welcome email if target exists
+      if (verification.channel.target) {
+        const welcomeResult = await sendWelcomeEmail(
+          c.env.SENDGRID_API_KEY,
+          c.env.EMAIL_FROM_ADDRESS,
+          verification.channel.target,
+          c.env.MANAGER_APP_URL,
+        )
+
+        if (welcomeResult.isErr()) {
+          // Log error but don't fail the verification
+          logger.error('Failed to send welcome email', {
+            channelId: verification.channel_id,
+            email: verification.channel.target,
+            error: welcomeResult.error,
+          })
+        } else {
+          logger.info('Welcome email sent', {
+            channelId: verification.channel_id,
+            email: verification.channel.target,
+          })
+        }
+      }
+
       return c.json({ message: 'Email verified successfully' })
     },
   )
@@ -311,6 +339,10 @@ const idRoutes = createApp()
       return c.json({ error: 'Channel is not pending verification' }, 400)
     }
 
+    if (!channel.target) {
+      return c.json({ error: 'Channel has no target address' }, 400)
+    }
+
     // Check cooldown (5 minutes)
     if (channel.last_verification_sent_at) {
       const cooldownMs = 5 * 60 * 1000 // 5 minutes
@@ -363,7 +395,7 @@ const idRoutes = createApp()
     const emailResult = await sendVerificationEmail(
       c.env.SENDGRID_API_KEY,
       c.env.EMAIL_FROM_ADDRESS,
-      channel.target!,
+      channel.target,
       verification.token,
       c.env.MANAGER_APP_URL,
     )
@@ -494,12 +526,30 @@ export default createApp()
         return c.json({ error: 'Failed to create channel' }, 400)
       }
 
+      const preferencesUrl = `${c.env.MANAGER_APP_URL}/notifications/settings`
+      const keyboard = createInlineKeyboard([
+        [
+          {
+            text: '⚙️ Manage Preferences',
+            url: preferencesUrl,
+          },
+        ],
+      ])
+
       const messageResult = await makeTelegramRequest(
         c.env.TELEGRAM_BOT_TOKEN,
         'sendMessage',
         {
           chat_id: auth_data.id,
-          text: 'Welcome to the bot!',
+          text:
+            '🎉 *Welcome to ENS Notifications!*\n\n' +
+            'Your Telegram has been successfully connected. You will receive updates about:\n\n' +
+            '• Domain expiry reminders\n' +
+            '• Domain transfers\n' +
+            '• And other important events\n\n' +
+            'Click the button below to customize which notifications you receive.',
+          parse_mode: 'Markdown',
+          reply_markup: keyboard,
         },
       )
 
