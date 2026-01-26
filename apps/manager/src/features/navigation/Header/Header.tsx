@@ -17,7 +17,7 @@ export const Header = () => {
       {isConnected ? (
         <ConnectedHeaderContent isDesktop={isDesktop} />
       ) : (
-        <DisconnectedHeaderContent isDesktop={isDesktop} />
+        <DisconnectedHeaderContent />
       )}
     </nav>
   )

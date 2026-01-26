@@ -58,7 +58,13 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
               'flex items-center gap-2',
               !isSessionClient && 'cursor-pointer',
             )}
-            onClick={() => !isSessionClient && openSessionModal()}
+            onClick={() => {
+              if (!isSessionClient) {
+                openSessionModal()
+              }
+
+              onAction?.()
+            }}
           >
             <BookmarkCheckIcon className="size-5 text-ens-lapis-core" />
             <div className="text-base text-ens-lapis-surface">
@@ -70,7 +76,13 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
               checked={isSessionClient}
               className="ml-auto"
               disabled={isSessionClient}
-              onCheckedChange={() => openSessionModal()}
+              onCheckedChange={() => {
+                if (!isSessionClient) {
+                  openSessionModal()
+                }
+
+                onAction?.()
+              }}
             />
           </div>
         ))
@@ -79,7 +91,11 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
       {shouldShowSiweButton && (
         <button
           className="flex w-full items-center gap-2"
-          onClick={() => backendAuthStore.trigger.resetModal()}
+          onClick={() => {
+            backendAuthStore.trigger.resetModal()
+
+            onAction?.()
+          }}
           type="button"
         >
           <WalletIcon className="size-5 text-ens-lapis-core" />
@@ -91,7 +107,10 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
 
       <button
         className="flex w-full items-center gap-2 rounded-lg"
-        onClick={() => logout.logout()}
+        onClick={() => {
+          logout.logout()
+          onAction?.()
+        }}
         type="button"
       >
         {logout.isPending ? (

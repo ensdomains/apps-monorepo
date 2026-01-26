@@ -3,13 +3,7 @@ import { WalletIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { tw } from '@/utils/tailwind'
 
-interface DisconnectedHeaderContentProps {
-  isDesktop: boolean
-}
-
-export const DisconnectedHeaderContent = ({
-  isDesktop,
-}: DisconnectedHeaderContentProps) => {
+export const DisconnectedHeaderContent = () => {
   const { openModal } = useModal()
   const { isLoading: walletLoading } = useWallet()
 
