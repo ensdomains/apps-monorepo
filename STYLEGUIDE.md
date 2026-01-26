@@ -126,7 +126,7 @@ These rules protect against bugs, security issues, or severe maintainability pro
 These rules represent best practices but allow pragmatic exceptions:
 
 - **TanStack Query for async data** - Don't manually manage loading/error states with useState
-- **Extract useEffect** - Effects should be in custom hooks (≤5 lines can stay inline)
+- **Extract useEffect** - Effects should be in custom hooks (≤5 statements can stay inline)
 - **Avoid query waterfalls** - Split dependent queries into separate components
 - **Handle query states independently** - Don't group loading/error states with `||`
 - **Use useQueries for parallel queries** - More concise than multiple useQuery calls
@@ -748,7 +748,7 @@ export const ProfilePage = ({ name }: { name: string }) => {
 
 ### useEffect Usage Policy (🟡 Default)
 
-**Default rule**: Extract `useEffect` into a named custom hook to document intent and keep components readable.
+**Rule**: Extract `useEffect` based on complexity, not line count.
 
 **Valid use cases for useEffect:**
 - DOM manipulation (focus, scroll, resize observers)
@@ -756,43 +756,76 @@ export const ProfilePage = ({ name }: { name: string }) => {
 - Syncing with external systems (localStorage, WebSocket)
 - Side effects triggered by prop/state changes
 
+**Keep inline** when the effect has:
+- ≤ 5 statements (assignments, function calls)
+- No branching logic (no `if`, `switch`, ternaries)
+- Single concern (one side effect)
+- Not reused elsewhere
+
+**Extract to custom hook** when:
+- > 5 statements
+- Contains branching logic
+- Multiple related side effects
+- Needs to be reused
+- Hard to name inline (if you can't describe it in 3 words, extract it)
+
 ```typescript
-// ❌ AVOID: Naked useEffect in component
+// ✅ Inline - Single statement, clear intent (7 lines but 1 statement)
+useEffect(() => {
+  posthog.init('API_KEY', {
+    api_host: 'https://app.posthog.com',
+    person_profiles: 'identified_only',
+    capture_pageview: false,
+    disable_session_recording: false,
+  })
+}, [])
+
+// ✅ Inline - Simple DOM manipulation, 1 statement
+useEffect(() => {
+  inputRef.current?.focus()
+}, [])
+
+// ✅ Inline - Single setup/teardown, 3 statements (up to 5 is OK)
+useEffect(() => {
+  const handler = () => console.log('resize')
+  window.addEventListener('resize', handler)
+  return () => window.removeEventListener('resize', handler)
+}, [])
+
+// ❌ Extract - Multiple statements + branching (>5 statements, has if)
 export const ModalComponent = ({ isOpen }: { isOpen: boolean }) => {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
+      document.body.style.paddingRight = `${scrollbarWidth}px`
+      previousOverflow.current = document.body.style.overflow
     }
     return () => {
-      document.body.style.overflow = ''
+      document.body.style.overflow = previousOverflow.current
+      document.body.style.paddingRight = ''
     }
   }, [isOpen])
   
   return <div>...</div>
 }
 
-// ✅ CORRECT: Extract into named hook
+// ✅ Extract - Becomes self-documenting
 function useLockBodyScroll(isLocked: boolean) {
   useEffect(() => {
     if (isLocked) {
       document.body.style.overflow = 'hidden'
+      document.body.style.paddingRight = `${scrollbarWidth}px`
+      previousOverflow.current = document.body.style.overflow
     }
     return () => {
-      document.body.style.overflow = ''
+      document.body.style.overflow = previousOverflow.current
+      document.body.style.paddingRight = ''
     }
   }, [isLocked])
 }
 
 export const ModalComponent = ({ isOpen }: { isOpen: boolean }) => {
   useLockBodyScroll(isOpen)
-  return <div>...</div>
-}
-
-export const ProfilePage = ({ name }: { name: string }) => {
-  const [profile, setProfile] = useState<Profile | null>(null)
-  
-  useProfileData(name, setProfile)
-  
   return <div>...</div>
 }
 ```
@@ -803,26 +836,32 @@ export const ProfilePage = ({ name }: { name: string }) => {
 - Effects are testable independently
 - Easier to reuse across components
 
-**Allowed exceptions** (must stay trivial):
-- ≤ 5 lines of code
-- No async logic
-- No branching (if/switch)
-- No external dependencies
+**Statement Counting Guide:**
+
+Count **operations**, not lines:
 
 ```typescript
-// ✅ Acceptable: Simple DOM sync effect
-export const AutoFocusInput = () => {
-  const ref = useRef<HTMLInputElement>(null)
-  
-  useEffect(() => {
-    ref.current?.focus()
-  }, [])
-  
-  return <input ref={ref} />
+// 1 statement (function call with config object)
+posthog.init('key', { /* many properties */ })
+
+// 3 statements (assignment, addEventListener, removeEventListener)
+const handler = () => {}
+window.addEventListener('resize', handler)
+return () => window.removeEventListener('resize', handler)
+
+// 6+ statements (if = 1, 3 assignments, return = 1, 2 cleanup assignments = 6 total)
+if (isOpen) {
+  document.body.style.overflow = 'hidden'
+  document.body.style.paddingRight = `${width}px`
+  previous.current = document.body.style.overflow
+}
+return () => {
+  document.body.style.overflow = previous.current
+  document.body.style.paddingRight = ''
 }
 ```
 
-**If an effect grows beyond these constraints, extract it immediately.**
+**Key insight**: Extracting should **improve clarity**, not just follow a number. If the hook name is longer than the effect body, keep it inline.
 
 ### Component Size and Complexity (🟢 Guideline)
 
@@ -3528,7 +3567,7 @@ const data: any = externalLibrary.getData()
 #### React Patterns
 
 20. **Never useEffect for data fetching** - Always use TanStack Query (🔴 Must)
-21. **Extract effects** - Extract `useEffect` to custom hooks (🟡 Default, ≤5 lines OK)
+21. **Extract effects** - Extract `useEffect` to custom hooks (🟡 Default, ≤5 statements OK inline)
 22. **Pattern match** - Use ts-pattern over conditionals (🟡 Default)
 23. **Custom hooks for APIs** - Only for DOM/framework APIs, not business logic (🟡 Default)
 24. **Component composition** - Build flexible UIs with composition (🟢 Guideline)
