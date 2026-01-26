@@ -1,23 +1,19 @@
 import {
+  subregistryDeploymentMachine,
   type transactionMachine,
   transactionManager,
 } from '@ens-apps/transaction-manager'
-import { useSelector } from '@xstate/react'
-import { useCallback, useEffect, useState } from 'react'
-import type { Address, WalletClient } from 'viem'
-import { zeroAddress } from 'viem'
+import { useActorRef, useSelector } from '@xstate/react'
+import { useCallback } from 'react'
+import { match } from 'ts-pattern'
 import { sepolia } from 'viem/chains'
-import { useWalletClient } from 'wagmi'
+import { usePublicClient, useWalletClient } from 'wagmi'
 import type { SnapshotFrom } from 'xstate'
 import type {
   TransactionState,
   UseSubregistryDeploymentParams,
 } from '@/features/registry/types/subregistry.types'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import {
-  prepareDeploySubregistryTransaction,
-  prepareSetSubregistryTransaction,
-} from '@/features/registry/utils/subregistry-deployment.helpers'
 import {
   isError,
   isHash,
@@ -26,11 +22,11 @@ import {
 
 const IDLE_STATE: TransactionState = { status: 'idle' }
 
+type OperationSnapshot = SnapshotFrom<typeof subregistryDeploymentMachine>
 type TransactionSnapshot = SnapshotFrom<typeof transactionMachine>
 
 /**
- * Selector that extracts transaction state data from actor snapshot.
- * Returns undefined if snapshot is not available.
+ * Selector that extracts transaction state data from individual transaction actor snapshot.
  */
 function selectTransactionData(snapshot: TransactionSnapshot | undefined) {
   if (!snapshot) return undefined
@@ -78,112 +74,118 @@ function deriveTransactionState(
 }
 
 /**
- * Hook that tracks transaction state using useSelector from @xstate/react.
+ * Selector that extracts the operation state value from the subregistry deployment machine.
  */
-function useTransactionState(txId: string | null): TransactionState {
-  const actor = txId ? transactionManager.getTransaction(txId) : undefined
-  const data = useSelector(actor, selectTransactionData)
-  return deriveTransactionState(data)
-}
+function selectOperationState(snapshot: OperationSnapshot) {
+  const { value, context } = snapshot
+  const stateString =
+    typeof value === 'string' ? value : (Object.keys(value)[0] ?? 'idle')
 
-interface UseAutoTriggerSetSubregistryParams {
-  readonly deployState: TransactionState
-  readonly walletClient: WalletClient | undefined
-  readonly currentNameRegistry: Address | null
-  readonly protocolVersion: 'ENSv1' | 'ENSv2' | null
-  readonly label: string
-  readonly name: string
+  return {
+    stateString,
+    deployTxId: context.deployTxId,
+    deployedAddress: context.deployedAddress,
+    setSubregistryTxId: context.setSubregistryTxId,
+    error: context.error,
+  }
 }
 
 /**
- * Hook that automatically triggers setSubregistry transaction after deploy succeeds.
- * Handles the two-step flow: deploy contract → set subregistry.
+ * Get transaction state from a transaction ID.
+ * Returns IDLE_STATE if txId is undefined or actor not found.
  */
-function useAutoTriggerSetSubregistry({
-  deployState,
-  walletClient,
-  currentNameRegistry,
-  protocolVersion,
-  label,
-  name,
-}: UseAutoTriggerSetSubregistryParams) {
-  const [txId, setTxId] = useState<string | null>(null)
-  const [hasTriggered, setHasTriggered] = useState(false)
+function getTransactionStateFromId(
+  txId: string | undefined,
+  fallbackStatus?: 'pending',
+): TransactionState {
+  if (!txId) return IDLE_STATE
 
-  useEffect(() => {
-    if (
-      deployState.status !== 'success' ||
-      !walletClient ||
-      !currentNameRegistry ||
-      hasTriggered
-    ) {
-      return
-    }
+  const txActor = transactionManager.getTransaction(txId)
+  if (!txActor) {
+    return fallbackStatus === 'pending'
+      ? { status: 'pending', hash: '0x' as `0x${string}` }
+      : IDLE_STATE
+  }
 
-    const deployedAddress =
-      deployState.receipt.contractAddress ||
-      deployState.receipt.logs[0]?.address
-
-    if (
-      !deployedAddress ||
-      protocolVersion === 'ENSv1' ||
-      currentNameRegistry === zeroAddress
-    ) {
-      return
-    }
-
-    // Capture narrowed values for use in async callback
-    const client = walletClient
-    const registry = currentNameRegistry
-
-    setHasTriggered(true)
-
-    prepareSetSubregistryTransaction({
-      registryAddress: registry,
-      label,
-      subregistryAddress: deployedAddress,
-      walletClient: client,
-      chainId: sepolia.id,
-    }).then((result) => {
-      if (result.isErr()) {
-        console.error(
-          'Failed to prepare setSubregistry transaction:',
-          result.error,
-        )
-        return
-      }
-
-      const signer = createEOASigner(client)
-      const newTxId = transactionManager.startTransaction(
-        result.value,
-        signer,
-        {
-          chainId: sepolia.id,
-          description: `Set subregistry for ${name}`,
-          timeout: 120000,
-        },
-      )
-
-      setTxId(newTxId)
-    })
-  }, [
-    deployState,
-    walletClient,
-    currentNameRegistry,
-    label,
-    protocolVersion,
-    name,
-    hasTriggered,
-  ])
-
-  const reset = useCallback(() => {
-    setHasTriggered(false)
-    setTxId(null)
-  }, [])
-
-  return { txId, reset }
+  const txSnapshot = txActor.getSnapshot()
+  const txData = selectTransactionData(txSnapshot)
+  return deriveTransactionState(txData)
 }
 
+/**
+ * Derives deploy and setSubregistry transaction states from the operation state.
+ */
+function deriveStatesFromOperation(
+  operationState: ReturnType<typeof selectOperationState>,
+): { deployState: TransactionState; setSubregistryState: TransactionState } {
+  const { stateString, deployTxId, setSubregistryTxId, error } = operationState
+
+  return match(stateString)
+    .with('idle', () => ({
+      deployState: IDLE_STATE,
+      setSubregistryState: IDLE_STATE,
+    }))
+    .with('deploying', () => ({
+      deployState: { status: 'submitting' } as TransactionState,
+      setSubregistryState: IDLE_STATE,
+    }))
+    .with('waitingForDeployment', () => ({
+      deployState: getTransactionStateFromId(deployTxId, 'pending'),
+      setSubregistryState: IDLE_STATE,
+    }))
+    .with('settingSubregistry', () => ({
+      deployState: getTransactionStateFromId(deployTxId),
+      setSubregistryState: { status: 'submitting' } as TransactionState,
+    }))
+    .with('waitingForSetSubregistry', () => ({
+      deployState: getTransactionStateFromId(deployTxId),
+      setSubregistryState: getTransactionStateFromId(
+        setSubregistryTxId,
+        'pending',
+      ),
+    }))
+    .with('success', () => ({
+      deployState: getTransactionStateFromId(deployTxId),
+      setSubregistryState: getTransactionStateFromId(setSubregistryTxId),
+    }))
+    .with('error', () => {
+      const deployState = getTransactionStateFromId(deployTxId)
+      const setSubregistryState = getTransactionStateFromId(setSubregistryTxId)
+
+      // If we have an error but no transaction-level error, show operation error
+      if (error && deployState.status === 'idle') {
+        return {
+          deployState: { status: 'error', error } as TransactionState,
+          setSubregistryState,
+        }
+      }
+      if (
+        error &&
+        setSubregistryState.status === 'idle' &&
+        deployState.status === 'success'
+      ) {
+        return {
+          deployState,
+          setSubregistryState: { status: 'error', error } as TransactionState,
+        }
+      }
+
+      return { deployState, setSubregistryState }
+    })
+    .otherwise(() => ({
+      deployState: IDLE_STATE,
+      setSubregistryState: IDLE_STATE,
+    }))
+}
+
+/**
+ * Hook that manages subregistry deployment via an XState machine.
+ *
+ * This hook:
+ * 1. Creates the subregistry deployment machine actor using useActorRef
+ * 2. Subscribes to the operation state using useSelector
+ * 3. Derives individual transaction states for UI display
+ */
 export function useSubregistryDeployment({
   name,
   factoryAddress,
@@ -192,51 +194,58 @@ export function useSubregistryDeployment({
   protocolVersion,
 }: UseSubregistryDeploymentParams) {
   const { data: walletClient } = useWalletClient({ chainId: sepolia.id })
+  const publicClient = usePublicClient({ chainId: sepolia.id })
 
-  const [deployTxId, setDeployTxId] = useState<string | null>(null)
-  const deployState = useTransactionState(deployTxId)
+  // Create the machine actor
+  const actor = useActorRef(subregistryDeploymentMachine, {
+    input: {
+      chainId: sepolia.id,
+    },
+  })
 
-  const label = name.split('.')[0]
+  // Subscribe to operation state
+  const operationState = useSelector(actor, selectOperationState)
 
-  const { txId: setSubregistryTxId, reset: resetSetSubregistry } =
-    useAutoTriggerSetSubregistry({
-      deployState,
-      walletClient,
-      currentNameRegistry,
-      protocolVersion,
-      label,
-      name,
-    })
+  // Derive individual transaction states
+  const { deployState, setSubregistryState } =
+    deriveStatesFromOperation(operationState)
 
-  const setSubregistryState = useTransactionState(setSubregistryTxId)
-
-  const deploySubregistry = useCallback(async () => {
-    if (!walletClient) {
+  const deploySubregistry = useCallback(() => {
+    if (!walletClient || !publicClient || !currentNameRegistry) {
+      console.error('Cannot deploy: missing wallet, public client, or registry')
       return
     }
 
-    const result = await prepareDeploySubregistryTransaction({
-      factoryAddress,
-      implAddress,
-      walletClient,
-      chainId: sepolia.id,
-    })
-
-    if (result.isErr()) {
-      console.error('Failed to prepare deploy transaction:', result.error)
+    // Don't allow deployment for V1 names
+    if (protocolVersion === 'ENSv1') {
+      console.error('Cannot deploy subregistry for V1 names')
       return
     }
 
     const signer = createEOASigner(walletClient)
-    const txId = transactionManager.startTransaction(result.value, signer, {
-      chainId: sepolia.id,
-      description: `Deploy subregistry for ${name}`,
-      timeout: 120000,
-    })
 
-    setDeployTxId(txId)
-    resetSetSubregistry()
-  }, [walletClient, factoryAddress, implAddress, name, resetSetSubregistry])
+    // Send the START_DEPLOYMENT event to the machine
+    actor.send({
+      type: 'START_DEPLOYMENT',
+      name,
+      factoryAddress,
+      implAddress,
+      parentRegistry: currentNameRegistry,
+      signer,
+      publicClient,
+      walletClient,
+      chainId: sepolia.id,
+    })
+  }, [
+    walletClient,
+    publicClient,
+    currentNameRegistry,
+    protocolVersion,
+    name,
+    factoryAddress,
+    implAddress,
+    actor,
+  ])
 
   return {
     deploySubregistry,

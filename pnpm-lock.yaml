@@ -615,6 +615,9 @@ importers:
       '@ensdomains/address-encoder':
         specifier: ^1.1.2
         version: 1.1.4
+      '@ensdomains/ensjs':
+        specifier: 'catalog:'
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@b0ee328(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@rhinestone/module-sdk':
         specifier: ^0.4.0
         version: 0.4.0(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))
@@ -1197,7 +1200,7 @@ packages:
     resolution: {integrity: sha512-OzdkXgdFmduzcJKU4KRkkJkQHnm5p7m7FkX8k+bHOEoOIzc0ueGT/Jay4nnb60wNk1wSHRmzY+hHBMpFDiGReg==}
 
   '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@b0ee328':
-    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@b0ee328}
+    resolution: {integrity: sha512-0/EKmEfzQhxquEweQIVLiwEP22kJREAVUIHmuZBxZwuh6FmbwKq7zMIyaeYCgq8qb8XOI1mo7VSVFPIuzgwzSQ==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@b0ee328}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
     peerDependencies:
