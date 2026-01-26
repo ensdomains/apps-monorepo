@@ -7,7 +7,7 @@ import { useWallet } from '@getpara/react-sdk-lite'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
-import { getDomainsQuery } from '../service/dashboardDomains'
+import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 
 const PAGE_SIZE = 5
 
