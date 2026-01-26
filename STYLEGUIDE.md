@@ -748,7 +748,7 @@ export const ProfilePage = ({ name }: { name: string }) => {
 
 ### useEffect Usage Policy (🟡 Default)
 
-**Rule**: Extract `useEffect` based on complexity, not line count.
+**Default rule**: Extract `useEffect` based on complexity, not line count.
 
 **Valid use cases for useEffect:**
 - DOM manipulation (focus, scroll, resize observers)
@@ -756,15 +756,15 @@ export const ProfilePage = ({ name }: { name: string }) => {
 - Syncing with external systems (localStorage, WebSocket)
 - Side effects triggered by prop/state changes
 
-**Keep inline** when the effect has:
+**Keep inline** when the effect has **ALL** of:
 - ≤ 5 statements (assignments, function calls)
 - No branching logic (no `if`, `switch`, ternaries)
 - Single concern (one side effect)
 - Not reused elsewhere
 
-**Extract to custom hook** when:
+**Extract to custom hook** when **ANY** of:
 - > 5 statements
-- Contains branching logic
+- Contains branching logic (even if ≤5 statements)
 - Multiple related side effects
 - Needs to be reused
 - Hard to name inline (if you can't describe it in 3 words, extract it)
@@ -792,7 +792,7 @@ useEffect(() => {
   return () => window.removeEventListener('resize', handler)
 }, [])
 
-// ❌ Extract - Multiple statements + branching (>5 statements, has if)
+// ❌ Extract - Has branching logic (extract even though only 6 statements)
 export const ModalComponent = ({ isOpen }: { isOpen: boolean }) => {
   useEffect(() => {
     if (isOpen) {
@@ -838,7 +838,7 @@ export const ModalComponent = ({ isOpen }: { isOpen: boolean }) => {
 
 **Statement Counting Guide:**
 
-Count **operations**, not lines:
+Count **operations**, not lines. **Note**: Effects with branching logic (if/switch/ternaries) should typically be extracted regardless of statement count.
 
 ```typescript
 // 1 statement (function call with config object)
@@ -849,7 +849,13 @@ const handler = () => {}
 window.addEventListener('resize', handler)
 return () => window.removeEventListener('resize', handler)
 
-// 6+ statements (if = 1, 3 assignments, return = 1, 2 cleanup assignments = 6 total)
+// 3 statements total, BUT has branching → extract anyway
+if (isOpen) {
+  document.body.style.overflow = 'hidden'
+  document.body.style.paddingRight = `${width}px`
+}
+
+// 6+ statements with branching → definitely extract
 if (isOpen) {
   document.body.style.overflow = 'hidden'
   document.body.style.paddingRight = `${width}px`
