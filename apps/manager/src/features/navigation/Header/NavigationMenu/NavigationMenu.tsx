@@ -21,7 +21,10 @@ export const NavigationMenu = ({ isDesktop }: NavigationMenuProps) => {
         <Popover.PopoverTrigger asChild>
           <NavigationTriggerButton />
         </Popover.PopoverTrigger>
-        <Popover.PopoverContent className="w-xs space-y-6 bg-white p-6">
+        <Popover.PopoverContent
+          className="w-xs space-y-6 bg-white p-6"
+          collisionPadding={32}
+        >
           <NavigationContent onAction={handleClose} />
         </Popover.PopoverContent>
       </Popover.Popover>

@@ -25,7 +25,10 @@ export const HeaderProfileSection = ({
         <Popover.PopoverTrigger asChild>
           <ProfileTriggerButton />
         </Popover.PopoverTrigger>
-        <Popover.PopoverContent className="w-full max-w-md space-y-12 bg-white p-6 pb-2">
+        <Popover.PopoverContent
+          className="w-full max-w-md space-y-12 bg-white p-6 pb-2"
+          collisionPadding={32}
+        >
           <NavSection onAction={handleClose} />
           <TokenSection />
           <WalletSection onAction={handleClose} />
