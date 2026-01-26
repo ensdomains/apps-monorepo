@@ -1,16 +1,17 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { ArrowUpDown } from 'lucide-react'
-import { NamechainSVG } from '@/assets/chains'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
-import type { EnsNetworkName, WithEnsNetwork } from '@/utils/types'
 
-export type NameRow = WithEnsNetwork<{
+export type NameRow = {
   name: string | null
   expiryDate?: Date | null
-}>
+  roleBitmap?: string | null
+}
 
 const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
   return (
@@ -86,40 +87,37 @@ export const columns: ColumnDef<NameRow>[] = [
     ),
     cell: ({ row }) => {
       const expiryDate = row.original.expiryDate
-      return expiryDate ? formatDateTime(expiryDate) : null
+      if (!expiryDate) {
+        return (
+          <Badge variant="secondary" className="text-xs">
+            Does not expire
+          </Badge>
+        )
+      }
+      return formatDateTime(expiryDate)
     },
   },
   {
-    accessorKey: 'network',
+    accessorKey: 'roleBitmap',
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
       >
-        Network
+        Roles
       </SortButton>
     ),
-    cell(cell) {
-      const network = cell.getValue() as EnsNetworkName
+    cell: ({ row }) => {
+      const roleBitmap = row.original.roleBitmap
+      if (!roleBitmap) return null
 
-      if (network === 'sepolia') {
-        return (
-          <div className="flex flex-row gap-1 items-center">
-            <NamechainSVG height={20} width={20} />
-            <span>Sepolia</span>
-          </div>
-        )
-      }
+      const roles = decodeRoleBitmap(roleBitmap)
+      if (roles.length === 0) return null
 
-      if (network === 'namechainSepolia') {
-        return (
-          <div className="flex flex-row gap-1 items-center">
-            <NamechainSVG height={20} width={20} />
-            <span>Namechain Sepolia</span>
-          </div>
-        )
-      }
-
-      return null
+      return (
+        <Badge variant="secondary" className="text-xs">
+          {roles.length} {roles.length === 1 ? 'Role' : 'Roles'}
+        </Badge>
+      )
     },
   },
 ]

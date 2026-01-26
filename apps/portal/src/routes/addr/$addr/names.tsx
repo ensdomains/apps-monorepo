@@ -21,11 +21,13 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group'
 import { getV1NamesForAddressQueryOptions } from '@/features/dashboard/hooks/useV1NamesForAddress'
-import { getV2NamesForAddressQueryOptions } from '@/features/dashboard/hooks/useV2NamesForAddress'
-import { columns } from '@/features/names/components/NamesTable/columns'
+import { getV2NamesWithRolesForAddressQueryOptions } from '@/features/dashboard/hooks/useV2NamesWithRolesForAddress'
+import {
+  columns,
+  type NameRow,
+} from '@/features/names/components/NamesTable/columns'
 import { NamesTable } from '@/features/names/components/NamesTable/NamesTable'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
-import { mergeNamesData } from '@/utils/names/mergeNamesData'
 
 export const Route = createFileRoute('/addr/$addr/names')({
   component: RouteComponent,
@@ -42,12 +44,28 @@ function RouteComponent() {
   const [v1NamesQuery, v2NamesQuery] = useQueries({
     queries: [
       getV1NamesForAddressQueryOptions({ address }),
-      getV2NamesForAddressQueryOptions({ address }),
+      getV2NamesWithRolesForAddressQueryOptions({ address }),
     ],
   })
 
-  const data = useMemo(() => {
-    return mergeNamesData(v1NamesQuery.data, v2NamesQuery.data)
+  const data = useMemo((): NameRow[] => {
+    const v1Names: NameRow[] = (v1NamesQuery.data || []).map(
+      ({ name, expiryDate }) => ({
+        name,
+        expiryDate: expiryDate?.date ?? null,
+        roleBitmap: null,
+      }),
+    )
+
+    const v2Names: NameRow[] = (v2NamesQuery.data || []).map(
+      ({ name, expiryDate, roleBitmap }) => ({
+        name,
+        expiryDate: expiryDate ? new Date(expiryDate * 1000) : null,
+        roleBitmap,
+      }),
+    )
+
+    return [...v1Names, ...v2Names]
   }, [v1NamesQuery.data, v2NamesQuery.data])
 
   const table = useReactTable({
