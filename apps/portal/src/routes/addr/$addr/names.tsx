@@ -201,7 +201,7 @@ function RouteComponent() {
         if (!row.roleBitmap) return false
         const roles = decodeRoleBitmap(row.roleBitmap)
         return selectedRoles.some((selectedRole) =>
-          roles.includes(selectedRole as any),
+          roles.includes(selectedRole as Role),
         )
       })
     }
