@@ -1,5 +1,5 @@
 import { setResolverWriteParameters } from '@ensdomains/ensjs/wallet/v2'
-import type { Address, WriteContractParameters } from 'viem'
+import type { Address } from 'viem'
 import {
   useWaitForTransactionReceipt,
   useWalletClient,
