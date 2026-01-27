@@ -5,7 +5,7 @@ import {
   useWalletClient,
   useWriteContract,
 } from 'wagmi'
-import { namechainSepolia } from '../../../lib/wagmi'
+import { namechainSepolia } from '@/lib/wagmi'
 
 interface UseChangeResolverParams {
   readonly name: string

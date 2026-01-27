@@ -1,5 +1,6 @@
 import { CheckCircle } from 'lucide-react'
 import type { ReactElement } from 'react'
+import { match } from 'ts-pattern'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
@@ -60,16 +61,17 @@ export const ChangeResolverTransactionStatus = ({
     <Alert className="max-w-full">
       <CheckCircle className={isConfirming ? 'animate-pulse' : ''} />
       <AlertTitle>
-        {isConfirming ? 'Changing Resolver' : 'Resolver Changed'}
+        {match({ isConfirming })
+          .with({ isConfirming: true }, () => 'Changing Resolver')
+          .otherwise(() => 'Resolver Changed')}
       </AlertTitle>
       <AlertDescription className="break-all whitespace-normal max-w-full overflow-wrap-anywhere">
         <div className="flex flex-col gap-2">
           <span>
-            {isConfirming
-              ? 'Waiting for confirmation...'
-              : isConfirmed
-                ? 'Transaction confirmed!'
-                : 'Transaction submitted'}
+            {match({ isConfirming, isConfirmed })
+              .with({ isConfirming: true }, () => 'Waiting for confirmation...')
+              .with({ isConfirmed: true }, () => 'Transaction confirmed!')
+              .otherwise(() => 'Transaction submitted')}
           </span>
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">
