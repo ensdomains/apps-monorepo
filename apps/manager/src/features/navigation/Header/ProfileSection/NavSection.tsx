@@ -6,44 +6,46 @@ import { tw } from '@/utils/tailwind'
 interface NavSectionProps {
   onAction: () => void
 }
+const getNavItems = (
+  reverseName: string | undefined,
+): {
+  icon: React.ReactNode
+  label: React.ReactNode
+  link: LinkOptions
+}[] => [
+  {
+    icon: <UserIcon className="size-4" />,
+    label: (
+      <>
+        Profile
+        {!reverseName && (
+          <span className="ml-1 font-normal text-[#6B6B6B] text-sm">
+            {' '}
+            (No Name)
+          </span>
+        )}
+      </>
+    ),
+    link: linkOptions({
+      to: '/p/$name',
+      params: {
+        name: reverseName ?? '',
+      },
+      disabled: !reverseName,
+    }),
+  },
+  {
+    icon: <LayoutDashboardIcon className="size-4" />,
+    label: 'Dashboard',
+    link: linkOptions({
+      to: '/dashboard',
+    }),
+  },
+]
 
 export const NavSection = ({ onAction }: NavSectionProps) => {
   const reverseNameQuery = useConnectedReverseName()
-
-  const navItems: {
-    icon: React.ReactNode
-    label: React.ReactNode
-    link: LinkOptions
-  }[] = [
-    {
-      icon: <UserIcon className="size-4" />,
-      label: (
-        <>
-          Profile
-          {!reverseNameQuery.data && (
-            <span className="ml-1 font-normal text-[#6B6B6B] text-sm">
-              {' '}
-              (No Name)
-            </span>
-          )}
-        </>
-      ),
-      link: linkOptions({
-        to: '/p/$name',
-        params: {
-          name: reverseNameQuery.data ?? '',
-        },
-        disabled: !reverseNameQuery.data,
-      }),
-    },
-    {
-      icon: <LayoutDashboardIcon className="size-4" />,
-      label: 'Dashboard',
-      link: linkOptions({
-        to: '/dashboard',
-      }),
-    },
-  ]
+  const navItems = getNavItems(reverseNameQuery.data ?? undefined)
 
   return (
     <div className="flex flex-col gap-0.5">
