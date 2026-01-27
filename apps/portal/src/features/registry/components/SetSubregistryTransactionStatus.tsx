@@ -1,20 +1,14 @@
 import { CheckCircle } from 'lucide-react'
 import type { ReactElement } from 'react'
 import { match, P } from 'ts-pattern'
-import type { Hash } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
+import type { TransactionStatusProps } from '@/lib/types/transaction'
 import { TransactionErrorAlert } from './TransactionErrorAlert'
 
-interface SetSubregistryTransactionStatusProps {
-  readonly txHash: Hash | undefined
+interface SetSubregistryTransactionStatusProps extends TransactionStatusProps {
   readonly isSettingSubregistry: boolean
-  readonly isConfirming: boolean
-  readonly isConfirmed: boolean
-  readonly isReverted: boolean
-  readonly txError: unknown | null
-  readonly receiptError: unknown | null
 }
 
 export const SetSubregistryTransactionStatus = ({
