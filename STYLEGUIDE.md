@@ -1007,6 +1007,89 @@ export const RegistrationFlow = ({ name }: { name: string }) => {
 }
 ```
 
+### Multi-Step Transaction Orchestration Anti-Pattern 🔴 Must
+
+**Never use `useEffect` to chain transactions.** When one transaction must trigger another (e.g., deploy → setSubregistry), use an XState operation machine, not React effects.
+
+#### How to Detect This Anti-Pattern
+
+Look for these signals:
+- `useEffect` watching a transaction state (e.g., `state.status === 'success'`)
+- Calling `transactionManager.startTransaction()` inside that effect
+- Multiple `useState` for separate transaction IDs
+- `hasTriggered` flags to prevent duplicate triggers
+
+```typescript
+// ❌ ANTI-PATTERN: Effect-based transaction chaining
+function useAutoTriggerSecondTransaction({ firstTxState, walletClient }) {
+  const [secondTxId, setSecondTxId] = useState<string | null>(null)
+  const [hasTriggered, setHasTriggered] = useState(false)
+
+  useEffect(() => {
+    if (firstTxState.status !== 'success' || hasTriggered) return
+
+    setHasTriggered(true)
+
+    prepareSecondTransaction().then((result) => {
+      const txId = transactionManager.startTransaction(result.value, signer, options)
+      setSecondTxId(txId)
+    })
+  }, [firstTxState, hasTriggered])
+
+  return { secondTxId }
+}
+```
+
+**Problems with this approach:**
+- Two-layer state tracking (hook state + transaction manager state)
+- Manual watching via React effect
+- `hasTriggered` flag is a code smell for effect misuse
+- No built-in persistence for the multi-step flow
+- Transactions tracked separately, not as a single operation
+
+```typescript
+// ✅ CORRECT: Use an XState operation machine
+// In transaction manager
+const operationMachine = setup({
+  // ... machine definition
+}).createMachine({
+  states: {
+    idle: { on: { START: 'firstStep' } },
+    firstStep: {
+      invoke: { src: 'submitFirstTransaction', onDone: 'waitingForFirst' }
+    },
+    waitingForFirst: {
+      invoke: { src: 'pollTransactionStatus', onDone: 'secondStep' }
+    },
+    secondStep: {
+      invoke: { src: 'submitSecondTransaction', onDone: 'waitingForSecond' }
+    },
+    waitingForSecond: {
+      invoke: { src: 'pollTransactionStatus', onDone: 'success' }
+    },
+    success: { type: 'final' },
+    error: { on: { RETRY: 'firstStep' } }
+  }
+})
+
+// In component - direct function call, not a hook
+const handleStart = () => {
+  const operationId = transactionManager.startOperation(params)
+  setOperationId(operationId)
+}
+
+// Subscribe to operation state
+const actor = transactionManager.getOperation(operationId)
+const snapshot = useSelector(actor, s => s)
+```
+
+**Benefits of operation machine:**
+- ✅ Single operation ID tracks entire flow
+- ✅ Machine orchestrates transitions automatically
+- ✅ Built-in retry and error handling
+- ✅ Audit trail for all state transitions
+- ✅ Direct function call on user action (no effect triggering)
+
 ### Use TanStack Query for Server State 🟡 Default
 
 **Always use TanStack Query for async data fetching**—don't reinvent the wheel with manual `useState`, loading, and error state management.
