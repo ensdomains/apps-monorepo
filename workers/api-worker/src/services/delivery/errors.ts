@@ -7,3 +7,5 @@ export class UnsupportedNotificationTypeError extends TaggedError(
 export class NotificationDeliveryNotFoundError extends TaggedError(
   'NOTIFICATION_DELIVERY_NOT_FOUND',
 ) {}
+
+export class PushDeliveryError extends TaggedError('PUSH_DELIVERY_ERROR') {}
