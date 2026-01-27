@@ -15,6 +15,36 @@ import { makeTelegramRequest } from '#services/telegram/utils.js'
 import type { ChannelData } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
 
+// allowed push service endpoint prefixes (for SSRF protection)
+const ALLOWED_PUSH_ENDPOINTS = [
+  'https://fcm.googleapis.com/', // chrome, edge, android
+  'https://updates.push.services.mozilla.com/', // firefox
+  'https://push.services.mozilla.com/', // firefox (older)
+  'https://web.push.apple.com/', // safari
+] as const
+
+const isAllowedPushEndpoint = (url: string): boolean => {
+  // check common prefixes first
+  if (ALLOWED_PUSH_ENDPOINTS.some((prefix) => url.startsWith(prefix))) {
+    return true
+  }
+
+  // windows uses subdomains like wns2-par02p.notify.windows.com
+  try {
+    const parsed = new URL(url)
+    if (
+      parsed.protocol === 'https:' &&
+      parsed.hostname.endsWith('.notify.windows.com')
+    ) {
+      return true
+    }
+  } catch {
+    return false
+  }
+
+  return false
+}
+
 // Generate a random token that's somewhat user readable
 const generateToken = () => {
   return (
@@ -526,7 +556,11 @@ export default createApp()
     vValidator(
       'json',
       v.object({
-        endpoint: v.pipe(v.string(), v.url()),
+        endpoint: v.pipe(
+          v.string(),
+          v.url(),
+          v.check(isAllowedPushEndpoint, 'Invalid push service endpoint'),
+        ),
         expirationTime: v.optional(v.nullable(v.number())),
         keys: v.object({
           auth: v.string(),
