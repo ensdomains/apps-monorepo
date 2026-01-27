@@ -12,6 +12,7 @@ import {
   verifyTelegramAuth,
 } from '#services/telegram/auth.js'
 import { makeTelegramRequest } from '#services/telegram/utils.js'
+import type { ChannelData } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
 
 // Generate a random token that's somewhat user readable
@@ -512,6 +513,89 @@ export default createApp()
       }
 
       return c.json({ ok: true })
+    },
+  )
+  // Push notification routes
+  .get('/push/vapid-public-key', async (c) => {
+    return c.json({ publicKey: c.env.VAPID_PUBLIC_KEY })
+  })
+  .post(
+    '/push',
+    ...requireAuth,
+    injectDb,
+    vValidator(
+      'json',
+      v.object({
+        endpoint: v.pipe(v.string(), v.url()),
+        expirationTime: v.optional(v.nullable(v.number())),
+        keys: v.object({
+          auth: v.string(),
+          p256dh: v.string(),
+        }),
+      }),
+    ),
+    async (c) => {
+      const userId = c.var.user_id
+      const subscription = c.req.valid('json')
+
+      // Check if already subscribed with this endpoint
+      const existingChannel = await c.var.db.query.userChannels.findFirst({
+        where: and(
+          eq(TABLE.userChannels.user_id, userId),
+          eq(TABLE.userChannels.channel, 'push'),
+          eq(TABLE.userChannels.target, subscription.endpoint),
+        ),
+      })
+
+      if (existingChannel) {
+        // Update keys if subscription exists (keys may have rotated)
+        await c.var.db
+          .update(TABLE.userChannels)
+          .set({
+            data: {
+              auth: subscription.keys.auth,
+              p256dh: subscription.keys.p256dh,
+              expirationTime: subscription.expirationTime ?? null,
+            } satisfies ChannelData['push'],
+          })
+          .where(eq(TABLE.userChannels.id, existingChannel.id))
+
+        logger.info('Push subscription updated', {
+          userId,
+          channelId: existingChannel.id,
+        })
+
+        return c.json({ id: existingChannel.id, updated: true })
+      }
+
+      // Create new push subscription
+      const channel = await c.var.db
+        .insert(TABLE.userChannels)
+        .values({
+          user_id: userId,
+          channel: 'push',
+          target: subscription.endpoint,
+          data: {
+            auth: subscription.keys.auth,
+            p256dh: subscription.keys.p256dh,
+            expirationTime: subscription.expirationTime ?? null,
+          } satisfies ChannelData['push'],
+          status: 'verified', // Push subscriptions are verified by the browser
+          verified_at: new Date(),
+        })
+        .returning({ id: TABLE.userChannels.id })
+        .then((channels) => channels.at(0))
+
+      if (!channel) {
+        return c.json({ error: 'Failed to create push subscription' }, 500)
+      }
+
+      logger.info('Push subscription created', {
+        userId,
+        channelId: channel.id,
+      })
+
+      return c.json({ id: channel.id }, 201)
     },
   )
   .route('/', idRoutes)
