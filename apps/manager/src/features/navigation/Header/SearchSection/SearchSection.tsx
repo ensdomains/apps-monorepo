@@ -13,18 +13,20 @@ interface HeaderSearchSectionProps {
 
 const SEARCH_INPUT_ID = 'header-search-input'
 
+interface SearchInputProps {
+  searchValue: string
+  setSearchValue: (value: string) => void
+  onFocus: () => void
+  isLoading?: boolean
+}
+
 // TODO: Trigger first result on enter
 const SearchInput = ({
   searchValue,
   setSearchValue,
   onFocus,
   isLoading = false,
-}: {
-  searchValue: string
-  setSearchValue: (value: string) => void
-  onFocus: () => void
-  isLoading?: boolean
-}) => {
+}: SearchInputProps) => {
   return (
     <div className="relative flex-1">
       <Input
