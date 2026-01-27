@@ -1,14 +1,18 @@
 import {
-  subregistryDeploymentMachine,
+  type subregistryDeploymentMachine,
   type transactionMachine,
   transactionManager,
 } from '@ens-apps/transaction-manager'
-import { useActorRef, useSelector } from '@xstate/react'
-import { useCallback } from 'react'
+import { useSelector } from '@xstate/react'
+import { useState } from 'react'
 import { match } from 'ts-pattern'
 import { sepolia } from 'viem/chains'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import type { SnapshotFrom } from 'xstate'
+import {
+  type SubregistryDeploymentActor,
+  startSubregistryDeployment,
+} from '@/features/registry/helpers/subregistry-deployment.helpers'
 import type {
   TransactionState,
   UseSubregistryDeploymentParams,
@@ -76,7 +80,17 @@ function deriveTransactionState(
 /**
  * Selector that extracts the operation state value from the subregistry deployment machine.
  */
-function selectOperationState(snapshot: OperationSnapshot) {
+function selectOperationState(snapshot: OperationSnapshot | undefined) {
+  if (!snapshot) {
+    return {
+      stateString: 'idle',
+      deployTxId: undefined,
+      deployedAddress: undefined,
+      setSubregistryTxId: undefined,
+      error: undefined,
+    }
+  }
+
   const { value, context } = snapshot
   const stateString =
     typeof value === 'string' ? value : (Object.keys(value)[0] ?? 'idle')
@@ -181,10 +195,9 @@ function deriveStatesFromOperation(
 /**
  * Hook that manages subregistry deployment via an XState machine.
  *
- * This hook:
- * 1. Creates the subregistry deployment machine actor using useActorRef
- * 2. Subscribes to the operation state using useSelector
- * 3. Derives individual transaction states for UI display
+ * The actor is created lazily when deploySubregistry is called,
+ * not on component mount. This ensures the machine only runs
+ * when the user initiates a deployment.
  */
 export function useSubregistryDeployment({
   name,
@@ -196,21 +209,19 @@ export function useSubregistryDeployment({
   const { data: walletClient } = useWalletClient({ chainId: sepolia.id })
   const publicClient = usePublicClient({ chainId: sepolia.id })
 
-  // Create the machine actor
-  const actor = useActorRef(subregistryDeploymentMachine, {
-    input: {
-      chainId: sepolia.id,
-    },
-  })
+  // Actor is created lazily when deployment starts
+  const [actor, setActor] = useState<SubregistryDeploymentActor | undefined>(
+    undefined,
+  )
 
-  // Subscribe to operation state
+  // Subscribe to operation state (useSelector handles null actor)
   const operationState = useSelector(actor, selectOperationState)
 
   // Derive individual transaction states
   const { deployState, setSubregistryState } =
     deriveStatesFromOperation(operationState)
 
-  const deploySubregistry = useCallback(() => {
+  const deploySubregistry = () => {
     if (!walletClient || !publicClient || !currentNameRegistry) {
       console.error('Cannot deploy: missing wallet, public client, or registry')
       return
@@ -224,9 +235,8 @@ export function useSubregistryDeployment({
 
     const signer = createEOASigner(walletClient)
 
-    // Send the START_DEPLOYMENT event to the machine
-    actor.send({
-      type: 'START_DEPLOYMENT',
+    // Start the deployment and store the actor reference
+    const deploymentActor = startSubregistryDeployment({
       name,
       factoryAddress,
       implAddress,
@@ -236,16 +246,9 @@ export function useSubregistryDeployment({
       walletClient,
       chainId: sepolia.id,
     })
-  }, [
-    walletClient,
-    publicClient,
-    currentNameRegistry,
-    protocolVersion,
-    name,
-    factoryAddress,
-    implAddress,
-    actor,
-  ])
+
+    setActor(deploymentActor)
+  }
 
   return {
     deploySubregistry,
