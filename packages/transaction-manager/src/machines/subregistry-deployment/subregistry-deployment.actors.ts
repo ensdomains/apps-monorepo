@@ -58,13 +58,13 @@ function extractDeployedAddress(
  * Returns the transaction ID for tracking.
  */
 export function submitDeploySubregistryActor(input: {
-  name: string
-  factoryAddress: Address
-  implAddress: Address
-  signer: EOASigner
-  walletClient: WalletClient
-  publicClient: PublicClient
-  chainId: number
+  readonly name: string
+  readonly factoryAddress: Address
+  readonly implAddress: Address
+  readonly signer: EOASigner
+  readonly walletClient: WalletClient
+  readonly publicClient: PublicClient
+  readonly chainId: number
 }): ResultAsync<string, Error> {
   const { walletClient } = input
 
