@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@ens-apps/transaction-manager": "workspace:*",
-    "@rainbow-me/rainbowkit": "^2.2.8",
+    "@rainbow-me/rainbowkit": "catalog:",
     "@rhinestone/module-sdk": "^0.4.0",
     "@tanstack/react-query": "^5.87.1",
     "@xstate/react": "^6.0.0",
@@ -18,7 +18,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "ts-pattern": "^5.8.0",
-    "viem": "^2.21.58",
+    "viem": "catalog:",
     "xstate": "catalog:"
   },
   "devDependencies": {
@@ -27,9 +27,9 @@
     "@vitejs/plugin-react": "^5.1.2",
     "typescript": "^5.7.2",
     "vite": "^7.1.9",
-    "wagmi": "^3.0.2"
+    "wagmi": "catalog:"
   },
   "peerDependencies": {
-    "wagmi": "^3.0.2"
+    "wagmi": "catalog:"
   }
 }

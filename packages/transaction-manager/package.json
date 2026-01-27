@@ -23,18 +23,18 @@
     "neverthrow": "^8.1.1",
     "permissionless": "^0.2.57",
     "valibot": "^1.2.0",
-    "viem": "^2.21.58",
+    "viem": "catalog:",
     "xstate": "catalog:"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.87.1",
     "react": "^18.0.0 || ^19.0.0",
-    "wagmi": "^3.0.2"
+    "wagmi": "catalog:"
   },
   "devDependencies": {
     "@types/react": "^19.0.6",
     "typescript": "^5.7.2",
     "vitest": "^3.2.4",
-    "wagmi": "^3.0.2"
+    "wagmi": "catalog:"
   }
 }

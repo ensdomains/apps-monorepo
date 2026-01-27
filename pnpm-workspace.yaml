@@ -6,6 +6,9 @@ packages:
 catalog:
   xstate: ^5.24.0
   "@ensdomains/ensjs": https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@68aa3be
+  viem: ^2.40.3
+  wagmi: ^3.0.2
+  "@rainbow-me/rainbowkit": ^2.2.10
 
 minimumReleaseAge: 1440
 
