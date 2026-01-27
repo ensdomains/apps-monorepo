@@ -68,12 +68,12 @@ export interface SubregistryDeploymentInput {
  * Parameters for starting a subregistry deployment operation
  */
 export interface StartSubregistryDeploymentParams {
-  name: string
-  factoryAddress: Address
-  implAddress: Address
-  parentRegistry: Address
-  signer: EOASigner
-  publicClient: PublicClient
-  walletClient: WalletClient
-  chainId: number
+  readonly name: string
+  readonly factoryAddress: Address
+  readonly implAddress: Address
+  readonly parentRegistry: Address
+  readonly signer: EOASigner
+  readonly publicClient: PublicClient
+  readonly walletClient: WalletClient
+  readonly chainId: number
 }
