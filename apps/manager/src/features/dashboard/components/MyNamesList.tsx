@@ -1,6 +1,7 @@
 import { OrderDirection } from '@ens-apps/indexer'
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { useAtom } from '@xstate/store/react'
 import {
   ArrowRight,
   ChevronDown,
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { match, P } from 'ts-pattern'
+import { useWalletClient } from 'wagmi'
 import {
   formatDashboardDate,
   getDaysUntil,
@@ -17,7 +19,9 @@ import {
   resolveDomainLabel,
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
+import { signInBackendMutation } from '@/features/notifications/queries/auth'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { isBackendAuthed } from '@/utils/backend-client'
 import { useDashboardNames } from '../hooks/useDashboardNames'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
@@ -92,6 +96,10 @@ export const MyNamesList = ({
     handleSort,
   } = useDashboardNames({ searchQuery })
 
+  const isAuthed = useAtom(isBackendAuthed)
+  const { data: walletClient } = useWalletClient()
+  const signIn = useMutation(signInBackendMutation)
+
   const { data: favorites = [] } = useQuery(favoritesQueryOptions)
   const addMutation = useMutation(addFavoriteMutationOptions)
   const removeMutation = useMutation(removeFavoriteMutationOptions)
@@ -99,7 +107,22 @@ export const MyNamesList = ({
   const isFavorite = (label: string) =>
     favorites.some((entry) => entry.name.toLowerCase() === label.toLowerCase())
 
-  const toggleFavorite = (label: string) => {
+  const toggleFavorite = async (label: string) => {
+    if (!isAuthed) {
+      if (!walletClient) {
+        toast.error('Please connect your wallet first')
+        return
+      }
+
+      try {
+        await signIn.mutateAsync({ walletClient })
+      } catch (error) {
+        console.error('Failed to sign in:', error)
+        toast.error('Failed to sign in. Please try again.')
+        return
+      }
+    }
+
     if (isFavorite(label)) {
       removeMutation.mutate({ name: label })
     } else {
