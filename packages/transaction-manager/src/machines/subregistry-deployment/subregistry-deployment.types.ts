@@ -18,25 +18,25 @@ import type { EOASigner } from '../../types/signer.types'
  */
 export interface SubregistryDeploymentContext {
   // Clients
-  signer?: EOASigner
-  publicClient?: PublicClient
-  walletClient?: WalletClient
-  chainId: number
+  readonly signer?: EOASigner
+  readonly publicClient?: PublicClient
+  readonly walletClient?: WalletClient
+  readonly chainId: number
 
   // Deployment params
-  name: string
-  label: string
-  factoryAddress: Address
-  implAddress: Address
-  parentRegistry: Address
+  readonly name: string
+  readonly label: string
+  readonly factoryAddress: Address
+  readonly implAddress: Address
+  readonly parentRegistry: Address
 
   // Flow state (transaction IDs)
-  deployTxId?: string
-  deployedAddress?: Address
-  setSubregistryTxId?: string
+  readonly deployTxId?: string
+  readonly deployedAddress?: Address
+  readonly setSubregistryTxId?: string
 
   // Error state
-  error?: Error
+  readonly error?: Error
 }
 
 /**
