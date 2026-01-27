@@ -3,7 +3,6 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store/react'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { toast } from 'sonner'
 import { match, P } from 'ts-pattern'
 import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
@@ -18,6 +17,7 @@ import {
   toLocalEntry,
 } from '../service/queries/favorites.helpers'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
+import { ensureAuthenticated } from '../utils/ensureAuthenticated'
 import { NameRow } from './NameRow'
 
 const NameRowSkeleton = () => (
@@ -82,20 +82,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
   const removeMutation = useMutation(removeFavoriteMutationOptions)
 
   const toggleFavorite = async (label: string) => {
-    if (!isAuthed) {
-      if (!walletClient) {
-        toast.error('Please connect your wallet first')
-        return
-      }
-
-      try {
-        await signIn.mutateAsync({ walletClient })
-      } catch (error) {
-        console.error('Failed to sign in:', error)
-        toast.error('Failed to sign in. Please try again.')
-        return
-      }
-    }
+    if (!(await ensureAuthenticated(isAuthed, walletClient, signIn))) return
 
     removeMutation.mutate({ name: label })
   }
@@ -138,17 +125,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
   }
 
   const handleSignIn = async () => {
-    if (!walletClient) {
-      toast.error('Please connect your wallet first')
-      return
-    }
-
-    try {
-      await signIn.mutateAsync({ walletClient })
-    } catch (error) {
-      console.error('Failed to sign in:', error)
-      toast.error('Failed to sign in. Please try again.')
-    }
+    await ensureAuthenticated(isAuthed, walletClient, signIn)
   }
 
   if (!isAuthed) {

@@ -26,6 +26,7 @@ import { useDashboardNames } from '../hooks/useDashboardNames'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
+import { ensureAuthenticated } from '../utils/ensureAuthenticated'
 import { NameRow } from './NameRow'
 import { PrimaryBadge } from './PrimaryBadge'
 
@@ -108,20 +109,7 @@ export const MyNamesList = ({
     favorites.some((entry) => entry.name.toLowerCase() === label.toLowerCase())
 
   const toggleFavorite = async (label: string) => {
-    if (!isAuthed) {
-      if (!walletClient) {
-        toast.error('Please connect your wallet first')
-        return
-      }
-
-      try {
-        await signIn.mutateAsync({ walletClient })
-      } catch (error) {
-        console.error('Failed to sign in:', error)
-        toast.error('Failed to sign in. Please try again.')
-        return
-      }
-    }
+    if (!(await ensureAuthenticated(isAuthed, walletClient, signIn))) return
 
     if (isFavorite(label)) {
       removeMutation.mutate({ name: label })
