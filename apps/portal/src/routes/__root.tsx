@@ -11,6 +11,7 @@ import { sepolia } from 'viem/chains'
 import { usePublicClient, WagmiProvider } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PasswordModal } from '@/components/PasswordModal'
+import { PHProvider } from '@/lib/posthog/provider'
 import { wagmiConfig } from '@/lib/wagmi'
 import { queryClient } from '@/utils/queryClient'
 
@@ -51,7 +52,9 @@ export const Route = createRootRoute({
           <QueryClientProvider client={queryClient}>
             <RainbowKitProvider>
               <TransactionManagerSetup>
-                <Outlet />
+                <PHProvider>
+                  <Outlet />
+                </PHProvider>
               </TransactionManagerSetup>
             </RainbowKitProvider>
           </QueryClientProvider>

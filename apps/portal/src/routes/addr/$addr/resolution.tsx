@@ -12,6 +12,7 @@ import { useId, useState } from 'react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import {
   InputGroup,
@@ -21,6 +22,7 @@ import {
 import { columns } from '@/features/forward-resolution/components/ForwardNamesTable/columns'
 import { ForwardNamesTable } from '@/features/forward-resolution/components/ForwardNamesTable/ForwardNamesTable'
 import { getResolvedNamesForAddressQueryOptions } from '@/features/forward-resolution/components/hooks/useNamesForResolvedAddress'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
 export const Route = createFileRoute('/addr/$addr/resolution')({
   component: RouteComponent,
@@ -56,18 +58,19 @@ function RouteComponent() {
   if (isLoading) return <LoadingMessage />
 
   if (error) {
-    const message =
-      (error.cause as Error | undefined)?.message ||
-      (error as Error).message ||
-      'Could not load data.'
-    return <ErrorMessage title="Data unavailable" description={message} />
+    return (
+      <ErrorMessage
+        title="Data unavailable"
+        description={extractErrorMessage(error)}
+      />
+    )
   }
 
   if (!data) {
     return (
-      <ErrorMessage
-        title="Data unavailable"
-        description="Could not load data."
+      <NoResultsMessage
+        title="No names found"
+        description="This address doesn't resolve to any ENS names yet."
       />
     )
   }

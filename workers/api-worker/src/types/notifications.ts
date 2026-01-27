@@ -112,7 +112,10 @@ export const ChannelDataSchemas = v.object({
     username: v.string(),
   }),
   push: v.object({
-    token: v.string(),
+    // web push subscription keys for encryption
+    auth: v.string(), // base64 encoded auth secret
+    p256dh: v.string(), // base64 encoded P-256 public key
+    expirationTime: v.optional(v.nullable(v.number())),
   }),
 })
 

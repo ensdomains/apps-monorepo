@@ -8,6 +8,7 @@ import {
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { Toaster } from 'sonner'
 import { Layout } from '@/components/Layout'
+import { MATERIAL_SYMBOLS_URL } from '@/components/ui/material-symbol'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
 import { ParaWagmiSyncWatcher } from '@/features/wallet/components/ParaWagmiSyncWatcher'
 import { RootProviders } from '@/lib/RootProviders'
@@ -35,6 +36,10 @@ export const Route = createRootRouteWithContext<RootRouterContext>()({
       {
         rel: 'stylesheet',
         href: appCss,
+      },
+      {
+        rel: 'stylesheet',
+        href: MATERIAL_SYMBOLS_URL,
       },
     ],
   }),

@@ -37,6 +37,10 @@
       {
         "binding": "EMAIL_QUEUE",
         "queue": "app-api-worker-email-delivery"
+      },
+      {
+        "binding": "PUSH_QUEUE",
+        "queue": "app-api-worker-push-delivery"
       }
     ],
     "consumers": [
@@ -48,6 +52,12 @@
       },
       {
         "queue": "app-api-worker-email-delivery",
+        "max_batch_size": 50,
+        "max_batch_timeout": 3,
+        "max_retries": 3
+      },
+      {
+        "queue": "app-api-worker-push-delivery",
         "max_batch_size": 50,
         "max_batch_timeout": 3,
         "max_retries": 3
@@ -63,6 +73,8 @@
     "CHAIN": "mainnet",
     "BASE_URL": "https://app-api-worker.ens-cf.workers.dev",
     "EMAIL_FROM_ADDRESS": "ens@email.srv.ax",
-    "MANAGER_APP_URL": "https://manager-app-v4.ens-cf.workers.dev"
+    "MANAGER_APP_URL": "https://manager-app-v4.ens-cf.workers.dev",
+    "VAPID_SUBJECT": "mailto:notifications@ens.domains",
+    "VAPID_PUBLIC_KEY": "REPLACE_WITH_YOUR_VAPID_PUBLIC_KEY"
   }
 }

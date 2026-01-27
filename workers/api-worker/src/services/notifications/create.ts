@@ -34,7 +34,7 @@ const CHANNEL_TO_QUEUE: Partial<Record<ChannelType, keyof CloudflareBindings>> =
   {
     telegram: 'TELEGRAM_QUEUE',
     email: 'EMAIL_QUEUE',
-    // push: 'PUSH_QUEUE', // Uncomment when push queue is implemented
+    push: 'PUSH_QUEUE',
   } as const
 
 /**

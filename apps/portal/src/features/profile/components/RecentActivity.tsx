@@ -8,6 +8,7 @@ import type { Hash } from 'viem'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
+import { LoadingMessage } from '../../../components/LoadingMessage'
 import { useBlockTimestamps } from '../hooks/useBlockTimestamps'
 import { getNameHistoryQueryOptions } from '../hooks/useNameHistory'
 import { useTransactionSenders } from '../hooks/useTransactionSenders'
@@ -36,13 +37,13 @@ const RecentActivityTable = ({
   })
 
   if (isLoadingTimestamps && isLoadingSenders) {
-    return <div>Loading transaction data...</div>
+    return <LoadingMessage title="Loading transaction data" />
   }
   if (isLoadingTimestamps) {
-    return <div>Loading timestamps...</div>
+    return <LoadingMessage title="Loading timestamps" />
   }
   if (isLoadingSenders) {
-    return <div>Loading transaction senders...</div>
+    return <LoadingMessage title="Loading transaction senders" />
   }
 
   if (timestampsError) {

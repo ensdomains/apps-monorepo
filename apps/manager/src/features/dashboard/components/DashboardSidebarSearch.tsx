@@ -14,7 +14,7 @@ import {
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
-import { getDomainsQuery } from '../service/dashboardDomains'
+import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 
 type Suggestion = {
   id: string
