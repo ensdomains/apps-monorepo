@@ -1200,7 +1200,7 @@ packages:
     resolution: {integrity: sha512-OzdkXgdFmduzcJKU4KRkkJkQHnm5p7m7FkX8k+bHOEoOIzc0ueGT/Jay4nnb60wNk1wSHRmzY+hHBMpFDiGReg==}
 
   '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@68aa3be':
-    resolution: {integrity: sha512-CNTxTQG+smMhKiyfc0helP/wXpDOEvGA1DxYYke5vQY11xDt5MllUz1cKnpgl0bVb1URpLdN6UteN4EqpqG6gg==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@68aa3be}
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@68aa3be}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
     peerDependencies:
