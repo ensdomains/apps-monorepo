@@ -61,7 +61,7 @@ export type SubregistryDeploymentEvent =
  * Input for creating the subregistry deployment machine
  */
 export interface SubregistryDeploymentInput {
-  chainId: number
+  readonly chainId: number
 }
 
 /**
