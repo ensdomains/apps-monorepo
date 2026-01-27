@@ -49,6 +49,7 @@ export const signJWT = (
       exp: Math.floor(Date.now() / 1000) + validFor,
     },
     env.JWT_SECRET,
+    'HS256',
   )
 }
 
@@ -57,7 +58,7 @@ export const verifyJWT = <TSchema extends v.ObjectSchema<any, any>>(
   env: CloudflareBindings,
   schema: TSchema,
 ) => {
-  return safeVerify(token, env.JWT_SECRET).andThen((payload) => {
+  return safeVerify(token, env.JWT_SECRET, 'HS256').andThen((payload) => {
     const result = v.safeParse(schema, payload)
     if (!result.success) {
       return err(new InvalidJWTPayloadError({ issues: result.issues }))
