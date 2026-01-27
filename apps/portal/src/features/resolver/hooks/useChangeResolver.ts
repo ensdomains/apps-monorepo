@@ -51,7 +51,7 @@ export const useChangeResolver = ({
       resolverAddress,
     })
 
-    return writeContractAsync(writeParams as WriteContractParameters)
+    return writeContractAsync(writeParams)
   }
 
   return {
@@ -63,6 +63,5 @@ export const useChangeResolver = ({
     isReverted,
     writeError: writeError ?? null,
     receiptError: receiptError ?? null,
-    hasWallet: !!walletClient,
   }
 }
