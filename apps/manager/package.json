@@ -46,7 +46,7 @@
     "@tanstack/react-router": "^1.132.41",
     "@tanstack/react-router-devtools": "^1.132.41",
     "@tanstack/react-start": "^1.132.43",
-    "@wagmi/core": "^3.0.0",
+    "@wagmi/core": "catalog:",
     "@xstate/react": "^6.0.0",
     "@xstate/store": "^3.9.2",
     "@zerodev/ecdsa-validator": "^5.4.9",
