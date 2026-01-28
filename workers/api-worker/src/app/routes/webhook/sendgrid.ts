@@ -130,9 +130,9 @@ export default createApp()
 
       await processEvents(c.var.db, events.output)
     } else {
-      // no signature verification, just parse JSON directly
-      const body = await c.req.json()
-      const events = v.safeParse(SendGridWebhookPayloadSchema, body)
+      // no signature verification, parse with safe JSON handling
+      const rawBody = await c.req.text()
+      const events = v.safeParse(SendGridWebhookRawBodySchema, rawBody)
       if (!events.success) {
         logger.warn('Invalid SendGrid webhook payload', {
           issues: events.issues,
