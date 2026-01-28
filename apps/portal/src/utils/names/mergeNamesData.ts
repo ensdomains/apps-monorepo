@@ -4,11 +4,20 @@ import type { EnsNetworkName, WithEnsNetwork } from '@/utils/types'
 const MS_PER_SECOND = 1000
 
 /**
+ * V1 roles - owner and manager for ENS V1 names
+ */
+export type V1Roles = {
+  owner?: boolean
+  manager?: boolean
+}
+
+/**
  * V1 name structure with date-based expiry
  */
 export type V1Name = {
   name: NameWithRelation['name']
   expiryDate?: { date: Date | null } | null
+  relation: NameWithRelation['relation']
 }
 
 /**
@@ -42,6 +51,7 @@ export type MergedName = WithEnsNetwork<{
   subdomainCount?: number
   recordCount?: number
   roleBitmap?: string | null
+  v1Roles?: V1Roles | null
 }>
 
 /**
@@ -68,11 +78,17 @@ export const mergeNamesData = (
   v2Names: (V2Name | V2NameWithRoles)[] | undefined,
 ): MergedName[] => {
   const v1Transformed: MergedName[] = (v1Names || []).map(
-    ({ name, expiryDate }) => ({
+    ({ name, expiryDate, relation }) => ({
       name,
       expiryDate: expiryDate ? expiryDate.date : null,
       network: 'sepolia' as EnsNetworkName,
       roleBitmap: null,
+      v1Roles: {
+        // For wrapped names: wrappedOwner controls both ownership and management
+        // For unwrapped names: registrant is Owner, registry owner is Manager
+        owner: relation.registrant || relation.wrappedOwner,
+        manager: relation.owner || relation.wrappedOwner,
+      },
     }),
   )
 
@@ -96,6 +112,7 @@ export const mergeNamesData = (
           : undefined,
       recordCount: hasRecordCount ? item.recordCount : undefined,
       roleBitmap: hasRoleBitmap ? item.roleBitmap : null,
+      v1Roles: null,
     }
   })
 

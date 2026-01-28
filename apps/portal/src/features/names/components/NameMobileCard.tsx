@@ -4,11 +4,13 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
+import type { V1Roles } from '@/utils/names/mergeNamesData'
 
 export interface NameMobileCardProps {
   name: string | null
   expiryDate?: Date | null
   roleBitmap?: string | null
+  v1Roles?: V1Roles | null
   recordCount?: number
   subdomainCount?: number
   isSelected?: boolean
@@ -20,13 +22,18 @@ export const NameMobileCard = ({
   name,
   expiryDate,
   roleBitmap,
+  v1Roles,
   recordCount,
   subdomainCount,
   isSelected = false,
   onSelectChange,
   showCheckbox = true,
 }: NameMobileCardProps) => {
-  const roles = roleBitmap ? decodeRoleBitmap(roleBitmap) : []
+  const v2Roles = roleBitmap ? decodeRoleBitmap(roleBitmap) : []
+  const v1RoleLabels: string[] = []
+  if (v1Roles?.owner) v1RoleLabels.push('Owner')
+  if (v1Roles?.manager) v1RoleLabels.push('Manager')
+  const hasRoles = v2Roles.length > 0 || v1RoleLabels.length > 0
   const showRecordsSubnames =
     recordCount !== undefined || subdomainCount !== undefined
 
@@ -77,13 +84,21 @@ export const NameMobileCard = ({
       )}
 
       {/* Roles section (for names page) */}
-      {roles.length > 0 && (
+      {hasRoles && (
         <>
           <div className="text-sm font-medium text-gray-500">Roles</div>
-          <div>
-            <Badge variant="secondary" className="text-xs">
-              {roles.length} {roles.length === 1 ? 'Role' : 'Roles'}
-            </Badge>
+          <div className="flex flex-row gap-1">
+            {v2Roles.length > 0 ? (
+              <Badge variant="secondary" className="text-xs">
+                {v2Roles.length} {v2Roles.length === 1 ? 'Role' : 'Roles'}
+              </Badge>
+            ) : (
+              v1RoleLabels.map((label) => (
+                <Badge key={label} variant="secondary" className="text-xs">
+                  {label}
+                </Badge>
+              ))
+            )}
           </div>
         </>
       )}

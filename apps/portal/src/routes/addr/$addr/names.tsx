@@ -127,10 +127,16 @@ function RouteComponent() {
 
   const data = useMemo((): NameRow[] => {
     const v1Names: NameRow[] = (v1NamesQuery.data || []).map(
-      ({ name, expiryDate }) => ({
+      ({ name, expiryDate, relation }) => ({
         name,
         expiryDate: expiryDate?.date ?? null,
         roleBitmap: null,
+        v1Roles: {
+          // For wrapped names: wrappedOwner controls both ownership and management
+          // For unwrapped names: registrant is Owner, registry owner is Manager
+          owner: relation.registrant || relation.wrappedOwner,
+          manager: relation.owner || relation.wrappedOwner,
+        },
       }),
     )
 
@@ -139,6 +145,7 @@ function RouteComponent() {
         name,
         expiryDate: expiryDate ? new Date(expiryDate * MS_PER_SECOND) : null,
         roleBitmap,
+        v1Roles: null,
       }),
     )
 
@@ -147,26 +154,43 @@ function RouteComponent() {
 
   // Build role filter groups from actual data
   const roleFilterGroups = useMemo((): FilterGroup[] => {
-    const roleSet = new Set<string>()
+    const v2RoleSet = new Set<string>()
+    let hasV1Owner = false
+    let hasV1Manager = false
+
     for (const row of data) {
       if (row.roleBitmap) {
         const roles = decodeRoleBitmap(row.roleBitmap)
         for (const role of roles) {
-          roleSet.add(role)
+          v2RoleSet.add(role)
         }
       }
+      if (row.v1Roles?.owner) hasV1Owner = true
+      if (row.v1Roles?.manager) hasV1Manager = true
     }
 
-    const roleOptions = Array.from(roleSet)
+    const groups: FilterGroup[] = []
+
+    // V1 roles (Owner/Manager)
+    const v1Options = []
+    if (hasV1Owner) v1Options.push({ label: 'Owner', value: 'v1:owner' })
+    if (hasV1Manager) v1Options.push({ label: 'Manager', value: 'v1:manager' })
+    if (v1Options.length > 0) {
+      groups.push({ title: 'V1 Roles', options: v1Options })
+    }
+
+    // V2 roles (from roleBitmap)
+    const v2RoleOptions = Array.from(v2RoleSet)
       .sort()
       .map((role) => ({
         label: role.replace('ROLE_', '').replace(/_/g, ' ').toLowerCase(),
         value: role,
       }))
+    if (v2RoleOptions.length > 0) {
+      groups.push({ title: 'V2 Roles', options: v2RoleOptions })
+    }
 
-    if (roleOptions.length === 0) return []
-
-    return [{ title: 'Roles', options: roleOptions }]
+    return groups
   }, [data])
 
   // Apply filters to data
@@ -204,11 +228,26 @@ function RouteComponent() {
     // Filter by roles
     if (selectedRoles.length > 0) {
       filtered = filtered.filter((row) => {
-        if (!row.roleBitmap) return false
-        const roles = decodeRoleBitmap(row.roleBitmap)
-        return selectedRoles.some((selectedRole) =>
-          roles.includes(selectedRole as Role),
-        )
+        // Check V1 roles
+        const v1RoleMatches = selectedRoles.some((selectedRole) => {
+          if (selectedRole === 'v1:owner') return row.v1Roles?.owner
+          if (selectedRole === 'v1:manager') return row.v1Roles?.manager
+          return false
+        })
+        if (v1RoleMatches) return true
+
+        // Check V2 roles (from roleBitmap)
+        if (row.roleBitmap) {
+          const roles = decodeRoleBitmap(row.roleBitmap)
+          const v2RoleMatches = selectedRoles.some(
+            (selectedRole) =>
+              !selectedRole.startsWith('v1:') &&
+              roles.includes(selectedRole as Role),
+          )
+          if (v2RoleMatches) return true
+        }
+
+        return false
       })
     }
 

@@ -80,16 +80,40 @@ const columns: ColumnDef<column>[] = [
     header: 'Roles',
     cell: ({ row }) => {
       const roleBitmap = row.original.roleBitmap
-      if (!roleBitmap) return null
+      const v1Roles = row.original.v1Roles
 
-      const roles = decodeRoleBitmap(roleBitmap)
-      if (roles.length === 0) return null
+      // V2 names: use roleBitmap
+      if (roleBitmap) {
+        const roles = decodeRoleBitmap(roleBitmap)
+        if (roles.length === 0) return null
 
-      return (
-        <Badge variant="secondary" className="text-xs">
-          {roles.length} {roles.length === 1 ? 'Role' : 'Roles'}
-        </Badge>
-      )
+        return (
+          <Badge variant="secondary" className="text-xs">
+            {roles.length} {roles.length === 1 ? 'Role' : 'Roles'}
+          </Badge>
+        )
+      }
+
+      // V1 names: use v1Roles (owner/manager)
+      if (v1Roles) {
+        const roleLabels: string[] = []
+        if (v1Roles.owner) roleLabels.push('Owner')
+        if (v1Roles.manager) roleLabels.push('Manager')
+
+        if (roleLabels.length === 0) return null
+
+        return (
+          <div className="flex flex-row gap-1">
+            {roleLabels.map((label) => (
+              <Badge key={label} variant="secondary" className="text-xs">
+                {label}
+              </Badge>
+            ))}
+          </div>
+        )
+      }
+
+      return null
     },
   },
 ]
@@ -122,6 +146,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
             name={name.name}
             expiryDate={name.expiryDate}
             roleBitmap={name.roleBitmap}
+            v1Roles={name.v1Roles}
             recordCount={name.recordCount}
             subdomainCount={name.subdomainCount}
             showCheckbox={false}
