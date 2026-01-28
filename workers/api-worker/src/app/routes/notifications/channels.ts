@@ -8,6 +8,11 @@ import { TABLE } from '#core/database/index.js'
 import { sendVerificationEmail } from '#services/email/verification.js'
 import { sanitizeChannel } from '#services/notifications/helpers.js'
 import {
+  addContactToList,
+  deleteContact,
+  searchContact,
+} from '#services/sendgrid/contacts.js'
+import {
   TelegramAuthSchema,
   verifyTelegramAuth,
 } from '#services/telegram/auth.js'
@@ -227,6 +232,30 @@ const emailRoutes = createApp()
         .delete(TABLE.channelVerifications)
         .where(eq(TABLE.channelVerifications.id, verification.id))
 
+      // add to SendGrid broadcast list
+      if (c.env.SENDGRID_BROADCAST_LIST_ID && verification.channel?.target) {
+        addContactToList(
+          {
+            SENDGRID_API_KEY: c.env.SENDGRID_API_KEY,
+            SENDGRID_BROADCAST_LIST_ID: c.env.SENDGRID_BROADCAST_LIST_ID,
+          },
+          verification.channel.target,
+          verification.user_id,
+        ).then((result) => {
+          if (result.isErr()) {
+            logger.error('Failed to add contact to broadcast list', {
+              email: verification.channel?.target,
+              error: result.error,
+            })
+          } else {
+            logger.info('Added contact to broadcast list', {
+              email: verification.channel?.target,
+              jobId: result.value.jobId,
+            })
+          }
+        })
+      }
+
       return c.json({ message: 'Email verified successfully' })
     },
   )
@@ -287,6 +316,42 @@ const idRoutes = createApp()
     await c.var.db
       .delete(TABLE.userChannels)
       .where(eq(TABLE.userChannels.id, channelId))
+
+    // remove from SendGrid if email channel
+    if (
+      channel.channel === 'email' &&
+      channel.target &&
+      c.env.SENDGRID_BROADCAST_LIST_ID
+    ) {
+      searchContact(
+        {
+          SENDGRID_API_KEY: c.env.SENDGRID_API_KEY,
+          SENDGRID_BROADCAST_LIST_ID: c.env.SENDGRID_BROADCAST_LIST_ID,
+        },
+        channel.target,
+      ).then((searchResult) => {
+        if (searchResult.isOk() && searchResult.value) {
+          deleteContact(
+            {
+              SENDGRID_API_KEY: c.env.SENDGRID_API_KEY,
+              SENDGRID_BROADCAST_LIST_ID: c.env.SENDGRID_BROADCAST_LIST_ID,
+            },
+            searchResult.value.id,
+          ).then((deleteResult) => {
+            if (deleteResult.isErr()) {
+              logger.error('Failed to delete contact from SendGrid', {
+                email: channel.target,
+                error: deleteResult.error,
+              })
+            } else {
+              logger.info('Deleted contact from SendGrid', {
+                email: channel.target,
+              })
+            }
+          })
+        }
+      })
+    }
 
     return c.json({ message: 'Channel deleted successfully' })
   })
