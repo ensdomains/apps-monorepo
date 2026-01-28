@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useAtom } from '@xstate/store/react'
+import { useAtom } from '@xstate/store-react'
 import { Search } from 'lucide-react'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
