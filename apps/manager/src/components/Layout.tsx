@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import patternBg from '@/assets/pattern-bg.svg'
+import { Footer } from '@/components/Footer'
 import { Header } from '@/features/navigation/components/Header'
 
 interface LayoutProps {
@@ -19,6 +20,8 @@ export const Layout = ({ children }: LayoutProps) => {
       >
         {children}
       </main>
+
+      <Footer />
     </div>
   )
 }
