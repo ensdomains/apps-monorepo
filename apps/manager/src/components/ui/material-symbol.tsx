@@ -15,6 +15,7 @@ const GRADE: RangeOrValue = '-50..200'
 const MATERIAL_SYMBOLS = [
   'drafts',
   'notifications',
+  'waving_hand',
 ] as const satisfies readonly string[]
 
 /**
