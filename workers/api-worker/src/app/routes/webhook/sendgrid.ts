@@ -1,4 +1,6 @@
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
+import { fromPromise, ok } from 'neverthrow'
 import * as v from 'valibot'
 import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
@@ -24,50 +26,53 @@ const SendGridEventSchema = v.object({
 
 const SendGridWebhookPayloadSchema = v.array(SendGridEventSchema)
 
+class SignatureVerificationError extends TaggedError(
+  'SIGNATURE_VERIFICATION_ERROR',
+) {}
+
 /**
  * verify SendGrid webhook signature using ECDSA.
  * https://docs.sendgrid.com/for-developers/tracking-events/getting-started-event-webhook-security-features
  */
-async function verifySignature(
+const verifySignature = ResultFn(async function* (
   publicKey: string,
   payload: string,
   signature: string,
   timestamp: string,
-): Promise<boolean> {
-  try {
-    // SendGrid signs: timestamp + payload
-    const signedPayload = timestamp + payload
+) {
+  // SendGrid signs: timestamp + payload
+  const signedPayload = timestamp + payload
 
-    // import the public key (base64 encoded ECDSA P-256 key)
-    const keyData = Uint8Array.from(atob(publicKey), (c) => c.charCodeAt(0))
-    const cryptoKey = await crypto.subtle.importKey(
+  // import the public key (base64 encoded ECDSA P-256 key)
+  const keyData = Uint8Array.from(atob(publicKey), (c) => c.charCodeAt(0))
+  const cryptoKey = yield* fromPromise(
+    crypto.subtle.importKey(
       'spki',
       keyData,
       { name: 'ECDSA', namedCurve: 'P-256' },
       false,
       ['verify'],
-    )
+    ),
+    () => new SignatureVerificationError({ message: 'Failed to import key' }),
+  )
 
-    // decode signature (base64)
-    const signatureData = Uint8Array.from(atob(signature), (c) =>
-      c.charCodeAt(0),
-    )
+  // decode signature (base64)
+  const signatureData = Uint8Array.from(atob(signature), (c) => c.charCodeAt(0))
 
-    // verify
-    const encoder = new TextEncoder()
-    const isValid = await crypto.subtle.verify(
+  // verify
+  const encoder = new TextEncoder()
+  const isValid = yield* fromPromise(
+    crypto.subtle.verify(
       { name: 'ECDSA', hash: 'SHA-256' },
       cryptoKey,
       signatureData,
       encoder.encode(signedPayload),
-    )
+    ),
+    () => new SignatureVerificationError({ message: 'Verification failed' }),
+  )
 
-    return isValid
-  } catch (error) {
-    logger.error('SendGrid signature verification failed', { error })
-    return false
-  }
-}
+  return ok(isValid)
+})
 
 export default createApp()
   .basePath('/sendgrid')
@@ -82,14 +87,21 @@ export default createApp()
       }
 
       const rawBody = await c.req.text()
-      const isValid = await verifySignature(
+      const verifyResult = await verifySignature(
         c.env.SENDGRID_WEBHOOK_VERIFICATION_KEY,
         rawBody,
         signature,
         timestamp,
       )
 
-      if (!isValid) {
+      if (verifyResult.isErr()) {
+        logger.error('SendGrid signature verification failed', {
+          error: verifyResult.error,
+        })
+        return c.json({ error: 'Invalid signature' }, 401)
+      }
+
+      if (!verifyResult.value) {
         return c.json({ error: 'Invalid signature' }, 401)
       }
 

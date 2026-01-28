@@ -120,7 +120,7 @@ export const searchContact = ResultFn(async function* (
         Authorization: `Bearer ${env.SENDGRID_API_KEY}`,
       },
       body: JSON.stringify({
-        query: `email = '${email}'`,
+        query: `email = '${email.replace(/'/g, "\\'")}'`,
       }),
     }),
     createIntoError('SENDGRID_CONTACTS_ERROR'),

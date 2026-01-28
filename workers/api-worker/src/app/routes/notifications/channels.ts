@@ -1,5 +1,6 @@
 import { vValidator } from '@hono/valibot-validator'
 import { and, eq, gt } from 'drizzle-orm'
+import { okAsync } from 'neverthrow'
 import * as v from 'valibot'
 import { requireAuth } from '#app/middleware/auth.js'
 import { injectDb } from '#app/middleware/database.js'
@@ -233,6 +234,7 @@ const emailRoutes = createApp()
         .where(eq(TABLE.channelVerifications.id, verification.id))
 
       // add to SendGrid broadcast list
+      // Fire-and-forget: broadcast list sync is best-effort, shouldn't block verification
       if (c.env.SENDGRID_BROADCAST_LIST_ID && verification.channel?.target) {
         addContactToList(
           {
@@ -318,39 +320,32 @@ const idRoutes = createApp()
       .where(eq(TABLE.userChannels.id, channelId))
 
     // remove from SendGrid if email channel
+    // Fire-and-forget: broadcast list cleanup is best - effort, shouldn't block deletion
     if (
       channel.channel === 'email' &&
       channel.target &&
       c.env.SENDGRID_BROADCAST_LIST_ID
     ) {
-      searchContact(
-        {
-          SENDGRID_API_KEY: c.env.SENDGRID_API_KEY,
-          SENDGRID_BROADCAST_LIST_ID: c.env.SENDGRID_BROADCAST_LIST_ID,
-        },
-        channel.target,
-      ).then((searchResult) => {
-        if (searchResult.isOk() && searchResult.value) {
-          deleteContact(
-            {
-              SENDGRID_API_KEY: c.env.SENDGRID_API_KEY,
-              SENDGRID_BROADCAST_LIST_ID: c.env.SENDGRID_BROADCAST_LIST_ID,
-            },
-            searchResult.value.id,
-          ).then((deleteResult) => {
-            if (deleteResult.isErr()) {
-              logger.error('Failed to delete contact from SendGrid', {
-                email: channel.target,
-                error: deleteResult.error,
-              })
-            } else {
-              logger.info('Deleted contact from SendGrid', {
-                email: channel.target,
-              })
-            }
-          })
-        }
-      })
+      const env = {
+        SENDGRID_API_KEY: c.env.SENDGRID_API_KEY,
+        SENDGRID_BROADCAST_LIST_ID: c.env.SENDGRID_BROADCAST_LIST_ID,
+      }
+      searchContact(env, channel.target)
+        .andThen((contact) =>
+          contact ? deleteContact(env, contact.id) : okAsync(undefined),
+        )
+        .then((result) => {
+          if (result.isErr()) {
+            logger.error('Failed to delete contact from SendGrid', {
+              email: channel.target,
+              error: result.error,
+            })
+          } else {
+            logger.info('Deleted contact from SendGrid', {
+              email: channel.target,
+            })
+          }
+        })
     }
 
     return c.json({ message: 'Channel deleted successfully' })
