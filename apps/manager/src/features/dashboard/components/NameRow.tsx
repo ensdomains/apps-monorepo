@@ -3,12 +3,18 @@ import { ArrowUpRight, Heart } from 'lucide-react'
 import { motion } from 'motion/react'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 interface NameRowProps {
   readonly label: string
   readonly avatarUrl?: string
   readonly isFavorite: boolean
   readonly onToggleFavorite: () => void
+  readonly isAuthenticated?: boolean
 }
 
 export const NameRow = ({
@@ -16,21 +22,34 @@ export const NameRow = ({
   avatarUrl,
   isFavorite,
   onToggleFavorite,
+  isAuthenticated = true,
 }: NameRowProps) => {
+  const heartButton = (
+    <motion.button
+      className="flex shrink-0 items-center justify-center disabled:cursor-not-allowed"
+      disabled={!isAuthenticated}
+      onClick={isAuthenticated ? onToggleFavorite : undefined}
+      transition={{ duration: 0.1 }}
+      type="button"
+      whileTap={isAuthenticated ? { scale: 0.8 } : undefined}
+    >
+      <Heart
+        className={`size-[16px] ${isFavorite ? 'fill-[#f53293] text-[#f53293]' : 'text-[#d3d3d3]'} ${isAuthenticated ? '' : 'opacity-50'}`}
+        strokeWidth={2}
+      />
+    </motion.button>
+  )
+
   return (
     <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[12px]">
-      <motion.button
-        className="flex shrink-0 items-center justify-center"
-        onClick={onToggleFavorite}
-        transition={{ duration: 0.1 }}
-        type="button"
-        whileTap={{ scale: 0.8 }}
-      >
-        <Heart
-          className={`size-[16px] ${isFavorite ? 'fill-[#f53293] text-[#f53293]' : 'text-[#d3d3d3]'}`}
-          strokeWidth={2}
-        />
-      </motion.button>
+      {isAuthenticated ? (
+        heartButton
+      ) : (
+        <Tooltip>
+          <TooltipTrigger asChild>{heartButton}</TooltipTrigger>
+          <TooltipContent>Login to favorite</TooltipContent>
+        </Tooltip>
+      )}
       <div className="flex items-center gap-2 md:gap-[12px]">
         <div className="relative size-[32px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
           <ImageFallback.Root className="contents">
