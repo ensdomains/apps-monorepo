@@ -16,15 +16,18 @@ const AddContactsResponseSchema = v.object({
   job_id: v.string(),
 })
 
-const SearchContactsResponseSchema = v.object({
-  result: v.array(
+// response schema for /contacts/search/emails endpoint
+const SearchByEmailResponseSchema = v.object({
+  result: v.record(
+    v.string(),
     v.object({
-      id: v.string(),
-      email: v.string(),
-      list_ids: v.optional(v.array(v.string())),
+      contact: v.object({
+        id: v.string(),
+        email: v.string(),
+        list_ids: v.optional(v.array(v.string())),
+      }),
     }),
   ),
-  contact_count: v.number(),
 })
 
 const SendGridErrorResponseSchema = v.object({
@@ -105,12 +108,13 @@ export const addContactToList = ResultFn(async function* (
 
 /**
  * search for a contact by email to get their ID.
+ * uses the /search/emails endpoint which is safer than SGQL queries.
  */
 export const searchContact = ResultFn(async function* (
   env: SendGridEnv,
   email: string,
 ) {
-  const url = new URL(`${BASE_URL}/v3/marketing/contacts/search`)
+  const url = new URL(`${BASE_URL}/v3/marketing/contacts/search/emails`)
 
   const response = yield* fromPromise(
     fetch(url, {
@@ -120,30 +124,36 @@ export const searchContact = ResultFn(async function* (
         Authorization: `Bearer ${env.SENDGRID_API_KEY}`,
       },
       body: JSON.stringify({
-        query: `email = '${email.replace(/'/g, "\\'")}'`,
+        emails: [email.toLowerCase()],
       }),
     }),
     createIntoError('SENDGRID_CONTACTS_ERROR'),
   )
+
+  // 404 means no contacts found
+  if (response.status === 404) {
+    return ok(null)
+  }
 
   if (response.status === 200) {
     const json = yield* fromPromise(
       response.json(),
       createIntoError('SENDGRID_CONTACTS_ERROR'),
     )
-    const parsed = yield* parseIntoResult(SearchContactsResponseSchema, json, {
+    const parsed = yield* parseIntoResult(SearchByEmailResponseSchema, json, {
       code: 'SENDGRID_CONTACTS_ERROR',
       message: 'Failed to parse search response',
     })
 
-    if (parsed.contact_count === 0) {
+    const contact = parsed.result[email.toLowerCase()]?.contact
+    if (!contact) {
       return ok(null)
     }
 
     return ok({
-      id: parsed.result[0].id,
-      email: parsed.result[0].email,
-      listIds: parsed.result[0].list_ids ?? [],
+      id: contact.id,
+      email: contact.email,
+      listIds: contact.list_ids ?? [],
     })
   }
 

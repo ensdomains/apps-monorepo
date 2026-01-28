@@ -233,29 +233,32 @@ const emailRoutes = createApp()
         .delete(TABLE.channelVerifications)
         .where(eq(TABLE.channelVerifications.id, verification.id))
 
-      // add to SendGrid broadcast list
-      // Fire-and-forget: broadcast list sync is best-effort, shouldn't block verification
+      // broadcast list sync via waitUntil
       if (c.env.SENDGRID_BROADCAST_LIST_ID && verification.channel?.target) {
-        addContactToList(
-          {
-            SENDGRID_API_KEY: c.env.SENDGRID_API_KEY,
-            SENDGRID_BROADCAST_LIST_ID: c.env.SENDGRID_BROADCAST_LIST_ID,
-          },
-          verification.channel.target,
-          verification.user_id,
-        ).then((result) => {
-          if (result.isErr()) {
-            logger.error('Failed to add contact to broadcast list', {
-              email: verification.channel?.target,
-              error: result.error,
-            })
-          } else {
-            logger.info('Added contact to broadcast list', {
-              email: verification.channel?.target,
-              jobId: result.value.jobId,
-            })
-          }
-        })
+        c.executionCtx.waitUntil(
+          Promise.resolve(
+            addContactToList(
+              {
+                SENDGRID_API_KEY: c.env.SENDGRID_API_KEY,
+                SENDGRID_BROADCAST_LIST_ID: c.env.SENDGRID_BROADCAST_LIST_ID,
+              },
+              verification.channel.target,
+              verification.user_id,
+            ),
+          ).then((result) => {
+            if (result.isErr()) {
+              logger.error('Failed to add contact to broadcast list', {
+                email: verification.channel?.target,
+                error: result.error,
+              })
+            } else {
+              logger.info('Added contact to broadcast list', {
+                email: verification.channel?.target,
+                jobId: result.value.jobId,
+              })
+            }
+          }),
+        )
       }
 
       return c.json({ message: 'Email verified successfully' })
@@ -319,8 +322,7 @@ const idRoutes = createApp()
       .delete(TABLE.userChannels)
       .where(eq(TABLE.userChannels.id, channelId))
 
-    // remove from SendGrid if email channel
-    // Fire-and-forget: broadcast list cleanup is best - effort, shouldn't block deletion
+    // broadcast list cleanup via waitUntil
     if (
       channel.channel === 'email' &&
       channel.target &&
@@ -330,11 +332,12 @@ const idRoutes = createApp()
         SENDGRID_API_KEY: c.env.SENDGRID_API_KEY,
         SENDGRID_BROADCAST_LIST_ID: c.env.SENDGRID_BROADCAST_LIST_ID,
       }
-      searchContact(env, channel.target)
-        .andThen((contact) =>
-          contact ? deleteContact(env, contact.id) : okAsync(undefined),
-        )
-        .then((result) => {
+      c.executionCtx.waitUntil(
+        Promise.resolve(
+          searchContact(env, channel.target).andThen((contact) =>
+            contact ? deleteContact(env, contact.id) : okAsync(undefined),
+          ),
+        ).then((result) => {
           if (result.isErr()) {
             logger.error('Failed to delete contact from SendGrid', {
               email: channel.target,
@@ -345,7 +348,8 @@ const idRoutes = createApp()
               email: channel.target,
             })
           }
-        })
+        }),
+      )
     }
 
     return c.json({ message: 'Channel deleted successfully' })
