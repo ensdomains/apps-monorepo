@@ -2,7 +2,6 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store/react'
 import { Heart } from 'lucide-react'
 import { motion } from 'motion/react'
-import { useWalletClient } from 'wagmi'
 import {
   Tooltip,
   TooltipContent,
@@ -11,8 +10,6 @@ import {
 import { addFavoriteMutationOptions } from '@/features/dashboard/service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '@/features/dashboard/service/mutations/removeFavorite'
 import { favoritesQueryOptions } from '@/features/dashboard/service/queries/getFavorites'
-import { ensureAuthenticated } from '@/features/dashboard/utils/ensureAuthenticated'
-import { signInBackendMutation } from '@/features/notifications/queries/auth'
 import { isBackendAuthed } from '@/utils/backend-client'
 
 interface FavoriteButtonProps {
@@ -21,8 +18,6 @@ interface FavoriteButtonProps {
 
 export const FavoriteButton = ({ name }: FavoriteButtonProps) => {
   const isAuthed = useAtom(isBackendAuthed)
-  const { data: walletClient } = useWalletClient()
-  const signIn = useMutation(signInBackendMutation)
 
   const { data: favorites = [] } = useQuery(favoritesQueryOptions)
   const addMutation = useMutation(addFavoriteMutationOptions)
@@ -32,8 +27,8 @@ export const FavoriteButton = ({ name }: FavoriteButtonProps) => {
     (entry) => entry.name.toLowerCase() === name.toLowerCase(),
   )
 
-  const toggleFavorite = async () => {
-    if (!(await ensureAuthenticated(isAuthed, walletClient, signIn))) return
+  const toggleFavorite = () => {
+    if (!isAuthed) return
 
     if (isFavorite) {
       removeMutation.mutate({ name })

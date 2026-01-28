@@ -11,7 +11,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { match, P } from 'ts-pattern'
-import { useWalletClient } from 'wagmi'
 import {
   formatDashboardDate,
   getDaysUntil,
@@ -19,14 +18,12 @@ import {
   resolveDomainLabel,
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
-import { signInBackendMutation } from '@/features/notifications/queries/auth'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { useDashboardNames } from '../hooks/useDashboardNames'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
-import { ensureAuthenticated } from '../utils/ensureAuthenticated'
 import { NameRow } from './NameRow'
 import { PrimaryBadge } from './PrimaryBadge'
 
@@ -98,8 +95,6 @@ export const MyNamesList = ({
   } = useDashboardNames({ searchQuery })
 
   const isAuthed = useAtom(isBackendAuthed)
-  const { data: walletClient } = useWalletClient()
-  const signIn = useMutation(signInBackendMutation)
 
   const { data: favorites = [] } = useQuery(favoritesQueryOptions)
   const addMutation = useMutation(addFavoriteMutationOptions)
@@ -108,8 +103,8 @@ export const MyNamesList = ({
   const isFavorite = (label: string) =>
     favorites.some((entry) => entry.name.toLowerCase() === label.toLowerCase())
 
-  const toggleFavorite = async (label: string) => {
-    if (!(await ensureAuthenticated(isAuthed, walletClient, signIn))) return
+  const toggleFavorite = (label: string) => {
+    if (!isAuthed) return
 
     if (isFavorite(label)) {
       removeMutation.mutate({ name: label })

@@ -1,14 +1,9 @@
 import { OrderDirection } from '@ens-apps/indexer'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useAtom } from '@xstate/store/react'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { useWalletClient } from 'wagmi'
-import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { signInBackendMutation } from '@/features/notifications/queries/auth'
-import { isBackendAuthed } from '@/utils/backend-client'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import {
   filterFavoritesBySearch,
@@ -17,7 +12,6 @@ import {
   toLocalEntry,
 } from '../service/queries/favorites.helpers'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
-import { ensureAuthenticated } from '../utils/ensureAuthenticated'
 import { NameRow } from './NameRow'
 
 const NameRowSkeleton = () => (
@@ -72,18 +66,12 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
     OrderDirection.Asc,
   )
 
-  const isAuthed = useAtom(isBackendAuthed)
-  const { data: walletClient } = useWalletClient()
-  const signIn = useMutation(signInBackendMutation)
-
   const { data: apiFavorites = [], isLoading } = useQuery(favoritesQueryOptions)
   const favorites = apiFavorites.map(toLocalEntry)
   const favoritesCount = apiFavorites.length
   const removeMutation = useMutation(removeFavoriteMutationOptions)
 
-  const toggleFavorite = async (label: string) => {
-    if (!(await ensureAuthenticated(isAuthed, walletClient, signIn))) return
-
+  const toggleFavorite = (label: string) => {
     removeMutation.mutate({ name: label })
   }
 
@@ -122,47 +110,6 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
       setSortField(field)
       setSortDirection(OrderDirection.Asc)
     }
-  }
-
-  const handleSignIn = async () => {
-    await ensureAuthenticated(isAuthed, walletClient, signIn)
-  }
-
-  if (!isAuthed) {
-    return (
-      <div className="w-full">
-        <div className="flex flex-col items-center justify-center py-12">
-          <div className="space-y-4 text-center">
-            <div className="space-y-2">
-              <h3 className="font-medium text-lg">Sign in to view favorites</h3>
-              <p className="text-[#8c8c8c] text-sm">
-                Sign in with your wallet to view and manage your favorite ENS
-                names.
-              </p>
-            </div>
-
-            <Button
-              className="w-full max-w-[200px]"
-              disabled={signIn.isPending || !walletClient}
-              onClick={handleSignIn}
-            >
-              {signIn.isPending ? 'Signing in...' : 'Sign in'}
-            </Button>
-
-            {signIn.isError && (
-              <p className="text-red-500 text-sm">
-                Failed to sign in. Please try again.
-              </p>
-            )}
-            {!walletClient && (
-              <p className="text-[#8c8c8c] text-sm">
-                Please connect your wallet first.
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-    )
   }
 
   return (

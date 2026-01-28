@@ -86,7 +86,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
       label: 'Favorites',
       badge: favoritesCount,
       disabled: !isAuthed,
-      disabledTooltip: 'Login to view favorites',
+      disabledTooltip: 'Sign in to view favorites',
     },
   ]
 
