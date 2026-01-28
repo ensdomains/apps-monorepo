@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleAlert,
+  Mountain,
 } from 'lucide-react'
 import { match, P } from 'ts-pattern'
 import {
@@ -191,8 +192,11 @@ export const MyNamesList = ({
             </>
           ))
           .with({ names: P.when((n) => n.length === 0) }, () => (
-            <div className="py-8 text-center font-sans text-[#8c8c8c] text-sm">
-              No names found
+            <div className="flex flex-col items-center justify-center gap-3 py-16">
+              <Mountain className="size-12 text-[#d1d1d1]" strokeWidth={1} />
+              <span className="font-sans text-[#8c8c8c] text-sm">
+                No names to display
+              </span>
             </div>
           ))
           .otherwise(({ names }) =>

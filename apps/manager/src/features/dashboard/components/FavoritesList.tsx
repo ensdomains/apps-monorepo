@@ -1,6 +1,6 @@
 import { OrderDirection } from '@ens-apps/indexer'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Mountain } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
@@ -155,14 +155,19 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
             </>
           ))
           .with({ favoritesCount: 0 }, () => (
-            <div className="py-8 text-center font-sans text-[#8c8c8c] text-sm">
-              No favorites yet. Add names to your favorites from the My Names
-              tab.
+            <div className="flex flex-col items-center justify-center gap-3 py-16">
+              <Mountain className="size-12 text-[#d1d1d1]" strokeWidth={1} />
+              <span className="font-sans text-[#8c8c8c] text-sm">
+                No names to display
+              </span>
             </div>
           ))
           .with({ paginatedFavorites: P.when((f) => f.length === 0) }, () => (
-            <div className="py-8 text-center font-sans text-[#8c8c8c] text-sm">
-              No favorites found
+            <div className="flex flex-col items-center justify-center gap-3 py-16">
+              <Mountain className="size-12 text-[#d1d1d1]" strokeWidth={1} />
+              <span className="font-sans text-[#8c8c8c] text-sm">
+                No names to display
+              </span>
             </div>
           ))
           .otherwise(({ paginatedFavorites }) =>
