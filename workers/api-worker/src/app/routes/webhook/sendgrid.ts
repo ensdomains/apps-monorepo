@@ -1,4 +1,4 @@
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
 import { fromPromise, ok } from 'neverthrow'
 import * as v from 'valibot'
@@ -44,7 +44,11 @@ const verifySignature = ResultFn(async function* (
   const signedPayload = timestamp + payload
 
   // import the public key (base64 encoded ECDSA P-256 key)
-  const keyData = Uint8Array.from(atob(publicKey), (c) => c.charCodeAt(0))
+  const keyData = yield* fromSync(
+    () => Uint8Array.from(atob(publicKey), (c) => c.charCodeAt(0)),
+    () =>
+      new SignatureVerificationError({ message: 'Invalid base64 public key' }),
+  )
   const cryptoKey = yield* fromPromise(
     crypto.subtle.importKey(
       'spki',
@@ -57,7 +61,11 @@ const verifySignature = ResultFn(async function* (
   )
 
   // decode signature (base64)
-  const signatureData = Uint8Array.from(atob(signature), (c) => c.charCodeAt(0))
+  const signatureData = yield* fromSync(
+    () => Uint8Array.from(atob(signature), (c) => c.charCodeAt(0)),
+    () =>
+      new SignatureVerificationError({ message: 'Invalid base64 signature' }),
+  )
 
   // verify
   const encoder = new TextEncoder()
@@ -106,10 +114,14 @@ export default createApp()
       }
 
       // re-parse the body since we consumed it
-      const events = v.safeParse(
-        SendGridWebhookPayloadSchema,
-        JSON.parse(rawBody),
-      )
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(rawBody)
+      } catch {
+        return c.json({ error: 'Invalid JSON' }, 400)
+      }
+
+      const events = v.safeParse(SendGridWebhookPayloadSchema, parsed)
       if (!events.success) {
         logger.warn('Invalid SendGrid webhook payload', {
           issues: events.issues,
@@ -166,7 +178,7 @@ async function processEvents(
           })
           .where(eq(TABLE.userChannels.id, channel.id))
 
-        logger.info('Email channel marked as bounced', {
+        logger.warn('Email channel marked as bounced', {
           channelId: channel.id,
           email: event.email,
           reason: event.reason,
@@ -184,7 +196,7 @@ async function processEvents(
           })
           .where(eq(TABLE.userChannels.id, channel.id))
 
-        logger.info('Email channel marked as bounced (spam report)', {
+        logger.warn('Email channel marked as bounced (spam report)', {
           channelId: channel.id,
           email: event.email,
         })
