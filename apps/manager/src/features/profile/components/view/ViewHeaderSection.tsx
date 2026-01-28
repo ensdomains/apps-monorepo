@@ -7,6 +7,7 @@ import { parseAvatarQuery } from '../../service/profileAvatar'
 import type { ProfileRecords } from '../../types'
 import { ProfileHeaderInfo } from '../common/ProfileHeaderInfo'
 import { ShareProfileDialog } from '../dialogs/ShareProfileDialog'
+import { FavoriteButton } from './FavoriteButton'
 
 interface ViewHeaderSectionProps {
   name: string
@@ -39,7 +40,7 @@ export const ViewHeaderSection = ({
     <div className="overflow-hidden md:rounded-xl">
       {/* Header BG */}
       <div className="relative w-full">
-        <ImageFallback.Root className="aspect-[3/1] w-full md:aspect-[5/1]">
+        <ImageFallback.Root className="aspect-3/1 w-full md:aspect-5/1">
           <ImageFallback.Image
             alt={`${name} header`}
             className="size-full object-cover"
@@ -54,7 +55,8 @@ export const ViewHeaderSection = ({
             />
           </ImageFallback.Fallback>
         </ImageFallback.Root>
-        <div className="absolute top-4 right-4">
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          <FavoriteButton name={name} />
           <ShareProfileDialog avatarUrl={avatarUrl} name={name} url={url} />
         </div>
         <div className="-bottom-10 max-md:-translate-x-1/2 absolute left-1/2 size-24 md:left-6 md:size-36 lg:size-40">
