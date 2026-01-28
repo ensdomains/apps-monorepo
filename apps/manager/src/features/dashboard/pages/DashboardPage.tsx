@@ -1,4 +1,6 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { MSymbol } from '@/components/ui/material-symbol'
 import { DidYouKnowSection } from '@/features/dashboard/components/DidYouKnowSection'
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
@@ -41,11 +43,24 @@ export const DashboardPage = () => {
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 px-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-[40px]">
       <div className="min-w-0 flex-1 space-y-6 md:space-y-8">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-8">
-          <h1 className="font-serif text-[#232222] text-[28px] leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]">
-            Hello {displayName}
-          </h1>
-        </div>
+        <Alert className="grid-cols-[calc(var(--spacing)*8)_1fr] border-[#0080bc] border-[0.4px] bg-[#e5f7ff] p-4">
+          <MSymbol
+            className="ms-opsz-20 ms-wght-500 text-[#0080bc]"
+            symbol="waving_hand"
+          />
+          <AlertTitle className="text-[#0080bc] text-[14px] tracking-[0.28px]">
+            Welcome to the public alpha of the ENS app
+          </AlertTitle>
+          <AlertDescription className="max-w-5xl text-[#5c5b5b] text-sm">
+            Welcome to the public alpha of the ENS App. You're seeing the
+            earliest version of our app. There will be things that break,
+            change, or disappear as we iterate. We'd love to hear what you
+            think—share feedback anytime!
+          </AlertDescription>
+        </Alert>
+        <h1 className="font-serif text-[#232222] text-[28px] leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]">
+          Hello {displayName}
+        </h1>
         {hasProfile && (
           <PrimaryNameCard avatarUrl={avatarUrl} primaryName={defaultName} />
         )}
