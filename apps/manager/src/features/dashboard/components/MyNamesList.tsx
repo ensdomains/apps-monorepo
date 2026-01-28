@@ -1,7 +1,7 @@
 import { OrderDirection } from '@ens-apps/indexer'
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { useAtom } from '@xstate/store/react'
+import { useAtom } from '@xstate/store-react'
 import {
   ArrowRight,
   ChevronDown,

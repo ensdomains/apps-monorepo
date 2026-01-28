@@ -49,7 +49,7 @@
     "@tanstack/react-start": "^1.132.43",
     "@wagmi/core": "^3.0.0",
     "@xstate/react": "^6.0.0",
-    "@xstate/store": "^3.9.2",
+    "@xstate/store-react": "^1.0.1",
     "@zerodev/ecdsa-validator": "^5.4.9",
     "@zerodev/permissions": "^5.6.3",
     "@zerodev/sdk": "^5.5.7",

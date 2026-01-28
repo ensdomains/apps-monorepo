@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { createFileRoute, Outlet } from '@tanstack/react-router'
-import { useAtom } from '@xstate/store/react'
+import { useAtom } from '@xstate/store-react'
 import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { signInBackendMutation } from '@/features/notifications/queries/auth'

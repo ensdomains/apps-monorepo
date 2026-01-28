@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useAtom } from '@xstate/store/react'
+import { useAtom } from '@xstate/store-react'
 import { Heart } from 'lucide-react'
 import { motion } from 'motion/react'
 import {
