@@ -26,6 +26,12 @@ const SendGridEventSchema = v.object({
 
 const SendGridWebhookPayloadSchema = v.array(SendGridEventSchema)
 
+const SendGridWebhookRawBodySchema = v.pipe(
+  v.string(),
+  v.parseJson(),
+  SendGridWebhookPayloadSchema,
+)
+
 class SignatureVerificationError extends TaggedError(
   'SIGNATURE_VERIFICATION_ERROR',
 ) {}
@@ -114,14 +120,7 @@ export default createApp()
       }
 
       // re-parse the body since we consumed it
-      let parsed: unknown
-      try {
-        parsed = JSON.parse(rawBody)
-      } catch {
-        return c.json({ error: 'Invalid JSON' }, 400)
-      }
-
-      const events = v.safeParse(SendGridWebhookPayloadSchema, parsed)
+      const events = v.safeParse(SendGridWebhookRawBodySchema, rawBody)
       if (!events.success) {
         logger.warn('Invalid SendGrid webhook payload', {
           issues: events.issues,
