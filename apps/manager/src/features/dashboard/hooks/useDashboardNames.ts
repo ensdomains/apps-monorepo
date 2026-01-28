@@ -70,8 +70,11 @@ export const useDashboardNames = ({
     }
   }
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
+  const handleSort = (field: SortField, direction?: OrderDirection) => {
+    if (direction !== undefined) {
+      setSortField(field)
+      setSortDirection(direction)
+    } else if (sortField === field) {
       setSortDirection((prev) =>
         prev === OrderDirection.Desc ? OrderDirection.Asc : OrderDirection.Desc,
       )

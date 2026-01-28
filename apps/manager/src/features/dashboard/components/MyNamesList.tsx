@@ -129,6 +129,35 @@ export const MyNamesList = ({
 
   return (
     <div className="w-full">
+      {/* Mobile Sort Dropdown */}
+      <div className="mb-4 flex md:hidden">
+        <div className="flex h-8 items-center gap-1 rounded-full border border-[#e0e0e0] bg-white px-2">
+          <span className="font-sans text-[#232222] text-[12px] tracking-[0.24px]">
+            Sort by
+          </span>
+          <select
+            className="bg-transparent font-medium font-sans text-[#232222] text-[12px] tracking-[0.24px] outline-none"
+            onChange={(e) => {
+              const [field, direction] = e.target.value.split('-') as [
+                'name' | 'expiry',
+                'asc' | 'desc',
+              ]
+              handleSort(
+                field,
+                direction === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
+              )
+            }}
+            value={`${sortField}-${sortDirection === OrderDirection.Asc ? 'asc' : 'desc'}`}
+          >
+            <option value="name-asc">Name (A-Z)</option>
+            <option value="name-desc">Name (Z-A)</option>
+            <option value="expiry-asc">Expiry date (Earliest)</option>
+            <option value="expiry-desc">Expiry date (Latest)</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Desktop Sort Header */}
       <div className="mb-[16px] hidden w-full md:flex md:items-center md:justify-between">
         <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[12px]">
           <div className="size-[16px] shrink-0" />
