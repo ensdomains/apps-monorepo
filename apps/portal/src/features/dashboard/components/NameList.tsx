@@ -18,7 +18,7 @@ interface NameListProps {
 
 const MobileNameCard = ({ name }: { name: column }) => {
   return (
-    <div className="flex flex-col gap-2 px-6 py-4 bg-white border-b border-gray-200 last:border-b-0">
+    <div className="flex flex-col gap-2 px-6 py-4 bg-white border-b border-gray-300 last:border-b-0">
       {/* Name row with avatar and copy */}
       <div className="flex flex-row gap-1 items-center">
         <NameAvatar
