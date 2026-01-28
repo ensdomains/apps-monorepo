@@ -7,25 +7,24 @@ import {
 
 const faqItems = [
   {
-    question: 'How do subnames work?',
+    question: 'Can I send crypto to a .eth name (instead of an address)?',
     answer:
-      'Subnames are names created under your existing ENS name (e.g. sub.name.eth). You can create unlimited subnames and configure them individually.',
+      "Yes. Type alice.eth in the 'send to' field instead of 0×74...2d35 — the app looks up the address automatically.",
   },
   {
-    question: 'Can I transfer my ENS name to another wallet?',
+    question: 'How do I show my .eth name instead of my address?',
     answer:
-      'Yes. From a name’s profile you can transfer ownership to another address at any time.',
+      'Set it as your primary name. You can do this from your profile page in the ENS App. [Learn more]',
   },
   {
-    question:
-      'What is the difference between ENS and traditional domain names?',
+    question: 'Can I change my primary name later?',
     answer:
-      'ENS names are decentralized, owned by you on the blockchain, and can be used for payments, websites, and more. Traditional domains are rented from centralized registrars.',
+      'Yes. You can update it anytime. You can even use different primary names on different networks (L2s). [Learn more]',
   },
   {
     question: 'How can I secure my ENS name?',
     answer:
-      'Use a secure wallet, be cautious of signing unknown transactions, and verify links before connecting. You can also lock your name’s records for added security.',
+      'Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name. Learn more',
   },
 ]
 
