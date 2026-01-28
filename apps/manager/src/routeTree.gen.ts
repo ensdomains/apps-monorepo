@@ -19,6 +19,9 @@ import { Route as AutoRenewalIndexRouteImport } from './routes/auto-renewal/inde
 import { Route as PaymentListRouteImport } from './routes/payment/list'
 import { Route as PaymentAddRouteImport } from './routes/payment/add'
 import { Route as NotificationsAllRouteImport } from './routes/notifications/all'
+import { Route as LegalTrademarkGuidelinesRouteImport } from './routes/legal/trademark-guidelines'
+import { Route as LegalTermsOfUseRouteImport } from './routes/legal/terms-of-use'
+import { Route as LegalPrivacyPolicyRouteImport } from './routes/legal/privacy-policy'
 import { Route as PNameIndexRouteImport } from './routes/p/$name/index'
 import { Route as NotificationsSettingsIndexRouteImport } from './routes/notifications/settings/index'
 import { Route as DebugBackendIndexRouteImport } from './routes/debug/backend/index'
@@ -76,6 +79,22 @@ const NotificationsAllRoute = NotificationsAllRouteImport.update({
   path: '/all',
   getParentRoute: () => NotificationsRouteRoute,
 } as any)
+const LegalTrademarkGuidelinesRoute =
+  LegalTrademarkGuidelinesRouteImport.update({
+    id: '/legal/trademark-guidelines',
+    path: '/legal/trademark-guidelines',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const LegalTermsOfUseRoute = LegalTermsOfUseRouteImport.update({
+  id: '/legal/terms-of-use',
+  path: '/legal/terms-of-use',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalPrivacyPolicyRoute = LegalPrivacyPolicyRouteImport.update({
+  id: '/legal/privacy-policy',
+  path: '/legal/privacy-policy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PNameIndexRoute = PNameIndexRouteImport.update({
   id: '/p/$name/',
   path: '/p/$name/',
@@ -116,6 +135,9 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/register': typeof RegisterRoute
   '/wallet': typeof WalletRoute
+  '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
+  '/legal/terms-of-use': typeof LegalTermsOfUseRoute
+  '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
   '/notifications/all': typeof NotificationsAllRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
@@ -133,6 +155,9 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/register': typeof RegisterRoute
   '/wallet': typeof WalletRoute
+  '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
+  '/legal/terms-of-use': typeof LegalTermsOfUseRoute
+  '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
   '/notifications/all': typeof NotificationsAllRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
@@ -152,6 +177,9 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/register': typeof RegisterRoute
   '/wallet': typeof WalletRoute
+  '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
+  '/legal/terms-of-use': typeof LegalTermsOfUseRoute
+  '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
   '/notifications/all': typeof NotificationsAllRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
@@ -172,6 +200,9 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/register'
     | '/wallet'
+    | '/legal/privacy-policy'
+    | '/legal/terms-of-use'
+    | '/legal/trademark-guidelines'
     | '/notifications/all'
     | '/payment/add'
     | '/payment/list'
@@ -189,6 +220,9 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/register'
     | '/wallet'
+    | '/legal/privacy-policy'
+    | '/legal/terms-of-use'
+    | '/legal/trademark-guidelines'
     | '/notifications/all'
     | '/payment/add'
     | '/payment/list'
@@ -207,6 +241,9 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/register'
     | '/wallet'
+    | '/legal/privacy-policy'
+    | '/legal/terms-of-use'
+    | '/legal/trademark-guidelines'
     | '/notifications/all'
     | '/payment/add'
     | '/payment/list'
@@ -226,6 +263,9 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   RegisterRoute: typeof RegisterRoute
   WalletRoute: typeof WalletRoute
+  LegalPrivacyPolicyRoute: typeof LegalPrivacyPolicyRoute
+  LegalTermsOfUseRoute: typeof LegalTermsOfUseRoute
+  LegalTrademarkGuidelinesRoute: typeof LegalTrademarkGuidelinesRoute
   PaymentAddRoute: typeof PaymentAddRoute
   PaymentListRoute: typeof PaymentListRoute
   AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
@@ -306,6 +346,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotificationsAllRouteImport
       parentRoute: typeof NotificationsRouteRoute
     }
+    '/legal/trademark-guidelines': {
+      id: '/legal/trademark-guidelines'
+      path: '/legal/trademark-guidelines'
+      fullPath: '/legal/trademark-guidelines'
+      preLoaderRoute: typeof LegalTrademarkGuidelinesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/terms-of-use': {
+      id: '/legal/terms-of-use'
+      path: '/legal/terms-of-use'
+      fullPath: '/legal/terms-of-use'
+      preLoaderRoute: typeof LegalTermsOfUseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/privacy-policy': {
+      id: '/legal/privacy-policy'
+      path: '/legal/privacy-policy'
+      fullPath: '/legal/privacy-policy'
+      preLoaderRoute: typeof LegalPrivacyPolicyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/p/$name/': {
       id: '/p/$name/'
       path: '/p/$name'
@@ -376,6 +437,9 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   RegisterRoute: RegisterRoute,
   WalletRoute: WalletRoute,
+  LegalPrivacyPolicyRoute: LegalPrivacyPolicyRoute,
+  LegalTermsOfUseRoute: LegalTermsOfUseRoute,
+  LegalTrademarkGuidelinesRoute: LegalTrademarkGuidelinesRoute,
   PaymentAddRoute: PaymentAddRoute,
   PaymentListRoute: PaymentListRoute,
   AutoRenewalIndexRoute: AutoRenewalIndexRoute,

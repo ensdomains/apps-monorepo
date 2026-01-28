@@ -19,6 +19,10 @@ declare namespace Cloudflare {
 		DATABASE_URL: string;
 		TELEGRAM_QUEUE: Queue;
 		EMAIL_QUEUE: Queue;
+		PUSH_QUEUE: Queue;
+		VAPID_SUBJECT: string;
+		VAPID_PUBLIC_KEY: string;
+		VAPID_PRIVATE_KEY: string;
 	}
 }
 interface CloudflareBindings extends Cloudflare.Env {}

@@ -89,6 +89,14 @@ export type {
   ResolverInput,
 } from './machines/resolver/resolver.machine'
 export { resolverMachine } from './machines/resolver/resolver.machine'
+export type {
+  StartSubregistryDeploymentParams,
+  SubregistryDeploymentContext,
+  SubregistryDeploymentEvent,
+  SubregistryDeploymentInput,
+  SubregistryDeploymentMachine,
+} from './machines/subregistry-deployment'
+export { subregistryDeploymentMachine } from './machines/subregistry-deployment'
 // Machines
 export { transactionMachine } from './machines/transaction.machine'
 // Providers
