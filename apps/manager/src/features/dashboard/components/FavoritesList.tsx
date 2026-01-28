@@ -1,8 +1,10 @@
 import { OrderDirection } from '@ens-apps/indexer'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronLeft, ChevronRight, Mountain } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
+import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import {
   filterFavoritesBySearch,
@@ -87,6 +89,21 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
   const hasPrevPage = paginatedData.hasPrevPage
   const startIndex = paginatedData.startIndex
   const endIndex = paginatedData.endIndex
+
+  const recordsQueries = useQueries({
+    queries: paginatedFavorites.map((fav) => ({
+      ...profileRecordsQuery(fav.label),
+      select: (
+        data: { texts: Array<{ key: string; value: string }> } | undefined,
+      ) => data?.texts.find((text) => text.key === 'avatar')?.value,
+    })),
+  })
+
+  const avatarQueries = useQueries({
+    queries: recordsQueries.map((query) =>
+      parseAvatarQuery(query.data ?? undefined),
+    ),
+  })
 
   const handlePrev = () => {
     if (page > 1) {
@@ -200,20 +217,25 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
             </div>
           ))
           .otherwise(({ paginatedFavorites }) =>
-            paginatedFavorites.map((fav) => (
-              <div
-                className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
-                key={fav.label}
-              >
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <NameRow
-                    isFavorite={true}
-                    label={fav.label}
-                    onToggleFavorite={() => toggleFavorite(fav.label)}
-                  />
+            paginatedFavorites.map((fav, index) => {
+              const avatarUrl = avatarQueries[index]?.data ?? undefined
+
+              return (
+                <div
+                  className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
+                  key={fav.label}
+                >
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <NameRow
+                      avatarUrl={avatarUrl}
+                      isFavorite={true}
+                      label={fav.label}
+                      onToggleFavorite={() => toggleFavorite(fav.label)}
+                    />
+                  </div>
                 </div>
-              </div>
-            )),
+              )
+            }),
           )}
       </div>
 
