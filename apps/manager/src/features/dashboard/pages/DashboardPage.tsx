@@ -41,7 +41,7 @@ export const DashboardPage = () => {
   const hasProfile = Boolean(defaultName)
 
   return (
-    <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 px-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-[60px]">
+    <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 px-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-[40px]">
       <div className="min-w-0 flex-1 space-y-6 md:space-y-8">
         <Alert className="grid-cols-[calc(var(--spacing)*8)_1fr] border-[#0080bc] border-[0.4px] bg-[#e5f7ff] p-4">
           <MSymbol
