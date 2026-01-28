@@ -90,7 +90,7 @@ export function submitDeploySubregistryActor(input: {
 
       const request: EOATransactionRequest = {
         type: 'eoa',
-        from: walletClient.account!.address,
+        from: walletWithAccount.account.address,
         to: writeParams.address,
         data,
         chainId: input.chainId,
@@ -199,7 +199,7 @@ export function submitSetSubregistryActor(input: {
 
       const request: EOATransactionRequest = {
         type: 'eoa',
-        from: walletClient.account!.address,
+        from: walletWithAccount.account.address,
         to: writeParams.address,
         data,
         chainId: input.chainId,
