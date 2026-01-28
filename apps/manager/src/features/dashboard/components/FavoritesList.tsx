@@ -3,7 +3,6 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { Switch } from '@/components/ui/switch'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import {
   filterFavoritesBySearch,
@@ -137,15 +136,6 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
               </button>
             </div>
           </div>
-        </div>
-        <div className="flex items-center gap-[6px]">
-          <span className="font-sans text-[#7d7d7d] text-[12px] tracking-[0.24px]">
-            Receive expiry notifications
-          </span>
-          <Switch
-            checked={false}
-            onCheckedChange={() => alert('Coming Soon')}
-          />
         </div>
       </div>
 

@@ -1,15 +1,12 @@
 import { OrderDirection } from '@ens-apps/indexer'
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
 import { useAtom } from '@xstate/store-react'
 import {
-  ArrowRight,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
 } from 'lucide-react'
-import { toast } from 'sonner'
 import { match, P } from 'ts-pattern'
 import {
   formatDashboardDate,
@@ -242,24 +239,6 @@ export const MyNamesList = ({
                           <span className="font-sans text-[#515151] text-[12px] leading-[1.6] md:text-[14px] md:leading-[1.8]">
                             {formattedExpiryDate}
                           </span>
-                        </div>
-                        <div className="flex items-center justify-center gap-[3.28px]">
-                          <Link
-                            className="flex items-center gap-[4.92px] text-[#0080bc]"
-                            onClick={(event) => {
-                              event.preventDefault()
-                              toast('Renewal coming soon')
-                            }}
-                            to="/auto-renewal"
-                          >
-                            <span className="font-sans text-[11px] leading-[1.6] md:text-[12px] md:leading-[1.8]">
-                              Extend
-                            </span>
-                            <ArrowRight
-                              className="size-[6px] md:size-[7.538px]"
-                              strokeWidth={3}
-                            />
-                          </Link>
                         </div>
                         {expiringSoon && daysUntilExpiry !== null && (
                           <div className="flex items-center gap-[3px] rounded-[20px] bg-[#fff8f0] p-[3px] md:gap-[4px] md:p-[4px]">
