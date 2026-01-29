@@ -1,9 +1,9 @@
 import { ArrowUpDown } from 'lucide-react'
 
-export function SortButton({
+export const SortButton = ({
   children,
   ...props
-}: React.ComponentProps<'button'>) {
+}: React.ComponentProps<'button'>) => {
   return (
     <button
       className="p-0 flex flex-row items-center cursor-pointer"

@@ -24,6 +24,7 @@ import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { EditRecordsTable } from '@/features/records/components/EditRecordsTable/EditRecordsTable'
 import { PendingChangesBar } from '@/features/records/components/PendingChangesBar'
 import { useEditRecordsState } from '@/features/records/hooks/useEditRecordsState'
+import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
 import { queryClient } from '@/utils/queryClient'
 import type { RecordType } from '@/utils/records/editRecordUtils'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
@@ -107,7 +108,7 @@ function EditRecordsPage() {
   )
 }
 
-function EditRecordsContent({
+const EditRecordsContent = ({
   name,
   records: rawRecords,
   ownerData,
@@ -117,7 +118,7 @@ function EditRecordsContent({
   records: GetRecordsReturnType
   ownerData: GetEnsOwnerReturnType
   resolverAddress: Address
-}) {
+}) => {
   const network: EnsNetworkName = ownerData?.network ?? 'sepolia'
   // Form state
   const [selectedType, setSelectedType] = useState<RecordType | ''>('')
@@ -145,6 +146,18 @@ function EditRecordsContent({
     updateRecord,
     discardAll,
   } = useEditRecordsState(originalRecords)
+
+  // Save records hook
+  const { saveRecords, isWriting, isConfirming } = useSaveRecords(network)
+
+  const handleSaveRecords = () => {
+    saveRecords({
+      name,
+      resolverAddress,
+      originalRecords,
+      pendingChanges,
+    })
+  }
 
   // Compute counts for each tab (excluding deleted records)
   const tabCounts = useMemo(() => {
@@ -336,20 +349,9 @@ function EditRecordsContent({
       <PendingChangesBar
         updatesCount={updatesCount}
         changesCount={changesCount}
-        onSave={() => {
-          // TODO: Implement actual transaction logic
-          console.log('Save changes:', {
-            name,
-            network,
-            resolverAddress,
-            pendingChanges: {
-              newRecords: pendingChanges.newRecords,
-              editedValues: Object.fromEntries(pendingChanges.editedValues),
-              deletedIds: Array.from(pendingChanges.deletedIds),
-            },
-          })
-        }}
+        onSave={handleSaveRecords}
         onDiscard={discardAll}
+        isSaving={isWriting || isConfirming}
       />
     </div>
   )

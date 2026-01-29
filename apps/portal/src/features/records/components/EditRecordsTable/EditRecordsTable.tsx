@@ -43,12 +43,12 @@ function getRecordDisplayName(record: EditableRecord): string {
   return record.key
 }
 
-export function EditRecordsTable({
+export const EditRecordsTable = ({
   records,
   globalFilter,
   onDeleteRecord,
   onUpdateRecord,
-}: EditRecordsTableProps) {
+}: EditRecordsTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)

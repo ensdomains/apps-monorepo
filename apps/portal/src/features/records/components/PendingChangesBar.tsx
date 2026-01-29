@@ -1,17 +1,19 @@
-import { Save, X } from 'lucide-react'
+import { Loader2, Save, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-export function PendingChangesBar({
+export const PendingChangesBar = ({
   updatesCount,
   changesCount,
   onSave,
   onDiscard,
+  isSaving = false,
 }: {
   updatesCount: number
   changesCount: number
   onSave: () => void
   onDiscard: () => void
-}) {
+  isSaving?: boolean
+}) => {
   if (changesCount === 0) return null
 
   return (
@@ -21,13 +23,27 @@ export function PendingChangesBar({
           <span className="font-medium">{updatesCount} </span>
           {updatesCount === 1 ? 'update' : 'updates'}
         </span>
-        <Button variant="outline" onClick={onDiscard} className="rounded-lg">
+        <Button
+          variant="outline"
+          onClick={onDiscard}
+          className="rounded-lg"
+          disabled={isSaving}
+        >
           Discard
           <X className="size-4 ml-1" />
         </Button>
-        <Button onClick={onSave} className="rounded-lg">
-          Save {changesCount} {changesCount === 1 ? 'change' : 'changes'}
-          <Save className="size-4 ml-1" />
+        <Button onClick={onSave} className="rounded-lg" disabled={isSaving}>
+          {isSaving ? (
+            <>
+              Saving...
+              <Loader2 className="size-4 ml-1 animate-spin" />
+            </>
+          ) : (
+            <>
+              Save {changesCount} {changesCount === 1 ? 'change' : 'changes'}
+              <Save className="size-4 ml-1" />
+            </>
+          )}
         </Button>
       </div>
     </div>
