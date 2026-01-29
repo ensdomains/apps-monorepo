@@ -110,10 +110,7 @@ export const ChoosePrimaryNameDialog = ({
   // Handle success
   useEffect(() => {
     if (isSuccess) {
-      // Show success toast
       toast.success('Primary name set successfully')
-
-      // Invalidate reverse name query to refresh dashboard
       queryClient.invalidateQueries({
         predicate: (query) => {
           const key = query.queryKey[0]
@@ -133,11 +130,8 @@ export const ChoosePrimaryNameDialog = ({
           return false
         },
       })
-
       setOpen(false)
       onUpdated?.()
-
-      // Reset state after closing
       setTimeout(() => {
         handlePrimaryNameCancel(primaryNameActor)
       }, 300)
@@ -232,16 +226,17 @@ export const ChoosePrimaryNameDialog = ({
             {match({ isLoading, domains })
               .with({ isLoading: true }, () => (
                 <div className="flex flex-col gap-2">
-                  {Array.from({ length: 3 }).map((_, index) => (
-                    <div
-                      className="flex items-center gap-3 rounded-[4px] p-3"
-                      // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton items
-                      key={`skeleton-${index}`}
-                    >
-                      <div className="size-[40px] shrink-0 animate-pulse rounded-full bg-gray-200" />
-                      <div className="h-[20px] w-[150px] animate-pulse rounded bg-gray-200" />
-                    </div>
-                  ))}
+                  {Array.from({ length: 3 }, (_, i) => `skeleton-${i}`).map(
+                    (skeletonId) => (
+                      <div
+                        className="flex items-center gap-3 rounded-[4px] p-3"
+                        key={skeletonId}
+                      >
+                        <div className="size-[40px] shrink-0 animate-pulse rounded-full bg-gray-200" />
+                        <div className="h-[20px] w-[150px] animate-pulse rounded bg-gray-200" />
+                      </div>
+                    ),
+                  )}
                 </div>
               ))
               .with({ domains: [] }, () => (

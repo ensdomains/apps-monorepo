@@ -43,7 +43,7 @@ export const DashboardPage = () => {
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 px-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-[40px]">
       <div className="min-w-0 flex-1 space-y-6 md:space-y-8">
-        <Alert className="grid-cols-[calc(var(--spacing)*8)_1fr] border-[#0080bc] border-[0.4px] bg-[#e5f7ff] p-4">
+        <Alert className="grid-cols-[calc(var(--spacing)*8)_1fr] border-0 bg-[#e5f7ff] p-4 md:max-w-[50%]">
           <MSymbol
             className="ms-opsz-20 ms-wght-500 text-[#0080bc]"
             symbol="waving_hand"
