@@ -1,4 +1,4 @@
-import { useSelector } from '@xstate/store/react'
+import { useSelector } from '@xstate/store-react'
 import clsx from 'clsx'
 import { CreditCard, EllipsisIcon, Star } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'

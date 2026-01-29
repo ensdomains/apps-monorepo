@@ -26,6 +26,7 @@ import {
   REFERER_ADDRESS,
   SUPPORTED_TOKENS,
 } from '../../contracts/ens-sepolia'
+import { waitForTransactionReceiptById } from '../../helpers/transaction-status.helpers'
 import { transactionManager } from '../../providers/transactionManager'
 import type {
   RhinestoneTransactionRequest,
@@ -82,54 +83,6 @@ function parseProxyDeployedAddress(
     }
   }
   return undefined
-}
-
-async function waitForTransactionReceiptById(
-  txId: string,
-): Promise<TransactionReceipt> {
-  const txActor = transactionManager.getTransaction(txId)
-
-  if (!txActor) {
-    throw new Error(`Transaction ${txId} not found`)
-  }
-
-  const snapshot = txActor.getSnapshot()
-
-  if (
-    (snapshot.matches?.('success' as never) || snapshot.value === 'success') &&
-    snapshot.context.receipt
-  ) {
-    return snapshot.context.receipt
-  }
-
-  if (typeof snapshot.value === 'object' && 'error' in snapshot.value) {
-    throw snapshot.context.error || new Error(`Transaction ${txId} failed`)
-  }
-
-  return new Promise<TransactionReceipt>((resolve, reject) => {
-    const subscription = txActor.subscribe((nextSnapshot) => {
-      if (
-        (nextSnapshot.matches?.('success' as never) ||
-          nextSnapshot.value === 'success') &&
-        nextSnapshot.context.receipt
-      ) {
-        subscription.unsubscribe()
-        resolve(nextSnapshot.context.receipt)
-        return
-      }
-
-      if (
-        typeof nextSnapshot.value === 'object' &&
-        'error' in nextSnapshot.value
-      ) {
-        subscription.unsubscribe()
-        reject(
-          nextSnapshot.context.error ||
-            new Error(`Transaction ${txId} failed during execution`),
-        )
-      }
-    })
-  })
 }
 
 /**

@@ -6,13 +6,48 @@ import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
 import { sendVerificationEmail } from '#services/email/verification.js'
+import { sendWelcomeEmail } from '#services/email/welcome.js'
 import { sanitizeChannel } from '#services/notifications/helpers.js'
 import {
   TelegramAuthSchema,
   verifyTelegramAuth,
 } from '#services/telegram/auth.js'
-import { makeTelegramRequest } from '#services/telegram/utils.js'
+import {
+  createInlineKeyboard,
+  makeTelegramRequest,
+} from '#services/telegram/utils.js'
+import type { ChannelData } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
+
+// allowed push service endpoint prefixes (for SSRF protection)
+const ALLOWED_PUSH_ENDPOINTS = [
+  'https://fcm.googleapis.com/', // chrome, edge, android
+  'https://updates.push.services.mozilla.com/', // firefox
+  'https://push.services.mozilla.com/', // firefox (older)
+  'https://web.push.apple.com/', // safari
+] as const
+
+const isAllowedPushEndpoint = (url: string): boolean => {
+  // check common prefixes first
+  if (ALLOWED_PUSH_ENDPOINTS.some((prefix) => url.startsWith(prefix))) {
+    return true
+  }
+
+  // windows uses subdomains like wns2-par02p.notify.windows.com
+  try {
+    const parsed = new URL(url)
+    if (
+      parsed.protocol === 'https:' &&
+      parsed.hostname.endsWith('.notify.windows.com')
+    ) {
+      return true
+    }
+  } catch {
+    return false
+  }
+
+  return false
+}
 
 // Generate a random token that's somewhat user readable
 const generateToken = () => {
@@ -196,6 +231,30 @@ const emailRoutes = createApp()
         .delete(TABLE.channelVerifications)
         .where(eq(TABLE.channelVerifications.id, verification.id))
 
+      // Send welcome email if target exists
+      if (verification.channel.target) {
+        const welcomeResult = await sendWelcomeEmail(
+          c.env.SENDGRID_API_KEY,
+          c.env.EMAIL_FROM_ADDRESS,
+          verification.channel.target,
+          c.env.MANAGER_APP_URL,
+        )
+
+        if (welcomeResult.isErr()) {
+          // Log error but don't fail the verification
+          logger.error('Failed to send welcome email', {
+            channelId: verification.channel_id,
+            email: verification.channel.target,
+            error: welcomeResult.error,
+          })
+        } else {
+          logger.info('Welcome email sent', {
+            channelId: verification.channel_id,
+            email: verification.channel.target,
+          })
+        }
+      }
+
       return c.json({ message: 'Email verified successfully' })
     },
   )
@@ -311,6 +370,10 @@ const idRoutes = createApp()
       return c.json({ error: 'Channel is not pending verification' }, 400)
     }
 
+    if (!channel.target) {
+      return c.json({ error: 'Channel has no target address' }, 400)
+    }
+
     // Check cooldown (5 minutes)
     if (channel.last_verification_sent_at) {
       const cooldownMs = 5 * 60 * 1000 // 5 minutes
@@ -363,7 +426,7 @@ const idRoutes = createApp()
     const emailResult = await sendVerificationEmail(
       c.env.SENDGRID_API_KEY,
       c.env.EMAIL_FROM_ADDRESS,
-      channel.target!,
+      channel.target,
       verification.token,
       c.env.MANAGER_APP_URL,
     )
@@ -494,12 +557,30 @@ export default createApp()
         return c.json({ error: 'Failed to create channel' }, 400)
       }
 
+      const preferencesUrl = `${c.env.MANAGER_APP_URL}/notifications/settings`
+      const keyboard = createInlineKeyboard([
+        [
+          {
+            text: '⚙️ Manage Preferences',
+            url: preferencesUrl,
+          },
+        ],
+      ])
+
       const messageResult = await makeTelegramRequest(
         c.env.TELEGRAM_BOT_TOKEN,
         'sendMessage',
         {
           chat_id: auth_data.id,
-          text: 'Welcome to the bot!',
+          text:
+            '🎉 *Welcome to ENS Notifications!*\n\n' +
+            'Your Telegram has been successfully connected. You will receive updates about:\n\n' +
+            '• Domain expiry reminders\n' +
+            '• Domain transfers\n' +
+            '• And other important events\n\n' +
+            'Click the button below to customize which notifications you receive.',
+          parse_mode: 'Markdown',
+          reply_markup: keyboard,
         },
       )
 
@@ -512,6 +593,93 @@ export default createApp()
       }
 
       return c.json({ ok: true })
+    },
+  )
+  // Push notification routes
+  .get('/push/vapid-public-key', async (c) => {
+    return c.json({ publicKey: c.env.VAPID_PUBLIC_KEY })
+  })
+  .post(
+    '/push',
+    ...requireAuth,
+    injectDb,
+    vValidator(
+      'json',
+      v.object({
+        endpoint: v.pipe(
+          v.string(),
+          v.url(),
+          v.check(isAllowedPushEndpoint, 'Invalid push service endpoint'),
+        ),
+        expirationTime: v.optional(v.nullable(v.number())),
+        keys: v.object({
+          auth: v.string(),
+          p256dh: v.string(),
+        }),
+      }),
+    ),
+    async (c) => {
+      const userId = c.var.user_id
+      const subscription = c.req.valid('json')
+
+      // Check if already subscribed with this endpoint
+      const existingChannel = await c.var.db.query.userChannels.findFirst({
+        where: and(
+          eq(TABLE.userChannels.user_id, userId),
+          eq(TABLE.userChannels.channel, 'push'),
+          eq(TABLE.userChannels.target, subscription.endpoint),
+        ),
+      })
+
+      if (existingChannel) {
+        // Update keys if subscription exists (keys may have rotated)
+        await c.var.db
+          .update(TABLE.userChannels)
+          .set({
+            data: {
+              auth: subscription.keys.auth,
+              p256dh: subscription.keys.p256dh,
+              expirationTime: subscription.expirationTime ?? null,
+            } satisfies ChannelData['push'],
+          })
+          .where(eq(TABLE.userChannels.id, existingChannel.id))
+
+        logger.info('Push subscription updated', {
+          userId,
+          channelId: existingChannel.id,
+        })
+
+        return c.json({ id: existingChannel.id, updated: true })
+      }
+
+      // Create new push subscription
+      const channel = await c.var.db
+        .insert(TABLE.userChannels)
+        .values({
+          user_id: userId,
+          channel: 'push',
+          target: subscription.endpoint,
+          data: {
+            auth: subscription.keys.auth,
+            p256dh: subscription.keys.p256dh,
+            expirationTime: subscription.expirationTime ?? null,
+          } satisfies ChannelData['push'],
+          status: 'verified', // Push subscriptions are verified by the browser
+          verified_at: new Date(),
+        })
+        .returning({ id: TABLE.userChannels.id })
+        .then((channels) => channels.at(0))
+
+      if (!channel) {
+        return c.json({ error: 'Failed to create push subscription' }, 500)
+      }
+
+      logger.info('Push subscription created', {
+        userId,
+        channelId: channel.id,
+      })
+
+      return c.json({ id: channel.id }, 201)
     },
   )
   .route('/', idRoutes)

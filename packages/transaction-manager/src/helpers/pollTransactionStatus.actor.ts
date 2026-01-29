@@ -1,6 +1,12 @@
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import { transactionManager } from '../providers/transactionManager'
 
+/**
+ * Actor logic that polls a transaction until it succeeds or fails.
+ * Returns the transaction hash on success.
+ *
+ * Use with `fromResultAsync` in machine invoke.
+ */
 export const pollTransactionStatus = (
   txId: string,
 ): ResultAsync<string | undefined, Error> => {

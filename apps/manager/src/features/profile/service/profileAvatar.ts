@@ -1,11 +1,12 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { skipToken } from '@tanstack/react-query'
+import { skipToken, useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { AssetGatewayUrls } from 'viem'
 import { parseAvatarRecord } from 'viem/ens'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { profileRecordsQuery } from './profileRecords'
 
 class ParseError extends TaggedError('ParseError')<{
   cause: unknown
@@ -43,3 +44,36 @@ export const parseAvatarQuery = (
           parseAvatar(record!, gatewayUrls)
       : skipToken,
   })
+
+export const useAvatarFromName = ({
+  name,
+  enabled = true,
+}: {
+  name: string | undefined
+  enabled?: boolean
+}) => {
+  const avatarRecordQuery = useQuery({
+    ...profileRecordsQuery(name ?? ''),
+    enabled: !!name && enabled,
+    select: (data) => data?.texts.find((text) => text.key === 'avatar')?.value,
+  })
+
+  const parsedAvatarQuery = useQuery({
+    ...parseAvatarQuery(avatarRecordQuery.data),
+    enabled: !!avatarRecordQuery.data && enabled,
+  })
+
+  return {
+    // To prevent old data from being shown, we only return the data if both queries are successful
+    data:
+      avatarRecordQuery.isSuccess && parsedAvatarQuery.isSuccess
+        ? parsedAvatarQuery.data
+        : undefined,
+    isLoading: avatarRecordQuery.isLoading || parsedAvatarQuery.isLoading,
+    error: avatarRecordQuery.error || parsedAvatarQuery.error,
+
+    // Internal query instances for convenience
+    avatarRecordQuery,
+    parsedAvatarQuery,
+  }
+}
