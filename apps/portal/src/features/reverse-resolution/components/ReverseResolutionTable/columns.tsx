@@ -1,20 +1,8 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { ArrowUpDown, CheckCircle2, SquareUser, XCircle } from 'lucide-react'
+import { CheckCircle2, SquareUser, XCircle } from 'lucide-react'
+import { SortButton } from '@/components/table/SortButton'
 import { Badge } from '@/components/ui/badge'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
-
-const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
-  return (
-    <button
-      className="p-0 flex flex-row items-center cursor-pointer"
-      type="button"
-      {...props}
-    >
-      {children}
-      <ArrowUpDown className="ml-2 h-4 w-4" />
-    </button>
-  )
-}
 
 export const columns: ColumnDef<ReverseResolutionResult>[] = [
   {

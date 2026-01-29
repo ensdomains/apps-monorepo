@@ -7,9 +7,10 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { ArrowUpDown, Check, Trash2, X } from 'lucide-react'
+import { Check, Trash2, X } from 'lucide-react'
 import React, { useCallback, useMemo, useState } from 'react'
 import { CopyButton } from '@/components/CopyButton'
+import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -22,24 +23,10 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
-import { cn } from '@/lib/utils'
 import {
   type EditableRecord,
   getRecordId,
 } from '@/utils/records/editRecordUtils'
-
-const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
-  return (
-    <button
-      className="p-0 flex flex-row items-center cursor-pointer"
-      type="button"
-      {...props}
-    >
-      {children}
-      <ArrowUpDown className="ml-2 h-4 w-4" />
-    </button>
-  )
-}
 
 type EditRecordsTableProps = {
   records: NameRecord[]

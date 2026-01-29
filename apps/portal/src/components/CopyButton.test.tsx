@@ -45,26 +45,29 @@ describe('CopyButton', () => {
 
     const button = screen.getByRole('button')
 
-    // Get the initial icon class (CopyIcon)
-    const initialIcon = button.querySelector('svg')
-    expect(initialIcon).toBeTruthy()
+    // Get the initial icon content
+    const initialIconHtml = button.querySelector('svg')?.innerHTML
+    expect(initialIconHtml).toBeTruthy()
 
-    // Click to copy
-    fireEvent.click(button)
+    // Click to copy - wrap in act since it triggers state update
+    await act(async () => {
+      fireEvent.click(button)
+    })
 
-    // After click, icon should change to CheckIcon
-    const checkIcon = button.querySelector('svg')
-    expect(checkIcon).toBeTruthy()
-    expect(checkIcon).not.toBe(initialIcon)
+    // After click, icon should change (different innerHTML)
+    const checkIconHtml = button.querySelector('svg')?.innerHTML
+    expect(checkIconHtml).toBeTruthy()
+    expect(checkIconHtml).not.toBe(initialIconHtml)
 
     // Advance timers by 2 seconds (wrapped in act to handle state update)
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2000)
     })
 
-    // Should revert back to copy icon
-    const revertedIcon = button.querySelector('svg')
-    expect(revertedIcon).toBeTruthy()
+    // Should revert back to copy icon (same innerHTML as initial)
+    const revertedIconHtml = button.querySelector('svg')?.innerHTML
+    expect(revertedIconHtml).toBeTruthy()
+    expect(revertedIconHtml).toBe(initialIconHtml)
 
     vi.useRealTimers()
   })

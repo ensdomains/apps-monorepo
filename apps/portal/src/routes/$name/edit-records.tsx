@@ -289,12 +289,12 @@ function EditRecordsContent({
         updatesCount={updatesCount}
         changesCount={changesCount}
         onSave={() => {
-          console.log('Save changes:', {
-            newRecords: pendingChanges.newRecords,
-            editedValues: Object.fromEntries(pendingChanges.editedValues),
-            deletedIds: Array.from(pendingChanges.deletedIds),
-          })
           // TODO: Implement save logic
+          //   console.log('Save changes:', {
+          //     newRecords: pendingChanges.newRecords,
+          //     editedValues: Object.fromEntries(pendingChanges.editedValues),
+          //     deletedIds: Array.from(pendingChanges.deletedIds),
+          //   })
         }}
         onDiscard={discardAll}
       />

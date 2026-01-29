@@ -1,7 +1,7 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { ArrowUpDown } from 'lucide-react'
 import { NamechainSVG } from '@/assets/chains'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { SortButton } from '@/components/table/SortButton'
 import { Checkbox } from '@/components/ui/checkbox'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
@@ -11,19 +11,6 @@ export type NameRow = WithEnsNetwork<{
   name: string | null
   expiryDate?: Date | null
 }>
-
-const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
-  return (
-    <button
-      className="p-0 flex flex-row items-center cursor-pointer"
-      type="button"
-      {...props}
-    >
-      {children}
-      <ArrowUpDown className="ml-2 h-4 w-4" />
-    </button>
-  )
-}
 
 export const columns: ColumnDef<NameRow>[] = [
   {

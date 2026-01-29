@@ -3,24 +3,23 @@ import { useEffect, useState } from 'react'
 import { Button } from './ui/button'
 
 // Copy button with checkmark feedback (same pattern as CopyableRecord)
-export function CopyButton({ value }: { value: string }) {
+export const CopyButton = ({ value }: { value: string }) => {
   const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(value)
+    setCopied(true)
+  }
 
   useEffect(() => {
     if (copied) {
-      navigator.clipboard.writeText(value)
       const timer = setTimeout(() => setCopied(false), 2000)
       return () => clearTimeout(timer)
     }
-  }, [copied, value])
+  }, [copied])
 
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="size-8"
-      onClick={() => setCopied(true)}
-    >
+    <Button variant="ghost" size="icon" className="size-8" onClick={handleCopy}>
       {copied ? (
         <CheckIcon className="size-4" />
       ) : (
