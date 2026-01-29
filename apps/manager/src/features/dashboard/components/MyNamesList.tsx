@@ -66,10 +66,10 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
   return (
     <div className="flex flex-col">
       <ChevronDown
-        className={`size-[8.2px] rotate-180 ${direction === OrderDirection.Asc ? 'text-[#0080bc]' : 'text-[#d7d7d7]'}`}
+        className={`size-[8.2px] rotate-180 ${direction === OrderDirection.Asc ? 'text-ens-blue' : 'text-[#d7d7d7]'}`}
       />
       <ChevronDown
-        className={`size-[8.2px] ${direction === OrderDirection.Desc ? 'text-[#0080bc]' : 'text-[#d7d7d7]'}`}
+        className={`size-[8.2px] ${direction === OrderDirection.Desc ? 'text-ens-blue' : 'text-[#d7d7d7]'}`}
       />
     </div>
   )

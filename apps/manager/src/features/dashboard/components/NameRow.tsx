@@ -69,14 +69,14 @@ export const NameRow = ({
         </div>
         <div className="flex min-w-0 flex-1 items-center justify-center rounded-[2.8px] bg-[#e5f7ff] px-2 py-1 md:h-[24px] md:px-[8px] md:py-[4px]">
           <Link
-            className="mr-1 truncate font-medium font-mono text-[#0080bc] text-[14px] tracking-[-0.28px] md:mr-2 md:text-[16px] md:tracking-[-0.32px]"
+            className="mr-1 truncate font-medium font-mono text-[14px] text-ens-blue tracking-[-0.28px] md:mr-2 md:text-[16px] md:tracking-[-0.32px]"
             params={{ name: label }}
             to="/p/$name"
           >
             {label}
           </Link>
           <ArrowUpRight
-            className="size-[6px] shrink-0 text-[#0080bc] md:size-[7px]"
+            className="size-[6px] shrink-0 text-ens-blue md:size-[7px]"
             strokeWidth={3}
           />
         </div>

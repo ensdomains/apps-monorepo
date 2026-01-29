@@ -13,15 +13,15 @@ export const PrimaryBadge = ({
 }: PrimaryBadgeProps) => (
   <div
     className={cn(
-      'inline-flex items-center gap-[8px] rounded-[73px] bg-[#f6f6f6] px-[6.5px] py-[3.3px]',
+      'inline-flex items-center gap-[8px] rounded-[73px] bg-ens-white px-[6.5px] py-[3.3px]',
       className,
     )}
   >
-    <span className="font-sans text-[#0080bc] text-[12px] leading-[1.15] tracking-[-0.24px]">
+    <span className="font-sans text-[12px] text-ens-blue leading-[1.15] tracking-[-0.24px]">
       {label}
     </span>
-    <div className="flex size-[10px] items-center justify-center rounded-full bg-[#0080bc]">
-      <Check className="size-[6px] text-[#f6f6f6]" strokeWidth={4} />
+    <div className="flex size-[10px] items-center justify-center rounded-full bg-ens-blue">
+      <Check className="size-[6px] text-ens-white" strokeWidth={4} />
     </div>
   </div>
 )

@@ -35,7 +35,7 @@ export const FaqSection = () => (
         Frequently Asked Questions
       </h2>
       <a
-        className="flex items-center gap-[4.92px] text-[#0080bc] hover:text-[#006699]"
+        className="flex items-center gap-[4.92px] text-ens-blue hover:text-ens-blue-hover"
         href="https://support.ens.domains"
         rel="noopener noreferrer"
         target="_blank"
@@ -49,7 +49,7 @@ export const FaqSection = () => (
     <div className="flex flex-col">
       {faqItems.map(({ question, answer }) => (
         <Collapsible key={question}>
-          <div className="border-[lightgrey] border-b-[0.4px] last:border-b-0">
+          <div className="border-ens-gray-two border-b-[0.4px] last:border-b-0">
             <CollapsibleTrigger className="flex h-[56px] w-full items-center justify-between text-left font-sans text-[#121212] text-[16px] leading-[20px]">
               <span>{question}</span>
               <CircleArrowDown

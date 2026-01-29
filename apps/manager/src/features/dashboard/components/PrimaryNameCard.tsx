@@ -67,7 +67,7 @@ export const PrimaryNameCard = ({
           </div>
           <div className="flex min-h-0 flex-col justify-between md:h-[200px]">
             <div className="flex flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-[12px]">
-              <div className="inline-flex items-center rounded-[4px] bg-[#0080bc] px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
+              <div className="inline-flex items-center rounded-[4px] bg-ens-blue px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
                 <span className="font-medium font-mono text-[20px] text-ens-white leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]">
                   {displayName}
                 </span>
@@ -109,7 +109,7 @@ export const PrimaryNameCard = ({
           </div>
         </div>
         <LinkButton
-          className="h-[34px] w-full rounded-[4px] border border-[#0080bc] px-[8.5px] py-[4.25px] text-[#0080bc] hover:bg-[#0080bc]/5 hover:text-[#0080bc] md:w-auto"
+          className="h-[34px] w-full rounded-[4px] border border-ens-blue px-[8.5px] py-[4.25px] text-ens-blue hover:bg-ens-blue/5 hover:text-ens-blue md:w-auto"
           disabled={!canViewProfile}
           params={{ name: primaryName ?? '' }}
           to="/p/$name"

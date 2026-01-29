@@ -51,10 +51,10 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
   return (
     <div className="flex flex-col">
       <ChevronDown
-        className={`size-[8.2px] rotate-180 ${direction === OrderDirection.Asc ? 'text-[#0080bc]' : 'text-[#d7d7d7]'}`}
+        className={`size-[8.2px] rotate-180 ${direction === OrderDirection.Asc ? 'text-ens-blue' : 'text-[#d7d7d7]'}`}
       />
       <ChevronDown
-        className={`size-[8.2px] ${direction === OrderDirection.Desc ? 'text-[#0080bc]' : 'text-[#d7d7d7]'}`}
+        className={`size-[8.2px] ${direction === OrderDirection.Desc ? 'text-ens-blue' : 'text-[#d7d7d7]'}`}
       />
     </div>
   )
@@ -258,7 +258,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                 <button
                   className={`flex size-[32px] items-center justify-center rounded-[6px] font-sans text-[12px] ${
                     isActive
-                      ? 'bg-[#e5f7ff] font-medium text-[#0080bc]'
+                      ? 'bg-[#e5f7ff] font-medium text-ens-blue'
                       : 'text-[#bcbcbc]'
                   }`}
                   key={pageNum}
@@ -279,7 +279,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
               <button
                 className={`flex size-[32px] items-center justify-center rounded-[6px] font-sans text-[12px] ${
                   page === totalPages
-                    ? 'bg-[#e5f7ff] font-medium text-[#0080bc]'
+                    ? 'bg-[#e5f7ff] font-medium text-ens-blue'
                     : 'text-[#bcbcbc]'
                 }`}
                 type="button"
@@ -289,7 +289,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
             )}
 
             <button
-              className="flex size-[32px] items-center justify-center rounded-full text-[#0080bc] disabled:text-[#e0e0e0]"
+              className="flex size-[32px] items-center justify-center rounded-full text-ens-blue disabled:text-[#e0e0e0]"
               disabled={isLoading || !hasNextPage}
               onClick={handleNext}
               type="button"

@@ -209,7 +209,7 @@ export const ChoosePrimaryNameDialog = ({
                   </ImageFallback.Root>
                 </div>
                 <div className="flex flex-col items-start gap-1">
-                  <div className="inline-flex items-center rounded-[2.8px] bg-[#0080bc] px-2 py-1">
+                  <div className="inline-flex items-center rounded-[2.8px] bg-ens-blue px-2 py-1">
                     <span className="font-medium font-mono text-[16px] text-ens-white leading-[0.96] tracking-[-0.32px]">
                       {currentPrimaryName}
                     </span>
@@ -257,8 +257,8 @@ export const ChoosePrimaryNameDialog = ({
                     <button
                       className={`flex items-center justify-between gap-3 rounded-[4px] border p-3 transition-colors ${
                         isSelected
-                          ? 'border-[#0080bc] bg-[#e5f7ff]'
-                          : 'border-[#e0e0e0] hover:border-[#0080bc]/50 hover:bg-[#f5f5f5]'
+                          ? 'border-ens-blue bg-[#e5f7ff]'
+                          : 'border-ens-gray-two hover:border-ens-blue/50 hover:bg-[#f5f5f5]'
                       } ${isSubmitting ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                       disabled={isSubmitting}
                       key={domain.id}
@@ -288,7 +288,7 @@ export const ChoosePrimaryNameDialog = ({
                       </div>
                       {isSelected && (
                         <Check
-                          className="size-[20px] shrink-0 text-[#0080bc]"
+                          className="size-[20px] shrink-0 text-ens-blue"
                           strokeWidth={2.5}
                         />
                       )}
@@ -308,7 +308,7 @@ export const ChoosePrimaryNameDialog = ({
           {/* Action Buttons */}
           <div className="flex gap-3">
             <Button
-              className="flex-1"
+              className="h-[48px] flex-1 rounded-xs border-ens-white bg-ens-white font-mono text-ens-blue text-sm uppercase tracking-wider transition-colors hover:bg-ens-white/80 disabled:border-[#e0e0e0] disabled:bg-[#f5f5f5] disabled:text-[#8c8c8c]"
               disabled={isSubmitting}
               onClick={handleCancel}
               variant="outline"
@@ -316,7 +316,7 @@ export const ChoosePrimaryNameDialog = ({
               Cancel
             </Button>
             <Button
-              className="flex-1"
+              className="h-[48px] flex-1 rounded-xs border-ens-blue bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-[#0066a3] disabled:border-[#e0e0e0] disabled:bg-[#f5f5f5] disabled:text-[#8c8c8c]"
               disabled={isSubmitting || !hasChanges || !selectedName}
               onClick={handleConfirm}
             >

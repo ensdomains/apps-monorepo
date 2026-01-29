@@ -45,10 +45,10 @@ export const DashboardPage = () => {
       <div className="min-w-0 flex-1 space-y-6 md:space-y-8">
         <Alert className="grid-cols-[calc(var(--spacing)*8)_1fr] border-0 bg-[#e5f7ff] p-4 md:max-w-[50%]">
           <MSymbol
-            className="ms-opsz-20 ms-wght-500 text-[#0080bc]"
+            className="ms-opsz-20 ms-wght-500 text-ens-blue"
             symbol="waving_hand"
           />
-          <AlertTitle className="mb-2 text-[#0080bc] text-[16px] tracking-[0.28px]">
+          <AlertTitle className="mb-2 text-[16px] text-ens-blue tracking-[0.28px]">
             Welcome to the public alpha of the ENS app
           </AlertTitle>
           <AlertDescription className="max-w-5xl text-[#5c5b5b] text-sm">
