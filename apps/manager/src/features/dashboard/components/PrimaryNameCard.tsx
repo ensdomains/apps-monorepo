@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { formatDashboardDate } from '@/features/dashboard/utils'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
+import { ChoosePrimaryNameDialog } from './ChoosePrimaryNameDialog'
 import { PrimaryBadge } from './PrimaryBadge'
 
 type PrimaryNameCardProps = {
@@ -71,7 +72,17 @@ export const PrimaryNameCard = ({
                   {displayName}
                 </span>
               </div>
-              <PrimaryBadge />
+              <ChoosePrimaryNameDialog
+                currentPrimaryAvatar={avatarUrl}
+                currentPrimaryName={primaryName}
+              >
+                <button
+                  className="cursor-pointer transition-opacity hover:opacity-80"
+                  type="button"
+                >
+                  <PrimaryBadge />
+                </button>
+              </ChoosePrimaryNameDialog>
             </div>
             <div className="flex flex-col gap-[8.5px]">
               <div className="flex items-center gap-[8px]">
