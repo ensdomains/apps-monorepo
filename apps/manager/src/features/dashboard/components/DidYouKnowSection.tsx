@@ -1,83 +1,154 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { motion } from 'motion/react'
+import { useRef, useState } from 'react'
 
-const CARDS = Array.from({ length: 10 }).map((_, i) => ({
+interface CarouselCard {
+  id: number
+  variant: 'green' | 'pink'
+}
+
+const CARDS: CarouselCard[] = Array.from({ length: 10 }).map((_, i) => ({
   id: i,
-  variant: i % 2 === 0 ? 'green' : 'pink',
+  variant: i % 2 === 0 ? ('green' as const) : ('pink' as const),
 }))
 
-export const DidYouKnowSection = () => (
-  <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:px-[24px] md:py-[32px]">
-    <div className="mb-6 flex flex-col gap-4 md:mb-[32px] md:flex-row md:items-center md:justify-between">
-      <h2 className="font-serif text-[#232222] text-[24px] leading-[0.96] tracking-[0.24px] md:text-[28px] md:tracking-[0.28px]">
-        Did You Know?
-      </h2>
+const GreenCardMockup = () => (
+  <div className="h-[164px] w-full rounded-[3.906px] bg-[#007c23]/10" />
+)
 
-      <div className="flex items-center justify-end gap-[8px]">
-        <button
-          className="relative size-[28px] shrink-0 text-[#bcbcbc] hover:text-[#232222] md:size-[32px]"
-          type="button"
-        >
-          <ChevronLeft className="size-full" strokeWidth={1} />
-        </button>
-        <span className="font-sans text-[#7d7d7d] text-[11px] leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
-          2 of 10
-        </span>
-        <button
-          className="relative size-[28px] shrink-0 text-[#bcbcbc] hover:text-[#232222] md:size-[32px]"
-          type="button"
-        >
-          <ChevronRight className="size-full" strokeWidth={1} />
-        </button>
+const PinkCardMockup = () => (
+  <div className="h-[164px] w-full rounded-[3.906px] bg-[#f53293]/10" />
+)
+
+export const DidYouKnowSection = () => {
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(true)
+
+  const checkScrollability = () => {
+    const container = scrollContainerRef.current
+    if (!container) return
+
+    setCanScrollLeft(container.scrollLeft > 0)
+    setCanScrollRight(
+      container.scrollLeft < container.scrollWidth - container.clientWidth - 10,
+    )
+  }
+
+  const scroll = (direction: 'left' | 'right') => {
+    const container = scrollContainerRef.current
+    if (!container) return
+
+    const scrollAmount = 460 // Card width (428) + gap (20) + some extra
+    const targetScroll =
+      direction === 'left'
+        ? container.scrollLeft - scrollAmount
+        : container.scrollLeft + scrollAmount
+
+    container.scrollTo({
+      left: targetScroll,
+      behavior: 'smooth',
+    })
+
+    // Update scroll state after animation
+    setTimeout(checkScrollability, 300)
+  }
+
+  return (
+    <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-[#fcfbfb] px-4 py-6 md:px-[24px] md:py-[32px]">
+      <div className="mb-6 flex flex-col gap-3">
+        <h2 className="font-serif text-[#232222] text-[24px] leading-[0.96] tracking-[0.24px] md:text-[28px] md:tracking-[0.28px]">
+          Did You Know?
+        </h2>
+
+        <div className="flex items-center gap-[8px]">
+          <button
+            className="relative size-[32px] shrink-0 rounded-full border border-[#dededf] transition-colors hover:bg-[#f0f0f0] disabled:opacity-30"
+            disabled={!canScrollLeft}
+            onClick={() => scroll('left')}
+            type="button"
+          >
+            <ChevronLeft className="size-full p-1 text-[#232222]" />
+          </button>
+          <button
+            className="relative size-[32px] shrink-0 rounded-full border border-[#dededf] transition-colors hover:bg-[#f0f0f0] disabled:opacity-30"
+            disabled={!canScrollRight}
+            onClick={() => scroll('right')}
+            type="button"
+          >
+            <ChevronRight className="size-full p-1 text-[#232222]" />
+          </button>
+        </div>
       </div>
-    </div>
 
-    <div className="flex flex-col gap-4 md:flex-row md:gap-[20px]">
-      {CARDS.slice(0, 2).map((card) => (
-        <div
-          className={`w-full shrink-0 overflow-hidden rounded-[6px] p-4 md:w-[428px] md:p-[20px] ${
-            card.variant === 'green' ? 'bg-[#c5ddcc]' : 'bg-[#fff0f6]'
-          }`}
-          key={card.id}
-        >
-          <div className="space-y-2">
+      <motion.div
+        className="scrollbar-hide flex gap-[20px] overflow-x-auto"
+        onScroll={checkScrollability}
+        ref={scrollContainerRef}
+        style={{
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+        }}
+      >
+        {CARDS.map((card) => (
+          <motion.div
+            className={`flex w-full shrink-0 flex-col gap-[32px] overflow-hidden rounded-[6px] p-4 md:w-[428px] md:p-[20px] ${
+              card.variant === 'green' ? 'bg-[#c5ddcc]' : ''
+            }`}
+            initial={{ opacity: 0, x: 20 }}
+            key={card.id}
+            style={
+              card.variant === 'pink'
+                ? {
+                    background:
+                      'linear-gradient(174.92deg, rgb(255, 213, 233) 4.8038%, rgb(254, 206, 226) 100.79%)',
+                  }
+                : undefined
+            }
+            transition={{ duration: 0.3, delay: card.id * 0.05 }}
+            viewport={{ once: true }}
+            whileInView={{ opacity: 1, x: 0 }}
+          >
             {card.variant === 'green' ? (
               <>
                 <div className="text-[#007c23]">
-                  <p className="font-medium font-sans text-[20px] leading-[0.96] tracking-[-0.4px] md:text-[24.9px] md:tracking-[-0.5px]">
-                    One username
-                  </p>
-                  <p className="font-serif text-[20px] italic leading-[0.96] md:text-[24.9px]">
-                    everywhere.
+                  <p className="font-medium font-sans text-[20px] leading-[0.96] tracking-[-0.4px] md:text-[24.889px] md:tracking-[-0.4978px]">
+                    One username{' '}
+                    <span className="font-normal font-serif italic">
+                      everywhere.
+                    </span>
                   </p>
                 </div>
-                <p className="font-sans text-[#007c23] text-[13px] leading-[1.3] tracking-[-0.26px] md:text-[14px] md:leading-none md:tracking-[-0.28px]">
+                <p className="font-serif text-[#007c23] text-[13px] leading-none tracking-[-0.26px] md:text-[14px] md:tracking-[-0.28px]">
                   Your name lives onchain — you own it, not a platform. Sign in
                   to web3 apps with your{' '}
-                  <span className="font-medium">.eth name</span> and your ENS
-                  profile will load automatically.
+                  <span className="font-medium font-sans">.eth name</span> and
+                  your ENS profile will load automatically.
                 </p>
+                <GreenCardMockup />
               </>
             ) : (
               <>
                 <div className="text-[#f53293]">
-                  <p className="font-medium font-sans text-[20px] leading-[0.96] tracking-[-0.4px] md:text-[24.9px] md:tracking-[-0.5px]">
+                  <p className="font-medium font-sans text-[20px] leading-[0.96] tracking-[-0.4px] md:text-[24.889px] md:tracking-[-0.4978px]">
                     Verify{' '}
-                    <span className="font-serif italic">authenticity</span>
-                  </p>
-                  <p className="font-medium font-sans text-[20px] leading-[0.96] tracking-[-0.4px] md:text-[24.9px] md:tracking-[-0.5px]">
+                    <span className="font-normal font-serif italic">
+                      authenticity
+                    </span>{' '}
                     and stay safe.
                   </p>
                 </div>
-                <p className="font-sans text-[#f53293] text-[13px] leading-[1.3] tracking-[-0.26px] md:text-[14px] md:leading-none md:tracking-[-0.28px]">
-                  Companies and projects use ENS because it's secured with
-                  ethereum, so you can be sure it's the real deal. Avoid
+                <p className="font-serif text-[#f53293] text-[13px] leading-none tracking-[-0.26px] md:text-[14px] md:tracking-[-0.28px]">
+                  Companies and projects use ENS because it&apos;s secured with
+                  ethereum, so you can be sure it&apos;s the real deal. Avoid
                   impersonation scams and stay safe out there &lt;3.
                 </p>
+                <PinkCardMockup />
               </>
             )}
-          </div>
-        </div>
-      ))}
+          </motion.div>
+        ))}
+      </motion.div>
     </div>
-  </div>
-)
+  )
+}
