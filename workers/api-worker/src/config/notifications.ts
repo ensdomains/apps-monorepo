@@ -7,6 +7,7 @@ const notificationConfigs = {
       name: v.string(),
       expiryDate: v.number(),
       isOwner: v.boolean(),
+      watchReason: v.picklist(['owned', 'favourited', 'manual']),
     }),
     metadata: {
       category: 'Domain Lifecycle',
@@ -89,13 +90,13 @@ export function channelSupportsNotification(
 
 // Type definitions for the config objects
 type NotificationConfig = {
-  schema: v.BaseSchema<any, any, any>
+  schema: v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>
   metadata: {
     category: string
     label: string
     description: string
     recommended: boolean
-  } & Record<string & {}, any>
+  } & Record<string & {}, unknown>
   channels: readonly ChannelType[]
 }
 

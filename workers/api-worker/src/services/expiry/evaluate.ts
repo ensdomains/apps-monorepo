@@ -167,6 +167,7 @@ export function buildNotificationInputs(
   watchers: Array<{
     name: string
     user_id: string
+    watch_reason: 'owned' | 'favourited' | 'manual'
     user: { address: string }
   }>,
 ): Array<{
@@ -175,6 +176,7 @@ export function buildNotificationInputs(
     name: string
     expiryDate: number
     isOwner: boolean
+    watchReason: 'owned' | 'favourited' | 'manual'
   }
   idempotencyKey: string
 }> {
@@ -184,6 +186,7 @@ export function buildNotificationInputs(
       name: string
       expiryDate: number
       isOwner: boolean
+      watchReason: 'owned' | 'favourited' | 'manual'
     }
     idempotencyKey: string
   }> = []
@@ -212,6 +215,7 @@ export function buildNotificationInputs(
         name: watcher.name,
         expiryDate: nameData.expiryDate.getTime(),
         isOwner: nameData.owner === watcher.user.address,
+        watchReason: watcher.watch_reason,
       },
       idempotencyKey: `name-expiry:${watcher.user_id}:${watcher.name}:${nextThreshold}:${nameData.expiryDate.getTime()}`,
     })
@@ -487,12 +491,11 @@ export const processNames = ResultFn(async function* ({
 
   // Step 1: Fetch fresh expiry data from subgraph
   const freshData = yield* fetchFreshExpiryData(names)
-  const namesToCheck = names.filter((name) => freshData.has(name))
-
-  if (namesToCheck.length === 0) {
-    console.log('No names found in indexer, skipping batch processing')
-    return ok(undefined)
-  }
+  // Important: do NOT filter out names that are missing from the indexer.
+  // We still need to:
+  // - keep eval pointers alive
+  // - retry later (calculateNextEvalTimes schedules a retry when expiryDate is missing)
+  const namesToCheck = names
 
   // Step 2: Get all watchers for the names with their user information
   const watchers = yield* intoDbResult(
@@ -501,6 +504,7 @@ export const processNames = ResultFn(async function* ({
       columns: {
         name: true,
         user_id: true,
+        watch_reason: true,
       },
       with: {
         user: {
