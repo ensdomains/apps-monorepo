@@ -139,7 +139,20 @@ function AlertDialogCancel({
   )
 }
 
+const Root = AlertDialog
+const Trigger = AlertDialogTrigger
+const Portal = AlertDialogPortal
+const Overlay = AlertDialogOverlay
+const Content = AlertDialogContent
+const Header = AlertDialogHeader
+const Footer = AlertDialogFooter
+const Title = AlertDialogTitle
+const Description = AlertDialogDescription
+const Action = AlertDialogAction
+const Cancel = AlertDialogCancel
+
 export {
+  // For individual imports
   AlertDialog,
   AlertDialogPortal,
   AlertDialogOverlay,
@@ -151,4 +164,16 @@ export {
   AlertDialogDescription,
   AlertDialogAction,
   AlertDialogCancel,
+  // For `import * as AlertDialog from '@/components/ui/alert-dialog'`
+  Root,
+  Trigger,
+  Portal,
+  Overlay,
+  Content,
+  Header,
+  Footer,
+  Title,
+  Description,
+  Action,
+  Cancel,
 }

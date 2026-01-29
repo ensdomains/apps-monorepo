@@ -90,6 +90,13 @@ export function useSessionManager(
   useEffect(() => {
     if (!isAccountReady || !ownerAddress || hasCheckedSession) return
 
+    // Read from localStorage directly to avoid race condition with hasSkippedSession state
+    const wasSkipped =
+      typeof window !== 'undefined' &&
+      localStorage.getItem(
+        `${SKIPPED_SESSION_KEY}-${ownerAddress.toLowerCase()}`,
+      ) === 'true'
+
     const existingSession = getValidSessionByOwner(ownerAddress)
 
     if (existingSession) {
@@ -108,25 +115,19 @@ export function useSessionManager(
           // Session is corrupted, remove it and show modal
           removeSession(existingSession.smartAccountAddress)
           setSession(null)
-          if (!hasSkippedSession) {
+          if (!wasSkipped) {
             setShowEnableModal(true)
           }
         }
       })
-    } else if (!hasSkippedSession) {
+    } else if (!wasSkipped) {
       // No existing session, show modal immediately after wallet connects
       console.log('🔔 No session found, showing enable modal')
       setShowEnableModal(true)
     }
 
     setHasCheckedSession(true)
-  }, [
-    isAccountReady,
-    ownerAddress,
-    hasCheckedSession,
-    hasSkippedSession, // Notify parent that session is ready
-    onSessionCreated,
-  ])
+  }, [isAccountReady, ownerAddress, hasCheckedSession, onSessionCreated])
 
   // Reset state when wallet disconnects
   useEffect(() => {

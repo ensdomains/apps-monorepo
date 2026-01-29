@@ -5,6 +5,7 @@ import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import type { TransactionStatusProps } from '@/lib/types/transaction'
+import { cn } from '@/lib/utils'
 import { TransactionErrorAlert } from './TransactionErrorAlert'
 
 interface SetSubregistryTransactionStatusProps extends TransactionStatusProps {
@@ -49,9 +50,17 @@ export const SetSubregistryTransactionStatus = ({
   }
 
   return (
-    <Alert className="max-w-full">
+    <Alert
+      className={cn(
+        'max-w-full',
+        isConfirmed && 'border-green-500 bg-green-50 dark:bg-green-950/20',
+      )}
+    >
       <CheckCircle
-        className={isSettingSubregistry || isConfirming ? 'animate-pulse' : ''}
+        className={cn(
+          (isSettingSubregistry || isConfirming) && 'animate-pulse',
+          isConfirmed && 'text-green-600',
+        )}
       />
       <AlertTitle>
         {isSettingSubregistry
