@@ -60,7 +60,6 @@ export const ChoosePrimaryNameDialog = ({
   const isSubmitting =
     primaryNameState.matches('submittingUpdate') ||
     primaryNameState.matches('waitingForUpdate')
-  const isSuccess = primaryNameState.matches('success')
   const isError = primaryNameState.matches('error')
 
   // Fetch current primary name from reverse resolver
@@ -112,36 +111,40 @@ export const ChoosePrimaryNameDialog = ({
     }
   }, [reverseName, selectedName])
 
-  // Handle success
+  // Subscribe to actor state changes
   useEffect(() => {
-    if (isSuccess) {
-      toast.success('Primary name set successfully')
-      queryClient.invalidateQueries({
-        predicate: (query) => {
-          const key = query.queryKey[0]
-          if (
-            typeof key === 'object' &&
-            key !== null &&
-            '$scope' in key &&
-            '$action' in key
-          ) {
-            return (
-              (key as { $scope: unknown; $action: unknown }).$scope ===
-                'profile' &&
-              (key as { $scope: unknown; $action: unknown }).$action ===
-                'reverse_name'
-            )
-          }
-          return false
-        },
-      })
-      setOpen(false)
-      onUpdated?.()
-      setTimeout(() => {
-        handlePrimaryNameCancel(primaryNameActor)
-      }, 300)
-    }
-  }, [isSuccess, onUpdated, primaryNameActor, queryClient])
+    const subscription = primaryNameActor.subscribe((snapshot) => {
+      if (snapshot.matches('success')) {
+        toast.success('Primary name set successfully')
+        queryClient.invalidateQueries({
+          predicate: (query) => {
+            const key = query.queryKey[0]
+            if (
+              typeof key === 'object' &&
+              key !== null &&
+              '$scope' in key &&
+              '$action' in key
+            ) {
+              return (
+                (key as { $scope: unknown; $action: unknown }).$scope ===
+                  'profile' &&
+                (key as { $scope: unknown; $action: unknown }).$action ===
+                  'reverse_name'
+              )
+            }
+            return false
+          },
+        })
+        setOpen(false)
+        onUpdated?.()
+        setTimeout(() => {
+          handlePrimaryNameCancel(primaryNameActor)
+        }, 300)
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [primaryNameActor, queryClient, onUpdated])
 
   const handleSelectName = (name: string) => {
     if (!isSubmitting) {
