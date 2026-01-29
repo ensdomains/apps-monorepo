@@ -98,7 +98,9 @@ export const PrimaryNameCard = ({
                 />
                 <div className="flex items-end gap-[4px] text-[12px] leading-[0.96] tracking-[-0.24px]">
                   <span className="text-[#8c8c8c]">Registered</span>
-                  <span className="text-[#232222]">{registeredLabel}</span>
+                  <span className="font-semibold text-[#515151]">
+                    {registeredLabel}
+                  </span>
                 </div>
               </div>
               <div className="flex items-center gap-[8px]">
@@ -108,7 +110,9 @@ export const PrimaryNameCard = ({
                 />
                 <div className="flex items-end gap-[4px] text-[12px] leading-[0.96] tracking-[-0.24px]">
                   <span className="text-[#8c8c8c]">Expires</span>
-                  <span className="text-[#232222]">{expiryLabel}</span>
+                  <span className="font-semibold text-[#515151]">
+                    {expiryLabel}
+                  </span>
                 </div>
               </div>
             </div>

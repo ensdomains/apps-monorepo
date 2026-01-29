@@ -134,51 +134,37 @@ export const MyNamesList = ({
       </div>
 
       {/* Desktop Sort Header */}
-      <div className="mb-[16px] hidden w-full md:flex md:items-center md:justify-between">
-        <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[12px]">
-          <div className="size-[16px] shrink-0" />
-          <div className="flex items-center gap-2 md:gap-[12px]">
-            <div className="size-[32px] shrink-0 md:size-[36.9px]" />
-            <div className="flex items-center gap-[8px]">
-              <button
-                className="flex cursor-pointer items-center gap-[8px]"
-                onClick={() => handleSort('name')}
-                type="button"
-              >
-                <span
-                  className={`font-sans text-[12px] tracking-[0.24px] ${sortField === 'name' ? 'font-bold text-[#232222]' : 'text-[#7d7d7d]'}`}
-                >
-                  Name
-                </span>
-                <SortIndicator
-                  direction={sortDirection}
-                  isActive={sortField === 'name'}
-                />
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-start gap-4 md:gap-[30px]">
-          <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px]">
-            <div className="flex items-center gap-[8px]">
-              <button
-                className="flex cursor-pointer items-center gap-[8px]"
-                onClick={() => handleSort('expiry')}
-                type="button"
-              >
-                <span
-                  className={`font-sans text-[12px] tracking-[0.24px] ${sortField === 'expiry' ? 'font-bold text-[#232222]' : 'text-[#7d7d7d]'}`}
-                >
-                  Expiry
-                </span>
-                <SortIndicator
-                  direction={sortDirection}
-                  isActive={sortField === 'expiry'}
-                />
-              </button>
-            </div>
-          </div>
-        </div>
+      <div className="hidden w-full md:flex md:items-center md:justify-between">
+        <button
+          className="flex cursor-pointer items-center gap-[8px]"
+          onClick={() => handleSort('name')}
+          type="button"
+        >
+          <span
+            className={`font-sans text-sm tracking-[0.24px] ${sortField === 'name' ? 'font-bold text-[#232222]' : 'text-[#7d7d7d]'}`}
+          >
+            Name
+          </span>
+          <SortIndicator
+            direction={sortDirection}
+            isActive={sortField === 'name'}
+          />
+        </button>
+        <button
+          className="flex cursor-pointer items-center gap-[8px]"
+          onClick={() => handleSort('expiry')}
+          type="button"
+        >
+          <span
+            className={`font-sans text-sm tracking-[0.24px] ${sortField === 'expiry' ? 'font-bold text-[#232222]' : 'text-[#7d7d7d]'}`}
+          >
+            Expiry
+          </span>
+          <SortIndicator
+            direction={sortDirection}
+            isActive={sortField === 'expiry'}
+          />
+        </button>
       </div>
 
       <div className="flex w-full flex-col">

@@ -159,7 +159,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
       </div>
 
       {/* Desktop Sort Header */}
-      <div className="mb-[16px] hidden w-full md:flex md:items-center md:justify-between">
+      <div className="hidden w-full md:flex md:items-center md:justify-between">
         <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[12px]">
           <div className="size-[16px] shrink-0" />
           <div className="flex items-center gap-2 md:gap-[12px]">
