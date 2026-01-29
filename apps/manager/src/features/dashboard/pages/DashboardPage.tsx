@@ -48,7 +48,7 @@ export const DashboardPage = () => {
             className="ms-opsz-20 ms-wght-500 text-[#0080bc]"
             symbol="waving_hand"
           />
-          <AlertTitle className="text-[#0080bc] text-[14px] tracking-[0.28px]">
+          <AlertTitle className="mb-2 text-[#0080bc] text-[16px] tracking-[0.28px]">
             Welcome to the public alpha of the ENS app
           </AlertTitle>
           <AlertDescription className="max-w-5xl text-[#5c5b5b] text-sm">
