@@ -16,8 +16,8 @@ function Switch({
         'transition-all',
         'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
         'disabled:cursor-not-allowed disabled:opacity-50',
-        'data-[state=checked]:bg-primary',
-        'data-[state=unchecked]:bg-input',
+        'data-[state=checked]:bg-ens-lapis-core',
+        'data-[state=unchecked]:bg-ens-gray-two',
         className,
       )}
       data-slot="switch"
@@ -25,7 +25,7 @@ function Switch({
     >
       <SwitchPrimitive.Thumb
         className={cn(
-          'pointer-events-none block size-4 rounded-full bg-background ring-0',
+          'pointer-events-none block size-4 rounded-full bg-ens-white ring-0',
           'transition-transform',
           'data-[state=checked]:translate-x-[calc(100%-2px)] data-[state=unchecked]:translate-x-0',
           '',

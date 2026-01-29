@@ -27,6 +27,7 @@ export interface StablecoinBalance {
   address: Address
   symbol: string
   balance: string
+  decimals: number
   formattedBalance: string
 }
 
