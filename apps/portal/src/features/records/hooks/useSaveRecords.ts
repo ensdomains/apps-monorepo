@@ -1,27 +1,23 @@
 /**
  * Hook for saving ENS record changes.
  *
- * Handles the transaction flow for updating records on both v1 (L1) and v2 (L2) networks.
- * Uses the transaction manager pattern for consistent transaction handling.
+ * Uses the recordsMachine from transaction-manager for consistent handling.
+ * Follows the same pattern as the manager app's ProfileEdit.
  */
 
 import {
-  type transactionMachine,
-  transactionManager,
+  recordsMachine,
+  type ServiceRecordSnapshot,
 } from '@ens-apps/transaction-manager'
-import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet'
-import { useSelector } from '@xstate/react'
-import { useState } from 'react'
-import type { Address, Hash, TransactionReceipt } from 'viem'
-import { encodeFunctionData } from 'viem'
+import { useActorRef, useSelector } from '@xstate/react'
+import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import { usePublicClient, useWalletClient } from 'wagmi'
-import type { SnapshotFrom } from 'xstate'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
-import { transformPendingChangesToSetRecords } from '@/features/records/helpers/transformPendingChanges'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { namechainSepolia } from '@/lib/wagmi'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
+import { getRecordId } from '@/utils/records/editRecordUtils'
 import type { EnsNetworkName } from '@/utils/types'
 
 // ============================================================================
@@ -41,97 +37,69 @@ export type SaveRecordsParams = {
   pendingChanges: PendingChanges
 }
 
-/**
- * Discriminated union representing the current state of a transaction.
- */
-export type TransactionState =
-  | { readonly status: 'idle' }
-  | { readonly status: 'preparing' }
-  | { readonly status: 'submitting' }
-  | { readonly status: 'pending'; readonly hash: Hash }
-  | {
-      readonly status: 'success'
-      readonly hash: Hash
-      readonly receipt: TransactionReceipt
-    }
-  | {
-      readonly status: 'reverted'
-      readonly hash: Hash
-      readonly receipt: TransactionReceipt
-    }
-  | { readonly status: 'error'; readonly error: Error }
-
-const IDLE_STATE: TransactionState = { status: 'idle' }
-
 // ============================================================================
 // Helpers
 // ============================================================================
 
-type TransactionSnapshot = SnapshotFrom<typeof transactionMachine>
+/**
+ * Transforms our NameRecord[] to ServiceRecordSnapshot format
+ * expected by the recordsMachine.
+ */
+function toServiceSnapshot(records: NameRecord[]): ServiceRecordSnapshot {
+  const texts: Array<{ key: string; value: string }> = []
+  const coins: Array<{ coinType: number; value: string }> = []
 
-function isHash(value: unknown): value is Hash {
-  return typeof value === 'string' && value.startsWith('0x')
-}
+  for (const record of records) {
+    if (record.type === 'text') {
+      texts.push({ key: record.key, value: record.value })
+    } else if (record.type === 'address') {
+      coins.push({ coinType: record.id, value: record.value })
+    }
+    // Note: contentHash and ABI are not part of ServiceRecordSnapshot
+  }
 
-function isTransactionReceipt(value: unknown): value is TransactionReceipt {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'blockHash' in value &&
-    'transactionHash' in value
-  )
-}
-
-function isError(value: unknown): value is Error {
-  return value instanceof Error
+  return { texts, coins }
 }
 
 /**
- * Selector that extracts transaction state data from transaction actor snapshot.
+ * Computes the "after" snapshot by applying pending changes to original records.
  */
-function selectTransactionData(snapshot: TransactionSnapshot | undefined) {
-  if (!snapshot) return undefined
+function computeAfterSnapshot(
+  originalRecords: NameRecord[],
+  pendingChanges: PendingChanges,
+): ServiceRecordSnapshot {
+  const { newRecords, editedValues, deletedIds } = pendingChanges
 
-  const { value, context } = snapshot
-  const stateString =
-    typeof value === 'string' ? value : (Object.keys(value)[0] ?? 'idle')
+  const texts: Array<{ key: string; value: string }> = []
+  const coins: Array<{ coinType: number; value: string }> = []
 
-  return {
-    stateString,
-    hash: isHash(context.hash) ? context.hash : undefined,
-    receipt: isTransactionReceipt(context.receipt)
-      ? context.receipt
-      : undefined,
-    error: isError(context.error) ? context.error : undefined,
+  // Process original records (apply edits, skip deletions)
+  for (const record of originalRecords) {
+    const id = getRecordId(record)
+
+    // Skip deleted records
+    if (deletedIds.has(id)) continue
+
+    // Apply edits or use original value
+    const value = editedValues.get(id) ?? record.value
+
+    if (record.type === 'text') {
+      texts.push({ key: record.key, value })
+    } else if (record.type === 'address') {
+      coins.push({ coinType: record.id, value })
+    }
   }
-}
 
-/**
- * Derives TransactionState from selected transaction data.
- */
-function deriveTransactionState(
-  data: ReturnType<typeof selectTransactionData>,
-): TransactionState {
-  if (!data) return IDLE_STATE
-
-  const { stateString, hash, receipt, error } = data
-
-  switch (stateString) {
-    case 'submitting':
-      return { status: 'submitting' }
-    case 'pending':
-    case 'confirming':
-      return hash ? { status: 'pending', hash } : IDLE_STATE
-    case 'success':
-      return hash && receipt ? { status: 'success', hash, receipt } : IDLE_STATE
-    case 'error':
-      if (receipt?.status === 'reverted' && hash) {
-        return { status: 'reverted', hash, receipt }
-      }
-      return error ? { status: 'error', error } : IDLE_STATE
-    default:
-      return IDLE_STATE
+  // Add new records
+  for (const record of newRecords) {
+    if (record.type === 'text') {
+      texts.push({ key: record.key, value: record.value })
+    } else if (record.type === 'address') {
+      coins.push({ coinType: record.id, value: record.value })
+    }
   }
+
+  return { texts, coins }
 }
 
 // ============================================================================
@@ -145,141 +113,94 @@ export function useSaveRecords(network: EnsNetworkName = 'sepolia') {
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })
 
-  const [txId, setTxId] = useState<string | undefined>(undefined)
-  const [prepareState, setPrepareState] = useState<TransactionState>(IDLE_STATE)
+  // Create the records machine actor
+  const recordsActor = useActorRef(recordsMachine, {
+    input: { chainId },
+  })
 
-  // Get transaction actor if we have a txId
-  const txActor = txId ? transactionManager.getTransaction(txId) : undefined
+  // Subscribe to machine state
+  const { txHash, isSubmitting, isSuccess, isError, errorMessage } =
+    useSelector(recordsActor, (state) => {
+      const isSubmitting =
+        state.matches('submittingUpdate') || state.matches('waitingForUpdate')
+      const isSuccess = state.matches('success')
+      const isError = state.matches('error')
 
-  // Subscribe to transaction state changes
-  const txSnapshot = useSelector(txActor, (s) => s)
-  const txData = selectTransactionData(txSnapshot)
-  const txState = deriveTransactionState(txData)
+      return {
+        txHash: state.context.txHash,
+        isSubmitting,
+        isSuccess,
+        isError,
+        errorMessage: isError
+          ? (state.context.error?.message ?? 'Failed to update records')
+          : null,
+      }
+    })
 
-  // Combined state: preparing state takes precedence, then transaction state
-  const state: TransactionState =
-    prepareState.status !== 'idle' ? prepareState : txState
-
-  const saveRecords = async ({
+  const saveRecords = ({
     name,
     resolverAddress,
     originalRecords,
     pendingChanges,
   }: SaveRecordsParams) => {
-    // Reset state
-    setTxId(undefined)
-    setPrepareState({ status: 'preparing' })
-
     if (!walletClient || !publicClient) {
-      setPrepareState({
-        status: 'error',
-        error: new Error('Wallet not connected'),
-      })
-      return
+      console.error('Cannot save: wallet not connected')
+      return { error: 'Wallet not connected' }
     }
 
-    try {
-      // Transform pending changes to setRecords format
-      const recordsInput = transformPendingChangesToSetRecords(
-        originalRecords,
-        pendingChanges,
-      )
-
-      // Check if there are any changes
-      if (
-        !recordsInput.texts?.length &&
-        !recordsInput.coins?.length &&
-        recordsInput.contentHash === undefined
-      ) {
-        setPrepareState({
-          status: 'error',
-          error: new Error('No record changes to save'),
-        })
-        return
-      }
-
-      // Build the write parameters using ensjs (handles multicall encoding)
-      const writeParams = await setRecordsWriteParameters(walletClient, {
-        name,
-        resolverAddress,
-        ...recordsInput,
-      })
-
-      // Encode the transaction data for the multicall
-      const data = encodeFunctionData({
-        abi: writeParams.abi,
-        functionName: writeParams.functionName,
-        args: writeParams.args,
-      })
-
-      // Create the signer
-      const signer = createEOASigner(walletClient)
-      const fromAddress = walletClient.account?.address
-
-      if (!fromAddress) {
-        setPrepareState({
-          status: 'error',
-          error: new Error('No account address found'),
-        })
-        return
-      }
-
-      // Start the transaction via transaction manager
-      const newTxId = transactionManager.startTransaction(
-        {
-          type: 'custom',
-          request: {
-            type: 'eoa',
-            from: fromAddress,
-            to: writeParams.address,
-            data,
-            value: 0n,
-            chainId,
-          },
-        },
-        signer,
-        {
-          description: `Update records for ${name}`,
-          publicClient,
-          chainId,
-        },
-      )
-
-      setTxId(newTxId)
-      setPrepareState(IDLE_STATE)
-    } catch (error) {
-      setPrepareState({
-        status: 'error',
-        error: error instanceof Error ? error : new Error(String(error)),
-      })
+    const accountAddress = walletClient.account?.address
+    if (!accountAddress) {
+      console.error('Cannot save: no account address')
+      return { error: 'No account address' }
     }
+
+    // Create signer
+    const signer = createEOASigner(walletClient)
+
+    // Transform records to service format
+    const before = toServiceSnapshot(originalRecords)
+    const after = computeAfterSnapshot(originalRecords, pendingChanges)
+
+    console.log('✅ Creating START_UPDATE event for records:', {
+      name,
+      resolverAddress,
+      accountAddress,
+      hasSigner: !!signer,
+      hasPublicClient: !!publicClient,
+      beforeTexts: before.texts.length,
+      afterTexts: after.texts.length,
+      beforeCoins: before.coins.length,
+      afterCoins: after.coins.length,
+    })
+
+    // Send event to the machine
+    recordsActor.send({
+      type: 'START_UPDATE',
+      name,
+      before,
+      after,
+      signer,
+      accountAddress,
+      publicClient,
+      resolverAddress,
+    })
+
+    return {}
   }
 
-  const reset = () => {
-    setTxId(undefined)
-    setPrepareState(IDLE_STATE)
+  const cancel = () => {
+    recordsActor.send({ type: 'CANCEL' })
   }
-
-  // Derive convenience booleans from state
-  const isWriting = state.status === 'submitting'
-  const isConfirming = state.status === 'pending'
-  const isSuccess = state.status === 'success'
-  const isReverted = state.status === 'reverted'
-  const error = state.status === 'error' ? state.error : null
-  const txHash = 'hash' in state ? state.hash : undefined
-  const receipt = 'receipt' in state ? state.receipt : undefined
 
   return {
     saveRecords,
-    state,
     txHash,
-    receipt,
-    isWriting,
-    isConfirming,
+    isWriting: isSubmitting,
+    isConfirming: isSubmitting,
     isSuccess,
-    isReverted,
-    error,
-    reset,
+    isError,
+    error: errorMessage ? new Error(errorMessage) : null,
+    cancel,
     hasWallet: !!walletClient,
   }
 }
