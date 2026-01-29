@@ -1,0 +1,303 @@
+import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
+import { useQuery } from '@tanstack/react-query'
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { ArrowLeftIcon, ChevronDown, CirclePlus, Search } from 'lucide-react'
+import { useId, useMemo, useState } from 'react'
+import { ErrorMessage } from '@/components/ErrorMessage'
+import { LoadingMessage } from '@/components/LoadingMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
+import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { Button } from '@/components/ui/button'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import { EditRecordsTable } from '@/features/records/components/EditRecordsTable/EditRecordsTable'
+import { PendingChangesBar } from '@/features/records/components/PendingChangesBar'
+import { useEditRecordsState } from '@/features/records/hooks/useEditRecordsState'
+import { queryClient } from '@/utils/queryClient'
+import type { RecordType } from '@/utils/records/editRecordUtils'
+import { recordsToTableData } from '@/utils/records/recordsToTableData'
+
+export const Route = createFileRoute('/$name/edit-records')({
+  component: EditRecordsPage,
+  notFoundComponent: () => <NotFoundMessage />,
+  loader: ({ params }) => {
+    return queryClient.prefetchQuery(getProfileQueryOptions(params.name))
+  },
+})
+
+const RECORD_TYPES: { value: RecordType; label: string }[] = [
+  { value: 'text', label: 'Text' },
+  { value: 'address', label: 'Address' },
+  { value: 'abi', label: 'ABI' },
+  { value: 'contentHash', label: 'Contenthash' },
+]
+
+function EditRecordsPage() {
+  const { name } = Route.useParams()
+  const { data, isLoading, error } = useQuery(getProfileQueryOptions(name))
+
+  if (isLoading) return <LoadingMessage />
+
+  if (error) {
+    return (
+      <ErrorMessage
+        title="Records unavailable"
+        description={error.cause.message}
+      />
+    )
+  }
+
+  if (!data) {
+    return (
+      <NoResultsMessage
+        title="No records yet"
+        description="This name doesn't have any records set. Records will appear here once they're configured."
+      />
+    )
+  }
+
+  return <EditRecordsContent name={name} records={data.records} />
+}
+
+function EditRecordsContent({
+  name,
+  records: rawRecords,
+}: {
+  name: string
+  records: GetRecordsReturnType
+}) {
+  // Form state
+  const [selectedType, setSelectedType] = useState<RecordType | ''>('')
+  const [keyInput, setKeyInput] = useState('')
+  const [valueInput, setValueInput] = useState('')
+
+  // UI state
+  const [activeTab, setActiveTab] = useState<string>('all')
+  const [globalFilter, setGlobalFilter] = useState('')
+
+  // Convert raw records to table data
+  const originalRecords = useMemo(
+    () => recordsToTableData(rawRecords),
+    [rawRecords],
+  )
+
+  // Change tracking state (extracted to custom hook)
+  const {
+    records,
+    changesCount,
+    updatesCount,
+    pendingChanges,
+    addRecord,
+    deleteRecord,
+    updateRecord,
+    discardAll,
+  } = useEditRecordsState(originalRecords)
+
+  // Compute counts for each tab (excluding deleted records)
+  const tabCounts = useMemo(() => {
+    const visible = records.filter((record) => !record.isDeleted)
+    const counts = {
+      all: visible.length,
+      text: 0,
+      address: 0,
+      abi: 0,
+      contentHash: 0,
+    }
+    for (const record of visible) {
+      if (record.type === 'text') counts.text++
+      if (record.type === 'address') counts.address++
+      if (record.type === 'contentHash') counts.contentHash++
+    }
+    return counts
+  }, [records])
+
+  // Filter records based on active tab (excluding deleted records from view)
+  const filteredRecords = useMemo(() => {
+    const visible = records.filter((record) => !record.isDeleted)
+    if (activeTab === 'all') return visible
+    return visible.filter((record) => record.type === activeTab)
+  }, [records, activeTab])
+
+  const searchRecordsId = useId()
+  const typeSelectId = useId()
+  const keyInputId = useId()
+  const valueInputId = useId()
+
+  const handleAddRecord = () => {
+    if (!selectedType || !keyInput) return
+
+    addRecord(selectedType, keyInput, valueInput)
+
+    // Reset form
+    setSelectedType('')
+    setKeyInput('')
+    setValueInput('')
+  }
+
+  return (
+    <div className="flex flex-col min-h-full">
+      {/* Header */}
+      <header className="bg-gray-100 px-8 pb-6 pt-6">
+        <Link to="/$name/records" params={{ name }}>
+          <Button variant="ghost" className="flex items-center gap-2 -ml-2">
+            <ArrowLeftIcon className="size-4" />
+            Back to View
+          </Button>
+        </Link>
+        <h1 className="text-[28px] font-medium mb-6">Edit records</h1>
+
+        {/* Add Record Form */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Type Select */}
+          <div className="flex flex-col gap-1 min-w-[140px]">
+            <label
+              htmlFor={typeSelectId}
+              className="text-xs text-gray-500 flex items-center gap-1"
+            >
+              Type
+            </label>
+            <div className="relative">
+              <select
+                id={typeSelectId}
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value as RecordType)}
+                className="h-9 w-full appearance-none rounded-sm border border-input bg-white px-3 pr-8 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
+              >
+                <option value="">Select...</option>
+                {RECORD_TYPES.map((type) => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-gray-500" />
+            </div>
+          </div>
+
+          {/* Key Input */}
+          <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
+            <label
+              htmlFor={keyInputId}
+              className="text-xs text-gray-500 flex items-center gap-1"
+            >
+              Key
+            </label>
+            <input
+              id={keyInputId}
+              type="text"
+              value={keyInput}
+              onChange={(e) => setKeyInput(e.target.value)}
+              placeholder=""
+              className="h-9 w-full rounded-sm border border-input bg-white px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+            />
+          </div>
+
+          {/* Value Input */}
+          <div className="flex flex-col gap-1 flex-2 min-w-[200px]">
+            <label htmlFor={valueInputId} className="text-xs text-gray-500">
+              Value
+            </label>
+            <input
+              id={valueInputId}
+              type="text"
+              value={valueInput}
+              onChange={(e) => setValueInput(e.target.value)}
+              placeholder=""
+              className="h-9 w-full rounded-sm border border-input bg-white px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+            />
+          </div>
+
+          {/* Add Button */}
+          <div className="flex flex-col gap-1 justify-end">
+            <span className="text-xs text-transparent select-none">Action</span>
+            <Button
+              variant="outline"
+              onClick={handleAddRecord}
+              disabled={!selectedType || !keyInput}
+              className="flex items-center gap-2 whitespace-nowrap"
+            >
+              Add record
+              <CirclePlus className="size-4" />
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <div className="flex-1 bg-white border rounded-lg mx-6 my-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="overflow-x-auto">
+            <TabsList className="w-full justify-start border-b rounded-none px-4 py-0 h-auto bg-transparent">
+              <TabsTrigger value="all" className="py-3 gap-2">
+                All records
+                <span className="text-gray-500">{tabCounts.all}</span>
+              </TabsTrigger>
+              <TabsTrigger value="text" className="py-3 gap-2">
+                Text
+                <span className="text-gray-500">{tabCounts.text}</span>
+              </TabsTrigger>
+              <TabsTrigger value="address" className="py-3 gap-2">
+                Address
+                <span className="text-gray-500">{tabCounts.address}</span>
+              </TabsTrigger>
+              <TabsTrigger value="abi" className="py-3 gap-2">
+                ABI
+                <span className="text-gray-500">{tabCounts.abi}</span>
+              </TabsTrigger>
+              <TabsTrigger value="contentHash" className="py-3 gap-2">
+                Contenthash
+                <span className="text-gray-500">{tabCounts.contentHash}</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value={activeTab} className="p-0 mt-0">
+            {/* Search Input */}
+            <div className="p-4">
+              <InputGroup className="bg-white rounded-sm">
+                <InputGroupAddon>
+                  <Search />
+                </InputGroupAddon>
+                <InputGroupInput
+                  id={searchRecordsId}
+                  className="w-full"
+                  placeholder="Search records..."
+                  value={globalFilter}
+                  onChange={(event) => setGlobalFilter(event.target.value)}
+                />
+              </InputGroup>
+            </div>
+
+            {/* Table */}
+            <EditRecordsTable
+              records={filteredRecords}
+              globalFilter={globalFilter}
+              onDeleteRecord={deleteRecord}
+              onUpdateRecord={updateRecord}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Bottom Action Bar - shown when there are pending changes */}
+      <PendingChangesBar
+        updatesCount={updatesCount}
+        changesCount={changesCount}
+        onSave={() => {
+          console.log('Save changes:', {
+            newRecords: pendingChanges.newRecords,
+            editedValues: Object.fromEntries(pendingChanges.editedValues),
+            deletedIds: Array.from(pendingChanges.deletedIds),
+          })
+          // TODO: Implement save logic
+        }}
+        onDiscard={discardAll}
+      />
+    </div>
+  )
+}

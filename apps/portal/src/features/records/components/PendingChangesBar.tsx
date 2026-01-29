@@ -1,14 +1,16 @@
-import { Save } from 'lucide-react'
+import { Save, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export function PendingChangesBar({
   updatesCount,
   changesCount,
   onSave,
+  onDiscard,
 }: {
   updatesCount: number
   changesCount: number
   onSave: () => void
+  onDiscard: () => void
 }) {
   if (changesCount === 0) return null
 
@@ -19,6 +21,10 @@ export function PendingChangesBar({
           <span className="font-medium">{updatesCount} </span>
           {updatesCount === 1 ? 'update' : 'updates'}
         </span>
+        <Button variant="outline" onClick={onDiscard} className="rounded-lg">
+          Discard
+          <X className="size-4 ml-1" />
+        </Button>
         <Button onClick={onSave} className="rounded-lg">
           Save {changesCount} {changesCount === 1 ? 'change' : 'changes'}
           <Save className="size-4 ml-1" />
