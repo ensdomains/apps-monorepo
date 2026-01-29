@@ -1,8 +1,10 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
-import { useQuery } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CirclePlus, Search } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
+import type { Address } from 'viem'
+import { useEnsResolver } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -14,6 +16,10 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  type GetEnsOwnerReturnType,
+  getEnsOwnerQueryOptions,
+} from '@/features/profile/hooks/useEnsOwner'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { EditRecordsTable } from '@/features/records/components/EditRecordsTable/EditRecordsTable'
 import { PendingChangesBar } from '@/features/records/components/PendingChangesBar'
@@ -21,6 +27,7 @@ import { useEditRecordsState } from '@/features/records/hooks/useEditRecordsStat
 import { queryClient } from '@/utils/queryClient'
 import type { RecordType } from '@/utils/records/editRecordUtils'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
+import type { EnsNetworkName } from '@/utils/types'
 
 export const Route = createFileRoute('/$name/edit-records')({
   component: EditRecordsPage,
@@ -39,20 +46,40 @@ const RECORD_TYPES: { value: RecordType; label: string }[] = [
 
 function EditRecordsPage() {
   const { name } = Route.useParams()
-  const { data, isLoading, error } = useQuery(getProfileQueryOptions(name))
+
+  // Fetch profile and owner data in parallel
+  const [profileQuery, ownerQuery] = useQueries({
+    queries: [getProfileQueryOptions(name), getEnsOwnerQueryOptions({ name })],
+  })
+
+  // Get resolver address
+  const { data: resolverAddress, isLoading: isResolverLoading } =
+    useEnsResolver({ name })
+
+  const isLoading =
+    profileQuery.isLoading || ownerQuery.isLoading || isResolverLoading
 
   if (isLoading) return <LoadingMessage />
 
-  if (error) {
+  if (profileQuery.error) {
     return (
       <ErrorMessage
         title="Records unavailable"
-        description={error.cause.message}
+        description={profileQuery.error.cause.message}
       />
     )
   }
 
-  if (!data) {
+  if (ownerQuery.error) {
+    return (
+      <ErrorMessage
+        title="Owner unavailable"
+        description={ownerQuery.error.cause.message}
+      />
+    )
+  }
+
+  if (!profileQuery.data) {
     return (
       <NoResultsMessage
         title="No records yet"
@@ -61,16 +88,37 @@ function EditRecordsPage() {
     )
   }
 
-  return <EditRecordsContent name={name} records={data.records} />
+  if (!ownerQuery.data || !resolverAddress) {
+    return (
+      <ErrorMessage
+        title="Name not found"
+        description="Could not determine the owner or resolver for this name."
+      />
+    )
+  }
+
+  return (
+    <EditRecordsContent
+      name={name}
+      records={profileQuery.data.records}
+      ownerData={ownerQuery.data}
+      resolverAddress={resolverAddress}
+    />
+  )
 }
 
 function EditRecordsContent({
   name,
   records: rawRecords,
+  ownerData,
+  resolverAddress,
 }: {
   name: string
   records: GetRecordsReturnType
+  ownerData: GetEnsOwnerReturnType
+  resolverAddress: Address
 }) {
+  const network: EnsNetworkName = ownerData?.network ?? 'sepolia'
   // Form state
   const [selectedType, setSelectedType] = useState<RecordType | ''>('')
   const [keyInput, setKeyInput] = useState('')
@@ -289,12 +337,17 @@ function EditRecordsContent({
         updatesCount={updatesCount}
         changesCount={changesCount}
         onSave={() => {
-          // TODO: Implement save logic
-          //   console.log('Save changes:', {
-          //     newRecords: pendingChanges.newRecords,
-          //     editedValues: Object.fromEntries(pendingChanges.editedValues),
-          //     deletedIds: Array.from(pendingChanges.deletedIds),
-          //   })
+          // TODO: Implement actual transaction logic
+          console.log('Save changes:', {
+            name,
+            network,
+            resolverAddress,
+            pendingChanges: {
+              newRecords: pendingChanges.newRecords,
+              editedValues: Object.fromEntries(pendingChanges.editedValues),
+              deletedIds: Array.from(pendingChanges.deletedIds),
+            },
+          })
         }}
         onDiscard={discardAll}
       />
