@@ -109,7 +109,7 @@ export const PrimaryNameCard = ({
           </div>
         </div>
         <LinkButton
-          className="h-[34px] w-full rounded-[4px] border border-ens-blue px-[8.5px] py-[4.25px] text-ens-blue hover:bg-ens-blue/5 hover:text-ens-blue md:w-auto"
+          className="h-[40px] w-full rounded-xs border border-ens-blue px-[8.5px] py-[4.25px] font-mono text-ens-blue uppercase tracking-wider hover:bg-ens-blue/5 hover:text-ens-blue md:w-auto"
           disabled={!canViewProfile}
           params={{ name: primaryName ?? '' }}
           to="/p/$name"
@@ -118,7 +118,6 @@ export const PrimaryNameCard = ({
           <span className="font-sans text-[14px] leading-normal">
             View profile
           </span>
-          <span className="ml-[4px]">→</span>
         </LinkButton>
       </div>
     </Card>
