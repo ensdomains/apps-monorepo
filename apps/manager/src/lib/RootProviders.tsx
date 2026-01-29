@@ -9,6 +9,7 @@ import posthog from 'posthog-js'
 import { track } from '@/lib/posthog/events'
 import { PHProvider } from '@/lib/posthog/provider'
 import { backendAuthStore } from '@/utils/backend-client'
+import { tw } from '@/utils/tailwind'
 import { getParaClient, setParaConnectionCookie } from './para'
 import { customSepolia } from './wagmi'
 
@@ -115,6 +116,8 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
             font: 'Inter',
           },
           twoFactorAuthEnabled: false,
+          // By default, the Para modal uses a high z-index (10011) to render above other elements. However, our dialog/alertdialog components apply `pointer-events-none` to the body, which can unintentionally block interaction with the Para modal when these dialogs are open underneath. To prevent this, we explicitly set `pointer-events-auto` on the Para modal, ensuring it remains interactive even when an underlying dialog/alertdialog is present—mirroring the approach we use for other modals.
+          className: tw`pointer-events-auto`,
         }}
       >
         <PHProvider>

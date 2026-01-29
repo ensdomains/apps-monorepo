@@ -85,7 +85,7 @@ Components should NOT:
 
 - Use pattern matching over conditional operators
 - Pass dependencies as explicit parameters
-- Avoid hiding complexity in abstractions
+- Avoid hiding business rules in control flow
 
 ### 4. Functional-Light Programming
 
@@ -806,7 +806,8 @@ export const ProfilePage = ({ name }: { name: string }) => {
 **Allowed exceptions** (must stay trivial):
 - ≤ 5 lines of code
 - No async logic
-- No branching (if/switch)
+- No domain or multi-branch logic  
+  (trivial guards like `if (!ref.current) return` are fine)
 - No external dependencies
 
 ```typescript
