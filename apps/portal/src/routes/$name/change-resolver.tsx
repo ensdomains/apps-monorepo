@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { AlertCircle, ArrowLeftIcon, CircleCheckIcon } from 'lucide-react'
 import { useState } from 'react'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { isAddress, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
@@ -83,12 +84,12 @@ function RouteComponent() {
     isWriting ||
     isConfirming
 
-  const getButtonText = () => {
-    if (isWriting) return 'Submitting transaction...'
-    if (isConfirming) return 'Confirming...'
-    if (isConfirmed) return 'Resolver changed!'
-    return 'Change resolver'
-  }
+  const getButtonText = () =>
+    match({ isWriting, isConfirming, isConfirmed })
+      .with({ isWriting: true }, () => 'Submitting transaction...')
+      .with({ isConfirming: true }, () => 'Confirming...')
+      .with({ isConfirmed: true }, () => 'Resolver changed!')
+      .otherwise(() => 'Change resolver')
 
   if (isLoading) {
     return <LoadingSpinner title="Loading registry information" />
