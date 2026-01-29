@@ -12,19 +12,21 @@ import {
 interface NameRowProps {
   readonly label: string
   readonly avatarUrl?: string
-  readonly isFavorite: boolean
-  readonly onToggleFavorite: () => void
+  readonly isFavorite?: boolean
+  readonly onToggleFavorite?: () => void
   readonly isAuthenticated?: boolean
+  readonly showFavoriteButton?: boolean
 }
 
 export const NameRow = ({
   label,
   avatarUrl,
-  isFavorite,
+  isFavorite = false,
   onToggleFavorite,
   isAuthenticated = true,
+  showFavoriteButton = false,
 }: NameRowProps) => {
-  const heartButton = (
+  const heartButton = showFavoriteButton ? (
     <motion.button
       className="flex shrink-0 items-center justify-center disabled:cursor-not-allowed"
       disabled={!isAuthenticated}
@@ -38,18 +40,19 @@ export const NameRow = ({
         strokeWidth={2}
       />
     </motion.button>
-  )
+  ) : null
 
   return (
     <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[12px]">
-      {isAuthenticated ? (
-        heartButton
-      ) : (
-        <Tooltip>
-          <TooltipTrigger asChild>{heartButton}</TooltipTrigger>
-          <TooltipContent>Login to favorite</TooltipContent>
-        </Tooltip>
-      )}
+      {showFavoriteButton &&
+        (isAuthenticated ? (
+          heartButton
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>{heartButton}</TooltipTrigger>
+            <TooltipContent>Login to favorite</TooltipContent>
+          </Tooltip>
+        ))}
       <div className="flex items-center gap-2 md:gap-[12px]">
         <div className="relative size-[32px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
           <ImageFallback.Root className="contents">

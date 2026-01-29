@@ -231,6 +231,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                       isFavorite={true}
                       label={fav.label}
                       onToggleFavorite={() => toggleFavorite(fav.label)}
+                      showFavoriteButton={true}
                     />
                   </div>
                 </div>

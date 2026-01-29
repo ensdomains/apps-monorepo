@@ -1,6 +1,5 @@
 import { OrderDirection } from '@ens-apps/indexer'
-import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
-import { useAtom } from '@xstate/store-react'
+import { useQueries } from '@tanstack/react-query'
 import {
   ChevronDown,
   ChevronLeft,
@@ -17,11 +16,7 @@ import {
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
-import { isBackendAuthed } from '@/utils/backend-client'
 import { useDashboardNames } from '../hooks/useDashboardNames'
-import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
-import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
-import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import { NameRow } from './NameRow'
 import { PrimaryBadge } from './PrimaryBadge'
 
@@ -91,25 +86,6 @@ export const MyNamesList = ({
     sortDirection,
     handleSort,
   } = useDashboardNames({ searchQuery })
-
-  const isAuthed = useAtom(isBackendAuthed)
-
-  const { data: favorites = [] } = useQuery(favoritesQueryOptions)
-  const addMutation = useMutation(addFavoriteMutationOptions)
-  const removeMutation = useMutation(removeFavoriteMutationOptions)
-
-  const isFavorite = (label: string) =>
-    favorites.some((entry) => entry.name.toLowerCase() === label.toLowerCase())
-
-  const toggleFavorite = (label: string) => {
-    if (!isAuthed) return
-
-    if (isFavorite(label)) {
-      removeMutation.mutate({ name: label })
-    } else {
-      addMutation.mutate({ name: label })
-    }
-  }
 
   const avatarQueries = useQueries({
     queries: names.map((domain) =>
@@ -244,7 +220,6 @@ export const MyNamesList = ({
                 label.toLowerCase() === primaryLabel?.toLowerCase()
               const avatarUrl =
                 avatarQueries[index]?.data ?? name.resolver?.avatar ?? undefined
-              const favorited = isFavorite(label)
 
               return (
                 <div
@@ -256,16 +231,8 @@ export const MyNamesList = ({
                       <PrimaryBadge />
                     </div>
                   )}
-
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <NameRow
-                      avatarUrl={avatarUrl}
-                      isAuthenticated={isAuthed}
-                      isFavorite={favorited}
-                      label={label}
-                      onToggleFavorite={() => toggleFavorite(label)}
-                    />
-
+                    <NameRow avatarUrl={avatarUrl} label={label} />
                     <div className="flex items-start gap-4 md:gap-[30px]">
                       <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:gap-[4px]">
                         <div className="flex flex-col items-start">
