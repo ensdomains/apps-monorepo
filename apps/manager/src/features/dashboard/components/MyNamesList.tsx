@@ -7,6 +7,7 @@ import {
   CircleAlert,
   Mountain,
 } from 'lucide-react'
+import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import {
   formatDashboardDate,
@@ -74,6 +75,7 @@ export const MyNamesList = ({
   primaryLabel,
   searchQuery = '',
 }: MyNamesListProps) => {
+  const [hasInteracted, setHasInteracted] = useState(false)
   const {
     names,
     isLoading,
@@ -84,8 +86,13 @@ export const MyNamesList = ({
     pageSize,
     sortField,
     sortDirection,
-    handleSort,
+    handleSort: hookHandleSort,
   } = useDashboardNames({ searchQuery })
+
+  const handleSort = (field: 'name' | 'expiry', direction?: OrderDirection) => {
+    setHasInteracted(true)
+    hookHandleSort(field, direction)
+  }
 
   const avatarQueries = useQueries({
     queries: names.map((domain) =>
@@ -141,13 +148,13 @@ export const MyNamesList = ({
           type="button"
         >
           <span
-            className={`font-sans text-sm tracking-[0.24px] ${sortField === 'name' ? 'font-bold text-[#232222]' : 'text-[#7d7d7d]'}`}
+            className={`font-sans text-sm tracking-[0.24px] ${hasInteracted && sortField === 'name' ? 'text-[#232222]' : 'text-[#7d7d7d]'}`}
           >
             Name
           </span>
           <SortIndicator
             direction={sortDirection}
-            isActive={sortField === 'name'}
+            isActive={hasInteracted && sortField === 'name'}
           />
         </button>
         <button
@@ -156,13 +163,13 @@ export const MyNamesList = ({
           type="button"
         >
           <span
-            className={`font-sans text-sm tracking-[0.24px] ${sortField === 'expiry' ? 'font-bold text-[#232222]' : 'text-[#7d7d7d]'}`}
+            className={`font-sans text-sm tracking-[0.24px] ${hasInteracted && sortField === 'expiry' ? 'text-[#232222]' : 'text-[#7d7d7d]'}`}
           >
             Expiry
           </span>
           <SortIndicator
             direction={sortDirection}
-            isActive={sortField === 'expiry'}
+            isActive={hasInteracted && sortField === 'expiry'}
           />
         </button>
       </div>

@@ -66,6 +66,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
   const [sortDirection, setSortDirection] = useState<OrderDirection>(
     OrderDirection.Asc,
   )
+  const [hasInteracted, setHasInteracted] = useState(false)
 
   const { data: apiFavorites = [], isLoading } = useQuery(favoritesQueryOptions)
   const favorites = apiFavorites.map(toLocalEntry)
@@ -118,6 +119,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
   }
 
   const handleSort = (field: SortField) => {
+    setHasInteracted(true)
     if (sortField === field) {
       setSortDirection((prev) =>
         prev === OrderDirection.Desc ? OrderDirection.Asc : OrderDirection.Desc,
@@ -139,6 +141,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
           <select
             className="bg-transparent font-medium font-sans text-[#232222] text-[12px] tracking-[0.24px] outline-none"
             onChange={(e) => {
+              setHasInteracted(true)
               const [field, direction] = e.target.value.split('-') as [
                 SortField,
                 'asc' | 'desc',
@@ -159,20 +162,20 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
       </div>
 
       {/* Desktop Sort Header */}
-      <div className="hidden w-full md:flex">
+      <div className="hidden w-full md:flex md:items-center md:justify-between">
         <button
           className="flex cursor-pointer items-center gap-[8px]"
           onClick={() => handleSort('name')}
           type="button"
         >
           <span
-            className={`font-sans text-sm tracking-[0.24px] ${sortField === 'name' ? 'font-bold text-[#232222]' : 'text-[#7d7d7d]'}`}
+            className={`font-sans text-sm tracking-[0.24px] ${hasInteracted && sortField === 'name' ? 'text-[#232222]' : 'text-[#7d7d7d]'}`}
           >
             Name
           </span>
           <SortIndicator
             direction={sortDirection}
-            isActive={sortField === 'name'}
+            isActive={hasInteracted && sortField === 'name'}
           />
         </button>
       </div>
