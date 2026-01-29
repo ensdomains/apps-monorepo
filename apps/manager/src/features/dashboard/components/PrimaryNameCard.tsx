@@ -51,7 +51,7 @@ export const PrimaryNameCard = ({
   return (
     <Card className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white p-4 shadow-none md:p-[24px]">
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-8">
-        <div className="flex flex-start flex-row items-start gap-4 md:flex-col md:gap-[20px]">
+        <div className="flex flex-row items-start gap-4 md:gap-[20px]">
           <div className="size-[80px] shrink-0 overflow-hidden rounded-[4px] bg-[#faf9f6] md:size-[200px]">
             {match(hasAvatar)
               .with(true, () => (
@@ -68,7 +68,13 @@ export const PrimaryNameCard = ({
           <div className="flex min-h-0 flex-col justify-between md:h-[200px]">
             <div className="flex flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-[12px]">
               <div className="inline-flex items-center rounded-[4px] bg-ens-blue px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
-                <span className="font-medium font-mono text-[20px] text-ens-white leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]">
+                <span
+                  className={
+                    displayName.length > 10
+                      ? 'font-medium font-mono text-[24px] text-ens-white leading-[0.96] tracking-[-0.48px]'
+                      : 'font-medium font-mono text-[20px] text-ens-white leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]'
+                  }
+                >
                   {displayName}
                 </span>
               </div>

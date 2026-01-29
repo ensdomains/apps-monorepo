@@ -50,7 +50,7 @@ export const FaqSection = () => (
       {faqItems.map(({ question, answer }) => (
         <Collapsible key={question}>
           <div className="border-ens-gray-two border-b-[0.4px] last:border-b-0">
-            <CollapsibleTrigger className="flex h-[56px] w-full items-center justify-between text-left font-sans text-[#121212] text-[16px] leading-[20px]">
+            <CollapsibleTrigger className="flex h-[56px] w-full items-center justify-between text-left font-sans text-[#121212] text-[16px] leading-[20px] md:text-[20px] md:leading-[22px]">
               <span>{question}</span>
               <CircleArrowDown
                 className="size-[24px] text-[#232222]"
