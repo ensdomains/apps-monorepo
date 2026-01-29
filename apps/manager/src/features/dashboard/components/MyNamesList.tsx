@@ -1,6 +1,7 @@
 import { OrderDirection } from '@ens-apps/indexer'
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { useAtom } from '@xstate/store-react'
 import {
   ArrowRight,
   ChevronDown,
@@ -18,6 +19,7 @@ import {
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { isBackendAuthed } from '@/utils/backend-client'
 import { useDashboardNames } from '../hooks/useDashboardNames'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
@@ -92,6 +94,8 @@ export const MyNamesList = ({
     handleSort,
   } = useDashboardNames({ searchQuery })
 
+  const isAuthed = useAtom(isBackendAuthed)
+
   const { data: favorites = [] } = useQuery(favoritesQueryOptions)
   const addMutation = useMutation(addFavoriteMutationOptions)
   const removeMutation = useMutation(removeFavoriteMutationOptions)
@@ -100,6 +104,8 @@ export const MyNamesList = ({
     favorites.some((entry) => entry.name.toLowerCase() === label.toLowerCase())
 
   const toggleFavorite = (label: string) => {
+    if (!isAuthed) return
+
     if (isFavorite(label)) {
       removeMutation.mutate({ name: label })
     } else {
@@ -224,6 +230,7 @@ export const MyNamesList = ({
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <NameRow
                       avatarUrl={avatarUrl}
+                      isAuthenticated={isAuthed}
                       isFavorite={favorited}
                       label={label}
                       onToggleFavorite={() => toggleFavorite(label)}

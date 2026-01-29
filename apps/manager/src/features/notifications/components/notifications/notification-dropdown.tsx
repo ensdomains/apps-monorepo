@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
-import { useAtom } from '@xstate/store/react'
+import { useAtom } from '@xstate/store-react'
 import { ArrowRight, ArrowUpRight, SmileIcon } from 'lucide-react'
 import { useWalletClient } from 'wagmi'
 import { Button, LinkButton } from '@/components/ui/button'

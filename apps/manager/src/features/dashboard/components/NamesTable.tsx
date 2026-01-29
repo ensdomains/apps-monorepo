@@ -1,8 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
+import { useAtom } from '@xstate/store-react'
 import { Search } from 'lucide-react'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
 import { Input } from '@/components/ui/input'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { isBackendAuthed } from '@/utils/backend-client'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import { FavoritesList } from './FavoritesList'
 import { MyNamesList } from './MyNamesList'
@@ -14,6 +21,8 @@ type TabButtonProps = {
   readonly isActive: boolean
   readonly onClick: () => void
   readonly badge?: number
+  readonly disabled?: boolean
+  readonly disabledTooltip?: string
 }
 
 const DashboardTabButton = ({
@@ -21,24 +30,40 @@ const DashboardTabButton = ({
   isActive,
   onClick,
   badge,
-}: TabButtonProps) => (
-  <button
-    className="flex shrink-0 items-center gap-[12px]"
-    onClick={onClick}
-    type="button"
-  >
-    <span
-      className={`font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px] ${isActive ? 'text-[#232222]' : 'text-[#a9a9a9]'}`}
+  disabled = false,
+  disabledTooltip,
+}: TabButtonProps) => {
+  const button = (
+    <button
+      className={`flex shrink-0 items-center gap-[12px] ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+      disabled={disabled}
+      onClick={disabled ? undefined : onClick}
+      type="button"
     >
-      {label}
-    </span>
-    {badge !== undefined && badge > 0 && (
-      <span className="flex h-[19.68px] items-center justify-center rounded-[14px] bg-[#ffecf5] px-[6.56px] py-[1.64px] font-sans text-[#f53293] text-[14px] leading-[1.05] tracking-[0.28px]">
-        {badge}
+      <span
+        className={`font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px] ${isActive ? 'text-[#232222]' : 'text-[#a9a9a9]'}`}
+      >
+        {label}
       </span>
-    )}
-  </button>
-)
+      {badge !== undefined && badge > 0 && (
+        <span className="flex h-[19.68px] items-center justify-center rounded-[14px] bg-[#ffecf5] px-[6.56px] py-[1.64px] font-sans text-[#f53293] text-[14px] leading-[1.05] tracking-[0.28px]">
+          {badge}
+        </span>
+      )}
+    </button>
+  )
+
+  if (disabled && disabledTooltip) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipContent>{disabledTooltip}</TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  return button
+}
 
 interface NamesTableProps {
   readonly primaryLabel?: string | null
@@ -47,6 +72,7 @@ interface NamesTableProps {
 export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>('myNames')
   const [searchQuery, setSearchQuery] = useState('')
+  const isAuthed = useAtom(isBackendAuthed)
   const { data: favorites = [] } = useQuery(favoritesQueryOptions)
   const favoritesCount = favorites.length
 
@@ -59,6 +85,8 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
       key: 'favorites' as const,
       label: 'Favorites',
       badge: favoritesCount,
+      disabled: !isAuthed,
+      disabledTooltip: 'Sign in to view favorites',
     },
   ]
 
@@ -72,6 +100,10 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
             return (
               <DashboardTabButton
                 badge={'badge' in tab ? tab.badge : undefined}
+                disabled={'disabled' in tab ? tab.disabled : false}
+                disabledTooltip={
+                  'disabledTooltip' in tab ? tab.disabledTooltip : undefined
+                }
                 isActive={isActive}
                 key={tab.key}
                 label={tab.label}

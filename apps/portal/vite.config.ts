@@ -34,9 +34,18 @@ export default defineConfig({
       '@ens-apps/l2-primary': fileURLToPath(
         new URL('../../packages/l2-primary/src', import.meta.url),
       ),
+      '@ens-apps/transaction-manager': fileURLToPath(
+        new URL('../../packages/transaction-manager/src', import.meta.url),
+      ),
     },
+    dedupe: [
+      'react',
+      'react-dom',
+      'react/jsx-runtime',
+      'react/jsx-dev-runtime',
+    ],
   },
   optimizeDeps: {
-    exclude: ['@ens-apps/l2-primary'],
+    exclude: ['@ens-apps/l2-primary', '@ens-apps/transaction-manager'],
   },
 })
