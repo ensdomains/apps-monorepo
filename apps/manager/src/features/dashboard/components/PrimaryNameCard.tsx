@@ -77,7 +77,7 @@ export const PrimaryNameCard = ({
                 currentPrimaryName={primaryName}
               >
                 <button
-                  className="cursor-pointer transition-opacity hover:opacity-80"
+                  className="mb-4 cursor-pointer transition-opacity hover:opacity-80"
                   type="button"
                 >
                   <PrimaryBadge />
