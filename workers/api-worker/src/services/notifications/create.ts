@@ -374,11 +374,12 @@ export const createBatchNotifications = ResultFn(async function* <
       ens_labs_updates: settingsRow?.ens_labs_updates ?? false,
     }
 
-    const shouldCreateDeliveries = shouldCreateExternalDeliveriesForNotification(
-      ctx.kind,
-      notification.payload as NotificationPayloads[NotificationKind],
-      settings,
-    )
+    const shouldCreateDeliveries =
+      shouldCreateExternalDeliveriesForNotification(
+        ctx.kind,
+        notification.payload as NotificationPayloads[NotificationKind],
+        settings,
+      )
 
     if (!shouldCreateDeliveries) {
       continue

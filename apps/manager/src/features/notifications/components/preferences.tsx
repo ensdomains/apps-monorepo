@@ -41,17 +41,14 @@ export const NotificationPreferences = () => {
     favouritedNameExpiry?: boolean
     ensLabsUpdates?: boolean
   }) => {
-    updatePreferenceMutation.mutate(
-      patch,
-      {
-        onSuccess: () => {
-          toast.success('Preference updated')
-        },
-        onError: (error: Error) => {
-          toast.error(error.message || 'Failed to update preference')
-        },
+    updatePreferenceMutation.mutate(patch, {
+      onSuccess: () => {
+        toast.success('Preference updated')
       },
-    )
+      onError: (error: Error) => {
+        toast.error(error.message || 'Failed to update preference')
+      },
+    })
   }
 
   return (

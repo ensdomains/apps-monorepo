@@ -5,9 +5,7 @@ import { requireAuth } from '#app/middleware/auth.js'
 import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
-import {
-  UserNotificationSettingsSchema,
-} from '#types/notifications.js'
+import { UserNotificationSettingsSchema } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
 
 /**
@@ -65,10 +63,7 @@ export default createApp()
     '/',
     ...requireAuth,
     injectDb,
-    vValidator(
-      'json',
-      v.partial(UserNotificationSettingsSchema),
-    ),
+    vValidator('json', v.partial(UserNotificationSettingsSchema)),
     async (c) => {
       const userId = c.var.user_id
       const patch = c.req.valid('json')
@@ -131,4 +126,3 @@ export default createApp()
       })
     },
   )
-
