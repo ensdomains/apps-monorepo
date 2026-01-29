@@ -31,7 +31,6 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 import { resolveDomainLabel } from '../utils'
-import { PrimaryBadge } from './PrimaryBadge'
 
 interface ChoosePrimaryNameDialogProps {
   readonly currentPrimaryName?: string | null
@@ -87,10 +86,16 @@ export const ChoosePrimaryNameDialog = ({
   )
   const allDomains = domainsData?.domains ?? []
 
-  // Filter out the current primary name from the list
-  const domains = allDomains.filter((domain) => {
-    const label = resolveDomainLabel(domain)
-    return label.toLowerCase() !== reverseName?.toLowerCase()
+  // Sort domains to always show primary name first
+  const domains = [...allDomains].sort((a, b) => {
+    const labelA = resolveDomainLabel(a)
+    const labelB = resolveDomainLabel(b)
+    const isPrimaryA = labelA.toLowerCase() === reverseName?.toLowerCase()
+    const isPrimaryB = labelB.toLowerCase() === reverseName?.toLowerCase()
+
+    if (isPrimaryA) return -1
+    if (isPrimaryB) return 1
+    return 0
   })
 
   // Fetch avatars for all names
@@ -188,39 +193,6 @@ export const ChoosePrimaryNameDialog = ({
         </DialogHeader>
 
         <div className="mt-4 flex flex-col gap-4">
-          {/* Current Primary Name Badge */}
-          {currentPrimaryName && (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-3">
-                <div className="relative size-[40px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6]">
-                  <ImageFallback.Root className="contents">
-                    <ImageFallback.Image
-                      alt={`${currentPrimaryName} avatar`}
-                      className="size-full object-cover"
-                      src={currentPrimaryAvatar ?? undefined}
-                    />
-                    <ImageFallback.Fallback>
-                      <img
-                        alt={`${currentPrimaryName} avatar placeholder`}
-                        className="size-full object-cover"
-                        src={placeholderAvatar}
-                      />
-                    </ImageFallback.Fallback>
-                  </ImageFallback.Root>
-                </div>
-                <div className="flex flex-col items-start gap-1">
-                  <div className="inline-flex items-center rounded-[2.8px] bg-ens-blue px-2 py-1">
-                    <span className="font-medium font-mono text-[16px] text-ens-white leading-[0.96] tracking-[-0.32px]">
-                      {currentPrimaryName}
-                    </span>
-                  </div>
-                  <PrimaryBadge />
-                </div>
-              </div>
-              <div className="h-px bg-[#e0e0e0]" />
-            </div>
-          )}
-
           {/* Names List */}
           <div className="flex flex-col gap-2">
             {match({ isLoading, domains })
