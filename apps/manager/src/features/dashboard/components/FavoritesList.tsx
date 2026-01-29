@@ -159,30 +159,22 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
       </div>
 
       {/* Desktop Sort Header */}
-      <div className="hidden w-full md:flex md:items-center md:justify-between">
-        <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[12px]">
-          <div className="size-[16px] shrink-0" />
-          <div className="flex items-center gap-2 md:gap-[12px]">
-            <div className="size-[32px] shrink-0 md:size-[36.9px]" />
-            <div className="flex items-center gap-[8px]">
-              <button
-                className="flex cursor-pointer items-center gap-[8px]"
-                onClick={() => handleSort('name')}
-                type="button"
-              >
-                <span
-                  className={`font-sans text-[12px] tracking-[0.24px] ${sortField === 'name' ? 'font-bold text-[#232222]' : 'text-[#7d7d7d]'}`}
-                >
-                  Name
-                </span>
-                <SortIndicator
-                  direction={sortDirection}
-                  isActive={sortField === 'name'}
-                />
-              </button>
-            </div>
-          </div>
-        </div>
+      <div className="hidden w-full md:flex">
+        <button
+          className="flex cursor-pointer items-center gap-[8px]"
+          onClick={() => handleSort('name')}
+          type="button"
+        >
+          <span
+            className={`font-sans text-sm tracking-[0.24px] ${sortField === 'name' ? 'font-bold text-[#232222]' : 'text-[#7d7d7d]'}`}
+          >
+            Name
+          </span>
+          <SortIndicator
+            direction={sortDirection}
+            isActive={sortField === 'name'}
+          />
+        </button>
       </div>
 
       <div className="flex w-full flex-col">
