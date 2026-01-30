@@ -2,10 +2,21 @@ import { describe, expect, it } from 'vitest'
 import type { V1Name, V2Name } from './mergeNamesData'
 import { mergeNamesData } from './mergeNamesData'
 
+const defaultRelation = {
+  owner: false,
+  registrant: false,
+  wrappedOwner: false,
+  resolvedAddress: false,
+}
+
 describe('mergeNamesData', () => {
   it('should merge V1 and V2 names with proper network labels', () => {
     const v1Names: V1Name[] = [
-      { name: 'vitalik.eth', expiryDate: { date: new Date('2025-01-01') } },
+      {
+        name: 'vitalik.eth',
+        expiryDate: { date: new Date('2025-01-01') },
+        relation: { ...defaultRelation, registrant: true },
+      },
     ]
     const v2Names: V2Name[] = [
       {
@@ -22,17 +33,24 @@ describe('mergeNamesData', () => {
       name: 'vitalik.eth',
       expiryDate: new Date('2025-01-01'),
       network: 'sepolia',
+      roleBitmap: null,
+      v1Roles: { owner: true, manager: false },
     })
     expect(result[1]).toEqual({
       name: 'alice.eth',
       expiryDate: new Date('2025-01-01 00:00:00 UTC'),
       network: 'namechainSepolia',
       subdomainCount: 0,
+      recordCount: undefined,
+      roleBitmap: null,
+      v1Roles: null,
     })
   })
 
   it('should handle V1 names with null expiryDate', () => {
-    const v1Names: V1Name[] = [{ name: 'test.eth', expiryDate: null }]
+    const v1Names: V1Name[] = [
+      { name: 'test.eth', expiryDate: null, relation: defaultRelation },
+    ]
     const v2Names: V2Name[] = []
 
     const result = mergeNamesData(v1Names, v2Names)
@@ -42,11 +60,19 @@ describe('mergeNamesData', () => {
       name: 'test.eth',
       expiryDate: null,
       network: 'sepolia',
+      roleBitmap: null,
+      v1Roles: { owner: false, manager: false },
     })
   })
 
   it('should handle V1 names with expiryDate.date as null', () => {
-    const v1Names: V1Name[] = [{ name: 'test.eth', expiryDate: { date: null } }]
+    const v1Names: V1Name[] = [
+      {
+        name: 'test.eth',
+        expiryDate: { date: null },
+        relation: defaultRelation,
+      },
+    ]
     const v2Names: V2Name[] = []
 
     const result = mergeNamesData(v1Names, v2Names)
@@ -56,6 +82,8 @@ describe('mergeNamesData', () => {
       name: 'test.eth',
       expiryDate: null,
       network: 'sepolia',
+      roleBitmap: null,
+      v1Roles: { owner: false, manager: false },
     })
   })
 
@@ -73,6 +101,9 @@ describe('mergeNamesData', () => {
       expiryDate: null,
       network: 'namechainSepolia',
       subdomainCount: 0,
+      recordCount: undefined,
+      roleBitmap: null,
+      v1Roles: null,
     })
   })
 
@@ -89,12 +120,19 @@ describe('mergeNamesData', () => {
       expiryDate: new Date('2025-01-01 00:00:00 UTC'),
       network: 'namechainSepolia',
       subdomainCount: 0,
+      recordCount: undefined,
+      roleBitmap: null,
+      v1Roles: null,
     })
   })
 
   it('should handle undefined V2 names', () => {
     const v1Names: V1Name[] = [
-      { name: 'vitalik.eth', expiryDate: { date: new Date('2025-01-01') } },
+      {
+        name: 'vitalik.eth',
+        expiryDate: { date: new Date('2025-01-01') },
+        relation: { ...defaultRelation, wrappedOwner: true },
+      },
     ]
 
     const result = mergeNamesData(v1Names, undefined)
@@ -104,6 +142,8 @@ describe('mergeNamesData', () => {
       name: 'vitalik.eth',
       expiryDate: new Date('2025-01-01'),
       network: 'sepolia',
+      roleBitmap: null,
+      v1Roles: { owner: true, manager: true },
     })
   })
 
@@ -128,8 +168,8 @@ describe('mergeNamesData', () => {
 
   it('should preserve order: V1 names first, then V2 names', () => {
     const v1Names: V1Name[] = [
-      { name: 'v1-first.eth', expiryDate: null },
-      { name: 'v1-second.eth', expiryDate: null },
+      { name: 'v1-first.eth', expiryDate: null, relation: defaultRelation },
+      { name: 'v1-second.eth', expiryDate: null, relation: defaultRelation },
     ]
     const v2Names: V2Name[] = [
       { name: 'v2-first.eth', expiryDate: null, subdomains: [] },
@@ -172,12 +212,58 @@ describe('mergeNamesData', () => {
 
   it('should not include subdomainCount for V1 names', () => {
     const v1Names: V1Name[] = [
-      { name: 'test.eth', expiryDate: { date: new Date('2025-01-01') } },
+      {
+        name: 'test.eth',
+        expiryDate: { date: new Date('2025-01-01') },
+        relation: defaultRelation,
+      },
     ]
 
     const result = mergeNamesData(v1Names, [])
 
     expect(result).toHaveLength(1)
     expect(result[0]).not.toHaveProperty('subdomainCount')
+  })
+
+  it('should correctly map V1 roles for wrapped names', () => {
+    const v1Names: V1Name[] = [
+      {
+        name: 'wrapped.eth',
+        expiryDate: { date: new Date('2025-01-01') },
+        relation: { ...defaultRelation, wrappedOwner: true },
+      },
+    ]
+
+    const result = mergeNamesData(v1Names, [])
+
+    expect(result[0].v1Roles).toEqual({ owner: true, manager: true })
+  })
+
+  it('should correctly map V1 roles for unwrapped names with both owner and registrant', () => {
+    const v1Names: V1Name[] = [
+      {
+        name: 'unwrapped.eth',
+        expiryDate: { date: new Date('2025-01-01') },
+        relation: { ...defaultRelation, owner: true, registrant: true },
+      },
+    ]
+
+    const result = mergeNamesData(v1Names, [])
+
+    expect(result[0].v1Roles).toEqual({ owner: true, manager: true })
+  })
+
+  it('should correctly map V1 roles for manager-only names', () => {
+    const v1Names: V1Name[] = [
+      {
+        name: 'manager-only.eth',
+        expiryDate: { date: new Date('2025-01-01') },
+        relation: { ...defaultRelation, owner: true },
+      },
+    ]
+
+    const result = mergeNamesData(v1Names, [])
+
+    expect(result[0].v1Roles).toEqual({ owner: false, manager: true })
   })
 })

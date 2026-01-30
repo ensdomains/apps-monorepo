@@ -1,6 +1,5 @@
 import type { CSSProperties } from 'react'
 import { useEnsAvatar } from 'wagmi'
-import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { cn } from '@/lib/utils'
 
 export const NameAvatar = ({
@@ -25,8 +24,23 @@ export const NameAvatar = ({
     },
   })
 
-  if (error) return <div>Error: {error.message}</div>
-  if (isLoading) return <LoadingSpinner title="Loading..." />
+  if (error || isLoading) {
+    return (
+      <div
+        style={
+          {
+            '--height': height,
+            '--width': width,
+          } as CSSProperties
+        }
+        className={cn(
+          'bg-gray-200 animate-pulse',
+          rounded,
+          'w-(--width) h-(--height)',
+        )}
+      />
+    )
+  }
 
   if (avatar)
     return (
