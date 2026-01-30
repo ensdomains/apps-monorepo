@@ -6,7 +6,6 @@
 
 import type {
   primaryNameMachine,
-  recordsMachine,
   resolverMachine,
 } from '@ens-apps/transaction-manager'
 import type { FormEvent } from 'react'
@@ -14,22 +13,6 @@ import type { Address, PublicClient } from 'viem'
 import { isAddress } from 'viem'
 import type { ActorRefFrom } from 'xstate'
 import type { SmartAccountState } from '@/lib/smart-account'
-import type { ProfileRecords } from '../types'
-import { transformToServiceFormat } from '../utils/transformRecords'
-
-export interface ProfileUpdateParams {
-  name: string
-  ownerAddress?: Address
-  resolverAddress?: Address
-  defaultValues: ProfileRecords
-  currentValues: ProfileRecords
-}
-
-export interface ProfileUpdateOptions {
-  account: SmartAccountState
-  recordsActor: ActorRefFrom<typeof recordsMachine>
-  publicClient: PublicClient
-}
 
 export interface ResolverUpdateParams {
   name: string
@@ -71,65 +54,6 @@ export function handleProfileFormSubmit(
   event.preventDefault()
   event.stopPropagation()
   onSubmit()
-}
-
-/**
- * Starts profile record update through the records machine.
- *
- * Validates account readiness and transforms record data before sending the event.
- * Returns an optional error message for UI display.
- */
-export function handleProfileSave(
-  params: ProfileUpdateParams,
-  options: ProfileUpdateOptions,
-): { error?: string } {
-  const { name, ownerAddress, resolverAddress, defaultValues, currentValues } =
-    params
-  const { account, recordsActor, publicClient } = options
-
-  if (!ownerAddress) {
-    const message = 'Cannot save profile - ENS owner is not available.'
-    console.warn(message)
-    alert(message)
-    return { error: message }
-  }
-
-  if (!account.signer || !account.accountAddress) {
-    const message = 'Account not ready. Please wait for wallet to connect.'
-    console.error('❌ Smart account not connected or not initialized', {
-      accountAddress: account.accountAddress,
-      hasSigner: !!account.signer,
-      type: account.type,
-    })
-    alert(message)
-    return { error: message }
-  }
-
-  const before = transformToServiceFormat(defaultValues)
-  const after = transformToServiceFormat(currentValues)
-  const accountAddress = (account.ownerAddress ??
-    account.accountAddress) as Address
-
-  console.log('✅ Creating START_UPDATE event for profile records:', {
-    name,
-    resolverAddress,
-    accountAddress,
-    hasSigner: !!account.signer,
-    hasPublicClient: !!publicClient,
-  })
-
-  recordsActor.send({
-    type: 'START_UPDATE',
-    name,
-    before,
-    after,
-    signer: account.signer,
-    resolverAddress,
-    accountAddress,
-    publicClient,
-  })
-
-  return {}
 }
 
 /**
