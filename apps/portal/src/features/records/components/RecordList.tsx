@@ -24,9 +24,12 @@ import { recordsToTableData } from '@/utils/records/recordsToTableData'
 export const RecordList = ({
   name,
   records: rawRecords,
+  canEdit = false,
 }: {
   name: string
   records: GetRecordsReturnType
+  /** Whether the connected user can edit records (owner check) */
+  canEdit?: boolean
 }) => {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
@@ -66,12 +69,18 @@ export const RecordList = ({
       <header className="bg-gray-100 px-8 pb-4 pt-12 flex flex-col gap-4">
         <div className="flex flex-row justify-between">
           <h1 className="text-[28px] font-medium">{recordCount} Records</h1>
-          <Button variant="outline" className="flex items-center gap-2" asChild>
-            <Link to="/$name/edit-records" params={{ name }}>
-              <EditIcon className="size-4" />
-              Edit records
-            </Link>
-          </Button>
+          {canEdit && (
+            <Button
+              variant="outline"
+              className="flex items-center gap-2"
+              asChild
+            >
+              <Link to="/$name/edit-records" params={{ name }}>
+                <EditIcon className="size-4" />
+                Edit records
+              </Link>
+            </Button>
+          )}
         </div>
         {rowCount > 0 ? (
           <div className="flex flex-col lg:flex-row w-full lg:justify-between lg:items-center gap-4">
