@@ -5,52 +5,19 @@ import type { Address } from 'viem/accounts'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { DataTable } from '@/components/DataTable'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { Badge } from '@/components/ui/badge'
+import { NameMobileCard } from '@/features/names/components/NameMobileCard'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import { type MergedName, mergeNamesData } from '@/utils/names/mergeNamesData'
 import type { WithEnsNetwork } from '@/utils/types'
 import { getV1NamesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
-import { getV2NamesForAddressQueryOptions } from '../hooks/useV2NamesForAddress'
+import { getV2NamesWithRolesForAddressQueryOptions } from '../hooks/useV2NamesWithRolesForAddress'
 
 interface NameListProps {
   address: Address
-}
-
-const MobileNameCard = ({ name }: { name: column }) => {
-  return (
-    <div className="flex flex-col gap-2 px-6 py-4 bg-white border-b border-gray-300 last:border-b-0">
-      {/* Name row with avatar and copy */}
-      <div className="flex flex-row gap-1 items-center">
-        <NameAvatar
-          name={name.name || ''}
-          height="20px"
-          width="20px"
-          rounded="rounded-sm"
-        />
-        <CopyableRecord href={`/${name.name}`} value={name.name || ''} />
-      </div>
-
-      {/* Expiry section */}
-      {name.expiryDate && (
-        <>
-          <div className="text-sm font-medium">Expiry</div>
-          <div className="text-base">{formatDateTime(name.expiryDate)}</div>
-        </>
-      )}
-
-      {/* Records and Subnames row */}
-      <div className="flex gap-4 text-base">
-        <div>
-          <span className="font-medium">Records</span>{' '}
-          <span>{name.recordCount ?? 0}</span>
-        </div>
-        <div>
-          <span className="font-medium">Subnames</span>{' '}
-          <span>{name.subdomainCount ?? 0}</span>
-        </div>
-      </div>
-    </div>
-  )
+  limit?: number
 }
 
 type column = WithEnsNetwork<MergedName>
@@ -80,8 +47,16 @@ const columns: ColumnDef<column>[] = [
   {
     id: 'expiryDate',
     header: 'Expiry',
-    accessorFn: ({ expiryDate }) => {
-      return expiryDate ? formatDateTime(expiryDate) : null
+    cell: ({ row }) => {
+      const expiryDate = row.original.expiryDate
+      if (!expiryDate) {
+        return (
+          <Badge variant="secondary" className="text-xs">
+            Does not expire
+          </Badge>
+        )
+      }
+      return formatDateTime(expiryDate)
     },
   },
   {
@@ -100,13 +75,54 @@ const columns: ColumnDef<column>[] = [
       return subdomainCount !== undefined ? subdomainCount.toString() : '0'
     },
   },
+  {
+    accessorKey: 'roleBitmap',
+    header: 'Roles',
+    cell: ({ row }) => {
+      const roleBitmap = row.original.roleBitmap
+      const v1Roles = row.original.v1Roles
+
+      // V2 names: use roleBitmap
+      if (roleBitmap) {
+        const roles = decodeRoleBitmap(roleBitmap)
+        if (roles.length === 0) return null
+
+        return (
+          <Badge variant="secondary" className="text-xs">
+            {roles.length} {roles.length === 1 ? 'Role' : 'Roles'}
+          </Badge>
+        )
+      }
+
+      // V1 names: use v1Roles (owner/manager)
+      if (v1Roles) {
+        const roleLabels: string[] = []
+        if (v1Roles.owner) roleLabels.push('Owner')
+        if (v1Roles.manager) roleLabels.push('Manager')
+
+        if (roleLabels.length === 0) return null
+
+        return (
+          <div className="flex flex-row gap-1">
+            {roleLabels.map((label) => (
+              <Badge key={label} variant="secondary" className="text-xs">
+                {label}
+              </Badge>
+            ))}
+          </div>
+        )
+      }
+
+      return null
+    },
+  },
 ]
 
-export const NameList = ({ address }: NameListProps) => {
+export const NameList = ({ address, limit }: NameListProps) => {
   const [v1NamesQuery, v2NamesQuery] = useQueries({
     queries: [
       getV1NamesForAddressQueryOptions({ address }),
-      getV2NamesForAddressQueryOptions({ address }),
+      getV2NamesWithRolesForAddressQueryOptions({ address }),
     ],
   })
 
@@ -117,14 +133,24 @@ export const NameList = ({ address }: NameListProps) => {
   if (v2NamesQuery.isLoading) return <LoadingSpinner title="Loading V2 names" />
   if (!v2NamesQuery.data && !v1NamesQuery.data) return <>No names</>
 
-  const data = mergeNamesData(v1NamesQuery.data, v2NamesQuery.data)
+  const allData = mergeNamesData(v1NamesQuery.data, v2NamesQuery.data)
+  const data = limit ? allData.slice(0, limit) : allData
 
   return (
     <div className="border rounded-2xl border-gray-300 overflow-hidden">
       {/* Mobile view - Card layout */}
       <div className="md:hidden">
         {data.map((name, index) => (
-          <MobileNameCard key={`${name.name}-${index}`} name={name} />
+          <NameMobileCard
+            key={`${name.name}-${index}`}
+            name={name.name}
+            expiryDate={name.expiryDate}
+            roleBitmap={name.roleBitmap}
+            v1Roles={name.v1Roles}
+            recordCount={name.recordCount}
+            subdomainCount={name.subdomainCount}
+            showCheckbox={false}
+          />
         ))}
       </div>
 
