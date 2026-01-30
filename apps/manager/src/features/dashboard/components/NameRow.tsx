@@ -79,8 +79,8 @@ export const NameRow = ({
             {label}
           </Link>
           <ArrowUpRight
-            className="size-[6px] shrink-0 text-ens-blue md:size-[7px]"
-            strokeWidth={3}
+            className="size-2 shrink-0 text-ens-blue md:size-3"
+            strokeWidth={2}
           />
         </div>
       </div>
