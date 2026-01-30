@@ -41,7 +41,7 @@ const DashboardTabButton = ({
       type="button"
     >
       <span
-        className={`font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px] ${isActive ? 'text-[#232222]' : 'text-[#a9a9a9]'}`}
+        className={`font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px] ${isActive ? 'text-foreground' : 'text-ens-gray-three'}`}
       >
         {label}
       </span>
@@ -118,13 +118,13 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
 
         <div className="w-full md:w-[292px]">
           <Input
-            className="h-[32px] rounded-[4.1px] border-none bg-ens-white text-[#8c8c8c] text-[13.12px] placeholder:text-[#8c8c8c]"
+            className="h-[32px] rounded-[4.1px] border-none bg-ens-white text-[13.12px] text-muted-foreground placeholder:text-muted-foreground"
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder={
               activeTab === 'myNames' ? 'Search my name...' : 'Search name...'
             }
             size="sm"
-            startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
+            startIcon={<Search className="size-[18px] text-muted-foreground" />}
             value={searchQuery}
           />
         </div>

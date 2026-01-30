@@ -42,8 +42,8 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
   if (!isActive) {
     return (
       <div className="flex flex-col">
-        <ChevronDown className="size-[8.2px] rotate-180 text-[#d7d7d7]" />
-        <ChevronDown className="size-[8.2px] text-[#d7d7d7]" />
+        <ChevronDown className="size-[8.2px] rotate-180 text-ens-gray-three" />
+        <ChevronDown className="size-[8.2px] text-ens-gray-three" />
       </div>
     )
   }
@@ -51,10 +51,10 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
   return (
     <div className="flex flex-col">
       <ChevronDown
-        className={`size-[8.2px] rotate-180 ${direction === OrderDirection.Asc ? 'text-ens-blue' : 'text-[#d7d7d7]'}`}
+        className={`size-[8.2px] rotate-180 ${direction === OrderDirection.Asc ? 'text-ens-blue' : 'text-ens-gray-three'}`}
       />
       <ChevronDown
-        className={`size-[8.2px] ${direction === OrderDirection.Desc ? 'text-ens-blue' : 'text-[#d7d7d7]'}`}
+        className={`size-[8.2px] ${direction === OrderDirection.Desc ? 'text-ens-blue' : 'text-ens-gray-three'}`}
       />
     </div>
   )
@@ -134,12 +134,12 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
     <div className="w-full">
       {/* Mobile Sort Dropdown */}
       <div className="mb-4 flex md:hidden">
-        <div className="flex h-8 items-center gap-1 rounded-full border border-[#e0e0e0] bg-white px-2">
-          <span className="font-sans text-[#232222] text-[12px] tracking-[0.24px]">
+        <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">
+          <span className="font-sans text-[12px] text-foreground tracking-[0.24px]">
             Sort by
           </span>
           <select
-            className="bg-transparent font-medium font-sans text-[#232222] text-[12px] tracking-[0.24px] outline-none"
+            className="bg-transparent font-medium font-sans text-[12px] text-foreground tracking-[0.24px] outline-none"
             onChange={(e) => {
               setHasInteracted(true)
               const [field, direction] = e.target.value.split('-') as [
@@ -169,7 +169,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
           type="button"
         >
           <span
-            className={`font-sans text-sm tracking-[0.24px] ${hasInteracted && sortField === 'name' ? 'text-[#232222]' : 'text-[#7d7d7d]'}`}
+            className={`font-sans text-sm tracking-[0.24px] ${hasInteracted && sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
             Name
           </span>
@@ -197,16 +197,22 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
           ))
           .with({ favoritesCount: 0 }, () => (
             <div className="flex flex-col items-center justify-center gap-3 py-16">
-              <Mountain className="size-12 text-[#d1d1d1]" strokeWidth={1} />
-              <span className="font-sans text-[#8c8c8c] text-sm">
+              <Mountain
+                className="size-12 text-ens-gray-three"
+                strokeWidth={1}
+              />
+              <span className="font-sans text-muted-foreground text-sm">
                 No names to display
               </span>
             </div>
           ))
           .with({ paginatedFavorites: P.when((f) => f.length === 0) }, () => (
             <div className="flex flex-col items-center justify-center gap-3 py-16">
-              <Mountain className="size-12 text-[#d1d1d1]" strokeWidth={1} />
-              <span className="font-sans text-[#8c8c8c] text-sm">
+              <Mountain
+                className="size-12 text-ens-gray-three"
+                strokeWidth={1}
+              />
+              <span className="font-sans text-muted-foreground text-sm">
                 No names to display
               </span>
             </div>
@@ -239,7 +245,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
         <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
           <div className="flex items-center justify-center gap-3 md:gap-[12px]">
             <button
-              className="flex size-[32px] items-center justify-center rounded-full text-[#bcbcbc] disabled:text-[#e0e0e0]"
+              className="flex size-[32px] items-center justify-center rounded-full text-ens-gray-three disabled:text-border"
               disabled={isLoading || !hasPrevPage}
               onClick={handlePrev}
               type="button"
@@ -254,8 +260,8 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                 <button
                   className={`flex size-[32px] items-center justify-center rounded-[6px] font-sans text-[12px] ${
                     isActive
-                      ? 'bg-[#e5f7ff] font-medium text-ens-blue'
-                      : 'text-[#bcbcbc]'
+                      ? 'bg-ens-lapis-dust font-medium text-ens-blue'
+                      : 'text-ens-gray-three'
                   }`}
                   key={pageNum}
                   type="button"
@@ -266,7 +272,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
             })}
 
             {totalPages > 4 && (
-              <span className="flex size-[32px] items-center justify-center font-sans text-[#bcbcbc] text-[12px]">
+              <span className="flex size-[32px] items-center justify-center font-sans text-[12px] text-ens-gray-three">
                 ...
               </span>
             )}
@@ -275,8 +281,8 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
               <button
                 className={`flex size-[32px] items-center justify-center rounded-[6px] font-sans text-[12px] ${
                   page === totalPages
-                    ? 'bg-[#e5f7ff] font-medium text-ens-blue'
-                    : 'text-[#bcbcbc]'
+                    ? 'bg-ens-lapis-dust font-medium text-ens-blue'
+                    : 'text-ens-gray-three'
                 }`}
                 type="button"
               >
@@ -285,7 +291,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
             )}
 
             <button
-              className="flex size-[32px] items-center justify-center rounded-full text-ens-blue disabled:text-[#e0e0e0]"
+              className="flex size-[32px] items-center justify-center rounded-full text-ens-blue disabled:text-border"
               disabled={isLoading || !hasNextPage}
               onClick={handleNext}
               type="button"
@@ -293,7 +299,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
               <ChevronRight className="size-[24px]" strokeWidth={1.5} />
             </button>
           </div>
-          <span className="text-center font-sans text-[#7d7d7d] text-[11px] leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
+          <span className="text-center font-sans text-[11px] text-muted-foreground leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
             Showing {startIndex}-{endIndex} of {totalCount}
           </span>
         </div>

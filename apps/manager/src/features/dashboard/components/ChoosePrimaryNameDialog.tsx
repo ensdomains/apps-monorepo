@@ -186,10 +186,10 @@ export const ChoosePrimaryNameDialog = ({
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-h-[90vh] max-w-[500px] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-serif text-[#232222] text-[24px]">
+          <DialogTitle className="font-serif text-[24px] text-foreground">
             Choose Primary Name
           </DialogTitle>
-          <DialogDescription className="font-sans text-[#7d7d7d] text-[14px]">
+          <DialogDescription className="font-sans text-[14px] text-muted-foreground">
             Set which ENS name displays as your identity across apps and
             wallets.
           </DialogDescription>
@@ -215,7 +215,7 @@ export const ChoosePrimaryNameDialog = ({
                 </div>
               ))
               .with({ domains: [] }, () => (
-                <div className="py-8 text-center font-sans text-[#8c8c8c] text-sm">
+                <div className="py-8 text-center font-sans text-muted-foreground text-sm">
                   No names found
                 </div>
               ))
@@ -234,8 +234,8 @@ export const ChoosePrimaryNameDialog = ({
                       aria-pressed={isSelected}
                       className={`flex items-center justify-between gap-3 rounded-[4px] border p-3 transition-colors ${
                         isSelected
-                          ? 'border-ens-blue bg-[#e5f7ff]'
-                          : 'border-ens-gray-two hover:border-ens-blue/50 hover:bg-[#f5f5f5]'
+                          ? 'border-ens-blue bg-ens-lapis-dust'
+                          : 'border-ens-gray-two hover:border-ens-blue/50 hover:bg-ens-white'
                       } ${isSubmitting ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                       disabled={isSubmitting}
                       key={domain.id}
@@ -243,7 +243,7 @@ export const ChoosePrimaryNameDialog = ({
                       type="button"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="relative size-[40px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6]">
+                        <div className="relative size-[40px] shrink-0 overflow-hidden rounded-full bg-ens-white">
                           <ImageFallback.Root className="contents">
                             <ImageFallback.Image
                               alt={`${label} avatar`}
@@ -259,7 +259,7 @@ export const ChoosePrimaryNameDialog = ({
                             </ImageFallback.Fallback>
                           </ImageFallback.Root>
                         </div>
-                        <span className="font-mono text-[#232222] text-[16px] leading-[0.96] tracking-[-0.32px]">
+                        <span className="font-mono text-[16px] text-foreground leading-[0.96] tracking-[-0.32px]">
                           {label}
                         </span>
                       </div>
@@ -285,7 +285,7 @@ export const ChoosePrimaryNameDialog = ({
           {/* Action Buttons */}
           <div className="flex gap-3">
             <Button
-              className="h-[48px] flex-1 rounded-xs border-ens-white bg-ens-white font-mono text-ens-blue text-sm uppercase tracking-wider transition-colors hover:bg-ens-white/80 disabled:border-[#e0e0e0] disabled:bg-[#f5f5f5] disabled:text-[#8c8c8c]"
+              className="h-[48px] flex-1 rounded-xs border-ens-white bg-ens-white font-mono text-ens-blue text-sm uppercase tracking-wider transition-colors hover:bg-ens-white/80 disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
               disabled={isSubmitting}
               onClick={handleCancel}
               variant="outline"
@@ -293,7 +293,7 @@ export const ChoosePrimaryNameDialog = ({
               Cancel
             </Button>
             <Button
-              className="h-[48px] flex-1 rounded-xs border-ens-blue bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-[#0066a3] disabled:border-[#e0e0e0] disabled:bg-[#f5f5f5] disabled:text-[#8c8c8c]"
+              className="h-[48px] flex-1 rounded-xs border-ens-blue bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-ens-blue-hover disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
               disabled={isSubmitting || !hasChanges || !selectedName}
               onClick={handleConfirm}
             >

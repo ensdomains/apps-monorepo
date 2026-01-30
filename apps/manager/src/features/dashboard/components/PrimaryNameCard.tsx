@@ -49,10 +49,10 @@ export const PrimaryNameCard = ({
   const canViewProfile = Boolean(primaryName)
 
   return (
-    <Card className="rounded-none border-[#dededf] border-[0.25px] bg-white p-4 shadow-none md:rounded-lg md:p-6">
+    <Card className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6">
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-8">
         <div className="flex flex-row items-start gap-4 md:gap-5">
-          <div className="size-20 shrink-0 overflow-hidden rounded-sm bg-[#faf9f6] md:size-50">
+          <div className="size-20 shrink-0 overflow-hidden rounded-sm bg-ens-white md:size-50">
             {match(hasAvatar)
               .with(true, () => (
                 <img
@@ -89,19 +89,25 @@ export const PrimaryNameCard = ({
             </div>
             <div className="flex flex-col gap-[8.5px]">
               <div className="flex items-center gap-2">
-                <Calendar className="size-4 text-[#8c8c8c]" strokeWidth={1.5} />
+                <Calendar
+                  className="size-4 text-muted-foreground"
+                  strokeWidth={1.5}
+                />
                 <div className="flex items-end gap-1 text-[12px] leading-[0.96] tracking-[-0.24px]">
-                  <span className="text-[#8c8c8c]">Registered</span>
-                  <span className="font-semibold text-[#515151]">
+                  <span className="text-muted-foreground">Registered</span>
+                  <span className="font-semibold text-muted-foreground">
                     {registeredLabel}
                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="size-4 text-[#8c8c8c]" strokeWidth={1.5} />
+                <Clock
+                  className="size-4 text-muted-foreground"
+                  strokeWidth={1.5}
+                />
                 <div className="flex items-end gap-1 text-[12px] leading-[0.96] tracking-[-0.24px]">
-                  <span className="text-[#8c8c8c]">Expires</span>
-                  <span className="font-semibold text-[#515151]">
+                  <span className="text-muted-foreground">Expires</span>
+                  <span className="font-semibold text-muted-foreground">
                     {expiryLabel}
                   </span>
                 </div>

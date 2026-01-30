@@ -37,7 +37,7 @@ const TooltipContent = ({
   <TooltipPrimitive.Portal>
     <TooltipPrimitive.Content
       className={cn(
-        'z-50 rounded-md bg-[#232222] px-3 py-1.5 text-white text-xs shadow-md',
+        'z-50 rounded-md bg-foreground px-3 py-1.5 text-white text-xs shadow-md',
         'fade-in-0 zoom-in-95 animate-in',
         'data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out',
         className,

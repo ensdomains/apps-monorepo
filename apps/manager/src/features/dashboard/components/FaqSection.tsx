@@ -29,9 +29,9 @@ const faqItems = [
 ]
 
 export const FaqSection = () => (
-  <div className="border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:rounded-lg md:px-6 md:py-8">
+  <div className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-lg md:px-6 md:py-8">
     <div className="mb-3 flex flex-col items-start gap-3 md:gap-3">
-      <h2 className="font-serif text-[#232222] text-[24px] leading-[0.96] tracking-[0.24px] md:text-[28px] md:tracking-[0.28px]">
+      <h2 className="font-serif text-[24px] text-foreground leading-[0.96] tracking-[0.24px] md:text-[28px] md:tracking-[0.28px]">
         Frequently Asked Questions
       </h2>
       <a
@@ -50,14 +50,14 @@ export const FaqSection = () => (
       {faqItems.map(({ question, answer }) => (
         <Collapsible key={question}>
           <div className="border-ens-gray-two border-b-[0.4px] last:border-b-0">
-            <CollapsibleTrigger className="flex h-14 w-full items-center justify-between text-left font-sans text-[#121212] text-[16px] leading-[20px] md:text-[20px] md:leading-[22px]">
+            <CollapsibleTrigger className="flex h-14 w-full items-center justify-between text-left font-sans text-[16px] text-foreground leading-[20px] md:text-[20px] md:leading-[22px]">
               <span>{question}</span>
               <CircleArrowDown
-                className="size-6 text-[#232222]"
+                className="size-6 text-foreground"
                 strokeWidth={1}
               />
             </CollapsibleTrigger>
-            <CollapsibleContent className="pb-4 text-[#515151] text-[14px]">
+            <CollapsibleContent className="pb-4 text-[14px] text-muted-foreground">
               {answer}
             </CollapsibleContent>
           </div>

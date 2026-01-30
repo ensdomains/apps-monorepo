@@ -50,20 +50,20 @@ export const DashboardPage = () => {
           <AlertTitle className="mb-2 text-[16px] text-ens-blue tracking-[0.28px]">
             Welcome to the public alpha of the ENS app
           </AlertTitle>
-          <AlertDescription className="max-w-5xl text-[#5c5b5b] text-sm">
+          <AlertDescription className="max-w-5xl text-muted-foreground text-sm">
             Welcome to the public alpha of the ENS App. You're seeing the
             earliest version of our app. There will be things that break,
             change, or disappear as we iterate. We'd love to hear what you
             think—share feedback anytime!
           </AlertDescription>
         </Alert>
-        <h1 className="px-4 font-serif text-[#232222] text-[28px] leading-[0.96] tracking-[0.28px] md:px-0 md:text-[40px] md:tracking-[0.4px]">
+        <h1 className="px-4 font-serif text-[28px] text-foreground leading-[0.96] tracking-[0.28px] md:px-0 md:text-[40px] md:tracking-[0.4px]">
           Hello {displayName}
         </h1>
         {hasProfile && (
           <PrimaryNameCard avatarUrl={avatarUrl} primaryName={defaultName} />
         )}
-        <div className="border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:rounded-lg md:px-6 md:py-8">
+        <div className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-lg md:px-6 md:py-8">
           <div className="space-y-5">
             <NamesTable primaryLabel={defaultName} />
           </div>
