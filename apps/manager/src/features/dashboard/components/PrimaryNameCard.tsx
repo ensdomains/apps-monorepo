@@ -49,25 +49,25 @@ export const PrimaryNameCard = ({
   const canViewProfile = Boolean(primaryName)
 
   return (
-    <Card className="rounded-none border-[#dededf] border-[0.25px] bg-white p-4 shadow-none md:rounded-[8px] md:p-[24px]">
+    <Card className="rounded-none border-[#dededf] border-[0.25px] bg-white p-4 shadow-none md:rounded-lg md:p-6">
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-8">
-        <div className="flex flex-row items-start gap-4 md:gap-[20px]">
-          <div className="size-[80px] shrink-0 overflow-hidden rounded-[4px] bg-[#faf9f6] md:size-[200px]">
+        <div className="flex flex-row items-start gap-4 md:gap-5">
+          <div className="size-20 shrink-0 overflow-hidden rounded-sm bg-[#faf9f6] md:size-50">
             {match(hasAvatar)
               .with(true, () => (
                 <img
                   alt={displayName}
-                  className="size-[80px] object-cover md:size-full"
+                  className="size-20 object-cover md:size-full"
                   src={avatarUrl as string}
                 />
               ))
               .otherwise(() => (
-                <div className="size-[80px] bg-linear-to-br from-blue-400 via-blue-600 to-blue-900 md:size-full" />
+                <div className="size-20 bg-linear-to-br from-blue-400 via-blue-600 to-blue-900 md:size-full" />
               ))}
           </div>
-          <div className="flex min-h-0 flex-col justify-between md:h-[200px]">
-            <div className="flex flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-[12px]">
-              <div className="inline-flex items-center rounded-[4px] bg-ens-blue px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
+          <div className="flex min-h-0 flex-col justify-between md:h-50">
+            <div className="flex flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-3">
+              <div className="inline-flex items-center rounded-sm bg-ens-blue px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
                 <span
                   className={
                     displayName.length > 10
@@ -88,24 +88,18 @@ export const PrimaryNameCard = ({
               </ChoosePrimaryNameDialog>
             </div>
             <div className="flex flex-col gap-[8.5px]">
-              <div className="flex items-center gap-[8px]">
-                <Calendar
-                  className="size-[16px] text-[#8c8c8c]"
-                  strokeWidth={1.5}
-                />
-                <div className="flex items-end gap-[4px] text-[12px] leading-[0.96] tracking-[-0.24px]">
+              <div className="flex items-center gap-2">
+                <Calendar className="size-4 text-[#8c8c8c]" strokeWidth={1.5} />
+                <div className="flex items-end gap-1 text-[12px] leading-[0.96] tracking-[-0.24px]">
                   <span className="text-[#8c8c8c]">Registered</span>
                   <span className="font-semibold text-[#515151]">
                     {registeredLabel}
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-[8px]">
-                <Clock
-                  className="size-[16px] text-[#8c8c8c]"
-                  strokeWidth={1.5}
-                />
-                <div className="flex items-end gap-[4px] text-[12px] leading-[0.96] tracking-[-0.24px]">
+              <div className="flex items-center gap-2">
+                <Clock className="size-4 text-[#8c8c8c]" strokeWidth={1.5} />
+                <div className="flex items-end gap-1 text-[12px] leading-[0.96] tracking-[-0.24px]">
                   <span className="text-[#8c8c8c]">Expires</span>
                   <span className="font-semibold text-[#515151]">
                     {expiryLabel}
@@ -116,7 +110,7 @@ export const PrimaryNameCard = ({
           </div>
         </div>
         <LinkButton
-          className="h-[40px] w-full rounded-xs border border-ens-blue px-[8.5px] py-[4.25px] font-mono text-ens-blue uppercase tracking-wider hover:bg-ens-blue/5 hover:text-ens-blue md:w-auto"
+          className="h-10 w-full rounded-xs border border-ens-blue px-[8.5px] py-[4.25px] font-mono text-ens-blue uppercase tracking-wider hover:bg-ens-blue/5 hover:text-ens-blue md:w-auto"
           disabled={!canViewProfile}
           params={{ name: primaryName ?? '' }}
           to="/p/$name"
