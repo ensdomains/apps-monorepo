@@ -29,7 +29,7 @@ const faqItems = [
 ]
 
 export const FaqSection = () => (
-  <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:px-[24px] md:py-[32px]">
+  <div className="border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:rounded-[8px] md:px-[24px] md:py-[32px]">
     <div className="mb-[12px] flex flex-col items-start gap-3 md:gap-[12px]">
       <h2 className="font-serif text-[#232222] text-[24px] leading-[0.96] tracking-[0.24px] md:text-[28px] md:tracking-[0.28px]">
         Frequently Asked Questions

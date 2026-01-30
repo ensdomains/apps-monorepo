@@ -41,9 +41,9 @@ export const DashboardPage = () => {
   const hasProfile = Boolean(defaultName)
 
   return (
-    <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 px-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-[40px]">
+    <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-[40px]">
       <div className="min-w-0 flex-1 space-y-6 md:space-y-8">
-        <Alert className="grid-cols-[calc(var(--spacing)*8)_1fr] border-0 bg-[#e5f7ff] p-4 md:max-w-[50%]">
+        <Alert className="grid-cols-[calc(var(--spacing)*8)_1fr] rounded-none border-0 bg-[#e5f7ff] p-4 md:max-w-[50%] md:rounded-lg">
           <MSymbol
             className="ms-opsz-20 ms-wght-500 text-ens-blue"
             symbol="waving_hand"
@@ -58,13 +58,13 @@ export const DashboardPage = () => {
             think—share feedback anytime!
           </AlertDescription>
         </Alert>
-        <h1 className="font-serif text-[#232222] text-[28px] leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]">
+        <h1 className="px-4 font-serif text-[#232222] text-[28px] leading-[0.96] tracking-[0.28px] md:px-0 md:text-[40px] md:tracking-[0.4px]">
           Hello {displayName}
         </h1>
         {hasProfile && (
           <PrimaryNameCard avatarUrl={avatarUrl} primaryName={defaultName} />
         )}
-        <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:px-[24px] md:py-[32px]">
+        <div className="border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:rounded-[8px] md:px-[24px] md:py-[32px]">
           <div className="space-y-5">
             <NamesTable primaryLabel={defaultName} />
           </div>

@@ -49,7 +49,7 @@ export const PrimaryNameCard = ({
   const canViewProfile = Boolean(primaryName)
 
   return (
-    <Card className="rounded-[8px] border-[#dededf] border-[0.25px] bg-white p-4 shadow-none md:p-[24px]">
+    <Card className="rounded-none border-[#dededf] border-[0.25px] bg-white p-4 shadow-none md:rounded-[8px] md:p-[24px]">
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-8">
         <div className="flex flex-row items-start gap-4 md:gap-[20px]">
           <div className="size-[80px] shrink-0 overflow-hidden rounded-[4px] bg-[#faf9f6] md:size-[200px]">
