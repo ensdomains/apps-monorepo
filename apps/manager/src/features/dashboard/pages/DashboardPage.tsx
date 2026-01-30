@@ -41,7 +41,7 @@ export const DashboardPage = () => {
   const hasProfile = Boolean(defaultName)
 
   return (
-    <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-[40px]">
+    <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-10">
       <div className="min-w-0 flex-1 space-y-6 md:space-y-8">
         <Alert className="grid-cols-[calc(var(--spacing)*8)_1fr] rounded-none border-0 bg-[#e5f7ff] p-4 md:max-w-[50%] md:rounded-lg">
           <MSymbol
@@ -64,7 +64,7 @@ export const DashboardPage = () => {
         {hasProfile && (
           <PrimaryNameCard avatarUrl={avatarUrl} primaryName={defaultName} />
         )}
-        <div className="border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:rounded-[8px] md:px-[24px] md:py-[32px]">
+        <div className="border-[#dededf] border-[0.25px] bg-white px-4 py-6 md:rounded-lg md:px-6 md:py-8">
           <div className="space-y-5">
             <NamesTable primaryLabel={defaultName} />
           </div>
