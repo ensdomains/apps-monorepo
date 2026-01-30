@@ -1,7 +1,7 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { DidYouKnowSection } from '@/features/dashboard/components/DidYouKnowSection'
+
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
@@ -69,7 +69,7 @@ export const DashboardPage = () => {
             <NamesTable primaryLabel={defaultName} />
           </div>
         </div>
-        <DidYouKnowSection />
+
         <FaqSection />
       </div>
     </div>

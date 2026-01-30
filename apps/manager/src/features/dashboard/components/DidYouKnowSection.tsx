@@ -53,7 +53,7 @@ export const DidYouKnowSection = () => {
   }
 
   return (
-    <div className="rounded-[8px] border-[#dededf] border-[0.25px] bg-[#fcfbfb] px-4 py-6 md:px-[24px] md:py-[32px]">
+    <div className="overflow-hidden rounded-[8px] border-[#dededf] border-[0.25px] bg-[#fcfbfb] px-4 py-6 md:px-[24px] md:py-[32px]">
       <div className="mb-6 flex flex-col gap-3">
         <h2 className="font-serif text-[#232222] text-[24px] leading-[0.96] tracking-[0.24px] md:text-[28px] md:tracking-[0.28px]">
           Did You Know?
