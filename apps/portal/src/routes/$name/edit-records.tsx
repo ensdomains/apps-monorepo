@@ -4,7 +4,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CirclePlus, Search } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
-import { useEnsResolver } from 'wagmi'
+import { useConnection, useEnsResolver } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -16,10 +16,7 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  type GetEnsOwnerReturnType,
-  getEnsOwnerQueryOptions,
-} from '@/features/profile/hooks/useEnsOwner'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { EditRecordsTable } from '@/features/records/components/EditRecordsTable/EditRecordsTable'
 import { PendingChangesBar } from '@/features/records/components/PendingChangesBar'
@@ -28,7 +25,6 @@ import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
 import { queryClient } from '@/utils/queryClient'
 import type { RecordType } from '@/utils/records/editRecordUtils'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
-import type { EnsNetworkName } from '@/utils/types'
 
 export const Route = createFileRoute('/$name/edit-records')({
   component: EditRecordsPage,
@@ -47,6 +43,7 @@ const RECORD_TYPES: { value: RecordType; label: string }[] = [
 
 function EditRecordsPage() {
   const { name } = Route.useParams()
+  const { address: connectedAddress } = useConnection()
 
   // Fetch profile and owner data in parallel
   const [profileQuery, ownerQuery] = useQueries({
@@ -98,11 +95,58 @@ function EditRecordsPage() {
     )
   }
 
+  // Authorization checks
+  if (!connectedAddress) {
+    return (
+      <div className="container mx-auto max-w-4xl px-4 py-8">
+        <div className="flex items-center gap-2 mb-6">
+          <Link to="/$name" params={{ name }} className="hover:opacity-70">
+            <ArrowLeftIcon className="w-5 h-5" />
+          </Link>
+          <h1 className="text-2xl font-bold">{name}</h1>
+        </div>
+        <ErrorMessage
+          title="Wallet Not Connected"
+          description="Please connect your wallet to edit records."
+        />
+      </div>
+    )
+  }
+
+  // Check if connected address is the owner
+  const isOwner =
+    connectedAddress.toLowerCase() === ownerQuery.data.owner.toLowerCase()
+
+  if (!isOwner) {
+    return (
+      <div className="container mx-auto max-w-4xl px-4 py-8">
+        <div className="flex items-center gap-2 mb-6">
+          <Link to="/$name" params={{ name }} className="hover:opacity-70">
+            <ArrowLeftIcon className="w-5 h-5" />
+          </Link>
+          <h1 className="text-2xl font-bold">{name}</h1>
+        </div>
+        <ErrorMessage
+          title="Permission Denied"
+          description={
+            <>
+              You don't have permission to edit records for{' '}
+              <strong>{name}</strong>. Only the owner (
+              <code className="font-mono text-xs bg-gray-100 px-1 py-0.5 rounded">
+                {ownerQuery.data.owner}
+              </code>
+              ) can edit records.
+            </>
+          }
+        />
+      </div>
+    )
+  }
+
   return (
     <EditRecordsContent
       name={name}
       records={profileQuery.data.records}
-      ownerData={ownerQuery.data}
       resolverAddress={resolverAddress}
     />
   )
@@ -111,15 +155,12 @@ function EditRecordsPage() {
 const EditRecordsContent = ({
   name,
   records: rawRecords,
-  ownerData,
   resolverAddress,
 }: {
   name: string
   records: GetRecordsReturnType
-  ownerData: GetEnsOwnerReturnType
   resolverAddress: Address
 }) => {
-  const network: EnsNetworkName = ownerData?.network ?? 'sepolia'
   // Form state
   const [selectedType, setSelectedType] = useState<RecordType | ''>('')
   const [keyInput, setKeyInput] = useState('')
@@ -148,7 +189,7 @@ const EditRecordsContent = ({
   } = useEditRecordsState(originalRecords)
 
   // Save records hook
-  const { saveRecords, isWriting, isConfirming } = useSaveRecords(network)
+  const { saveRecords, isWriting, isConfirming } = useSaveRecords()
 
   const handleSaveRecords = () => {
     saveRecords({
