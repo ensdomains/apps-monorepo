@@ -4,7 +4,7 @@ import { useWallet } from '@getpara/react-sdk-lite'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
 import { Check } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
@@ -33,15 +33,11 @@ import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 import { resolveDomainLabel } from '../utils'
 
 interface ChoosePrimaryNameDialogProps {
-  readonly currentPrimaryName?: string | null
-  readonly currentPrimaryAvatar?: string | null
   readonly onUpdated?: () => void
   readonly children?: React.ReactNode
 }
 
 export const ChoosePrimaryNameDialog = ({
-  currentPrimaryName,
-  currentPrimaryAvatar,
   onUpdated,
   children,
 }: ChoosePrimaryNameDialogProps) => {
@@ -86,16 +82,20 @@ export const ChoosePrimaryNameDialog = ({
   const allDomains = domainsData?.domains ?? []
 
   // Sort domains to always show primary name first
-  const domains = [...allDomains].sort((a, b) => {
-    const labelA = resolveDomainLabel(a)
-    const labelB = resolveDomainLabel(b)
-    const isPrimaryA = labelA.toLowerCase() === reverseName?.toLowerCase()
-    const isPrimaryB = labelB.toLowerCase() === reverseName?.toLowerCase()
+  const domains = useMemo(
+    () =>
+      [...allDomains].sort((a, b) => {
+        const labelA = resolveDomainLabel(a)
+        const labelB = resolveDomainLabel(b)
+        const isPrimaryA = labelA.toLowerCase() === reverseName?.toLowerCase()
+        const isPrimaryB = labelB.toLowerCase() === reverseName?.toLowerCase()
 
-    if (isPrimaryA) return -1
-    if (isPrimaryB) return 1
-    return 0
-  })
+        if (isPrimaryA) return -1
+        if (isPrimaryB) return 1
+        return 0
+      }),
+    [allDomains, reverseName],
+  )
 
   // Fetch avatars for all names
   const avatarQueries = useQueries({
@@ -230,6 +230,8 @@ export const ChoosePrimaryNameDialog = ({
 
                   return (
                     <button
+                      aria-label={`Select ${label} as primary name`}
+                      aria-pressed={isSelected}
                       className={`flex items-center justify-between gap-3 rounded-[4px] border p-3 transition-colors ${
                         isSelected
                           ? 'border-ens-blue bg-[#e5f7ff]'

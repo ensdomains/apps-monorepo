@@ -45,13 +45,11 @@ export const DidYouKnowSection = () => {
         ? container.scrollLeft - scrollAmount
         : container.scrollLeft + scrollAmount
 
+    container.addEventListener('scrollend', checkScrollability, { once: true })
     container.scrollTo({
       left: targetScroll,
       behavior: 'smooth',
     })
-
-    // Update scroll state after animation
-    setTimeout(checkScrollability, 300)
   }
 
   return (
@@ -63,6 +61,7 @@ export const DidYouKnowSection = () => {
 
         <div className="flex items-center gap-[8px]">
           <button
+            aria-label="Previous card"
             className="relative size-[32px] shrink-0 rounded-full border border-[#dededf] transition-colors hover:bg-[#f0f0f0] disabled:opacity-30"
             disabled={!canScrollLeft}
             onClick={() => scroll('left')}
@@ -71,6 +70,7 @@ export const DidYouKnowSection = () => {
             <ChevronLeft className="size-full p-1 text-[#232222]" />
           </button>
           <button
+            aria-label="Next card"
             className="relative size-[32px] shrink-0 rounded-full border border-[#dededf] transition-colors hover:bg-[#f0f0f0] disabled:opacity-30"
             disabled={!canScrollRight}
             onClick={() => scroll('right')}
@@ -82,9 +82,11 @@ export const DidYouKnowSection = () => {
       </div>
 
       <motion.div
+        aria-label="Did you know carousel"
         className="scrollbar-hide flex gap-[20px] overflow-x-auto"
         onScroll={checkScrollability}
         ref={scrollContainerRef}
+        role="region"
         style={{
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',

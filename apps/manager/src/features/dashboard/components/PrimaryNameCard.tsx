@@ -78,10 +78,7 @@ export const PrimaryNameCard = ({
                   {displayName}
                 </span>
               </div>
-              <ChoosePrimaryNameDialog
-                currentPrimaryAvatar={avatarUrl}
-                currentPrimaryName={primaryName}
-              >
+              <ChoosePrimaryNameDialog>
                 <button
                   className="mb-4 cursor-pointer transition-opacity hover:opacity-80"
                   type="button"
