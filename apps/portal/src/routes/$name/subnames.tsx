@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { AlertCircle, ArrowUpDown, Search } from 'lucide-react'
+import { AlertCircle, Search } from 'lucide-react'
 import { zeroAddress } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
 import {
   InputGroup,
@@ -31,17 +32,6 @@ export const Route = createFileRoute('/$name/subnames')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
 })
-
-const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => (
-  <button
-    className="p-0 flex flex-row items-center cursor-pointer"
-    type="button"
-    {...props}
-  >
-    {children}
-    <ArrowUpDown className="ml-2 h-4 w-4" />
-  </button>
-)
 
 interface NoSubregistryMessageProps {
   readonly name: string

@@ -8,10 +8,11 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { ArrowUpDown, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { SortButton } from '@/components/table/SortButton'
 import {
   InputGroup,
   InputGroupAddon,
@@ -32,17 +33,6 @@ export interface SubnameRow {
   readonly name: string
   readonly owner: Address
 }
-
-const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => (
-  <button
-    className="p-0 flex flex-row items-center cursor-pointer"
-    type="button"
-    {...props}
-  >
-    {children}
-    <ArrowUpDown className="ml-2 h-4 w-4" />
-  </button>
-)
 
 const columns: ColumnDef<SubnameRow>[] = [
   {
