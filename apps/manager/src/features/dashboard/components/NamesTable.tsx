@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
 import { Search } from 'lucide-react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
 import { Input } from '@/components/ui/input'
@@ -72,6 +73,7 @@ interface NamesTableProps {
 export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>('myNames')
   const [searchQuery, setSearchQuery] = useState('')
+  const shouldReduceMotion = useReducedMotion()
   const isAuthed = useAtom(isBackendAuthed)
   const { data: favorites = [] } = useQuery(favoritesQueryOptions)
   const favoritesCount = favorites.length
@@ -130,12 +132,49 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
         </div>
       </div>
 
-      {match(activeTab)
-        .with('myNames', () => (
-          <MyNamesList primaryLabel={primaryLabel} searchQuery={searchQuery} />
-        ))
-        .with('favorites', () => <FavoritesList searchQuery={searchQuery} />)
-        .exhaustive()}
+      <AnimatePresence mode="popLayout">
+        {match(activeTab)
+          .with('myNames', () => (
+            <motion.div
+              key="myNames"
+              {...(shouldReduceMotion
+                ? {}
+                : {
+                    initial: { opacity: 0 },
+                    animate: { opacity: 1 },
+                    exit: { opacity: 0 },
+                    transition: {
+                      duration: 0.15,
+                      ease: [0.25, 0.46, 0.45, 0.94] as const,
+                    },
+                  })}
+            >
+              <MyNamesList
+                primaryLabel={primaryLabel}
+                searchQuery={searchQuery}
+              />
+            </motion.div>
+          ))
+          .with('favorites', () => (
+            <motion.div
+              key="favorites"
+              {...(shouldReduceMotion
+                ? {}
+                : {
+                    initial: { opacity: 0 },
+                    animate: { opacity: 1 },
+                    exit: { opacity: 0 },
+                    transition: {
+                      duration: 0.15,
+                      ease: [0.25, 0.46, 0.45, 0.94] as const,
+                    },
+                  })}
+            >
+              <FavoritesList searchQuery={searchQuery} />
+            </motion.div>
+          ))
+          .exhaustive()}
+      </AnimatePresence>
     </div>
   )
 }

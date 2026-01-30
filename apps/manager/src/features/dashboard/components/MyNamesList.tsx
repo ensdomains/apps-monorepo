@@ -7,6 +7,7 @@ import {
   CircleAlert,
   Mountain,
 } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import {
@@ -75,6 +76,7 @@ export const MyNamesList = ({
   primaryLabel,
   searchQuery = '',
 }: MyNamesListProps) => {
+  const shouldReduceMotion = useReducedMotion()
   const [hasInteracted, setHasInteracted] = useState(false)
   const {
     names,
@@ -219,9 +221,20 @@ export const MyNamesList = ({
                 avatarQueries[index]?.data ?? name.resolver?.avatar ?? undefined
 
               return (
-                <div
+                <motion.div
                   className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
                   key={name.id}
+                  {...(shouldReduceMotion
+                    ? {}
+                    : {
+                        initial: { opacity: 0, y: 6 },
+                        animate: { opacity: 1, y: 0 },
+                        transition: {
+                          duration: 0.2,
+                          ease: [0.25, 0.46, 0.45, 0.94] as const,
+                          delay: index * 0.04,
+                        },
+                      })}
                 >
                   {isPrimary && (
                     <div className="mb-[10px] px-[24px]">
@@ -251,7 +264,7 @@ export const MyNamesList = ({
                       </div>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               )
             }),
           )}

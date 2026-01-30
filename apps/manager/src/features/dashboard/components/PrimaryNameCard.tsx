@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Calendar, Clock } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
 import { match } from 'ts-pattern'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -18,6 +19,8 @@ export const PrimaryNameCard = ({
   primaryName,
   avatarUrl,
 }: PrimaryNameCardProps) => {
+  const shouldReduceMotion = useReducedMotion()
+
   const { data: registration, isLoading: isRegistrationLoading } = useQuery({
     ...profileRegistrationQuery(primaryName ?? ''),
     enabled: !!primaryName,
@@ -52,7 +55,19 @@ export const PrimaryNameCard = ({
     <Card className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6">
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-8">
         <div className="flex flex-row items-start gap-4 md:gap-5">
-          <div className="size-20 shrink-0 overflow-hidden rounded-sm bg-ens-white md:size-50">
+          <motion.div
+            className="size-20 shrink-0 overflow-hidden rounded-sm bg-ens-white md:size-50"
+            {...(shouldReduceMotion
+              ? {}
+              : {
+                  initial: { opacity: 0, scale: 0.95 },
+                  animate: { opacity: 1, scale: 1 },
+                  transition: {
+                    duration: 0.25,
+                    ease: [0.25, 0.46, 0.45, 0.94] as const,
+                  },
+                })}
+          >
             {match(hasAvatar)
               .with(true, () => (
                 <img
@@ -64,7 +79,7 @@ export const PrimaryNameCard = ({
               .otherwise(() => (
                 <div className="size-20 bg-linear-to-br from-blue-400 via-blue-600 to-blue-900 md:size-full" />
               ))}
-          </div>
+          </motion.div>
           <div className="flex min-h-0 flex-col justify-between md:h-50">
             <div className="flex flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-3">
               <div className="inline-flex items-center rounded-sm bg-ens-blue px-2 py-1 md:px-[8.5px] md:py-[4.25px]">

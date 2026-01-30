@@ -1,6 +1,7 @@
 import { OrderDirection } from '@ens-apps/indexer'
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronLeft, ChevronRight, Mountain } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
@@ -61,6 +62,7 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
 }
 
 export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
+  const shouldReduceMotion = useReducedMotion()
   const [page, setPage] = useState(1)
   const [sortField, setSortField] = useState<SortField>('name')
   const [sortDirection, setSortDirection] = useState<OrderDirection>(
@@ -223,9 +225,20 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
               const avatarUrl = avatarQueries[index]?.data ?? undefined
 
               return (
-                <div
+                <motion.div
                   className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
                   key={fav.label}
+                  {...(shouldReduceMotion
+                    ? {}
+                    : {
+                        initial: { opacity: 0, y: 6 },
+                        animate: { opacity: 1, y: 0 },
+                        transition: {
+                          duration: 0.2,
+                          ease: [0.25, 0.46, 0.45, 0.94] as const,
+                          delay: index * 0.04,
+                        },
+                      })}
                 >
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <NameRow
@@ -236,7 +249,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                       showFavoriteButton={true}
                     />
                   </div>
-                </div>
+                </motion.div>
               )
             }),
           )}
