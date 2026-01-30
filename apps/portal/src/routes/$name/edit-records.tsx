@@ -4,7 +4,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CirclePlus, Search } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
-import { useConnection, useEnsResolver } from 'wagmi'
+import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -21,6 +21,7 @@ import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { EditRecordsTable } from '@/features/records/components/EditRecordsTable/EditRecordsTable'
 import { PendingChangesBar } from '@/features/records/components/PendingChangesBar'
 import { useEditRecordsState } from '@/features/records/hooks/useEditRecordsState'
+import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
 import { queryClient } from '@/utils/queryClient'
 import type { RecordType } from '@/utils/records/editRecordUtils'
@@ -50,9 +51,9 @@ function EditRecordsPage() {
     queries: [getProfileQueryOptions(name), getEnsOwnerQueryOptions({ name })],
   })
 
-  // Get resolver address
+  // Get resolver address from the correct registry (V1 or V2)
   const { data: resolverAddress, isLoading: isResolverLoading } =
-    useEnsResolver({ name })
+    useNameResolverAddress({ name, network: ownerQuery.data?.network })
 
   const isLoading =
     profileQuery.isLoading || ownerQuery.isLoading || isResolverLoading
@@ -191,13 +192,20 @@ const EditRecordsContent = ({
   // Save records hook
   const { saveRecords, isWriting, isConfirming } = useSaveRecords()
 
-  const handleSaveRecords = () => {
-    saveRecords({
-      name,
-      resolverAddress,
-      originalRecords,
-      pendingChanges,
-    })
+  const handleSaveRecords = async () => {
+    try {
+      await saveRecords({
+        name,
+        resolverAddress,
+        originalRecords,
+        pendingChanges,
+      })
+      // Reset pending changes after successful save
+      discardAll()
+    } catch (error) {
+      // Error is already handled by the mutation state
+      console.error('Failed to save records:', error)
+    }
   }
 
   // Compute counts for each tab (excluding deleted records)
