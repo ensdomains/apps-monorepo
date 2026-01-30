@@ -119,6 +119,7 @@ export const MyNamesList = ({
             Sort by
           </span>
           <select
+            aria-label="Sort names by"
             className="bg-transparent font-medium font-sans text-[12px] text-foreground tracking-[0.24px] outline-none"
             onChange={(e) => {
               const [field, direction] = e.target.value.split('-') as [

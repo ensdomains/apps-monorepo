@@ -139,6 +139,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
             Sort by
           </span>
           <select
+            aria-label="Sort favorites by"
             className="bg-transparent font-medium font-sans text-[12px] text-foreground tracking-[0.24px] outline-none"
             onChange={(e) => {
               setHasInteracted(true)
