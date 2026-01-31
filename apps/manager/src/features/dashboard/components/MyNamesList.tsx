@@ -1,15 +1,20 @@
-import { OrderDirection } from '@ens-apps/indexer'
-import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { useAtom } from '@xstate/store-react'
 import {
-  ArrowRight,
+  Domain_OrderBy,
+  type DomainFragment,
+  OrderDirection,
+} from '@ens-apps/indexer'
+import { useWallet } from '@getpara/react-sdk-lite'
+import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
+import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
+  Loader2,
+  Mountain,
 } from 'lucide-react'
-import { toast } from 'sonner'
+import { motion, useReducedMotion } from 'motion/react'
+import { useEffect, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import {
   formatDashboardDate,
@@ -19,13 +24,14 @@ import {
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
-import { isBackendAuthed } from '@/utils/backend-client'
-import { useDashboardNames } from '../hooks/useDashboardNames'
-import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
-import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
-import { favoritesQueryOptions } from '../service/queries/getFavorites'
+import { tw } from '@/utils/tailwind'
+import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 import { NameRow } from './NameRow'
 import { PrimaryBadge } from './PrimaryBadge'
+
+const PAGE_SIZE = 5
+
+type SortField = 'name' | 'expiry' | 'registration'
 
 interface MyNamesListProps {
   readonly primaryLabel?: string | null
@@ -59,8 +65,8 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
   if (!isActive) {
     return (
       <div className="flex flex-col">
-        <ChevronDown className="size-[8.2px] rotate-180 text-[#d7d7d7]" />
-        <ChevronDown className="size-[8.2px] text-[#d7d7d7]" />
+        <ChevronDown className="size-[8.2px] rotate-180 text-ens-gray-three" />
+        <ChevronDown className="size-[8.2px] text-ens-gray-three" />
       </div>
     )
   }
@@ -68,10 +74,10 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
   return (
     <div className="flex flex-col">
       <ChevronDown
-        className={`size-[8.2px] rotate-180 ${direction === OrderDirection.Asc ? 'text-[#0080bc]' : 'text-[#d7d7d7]'}`}
+        className={`size-[8.2px] rotate-180 ${direction === OrderDirection.Asc ? 'text-ens-blue' : 'text-ens-gray-three'}`}
       />
       <ChevronDown
-        className={`size-[8.2px] ${direction === OrderDirection.Desc ? 'text-[#0080bc]' : 'text-[#d7d7d7]'}`}
+        className={`size-[8.2px] ${direction === OrderDirection.Desc ? 'text-ens-blue' : 'text-ens-gray-three'}`}
       />
     </div>
   )
@@ -81,35 +87,77 @@ export const MyNamesList = ({
   primaryLabel,
   searchQuery = '',
 }: MyNamesListProps) => {
-  const {
-    names,
-    isLoading,
-    isError,
-    page,
-    handlePrev,
-    handleNext,
-    pageSize,
-    sortField,
-    sortDirection,
-    handleSort,
-  } = useDashboardNames({ searchQuery })
+  const shouldReduceMotion = useReducedMotion()
+  const { data: wallet } = useWallet()
+  const [page, setPage] = useState(1)
+  const [sortField, setSortField] = useState<SortField>('registration')
+  const [sortDirection, setSortDirection] = useState<OrderDirection | null>(
+    null,
+  )
 
-  const isAuthed = useAtom(isBackendAuthed)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Reset page on search change
+  useEffect(() => {
+    setPage(1)
+  }, [searchQuery, wallet?.address])
 
-  const { data: favorites = [] } = useQuery(favoritesQueryOptions)
-  const addMutation = useMutation(addFavoriteMutationOptions)
-  const removeMutation = useMutation(removeFavoriteMutationOptions)
+  const normalizedAddress = wallet?.address?.toLowerCase()
 
-  const isFavorite = (label: string) =>
-    favorites.some((entry) => entry.name.toLowerCase() === label.toLowerCase())
+  const orderBy = match(sortField)
+    .with('name', () => Domain_OrderBy.Name)
+    .with('expiry', () => Domain_OrderBy.ExpiryDate)
+    .with('registration', () => Domain_OrderBy.RegistrationDate)
+    .exhaustive()
 
-  const toggleFavorite = (label: string) => {
-    if (!isAuthed) return
+  const queryVariables = normalizedAddress
+    ? {
+        where: {
+          owner: normalizedAddress,
+          ...(searchQuery
+            ? { name_contains_nocase: searchQuery.toLowerCase() }
+            : {}),
+        },
+        first: PAGE_SIZE,
+        skip: (page - 1) * PAGE_SIZE,
+        orderBy,
+        orderDirection: sortDirection ?? OrderDirection.Desc,
+      }
+    : undefined
 
-    if (isFavorite(label)) {
-      removeMutation.mutate({ name: label })
+  const { data, isPending, isError, isPlaceholderData } = useQuery({
+    ...getDomainsQuery(queryVariables),
+    placeholderData: keepPreviousData,
+  })
+
+  const names: DomainFragment[] =
+    normalizedAddress && data?.domains ? data.domains : []
+
+  const handlePrev = () => {
+    if (!isPending && page > 1) {
+      setPage((p) => p - 1)
+    }
+  }
+
+  const handleNext = () => {
+    if (!isPending && names.length === PAGE_SIZE) {
+      setPage((p) => p + 1)
+    }
+  }
+
+  const setSort = (field: SortField, direction: OrderDirection) => {
+    setSortField(field)
+    setSortDirection(direction)
+  }
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field && sortDirection !== null) {
+      setSortDirection((prev) =>
+        prev === OrderDirection.Desc ? OrderDirection.Asc : OrderDirection.Desc,
+      )
     } else {
-      addMutation.mutate({ name: label })
+      setSortField(field)
+      setSortDirection(
+        field === 'expiry' ? OrderDirection.Asc : OrderDirection.Desc,
+      )
     }
   }
 
@@ -119,7 +167,7 @@ export const MyNamesList = ({
     ),
   })
 
-  const hasNextPage = names.length === pageSize
+  const hasNextPage = names.length === PAGE_SIZE
 
   if (isError) {
     return (
@@ -131,56 +179,78 @@ export const MyNamesList = ({
 
   return (
     <div className="w-full">
-      <div className="mb-[16px] hidden w-full md:flex md:items-center md:justify-between">
-        <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[12px]">
-          <div className="size-[16px] shrink-0" />
-          <div className="flex items-center gap-2 md:gap-[12px]">
-            <div className="size-[32px] shrink-0 md:size-[36.9px]" />
-            <div className="flex items-center gap-[8px]">
-              <button
-                className="flex cursor-pointer items-center gap-[8px]"
-                onClick={() => handleSort('name')}
-                type="button"
-              >
-                <span
-                  className={`font-sans text-[12px] tracking-[0.24px] ${sortField === 'name' ? 'font-bold text-[#232222]' : 'text-[#7d7d7d]'}`}
-                >
-                  Name
-                </span>
-                <SortIndicator
-                  direction={sortDirection}
-                  isActive={sortField === 'name'}
-                />
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-start gap-4 md:gap-[30px]">
-          <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px]">
-            <div className="flex items-center gap-[8px]">
-              <button
-                className="flex cursor-pointer items-center gap-[8px]"
-                onClick={() => handleSort('expiry')}
-                type="button"
-              >
-                <span
-                  className={`font-sans text-[12px] tracking-[0.24px] ${sortField === 'expiry' ? 'font-bold text-[#232222]' : 'text-[#7d7d7d]'}`}
-                >
-                  Expiry
-                </span>
-                <SortIndicator
-                  direction={sortDirection}
-                  isActive={sortField === 'expiry'}
-                />
-              </button>
-            </div>
-          </div>
+      {/* Mobile Sort Dropdown */}
+      <div className="mb-4 flex md:hidden">
+        <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">
+          <span className="font-sans text-[12px] text-foreground tracking-[0.24px]">
+            Sort by
+          </span>
+          <select
+            aria-label="Sort names by"
+            className="bg-transparent font-medium font-sans text-[12px] text-foreground tracking-[0.24px] outline-none"
+            onChange={(e) => {
+              const [field, direction] = e.target.value.split('-') as [
+                'name' | 'expiry',
+                'asc' | 'desc',
+              ]
+              setSort(
+                field,
+                direction === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
+              )
+            }}
+            value={
+              sortDirection
+                ? `${sortField}-${sortDirection === OrderDirection.Asc ? 'asc' : 'desc'}`
+                : 'name-asc'
+            }
+          >
+            <option value="name-asc">Name (A-Z)</option>
+            <option value="name-desc">Name (Z-A)</option>
+            <option value="expiry-asc">Expiry date (Earliest)</option>
+            <option value="expiry-desc">Expiry date (Latest)</option>
+          </select>
         </div>
       </div>
 
-      <div className="flex w-full flex-col">
-        {match({ isLoading, names })
-          .with({ isLoading: true }, () => (
+      {/* Desktop Sort Header */}
+      <div className="hidden w-full md:flex md:items-center md:justify-between">
+        <button
+          className="flex cursor-pointer items-center gap-[8px]"
+          onClick={() => toggleSort('name')}
+          type="button"
+        >
+          <span
+            className={`font-sans text-sm tracking-[0.24px] ${sortDirection !== null && sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
+          >
+            Name
+          </span>
+          <SortIndicator
+            direction={sortDirection ?? undefined}
+            isActive={sortDirection !== null && sortField === 'name'}
+          />
+        </button>
+        <button
+          className="flex cursor-pointer items-center gap-[8px]"
+          onClick={() => toggleSort('expiry')}
+          type="button"
+        >
+          <span
+            className={`font-sans text-sm tracking-[0.24px] ${sortDirection !== null && sortField === 'expiry' ? 'text-foreground' : 'text-muted-foreground'}`}
+          >
+            Expiry
+          </span>
+          <SortIndicator
+            direction={sortDirection ?? undefined}
+            isActive={sortDirection !== null && sortField === 'expiry'}
+          />
+        </button>
+      </div>
+
+      <div
+        className={tw`flex w-full flex-col transition-opacity ${isPlaceholderData && 'opacity-50'}`}
+      >
+        {match({ isPending, names })
+          .with({ isPending: true }, () => (
             <>
               <div className="border-[lightgrey] border-b-[0.41px] py-[24px]">
                 <NameRowSkeleton />
@@ -194,8 +264,14 @@ export const MyNamesList = ({
             </>
           ))
           .with({ names: P.when((n) => n.length === 0) }, () => (
-            <div className="py-8 text-center font-sans text-[#8c8c8c] text-sm">
-              No names found
+            <div className="flex flex-col items-center justify-center gap-3 py-16">
+              <Mountain
+                className="size-12 text-ens-gray-three"
+                strokeWidth={1}
+              />
+              <span className="font-sans text-muted-foreground text-sm">
+                No names to display
+              </span>
             </div>
           ))
           .otherwise(({ names }) =>
@@ -214,52 +290,36 @@ export const MyNamesList = ({
                 label.toLowerCase() === primaryLabel?.toLowerCase()
               const avatarUrl =
                 avatarQueries[index]?.data ?? name.resolver?.avatar ?? undefined
-              const favorited = isFavorite(label)
 
               return (
-                <div
+                <motion.div
                   className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
                   key={name.id}
+                  {...(shouldReduceMotion
+                    ? {}
+                    : {
+                        initial: { opacity: 0, y: 6 },
+                        animate: { opacity: 1, y: 0 },
+                        transition: {
+                          duration: 0.2,
+                          ease: [0.25, 0.46, 0.45, 0.94] as const,
+                          delay: index * 0.04,
+                        },
+                      })}
                 >
                   {isPrimary && (
                     <div className="mb-[10px] px-[24px]">
                       <PrimaryBadge />
                     </div>
                   )}
-
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <NameRow
-                      avatarUrl={avatarUrl}
-                      isAuthenticated={isAuthed}
-                      isFavorite={favorited}
-                      label={label}
-                      onToggleFavorite={() => toggleFavorite(label)}
-                    />
-
+                    <NameRow avatarUrl={avatarUrl} label={label} />
                     <div className="flex items-start gap-4 md:gap-[30px]">
                       <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:gap-[4px]">
                         <div className="flex flex-col items-start">
-                          <span className="font-sans text-[#515151] text-[12px] leading-[1.6] md:text-[14px] md:leading-[1.8]">
+                          <span className="font-sans text-[12px] text-muted-foreground leading-[1.6] md:text-[14px] md:leading-[1.8]">
                             {formattedExpiryDate}
                           </span>
-                        </div>
-                        <div className="flex items-center justify-center gap-[3.28px]">
-                          <Link
-                            className="flex items-center gap-[4.92px] text-[#0080bc]"
-                            onClick={(event) => {
-                              event.preventDefault()
-                              toast('Renewal coming soon')
-                            }}
-                            to="/auto-renewal"
-                          >
-                            <span className="font-sans text-[11px] leading-[1.6] md:text-[12px] md:leading-[1.8]">
-                              Extend
-                            </span>
-                            <ArrowRight
-                              className="size-[6px] md:size-[7.538px]"
-                              strokeWidth={3}
-                            />
-                          </Link>
                         </div>
                         {expiringSoon && daysUntilExpiry !== null && (
                           <div className="flex items-center gap-[3px] rounded-[20px] bg-[#fff8f0] p-[3px] md:gap-[4px] md:p-[4px]">
@@ -275,7 +335,7 @@ export const MyNamesList = ({
                       </div>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               )
             }),
           )}
@@ -284,8 +344,8 @@ export const MyNamesList = ({
       <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
         <div className="flex items-center justify-center gap-3 md:gap-[12px]">
           <button
-            className="flex items-center gap-1 rounded-[6px] border border-[#d3d3d3] px-3 py-1 text-[#7d7d7d] text-[11px] disabled:border-[#f0f0f0] disabled:text-[#d3d3d3] md:text-[12px]"
-            disabled={isLoading || page === 1}
+            className="flex items-center gap-1 rounded-[6px] border border-ens-gray-three px-3 py-1 text-[11px] text-muted-foreground disabled:border-ens-white disabled:text-ens-gray-three md:text-[12px]"
+            disabled={isPending || page === 1}
             onClick={handlePrev}
             type="button"
           >
@@ -294,8 +354,8 @@ export const MyNamesList = ({
           </button>
           {hasNextPage && (
             <button
-              className="flex items-center gap-1 rounded-[6px] border border-[#d3d3d3] px-3 py-1 text-[#7d7d7d] text-[11px] disabled:border-[#f0f0f0] disabled:text-[#d3d3d3] md:text-[12px]"
-              disabled={isLoading}
+              className="flex items-center gap-1 rounded-[6px] border border-ens-gray-three px-3 py-1 text-[11px] text-muted-foreground disabled:border-ens-white disabled:text-ens-gray-three md:text-[12px]"
+              disabled={isPending}
               onClick={handleNext}
               type="button"
             >
@@ -304,7 +364,10 @@ export const MyNamesList = ({
             </button>
           )}
         </div>
-        <span className="text-center font-sans text-[#7d7d7d] text-[11px] leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
+        <span className="flex items-center justify-center gap-1.5 font-sans text-[11px] text-muted-foreground leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
+          {isPlaceholderData && (
+            <Loader2 className="size-[12px] animate-spin" />
+          )}
           Showing your names
         </span>
       </div>

@@ -37,7 +37,7 @@ export const DashboardSidebar = ({
             <nav className="space-y-[2px]">
               <Button
                 asChild
-                className="h-auto w-full justify-start rounded-[8px] bg-[#e2f1f5] p-3 text-[#0080bc] hover:bg-[#e2f1f5]/80 hover:text-[#0080bc]"
+                className="h-auto w-full justify-start rounded-[8px] bg-ens-blue-light p-3 text-ens-blue hover:bg-ens-blue-light/80 hover:text-ens-blue"
                 variant="ghost"
               >
                 <Link className="flex items-center gap-[10px]" to="/dashboard">

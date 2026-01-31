@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
 import { Search } from 'lucide-react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
 import { Input } from '@/components/ui/input'
@@ -41,7 +42,7 @@ const DashboardTabButton = ({
       type="button"
     >
       <span
-        className={`font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px] ${isActive ? 'text-[#232222]' : 'text-[#a9a9a9]'}`}
+        className={`font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px] ${isActive ? 'text-foreground' : 'text-ens-gray-three'}`}
       >
         {label}
       </span>
@@ -72,6 +73,7 @@ interface NamesTableProps {
 export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>('myNames')
   const [searchQuery, setSearchQuery] = useState('')
+  const shouldReduceMotion = useReducedMotion()
   const isAuthed = useAtom(isBackendAuthed)
   const { data: favorites = [] } = useQuery(favoritesQueryOptions)
   const favoritesCount = favorites.length
@@ -118,24 +120,61 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
 
         <div className="w-full md:w-[292px]">
           <Input
-            className="h-[32px] rounded-[4.1px] border-none bg-ens-white text-[#8c8c8c] text-[13.12px] placeholder:text-[#8c8c8c]"
+            className="h-[32px] rounded-[4.1px] border-none bg-ens-white text-[13.12px] text-muted-foreground placeholder:text-muted-foreground"
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder={
               activeTab === 'myNames' ? 'Search my name...' : 'Search name...'
             }
             size="sm"
-            startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
+            startIcon={<Search className="size-[18px] text-muted-foreground" />}
             value={searchQuery}
           />
         </div>
       </div>
 
-      {match(activeTab)
-        .with('myNames', () => (
-          <MyNamesList primaryLabel={primaryLabel} searchQuery={searchQuery} />
-        ))
-        .with('favorites', () => <FavoritesList searchQuery={searchQuery} />)
-        .exhaustive()}
+      <AnimatePresence mode="popLayout">
+        {match(activeTab)
+          .with('myNames', () => (
+            <motion.div
+              key="myNames"
+              {...(shouldReduceMotion
+                ? {}
+                : {
+                    initial: { opacity: 0 },
+                    animate: { opacity: 1 },
+                    exit: { opacity: 0 },
+                    transition: {
+                      duration: 0.15,
+                      ease: [0.25, 0.46, 0.45, 0.94] as const,
+                    },
+                  })}
+            >
+              <MyNamesList
+                primaryLabel={primaryLabel}
+                searchQuery={searchQuery}
+              />
+            </motion.div>
+          ))
+          .with('favorites', () => (
+            <motion.div
+              key="favorites"
+              {...(shouldReduceMotion
+                ? {}
+                : {
+                    initial: { opacity: 0 },
+                    animate: { opacity: 1 },
+                    exit: { opacity: 0 },
+                    transition: {
+                      duration: 0.15,
+                      ease: [0.25, 0.46, 0.45, 0.94] as const,
+                    },
+                  })}
+            >
+              <FavoritesList searchQuery={searchQuery} />
+            </motion.div>
+          ))
+          .exhaustive()}
+      </AnimatePresence>
     </div>
   )
 }

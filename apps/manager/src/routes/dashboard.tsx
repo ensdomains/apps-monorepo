@@ -27,8 +27,10 @@ function RouteComponent() {
   }
 
   return (
-    <Suspense fallback={<DashboardLoading />}>
-      <DashboardPage />
-    </Suspense>
+    <div className="flex flex-1 flex-col bg-[#FCFBFB]">
+      <Suspense fallback={<DashboardLoading />}>
+        <DashboardPage />
+      </Suspense>
+    </div>
   )
 }
