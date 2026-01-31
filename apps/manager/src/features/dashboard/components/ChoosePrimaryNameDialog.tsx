@@ -1,5 +1,6 @@
 import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
 import { primaryNameMachine } from '@ens-apps/transaction-manager'
+import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useWallet } from '@getpara/react-sdk-lite'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
@@ -117,23 +118,7 @@ export const ChoosePrimaryNameDialog = ({
       if (snapshot.matches('success')) {
         toast.success('Primary name set successfully')
         queryClient.invalidateQueries({
-          predicate: (query) => {
-            const key = query.queryKey[0]
-            if (
-              typeof key === 'object' &&
-              key !== null &&
-              '$scope' in key &&
-              '$action' in key
-            ) {
-              return (
-                (key as { $scope: unknown; $action: unknown }).$scope ===
-                  'profile' &&
-                (key as { $scope: unknown; $action: unknown }).$action ===
-                  'reverse_name'
-              )
-            }
-            return false
-          },
+          queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
         })
         setOpen(false)
         onUpdated?.()
