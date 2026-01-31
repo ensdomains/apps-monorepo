@@ -13,6 +13,19 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 const formatAddress = (value?: string | null) =>
   value ? `${value.slice(0, 6)}...${value.slice(-4)}` : '—'
 
+const stagger = (index: number, shouldReduceMotion: boolean | null) =>
+  shouldReduceMotion
+    ? {}
+    : {
+        initial: { opacity: 0, y: 8 },
+        animate: { opacity: 1, y: 0 },
+        transition: {
+          duration: 0.25,
+          ease: [0.25, 0.46, 0.45, 0.94] as const,
+          delay: index * 0.06,
+        },
+      }
+
 export const DashboardPage = () => {
   const { ownerAddress } = useSmartAccountContext()
   const shouldReduceMotion = useReducedMotion()
@@ -41,23 +54,10 @@ export const DashboardPage = () => {
   const displayName = defaultName ?? formatAddress(ownerAddress)
   const hasProfile = Boolean(defaultName)
 
-  const stagger = (index: number) =>
-    shouldReduceMotion
-      ? {}
-      : {
-          initial: { opacity: 0, y: 8 },
-          animate: { opacity: 1, y: 0 },
-          transition: {
-            duration: 0.25,
-            ease: [0.25, 0.46, 0.45, 0.94] as const,
-            delay: index * 0.06,
-          },
-        }
-
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-10">
       <div className="min-w-0 flex-1 space-y-6 md:space-y-8">
-        <motion.div {...stagger(0)}>
+        <motion.div {...stagger(0, shouldReduceMotion)}>
           <Alert className="grid-cols-[calc(var(--spacing)*8)_1fr] rounded-none border-0 bg-[#e5f7ff] p-4 md:max-w-[50%] md:rounded-lg">
             <MSymbol
               className="ms-opsz-20 ms-wght-500 text-ens-blue"
@@ -76,24 +76,24 @@ export const DashboardPage = () => {
         </motion.div>
         <motion.h1
           className="px-4 font-serif text-[28px] text-foreground leading-[0.96] tracking-[0.28px] md:px-0 md:text-[40px] md:tracking-[0.4px]"
-          {...stagger(1)}
+          {...stagger(1, shouldReduceMotion)}
         >
           Hello {displayName}
         </motion.h1>
         {hasProfile && (
-          <motion.div {...stagger(2)}>
+          <motion.div {...stagger(2, shouldReduceMotion)}>
             <PrimaryNameCard avatarUrl={avatarUrl} primaryName={defaultName} />
           </motion.div>
         )}
         <motion.div
           className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-lg md:px-6 md:py-8"
-          {...stagger(hasProfile ? 3 : 2)}
+          {...stagger(hasProfile ? 3 : 2, shouldReduceMotion)}
         >
           <div className="space-y-5">
             <NamesTable primaryLabel={defaultName} />
           </div>
         </motion.div>
-        <motion.div {...stagger(hasProfile ? 4 : 3)}>
+        <motion.div {...stagger(hasProfile ? 4 : 3, shouldReduceMotion)}>
           <FaqSection />
         </motion.div>
       </div>
