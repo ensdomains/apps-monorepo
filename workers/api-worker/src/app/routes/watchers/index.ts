@@ -7,6 +7,12 @@ import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
 import { getExpiry } from '#services/expiry/index.js'
 
+const WATCH_REASON_PRIORITY = {
+  manual: 0,
+  favourited: 1,
+  owned: 2,
+} as const
+
 export default createApp()
   .basePath('/watchers')
 
@@ -55,18 +61,22 @@ export default createApp()
         .limit(1)
 
       if (existing.length > 0) {
-        // If already watching, allow upgrading reason from manual -> owned/favourited.
+        // If already watching, allow upgrading reason according to priority:
+        // owned > favourited > manual.
         const currentReason = existing[0].watch_reason as
           | 'owned'
           | 'favourited'
           | 'manual'
           | undefined
 
-        if (
-          currentReason &&
-          currentReason !== requestedReason &&
-          currentReason === 'manual'
-        ) {
+        const currentPriority =
+          currentReason === undefined
+            ? -1
+            : (WATCH_REASON_PRIORITY[currentReason] ?? 0)
+        const requestedPriority = WATCH_REASON_PRIORITY[requestedReason]
+
+        // Upgrade only (never downgrade). E.g. manual -> favourited/owned, favourited -> owned.
+        if (currentPriority < requestedPriority) {
           await c.var.db
             .update(TABLE.ensWatchers)
             .set({ watch_reason: requestedReason })

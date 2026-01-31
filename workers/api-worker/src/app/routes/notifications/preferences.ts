@@ -68,23 +68,7 @@ export default createApp()
       const userId = c.var.user_id
       const patch = c.req.valid('json')
 
-      // If user tries to enable ENS Labs updates but has no verified email, reject.
-      if (patch.ensLabsUpdates === true) {
-        const hasVerifiedEmail = await c.var.db.query.userChannels.findFirst({
-          where: and(
-            eq(TABLE.userChannels.user_id, userId),
-            eq(TABLE.userChannels.channel, 'email'),
-            eq(TABLE.userChannels.status, 'verified'),
-          ),
-          columns: { id: true },
-        })
-
-        if (!hasVerifiedEmail) {
-          return c.json({ error: 'Email must be verified first' }, 400)
-        }
-      }
-
-      await c.var.db
+      const row = await c.var.db
         .insert(TABLE.userNotificationSettings)
         .values({
           user_id: userId,
@@ -108,20 +92,22 @@ export default createApp()
             updated_at: new Date(),
           },
         })
+        .returning()
+        .then((result) => result[0])
+
+      if (!row) {
+        return c.json({ error: 'Failed to update notification settings' }, 500)
+      }
 
       // TODO: If ensLabsUpdates changes, sync SendGrid marketing list (handled in separate PR).
 
-      logger.info('Notification settings updated', { userId, patch })
-
-      const row = await c.var.db.query.userNotificationSettings.findFirst({
-        where: eq(TABLE.userNotificationSettings.user_id, userId),
-      })
+      logger.info('Notification settings updated', { userId, patch, row })
 
       return c.json({
         settings: {
-          ownedNameExpiry: row?.owned_name_expiry ?? false,
-          favouritedNameExpiry: row?.favourited_name_expiry ?? false,
-          ensLabsUpdates: row?.ens_labs_updates ?? false,
+          ownedNameExpiry: row.owned_name_expiry,
+          favouritedNameExpiry: row.favourited_name_expiry,
+          ensLabsUpdates: row.ens_labs_updates,
         },
       })
     },
