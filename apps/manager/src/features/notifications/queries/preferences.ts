@@ -1,9 +1,7 @@
 import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
-import type { NotificationKind } from 'api-worker/types'
 import { backendClient } from '@/utils/backend-client'
 import type {
-  BatchPreferencesRequest,
   PreferencesResponse,
   PreferenceUpdateRequest,
 } from '../types/preferences'
@@ -25,14 +23,8 @@ export const preferencesQueryOptions = queryOptions({
 
 // Mutations
 export const updatePreferenceMutationOptions = mutationOptions({
-  mutationFn: async ({
-    kind,
-    ...request
-  }: { kind: NotificationKind } & PreferenceUpdateRequest) => {
-    const response = await backendClient.notifications.preferences[
-      ':kind'
-    ].$patch({
-      param: { kind },
+  mutationFn: async (request: PreferenceUpdateRequest) => {
+    const response = await backendClient.notifications.preferences.$patch({
       json: request,
     })
 
@@ -40,32 +32,6 @@ export const updatePreferenceMutationOptions = mutationOptions({
       const error = await response.json()
       throw new Error(
         'error' in error ? error.error : 'Failed to update preference',
-      )
-    }
-
-    return response.json()
-  },
-  meta: {
-    invalidates: [
-      $qk({
-        $scope: 'preferences',
-      }),
-    ],
-  },
-})
-
-export const batchUpdatePreferencesMutationOptions = mutationOptions({
-  mutationFn: async (preferences: BatchPreferencesRequest) => {
-    const response = await backendClient.notifications.preferences.batch.$patch(
-      {
-        json: preferences,
-      },
-    )
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(
-        'error' in error ? error.error : 'Failed to update preferences',
       )
     }
 

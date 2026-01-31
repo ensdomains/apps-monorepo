@@ -8,6 +8,13 @@
       "when": 1764690122789,
       "tag": "0000_vengeful_golden_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1769698280533,
+      "tag": "0001_material_talkback",
+      "breakpoints": true
     }
   ]
 }

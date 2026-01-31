@@ -1,5 +1,6 @@
 import { vValidator } from '@hono/valibot-validator'
 import { and, eq, gt } from 'drizzle-orm'
+import { okAsync } from 'neverthrow'
 import * as v from 'valibot'
 import { requireAuth } from '#app/middleware/auth.js'
 import { injectDb } from '#app/middleware/database.js'
@@ -8,6 +9,11 @@ import { TABLE } from '#core/database/index.js'
 import { sendVerificationEmail } from '#services/email/verification.js'
 import { sendWelcomeEmail } from '#services/email/welcome.js'
 import { sanitizeChannel } from '#services/notifications/helpers.js'
+import {
+  addContactToList,
+  deleteContact,
+  searchContact,
+} from '#services/sendgrid/contacts.js'
 import {
   TelegramAuthSchema,
   verifyTelegramAuth,
@@ -232,7 +238,7 @@ const emailRoutes = createApp()
         .where(eq(TABLE.channelVerifications.id, verification.id))
 
       // Send welcome email if target exists
-      if (verification.channel.target) {
+      if (verification.channel?.target) {
         const welcomeResult = await sendWelcomeEmail(
           c.env.SENDGRID_API_KEY,
           c.env.EMAIL_FROM_ADDRESS,
@@ -253,6 +259,34 @@ const emailRoutes = createApp()
             email: verification.channel.target,
           })
         }
+      }
+
+      // broadcast list sync via waitUntil
+      if (c.env.SENDGRID_BROADCAST_LIST_ID && verification.channel?.target) {
+        c.executionCtx.waitUntil(
+          Promise.resolve(
+            addContactToList(
+              {
+                SENDGRID_API_KEY: c.env.SENDGRID_API_KEY,
+                SENDGRID_BROADCAST_LIST_ID: c.env.SENDGRID_BROADCAST_LIST_ID,
+              },
+              verification.channel.target,
+              verification.user_id,
+            ),
+          ).then((result) => {
+            if (result.isErr()) {
+              logger.error('Failed to add contact to broadcast list', {
+                email: verification.channel?.target,
+                error: result.error,
+              })
+            } else {
+              logger.info('Added contact to broadcast list', {
+                email: verification.channel?.target,
+                jobId: result.value.jobId,
+              })
+            }
+          }),
+        )
       }
 
       return c.json({ message: 'Email verified successfully' })
@@ -315,6 +349,36 @@ const idRoutes = createApp()
     await c.var.db
       .delete(TABLE.userChannels)
       .where(eq(TABLE.userChannels.id, channelId))
+
+    // broadcast list cleanup via waitUntil
+    if (
+      channel.channel === 'email' &&
+      channel.target &&
+      c.env.SENDGRID_BROADCAST_LIST_ID
+    ) {
+      const env = {
+        SENDGRID_API_KEY: c.env.SENDGRID_API_KEY,
+        SENDGRID_BROADCAST_LIST_ID: c.env.SENDGRID_BROADCAST_LIST_ID,
+      }
+      c.executionCtx.waitUntil(
+        Promise.resolve(
+          searchContact(env, channel.target).andThen((contact) =>
+            contact ? deleteContact(env, contact.id) : okAsync(undefined),
+          ),
+        ).then((result) => {
+          if (result.isErr()) {
+            logger.error('Failed to delete contact from SendGrid', {
+              email: channel.target,
+              error: result.error,
+            })
+          } else {
+            logger.info('Deleted contact from SendGrid', {
+              email: channel.target,
+            })
+          }
+        }),
+      )
+    }
 
     return c.json({ message: 'Channel deleted successfully' })
   })
