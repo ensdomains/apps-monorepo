@@ -7,6 +7,12 @@ import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
 import { getExpiry } from '#services/expiry/index.js'
 
+const WATCH_REASON_PRIORITY = {
+  manual: 0,
+  favourited: 1,
+  owned: 2,
+} as const
+
 export default createApp()
   .basePath('/watchers')
 
@@ -16,6 +22,7 @@ export default createApp()
       .select({
         name: TABLE.ensWatchers.name,
         expiry_at: TABLE.ensNames.expiry_at,
+        watch_reason: TABLE.ensWatchers.watch_reason,
         last_checked_at: TABLE.ensNames.last_checked_at,
       })
       .from(TABLE.ensWatchers)
@@ -34,10 +41,12 @@ export default createApp()
       'json',
       v.object({
         name: v.string(),
+        watchReason: v.optional(v.picklist(['owned', 'favourited', 'manual'])),
       }),
     ),
     async (c) => {
-      const { name } = c.req.valid('json')
+      const { name, watchReason } = c.req.valid('json')
+      const requestedReason = watchReason ?? 'manual'
 
       // Check if already watching
       const existing = await c.var.db
@@ -52,6 +61,38 @@ export default createApp()
         .limit(1)
 
       if (existing.length > 0) {
+        // If already watching, allow upgrading reason according to priority:
+        // owned > favourited > manual.
+        const currentReason = existing[0].watch_reason as
+          | 'owned'
+          | 'favourited'
+          | 'manual'
+          | undefined
+
+        const currentPriority =
+          currentReason === undefined
+            ? -1
+            : (WATCH_REASON_PRIORITY[currentReason] ?? 0)
+        const requestedPriority = WATCH_REASON_PRIORITY[requestedReason]
+
+        // Upgrade only (never downgrade). E.g. manual -> favourited/owned, favourited -> owned.
+        if (currentPriority < requestedPriority) {
+          await c.var.db
+            .update(TABLE.ensWatchers)
+            .set({ watch_reason: requestedReason })
+            .where(
+              and(
+                eq(TABLE.ensWatchers.user_id, c.var.user_id),
+                eq(TABLE.ensWatchers.name, name),
+              ),
+            )
+          return c.json({
+            message: 'Updated watch reason',
+            name,
+            watchReason: requestedReason,
+          })
+        }
+
         return c.json({ error: 'Already watching this name' }, 400)
       }
 
@@ -74,6 +115,7 @@ export default createApp()
       await c.var.db.insert(TABLE.ensWatchers).values({
         user_id: c.var.user_id,
         name,
+        watch_reason: requestedReason,
       })
 
       // Upsert ens_names with fresh data
