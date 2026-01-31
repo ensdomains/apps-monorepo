@@ -1,5 +1,10 @@
-import { OrderDirection } from '@ens-apps/indexer'
-import { useQueries } from '@tanstack/react-query'
+import {
+  Domain_OrderBy,
+  type DomainFragment,
+  OrderDirection,
+} from '@ens-apps/indexer'
+import { useWallet } from '@getpara/react-sdk-lite'
+import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import {
   ChevronDown,
   ChevronLeft,
@@ -9,6 +14,7 @@ import {
   Mountain,
 } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
+import { useEffect, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import {
   formatDashboardDate,
@@ -19,9 +25,13 @@ import {
 } from '@/features/dashboard/utils'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { tw } from '@/utils/tailwind'
-import { useDashboardNames } from '../hooks/useDashboardNames'
+import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 import { NameRow } from './NameRow'
 import { PrimaryBadge } from './PrimaryBadge'
+
+const PAGE_SIZE = 5
+
+type SortField = 'name' | 'expiry' | 'registration'
 
 interface MyNamesListProps {
   readonly primaryLabel?: string | null
@@ -78,20 +88,78 @@ export const MyNamesList = ({
   searchQuery = '',
 }: MyNamesListProps) => {
   const shouldReduceMotion = useReducedMotion()
-  const {
-    names,
-    isLoading,
-    isError,
-    page,
-    handlePrev,
-    handleNext,
-    pageSize,
-    sortField,
-    sortDirection,
-    isPlaceholderData,
-    setSort,
-    toggleSort,
-  } = useDashboardNames({ searchQuery })
+  const { data: wallet } = useWallet()
+  const [page, setPage] = useState(1)
+  const [sortField, setSortField] = useState<SortField>('registration')
+  const [sortDirection, setSortDirection] = useState<OrderDirection | null>(
+    null,
+  )
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Reset page on search change
+  useEffect(() => {
+    setPage(1)
+  }, [searchQuery, wallet?.address])
+
+  const normalizedAddress = wallet?.address?.toLowerCase()
+
+  const orderBy = match(sortField)
+    .with('name', () => Domain_OrderBy.Name)
+    .with('expiry', () => Domain_OrderBy.ExpiryDate)
+    .with('registration', () => Domain_OrderBy.RegistrationDate)
+    .exhaustive()
+
+  const queryVariables = normalizedAddress
+    ? {
+        where: {
+          owner: normalizedAddress,
+          ...(searchQuery
+            ? { name_contains_nocase: searchQuery.toLowerCase() }
+            : {}),
+        },
+        first: PAGE_SIZE,
+        skip: (page - 1) * PAGE_SIZE,
+        orderBy,
+        orderDirection: sortDirection ?? OrderDirection.Desc,
+      }
+    : undefined
+
+  const { data, isPending, isError, isPlaceholderData } = useQuery({
+    ...getDomainsQuery(queryVariables),
+    placeholderData: keepPreviousData,
+  })
+
+  const names: DomainFragment[] =
+    normalizedAddress && data?.domains ? data.domains : []
+
+  const handlePrev = () => {
+    if (!isPending && page > 1) {
+      setPage((p) => p - 1)
+    }
+  }
+
+  const handleNext = () => {
+    if (!isPending && names.length === PAGE_SIZE) {
+      setPage((p) => p + 1)
+    }
+  }
+
+  const setSort = (field: SortField, direction: OrderDirection) => {
+    setSortField(field)
+    setSortDirection(direction)
+  }
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field && sortDirection !== null) {
+      setSortDirection((prev) =>
+        prev === OrderDirection.Desc ? OrderDirection.Asc : OrderDirection.Desc,
+      )
+    } else {
+      setSortField(field)
+      setSortDirection(
+        field === 'expiry' ? OrderDirection.Asc : OrderDirection.Desc,
+      )
+    }
+  }
 
   const avatarQueries = useQueries({
     queries: names.map((domain) =>
@@ -99,7 +167,7 @@ export const MyNamesList = ({
     ),
   })
 
-  const hasNextPage = names.length === pageSize
+  const hasNextPage = names.length === PAGE_SIZE
 
   if (isError) {
     return (
@@ -181,8 +249,8 @@ export const MyNamesList = ({
       <div
         className={tw`flex w-full flex-col transition-opacity ${isPlaceholderData && 'opacity-50'}`}
       >
-        {match({ isLoading, names })
-          .with({ isLoading: true }, () => (
+        {match({ isPending, names })
+          .with({ isPending: true }, () => (
             <>
               <div className="border-[lightgrey] border-b-[0.41px] py-[24px]">
                 <NameRowSkeleton />
@@ -277,7 +345,7 @@ export const MyNamesList = ({
         <div className="flex items-center justify-center gap-3 md:gap-[12px]">
           <button
             className="flex items-center gap-1 rounded-[6px] border border-ens-gray-three px-3 py-1 text-[11px] text-muted-foreground disabled:border-ens-white disabled:text-ens-gray-three md:text-[12px]"
-            disabled={isLoading || page === 1}
+            disabled={isPending || page === 1}
             onClick={handlePrev}
             type="button"
           >
@@ -287,7 +355,7 @@ export const MyNamesList = ({
           {hasNextPage && (
             <button
               className="flex items-center gap-1 rounded-[6px] border border-ens-gray-three px-3 py-1 text-[11px] text-muted-foreground disabled:border-ens-white disabled:text-ens-gray-three md:text-[12px]"
-              disabled={isLoading}
+              disabled={isPending}
               onClick={handleNext}
               type="button"
             >
