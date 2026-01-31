@@ -4,7 +4,7 @@ import {
   OrderDirection,
 } from '@ens-apps/indexer'
 import { useWallet } from '@getpara/react-sdk-lite'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import { getDomainsQuery } from '../service/queries/getDashboardDomains'
@@ -53,7 +53,10 @@ export const useDashboardNames = ({
       }
     : undefined
 
-  const { data, isPending, isError } = useQuery(getDomainsQuery(queryVariables))
+  const { data, isPending, isError, isPlaceholderData } = useQuery({
+    ...getDomainsQuery(queryVariables),
+    placeholderData: keepPreviousData,
+  })
 
   const names: DomainFragment[] =
     normalizedAddress && data?.domains ? data.domains : []
@@ -96,6 +99,7 @@ export const useDashboardNames = ({
     pageSize: PAGE_SIZE,
     sortField,
     sortDirection,
+    isPlaceholderData,
     handleSort,
   }
 }

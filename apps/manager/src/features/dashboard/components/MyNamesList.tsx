@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleAlert,
+  Loader2,
   Mountain,
 } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
@@ -17,6 +18,7 @@ import {
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { tw } from '@/utils/tailwind'
 import { useDashboardNames } from '../hooks/useDashboardNames'
 import { NameRow } from './NameRow'
 import { PrimaryBadge } from './PrimaryBadge'
@@ -86,6 +88,7 @@ export const MyNamesList = ({
     pageSize,
     sortField,
     sortDirection,
+    isPlaceholderData,
     handleSort,
   } = useDashboardNames({ searchQuery })
 
@@ -174,7 +177,9 @@ export const MyNamesList = ({
         </button>
       </div>
 
-      <div className="flex w-full flex-col">
+      <div
+        className={tw`flex w-full flex-col transition-opacity ${isPlaceholderData && 'opacity-50'}`}
+      >
         {match({ isLoading, names })
           .with({ isLoading: true }, () => (
             <>
@@ -290,7 +295,10 @@ export const MyNamesList = ({
             </button>
           )}
         </div>
-        <span className="text-center font-sans text-[11px] text-muted-foreground leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
+        <span className="flex items-center justify-center gap-1.5 font-sans text-[11px] text-muted-foreground leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
+          {isPlaceholderData && (
+            <Loader2 className="size-[12px] animate-spin" />
+          )}
           Showing your names
         </span>
       </div>
