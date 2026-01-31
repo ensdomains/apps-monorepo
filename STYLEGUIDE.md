@@ -1171,23 +1171,7 @@ features/profile/components/
 └── ProfileEdit.handlers.ts      # UI event handlers
 ```
 
-#### Comparison: Machine vs Pure Function
 
-| Aspect | XState Machine | Pure Async Function |
-|--------|---------------|---------------------|
-| Use case | Multi-step flows | Single transactions |
-| State management | Machine context | useMutation |
-| Complexity | Higher | Lower |
-| Testing | Actor testing | Simple async testing |
-| Persistence | Built-in | Via TanStack Query |
-
-#### Benefits
-
-- ✅ Simpler than feature-specific machines for single transactions
-- ✅ Leverages TanStack Query's built-in state management
-- ✅ Easy to test (just an async function)
-- ✅ Co-located with the feature that uses it
-- ✅ Transaction manager still handles signing orchestration
 
 #### Why Not Just Use Wagmi?
 
