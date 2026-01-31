@@ -8,7 +8,6 @@ import {
   Mountain,
 } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
-import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import {
   formatDashboardDate,
@@ -77,7 +76,6 @@ export const MyNamesList = ({
   searchQuery = '',
 }: MyNamesListProps) => {
   const shouldReduceMotion = useReducedMotion()
-  const [hasInteracted, setHasInteracted] = useState(false)
   const {
     names,
     isLoading,
@@ -88,13 +86,8 @@ export const MyNamesList = ({
     pageSize,
     sortField,
     sortDirection,
-    handleSort: hookHandleSort,
+    handleSort,
   } = useDashboardNames({ searchQuery })
-
-  const handleSort = (field: 'name' | 'expiry', direction?: OrderDirection) => {
-    setHasInteracted(true)
-    hookHandleSort(field, direction)
-  }
 
   const avatarQueries = useQueries({
     queries: names.map((domain) =>
@@ -133,7 +126,11 @@ export const MyNamesList = ({
                 direction === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
               )
             }}
-            value={`${sortField}-${sortDirection === OrderDirection.Asc ? 'asc' : 'desc'}`}
+            value={
+              sortDirection
+                ? `${sortField}-${sortDirection === OrderDirection.Asc ? 'asc' : 'desc'}`
+                : 'name-asc'
+            }
           >
             <option value="name-asc">Name (A-Z)</option>
             <option value="name-desc">Name (Z-A)</option>
@@ -151,13 +148,13 @@ export const MyNamesList = ({
           type="button"
         >
           <span
-            className={`font-sans text-sm tracking-[0.24px] ${hasInteracted && sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
+            className={`font-sans text-sm tracking-[0.24px] ${sortDirection !== null && sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
             Name
           </span>
           <SortIndicator
-            direction={sortDirection}
-            isActive={hasInteracted && sortField === 'name'}
+            direction={sortDirection ?? undefined}
+            isActive={sortDirection !== null && sortField === 'name'}
           />
         </button>
         <button
@@ -166,13 +163,13 @@ export const MyNamesList = ({
           type="button"
         >
           <span
-            className={`font-sans text-sm tracking-[0.24px] ${hasInteracted && sortField === 'expiry' ? 'text-foreground' : 'text-muted-foreground'}`}
+            className={`font-sans text-sm tracking-[0.24px] ${sortDirection !== null && sortField === 'expiry' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
             Expiry
           </span>
           <SortIndicator
-            direction={sortDirection}
-            isActive={hasInteracted && sortField === 'expiry'}
+            direction={sortDirection ?? undefined}
+            isActive={sortDirection !== null && sortField === 'expiry'}
           />
         </button>
       </div>

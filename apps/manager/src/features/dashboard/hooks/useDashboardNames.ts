@@ -21,8 +21,8 @@ export const useDashboardNames = ({
   const { data: wallet } = useWallet()
   const [page, setPage] = useState(1)
   const [sortField, setSortField] = useState<SortField>('registration')
-  const [sortDirection, setSortDirection] = useState<OrderDirection>(
-    OrderDirection.Desc,
+  const [sortDirection, setSortDirection] = useState<OrderDirection | null>(
+    null,
   )
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Reset page on search change
@@ -49,7 +49,7 @@ export const useDashboardNames = ({
         first: PAGE_SIZE,
         skip: (page - 1) * PAGE_SIZE,
         orderBy,
-        orderDirection: sortDirection,
+        orderDirection: sortDirection ?? OrderDirection.Desc,
       }
     : undefined
 
@@ -74,7 +74,7 @@ export const useDashboardNames = ({
     if (direction !== undefined) {
       setSortField(field)
       setSortDirection(direction)
-    } else if (sortField === field) {
+    } else if (sortField === field && sortDirection !== null) {
       setSortDirection((prev) =>
         prev === OrderDirection.Desc ? OrderDirection.Asc : OrderDirection.Desc,
       )

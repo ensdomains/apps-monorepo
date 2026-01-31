@@ -65,10 +65,9 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
   const shouldReduceMotion = useReducedMotion()
   const [page, setPage] = useState(1)
   const [sortField, setSortField] = useState<SortField>('name')
-  const [sortDirection, setSortDirection] = useState<OrderDirection>(
-    OrderDirection.Asc,
+  const [sortDirection, setSortDirection] = useState<OrderDirection | null>(
+    null,
   )
-  const [hasInteracted, setHasInteracted] = useState(false)
 
   const { data: apiFavorites = [], isLoading } = useQuery(favoritesQueryOptions)
   const favorites = apiFavorites.map(toLocalEntry)
@@ -81,7 +80,9 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
 
   const paginatedData = useMemo(() => {
     const filtered = filterFavoritesBySearch(favorites, searchQuery)
-    const sorted = sortFavorites(filtered, sortField, sortDirection)
+    const sorted = sortDirection
+      ? sortFavorites(filtered, sortField, sortDirection)
+      : filtered
     return paginateFavorites(sorted, page, PAGE_SIZE)
   }, [favorites, searchQuery, sortField, sortDirection, page])
 
@@ -121,8 +122,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
   }
 
   const handleSort = (field: SortField) => {
-    setHasInteracted(true)
-    if (sortField === field) {
+    if (sortField === field && sortDirection !== null) {
       setSortDirection((prev) =>
         prev === OrderDirection.Desc ? OrderDirection.Asc : OrderDirection.Desc,
       )
@@ -144,7 +144,6 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
             aria-label="Sort favorites by"
             className="bg-transparent font-medium font-sans text-[12px] text-foreground tracking-[0.24px] outline-none"
             onChange={(e) => {
-              setHasInteracted(true)
               const [field, direction] = e.target.value.split('-') as [
                 SortField,
                 'asc' | 'desc',
@@ -154,7 +153,11 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                 direction === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
               )
             }}
-            value={`${sortField}-${sortDirection === OrderDirection.Asc ? 'asc' : 'desc'}`}
+            value={
+              sortDirection
+                ? `${sortField}-${sortDirection === OrderDirection.Asc ? 'asc' : 'desc'}`
+                : 'name-asc'
+            }
           >
             <option value="name-asc">Name (A-Z)</option>
             <option value="name-desc">Name (Z-A)</option>
@@ -172,13 +175,13 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
           type="button"
         >
           <span
-            className={`font-sans text-sm tracking-[0.24px] ${hasInteracted && sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
+            className={`font-sans text-sm tracking-[0.24px] ${sortDirection !== null && sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
             Name
           </span>
           <SortIndicator
-            direction={sortDirection}
-            isActive={hasInteracted && sortField === 'name'}
+            direction={sortDirection ?? undefined}
+            isActive={sortDirection !== null && sortField === 'name'}
           />
         </button>
       </div>
