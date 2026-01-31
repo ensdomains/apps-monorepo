@@ -73,11 +73,13 @@ export const useDashboardNames = ({
     }
   }
 
-  const handleSort = (field: SortField, direction?: OrderDirection) => {
-    if (direction !== undefined) {
-      setSortField(field)
-      setSortDirection(direction)
-    } else if (sortField === field && sortDirection !== null) {
+  const setSort = (field: SortField, direction: OrderDirection) => {
+    setSortField(field)
+    setSortDirection(direction)
+  }
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field && sortDirection !== null) {
       setSortDirection((prev) =>
         prev === OrderDirection.Desc ? OrderDirection.Asc : OrderDirection.Desc,
       )
@@ -100,6 +102,7 @@ export const useDashboardNames = ({
     sortField,
     sortDirection,
     isPlaceholderData,
-    handleSort,
+    setSort,
+    toggleSort,
   }
 }

@@ -89,7 +89,8 @@ export const MyNamesList = ({
     sortField,
     sortDirection,
     isPlaceholderData,
-    handleSort,
+    setSort,
+    toggleSort,
   } = useDashboardNames({ searchQuery })
 
   const avatarQueries = useQueries({
@@ -124,7 +125,7 @@ export const MyNamesList = ({
                 'name' | 'expiry',
                 'asc' | 'desc',
               ]
-              handleSort(
+              setSort(
                 field,
                 direction === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
               )
@@ -147,7 +148,7 @@ export const MyNamesList = ({
       <div className="hidden w-full md:flex md:items-center md:justify-between">
         <button
           className="flex cursor-pointer items-center gap-[8px]"
-          onClick={() => handleSort('name')}
+          onClick={() => toggleSort('name')}
           type="button"
         >
           <span
@@ -162,7 +163,7 @@ export const MyNamesList = ({
         </button>
         <button
           className="flex cursor-pointer items-center gap-[8px]"
-          onClick={() => handleSort('expiry')}
+          onClick={() => toggleSort('expiry')}
           type="button"
         >
           <span

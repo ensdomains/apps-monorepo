@@ -1,11 +1,23 @@
 import { ArrowRight, CircleArrowDown } from 'lucide-react'
+import type { ReactNode } from 'react'
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 
-const faqItems = [
+const LearnMoreLink = ({ href }: { readonly href: string }) => (
+  <a
+    className="text-ens-blue hover:text-ens-blue-hover"
+    href={href}
+    rel="noopener noreferrer"
+    target="_blank"
+  >
+    Learn more
+  </a>
+)
+
+const faqItems: { question: string; answer: ReactNode }[] = [
   {
     question: 'Can I send crypto to a .eth name (instead of an address)?',
     answer:
@@ -13,18 +25,34 @@ const faqItems = [
   },
   {
     question: 'How do I show my .eth name instead of my address?',
-    answer:
-      'Set it as your primary name. You can do this from your profile page in the ENS App. [Learn more]',
+    answer: (
+      <>
+        Set it as your primary name. You can do this from your profile page in
+        the ENS App.{' '}
+        <LearnMoreLink href="https://support.ens.domains/en/articles/7890825-set-your-primary-name" />
+      </>
+    ),
   },
   {
     question: 'Can I change my primary name later?',
-    answer:
-      'Yes. You can update it anytime. You can even use different primary names on different networks (L2s). [Learn more]',
+    answer: (
+      <>
+        Yes. You can update it anytime. You can even use different primary names
+        on different networks (L2s).{' '}
+        <LearnMoreLink href="https://support.ens.domains/en/articles/7890825-set-your-primary-name" />
+      </>
+    ),
   },
   {
     question: 'How can I secure my ENS name?',
-    answer:
-      'Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name. Learn more',
+    answer: (
+      <>
+        Keep ownership in a cold wallet (a wallet you do not use every day).
+        Then use a hot wallet (your daily wallet) to manage records and use the
+        name.{' '}
+        <LearnMoreLink href="https://support.ens.domains/en/articles/7900674-secure-your-ens-name" />
+      </>
+    ),
   },
 ]
 
