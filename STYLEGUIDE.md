@@ -1049,9 +1049,8 @@ function useAutoTriggerSecondTransaction({ firstTxState, walletClient }) {
 - Transactions tracked separately, not as a single operation
 
 ```typescript
-// ✅ CORRECT: Use an XState operation machine
-// In transaction manager
-const operationMachine = setup({
+// ✅ CORRECT: Use an XState machine for multi-step flows
+const multiStepMachine = setup({
   // ... machine definition
 }).createMachine({
   states: {
@@ -1075,21 +1074,132 @@ const operationMachine = setup({
 
 // In component - direct function call, not a hook
 const handleStart = () => {
-  const operationId = transactionManager.startOperation(params)
-  setOperationId(operationId)
+  const txId = transactionManager.startTransaction(request, signer, options)
+  setTxId(txId)
 }
 
-// Subscribe to operation state
-const actor = transactionManager.getOperation(operationId)
+// Subscribe to transaction state
+const actor = transactionManager.getTransaction(txId)
 const snapshot = useSelector(actor, s => s)
 ```
 
-**Benefits of operation machine:**
-- ✅ Single operation ID tracks entire flow
+**Benefits of XState machine for multi-step flows:**
+- ✅ Single transaction ID tracks the flow
 - ✅ Machine orchestrates transitions automatically
 - ✅ Built-in retry and error handling
 - ✅ Audit trail for all state transitions
 - ✅ Direct function call on user action (no effect triggering)
+
+### Single Transaction Pattern 🟡 Default
+
+For **single transactions** (not multi-step flows), use pure async functions with `useMutation` instead of feature-specific XState machines.
+
+#### When to Use This Pattern
+
+- ✅ Single contract call that waits for confirmation
+- ✅ Transaction with validation/preparation logic
+- ✅ Feature-specific transaction (e.g., save records, set primary name)
+
+#### When NOT to Use This Pattern
+
+- ❌ Multi-step transaction flows (use XState operation machine)
+- ❌ Transactions that trigger other transactions
+- ❌ Complex retry/recovery logic
+
+#### Pattern Structure
+
+Create a pure async function that orchestrates the transaction:
+
+```typescript
+// features/profile/components/ProfileEdit.transactions.ts
+
+export async function saveRecords(
+  params: SaveRecordsParams,
+): Promise<SaveRecordsResult> {
+  // 1. Build and validate the transaction request
+  const { request, description } = buildRecordsUpdateRequest(params)
+
+  // 2. Start via transaction manager (handles signing)
+  const txId = transactionManager.startTransaction(
+    { type: 'custom', request },
+    params.signer,
+    { description, publicClient: params.publicClient, chainId: params.chainId },
+  )
+
+  // 3. Wait for completion (subscribes to transaction actor)
+  const result = await waitForTransaction(txId)
+
+  return { ...result, txId }
+}
+```
+
+#### React Integration with useMutation
+
+Use TanStack Query's `useMutation` to integrate with React:
+
+```typescript
+// ✅ CORRECT: useMutation with pure async function
+const saveRecordsMutation = useMutation({
+  mutationFn: saveRecords,
+  onSuccess: () => refetchRecords(),
+})
+
+// Use mutation properties directly - no intermediate state needed
+<SaveButton
+  isSaving={saveRecordsMutation.isPending}
+  isSuccess={saveRecordsMutation.isSuccess}
+  errorMessage={saveRecordsMutation.error?.message}
+  txHash={saveRecordsMutation.data?.hash}
+/>
+```
+
+```typescript
+// ❌ AVOID: Unnecessary derived state
+const isSubmitting = saveRecordsMutation.isPending  // Just use .isPending directly
+const isSuccess = saveRecordsMutation.isSuccess     // Just use .isSuccess directly
+const txHash = saveRecordsMutation.data?.hash       // Just use .data?.hash directly
+```
+
+#### File Co-location
+
+Place transaction helpers next to the component that uses them:
+
+```
+features/profile/components/
+├── ProfileEdit.tsx              # Component
+├── ProfileEdit.transactions.ts  # Transaction helpers (co-located)
+└── ProfileEdit.handlers.ts      # UI event handlers
+```
+
+#### Comparison: Machine vs Pure Function
+
+| Aspect | XState Machine | Pure Async Function |
+|--------|---------------|---------------------|
+| Use case | Multi-step flows | Single transactions |
+| State management | Machine context | useMutation |
+| Complexity | Higher | Lower |
+| Testing | Actor testing | Simple async testing |
+| Persistence | Built-in | Via TanStack Query |
+
+#### Benefits
+
+- ✅ Simpler than feature-specific machines for single transactions
+- ✅ Leverages TanStack Query's built-in state management
+- ✅ Easy to test (just an async function)
+- ✅ Co-located with the feature that uses it
+- ✅ Transaction manager still handles signing orchestration
+
+#### Why Not Just Use Wagmi?
+
+Wagmi's `useWriteContract` and `useSendTransaction` work well for EOA-only transactions, but the ENS app supports multiple account types:
+
+| Feature | Wagmi | Transaction Manager |
+|---------|-------|---------------------|
+| EOA transactions | ✅ Native | ✅ Via Signer abstraction |
+| Smart accounts (ERC-4337) | ❌ Requires permissionless.js | ✅ Built-in Rhinestone/ZeroDev support |
+| Unified API across account types | ❌ Different hooks per account type | ✅ Same `startTransaction()` call |
+| Transaction persistence | ❌ Not built-in | ✅ IndexedDB/localStorage |
+| Receipt polling | ✅ `useWaitForTransactionReceipt` | ✅ `waitForTransaction()` |
 
 ### Use TanStack Query for Server State 🟡 Default
 
