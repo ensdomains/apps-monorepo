@@ -16,14 +16,20 @@ const MATERIAL_SYMBOLS = [
   'drafts',
   'notifications',
   'waving_hand',
+  'settings',
 ] as const satisfies readonly string[]
+
+// Google Fonts requires the icons to be sorted alphabetically
+const MATERIAL_SYMBOLS_SORTED = (MATERIAL_SYMBOLS as unknown as string[]).sort(
+  (a, b) => a.localeCompare(b),
+) as readonly MaterialSymbol[]
 
 /**
  * Google Fonts URL for Material Symbols with variable font settings.
  * This URL is configured to load only the symbols defined in MATERIAL_SYMBOLS
  * to optimize font loading performance.
  */
-export const MATERIAL_SYMBOLS_URL = `https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@${OPTICAL_SIZE},${WEIGHT},${FILL},${GRADE}&icon_names=${MATERIAL_SYMBOLS.join(',')}&display=block`
+export const MATERIAL_SYMBOLS_URL = `https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@${OPTICAL_SIZE},${WEIGHT},${FILL},${GRADE}&icon_names=${MATERIAL_SYMBOLS_SORTED.join(',')}&display=block`
 
 type MaterialSymbol = (typeof MATERIAL_SYMBOLS)[number]
 
