@@ -4,6 +4,7 @@ import type { TelegramAuthData } from 'api-worker/types'
 import type { InferResponseType } from 'hono'
 import { backendClient } from '@/utils/backend-client'
 import { loginWithTelegramPopup } from '../services/telegram/auth'
+import type { PushSubscriptionJSON } from '../types/push'
 
 // Types
 export type Channel = InferResponseType<
@@ -201,14 +202,7 @@ export const vapidPublicKeyQueryOptions = queryOptions({
 })
 
 export const addPushChannelMutationOptions = mutationOptions({
-  mutationFn: async (subscription: {
-    endpoint: string
-    expirationTime: number | null
-    keys: {
-      auth: string
-      p256dh: string
-    }
-  }) => {
+  mutationFn: async (subscription: PushSubscriptionJSON) => {
     const response = await backendClient.notifications.channels.push.$post({
       json: subscription,
     })

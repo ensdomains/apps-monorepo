@@ -6,32 +6,32 @@ export type PushSubscriptionState = {
   /**
    * Whether push notifications are supported in this browser.
    */
-  isSupported: boolean
+  readonly isSupported: boolean
 
   /**
    * Whether the service worker is registered and ready.
    */
-  isReady: boolean
+  readonly isReady: boolean
 
   /**
    * Current permission state.
    */
-  permission: NotificationPermission
+  readonly permission: NotificationPermission
 
   /**
    * Whether user has an active push subscription.
    */
-  isSubscribed: boolean
+  readonly isSubscribed: boolean
 
   /**
    * The current push subscription, if any.
    */
-  subscription: PushSubscription | null
+  readonly subscription: PushSubscription | null
 
   /**
    * Error message if something went wrong.
    */
-  error: string | null
+  readonly error: string | null
 }
 
 export type PushSubscriptionJSON = {
