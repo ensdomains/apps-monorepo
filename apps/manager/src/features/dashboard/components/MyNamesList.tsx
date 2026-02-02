@@ -7,9 +7,9 @@ import { useWallet } from '@getpara/react-sdk-lite'
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import {
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   CircleAlert,
+  CircleArrowLeft,
+  CircleArrowRight,
   Loader2,
   Mountain,
 } from 'lucide-react'
@@ -65,8 +65,8 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
   if (!isActive) {
     return (
       <div className="flex flex-col">
-        <ChevronDown className="size-[8.2px] rotate-180 text-ens-gray-three" />
-        <ChevronDown className="size-[8.2px] text-ens-gray-three" />
+        <ChevronDown className="size-[8.2px] rotate-180 text-black" />
+        <ChevronDown className="size-[8.2px] text-black" />
       </div>
     )
   }
@@ -182,12 +182,12 @@ export const MyNamesList = ({
       {/* Mobile Sort Dropdown */}
       <div className="mb-4 flex md:hidden">
         <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">
-          <span className="font-sans text-[12px] text-foreground tracking-[0.24px]">
+          <span className="font-sans text-foreground text-xs tracking-[0.24px]">
             Sort by
           </span>
           <select
             aria-label="Sort names by"
-            className="bg-transparent font-medium font-sans text-[12px] text-foreground tracking-[0.24px] outline-none"
+            className="bg-transparent font-medium font-sans text-foreground text-xs tracking-[0.24px] outline-none"
             onChange={(e) => {
               const [field, direction] = e.target.value.split('-') as [
                 'name' | 'expiry',
@@ -308,7 +308,7 @@ export const MyNamesList = ({
                       })}
                 >
                   {isPrimary && (
-                    <div className="mb-[10px] px-[24px]">
+                    <div className="mb-[10px]">
                       <PrimaryBadge />
                     </div>
                   )}
@@ -317,7 +317,7 @@ export const MyNamesList = ({
                     <div className="flex items-start gap-4 md:gap-[30px]">
                       <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:gap-[4px]">
                         <div className="flex flex-col items-start">
-                          <span className="font-sans text-[12px] text-muted-foreground leading-[1.6] md:text-[14px] md:leading-[1.8]">
+                          <span className="font-sans text-muted-foreground text-xs leading-[1.6] md:text-sm md:leading-[1.8]">
                             {formattedExpiryDate}
                           </span>
                         </div>
@@ -327,7 +327,7 @@ export const MyNamesList = ({
                               className="size-[10px] text-[#e3a531] md:size-[12px]"
                               strokeWidth={2}
                             />
-                            <span className="font-sans text-[#c68a1b] text-[10px] leading-[1.05] tracking-[0.2px] md:text-[12px] md:tracking-[0.24px]">
+                            <span className="font-sans text-[#c68a1b] text-[10px] leading-[1.05] tracking-[0.2px] md:text-xs md:tracking-[0.24px]">
                               Expires in {daysUntilExpiry} days
                             </span>
                           </div>
@@ -342,29 +342,25 @@ export const MyNamesList = ({
       </div>
 
       <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center justify-center gap-3 md:gap-[12px]">
+        <div className="flex items-center justify-center gap-[12px]">
           <button
-            className="flex items-center gap-1 rounded-[6px] border border-ens-gray-three px-3 py-1 text-[11px] text-muted-foreground disabled:border-ens-white disabled:text-ens-gray-three md:text-[12px]"
+            className="flex size-[32px] items-center justify-center text-ens-gray-three disabled:text-border"
             disabled={isPending || page === 1}
             onClick={handlePrev}
             type="button"
           >
-            <ChevronLeft className="size-[14px]" />
-            <span>Previous</span>
+            <CircleArrowLeft className="size-[32px]" strokeWidth={1} />
           </button>
-          {hasNextPage && (
-            <button
-              className="flex items-center gap-1 rounded-[6px] border border-ens-gray-three px-3 py-1 text-[11px] text-muted-foreground disabled:border-ens-white disabled:text-ens-gray-three md:text-[12px]"
-              disabled={isPending}
-              onClick={handleNext}
-              type="button"
-            >
-              <span>Next</span>
-              <ChevronRight className="size-[14px]" />
-            </button>
-          )}
+          <button
+            className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
+            disabled={isPending || !hasNextPage}
+            onClick={handleNext}
+            type="button"
+          >
+            <CircleArrowRight className="size-[32px]" strokeWidth={1} />
+          </button>
         </div>
-        <span className="flex items-center justify-center gap-1.5 font-sans text-[11px] text-muted-foreground leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
+        <span className="flex items-center justify-center gap-1.5 font-sans text-[16px] text-muted-foreground leading-[1.2] tracking-[0.14px]">
           {isPlaceholderData && (
             <Loader2 className="size-[12px] animate-spin" />
           )}

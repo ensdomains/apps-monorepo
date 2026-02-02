@@ -1,6 +1,11 @@
 import { OrderDirection } from '@ens-apps/indexer'
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
-import { ChevronDown, ChevronLeft, ChevronRight, Mountain } from 'lucide-react'
+import {
+  ChevronDown,
+  CircleArrowLeft,
+  CircleArrowRight,
+  Mountain,
+} from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
@@ -88,7 +93,6 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
 
   const paginatedFavorites = paginatedData.favorites
   const totalCount = paginatedData.totalCount
-  const totalPages = paginatedData.totalPages
   const hasNextPage = paginatedData.hasNextPage
   const hasPrevPage = paginatedData.hasPrevPage
   const startIndex = paginatedData.startIndex
@@ -137,12 +141,12 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
       {/* Mobile Sort Dropdown */}
       <div className="mb-4 flex md:hidden">
         <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">
-          <span className="font-sans text-[12px] text-foreground tracking-[0.24px]">
+          <span className="font-sans text-foreground text-xs tracking-[0.24px]">
             Sort by
           </span>
           <select
             aria-label="Sort favorites by"
-            className="bg-transparent font-medium font-sans text-[12px] text-foreground tracking-[0.24px] outline-none"
+            className="bg-transparent font-medium font-sans text-foreground text-xs tracking-[0.24px] outline-none"
             onChange={(e) => {
               const [field, direction] = e.target.value.split('-') as [
                 SortField,
@@ -260,63 +264,25 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
 
       {totalCount > 0 && (
         <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center justify-center gap-3 md:gap-[12px]">
+          <div className="flex items-center justify-center gap-[12px]">
             <button
-              className="flex size-[32px] items-center justify-center rounded-full text-ens-gray-three disabled:text-border"
+              className="flex size-[32px] items-center justify-center text-ens-gray-three disabled:text-border"
               disabled={isLoading || !hasPrevPage}
               onClick={handlePrev}
               type="button"
             >
-              <ChevronLeft className="size-[24px]" strokeWidth={1.5} />
+              <CircleArrowLeft className="size-[32px]" strokeWidth={1} />
             </button>
-
-            {Array.from({ length: Math.min(totalPages, 3) }, (_, i) => {
-              const pageNum = i + 1
-              const isActive = page === pageNum
-              return (
-                <button
-                  className={`flex size-[32px] items-center justify-center rounded-[6px] font-sans text-[12px] ${
-                    isActive
-                      ? 'bg-ens-lapis-dust font-medium text-ens-blue'
-                      : 'text-ens-gray-three'
-                  }`}
-                  key={pageNum}
-                  type="button"
-                >
-                  {pageNum}
-                </button>
-              )
-            })}
-
-            {totalPages > 4 && (
-              <span className="flex size-[32px] items-center justify-center font-sans text-[12px] text-ens-gray-three">
-                ...
-              </span>
-            )}
-
-            {totalPages > 3 && (
-              <button
-                className={`flex size-[32px] items-center justify-center rounded-[6px] font-sans text-[12px] ${
-                  page === totalPages
-                    ? 'bg-ens-lapis-dust font-medium text-ens-blue'
-                    : 'text-ens-gray-three'
-                }`}
-                type="button"
-              >
-                {totalPages}
-              </button>
-            )}
-
             <button
-              className="flex size-[32px] items-center justify-center rounded-full text-ens-blue disabled:text-border"
+              className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
               disabled={isLoading || !hasNextPage}
               onClick={handleNext}
               type="button"
             >
-              <ChevronRight className="size-[24px]" strokeWidth={1.5} />
+              <CircleArrowRight className="size-[32px]" strokeWidth={1} />
             </button>
           </div>
-          <span className="text-center font-sans text-[11px] text-muted-foreground leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
+          <span className="font-sans text-[16px] text-muted-foreground leading-[1.2] tracking-[0.14px]">
             Showing {startIndex}-{endIndex} of {totalCount}
           </span>
         </div>

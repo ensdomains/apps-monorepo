@@ -31,7 +31,7 @@ export const DashboardSidebar = ({
         <div className="space-y-8">
           <DashboardSidebarSearch onSelect={handleSuggestionSelect} />
           <div className="space-y-2">
-            <div className="font-sans text-[#8b8b8b] text-[12px] uppercase leading-[16px]">
+            <div className="font-sans text-[#8b8b8b] text-xs uppercase leading-[16px]">
               MAIN MENU
             </div>
             <nav className="space-y-[2px]">
@@ -42,7 +42,7 @@ export const DashboardSidebar = ({
               >
                 <Link className="flex items-center gap-[10px]" to="/dashboard">
                   <LayoutGrid className="size-6" />
-                  <span className="font-medium font-sans text-[14px]">
+                  <span className="font-medium font-sans text-sm">
                     Dashboard
                   </span>
                 </Link>
@@ -57,7 +57,7 @@ export const DashboardSidebar = ({
                     variant="ghost"
                   >
                     <User className="size-6" />
-                    <span className="font-sans text-[14px]">Profile</span>
+                    <span className="font-sans text-sm">Profile</span>
                   </LinkButton>
                 ))
                 .with(false, () => (
@@ -67,7 +67,7 @@ export const DashboardSidebar = ({
                     variant="ghost"
                   >
                     <User className="size-6" />
-                    <span className="font-sans text-[14px]">Profile</span>
+                    <span className="font-sans text-sm">Profile</span>
                   </Button>
                 ))
                 .exhaustive()}

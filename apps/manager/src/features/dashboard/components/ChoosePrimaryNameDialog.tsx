@@ -174,7 +174,7 @@ export const ChoosePrimaryNameDialog = ({
           <DialogTitle className="font-serif text-[24px] text-foreground">
             Choose Primary Name
           </DialogTitle>
-          <DialogDescription className="font-sans text-[14px] text-muted-foreground">
+          <DialogDescription className="font-sans text-muted-foreground text-sm">
             Set which ENS name displays as your identity across apps and
             wallets.
           </DialogDescription>
