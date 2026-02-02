@@ -84,7 +84,7 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   try {
     const registration = await navigator.serviceWorker.register(
       SERVICE_WORKER_PATH,
-      { scope: '/' }
+      { scope: '/' },
     )
 
     // wait for the service worker to be ready
@@ -191,13 +191,22 @@ export async function subscribeToPush(): Promise<{
     // send subscription to server
     const subscriptionJson = subscription.toJSON()
 
+    if (
+      !subscriptionJson.endpoint ||
+      !subscriptionJson.keys?.auth ||
+      !subscriptionJson.keys?.p256dh
+    ) {
+      await subscription.unsubscribe()
+      return { success: false, error: 'Invalid subscription data' }
+    }
+
     const response = await backendClient.notifications.channels.push.$post({
       json: {
-        endpoint: subscriptionJson.endpoint!,
+        endpoint: subscriptionJson.endpoint,
         expirationTime: subscriptionJson.expirationTime ?? null,
         keys: {
-          auth: subscriptionJson.keys!.auth!,
-          p256dh: subscriptionJson.keys!.p256dh!,
+          auth: subscriptionJson.keys.auth,
+          p256dh: subscriptionJson.keys.p256dh,
         },
       },
     })
@@ -208,7 +217,8 @@ export async function subscribeToPush(): Promise<{
       await subscription.unsubscribe()
       return {
         success: false,
-        error: 'error' in error ? error.error : 'Failed to register subscription',
+        error:
+          'error' in error ? error.error : 'Failed to register subscription',
       }
     }
 
@@ -338,10 +348,11 @@ export function usePushNotifications() {
     const result = await subscribeToPush()
 
     if (result.success && result.subscription) {
+      const { subscription } = result
       setState((prev) => ({
         ...prev,
         isSubscribed: true,
-        subscription: result.subscription!,
+        subscription,
         permission: 'granted',
         error: null,
       }))
@@ -357,32 +368,29 @@ export function usePushNotifications() {
     return result
   }, [])
 
-  const unsubscribe = useCallback(
-    async (channelId: string) => {
-      setIsLoading(true)
-      setState((prev) => ({ ...prev, error: null }))
+  const unsubscribe = useCallback(async (channelId: string) => {
+    setIsLoading(true)
+    setState((prev) => ({ ...prev, error: null }))
 
-      const result = await unsubscribeFromPush(channelId)
+    const result = await unsubscribeFromPush(channelId)
 
-      if (result.success) {
-        setState((prev) => ({
-          ...prev,
-          isSubscribed: false,
-          subscription: null,
-          error: null,
-        }))
-      } else {
-        setState((prev) => ({
-          ...prev,
-          error: result.error ?? 'Failed to unsubscribe',
-        }))
-      }
+    if (result.success) {
+      setState((prev) => ({
+        ...prev,
+        isSubscribed: false,
+        subscription: null,
+        error: null,
+      }))
+    } else {
+      setState((prev) => ({
+        ...prev,
+        error: result.error ?? 'Failed to unsubscribe',
+      }))
+    }
 
-      setIsLoading(false)
-      return result
-    },
-    []
-  )
+    setIsLoading(false)
+    return result
+  }, [])
 
   const requestPermission = useCallback(async () => {
     const permission = await requestNotificationPermission()

@@ -216,7 +216,7 @@ export const addPushChannelMutationOptions = mutationOptions({
     if (!response.ok) {
       const error = await response.json()
       throw new Error(
-        'error' in error ? error.error : 'Failed to add push subscription'
+        'error' in error ? error.error : 'Failed to add push subscription',
       )
     }
 
