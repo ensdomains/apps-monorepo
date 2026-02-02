@@ -1,8 +1,8 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { useQueries } from '@tanstack/react-query'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CirclePlus, Search } from 'lucide-react'
-import { useId, useMemo, useState } from 'react'
+import { useCallback, useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -162,6 +162,8 @@ const EditRecordsContent = ({
   records: GetRecordsReturnType
   resolverAddress: Address
 }) => {
+  const navigate = useNavigate()
+
   // Form state
   const [selectedType, setSelectedType] = useState<RecordType | ''>('')
   const [keyInput, setKeyInput] = useState('')
@@ -189,7 +191,14 @@ const EditRecordsContent = ({
     discardAll,
   } = useEditRecordsState(originalRecords)
 
-  // Save records hook - discard changes only after syncing completes
+  // Navigate to records page after sync completes.
+  // This avoids the issue where deleted records reappear if we clear local state
+  // before the indexer has caught up.
+  const handleSyncComplete = useCallback(() => {
+    navigate({ to: '/$name/records', params: { name } })
+  }, [navigate, name])
+
+  // Save records hook
   const {
     saveRecords,
     isWriting,
@@ -198,7 +207,7 @@ const EditRecordsContent = ({
     error: saveError,
     reset: resetSaveError,
   } = useSaveRecords({
-    onSyncComplete: discardAll,
+    onSyncComplete: handleSyncComplete,
   })
 
   const handleSaveRecords = () => {
