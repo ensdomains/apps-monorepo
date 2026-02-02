@@ -153,38 +153,43 @@ export const DurationSelector = ({
         )}
       >
         {/* Left: Label */}
-        <div className="flex w-[50%] items-center gap-3 md:w-[60%] md:gap-5 lg:w-[40%] xl:w-[60%]">
-          <span className="font-normal text-ens-blue-dark text-sm leading-none tracking-tighter md:text-2xl">
+        <div className="flex items-center gap-3 md:gap-5">
+          <span className="whitespace-nowrap font-normal text-ens-blue-dark text-sm leading-none tracking-tighter md:text-2xl">
             Enter custom duration
           </span>
         </div>
 
-        {/* Right: Input + years */}
-        <div className="flex w-[50%] items-center justify-end gap-2 md:w-[40%] md:gap-3 lg:w-[60%] xl:w-[40%]">
-          <div className="flex items-center gap-1 md:gap-2">
-            <input
-              aria-label="Custom duration in years"
-              className={cn(
-                'w-14 md:w-20',
-                'rounded border border-ens-gray-three px-2 py-1 md:px-3 md:py-2',
-                'font-medium font-mono text-ens-blue-dark text-sm leading-none tracking-tighter md:text-xl',
-                'text-center',
-                'focus:border-ens-blue focus:outline-none',
-                'disabled:cursor-not-allowed disabled:opacity-60',
-              )}
-              disabled={disabled}
-              max={1000}
-              min={1}
-              onChange={handleCustomInputChange}
-              placeholder="7"
-              step={1}
-              type="number"
-              value={customInputValue}
-            />
-            <span className="font-normal text-ens-gray-three text-xs leading-none tracking-tight md:text-base">
-              years
-            </span>
-          </div>
+        {/* Right: Input + years in unified container */}
+        <div
+          className={cn(
+            'flex items-center gap-1.5 rounded border bg-white px-2 py-1.5 md:gap-2 md:px-3 md:py-2.5',
+            isCustomSelected || customInputValue
+              ? 'border-ens-blue'
+              : 'border-ens-gray-three',
+            disabled && 'cursor-not-allowed opacity-60',
+          )}
+        >
+          <input
+            aria-label="Custom duration in years"
+            className={cn(
+              'w-10 md:w-12',
+              'border-none bg-transparent outline-none',
+              'font-medium font-mono text-ens-blue-dark text-sm leading-none tracking-tighter md:text-xl',
+              'text-right',
+              'disabled:cursor-not-allowed',
+              '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
+            )}
+            disabled={disabled}
+            max={1000}
+            min={1}
+            onChange={handleCustomInputChange}
+            step={1}
+            type="number"
+            value={customInputValue}
+          />
+          <span className="font-normal text-ens-gray-three text-xs leading-none tracking-tight md:text-base">
+            years
+          </span>
         </div>
       </div>
     </div>
