@@ -184,7 +184,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
 
   if (!hasSubregistry) {
     return (
-      <div className="flex flex-col gap-6 px-8 py-6 w-full max-w-[640px] mx-auto">
+      <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
         <PageHeader name={name} />
         <p className="text-gray-600">
           This name does not have a subregistry. You must deploy one first to
@@ -200,7 +200,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
   }
 
   return (
-    <div className="flex flex-col gap-6 px-8 py-6 w-full max-w-[640px] mx-auto">
+    <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
       <PageHeader name={name} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
@@ -322,7 +322,7 @@ const CreateSubnameContent = ({
 }: CreateSubnameContentProps) => {
   if (ownerData.network !== 'namechainSepolia') {
     return (
-      <div className="flex flex-col gap-6 px-8 py-6 w-full max-w-[640px] mx-auto">
+      <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
         <PageHeader name={name} />
         <p className="text-gray-600">
           This feature is only available for ENSv2 names.
