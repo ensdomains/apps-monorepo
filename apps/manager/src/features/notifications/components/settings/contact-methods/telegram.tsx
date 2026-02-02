@@ -145,10 +145,10 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Email Contact Method?</AlertDialogTitle>
+            <AlertDialogTitle>Remove Telegram Contact Method?</AlertDialogTitle>
             <AlertDialogDescription>
-              You may miss important alerts if you remove this contact method.
-              Are you sure you want to continue?
+              You may miss important notifications if you remove this contact
+              method. Are you sure you want to continue?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row md:ml-auto md:w-2/3">
