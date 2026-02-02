@@ -65,8 +65,8 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
   if (!isActive) {
     return (
       <div className="flex flex-col">
-        <ChevronDown className="size-[8.2px] rotate-180 text-ens-gray-three" />
-        <ChevronDown className="size-[8.2px] text-ens-gray-three" />
+        <ChevronDown className="size-[8.2px] rotate-180 text-black" />
+        <ChevronDown className="size-[8.2px] text-black" />
       </div>
     )
   }

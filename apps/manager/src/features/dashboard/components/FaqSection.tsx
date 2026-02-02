@@ -6,17 +6,6 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 
-const LearnMoreLink = ({ href }: { readonly href: string }) => (
-  <a
-    className="text-ens-blue hover:text-ens-blue-hover"
-    href={href}
-    rel="noopener noreferrer"
-    target="_blank"
-  >
-    Learn more
-  </a>
-)
-
 const faqItems: { question: string; answer: ReactNode }[] = [
   {
     question: 'Can I send crypto to a .eth name (instead of an address)?',
@@ -28,8 +17,7 @@ const faqItems: { question: string; answer: ReactNode }[] = [
     answer: (
       <>
         Set it as your primary name. You can do this from your profile page in
-        the ENS App.{' '}
-        <LearnMoreLink href="https://support.ens.domains/en/articles/7890825-set-your-primary-name" />
+        the ENS App.
       </>
     ),
   },
@@ -38,8 +26,7 @@ const faqItems: { question: string; answer: ReactNode }[] = [
     answer: (
       <>
         Yes. You can update it anytime. You can even use different primary names
-        on different networks (L2s).{' '}
-        <LearnMoreLink href="https://support.ens.domains/en/articles/7890825-set-your-primary-name" />
+        on different networks (L2s).
       </>
     ),
   },
@@ -49,8 +36,7 @@ const faqItems: { question: string; answer: ReactNode }[] = [
       <>
         Keep ownership in a cold wallet (a wallet you do not use every day).
         Then use a hot wallet (your daily wallet) to manage records and use the
-        name.{' '}
-        <LearnMoreLink href="https://support.ens.domains/en/articles/7900674-secure-your-ens-name" />
+        name.
       </>
     ),
   },
