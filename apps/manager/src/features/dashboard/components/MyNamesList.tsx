@@ -7,9 +7,9 @@ import { useWallet } from '@getpara/react-sdk-lite'
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import {
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   CircleAlert,
+  CircleArrowLeft,
+  CircleArrowRight,
   Loader2,
   Mountain,
 } from 'lucide-react'
@@ -342,29 +342,25 @@ export const MyNamesList = ({
       </div>
 
       <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center justify-center gap-3 md:gap-[12px]">
+        <div className="flex items-center justify-center gap-[12px]">
           <button
-            className="flex items-center gap-1 rounded-[6px] border border-ens-gray-three px-3 py-1 text-[11px] text-muted-foreground disabled:border-ens-white disabled:text-ens-gray-three md:text-[12px]"
+            className="flex size-[32px] items-center justify-center text-ens-gray-three disabled:text-border"
             disabled={isPending || page === 1}
             onClick={handlePrev}
             type="button"
           >
-            <ChevronLeft className="size-[14px]" />
-            <span>Previous</span>
+            <CircleArrowLeft className="size-[32px]" strokeWidth={1} />
           </button>
-          {hasNextPage && (
-            <button
-              className="flex items-center gap-1 rounded-[6px] border border-ens-gray-three px-3 py-1 text-[11px] text-muted-foreground disabled:border-ens-white disabled:text-ens-gray-three md:text-[12px]"
-              disabled={isPending}
-              onClick={handleNext}
-              type="button"
-            >
-              <span>Next</span>
-              <ChevronRight className="size-[14px]" />
-            </button>
-          )}
+          <button
+            className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
+            disabled={isPending || !hasNextPage}
+            onClick={handleNext}
+            type="button"
+          >
+            <CircleArrowRight className="size-[32px]" strokeWidth={1} />
+          </button>
         </div>
-        <span className="flex items-center justify-center gap-1.5 font-sans text-[11px] text-muted-foreground leading-[1.2] tracking-[0.11px] md:text-[12px] md:tracking-[0.12px]">
+        <span className="flex items-center justify-center gap-1.5 font-sans text-[16px] text-muted-foreground leading-[1.2] tracking-[0.14px]">
           {isPlaceholderData && (
             <Loader2 className="size-[12px] animate-spin" />
           )}
