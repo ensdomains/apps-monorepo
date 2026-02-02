@@ -31,7 +31,7 @@ export const DashboardSidebar = ({
         <div className="space-y-8">
           <DashboardSidebarSearch onSelect={handleSuggestionSelect} />
           <div className="space-y-2">
-            <div className="font-sans text-[#8b8b8b] text-[12px] uppercase leading-[16px]">
+            <div className="font-sans text-[#8b8b8b] text-xs uppercase leading-[16px]">
               MAIN MENU
             </div>
             <nav className="space-y-[2px]">

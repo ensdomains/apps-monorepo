@@ -141,12 +141,12 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
       {/* Mobile Sort Dropdown */}
       <div className="mb-4 flex md:hidden">
         <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">
-          <span className="font-sans text-[12px] text-foreground tracking-[0.24px]">
+          <span className="font-sans text-foreground text-xs tracking-[0.24px]">
             Sort by
           </span>
           <select
             aria-label="Sort favorites by"
-            className="bg-transparent font-medium font-sans text-[12px] text-foreground tracking-[0.24px] outline-none"
+            className="bg-transparent font-medium font-sans text-foreground text-xs tracking-[0.24px] outline-none"
             onChange={(e) => {
               const [field, direction] = e.target.value.split('-') as [
                 SortField,

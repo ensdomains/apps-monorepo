@@ -182,12 +182,12 @@ export const MyNamesList = ({
       {/* Mobile Sort Dropdown */}
       <div className="mb-4 flex md:hidden">
         <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">
-          <span className="font-sans text-[12px] text-foreground tracking-[0.24px]">
+          <span className="font-sans text-foreground text-xs tracking-[0.24px]">
             Sort by
           </span>
           <select
             aria-label="Sort names by"
-            className="bg-transparent font-medium font-sans text-[12px] text-foreground tracking-[0.24px] outline-none"
+            className="bg-transparent font-medium font-sans text-foreground text-xs tracking-[0.24px] outline-none"
             onChange={(e) => {
               const [field, direction] = e.target.value.split('-') as [
                 'name' | 'expiry',
@@ -327,7 +327,7 @@ export const MyNamesList = ({
                               className="size-[10px] text-[#e3a531] md:size-[12px]"
                               strokeWidth={2}
                             />
-                            <span className="font-sans text-[#c68a1b] text-[10px] leading-[1.05] tracking-[0.2px] md:text-[12px] md:tracking-[0.24px]">
+                            <span className="font-sans text-[#c68a1b] text-[10px] leading-[1.05] tracking-[0.2px] md:text-xs md:tracking-[0.24px]">
                               Expires in {daysUntilExpiry} days
                             </span>
                           </div>
