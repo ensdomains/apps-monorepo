@@ -3,11 +3,12 @@ import { getResolver } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, Loader2 } from 'lucide-react'
+import { ResultAsync } from 'neverthrow'
 import { useDeferredValue, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { type Address, zeroAddress } from 'viem'
+import { isAddress, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
-import { useAccount, useWalletClient } from 'wagmi'
+import { useAccount, useEnsAddress, useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -18,7 +19,6 @@ import {
   type GetEnsOwnerReturnType,
   getEnsOwnerQueryOptions,
 } from '@/features/profile/hooks/useEnsOwner'
-import { getResolveAddressQueryOptions } from '@/features/profile/hooks/useResolveAddress'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { prepareCreateSubnameTransaction } from '@/features/registry/utils/create-subname.helpers'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
@@ -78,11 +78,20 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
   )
 
   // Resolve owner address (independent, user-input driven)
+  const isOwnerInputAddress = isAddress(deferredOwnerInput)
   const {
-    data: resolvedOwner,
+    data: ensResolvedAddress,
     isLoading: isResolvingOwner,
     error: resolveError,
-  } = useQuery(getResolveAddressQueryOptions({ input: deferredOwnerInput }))
+  } = useEnsAddress({
+    name: deferredOwnerInput,
+    query: {
+      enabled: !!deferredOwnerInput && !isOwnerInputAddress,
+    },
+  })
+  const resolvedOwner = isOwnerInputAddress
+    ? deferredOwnerInput
+    : ensResolvedAddress
 
   const subregistryAddress = registriesData?.registries[0]
   const hasSubregistry =
@@ -106,20 +115,24 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
       return
     }
 
-    let resolverAddress: Address
-    try {
-      const resolver = await getResolver(clientResult.value, { name })
-      if (!resolver) {
-        setSubmitError('No resolver found for parent name')
-        setIsSubmitting(false)
-        return
-      }
-      resolverAddress = resolver
-    } catch {
-      setSubmitError('Failed to get resolver')
+    const resolverResult = await ResultAsync.fromPromise(
+      getResolver(clientResult.value, { name }),
+      () => new Error('Failed to get resolver'),
+    )
+
+    if (resolverResult.isErr()) {
+      setSubmitError(resolverResult.error.message)
       setIsSubmitting(false)
       return
     }
+
+    if (!resolverResult.value) {
+      setSubmitError('No resolver found for parent name')
+      setIsSubmitting(false)
+      return
+    }
+
+    const resolverAddress = resolverResult.value
 
     const intentResult = await prepareCreateSubnameTransaction({
       registryAddress: subregistryAddress,
