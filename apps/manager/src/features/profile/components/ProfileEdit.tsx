@@ -18,8 +18,8 @@ import {
   handleProfileFormSubmit,
   handleProfileReset,
 } from './ProfileEdit.handlers'
+import { RecordsValidationError, saveRecords } from './ProfileEdit.transactions'
 import { SaveChanges } from './SaveChanges'
-import { RecordsValidationError, saveRecords } from './saveRecords'
 import { BioSection } from './sections/BioSection'
 import { HeaderSection } from './sections/HeaderSection'
 import { LinksSection } from './sections/LinksSection'
