@@ -503,6 +503,8 @@ const idRoutes = createApp()
         email: channel.target,
         error: emailResult.error,
       })
+
+      return c.json({ error: 'Failed to send verification email' }, 500)
     } else {
       logger.info('Verification email resent', {
         channelId,
