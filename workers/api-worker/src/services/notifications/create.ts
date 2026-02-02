@@ -17,6 +17,40 @@ import type { BaseDeliveryJob } from '#types/delivery.js'
 import { chunk } from '#utils/chunk.js'
 import { logger } from '#utils/logger.js'
 
+type WatchReason = 'owned' | 'favourited' | 'manual'
+
+function shouldCreateExternalDeliveriesForNotification(
+  kind: NotificationKind,
+  payload: NotificationPayloads[NotificationKind],
+  settings: {
+    owned_name_expiry: boolean
+    favourited_name_expiry: boolean
+    ens_labs_updates: boolean
+  },
+): boolean {
+  if (kind === 'name-expiry') {
+    const p = payload as NotificationPayloads['name-expiry']
+    const watchReason: WatchReason =
+      // Prefer explicit watch reason (new flow)
+      p.watchReason ??
+      // Fallback for old payloads / tests
+      (p.isOwner ? 'owned' : 'favourited')
+
+    switch (watchReason) {
+      case 'owned':
+        return settings.owned_name_expiry
+      case 'favourited':
+        return settings.favourited_name_expiry
+      case 'manual':
+        // Conservative default: manual watches follow either toggle.
+        return settings.owned_name_expiry || settings.favourited_name_expiry
+    }
+  }
+
+  // For now (per current product scope), other kinds remain UI-only.
+  return false
+}
+
 /**
  * Maps channel types to their corresponding Cloudflare queue bindings.
  *
@@ -47,12 +81,6 @@ function getQueueForChannel(
   channel: ChannelType,
 ): keyof CloudflareBindings | undefined {
   return CHANNEL_TO_QUEUE[channel]
-}
-
-type CreateNotificationContext = {
-  db: Database
-  telegramQueue: Queue
-  emailQueue: Queue
 }
 
 class NotificationCreationError extends TaggedError(
@@ -98,14 +126,28 @@ export const createNotification = ResultFn(async function* <
     }),
   )
 
-  // Get user preferences
-  const prefs = yield* intoDbResult(
-    ctx.db.query.notificationPreferences.findMany({
-      where: and(
-        eq(TABLE.notificationPreferences.user_id, ctx.userId),
-        eq(TABLE.notificationPreferences.kind, ctx.kind),
-      ),
+  // Get user notification settings (new preferences model)
+  const settingsRow = yield* intoDbResult(
+    ctx.db.query.userNotificationSettings.findFirst({
+      where: eq(TABLE.userNotificationSettings.user_id, ctx.userId),
+      columns: {
+        owned_name_expiry: true,
+        favourited_name_expiry: true,
+        ens_labs_updates: true,
+      },
     }),
+  )
+
+  const settings = {
+    owned_name_expiry: settingsRow?.owned_name_expiry ?? false,
+    favourited_name_expiry: settingsRow?.favourited_name_expiry ?? false,
+    ens_labs_updates: settingsRow?.ens_labs_updates ?? false,
+  }
+
+  const shouldCreateDeliveries = shouldCreateExternalDeliveriesForNotification(
+    ctx.kind,
+    ctx.payload as NotificationPayloads[NotificationKind],
+    settings,
   )
 
   // Queue delivery for each enabled channel
@@ -119,14 +161,21 @@ export const createNotification = ResultFn(async function* <
       continue
     }
 
-    // Check user preference (default: enabled)
-    const pref = prefs.find((p) => p.channel === channel.channel)
-    const isEnabled = pref?.enabled ?? true
-
-    if (!isEnabled) {
-      logger.debug('User disabled notification for channel', {
+    // UI notifications are always created; external deliveries are gated by settings.
+    if (!shouldCreateDeliveries) {
+      logger.debug('External delivery disabled by settings', {
         channel: channel.channel,
         kind: ctx.kind,
+        userId: ctx.userId,
+      })
+      continue
+    }
+
+    if (!channel.target) {
+      logger.warn('Verified channel missing target, skipping', {
+        channel: channel.channel,
+        kind: ctx.kind,
+        userId: ctx.userId,
       })
       continue
     }
@@ -138,7 +187,7 @@ export const createNotification = ResultFn(async function* <
         .values({
           notification_id: notification.id,
           channel: channel.channel,
-          target: channel.target!,
+          target: channel.target,
           status: 'queued',
           attempts: 0,
         })
@@ -281,27 +330,20 @@ export const createBatchNotifications = ResultFn(async function* <
     (channel) => channel.user_id,
   )
 
-  // Batch fetch all notification preferences for all users and this notification kind
-  // Using ctx.kind ensures all notifications in the batch are the same kind
-  const allPreferences = yield* intoDbResult(
-    ctx.db.query.notificationPreferences.findMany({
-      where: and(
-        inArray(TABLE.notificationPreferences.user_id, uniqueUserIds),
-        eq(TABLE.notificationPreferences.kind, ctx.kind),
-      ),
+  // Batch fetch user notification settings for all users (new preferences model)
+  const allSettings = yield* intoDbResult(
+    ctx.db.query.userNotificationSettings.findMany({
+      where: inArray(TABLE.userNotificationSettings.user_id, uniqueUserIds),
       columns: {
         user_id: true,
-        channel: true,
-        enabled: true,
+        owned_name_expiry: true,
+        favourited_name_expiry: true,
+        ens_labs_updates: true,
       },
     }),
   )
 
-  // Group preferences by userId for efficient lookup
-  const preferencesByUserId = Map.groupBy(
-    allPreferences,
-    (pref) => pref.user_id,
-  )
+  const settingsByUserId = Map.groupBy(allSettings, (s) => s.user_id)
 
   // Build delivery records and queue jobs
   // We collect all deliveries first, then batch insert them
@@ -325,8 +367,23 @@ export const createBatchNotifications = ResultFn(async function* <
       continue
     }
 
-    // Get preferences for this user (if any)
-    const preferences = preferencesByUserId.get(notification.userId)
+    const settingsRow = settingsByUserId.get(notification.userId)?.[0]
+    const settings = {
+      owned_name_expiry: settingsRow?.owned_name_expiry ?? false,
+      favourited_name_expiry: settingsRow?.favourited_name_expiry ?? false,
+      ens_labs_updates: settingsRow?.ens_labs_updates ?? false,
+    }
+
+    const shouldCreateDeliveries =
+      shouldCreateExternalDeliveriesForNotification(
+        ctx.kind,
+        notification.payload as NotificationPayloads[NotificationKind],
+        settings,
+      )
+
+    if (!shouldCreateDeliveries) {
+      continue
+    }
 
     // Check each channel and create deliveries if appropriate
     for (const channel of channels) {
@@ -343,19 +400,6 @@ export const createBatchNotifications = ResultFn(async function* <
       if (!channel.target) {
         logger.debug('Channel has no target', {
           channel: channel.channel,
-          userId: notification.userId,
-        })
-        continue
-      }
-
-      // Check user preference (default: enabled if no preference found)
-      const preference = preferences?.find((p) => p.channel === channel.channel)
-      const isEnabled = preference?.enabled ?? true
-
-      if (!isEnabled) {
-        logger.debug('User disabled notification for channel', {
-          channel: channel.channel,
-          kind: ctx.kind,
           userId: notification.userId,
         })
         continue

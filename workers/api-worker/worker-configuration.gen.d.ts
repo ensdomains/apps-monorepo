@@ -23,6 +23,8 @@ declare namespace Cloudflare {
 		VAPID_SUBJECT: string;
 		VAPID_PUBLIC_KEY: string;
 		VAPID_PRIVATE_KEY: string;
+		SENDGRID_BROADCAST_LIST_ID: string;
+		SENDGRID_WEBHOOK_VERIFICATION_KEY?: string;
 	}
 }
 interface CloudflareBindings extends Cloudflare.Env {}

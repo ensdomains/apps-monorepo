@@ -10,20 +10,20 @@ export const TokenSection = () => {
       <div className="font-medium text-ens-lapis-core text-sm">
         TOKEN BALANCES
       </div>
-      <div className="text-[#6B6B6B] text-sm leading-ens-normal">
+      <div className="text-muted-foreground text-sm leading-ens-normal">
         💡 For this alpha release, accounts are automatically funded with test
         tokens.
       </div>
       {stablecoinBalances?.map((balance, index) => (
         <div
-          className="flex items-center justify-between rounded-lg bg-[#F8F8F8] p-3"
+          className="flex items-center justify-between rounded-lg bg-ens-white p-3"
           key={`${balance.address}-${index}`}
         >
-          <span className="font-medium text-[#6B6B6B] text-sm">
+          <span className="font-medium text-muted-foreground text-sm">
             {balance.symbol}
           </span>
           {balance.formattedBalance && (
-            <span className="font-bold text-[#232222] text-sm">
+            <span className="font-bold text-foreground text-sm">
               {formatTokenBalance(balance.balance, balance.decimals)}{' '}
               {balance.symbol}
             </span>
@@ -33,7 +33,7 @@ export const TokenSection = () => {
 
       {match(autoFundingMutation.status)
         .with('pending', () => (
-          <div className="flex items-center gap-2 rounded-lg bg-[#F8F8F8] p-3">
+          <div className="flex items-center gap-2 rounded-lg bg-ens-white p-3">
             <div className="size-4 animate-spin rounded-full border-2 border-ens-blue border-t-transparent" />
             <span className="text-ens-blue-dark text-sm">
               Requesting test tokens...

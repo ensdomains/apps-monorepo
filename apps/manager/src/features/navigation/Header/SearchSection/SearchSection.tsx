@@ -31,17 +31,17 @@ const SearchInput = ({
     <div className="relative flex-1">
       <Input
         autoComplete="off"
-        className="h-[44px] rounded-[4px] border-[0.4px] border-ens-gray-two bg-white text-[#8c8c8c] placeholder:text-[#8c8c8c]"
+        className="h-[44px] rounded-[4px] border-[0.4px] border-ens-gray-two bg-white text-muted-foreground placeholder:text-muted-foreground"
         endIcon={
           isLoading ? (
-            <Loader2Icon className="size-4 animate-spin text-[#8c8c8c]" />
+            <Loader2Icon className="size-4 animate-spin text-muted-foreground" />
           ) : searchValue ? (
             <button
               className="flex items-center justify-center"
               onClick={() => setSearchValue('')}
               type="button"
             >
-              <X className="size-4 text-[#8c8c8c]" />
+              <X className="size-4 text-muted-foreground" />
             </button>
           ) : undefined
         }
@@ -50,7 +50,7 @@ const SearchInput = ({
         onFocus={onFocus}
         placeholder="Search name, address..."
         size="default"
-        startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
+        startIcon={<Search className="size-[18px] text-muted-foreground" />}
         value={searchValue}
       />
     </div>

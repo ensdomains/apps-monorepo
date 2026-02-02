@@ -84,7 +84,6 @@ export const userChannelRelations = relations(
       fields: [userChannels.user_id],
       references: [users.id],
     }),
-    notifications: many(notifications),
     verifications: many(channelVerifications),
   }),
 )
@@ -134,35 +133,25 @@ export const channelVerificationRelations = relations(
 
 // ===============================
 
-export const notificationPreferences = pgTable(
-  'notification_preferences',
-  {
-    id: uuid('id').primaryKey().default(randomUUIDv7),
-    user_id: uuid('user_id')
-      .notNull()
-      .references(() => users.id, {
-        onDelete: 'cascade',
-      }),
-    kind: text('kind').$type<UserNotificationKind>().notNull(),
-    channel: text('channel').$type<DeliveryChannel>().notNull(),
-    enabled: boolean('enabled').default(true),
-    extra_config: jsonb('extra_config'),
-    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-  },
-  (table) => [
-    unique('notification_preference_unique').on(
-      table.user_id,
-      table.kind,
-      table.channel,
-    ),
-  ],
-)
+export const userNotificationSettings = pgTable('user_notification_settings', {
+  user_id: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
 
-export const notificationPreferenceRelations = relations(
-  notificationPreferences,
+  owned_name_expiry: boolean('owned_name_expiry').notNull().default(false),
+  favourited_name_expiry: boolean('favourited_name_expiry')
+    .notNull()
+    .default(false),
+  ens_labs_updates: boolean('ens_labs_updates').notNull().default(false),
+
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+export const userNotificationSettingsRelations = relations(
+  userNotificationSettings,
   ({ one }) => ({
     user: one(users, {
-      fields: [notificationPreferences.user_id],
+      fields: [userNotificationSettings.user_id],
       references: [users.id],
     }),
   }),

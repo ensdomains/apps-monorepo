@@ -7,16 +7,8 @@ export type PreferencesResponse = InferResponseType<
 >
 
 export type PreferenceUpdateRequest = InferRequestType<
-  (typeof backendClient.notifications.preferences)[':kind']['$patch']
+  typeof backendClient.notifications.preferences.$patch
 >['json']
-
-export type BatchPreferencesRequest = Record<string, Record<string, boolean>>
 
 // Frontend types
 export type ChannelType = 'email' | 'telegram'
-
-export type PreferenceState = {
-  [channel in ChannelType]?: {
-    [kind: string]: boolean
-  }
-}
