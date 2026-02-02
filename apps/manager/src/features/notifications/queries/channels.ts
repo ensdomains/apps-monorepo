@@ -183,3 +183,50 @@ export const verifyEmailMutationOptions = mutationOptions({
     invalidates: [qk('channels', 'list')],
   },
 })
+
+// push notification mutations
+export const vapidPublicKeyQueryOptions = queryOptions({
+  queryKey: qk('channels', 'push', 'vapid-public-key'),
+  queryFn: async () => {
+    const response =
+      await backendClient.notifications.channels.push['vapid-public-key'].$get()
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch VAPID public key')
+    }
+
+    return response.json()
+  },
+  staleTime: Number.POSITIVE_INFINITY, // VAPID key is static
+})
+
+export const addPushChannelMutationOptions = mutationOptions({
+  mutationFn: async (subscription: {
+    endpoint: string
+    expirationTime: number | null
+    keys: {
+      auth: string
+      p256dh: string
+    }
+  }) => {
+    const response = await backendClient.notifications.channels.push.$post({
+      json: subscription,
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(
+        'error' in error ? error.error : 'Failed to add push subscription'
+      )
+    }
+
+    return response.json()
+  },
+  meta: {
+    invalidates: [
+      $qk({
+        $scope: 'channels',
+      }),
+    ],
+  },
+})
