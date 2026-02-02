@@ -21,6 +21,7 @@ export const DurationSelector = ({
   disabled,
 }: DurationSelectorProps) => {
   const [customInputValue, setCustomInputValue] = useState<string>('')
+  const [isCustomFocused, setIsCustomFocused] = useState(false)
 
   const isPredefinedDuration = (
     duration: number | null,
@@ -74,7 +75,8 @@ export const DurationSelector = ({
     <div className="flex h-full flex-col justify-between gap-1 md:gap-2">
       {durationOrder.map((duration) => {
         const option = pricing[duration]
-        const isSelected = duration === selectedDuration && !isCustomSelected
+        const isSelected =
+          duration === selectedDuration && !customInputValue && !isCustomFocused
 
         const formattedTotalPrice = (option.total ?? 0).toLocaleString(
           'en-US',
@@ -147,10 +149,12 @@ export const DurationSelector = ({
           'px-3 py-4 md:px-5 md:py-8',
           'rounded-lg border md:rounded-xl',
           'bg-ens-white transition-all',
-          isCustomSelected || customInputValue
+          'hover:border-ens-blue',
+          isCustomSelected || customInputValue || isCustomFocused
             ? 'border-ens-blue'
             : 'border-ens-gray-three',
-          disabled && 'cursor-not-allowed opacity-60',
+          disabled &&
+            'cursor-not-allowed opacity-60 hover:border-ens-gray-three',
         )}
       >
         {/* Left: Label */}
@@ -164,7 +168,7 @@ export const DurationSelector = ({
         <div
           className={cn(
             'flex items-center gap-1.5 rounded border bg-white px-2 py-1.5 md:gap-2 md:px-3 md:py-2.5',
-            isCustomSelected || customInputValue
+            isCustomSelected || customInputValue || isCustomFocused
               ? 'border-ens-blue'
               : 'border-ens-gray-three',
             disabled && 'cursor-not-allowed opacity-60',
@@ -183,7 +187,9 @@ export const DurationSelector = ({
             disabled={disabled}
             max={1000}
             min={1}
+            onBlur={() => setIsCustomFocused(false)}
             onChange={handleCustomInputChange}
+            onFocus={() => setIsCustomFocused(true)}
             step={1}
             type="number"
             value={customInputValue}
