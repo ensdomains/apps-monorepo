@@ -4,13 +4,13 @@
  * Provides a mutation with loading/error states for the UI.
  */
 
-import { sleep } from '@ens-apps/utils/sleep'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 import { sepolia } from 'viem/chains'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { pollForIndexerSync } from '../helpers/pollForIndexerSync'
 import { type SaveRecordsParams, saveRecords } from '../helpers/saveRecords'
 
 type UseSaveRecordsParams = Omit<
@@ -22,13 +22,6 @@ type UseSaveRecordsOptions = {
   /** Called after syncing completes (indexer has caught up) */
   onSyncComplete?: () => void
 }
-
-/** Delay before first refetch attempt (ms) */
-const INDEXER_DELAY_MS = 5000
-/** Interval between refetch attempts (ms) */
-const REFETCH_INTERVAL_MS = 3000
-/** Maximum number of refetch attempts */
-const MAX_REFETCH_ATTEMPTS = 3
 
 /**
  * Hook that provides a mutation for saving ENS records.
@@ -45,30 +38,25 @@ export function useSaveRecords(options: UseSaveRecordsOptions = {}) {
   const publicClient = usePublicClient({ chainId })
   const [isSyncing, setIsSyncing] = useState(false)
 
-  const refetchWithRetry = useCallback(
+  const syncAfterSave = useCallback(
     async (name: string) => {
       setIsSyncing(true)
 
       try {
-        // Wait for indexer to catch up
-        await sleep(INDEXER_DELAY_MS)
-
-        // Refetch with retries
-        for (let attempt = 1; attempt <= MAX_REFETCH_ATTEMPTS; attempt++) {
-          // Use refetchType: 'all' to ensure all instances refetch
-          await queryClient.invalidateQueries({
-            queryKey: getProfileQueryOptions(name).queryKey,
-            refetchType: 'all',
-          })
-
-          // Wait between retries
-          if (attempt < MAX_REFETCH_ATTEMPTS) {
-            await sleep(REFETCH_INTERVAL_MS)
-          }
-        }
+        await pollForIndexerSync({
+          invalidateQueries: () =>
+            queryClient.invalidateQueries({
+              queryKey: getProfileQueryOptions(name).queryKey,
+              refetchType: 'all',
+            }),
+          onAttempt: (attempt, maxAttempts) => {
+            console.log(
+              `🔄 [SAVE_RECORDS] Refetch attempt ${attempt}/${maxAttempts}`,
+            )
+          },
+        })
       } finally {
         setIsSyncing(false)
-        // Call callback after syncing is complete
         onSyncComplete?.()
       }
     },
@@ -98,7 +86,7 @@ export function useSaveRecords(options: UseSaveRecordsOptions = {}) {
     },
     onSuccess: (_data, variables) => {
       // Start refetching with retry logic (don't await - let it run in background)
-      refetchWithRetry(variables.name)
+      syncAfterSave(variables.name)
     },
   })
 
