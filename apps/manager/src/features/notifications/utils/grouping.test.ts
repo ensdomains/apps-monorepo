@@ -24,6 +24,7 @@ describe('notifications grouping utils', () => {
       name: 'test.eth',
       expiryDate: timestamp,
       isOwner: true,
+      watchReason: 'owned',
     },
   })
 

@@ -2,6 +2,8 @@ import { relations } from 'drizzle-orm'
 import { pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { users } from './core'
 
+export type EnsWatchReason = 'owned' | 'favourited' | 'manual'
+
 export const ensNames = pgTable('ens_names', {
   name: text('name').primaryKey(),
   expiry_at: timestamp('expiry_at', { withTimezone: true }),
@@ -52,6 +54,10 @@ export const ensWatchers = pgTable(
       .references(() => ensNames.name, {
         onDelete: 'cascade',
       }),
+    watch_reason: text('watch_reason')
+      .$type<EnsWatchReason>()
+      .notNull()
+      .default('manual'),
   },
   (table) => [
     primaryKey({

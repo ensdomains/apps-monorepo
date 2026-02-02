@@ -31,18 +31,18 @@ export const DashboardSidebar = ({
         <div className="space-y-8">
           <DashboardSidebarSearch onSelect={handleSuggestionSelect} />
           <div className="space-y-2">
-            <div className="font-sans text-[#8b8b8b] text-[12px] uppercase leading-[16px]">
+            <div className="font-sans text-[#8b8b8b] text-xs uppercase leading-[16px]">
               MAIN MENU
             </div>
             <nav className="space-y-[2px]">
               <Button
                 asChild
-                className="h-auto w-full justify-start rounded-[8px] bg-[#e2f1f5] p-3 text-[#0080bc] hover:bg-[#e2f1f5]/80 hover:text-[#0080bc]"
+                className="h-auto w-full justify-start rounded-[8px] bg-ens-blue-light p-3 text-ens-blue hover:bg-ens-blue-light/80 hover:text-ens-blue"
                 variant="ghost"
               >
                 <Link className="flex items-center gap-[10px]" to="/dashboard">
                   <LayoutGrid className="size-6" />
-                  <span className="font-medium font-sans text-[14px]">
+                  <span className="font-medium font-sans text-sm">
                     Dashboard
                   </span>
                 </Link>
@@ -57,7 +57,7 @@ export const DashboardSidebar = ({
                     variant="ghost"
                   >
                     <User className="size-6" />
-                    <span className="font-sans text-[14px]">Profile</span>
+                    <span className="font-sans text-sm">Profile</span>
                   </LinkButton>
                 ))
                 .with(false, () => (
@@ -67,7 +67,7 @@ export const DashboardSidebar = ({
                     variant="ghost"
                   >
                     <User className="size-6" />
-                    <span className="font-sans text-[14px]">Profile</span>
+                    <span className="font-sans text-sm">Profile</span>
                   </Button>
                 ))
                 .exhaustive()}

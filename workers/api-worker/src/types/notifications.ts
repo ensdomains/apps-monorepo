@@ -126,3 +126,17 @@ export type ChannelData = {
 }
 
 export type AnyChannelData = ChannelData[keyof ChannelData]
+
+// ===============================
+// Notification settings (new preferences model)
+// ===============================
+
+export const UserNotificationSettingsSchema = v.object({
+  ownedNameExpiry: v.boolean(),
+  favouritedNameExpiry: v.boolean(),
+  ensLabsUpdates: v.boolean(),
+})
+
+export type UserNotificationSettings = v.InferOutput<
+  typeof UserNotificationSettingsSchema
+>

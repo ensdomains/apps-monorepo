@@ -1,14 +1,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import {
-  NOTIFICATION_METADATA,
-  type NotificationKind,
-  type Prettify,
-} from 'api-worker/types'
-import { ArrowRightLeft, Calendar, Info, type LucideIcon } from 'lucide-react'
+import { Calendar, Info } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
 import {
   Card,
   CardContent,
@@ -23,46 +17,10 @@ import {
   preferencesQueryOptions,
   updatePreferenceMutationOptions,
 } from '../queries/preferences'
-import type { ChannelType } from '../types/preferences'
-
-const KIND_ICONS: Record<keyof typeof NOTIFICATION_METADATA, LucideIcon> = {
-  'name-expiry': Calendar,
-  'name-transferred': ArrowRightLeft,
-  'blog-post': Info,
-}
-
-const kindsData = Object.entries(NOTIFICATION_METADATA).map(([k, v]) => ({
-  id: k,
-  icon: KIND_ICONS[k as keyof typeof KIND_ICONS],
-  ...v,
-})) as {
-  [K in keyof typeof NOTIFICATION_METADATA]: Prettify<
-    (typeof NOTIFICATION_METADATA)[K] & {
-      id: K
-      icon: LucideIcon
-    }
-  >
-}[keyof typeof NOTIFICATION_METADATA][]
-
-const groupedKinds = Object.entries(
-  kindsData.reduce(
-    (acc, kind) => {
-      if (!acc[kind.category]) {
-        acc[kind.category] = []
-      }
-      acc[kind.category]?.push(kind)
-      return acc
-    },
-    {} as Record<string, typeof kindsData>,
-  ),
-).map(([category, kinds]) => ({
-  category,
-  kinds,
-}))
 
 export const NotificationPreferences = () => {
   const { data: channels = [] } = useQuery(channelsQueryOptions)
-  const { data: preferences = {} } = useQuery(preferencesQueryOptions)
+  const { data } = useQuery(preferencesQueryOptions)
   const updatePreferenceMutation = useMutation(updatePreferenceMutationOptions)
 
   const [hasAutoRenew] = useState(false) // This would come from user data
@@ -72,29 +30,25 @@ export const NotificationPreferences = () => {
   )
   const hasVerifiedChannels = verifiedChannels.length > 0
 
-  const handlePreferenceChange = (
-    kindId: NotificationKind,
-    channel: ChannelType,
-    enabled: boolean,
-  ) => {
-    updatePreferenceMutation.mutate(
-      { kind: kindId, channel, enabled },
-      {
-        onSuccess: () => {
-          toast.success('Preference updated')
-        },
-        onError: (error: Error) => {
-          toast.error(error.message || 'Failed to update preference')
-        },
-      },
-    )
+  const settings = data?.settings ?? {
+    ownedNameExpiry: false,
+    favouritedNameExpiry: false,
+    ensLabsUpdates: false,
   }
 
-  const isPreferenceEnabled = (
-    kindId: NotificationKind,
-    channel: ChannelType,
-  ): boolean => {
-    return preferences[channel]?.[kindId]?.enabled ?? true // Default to enabled
+  const handlePreferenceChange = (patch: {
+    ownedNameExpiry?: boolean
+    favouritedNameExpiry?: boolean
+    ensLabsUpdates?: boolean
+  }) => {
+    updatePreferenceMutation.mutate(patch, {
+      onSuccess: () => {
+        toast.success('Preference updated')
+      },
+      onError: (error: Error) => {
+        toast.error(error.message || 'Failed to update preference')
+      },
+    })
   }
 
   return (
@@ -126,85 +80,76 @@ export const NotificationPreferences = () => {
         <CardHeader>
           <CardTitle>Preferences</CardTitle>
           <CardDescription>
-            Control what kinds of notifications you receive and on which
-            channels.
+            Choose which notifications you want delivered to email/telegram. You
+            will still see critical notifications in-app.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-[1fr_repeat(2,minmax(0,max-content))] gap-4 border-b pb-4">
-            <div className="font-semibold">Notification Type</div>
-            <div className="text-center font-semibold">Email</div>
-            <div className="text-center font-semibold">Telegram</div>
-            {/* Web Push when ready */}
-          </div>
-
-          {groupedKinds.map(({ category, kinds }) => (
-            <div className="mt-6" key={category}>
-              <h3 className="mb-4 font-semibold text-lg">{category}</h3>
-              <div className="space-y-4">
-                {kinds.map((kind: (typeof kindsData)[number]) => {
-                  const KindIcon = kind.icon
-                  return (
-                    <div
-                      className="grid grid-cols-[1fr_repeat(2,minmax(0,max-content))] items-center gap-4 border-b pb-4 last:border-b-0 last:pb-0"
-                      key={kind.id}
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          {KindIcon && <KindIcon className="h-4 w-4" />}
-                          <Label className="font-medium">{kind.label}</Label>
-                          {kind.recommended && (
-                            <Badge variant="secondary">Recommended</Badge>
-                          )}
-                        </div>
-                        <p className="text-muted-foreground text-sm">
-                          {kind.description}
-                        </p>
-                        {'thresholds' in kind && (
-                          <p className="text-muted-foreground text-xs">
-                            We'll notify {kind.thresholds.join(', ')} days
-                            before
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-10">
-                        {['email', 'telegram'].map((channelType) => {
-                          const isChannelVerified = verifiedChannels.some(
-                            (c) => c.channel === channelType,
-                          )
-                          const isEnabled = isPreferenceEnabled(
-                            kind.id as NotificationKind,
-                            channelType as ChannelType,
-                          )
-
-                          return (
-                            <div
-                              className="flex flex-col items-center gap-1"
-                              key={channelType}
-                            >
-                              <Switch
-                                checked={isEnabled}
-                                disabled={
-                                  !hasVerifiedChannels || !isChannelVerified
-                                }
-                                onCheckedChange={(checked) =>
-                                  handlePreferenceChange(
-                                    kind.id as NotificationKind,
-                                    channelType as ChannelType,
-                                    checked,
-                                  )
-                                }
-                              />
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
+          <div className="space-y-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  <Label className="font-medium">Owned name expiry</Label>
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  Get expiry reminders for names you own.
+                </p>
               </div>
+              <Switch
+                checked={settings.ownedNameExpiry}
+                disabled={!hasVerifiedChannels}
+                onCheckedChange={(checked) =>
+                  handlePreferenceChange({ ownedNameExpiry: checked })
+                }
+              />
             </div>
-          ))}
+
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  <Label className="font-medium">Favourited name expiry</Label>
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  Get expiry reminders for names you’ve favourited.
+                </p>
+              </div>
+              <Switch
+                checked={settings.favouritedNameExpiry}
+                disabled={!hasVerifiedChannels}
+                onCheckedChange={(checked) =>
+                  handlePreferenceChange({ favouritedNameExpiry: checked })
+                }
+              />
+            </div>
+
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Info className="h-4 w-4" />
+                  <Label className="font-medium">ENS Labs updates</Label>
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  General ENS updates (blog posts, protocol updates, etc.).
+                </p>
+              </div>
+              <Switch
+                checked={settings.ensLabsUpdates}
+                disabled={!hasVerifiedChannels}
+                onCheckedChange={(checked) =>
+                  handlePreferenceChange({ ensLabsUpdates: checked })
+                }
+              />
+            </div>
+
+            {hasVerifiedChannels && (
+              <p className="text-muted-foreground text-xs">
+                Delivery channels:{' '}
+                {verifiedChannels.map((c) => c.label).join(', ')}
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
