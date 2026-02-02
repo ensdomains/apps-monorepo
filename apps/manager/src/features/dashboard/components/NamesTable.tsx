@@ -47,7 +47,7 @@ const DashboardTabButton = ({
         {label}
       </span>
       {badge !== undefined && badge > 0 && (
-        <span className="flex h-[19.68px] items-center justify-center rounded-[14px] bg-[#ffecf5] px-[6.56px] py-[1.64px] font-sans text-[#f53293] text-[14px] leading-[1.05] tracking-[0.28px]">
+        <span className="flex h-[19.68px] items-center justify-center rounded-[14px] bg-[#ffecf5] px-[6.56px] py-[1.64px] font-sans text-[#f53293] text-sm leading-[1.05] tracking-[0.28px]">
           {badge}
         </span>
       )}

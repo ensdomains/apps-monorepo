@@ -54,7 +54,7 @@ export const FaqSection = () => (
         rel="noopener noreferrer"
         target="_blank"
       >
-        <span className="font-sans text-[13px] leading-[1.6] md:text-[14px] md:leading-[1.8]">
+        <span className="font-sans text-[13px] leading-[1.6] md:text-sm md:leading-[1.8]">
           Get support
         </span>
         <ArrowRight className="size-[7px] md:size-2" strokeWidth={2} />
@@ -71,7 +71,7 @@ export const FaqSection = () => (
                 strokeWidth={1}
               />
             </CollapsibleTrigger>
-            <CollapsibleContent className="overflow-hidden pb-4 text-[14px] text-muted-foreground data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down motion-reduce:animate-none">
+            <CollapsibleContent className="overflow-hidden pb-4 text-muted-foreground text-sm data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down motion-reduce:animate-none">
               {answer}
             </CollapsibleContent>
           </div>

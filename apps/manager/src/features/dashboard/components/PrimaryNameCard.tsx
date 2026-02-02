@@ -137,9 +137,7 @@ export const PrimaryNameCard = ({
           to="/p/$name"
           variant="outline"
         >
-          <span className="font-sans text-[14px] leading-normal">
-            View profile
-          </span>
+          <span className="font-sans text-sm leading-normal">View profile</span>
         </LinkButton>
       </div>
     </Card>

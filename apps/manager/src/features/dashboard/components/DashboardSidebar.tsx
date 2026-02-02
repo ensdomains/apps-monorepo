@@ -42,7 +42,7 @@ export const DashboardSidebar = ({
               >
                 <Link className="flex items-center gap-[10px]" to="/dashboard">
                   <LayoutGrid className="size-6" />
-                  <span className="font-medium font-sans text-[14px]">
+                  <span className="font-medium font-sans text-sm">
                     Dashboard
                   </span>
                 </Link>
@@ -57,7 +57,7 @@ export const DashboardSidebar = ({
                     variant="ghost"
                   >
                     <User className="size-6" />
-                    <span className="font-sans text-[14px]">Profile</span>
+                    <span className="font-sans text-sm">Profile</span>
                   </LinkButton>
                 ))
                 .with(false, () => (
@@ -67,7 +67,7 @@ export const DashboardSidebar = ({
                     variant="ghost"
                   >
                     <User className="size-6" />
-                    <span className="font-sans text-[14px]">Profile</span>
+                    <span className="font-sans text-sm">Profile</span>
                   </Button>
                 ))
                 .exhaustive()}
