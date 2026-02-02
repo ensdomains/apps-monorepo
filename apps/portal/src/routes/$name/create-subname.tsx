@@ -158,17 +158,17 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
     }
 
     actor.subscribe((snapshot) => {
-      match(snapshot.value)
-        .with('success', () => {
-          navigate({ to: '/$name/subnames', params: { name } })
-        })
-        .with('error', () => {
-          setSubmitError(
-            snapshot.context.error?.message ?? 'Transaction failed',
-          )
-          setIsSubmitting(false)
-        })
-        .otherwise(() => {})
+      const value = snapshot.value
+      if (value === 'success') {
+        navigate({ to: '/$name/subnames', params: { name } })
+      } else if (
+        typeof value === 'object' &&
+        value !== null &&
+        'error' in value
+      ) {
+        setSubmitError(snapshot.context.error?.message ?? 'Transaction failed')
+        setIsSubmitting(false)
+      }
     })
   }
 
