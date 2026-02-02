@@ -17,6 +17,17 @@ const MATERIAL_SYMBOLS = [
   'notifications',
   'waving_hand',
   'settings',
+  'search',
+  'sentiment_calm',
+  'schedule',
+  'favorite',
+  'mail',
+  'check',
+  'priority_high',
+  'more_horiz',
+  'delete',
+  'cached',
+  'close',
 ] as const satisfies readonly string[]
 
 // Google Fonts requires the icons to be sorted alphabetically
