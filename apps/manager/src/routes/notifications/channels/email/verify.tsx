@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { EmailVerifyStep } from '@/features/notifications/components/channels/email/email-verify-step'
+import { EmailVerifyStep } from '@/features/notifications/components/email-verify-step'
 import { verifyEmailMutationOptions } from '@/features/notifications/queries/channels'
 
 // Shared card wrapper component
