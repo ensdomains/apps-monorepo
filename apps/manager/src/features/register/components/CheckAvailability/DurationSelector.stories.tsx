@@ -2,10 +2,10 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { DurationSelector } from './DurationSelector'
 
 const pricing = {
-  1: { price: 160, discount: 0, label: '1 year' },
-  3: { price: 160, discount: 0, label: '3 years' },
-  5: { price: 160, discount: 0, label: '5 years' },
-  10: { price: 160, discount: 0, label: '10 years' },
+  1: { price: 160, discount: 0, label: '1 year', total: 160 },
+  3: { price: 160, discount: 0, label: '3 years', total: 480 },
+  5: { price: 160, discount: 0, label: '5 years', total: 800 },
+  10: { price: 160, discount: 0, label: '10 years', total: 1600 },
 }
 
 const meta = {
@@ -40,5 +40,11 @@ export const Disabled: Story = {
 export const SingleYearSelected: Story = {
   args: {
     selectedDuration: 1,
+  },
+}
+
+export const CustomDurationSelected: Story = {
+  args: {
+    selectedDuration: 7,
   },
 }
