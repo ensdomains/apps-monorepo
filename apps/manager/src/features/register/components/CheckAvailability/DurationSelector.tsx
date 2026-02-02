@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type {
   PricingDuration,
   PricingOptions,
@@ -22,6 +22,7 @@ export const DurationSelector = ({
 }: DurationSelectorProps) => {
   const [customInputValue, setCustomInputValue] = useState<string>('')
   const [isCustomFocused, setIsCustomFocused] = useState(false)
+  const customInputRef = useRef<HTMLInputElement>(null)
 
   const isPredefinedDuration = (
     duration: number | null,
@@ -149,13 +150,14 @@ export const DurationSelector = ({
           'px-3 py-4 md:px-5 md:py-8',
           'rounded-lg border md:rounded-xl',
           'bg-ens-white transition-all',
-          'hover:border-ens-blue',
+          'cursor-pointer hover:border-ens-blue',
           isCustomSelected || customInputValue || isCustomFocused
             ? 'border-ens-blue'
             : 'border-ens-gray-three',
           disabled &&
             'cursor-not-allowed opacity-60 hover:border-ens-gray-three',
         )}
+        onClick={() => customInputRef.current?.focus()}
       >
         {/* Left: Label */}
         <div className="flex items-center gap-3 md:gap-5">
@@ -190,6 +192,7 @@ export const DurationSelector = ({
             onBlur={() => setIsCustomFocused(false)}
             onChange={handleCustomInputChange}
             onFocus={() => setIsCustomFocused(true)}
+            ref={customInputRef}
             step={1}
             type="number"
             value={customInputValue}
