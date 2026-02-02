@@ -1,4 +1,5 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: Need to mock the transaction manager */
+import { dedicatedResolverSetTextSnippet } from '@ensdomains/ensjs/contracts'
 import { encodeFunctionData, namehash } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -15,39 +16,6 @@ vi.mock('@ens-apps/transaction-manager', () => ({
 
 // Import after mocking
 import { type SaveRecordsParameters, saveRecords } from './saveRecords'
-
-const DEDICATED_RESOLVER_ABI = [
-  {
-    inputs: [
-      { internalType: 'uint256', name: 'coinType', type: 'uint256' },
-      { internalType: 'bytes', name: 'addressBytes', type: 'bytes' },
-    ],
-    name: 'setAddr',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { internalType: 'string', name: 'key', type: 'string' },
-      { internalType: 'string', name: 'value', type: 'string' },
-    ],
-    name: 'setText',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { internalType: 'bytes32', name: '', type: 'bytes32' },
-      { internalType: 'bytes[]', name: 'calls', type: 'bytes[]' },
-    ],
-    name: 'multicallWithNodeCheck',
-    outputs: [{ internalType: 'bytes[]', name: '', type: 'bytes[]' }],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const
 
 describe('saveRecords', () => {
   const mockParams: SaveRecordsParameters = {
@@ -122,7 +90,7 @@ describe('buildDedicatedResolverCalls (integration)', () => {
   // Helper to decode what calls would be generated
   const encodeSetText = (key: string, value: string) =>
     encodeFunctionData({
-      abi: DEDICATED_RESOLVER_ABI,
+      abi: dedicatedResolverSetTextSnippet,
       functionName: 'setText',
       args: [key, value],
     })

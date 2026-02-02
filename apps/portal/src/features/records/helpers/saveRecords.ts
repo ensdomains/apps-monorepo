@@ -11,6 +11,11 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import {
+  dedicatedResolverMulticallWithNodeCheckSnippet,
+  dedicatedResolverSetAddrSnippet,
+  dedicatedResolverSetTextSnippet,
+} from '@ensdomains/ensjs/contracts'
+import {
   type Address,
   encodeFunctionData,
   type Hex,
@@ -23,43 +28,6 @@ import {
   type SetRecordsInput,
   transformPendingChangesToSetRecords,
 } from './transformPendingChanges'
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const DEDICATED_RESOLVER_ABI = [
-  {
-    inputs: [
-      { internalType: 'uint256', name: 'coinType', type: 'uint256' },
-      { internalType: 'bytes', name: 'addressBytes', type: 'bytes' },
-    ],
-    name: 'setAddr',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { internalType: 'string', name: 'key', type: 'string' },
-      { internalType: 'string', name: 'value', type: 'string' },
-    ],
-    name: 'setText',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { internalType: 'bytes32', name: '', type: 'bytes32' },
-      { internalType: 'bytes[]', name: 'calls', type: 'bytes[]' },
-    ],
-    name: 'multicallWithNodeCheck',
-    outputs: [{ internalType: 'bytes[]', name: '', type: 'bytes[]' }],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const
 
 // ============================================================================
 // Types
@@ -102,7 +70,7 @@ function buildDedicatedResolverCalls(input: SetRecordsInput): Hex[] {
     for (const { key, value } of input.texts) {
       calls.push(
         encodeFunctionData({
-          abi: DEDICATED_RESOLVER_ABI,
+          abi: dedicatedResolverSetTextSnippet,
           functionName: 'setText',
           args: [key, value],
         }),
@@ -115,7 +83,7 @@ function buildDedicatedResolverCalls(input: SetRecordsInput): Hex[] {
     for (const { coin, value } of input.coins) {
       calls.push(
         encodeFunctionData({
-          abi: DEDICATED_RESOLVER_ABI,
+          abi: dedicatedResolverSetAddrSnippet,
           functionName: 'setAddr',
           args: [BigInt(coin), value as Hex],
         }),
@@ -189,7 +157,7 @@ export async function saveRecords(
   // Build the multicall data
   const node = namehash(name) as Hex
   const multicallData = encodeFunctionData({
-    abi: DEDICATED_RESOLVER_ABI,
+    abi: dedicatedResolverMulticallWithNodeCheckSnippet,
     functionName: 'multicallWithNodeCheck',
     args: [node, calls],
   })

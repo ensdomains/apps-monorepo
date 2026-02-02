@@ -9,6 +9,7 @@ import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getNameResolverAddress as getNameResolverAddressV2 } from '@ensdomains/ensjs/public/v2'
 import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, namehash, zeroAddress } from 'viem'
@@ -31,17 +32,6 @@ const ENS_REGISTRY_V1_ABI = [
   {
     inputs: [{ name: 'node', type: 'bytes32' }],
     name: 'resolver',
-    outputs: [{ name: '', type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-] as const
-
-/** ABI for V2 ETHRegistry resolver lookup */
-const ETH_REGISTRY_GET_RESOLVER_ABI = [
-  {
-    inputs: [{ name: 'label', type: 'string' }],
-    name: 'getResolver',
     outputs: [{ name: '', type: 'address' }],
     stateMutability: 'view',
     type: 'function',
@@ -83,16 +73,14 @@ export const getNameResolverAddress = ResultFn(async function* (
   const { name, network } = params
 
   if (network === 'namechainSepolia') {
-    // V2: Use Namechain client and ETHRegistry
+    // V2: Use Namechain client and ETHRegistry via ensjs
     const client = yield* safeGetNamechainSepoliaClient()
     const label = name.split('.')[0]
 
     const resolverAddress = yield* fromPromise(
-      readContract(client, {
-        address: ENS_SEPOLIA_CONTRACTS.ETHRegistry as Address,
-        abi: ETH_REGISTRY_GET_RESOLVER_ABI,
-        functionName: 'getResolver',
-        args: [label],
+      getNameResolverAddressV2(client, {
+        registryAddress: ENS_SEPOLIA_CONTRACTS.ETHRegistry as Address,
+        label,
       }),
       (e) => new GetNameResolverAddressError({ cause: e }),
     )
