@@ -18,6 +18,8 @@ const meta = {
   args: {
     pricing,
     onSelect: () => {},
+    durationInputValue: '',
+    onInputChange: () => {},
   },
 } satisfies Meta<typeof DurationSelector>
 
@@ -46,5 +48,6 @@ export const SingleYearSelected: Story = {
 export const CustomDurationSelected: Story = {
   args: {
     selectedDuration: 7,
+    durationInputValue: '7',
   },
 }

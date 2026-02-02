@@ -38,6 +38,10 @@ export const Pricing = ({
     // Account/connection
     isUsingAA,
 
+    // Shared input state
+    durationInputValue,
+    setDurationInputValue,
+
     // Handlers
     handleChange,
     handleConfirmPayment,
@@ -82,6 +86,8 @@ export const Pricing = ({
         <div className="flex flex-col space-y-2 duration-selector-container">
           <DurationSelector
             disabled={isPricingLoading || isLoading}
+            durationInputValue={durationInputValue}
+            onInputChange={setDurationInputValue}
             onSelect={handleChange}
             pricing={pricingOptions}
             selectedDuration={selectedDuration}
@@ -97,9 +103,11 @@ export const Pricing = ({
         <div className="summary-cards-container flex w-full flex-col gap-2">
           {/* Registration Summary Card */}
           <PricingRegistrationSummaryCard
+            durationInputValue={durationInputValue}
             expirationDate={expirationDate}
             formattedExpiration={formattedExpiration}
             onChange={handleChange}
+            onInputChange={setDurationInputValue}
             paddedDuration={paddedDuration}
           />
 

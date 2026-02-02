@@ -1,5 +1,5 @@
 import { useModal } from '@getpara/react-sdk-lite'
-import { useEffect, useMemo, useReducer } from 'react'
+import { useEffect, useMemo, useReducer, useState } from 'react'
 import type { PricingDuration } from '@/features/register/components/Pricing/types'
 import { getPremiumLabel } from '@/features/register/utils'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
@@ -47,6 +47,11 @@ export const usePricing = ({
     pricingReducer,
     sanitizePricingDuration(duration),
     createInitialState,
+  )
+
+  // Shared input value for duration inputs across components
+  const [durationInputValue, setDurationInputValue] = useState<string>(
+    state.selectedDuration.toString(),
   )
 
   const premiumLabel = useMemo(() => getPremiumLabel(domainName), [domainName])
@@ -202,9 +207,11 @@ export const usePricing = ({
     if (input instanceof Date) {
       dispatch({ type: 'SET_DATE', payload: input })
       const calculatedDuration = calculateDurationFromDate(input)
+      setDurationInputValue(calculatedDuration.toString())
       onSetDuration(calculatedDuration)
     } else {
       dispatch({ type: 'SET_DURATION', payload: input })
+      setDurationInputValue(input.toString())
       onSetDuration(input)
     }
   }
@@ -240,6 +247,8 @@ export const usePricing = ({
     paddedDuration,
     expirationDate,
     isUsingAA,
+    durationInputValue,
+    setDurationInputValue,
     handleChange,
     handleConfirmPayment,
     handleConnect,

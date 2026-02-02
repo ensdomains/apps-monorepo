@@ -10,6 +10,8 @@ type DurationSelectorProps = {
   selectedDuration: number | null
   onSelect: (duration: number) => void
   disabled?: boolean
+  durationInputValue: string
+  onInputChange: (value: string) => void
 }
 
 const durationOrder: PricingDuration[] = [1, 3, 5, 10]
@@ -19,8 +21,9 @@ export const DurationSelector = ({
   selectedDuration,
   onSelect,
   disabled,
+  durationInputValue,
+  onInputChange,
 }: DurationSelectorProps) => {
-  const [customInputValue, setCustomInputValue] = useState<string>('')
   const [isCustomFocused, setIsCustomFocused] = useState(false)
   const customInputRef = useRef<HTMLInputElement>(null)
 
@@ -33,7 +36,6 @@ export const DurationSelector = ({
   }
 
   const handlePredefinedSelect = (duration: PricingDuration) => {
-    setCustomInputValue('')
     onSelect(duration)
   }
 
@@ -42,14 +44,14 @@ export const DurationSelector = ({
 
     // Allow clearing the input
     if (value === '') {
-      setCustomInputValue('')
+      onInputChange('')
       return
     }
 
     // Only allow positive integers
     const parsed = parseInt(value, 10)
     if (!isNaN(parsed) && parsed >= 1 && parsed <= 1000) {
-      setCustomInputValue(value)
+      onInputChange(value)
       onSelect(parsed)
     }
   }
@@ -57,7 +59,7 @@ export const DurationSelector = ({
   const handleCustomInputBlur = () => {
     setIsCustomFocused(false)
     // If empty on blur, reset to 1 year
-    if (customInputValue === '') {
+    if (durationInputValue === '') {
       onSelect(1)
     }
   }
@@ -83,8 +85,7 @@ export const DurationSelector = ({
     <div className="flex h-full flex-col justify-between gap-1 md:gap-2">
       {durationOrder.map((duration) => {
         const option = pricing[duration]
-        const isSelected =
-          duration === selectedDuration && !customInputValue && !isCustomFocused
+        const isSelected = duration === selectedDuration && !isCustomFocused
 
         const formattedTotalPrice = (option.total ?? 0).toLocaleString(
           'en-US',
@@ -158,7 +159,7 @@ export const DurationSelector = ({
           'rounded-lg border md:rounded-xl',
           'bg-ens-white transition-all',
           'cursor-pointer hover:border-ens-blue',
-          isCustomSelected || customInputValue || isCustomFocused
+          isCustomSelected || isCustomFocused
             ? 'border-ens-blue'
             : 'border-ens-gray-three',
           disabled &&
@@ -177,7 +178,7 @@ export const DurationSelector = ({
         <div
           className={cn(
             'flex items-center gap-1.5 rounded border bg-white px-2 py-1.5 md:gap-2 md:px-3 md:py-2.5',
-            isCustomSelected || customInputValue || isCustomFocused
+            isCustomSelected || isCustomFocused
               ? 'border-ens-blue'
               : 'border-ens-gray-three',
             disabled && 'cursor-not-allowed opacity-60',
@@ -202,7 +203,7 @@ export const DurationSelector = ({
             ref={customInputRef}
             step={1}
             type="number"
-            value={customInputValue}
+            value={durationInputValue}
           />
           <span className="font-normal text-ens-gray-three text-xs leading-none tracking-tight md:text-base">
             years

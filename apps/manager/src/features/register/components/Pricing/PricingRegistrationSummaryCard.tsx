@@ -1,6 +1,5 @@
 import { addMonths } from 'date-fns'
 import { Calendar as CalendarIcon } from 'lucide-react'
-import * as React from 'react'
 import { useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import {
@@ -17,6 +16,8 @@ type PricingRegistrationSummaryCardProps = {
   formattedExpiration: string
   expirationDate: Date
   onChange: (input: Date | number | undefined) => void
+  durationInputValue: string
+  onInputChange: (value: string) => void
 }
 
 export const PricingRegistrationSummaryCard = ({
@@ -24,36 +25,32 @@ export const PricingRegistrationSummaryCard = ({
   formattedExpiration,
   expirationDate,
   onChange,
+  durationInputValue,
+  onInputChange,
 }: PricingRegistrationSummaryCardProps) => {
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false)
-  const [durationInput, setDurationInput] = useState(paddedDuration)
-
-  React.useEffect(() => {
-    setDurationInput(paddedDuration)
-  }, [paddedDuration])
 
   const handleDurationInputChange = (value: string) => {
     const numericValue = value.replace(/\D/g, '')
     if (numericValue === '') {
-      setDurationInput('')
+      onInputChange('')
       return
     }
-    setDurationInput(numericValue)
+
+    const parsed = parseInt(numericValue, 10)
+    if (!isNaN(parsed) && parsed >= 1 && parsed <= MAX_DURATION_YEARS) {
+      onInputChange(numericValue)
+      onChange(parsed)
+    }
   }
 
   const handleDurationInputBlur = () => {
-    const numericValue = parseInt(durationInput, 10)
+    const numericValue = parseInt(durationInputValue, 10)
     if (Number.isNaN(numericValue) || numericValue < 1) {
-      const clampedValue = 1
-      setDurationInput(clampedValue.toString().padStart(2, '0'))
-      onChange(clampedValue)
+      onChange(1)
     } else if (numericValue > MAX_DURATION_YEARS) {
-      const clampedValue = MAX_DURATION_YEARS
-      setDurationInput(clampedValue.toString().padStart(2, '0'))
-      onChange(clampedValue)
+      onChange(MAX_DURATION_YEARS)
     } else {
-      const paddedValue = numericValue.toString().padStart(2, '0')
-      setDurationInput(paddedValue)
       onChange(numericValue)
     }
   }
@@ -64,7 +61,7 @@ export const PricingRegistrationSummaryCard = ({
     if (e.key === 'Enter') {
       e.currentTarget.blur()
     } else if (e.key === 'Escape') {
-      setDurationInput(paddedDuration)
+      onInputChange(paddedDuration)
       e.currentTarget.blur()
     }
   }
@@ -85,14 +82,14 @@ export const PricingRegistrationSummaryCard = ({
               Registering for
             </span>
             <input
-              className="w-9 bg-transparent text-center font-medium text-ens-blue text-xl leading-none tracking-tight outline-none [appearance:textfield] md:text-2xl [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              className="w-10 bg-transparent text-center font-medium text-ens-blue text-xl leading-none tracking-tight outline-none [appearance:textfield] md:text-2xl [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               max={MAX_DURATION_YEARS}
               min="1"
               onBlur={handleDurationInputBlur}
               onChange={(e) => handleDurationInputChange(e.target.value)}
               onKeyDown={handleDurationInputKeyDown}
               type="number"
-              value={durationInput}
+              value={durationInputValue}
             />
             <span className="font-normal text-ens-blue-midnight text-xl leading-none tracking-tight md:text-2xl">
               years
