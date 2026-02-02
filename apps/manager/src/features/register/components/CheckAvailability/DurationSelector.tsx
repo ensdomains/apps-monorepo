@@ -11,7 +11,7 @@ type DurationSelectorProps = {
   disabled?: boolean
 }
 
-const durationOrder: PricingDuration[] = [1, 2, 3, 4, 5]
+const durationOrder: PricingDuration[] = [1, 3, 5, 10]
 
 export const DurationSelector = ({
   pricing,
@@ -22,14 +22,12 @@ export const DurationSelector = ({
   // Map discount badges to darker colors for higher durations
   const getBadgeColor = (duration: PricingDuration) => {
     switch (duration) {
-      case 2:
-        return 'bg-slate-400' // 15% off
       case 3:
-        return 'bg-slate-500' // 40% off
-      case 4:
-        return 'bg-slate-600' // 45% off
+        return 'bg-slate-500'
       case 5:
-        return 'bg-slate-700' // 50% off
+        return 'bg-slate-600'
+      case 10:
+        return 'bg-slate-700'
       default:
         return 'bg-slate-400'
     }
@@ -41,10 +39,9 @@ export const DurationSelector = ({
         const option = pricing[duration]
         const isSelected = duration === selectedDuration
 
-        const formattedTotalPrice = (option.price * duration).toLocaleString(
-          undefined,
+        const formattedTotalPrice = (option.total ?? 0).toLocaleString(
+          'en-US',
           {
-            minimumFractionDigits: 0,
             maximumFractionDigits: 0,
           },
         )
