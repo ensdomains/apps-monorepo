@@ -4,11 +4,12 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, Loader2 } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
-import { useDeferredValue, useState } from 'react'
+import { type FormEvent, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { isAddress, zeroAddress } from 'viem'
+import { type Address, isAddress, zeroAddress } from 'viem'
+import { getEnsAddress } from 'viem/actions'
 import { sepolia } from 'viem/chains'
-import { useAccount, useEnsAddress, useWalletClient } from 'wagmi'
+import { useAccount, useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -22,7 +23,10 @@ import {
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { prepareCreateSubnameTransaction } from '@/features/registry/utils/create-subname.helpers'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { wagmiConfig } from '@/lib/wagmi'
 import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
+
+const client = wagmiConfig.getClient({ chainId: sepolia.id })
 
 export const Route = createFileRoute('/$name/create-subname')({
   component: RouteComponent,
@@ -59,14 +63,12 @@ interface CreateSubnameFormProps {
 const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
   const navigate = useNavigate()
   const { isConnected } = useAccount()
-  const { data: walletClient } = useWalletClient({ chainId: sepolia.id })
+  const { data: walletClient } = useWalletClient()
 
   const [label, setLabel] = useState('')
-  const [ownerInput, setOwnerInput] = useState('')
+  const [ownerAddress, setOwnerAddress] = useState<Address | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-
-  const deferredOwnerInput = useDeferredValue(ownerInput)
 
   // Fetch registries (we know it's v2 at this point)
   const {
@@ -77,31 +79,18 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
     getNameRegistriesQueryOptions({ name, network: 'namechainSepolia' }),
   )
 
-  // Resolve owner address (independent, user-input driven)
-  const isOwnerInputAddress = isAddress(deferredOwnerInput)
-  const {
-    data: ensResolvedAddress,
-    isLoading: isResolvingOwner,
-    error: resolveError,
-  } = useEnsAddress({
-    name: deferredOwnerInput,
-    query: {
-      enabled: !!deferredOwnerInput && !isOwnerInputAddress,
-    },
-  })
-  const resolvedOwner = isOwnerInputAddress
-    ? deferredOwnerInput
-    : ensResolvedAddress
-
   const subregistryAddress = registriesData?.registries[0]
   const hasSubregistry =
     subregistryAddress && subregistryAddress !== zeroAddress
 
-  const isFormValid =
-    label.trim() !== '' && resolvedOwner !== null && !resolveError
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
 
-  const handleSubmit = async () => {
-    if (!hasSubregistry || !resolvedOwner || !walletClient) {
+    if (!e.currentTarget.reportValidity()) {
+      return
+    }
+
+    if (!hasSubregistry || !ownerAddress || !walletClient) {
       return
     }
 
@@ -137,7 +126,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
     const intentResult = await prepareCreateSubnameTransaction({
       registryAddress: subregistryAddress,
       label: label.trim(),
-      owner: resolvedOwner,
+      owner: ownerAddress,
       resolverAddress,
       walletClient,
       chainId: sepolia.id,
@@ -192,81 +181,80 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
     <div className="flex flex-col gap-6 p-6 w-full max-w-[640px] mx-auto">
       <PageHeader name={name} />
 
-      <Field>
-        <FieldLabel htmlFor="label">Subname</FieldLabel>
-        <div className="flex items-center gap-2">
-          <Input
-            id="label"
-            name="label"
-            placeholder="subname"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            className="flex-1"
-            disabled={isSubmitting}
-          />
-          <span className="text-base">.{name}</span>
-        </div>
-      </Field>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <Field>
+          <FieldLabel htmlFor="label">Subname</FieldLabel>
+          <div className="flex items-center gap-2">
+            <Input
+              id="label"
+              name="label"
+              placeholder="subname"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              className="flex-1"
+              disabled={isSubmitting}
+              required
+            />
+            <span className="text-base">.{name}</span>
+          </div>
+        </Field>
 
-      <Field>
-        <FieldLabel htmlFor="owner">Owner</FieldLabel>
-        <Input
-          id="owner"
-          name="owner"
-          placeholder="ENS name or HEX address"
-          value={ownerInput}
-          onChange={(e) => setOwnerInput(e.target.value)}
-          disabled={isSubmitting}
-        />
-        {match({ isResolvingOwner, resolveError, resolvedOwner, ownerInput })
-          .with({ isResolvingOwner: true }, () => (
-            <p className="text-sm text-gray-500 mt-1">Resolving...</p>
-          ))
-          .with({ resolveError: P.not(P.nullish) }, () => (
-            <p className="text-sm text-red-500 mt-1">
-              Could not resolve address
+        <Field data-invalid={!ownerAddress}>
+          <FieldLabel htmlFor="owner">Owner</FieldLabel>
+          <Input
+            id="owner"
+            name="owner"
+            placeholder="ENS name or HEX address"
+            disabled={isSubmitting}
+            required
+            pattern="(?:[\u002DA-Za-z0-9]+[.][A-Za-z]+|0x[a-fA-F0-9]{40})"
+            onChange={async (e) => {
+              if (e.currentTarget.checkValidity()) {
+                const nameOrAddress = e.currentTarget.value as Address
+
+                if (isAddress(nameOrAddress)) {
+                  setOwnerAddress(nameOrAddress)
+                } else {
+                  const address = await getEnsAddress(client, {
+                    name: nameOrAddress,
+                  })
+                  setOwnerAddress(address)
+                }
+              } else {
+                setOwnerAddress(null)
+              }
+            }}
+          />
+        </Field>
+
+        {match({ isConnected, submitError })
+          .with({ isConnected: false }, () => (
+            <p className="text-sm text-amber-600">
+              Please connect your wallet to create a subname.
             </p>
           ))
-          .with(
-            {
-              resolvedOwner: P.when(
-                (addr) => addr !== null && addr !== ownerInput,
-              ),
-            },
-            ({ resolvedOwner }) => (
-              <p className="text-sm text-gray-500 mt-1">
-                Resolved to: {resolvedOwner}
-              </p>
-            ),
-          )
-          .otherwise(() => null)}
-      </Field>
-
-      {match({ isConnected, submitError })
-        .with({ isConnected: false }, () => (
-          <p className="text-sm text-amber-600">
-            Please connect your wallet to create a subname.
-          </p>
-        ))
-        .with({ submitError: P.string.minLength(1) }, ({ submitError }) => (
-          <p className="text-sm text-red-500">Error: {submitError}</p>
-        ))
-        .otherwise(() => null)}
-
-      <Button
-        disabled={!isFormValid || isSubmitting || !walletClient || !isConnected}
-        className="w-fit"
-        onClick={handleSubmit}
-      >
-        {match(isSubmitting)
-          .with(true, () => (
-            <>
-              <Loader2 className="size-4 animate-spin mr-2" />
-              Creating...
-            </>
+          .with({ submitError: P.string.minLength(1) }, ({ submitError }) => (
+            <p className="text-sm text-red-500">Error: {submitError}</p>
           ))
-          .otherwise(() => 'Create subname')}
-      </Button>
+          .otherwise(() => null)}
+
+        <Button
+          type="submit"
+          disabled={
+            !ownerAddress || isSubmitting || !walletClient || !isConnected
+          }
+          className="w-fit"
+        >
+          {match(isSubmitting)
+            .with(true, () => (
+              <>
+                <Loader2 className="size-4 animate-spin mr-2" />
+                Creating...
+              </>
+            ))
+            .otherwise(() => 'Create subname')}
+        </Button>
+      </form>
     </div>
   )
 }
