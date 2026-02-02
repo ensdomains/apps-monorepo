@@ -189,8 +189,10 @@ const EditRecordsContent = ({
     discardAll,
   } = useEditRecordsState(originalRecords)
 
-  // Save records hook
-  const { saveRecords, isWriting, isConfirming } = useSaveRecords()
+  // Save records hook - discard changes only after syncing completes
+  const { saveRecords, isWriting, isConfirming, isSyncing } = useSaveRecords({
+    onSyncComplete: discardAll,
+  })
 
   const handleSaveRecords = async () => {
     try {
@@ -200,8 +202,7 @@ const EditRecordsContent = ({
         originalRecords,
         pendingChanges,
       })
-      // Reset pending changes after successful save
-      discardAll()
+      // Note: discardAll is called via onSyncComplete after indexer catches up
     } catch (error) {
       // Error is already handled by the mutation state
       console.error('Failed to save records:', error)
@@ -401,6 +402,7 @@ const EditRecordsContent = ({
         onSave={handleSaveRecords}
         onDiscard={discardAll}
         isSaving={isWriting || isConfirming}
+        isSyncing={isSyncing}
       />
     </div>
   )

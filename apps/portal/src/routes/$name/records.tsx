@@ -23,7 +23,14 @@ function App() {
   const { address: connectedAddress } = useConnection()
 
   const [profileQuery, ownerQuery] = useQueries({
-    queries: [getProfileQueryOptions(name), getEnsOwnerQueryOptions({ name })],
+    queries: [
+      {
+        ...getProfileQueryOptions(name),
+        // Always refetch on mount to ensure fresh data after edits
+        refetchOnMount: 'always' as const,
+      },
+      getEnsOwnerQueryOptions({ name }),
+    ],
   })
 
   const isLoading = profileQuery.isLoading || ownerQuery.isLoading
