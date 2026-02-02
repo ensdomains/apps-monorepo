@@ -177,9 +177,11 @@ function FieldError({
   className,
   children,
   errors,
+  renderPrefix,
   ...props
 }: React.ComponentProps<'div'> & {
   errors?: Array<{ message?: string } | undefined>
+  renderPrefix?: React.ReactNode
 }) {
   const content = useMemo(() => {
     if (children) {
@@ -219,6 +221,7 @@ function FieldError({
       role="alert"
       {...props}
     >
+      {renderPrefix && renderPrefix}
       {content}
     </div>
   )
