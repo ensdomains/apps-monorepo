@@ -46,11 +46,11 @@ const PageHeader = ({ name }: PageHeaderProps) => (
         variant="ghost"
         className="flex items-center gap-1 -ml-2 text-gray-500"
       >
-        <ArrowLeftIcon className="size-4" />
+        <ArrowLeftIcon className="size-6" />
         Back
       </Button>
     </Link>
-    <h1 className="text-[30px] font-medium leading-tight">Create subname</h1>
+    <h1 className="text-[30px] font-medium leading-[1.35]">Create subname</h1>
   </div>
 )
 
@@ -184,7 +184,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
 
   if (!hasSubregistry) {
     return (
-      <div className="flex flex-col gap-6 p-6 w-full max-w-[640px] mx-auto">
+      <div className="flex flex-col gap-6 px-8 py-6 w-full max-w-[640px] mx-auto">
         <PageHeader name={name} />
         <p className="text-gray-600">
           This name does not have a subregistry. You must deploy one first to
@@ -200,7 +200,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6 w-full max-w-[640px] mx-auto">
+    <div className="flex flex-col gap-6 px-8 py-6 w-full max-w-[640px] mx-auto">
       <PageHeader name={name} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
@@ -293,7 +293,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
           disabled={
             !ownerAddress || isSubmitting || !walletClient || !isConnected
           }
-          className="w-fit"
+          className="w-full sm:w-fit"
         >
           {match(isSubmitting)
             .with(true, () => (
@@ -322,7 +322,7 @@ const CreateSubnameContent = ({
 }: CreateSubnameContentProps) => {
   if (ownerData.network !== 'namechainSepolia') {
     return (
-      <div className="flex flex-col gap-6 p-6 w-full max-w-[640px] mx-auto">
+      <div className="flex flex-col gap-6 px-8 py-6 w-full max-w-[640px] mx-auto">
         <PageHeader name={name} />
         <p className="text-gray-600">
           This feature is only available for ENSv2 names.
