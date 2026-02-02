@@ -1,5 +1,5 @@
 import { addMonths } from 'date-fns'
-import { Calendar as CalendarIcon } from 'lucide-react'
+import { Pencil } from 'lucide-react'
 import { useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import {
@@ -107,16 +107,14 @@ export const PricingRegistrationSummaryCard = ({
               <PopoverTrigger asChild>
                 <button
                   className={cn(
-                    'relative inline-flex cursor-pointer items-center gap-2 rounded-sm bg-ens-gray-two px-1 py-0.5 shadow-sm transition-shadow hover:shadow-lg',
+                    'inline-flex cursor-pointer items-center gap-2 border-ens-gray-three border-y px-3 py-1.5 transition-all hover:border-ens-blue',
                   )}
                   type="button"
                 >
-                  <div className="relative z-10 flex items-center gap-2">
-                    <CalendarIcon className="size-4 text-ens-blue" />
-                    <span className="font-medium text-ens-blue text-xl leading-none tracking-tight md:text-2xl">
-                      {formattedExpiration}
-                    </span>
-                  </div>
+                  <span className="font-medium text-ens-blue text-xl leading-none tracking-tight md:text-2xl">
+                    {formattedExpiration}
+                  </span>
+                  <Pencil className="size-4 text-ens-blue" />
                 </button>
               </PopoverTrigger>
               <PopoverContent align="center" className="w-auto p-0">
