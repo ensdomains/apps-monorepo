@@ -40,10 +40,9 @@ export const DurationSelector = ({
   const handleCustomInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
 
-    // If cleared, reset to 1 year
+    // Allow clearing the input
     if (value === '') {
       setCustomInputValue('')
-      onSelect(1)
       return
     }
 
@@ -52,6 +51,14 @@ export const DurationSelector = ({
     if (!isNaN(parsed) && parsed >= 1 && parsed <= 1000) {
       setCustomInputValue(value)
       onSelect(parsed)
+    }
+  }
+
+  const handleCustomInputBlur = () => {
+    setIsCustomFocused(false)
+    // If empty on blur, reset to 1 year
+    if (customInputValue === '') {
+      onSelect(1)
     }
   }
 
@@ -189,7 +196,7 @@ export const DurationSelector = ({
             disabled={disabled}
             max={1000}
             min={1}
-            onBlur={() => setIsCustomFocused(false)}
+            onBlur={handleCustomInputBlur}
             onChange={handleCustomInputChange}
             onFocus={() => setIsCustomFocused(true)}
             ref={customInputRef}

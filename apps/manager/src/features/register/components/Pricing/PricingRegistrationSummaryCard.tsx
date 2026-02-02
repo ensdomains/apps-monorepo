@@ -84,18 +84,16 @@ export const PricingRegistrationSummaryCard = ({
             <span className="font-normal text-ens-blue-midnight text-xl leading-none tracking-tight md:text-2xl">
               Registering for
             </span>
-            <div className="rounded-sm bg-ens-gray-two px-1 py-0.5">
-              <input
-                className="w-10 bg-transparent text-center font-medium text-ens-blue text-xl leading-none tracking-tight outline-none [appearance:textfield] md:text-2xl [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                max={MAX_DURATION_YEARS}
-                min="1"
-                onBlur={handleDurationInputBlur}
-                onChange={(e) => handleDurationInputChange(e.target.value)}
-                onKeyDown={handleDurationInputKeyDown}
-                type="number"
-                value={durationInput}
-              />
-            </div>
+            <input
+              className="w-9 bg-transparent text-center font-medium text-ens-blue text-xl leading-none tracking-tight outline-none [appearance:textfield] md:text-2xl [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              max={MAX_DURATION_YEARS}
+              min="1"
+              onBlur={handleDurationInputBlur}
+              onChange={(e) => handleDurationInputChange(e.target.value)}
+              onKeyDown={handleDurationInputKeyDown}
+              type="number"
+              value={durationInput}
+            />
             <span className="font-normal text-ens-blue-midnight text-xl leading-none tracking-tight md:text-2xl">
               years
             </span>
