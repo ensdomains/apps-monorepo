@@ -38,9 +38,10 @@ export const DurationSelector = ({
   const handleCustomInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
 
-    // Allow empty string for clearing
+    // If cleared, reset to 1 year
     if (value === '') {
       setCustomInputValue('')
+      onSelect(1)
       return
     }
 
