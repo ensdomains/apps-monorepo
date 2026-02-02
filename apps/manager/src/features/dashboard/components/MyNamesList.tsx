@@ -308,7 +308,7 @@ export const MyNamesList = ({
                       })}
                 >
                   {isPrimary && (
-                    <div className="mb-[10px] px-[24px]">
+                    <div className="mb-[10px]">
                       <PrimaryBadge />
                     </div>
                   )}
