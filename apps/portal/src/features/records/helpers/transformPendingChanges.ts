@@ -48,12 +48,16 @@ export function transformPendingChangesToSetRecords(
 
   // Process new records
   for (const record of newRecords) {
-    if (record.type === 'text') {
-      texts.push({ key: record.key, value: record.value })
-    } else if (record.type === 'address') {
-      coins.push({ coin: record.id, value: record.value })
-    } else if (record.type === 'contentHash') {
-      contentHash = record.value
+    switch (record.type) {
+      case 'text':
+        texts.push({ key: record.key, value: record.value })
+        break
+      case 'address':
+        coins.push({ coin: record.id, value: record.value })
+        break
+      case 'contentHash':
+        contentHash = record.value
+        break
     }
   }
 
@@ -63,12 +67,16 @@ export function transformPendingChangesToSetRecords(
     const originalRecord = originalRecords.find((r) => getRecordId(r) === id)
     if (!originalRecord) continue
 
-    if (originalRecord.type === 'text') {
-      texts.push({ key: originalRecord.key, value: newValue })
-    } else if (originalRecord.type === 'address') {
-      coins.push({ coin: originalRecord.id, value: newValue })
-    } else if (originalRecord.type === 'contentHash') {
-      contentHash = newValue
+    switch (originalRecord.type) {
+      case 'text':
+        texts.push({ key: originalRecord.key, value: newValue })
+        break
+      case 'address':
+        coins.push({ coin: originalRecord.id, value: newValue })
+        break
+      case 'contentHash':
+        contentHash = newValue
+        break
     }
   }
 
@@ -77,12 +85,16 @@ export function transformPendingChangesToSetRecords(
     const originalRecord = originalRecords.find((r) => getRecordId(r) === id)
     if (!originalRecord) continue
 
-    if (originalRecord.type === 'text') {
-      texts.push({ key: originalRecord.key, value: '' })
-    } else if (originalRecord.type === 'address') {
-      coins.push({ coin: originalRecord.id, value: '' })
-    } else if (originalRecord.type === 'contentHash') {
-      contentHash = null
+    switch (originalRecord.type) {
+      case 'text':
+        texts.push({ key: originalRecord.key, value: '' })
+        break
+      case 'address':
+        coins.push({ coin: originalRecord.id, value: '' })
+        break
+      case 'contentHash':
+        contentHash = null
+        break
     }
   }
 

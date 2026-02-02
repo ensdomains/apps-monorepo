@@ -164,18 +164,16 @@ export function useEditRecordsState(originalRecords: NameRecord[]) {
     state.newRecords.length + state.editedValues.size + state.deletedIds.size
   const updatesCount = changesCount // For now, 1:1 mapping
 
-  // Action dispatchers (stable references)
-  const addRecord = useCallback(
-    (recordType: RecordType, key: string, value: string) => {
-      dispatch({ type: 'ADD_RECORD', recordType, key, value })
-    },
-    [],
-  )
+  // Action dispatchers
+  const addRecord = (recordType: RecordType, key: string, value: string) => {
+    dispatch({ type: 'ADD_RECORD', recordType, key, value })
+  }
 
-  const deleteRecord = useCallback((record: EditableRecord) => {
+  const deleteRecord = (record: EditableRecord) => {
     dispatch({ type: 'DELETE_RECORD', record })
-  }, [])
+  }
 
+  // useCallback needed because this is passed to EditRecordsTable's memoized columns
   const updateRecord = useCallback(
     (record: EditableRecord, newValue: string) => {
       dispatch({ type: 'UPDATE_RECORD', record, newValue, originalRecords })
@@ -183,9 +181,9 @@ export function useEditRecordsState(originalRecords: NameRecord[]) {
     [originalRecords],
   )
 
-  const discardAll = useCallback(() => {
+  const discardAll = () => {
     dispatch({ type: 'DISCARD_ALL' })
-  }, [])
+  }
 
   // Data for save operation
   const pendingChanges = useMemo(

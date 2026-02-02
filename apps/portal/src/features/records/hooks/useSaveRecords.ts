@@ -11,10 +11,10 @@ import { usePublicClient, useWalletClient } from 'wagmi'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { pollForIndexerSync } from '../helpers/pollForIndexerSync'
-import { type SaveRecordsParams, saveRecords } from '../helpers/saveRecords'
+import { type SaveRecordsParameters, saveRecords } from '../helpers/saveRecords'
 
-type UseSaveRecordsParams = Omit<
-  SaveRecordsParams,
+type UseSaveRecordsParameters = Omit<
+  SaveRecordsParameters,
   'publicClient' | 'accountAddress' | 'signer' | 'chainId'
 >
 
@@ -59,7 +59,7 @@ export function useSaveRecords(options: UseSaveRecordsOptions = {}) {
   )
 
   const mutation = useMutation({
-    mutationFn: async (params: UseSaveRecordsParams) => {
+    mutationFn: async (params: UseSaveRecordsParameters) => {
       if (!walletClient || !publicClient) {
         throw new Error('Wallet not connected')
       }

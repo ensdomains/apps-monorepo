@@ -14,7 +14,7 @@ vi.mock('@ens-apps/transaction-manager', () => ({
 }))
 
 // Import after mocking
-import { type SaveRecordsParams, saveRecords } from './saveRecords'
+import { type SaveRecordsParameters, saveRecords } from './saveRecords'
 
 const DEDICATED_RESOLVER_ABI = [
   {
@@ -50,7 +50,7 @@ const DEDICATED_RESOLVER_ABI = [
 ] as const
 
 describe('saveRecords', () => {
-  const mockParams: SaveRecordsParams = {
+  const mockParams: SaveRecordsParameters = {
     name: 'test.eth',
     resolverAddress: '0x1234567890123456789012345678901234567890',
     originalRecords: [
@@ -131,7 +131,7 @@ describe('buildDedicatedResolverCalls (integration)', () => {
     const { transactionManager } = await import('@ens-apps/transaction-manager')
     vi.mocked(transactionManager.startTransaction).mockClear()
 
-    const params: SaveRecordsParams = {
+    const params: SaveRecordsParameters = {
       name: 'test.eth',
       resolverAddress: '0x1234567890123456789012345678901234567890',
       originalRecords: [{ type: 'text', key: 'description', value: 'old' }],
@@ -161,7 +161,7 @@ describe('buildDedicatedResolverCalls (integration)', () => {
     const { transactionManager } = await import('@ens-apps/transaction-manager')
     vi.mocked(transactionManager.startTransaction).mockClear()
 
-    const params: SaveRecordsParams = {
+    const params: SaveRecordsParameters = {
       name: 'test.eth',
       resolverAddress: '0x1234567890123456789012345678901234567890',
       originalRecords: [{ type: 'text', key: 'twitter', value: '@john' }],
@@ -190,7 +190,7 @@ describe('buildDedicatedResolverCalls (integration)', () => {
     const { transactionManager } = await import('@ens-apps/transaction-manager')
     vi.mocked(transactionManager.startTransaction).mockClear()
 
-    const params: SaveRecordsParams = {
+    const params: SaveRecordsParameters = {
       name: 'test.eth',
       resolverAddress: '0x1234567890123456789012345678901234567890',
       originalRecords: [],
@@ -218,7 +218,7 @@ describe('buildDedicatedResolverCalls (integration)', () => {
     const { transactionManager } = await import('@ens-apps/transaction-manager')
     vi.mocked(transactionManager.startTransaction).mockClear()
 
-    const params: SaveRecordsParams = {
+    const params: SaveRecordsParameters = {
       name: 'myname.eth',
       resolverAddress: '0x1234567890123456789012345678901234567890',
       originalRecords: [{ type: 'text', key: 'name', value: 'old' }],

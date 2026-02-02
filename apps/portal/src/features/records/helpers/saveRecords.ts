@@ -12,15 +12,17 @@ import {
 } from '@ens-apps/transaction-manager'
 import {
   type Address,
-  bytesToHex,
   encodeFunctionData,
   type Hex,
   namehash,
   type PublicClient,
-  zeroAddress,
 } from 'viem'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
+import {
+  type SetRecordsInput,
+  transformPendingChangesToSetRecords,
+} from './transformPendingChanges'
 
 // ============================================================================
 // Constants
@@ -69,7 +71,7 @@ type PendingChanges = {
   deletedIds: Set<string>
 }
 
-export type SaveRecordsParams = {
+export type SaveRecordsParameters = {
   name: string
   resolverAddress: Address
   originalRecords: NameRecord[]
@@ -90,99 +92,38 @@ export interface SaveRecordsResult {
 // ============================================================================
 
 /**
- * Get a unique ID for a record (matches getRecordId in editRecordUtils).
+ * Build the calls array for multicallWithNodeCheck from SetRecordsInput.
  */
-function getRecordId(record: NameRecord): string {
-  if (record.type === 'contentHash') return 'contentHash'
-  if (record.type === 'address') return `address-${record.id}`
-  return `text-${record.key}`
-}
-
-/**
- * Build the calls array for multicallWithNodeCheck from pending changes.
- */
-function buildDedicatedResolverCalls(
-  originalRecords: NameRecord[],
-  pendingChanges: PendingChanges,
-): Hex[] {
+function buildDedicatedResolverCalls(input: SetRecordsInput): Hex[] {
   const calls: Hex[] = []
 
-  // Handle edited records
-  for (const [id, newValue] of pendingChanges.editedValues) {
-    const original = originalRecords.find((r) => getRecordId(r) === id)
-    if (!original) continue
-
-    if (original.type === 'text') {
+  // Encode text records
+  if (input.texts) {
+    for (const { key, value } of input.texts) {
       calls.push(
         encodeFunctionData({
           abi: DEDICATED_RESOLVER_ABI,
           functionName: 'setText',
-          args: [original.key, newValue],
-        }),
-      )
-    } else if (original.type === 'address') {
-      // For addresses, we need to encode the address bytes
-      // For simplicity, treat as hex if it looks like one, otherwise skip
-      const addressBytes = newValue.startsWith('0x')
-        ? (newValue as Hex)
-        : bytesToHex(new TextEncoder().encode(newValue))
-      calls.push(
-        encodeFunctionData({
-          abi: DEDICATED_RESOLVER_ABI,
-          functionName: 'setAddr',
-          args: [BigInt(original.id), addressBytes],
+          args: [key, value],
         }),
       )
     }
   }
 
-  // Handle new records
-  for (const record of pendingChanges.newRecords) {
-    if (record.type === 'text' && 'key' in record) {
-      calls.push(
-        encodeFunctionData({
-          abi: DEDICATED_RESOLVER_ABI,
-          functionName: 'setText',
-          args: [record.key, record.value],
-        }),
-      )
-    } else if (record.type === 'address' && 'id' in record) {
-      const addressBytes = record.value.startsWith('0x')
-        ? (record.value as Hex)
-        : bytesToHex(new TextEncoder().encode(record.value))
+  // Encode address records
+  if (input.coins) {
+    for (const { coin, value } of input.coins) {
       calls.push(
         encodeFunctionData({
           abi: DEDICATED_RESOLVER_ABI,
           functionName: 'setAddr',
-          args: [BigInt(record.id), addressBytes],
+          args: [BigInt(coin), value as Hex],
         }),
       )
     }
   }
 
-  // Handle deleted records (set to empty/zero)
-  for (const id of pendingChanges.deletedIds) {
-    const original = originalRecords.find((r) => getRecordId(r) === id)
-    if (!original) continue
-
-    if (original.type === 'text') {
-      calls.push(
-        encodeFunctionData({
-          abi: DEDICATED_RESOLVER_ABI,
-          functionName: 'setText',
-          args: [original.key, ''], // Empty string to delete
-        }),
-      )
-    } else if (original.type === 'address') {
-      calls.push(
-        encodeFunctionData({
-          abi: DEDICATED_RESOLVER_ABI,
-          functionName: 'setAddr',
-          args: [BigInt(original.id), zeroAddress], // Zero address to delete
-        }),
-      )
-    }
-  }
+  // Note: contentHash is not yet supported in dedicated resolver
 
   return calls
 }
@@ -219,7 +160,7 @@ function buildDedicatedResolverCalls(
  * ```
  */
 export async function saveRecords(
-  params: SaveRecordsParams,
+  params: SaveRecordsParameters,
 ): Promise<SaveRecordsResult> {
   const {
     name,
@@ -232,8 +173,14 @@ export async function saveRecords(
     chainId,
   } = params
 
+  // Transform pending changes to ensjs-compatible format
+  const recordsInput = transformPendingChangesToSetRecords(
+    originalRecords,
+    pendingChanges,
+  )
+
   // Build the calls for multicallWithNodeCheck
-  const calls = buildDedicatedResolverCalls(originalRecords, pendingChanges)
+  const calls = buildDedicatedResolverCalls(recordsInput)
 
   if (calls.length === 0) {
     throw new Error('No record changes to save')
