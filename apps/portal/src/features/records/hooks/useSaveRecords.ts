@@ -49,11 +49,6 @@ export function useSaveRecords(options: UseSaveRecordsOptions = {}) {
               queryKey: getProfileQueryOptions(name).queryKey,
               refetchType: 'all',
             }),
-          onAttempt: (attempt, maxAttempts) => {
-            console.log(
-              `🔄 [SAVE_RECORDS] Refetch attempt ${attempt}/${maxAttempts}`,
-            )
-          },
         })
       } finally {
         setIsSyncing(false)

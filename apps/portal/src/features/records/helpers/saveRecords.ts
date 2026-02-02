@@ -239,25 +239,12 @@ export async function saveRecords(
     throw new Error('No record changes to save')
   }
 
-  console.log('📝 [SAVE_RECORDS] Building transaction:', {
-    name,
-    resolverAddress,
-    callsCount: calls.length,
-    accountAddress,
-  })
-
   // Build the multicall data
   const node = namehash(name) as Hex
   const multicallData = encodeFunctionData({
     abi: DEDICATED_RESOLVER_ABI,
     functionName: 'multicallWithNodeCheck',
     args: [node, calls],
-  })
-
-  console.log('🚀 [SAVE_RECORDS] Starting transaction:', {
-    name,
-    resolverAddress,
-    signerType: signer.type,
   })
 
   // Start the transaction through the transaction manager
@@ -281,15 +268,8 @@ export async function saveRecords(
     },
   )
 
-  console.log('📝 [SAVE_RECORDS] Transaction started:', { txId })
-
   // Wait for the transaction to complete
   const result = await waitForTransaction(txId)
-
-  console.log('✅ [SAVE_RECORDS] Transaction completed:', {
-    txId,
-    hash: result.hash,
-  })
 
   return {
     txId,
