@@ -26,7 +26,7 @@ import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
 import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
 
-const client = wagmiConfig.getClient({ chainId: namechainSepolia.id })
+const getClient = () => wagmiConfig.getClient({ chainId: namechainSepolia.id })
 
 export const Route = createFileRoute('/$name/create-subname')({
   component: RouteComponent,
@@ -158,14 +158,17 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
     }
 
     actor.subscribe((snapshot) => {
-      const state = snapshot.value as string
-
-      if (state === 'success') {
-        navigate({ to: '/$name/subnames', params: { name } })
-      } else if (state === 'error') {
-        setSubmitError(snapshot.context.error?.message ?? 'Transaction failed')
-        setIsSubmitting(false)
-      }
+      match(snapshot.value)
+        .with('success', () => {
+          navigate({ to: '/$name/subnames', params: { name } })
+        })
+        .with('error', () => {
+          setSubmitError(
+            snapshot.context.error?.message ?? 'Transaction failed',
+          )
+          setIsSubmitting(false)
+        })
+        .otherwise(() => {})
     })
   }
 
@@ -244,27 +247,31 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
                   setOwnerAddress(nameOrAddress)
                 } else {
                   setOwnerAddress(null)
-                  resolveTimeoutRef.current = setTimeout(async () => {
-                    try {
-                      const address = await getEnsAddress(client, {
+                  resolveTimeoutRef.current = setTimeout(() => {
+                    ResultAsync.fromPromise(
+                      getEnsAddress(getClient(), {
                         name: nameOrAddress,
                         universalResolverAddress:
                           '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce',
-                      })
-                      setOwnerAddress(address)
-                      if (!address) {
-                        setResolveError(
-                          `Could not resolve address for ${nameOrAddress}`,
-                        )
-                      }
-                    } catch (error) {
-                      setOwnerAddress(null)
-                      setResolveError(
+                      }),
+                      (error) =>
                         error instanceof Error
-                          ? error.message
-                          : 'Failed to resolve ENS name',
-                      )
-                    }
+                          ? error
+                          : new Error('Failed to resolve ENS name'),
+                    ).match(
+                      (address) => {
+                        setOwnerAddress(address)
+                        if (!address) {
+                          setResolveError(
+                            `Could not resolve address for ${nameOrAddress}`,
+                          )
+                        }
+                      },
+                      (error) => {
+                        setOwnerAddress(null)
+                        setResolveError(error.message)
+                      },
+                    )
                   }, 500)
                 }
               } else {
