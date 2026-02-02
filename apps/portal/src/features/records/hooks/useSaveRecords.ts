@@ -86,7 +86,7 @@ export function useSaveRecords(options: UseSaveRecordsOptions = {}) {
   })
 
   return {
-    saveRecords: mutation.mutateAsync,
+    saveRecords: mutation.mutate,
     isWriting: mutation.isPending,
     isConfirming: mutation.isPending,
     isSyncing,
