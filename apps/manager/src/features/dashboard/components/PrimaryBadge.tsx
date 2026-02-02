@@ -17,7 +17,7 @@ export const PrimaryBadge = ({
       className,
     )}
   >
-    <span className="font-sans text-[12px] text-ens-blue leading-[1.15] tracking-[-0.24px]">
+    <span className="font-sans text-[13px] text-ens-blue leading-[1.15] tracking-[-0.24px] md:text-[16px]">
       {label}
     </span>
     <div className="flex size-[10px] items-center justify-center rounded-full bg-ens-blue">

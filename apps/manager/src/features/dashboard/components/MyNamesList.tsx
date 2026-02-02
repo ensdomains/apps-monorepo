@@ -220,7 +220,7 @@ export const MyNamesList = ({
           type="button"
         >
           <span
-            className={`font-sans text-sm tracking-[0.24px] ${sortDirection !== null && sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
+            className={`font-sans text-[16px] tracking-[0.24px] ${sortDirection !== null && sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
             Name
           </span>
@@ -235,7 +235,7 @@ export const MyNamesList = ({
           type="button"
         >
           <span
-            className={`font-sans text-sm tracking-[0.24px] ${sortDirection !== null && sortField === 'expiry' ? 'text-foreground' : 'text-muted-foreground'}`}
+            className={`font-sans text-[16px] tracking-[0.24px] ${sortDirection !== null && sortField === 'expiry' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
             Expiry
           </span>
