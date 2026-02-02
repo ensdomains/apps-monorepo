@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, Loader2 } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddress, zeroAddress } from 'viem'
 import { getEnsAddress } from 'viem/actions'
@@ -23,10 +23,10 @@ import {
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { prepareCreateSubnameTransaction } from '@/features/registry/utils/create-subname.helpers'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { wagmiConfig } from '@/lib/wagmi'
+import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
 import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
 
-const client = wagmiConfig.getClient({ chainId: sepolia.id })
+const client = wagmiConfig.getClient({ chainId: namechainSepolia.id })
 
 export const Route = createFileRoute('/$name/create-subname')({
   component: RouteComponent,
@@ -67,8 +67,10 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
 
   const [label, setLabel] = useState('')
   const [ownerAddress, setOwnerAddress] = useState<Address | null>(null)
+  const [resolveError, setResolveError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const resolveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Fetch registries (we know it's v2 at this point)
   const {
@@ -139,12 +141,32 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
     }
 
     const signer = createEOASigner(walletClient)
-    transactionManager.startTransaction(intentResult.value, signer, {
-      chainId: sepolia.id,
-      description: `Create subname ${label.trim()}.${name}`,
-    })
+    const txId = transactionManager.startTransaction(
+      intentResult.value,
+      signer,
+      {
+        chainId: sepolia.id,
+        description: `Create subname ${label.trim()}.${name}`,
+      },
+    )
 
-    navigate({ to: '/$name/subnames', params: { name } })
+    const actor = transactionManager.getTransaction(txId)
+    if (!actor) {
+      setSubmitError('Failed to start transaction')
+      setIsSubmitting(false)
+      return
+    }
+
+    actor.subscribe((snapshot) => {
+      const state = snapshot.value as string
+
+      if (state === 'success') {
+        navigate({ to: '/$name/subnames', params: { name } })
+      } else if (state === 'error') {
+        setSubmitError(snapshot.context.error?.message ?? 'Transaction failed')
+        setIsSubmitting(false)
+      }
+    })
   }
 
   if (registriesLoading) {
@@ -208,17 +230,42 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
             disabled={isSubmitting}
             required
             pattern="(?:[\u002DA-Za-z0-9]+[.][A-Za-z]+|0x[a-fA-F0-9]{40})"
-            onChange={async (e) => {
+            onChange={(e) => {
+              setResolveError(null)
+
+              if (resolveTimeoutRef.current) {
+                clearTimeout(resolveTimeoutRef.current)
+              }
+
               if (e.currentTarget.checkValidity()) {
                 const nameOrAddress = e.currentTarget.value as Address
 
                 if (isAddress(nameOrAddress)) {
                   setOwnerAddress(nameOrAddress)
                 } else {
-                  const address = await getEnsAddress(client, {
-                    name: nameOrAddress,
-                  })
-                  setOwnerAddress(address)
+                  setOwnerAddress(null)
+                  resolveTimeoutRef.current = setTimeout(async () => {
+                    try {
+                      const address = await getEnsAddress(client, {
+                        name: nameOrAddress,
+                        universalResolverAddress:
+                          '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce',
+                      })
+                      setOwnerAddress(address)
+                      if (!address) {
+                        setResolveError(
+                          `Could not resolve address for ${nameOrAddress}`,
+                        )
+                      }
+                    } catch (error) {
+                      setOwnerAddress(null)
+                      setResolveError(
+                        error instanceof Error
+                          ? error.message
+                          : 'Failed to resolve ENS name',
+                      )
+                    }
+                  }, 500)
                 }
               } else {
                 setOwnerAddress(null)
@@ -227,11 +274,14 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
           />
         </Field>
 
-        {match({ isConnected, submitError })
+        {match({ isConnected, submitError, resolveError })
           .with({ isConnected: false }, () => (
             <p className="text-sm text-amber-600">
               Please connect your wallet to create a subname.
             </p>
+          ))
+          .with({ resolveError: P.string.minLength(1) }, ({ resolveError }) => (
+            <p className="text-sm text-red-500">Error: {resolveError}</p>
           ))
           .with({ submitError: P.string.minLength(1) }, ({ submitError }) => (
             <p className="text-sm text-red-500">Error: {submitError}</p>
