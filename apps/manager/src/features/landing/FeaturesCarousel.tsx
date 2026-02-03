@@ -18,7 +18,7 @@ type FeatureCard = {
   children: ReactNode
 }
 
-const FEATURE_CARDS: FeatureCard[] = [
+export const FEATURE_CARDS: FeatureCard[] = [
   {
     className: tw`bg-ens-peridot-dust text-ens-peridot-core`,
     indicatorClass: tw`border-ens-peridot-core data-active:bg-ens-peridot-core`,
@@ -230,7 +230,7 @@ export const FeaturesCarousel = () => {
   }
 
   return (
-    <div className="relative mt-15 lg:mt-28">
+    <div className="relative isolate mt-15 lg:mt-28">
       <div className="relative mx-auto w-full-[2rem] max-w-6xl">
         <div
           className="relative flex w-full [--s2-basis:90%] md:[--s2-basis:80%] xl:[--s2-basis:70%]"
@@ -241,7 +241,6 @@ export const FeaturesCarousel = () => {
               (index - offset + FEATURE_CARDS.length) % FEATURE_CARDS.length
             return (
               <CarouselCard
-                // biome-ignore lint/suspicious/noArrayIndexKey: Hardcoded list
                 className={clsx(className, 'basis-(--s2-basis)')}
                 data={data}
                 drag={cardIndex === 0 ? 'x' : false}
@@ -249,6 +248,7 @@ export const FeaturesCarousel = () => {
                   left: 0,
                   right: 0,
                 }}
+                // biome-ignore lint/suspicious/noArrayIndexKey: Hardcoded list
                 key={index}
                 layout="position"
                 onClick={() => setOffset(index)}
@@ -292,8 +292,8 @@ export const FeaturesCarousel = () => {
                     'size-4 rounded-xs border-2 bg-transparent transition-colors',
                     indicatorClass,
                   )}
-                  // biome-ignore lint/suspicious/noArrayIndexKey: Hardcoded list
                   data-active={index === offset ? true : undefined}
+                  // biome-ignore lint/suspicious/noArrayIndexKey: Hardcoded list
                   key={index}
                   onClick={() => setOffset(index)}
                   type="button"
