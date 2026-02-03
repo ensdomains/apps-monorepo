@@ -65,7 +65,7 @@ export const AddTextRecordsDialog = ({
               const isSelected = selectedKeys.includes(record.key)
               return (
                 <Button
-                  className="flex items-center gap-2 rounded-full"
+                  className="flex w-auto items-center gap-2 rounded-full"
                   key={record.key}
                   onClick={() => handleToggle(record.key)}
                   variant={isSelected ? 'default' : 'secondary'}
