@@ -203,7 +203,7 @@ export const DurationSelector = ({
             ref={customInputRef}
             step={1}
             type="number"
-            value={durationInputValue}
+            value={isCustomSelected ? durationInputValue : ''}
           />
           <span className="font-normal text-ens-gray-three text-xs leading-none tracking-tight md:text-base">
             years
