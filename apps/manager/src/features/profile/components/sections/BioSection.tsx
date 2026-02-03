@@ -1,4 +1,11 @@
 import { X } from 'lucide-react'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { FloatingTextarea } from '@/components/ui/floating-textarea'
 import { AddTextRecordsDialog } from '@/features/profile/components/dialogs/AddTextRecordsDialog'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
@@ -8,14 +15,20 @@ import { getAvailableRecords, getRecordDef } from '../../data/records'
 export const BioSection = withForm({
   ...sharedOptions,
   render: ({ form }) => (
-    <div className="flex flex-col gap-2 space-y-2">
-      <div>
+    <Card className="border-[0.25px] border-border bg-white shadow-none">
+      <CardHeader>
+        <CardTitle className="text-base tracking-tight">Bio</CardTitle>
+        <CardDescription className="text-base">
+          Add a bio to your profile
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
         <form.Field name="base.description">
           {(field) => (
             <div className="flex items-start gap-3 pt-1">
               <FloatingTextarea
                 className="flex-1"
-                label="Bio"
+                label="Short Description"
                 onChange={(e) => {
                   field.handleChange(e.target.value)
                 }}
@@ -32,50 +45,46 @@ export const BioSection = withForm({
             </div>
           )}
         </form.Field>
-      </div>
 
-      <div className="space-y-1">
         <form.Field name="base.url">
           {(field) => (
             <RecordEntry
-              name="Add a link to bio"
+              name="website"
               onChange={field.handleChange}
               onRemove={() => field.handleChange('')}
-              placeholder="https://example.com"
+              placeholder="https://"
               value={field.state.value}
             />
           )}
         </form.Field>
-      </div>
 
-      <form.Field mode="array" name="contact">
-        {(contactField) => (
-          <div className="space-y-2">
-            {contactField.state.value.map(
-              ({ key }: { key: string }, i: number) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
-                <form.Field key={i} name={`contact[${i}].value`}>
-                  {(field) => {
-                    const record = getRecordDef(key)
-                    if (!record) return null
-                    return (
-                      <RecordEntry
-                        name={record.name}
-                        onChange={field.handleChange}
-                        onRemove={() => {
-                          contactField.removeValue(i)
-                        }}
-                        placeholder={record.placeholder}
-                        value={field.state.value}
-                      />
-                    )
-                  }}
-                </form.Field>
-              ),
-            )}
-            <div className="mt-3 flex justify-end">
+        <form.Field mode="array" name="contact">
+          {(contactField) => (
+            <>
+              {contactField.state.value.map(
+                ({ key }: { key: string }, i: number) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
+                  <form.Field key={i} name={`contact[${i}].value`}>
+                    {(field) => {
+                      const record = getRecordDef(key)
+                      if (!record) return null
+                      return (
+                        <RecordEntry
+                          name={record.name}
+                          onChange={field.handleChange}
+                          onRemove={() => {
+                            contactField.removeValue(i)
+                          }}
+                          placeholder={record.placeholder}
+                          value={field.state.value}
+                        />
+                      )
+                    }}
+                  </form.Field>
+                ),
+              )}
               <AddTextRecordsDialog
-                buttonLabel="Add Contact Information"
+                buttonLabel="Add more"
                 onAdd={(keys) => {
                   for (const key of keys) {
                     contactField.pushValue({ key, value: '' })
@@ -89,10 +98,10 @@ export const BioSection = withForm({
                 )}
                 title="Add Contact Information"
               />
-            </div>
-          </div>
-        )}
-      </form.Field>
-    </div>
+            </>
+          )}
+        </form.Field>
+      </CardContent>
+    </Card>
   ),
 })
