@@ -40,7 +40,7 @@ export type PricingProps = {
   onPricingDataChange?: (finalPrice: number, discountAmount: number) => void
 }
 
-export type PricingDuration = 1 | 2 | 3 | 4 | 5
+export type PricingDuration = 1 | 3 | 5 | 10
 
 export interface PricingOption {
   price: number
