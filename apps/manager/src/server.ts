@@ -195,61 +195,57 @@ function getLoginPage(error?: string): Response {
 
 export default createServerEntry({
   async fetch(request) {
-    // TODO: Re-enable password protection
-    // Bypassing auth for local development
-    return handler.fetch(request)
+    const url = new URL(request.url)
 
-    // const url = new URL(request.url)
-    //
-    // // Skip auth for static assets
-    // if (
-    //   url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|map)$/)
-    // ) {
-    //   return handler.fetch(request)
-    // }
-    //
-    // // Get SITE_PASSWORD from environment (Cloudflare Workers or local dev)
-    // const sitePassword = await getSitePassword()
-    //
-    // // If no password configured, allow access
-    // if (!sitePassword) {
-    //   console.warn('SITE_PASSWORD not set - site is not protected')
-    //   return handler.fetch(request)
-    // }
-    //
-    // const expectedToken = generateToken(sitePassword)
-    //
-    // // Check for valid auth cookie
-    // const authCookie = getCookie(request, COOKIE_NAME)
-    // if (authCookie === expectedToken) {
-    //   return handler.fetch(request)
-    // }
-    //
-    // // Handle auth form submission
-    // if (url.pathname === '/__auth' && request.method === 'POST') {
-    //   try {
-    //     const formData = await request.formData()
-    //     const password = formData.get('password')
-    //
-    //     if (password === sitePassword) {
-    //       // Password correct - set cookie and redirect to home
-    //       return new Response(null, {
-    //         status: 302,
-    //         headers: {
-    //           Location: '/',
-    //           'Set-Cookie': `${COOKIE_NAME}=${expectedToken}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${COOKIE_MAX_AGE}`,
-    //         },
-    //       })
-    //     }
-    //
-    //     // Wrong password
-    //     return getLoginPage('Incorrect password')
-    //   } catch {
-    //     return getLoginPage('An error occurred')
-    //   }
-    // }
-    //
-    // // Show login page for unauthenticated requests
-    // return getLoginPage()
+    // Skip auth for static assets
+    if (
+      url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|map)$/)
+    ) {
+      return handler.fetch(request)
+    }
+
+    // Get SITE_PASSWORD from environment (Cloudflare Workers or local dev)
+    const sitePassword = await getSitePassword()
+
+    // If no password configured, allow access
+    if (!sitePassword) {
+      console.warn('SITE_PASSWORD not set - site is not protected')
+      return handler.fetch(request)
+    }
+
+    const expectedToken = generateToken(sitePassword)
+
+    // Check for valid auth cookie
+    const authCookie = getCookie(request, COOKIE_NAME)
+    if (authCookie === expectedToken) {
+      return handler.fetch(request)
+    }
+
+    // Handle auth form submission
+    if (url.pathname === '/__auth' && request.method === 'POST') {
+      try {
+        const formData = await request.formData()
+        const password = formData.get('password')
+
+        if (password === sitePassword) {
+          // Password correct - set cookie and redirect to home
+          return new Response(null, {
+            status: 302,
+            headers: {
+              Location: '/',
+              'Set-Cookie': `${COOKIE_NAME}=${expectedToken}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${COOKIE_MAX_AGE}`,
+            },
+          })
+        }
+
+        // Wrong password
+        return getLoginPage('Incorrect password')
+      } catch {
+        return getLoginPage('An error occurred')
+      }
+    }
+
+    // Show login page for unauthenticated requests
+    return getLoginPage()
   },
 })
