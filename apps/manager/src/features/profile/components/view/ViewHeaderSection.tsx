@@ -48,10 +48,11 @@ export const ViewHeaderSection = ({
           />
           <ImageFallback.Fallback>
             <div
-              className={clsx(
-                'size-full bg-gray-200',
-                header.isLoading && 'animate-pulse',
-              )}
+              className={clsx('size-full', header.isLoading && 'animate-pulse')}
+              style={{
+                backgroundImage:
+                  'linear-gradient(162deg, rgba(254, 254, 254, 0) 21.72%, rgba(237, 241, 242, 0.8) 62.7%)',
+              }}
             />
           </ImageFallback.Fallback>
         </ImageFallback.Root>
