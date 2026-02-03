@@ -4,7 +4,7 @@ import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useWallet } from '@getpara/react-sdk-lite'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
-import { Check } from 'lucide-react'
+import { AlertCircle, Check } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
@@ -23,10 +23,12 @@ import {
 import {
   handlePrimaryNameCancel,
   handleSetPrimaryName,
+  hasEthAddressRecord,
   type PrimaryNameOptions,
   type PrimaryNameParams,
 } from '@/features/profile/components/ProfileEdit.handlers'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
@@ -105,6 +107,15 @@ export const ChoosePrimaryNameDialog = ({
     ),
   })
 
+  const { data: selectedNameRecords, isLoading: isLoadingRecords } = useQuery({
+    ...profileRecordsQuery(selectedName ?? ''),
+    enabled: !!selectedName,
+  })
+  const showNoEthWarning =
+    !!selectedName &&
+    !isLoadingRecords &&
+    !hasEthAddressRecord(selectedNameRecords)
+
   // Set selected name to current primary on mount
   useEffect(() => {
     if (reverseName && !selectedName) {
@@ -149,6 +160,7 @@ export const ChoosePrimaryNameDialog = ({
       account,
       primaryNameActor,
       publicClient: publicClient as PublicClient,
+      records: selectedNameRecords,
     }
 
     const error = handleSetPrimaryName(params, options)
@@ -174,7 +186,7 @@ export const ChoosePrimaryNameDialog = ({
           <DialogTitle className="font-serif text-[24px] text-foreground">
             Choose Primary Name
           </DialogTitle>
-          <DialogDescription className="font-sans text-[14px] text-muted-foreground">
+          <DialogDescription className="font-sans text-muted-foreground text-sm">
             Set which ENS name displays as your identity across apps and
             wallets.
           </DialogDescription>
@@ -266,7 +278,16 @@ export const ChoosePrimaryNameDialog = ({
               Failed to set primary name. Please try again.
             </div>
           )}
-
+          {/* No ETH Address Warning */}
+          {showNoEthWarning && (
+            <div className="flex items-start gap-2 rounded-[4px] border border-red-200 bg-red-50 p-3">
+              <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
+              <p className="text-red-800 text-sm">
+                This name doesn&apos;t have an ETH address record set. Please
+                add one before setting it as your primary name.
+              </p>
+            </div>
+          )}
           {/* Action Buttons */}
           <div className="flex gap-3">
             <Button
@@ -279,7 +300,9 @@ export const ChoosePrimaryNameDialog = ({
             </Button>
             <Button
               className="h-[48px] flex-1 rounded-xs border-ens-blue bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-ens-blue-hover disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
-              disabled={isSubmitting || !hasChanges || !selectedName}
+              disabled={
+                isSubmitting || !hasChanges || !selectedName || showNoEthWarning
+              }
               onClick={handleConfirm}
             >
               {isSubmitting ? 'Setting...' : 'Set as Primary'}

@@ -108,7 +108,7 @@ export const PrimaryNameCard = ({
                   className="size-4 text-muted-foreground"
                   strokeWidth={1.5}
                 />
-                <div className="flex items-end gap-1 text-[12px] leading-[0.96] tracking-[-0.24px]">
+                <div className="flex items-end gap-1 text-xs leading-[0.96] tracking-[-0.24px] md:text-sm">
                   <span className="text-muted-foreground">Registered</span>
                   <span className="font-semibold text-muted-foreground">
                     {registeredLabel}
@@ -120,7 +120,7 @@ export const PrimaryNameCard = ({
                   className="size-4 text-muted-foreground"
                   strokeWidth={1.5}
                 />
-                <div className="flex items-end gap-1 text-[12px] leading-[0.96] tracking-[-0.24px]">
+                <div className="flex items-end gap-1 text-xs leading-[0.96] tracking-[-0.24px] md:text-sm">
                   <span className="text-muted-foreground">Expires</span>
                   <span className="font-semibold text-muted-foreground">
                     {expiryLabel}
@@ -137,9 +137,7 @@ export const PrimaryNameCard = ({
           to="/p/$name"
           variant="outline"
         >
-          <span className="font-sans text-[14px] leading-normal">
-            View profile
-          </span>
+          <span className="font-sans text-sm leading-normal">View profile</span>
         </LinkButton>
       </div>
     </Card>
