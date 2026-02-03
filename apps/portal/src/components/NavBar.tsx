@@ -92,7 +92,8 @@ export const NavBar = () => {
                 </div>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
-            {/* <DropdownMenuSub>
+            {/* TODO: Settings menu - commented out because TableViewSwitch doesn't do anything yet
+            <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <div className="flex flex-row items-center gap-2">
                   <SettingsIcon className="size-4" />
@@ -136,7 +137,8 @@ export const NavBar = () => {
             </PopoverContent>
           </Popover>
 
-          {/* <Popover>
+          {/* TODO: Settings popover - commented out because TableViewSwitch doesn't do anything yet
+          <Popover>
             <PopoverTrigger asChild>
               <Button
                 size="icon"
