@@ -14,10 +14,60 @@ vi.mock('@ens-apps/transaction-manager', () => ({
   }),
 }))
 
+// Helper to encode setText for test expectations
+const encodeSetText = (key: string, value: string) =>
+  encodeFunctionData({
+    abi: dedicatedResolverSetTextSnippet,
+    functionName: 'setText',
+    args: [key, value],
+  })
+
+// Mock setRecordsWriteParameters to return realistic data
+vi.mock('@ensdomains/ensjs/wallet', () => ({
+  setRecordsWriteParameters: vi
+    .fn()
+    .mockImplementation(async (_client, params) => {
+      // Build mock calls based on the input params
+      const calls: string[] = []
+
+      if (params.texts) {
+        for (const { key, value } of params.texts) {
+          calls.push(encodeSetText(key, value))
+        }
+      }
+
+      const node = namehash(params.name)
+
+      // Return mock write parameters for multicallWithNodeCheck
+      return {
+        abi: [
+          {
+            inputs: [
+              { name: '', type: 'bytes32' },
+              { name: 'calls', type: 'bytes[]' },
+            ],
+            name: 'multicallWithNodeCheck',
+            outputs: [{ name: '', type: 'bytes[]' }],
+            stateMutability: 'nonpayable',
+            type: 'function',
+          },
+        ],
+        functionName: 'multicallWithNodeCheck',
+        args: [node, calls],
+      }
+    }),
+}))
+
 // Import after mocking
 import { type SaveRecordsParameters, saveRecords } from './saveRecords'
 
 describe('saveRecords', () => {
+  const mockAccountAddress = '0x0987654321098765432109876543210987654321'
+  const mockWalletClient = {
+    account: { address: mockAccountAddress },
+    chain: { id: 11155111 },
+  } as any
+
   const mockParams: SaveRecordsParameters = {
     name: 'test.eth',
     resolverAddress: '0x1234567890123456789012345678901234567890',
@@ -31,8 +81,8 @@ describe('saveRecords', () => {
       editedValues: new Map([['text-name', 'Jane']]),
       deletedIds: new Set(),
     },
+    walletClient: mockWalletClient,
     publicClient: {} as any,
-    accountAddress: '0x0987654321098765432109876543210987654321',
     signer: { type: 'eoa', walletClient: {} as any },
     chainId: 11155111,
   }
@@ -71,7 +121,7 @@ describe('saveRecords', () => {
         type: 'custom',
         request: expect.objectContaining({
           type: 'eoa',
-          from: mockParams.accountAddress,
+          from: mockAccountAddress,
           to: mockParams.resolverAddress,
           value: 0n,
           chainId: mockParams.chainId,
@@ -84,16 +134,52 @@ describe('saveRecords', () => {
       }),
     )
   })
+
+  it('calls setRecordsWriteParameters with correct params', async () => {
+    const { setRecordsWriteParameters } = await import(
+      '@ensdomains/ensjs/wallet'
+    )
+
+    await saveRecords(mockParams)
+
+    expect(setRecordsWriteParameters).toHaveBeenCalledWith(
+      mockWalletClient,
+      expect.objectContaining({
+        name: mockParams.name,
+        resolverAddress: mockParams.resolverAddress,
+        resolverType: 'dedicated', // default value
+      }),
+    )
+  })
+
+  it('throws error when wallet client has no account', async () => {
+    const paramsWithNoAccount = {
+      ...mockParams,
+      walletClient: { chain: { id: 11155111 } } as any,
+    }
+
+    await expect(saveRecords(paramsWithNoAccount)).rejects.toThrow(
+      'Wallet client must have account and chain configured',
+    )
+  })
+
+  it('throws error when wallet client has no chain', async () => {
+    const paramsWithNoChain = {
+      ...mockParams,
+      walletClient: { account: { address: mockAccountAddress } } as any,
+    }
+
+    await expect(saveRecords(paramsWithNoChain)).rejects.toThrow(
+      'Wallet client must have account and chain configured',
+    )
+  })
 })
 
-describe('buildDedicatedResolverCalls (integration)', () => {
-  // Helper to decode what calls would be generated
-  const encodeSetText = (key: string, value: string) =>
-    encodeFunctionData({
-      abi: dedicatedResolverSetTextSnippet,
-      functionName: 'setText',
-      args: [key, value],
-    })
+describe('saveRecords encoding (integration)', () => {
+  const mockWalletClient = {
+    account: { address: '0x0987654321098765432109876543210987654321' },
+    chain: { id: 11155111 },
+  } as any
 
   it('generates setText call for edited text records', async () => {
     const { transactionManager } = await import('@ens-apps/transaction-manager')
@@ -108,8 +194,8 @@ describe('buildDedicatedResolverCalls (integration)', () => {
         editedValues: new Map([['text-description', 'new description']]),
         deletedIds: new Set(),
       },
+      walletClient: mockWalletClient,
       publicClient: {} as any,
-      accountAddress: '0x0987654321098765432109876543210987654321',
       signer: { type: 'eoa', walletClient: {} as any },
       chainId: 11155111,
     }
@@ -138,8 +224,8 @@ describe('buildDedicatedResolverCalls (integration)', () => {
         editedValues: new Map(),
         deletedIds: new Set(['text-twitter']),
       },
+      walletClient: mockWalletClient,
       publicClient: {} as any,
-      accountAddress: '0x0987654321098765432109876543210987654321',
       signer: { type: 'eoa', walletClient: {} as any },
       chainId: 11155111,
     }
@@ -167,8 +253,8 @@ describe('buildDedicatedResolverCalls (integration)', () => {
         editedValues: new Map(),
         deletedIds: new Set(),
       },
+      walletClient: mockWalletClient,
       publicClient: {} as any,
-      accountAddress: '0x0987654321098765432109876543210987654321',
       signer: { type: 'eoa', walletClient: {} as any },
       chainId: 11155111,
     }
@@ -195,8 +281,8 @@ describe('buildDedicatedResolverCalls (integration)', () => {
         editedValues: new Map([['text-name', 'new']]),
         deletedIds: new Set(),
       },
+      walletClient: mockWalletClient,
       publicClient: {} as any,
-      accountAddress: '0x0987654321098765432109876543210987654321',
       signer: { type: 'eoa', walletClient: {} as any },
       chainId: 11155111,
     }

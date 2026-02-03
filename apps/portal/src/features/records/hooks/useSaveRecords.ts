@@ -15,7 +15,7 @@ import { type SaveRecordsParameters, saveRecords } from '../helpers/saveRecords'
 
 type UseSaveRecordsParameters = Omit<
   SaveRecordsParameters,
-  'publicClient' | 'accountAddress' | 'signer' | 'chainId'
+  'walletClient' | 'publicClient' | 'signer' | 'chainId'
 >
 
 type UseSaveRecordsOptions = {
@@ -64,17 +64,16 @@ export function useSaveRecords(options: UseSaveRecordsOptions = {}) {
         throw new Error('Wallet not connected')
       }
 
-      const accountAddress = walletClient.account?.address
-      if (!accountAddress) {
-        throw new Error('No account address')
+      if (!walletClient.account) {
+        throw new Error('No account connected')
       }
 
       const signer = createEOASigner(walletClient)
 
       return saveRecords({
         ...params,
+        walletClient,
         publicClient,
-        accountAddress,
         signer,
         chainId,
       })

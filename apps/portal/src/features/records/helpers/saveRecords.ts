@@ -1,8 +1,9 @@
 /**
  * Pure async function to save ENS record changes.
  *
- * Uses the dedicated resolver pattern with multicallWithNodeCheck,
- * similar to the manager app's saveRecords implementation.
+ * Uses ensjs's setRecordsWriteParameters which supports both:
+ * - Public Resolver (V1): multicall(calls)
+ * - Dedicated Resolver (V2): multicallWithNodeCheck(node, calls)
  */
 
 import {
@@ -10,24 +11,17 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import {
-  dedicatedResolverMulticallWithNodeCheckSnippet,
-  dedicatedResolverSetAddrSnippet,
-  dedicatedResolverSetTextSnippet,
-} from '@ensdomains/ensjs/contracts'
+import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet'
 import {
   type Address,
   encodeFunctionData,
   type Hex,
-  namehash,
   type PublicClient,
+  type WalletClient,
 } from 'viem'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
-import {
-  type SetRecordsInput,
-  transformPendingChangesToSetRecords,
-} from './transformPendingChanges'
+import { transformPendingChangesToSetRecords } from './transformPendingChanges'
 
 // ============================================================================
 // Types
@@ -44,10 +38,16 @@ export type SaveRecordsParameters = {
   resolverAddress: Address
   originalRecords: NameRecord[]
   pendingChanges: PendingChanges
+  walletClient: WalletClient
   publicClient: PublicClient
-  accountAddress: Address
   signer: Signer
   chainId: number
+  /**
+   * The type of resolver to use:
+   * - `'dedicated'` (default): For V2 names, uses `multicallWithNodeCheck(node, calls)`
+   * - `'public'`: For V1 names, uses `multicall(calls)` with namehash in each call
+   */
+  resolverType?: 'public' | 'dedicated'
 }
 
 export interface SaveRecordsResult {
@@ -56,52 +56,15 @@ export interface SaveRecordsResult {
 }
 
 // ============================================================================
-// Pure functions
-// ============================================================================
-
-/**
- * Build the calls array for multicallWithNodeCheck from SetRecordsInput.
- */
-function buildDedicatedResolverCalls(input: SetRecordsInput): Hex[] {
-  const calls: Hex[] = []
-
-  // Encode text records
-  if (input.texts) {
-    for (const { key, value } of input.texts) {
-      calls.push(
-        encodeFunctionData({
-          abi: dedicatedResolverSetTextSnippet,
-          functionName: 'setText',
-          args: [key, value],
-        }),
-      )
-    }
-  }
-
-  // Encode address records
-  if (input.coins) {
-    for (const { coin, value } of input.coins) {
-      calls.push(
-        encodeFunctionData({
-          abi: dedicatedResolverSetAddrSnippet,
-          functionName: 'setAddr',
-          args: [BigInt(coin), value as Hex],
-        }),
-      )
-    }
-  }
-
-  // Note: contentHash is not yet supported in dedicated resolver
-
-  return calls
-}
-
-// ============================================================================
 // Public API
 // ============================================================================
 
 /**
- * Save records to the blockchain using the dedicated resolver pattern.
+ * Save records to the blockchain.
+ *
+ * Supports both resolver patterns via ensjs's setRecordsWriteParameters:
+ * - **Public Resolver (V1)**: Uses `multicall(calls)` where each call includes namehash
+ * - **Dedicated Resolver (V2)**: Uses `multicallWithNodeCheck(node, calls)` where calls don't include namehash
  *
  * Pure async function that builds the request, starts the transaction,
  * and waits for it to complete. Returns the transaction result.
@@ -115,15 +78,22 @@ function buildDedicatedResolverCalls(input: SetRecordsInput): Hex[] {
  *   onSuccess: () => refetchRecords(),
  * })
  *
+ * // V2 (Dedicated Resolver) - default
  * mutation.mutate({
  *   name: 'myname.eth',
  *   resolverAddress,
  *   originalRecords,
  *   pendingChanges,
+ *   walletClient,
  *   publicClient,
- *   accountAddress,
  *   signer,
  *   chainId: 11155111,
+ * })
+ *
+ * // V1 (Public Resolver)
+ * mutation.mutate({
+ *   ...params,
+ *   resolverType: 'public',
  * })
  * ```
  */
@@ -135,11 +105,17 @@ export async function saveRecords(
     resolverAddress,
     originalRecords,
     pendingChanges,
+    walletClient,
     publicClient,
-    accountAddress,
     signer,
     chainId,
+    resolverType = 'dedicated',
   } = params
+
+  // Validate wallet client has account and chain
+  if (!walletClient.account || !walletClient.chain) {
+    throw new Error('Wallet client must have account and chain configured')
+  }
 
   // Transform pending changes to ensjs-compatible format
   const recordsInput = transformPendingChangesToSetRecords(
@@ -147,20 +123,35 @@ export async function saveRecords(
     pendingChanges,
   )
 
-  // Build the calls for multicallWithNodeCheck
-  const calls = buildDedicatedResolverCalls(recordsInput)
+  // Check if there are any changes
+  const hasChanges =
+    (recordsInput.texts?.length ?? 0) > 0 ||
+    (recordsInput.coins?.length ?? 0) > 0 ||
+    recordsInput.contentHash !== undefined
 
-  if (calls.length === 0) {
+  if (!hasChanges) {
     throw new Error('No record changes to save')
   }
 
-  // Build the multicall data
-  const node = namehash(name) as Hex
-  const multicallData = encodeFunctionData({
-    abi: dedicatedResolverMulticallWithNodeCheckSnippet,
-    functionName: 'multicallWithNodeCheck',
-    args: [node, calls],
+  // Use ensjs to build the write parameters
+  // This handles both Public Resolver and Dedicated Resolver patterns
+  // Type assertion is safe since we validated account and chain above
+  const client = walletClient as Parameters<typeof setRecordsWriteParameters>[0]
+  const writeParams = await setRecordsWriteParameters(client, {
+    name,
+    resolverAddress,
+    resolverType,
+    texts: recordsInput.texts,
+    coins: recordsInput.coins,
+    contentHash: recordsInput.contentHash,
   })
+
+  // Encode the transaction data from write parameters
+  const data = encodeFunctionData({
+    abi: writeParams.abi,
+    functionName: writeParams.functionName,
+    args: writeParams.args,
+  } as Parameters<typeof encodeFunctionData>[0])
 
   // Start the transaction through the transaction manager
   const txId = transactionManager.startTransaction(
@@ -168,9 +159,9 @@ export async function saveRecords(
       type: 'custom',
       request: {
         type: 'eoa',
-        from: accountAddress,
+        from: walletClient.account.address,
         to: resolverAddress,
-        data: multicallData,
+        data,
         value: 0n,
         chainId,
       },
