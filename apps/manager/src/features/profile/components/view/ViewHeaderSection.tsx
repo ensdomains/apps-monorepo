@@ -37,7 +37,7 @@ export const ViewHeaderSection = ({
   }/p/${name}`
 
   return (
-    <div className="overflow-hidden md:rounded-xl">
+    <div className="overflow-hidden rounded-xl border-[0.25px] border-border bg-white shadow-none">
       {/* Header BG */}
       <div className="relative w-full">
         <ImageFallback.Root className="aspect-3/1 w-full md:aspect-5/1">
