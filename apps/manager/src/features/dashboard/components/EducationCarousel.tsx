@@ -175,7 +175,7 @@ export const EducationCarousel = () => {
               </p>
               <div
                 className={cn(
-                  'flex h-[164px] w-full items-center justify-center rounded-[4px] bg-white/40 shadow-sm',
+                  'mt-auto flex h-[164px] w-full items-center justify-center rounded-[4px] bg-white/40 shadow-sm',
                 )}
               >
                 <span
