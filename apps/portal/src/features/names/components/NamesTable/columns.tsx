@@ -1,28 +1,18 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { ArrowUpDown } from 'lucide-react'
-import { NamechainSVG } from '@/assets/chains'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { SortButton } from '@/components/table/SortButton'
+import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
-import type { EnsNetworkName, WithEnsNetwork } from '@/utils/types'
+import type { V1Roles } from '@/utils/names/mergeNamesData'
 
-export type NameRow = WithEnsNetwork<{
+export type NameRow = {
   name: string | null
   expiryDate?: Date | null
-}>
-
-const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
-  return (
-    <button
-      className="p-0 flex flex-row items-center cursor-pointer"
-      type="button"
-      {...props}
-    >
-      {children}
-      <ArrowUpDown className="ml-2 h-4 w-4" />
-    </button>
-  )
+  roleBitmap?: string | null
+  v1Roles?: V1Roles | null
 }
 
 export const columns: ColumnDef<NameRow>[] = [
@@ -86,35 +76,56 @@ export const columns: ColumnDef<NameRow>[] = [
     ),
     cell: ({ row }) => {
       const expiryDate = row.original.expiryDate
-      return expiryDate ? formatDateTime(expiryDate) : null
+      if (!expiryDate) {
+        return (
+          <Badge variant="secondary" className="text-xs">
+            Does not expire
+          </Badge>
+        )
+      }
+      return formatDateTime(expiryDate)
     },
   },
   {
-    accessorKey: 'network',
+    accessorKey: 'roleBitmap',
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
       >
-        Network
+        Roles
       </SortButton>
     ),
-    cell(cell) {
-      const network = cell.getValue() as EnsNetworkName
+    cell: ({ row }) => {
+      const roleBitmap = row.original.roleBitmap
+      const v1Roles = row.original.v1Roles
 
-      if (network === 'sepolia') {
+      // V2 names: use roleBitmap
+      if (roleBitmap) {
+        const roles = decodeRoleBitmap(roleBitmap)
+        if (roles.length === 0) return null
+
         return (
-          <div className="flex flex-row gap-1 items-center">
-            <NamechainSVG height={20} width={20} />
-            <span>Sepolia</span>
-          </div>
+          <Badge variant="secondary" className="text-xs">
+            {roles.length} {roles.length === 1 ? 'Role' : 'Roles'}
+          </Badge>
         )
       }
 
-      if (network === 'namechainSepolia') {
+      // V1 names: use v1Roles (owner/manager)
+      if (v1Roles) {
+        const roleLabels: string[] = []
+        if (v1Roles.owner) roleLabels.push('Owner')
+        if (v1Roles.manager) roleLabels.push('Manager')
+
+        if (roleLabels.length === 0) return null
+
         return (
-          <div className="flex flex-row gap-1 items-center">
-            <NamechainSVG height={20} width={20} />
-            <span>Namechain Sepolia</span>
+          <div className="flex flex-row gap-1">
+            {roleLabels.map((label) => (
+              <Badge key={label} variant="secondary" className="text-xs">
+                {label}
+              </Badge>
+            ))}
           </div>
         )
       }

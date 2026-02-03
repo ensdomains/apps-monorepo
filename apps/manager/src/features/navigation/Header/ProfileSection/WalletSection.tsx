@@ -42,10 +42,10 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
               src={paraColorIcon}
             />
             <div className="flex flex-col items-start gap-1">
-              <div className="font-medium text-[#232222] text-sm">
+              <div className="font-medium text-foreground text-sm">
                 Manage Para Wallet
               </div>
-              <div className="truncate text-[#6B6B6B] text-xs leading-ens-normal">
+              <div className="truncate text-muted-foreground text-xs leading-ens-normal">
                 {truncateAddress(accountAddress)}
               </div>
             </div>
@@ -118,7 +118,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
         ) : (
           <UnlinkIcon className="size-5" />
         )}
-        <span className="text-[#232222] text-base leading-ens-tight">
+        <span className="text-base text-foreground leading-ens-tight">
           Disconnect
         </span>
       </button>

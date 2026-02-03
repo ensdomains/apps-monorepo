@@ -4,6 +4,7 @@ import {
   CoinsIcon,
   FileCodeIcon,
   FileSpreadsheetIcon,
+  ListTreeIcon,
   Network,
   PersonStandingIcon,
   UserLockIcon,
@@ -54,6 +55,11 @@ const itemGroups = [
     },
   ],
   [
+    {
+      title: 'Subnames',
+      url: '/$name/subnames',
+      icon: ListTreeIcon,
+    },
     {
       title: 'Registry',
       url: '/$name/registry',

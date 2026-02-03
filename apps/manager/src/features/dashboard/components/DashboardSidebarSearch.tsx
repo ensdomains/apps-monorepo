@@ -191,7 +191,7 @@ export const DashboardSidebarSearch = ({
       <form onSubmit={handleSearchSubmit}>
         <Input
           autoComplete="off"
-          className="h-[44px] rounded-[4px] border-[#e5e5e5] border-[0.4px] bg-white text-[#8c8c8c] placeholder:text-[#8c8c8c]"
+          className="h-[44px] rounded-[4px] border-[0.4px] border-ens-gray-two bg-white text-muted-foreground placeholder:text-muted-foreground"
           onChange={(event) => {
             setSearchValue(event.target.value)
             setIsDropdownOpen(true)
@@ -199,7 +199,7 @@ export const DashboardSidebarSearch = ({
           onFocus={() => setIsDropdownOpen(true)}
           placeholder="Search name, address..."
           size="default"
-          startIcon={<Search className="size-[18px] text-[#8c8c8c]" />}
+          startIcon={<Search className="size-[18px] text-muted-foreground" />}
           value={searchValue}
         />
       </form>

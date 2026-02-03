@@ -1,6 +1,8 @@
 import { primaryNameMachine } from '@ens-apps/transaction-manager'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
+import { AlertCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import type { Address, PublicClient } from 'viem'
@@ -15,9 +17,11 @@ import {
 } from '@/components/ui/dialog'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
+import { profileRecordsQuery } from '../../service/profileRecords'
 import {
   handlePrimaryNameCancel,
   handleSetPrimaryName,
+  hasEthAddressRecord,
 } from '../ProfileEdit.handlers'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
@@ -74,6 +78,13 @@ export const SetPrimaryNameDialog = ({
     (isError && 'Failed to set primary name') ||
     undefined
 
+  const { data: records, isLoading: isLoadingRecords } = useQuery({
+    ...profileRecordsQuery(name),
+    enabled: open,
+  })
+  const showNoEthWarning =
+    open && !isLoadingRecords && !hasEthAddressRecord(records)
+
   usePrimaryNameSuccessRedirect({
     isSuccess,
     name,
@@ -89,6 +100,7 @@ export const SetPrimaryNameDialog = ({
         account,
         primaryNameActor,
         publicClient: publicClient as PublicClient,
+        records,
       },
     )
   }
@@ -109,20 +121,26 @@ export const SetPrimaryNameDialog = ({
         <DialogHeader>
           <DialogTitle>Set Primary Name</DialogTitle>
         </DialogHeader>
-
         <UpdateStatusPanel
           errorMessage={machineErrorMessage}
           isSaving={isSubmitting}
           isSuccess={isSuccess}
           txHash={txHash}
         />
-
         <p className="text-muted-foreground text-sm">
           This will set <span className="font-mono">{name}</span> as your
           primary ENS name for this account, so compatible apps and wallets can
           display it as your default identity.
         </p>
-
+        {showNoEthWarning && (
+          <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3">
+            <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
+            <p className="text-red-800 text-sm">
+              This name doesn&apos;t have an ETH address record set. Please add
+              one before setting it as your primary name.
+            </p>
+          </div>
+        )}
         <DialogFooter>
           <Button
             disabled={isSubmitting}
@@ -131,7 +149,10 @@ export const SetPrimaryNameDialog = ({
           >
             Cancel
           </Button>
-          <Button disabled={isSubmitting} onClick={handleSave}>
+          <Button
+            disabled={isSubmitting || showNoEthWarning}
+            onClick={handleSave}
+          >
             {isSubmitting ? 'Setting…' : 'Set as Primary'}
           </Button>
         </DialogFooter>

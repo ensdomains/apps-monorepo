@@ -12,8 +12,6 @@ import { Label } from '@/components/ui/label'
 import {
   type FilterGroup,
   getAllValuesFromGroups,
-  isGroupFullySelected,
-  toggleGroupSelection,
   toggleValue,
 } from '@/utils/filtering/multiSelectFilter'
 
@@ -39,16 +37,6 @@ export const TableMultiSelectFilter = ({
     onChange(toggleValue(selectedValues, value))
   }
 
-  const handleGroupSelectAll = (groupOptions: Array<{ value: string }>) => {
-    const groupValues = groupOptions.map((opt) => opt.value)
-    onChange(toggleGroupSelection(selectedValues, groupValues))
-  }
-
-  const isGroupAllSelected = (groupOptions: Array<{ value: string }>) => {
-    const groupValues = groupOptions.map((opt) => opt.value)
-    return isGroupFullySelected(selectedValues, groupValues)
-  }
-
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
@@ -68,26 +56,50 @@ export const TableMultiSelectFilter = ({
       <DropdownMenuContent align="start" className="w-80">
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Filter by type</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-semibold">
+                Filter by {label.toLowerCase()}
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onChange([])}
+                className="h-auto px-2 py-1 text-xs text-muted-foreground"
+              >
+                Reset
+              </Button>
+            </div>
             <Button variant="ghost" size="icon" onClick={() => setOpen(false)}>
               <XIcon className="h-4 w-4 font-bold" />
             </Button>
           </div>
 
           {groups.map((group) => {
-            const isAllSelected = isGroupAllSelected(group.options)
+            const groupValues = group.options.map((opt) => opt.value)
+            const hasAnySelected = groupValues.some((v) =>
+              selectedValues.includes(v),
+            )
             return (
               <div key={group.title} className="mb-6 last:mb-0">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-sm font-semibold">{group.title}</h4>
-                  <Button
-                    variant="link"
-                    size="sm"
-                    onClick={() => handleGroupSelectAll(group.options)}
-                    className="h-auto p-0 text-xs"
-                  >
-                    {isAllSelected ? 'Deselect all' : 'Select all'}
-                  </Button>
+                  {hasAnySelected && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      onClick={() => {
+                        // Deselect all in this group
+                        onChange(
+                          selectedValues.filter(
+                            (v) => !groupValues.includes(v),
+                          ),
+                        )
+                      }}
+                      className="h-auto p-0 text-xs text-muted-foreground"
+                    >
+                      Deselect all
+                    </Button>
+                  )}
                 </div>
                 <div className="space-y-2">
                   {group.options.map((option) => {
@@ -115,20 +127,6 @@ export const TableMultiSelectFilter = ({
               </div>
             )
           })}
-
-          <div className="mt-4 pt-4 flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                onChange([])
-                setOpen(false)
-              }}
-              className="flex-1"
-            >
-              Reset
-            </Button>
-          </div>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
