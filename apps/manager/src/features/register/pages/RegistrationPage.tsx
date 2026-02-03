@@ -215,11 +215,15 @@ export const Registration = ({ initialName }: RegistrationProps) => {
       {step === RegistrationStep.PRICING && displayDomainName && (
         <div className="w-full py-6 md:py-6">
           {isCheckingAvailability && initialName && (
-            <div className="flex min-h-[400px] items-center justify-center">
+            <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 pt-4 pb-12 md:px-10">
+              <PricingDomainHeader
+                domainName={displayDomainName}
+                premiumLabel={undefined}
+              />
               <div className="flex flex-col items-center gap-4">
                 <div className="h-12 w-12 animate-spin rounded-full border-4 border-ens-lapis-surface border-t-transparent" />
-                <p className="text-ens-gray">
-                  Checking availability for {displayDomainName}...
+                <p className="text-center text-ens-gray">
+                  Checking availability...
                 </p>
               </div>
             </div>
