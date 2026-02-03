@@ -6,8 +6,8 @@ import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
   cn(
-    'inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md',
-    'font-medium text-sm outline-none',
+    'inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xs',
+    'font-mono text-sm uppercase tracking-wider outline-none',
     'transition-all',
     'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
     'disabled:pointer-events-none disabled:opacity-50',
@@ -18,7 +18,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          'h-[56px] w-[191px] items-center justify-center gap-4 rounded-md border bg-ens-blue px-6 py-6 text-white',
+          'h-[56px] w-[191px] items-center justify-center gap-4 rounded-xs border bg-ens-blue px-6 py-6 text-white',
         destructive:
           'bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20',
         outline:
@@ -28,14 +28,14 @@ const buttonVariants = cva(
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
         connectWallet:
-          'h-[56px] w-[191px] items-center justify-center gap-4 rounded-md border bg-ens-blue px-6 py-[27px] text-white',
+          'h-[56px] w-[191px] items-center justify-center gap-4 rounded-xs border bg-ens-blue px-6 py-[27px] text-white',
         payment:
-          'h-[56px] w-[191px] items-center justify-center gap-4 rounded-md border bg-ens-blue px-6 py-8 text-white uppercase',
+          'h-[56px] w-[191px] items-center justify-center gap-4 rounded-xs border bg-ens-blue px-6 py-8 text-white',
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',
-        sm: 'h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5',
-        lg: 'h-10 rounded-md px-6 has-[>svg]:px-4',
+        sm: 'h-8 gap-1.5 rounded-xs px-3 has-[>svg]:px-2.5',
+        lg: 'h-10 rounded-xs px-6 has-[>svg]:px-4',
         icon: 'size-9',
       },
     },
