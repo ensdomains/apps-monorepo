@@ -1,16 +1,10 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { Link, useRouterState } from '@tanstack/react-router'
-import {
-  BookIcon,
-  CircleQuestionMarkIcon,
-  Menu,
-  SettingsIcon,
-} from 'lucide-react'
+import { BookIcon, CircleQuestionMarkIcon, Menu } from 'lucide-react'
 import { lazy, Suspense } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
 import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
-import { TableViewSwitch } from '@/features/records/components/RecordsTable/TableViewSwitch'
 import { HelpMenu } from './HelpMenu'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -98,7 +92,7 @@ export const NavBar = () => {
                 </div>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
-            <DropdownMenuSub>
+            {/* <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <div className="flex flex-row items-center gap-2">
                   <SettingsIcon className="size-4" />
@@ -110,7 +104,7 @@ export const NavBar = () => {
                   <TableViewSwitch />
                 </div>
               </DropdownMenuSubContent>
-            </DropdownMenuSub>
+            </DropdownMenuSub> */}
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <ExternalLink
@@ -142,7 +136,7 @@ export const NavBar = () => {
             </PopoverContent>
           </Popover>
 
-          <Popover>
+          {/* <Popover>
             <PopoverTrigger asChild>
               <Button
                 size="icon"
@@ -156,7 +150,7 @@ export const NavBar = () => {
             <PopoverContent align="end">
               <TableViewSwitch />
             </PopoverContent>
-          </Popover>
+          </Popover> */}
           <ExternalLink
             className="flex flex-row items-center gap-1"
             href="https://docs.ens.domains"
