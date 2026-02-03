@@ -332,20 +332,25 @@ export const CryptoPaymentDrawer = ({
                           </div>
                         </div>
                         <p className="text-ens-gray-dark text-sm tracking-wide">
-                          Sepolia {stablecoin.symbol}
+                          {stablecoin.symbol}
                         </p>
                       </div>
                       <div className="flex flex-col items-end">
-                        <p
-                          className={cn(
-                            'text-right text-base tracking-wide',
-                            hasInsufficientBalanceForCoin
-                              ? 'text-ens-error'
-                              : 'text-ens-gray-dark',
-                          )}
-                        >
-                          ${formatAmount(coinBalanceUSD, 2)}
-                        </p>
+                        <div className="flex items-baseline gap-1.5">
+                          <p
+                            className={cn(
+                              'text-right text-base tracking-wide',
+                              hasInsufficientBalanceForCoin
+                                ? 'text-ens-error'
+                                : 'text-ens-gray-dark',
+                            )}
+                          >
+                            ${formatAmount(coinBalanceUSD, 2)}
+                          </p>
+                          <span className="text-[#A0A4A6] text-sm">
+                            available
+                          </span>
+                        </div>
                         {hasInsufficientBalanceForCoin && priceUSD > 0 && (
                           <p className="text-ens-error text-xs">
                             Need ${formatAmount(priceUSD)}
