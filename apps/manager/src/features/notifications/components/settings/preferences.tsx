@@ -10,7 +10,7 @@ import {
   updatePreferenceMutationOptions,
 } from '@/features/notifications/queries/preferences'
 
-const Preference = ({
+export const Preference = ({
   icon,
   label,
   description,
