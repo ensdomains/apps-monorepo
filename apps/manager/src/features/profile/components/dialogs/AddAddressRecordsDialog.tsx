@@ -46,8 +46,12 @@ export const AddAddressRecordsDialog = ({
   return (
     <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>
-        <Button className="rounded-full" size="sm" variant="secondary">
-          <Plus className="size-5" />
+        <Button
+          className="h-auto gap-[11px] py-1 pr-1 pl-0! text-muted-foreground text-sm hover:bg-transparent hover:text-muted-foreground"
+          size="sm"
+          variant="ghost"
+        >
+          <Plus className="size-4" />
           {buttonLabel}
         </Button>
       </DialogTrigger>

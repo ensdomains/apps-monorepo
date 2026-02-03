@@ -125,7 +125,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       onSubmit={handleSubmit}
     >
       <HeaderSection form={form} name={name} owner={ownerAddress} />
-      <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         <div className="space-y-4 md:col-span-7 lg:col-span-8">
           <BioSection form={form} />
           <SocialLinksSection form={form} />
