@@ -14,8 +14,17 @@ import type { Address, PublicClient } from 'viem'
 import { isAddress } from 'viem'
 import type { ActorRefFrom } from 'xstate'
 import type { SmartAccountState } from '@/lib/smart-account'
+import type { ProfileRecordsResult } from '../service/profileRecords'
 import type { ProfileRecords } from '../types'
 import { transformToServiceFormat } from '../utils/transformRecords'
+
+const ETH_COIN_TYPE = 60
+
+export function hasEthAddressRecord(
+  records: ProfileRecordsResult | undefined,
+): boolean {
+  return records?.coins?.some((c) => c.coinType === ETH_COIN_TYPE) ?? false
+}
 
 export interface ProfileUpdateParams {
   name: string
@@ -56,6 +65,7 @@ export interface PrimaryNameOptions {
   }
   primaryNameActor: ActorRefFrom<typeof primaryNameMachine>
   publicClient: PublicClient
+  records?: ProfileRecordsResult
 }
 
 export interface ProfileResetParams {
@@ -209,13 +219,17 @@ export function handleSetPrimaryName(
   options: PrimaryNameOptions,
 ): string | undefined {
   const { name, owner } = params
-  const { account, primaryNameActor, publicClient } = options
+  const { account, primaryNameActor, publicClient, records } = options
 
   if (!owner) {
     const message = 'Cannot set primary name - ENS owner is not available.'
     console.warn(message)
     alert(message)
     return message
+  }
+
+  if (!hasEthAddressRecord(records)) {
+    return "This name doesn't have an ETH address record set. Please add one before setting it as your primary name."
   }
 
   const walletClient = account.walletClient
