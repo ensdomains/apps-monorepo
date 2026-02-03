@@ -132,7 +132,6 @@ export const usePricing = ({
       dispatch({ type: 'FETCH_PRICING_START' })
       try {
         const baseResult = await getTokenPrices(domainName, 1)
-        console.log('baseResult: ', baseResult)
 
         if (isCancelled) return
 

@@ -20,7 +20,7 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
-import { STABLECOINS } from '@/features/register/utils'
+import { getPremiumLabel, STABLECOINS } from '@/features/register/utils'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
@@ -128,15 +128,6 @@ export const CreditCardPaymentDrawer = ({
       </DrawerContent>
     </Drawer>
   )
-}
-
-// Helper to get premium label based on domain name length
-const getPremiumLabel = (domainName: string): string | null => {
-  const nameWithoutEth = domainName.replace('.eth', '')
-  const length = nameWithoutEth.length
-  if (length <= 3) return `${length} character premium name`
-  if (length === 4) return '4 character name'
-  return null
 }
 
 // Crypto Payment Drawer Component
@@ -420,7 +411,7 @@ export const CryptoPaymentDrawer = ({
           {premiumLabel && (
             <div className="rounded-full bg-ens-bronzite-surface px-3 py-1">
               <span className="font-medium text-sm text-white">
-                {premiumLabel}
+                {premiumLabel.label}
               </span>
             </div>
           )}
