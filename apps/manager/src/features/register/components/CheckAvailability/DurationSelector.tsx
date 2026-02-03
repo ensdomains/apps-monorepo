@@ -25,6 +25,7 @@ export const DurationSelector = ({
   onInputChange,
 }: DurationSelectorProps) => {
   const [isCustomFocused, setIsCustomFocused] = useState(false)
+  const [customDisplayValue, setCustomDisplayValue] = useState('')
   const customInputRef = useRef<HTMLInputElement>(null)
 
   const isPredefinedDuration = (
@@ -39,8 +40,20 @@ export const DurationSelector = ({
     onSelect(duration)
   }
 
+  const handleCustomInputFocus = () => {
+    setIsCustomFocused(true)
+    // If coming from a predefined duration, start with empty input
+    if (isPredefinedDuration(selectedDuration)) {
+      setCustomDisplayValue('')
+    } else {
+      // If already on custom duration, use the current value
+      setCustomDisplayValue(durationInputValue)
+    }
+  }
+
   const handleCustomInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
+    setCustomDisplayValue(value)
 
     // Allow clearing the input
     if (value === '') {
@@ -59,7 +72,7 @@ export const DurationSelector = ({
   const handleCustomInputBlur = () => {
     setIsCustomFocused(false)
     // If empty on blur, reset to 1 year
-    if (durationInputValue === '') {
+    if (customDisplayValue === '') {
       onSelect(1)
     }
   }
@@ -199,11 +212,17 @@ export const DurationSelector = ({
             min={1}
             onBlur={handleCustomInputBlur}
             onChange={handleCustomInputChange}
-            onFocus={() => setIsCustomFocused(true)}
+            onFocus={handleCustomInputFocus}
             ref={customInputRef}
             step={1}
             type="number"
-            value={isCustomSelected ? durationInputValue : ''}
+            value={
+              isCustomFocused
+                ? customDisplayValue
+                : isCustomSelected
+                  ? durationInputValue
+                  : ''
+            }
           />
           <span className="font-normal text-ens-gray-three text-xs leading-none tracking-tight md:text-base">
             years
