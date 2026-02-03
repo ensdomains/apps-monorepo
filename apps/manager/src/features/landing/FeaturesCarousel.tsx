@@ -18,7 +18,7 @@ type FeatureCard = {
   children: ReactNode
 }
 
-const FEATURE_CARDS: FeatureCard[] = [
+export const FEATURE_CARDS: FeatureCard[] = [
   {
     className: tw`bg-ens-peridot-dust text-ens-peridot-core`,
     indicatorClass: tw`border-ens-peridot-core data-active:bg-ens-peridot-core`,
