@@ -129,7 +129,7 @@ export const RegistrationInProgress = ({
         stage={progressStage}
       />
 
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         {showRegistrationDetails ? (
           <RegistrationDetails
             discountAmount={discountAmount}
