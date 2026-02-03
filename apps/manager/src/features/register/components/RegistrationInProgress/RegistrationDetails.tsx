@@ -23,7 +23,6 @@ export const RegistrationDetails = ({
   discountAmount,
   expiresDate,
   className,
-  onGoToDashboard,
   onProfileNavigate,
   isRegistrationComplete = false,
 }: RegistrationDetailsProps) => {
@@ -33,56 +32,59 @@ export const RegistrationDetails = ({
     day: 'numeric',
   })
 
+  // Calculate the registration fee (total + discount = original fee)
+  const registrationFee = totalPrice + discountAmount
+  const formattedRegistrationFee = registrationFee.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+
   const formattedTotalPrice = totalPrice.toLocaleString('en-US', {
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   })
 
   const formattedDiscount = discountAmount.toLocaleString('en-US', {
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   })
 
   const discountPercentage =
-    totalPrice > 0
-      ? Math.round((discountAmount / (totalPrice + discountAmount)) * 100)
+    registrationFee > 0
+      ? Math.round((discountAmount / registrationFee) * 100)
       : 0
 
   return (
-    <div
-      className={cn(
-        'flex w-full flex-col gap-8 bg-gray-100 p-6 md:flex-row',
-        className,
-      )}
-    >
-      <div className="flex w-full min-w-0 max-w-full flex-col items-center gap-6 md:w-[338px] md:shrink-0">
-        <DomainCard
-          className="w-full max-w-full"
-          domainName={domainName}
-          variant="garnet"
-        />
-      </div>
+    <div className={cn('flex w-full flex-col gap-6', className)}>
+      {/* Main Content - Two columns on desktop, stacked on mobile */}
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-16">
+        {/* Domain Card */}
+        <div className="w-full lg:w-1/2">
+          <DomainCard domainName={domainName} variant="garnet" />
+        </div>
 
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-6 rounded-xl border border-ens-gray-two bg-white p-8 shadow-sm">
-          <h3 className="font-medium text-ens-blue-dark text-xl tracking-tight">
-            Registration Details
-          </h3>
+        {/* Registration Details */}
+        <div className="flex w-full flex-col gap-6 lg:w-1/2">
+          <div className="flex flex-col gap-5">
+            <h3 className="font-medium text-ens-blue-dark text-xl tracking-tight">
+              Registration Details
+            </h3>
 
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <p className="text-base text-ens-gray">Registration Period</p>
-              <p className="text-base text-ens-blue-dark">
-                {duration} {duration === 1 ? 'Year' : 'Years'}
-              </p>
-            </div>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <p className="text-base text-ens-gray">Registration Period</p>
+                <p className="text-base text-ens-blue-dark">
+                  {duration} {duration === 1 ? 'Year' : 'Years'}
+                </p>
+              </div>
 
-            <div className="flex items-center justify-between">
-              <p className="text-base text-ens-gray">Registration Fee</p>
-              <p className="text-base text-ens-blue-dark">
-                ${formattedTotalPrice}
-              </p>
-            </div>
+              <div className="flex items-center justify-between">
+                <p className="text-base text-ens-gray">Registration Fee</p>
+                <p className="text-base text-ens-blue-dark">
+                  ${formattedRegistrationFee}
+                </p>
+              </div>
 
-            {discountAmount > 0 && (
               <div className="flex items-center justify-between">
                 <p className="text-base text-ens-peridot-core">
                   Multi-year Discount ({discountPercentage}%)
@@ -91,43 +93,29 @@ export const RegistrationDetails = ({
                   -${formattedDiscount}
                 </p>
               </div>
-            )}
 
-            <div className="h-px bg-black/10" />
+              <div className="flex items-center justify-between border-ens-gray-two border-t pt-4">
+                <p className="text-base text-ens-blue-dark">Total Paid</p>
+                <p className="text-base text-ens-blue-dark">
+                  ${formattedTotalPrice}
+                </p>
+              </div>
 
-            <div className="flex items-center justify-between">
-              <p className="text-base text-ens-blue-dark">Total Paid</p>
-              <p className="text-base text-ens-blue-dark">
-                ${formattedTotalPrice}
-              </p>
-            </div>
-
-            <div className="h-px bg-black/10" />
-
-            <div className="flex items-center justify-between">
-              <p className="text-base text-ens-gray">Expires</p>
-              <p className="text-base text-ens-blue-dark">
-                {formattedExpiresDate}
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-base text-ens-gray">Expires</p>
+                <p className="text-base text-ens-blue">
+                  {formattedExpiresDate}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex flex-col gap-3">
           <Button
-            className="h-20 w-full rounded bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-ens-blue-hover disabled:bg-ens-gray-two disabled:text-ens-gray"
+            className="h-14 w-full rounded bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-ens-blue-hover disabled:bg-ens-gray-two disabled:text-ens-gray"
             disabled={!isRegistrationComplete}
             onClick={onProfileNavigate}
           >
-            Go to Profile
-          </Button>
-          <Button
-            className="h-20 w-full rounded border-ens-blue bg-white font-mono text-sm uppercase tracking-wider transition-colors hover:bg-ens-blue-light disabled:border-ens-gray-two disabled:text-ens-gray disabled:hover:bg-white"
-            disabled={!isRegistrationComplete}
-            onClick={onGoToDashboard}
-            variant="outline"
-          >
-            Go to Dashboard
+            Create Profile
           </Button>
         </div>
       </div>

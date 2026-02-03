@@ -94,7 +94,7 @@ export const useCheckAvailability = ({
         : 0
       const discountMultiplier = discountsEnabled ? 1 - discount / 100 : 1
       const perYearPrice = basePerYear * discountMultiplier
-      const totalPrice = perYearPrice * duration
+      const totalPrice = Math.ceil(perYearPrice * duration)
 
       newPricing[duration] = {
         ...INITIAL_PRICING_OPTIONS[duration],
