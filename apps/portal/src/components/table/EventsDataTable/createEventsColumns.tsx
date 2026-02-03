@@ -1,29 +1,12 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import {
-  ArrowUpDown,
-  ChevronDown,
-  ChevronUp,
-  PanelRightOpen,
-} from 'lucide-react'
+import { ChevronDown, ChevronUp, PanelRightOpen } from 'lucide-react'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
+import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/utils/formatting/formatDateRange'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { BaseEvent, EventsTableData } from './types'
-
-const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
-  return (
-    <button
-      className="p-0 flex flex-row items-center cursor-pointer"
-      type="button"
-      {...props}
-    >
-      {children}
-      <ArrowUpDown className="ml-2 h-4 w-4" />
-    </button>
-  )
-}
 
 type ColumnConfig = {
   enableSidebar?: boolean

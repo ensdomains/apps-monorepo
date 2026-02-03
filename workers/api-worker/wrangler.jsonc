@@ -71,9 +71,9 @@
 
   "vars": {
     "CHAIN": "mainnet",
-    "BASE_URL": "https://app-api-worker.ens-cf.workers.dev",
-    "EMAIL_FROM_ADDRESS": "ens@email.srv.ax",
-    "MANAGER_APP_URL": "https://manager-app-v4.ens-cf.workers.dev",
+    "BASE_URL": "https://app-api.ens.dev",
+    "EMAIL_FROM_ADDRESS": "noreply@ens.dev",
+    "MANAGER_APP_URL": "https://app.ens.dev",
     "VAPID_SUBJECT": "mailto:notifications@ens.domains",
     "VAPID_PUBLIC_KEY": "REPLACE_WITH_YOUR_VAPID_PUBLIC_KEY",
     "SENDGRID_BROADCAST_LIST_ID": ""
