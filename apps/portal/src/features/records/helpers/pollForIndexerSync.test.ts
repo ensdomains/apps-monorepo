@@ -25,7 +25,7 @@ describe('pollForIndexerSync', () => {
       expect(DEFAULT_INDEXER_SYNC_CONFIG).toEqual({
         initialDelay: 5000,
         retryInterval: 3000,
-        maxAttempts: 3,
+        maxAttempts: 5,
       })
     })
   })
