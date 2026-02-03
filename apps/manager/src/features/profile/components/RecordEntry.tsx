@@ -1,6 +1,6 @@
 import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Input } from '@/components/ui/input'
+import { FloatingInput } from '@/components/ui/floating-input'
 
 interface RecordEntryProps {
   name: string
@@ -19,20 +19,21 @@ export const RecordEntry = ({
   onChange,
   onRemove,
 }: RecordEntryProps) => (
-  <div className="space-y-1">
-    <div className="flex items-center gap-2 text-sm">
-      {name} {badge}
-    </div>
-    <div className="flex items-center gap-2">
-      <Input
-        className="w-full flex-1"
-        onChange={(e) => onChange?.(e.target.value)}
-        placeholder={placeholder}
-        value={value}
-      />
-      <button onClick={onRemove} type="button">
-        <X className="size-4" />
-      </button>
-    </div>
+  <div className="flex items-center gap-3 pt-1">
+    <FloatingInput
+      className="flex-1"
+      label={name}
+      labelSuffix={badge}
+      onChange={(e) => onChange?.(e.target.value)}
+      placeholder={placeholder}
+      value={value}
+    />
+    <button
+      className="text-muted-foreground transition-colors hover:text-foreground"
+      onClick={onRemove}
+      type="button"
+    >
+      <X className="size-3" />
+    </button>
   </div>
 )

@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { Textarea } from '@/components/ui/textarea'
+import { FloatingTextarea } from '@/components/ui/floating-textarea'
 import { AddTextRecordsDialog } from '@/features/profile/components/dialogs/AddTextRecordsDialog'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
@@ -12,21 +12,23 @@ export const BioSection = withForm({
       <div>
         <form.Field name="base.description">
           {(field) => (
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="font-medium">Bio</span>
-                <button onClick={() => field.handleChange('')} type="button">
-                  <X className="size-4" />
-                </button>
-              </div>
-              <Textarea
-                className="w-full"
+            <div className="flex items-start gap-3 pt-1">
+              <FloatingTextarea
+                className="flex-1"
+                label="Bio"
                 onChange={(e) => {
                   field.handleChange(e.target.value)
                 }}
                 placeholder="Add a short bio to your profile"
                 value={field.state.value}
               />
+              <button
+                className="mt-5 text-muted-foreground transition-colors hover:text-foreground"
+                onClick={() => field.handleChange('')}
+                type="button"
+              >
+                <X className="size-3" />
+              </button>
             </div>
           )}
         </form.Field>
