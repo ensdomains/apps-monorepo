@@ -14,12 +14,12 @@ export class CheckNameAvailabilityError extends TaggedError(
 }> {}
 
 type CheckNameAvailabilityParameters = {
-  name: string
+  readonly name: string
 }
 
 export type CheckNameAvailabilityReturnType = {
-  isAvailable: boolean
-  name: string
+  readonly isAvailable: boolean
+  readonly name: string
 }
 
 /**
