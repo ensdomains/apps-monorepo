@@ -18,7 +18,7 @@ export type IndexerSyncConfig = {
 export const DEFAULT_INDEXER_SYNC_CONFIG: IndexerSyncConfig = {
   initialDelay: 5000,
   retryInterval: 3000,
-  maxAttempts: 3,
+  maxAttempts: 5,
 }
 
 /**
