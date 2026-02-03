@@ -24,8 +24,8 @@ export const EducationCarousel = () => {
         <div className="flex items-center gap-2">
           <button
             className={cn(
-              'text-foreground transition-opacity',
-              currentPage === 0 && 'opacity-30',
+              'transition-colors',
+              currentPage === 0 ? 'text-border' : 'text-ens-blue',
             )}
             disabled={currentPage === 0}
             onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
@@ -38,8 +38,8 @@ export const EducationCarousel = () => {
           </span>
           <button
             className={cn(
-              'text-foreground transition-opacity',
-              currentPage === totalPages - 1 && 'opacity-30',
+              'transition-colors',
+              currentPage === totalPages - 1 ? 'text-border' : 'text-ens-blue',
             )}
             disabled={currentPage === totalPages - 1}
             onClick={() =>
