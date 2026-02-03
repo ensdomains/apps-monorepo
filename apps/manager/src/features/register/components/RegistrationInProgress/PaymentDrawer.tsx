@@ -4,6 +4,7 @@ import { useWallet } from '@getpara/react-sdk-lite'
 import { CreditCardIcon, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
+import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -20,10 +21,6 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
-import {
-  getByteLength,
-  getDomainHeaderSizeClasses,
-} from '@/features/register/components/Pricing/utils'
 import { getPremiumLabel, STABLECOINS } from '@/features/register/utils'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -413,20 +410,22 @@ export const CryptoPaymentDrawer = ({
 
         <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-xl bg-[rgb(250,250,250)] px-6 py-8">
           {premiumLabel && (
-            <div className="rounded-full bg-ens-bronzite-surface px-3 py-1">
-              <span className="font-medium text-sm text-white">
-                {premiumLabel.label}
-              </span>
-            </div>
+            <DomainAttributePill
+              label={premiumLabel.label}
+              variant={premiumLabel.variant}
+            />
           )}
           <span
             className={cn(
-              'w-full min-w-0 break-words font-normal text-ens-blue-dark tracking-tight',
-              getDomainHeaderSizeClasses(getByteLength(domainName)),
+              'w-full min-w-0 text-center font-medium font-semi-mono',
+              'text-[40px] leading-[96%] tracking-[-0.8px]',
+              'text-[var(--Primary-Grey,#4A5C63)]',
             )}
             title={domainName}
           >
-            {domainName}
+            {domainName.length > 10
+              ? `${domainName.slice(0, 10)}…`
+              : domainName}
           </span>
         </div>
 
