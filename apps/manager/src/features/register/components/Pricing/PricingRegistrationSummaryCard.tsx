@@ -107,7 +107,7 @@ export const PricingRegistrationSummaryCard = ({
               <PopoverTrigger asChild>
                 <button
                   className={cn(
-                    'inline-flex cursor-pointer items-center gap-2 border-ens-gray-three border-y px-3 py-1.5 transition-all hover:border-ens-blue',
+                    'inline-flex cursor-pointer items-center gap-2 rounded-sm border-ens-gray-two border-b bg-[rgb(250,250,250)] px-3 py-1.5 transition-all hover:border-ens-blue',
                   )}
                   type="button"
                 >
