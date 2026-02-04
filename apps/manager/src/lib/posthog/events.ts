@@ -1,4 +1,4 @@
-import posthog from 'posthog-js'
+import posthog, { type CaptureOptions } from 'posthog-js'
 
 export type PostHogEvents = {
   'wallet:connect': {
@@ -8,6 +8,8 @@ export type PostHogEvents = {
   }
 
   'wallet:disconnect': undefined
+
+  'intercom:booted': undefined
 }
 
 export type PostHogEvent = keyof PostHogEvents
@@ -17,4 +19,12 @@ export function track<N extends PostHogEvent>(
   ...args: PostHogEvents[N] extends undefined ? [] : [PostHogEvents[N]]
 ): void {
   posthog.capture(name, args[0])
+}
+
+export function trackWithOptions<N extends PostHogEvent>(
+  name: N,
+  args: PostHogEvents[N],
+  options: CaptureOptions,
+): void {
+  posthog.capture(name, args, options)
 }
