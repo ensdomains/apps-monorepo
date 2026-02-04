@@ -102,6 +102,7 @@ export const EditRecordsTable = ({
               onClick={() =>
                 column.toggleSorting(column.getIsSorted() === 'asc')
               }
+              sortDirection={column.getIsSorted()}
             >
               Key
             </SortButton>
@@ -132,6 +133,7 @@ export const EditRecordsTable = ({
               onClick={() =>
                 column.toggleSorting(column.getIsSorted() === 'asc')
               }
+              sortDirection={column.getIsSorted()}
             >
               Value
             </SortButton>

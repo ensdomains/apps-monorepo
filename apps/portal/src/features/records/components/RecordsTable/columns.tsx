@@ -41,6 +41,7 @@ export const columns: ColumnDef<NameRecord>[] = [
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        sortDirection={column.getIsSorted()}
       >
         Type
       </SortButton>
@@ -52,6 +53,7 @@ export const columns: ColumnDef<NameRecord>[] = [
       return (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          sortDirection={column.getIsSorted()}
         >
           Key
         </SortButton>
@@ -76,6 +78,7 @@ export const columns: ColumnDef<NameRecord>[] = [
       return (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          sortDirection={column.getIsSorted()}
         >
           Value
         </SortButton>
