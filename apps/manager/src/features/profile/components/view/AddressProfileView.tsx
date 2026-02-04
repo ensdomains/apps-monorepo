@@ -21,7 +21,13 @@ const formatExpiry = (expiry?: number | null) => {
   return formatted === '—' ? 'No expiry set' : `Expires ${formatted}`
 }
 
-export const AddressProfileView = ({ address }: { address: Address }) => {
+export const AddressProfileView = ({
+  address,
+  primaryName,
+}: {
+  address: Address
+  primaryName?: string
+}) => {
   const { data, isPending, isError } = useQuery({
     ...profileOwnedNamesQuery(address),
   })
@@ -91,9 +97,22 @@ export const AddressProfileView = ({ address }: { address: Address }) => {
               Address profile
             </div>
             <p className="font-mono text-lg text-slate-900">{address}</p>
-            <p className="text-slate-600 text-sm">
-              No primary ENS name is set for this address.
-            </p>
+            {primaryName ? (
+              <p className="text-slate-600 text-sm">
+                Primary name:{' '}
+                <Link
+                  className="font-semibold text-blue-600 hover:underline"
+                  params={{ name: primaryName }}
+                  to="/p/$name"
+                >
+                  {primaryName}
+                </Link>
+              </p>
+            ) : (
+              <p className="text-slate-600 text-sm">
+                No primary ENS name is set for this address.
+              </p>
+            )}
           </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-slate-50">
             <CopyToClipboard
@@ -102,10 +121,12 @@ export const AddressProfileView = ({ address }: { address: Address }) => {
             />
           </div>
         </div>
-        <div className="mt-4 flex items-start gap-2 rounded-lg bg-slate-50 p-4 text-slate-700 text-sm">
-          <Info className="mt-[2px] size-4 text-slate-500" />
-          <p>This address does not have a primary ENS name.</p>
-        </div>
+        {!primaryName && (
+          <div className="mt-4 flex items-start gap-2 rounded-lg bg-slate-50 p-4 text-slate-700 text-sm">
+            <Info className="mt-[2px] size-4 text-slate-500" />
+            <p>This address does not have a primary ENS name.</p>
+          </div>
+        )}
       </div>
       <div className="rounded-xl border bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between gap-3">
