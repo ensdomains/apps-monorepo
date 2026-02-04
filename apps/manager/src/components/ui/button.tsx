@@ -30,12 +30,16 @@ const buttonVariants = cva(
         connectWallet:
           'h-[56px] w-[191px] items-center justify-center gap-4 rounded-xs border bg-ens-blue px-6 py-[27px] text-white',
         payment:
-          'h-[56px] w-[191px] items-center justify-center gap-4 rounded-xs border bg-ens-blue px-6 py-8 text-white',
+          'h-[56px] w-[191px] items-center justify-center gap-4 rounded-md border bg-ens-blue px-6 py-8 text-white uppercase',
+        lightBlue:
+          'bg-[#A9D5ED] text-ens-lapis-dense hover:bg-ens-lapis-surface active:bg-[#649EBE] disabled:cursor-not-allowed disabled:bg-[#EDEDED] disabled:text-[#7D7D7D] disabled:opacity-100',
+        blue: 'bg-ens-lapis-core text-ens-white hover:bg-[#026B9C] active:bg-[#024B6E] disabled:cursor-not-allowed disabled:bg-[#EDEDED] disabled:text-[#7D7D7D] disabled:opacity-100',
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',
-        sm: 'h-8 gap-1.5 rounded-xs px-3 has-[>svg]:px-2.5',
-        lg: 'h-10 rounded-xs px-6 has-[>svg]:px-4',
+        sm: 'h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5',
+        lg: 'h-fit rounded-md px-4 py-4 text-xs has-[>svg]:px-4',
+        xl: 'rounded-md px-4 py-6 text-sm',
         icon: 'size-9',
       },
     },
