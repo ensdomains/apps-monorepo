@@ -4,7 +4,6 @@ import type { registrationMachine } from '@ens-apps/transaction-manager'
 import { useSelector } from '@xstate/react'
 import type { ActorRefFrom } from 'xstate'
 import { calculateExpirationDate } from '@/features/register/components/Pricing/utils'
-import type { NotificationPreferences } from '@/features/register/components/RegistrationInProgress/NotificationSettings'
 import { NotificationSettings } from '@/features/register/components/RegistrationInProgress/NotificationSettings'
 import {
   ProgressBar,
@@ -19,7 +18,7 @@ interface RegistrationInProgressProps {
   totalPrice: number
   discountAmount: number
   registerWaitSeconds?: number | null
-  onNotificationConfirm?: (preferences: NotificationPreferences) => void
+  onNotificationConfirm?: () => void
   onNotificationSkip?: () => void
   onGoToDashboard?: () => void
   onProfileNavigate?: () => void
@@ -106,8 +105,8 @@ export const RegistrationInProgress = ({
 
   const expiresDate = calculateExpirationDate(duration)
 
-  const handleNotificationConfirm = (preferences: NotificationPreferences) => {
-    onNotificationConfirm?.(preferences)
+  const handleNotificationConfirm = () => {
+    onNotificationConfirm?.()
   }
 
   const handleNotificationSkip = () => {

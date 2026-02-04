@@ -63,7 +63,7 @@ const NewEmailContactMethod = () => {
     },
   })
   return (
-    <div className="flex gap-3">
+    <div className="flex gap-3 max-md:flex-col">
       <form.Field name="email">
         {(field) => (
           <Field>
@@ -77,11 +77,6 @@ const NewEmailContactMethod = () => {
                 type="email"
                 value={field.state.value}
               />
-              {/* <InputGroupAddon>
-            <Button variant="ghost" size="icon">
-              <MSymbol symbol="mail" className="ms-wght-300 text-ens-lapis-surface" />
-            </Button>
-          </InputGroupAddon> */}
               {field.state.meta.isValid && field.state.meta.isDirty && (
                 <InputGroupAddon align="inline-end">
                   <MSymbol
