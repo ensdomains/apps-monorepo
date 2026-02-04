@@ -54,6 +54,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
       header: ({ column }) => (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          sortDirection={column.getIsSorted()}
         >
           Date
         </SortButton>
@@ -71,6 +72,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
       header: ({ column }) => (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          sortDirection={column.getIsSorted()}
         >
           Transaction
         </SortButton>
@@ -93,6 +95,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
       header: ({ column }) => (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          sortDirection={column.getIsSorted()}
         >
           From
         </SortButton>
@@ -112,6 +115,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
       header: ({ column }) => (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          sortDirection={column.getIsSorted()}
         >
           Network
         </SortButton>

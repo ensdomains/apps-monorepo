@@ -42,6 +42,7 @@ export const columns: ColumnDef<NameRow>[] = [
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        sortDirection={column.getIsSorted()}
       >
         Name
       </SortButton>
@@ -70,6 +71,7 @@ export const columns: ColumnDef<NameRow>[] = [
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        sortDirection={column.getIsSorted()}
       >
         Expiry
       </SortButton>
@@ -91,6 +93,7 @@ export const columns: ColumnDef<NameRow>[] = [
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        sortDirection={column.getIsSorted()}
       >
         Roles
       </SortButton>
