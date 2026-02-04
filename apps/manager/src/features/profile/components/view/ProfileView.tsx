@@ -46,7 +46,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   }
 
   return (
-    <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)] md:space-y-4">
+    <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]">
       <ViewHeaderSection
         name={name}
         owner={ownerData?.owner as Address | undefined}
