@@ -22,6 +22,7 @@ import { Route as NameOwnershipRouteImport } from './routes/$name/ownership'
 import { Route as NameHistoryRouteImport } from './routes/$name/history'
 import { Route as NameEditRecordsRouteImport } from './routes/$name/edit-records'
 import { Route as NameDeployRegistryRouteImport } from './routes/$name/deploy-registry'
+import { Route as NameCreateSubnameRouteImport } from './routes/$name/create-subname'
 import { Route as AddrAddrIndexRouteImport } from './routes/addr/$addr/index'
 import { Route as NameRolesIndexRouteImport } from './routes/$name/roles/index'
 import { Route as AddrAddrReverseResolutionRouteImport } from './routes/addr/$addr/reverse-resolution'
@@ -95,6 +96,11 @@ const NameDeployRegistryRoute = NameDeployRegistryRouteImport.update({
   path: '/deploy-registry',
   getParentRoute: () => NameRoute,
 } as any)
+const NameCreateSubnameRoute = NameCreateSubnameRouteImport.update({
+  id: '/create-subname',
+  path: '/create-subname',
+  getParentRoute: () => NameRoute,
+} as any)
 const AddrAddrIndexRoute = AddrAddrIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -135,6 +141,7 @@ const NameRolesAddUserRoute = NameRolesAddUserRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$name': typeof NameRouteWithChildren
+  '/$name/create-subname': typeof NameCreateSubnameRoute
   '/$name/deploy-registry': typeof NameDeployRegistryRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
   '/$name/history': typeof NameHistoryRoute
@@ -156,6 +163,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$name/create-subname': typeof NameCreateSubnameRoute
   '/$name/deploy-registry': typeof NameDeployRegistryRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
   '/$name/history': typeof NameHistoryRoute
@@ -178,6 +186,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$name': typeof NameRouteWithChildren
+  '/$name/create-subname': typeof NameCreateSubnameRoute
   '/$name/deploy-registry': typeof NameDeployRegistryRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
   '/$name/history': typeof NameHistoryRoute
@@ -202,6 +211,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$name'
+    | '/$name/create-subname'
     | '/$name/deploy-registry'
     | '/$name/edit-records'
     | '/$name/history'
@@ -223,6 +233,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/$name/create-subname'
     | '/$name/deploy-registry'
     | '/$name/edit-records'
     | '/$name/history'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$name'
+    | '/$name/create-subname'
     | '/$name/deploy-registry'
     | '/$name/edit-records'
     | '/$name/history'
@@ -363,6 +375,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NameDeployRegistryRouteImport
       parentRoute: typeof NameRoute
     }
+    '/$name/create-subname': {
+      id: '/$name/create-subname'
+      path: '/create-subname'
+      fullPath: '/$name/create-subname'
+      preLoaderRoute: typeof NameCreateSubnameRouteImport
+      parentRoute: typeof NameRoute
+    }
     '/addr/$addr/': {
       id: '/addr/$addr/'
       path: '/'
@@ -416,6 +435,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface NameRouteChildren {
+  NameCreateSubnameRoute: typeof NameCreateSubnameRoute
   NameDeployRegistryRoute: typeof NameDeployRegistryRoute
   NameEditRecordsRoute: typeof NameEditRecordsRoute
   NameHistoryRoute: typeof NameHistoryRoute
@@ -431,6 +451,7 @@ interface NameRouteChildren {
 }
 
 const NameRouteChildren: NameRouteChildren = {
+  NameCreateSubnameRoute: NameCreateSubnameRoute,
   NameDeployRegistryRoute: NameDeployRegistryRoute,
   NameEditRecordsRoute: NameEditRecordsRoute,
   NameHistoryRoute: NameHistoryRoute,
