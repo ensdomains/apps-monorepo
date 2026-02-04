@@ -43,7 +43,7 @@ export const NameRow = ({
   ) : null
 
   return (
-    <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[12px]">
+    <div className="flex w-full items-center gap-3 md:gap-[12px]">
       {showFavoriteButton &&
         (isAuthenticated ? (
           heartButton
@@ -70,9 +70,9 @@ export const NameRow = ({
             </ImageFallback.Fallback>
           </ImageFallback.Root>
         </div>
-        <div className="flex min-w-0 flex-1 items-center justify-center rounded-[2.8px] bg-[#e5f7ff] px-2 py-1 md:h-[24px] md:px-[8px] md:py-[4px]">
+        <div className="flex min-w-0 flex-1 items-center justify-center rounded-[2.8px] bg-[#e5f7ff] px-2 py-1 md:px-[8px] md:py-[4px]">
           <Link
-            className="mr-1 truncate font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] md:mr-2 md:tracking-[-0.32px]"
+            className="mr-1 max-w-full break-all font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] [text-wrap:pretty] md:mr-2 md:tracking-[-0.32px]"
             params={{ name: label }}
             to="/p/$name"
           >

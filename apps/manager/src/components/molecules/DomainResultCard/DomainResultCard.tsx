@@ -1,4 +1,8 @@
 import { AvailabilityCheckIcon } from '@/components/atoms/AvailabilityCheckIcon'
+import {
+  getByteLength,
+  getDomainCardSizeClasses,
+} from '@/features/register/components/Pricing/utils'
 import type { PremiumLabel } from '@/features/register/utils'
 import { cn } from '@/lib/utils'
 import { DomainAttributePill } from './DomainAttributePill'
@@ -64,20 +68,20 @@ export const DomainResultCard = ({
         </>
       ) : (
         <>
-          <div className="flex w-full items-center justify-between gap-4">
-            <div className="flex items-center gap-[9px]">
-              <span className="flex items-center justify-center">
+          <div className="flex w-full items-start justify-between gap-4">
+            <div className="flex min-w-0 flex-1 items-start gap-[9px]">
+              <span className="flex shrink-0 items-center justify-center pt-0.5">
                 {statusIconMap[status]}
               </span>
               <span
                 className={cn(
                   'px-2 py-1',
-                  'text-2xl text-ens-blue',
+                  'text-ens-blue',
                   'bg-white',
                   'border border-ens-blue',
-                  'font-medium leading-none tracking-[-0.48px]',
-                  'block rounded-sm',
-                  'max-w-[10ch] truncate sm:max-w-[40ch]', // Mobile: 10 chars, Desktop: 40 chars
+                  'font-medium leading-tight tracking-[-0.48px]',
+                  'block min-w-0 break-words rounded-sm',
+                  getDomainCardSizeClasses(getByteLength(domainName)),
                 )}
                 title={domainName}
               >
@@ -85,9 +89,9 @@ export const DomainResultCard = ({
               </span>
             </div>
 
-            <div className="flex items-start gap-2 text-center md:items-end">
+            <div className="flex shrink-0 flex-col items-end gap-2 text-right">
               <span className="text-slate-500 text-sm">starting at</span>
-              <div className="flex flex-col items-start text-sm md:flex-row md:items-end md:gap-2 md:text-base">
+              <div className="flex flex-col items-end text-sm md:flex-row md:items-end md:gap-2 md:text-base">
                 {price ? (
                   <>
                     <p className="font-semibold text-slate-900 leading-tight">
@@ -96,7 +100,7 @@ export const DomainResultCard = ({
                     <p className="text-slate-500 text-sm">{priceLabel}</p>
                   </>
                 ) : (
-                  <div className="flex items-end gap-2 text-center">
+                  <div className="flex items-end gap-2">
                     <span className="inline-block h-5 w-20 animate-pulse rounded-md bg-slate-200 leading-tight" />
                   </div>
                 )}
