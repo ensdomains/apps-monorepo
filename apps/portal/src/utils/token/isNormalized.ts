@@ -11,20 +11,21 @@ export const isNormalized = (name: string) => {
 /**
  * Check if a name is a valid ENS name.
  * Must be:
- * 1. End with .eth
- * 2. Have at least one label before .eth
+ * 1. Have at least one label (e.g., "eth", "example.eth", "sub.example.eth")
+ * 2. Be normalized (lowercase, no invalid characters)
  * 3. All labels must be valid (no normalization errors)
+ *
+ * Note: 1LDs like "eth" are valid ENS names - doesn't need to end with .eth
  */
 export const isValidEnsName = (name: string) => {
-  // Must end with .eth
-  if (!name.endsWith('.eth')) {
+  if (!name || !isNormalized(name)) {
     return false
   }
 
   try {
     const labels = ens_split(name)
-    // Must have at least 2 labels (name + eth) and no errors
-    return labels.length >= 2 && labels.every((label) => !label.error)
+    // Must have at least 1 label and no errors
+    return labels.length >= 1 && labels.every((label) => !label.error)
   } catch {
     return false
   }
