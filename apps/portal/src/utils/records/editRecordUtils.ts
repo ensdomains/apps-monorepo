@@ -1,3 +1,4 @@
+import { coinNameToTypeMap } from '@ensdomains/address-encoder'
 import { match } from 'ts-pattern'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
 
@@ -121,12 +122,19 @@ export function createNewRecord(
 ): EditableRecord {
   return match(type)
     .with('text', () => ({ type: 'text' as const, key, value }))
-    .with('address', () => ({
-      type: 'address' as const,
-      key,
-      value,
-      id: 60, // Default to ETH coin type
-    }))
+    .with('address', () => {
+      // Look up coin type from key, default to ETH (60) if not found
+      const coinType =
+        coinNameToTypeMap[
+          key.toLowerCase() as keyof typeof coinNameToTypeMap
+        ] ?? 60
+      return {
+        type: 'address' as const,
+        key,
+        value,
+        id: coinType,
+      }
+    })
     .with('contentHash', () => ({ type: 'contentHash' as const, value }))
     .with('abi', () => ({ type: 'text' as const, key, value })) // ABI treated as text for now
     .exhaustive()

@@ -27,12 +27,17 @@ import {
   type EditableRecord,
   getRecordId,
 } from '@/utils/records/editRecordUtils'
+import {
+  getRecordError,
+  type ValidationError,
+} from '@/utils/records/validateRecord'
 
 type EditRecordsTableProps = {
   records: NameRecord[]
   globalFilter: string
   onDeleteRecord?: (record: EditableRecord) => void
   onUpdateRecord?: (record: EditableRecord, newValue: string) => void
+  validationErrors?: ValidationError[]
 }
 
 /** Gets a display name for a record (used in delete confirmation) */
@@ -48,6 +53,7 @@ export const EditRecordsTable = ({
   globalFilter,
   onDeleteRecord,
   onUpdateRecord,
+  validationErrors = [],
 }: EditRecordsTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
@@ -141,14 +147,24 @@ export const EditRecordsTable = ({
         },
         cell: ({ row }) => {
           const value = row.original.value
+          const recordId = getRecordId(row.original)
+          const error = getRecordError(validationErrors, recordId)
+
           return (
-            <Input
-              defaultValue={value}
-              className="font-mono bg-gray-50 border-gray-300"
-              onChange={(e) => {
-                onUpdateRecord?.(row.original, e.target.value)
-              }}
-            />
+            <div className="flex flex-col gap-1">
+              <Input
+                defaultValue={value}
+                className={`font-mono bg-gray-50 ${
+                  error
+                    ? 'border-red-500 focus-visible:ring-red-500/50'
+                    : 'border-gray-300'
+                }`}
+                onChange={(e) => {
+                  onUpdateRecord?.(row.original, e.target.value)
+                }}
+              />
+              {error && <span className="text-xs text-red-600">{error}</span>}
+            </div>
           )
         },
       },
@@ -171,7 +187,7 @@ export const EditRecordsTable = ({
         ),
       },
     ],
-    [onUpdateRecord, handleDeleteClick],
+    [onUpdateRecord, handleDeleteClick, validationErrors],
   )
 
   const table = useReactTable({
