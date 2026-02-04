@@ -1,6 +1,7 @@
 import { registrationMachine } from '@ens-apps/transaction-manager'
 import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
+import { useAtom } from '@xstate/store-react'
 import { AlertCircle, ArrowLeftIcon } from 'lucide-react'
 import { useCallback, useReducer, useState } from 'react'
 import type { Address, PublicClient } from 'viem'
@@ -9,12 +10,11 @@ import { Button } from '@/components/ui/button'
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
 import { Pricing } from '@/features/register/components/Pricing'
 import { PricingDomainHeader } from '@/features/register/components/Pricing/PricingDomainHeader'
-import type { NotificationPreferences } from '@/features/register/components/RegistrationInProgress/NotificationSettings'
 import { RegistrationInProgress } from '@/features/register/components/RegistrationInProgress/RegistrationInProgress'
 import { useCountdown } from '@/hooks/useCountdown'
-import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
+import { isBackendAuthed } from '@/utils/backend-client'
 import { inspect } from '@/utils/xstate'
 import { handleStartRegistration } from './RegistrationPage.handlers'
 import {
@@ -100,7 +100,10 @@ export const Registration = ({ initialName }: RegistrationProps) => {
     discountAmount: number
   } | null>(null)
 
-  const skipNotificationSettings = useFeatureFlag('SKIP_NOTIFICATION_SETTINGS')
+  const skipNotificationSettings = useAtom(
+    isBackendAuthed,
+    (isAuthed) => !isAuthed,
+  )
 
   const [hasSkippedNotifications, setHasSkippedNotifications] = useState(false)
   const [hasConfirmedNotifications, setHasConfirmedNotifications] =
@@ -167,8 +170,7 @@ export const Registration = ({ initialName }: RegistrationProps) => {
     // No-op for now - handled by payment drawer
   }
 
-  const handleNotificationConfirm = (preferences: NotificationPreferences) => {
-    console.log('Notification preferences confirmed:', preferences)
+  const handleNotificationConfirm = () => {
     setHasConfirmedNotifications(true)
   }
 
