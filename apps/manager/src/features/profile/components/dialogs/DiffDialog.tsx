@@ -189,9 +189,9 @@ export const DiffDialog = ({
                             {issuesByField[
                               `${change.sectionKey}:${change.fieldKey}`
                             ]?.map((message, index) => (
-                              // biome-ignore lint/suspicious/noArrayIndexKey: error list is stable for this render
                               <div
                                 className="rounded border border-red-200 bg-red-50 px-2 py-1 text-red-700 text-xs"
+                                // biome-ignore lint/suspicious/noArrayIndexKey: error list is stable for this render
                                 key={index}
                               >
                                 {message}
