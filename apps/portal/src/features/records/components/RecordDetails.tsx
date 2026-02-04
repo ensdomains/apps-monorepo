@@ -1,8 +1,8 @@
-import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
-import { useQuery } from '@tanstack/react-query'
+import type { GetRecordHistoryParameters } from '@ensdomains/ensjs/subgraph'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import { SearchIcon, TrashIcon } from 'lucide-react'
-import { ExternalLink } from 'react-external-link'
+import { match } from 'ts-pattern'
 import { zeroAddress } from 'viem'
 import type { Address } from 'viem/accounts'
 import { useEnsResolver } from 'wagmi'
@@ -12,10 +12,19 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
+import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
 import { ResolverField } from '@/features/resolver/components/ResolverField'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
+import {
+  filterV2EventsByRecord,
+  type HistoryEvent,
+  sortHistoryEvents,
+  transformV1Events,
+  transformV2Events,
+} from '@/utils/history/transformRecordHistory'
 import { filterRecordHistoryByRecord } from '@/utils/subgraph/filterRecordHistoryByRecord'
 import { recordTypeToSubgraphKey } from '@/utils/subgraph/recordTypeToSubgraphKey'
 import type { NameRecord } from './RecordsTable/columns'
@@ -183,38 +192,48 @@ const ResolverView = ({ name }: ResolverViewProps) => {
   )
 }
 
-const columns: ColumnDef<ReturnResolverEvent>[] = [
+const columns: ColumnDef<HistoryEvent>[] = [
   {
-    header: 'Block',
-    accessorKey: 'blockNumber',
-    cell({ column, row }) {
-      const value = row.getValue(column.id) as number
-
-      return (
-        <ExternalLink href={`https://etherscan.io/block/${value}`}>
-          <span className="font-mono underline decoration-dashed underline-offset-4 hover:text-gray-600">
-            {value}
+    header: 'Date',
+    accessorKey: 'timestamp',
+    cell({ row }) {
+      const timestamp = row.original.timestamp
+      if (!timestamp) {
+        // Fallback to block number if no timestamp
+        return (
+          <span className="font-mono text-gray-500">
+            Block {row.original.blockNumber}
           </span>
-        </ExternalLink>
+        )
+      }
+      const date = new Date(timestamp * 1000)
+      return (
+        <span className="font-mono">
+          {new Intl.DateTimeFormat(undefined, {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          })
+            .format(date)
+            .replace(/-/g, '/')}
+        </span>
       )
     },
   },
   {
-    accessorFn: (val) => {
-      switch (val.type) {
-        case 'ContenthashChanged':
-          return val.contentHash
-        case 'TextChanged':
-          return `${val.key}: ${val.value ?? 'null'}`
-        case 'AddrChanged':
-        case 'MulticoinAddrChanged':
-          return val.addr
-      }
-    },
-    header: 'Value',
+    header: 'Type',
+    accessorKey: 'type',
     cell({ column, row }) {
       const value = row.getValue(column.id) as string
       return <span className="font-mono">{value}</span>
+    },
+  },
+  {
+    header: 'Value',
+    accessorKey: 'value',
+    cell({ column, row }) {
+      const value = row.getValue(column.id) as string | undefined
+      return <span className="font-mono">{value ?? '-'}</span>
     },
   },
 ]
@@ -225,30 +244,89 @@ interface HistoryViewProps {
 }
 
 const HistoryView = ({ name, record }: HistoryViewProps) => {
-  const {
-    data: history,
-    isLoading,
-    error,
-  } = useQuery(
-    getRecordHistoryQueryOptions({
-      name,
-      key: recordTypeToSubgraphKey(record.type),
-    }),
+  const v1QueryParams: GetRecordHistoryParameters = {
+    name,
+    key: recordTypeToSubgraphKey(
+      record.type,
+    ) as GetRecordHistoryParameters['key'],
+  }
+
+  const [v1HistoryQuery, v2HistoryQuery] = useQueries({
+    queries: [
+      getRecordHistoryQueryOptions(v1QueryParams),
+      getV2NameHistoryQueryOptions({ name }),
+    ],
+  })
+
+  // Filter V1 events (need to do this before fetching timestamps)
+  const filteredV1Events = filterRecordHistoryByRecord(
+    v1HistoryQuery.data || [],
+    record,
   )
 
-  if (error) {
-    return <div>History Error: {error.cause?.message || error.message}</div>
+  // Fetch timestamps for V1 events (they don't include timestamps)
+  const v1BlockNumbers = filteredV1Events.map((e) => BigInt(e.blockNumber))
+  const { data: blockTimestamps, isLoading: isLoadingTimestamps } =
+    useBlockTimestamps({
+      blocks: v1BlockNumbers,
+      enabled: v1BlockNumbers.length > 0,
+    })
+
+  const isLoading = match({
+    v1Loading: v1HistoryQuery.isLoading,
+    v2Loading: v2HistoryQuery.isLoading,
+    timestampsLoading: v1BlockNumbers.length > 0 && isLoadingTimestamps,
+  })
+    .with({ v1Loading: true }, () => true)
+    .with({ v2Loading: true }, () => true)
+    .with({ timestampsLoading: true }, () => true)
+    .otherwise(() => false)
+
+  if (v1HistoryQuery.error) {
+    return (
+      <div>
+        History Error:{' '}
+        {v1HistoryQuery.error.cause?.message || v1HistoryQuery.error.message}
+      </div>
+    )
+  }
+
+  if (v2HistoryQuery.error) {
+    return (
+      <div>
+        V2 History Error:{' '}
+        {v2HistoryQuery.error.cause?.message || v2HistoryQuery.error.message}
+      </div>
+    )
   }
 
   if (isLoading) return <LoadingSpinner title="Loading..." />
 
+  // Transform V1 events with fetched timestamps
+  const v1Events = transformV1Events(filteredV1Events, blockTimestamps)
+
+  // Filter and transform V2 events (they already have timestamps)
+  const filteredV2Events = filterV2EventsByRecord(
+    v2HistoryQuery.data || [],
+    record,
+  )
+  const v2Events = transformV2Events(filteredV2Events)
+
+  // Merge and sort by timestamp (descending), fallback to block number
+  const allEvents = sortHistoryEvents([...v1Events, ...v2Events])
+
+  const hasNoHistory = allEvents.length === 0
+
   return (
     <div className="flex flex-col gap-6 p-6 border border-gray-300 rounded-lg">
       <h3 className="text-2xl font-medium">History</h3>
-      <DataTable
-        data={filterRecordHistoryByRecord(history || [], record)}
-        columns={columns}
-      />
+      {hasNoHistory ? (
+        <p className="text-gray-500 text-sm py-4">
+          No history available for this record.
+        </p>
+      ) : (
+        <DataTable data={allEvents} columns={columns} />
+      )}
     </div>
   )
 }
