@@ -22,12 +22,6 @@ export type V2NameHistoryEvent = {
   transactionHash: Hex
   timestamp: number
   blockNumber: number
-  // Resolver event fields (available when indexer supports them)
-  key?: string | null // For TextChanged events
-  value?: string | null // For TextChanged events
-  coinType?: string | null // For MulticoinAddrChanged events
-  addr?: string | null // For AddrChanged/MulticoinAddrChanged events
-  contentHash?: string | null // For ContenthashChanged events
 }
 
 type V2DomainWithEvents = {
@@ -50,12 +44,6 @@ const getV2NameHistory = ResultFn(async function* ({
               transactionHash
               timestamp
               blockNumber
-              # TODO: Uncomment when indexer supports resolver event fields
-              # key
-              # value
-              # coinType
-              # addr
-              # contentHash
             }
           }
         }

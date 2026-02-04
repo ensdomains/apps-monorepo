@@ -15,6 +15,7 @@ export type HistoryEvent = {
 
 /**
  * Gets the V2 event types that correspond to a record type.
+ * Note: V2 indexer uses different event names than V1 (e.g., AddressChanged vs AddrChanged)
  *
  * @param record - The record to get event types for
  * @returns Array of event type strings that match the record type
@@ -25,12 +26,12 @@ export type HistoryEvent = {
  *
  * @example
  * getV2EventTypesForRecord({ type: 'address', key: 'ETH', value: '0x...', id: 60 })
- * // ['AddrChanged', 'MulticoinAddrChanged']
+ * // ['AddressChanged']
  */
 export const getV2EventTypesForRecord = (record: NameRecord): string[] =>
   match(record.type)
     .with('text', () => ['TextChanged'])
-    .with('address', () => ['AddrChanged', 'MulticoinAddrChanged'])
+    .with('address', () => ['AddressChanged'])
     .with('contentHash', () => ['ContenthashChanged'])
     .exhaustive()
 
@@ -96,33 +97,16 @@ export const transformV1Events = (
   })
 
 /**
- * Extracts the display value from a V2 resolver event.
- * Returns undefined if the indexer doesn't provide detailed event fields yet.
- *
- * @param event - The V2 event to extract value from
- * @returns The display value string or undefined
- */
-const extractV2EventValue = (event: V2NameHistoryEvent): string | undefined =>
-  match(event)
-    .with({ type: 'ContenthashChanged' }, (e) => e.contentHash ?? undefined)
-    .with({ type: 'TextChanged' }, (e) =>
-      e.key ? `${e.key}: ${e.value ?? 'null'}` : undefined,
-    )
-    .with({ type: 'AddrChanged' }, (e) => e.addr ?? undefined)
-    .with({ type: 'MulticoinAddrChanged' }, (e) => e.addr ?? undefined)
-    .otherwise(() => undefined)
-
-/**
  * Transforms V2 name history events to the unified HistoryEvent format.
- * V2 events have timestamps. Detailed value info (key, value, addr, etc.)
- * will be included once the indexer supports these fields.
+ * V2 events include timestamps but not detailed value info (the indexer schema
+ * doesn't include key, value, addr, contentHash fields on events).
  *
  * @param events - Array of V2 name history events
  * @returns Array of unified history events
  *
  * @example
- * transformV2Events([{ type: 'TextChanged', blockNumber: 12345, timestamp: 1700000000, key: 'name', value: 'John' }])
- * // [{ blockNumber: 12345, timestamp: 1700000000, type: 'TextChanged', value: 'name: John' }]
+ * transformV2Events([{ type: 'TextChanged', blockNumber: 12345, timestamp: 1700000000, name: 'test.eth', transactionHash: '0x...' }])
+ * // [{ blockNumber: 12345, timestamp: 1700000000, type: 'TextChanged', value: undefined }]
  */
 export const transformV2Events = (
   events: V2NameHistoryEvent[],
@@ -131,7 +115,7 @@ export const transformV2Events = (
     blockNumber: event.blockNumber,
     timestamp: event.timestamp,
     type: event.type,
-    value: extractV2EventValue(event),
+    value: undefined,
   }))
 
 /**

@@ -18,17 +18,14 @@ describe('transformRecordHistory', () => {
       expect(getV2EventTypesForRecord(record)).toEqual(['TextChanged'])
     })
 
-    it('should return AddrChanged and MulticoinAddrChanged for address records', () => {
+    it('should return AddressChanged for address records', () => {
       const record: NameRecord = {
         type: 'address',
         key: 'ETH',
         value: '0x123',
         id: 60,
       }
-      expect(getV2EventTypesForRecord(record)).toEqual([
-        'AddrChanged',
-        'MulticoinAddrChanged',
-      ])
+      expect(getV2EventTypesForRecord(record)).toEqual(['AddressChanged'])
     })
 
     it('should return ContenthashChanged for contentHash records', () => {
@@ -49,7 +46,7 @@ describe('transformRecordHistory', () => {
     it('should filter events for text records', () => {
       const events: V2NameHistoryEvent[] = [
         createV2Event('TextChanged'),
-        createV2Event('AddrChanged'),
+        createV2Event('AddressChanged'),
         createV2Event('Transfer'),
       ]
       const record: NameRecord = { type: 'text', key: 'name', value: 'John' }
@@ -63,8 +60,7 @@ describe('transformRecordHistory', () => {
     it('should filter events for address records', () => {
       const events: V2NameHistoryEvent[] = [
         createV2Event('TextChanged'),
-        createV2Event('AddrChanged'),
-        createV2Event('MulticoinAddrChanged'),
+        createV2Event('AddressChanged'),
         createV2Event('Transfer'),
       ]
       const record: NameRecord = {
@@ -76,11 +72,8 @@ describe('transformRecordHistory', () => {
 
       const result = filterV2EventsByRecord(events, record)
 
-      expect(result).toHaveLength(2)
-      expect(result.map((e) => e.type)).toEqual([
-        'AddrChanged',
-        'MulticoinAddrChanged',
-      ])
+      expect(result).toHaveLength(1)
+      expect(result[0].type).toBe('AddressChanged')
     })
 
     it('should filter events for contentHash records', () => {
@@ -234,7 +227,7 @@ describe('transformRecordHistory', () => {
         },
         {
           name: 'test.eth',
-          type: 'AddrChanged',
+          type: 'AddressChanged',
           transactionHash: '0x456',
           timestamp: 1700001000,
           blockNumber: 12346,
@@ -245,11 +238,10 @@ describe('transformRecordHistory', () => {
 
       expect(result).toHaveLength(2)
       expect(result[0].type).toBe('TextChanged')
-      expect(result[1].type).toBe('AddrChanged')
+      expect(result[1].type).toBe('AddressChanged')
     })
 
-    // Tests for when indexer supports detailed event fields
-    it('should extract value from TextChanged events with key/value fields', () => {
+    it('should set value to undefined (V2 indexer does not provide detailed event fields)', () => {
       const events: V2NameHistoryEvent[] = [
         {
           name: 'test.eth',
@@ -257,84 +249,12 @@ describe('transformRecordHistory', () => {
           transactionHash: '0x123',
           timestamp: 1700000000,
           blockNumber: 12345,
-          key: 'name',
-          value: 'John',
         },
       ]
 
       const result = transformV2Events(events)
 
-      expect(result[0].value).toBe('name: John')
-    })
-
-    it('should extract value from TextChanged events with null value', () => {
-      const events: V2NameHistoryEvent[] = [
-        {
-          name: 'test.eth',
-          type: 'TextChanged',
-          transactionHash: '0x123',
-          timestamp: 1700000000,
-          blockNumber: 12345,
-          key: 'name',
-          value: null,
-        },
-      ]
-
-      const result = transformV2Events(events)
-
-      expect(result[0].value).toBe('name: null')
-    })
-
-    it('should extract value from AddrChanged events', () => {
-      const events: V2NameHistoryEvent[] = [
-        {
-          name: 'test.eth',
-          type: 'AddrChanged',
-          transactionHash: '0x123',
-          timestamp: 1700000000,
-          blockNumber: 12345,
-          addr: '0xabc123',
-        },
-      ]
-
-      const result = transformV2Events(events)
-
-      expect(result[0].value).toBe('0xabc123')
-    })
-
-    it('should extract value from MulticoinAddrChanged events', () => {
-      const events: V2NameHistoryEvent[] = [
-        {
-          name: 'test.eth',
-          type: 'MulticoinAddrChanged',
-          transactionHash: '0x123',
-          timestamp: 1700000000,
-          blockNumber: 12345,
-          coinType: '0',
-          addr: 'bc1q...',
-        },
-      ]
-
-      const result = transformV2Events(events)
-
-      expect(result[0].value).toBe('bc1q...')
-    })
-
-    it('should extract value from ContenthashChanged events', () => {
-      const events: V2NameHistoryEvent[] = [
-        {
-          name: 'test.eth',
-          type: 'ContenthashChanged',
-          transactionHash: '0x123',
-          timestamp: 1700000000,
-          blockNumber: 12345,
-          contentHash: 'ipfs://abc123',
-        },
-      ]
-
-      const result = transformV2Events(events)
-
-      expect(result[0].value).toBe('ipfs://abc123')
+      expect(result[0].value).toBeUndefined()
     })
   })
 
