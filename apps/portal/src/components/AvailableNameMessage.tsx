@@ -31,7 +31,7 @@ export function AvailableNameMessage({
 
   const defaultActionButton = {
     label: 'Register in Manager Alpha',
-    href: 'https://app.ens.domains',
+    href: 'https://app.ens.dev',
   }
 
   return (
