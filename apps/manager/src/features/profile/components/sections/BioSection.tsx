@@ -36,6 +36,7 @@ export const BioSection = withForm({
                 value={field.state.value}
               />
               <button
+                aria-label="Clear bio"
                 className="mt-5 text-muted-foreground transition-colors hover:text-foreground"
                 onClick={() => field.handleChange('')}
                 type="button"

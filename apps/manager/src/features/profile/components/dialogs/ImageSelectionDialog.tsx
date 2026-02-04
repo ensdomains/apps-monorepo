@@ -635,9 +635,9 @@ export const ImageSelectionDialog = ({
                   style={
                     type === 'header'
                       ? {
-                          backgroundColor: '#cee1e8',
+                          backgroundColor: 'var(--color-ens-lapis-dust)',
                           backgroundImage:
-                            'radial-gradient(circle, #b8d4de 1px, transparent 1px)',
+                            'radial-gradient(circle, var(--color-ens-lapis-surface) 1px, transparent 1px)',
                           backgroundSize: '8px 8px',
                         }
                       : undefined

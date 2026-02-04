@@ -29,6 +29,7 @@ export const RecordEntry = ({
       value={value}
     />
     <button
+      aria-label={`Remove ${name}`}
       className="text-muted-foreground transition-colors hover:text-foreground"
       onClick={onRemove}
       type="button"
