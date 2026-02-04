@@ -15,7 +15,7 @@
       "invocation_logs": true
     },
     "traces": {
-      "enabled": false,
+      "enabled": true,
       "persist": true,
       "head_sampling_rate": 1
     }
@@ -70,7 +70,7 @@
   },
 
   "vars": {
-    "CHAIN": "mainnet",
+    "CHAIN": "sepolia",
     "BASE_URL": "https://app-api.ens.dev",
     "EMAIL_FROM_ADDRESS": "noreply@ens.dev",
     "MANAGER_APP_URL": "https://app.ens.dev",

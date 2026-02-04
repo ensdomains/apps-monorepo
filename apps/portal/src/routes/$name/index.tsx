@@ -156,7 +156,7 @@ function App() {
           <>
             <strong>{name}</strong> is not a valid ENS name.
             <br />
-            ENS names must be properly formatted (e.g., example.eth).
+            Names must be normalized (lowercase, valid characters).
           </>
         }
       />

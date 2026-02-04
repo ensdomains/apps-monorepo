@@ -8,11 +8,12 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { Search } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { SortButton } from '@/components/table/SortButton'
+import { Button } from '@/components/ui/button'
 import {
   InputGroup,
   InputGroupAddon,
@@ -89,9 +90,15 @@ const columns: ColumnDef<SubnameRow>[] = [
 
 interface SubnamesTableProps {
   readonly subnames: readonly SubnameRow[]
+  readonly name: string
+  readonly canCreateSubname?: boolean
 }
 
-export const SubnamesTable = ({ subnames }: SubnamesTableProps) => {
+export const SubnamesTable = ({
+  subnames,
+  name,
+  canCreateSubname,
+}: SubnamesTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
 
@@ -115,7 +122,19 @@ export const SubnamesTable = ({ subnames }: SubnamesTableProps) => {
   return (
     <>
       <header className="bg-gray-100 px-6 pb-6 pt-12 flex flex-col gap-4 sticky top-0 z-10">
-        <h1 className="text-[30px] font-medium leading-tight">Subnames</h1>
+        <div className="flex flex-row items-center gap-2">
+          <h1 className="text-[30px] font-medium leading-tight flex-1">
+            {subnames.length} subname{subnames.length !== 1 ? 's' : ''}
+          </h1>
+          {canCreateSubname && (
+            <Button variant="secondary" asChild>
+              <Link to="/$name/create-subname" params={{ name }}>
+                <Plus className="size-6" />
+                Create subname
+              </Link>
+            </Button>
+          )}
+        </div>
         <InputGroup className="bg-white rounded-sm">
           <InputGroupInput
             className="w-full"

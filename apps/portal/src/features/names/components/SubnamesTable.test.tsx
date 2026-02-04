@@ -62,14 +62,14 @@ const createMockSubname = (
 
 describe('SubnamesTable', () => {
   it('renders the header with title and search input', () => {
-    render(<SubnamesTable subnames={[]} />)
+    render(<SubnamesTable subnames={[]} name="test.eth" />)
 
-    expect(screen.getByText('Subnames')).toBeInTheDocument()
+    expect(screen.getByText('0 subnames')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument()
   })
 
   it('renders empty state when no subnames', () => {
-    render(<SubnamesTable subnames={[]} />)
+    render(<SubnamesTable subnames={[]} name="test.eth" />)
 
     expect(screen.getAllByText('No subnames found.')).toHaveLength(2) // mobile + desktop
   })
@@ -80,14 +80,14 @@ describe('SubnamesTable', () => {
       createMockSubname('sub2.test.eth'),
     ]
 
-    render(<SubnamesTable subnames={subnames} />)
+    render(<SubnamesTable subnames={subnames} name="test.eth" />)
 
     expect(screen.getAllByText('sub1.test.eth').length).toBeGreaterThan(0)
     expect(screen.getAllByText('sub2.test.eth').length).toBeGreaterThan(0)
   })
 
   it('renders sort buttons for columns', () => {
-    render(<SubnamesTable subnames={[]} />)
+    render(<SubnamesTable subnames={[]} name="test.eth" />)
 
     const sortButtons = screen.getAllByTestId('sort-button')
     expect(sortButtons.length).toBeGreaterThanOrEqual(2)
@@ -102,7 +102,7 @@ describe('SubnamesTable', () => {
       createMockSubname('charlie.test.eth'),
     ]
 
-    render(<SubnamesTable subnames={subnames} />)
+    render(<SubnamesTable subnames={subnames} name="test.eth" />)
 
     const searchInput = screen.getByPlaceholderText('Search...')
     fireEvent.change(searchInput, { target: { value: 'alice' } })
@@ -118,7 +118,7 @@ describe('SubnamesTable', () => {
       createMockSubname('bob.test.eth'),
     ]
 
-    render(<SubnamesTable subnames={subnames} />)
+    render(<SubnamesTable subnames={subnames} name="test.eth" />)
 
     const searchInput = screen.getByPlaceholderText('Search...')
 
@@ -138,9 +138,23 @@ describe('SubnamesTable', () => {
       createMockSubname('sub2.test.eth'),
     ]
 
-    render(<SubnamesTable subnames={subnames} />)
+    render(<SubnamesTable subnames={subnames} name="test.eth" />)
 
     const avatars = screen.getAllByTestId('name-avatar')
     expect(avatars.length).toBeGreaterThan(0)
+  })
+
+  it('renders create button when canCreateSubname is true', () => {
+    render(<SubnamesTable subnames={[]} name="test.eth" canCreateSubname />)
+
+    expect(screen.getByText('Create subname')).toBeInTheDocument()
+  })
+
+  it('does not render create button when canCreateSubname is false', () => {
+    render(
+      <SubnamesTable subnames={[]} name="test.eth" canCreateSubname={false} />,
+    )
+
+    expect(screen.queryByText('Create subname')).not.toBeInTheDocument()
   })
 })

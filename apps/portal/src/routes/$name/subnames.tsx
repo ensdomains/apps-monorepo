@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { AlertCircle, Search } from 'lucide-react'
-import { zeroAddress } from 'viem'
+import { type Address, zeroAddress } from 'viem'
+import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -26,6 +27,7 @@ import {
 } from '@/features/names/components/SubnamesTable'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 
 export const Route = createFileRoute('/$name/subnames')({
@@ -88,6 +90,8 @@ interface V2SubnamesContentProps {
 }
 
 const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
+  const { address: connectedAccount } = useAccount()
+
   const {
     data: registriesData,
     isLoading: registriesLoading,
@@ -101,13 +105,24 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
   const hasSubregistry =
     subregistryAddress && subregistryAddress !== zeroAddress
 
+  // Check if connected account has ROLE_REGISTRAR on the subregistry ROOT resource
+  const { data: hasRegistrarRole } = useQuery({
+    ...getHasRolesQueryOptions({
+      registryAddress: subregistryAddress as Address,
+      label: '',
+      roles: ['ROLE_REGISTRAR'],
+      account: connectedAccount as Address,
+    }),
+    enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
+  })
+
   const {
     data: subnames,
     isLoading: subnamesLoading,
     error: subnamesError,
   } = useQuery({
     ...getSubnamesQueryOptions({ name, network }),
-    enabled: !!hasSubregistry,
+    enabled: Boolean(hasSubregistry),
   })
 
   if (registriesLoading) {
@@ -145,7 +160,15 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
     owner: subname.owner,
   }))
 
-  return <SubnamesTable subnames={subnameRows} />
+  const canCreateSubname = Boolean(hasRegistrarRole)
+
+  return (
+    <SubnamesTable
+      subnames={subnameRows}
+      name={name}
+      canCreateSubname={canCreateSubname}
+    />
+  )
 }
 
 const V1SubnamesMessage = () => (
