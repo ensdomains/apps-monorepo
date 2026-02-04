@@ -20,6 +20,7 @@ interface DiffDialogProps {
   originalData: ProfileRecords
   currentData: ProfileRecords
   onSave: () => void
+  onReset?: () => void
   isSaving?: boolean
   isSuccess?: boolean
   errorMessage?: string
@@ -36,6 +37,7 @@ export const DiffDialog = ({
   originalData,
   currentData,
   onSave,
+  onReset,
   isSaving,
   isSuccess,
   errorMessage,
@@ -43,6 +45,13 @@ export const DiffDialog = ({
   validationIssues,
 }: DiffDialogProps) => {
   const [open, setOpen] = useState(false)
+
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen) {
+      onReset?.()
+    }
+    setOpen(isOpen)
+  }
   const diff = useMemo(
     () => createDiff(originalData, currentData),
     [originalData, currentData],
@@ -109,7 +118,7 @@ export const DiffDialog = ({
     }, {}) ?? {}
 
   return (
-    <Dialog onOpenChange={setOpen} open={open}>
+    <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogTrigger asChild>
         <Button className="w-full" disabled={!hasChanges}>
           <Save className="mr-2 size-4" />

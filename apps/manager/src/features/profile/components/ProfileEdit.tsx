@@ -158,6 +158,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
               isSaving={saveRecordsMutation.isPending}
               isSuccess={saveRecordsMutation.isSuccess}
               name={name}
+              onReset={saveRecordsMutation.reset}
               onSave={handleSave}
               originalData={defaultValues}
               txHash={saveRecordsMutation.data?.hash}
