@@ -4,13 +4,16 @@ import { ArrowUpRight, Info, Wallet } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
+import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import { CopyToClipboard } from '@/components/atoms/CopyToClipboard'
+import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { Card } from '@/components/ui/card'
 import {
   formatDashboardDate,
   resolveDomainLabel,
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
+import { useAvatarFromName } from '../../service/profileAvatar'
 import { profileOwnedNamesQuery } from '../../service/profileOwnedNames'
 
 const shortenAddress = (value: string) =>
@@ -21,6 +24,32 @@ const formatExpiry = (expiry?: number | null) => {
   const formatted = formatDashboardDate(asDate)
 
   return formatted === '—' ? 'No expiry set' : `Expires ${formatted}`
+}
+
+const NameAvatar = ({ name }: { name: string }) => {
+  const { data: avatarUrl, isLoading } = useAvatarFromName({ name })
+
+  return (
+    <div className="relative size-[32px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
+      <ImageFallback.Root className="size-full">
+        <ImageFallback.Image
+          alt={`${name} avatar`}
+          className="size-full object-cover"
+          src={avatarUrl ?? undefined}
+        />
+        <ImageFallback.Fallback>
+          <img
+            alt={`${name} fallback avatar`}
+            className="size-full object-cover"
+            src={placeholderAvatar}
+          />
+          {isLoading && (
+            <div className="absolute inset-0 animate-pulse rounded-full bg-gray-100" />
+          )}
+        </ImageFallback.Fallback>
+      </ImageFallback.Root>
+    </div>
+  )
 }
 
 export const AddressProfileView = ({
@@ -94,9 +123,7 @@ export const AddressProfileView = ({
             >
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-2 md:gap-[12px]">
-                  <div className="relative size-[32px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
-                    <div className="size-full bg-linear-to-br from-blue-400 via-blue-600 to-blue-900" />
-                  </div>
+                  <NameAvatar name={label} />
                   <div className="flex min-w-0 items-center rounded-[2.8px] bg-[#e5f7ff] px-2 py-1 md:px-[8px] md:py-[4px]">
                     <Link
                       className="mr-1 break-all font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] [text-wrap:pretty] md:mr-2 md:tracking-[-0.32px]"
