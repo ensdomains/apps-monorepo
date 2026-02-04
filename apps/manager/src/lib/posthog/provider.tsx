@@ -1,4 +1,5 @@
-import Intercom, {
+import {
+  boot as bootIntercom,
   getVisitorId,
   trackEvent as trackIntercomEvent,
 } from '@intercom/messenger-js-sdk'
@@ -27,7 +28,7 @@ export const PHProvider = ({
       person_profiles: 'identified_only',
     })
 
-    Intercom({
+    bootIntercom({
       app_id: 're9q5yti',
       posthog_distinct_id: posthog.get_distinct_id(),
       recent_replay: posthog.get_session_replay_url(),
