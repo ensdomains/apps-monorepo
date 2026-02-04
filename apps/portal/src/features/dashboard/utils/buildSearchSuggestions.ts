@@ -1,6 +1,7 @@
 import { type Address, checksumAddress, isAddress } from 'viem'
 import { ensureEthSuffix } from '@/utils/ens/ensureEthSuffix'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { isValidEnsName } from '@/utils/token/isNormalized'
 
 export type Suggestion = {
   id: string
@@ -57,22 +58,36 @@ export const buildSearchSuggestions = ({
   }
 
   // Input is NOT a valid address, treat it as an ENS name
-  // Add .eth suffix if not present
-  const valueWithEthSuffix = ensureEthSuffix(trimmedValue)
+  const lowercaseValue = trimmedValue.toLowerCase()
 
-  // Truncate long names on mobile to prevent overflow
-  // Show 18 chars from start, 8 from end (including .eth) = ~27 chars total
-  const displayLabel = isMobile
-    ? truncateAddress(valueWithEthSuffix, 18, 8)
-    : valueWithEthSuffix
+  // Helper to create a name suggestion
+  const createNameSuggestion = (name: string): Suggestion => {
+    const displayLabel = isMobile ? truncateAddress(name, 18, 8) : name
+    return {
+      id: `name:${name}`,
+      label: displayLabel,
+      description: 'View ENS name details',
+      inputValue: name,
+      action: () => navigateToName(name),
+    }
+  }
 
-  items.push({
-    id: `name:${valueWithEthSuffix}`,
-    label: displayLabel,
-    description: 'View ENS name details',
-    inputValue: valueWithEthSuffix,
-    action: () => navigateToName(valueWithEthSuffix),
-  })
+  // If input is already a valid ENS name (e.g., "eth", "vitalik.eth"), show it first
+  if (isValidEnsName(lowercaseValue)) {
+    items.push(createNameSuggestion(lowercaseValue))
+  }
+
+  // If input doesn't end with .eth, also suggest the .eth version (if different)
+  if (!lowercaseValue.endsWith('.eth')) {
+    const valueWithEthSuffix = ensureEthSuffix(lowercaseValue)
+    // Only add if it's different from the original (ensureEthSuffix returns same value if input has dots)
+    if (
+      valueWithEthSuffix !== lowercaseValue &&
+      isValidEnsName(valueWithEthSuffix)
+    ) {
+      items.push(createNameSuggestion(valueWithEthSuffix))
+    }
+  }
 
   return items
 }

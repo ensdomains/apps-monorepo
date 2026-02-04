@@ -1,7 +1,8 @@
-import { useQueries } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useEnsResolver } from 'wagmi'
+import { AvailableNameMessage } from '@/components/AvailableNameMessage'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -16,7 +17,9 @@ import { RecordCount } from '@/features/profile/components/RecordCount'
 import { SubnameCount } from '@/features/profile/components/SubnameCount'
 import { TokenLocation } from '@/features/profile/components/TokenLocation'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import { isValidEnsName } from '@/utils/token/isNormalized'
 
 export const Route = createFileRoute('/$name/')({
   component: App,
@@ -34,21 +37,67 @@ const Profile = ({
     queries: [getProfileQueryOptions(name), getEnsOwnerQueryOptions({ name })],
   })
 
-  if (profileQuery.error)
-    return (
-      <div>
-        Failed to fetch the profile:{' '}
-        {profileQuery.error.cause?.message || profileQuery.error.message}
-      </div>
-    )
-  if (ownerQuery.error)
-    return (
-      <div>Failed to fetch the owner: {ownerQuery.error.cause?.message}</div>
-    )
+  // Check availability when owner lookup returns null (name might be available)
+  const shouldCheckAvailability = !ownerQuery.isLoading && !ownerQuery.data
+  const availabilityQuery = useQuery({
+    ...getNameAvailabilityQueryOptions({ name }),
+    enabled: shouldCheckAvailability,
+  })
+
   if (ownerQuery.isLoading || profileQuery.isLoading)
     return <LoadingSpinner title="Loading..." />
 
-  const network = ownerQuery.data?.network || 'sepolia'
+  // If owner is null (not found), check availability
+  if (!ownerQuery.data) {
+    if (availabilityQuery.isLoading) {
+      return <LoadingSpinner title="Checking availability..." />
+    }
+
+    // Name is available for registration
+    if (availabilityQuery.data?.isAvailable) {
+      return <AvailableNameMessage name={name} />
+    }
+
+    // Name exists but we couldn't fetch owner - show error
+    if (ownerQuery.error) {
+      return (
+        <ErrorMessage
+          title="Error loading name"
+          description={ownerQuery.error.cause?.message}
+        />
+      )
+    }
+
+    // Availability check failed or name is not available but no owner found
+    if (availabilityQuery.error) {
+      const errorMessage =
+        (availabilityQuery.error.cause as Error | undefined)?.message ??
+        'Failed to check name availability'
+      return (
+        <ErrorMessage
+          title="Error checking availability"
+          description={errorMessage}
+        />
+      )
+    }
+
+    // Name is not available but we couldn't get owner info
+    return (
+      <ErrorMessage
+        title="Name not found"
+        description="Could not retrieve information for this name."
+      />
+    )
+  }
+
+  // Profile query error - but we have owner, so name exists
+  if (profileQuery.error) {
+    // Don't show error for profile fetch failures on existing names
+    // The name exists (we have owner), just profile data failed
+    console.warn('Profile fetch failed:', profileQuery.error.cause?.message)
+  }
+
+  const network = ownerQuery.data.network || 'sepolia'
 
   return (
     <>
@@ -57,7 +106,7 @@ const Profile = ({
           <NameProfileCard name={name} />
         </div>
         <ExpiryWithRegistrationData name={name} network={network} />
-        <Owner owner={ownerQuery.data?.owner} />
+        <Owner owner={ownerQuery.data.owner} />
         <ParentName name={name} />
         <TokenLocation name={name} network={network} />
         {resolverAddress && (
@@ -69,7 +118,7 @@ const Profile = ({
         )}
         <SubnameCount
           name={name}
-          registryAddress={ownerQuery.data?.registryAddress}
+          registryAddress={ownerQuery.data.registryAddress}
           network={network}
         />
         <ProtocolVersionWithCounter name={name} network={network} />
@@ -82,6 +131,9 @@ const Profile = ({
 function App() {
   const { name } = useParams({ from: '/$name/' })
 
+  // Validate name format - must be a valid ENS name (normalized + ends with .eth)
+  const isValidName = isValidEnsName(name)
+
   const {
     data: resolverAddress,
     isLoading,
@@ -89,7 +141,27 @@ function App() {
   } = useEnsResolver({
     name,
     universalResolverAddress: '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce',
+    query: {
+      // Don't fetch resolver for invalid names
+      enabled: isValidName,
+    },
   })
+
+  // Show 404 for invalid/malformed names
+  if (!isValidName) {
+    return (
+      <NotFoundMessage
+        title="Invalid name"
+        description={
+          <>
+            <strong>{name}</strong> is not a valid ENS name.
+            <br />
+            Names must be normalized (lowercase, valid characters).
+          </>
+        }
+      />
+    )
+  }
 
   if (error) {
     const message =

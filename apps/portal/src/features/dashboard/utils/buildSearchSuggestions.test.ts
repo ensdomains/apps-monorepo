@@ -41,8 +41,9 @@ describe('buildSearchSuggestions', () => {
         value: '  vitalik  ',
       })
 
-      expect(result.length).toBe(1)
-      expect(result[0].label).toBe('vitalik.eth')
+      expect(result.length).toBe(2)
+      expect(result[0].label).toBe('vitalik')
+      expect(result[1].label).toBe('vitalik.eth')
     })
   })
 
@@ -90,29 +91,49 @@ describe('buildSearchSuggestions', () => {
   })
 
   describe('Invalid Addresses', () => {
-    it('should return empty array for invalid address format', () => {
+    it('should treat invalid address format as ENS name', () => {
       const result = buildSearchSuggestions({
         ...defaultOptions,
-        value: '0x123', // Too short
+        value: '0x123', // Too short to be an address
       })
 
-      // Should still create ENS name suggestion
-      expect(result.length).toBe(1)
-      expect(result[0].id).toBe('name:0x123.eth')
+      // Shows both 1LD and .eth version
+      expect(result.length).toBe(2)
+      expect(result[0].id).toBe('name:0x123')
+      expect(result[1].id).toBe('name:0x123.eth')
     })
   })
 
   describe('ENS Names', () => {
-    it('should add .eth suffix to simple names', () => {
+    it('should show both 1LD and .eth version for TLDs like "eth"', () => {
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: 'eth',
+      })
+
+      expect(result.length).toBe(2)
+      // First suggestion: the 1LD itself
+      expect(result[0].id).toBe('name:eth')
+      expect(result[0].label).toBe('eth')
+      // Second suggestion: with .eth suffix
+      expect(result[1].id).toBe('name:eth.eth')
+      expect(result[1].label).toBe('eth.eth')
+    })
+
+    it('should show both 1LD and .eth version for simple names', () => {
       const result = buildSearchSuggestions({
         ...defaultOptions,
         value: 'vitalik',
       })
 
-      expect(result.length).toBe(1)
-      expect(result[0].id).toBe('name:vitalik.eth')
-      expect(result[0].label).toBe('vitalik.eth')
-      expect(result[0].description).toBe('View ENS name details')
+      expect(result.length).toBe(2)
+      // First: the name as 1LD
+      expect(result[0].id).toBe('name:vitalik')
+      expect(result[0].label).toBe('vitalik')
+      // Second: with .eth suffix
+      expect(result[1].id).toBe('name:vitalik.eth')
+      expect(result[1].label).toBe('vitalik.eth')
+      expect(result[1].description).toBe('View ENS name details')
     })
 
     it('should not double-add .eth suffix', () => {
@@ -121,6 +142,7 @@ describe('buildSearchSuggestions', () => {
         value: 'vitalik.eth',
       })
 
+      expect(result.length).toBe(1)
       expect(result[0].label).toBe('vitalik.eth')
       expect(result[0].label).not.toBe('vitalik.eth.eth')
     })
@@ -131,8 +153,20 @@ describe('buildSearchSuggestions', () => {
         value: 'vitalik',
       })
 
-      result[0].action()
+      // Test action on the .eth version
+      result[1].action()
       expect(mockNavigateToName).toHaveBeenCalledWith('vitalik.eth')
+    })
+
+    it('should lowercase the input', () => {
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: 'VITALIK',
+      })
+
+      expect(result.length).toBe(2)
+      expect(result[0].label).toBe('vitalik')
+      expect(result[1].label).toBe('vitalik.eth')
     })
   })
 
@@ -144,9 +178,10 @@ describe('buildSearchSuggestions', () => {
         isMobile: true,
       })
 
-      expect(result.length).toBe(1)
-      expect(result[0].label).toBe('0xdev.eth')
-      expect(result[0].label).not.toContain('...') // Not truncated
+      expect(result.length).toBe(2)
+      expect(result[0].label).toBe('0xdev')
+      expect(result[1].label).toBe('0xdev.eth')
+      expect(result[1].label).not.toContain('...') // Not truncated
     })
 
     it('should handle 0x names with special characters', () => {
@@ -156,7 +191,9 @@ describe('buildSearchSuggestions', () => {
         isMobile: true,
       })
 
-      expect(result[0].label).toBe('0x-test.eth')
+      expect(result.length).toBe(2)
+      expect(result[0].label).toBe('0x-test')
+      expect(result[1].label).toBe('0x-test.eth')
     })
   })
 
@@ -173,13 +210,15 @@ describe('buildSearchSuggestions', () => {
       )
     })
 
-    it('should handle names with subdomains', () => {
+    it('should handle names with subdomains (no .eth)', () => {
       const result = buildSearchSuggestions({
         ...defaultOptions,
         value: 'sub.vitalik',
       })
 
-      // ensureEthSuffix doesn't add .eth to names that already contain a dot
+      // ensureEthSuffix doesn't add .eth to names with dots,
+      // so only the name as-is is shown
+      expect(result.length).toBe(1)
       expect(result[0].label).toBe('sub.vitalik')
     })
 
@@ -189,6 +228,7 @@ describe('buildSearchSuggestions', () => {
         value: 'sub.vitalik.eth',
       })
 
+      expect(result.length).toBe(1)
       expect(result[0].label).toBe('sub.vitalik.eth')
     })
   })
@@ -203,13 +243,16 @@ describe('buildSearchSuggestions', () => {
         isMobile: true,
       })
 
-      expect(result.length).toBe(1)
-      // Label should be truncated
+      expect(result.length).toBe(2)
+      // First suggestion (1LD) should be truncated
       expect(result[0].label.length).toBeLessThanOrEqual(30)
       expect(result[0].label).toContain('…')
-      expect(result[0].label.endsWith('.eth')).toBe(true)
-      // But inputValue should be full name
-      expect(result[0].inputValue).toBe(`${longName}.eth`)
+      expect(result[0].inputValue).toBe(longName)
+      // Second suggestion (.eth version) should be truncated
+      expect(result[1].label.length).toBeLessThanOrEqual(30)
+      expect(result[1].label).toContain('…')
+      expect(result[1].label.endsWith('.eth')).toBe(true)
+      expect(result[1].inputValue).toBe(`${longName}.eth`)
     })
 
     it('should NOT truncate long ENS names on desktop', () => {
@@ -220,11 +263,11 @@ describe('buildSearchSuggestions', () => {
         isMobile: false,
       })
 
-      expect(result.length).toBe(1)
-      // Label should be full name on desktop
-      expect(result[0].label).toBe(`${longName}.eth`)
-      expect(result[0].label).not.toContain('…')
-      expect(result[0].inputValue).toBe(`${longName}.eth`)
+      expect(result.length).toBe(2)
+      // Labels should be full names on desktop
+      expect(result[0].label).toBe(longName)
+      expect(result[1].label).toBe(`${longName}.eth`)
+      expect(result[1].label).not.toContain('…')
     })
 
     it('should truncate long subdomain ENS names on mobile', () => {
@@ -252,9 +295,10 @@ describe('buildSearchSuggestions', () => {
         isMobile: true,
       })
 
-      expect(result.length).toBe(1)
-      expect(result[0].label).toBe('vitalik.eth')
-      expect(result[0].label).not.toContain('…')
+      expect(result.length).toBe(2)
+      expect(result[0].label).toBe('vitalik')
+      expect(result[1].label).toBe('vitalik.eth')
+      expect(result[1].label).not.toContain('…')
     })
 
     it('should truncate address-as-name on mobile', () => {
@@ -266,10 +310,11 @@ describe('buildSearchSuggestions', () => {
         isMobile: true,
       })
 
-      expect(result.length).toBe(1)
-      expect(result[0].label.length).toBeLessThanOrEqual(30)
-      expect(result[0].label).toContain('…')
-      expect(result[0].label.endsWith('.eth')).toBe(true)
+      expect(result.length).toBe(2)
+      // The .eth version should be truncated
+      expect(result[1].label.length).toBeLessThanOrEqual(30)
+      expect(result[1].label).toContain('…')
+      expect(result[1].label.endsWith('.eth')).toBe(true)
     })
   })
 })

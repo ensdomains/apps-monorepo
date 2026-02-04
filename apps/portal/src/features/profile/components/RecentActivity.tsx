@@ -4,6 +4,7 @@ import type {
   BaseResolverEvent,
 } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import type { Hash } from 'viem'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
@@ -73,6 +74,7 @@ const RecentActivityTable = ({
       enableFilters={false}
       enableSearch={false}
       enableSidebar={false}
+      enableNetwork={false}
       name={name}
       data={dataWithTimestampsAndSenders}
     />
@@ -103,8 +105,15 @@ export const RecentActivity = ({ name }: RecentActivityProps) => {
   if (!events) {
     return (
       <div className="flex flex-col gap-1 p-6 border border-gray-300 rounded-lg w-full">
-        <div>
+        <div className="flex flex-row justify-between items-center">
           <h2 className="text-[26px] font-medium">History</h2>
+          <Link
+            to="/$name/history"
+            params={{ name }}
+            className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+          >
+            View all
+          </Link>
         </div>
         <div>No recent activity</div>
       </div>
@@ -113,8 +122,15 @@ export const RecentActivity = ({ name }: RecentActivityProps) => {
 
   return (
     <div className="flex flex-col gap-1 p-6 border border-gray-300 rounded-lg w-full">
-      <div>
+      <div className="flex flex-row justify-between items-center">
         <h2 className="text-[26px] font-medium">History</h2>
+        <Link
+          to="/$name/history"
+          params={{ name }}
+          className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+        >
+          View all
+        </Link>
       </div>
       <RecentActivityTable
         name={name}

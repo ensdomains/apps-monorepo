@@ -15,6 +15,7 @@ export const columns: ColumnDef<ForwardName>[] = [
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        sortDirection={column.getIsSorted()}
       >
         Name
       </SortButton>
@@ -26,6 +27,7 @@ export const columns: ColumnDef<ForwardName>[] = [
       return (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          sortDirection={column.getIsSorted()}
         >
           Networks
         </SortButton>
