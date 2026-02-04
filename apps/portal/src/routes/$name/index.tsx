@@ -26,8 +26,10 @@ export const Route = createFileRoute('/$name/')({
   notFoundComponent: () => <NotFoundMessage />,
 })
 
-// Check if a name is a TLD (1 label, no dots) - TLDs cannot be registered by users
-const isTLD = (name: string) => !name.includes('.')
+// Check if a name can be registered (currently only .eth 2LDs)
+// TLDs (like "eth") and other extensions (like "florin.abc") cannot be registered
+const isRegistrable = (name: string) =>
+  name.endsWith('.eth') && name.split('.').length === 2
 
 const Profile = ({
   name,
@@ -41,9 +43,9 @@ const Profile = ({
   })
 
   // Check availability when owner lookup returns null (name might be available)
-  // But don't check for TLDs since they can't be registered by users
+  // Only check for registrable names (.eth) - TLDs and other extensions can't be registered
   const shouldCheckAvailability =
-    !ownerQuery.isLoading && !ownerQuery.data && !isTLD(name)
+    !ownerQuery.isLoading && !ownerQuery.data && isRegistrable(name)
   const availabilityQuery = useQuery({
     ...getNameAvailabilityQueryOptions({ name }),
     enabled: shouldCheckAvailability,
@@ -54,8 +56,8 @@ const Profile = ({
 
   // If owner is null (not found), check availability
   if (!ownerQuery.data) {
-    // TLDs that don't exist should show not found (users can't register TLDs)
-    if (isTLD(name)) {
+    // Non-registrable names (TLDs or non-.eth names) that don't exist should show not found
+    if (!isRegistrable(name)) {
       return (
         <NotFoundMessage
           title="Name not found"
