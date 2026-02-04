@@ -14,8 +14,8 @@ import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
 import { ValidationError } from '@/features/register/components/CheckAvailability/ValidationError'
-import { truncateToMaxBytes } from '@/features/register/components/Pricing/utils'
 import { useDebounce } from '@/hooks/useDebounce'
+import { truncateToMaxBytes } from '@/utils/domain'
 
 const dropdownAnimation = {
   initial: { opacity: 0, y: -8, scale: 0.98 },
