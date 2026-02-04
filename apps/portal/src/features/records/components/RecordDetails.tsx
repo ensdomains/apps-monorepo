@@ -5,6 +5,7 @@ import { SearchIcon, TrashIcon } from 'lucide-react'
 import { zeroAddress } from 'viem'
 import type { Address } from 'viem/accounts'
 import { useEnsResolver } from 'wagmi'
+import { CopyableRecord } from '@/components/CopyableRecord'
 import { DataTable } from '@/components/DataTable'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Button } from '@/components/ui/button'
@@ -17,6 +18,7 @@ import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
 import { ResolverField } from '@/features/resolver/components/ResolverField'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
   filterV2EventsByRecord,
   type HistoryEvent,
@@ -220,6 +222,23 @@ const columns: ColumnDef<HistoryEvent>[] = [
     },
   },
   {
+    header: 'Transaction',
+    accessorKey: 'transactionHash',
+    cell({ row }) {
+      const txHash = row.original.transactionHash
+      return (
+        <CopyableRecord
+          value={txHash}
+          displayValue={
+            <span className="font-mono">{truncateAddress(txHash)}</span>
+          }
+          className="text-sm underline decoration-dashed underline-offset-4"
+          href={`https://sepolia.etherscan.io/tx/${txHash}`}
+        />
+      )
+    },
+  },
+  {
     header: 'Type',
     accessorKey: 'type',
     cell({ column, row }) {
@@ -243,16 +262,14 @@ interface HistoryViewProps {
 }
 
 const HistoryView = ({ name, record }: HistoryViewProps) => {
-  const v1QueryParams: GetRecordHistoryParameters = {
-    name,
-    key: recordTypeToSubgraphKey(
-      record.type,
-    ) as GetRecordHistoryParameters['key'],
-  }
-
   const [v1HistoryQuery, v2HistoryQuery] = useQueries({
     queries: [
-      getRecordHistoryQueryOptions(v1QueryParams),
+      getRecordHistoryQueryOptions({
+        name,
+        key: recordTypeToSubgraphKey(
+          record.type,
+        ) as GetRecordHistoryParameters['key'],
+      }),
       getV2NameHistoryQueryOptions({ name }),
     ],
   })
@@ -271,11 +288,21 @@ const HistoryView = ({ name, record }: HistoryViewProps) => {
       enabled: v1BlockNumbers.length > 0,
     })
 
-  const isLoading =
-    v1HistoryQuery.isLoading ||
-    v2HistoryQuery.isLoading ||
-    (v1BlockNumbers.length > 0 && isLoadingTimestamps)
+  // Handle loading states separately
+  if (v1HistoryQuery.isLoading && v2HistoryQuery.isLoading) {
+    return <LoadingSpinner title="Loading history..." />
+  }
+  if (v1HistoryQuery.isLoading) {
+    return <LoadingSpinner title="Loading V1 history..." />
+  }
+  if (v2HistoryQuery.isLoading) {
+    return <LoadingSpinner title="Loading V2 history..." />
+  }
+  if (v1BlockNumbers.length > 0 && isLoadingTimestamps) {
+    return <LoadingSpinner title="Loading timestamps..." />
+  }
 
+  // Handle errors separately
   if (v1HistoryQuery.error) {
     return (
       <div>
@@ -293,8 +320,6 @@ const HistoryView = ({ name, record }: HistoryViewProps) => {
       </div>
     )
   }
-
-  if (isLoading) return <LoadingSpinner title="Loading..." />
 
   // Transform V1 events with fetched timestamps
   const v1Events = transformV1Events(filteredV1Events, blockTimestamps)

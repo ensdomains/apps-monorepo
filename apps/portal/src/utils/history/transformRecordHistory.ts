@@ -9,6 +9,7 @@ import type { NameRecord } from '@/features/records/components/RecordsTable/colu
 export type HistoryEvent = {
   blockNumber: number
   timestamp?: number // Unix timestamp in seconds
+  transactionHash: string
   type: string
   value?: string
 }
@@ -91,6 +92,7 @@ export const transformV1Events = (
     return {
       blockNumber: event.blockNumber,
       timestamp: blockTimestamp ? Number(blockTimestamp) : undefined,
+      transactionHash: event.transactionID,
       type: event.type,
       value: extractV1EventValue(event),
     }
@@ -114,6 +116,7 @@ export const transformV2Events = (
   events.map((event) => ({
     blockNumber: event.blockNumber,
     timestamp: event.timestamp,
+    transactionHash: event.transactionHash,
     type: event.type,
     value: undefined,
   }))

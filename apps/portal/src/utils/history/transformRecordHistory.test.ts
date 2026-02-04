@@ -127,6 +127,7 @@ describe('transformRecordHistory', () => {
       expect(result[0]).toEqual({
         blockNumber: 12345,
         timestamp: undefined,
+        transactionHash: '0x123',
         type: 'TextChanged',
         value: 'name: John',
       })
@@ -211,6 +212,7 @@ describe('transformRecordHistory', () => {
       expect(result[0]).toEqual({
         blockNumber: 12345,
         timestamp: 1700000000,
+        transactionHash: '0x123',
         type: 'TextChanged',
         value: undefined,
       })
@@ -238,7 +240,9 @@ describe('transformRecordHistory', () => {
 
       expect(result).toHaveLength(2)
       expect(result[0].type).toBe('TextChanged')
+      expect(result[0].transactionHash).toBe('0x123')
       expect(result[1].type).toBe('AddressChanged')
+      expect(result[1].transactionHash).toBe('0x456')
     })
 
     it('should set value to undefined (V2 indexer does not provide detailed event fields)', () => {
@@ -261,9 +265,27 @@ describe('transformRecordHistory', () => {
   describe('sortHistoryEvents', () => {
     it('should sort events by timestamp descending', () => {
       const events: HistoryEvent[] = [
-        { blockNumber: 100, timestamp: 1000, type: 'A', value: 'a' },
-        { blockNumber: 300, timestamp: 3000, type: 'C', value: 'c' },
-        { blockNumber: 200, timestamp: 2000, type: 'B', value: 'b' },
+        {
+          blockNumber: 100,
+          timestamp: 1000,
+          transactionHash: '0x1',
+          type: 'A',
+          value: 'a',
+        },
+        {
+          blockNumber: 300,
+          timestamp: 3000,
+          transactionHash: '0x3',
+          type: 'C',
+          value: 'c',
+        },
+        {
+          blockNumber: 200,
+          timestamp: 2000,
+          transactionHash: '0x2',
+          type: 'B',
+          value: 'b',
+        },
       ]
 
       const result = sortHistoryEvents(events)
@@ -273,9 +295,9 @@ describe('transformRecordHistory', () => {
 
     it('should fall back to block number when timestamps are missing', () => {
       const events: HistoryEvent[] = [
-        { blockNumber: 100, type: 'A', value: 'a' },
-        { blockNumber: 300, type: 'C', value: 'c' },
-        { blockNumber: 200, type: 'B', value: 'b' },
+        { blockNumber: 100, transactionHash: '0x1', type: 'A', value: 'a' },
+        { blockNumber: 300, transactionHash: '0x3', type: 'C', value: 'c' },
+        { blockNumber: 200, transactionHash: '0x2', type: 'B', value: 'b' },
       ]
 
       const result = sortHistoryEvents(events)
@@ -285,9 +307,21 @@ describe('transformRecordHistory', () => {
 
     it('should handle mixed events with and without timestamps', () => {
       const events: HistoryEvent[] = [
-        { blockNumber: 100, timestamp: 1000, type: 'A', value: 'a' },
-        { blockNumber: 300, type: 'C', value: 'c' }, // no timestamp
-        { blockNumber: 200, timestamp: 2000, type: 'B', value: 'b' },
+        {
+          blockNumber: 100,
+          timestamp: 1000,
+          transactionHash: '0x1',
+          type: 'A',
+          value: 'a',
+        },
+        { blockNumber: 300, transactionHash: '0x3', type: 'C', value: 'c' }, // no timestamp
+        {
+          blockNumber: 200,
+          timestamp: 2000,
+          transactionHash: '0x2',
+          type: 'B',
+          value: 'b',
+        },
       ]
 
       const result = sortHistoryEvents(events)
@@ -300,8 +334,20 @@ describe('transformRecordHistory', () => {
 
     it('should not mutate the original array', () => {
       const events: HistoryEvent[] = [
-        { blockNumber: 100, timestamp: 1000, type: 'A', value: 'a' },
-        { blockNumber: 200, timestamp: 2000, type: 'B', value: 'b' },
+        {
+          blockNumber: 100,
+          timestamp: 1000,
+          transactionHash: '0x1',
+          type: 'A',
+          value: 'a',
+        },
+        {
+          blockNumber: 200,
+          timestamp: 2000,
+          transactionHash: '0x2',
+          type: 'B',
+          value: 'b',
+        },
       ]
       const originalOrder = events.map((e) => e.type)
 
