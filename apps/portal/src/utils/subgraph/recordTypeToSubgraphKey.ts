@@ -12,7 +12,5 @@ export const recordTypeToSubgraphKey = (
       return 'texts'
     case 'contentHash':
       return 'contentHash'
-    default:
-      return type
   }
 }

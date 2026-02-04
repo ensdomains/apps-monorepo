@@ -2,7 +2,6 @@ import type { GetRecordHistoryParameters } from '@ensdomains/ensjs/subgraph'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import { SearchIcon, TrashIcon } from 'lucide-react'
-import { match } from 'ts-pattern'
 import { zeroAddress } from 'viem'
 import type { Address } from 'viem/accounts'
 import { useEnsResolver } from 'wagmi'
@@ -272,15 +271,10 @@ const HistoryView = ({ name, record }: HistoryViewProps) => {
       enabled: v1BlockNumbers.length > 0,
     })
 
-  const isLoading = match({
-    v1Loading: v1HistoryQuery.isLoading,
-    v2Loading: v2HistoryQuery.isLoading,
-    timestampsLoading: v1BlockNumbers.length > 0 && isLoadingTimestamps,
-  })
-    .with({ v1Loading: true }, () => true)
-    .with({ v2Loading: true }, () => true)
-    .with({ timestampsLoading: true }, () => true)
-    .otherwise(() => false)
+  const isLoading =
+    v1HistoryQuery.isLoading ||
+    v2HistoryQuery.isLoading ||
+    (v1BlockNumbers.length > 0 && isLoadingTimestamps)
 
   if (v1HistoryQuery.error) {
     return (
