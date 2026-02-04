@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { normalizeDomainNameFromUrl } from '@/features/register/components/Pricing/utils'
 import { Registration } from '@/features/register/pages/RegistrationPage'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
@@ -24,8 +25,10 @@ function RegisterPage() {
 export const Route = createFileRoute('/register')({
   component: RegisterPage,
   validateSearch: (search: Record<string, unknown>): RegisterSearch => {
+    const rawName = typeof search.name === 'string' ? search.name : undefined
+    const name = rawName ? normalizeDomainNameFromUrl(rawName) : undefined
     return {
-      name: typeof search.name === 'string' ? search.name : undefined,
+      name: name && name !== '.eth' ? name : undefined,
       duration:
         typeof search.duration === 'number'
           ? search.duration

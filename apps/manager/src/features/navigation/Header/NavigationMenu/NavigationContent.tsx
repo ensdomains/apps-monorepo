@@ -7,6 +7,8 @@ import {
   YoutubeIcon,
 } from 'lucide-react'
 
+import ensBlack from '@/assets/icons/ens-black.svg'
+
 interface NavigationContentProps {
   onAction: () => void
 }
@@ -14,6 +16,7 @@ interface NavigationContentProps {
 interface NavigationLink {
   label: string
   href: string
+  icon?: React.ReactNode
 }
 
 interface NavigationSection {
@@ -26,8 +29,27 @@ interface SocialIcon {
   icon: LucideIcon
 }
 
+const LogoIconBlack = () => <img alt="Logo" src={ensBlack} />
+
 // TODO: Update links to actual URLs
 const navigationSections: NavigationSection[] = [
+  {
+    title: '',
+    links: [
+      {
+        label: 'ENS App Homepage',
+        href: '/',
+        icon: <LogoIconBlack />,
+      },
+    ],
+  },
+  {
+    title: 'Need help?',
+    links: [
+      { label: 'Support', href: '#support' },
+      { label: 'Contact', href: '#contact' },
+    ],
+  },
   {
     title: 'ENS',
     links: [
@@ -38,13 +60,7 @@ const navigationSections: NavigationSection[] = [
       { label: 'Careers', href: '#careers' },
     ],
   },
-  {
-    title: 'Need help?',
-    links: [
-      { label: 'Support', href: '#support' },
-      { label: 'Contact', href: '#contact' },
-    ],
-  },
+
   {
     title: 'Join the community',
     links: [
@@ -80,14 +96,17 @@ export const NavigationContent = ({ onAction }: NavigationContentProps) => {
             </h3>
             <div className="flex flex-col gap-4">
               {section.links.map((link) => (
-                <a
-                  className="text-ens-lapis-core text-sm leading-ens-normal transition-colors hover:underline"
-                  href={link.href}
-                  key={link.href}
-                  onClick={handleLinkClick}
-                >
-                  {link.label}
-                </a>
+                <div className="flex items-center gap-2">
+                  {link.icon && <div className="size-6">{link.icon}</div>}
+                  <a
+                    className="text-ens-lapis-core text-sm leading-ens-normal transition-colors hover:underline"
+                    href={link.href}
+                    key={link.href}
+                    onClick={handleLinkClick}
+                  >
+                    {link.label}
+                  </a>
+                </div>
               ))}
             </div>
           </div>

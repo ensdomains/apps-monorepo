@@ -4,6 +4,7 @@ import { useWallet } from '@getpara/react-sdk-lite'
 import { CreditCardIcon, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
+import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -407,16 +408,24 @@ export const CryptoPaymentDrawer = ({
           Registering
         </h2>
 
-        <div className="flex w-full flex-col items-center gap-4 rounded-xl bg-[rgb(250,250,250)] px-6 py-8">
+        <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-xl bg-[rgb(250,250,250)] px-6 py-8">
           {premiumLabel && (
-            <div className="rounded-full bg-ens-bronzite-surface px-3 py-1">
-              <span className="font-medium text-sm text-white">
-                {premiumLabel.label}
-              </span>
-            </div>
+            <DomainAttributePill
+              label={premiumLabel.label}
+              variant={premiumLabel.variant}
+            />
           )}
-          <span className="font-normal text-4xl text-ens-blue-dark tracking-tight">
-            {domainName}
+          <span
+            className={cn(
+              'w-full min-w-0 text-center font-medium font-semi-mono',
+              'text-[40px] leading-[96%] tracking-[-0.8px]',
+              'text-[var(--Primary-Grey,#4A5C63)]',
+            )}
+            title={domainName}
+          >
+            {domainName.length > 10
+              ? `${domainName.slice(0, 10)}…`
+              : domainName}
           </span>
         </div>
 
