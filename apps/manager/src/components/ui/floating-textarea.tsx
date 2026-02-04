@@ -21,7 +21,7 @@ export const FloatingTextarea = forwardRef<
           'transition-[color,box-shadow]',
           'selection:bg-primary selection:text-primary-foreground',
           'placeholder:text-transparent focus:placeholder:text-muted-foreground',
-          'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
+          'focus-visible:border-ring',
           'aria-invalid:border-destructive aria-invalid:ring-destructive/20',
           'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
           'md:text-sm',
