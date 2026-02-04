@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from 'motion/react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
-import { CopyToClipboard } from '@/components/atoms/CopyToClipboard'
+import { CopyableAddress } from '@/components/atoms/CopyableAddress'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { Card } from '@/components/ui/card'
 import {
@@ -151,8 +151,8 @@ export const AddressProfileView = ({
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 pt-6 pb-12 md:space-y-8 md:pt-10">
       <Card className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-3">
+        <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0 space-y-3">
             <div className="flex items-center gap-2">
               <Wallet
                 className="size-4 text-muted-foreground"
@@ -162,9 +162,10 @@ export const AddressProfileView = ({
                 Address profile
               </span>
             </div>
-            <p className="font-mono text-[20px] text-foreground leading-[0.96] tracking-[-0.4px] md:text-[24px] md:tracking-[-0.48px]">
-              {address}
-            </p>
+            <CopyableAddress
+              address={address}
+              textClassName="text-[20px] text-foreground leading-[0.96] tracking-[-0.4px] md:text-[24px] md:tracking-[-0.48px]"
+            />
             {primaryName ? (
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground text-sm">
@@ -188,12 +189,6 @@ export const AddressProfileView = ({
                 <p>This address does not have a primary ENS name.</p>
               </div>
             )}
-          </div>
-          <div className="flex size-10 items-center justify-center rounded-lg border-[0.25px] border-border bg-ens-white">
-            <CopyToClipboard
-              className="size-4 text-muted-foreground"
-              value={address}
-            />
           </div>
         </div>
       </Card>
