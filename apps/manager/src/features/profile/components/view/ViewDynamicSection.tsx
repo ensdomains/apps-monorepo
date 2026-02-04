@@ -1,5 +1,6 @@
 import { CopyableButton } from '@/components/atoms/CopyableButton'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   getRecordDef,
   getRecordDisplayValue,
@@ -76,13 +77,19 @@ export const ViewDynamicSection = ({
   }
 
   return (
-    <div className="space-y-3">
-      <p className="font-medium">{sectionData.label}</p>
-      <div className="flex flex-wrap items-center gap-2">
-        {sectionRecords.map((record, i) => (
-          <DynamicRecord key={`${record.key}-${i}`} record={record} />
-        ))}
-      </div>
-    </div>
+    <Card className="border-[0.25px] border-border bg-white shadow-none">
+      <CardHeader>
+        <CardTitle className="text-base tracking-tight">
+          {sectionData.label}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap items-center gap-2">
+          {sectionRecords.map((record, i) => (
+            <DynamicRecord key={`${record.key}-${i}`} record={record} />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
