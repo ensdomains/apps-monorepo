@@ -1,5 +1,5 @@
 import type { GetRecordHistoryParameters } from '@ensdomains/ensjs/subgraph'
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import { SearchIcon, TrashIcon } from 'lucide-react'
 import { zeroAddress } from 'viem'
@@ -28,6 +28,7 @@ import {
 } from '@/utils/history/transformRecordHistory'
 import { filterRecordHistoryByRecord } from '@/utils/subgraph/filterRecordHistoryByRecord'
 import { recordTypeToSubgraphKey } from '@/utils/subgraph/recordTypeToSubgraphKey'
+import type { EnsNetworkName } from '@/utils/types'
 import type { NameRecord } from './RecordsTable/columns'
 
 interface AddressRecordValueProps {
@@ -259,51 +260,59 @@ const columns: ColumnDef<HistoryEvent>[] = [
 interface HistoryViewProps {
   name: string
   record: NameRecord
+  network?: EnsNetworkName
 }
 
-const HistoryView = ({ name, record }: HistoryViewProps) => {
-  const [v1HistoryQuery, v2HistoryQuery] = useQueries({
-    queries: [
-      getRecordHistoryQueryOptions({
-        name,
-        key: recordTypeToSubgraphKey(
-          record.type,
-        ) as GetRecordHistoryParameters['key'],
-      }),
-      getV2NameHistoryQueryOptions({ name }),
-    ],
+const HistoryView = ({ name, record, network }: HistoryViewProps) => {
+  const isV1 = network === 'sepolia'
+  const isV2 = network === 'namechainSepolia'
+
+  // Only query V1 history for V1 names, V2 history for V2 names
+  // If network is undefined, we don't know which to query yet
+  const v1HistoryQuery = useQuery({
+    ...getRecordHistoryQueryOptions({
+      name,
+      key: recordTypeToSubgraphKey(
+        record.type,
+      ) as GetRecordHistoryParameters['key'],
+    }),
+    enabled: isV1,
+  })
+
+  const v2HistoryQuery = useQuery({
+    ...getV2NameHistoryQueryOptions({ name }),
+    enabled: isV2,
   })
 
   // Filter V1 events (need to do this before fetching timestamps)
-  const filteredV1Events = filterRecordHistoryByRecord(
-    v1HistoryQuery.data || [],
-    record,
-  )
+  const filteredV1Events = isV1
+    ? filterRecordHistoryByRecord(v1HistoryQuery.data || [], record)
+    : []
 
   // Fetch timestamps for V1 events (they don't include timestamps)
   const v1BlockNumbers = filteredV1Events.map((e) => BigInt(e.blockNumber))
   const { data: blockTimestamps, isLoading: isLoadingTimestamps } =
     useBlockTimestamps({
       blocks: v1BlockNumbers,
-      enabled: v1BlockNumbers.length > 0,
+      enabled: isV1 && v1BlockNumbers.length > 0,
     })
 
-  // Handle loading states separately
-  if (v1HistoryQuery.isLoading && v2HistoryQuery.isLoading) {
+  // Handle loading states
+  if (!network) {
+    return <LoadingSpinner title="Loading..." />
+  }
+  if (isV1 && v1HistoryQuery.isLoading) {
     return <LoadingSpinner title="Loading history..." />
   }
-  if (v1HistoryQuery.isLoading) {
-    return <LoadingSpinner title="Loading V1 history..." />
+  if (isV2 && v2HistoryQuery.isLoading) {
+    return <LoadingSpinner title="Loading history..." />
   }
-  if (v2HistoryQuery.isLoading) {
-    return <LoadingSpinner title="Loading V2 history..." />
-  }
-  if (v1BlockNumbers.length > 0 && isLoadingTimestamps) {
+  if (isV1 && v1BlockNumbers.length > 0 && isLoadingTimestamps) {
     return <LoadingSpinner title="Loading timestamps..." />
   }
 
-  // Handle errors separately
-  if (v1HistoryQuery.error) {
+  // Handle errors
+  if (isV1 && v1HistoryQuery.error) {
     return (
       <div>
         History Error:{' '}
@@ -312,24 +321,25 @@ const HistoryView = ({ name, record }: HistoryViewProps) => {
     )
   }
 
-  if (v2HistoryQuery.error) {
+  if (isV2 && v2HistoryQuery.error) {
     return (
       <div>
-        V2 History Error:{' '}
+        History Error:{' '}
         {v2HistoryQuery.error.cause?.message || v2HistoryQuery.error.message}
       </div>
     )
   }
 
   // Transform V1 events with fetched timestamps
-  const v1Events = transformV1Events(filteredV1Events, blockTimestamps)
+  const v1Events = isV1
+    ? transformV1Events(filteredV1Events, blockTimestamps)
+    : []
 
   // Filter and transform V2 events (they already have timestamps)
-  const filteredV2Events = filterV2EventsByRecord(
-    v2HistoryQuery.data || [],
-    record,
-  )
-  const v2Events = transformV2Events(filteredV2Events)
+  const filteredV2Events = isV2
+    ? filterV2EventsByRecord(v2HistoryQuery.data || [], record)
+    : []
+  const v2Events = isV2 ? transformV2Events(filteredV2Events) : []
 
   // Merge and sort by timestamp (descending), fallback to block number
   const allEvents = sortHistoryEvents([...v1Events, ...v2Events])
@@ -374,9 +384,14 @@ const RecordDetailsView = ({
 interface RecordDetailsProps {
   record: NameRecord
   name: string
+  network?: EnsNetworkName
 }
 
-export const RecordDetails = ({ record, name }: RecordDetailsProps) => {
+export const RecordDetails = ({
+  record,
+  name,
+  network,
+}: RecordDetailsProps) => {
   const { data: canEditRecords } = useCanEditRecords({ name })
 
   return (
@@ -393,7 +408,7 @@ export const RecordDetails = ({ record, name }: RecordDetailsProps) => {
       </SheetHeader>
       <RecordDetailsView {...{ record, canEditRecords }} />
       <ResolverView name={name} />
-      <HistoryView {...{ name, record }} />
+      <HistoryView {...{ name, record, network }} />
     </div>
   )
 }
