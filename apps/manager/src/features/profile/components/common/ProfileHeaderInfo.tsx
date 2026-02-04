@@ -67,7 +67,7 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
   })
 
   return (
-    <div className="flex w-full flex-col items-start gap-3 bg-gray-100 px-4 pt-16 pb-4 text-center md:px-6 md:pt-16 md:pb-6 md:text-left">
+    <div className="flex w-full flex-col items-start gap-3 bg-white px-4 pt-16 pb-4 text-center md:px-6 md:pt-16 md:pb-6 md:text-left">
       <Highlight className="text-lg md:text-2xl">{name}</Highlight>
       <div className="flex items-center gap-x-1 whitespace-pre-wrap">
         <Wallet className="size-5" />

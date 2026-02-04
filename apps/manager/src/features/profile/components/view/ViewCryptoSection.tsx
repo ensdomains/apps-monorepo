@@ -1,4 +1,5 @@
 import { CopyableButton } from '@/components/atoms/CopyableButton'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getAddressRecordDef } from '../../data/records'
 import type { ProfileRecords } from '../../types'
 import { IconRenderer } from '../IconRenderer'
@@ -36,17 +37,26 @@ interface ViewCryptoSectionProps {
 
 export const ViewCryptoSection = ({ records }: ViewCryptoSectionProps) => {
   return (
-    <div className="space-y-2">
-      <div className="font-medium">Wallet Addresses</div>
-      {records.addresses.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {records.addresses.map((address, i) => (
-            <CryptoAddress address={address} key={`${address.coinType}-${i}`} />
-          ))}
-        </div>
-      ) : (
-        <p className="text-gray-600 text-sm">No crypto addresses added</p>
-      )}
-    </div>
+    <Card className="border-[0.25px] border-border bg-white shadow-none">
+      <CardHeader>
+        <CardTitle className="text-base tracking-tight">
+          Wallet Addresses
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {records.addresses.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {records.addresses.map((address, i) => (
+              <CryptoAddress
+                address={address}
+                key={`${address.coinType}-${i}`}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-600 text-sm">No crypto addresses added</p>
+        )}
+      </CardContent>
+    </Card>
   )
 }
