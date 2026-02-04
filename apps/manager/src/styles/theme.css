@@ -52,9 +52,17 @@
   --color-ens-orange-light: #ffe2b4;
   --color-ens-brown-dark: #674d49;
   --color-ens-gray: #4a5c63;
+  --Primary-Grey: #4a5c63;
   --color-ens-gray-two: #e5e5e5;
   --color-ens-gray-three: #c4c7c8;
   --color-ens-white: #f6f6f6;
+
+  /* 4-character premium name pill (Figma: 4-character-premium-name) */
+  --4-character-premium-name: linear-gradient(
+    103deg,
+    #e2e8f0 22.67%,
+    #606262 287.71%
+  );
 
   /* Temp names to be given official names once the design system is finalized */
   --text-temp-64px: 4rem; /* TEMP NAME - Designs commonly use 64px for h1's but no official name has been given */
