@@ -73,7 +73,7 @@ export const Pricing = ({
   }, [finalPrice, discountAmount, isPriceLoading, onPricingDataChange])
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 pt-4 pb-12 md:px-10">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 pt-4 pb-12 md:px-10">
       {/* Domain Name Header */}
       <PricingDomainHeader
         domainName={domainName}
@@ -81,7 +81,7 @@ export const Pricing = ({
       />
 
       {/* Two Column Layout - Desktop / Single Column - Mobile */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_420px] lg:items-stretch">
+      <div className="grid grid-cols-1 gap-2 lg:grid-cols-[2fr_420px] lg:items-stretch">
         {/* Left Column: Duration Selector */}
         <div className="flex flex-col space-y-2 duration-selector-container">
           <DurationSelector
@@ -112,7 +112,7 @@ export const Pricing = ({
           />
 
           {/* Total & Payment Card */}
-          <div className="total-payment-card h-full space-y-6 rounded-2xl border border-ens-gray-two bg-white px-6 py-6 shadow-sm">
+          <div className="total-payment-card flex h-full flex-col justify-between space-y-6 rounded-2xl border border-ens-gray-two bg-white px-6 py-6 shadow-sm">
             {/* Total Price Section */}
             <PricingTotalPriceCard
               discountAmount={discountAmount}
