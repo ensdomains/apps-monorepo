@@ -64,19 +64,16 @@ export {
   removeTransaction,
   saveTransaction,
 } from './helpers/transaction-persistence'
+export {
+  type WaitForTransactionResult,
+  waitForTransaction,
+} from './helpers/waitForTransaction'
 export type {
   PrimaryNameContext,
   PrimaryNameEvent,
   PrimaryNameInput,
 } from './machines/primary-name/primaryName.machine'
 export { primaryNameMachine } from './machines/primary-name/primaryName.machine'
-export type {
-  RecordsContext,
-  RecordsEvent,
-  RecordsInput,
-} from './machines/records/records.machine'
-export { recordsMachine } from './machines/records/records.machine'
-export type { ServiceRecordSnapshot } from './machines/records/records.types'
 export type {
   RegistrationContext,
   RegistrationEvent,
@@ -152,6 +149,7 @@ export type {
   ETHTransferTransactionIntent,
   PaymentMethod,
   PaymentOption,
+  RhinestoneTransactionRequest,
   SmartAccountConfig,
   TransactionFlowType,
   TransactionIntent,
@@ -161,4 +159,5 @@ export type {
   TransactionResult,
   TransactionStep,
   TransactionType,
+  ZeroDevTransactionRequest,
 } from './types/transaction.types'

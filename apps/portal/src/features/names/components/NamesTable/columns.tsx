@@ -1,6 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { ArrowUpDown } from 'lucide-react'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { SortButton } from '@/components/table/SortButton'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
@@ -13,19 +13,6 @@ export type NameRow = {
   expiryDate?: Date | null
   roleBitmap?: string | null
   v1Roles?: V1Roles | null
-}
-
-const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
-  return (
-    <button
-      className="p-0 flex flex-row items-center cursor-pointer"
-      type="button"
-      {...props}
-    >
-      {children}
-      <ArrowUpDown className="ml-2 h-4 w-4" />
-    </button>
-  )
 }
 
 export const columns: ColumnDef<NameRow>[] = [

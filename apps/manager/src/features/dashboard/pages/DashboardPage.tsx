@@ -2,6 +2,7 @@ import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { EducationCarousel } from '@/features/dashboard/components/EducationCarousel'
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
@@ -93,7 +94,13 @@ export const DashboardPage = () => {
             <NamesTable primaryLabel={defaultName} />
           </div>
         </motion.div>
-        <motion.div {...stagger(hasProfile ? 4 : 3, shouldReduceMotion)}>
+        <motion.div
+          className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-lg md:px-6 md:py-8"
+          {...stagger(hasProfile ? 4 : 3, shouldReduceMotion)}
+        >
+          <EducationCarousel />
+        </motion.div>
+        <motion.div {...stagger(hasProfile ? 5 : 4, shouldReduceMotion)}>
           <FaqSection />
         </motion.div>
       </div>

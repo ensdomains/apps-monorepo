@@ -1,5 +1,5 @@
 import { useModal } from '@getpara/react-sdk-lite'
-import { useEffect, useMemo, useReducer } from 'react'
+import { useEffect, useMemo, useReducer, useState } from 'react'
 import type { PricingDuration } from '@/features/register/components/Pricing/types'
 import { getPremiumLabel } from '@/features/register/utils'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
@@ -15,7 +15,6 @@ import {
   formatExpirationDate,
   INITIAL_PRICING_OPTIONS,
   PRICING_DURATIONS,
-  PRICING_YEAR_DISCOUNTS,
   sanitizePricingDuration,
 } from './utils'
 
@@ -50,10 +49,17 @@ export const usePricing = ({
     createInitialState,
   )
 
+  // Shared input value for duration inputs across components
+  const [durationInputValue, setDurationInputValue] = useState<string>(
+    state.selectedDuration.toString(),
+  )
+
   const premiumLabel = useMemo(() => getPremiumLabel(domainName), [domainName])
 
   const basePerYear = state.basePricePerYear ?? 0
-  const isCustomDuration = state.selectedDuration > 5
+  const isCustomDuration = !PRICING_DURATIONS.includes(
+    state.selectedDuration as PricingDuration,
+  )
   const selectedOption = isCustomDuration
     ? undefined
     : state.pricingOptions[state.selectedDuration as PricingDuration]
@@ -61,20 +67,17 @@ export const usePricing = ({
     ? undefined
     : state.pricingQuotes[state.selectedDuration as PricingDuration]
 
-  const bestDiscountMultiplier = discountsEnabled
-    ? 1 - (PRICING_YEAR_DISCOUNTS[5] ?? 0) / 100
-    : 1
   const customDurationPrice =
     isCustomDuration && basePerYear > 0
-      ? basePerYear * state.selectedDuration * bestDiscountMultiplier
+      ? Math.ceil(basePerYear * state.selectedDuration)
       : 0
 
   const fallbackTotal = isCustomDuration
     ? customDurationPrice
     : (selectedOption?.total ??
       (selectedOption
-        ? selectedOption.price * state.selectedDuration
-        : basePerYear * state.selectedDuration))
+        ? Math.ceil(selectedOption.price * state.selectedDuration)
+        : Math.ceil(basePerYear * state.selectedDuration)))
 
   const finalPrice = isCustomDuration
     ? customDurationPrice
@@ -87,11 +90,10 @@ export const usePricing = ({
       ? Math.max(0, theoreticalTotal - finalPrice)
       : 0
     : 0
-  const bestDiscount = discountsEnabled ? (PRICING_YEAR_DISCOUNTS[5] ?? 0) : 0
   const discountPercentage = discountsEnabled
     ? theoreticalTotal > 0 && finalPrice
       ? Math.max(0, Math.round((discountAmount / theoreticalTotal) * 100))
-      : (selectedOption?.discount ?? (isCustomDuration ? bestDiscount : 0))
+      : (selectedOption?.discount ?? 0)
     : 0
 
   const expirationDate = useMemo(() => {
@@ -144,7 +146,7 @@ export const usePricing = ({
               : 0
             const discountMultiplier = discountsEnabled ? 1 - discount / 100 : 1
             const perYearPrice = basePerYear * discountMultiplier
-            const totalPrice = perYearPrice * duration
+            const totalPrice = Math.ceil(perYearPrice * duration)
 
             updatedOptions[duration] = {
               ...INITIAL_PRICING_OPTIONS[duration],
@@ -156,9 +158,11 @@ export const usePricing = ({
             updatedQuotes[duration] = {
               usdc: totalPrice,
               dai: baseResult.value.dai
-                ? parseFloat(baseResult.value.dai.formatted) *
-                  discountMultiplier *
-                  duration
+                ? Math.ceil(
+                    parseFloat(baseResult.value.dai.formatted) *
+                      discountMultiplier *
+                      duration,
+                  )
                 : undefined,
             }
           }
@@ -202,9 +206,11 @@ export const usePricing = ({
     if (input instanceof Date) {
       dispatch({ type: 'SET_DATE', payload: input })
       const calculatedDuration = calculateDurationFromDate(input)
+      setDurationInputValue(calculatedDuration.toString())
       onSetDuration(calculatedDuration)
     } else {
       dispatch({ type: 'SET_DURATION', payload: input })
+      setDurationInputValue(input.toString())
       onSetDuration(input)
     }
   }
@@ -240,6 +246,8 @@ export const usePricing = ({
     paddedDuration,
     expirationDate,
     isUsingAA,
+    durationInputValue,
+    setDurationInputValue,
     handleChange,
     handleConfirmPayment,
     handleConnect,

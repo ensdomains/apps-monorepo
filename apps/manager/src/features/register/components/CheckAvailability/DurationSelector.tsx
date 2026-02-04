@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react'
 import type {
   PricingDuration,
   PricingOptions,
@@ -6,30 +7,88 @@ import { cn } from '@/lib/utils'
 
 type DurationSelectorProps = {
   pricing: PricingOptions
-  selectedDuration: PricingDuration | null
-  onSelect: (duration: PricingDuration) => void
+  selectedDuration: number | null
+  onSelect: (duration: number) => void
   disabled?: boolean
+  durationInputValue: string
+  onInputChange: (value: string) => void
 }
 
-const durationOrder: PricingDuration[] = [1, 2, 3, 4, 5]
+const durationOrder: PricingDuration[] = [1, 3, 5, 10]
 
 export const DurationSelector = ({
   pricing,
   selectedDuration,
   onSelect,
   disabled,
+  durationInputValue,
+  onInputChange,
 }: DurationSelectorProps) => {
+  const [isCustomFocused, setIsCustomFocused] = useState(false)
+  const [customDisplayValue, setCustomDisplayValue] = useState('')
+  const customInputRef = useRef<HTMLInputElement>(null)
+
+  const isPredefinedDuration = (
+    duration: number | null,
+  ): duration is PricingDuration => {
+    return (
+      duration !== null && durationOrder.includes(duration as PricingDuration)
+    )
+  }
+
+  const handlePredefinedSelect = (duration: PricingDuration) => {
+    onSelect(duration)
+  }
+
+  const handleCustomInputFocus = () => {
+    setIsCustomFocused(true)
+    // If coming from a predefined duration, start with empty input
+    if (isPredefinedDuration(selectedDuration)) {
+      setCustomDisplayValue('')
+    } else {
+      // If already on custom duration, use the current value
+      setCustomDisplayValue(durationInputValue)
+    }
+  }
+
+  const handleCustomInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setCustomDisplayValue(value)
+
+    // Allow clearing the input
+    if (value === '') {
+      onInputChange('')
+      return
+    }
+
+    // Only allow positive integers
+    const parsed = parseInt(value, 10)
+    if (!isNaN(parsed) && parsed >= 1 && parsed <= 1000) {
+      onInputChange(value)
+      onSelect(parsed)
+    }
+  }
+
+  const handleCustomInputBlur = () => {
+    setIsCustomFocused(false)
+    // If empty on blur, reset to 1 year
+    if (customDisplayValue === '') {
+      onSelect(1)
+    }
+  }
+
+  const isCustomSelected =
+    selectedDuration !== null && !isPredefinedDuration(selectedDuration)
+
   // Map discount badges to darker colors for higher durations
   const getBadgeColor = (duration: PricingDuration) => {
     switch (duration) {
-      case 2:
-        return 'bg-slate-400' // 15% off
       case 3:
-        return 'bg-slate-500' // 40% off
-      case 4:
-        return 'bg-slate-600' // 45% off
+        return 'bg-slate-500'
       case 5:
-        return 'bg-slate-700' // 50% off
+        return 'bg-slate-600'
+      case 10:
+        return 'bg-slate-700'
       default:
         return 'bg-slate-400'
     }
@@ -39,12 +98,11 @@ export const DurationSelector = ({
     <div className="flex h-full flex-col justify-between gap-1 md:gap-2">
       {durationOrder.map((duration) => {
         const option = pricing[duration]
-        const isSelected = duration === selectedDuration
+        const isSelected = duration === selectedDuration && !isCustomFocused
 
-        const formattedTotalPrice = (option.price * duration).toLocaleString(
-          undefined,
+        const formattedTotalPrice = (option.total ?? 0).toLocaleString(
+          'en-US',
           {
-            minimumFractionDigits: 0,
             maximumFractionDigits: 0,
           },
         )
@@ -65,7 +123,7 @@ export const DurationSelector = ({
             )}
             disabled={disabled}
             key={duration}
-            onClick={() => onSelect(duration)}
+            onClick={() => handlePredefinedSelect(duration)}
             type="button"
           >
             {/* Left: Year label */}
@@ -104,6 +162,73 @@ export const DurationSelector = ({
           </button>
         )
       })}
+
+      {/* Custom Duration Row */}
+      <div
+        className={cn(
+          'group relative',
+          'flex h-[58px] w-full items-center justify-between md:h-[100px]',
+          'px-3 py-4 md:px-5 md:py-8',
+          'rounded-lg border md:rounded-xl',
+          'bg-ens-white transition-all',
+          'cursor-pointer hover:border-ens-blue',
+          isCustomSelected || isCustomFocused
+            ? 'border-ens-blue'
+            : 'border-ens-gray-three',
+          disabled &&
+            'cursor-not-allowed opacity-60 hover:border-ens-gray-three',
+        )}
+        onClick={() => customInputRef.current?.focus()}
+      >
+        {/* Left: Label */}
+        <div className="flex items-center gap-3 md:gap-5">
+          <span className="whitespace-nowrap font-normal text-ens-blue-dark text-sm leading-none tracking-tighter md:text-2xl">
+            Enter custom duration
+          </span>
+        </div>
+
+        {/* Right: Input + years in unified container */}
+        <div
+          className={cn(
+            'flex items-center gap-1.5 rounded border bg-white px-2 py-1.5 md:gap-2 md:px-3 md:py-2.5',
+            isCustomSelected || isCustomFocused
+              ? 'border-ens-blue'
+              : 'border-ens-gray-three',
+            disabled && 'cursor-not-allowed opacity-60',
+          )}
+        >
+          <input
+            aria-label="Custom duration in years"
+            className={cn(
+              'w-10 md:w-12',
+              'border-none bg-transparent outline-none',
+              'font-medium font-mono text-ens-blue-dark text-sm leading-none tracking-tighter md:text-xl',
+              'text-right',
+              'disabled:cursor-not-allowed',
+              '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
+            )}
+            disabled={disabled}
+            max={1000}
+            min={1}
+            onBlur={handleCustomInputBlur}
+            onChange={handleCustomInputChange}
+            onFocus={handleCustomInputFocus}
+            ref={customInputRef}
+            step={1}
+            type="number"
+            value={
+              isCustomFocused
+                ? customDisplayValue
+                : isCustomSelected
+                  ? durationInputValue
+                  : ''
+            }
+          />
+          <span className="font-normal text-ens-gray-three text-xs leading-none tracking-tight md:text-base">
+            years
+          </span>
+        </div>
+      </div>
     </div>
   )
 }

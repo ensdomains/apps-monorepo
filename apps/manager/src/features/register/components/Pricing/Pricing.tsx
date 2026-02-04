@@ -4,10 +4,7 @@ import { PricingDomainHeader } from '@/features/register/components/Pricing/Pric
 import { PricingPaymentSection } from '@/features/register/components/Pricing/PricingPaymentSection'
 import { PricingRegistrationSummaryCard } from '@/features/register/components/Pricing/PricingRegistrationSummaryCard'
 import { PricingTotalPriceCard } from '@/features/register/components/Pricing/PricingTotalPriceCard'
-import type {
-  PricingDuration,
-  PricingProps,
-} from '@/features/register/components/Pricing/types'
+import type { PricingProps } from '@/features/register/components/Pricing/types'
 import { usePricing } from '@/features/register/components/Pricing/usePricing'
 
 export const Pricing = ({
@@ -40,6 +37,10 @@ export const Pricing = ({
 
     // Account/connection
     isUsingAA,
+
+    // Shared input state
+    durationInputValue,
+    setDurationInputValue,
 
     // Handlers
     handleChange,
@@ -85,9 +86,11 @@ export const Pricing = ({
         <div className="flex flex-col space-y-2 duration-selector-container">
           <DurationSelector
             disabled={isPricingLoading || isLoading}
-            onSelect={(duration: PricingDuration) => handleChange(duration)}
+            durationInputValue={durationInputValue}
+            onInputChange={setDurationInputValue}
+            onSelect={handleChange}
             pricing={pricingOptions}
-            selectedDuration={selectedDuration as PricingDuration}
+            selectedDuration={selectedDuration}
           />
           {isPricingLoading && (
             <div className="text-center">
@@ -100,9 +103,11 @@ export const Pricing = ({
         <div className="summary-cards-container flex w-full flex-col gap-2">
           {/* Registration Summary Card */}
           <PricingRegistrationSummaryCard
+            durationInputValue={durationInputValue}
             expirationDate={expirationDate}
             formattedExpiration={formattedExpiration}
             onChange={handleChange}
+            onInputChange={setDurationInputValue}
             paddedDuration={paddedDuration}
           />
 
@@ -129,7 +134,7 @@ export const Pricing = ({
               onCryptoSelect={onSelectCrypto}
               onPaymentSelect={onSelectPayment}
               priceUSD={finalPrice}
-              selectedDuration={selectedDuration as PricingDuration}
+              selectedDuration={selectedDuration}
             />
           </div>
         </div>

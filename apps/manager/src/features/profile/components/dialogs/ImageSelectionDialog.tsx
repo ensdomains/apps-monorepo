@@ -629,9 +629,19 @@ export const ImageSelectionDialog = ({
                 <div
                   className={clsx(
                     type === 'header'
-                      ? 'h-full w-full bg-gray-200'
+                      ? 'h-full w-full'
                       : 'h-48 w-full bg-gray-200 md:h-64',
                   )}
+                  style={
+                    type === 'header'
+                      ? {
+                          backgroundColor: 'var(--color-ens-lapis-dust)',
+                          backgroundImage:
+                            'radial-gradient(circle, var(--color-ens-lapis-surface) 1px, transparent 1px)',
+                          backgroundSize: '8px 8px',
+                        }
+                      : undefined
+                  }
                 />
               )}
             </ImageFallback.Fallback>

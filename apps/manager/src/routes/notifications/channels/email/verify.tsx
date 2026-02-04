@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { EmailVerifyStep } from '@/features/notifications/components/channels/email/email-verify-step'
+import { EmailVerifyStep } from '@/features/notifications/components/email-verify-step'
 import { verifyEmailMutationOptions } from '@/features/notifications/queries/channels'
 
 // Shared card wrapper component
@@ -176,27 +176,48 @@ function EmailVerificationPage() {
         {/* Action buttons */}
         {isError ? (
           <div className="space-y-2">
-            <Button className="w-full" onClick={() => handleVerify()}>
+            <Button
+              className="w-full text-sm leading-ens-none"
+              onClick={() => handleVerify()}
+              size="lg"
+              variant="blue"
+            >
               Try Again
             </Button>
             <Button
-              className="w-full"
+              className="w-full text-sm leading-ens-none"
               onClick={handleContinue}
+              size="lg"
               variant="outline"
             >
               Continue to Settings
             </Button>
           </div>
         ) : isSuccess ? (
-          <Button className="w-full" onClick={handleContinue}>
+          <Button
+            className="w-full text-sm leading-ens-none"
+            onClick={handleContinue}
+            size="lg"
+            variant="lightBlue"
+          >
             Continue to Settings
           </Button>
         ) : (
           <div className="space-y-2">
-            <Button className="w-full" onClick={() => handleVerify()}>
+            <Button
+              className="w-full text-sm leading-ens-none"
+              onClick={() => handleVerify()}
+              size="lg"
+              variant="blue"
+            >
               Verify Email Address
             </Button>
-            <Button asChild className="w-full" variant="outline">
+            <Button
+              asChild
+              className="w-full text-sm leading-ens-none"
+              size="lg"
+              variant="outline"
+            >
               <Link to="/notifications/settings">Back to Settings</Link>
             </Button>
           </div>

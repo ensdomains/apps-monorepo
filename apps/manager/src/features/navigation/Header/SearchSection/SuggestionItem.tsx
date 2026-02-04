@@ -21,6 +21,9 @@ const LINK_OPTIONS = {
       search: {
         name,
       },
+      // Hacky solution to force reset state on register page
+      // TODO: Update register state logic to properly handle name input changes
+      reloadDocument: location.pathname === '/register',
     }),
 } as const
 
