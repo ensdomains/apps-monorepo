@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import patternBg from '@/assets/pattern-bg.svg'
 import { Footer } from '@/components/Footer'
 import { Header } from '@/features/navigation/Header/Header'
 import { BackendAuthModal } from '@/features/wallet/components/BackendAuthModal'
@@ -13,12 +12,7 @@ export const Layout = ({ children }: LayoutProps) => {
     <div className="flex min-h-screen flex-col bg-white">
       <Header />
 
-      <main
-        className="isolate flex-1"
-        style={{
-          background: `url("${patternBg}") center/30px repeat`,
-        }}
-      >
+      <main className="isolate flex flex-1 flex-col bg-[#FCFBFB]">
         {children}
       </main>
       <BackendAuthModal />

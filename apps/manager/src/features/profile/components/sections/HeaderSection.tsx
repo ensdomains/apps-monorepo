@@ -14,7 +14,7 @@ export const HeaderSection = withForm({
   ...sharedOptions,
   props: { name: '', owner: undefined } as HeaderSectionProps,
   render: ({ form, name, owner }) => (
-    <div className="overflow-hidden md:rounded-xl">
+    <div className="overflow-hidden rounded-xl border-[0.25px] border-border bg-white shadow-none">
       {/* Header BG */}
       <div className="relative w-full">
         <form.Field name="base.header">

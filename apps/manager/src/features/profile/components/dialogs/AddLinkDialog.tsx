@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
+import { FloatingInput } from '@/components/ui/floating-input'
 import { staticTextRecords, textRecords } from '../../data/records'
 
 const reservedTextRecordKeys = new Set<string>([
@@ -118,8 +118,12 @@ export const AddLinkDialog = ({
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogTrigger asChild>
-        <Button className="rounded-full" size="sm" variant="secondary">
-          <Plus className="size-5" />
+        <Button
+          className="h-auto gap-[11px] py-1 pr-1 pl-0! text-muted-foreground text-sm hover:bg-transparent hover:text-muted-foreground"
+          size="sm"
+          variant="ghost"
+        >
+          <Plus className="size-4" />
           {buttonLabel}
         </Button>
       </DialogTrigger>
@@ -128,20 +132,30 @@ export const AddLinkDialog = ({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <Input
-            errorText={nameError ?? undefined}
-            label="Name"
-            onChange={(e) => handleNameChange(e.target.value)}
-            placeholder="Personal Site"
-            value={name}
-          />
-          <Input
-            errorText={urlError ?? undefined}
-            label="Link"
-            onChange={(e) => handleUrlChange(e.target.value)}
-            placeholder="https://example.com"
-            value={url}
-          />
+          <div>
+            <FloatingInput
+              aria-invalid={!!nameError}
+              label="Name"
+              onChange={(e) => handleNameChange(e.target.value)}
+              placeholder="Personal Site"
+              value={name}
+            />
+            {nameError && (
+              <p className="mt-1 px-1 text-destructive text-sm">{nameError}</p>
+            )}
+          </div>
+          <div>
+            <FloatingInput
+              aria-invalid={!!urlError}
+              label="Link"
+              onChange={(e) => handleUrlChange(e.target.value)}
+              placeholder="https://example.com"
+              value={url}
+            />
+            {urlError && (
+              <p className="mt-1 px-1 text-destructive text-sm">{urlError}</p>
+            )}
+          </div>
         </div>
         <DialogFooter>
           <Button className="w-full" disabled={!canSubmit} onClick={handleAdd}>

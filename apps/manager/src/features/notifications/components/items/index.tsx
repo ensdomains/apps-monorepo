@@ -8,7 +8,7 @@ import {
   NameDisplay,
   NotificationHeader,
   NotificationWrapper,
-} from '../shared'
+} from './common'
 
 type BaseItemProps = {
   timestamp: number

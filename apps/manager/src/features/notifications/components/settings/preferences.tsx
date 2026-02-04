@@ -1,43 +1,56 @@
-/**
- * NotificationSettings Component
- *
- * Manages user notification preferences during ENS registration flow.
- *
- * API Integration:
- * - Currently uses MOCK mode (USE_MOCK_API = true)
- * - To activate real API: Set USE_MOCK_API = false in notificationService.ts
- * - Requires authentication (cookies/session)
- *
- * API Endpoints Used:
- * - POST /api/channels/email - Add/verify email channel
- * - POST /api/channels/telegram - Add telegram channel (OAuth flow)
- * - PATCH /api/preferences/batch - Update all preferences at once
- *
- * See notification worker API for full schema.
- */
-'use client'
-
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { Loader2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { ContactMethods } from '@/features/notifications/components/settings/contact-methods'
-import { Preference } from '@/features/notifications/components/settings/preferences'
+import { Switch } from '@/components/ui/switch'
 import {
   preferencesQueryOptions,
   updatePreferenceMutationOptions,
 } from '@/features/notifications/queries/preferences'
 
-interface NotificationSettingsProps {
-  onConfirm: () => void
-  onSkip: () => void
+export const Preference = ({
+  icon,
+  label,
+  description,
+  checked,
+  disabled,
+  isLoading,
+  onChange,
+}: {
+  icon: React.ReactNode
+  label: string
+  description: string
+  checked: boolean
+  disabled?: boolean
+  isLoading?: boolean
+  onChange: (checked: boolean) => void
+}) => {
+  return (
+    <div className="flex items-start gap-2 rounded-lg bg-[#FAFAFB] p-5">
+      {icon}
+      <div className="flex flex-col gap-1.5">
+        <div className="font-normal font-sans text-base text-ens-blue-dark leading-ens-normal">
+          {label}
+        </div>
+        <div className="text-slate-600 text-sm">{description}</div>
+      </div>
+      {isLoading ? (
+        <Loader2Icon className="ml-auto size-5 animate-spin" />
+      ) : (
+        <Switch
+          checked={checked}
+          className="ml-auto"
+          disabled={disabled}
+          onCheckedChange={onChange}
+        />
+      )}
+    </div>
+  )
 }
 
-const NotificationPreferences = ({
-  onConfirm,
-  onSkip,
-}: NotificationSettingsProps) => {
+export const NotificationPreferences = () => {
   const preferences = useQuery({
     ...preferencesQueryOptions,
   })
@@ -65,7 +78,6 @@ const NotificationPreferences = ({
       await preferences.refetch()
 
       formApi.reset()
-      onConfirm()
     },
   })
 
@@ -133,74 +145,36 @@ const NotificationPreferences = ({
           )}
         </form.Field>
       </div>
-      <div className="flex w-full gap-2 max-md:flex-col md:justify-end">
-        <div>
-          <Button
-            className="w-full uppercase md:min-w-32"
-            onClick={onSkip}
-            size="xl"
-            variant="ghost"
-          >
-            Skip
-          </Button>
-        </div>
-        <div className="">
-          <form.Subscribe
-            selector={(state) => [
-              state.canSubmit,
-              state.isSubmitting,
-              state.isDefaultValue,
-            ]}
-          >
-            {([canSubmit, isSubmitting, isDefaultValue]) => (
-              <Button
-                className="w-full uppercase"
-                disabled={!canSubmit || !hasVerifiedChannels || isDefaultValue}
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  form.handleSubmit()
-                }}
-                size="xl"
-                variant="lightBlue"
-              >
-                {isSubmitting ? 'Saving...' : 'Save Preferences'}
-              </Button>
-            )}
-          </form.Subscribe>
-          {!hasVerifiedChannels && (
-            <p className="mt-2 text-base text-slate-600 leading-ens-normal">
-              Verify at least one contact method to save preferences
-            </p>
+      <div className="ml-auto w-full max-w-md">
+        <form.Subscribe
+          selector={(state) => [
+            state.canSubmit,
+            state.isSubmitting,
+            state.isDefaultValue,
+          ]}
+        >
+          {([canSubmit, isSubmitting, isDefaultValue]) => (
+            <Button
+              className="w-full uppercase"
+              disabled={!canSubmit || !hasVerifiedChannels || isDefaultValue}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                form.handleSubmit()
+              }}
+              size="xl"
+              variant="lightBlue"
+            >
+              {isSubmitting ? 'Saving...' : 'Save Preferences'}
+            </Button>
           )}
-        </div>
+        </form.Subscribe>
+        {!hasVerifiedChannels && (
+          <p className="mt-2 text-base text-slate-600 leading-ens-normal">
+            Verify at least one contact method to save preferences
+          </p>
+        )}
       </div>
-    </div>
-  )
-}
-
-export const NotificationSettings = ({
-  onConfirm,
-  onSkip,
-}: NotificationSettingsProps) => {
-  return (
-    <div className="mx-auto w-full max-w-5xl flex-1 space-y-12 rounded-lg border-[#dededf] bg-white px-6 py-8 lg:my-5 lg:border">
-      {/* title row */}
-      <div className="flex flex-col gap-4">
-        {/* title */}
-        <h1 className="font-[350] font-serif text-[#232222] text-temp-32px leading-ens-none">
-          Notification Settings
-        </h1>
-
-        <p className="text-[#717182] text-base">
-          Manage your notification preferences for your name(s) and ENS-related
-          updates.
-        </p>
-      </div>
-
-      <ContactMethods />
-
-      <NotificationPreferences onConfirm={onConfirm} onSkip={onSkip} />
     </div>
   )
 }

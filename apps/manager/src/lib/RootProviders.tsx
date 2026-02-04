@@ -92,6 +92,7 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
           walletConnect: {
             projectId: '1cb2e088d817de31a39a54154b265f68',
           },
+          connectionOnly: true,
         }}
         paraClientConfig={{
           apiKey: VITE_PARA_API_KEY,
