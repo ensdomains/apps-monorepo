@@ -75,7 +75,10 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const [searchQuery, setSearchQuery] = useState('')
   const shouldReduceMotion = useReducedMotion()
   const isAuthed = useAtom(isBackendAuthed)
-  const { data: favorites = [] } = useQuery(favoritesQueryOptions)
+  const { data: favorites = [] } = useQuery({
+    ...favoritesQueryOptions,
+    enabled: isAuthed,
+  })
   const favoritesCount = favorites.length
 
   const tabs = [
