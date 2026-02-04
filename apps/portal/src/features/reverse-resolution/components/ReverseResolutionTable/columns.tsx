@@ -10,6 +10,7 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        sortDirection={column.getIsSorted()}
       >
         Network
       </SortButton>
@@ -32,6 +33,7 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        sortDirection={column.getIsSorted()}
       >
         Name
       </SortButton>
@@ -74,6 +76,7 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        sortDirection={column.getIsSorted()}
       >
         Forward match
       </SortButton>

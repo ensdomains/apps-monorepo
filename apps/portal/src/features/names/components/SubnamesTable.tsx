@@ -41,6 +41,7 @@ const columns: ColumnDef<SubnameRow>[] = [
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        sortDirection={column.getIsSorted()}
       >
         Subname
       </SortButton>
@@ -66,6 +67,7 @@ const columns: ColumnDef<SubnameRow>[] = [
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        sortDirection={column.getIsSorted()}
       >
         Owner
       </SortButton>
