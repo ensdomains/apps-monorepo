@@ -85,7 +85,17 @@ export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
                   {items.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild>
-                        <Link params={{ addr }} to={item.url}>
+                        <Link
+                          params={{ addr }}
+                          to={item.url}
+                          activeProps={{
+                            'data-active': 'true',
+                            className: '!bg-black/10 dark:!bg-white/15',
+                          }}
+                          activeOptions={{
+                            exact: item.url === '/addr/$addr',
+                          }}
+                        >
                           <item.icon className="size-6" />
                           <span className="text-sm font-medium">
                             {item.title}
