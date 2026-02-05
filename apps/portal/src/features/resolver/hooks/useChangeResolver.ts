@@ -1,13 +1,15 @@
-import {
-  transactionManager,
-  waitForTransaction,
-} from '@ens-apps/transaction-manager'
-import { setResolverWriteParameters } from '@ensdomains/ensjs/wallet/v2'
+/**
+ * React hook wrapper for changeResolver.
+ *
+ * Provides a mutation with loading/error states for the UI.
+ */
+
 import { useMutation } from '@tanstack/react-query'
-import { type Address, encodeFunctionData, type Hex } from 'viem'
+import type { Address, Hex } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { namechainSepolia } from '@/lib/wagmi'
+import { changeResolver } from '../helpers/changeResolver'
 
 interface UseChangeResolverParams {
   readonly name: string
@@ -19,6 +21,22 @@ interface ChangeResolverResult {
   hash: Hex
 }
 
+/**
+ * Hook that provides a mutation for changing the resolver of an ENS name.
+ *
+ * Uses TanStack Query's useMutation for proper loading/error states.
+ *
+ * @example
+ * ```ts
+ * const { changeResolver, isWriting, error } = useChangeResolver({
+ *   name: 'myname.eth',
+ *   registryAddress,
+ * })
+ *
+ * // Trigger the mutation
+ * changeResolver(newResolverAddress)
+ * ```
+ */
 export const useChangeResolver = ({
   name,
   registryAddress,
@@ -35,54 +53,21 @@ export const useChangeResolver = ({
         throw new Error('Wallet not connected')
       }
 
-      if (!walletClient.account || !walletClient.chain) {
-        throw new Error('Wallet client must have account and chain configured')
+      if (!walletClient.account) {
+        throw new Error('No account connected')
       }
-
-      // Build write parameters using ensjs
-      const writeParams = setResolverWriteParameters(walletClient, {
-        name,
-        registryAddress,
-        resolverAddress,
-      })
-
-      // Encode the transaction data
-      const data = encodeFunctionData({
-        abi: writeParams.abi,
-        functionName: writeParams.functionName,
-        args: writeParams.args,
-      } as Parameters<typeof encodeFunctionData>[0])
 
       const signer = createEOASigner(walletClient)
 
-      // Start the transaction through the transaction manager
-      const txId = transactionManager.startTransaction(
-        {
-          type: 'custom',
-          request: {
-            type: 'eoa',
-            from: walletClient.account.address,
-            to: registryAddress,
-            data,
-            value: 0n,
-            chainId,
-          },
-        },
+      return changeResolver({
+        name,
+        registryAddress,
+        resolverAddress,
+        walletClient,
+        publicClient,
         signer,
-        {
-          description: `Change resolver for ${name}`,
-          publicClient,
-          chainId,
-        },
-      )
-
-      // Wait for the transaction to complete
-      const result = await waitForTransaction(txId)
-
-      return {
-        txId,
-        hash: result.hash,
-      }
+        chainId,
+      })
     },
   })
 
