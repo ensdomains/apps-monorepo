@@ -201,6 +201,24 @@ export const calculateExpirationDate = (years: number): Date => {
   return date
 }
 
+/**
+ * Returns true if the date is "granular" (not exactly N years from now).
+ */
+export const isGranularDate = (
+  expirationDate: Date,
+  durationYears: number,
+): boolean => {
+  const today = new Date()
+  const expectedDate = new Date(today)
+  expectedDate.setFullYear(today.getFullYear() + durationYears)
+
+  // Allow a 1-day tolerance for rounding
+  const diffMs = Math.abs(expirationDate.getTime() - expectedDate.getTime())
+  const oneDayMs = 24 * 60 * 60 * 1000
+
+  return diffMs > oneDayMs
+}
+
 export const formatExpirationDate = (date: Date): string => {
   return date.toLocaleDateString('en-US', {
     year: 'numeric',

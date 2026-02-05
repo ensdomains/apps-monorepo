@@ -1,6 +1,6 @@
 import { addMonths } from 'date-fns'
-import { Pencil } from 'lucide-react'
-import { useState } from 'react'
+import { Info, Pencil } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import {
   Popover,
@@ -8,6 +8,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import { isGranularDate } from './utils'
 
 const MAX_DURATION_YEARS = 100
 
@@ -29,6 +30,12 @@ export const PricingRegistrationSummaryCard = ({
   onInputChange,
 }: PricingRegistrationSummaryCardProps) => {
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false)
+
+  const durationNumber = parseInt(durationInputValue, 10)
+  const showGranularWarning = useMemo(() => {
+    if (Number.isNaN(durationNumber) || durationNumber < 1) return false
+    return isGranularDate(expirationDate, durationNumber)
+  }, [expirationDate, durationNumber])
 
   const handleDurationInputChange = (value: string) => {
     const numericValue = value.replace(/\D/g, '')
@@ -74,7 +81,7 @@ export const PricingRegistrationSummaryCard = ({
   }
 
   return (
-    <div className="flex h-[25%] flex-col items-center justify-center rounded-2xl border border-ens-gray-two bg-white px-6 py-6 shadow-sm">
+    <div className="relative flex h-[25%] flex-col items-center justify-center rounded-2xl border border-ens-gray-two bg-white px-6 py-6 shadow-sm">
       <div className="w-full space-y-6">
         <div className="space-y-2 text-center">
           <div className="flex items-baseline justify-center gap-1.5">
@@ -140,6 +147,15 @@ export const PricingRegistrationSummaryCard = ({
           </div>
         </div>
       </div>
+
+      {showGranularWarning && (
+        <div className="absolute inset-x-0 bottom-2 flex items-center justify-center gap-1.5 px-4 text-amber-600">
+          <Info className="size-3.5 shrink-0" />
+          <span className="text-xs">
+            Granular durations not supported in alpha — rounded to nearest year
+          </span>
+        </div>
+      )}
     </div>
   )
 }
