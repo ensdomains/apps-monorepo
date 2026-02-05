@@ -1,6 +1,15 @@
 import { ExternalLink } from 'react-external-link'
 
-type RecordKey = 'com.twitter' | 'org.telegram'
+type RecordKey =
+  | 'com.twitter'
+  | 'org.telegram'
+  | 'com.discord'
+  | 'com.github'
+  | 'com.instagram'
+  | 'com.linkedin'
+  | 'xyz.farcaster'
+  | 'com.reddit'
+  | 'com.youtube'
 
 type SocialRecordType = {
   key: RecordKey
@@ -10,6 +19,13 @@ type SocialRecordType = {
 const baseUrls: Record<RecordKey, string> = {
   'com.twitter': 'x.com',
   'org.telegram': 't.me',
+  'com.discord': 'discord.com/users',
+  'com.github': 'github.com',
+  'com.instagram': 'instagram.com',
+  'com.linkedin': 'linkedin.com/in',
+  'xyz.farcaster': 'warpcast.com',
+  'com.reddit': 'reddit.com/user',
+  'com.youtube': 'youtube.com/@',
 }
 
 const Icon = ({ record }: { record: SocialRecordType }) => {
@@ -28,7 +44,77 @@ const Icon = ({ record }: { record: SocialRecordType }) => {
       return (
         <img
           src="/icons/profile/telegram.png"
-          alt="X"
+          alt="Telegram"
+          height={16}
+          width={16}
+          className="rounded-[2px] h-[16px] w-[16px]"
+        />
+      )
+    case 'com.discord':
+      return (
+        <img
+          src="/icons/profile/discord.png"
+          alt="Discord"
+          height={16}
+          width={16}
+          className="rounded-[2px] h-[16px] w-[16px]"
+        />
+      )
+    case 'com.github':
+      return (
+        <img
+          src="/icons/profile/github.svg"
+          alt="GitHub"
+          height={16}
+          width={16}
+          className="rounded-[2px] h-[16px] w-[16px]"
+        />
+      )
+    case 'com.instagram':
+      return (
+        <img
+          src="/icons/profile/instagram.png"
+          alt="Instagram"
+          height={16}
+          width={16}
+          className="rounded-[2px] h-[16px] w-[16px]"
+        />
+      )
+    case 'com.linkedin':
+      return (
+        <img
+          src="/icons/profile/linkedin.svg"
+          alt="LinkedIn"
+          height={16}
+          width={16}
+          className="rounded-[2px] h-[16px] w-[16px]"
+        />
+      )
+    case 'xyz.farcaster':
+      return (
+        <img
+          src="/icons/profile/farcaster.svg"
+          alt="Farcaster"
+          height={16}
+          width={16}
+          className="rounded-[2px] h-[16px] w-[16px]"
+        />
+      )
+    case 'com.reddit':
+      return (
+        <img
+          src="/icons/profile/reddit.svg"
+          alt="Reddit"
+          height={16}
+          width={16}
+          className="rounded-[2px] h-[16px] w-[16px]"
+        />
+      )
+    case 'com.youtube':
+      return (
+        <img
+          src="/icons/profile/youtube.png"
+          alt="YouTube"
           height={16}
           width={16}
           className="rounded-[2px] h-[16px] w-[16px]"
