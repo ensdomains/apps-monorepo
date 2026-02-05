@@ -32,7 +32,19 @@ export const NameProfileCard = ({ name }: { name: string }) => {
   } = useQuery(
     getRecordsQueryOptions({
       name,
-      texts: ['name', 'description', 'com.twitter', 'org.telegram'],
+      texts: [
+        'name',
+        'description',
+        'com.twitter',
+        'org.telegram',
+        'com.discord',
+        'com.github',
+        'com.instagram',
+        'com.linkedin',
+        'xyz.farcaster',
+        'com.reddit',
+        'com.youtube',
+      ],
       coins: [
         // EVM
         coinNameToTypeMap.eth,
@@ -77,12 +89,33 @@ export const NameProfileCard = ({ name }: { name: string }) => {
             {texts.name && texts.description ? '–' : null}{' '}
             {texts.description && <span>{texts.description}</span>}
           </span>
-          <div className="flex flex-row gap-x-2 gap-y-1">
+          <div className="flex flex-row flex-wrap gap-x-2 gap-y-1">
             <SocialRecord
               record={{ key: 'com.twitter', value: texts['com.twitter'] }}
             />
             <SocialRecord
               record={{ key: 'org.telegram', value: texts['org.telegram'] }}
+            />
+            <SocialRecord
+              record={{ key: 'com.discord', value: texts['com.discord'] }}
+            />
+            <SocialRecord
+              record={{ key: 'com.github', value: texts['com.github'] }}
+            />
+            <SocialRecord
+              record={{ key: 'com.instagram', value: texts['com.instagram'] }}
+            />
+            <SocialRecord
+              record={{ key: 'com.linkedin', value: texts['com.linkedin'] }}
+            />
+            <SocialRecord
+              record={{ key: 'xyz.farcaster', value: texts['xyz.farcaster'] }}
+            />
+            <SocialRecord
+              record={{ key: 'com.reddit', value: texts['com.reddit'] }}
+            />
+            <SocialRecord
+              record={{ key: 'com.youtube', value: texts['com.youtube'] }}
             />
           </div>
         </div>
