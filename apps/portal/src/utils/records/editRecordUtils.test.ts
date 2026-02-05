@@ -13,13 +13,13 @@ describe('getRecordId', () => {
     )
   })
 
-  it('returns "address-{id}" for address records', () => {
+  it('returns "address-{key}" for address records', () => {
     expect(
       getRecordId({ type: 'address', key: 'ETH', value: '0x123', id: 60 }),
-    ).toBe('address-60')
+    ).toBe('address-ETH')
     expect(
       getRecordId({ type: 'address', key: 'BTC', value: 'bc1...', id: 0 }),
-    ).toBe('address-0')
+    ).toBe('address-BTC')
   })
 
   it('returns "text-{key}" for text records', () => {

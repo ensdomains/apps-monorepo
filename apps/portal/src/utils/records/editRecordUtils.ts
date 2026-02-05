@@ -15,6 +15,9 @@ export type RecordType = 'text' | 'address' | 'abi' | 'contentHash'
 /**
  * Gets a unique identifier for a record based on its type and key.
  *
+ * For addresses, uses the key (coin name) rather than coinType to ensure
+ * unique IDs even when multiple unknown coin names default to the same coinType.
+ *
  * @param record - The record to get an ID for
  * @returns A unique string identifier
  *
@@ -24,7 +27,7 @@ export type RecordType = 'text' | 'address' | 'abi' | 'contentHash'
  *
  * @example
  * getRecordId({ type: 'address', key: 'ETH', value: '0x...', id: 60 })
- * // 'address-60'
+ * // 'address-ETH'
  *
  * @example
  * getRecordId({ type: 'contentHash', value: 'ipfs://...' })
@@ -35,7 +38,7 @@ export const getRecordId = (record: NameRecord): string => {
     return 'contentHash'
   }
   if (record.type === 'address') {
-    return `address-${record.id}`
+    return `address-${record.key}`
   }
   return `text-${record.key}`
 }

@@ -56,7 +56,7 @@ describe('transformPendingChangesToSetRecords', () => {
     it('transforms edited address records', () => {
       const result = transformPendingChangesToSetRecords(originalRecords, {
         newRecords: [],
-        editedValues: new Map([['address-60', '0x456']]),
+        editedValues: new Map([['address-ETH', '0x456']]),
         deletedIds: new Set(),
       })
 
@@ -89,7 +89,7 @@ describe('transformPendingChangesToSetRecords', () => {
       const result = transformPendingChangesToSetRecords(originalRecords, {
         newRecords: [],
         editedValues: new Map(),
-        deletedIds: new Set(['address-60']),
+        deletedIds: new Set(['address-ETH']),
       })
 
       expect(result.coins).toEqual([{ coin: 60, value: '' }])

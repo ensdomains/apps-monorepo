@@ -218,6 +218,24 @@ describe('validateRecords', () => {
     expect(errors[1].recordId).toBe('text-email')
   })
 
+  it('uses key (not coinType) for address recordIds to ensure uniqueness', () => {
+    const records: EditableRecord[] = [
+      { type: 'address', key: 'ETH', value: 'invalid', id: 60, isNew: true },
+      {
+        type: 'address',
+        key: 'UNKNOWN',
+        value: 'also-invalid',
+        id: 60,
+        isNew: true,
+      },
+    ]
+    const errors = validateRecords(records)
+    expect(errors).toHaveLength(2)
+    // Should use key, not coinType, so each record has a unique recordId
+    expect(errors[0].recordId).toBe('address-ETH')
+    expect(errors[1].recordId).toBe('address-UNKNOWN')
+  })
+
   it('only validates edited or new records', () => {
     const records: EditableRecord[] = [
       { type: 'text', key: 'avatar', value: 'invalid-url' }, // not edited, not new

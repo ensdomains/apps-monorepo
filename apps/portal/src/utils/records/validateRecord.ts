@@ -104,11 +104,13 @@ export function validateRecords(records: EditableRecord[]): ValidationError[] {
 
     const error = validateRecord(record)
     if (error) {
+      // Use key for address records to ensure unique recordIds per row
+      // (multiple addresses can have the same coinType if user adds unknown coin names)
       const recordId =
         record.type === 'contentHash'
           ? 'contentHash'
           : record.type === 'address'
-            ? `address-${record.id}`
+            ? `address-${record.key}`
             : `text-${record.key}`
 
       errors.push({ recordId, message: error })

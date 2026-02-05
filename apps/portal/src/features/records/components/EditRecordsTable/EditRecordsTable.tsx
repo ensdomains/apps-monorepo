@@ -8,7 +8,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Check, Trash2, X } from 'lucide-react'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { CopyButton } from '@/components/CopyButton'
 import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
@@ -48,6 +48,40 @@ function getRecordDisplayName(record: EditableRecord): string {
   return record.key
 }
 
+/**
+ * Editable input cell that manages its own state to prevent losing focus.
+ * Uses uncontrolled input with ref to preserve cursor position during re-renders.
+ */
+const EditableValueCell = memo(function EditableValueCell({
+  record,
+  error,
+  onUpdate,
+}: {
+  record: EditableRecord
+  error: string | undefined
+  onUpdate?: (record: EditableRecord, newValue: string) => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  return (
+    <div className="flex flex-col gap-1">
+      <Input
+        ref={inputRef}
+        defaultValue={record.value}
+        className={`font-mono bg-gray-50 ${
+          error
+            ? 'border-red-500 focus-visible:ring-red-500/50'
+            : 'border-gray-300'
+        }`}
+        onChange={(e) => {
+          onUpdate?.(record, e.target.value)
+        }}
+      />
+      {error && <span className="text-xs text-red-600">{error}</span>}
+    </div>
+  )
+})
+
 export const EditRecordsTable = ({
   records,
   globalFilter,
@@ -58,6 +92,11 @@ export const EditRecordsTable = ({
   const [sorting, setSorting] = useState<SortingState>([])
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+
+  // Store validation errors in a ref so the columns don't need to depend on it
+  // This prevents input focus loss when validation errors change
+  const validationErrorsRef = useRef<ValidationError[]>(validationErrors)
+  validationErrorsRef.current = validationErrors
 
   const handleDeleteClick = useCallback((record: EditableRecord) => {
     setPendingDeleteId(getRecordId(record))
@@ -73,6 +112,12 @@ export const EditRecordsTable = ({
       setPendingDeleteId(null)
     },
     [onDeleteRecord],
+  )
+
+  // Stable function that reads from ref - doesn't cause column recreation
+  const getError = useCallback(
+    (recordId: string) => getRecordError(validationErrorsRef.current, recordId),
+    [],
   )
 
   const editColumns: ColumnDef<EditableRecord>[] = useMemo(
@@ -146,25 +191,15 @@ export const EditRecordsTable = ({
           )
         },
         cell: ({ row }) => {
-          const value = row.original.value
           const recordId = getRecordId(row.original)
-          const error = getRecordError(validationErrors, recordId)
+          const error = getError(recordId)
 
           return (
-            <div className="flex flex-col gap-1">
-              <Input
-                defaultValue={value}
-                className={`font-mono bg-gray-50 ${
-                  error
-                    ? 'border-red-500 focus-visible:ring-red-500/50'
-                    : 'border-gray-300'
-                }`}
-                onChange={(e) => {
-                  onUpdateRecord?.(row.original, e.target.value)
-                }}
-              />
-              {error && <span className="text-xs text-red-600">{error}</span>}
-            </div>
+            <EditableValueCell
+              record={row.original}
+              error={error}
+              onUpdate={onUpdateRecord}
+            />
           )
         },
       },
@@ -187,7 +222,7 @@ export const EditRecordsTable = ({
         ),
       },
     ],
-    [onUpdateRecord, handleDeleteClick, validationErrors],
+    [onUpdateRecord, handleDeleteClick, getError],
   )
 
   const table = useReactTable({
