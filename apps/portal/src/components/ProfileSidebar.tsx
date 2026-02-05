@@ -92,6 +92,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
       <SidebarHeader>
         <span className="ml-3 text-lg font-bold wrap-break-word">{name}</span>
       </SidebarHeader>
+      <SidebarSeparator />
       <SidebarContent>
         {itemGroups.map((items, i) => {
           const groupKey = items.join(',') + i.toString()
