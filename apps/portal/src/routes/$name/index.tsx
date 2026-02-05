@@ -26,6 +26,11 @@ export const Route = createFileRoute('/$name/')({
   notFoundComponent: () => <NotFoundMessage />,
 })
 
+// Check if a name can be registered (currently only .eth 2LDs)
+// TLDs (like "eth") and other extensions (like "florin.abc") cannot be registered
+const isRegistrable = (name: string) =>
+  name.endsWith('.eth') && name.split('.').length === 2
+
 const Profile = ({
   name,
   resolverAddress,
@@ -38,7 +43,9 @@ const Profile = ({
   })
 
   // Check availability when owner lookup returns null (name might be available)
-  const shouldCheckAvailability = !ownerQuery.isLoading && !ownerQuery.data
+  // Only check for registrable names (.eth) - TLDs and other extensions can't be registered
+  const shouldCheckAvailability =
+    !ownerQuery.isLoading && !ownerQuery.data && isRegistrable(name)
   const availabilityQuery = useQuery({
     ...getNameAvailabilityQueryOptions({ name }),
     enabled: shouldCheckAvailability,
@@ -49,6 +56,21 @@ const Profile = ({
 
   // If owner is null (not found), check availability
   if (!ownerQuery.data) {
+    // Non-registrable names (TLDs or non-.eth names) that don't exist should show not found
+    if (!isRegistrable(name)) {
+      return (
+        <NotFoundMessage
+          title="Name not found"
+          description={
+            <>
+              <strong>{name}</strong> does not exist. Only names like{' '}
+              <strong>example.eth</strong> can be registered.
+            </>
+          }
+        />
+      )
+    }
+
     if (availabilityQuery.isLoading) {
       return <LoadingSpinner title="Checking availability..." />
     }
