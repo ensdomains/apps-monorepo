@@ -72,7 +72,6 @@ function RouteComponent() {
     ? namechainUserRegistryAddress
     : sepoliaUserRegistryAddress
 
-  const currentNameRegistry = registryData?.registries.at(-2) ?? null
   const finalFactoryAddress = useCustomRegistry
     ? (contractAddress as Address)
     : factoryAddress
@@ -82,7 +81,8 @@ function RouteComponent() {
       name,
       factoryAddress: finalFactoryAddress,
       implAddress,
-      currentNameRegistry,
+      // Use parentRegistry (registries[1]) - the registry that manages this name
+      currentNameRegistry: parentRegistry,
       protocolVersion: registryData?.protocolVersion ?? null,
     })
 

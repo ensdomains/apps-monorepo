@@ -6,7 +6,6 @@ import {
 import { useSelector } from '@xstate/react'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
-import { sepolia } from 'viem/chains'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import type { SnapshotFrom } from 'xstate'
 import {
@@ -23,6 +22,7 @@ import {
   isHash,
   isTransactionReceipt,
 } from '@/features/registry/utils/type-guards'
+import { namechainSepolia } from '@/lib/wagmi'
 
 const IDLE_STATE: TransactionState = { status: 'idle' }
 
@@ -206,8 +206,10 @@ export function useSubregistryDeployment({
   currentNameRegistry,
   protocolVersion,
 }: UseSubregistryDeploymentParams) {
-  const { data: walletClient } = useWalletClient({ chainId: sepolia.id })
-  const publicClient = usePublicClient({ chainId: sepolia.id })
+  // V2 subregistry deployment only works on Namechain Sepolia
+  const chainId = namechainSepolia.id
+  const { data: walletClient } = useWalletClient({ chainId })
+  const publicClient = usePublicClient({ chainId })
 
   // Actor is created lazily when deployment starts
   const [actor, setActor] = useState<SubregistryDeploymentActor | undefined>(
@@ -244,7 +246,7 @@ export function useSubregistryDeployment({
       signer,
       publicClient,
       walletClient,
-      chainId: sepolia.id,
+      chainId,
     })
 
     setActor(deploymentActor)
