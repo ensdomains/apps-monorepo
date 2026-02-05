@@ -73,8 +73,11 @@ const Profile = ({
   })
 
   // Loading states
-  if (ownerQuery.isLoading || profileQuery.isLoading) {
-    return <LoadingSpinner title="Loading..." />
+  if (ownerQuery.isLoading) {
+    return <LoadingSpinner title="Loading owner..." />
+  }
+  if (profileQuery.isLoading) {
+    return <LoadingSpinner title="Loading profile..." />
   }
 
   // Wait for DNSSEC check for non-.eth TLDs
@@ -139,15 +142,15 @@ const Profile = ({
       if (isRegistrable(name)) {
         return <AvailableNameMessage name={name} />
       }
-      // Other valid TLD names can be claimed via DNS
+      // Other valid TLD names - DNS import not available on ENSv2 yet
       if (isClaimable(name)) {
         return (
           <NotFoundMessage
-            title="Name available for claiming"
+            title="DNS import not available"
             description={
               <>
-                <strong>{name}</strong> can be claimed by proving DNS ownership.
-                This requires setting up a DNS TXT record.
+                <strong>{name}</strong> could be claimed via DNS import, but
+                this feature isn't available yet on ENSv2.
               </>
             }
           />
