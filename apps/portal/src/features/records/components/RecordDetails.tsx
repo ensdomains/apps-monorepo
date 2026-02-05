@@ -297,37 +297,38 @@ const HistoryView = ({ name, record, network }: HistoryViewProps) => {
       enabled: isV1 && v1BlockNumbers.length > 0,
     })
 
-  // Handle loading states
+  // Handle loading and error states
   if (!network) {
     return <LoadingSpinner title="Loading..." />
   }
-  if (isV1 && v1HistoryQuery.isLoading) {
-    return <LoadingSpinner title="Loading history..." />
-  }
-  if (isV2 && v2HistoryQuery.isLoading) {
-    return <LoadingSpinner title="Loading history..." />
-  }
-  if (isV1 && v1BlockNumbers.length > 0 && isLoadingTimestamps) {
-    return <LoadingSpinner title="Loading timestamps..." />
-  }
 
-  // Handle errors
-  if (isV1 && v1HistoryQuery.error) {
-    return (
-      <div>
-        History Error:{' '}
-        {v1HistoryQuery.error.cause?.message || v1HistoryQuery.error.message}
-      </div>
-    )
-  }
-
-  if (isV2 && v2HistoryQuery.error) {
-    return (
-      <div>
-        History Error:{' '}
-        {v2HistoryQuery.error.cause?.message || v2HistoryQuery.error.message}
-      </div>
-    )
+  if (isV1) {
+    if (v1HistoryQuery.isLoading) {
+      return <LoadingSpinner title="Loading history..." />
+    }
+    if (v1BlockNumbers.length > 0 && isLoadingTimestamps) {
+      return <LoadingSpinner title="Loading timestamps..." />
+    }
+    if (v1HistoryQuery.error) {
+      return (
+        <div>
+          History Error:{' '}
+          {v1HistoryQuery.error.cause?.message || v1HistoryQuery.error.message}
+        </div>
+      )
+    }
+  } else {
+    if (v2HistoryQuery.isLoading) {
+      return <LoadingSpinner title="Loading history..." />
+    }
+    if (v2HistoryQuery.error) {
+      return (
+        <div>
+          History Error:{' '}
+          {v2HistoryQuery.error.cause?.message || v2HistoryQuery.error.message}
+        </div>
+      )
+    }
   }
 
   // Transform V1 events with fetched timestamps
