@@ -139,35 +139,15 @@ export async function saveRecords(
   // Type assertion is safe since we validated account and chain above
   const client = walletClient as Parameters<typeof setRecordsWriteParameters>[0]
 
-  let writeParams: Awaited<ReturnType<typeof setRecordsWriteParameters>>
-  try {
-    writeParams = await setRecordsWriteParameters(client, {
-      name,
-      resolverAddress,
-      resolverType,
-      texts: recordsInput.texts,
-      coins: recordsInput.coins,
-      contentHash: recordsInput.contentHash,
-      abi: recordsInput.abi,
-    })
-  } catch (error) {
-    // Provide better error messages for common encoding errors
-    const message = error instanceof Error ? error.message : String(error)
-
-    if (
-      recordsInput.contentHash &&
-      (message.includes('read') ||
-        message.includes('Invalid') ||
-        message.includes('decode'))
-    ) {
-      throw new Error(
-        `Invalid contentHash value: "${recordsInput.contentHash}". ` +
-          'Please provide a valid IPFS CID (e.g., ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG).',
-      )
-    }
-
-    throw error
-  }
+  const writeParams = await setRecordsWriteParameters(client, {
+    name,
+    resolverAddress,
+    resolverType,
+    texts: recordsInput.texts,
+    coins: recordsInput.coins,
+    contentHash: recordsInput.contentHash,
+    abi: recordsInput.abi,
+  })
 
   // Encode the transaction data from write parameters
   const data = encodeFunctionData({
