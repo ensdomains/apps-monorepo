@@ -32,6 +32,11 @@ describe('transformRecordHistory', () => {
       const record: NameRecord = { type: 'contentHash', value: 'ipfs://...' }
       expect(getV2EventTypesForRecord(record)).toEqual(['ContenthashChanged'])
     })
+
+    it('should return ABIChanged for abi records', () => {
+      const record: NameRecord = { type: 'abi', value: '[{"type":"function"}]' }
+      expect(getV2EventTypesForRecord(record)).toEqual(['ABIChanged'])
+    })
   })
 
   describe('filterV2EventsByRecord', () => {
@@ -88,6 +93,20 @@ describe('transformRecordHistory', () => {
 
       expect(result).toHaveLength(1)
       expect(result[0].type).toBe('ContenthashChanged')
+    })
+
+    it('should filter events for abi records', () => {
+      const events: V2NameHistoryEvent[] = [
+        createV2Event('ABIChanged'),
+        createV2Event('TextChanged'),
+        createV2Event('Transfer'),
+      ]
+      const record: NameRecord = { type: 'abi', value: '[{"type":"function"}]' }
+
+      const result = filterV2EventsByRecord(events, record)
+
+      expect(result).toHaveLength(1)
+      expect(result[0].type).toBe('ABIChanged')
     })
 
     it('should return empty array when no matching events', () => {

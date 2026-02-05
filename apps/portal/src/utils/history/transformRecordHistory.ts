@@ -34,6 +34,7 @@ export const getV2EventTypesForRecord = (record: NameRecord): string[] =>
     .with('text', () => ['TextChanged'])
     .with('address', () => ['AddressChanged'])
     .with('contentHash', () => ['ContenthashChanged'])
+    .with('abi', () => ['ABIChanged'])
     .exhaustive()
 
 /**
