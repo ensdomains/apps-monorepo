@@ -91,6 +91,25 @@ const getV2NamesWithRolesForAddress = ResultFn(async function* ({
     }
   }
 
+  // Filter out subnames (3+ labels) whose roles are inherited from a parent
+  // domain the address owns. The roles query returns inherited roles from parent
+  // domains, which causes subnames to appear under the parent owner's address
+  // page even though a different address registered and owns them.
+  // Only filter when we can confirm the role is inherited (a parent is owned),
+  // so that subnames the address directly registered are preserved.
+  const ownedNames = new Set(domains.map((d) => d.name))
+  for (const name of rolesMap.keys()) {
+    const labels = name.split('.')
+    if (labels.length > 2 && !ownedNames.has(name)) {
+      const hasOwnedParent = labels
+        .slice(1, -1)
+        .some((_, i) => ownedNames.has(labels.slice(i + 1).join('.')))
+      if (hasOwnedParent) {
+        rolesMap.delete(name)
+      }
+    }
+  }
+
   // Fetch domain data for names in roles but missing from domains(where: { owner }).
   // This can happen when the user has roles on a domain without being the ERC1155 token owner.
   const missingNames = [...rolesMap.keys()].filter(
