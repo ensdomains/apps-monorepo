@@ -19,6 +19,15 @@ export const recordsToTableData = (
         value: `${value.protocolType}://${value.decoded}`,
       })
     }
+    if (key === 'abi' && value) {
+      // ABI can be a string or object, convert to JSON string for display
+      const abiValue =
+        typeof value.abi === 'string' ? value.abi : JSON.stringify(value.abi)
+      data.push({
+        type: 'abi',
+        value: abiValue,
+      })
+    }
     if (key === 'texts') {
       for (const { key, value: text } of Object.values(value)) {
         data.push({ key, value: text, type: 'text' })

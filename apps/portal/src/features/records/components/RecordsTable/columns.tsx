@@ -7,11 +7,13 @@ import { cn } from '@/lib/utils'
 type AddressRecord = { type: 'address'; id: number; key: string }
 type ContentHashRecord = { type: 'contentHash' }
 type TextRecord = { type: 'text'; key: string }
+type AbiRecord = { type: 'abi' }
 
 export type NameRecord = { value: string } & (
   | AddressRecord
   | ContentHashRecord
   | TextRecord
+  | AbiRecord
 )
 
 export const columns: ColumnDef<NameRecord>[] = [
@@ -59,17 +61,31 @@ export const columns: ColumnDef<NameRecord>[] = [
         </SortButton>
       )
     },
-    cell: ({ column, row }) => {
+    cell: ({ row }) => {
       const type = row.original.type
-      const value = row.getValue(column.id) as string
+
+      // Single-value records have fixed keys
+      if (type === 'contentHash') {
+        return <span className="font-mono">contenthash</span>
+      }
+      if (type === 'abi') {
+        return <span className="font-mono">abi</span>
+      }
+
+      // Address records show coin type + coin name
       if (type === 'address') {
         return (
-          <span className={'flex flex-row items-center gap-2'}>
+          <span className="flex flex-row items-center gap-2 font-mono">
             {row.original.id}{' '}
-            <span className="font-sans text-gray-500 uppercase">{value}</span>
+            <span className="font-sans text-gray-500 uppercase">
+              {row.original.key}
+            </span>
           </span>
         )
-      } else return <span className="font-mono">{value}</span>
+      }
+
+      // Text records show the key
+      return <span className="font-mono">{row.original.key}</span>
     },
   },
   {

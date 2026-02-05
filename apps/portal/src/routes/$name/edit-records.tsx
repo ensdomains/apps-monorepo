@@ -43,6 +43,9 @@ const RECORD_TYPES: { value: RecordType; label: string }[] = [
   { value: 'contentHash', label: 'Contenthash' },
 ]
 
+/** Record types that don't require a key (single-value records) */
+const KEYLESS_RECORD_TYPES: RecordType[] = ['contentHash', 'abi']
+
 function EditRecordsPage() {
   const { name } = Route.useParams()
   const { address: connectedAddress } = useConnection()
@@ -237,6 +240,7 @@ const EditRecordsContent = ({
     for (const record of visible) {
       if (record.type === 'text') counts.text++
       if (record.type === 'address') counts.address++
+      if (record.type === 'abi') counts.abi++
       if (record.type === 'contentHash') counts.contentHash++
     }
     return counts
@@ -254,8 +258,13 @@ const EditRecordsContent = ({
   const keyInputId = useId()
   const valueInputId = useId()
 
+  // Check if the selected type requires a key
+  const requiresKey =
+    selectedType !== '' && !KEYLESS_RECORD_TYPES.includes(selectedType)
+
   const handleAddRecord = () => {
-    if (!selectedType || !keyInput) return
+    if (!selectedType) return
+    if (requiresKey && !keyInput) return
 
     addRecord(selectedType, keyInput, valueInput)
 
@@ -305,23 +314,25 @@ const EditRecordsContent = ({
             </div>
           </div>
 
-          {/* Key Input */}
-          <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
-            <label
-              htmlFor={keyInputId}
-              className="text-xs text-gray-500 flex items-center gap-1"
-            >
-              Key
-            </label>
-            <input
-              id={keyInputId}
-              type="text"
-              value={keyInput}
-              onChange={(e) => setKeyInput(e.target.value)}
-              placeholder=""
-              className="h-9 w-full rounded-sm border border-input bg-white px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-            />
-          </div>
+          {/* Key Input - hidden for contentHash and abi */}
+          {requiresKey && (
+            <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
+              <label
+                htmlFor={keyInputId}
+                className="text-xs text-gray-500 flex items-center gap-1"
+              >
+                Key
+              </label>
+              <input
+                id={keyInputId}
+                type="text"
+                value={keyInput}
+                onChange={(e) => setKeyInput(e.target.value)}
+                placeholder=""
+                className="h-9 w-full rounded-sm border border-input bg-white px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+              />
+            </div>
+          )}
 
           {/* Value Input */}
           <div className="flex flex-col gap-1 flex-2 min-w-[200px]">
@@ -344,7 +355,7 @@ const EditRecordsContent = ({
             <Button
               variant="outline"
               onClick={handleAddRecord}
-              disabled={!selectedType || !keyInput}
+              disabled={!selectedType || (requiresKey && !keyInput)}
               className="flex items-center gap-2 whitespace-nowrap"
             >
               Add record

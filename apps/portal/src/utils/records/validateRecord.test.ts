@@ -191,6 +191,124 @@ describe('validateRecord', () => {
       expect(validateRecord(record)).toBeNull()
     })
   })
+
+  describe('contentHash validation', () => {
+    it('accepts valid ipfs:// contentHash', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: 'ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('accepts valid ipns:// contentHash', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value:
+          'ipns://k51qzi5uqu5dlvj2baxnqndepeb86cbk3ng7n3i46uzyxzyqj2xjonzllnv0v8',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('accepts valid ar:// contentHash', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: 'ar://AJTUmYd9bpE5n1RFVKjqXqJnlQsXnCzq1bYs9p3nG-8',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('accepts valid onion:// contentHash', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value:
+          'onion://zqktlwiuavvvqqt4ygvvdqefrmhhl3zvngymcmupejn26kspgibb2dad',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('accepts valid sia:// contentHash', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: 'sia://AAABWPJDX9GGQD1M_H0YRPCY3XEXPHBXRP5PWCXR5RD6MTAFGQ',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('rejects contentHash with unsupported protocol', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: 'ftp://example.com/file.txt',
+      }
+      expect(validateRecord(record)).toContain('Invalid contentHash')
+    })
+
+    it('rejects contentHash without protocol', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: 'QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG',
+      }
+      expect(validateRecord(record)).toContain('Invalid contentHash')
+    })
+
+    it('rejects contentHash with only protocol (no identifier)', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: 'ipfs://',
+      }
+      expect(validateRecord(record)).toContain('Invalid contentHash')
+    })
+
+    it('accepts empty value (deletion)', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: '',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+  })
+
+  describe('ABI validation', () => {
+    it('accepts valid JSON object', () => {
+      const record: EditableRecord = {
+        type: 'abi',
+        value: '{"name":"test","type":"function","inputs":[]}',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('accepts valid JSON array', () => {
+      const record: EditableRecord = {
+        type: 'abi',
+        value: '[{"name":"test","type":"function","inputs":[]}]',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('rejects invalid JSON', () => {
+      const record: EditableRecord = {
+        type: 'abi',
+        value: '{ "test": "value"',
+      }
+      expect(validateRecord(record)).toContain('Invalid JSON')
+    })
+
+    it('rejects non-JSON string', () => {
+      const record: EditableRecord = {
+        type: 'abi',
+        value: 'not json at all',
+      }
+      expect(validateRecord(record)).toContain('Invalid JSON')
+    })
+
+    it('accepts empty value (deletion)', () => {
+      const record: EditableRecord = {
+        type: 'abi',
+        value: '',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+  })
 })
 
 describe('validateRecords', () => {

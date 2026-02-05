@@ -37,6 +37,9 @@ export const getRecordId = (record: NameRecord): string => {
   if (record.type === 'contentHash') {
     return 'contentHash'
   }
+  if (record.type === 'abi') {
+    return 'abi'
+  }
   if (record.type === 'address') {
     return `address-${record.key}`
   }
@@ -139,6 +142,6 @@ export function createNewRecord(
       }
     })
     .with('contentHash', () => ({ type: 'contentHash' as const, value }))
-    .with('abi', () => ({ type: 'text' as const, key, value })) // ABI treated as text for now
+    .with('abi', () => ({ type: 'abi' as const, value }))
     .exhaustive()
 }

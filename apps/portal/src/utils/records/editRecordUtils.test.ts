@@ -13,6 +13,12 @@ describe('getRecordId', () => {
     )
   })
 
+  it('returns "abi" for abi records', () => {
+    expect(getRecordId({ type: 'abi', value: '[{"type":"function"}]' })).toBe(
+      'abi',
+    )
+  })
+
   it('returns "address-{key}" for address records', () => {
     expect(
       getRecordId({ type: 'address', key: 'ETH', value: '0x123', id: 60 }),
@@ -214,12 +220,11 @@ describe('createNewRecord', () => {
     })
   })
 
-  it('creates ABI as text record for now', () => {
-    const record = createNewRecord('abi', 'myAbi', '[{"type":"function"}]')
+  it('creates ABI record without key', () => {
+    const record = createNewRecord('abi', '', '[{"type":"function"}]')
 
     expect(record).toEqual({
-      type: 'text',
-      key: 'myAbi',
+      type: 'abi',
       value: '[{"type":"function"}]',
     })
   })

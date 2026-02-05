@@ -45,6 +45,9 @@ function getRecordDisplayName(record: EditableRecord): string {
   if (record.type === 'contentHash') {
     return 'contenthash'
   }
+  if (record.type === 'abi') {
+    return 'abi'
+  }
   return record.key
 }
 
@@ -161,19 +164,29 @@ export const EditRecordsTable = ({
         },
         cell: ({ row }) => {
           const type = row.original.type
-          const key =
-            row.original.type === 'contentHash'
-              ? 'contenthash'
-              : row.original.key
+
+          // Single-value records have fixed keys
+          if (type === 'contentHash') {
+            return <span className="font-mono">contenthash</span>
+          }
+          if (type === 'abi') {
+            return <span className="font-mono">abi</span>
+          }
+
+          // Address records show coin type + coin name
           if (type === 'address') {
             return (
               <span className="flex flex-row items-center gap-2 font-mono">
                 {row.original.id}{' '}
-                <span className="font-sans text-gray-500 uppercase">{key}</span>
+                <span className="font-sans text-gray-500 uppercase">
+                  {row.original.key}
+                </span>
               </span>
             )
           }
-          return <span className="font-mono">{key}</span>
+
+          // Text records show the key
+          return <span className="font-mono">{row.original.key}</span>
         },
       },
       {
