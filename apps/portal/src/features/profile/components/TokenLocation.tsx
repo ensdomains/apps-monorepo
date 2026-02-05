@@ -7,7 +7,7 @@ interface TokenLocationProps {
   network: EnsNetworkName
 }
 
-export const TokenLocation = ({ name, network }: TokenLocationProps) => {
+export const TokenLocation = ({ name }: TokenLocationProps) => {
   return (
     <Link
       to="/$name/resolver"
@@ -18,7 +18,7 @@ export const TokenLocation = ({ name, network }: TokenLocationProps) => {
         <NamechainSVG height={40} width={40} />
         <div>
           <span className="font-medium">Network</span>
-          <h3>{network === 'namechainSepolia' ? 'Namechain' : 'Sepolia'}</h3>
+          <h3>Sepolia</h3>
         </div>
       </div>
     </Link>
