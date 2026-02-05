@@ -91,14 +91,22 @@ const getV2NamesWithRolesForAddress = ResultFn(async function* ({
     }
   }
 
-  // Filter out subnames (3+ labels) that the address doesn't own.
-  // The roles query returns inherited roles from parent domains, which causes
-  // subnames to appear under the parent owner's address page even though
-  // a different address registered and owns them.
+  // Filter out subnames (3+ labels) whose roles are inherited from a parent
+  // domain the address owns. The roles query returns inherited roles from parent
+  // domains, which causes subnames to appear under the parent owner's address
+  // page even though a different address registered and owns them.
+  // Only filter when we can confirm the role is inherited (a parent is owned),
+  // so that subnames the address directly registered are preserved.
   const ownedNames = new Set(domains.map((d) => d.name))
   for (const name of rolesMap.keys()) {
-    if (name.split('.').length > 2 && !ownedNames.has(name)) {
-      rolesMap.delete(name)
+    const labels = name.split('.')
+    if (labels.length > 2 && !ownedNames.has(name)) {
+      const hasOwnedParent = labels
+        .slice(1, -1)
+        .some((_, i) => ownedNames.has(labels.slice(i + 1).join('.')))
+      if (hasOwnedParent) {
+        rolesMap.delete(name)
+      }
     }
   }
 
