@@ -64,12 +64,9 @@ export const columns: ColumnDef<NameRecord>[] = [
     cell: ({ row }) => {
       const type = row.original.type
 
-      // Single-value records have fixed keys
-      if (type === 'contentHash') {
-        return <span className="font-mono">contenthash</span>
-      }
-      if (type === 'abi') {
-        return <span className="font-mono">abi</span>
+      // Single-value records use type as key
+      if (type === 'contentHash' || type === 'abi') {
+        return <span className="font-mono">{type}</span>
       }
 
       // Address records show coin type + coin name
