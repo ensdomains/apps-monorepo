@@ -37,9 +37,13 @@ export const Route = createFileRoute('/$name/subnames')({
 
 interface NoSubregistryMessageProps {
   readonly name: string
+  readonly canDeploy: boolean
 }
 
-const NoSubregistryMessage = ({ name }: NoSubregistryMessageProps) => (
+const NoSubregistryMessage = ({
+  name,
+  canDeploy,
+}: NoSubregistryMessageProps) => (
   <>
     <header className="bg-gray-100 px-6 pb-6 pt-12 flex flex-col gap-4 sticky top-0 z-10">
       <h1 className="text-[30px] font-medium leading-tight">Subnames</h1>
@@ -68,14 +72,16 @@ const NoSubregistryMessage = ({ name }: NoSubregistryMessageProps) => (
             <div className="flex flex-row items-center gap-4">
               <AlertCircle className="size-6 text-gray-500 shrink-0" />
               <p className="flex-1">
-                This name does not have a subregistry. You must deploy one to
-                create subnames.
+                This name does not have a subregistry.
+                {canDeploy ? ' You must deploy one to create subnames.' : ''}
               </p>
-              <Button asChild variant="secondary">
-                <Link to="/$name/registry" params={{ name }}>
-                  Deploy subregistry
-                </Link>
-              </Button>
+              {canDeploy && (
+                <Button asChild variant="secondary">
+                  <Link to="/$name/registry" params={{ name }}>
+                    Deploy subregistry
+                  </Link>
+                </Button>
+              )}
             </div>
           </TableCell>
         </TableRow>
@@ -116,6 +122,22 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
     enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
   })
 
+  // Check if connected account can deploy a subregistry (ROLE_SET_SUBREGISTRY on parent registry)
+  const parentRegistryAddress = registriesData?.registries[1]
+  const firstLabel = name.split('.')[0]
+  const { data: hasSetSubregistryRole } = useQuery({
+    ...getHasRolesQueryOptions({
+      registryAddress: parentRegistryAddress as Address,
+      label: firstLabel,
+      roles: ['ROLE_SET_SUBREGISTRY'],
+      account: connectedAccount as Address,
+    }),
+    enabled:
+      Boolean(parentRegistryAddress) &&
+      Boolean(connectedAccount) &&
+      !hasSubregistry,
+  })
+
   const {
     data: subnames,
     isLoading: subnamesLoading,
@@ -139,7 +161,12 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
   }
 
   if (!hasSubregistry) {
-    return <NoSubregistryMessage name={name} />
+    return (
+      <NoSubregistryMessage
+        name={name}
+        canDeploy={Boolean(hasSetSubregistryRole)}
+      />
+    )
   }
 
   if (subnamesLoading) {
