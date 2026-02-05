@@ -86,7 +86,7 @@ const UnderlyingResolverInfo = ({
           <div className="flex flex-row flex-wrap gap-y-4 gap-x-6">
             <ResolverPrimaryName resolverAddress={data[0]} />
             <ResolverType resolverAddress={data[0]} />
-            <ResolverNetwork resolverAddress={data[0]} />
+            <ResolverNetwork />
           </div>
           <ResolverDetails
             resolverAddress={data[0]}
@@ -119,7 +119,7 @@ const UnderlyingResolverInfo = ({
           <h2 className="font-medium text-2xl">L1 Resolver</h2>
           <div className="flex flex-row gap-6">
             <ResolverType resolverAddress={data[0]} />
-            <ResolverNetwork resolverAddress={data[0]} />
+            <ResolverNetwork />
           </div>
           <ResolverDetails
             resolverAddress={data[0]}

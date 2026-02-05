@@ -98,8 +98,13 @@ function RouteComponent() {
 
   const effectiveName = resolvedName ?? name
 
-  if (!resolvedName && isAddress(name, { strict: false })) {
-    return <AddressProfileView address={name as Address} />
+  if (isAddress(name, { strict: false }) || !resolvedName) {
+    return (
+      <AddressProfileView
+        address={name as Address}
+        primaryName={resolvedName}
+      />
+    )
   }
 
   return (

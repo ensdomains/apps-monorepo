@@ -11,8 +11,9 @@ export type DomainAttributePillProps = {
 const variantStyles: Record<DomainAttributePillVariant, string> = {
   available: 'bg-ens-green-light text-ens-green font-medium',
   'premium-3':
-    'bg-[linear-gradient(94deg,_#AE9582_3.56%,_#6F4C05_264.96%)] text-white font-medium',
-  'premium-4': 'bg-[#C4C7C8] text-[#515151] font-medium',
+    'rounded-[14.182px] bg-[linear-gradient(94deg,#E9D4BC_2.94%,#8E6616_299.58%)] text-black font-medium',
+  'premium-4':
+    'rounded-[14.182px] bg-[linear-gradient(103deg,#E2E8F0_22.67%,#606262_287.71%)] text-black font-medium',
 }
 
 export const DomainAttributePill = ({

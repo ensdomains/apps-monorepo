@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
+import { FloatingInput } from '@/components/ui/floating-input'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import {
@@ -108,21 +108,14 @@ export const UpdateResolverDialog = ({
           txHash={txHash}
         />
 
-        <div className="space-y-2">
-          <label
-            className="block font-medium text-sm"
-            htmlFor="resolver-address"
-          >
-            Resolver address
-          </label>
-          <Input
-            disabled={isSubmitting}
-            id="resolver-address"
-            onChange={(e) => setResolver(e.target.value)}
-            placeholder="0x..."
-            value={resolver}
-          />
-        </div>
+        <FloatingInput
+          disabled={isSubmitting}
+          id="resolver-address"
+          label="Resolver address"
+          onChange={(e) => setResolver(e.target.value)}
+          placeholder="0x..."
+          value={resolver}
+        />
 
         <DialogFooter>
           <Button

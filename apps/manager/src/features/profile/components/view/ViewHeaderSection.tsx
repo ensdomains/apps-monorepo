@@ -37,7 +37,7 @@ export const ViewHeaderSection = ({
   }/p/${name}`
 
   return (
-    <div className="overflow-hidden md:rounded-xl">
+    <div className="overflow-hidden rounded-xl border-[0.25px] border-border bg-white shadow-none">
       {/* Header BG */}
       <div className="relative w-full">
         <ImageFallback.Root className="aspect-3/1 w-full md:aspect-5/1">
@@ -48,10 +48,11 @@ export const ViewHeaderSection = ({
           />
           <ImageFallback.Fallback>
             <div
-              className={clsx(
-                'size-full bg-gray-200',
-                header.isLoading && 'animate-pulse',
-              )}
+              className={clsx('size-full', header.isLoading && 'animate-pulse')}
+              style={{
+                backgroundImage:
+                  'linear-gradient(162deg, transparent 21.72%, var(--color-muted) 62.7%)',
+              }}
             />
           </ImageFallback.Fallback>
         </ImageFallback.Root>

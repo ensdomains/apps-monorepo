@@ -1,7 +1,12 @@
+import { Link } from '@tanstack/react-router'
 import { CheckIcon, CopyIcon } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { cn } from '@/lib/utils'
+
+const isInternalLink = (href: string): boolean => {
+  return href.startsWith('/') && !href.startsWith('//')
+}
 
 export const CopyableRecord = ({
   value,
@@ -29,6 +34,11 @@ export const CopyableRecord = ({
 
   const content = displayValue || value
 
+  const linkClassName = cn(
+    'text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4 min-w-0',
+    truncate && 'truncate',
+  )
+
   return (
     <div
       className={cn(
@@ -37,15 +47,15 @@ export const CopyableRecord = ({
       )}
     >
       {href ? (
-        <ExternalLink
-          className={cn(
-            'text-sm sm:text-base font-mono underline decoration-dashed underline-offset-4 min-w-0',
-            truncate && 'truncate',
-          )}
-          href={href}
-        >
-          {content}
-        </ExternalLink>
+        isInternalLink(href) ? (
+          <Link to={href} className={linkClassName}>
+            {content}
+          </Link>
+        ) : (
+          <ExternalLink className={linkClassName} href={href}>
+            {content}
+          </ExternalLink>
+        )
       ) : (
         <div
           className={cn(

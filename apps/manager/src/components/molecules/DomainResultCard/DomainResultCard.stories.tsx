@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { getByteLength } from '@/features/register/components/Pricing/utils'
 import { DomainResultCard } from './DomainResultCard'
 
 const meta = {
@@ -135,6 +136,203 @@ export const InteractiveExample = {
           price={42.5}
           status="available"
         />
+      </div>
+    </div>
+  ),
+}
+
+// Byte-tier font scaling stories (Tier 0-3)
+export const ByteLengthTier0: Story = {
+  render: () => (
+    <div className="flex max-w-xl flex-col gap-4">
+      <div>
+        <p className="mb-2 text-gray-600 text-sm">
+          Tier 0 (0-30 bytes) - text-xl font
+        </p>
+      </div>
+      <DomainResultCard domainName="a.eth" price={2450000} status="premium" />
+      <DomainResultCard domainName="abc.eth" price={245000} status="premium" />
+      <DomainResultCard domainName="😀.eth" price={245000} status="premium" />
+      <DomainResultCard
+        domainName="café.eth"
+        price={61.25}
+        status="available"
+      />
+      <DomainResultCard domainName="中国.eth" price={45.2} status="available" />
+    </div>
+  ),
+}
+
+export const ByteLengthTier1: Story = {
+  render: () => (
+    <div className="flex max-w-xl flex-col gap-4">
+      <div>
+        <p className="mb-2 text-gray-600 text-sm">
+          Tier 1 (31-80 bytes) - text-base font
+        </p>
+      </div>
+      <DomainResultCard
+        domainName="verylongdomainnamewithmore.eth"
+        price={12.25}
+        status="available"
+      />
+      <DomainResultCard
+        domainName="😀😀😀😀😀😀😀.eth"
+        price={32.5}
+        status="available"
+      />
+      <DomainResultCard
+        domainName="café café café café café.eth"
+        price={18.75}
+        status="available"
+      />
+    </div>
+  ),
+}
+
+export const ByteLengthTier2: Story = {
+  render: () => (
+    <div className="flex max-w-xl flex-col gap-4">
+      <div>
+        <p className="mb-2 text-gray-600 text-sm">
+          Tier 2 (81-150 bytes) - text-sm font
+        </p>
+      </div>
+      <DomainResultCard
+        domainName="verylongdomainnamewithmultiplewordsinreallylongformatwithlots.eth"
+        price={5.25}
+        status="available"
+      />
+      <DomainResultCard
+        domainName="😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀.eth"
+        price={8.5}
+        status="available"
+      />
+      <DomainResultCard
+        domainName="中国日本韓国印度泰国越南老挝柬埔寨菲律賓馬來.eth"
+        price={6.75}
+        status="available"
+      />
+    </div>
+  ),
+}
+
+export const ByteLengthTier3: Story = {
+  render: () => (
+    <div className="flex max-w-xl flex-col gap-4">
+      <div>
+        <p className="mb-2 text-gray-600 text-sm">
+          Tier 3 (151+ bytes) - text-xs font
+        </p>
+      </div>
+      <DomainResultCard
+        domainName="verylongdomainnamewithmultiplewordsinreallylongformatwithmultiplelinesthisgoesonevenmorewithmorecontentandmore.eth"
+        price={3.25}
+        status="available"
+      />
+      <DomainResultCard
+        domainName="😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀.eth"
+        price={4.5}
+        status="available"
+      />
+    </div>
+  ),
+}
+
+// Multi-byte character showcase
+export const MultiByteCardExamples: Story = {
+  render: () => (
+    <div className="flex max-w-xl flex-col gap-4">
+      <div>
+        <p className="mb-4 font-semibold text-lg">
+          Multi-byte Character Examples
+        </p>
+        <p className="mb-4 text-gray-600 text-sm">
+          Testing emoji, Chinese, Arabic, and mixed characters
+        </p>
+      </div>
+      <DomainResultCard
+        domainName="🎉🎊🎈.eth"
+        price={245000}
+        status="premium"
+      />
+      <DomainResultCard
+        domainName="中国日本.eth"
+        price={45.2}
+        status="available"
+      />
+      <DomainResultCard
+        domainName="مرحبا.eth"
+        price={32.5}
+        status="available"
+      />
+      <DomainResultCard
+        domainName="naïve.eth"
+        price={28.75}
+        status="available"
+      />
+      <DomainResultCard
+        domainName="test😀中国.eth"
+        price={22.5}
+        status="available"
+      />
+    </div>
+  ),
+}
+
+// Complete tier comparison
+export const ByteTierComparison: Story = {
+  render: () => (
+    <div className="space-y-6">
+      <h3 className="font-semibold text-lg">Font Size by Byte Length Tiers</h3>
+      <div className="space-y-6">
+        <div>
+          <p className="mb-2 font-medium text-gray-700 text-sm">
+            Tier 0 (0-30 bytes): {getByteLength('abc.eth')} bytes - text-xl
+          </p>
+          <DomainResultCard
+            domainName="abc.eth"
+            price={245000}
+            status="premium"
+          />
+        </div>
+        <div>
+          <p className="mb-2 font-medium text-gray-700 text-sm">
+            Tier 1 (31-80 bytes):{' '}
+            {getByteLength('verylongdomainnamewithmore.eth')} bytes - text-base
+          </p>
+          <DomainResultCard
+            domainName="verylongdomainnamewithmore.eth"
+            price={12.25}
+            status="available"
+          />
+        </div>
+        <div>
+          <p className="mb-2 font-medium text-gray-700 text-sm">
+            Tier 2 (81-150 bytes):{' '}
+            {getByteLength('😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀.eth')}{' '}
+            bytes - text-sm
+          </p>
+          <DomainResultCard
+            domainName="😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀.eth"
+            price={8.5}
+            status="available"
+          />
+        </div>
+        <div>
+          <p className="mb-2 font-medium text-gray-700 text-sm">
+            Tier 3 (151+ bytes):{' '}
+            {getByteLength(
+              '😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀.eth',
+            )}{' '}
+            bytes - text-xs
+          </p>
+          <DomainResultCard
+            domainName="😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀.eth"
+            price={4.5}
+            status="available"
+          />
+        </div>
       </div>
     </div>
   ),

@@ -120,6 +120,9 @@ importers:
       '@getpara/web-sdk':
         specifier: 2.2.0
         version: 2.2.0
+      '@intercom/messenger-js-sdk':
+        specifier: ^0.0.18
+        version: 0.0.18
       '@posthog/react':
         specifier: ^1.5.2
         version: 1.5.2(@types/react@19.2.7)(posthog-js@1.306.1)(react@19.2.1)
@@ -2569,6 +2572,9 @@ packages:
       '@types/node':
         optional: true
 
+  '@intercom/messenger-js-sdk@0.0.18':
+    resolution: {integrity: sha512-OQbhnNh26cdI0ddIVh67JOGnSTFAHrbKF5atXuOeWpDF2Ups3O7Do1Oz42BrvQA/o0AZF+1Wqaxtc3kq70wc6w==}
+
   '@isaacs/cliui@8.0.2':
     resolution: {integrity: sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==}
     engines: {node: '>=12'}
@@ -3459,6 +3465,7 @@ packages:
 
   '@rhinestone/module-sdk@0.4.0':
     resolution: {integrity: sha512-MezAYnw+D7tWCVyUMYiA6YutsQT/dL2XPoVhJcfHUh+xccxadubBhU+IKA0MkAyibOWLWZ0yplbgPUKq7MPkFg==}
+    deprecated: This SDK is no longer supported. Please switch to '@rhinestone/sdk' to continue getting updates.
     peerDependencies:
       viem: ^2.0.0
 
@@ -8453,6 +8460,7 @@ snapshots:
       wrangler: 4.53.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       ws: 8.18.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
+      - '@cloudflare/workers-types'
       - bufferutil
       - utf-8-validate
       - workerd
@@ -9972,6 +9980,8 @@ snapshots:
   '@inquirer/type@3.0.10(@types/node@24.10.2)':
     optionalDependencies:
       '@types/node': 24.10.2
+
+  '@intercom/messenger-js-sdk@0.0.18': {}
 
   '@isaacs/cliui@8.0.2':
     dependencies:

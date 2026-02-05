@@ -1,16 +1,10 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { Link, useRouterState } from '@tanstack/react-router'
-import {
-  BookIcon,
-  CircleQuestionMarkIcon,
-  Menu,
-  SettingsIcon,
-} from 'lucide-react'
+import { BookIcon, CircleQuestionMarkIcon, Menu } from 'lucide-react'
 import { lazy, Suspense } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
 import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
-import { TableViewSwitch } from '@/features/records/components/RecordsTable/TableViewSwitch'
 import { HelpMenu } from './HelpMenu'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -98,6 +92,7 @@ export const NavBar = () => {
                 </div>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+            {/* TODO: Settings menu - commented out because TableViewSwitch doesn't do anything yet
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <div className="flex flex-row items-center gap-2">
@@ -110,7 +105,7 @@ export const NavBar = () => {
                   <TableViewSwitch />
                 </div>
               </DropdownMenuSubContent>
-            </DropdownMenuSub>
+            </DropdownMenuSub> */}
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <ExternalLink
@@ -142,6 +137,7 @@ export const NavBar = () => {
             </PopoverContent>
           </Popover>
 
+          {/* TODO: Settings popover - commented out because TableViewSwitch doesn't do anything yet
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -156,7 +152,7 @@ export const NavBar = () => {
             <PopoverContent align="end">
               <TableViewSwitch />
             </PopoverContent>
-          </Popover>
+          </Popover> */}
           <ExternalLink
             className="flex flex-row items-center gap-1"
             href="https://docs.ens.domains"

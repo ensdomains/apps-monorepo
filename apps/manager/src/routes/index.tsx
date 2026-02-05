@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
+import patternBg from '@/assets/pattern-bg.svg'
 import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
 import { FeaturesCarousel } from '@/features/landing/FeaturesCarousel'
 import { IntegrationsSection } from '@/features/landing/IntegrationsSection'
@@ -14,9 +15,13 @@ const LandingPage = () => {
   useRedirectToDashboard()
 
   return (
-    <div>
+    <div
+      style={{
+        background: `url("${patternBg}") center/30px repeat`,
+      }}
+    >
       {/* Hero Section */}
-      <div className="mx-auto mt-11 flex w-full-[2rem] flex-col items-center">
+      <div className="mx-auto flex w-full-[2rem] flex-col items-center pt-11">
         <h1 className="text-center text-temp-64px">
           <span className="font-normal text-ens-lapis-core">Claim your</span>
           <br />

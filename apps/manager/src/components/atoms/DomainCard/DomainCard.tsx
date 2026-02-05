@@ -1,6 +1,10 @@
 'use client'
 
 import { cva, type VariantProps } from 'class-variance-authority'
+import {
+  getByteLength,
+  getDomainCardDisplaySizeClasses,
+} from '@/features/register/components/Pricing/utils'
 import { cn } from '@/lib/utils'
 import { DomainCardPattern } from './DomainCardPattern'
 
@@ -20,24 +24,21 @@ const domainCardContainerVariants = cva(
   },
 )
 
-const domainCardBadgeVariants = cva(
-  'flex items-start justify-start gap-2.5 rounded px-4 py-2',
-  {
-    variants: {
-      variant: {
-        garnet: 'bg-ens-garnet-surface',
-        lapis: 'bg-ens-lapis-surface',
-        peridot: 'bg-ens-peridot-surface',
-      },
-    },
-    defaultVariants: {
-      variant: 'garnet',
+const domainCardBadgeVariants = cva('w-full rounded px-4 py-2', {
+  variants: {
+    variant: {
+      garnet: 'bg-ens-garnet-surface',
+      lapis: 'bg-ens-lapis-surface',
+      peridot: 'bg-ens-peridot-surface',
     },
   },
-)
+  defaultVariants: {
+    variant: 'garnet',
+  },
+})
 
 const domainCardTextVariants = cva(
-  'font-medium text-3xl leading-none tracking-tight',
+  'min-h-0 w-full break-words font-medium leading-none tracking-tight',
   {
     variants: {
       variant: {
@@ -64,12 +65,15 @@ export const DomainCard = ({
   className,
 }: DomainCardProps) => {
   const selectedVariant = variant || 'garnet'
+  const sizeClasses = getDomainCardDisplaySizeClasses(getByteLength(domainName))
 
   return (
     <div className={cn(domainCardContainerVariants({ variant }), className)}>
-      <div className="flex items-start justify-start">
+      <div className="flex w-full items-start justify-start">
         <div className={domainCardBadgeVariants({ variant })}>
-          <p className={domainCardTextVariants({ variant })}>{domainName}</p>
+          <p className={cn(domainCardTextVariants({ variant }), sizeClasses)}>
+            {domainName}
+          </p>
         </div>
       </div>
       <div className="h-48 w-full rounded">

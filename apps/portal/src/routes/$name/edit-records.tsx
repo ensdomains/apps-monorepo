@@ -26,6 +26,7 @@ import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
 import { queryClient } from '@/utils/queryClient'
 import type { RecordType } from '@/utils/records/editRecordUtils'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
+import { validateRecords } from '@/utils/records/validateRecord'
 
 export const Route = createFileRoute('/$name/edit-records')({
   component: EditRecordsPage,
@@ -190,6 +191,10 @@ const EditRecordsContent = ({
     updateRecord,
     discardAll,
   } = useEditRecordsState(originalRecords)
+
+  // Validate records whenever they change
+  const validationErrors = useMemo(() => validateRecords(records), [records])
+  const hasValidationErrors = validationErrors.length > 0
 
   // Navigate to records page after sync completes.
   // This avoids the issue where deleted records reappear if we clear local state
@@ -400,6 +405,7 @@ const EditRecordsContent = ({
               globalFilter={globalFilter}
               onDeleteRecord={deleteRecord}
               onUpdateRecord={updateRecord}
+              validationErrors={validationErrors}
             />
           </TabsContent>
         </Tabs>
@@ -415,6 +421,7 @@ const EditRecordsContent = ({
         isSaving={isWriting || isConfirming}
         isSyncing={isSyncing}
         errorMessage={saveError?.message}
+        hasValidationErrors={hasValidationErrors}
       />
     </div>
   )

@@ -22,6 +22,7 @@ import { Route as NameOwnershipRouteImport } from './routes/$name/ownership'
 import { Route as NameHistoryRouteImport } from './routes/$name/history'
 import { Route as NameEditRecordsRouteImport } from './routes/$name/edit-records'
 import { Route as NameDeployRegistryRouteImport } from './routes/$name/deploy-registry'
+import { Route as NameCreateSubnameRouteImport } from './routes/$name/create-subname'
 import { Route as NameChangeResolverRouteImport } from './routes/$name/change-resolver'
 import { Route as AddrAddrIndexRouteImport } from './routes/addr/$addr/index'
 import { Route as NameRolesIndexRouteImport } from './routes/$name/roles/index'
@@ -96,6 +97,11 @@ const NameDeployRegistryRoute = NameDeployRegistryRouteImport.update({
   path: '/deploy-registry',
   getParentRoute: () => NameRoute,
 } as any)
+const NameCreateSubnameRoute = NameCreateSubnameRouteImport.update({
+  id: '/create-subname',
+  path: '/create-subname',
+  getParentRoute: () => NameRoute,
+} as any)
 const NameChangeResolverRoute = NameChangeResolverRouteImport.update({
   id: '/change-resolver',
   path: '/change-resolver',
@@ -142,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$name': typeof NameRouteWithChildren
   '/$name/change-resolver': typeof NameChangeResolverRoute
+  '/$name/create-subname': typeof NameCreateSubnameRoute
   '/$name/deploy-registry': typeof NameDeployRegistryRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
   '/$name/history': typeof NameHistoryRoute
@@ -164,6 +171,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$name/change-resolver': typeof NameChangeResolverRoute
+  '/$name/create-subname': typeof NameCreateSubnameRoute
   '/$name/deploy-registry': typeof NameDeployRegistryRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
   '/$name/history': typeof NameHistoryRoute
@@ -187,6 +195,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/$name': typeof NameRouteWithChildren
   '/$name/change-resolver': typeof NameChangeResolverRoute
+  '/$name/create-subname': typeof NameCreateSubnameRoute
   '/$name/deploy-registry': typeof NameDeployRegistryRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
   '/$name/history': typeof NameHistoryRoute
@@ -212,6 +221,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$name'
     | '/$name/change-resolver'
+    | '/$name/create-subname'
     | '/$name/deploy-registry'
     | '/$name/edit-records'
     | '/$name/history'
@@ -234,6 +244,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/$name/change-resolver'
+    | '/$name/create-subname'
     | '/$name/deploy-registry'
     | '/$name/edit-records'
     | '/$name/history'
@@ -256,6 +267,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$name'
     | '/$name/change-resolver'
+    | '/$name/create-subname'
     | '/$name/deploy-registry'
     | '/$name/edit-records'
     | '/$name/history'
@@ -375,6 +387,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NameDeployRegistryRouteImport
       parentRoute: typeof NameRoute
     }
+    '/$name/create-subname': {
+      id: '/$name/create-subname'
+      path: '/create-subname'
+      fullPath: '/$name/create-subname'
+      preLoaderRoute: typeof NameCreateSubnameRouteImport
+      parentRoute: typeof NameRoute
+    }
     '/$name/change-resolver': {
       id: '/$name/change-resolver'
       path: '/change-resolver'
@@ -436,6 +455,7 @@ declare module '@tanstack/react-router' {
 
 interface NameRouteChildren {
   NameChangeResolverRoute: typeof NameChangeResolverRoute
+  NameCreateSubnameRoute: typeof NameCreateSubnameRoute
   NameDeployRegistryRoute: typeof NameDeployRegistryRoute
   NameEditRecordsRoute: typeof NameEditRecordsRoute
   NameHistoryRoute: typeof NameHistoryRoute
@@ -452,6 +472,7 @@ interface NameRouteChildren {
 
 const NameRouteChildren: NameRouteChildren = {
   NameChangeResolverRoute: NameChangeResolverRoute,
+  NameCreateSubnameRoute: NameCreateSubnameRoute,
   NameDeployRegistryRoute: NameDeployRegistryRoute,
   NameEditRecordsRoute: NameEditRecordsRoute,
   NameHistoryRoute: NameHistoryRoute,

@@ -10,6 +10,7 @@ export const PendingChangesBar = ({
   isSaving = false,
   isSyncing = false,
   errorMessage,
+  hasValidationErrors = false,
 }: {
   updatesCount: number
   changesCount: number
@@ -19,6 +20,7 @@ export const PendingChangesBar = ({
   isSaving?: boolean
   isSyncing?: boolean
   errorMessage?: string
+  hasValidationErrors?: boolean
 }) => {
   // Show bar when there are changes, syncing, or error
   if (changesCount === 0 && !isSyncing && !errorMessage) return null
@@ -69,6 +71,12 @@ export const PendingChangesBar = ({
           <span className="font-medium">{updatesCount} </span>
           {updatesCount === 1 ? 'update' : 'updates'}
         </span>
+        {hasValidationErrors && (
+          <span className="text-sm text-red-600 flex items-center gap-1">
+            <AlertCircle className="size-3" />
+            Fix validation errors to save
+          </span>
+        )}
         <Button
           variant="outline"
           onClick={onDiscard}
@@ -78,7 +86,11 @@ export const PendingChangesBar = ({
           Discard
           <X className="size-4 ml-1" />
         </Button>
-        <Button onClick={onSave} className="rounded-lg" disabled={isSaving}>
+        <Button
+          onClick={onSave}
+          className="rounded-lg"
+          disabled={isSaving || hasValidationErrors}
+        >
           {isSaving ? (
             <>
               Saving...

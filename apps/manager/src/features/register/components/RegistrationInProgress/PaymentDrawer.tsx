@@ -4,6 +4,7 @@ import { useWallet } from '@getpara/react-sdk-lite'
 import { CreditCardIcon, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
+import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -20,7 +21,7 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
-import { STABLECOINS } from '@/features/register/utils'
+import { getPremiumLabel, STABLECOINS } from '@/features/register/utils'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
@@ -132,6 +133,7 @@ export const CreditCardPaymentDrawer = ({
 
 // Crypto Payment Drawer Component
 export const CryptoPaymentDrawer = ({
+  domainName = 'example.eth',
   isLoading = false,
   disabled = false,
   priceUSD = 0,
@@ -142,6 +144,7 @@ export const CryptoPaymentDrawer = ({
   const [open, setOpen] = useState(false)
   const [selectedCoin, setSelectedCoin] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [step, setStep] = useState<1 | 2>(1)
 
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const { data: wallet } = useWallet()
@@ -199,7 +202,13 @@ export const CryptoPaymentDrawer = ({
       // Reset state when closing
       setSelectedCoin('')
       setSearchQuery('')
+      setStep(1)
     }
+  }
+
+  const handleCoinConfirm = () => {
+    if (actionDisabled) return
+    setStep(2)
   }
 
   const triggerButton = (
@@ -332,20 +341,25 @@ export const CryptoPaymentDrawer = ({
                           </div>
                         </div>
                         <p className="text-ens-gray-dark text-sm tracking-wide">
-                          Sepolia {stablecoin.symbol}
+                          {stablecoin.symbol}
                         </p>
                       </div>
                       <div className="flex flex-col items-end">
-                        <p
-                          className={cn(
-                            'text-right text-base tracking-wide',
-                            hasInsufficientBalanceForCoin
-                              ? 'text-ens-error'
-                              : 'text-ens-gray-dark',
-                          )}
-                        >
-                          ${formatAmount(coinBalanceUSD, 2)}
-                        </p>
+                        <div className="flex items-baseline gap-1.5">
+                          <p
+                            className={cn(
+                              'text-right text-base tracking-wide',
+                              hasInsufficientBalanceForCoin
+                                ? 'text-ens-error'
+                                : 'text-ens-gray-dark',
+                            )}
+                          >
+                            ${formatAmount(coinBalanceUSD, 2)}
+                          </p>
+                          <span className="text-[#A0A4A6] text-sm">
+                            available
+                          </span>
+                        </div>
                         {hasInsufficientBalanceForCoin && priceUSD > 0 && (
                           <p className="text-ens-error text-xs">
                             Need ${formatAmount(priceUSD)}
@@ -369,12 +383,76 @@ export const CryptoPaymentDrawer = ({
           !actionDisabled && 'bg-ens-blue text-white hover:bg-ens-blue-hover',
         )}
         disabled={actionDisabled}
-        onClick={() => handleCryptoContinue()}
+        onClick={handleCoinConfirm}
       >
         Confirm Payment
       </Button>
     </div>
   )
+
+  // Get the selected coin info for step 2
+  const selectedCoinConfig = selectedCoinBalance
+    ? Object.values(STABLECOINS).find(
+        (coin) => coin.symbol === selectedCoinBalance.symbol,
+      )
+    : null
+  const SelectedCoinIcon = selectedCoinConfig?.icon || USDCIcon
+  const premiumLabel = getPremiumLabel(domainName)
+
+  // Step 2: Confirmation content
+  const confirmationContent = (
+    <div className="flex min-h-[500px] flex-col justify-between gap-4 px-4">
+      <div className="flex flex-col items-center gap-6">
+        {/* Header */}
+        <h2 className="text-center font-medium text-2xl text-ens-blue tracking-wide">
+          Registering
+        </h2>
+
+        <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-xl bg-[rgb(250,250,250)] px-6 py-8">
+          {premiumLabel && (
+            <DomainAttributePill
+              label={premiumLabel.label}
+              variant={premiumLabel.variant}
+            />
+          )}
+          <span
+            className={cn(
+              'w-full min-w-0 text-center font-medium font-semi-mono',
+              'text-[40px] leading-[96%] tracking-[-0.8px]',
+              'text-[var(--Primary-Grey,#4A5C63)]',
+            )}
+            title={domainName}
+          >
+            {domainName.length > 10
+              ? `${domainName.slice(0, 10)}…`
+              : domainName}
+          </span>
+        </div>
+
+        <div className="flex flex-col items-center">
+          <span className="text-base text-ens-gray">for</span>
+          <div className="flex items-baseline gap-1">
+            <SelectedCoinIcon className="h-6 w-6 self-center" />
+            <span className="font-medium text-2xl text-ens-gray tracking-tight">
+              ${formatAmount(priceUSD, 0)}
+            </span>
+            <span className="text-ens-gray-three text-lg">
+              {selectedCoinBalance?.symbol || 'USDC'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <Button
+        className="h-20 w-full rounded bg-ens-blue font-medium font-mono text-sm text-white uppercase tracking-wider hover:bg-ens-blue-hover"
+        onClick={() => handleCryptoContinue()}
+      >
+        Buy Name
+      </Button>
+    </div>
+  )
+
+  const currentContent = step === 1 ? cryptoContent : confirmationContent
 
   // Desktop Dialog
   if (isDesktop) {
@@ -383,9 +461,11 @@ export const CryptoPaymentDrawer = ({
         <DialogTrigger asChild>{triggerButton}</DialogTrigger>
         <DialogContent className="min-h-[500px]" showCloseButton={true}>
           <DialogHeader>
-            <DialogTitle className="sr-only">Select coin</DialogTitle>
+            <DialogTitle className="sr-only">
+              {step === 1 ? 'Select coin' : 'Confirm purchase'}
+            </DialogTitle>
           </DialogHeader>
-          {cryptoContent}
+          {currentContent}
         </DialogContent>
       </Dialog>
     )
@@ -397,9 +477,11 @@ export const CryptoPaymentDrawer = ({
       <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
       <DrawerContent>
         <DrawerHeader className="px-4 pt-5 pb-5 text-left">
-          <DrawerTitle className="sr-only">Select coin</DrawerTitle>
+          <DrawerTitle className="sr-only">
+            {step === 1 ? 'Select coin' : 'Confirm purchase'}
+          </DrawerTitle>
         </DrawerHeader>
-        {cryptoContent}
+        {currentContent}
       </DrawerContent>
     </Drawer>
   )

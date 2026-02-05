@@ -131,7 +131,7 @@ describe('HomeSearchInput', () => {
       })
     })
 
-    it('should auto-append .eth suffix to ENS names', async () => {
+    it('should show both 1LD and .eth version for simple names', async () => {
       vi.mocked(useIsMobile).mockReturnValue(false)
       const user = userEvent.setup()
 
@@ -142,9 +142,11 @@ describe('HomeSearchInput', () => {
       await user.type(input, 'vitalik')
 
       await waitFor(() => {
-        // Should show name with .eth suffix
+        // Should show both the 1LD and the .eth version
+        expect(screen.getByText('vitalik')).toBeInTheDocument()
         expect(screen.getByText('vitalik.eth')).toBeInTheDocument()
-        expect(screen.getByText('View ENS name details')).toBeInTheDocument()
+        // Both suggestions have the same description
+        expect(screen.getAllByText('View ENS name details')).toHaveLength(2)
       })
     })
 
