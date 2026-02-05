@@ -17,7 +17,7 @@ export function NetworkCard({ network }: NetworkCardProps) {
       )}
       <div className="flex flex-col">
         <span className="font-medium">Network</span>
-        <span>{isNamechain ? 'Namechain Sepolia' : 'Sepolia'}</span>
+        <span>Sepolia</span>
       </div>
     </div>
   )
