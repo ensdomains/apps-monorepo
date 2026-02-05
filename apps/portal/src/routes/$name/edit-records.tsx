@@ -6,7 +6,6 @@ import {
   ChevronDown,
   CirclePlus,
   Search,
-  X,
   XIcon,
 } from 'lucide-react'
 import { useCallback, useId, useMemo, useState } from 'react'
