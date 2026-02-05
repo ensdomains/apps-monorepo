@@ -104,7 +104,17 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
                     {items.map((item) => (
                       <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton asChild>
-                          <Link params={{ name }} to={item.url}>
+                          <Link
+                            params={{ name }}
+                            to={item.url}
+                            activeProps={{
+                              'data-active': 'true',
+                              className: '!bg-black/10 dark:!bg-white/15',
+                            }}
+                            activeOptions={{
+                              exact: item.url === '/$name',
+                            }}
+                          >
                             <item.icon className="size-6" />
                             <span className="text-sm font-medium">
                               {item.title}
