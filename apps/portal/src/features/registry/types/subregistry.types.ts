@@ -51,6 +51,11 @@ export interface UseSubregistryDeploymentParams {
   readonly implAddress: Address
   readonly currentNameRegistry: Address | null
   readonly protocolVersion: 'ENSv1' | 'ENSv2' | null
+  /**
+   * Optional address of an already-deployed custom subregistry.
+   * If provided, skips the deploy step and directly calls setSubregistry.
+   */
+  readonly customSubregistryAddress?: Address | null
 }
 
 /**
