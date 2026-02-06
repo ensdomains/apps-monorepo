@@ -12,7 +12,9 @@ import { ViewCryptoSection } from './ViewCryptoSection'
 import { ViewDynamicSection } from './ViewDynamicSection'
 import { ViewHeaderSection } from './ViewHeaderSection'
 import { ViewLinksSection } from './ViewLinksSection'
-import { ViewResolverSection } from './ViewResolverSection'
+
+// Hidden for alpha - users don't need to change the resolver
+// import { ViewResolverSection } from './ViewResolverSection'
 
 interface ProfileViewProps {
   name: string
@@ -68,7 +70,8 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
         {/* Right/side column */}
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
           <ViewCryptoSection records={records} />
-          <ViewResolverSection resolverAddress={records.resolverAddress} />
+          {/* Hidden for alpha - users don't need to change the resolver
+          <ViewResolverSection resolverAddress={records.resolverAddress} /> */}
           <ViewLinksSection records={records} />
 
           {/* Edit Button */}
