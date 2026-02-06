@@ -325,7 +325,7 @@ describe('validateRecords', () => {
     expect(validateRecords(records)).toEqual([])
   })
 
-  it('returns errors for invalid records', () => {
+  it('returns errors for invalid records (without _uid)', () => {
     const records: EditableRecord[] = [
       { type: 'text', key: 'avatar', value: 'invalid-url', isEdited: true },
       { type: 'text', key: 'email', value: 'invalid-email', isNew: true },
@@ -336,22 +336,67 @@ describe('validateRecords', () => {
     expect(errors[1].recordId).toBe('text-email')
   })
 
-  it('uses key (not coinType) for address recordIds to ensure uniqueness', () => {
+  it('returns errors for invalid records (with _uid)', () => {
     const records: EditableRecord[] = [
-      { type: 'address', key: 'ETH', value: 'invalid', id: 60, isNew: true },
       {
-        type: 'address',
-        key: 'UNKNOWN',
-        value: 'also-invalid',
-        id: 60,
+        type: 'text',
+        key: 'avatar',
+        value: 'invalid-url',
         isNew: true,
+        _uid: 'abc123',
+      },
+      {
+        type: 'text',
+        key: 'email',
+        value: 'invalid-email',
+        isNew: true,
+        _uid: 'def456',
       },
     ]
     const errors = validateRecords(records)
     expect(errors).toHaveLength(2)
-    // Should use key, not coinType, so each record has a unique recordId
-    expect(errors[0].recordId).toBe('address-ETH')
-    expect(errors[1].recordId).toBe('address-UNKNOWN')
+    expect(errors[0].recordId).toBe('text-avatar-abc123')
+    expect(errors[1].recordId).toBe('text-email-def456')
+  })
+
+  it('generates unique recordIds for multiple records with same key but different _uid', () => {
+    const records: EditableRecord[] = [
+      {
+        type: 'address',
+        key: 'ETH',
+        value: 'invalid',
+        id: 60,
+        isNew: true,
+        _uid: 'uid1',
+      },
+      {
+        type: 'address',
+        key: 'ETH',
+        value: 'also-invalid',
+        id: 60,
+        isNew: true,
+        _uid: 'uid2',
+      },
+    ]
+    const errors = validateRecords(records)
+    expect(errors).toHaveLength(2)
+    expect(errors[0].recordId).toBe('address-ETH-uid1')
+    expect(errors[1].recordId).toBe('address-ETH-uid2')
+  })
+
+  it('uses _uid for contentHash and abi records to ensure uniqueness', () => {
+    const records: EditableRecord[] = [
+      { type: 'contentHash', value: 'invalid', isNew: true, _uid: 'ch1' },
+      { type: 'contentHash', value: 'also-invalid', isNew: true, _uid: 'ch2' },
+      { type: 'abi', value: 'not-json', isNew: true, _uid: 'abi1' },
+      { type: 'abi', value: 'also-not-json', isNew: true, _uid: 'abi2' },
+    ]
+    const errors = validateRecords(records)
+    expect(errors).toHaveLength(4)
+    expect(errors[0].recordId).toBe('contentHash-ch1')
+    expect(errors[1].recordId).toBe('contentHash-ch2')
+    expect(errors[2].recordId).toBe('abi-abi1')
+    expect(errors[3].recordId).toBe('abi-abi2')
   })
 
   it('only validates edited or new records', () => {
