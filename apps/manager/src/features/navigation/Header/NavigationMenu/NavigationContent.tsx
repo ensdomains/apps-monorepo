@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
 import {
   GithubIcon,
@@ -7,7 +8,7 @@ import {
   YoutubeIcon,
 } from 'lucide-react'
 
-import ensBlack from '@/assets/icons/ens-black.svg'
+import ensMobile from '@/assets/icons/ens-mobile.svg'
 
 interface NavigationContentProps {
   onAction: () => void
@@ -29,7 +30,7 @@ interface SocialIcon {
   icon: LucideIcon
 }
 
-const LogoIconBlack = () => <img alt="Logo" src={ensBlack} />
+const LogoIconBlack = () => <img alt="Logo" src={ensMobile} />
 
 // TODO: Update links to actual URLs
 const navigationSections: NavigationSection[] = [
@@ -95,19 +96,31 @@ export const NavigationContent = ({ onAction }: NavigationContentProps) => {
               {section.title}
             </h3>
             <div className="flex flex-col gap-4">
-              {section.links.map((link) => (
-                <div className="flex items-center gap-2">
-                  {link.icon && <div className="size-6">{link.icon}</div>}
-                  <a
-                    className="text-ens-lapis-core text-sm leading-ens-normal transition-colors hover:underline"
-                    href={link.href}
-                    key={link.href}
-                    onClick={handleLinkClick}
-                  >
-                    {link.label}
-                  </a>
-                </div>
-              ))}
+              {section.links.map((link) => {
+                const isInternal = link.href.startsWith('/')
+                return (
+                  <div className="flex items-center gap-2" key={link.href}>
+                    {link.icon && <div className="size-6">{link.icon}</div>}
+                    {isInternal ? (
+                      <Link
+                        className="text-ens-lapis-core text-sm leading-ens-normal transition-colors hover:underline"
+                        onClick={handleLinkClick}
+                        to={link.href}
+                      >
+                        {link.label}
+                      </Link>
+                    ) : (
+                      <a
+                        className="text-ens-lapis-core text-sm leading-ens-normal transition-colors hover:underline"
+                        href={link.href}
+                        onClick={handleLinkClick}
+                      >
+                        {link.label}
+                      </a>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>

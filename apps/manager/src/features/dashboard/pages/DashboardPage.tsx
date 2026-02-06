@@ -1,5 +1,6 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
+import { CopyableAddress } from '@/components/atoms/CopyableAddress'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { EducationCarousel } from '@/features/dashboard/components/EducationCarousel'
@@ -10,9 +11,6 @@ import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useSmartAccountContext } from '@/lib/smart-account'
-
-const formatAddress = (value?: string | null) =>
-  value ? `${value.slice(0, 6)}...${value.slice(-4)}` : '—'
 
 const stagger = (index: number, shouldReduceMotion: boolean | null) =>
   shouldReduceMotion
@@ -51,8 +49,6 @@ export const DashboardPage = () => {
 
   const defaultName = reverseName ?? null
   const avatarUrl = parsedAvatar ?? null
-
-  const displayName = defaultName ?? formatAddress(ownerAddress)
   const hasProfile = Boolean(defaultName)
 
   return (
@@ -79,7 +75,16 @@ export const DashboardPage = () => {
           className="px-4 font-serif text-[28px] text-foreground leading-[0.96] tracking-[0.28px] md:px-0 md:text-[40px] md:tracking-[0.4px]"
           {...stagger(1, shouldReduceMotion)}
         >
-          Hello {displayName}
+          Hello{' '}
+          {defaultName ??
+            (ownerAddress && (
+              <CopyableAddress
+                address={ownerAddress}
+                className="inline-flex"
+                textClassName="font-serif text-[28px] leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]"
+                truncate={true}
+              />
+            ))}
         </motion.h1>
         {hasProfile && (
           <motion.div {...stagger(2, shouldReduceMotion)}>

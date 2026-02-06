@@ -11,6 +11,7 @@ import { Layout } from '@/components/Layout'
 import { MATERIAL_SYMBOLS_URL } from '@/components/ui/material-symbol'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
 import { ParaWagmiSyncWatcher } from '@/features/wallet/components/ParaWagmiSyncWatcher'
+import { WalletConnectionRedirect } from '@/features/wallet/components/WalletConnectionRedirect'
 import { RootProviders } from '@/lib/RootProviders'
 import appCss from '@/styles/index.css?url'
 
@@ -59,6 +60,7 @@ function RootComponent() {
             <Outlet />
           </Layout>
           <ParaWagmiSyncWatcher />
+          <WalletConnectionRedirect />
           <Toaster position="bottom-center" />
         </RootProviders>
 

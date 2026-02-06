@@ -1,4 +1,4 @@
-import { Loader2, Search } from 'lucide-react'
+import { Loader2, Search, X } from 'lucide-react'
 import { forwardRef, type InputHTMLAttributes } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -12,7 +12,16 @@ export interface SearchFieldProps
 
 export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
   (
-    { onSearch, className, wrapperClassName, onKeyDown, isLoading, ...props },
+    {
+      onSearch,
+      className,
+      wrapperClassName,
+      onKeyDown,
+      onChange,
+      isLoading,
+      value,
+      ...props
+    },
     ref,
   ) => {
     const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -20,6 +29,15 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
         onSearch(event.currentTarget.value)
       }
       onKeyDown?.(event)
+    }
+
+    const hasValue =
+      typeof value === 'string' ? (value?.length ?? 0) > 0 : Boolean(value)
+
+    const handleClear = () => {
+      onChange?.({
+        target: { value: '' },
+      } as React.ChangeEvent<HTMLInputElement>)
     }
 
     return (
@@ -33,7 +51,9 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
           className={cn(
             'size-full self-stretch',
             'font-sans font-semibold text-xl leading-[110%] tracking-[-0.4px]',
-            'py-[21px] pr-[28px] pl-[52px] data-[loading=true]:pr-14',
+            'py-[21px] pr-[28px] pl-[52px]',
+            'data-[loading=true]:pr-14',
+            hasValue && !isLoading && 'pr-14',
             'rounded border-[0.25px] border-ens-gray-two',
             'bg-ens-white text-ens-blue',
             'shadow-md',
@@ -48,6 +68,7 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
           onKeyDown={handleKeyDown}
           ref={ref}
           type="text"
+          {...(value !== undefined && { value, onChange })}
           {...props}
         />
         <Search
@@ -62,6 +83,17 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
             className="-translate-y-1/2 absolute top-1/2 right-[18px] size-[26px] animate-spin text-ens-lapis-dust"
             strokeWidth={2.15}
           />
+        )}
+
+        {hasValue && !isLoading && (
+          <button
+            aria-label="Clear search"
+            className="-translate-y-1/2 absolute top-1/2 right-[18px] flex size-8 items-center justify-center rounded-full text-ens-lapis-surface transition-colors hover:bg-ens-gray-two/50 hover:text-ens-blue-midnight"
+            onClick={handleClear}
+            type="button"
+          >
+            <X className="size-5" strokeWidth={2} />
+          </button>
         )}
       </div>
     )
