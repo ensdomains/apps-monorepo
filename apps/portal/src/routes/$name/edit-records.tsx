@@ -1,16 +1,11 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { useQueries } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import {
-  ArrowLeftIcon,
-  ChevronDown,
-  CirclePlus,
-  Search,
-  XIcon,
-} from 'lucide-react'
+import { ArrowLeftIcon, ChevronDown, CirclePlus, Search } from 'lucide-react'
 import { useCallback, useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
+import { CoinSelect } from '@/components/CoinSelect'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -51,25 +46,6 @@ const RECORD_TYPES: { value: RecordType; label: string }[] = [
 
 /** Record types that don't require a key input (single-value records) */
 const KEYLESS_RECORD_TYPES: RecordType[] = ['contentHash', 'abi']
-
-/** Common cryptocurrency coins for address records */
-const ADDRESS_COINS: { value: string; label: string; coinType: number }[] = [
-  { value: 'ETH', label: 'ETH (Ethereum)', coinType: 60 },
-  { value: 'BTC', label: 'BTC (Bitcoin)', coinType: 0 },
-  { value: 'LTC', label: 'LTC (Litecoin)', coinType: 2 },
-  { value: 'DOGE', label: 'DOGE (Dogecoin)', coinType: 3 },
-  { value: 'SOL', label: 'SOL (Solana)', coinType: 501 },
-  { value: 'MATIC', label: 'MATIC (Polygon)', coinType: 2147483785 },
-  { value: 'OP', label: 'OP (Optimism)', coinType: 2147483658 },
-  { value: 'ARB1', label: 'ARB1 (Arbitrum One)', coinType: 2147525809 },
-  { value: 'BASE', label: 'BASE (Base)', coinType: 2147492101 },
-  { value: 'AVAXC', label: 'AVAXC (Avalanche C-Chain)', coinType: 2147526762 },
-  { value: 'BNB', label: 'BNB (BNB)', coinType: 714 },
-  { value: 'ATOM', label: 'ATOM (Cosmos)', coinType: 118 },
-  { value: 'XRP', label: 'XRP (Ripple)', coinType: 144 },
-  { value: 'ADA', label: 'ADA (Cardano)', coinType: 1815 },
-  { value: 'DOT', label: 'DOT (Polkadot)', coinType: 354 },
-]
 
 function EditRecordsPage() {
   const { name } = Route.useParams()
@@ -196,14 +172,12 @@ const EditRecordsContent = ({
   // Form state
   const [selectedType, setSelectedType] = useState<RecordType | ''>('')
   const [keyInput, setKeyInput] = useState('')
-  const [customCoinInput, setCustomCoinInput] = useState('')
   const [valueInput, setValueInput] = useState('')
 
   // Reset key input when type changes (different types have different key requirements)
   const handleTypeChange = (newType: RecordType | '') => {
     setSelectedType(newType)
     setKeyInput('') // Reset key when type changes
-    setCustomCoinInput('') // Reset custom coin input too
   }
 
   // UI state
@@ -297,21 +271,13 @@ const EditRecordsContent = ({
 
   const handleAddRecord = () => {
     if (!selectedType) return
+    if (requiresKey && !keyInput) return
 
-    // For addresses with "Other" selected, use the custom coin input
-    const effectiveKey =
-      selectedType === 'address' && keyInput === '_other'
-        ? customCoinInput
-        : keyInput
-
-    if (requiresKey && !effectiveKey) return
-
-    addRecord(selectedType, effectiveKey, valueInput)
+    addRecord(selectedType, keyInput, valueInput)
 
     // Reset form
     setSelectedType('')
     setKeyInput('')
-    setCustomCoinInput('')
     setValueInput('')
   }
 
@@ -357,53 +323,18 @@ const EditRecordsContent = ({
 
           {/* Key Input - dropdown for address, text input for text, hidden for contentHash and abi */}
           {selectedType === 'address' && (
-            <div className="flex flex-col gap-1 min-w-[180px]">
+            <div className="flex flex-col gap-1 min-w-[220px]">
               <label
                 htmlFor={keyInputId}
                 className="text-xs text-gray-500 flex items-center gap-1"
               >
                 Coin
               </label>
-              {keyInput === '_other' ? (
-                <div className="flex gap-2">
-                  <input
-                    id={keyInputId}
-                    type="text"
-                    value={customCoinInput}
-                    onChange={(e) => setCustomCoinInput(e.target.value)}
-                    placeholder="e.g. AVAX"
-                    className="h-9 w-full rounded-sm border border-input bg-white px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setKeyInput('')
-                      setCustomCoinInput('')
-                    }}
-                  >
-                    <XIcon />
-                  </Button>
-                </div>
-              ) : (
-                <div className="relative">
-                  <select
-                    id={keyInputId}
-                    value={keyInput}
-                    onChange={(e) => setKeyInput(e.target.value)}
-                    className="h-9 w-full appearance-none rounded-sm border border-input bg-white px-3 pr-8 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
-                  >
-                    <option value="">Select coin...</option>
-                    {ADDRESS_COINS.map((coin) => (
-                      <option key={coin.value} value={coin.value}>
-                        {coin.label}
-                      </option>
-                    ))}
-                    <option value="_other">Other...</option>
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-gray-500" />
-                </div>
-              )}
+              <CoinSelect
+                value={keyInput}
+                onChange={setKeyInput}
+                placeholder="Select coin..."
+              />
             </div>
           )}
           {selectedType === 'text' && (
@@ -446,11 +377,7 @@ const EditRecordsContent = ({
             <Button
               variant="outline"
               onClick={handleAddRecord}
-              disabled={
-                !selectedType ||
-                (requiresKey && !keyInput) ||
-                (keyInput === '_other' && !customCoinInput)
-              }
+              disabled={!selectedType || (requiresKey && !keyInput)}
               className="flex items-center gap-2 whitespace-nowrap"
             >
               Add record

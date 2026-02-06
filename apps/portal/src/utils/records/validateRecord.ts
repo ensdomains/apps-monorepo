@@ -1,4 +1,5 @@
-import { isAddress } from 'viem'
+import { getCoderByCoinName } from '@ensdomains/address-encoder'
+import { getAddress } from 'viem'
 import type { EditableRecord } from './editRecordUtils'
 
 export interface ValidationError {
@@ -38,14 +39,43 @@ function isValidEmail(value: string): boolean {
 }
 
 /**
- * Validates an Ethereum address.
- * Uses strict: false to skip EIP-55 checksum validation,
- * accepting any valid hex address format.
+ * Normalizes an ETH address to checksum format if possible.
  */
-function isValidEthereumAddress(value: string): boolean {
-  if (!value) return true // Empty is valid (means deletion)
+function normalizeCoinAddress(coin: string, address: string): string {
+  if (coin.toLowerCase() === 'eth') {
+    try {
+      return getAddress(address)
+    } catch {
+      return address
+    }
+  }
+  return address
+}
 
-  return isAddress(value, { strict: false })
+/**
+ * Validates a cryptocurrency address using the address-encoder library.
+ * Returns an error message if invalid, or null if valid.
+ */
+function validateCryptoAddress(coin: string, address: string): string | null {
+  if (!address) return null // Empty is valid (means deletion)
+
+  try {
+    const normalizedAddress = normalizeCoinAddress(coin, address)
+    const coder = getCoderByCoinName(coin.toLowerCase())
+    coder.decode(normalizedAddress)
+    return null // Valid
+  } catch (e: unknown) {
+    // Extract error message
+    if (typeof e === 'string') return e
+    if (e instanceof Error) {
+      // Clean up common error messages
+      if (e.message.includes('Invalid checksum'))
+        return 'Invalid address checksum'
+      if (e.message.includes('Invalid address')) return 'Invalid address format'
+      return e.message
+    }
+    return 'Invalid address format'
+  }
 }
 
 /**
@@ -125,9 +155,11 @@ export function validateRecord(record: EditableRecord): string | null {
   }
 
   if (type === 'address') {
-    // Only validate ETH addresses (coinType 60)
-    if (record.id === 60 && !isValidEthereumAddress(value)) {
-      return 'Invalid Ethereum address format'
+    // Validate all cryptocurrency addresses using address-encoder
+    const coin = record.key || 'eth'
+    const error = validateCryptoAddress(coin, value)
+    if (error) {
+      return `Invalid ${coin.toUpperCase()} address: ${error}`
     }
   }
 
@@ -161,16 +193,16 @@ export function validateRecords(records: EditableRecord[]): ValidationError[] {
 
     const error = validateRecord(record)
     if (error) {
-      // Use key for address records to ensure unique recordIds per row
-      // (multiple addresses can have the same coinType if user adds unknown coin names)
+      // Include _uid in recordId for new records to ensure uniqueness
+      const uid = record._uid ? `-${record._uid}` : ''
       const recordId =
         record.type === 'contentHash'
-          ? 'contentHash'
+          ? `contentHash${uid}`
           : record.type === 'abi'
-            ? 'abi'
+            ? `abi${uid}`
             : record.type === 'address'
-              ? `address-${record.key}`
-              : `text-${record.key}`
+              ? `address-${record.key}${uid}`
+              : `text-${record.key}${uid}`
 
       errors.push({ recordId, message: error })
     }
