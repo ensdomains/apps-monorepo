@@ -3,6 +3,7 @@ import { primaryNameMachine } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useWallet } from '@getpara/react-sdk-lite'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, Check } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -284,7 +285,15 @@ export const ChoosePrimaryNameDialog = ({
               <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
               <p className="text-red-800 text-sm">
                 This name doesn&apos;t have an ETH address record set. Please
-                add one before setting it as your primary name.
+                add one before setting it as your primary name.{' '}
+                <Link
+                  className="font-semibold underline hover:text-red-900"
+                  onClick={() => setOpen(false)}
+                  params={{ name: selectedName }}
+                  to="/p/$name/edit"
+                >
+                  Edit profile
+                </Link>
               </p>
             </div>
           )}

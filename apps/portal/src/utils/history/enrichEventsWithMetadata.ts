@@ -8,7 +8,7 @@ import type {
  * Enriches events data with timestamps and transaction sender addresses
  *
  * For each event:
- * - Adds timestamp from the timestampsData Map based on block number
+ * - Preserves existing timestamp, or adds from timestampsData Map based on block number
  * - Adds/updates sender address from sendersData Map, falling back to existing `from` field
  *
  * @param eventsData - Array of event transaction data
@@ -33,7 +33,7 @@ export const enrichEventsWithMetadata = <TEvent extends BaseEvent = BaseEvent>(
 
   return eventsData.map((tx) => ({
     ...tx,
-    timestamp: timestampsData.get(BigInt(tx.blockNumber)),
+    timestamp: tx.timestamp || timestampsData.get(BigInt(tx.blockNumber)),
     from: sendersData.get(tx.transactionID as Hash) || tx.from,
   }))
 }

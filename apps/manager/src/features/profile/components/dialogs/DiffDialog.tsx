@@ -20,6 +20,7 @@ interface DiffDialogProps {
   originalData: ProfileRecords
   currentData: ProfileRecords
   onSave: () => void
+  onReset?: () => void
   isSaving?: boolean
   isSuccess?: boolean
   errorMessage?: string
@@ -36,6 +37,7 @@ export const DiffDialog = ({
   originalData,
   currentData,
   onSave,
+  onReset,
   isSaving,
   isSuccess,
   errorMessage,
@@ -43,6 +45,13 @@ export const DiffDialog = ({
   validationIssues,
 }: DiffDialogProps) => {
   const [open, setOpen] = useState(false)
+
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen) {
+      onReset?.()
+    }
+    setOpen(isOpen)
+  }
   const diff = useMemo(
     () => createDiff(originalData, currentData),
     [originalData, currentData],
@@ -109,7 +118,7 @@ export const DiffDialog = ({
     }, {}) ?? {}
 
   return (
-    <Dialog onOpenChange={setOpen} open={open}>
+    <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogTrigger asChild>
         <Button className="w-full" disabled={!hasChanges}>
           <Save className="mr-2 size-4" />
@@ -180,9 +189,9 @@ export const DiffDialog = ({
                             {issuesByField[
                               `${change.sectionKey}:${change.fieldKey}`
                             ]?.map((message, index) => (
-                              // biome-ignore lint/suspicious/noArrayIndexKey: error list is stable for this render
                               <div
                                 className="rounded border border-red-200 bg-red-50 px-2 py-1 text-red-700 text-xs"
+                                // biome-ignore lint/suspicious/noArrayIndexKey: error list is stable for this render
                                 key={index}
                               >
                                 {message}

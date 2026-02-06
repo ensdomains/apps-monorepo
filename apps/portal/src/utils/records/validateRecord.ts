@@ -39,11 +39,56 @@ function isValidEmail(value: string): boolean {
 
 /**
  * Validates an Ethereum address.
+ * Uses strict: false to skip EIP-55 checksum validation,
+ * accepting any valid hex address format.
  */
 function isValidEthereumAddress(value: string): boolean {
   if (!value) return true // Empty is valid (means deletion)
 
-  return isAddress(value)
+  return isAddress(value, { strict: false })
+}
+
+/**
+ * Validates a contentHash value.
+ * Must use a supported protocol (ipfs://, ipns://, ar://, onion://, sia://).
+ */
+function isValidContentHash(value: string): boolean {
+  if (!value) return true // Empty is valid (means deletion)
+
+  // Check for supported protocols
+  const supportedProtocols = [
+    'ipfs://',
+    'ipns://',
+    'ar://',
+    'onion://',
+    'sia://',
+  ]
+  const hasValidProtocol = supportedProtocols.some((protocol) =>
+    value.startsWith(protocol),
+  )
+
+  if (!hasValidProtocol) {
+    return false
+  }
+
+  // Basic check that there's content after the protocol
+  const protocolIndex = value.indexOf('://')
+  const content = value.slice(protocolIndex + 3)
+  return content.length > 0
+}
+
+/**
+ * Validates an ABI value - must be valid JSON.
+ */
+function isValidAbi(value: string): boolean {
+  if (!value) return true // Empty is valid (means deletion)
+
+  try {
+    JSON.parse(value)
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -86,6 +131,18 @@ export function validateRecord(record: EditableRecord): string | null {
     }
   }
 
+  if (type === 'contentHash') {
+    if (!isValidContentHash(value)) {
+      return 'Invalid contentHash. Must start with ipfs://, ipns://, ar://, onion://, or sia:// followed by a valid identifier'
+    }
+  }
+
+  if (type === 'abi') {
+    if (!isValidAbi(value)) {
+      return 'Invalid JSON format'
+    }
+  }
+
   return null
 }
 
@@ -104,12 +161,16 @@ export function validateRecords(records: EditableRecord[]): ValidationError[] {
 
     const error = validateRecord(record)
     if (error) {
+      // Use key for address records to ensure unique recordIds per row
+      // (multiple addresses can have the same coinType if user adds unknown coin names)
       const recordId =
         record.type === 'contentHash'
           ? 'contentHash'
-          : record.type === 'address'
-            ? `address-${record.id}`
-            : `text-${record.key}`
+          : record.type === 'abi'
+            ? 'abi'
+            : record.type === 'address'
+              ? `address-${record.key}`
+              : `text-${record.key}`
 
       errors.push({ recordId, message: error })
     }
