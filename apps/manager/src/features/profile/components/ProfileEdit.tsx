@@ -137,7 +137,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
             onUpdated={refetchRecords}
             owner={ownerAddress}
           />
-          <div className="space-y-2 pt-2">
+          <div className="space-y-2">
             <form.Subscribe
               selector={(state) => createDiff(defaultValues, state.values)}
             >
