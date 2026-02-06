@@ -7,6 +7,7 @@ interface SaveChangesProps {
   name: string
   originalData: ProfileRecords
   onSave: () => void
+  onReset?: () => void
   isSaving?: boolean
   isSuccess?: boolean
   errorMessage?: string
@@ -30,6 +31,7 @@ export const SaveChanges = withForm({
     name,
     originalData,
     onSave,
+    onReset,
     isSaving,
     isSuccess,
     errorMessage,
@@ -44,6 +46,7 @@ export const SaveChanges = withForm({
           isSaving={isSaving}
           isSuccess={isSuccess}
           name={name}
+          onReset={onReset}
           onSave={onSave}
           originalData={originalData}
           txHash={txHash}

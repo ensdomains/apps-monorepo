@@ -56,7 +56,7 @@ describe('transformPendingChangesToSetRecords', () => {
     it('transforms edited address records', () => {
       const result = transformPendingChangesToSetRecords(originalRecords, {
         newRecords: [],
-        editedValues: new Map([['address-60', '0x456']]),
+        editedValues: new Map([['address-ETH', '0x456']]),
         deletedIds: new Set(),
       })
 
@@ -89,7 +89,7 @@ describe('transformPendingChangesToSetRecords', () => {
       const result = transformPendingChangesToSetRecords(originalRecords, {
         newRecords: [],
         editedValues: new Map(),
-        deletedIds: new Set(['address-60']),
+        deletedIds: new Set(['address-ETH']),
       })
 
       expect(result.coins).toEqual([{ coin: 60, value: '' }])
@@ -129,6 +129,77 @@ describe('transformPendingChangesToSetRecords', () => {
       })
 
       expect(result).toEqual({})
+    })
+  })
+
+  describe('ABI records', () => {
+    it('transforms new ABI record with valid JSON object', () => {
+      const result = transformPendingChangesToSetRecords([], {
+        newRecords: [{ type: 'abi', value: '{"name":"test"}' }],
+        editedValues: new Map(),
+        deletedIds: new Set(),
+      })
+
+      expect(result.abi).toEqual({ encodeAs: 'json', data: { name: 'test' } })
+    })
+
+    it('transforms new ABI record with valid JSON array', () => {
+      const result = transformPendingChangesToSetRecords([], {
+        newRecords: [{ type: 'abi', value: '[{"name":"test"}]' }],
+        editedValues: new Map(),
+        deletedIds: new Set(),
+      })
+
+      expect(result.abi).toEqual({ encodeAs: 'json', data: [{ name: 'test' }] })
+    })
+
+    it('transforms edited ABI record', () => {
+      const recordsWithAbi: NameRecord[] = [
+        { type: 'abi', value: '{"old":"value"}' },
+      ]
+
+      const result = transformPendingChangesToSetRecords(recordsWithAbi, {
+        newRecords: [],
+        editedValues: new Map([['abi', '{"new":"value"}']]),
+        deletedIds: new Set(),
+      })
+
+      expect(result.abi).toEqual({ encodeAs: 'json', data: { new: 'value' } })
+    })
+
+    it('transforms deleted ABI record to null', () => {
+      const recordsWithAbi: NameRecord[] = [
+        { type: 'abi', value: '{"test":"value"}' },
+      ]
+
+      const result = transformPendingChangesToSetRecords(recordsWithAbi, {
+        newRecords: [],
+        editedValues: new Map(),
+        deletedIds: new Set(['abi']),
+      })
+
+      expect(result.abi).toEqual({ encodeAs: 'json', data: null })
+    })
+
+    it('handles empty ABI value as null', () => {
+      const result = transformPendingChangesToSetRecords([], {
+        newRecords: [{ type: 'abi', value: '' }],
+        editedValues: new Map(),
+        deletedIds: new Set(),
+      })
+
+      expect(result.abi).toEqual({ encodeAs: 'json', data: null })
+    })
+
+    it('does not include ABI with invalid JSON', () => {
+      const result = transformPendingChangesToSetRecords([], {
+        newRecords: [{ type: 'abi', value: 'not valid json' }],
+        editedValues: new Map(),
+        deletedIds: new Set(),
+      })
+
+      // Invalid JSON is silently skipped (returns undefined from parseAbiValue)
+      expect(result.abi).toBeUndefined()
     })
   })
 

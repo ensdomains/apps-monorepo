@@ -1,4 +1,5 @@
-import { isAddress } from 'viem'
+import { getCoderByCoinName } from '@ensdomains/address-encoder'
+import { getAddress } from 'viem'
 import type { EditableRecord } from './editRecordUtils'
 
 export interface ValidationError {
@@ -38,12 +39,86 @@ function isValidEmail(value: string): boolean {
 }
 
 /**
- * Validates an Ethereum address.
+ * Normalizes an ETH address to checksum format if possible.
  */
-function isValidEthereumAddress(value: string): boolean {
+function normalizeCoinAddress(coin: string, address: string): string {
+  if (coin.toLowerCase() === 'eth') {
+    try {
+      return getAddress(address)
+    } catch {
+      return address
+    }
+  }
+  return address
+}
+
+/**
+ * Validates a cryptocurrency address using the address-encoder library.
+ * Returns an error message if invalid, or null if valid.
+ */
+function validateCryptoAddress(coin: string, address: string): string | null {
+  if (!address) return null // Empty is valid (means deletion)
+
+  try {
+    const normalizedAddress = normalizeCoinAddress(coin, address)
+    const coder = getCoderByCoinName(coin.toLowerCase())
+    coder.decode(normalizedAddress)
+    return null // Valid
+  } catch (e: unknown) {
+    // Extract error message
+    if (typeof e === 'string') return e
+    if (e instanceof Error) {
+      // Clean up common error messages
+      if (e.message.includes('Invalid checksum'))
+        return 'Invalid address checksum'
+      if (e.message.includes('Invalid address')) return 'Invalid address format'
+      return e.message
+    }
+    return 'Invalid address format'
+  }
+}
+
+/**
+ * Validates a contentHash value.
+ * Must use a supported protocol (ipfs://, ipns://, ar://, onion://, sia://).
+ */
+function isValidContentHash(value: string): boolean {
   if (!value) return true // Empty is valid (means deletion)
 
-  return isAddress(value)
+  // Check for supported protocols
+  const supportedProtocols = [
+    'ipfs://',
+    'ipns://',
+    'ar://',
+    'onion://',
+    'sia://',
+  ]
+  const hasValidProtocol = supportedProtocols.some((protocol) =>
+    value.startsWith(protocol),
+  )
+
+  if (!hasValidProtocol) {
+    return false
+  }
+
+  // Basic check that there's content after the protocol
+  const protocolIndex = value.indexOf('://')
+  const content = value.slice(protocolIndex + 3)
+  return content.length > 0
+}
+
+/**
+ * Validates an ABI value - must be valid JSON.
+ */
+function isValidAbi(value: string): boolean {
+  if (!value) return true // Empty is valid (means deletion)
+
+  try {
+    JSON.parse(value)
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -80,9 +155,23 @@ export function validateRecord(record: EditableRecord): string | null {
   }
 
   if (type === 'address') {
-    // Only validate ETH addresses (coinType 60)
-    if (record.id === 60 && !isValidEthereumAddress(value)) {
-      return 'Invalid Ethereum address format'
+    // Validate all cryptocurrency addresses using address-encoder
+    const coin = record.key || 'eth'
+    const error = validateCryptoAddress(coin, value)
+    if (error) {
+      return `Invalid ${coin.toUpperCase()} address: ${error}`
+    }
+  }
+
+  if (type === 'contentHash') {
+    if (!isValidContentHash(value)) {
+      return 'Invalid contentHash. Must start with ipfs://, ipns://, ar://, onion://, or sia:// followed by a valid identifier'
+    }
+  }
+
+  if (type === 'abi') {
+    if (!isValidAbi(value)) {
+      return 'Invalid JSON format'
     }
   }
 
@@ -104,12 +193,16 @@ export function validateRecords(records: EditableRecord[]): ValidationError[] {
 
     const error = validateRecord(record)
     if (error) {
+      // Include _uid in recordId for new records to ensure uniqueness
+      const uid = record._uid ? `-${record._uid}` : ''
       const recordId =
         record.type === 'contentHash'
-          ? 'contentHash'
-          : record.type === 'address'
-            ? `address-${record.id}`
-            : `text-${record.key}`
+          ? `contentHash${uid}`
+          : record.type === 'abi'
+            ? `abi${uid}`
+            : record.type === 'address'
+              ? `address-${record.key}${uid}`
+              : `text-${record.key}${uid}`
 
       errors.push({ recordId, message: error })
     }
