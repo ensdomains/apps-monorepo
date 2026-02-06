@@ -1,16 +1,18 @@
 import { useWallet } from '@getpara/react-sdk-lite'
-import { useNavigate } from '@tanstack/react-router'
+import { useLocation, useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef } from 'react'
 
 /**
  * WalletConnectionRedirect
  *
  * Watches for wallet connection state changes and redirects to dashboard
- * when a wallet becomes connected. Only triggers once per connection event.
+ * when a wallet becomes connected on the home page. Only triggers once per
+ * connection event and only when the user is on the landing page.
  */
 export const WalletConnectionRedirect = (): undefined => {
   const { data: wallet, isLoading } = useWallet()
   const navigate = useNavigate()
+  const location = useLocation()
   const wasConnectedRef = useRef<boolean | null>(null)
 
   useEffect(() => {
@@ -25,11 +27,13 @@ export const WalletConnectionRedirect = (): undefined => {
       return
     }
 
-    // Redirect to dashboard when transitioning from disconnected to connected
-    if (!wasConnectedRef.current && isConnected) {
+    // Only redirect to dashboard when:
+    // 1. Transitioning from disconnected to connected
+    // 2. User is on the home page (landing page)
+    if (!wasConnectedRef.current && isConnected && location.pathname === '/') {
       navigate({ to: '/dashboard' })
     }
 
     wasConnectedRef.current = isConnected
-  }, [wallet, isLoading, navigate])
+  }, [wallet, isLoading, navigate, location.pathname])
 }
