@@ -135,7 +135,7 @@ describe('validateRecord', () => {
         value: '0x1234',
         id: 60,
       }
-      expect(validateRecord(record)).toContain('Invalid Ethereum address')
+      expect(validateRecord(record)).toContain('Invalid ETH address')
     })
 
     it('rejects invalid ETH address (missing 0x prefix)', () => {
@@ -145,7 +145,7 @@ describe('validateRecord', () => {
         value: '1234567890123456789012345678901234567890',
         id: 60,
       }
-      expect(validateRecord(record)).toContain('Invalid Ethereum address')
+      expect(validateRecord(record)).toContain('Invalid ETH address')
     })
 
     it('accepts empty value (deletion)', () => {
@@ -157,15 +157,69 @@ describe('validateRecord', () => {
       }
       expect(validateRecord(record)).toBeNull()
     })
+  })
 
-    it('skips validation for non-ETH addresses', () => {
+  describe('address validation (BTC)', () => {
+    it('accepts valid BTC address (bech32)', () => {
       const record: EditableRecord = {
         type: 'address',
         key: 'BTC',
         value: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
-        id: 0, // BTC coinType
+        id: 0,
       }
       expect(validateRecord(record)).toBeNull()
+    })
+
+    it('accepts valid BTC address (legacy P2PKH)', () => {
+      const record: EditableRecord = {
+        type: 'address',
+        key: 'BTC',
+        value: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
+        id: 0,
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('rejects invalid BTC address', () => {
+      const record: EditableRecord = {
+        type: 'address',
+        key: 'BTC',
+        value: 'invalid-btc-address',
+        id: 0,
+      }
+      expect(validateRecord(record)).toContain('Invalid BTC address')
+    })
+
+    it('rejects ETH address as BTC', () => {
+      const record: EditableRecord = {
+        type: 'address',
+        key: 'BTC',
+        value: '0x1234567890123456789012345678901234567890',
+        id: 0,
+      }
+      expect(validateRecord(record)).toContain('Invalid BTC address')
+    })
+  })
+
+  describe('address validation (SOL)', () => {
+    it('accepts valid SOL address', () => {
+      const record: EditableRecord = {
+        type: 'address',
+        key: 'SOL',
+        value: 'DRpbCBMxVnDK7maPGv7USk4TYk2MnhGz6M6sqWGvsaBN',
+        id: 501,
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('rejects invalid SOL address', () => {
+      const record: EditableRecord = {
+        type: 'address',
+        key: 'SOL',
+        value: 'not-a-valid-solana-address',
+        id: 501,
+      }
+      expect(validateRecord(record)).toContain('Invalid SOL address')
     })
   })
 
