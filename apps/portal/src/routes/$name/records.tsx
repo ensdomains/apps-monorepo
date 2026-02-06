@@ -68,6 +68,7 @@ function App() {
       name={name}
       records={profileQuery.data.records}
       canEdit={canEdit}
+      network={ownerData?.network}
     />
   )
 }

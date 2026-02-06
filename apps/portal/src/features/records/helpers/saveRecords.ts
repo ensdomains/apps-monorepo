@@ -127,7 +127,8 @@ export async function saveRecords(
   const hasChanges =
     (recordsInput.texts?.length ?? 0) > 0 ||
     (recordsInput.coins?.length ?? 0) > 0 ||
-    recordsInput.contentHash !== undefined
+    recordsInput.contentHash !== undefined ||
+    recordsInput.abi !== undefined
 
   if (!hasChanges) {
     throw new Error('No record changes to save')
@@ -137,6 +138,7 @@ export async function saveRecords(
   // This handles both Public Resolver and Dedicated Resolver patterns
   // Type assertion is safe since we validated account and chain above
   const client = walletClient as Parameters<typeof setRecordsWriteParameters>[0]
+
   const writeParams = await setRecordsWriteParameters(client, {
     name,
     resolverAddress,
@@ -144,6 +146,7 @@ export async function saveRecords(
     texts: recordsInput.texts,
     coins: recordsInput.coins,
     contentHash: recordsInput.contentHash,
+    abi: recordsInput.abi,
   })
 
   // Encode the transaction data from write parameters

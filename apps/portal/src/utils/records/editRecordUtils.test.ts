@@ -13,13 +13,19 @@ describe('getRecordId', () => {
     )
   })
 
-  it('returns "address-{id}" for address records', () => {
+  it('returns "abi" for abi records', () => {
+    expect(getRecordId({ type: 'abi', value: '[{"type":"function"}]' })).toBe(
+      'abi',
+    )
+  })
+
+  it('returns "address-{key}" for address records', () => {
     expect(
       getRecordId({ type: 'address', key: 'ETH', value: '0x123', id: 60 }),
-    ).toBe('address-60')
+    ).toBe('address-ETH')
     expect(
       getRecordId({ type: 'address', key: 'BTC', value: 'bc1...', id: 0 }),
-    ).toBe('address-0')
+    ).toBe('address-BTC')
   })
 
   it('returns "text-{key}" for text records', () => {
@@ -157,13 +163,50 @@ describe('createNewRecord', () => {
     })
   })
 
-  it('creates an address record with default ETH coin type', () => {
+  it('creates an ETH address record with coin type 60', () => {
     const record = createNewRecord('address', 'ETH', '0x123')
 
     expect(record).toEqual({
       type: 'address',
       key: 'ETH',
       value: '0x123',
+      id: 60,
+    })
+  })
+
+  it('creates a BTC address record with coin type 0', () => {
+    const record = createNewRecord('address', 'btc', 'bc1...')
+
+    expect(record).toEqual({
+      type: 'address',
+      key: 'btc',
+      value: 'bc1...',
+      id: 0,
+    })
+  })
+
+  it('creates a SOL address record with correct coin type', () => {
+    const record = createNewRecord(
+      'address',
+      'sol',
+      'So11111111111111111111111111111111111111112',
+    )
+
+    expect(record).toEqual({
+      type: 'address',
+      key: 'sol',
+      value: 'So11111111111111111111111111111111111111112',
+      id: 501,
+    })
+  })
+
+  it('defaults to ETH coin type (60) for unknown coin names', () => {
+    const record = createNewRecord('address', 'UNKNOWN', 'someaddress')
+
+    expect(record).toEqual({
+      type: 'address',
+      key: 'UNKNOWN',
+      value: 'someaddress',
       id: 60,
     })
   })
@@ -177,12 +220,11 @@ describe('createNewRecord', () => {
     })
   })
 
-  it('creates ABI as text record for now', () => {
-    const record = createNewRecord('abi', 'myAbi', '[{"type":"function"}]')
+  it('creates ABI record without key', () => {
+    const record = createNewRecord('abi', '', '[{"type":"function"}]')
 
     expect(record).toEqual({
-      type: 'text',
-      key: 'myAbi',
+      type: 'abi',
       value: '[{"type":"function"}]',
     })
   })

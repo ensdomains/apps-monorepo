@@ -16,9 +16,17 @@ import { RecentActivity } from '@/features/profile/components/RecentActivity'
 import { RecordCount } from '@/features/profile/components/RecordCount'
 import { SubnameCount } from '@/features/profile/components/SubnameCount'
 import { TokenLocation } from '@/features/profile/components/TokenLocation'
+import { getDnsSecEnabledQueryOptions } from '@/features/profile/hooks/useDnsSecEnabled'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import {
+  getTLD,
+  is2LD,
+  isClaimable,
+  isRegistrable,
+  isTLD,
+} from '@/utils/ens/tldHelpers'
 import { isValidEnsName } from '@/utils/token/isNormalized'
 
 export const Route = createFileRoute('/$name/')({
@@ -33,32 +41,124 @@ const Profile = ({
   name: string
   resolverAddress?: Address
 }) => {
+  const tld = getTLD(name)
+  const isEthTld = tld === 'eth'
+
   const [profileQuery, ownerQuery] = useQueries({
     queries: [getProfileQueryOptions(name), getEnsOwnerQueryOptions({ name })],
   })
 
-  // Check availability when owner lookup returns null (name might be available)
-  const shouldCheckAvailability = !ownerQuery.isLoading && !ownerQuery.data
+  // Check DNSSEC for non-.eth TLDs to verify they're valid
+  const dnsSecQuery = useQuery(
+    getDnsSecEnabledQueryOptions({
+      tld,
+      // Only check for non-eth TLDs when we need to validate
+      enabled: !isEthTld,
+    }),
+  )
+
+  // For non-.eth TLDs, we need to wait for DNSSEC check
+  const isTldValid = isEthTld || dnsSecQuery.data === true
+
+  // Check availability for 2LDs when:
+  // - Owner lookup returned null (name might be available)
+  // - TLD is valid (either .eth or DNSSEC-enabled)
+  // - It's a 2LD (not a TLD or 3LD+)
+  const shouldCheckAvailability =
+    !ownerQuery.isLoading && !ownerQuery.data && isTldValid && is2LD(name)
+
   const availabilityQuery = useQuery({
     ...getNameAvailabilityQueryOptions({ name }),
     enabled: shouldCheckAvailability,
   })
 
-  if (ownerQuery.isLoading || profileQuery.isLoading)
-    return <LoadingSpinner title="Loading..." />
+  // Loading states
+  if (ownerQuery.isLoading) {
+    return <LoadingSpinner title="Loading owner..." />
+  }
+  if (profileQuery.isLoading) {
+    return <LoadingSpinner title="Loading profile..." />
+  }
 
-  // If owner is null (not found), check availability
+  // Wait for DNSSEC check for non-.eth TLDs
+  if (!isEthTld && dnsSecQuery.isLoading) {
+    return <LoadingSpinner title="Validating TLD..." />
+  }
+
+  // IMPORTANT: Check TLD validity FIRST, before showing any profile data
+  // Even if owner data exists, we shouldn't show profiles for invalid TLDs
+  if (!isTldValid) {
+    return (
+      <NotFoundMessage
+        title="Invalid TLD"
+        description={
+          <>
+            <strong>.{tld}</strong> is not a valid ENS TLD. Only TLDs with
+            DNSSEC enabled are supported.
+          </>
+        }
+      />
+    )
+  }
+
+  // If owner is null (not found), handle different cases
   if (!ownerQuery.data) {
+    // Case 1: It's a TLD that doesn't exist (but is valid)
+    if (isTLD(name)) {
+      return (
+        <NotFoundMessage
+          title="TLD not found"
+          description={
+            <>
+              The TLD <strong>{name}</strong> does not have any data in ENS yet.
+            </>
+          }
+        />
+      )
+    }
+
+    // Case 2: It's a 3LD+ that doesn't exist
+    if (!is2LD(name)) {
+      return (
+        <NotFoundMessage
+          title="Name not found"
+          description={
+            <>
+              <strong>{name}</strong> does not exist.
+            </>
+          }
+        />
+      )
+    }
+
+    // Case 3: It's a 2LD - check availability
     if (availabilityQuery.isLoading) {
       return <LoadingSpinner title="Checking availability..." />
     }
 
-    // Name is available for registration
+    // Name is available
     if (availabilityQuery.data?.isAvailable) {
-      return <AvailableNameMessage name={name} />
+      // .eth names can be registered
+      if (isRegistrable(name)) {
+        return <AvailableNameMessage name={name} />
+      }
+      // Other valid TLD names - DNS import not available on ENSv2 yet
+      if (isClaimable(name)) {
+        return (
+          <NotFoundMessage
+            title="DNS import not available"
+            description={
+              <>
+                <strong>{name}</strong> could be claimed via DNS import, but
+                this feature isn't available yet on ENSv2.
+              </>
+            }
+          />
+        )
+      }
     }
 
-    // Name exists but we couldn't fetch owner - show error
+    // Handle errors
     if (ownerQuery.error) {
       return (
         <ErrorMessage
@@ -68,7 +168,6 @@ const Profile = ({
       )
     }
 
-    // Availability check failed or name is not available but no owner found
     if (availabilityQuery.error) {
       const errorMessage =
         (availabilityQuery.error.cause as Error | undefined)?.message ??
