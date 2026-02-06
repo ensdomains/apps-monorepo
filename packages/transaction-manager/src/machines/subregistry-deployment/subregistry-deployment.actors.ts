@@ -102,6 +102,10 @@ export function submitDeploySubregistryActor(input: {
           name: input.name,
           factoryAddress: input.factoryAddress,
           implAddress: input.implAddress,
+          chainId: input.chainId,
+          walletChain: walletWithAccount.chain?.id,
+          to: writeParams.address,
+          functionName: writeParams.functionName,
         },
       )
 
@@ -213,6 +217,13 @@ export function submitSetSubregistryActor(input: {
           label: input.label,
           parentRegistry: input.parentRegistry,
           deployedAddress: input.deployedAddress,
+          chainId: input.chainId,
+          walletChain: walletWithAccount.chain?.id,
+          to: writeParams.address,
+          functionName: writeParams.functionName,
+          args: writeParams.args?.map((a) =>
+            typeof a === 'bigint' ? a.toString() : a,
+          ),
         },
       )
 

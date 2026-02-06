@@ -72,18 +72,22 @@ function RouteComponent() {
     ? namechainUserRegistryAddress
     : sepoliaUserRegistryAddress
 
-  const finalFactoryAddress = useCustomRegistry
-    ? (contractAddress as Address)
-    : factoryAddress
+  // For custom registry: pass the address as customSubregistryAddress (skip deploy)
+  // For normal flow: use the factory to deploy a new subregistry
+  const customSubregistryAddress =
+    useCustomRegistry && contractAddress.trim()
+      ? (contractAddress as Address)
+      : null
 
   const { deploySubregistry, deployState, setSubregistryState, hasWallet } =
     useSubregistryDeployment({
       name,
-      factoryAddress: finalFactoryAddress,
+      factoryAddress,
       implAddress,
       // Use parentRegistry (registries[1]) - the registry that manages this name
       currentNameRegistry: parentRegistry,
       protocolVersion: registryData?.protocolVersion ?? null,
+      customSubregistryAddress,
     })
 
   const isSubmitDisabled =
