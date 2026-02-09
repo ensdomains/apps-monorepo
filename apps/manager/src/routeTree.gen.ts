@@ -25,6 +25,7 @@ import { Route as PNameIndexRouteImport } from './routes/p/$name/index'
 import { Route as NotificationsSettingsIndexRouteImport } from './routes/notifications/settings/index'
 import { Route as DebugBackendIndexRouteImport } from './routes/debug/backend/index'
 import { Route as PNameEditRouteImport } from './routes/p/$name/edit'
+import { Route as DebugBackendSettingsRouteImport } from './routes/debug/backend/settings'
 import { Route as NotificationsChannelsEmailVerifyRouteImport } from './routes/notifications/channels/email/verify'
 
 const WalletRoute = WalletRouteImport.update({
@@ -109,6 +110,11 @@ const PNameEditRoute = PNameEditRouteImport.update({
   path: '/p/$name/edit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DebugBackendSettingsRoute = DebugBackendSettingsRouteImport.update({
+  id: '/debug/backend/settings',
+  path: '/debug/backend/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NotificationsChannelsEmailVerifyRoute =
   NotificationsChannelsEmailVerifyRouteImport.update({
     id: '/channels/email/verify',
@@ -129,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/payment/list': typeof PaymentListRoute
   '/auto-renewal': typeof AutoRenewalIndexRoute
   '/notifications/': typeof NotificationsIndexRoute
+  '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/p/$name/edit': typeof PNameEditRoute
   '/debug/backend': typeof DebugBackendIndexRoute
   '/notifications/settings': typeof NotificationsSettingsIndexRoute
@@ -147,6 +154,7 @@ export interface FileRoutesByTo {
   '/payment/list': typeof PaymentListRoute
   '/auto-renewal': typeof AutoRenewalIndexRoute
   '/notifications': typeof NotificationsIndexRoute
+  '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/p/$name/edit': typeof PNameEditRoute
   '/debug/backend': typeof DebugBackendIndexRoute
   '/notifications/settings': typeof NotificationsSettingsIndexRoute
@@ -167,6 +175,7 @@ export interface FileRoutesById {
   '/payment/list': typeof PaymentListRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/notifications/': typeof NotificationsIndexRoute
+  '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/p/$name/edit': typeof PNameEditRoute
   '/debug/backend/': typeof DebugBackendIndexRoute
   '/notifications/settings/': typeof NotificationsSettingsIndexRoute
@@ -188,6 +197,7 @@ export interface FileRouteTypes {
     | '/payment/list'
     | '/auto-renewal'
     | '/notifications/'
+    | '/debug/backend/settings'
     | '/p/$name/edit'
     | '/debug/backend'
     | '/notifications/settings'
@@ -206,6 +216,7 @@ export interface FileRouteTypes {
     | '/payment/list'
     | '/auto-renewal'
     | '/notifications'
+    | '/debug/backend/settings'
     | '/p/$name/edit'
     | '/debug/backend'
     | '/notifications/settings'
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '/payment/list'
     | '/auto-renewal/'
     | '/notifications/'
+    | '/debug/backend/settings'
     | '/p/$name/edit'
     | '/debug/backend/'
     | '/notifications/settings/'
@@ -244,6 +256,7 @@ export interface RootRouteChildren {
   PaymentAddRoute: typeof PaymentAddRoute
   PaymentListRoute: typeof PaymentListRoute
   AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
+  DebugBackendSettingsRoute: typeof DebugBackendSettingsRoute
   PNameEditRoute: typeof PNameEditRoute
   DebugBackendIndexRoute: typeof DebugBackendIndexRoute
   PNameIndexRoute: typeof PNameIndexRoute
@@ -363,6 +376,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PNameEditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/debug/backend/settings': {
+      id: '/debug/backend/settings'
+      path: '/debug/backend/settings'
+      fullPath: '/debug/backend/settings'
+      preLoaderRoute: typeof DebugBackendSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/notifications/channels/email/verify': {
       id: '/notifications/channels/email/verify'
       path: '/channels/email/verify'
@@ -400,6 +420,7 @@ const rootRouteChildren: RootRouteChildren = {
   PaymentAddRoute: PaymentAddRoute,
   PaymentListRoute: PaymentListRoute,
   AutoRenewalIndexRoute: AutoRenewalIndexRoute,
+  DebugBackendSettingsRoute: DebugBackendSettingsRoute,
   PNameEditRoute: PNameEditRoute,
   DebugBackendIndexRoute: DebugBackendIndexRoute,
   PNameIndexRoute: PNameIndexRoute,
