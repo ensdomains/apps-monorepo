@@ -26,9 +26,7 @@ export const Route = createFileRoute('/debug/backend/settings')({
 
 type BackendUrlMode = 'env' | 'proxy' | 'custom'
 
-const getModeFromOverride = (
-  override: string | undefined,
-): BackendUrlMode => {
+const getModeFromOverride = (override: string | undefined): BackendUrlMode => {
   if (!override) return 'env'
   if (override === '/api') return 'proxy'
   return 'custom'
@@ -38,7 +36,9 @@ const resolveBaseUrlForDisplay = (baseUrl: string) => {
   const resolved = baseUrl.startsWith('/')
     ? new URL(
         baseUrl,
-        typeof window !== 'undefined' ? window.location.origin : 'http://localhost',
+        typeof window !== 'undefined'
+          ? window.location.origin
+          : 'http://localhost',
       )
     : new URL(baseUrl)
 
@@ -66,7 +66,9 @@ function RouteComponent() {
     getModeFromOverride(apiBaseUrlOverride),
   )
   const [customInput, setCustomInput] = useState(() =>
-    apiBaseUrlOverride && apiBaseUrlOverride !== '/api' ? apiBaseUrlOverride : '',
+    apiBaseUrlOverride && apiBaseUrlOverride !== '/api'
+      ? apiBaseUrlOverride
+      : '',
   )
   const [hasAttemptedApply, setHasAttemptedApply] = useState(false)
 
@@ -78,6 +80,7 @@ function RouteComponent() {
     }
   }, [apiBaseUrlOverride])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: we want to re-render when the base url changes
   const effectiveBaseUrl = useMemo(
     () => resolveBaseUrlForDisplay(getBackendApiBaseUrl()),
     [apiBaseUrlOverride],
