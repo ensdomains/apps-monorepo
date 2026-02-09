@@ -1,7 +1,15 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ArrowUpRight, Info, Wallet } from 'lucide-react'
+import {
+  ArrowUpRight,
+  CircleArrowLeft,
+  CircleArrowRight,
+  Info,
+  Loader2,
+  Wallet,
+} from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
+import { useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
@@ -14,7 +22,10 @@ import {
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
 import { useAvatarFromName } from '../../service/profileAvatar'
-import { profileOwnedNamesQuery } from '../../service/profileOwnedNames'
+import {
+  PROFILE_NAMES_PAGE_SIZE,
+  profileOwnedNamesQuery,
+} from '../../service/profileOwnedNames'
 
 const shortenAddress = (value: string) =>
   `${value.slice(0, 6)}...${value.slice(-4)}`
@@ -60,11 +71,25 @@ export const AddressProfileView = ({
   primaryName?: string
 }) => {
   const shouldReduceMotion = useReducedMotion()
-  const { data, isPending, isError } = useQuery({
-    ...profileOwnedNamesQuery(address),
+  const [page, setPage] = useState(1)
+
+  const { data, isPending, isError, isPlaceholderData } = useQuery({
+    ...profileOwnedNamesQuery(address, {
+      skip: (page - 1) * PROFILE_NAMES_PAGE_SIZE,
+    }),
+    placeholderData: keepPreviousData,
   })
 
   const names = data?.domains ?? []
+  const hasNextPage = names.length === PROFILE_NAMES_PAGE_SIZE
+
+  const handlePrev = () => {
+    if (!isPending && page > 1) setPage((p) => p - 1)
+  }
+
+  const handleNext = () => {
+    if (!isPending && hasNextPage) setPage((p) => p + 1)
+  }
 
   const staggerProps = (index: number) =>
     shouldReduceMotion
@@ -199,18 +224,46 @@ export const AddressProfileView = ({
             <span className="font-serif text-[20px] text-foreground leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]">
               Registered ENS names
             </span>
-            {names.length > 0 && !isPending ? (
-              <span className="flex items-center justify-center rounded-[14px] bg-[#ffecf5] px-[6.56px] py-[1.64px] font-sans text-[#f53293] text-sm leading-[1.05] tracking-[0.28px]">
-                {names.length}
-              </span>
-            ) : null}
           </div>
           <span className="text-muted-foreground text-sm">
             {shortenAddress(address)}
           </span>
         </div>
 
-        {namesContent}
+        <div
+          className={isPlaceholderData ? 'opacity-50 transition-opacity' : ''}
+        >
+          {namesContent}
+        </div>
+
+        {!isPending && !isError && names.length > 0 && (
+          <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center justify-center gap-[12px]">
+              <button
+                className="flex size-[32px] items-center justify-center text-ens-gray-three disabled:text-border"
+                disabled={isPending || page === 1}
+                onClick={handlePrev}
+                type="button"
+              >
+                <CircleArrowLeft className="size-[32px]" strokeWidth={1} />
+              </button>
+              <button
+                className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
+                disabled={isPending || !hasNextPage}
+                onClick={handleNext}
+                type="button"
+              >
+                <CircleArrowRight className="size-[32px]" strokeWidth={1} />
+              </button>
+            </div>
+            <span className="flex items-center justify-center gap-1.5 font-sans text-[16px] text-muted-foreground leading-[1.2] tracking-[0.14px]">
+              {isPlaceholderData && (
+                <Loader2 className="size-[12px] animate-spin" />
+              )}
+              Showing registered names
+            </span>
+          </div>
+        )}
       </Card>
     </div>
   )

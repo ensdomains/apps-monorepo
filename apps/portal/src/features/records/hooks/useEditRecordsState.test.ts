@@ -21,11 +21,12 @@ describe('editRecordsReducer', () => {
       const result = editRecordsReducer(initialEditRecordsState, action)
 
       expect(result.newRecords).toHaveLength(1)
-      expect(result.newRecords[0]).toEqual({
+      expect(result.newRecords[0]).toMatchObject({
         type: 'text',
         key: 'name',
         value: 'John',
       })
+      expect(result.newRecords[0]._uid).toBeDefined()
     })
 
     it('adds an address record with default coin type', () => {
@@ -38,12 +39,13 @@ describe('editRecordsReducer', () => {
 
       const result = editRecordsReducer(initialEditRecordsState, action)
 
-      expect(result.newRecords[0]).toEqual({
+      expect(result.newRecords[0]).toMatchObject({
         type: 'address',
         key: 'ETH',
         value: '0x123',
         id: 60,
       })
+      expect(result.newRecords[0]._uid).toBeDefined()
     })
 
     it('adds a contentHash record', () => {
@@ -56,10 +58,11 @@ describe('editRecordsReducer', () => {
 
       const result = editRecordsReducer(initialEditRecordsState, action)
 
-      expect(result.newRecords[0]).toEqual({
+      expect(result.newRecords[0]).toMatchObject({
         type: 'contentHash',
         value: 'ipfs://abc',
       })
+      expect(result.newRecords[0]._uid).toBeDefined()
     })
 
     it('preserves existing newRecords when adding', () => {

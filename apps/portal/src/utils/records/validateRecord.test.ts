@@ -135,7 +135,7 @@ describe('validateRecord', () => {
         value: '0x1234',
         id: 60,
       }
-      expect(validateRecord(record)).toContain('Invalid Ethereum address')
+      expect(validateRecord(record)).toContain('Invalid ETH address')
     })
 
     it('rejects invalid ETH address (missing 0x prefix)', () => {
@@ -145,7 +145,7 @@ describe('validateRecord', () => {
         value: '1234567890123456789012345678901234567890',
         id: 60,
       }
-      expect(validateRecord(record)).toContain('Invalid Ethereum address')
+      expect(validateRecord(record)).toContain('Invalid ETH address')
     })
 
     it('accepts empty value (deletion)', () => {
@@ -157,15 +157,69 @@ describe('validateRecord', () => {
       }
       expect(validateRecord(record)).toBeNull()
     })
+  })
 
-    it('skips validation for non-ETH addresses', () => {
+  describe('address validation (BTC)', () => {
+    it('accepts valid BTC address (bech32)', () => {
       const record: EditableRecord = {
         type: 'address',
         key: 'BTC',
         value: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
-        id: 0, // BTC coinType
+        id: 0,
       }
       expect(validateRecord(record)).toBeNull()
+    })
+
+    it('accepts valid BTC address (legacy P2PKH)', () => {
+      const record: EditableRecord = {
+        type: 'address',
+        key: 'BTC',
+        value: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
+        id: 0,
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('rejects invalid BTC address', () => {
+      const record: EditableRecord = {
+        type: 'address',
+        key: 'BTC',
+        value: 'invalid-btc-address',
+        id: 0,
+      }
+      expect(validateRecord(record)).toContain('Invalid BTC address')
+    })
+
+    it('rejects ETH address as BTC', () => {
+      const record: EditableRecord = {
+        type: 'address',
+        key: 'BTC',
+        value: '0x1234567890123456789012345678901234567890',
+        id: 0,
+      }
+      expect(validateRecord(record)).toContain('Invalid BTC address')
+    })
+  })
+
+  describe('address validation (SOL)', () => {
+    it('accepts valid SOL address', () => {
+      const record: EditableRecord = {
+        type: 'address',
+        key: 'SOL',
+        value: 'DRpbCBMxVnDK7maPGv7USk4TYk2MnhGz6M6sqWGvsaBN',
+        id: 501,
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('rejects invalid SOL address', () => {
+      const record: EditableRecord = {
+        type: 'address',
+        key: 'SOL',
+        value: 'not-a-valid-solana-address',
+        id: 501,
+      }
+      expect(validateRecord(record)).toContain('Invalid SOL address')
     })
   })
 
@@ -191,6 +245,124 @@ describe('validateRecord', () => {
       expect(validateRecord(record)).toBeNull()
     })
   })
+
+  describe('contentHash validation', () => {
+    it('accepts valid ipfs:// contentHash', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: 'ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('accepts valid ipns:// contentHash', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value:
+          'ipns://k51qzi5uqu5dlvj2baxnqndepeb86cbk3ng7n3i46uzyxzyqj2xjonzllnv0v8',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('accepts valid ar:// contentHash', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: 'ar://AJTUmYd9bpE5n1RFVKjqXqJnlQsXnCzq1bYs9p3nG-8',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('accepts valid onion:// contentHash', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value:
+          'onion://zqktlwiuavvvqqt4ygvvdqefrmhhl3zvngymcmupejn26kspgibb2dad',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('accepts valid sia:// contentHash', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: 'sia://AAABWPJDX9GGQD1M_H0YRPCY3XEXPHBXRP5PWCXR5RD6MTAFGQ',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('rejects contentHash with unsupported protocol', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: 'ftp://example.com/file.txt',
+      }
+      expect(validateRecord(record)).toContain('Invalid contentHash')
+    })
+
+    it('rejects contentHash without protocol', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: 'QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG',
+      }
+      expect(validateRecord(record)).toContain('Invalid contentHash')
+    })
+
+    it('rejects contentHash with only protocol (no identifier)', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: 'ipfs://',
+      }
+      expect(validateRecord(record)).toContain('Invalid contentHash')
+    })
+
+    it('accepts empty value (deletion)', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: '',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+  })
+
+  describe('ABI validation', () => {
+    it('accepts valid JSON object', () => {
+      const record: EditableRecord = {
+        type: 'abi',
+        value: '{"name":"test","type":"function","inputs":[]}',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('accepts valid JSON array', () => {
+      const record: EditableRecord = {
+        type: 'abi',
+        value: '[{"name":"test","type":"function","inputs":[]}]',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('rejects invalid JSON', () => {
+      const record: EditableRecord = {
+        type: 'abi',
+        value: '{ "test": "value"',
+      }
+      expect(validateRecord(record)).toContain('Invalid JSON')
+    })
+
+    it('rejects non-JSON string', () => {
+      const record: EditableRecord = {
+        type: 'abi',
+        value: 'not json at all',
+      }
+      expect(validateRecord(record)).toContain('Invalid JSON')
+    })
+
+    it('accepts empty value (deletion)', () => {
+      const record: EditableRecord = {
+        type: 'abi',
+        value: '',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+  })
 })
 
 describe('validateRecords', () => {
@@ -207,7 +379,7 @@ describe('validateRecords', () => {
     expect(validateRecords(records)).toEqual([])
   })
 
-  it('returns errors for invalid records', () => {
+  it('returns errors for invalid records (without _uid)', () => {
     const records: EditableRecord[] = [
       { type: 'text', key: 'avatar', value: 'invalid-url', isEdited: true },
       { type: 'text', key: 'email', value: 'invalid-email', isNew: true },
@@ -216,6 +388,69 @@ describe('validateRecords', () => {
     expect(errors).toHaveLength(2)
     expect(errors[0].recordId).toBe('text-avatar')
     expect(errors[1].recordId).toBe('text-email')
+  })
+
+  it('returns errors for invalid records (with _uid)', () => {
+    const records: EditableRecord[] = [
+      {
+        type: 'text',
+        key: 'avatar',
+        value: 'invalid-url',
+        isNew: true,
+        _uid: 'abc123',
+      },
+      {
+        type: 'text',
+        key: 'email',
+        value: 'invalid-email',
+        isNew: true,
+        _uid: 'def456',
+      },
+    ]
+    const errors = validateRecords(records)
+    expect(errors).toHaveLength(2)
+    expect(errors[0].recordId).toBe('text-avatar-abc123')
+    expect(errors[1].recordId).toBe('text-email-def456')
+  })
+
+  it('generates unique recordIds for multiple records with same key but different _uid', () => {
+    const records: EditableRecord[] = [
+      {
+        type: 'address',
+        key: 'ETH',
+        value: 'invalid',
+        id: 60,
+        isNew: true,
+        _uid: 'uid1',
+      },
+      {
+        type: 'address',
+        key: 'ETH',
+        value: 'also-invalid',
+        id: 60,
+        isNew: true,
+        _uid: 'uid2',
+      },
+    ]
+    const errors = validateRecords(records)
+    expect(errors).toHaveLength(2)
+    expect(errors[0].recordId).toBe('address-ETH-uid1')
+    expect(errors[1].recordId).toBe('address-ETH-uid2')
+  })
+
+  it('uses _uid for contentHash and abi records to ensure uniqueness', () => {
+    const records: EditableRecord[] = [
+      { type: 'contentHash', value: 'invalid', isNew: true, _uid: 'ch1' },
+      { type: 'contentHash', value: 'also-invalid', isNew: true, _uid: 'ch2' },
+      { type: 'abi', value: 'not-json', isNew: true, _uid: 'abi1' },
+      { type: 'abi', value: 'also-not-json', isNew: true, _uid: 'abi2' },
+    ]
+    const errors = validateRecords(records)
+    expect(errors).toHaveLength(4)
+    expect(errors[0].recordId).toBe('contentHash-ch1')
+    expect(errors[1].recordId).toBe('contentHash-ch2')
+    expect(errors[2].recordId).toBe('abi-abi1')
+    expect(errors[3].recordId).toBe('abi-abi2')
   })
 
   it('only validates edited or new records', () => {

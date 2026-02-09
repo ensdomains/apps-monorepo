@@ -81,27 +81,25 @@ export const PrimaryNameCard = ({
               ))}
           </motion.div>
           <div className="flex min-h-0 flex-col justify-between md:h-50">
-            <div className="flex flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-3">
-              <div className="inline-flex items-center rounded-sm bg-ens-blue px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
-                <span
-                  className={
-                    displayName.length > 10
-                      ? 'font-medium font-mono text-[24px] text-ens-white leading-[0.96] tracking-[-0.48px]'
-                      : 'font-medium font-mono text-[20px] text-ens-white leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]'
-                  }
-                >
-                  {displayName}
-                </span>
-              </div>
-              <ChoosePrimaryNameDialog>
-                <button
-                  className="mb-4 cursor-pointer transition-opacity hover:opacity-80"
-                  type="button"
-                >
-                  <PrimaryBadge />
-                </button>
-              </ChoosePrimaryNameDialog>
-            </div>
+            <ChoosePrimaryNameDialog>
+              <button
+                className="mb-4 flex cursor-pointer flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-3"
+                type="button"
+              >
+                <div className="inline-flex items-center rounded-sm bg-ens-blue px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
+                  <span
+                    className={
+                      displayName.length > 10
+                        ? 'font-medium font-mono text-[24px] text-ens-white leading-[0.96] tracking-[-0.48px]'
+                        : 'font-medium font-mono text-[20px] text-ens-white leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]'
+                    }
+                  >
+                    {displayName}
+                  </span>
+                </div>
+                <PrimaryBadge />
+              </button>
+            </ChoosePrimaryNameDialog>
             <div className="flex flex-col gap-[8.5px]">
               <div className="flex items-center gap-2">
                 <Calendar

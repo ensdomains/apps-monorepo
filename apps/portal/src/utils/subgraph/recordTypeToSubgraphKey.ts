@@ -1,6 +1,6 @@
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
 
-export type RecordKey = 'coins' | 'texts' | 'contentHash'
+export type RecordKey = 'coins' | 'texts' | 'contentHash' | 'abi'
 
 export const recordTypeToSubgraphKey = (
   type: NameRecord['type'],
@@ -12,5 +12,7 @@ export const recordTypeToSubgraphKey = (
       return 'texts'
     case 'contentHash':
       return 'contentHash'
+    case 'abi':
+      return 'abi'
   }
 }

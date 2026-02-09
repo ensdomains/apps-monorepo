@@ -6,5 +6,6 @@ describe('recordTypeToSubgraphKey', () => {
     expect(recordTypeToSubgraphKey('address')).toBe('coins')
     expect(recordTypeToSubgraphKey('text')).toBe('texts')
     expect(recordTypeToSubgraphKey('contentHash')).toBe('contentHash')
+    expect(recordTypeToSubgraphKey('abi')).toBe('abi')
   })
 })
