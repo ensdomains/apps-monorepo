@@ -22,7 +22,7 @@ export const ChangeResolverForm = ({
   const [resolverAddress, setResolverAddress] = useState('')
 
   const {
-    changeResolver,
+    changeResolverAsync,
     txHash,
     isWriting,
     isConfirming,
@@ -39,7 +39,7 @@ export const ChangeResolverForm = ({
       return
     }
     try {
-      await changeResolver(resolverAddress as Address)
+      await changeResolverAsync(resolverAddress as Address)
     } catch (err) {
       console.error('Failed to change resolver:', err)
     }
@@ -100,7 +100,7 @@ export const ChangeResolverForm = ({
         isConfirmed={isConfirmed}
         isReverted={isReverted}
         txError={error}
-        receiptError={undefined}
+        receiptError={null}
       />
     </div>
   )

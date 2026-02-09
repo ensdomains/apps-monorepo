@@ -11,6 +11,8 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
+import { permissionedRegistrySetResolverSnippet } from '@ensdomains/ensjs/contracts'
+import { getRegistryNameData } from '@ensdomains/ensjs/public/v2'
 import {
   type Address,
   encodeFunctionData,
@@ -18,45 +20,6 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
-import { readContract } from 'viem/actions'
-
-// ============================================================================
-// ABI for V2 Registry
-// ============================================================================
-
-const REGISTRY_ABI = [
-  {
-    inputs: [{ internalType: 'string', name: 'label', type: 'string' }],
-    name: 'getNameData',
-    outputs: [
-      { internalType: 'uint256', name: 'tokenId', type: 'uint256' },
-      {
-        components: [
-          { internalType: 'uint64', name: 'expiry', type: 'uint64' },
-          { internalType: 'uint32', name: 'tokenVersionId', type: 'uint32' },
-          { internalType: 'address', name: 'subregistry', type: 'address' },
-          { internalType: 'uint32', name: 'eacVersionId', type: 'uint32' },
-          { internalType: 'address', name: 'resolver', type: 'address' },
-        ],
-        internalType: 'struct IRegistryDatastore.Entry',
-        name: 'entry',
-        type: 'tuple',
-      },
-    ],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { internalType: 'uint256', name: 'tokenId', type: 'uint256' },
-      { internalType: 'address', name: 'resolver', type: 'address' },
-    ],
-    name: 'setResolver',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const
 
 // ============================================================================
 // Types
@@ -102,9 +65,9 @@ export interface ChangeResolverResult {
  * })
  * ```
  */
-export async function changeResolver(
+export const changeResolver = async (
   params: ChangeResolverParameters,
-): Promise<ChangeResolverResult> {
+): Promise<ChangeResolverResult> => {
   const {
     name,
     registryAddress,
@@ -123,12 +86,10 @@ export async function changeResolver(
   // Extract the label (first part of the name)
   const label = name.split('.')[0]
 
-  // Get tokenId from the registry using getNameData
-  const [tokenId] = await readContract(publicClient, {
-    address: registryAddress,
-    abi: REGISTRY_ABI,
-    functionName: 'getNameData',
-    args: [label],
+  // Get tokenId from the registry using ensjs
+  const [tokenId] = await getRegistryNameData(publicClient, {
+    registryAddress,
+    label,
   })
 
   if (tokenId === 0n) {
@@ -137,7 +98,7 @@ export async function changeResolver(
 
   // Encode the setResolver call
   const data = encodeFunctionData({
-    abi: REGISTRY_ABI,
+    abi: [permissionedRegistrySetResolverSnippet],
     functionName: 'setResolver',
     args: [tokenId, resolverAddress],
   })

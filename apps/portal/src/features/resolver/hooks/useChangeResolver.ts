@@ -28,13 +28,13 @@ interface ChangeResolverResult {
  *
  * @example
  * ```ts
- * const { changeResolver, isWriting, error } = useChangeResolver({
+ * const { changeResolverAsync, isWriting, error } = useChangeResolver({
  *   name: 'myname.eth',
  *   registryAddress,
  * })
  *
- * // Trigger the mutation
- * changeResolver(newResolverAddress)
+ * // When you need to await (e.g. in form submit), use changeResolverAsync
+ * await changeResolverAsync(newResolverAddress)
  * ```
  */
 export const useChangeResolver = ({
