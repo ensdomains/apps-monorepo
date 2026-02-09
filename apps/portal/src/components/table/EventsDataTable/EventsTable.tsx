@@ -35,7 +35,7 @@ export const EventsTable = <TEvent extends BaseEvent = BaseEvent>({
 
       {/* Desktop view - Table layout */}
       <div className="hidden md:block">
-        <Table className="relative table-fixed">
+        <Table className="relative">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
