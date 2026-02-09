@@ -35,13 +35,16 @@ export const EventsTable = <TEvent extends BaseEvent = BaseEvent>({
 
       {/* Desktop view - Table layout */}
       <div className="hidden md:block">
-        <Table className="relative">
+        <Table className="relative table-fixed">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id}>
+                    <TableHead
+                      key={header.id}
+                      style={{ width: header.getSize() }}
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(
