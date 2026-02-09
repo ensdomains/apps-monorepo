@@ -1,9 +1,10 @@
 /**
  * Pure async function to change the resolver for an ENS V2 name.
  *
- * Follows the pattern from transaction-manager's resolver.actors.ts:
- * 1. Get tokenId from getNameData(label)
- * 2. Call setResolver(tokenId, newResolver) on the registry
+ * Follows the same pattern as saveRecords and useSubregistryDeployment:
+ * 1. Get tokenId from registry (getRegistryNameData)
+ * 2. Encode setResolver call with ensjs ABI snippet
+ * 3. Submit via transaction manager
  */
 
 import {
@@ -78,15 +79,12 @@ export const changeResolver = async (
     chainId,
   } = params
 
-  // Validate wallet client has account and chain
   if (!walletClient.account || !walletClient.chain) {
     throw new Error('Wallet client must have account and chain configured')
   }
 
-  // Extract the label (first part of the name)
   const label = name.split('.')[0]
 
-  // Get tokenId from the registry using ensjs
   const [tokenId] = await getRegistryNameData(publicClient, {
     registryAddress,
     label,
@@ -96,14 +94,12 @@ export const changeResolver = async (
     throw new Error(`Name "${name}" not found in registry`)
   }
 
-  // Encode the setResolver call
   const data = encodeFunctionData({
-    abi: [permissionedRegistrySetResolverSnippet],
+    abi: permissionedRegistrySetResolverSnippet,
     functionName: 'setResolver',
     args: [tokenId, resolverAddress],
   })
 
-  // Start the transaction through the transaction manager
   const txId = transactionManager.startTransaction(
     {
       type: 'custom',
@@ -124,7 +120,6 @@ export const changeResolver = async (
     },
   )
 
-  // Wait for the transaction to complete
   const result = await waitForTransaction(txId)
 
   return {

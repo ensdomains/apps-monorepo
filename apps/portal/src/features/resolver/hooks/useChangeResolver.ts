@@ -1,7 +1,8 @@
 /**
  * React hook wrapper for changeResolver.
  *
- * Provides a mutation with loading/error states for the UI.
+ * Same pattern as useSaveRecords: useMutation with mutationFn that adds
+ * walletClient, publicClient, signer, chainId and calls the pure helper.
  */
 
 import { useMutation } from '@tanstack/react-query'
@@ -81,5 +82,6 @@ export const useChangeResolver = ({
     isReverted: false, // Transaction manager throws on revert
     error: mutation.error,
     reset: mutation.reset,
+    hasWallet: !!walletClient,
   }
 }
