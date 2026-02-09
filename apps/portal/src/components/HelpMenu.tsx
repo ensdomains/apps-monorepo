@@ -26,7 +26,7 @@ export const HelpMenu = () => {
       </ExternalLink>
       <ExternalLink
         className={MENU_ITEM_CLASS}
-        href="https://support.ens.domains/en/"
+        href="https://support.ens.domains/"
       >
         Support
       </ExternalLink>
