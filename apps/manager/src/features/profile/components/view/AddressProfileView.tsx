@@ -147,7 +147,7 @@ export const AddressProfileView = ({
               {...staggerProps(index)}
             >
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex min-w-0 items-center gap-2 md:max-w-[calc(100%-180px)] md:gap-[12px]">
+                <div className="flex min-w-0 items-center gap-2 md:max-w-full-[180px] md:gap-[12px]">
                   <NameAvatar name={label} />
                   <div className="flex min-w-0 items-center rounded-[2.8px] bg-[#e5f7ff] px-2 py-1 md:px-[8px] md:py-[4px]">
                     <Link
