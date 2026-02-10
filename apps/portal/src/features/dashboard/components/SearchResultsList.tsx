@@ -96,7 +96,9 @@ export const SearchResultsList = ({
           : 'hover:bg-accent hover:text-accent-foreground'),
     )
 
-  let globalIndex = 0
+  const suggestionsStartIdx = 0
+  const availableStartIdx = suggestions.length
+  const ownedStartIdx = suggestions.length + availableNames.length
 
   return (
     <>
@@ -139,8 +141,8 @@ export const SearchResultsList = ({
         ) : (
           <fieldset className="border-0 p-0 m-0 min-w-0">
             <SectionLegend>Suggestions</SectionLegend>
-            {suggestions.map((suggestion) => {
-              const idx = globalIndex++
+            {suggestions.map((suggestion, i) => {
+              const idx = suggestionsStartIdx + i
               const isName = suggestion.id.startsWith('name:')
               const ownerData = isName
                 ? ownerBySuggestionId.get(suggestion.id)
@@ -206,8 +208,8 @@ export const SearchResultsList = ({
         ) : (
           <fieldset className="border-0 p-0 m-0 min-w-0">
             <SectionLegend>Available to register</SectionLegend>
-            {availableNames.map((s) => {
-              const idx = globalIndex++
+            {availableNames.map((s, i) => {
+              const idx = availableStartIdx + i
               return (
                 <button
                   key={`available:${s.inputValue}`}
@@ -263,8 +265,8 @@ export const SearchResultsList = ({
         ) : (
           <fieldset className="border-0 p-0 m-0 min-w-0">
             <SectionLegend>Names you own</SectionLegend>
-            {ownedNamesFiltered.map((d) => {
-              const idx = globalIndex++
+            {ownedNamesFiltered.map((d, i) => {
+              const idx = ownedStartIdx + i
               return (
                 <button
                   key={`owned:${d.name}`}

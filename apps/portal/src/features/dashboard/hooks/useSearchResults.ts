@@ -55,13 +55,17 @@ export const useSearchResults = ({
   const { address: connectedAddress } = useConnection()
   const { validTlds, isLoading: isTldsLoading } = useSuggestionTlds()
 
-  const suggestions = buildSearchSuggestions({
-    value: searchValue,
-    isMobile,
-    navigateToAddress,
-    navigateToName,
-    validTlds,
-  })
+  const suggestions = useMemo(
+    () =>
+      buildSearchSuggestions({
+        value: searchValue,
+        isMobile,
+        navigateToAddress,
+        navigateToName,
+        validTlds,
+      }),
+    [searchValue, isMobile, navigateToAddress, navigateToName, validTlds],
+  )
 
   const nameSuggestions = useMemo(
     () => suggestions.filter((s) => s.id.startsWith('name:')),
