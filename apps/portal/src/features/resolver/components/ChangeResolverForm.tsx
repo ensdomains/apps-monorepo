@@ -73,11 +73,11 @@ export const ChangeResolverForm = ({
           htmlFor="resolver-address"
           info="The address of the resolver contract"
         >
-          Resolver address
+          Contract address
         </Label>
         <Input
           id="resolver-address"
-          placeholder="0x... or ENS name"
+          placeholder="0x..."
           value={resolverAddress}
           onChange={(e) => setResolverAddress(e.target.value)}
         />

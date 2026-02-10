@@ -53,7 +53,7 @@ describe('ChangeResolverForm', () => {
     expect(
       screen.getByRole('heading', { name: 'Change resolver' }),
     ).toBeInTheDocument()
-    expect(screen.getByLabelText(/Resolver address/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Contract address/)).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'Change resolver' }),
     ).toBeInTheDocument()
@@ -79,10 +79,7 @@ describe('ChangeResolverForm', () => {
         registryAddress={registryAddress as `0x${string}`}
       />,
     )
-    await user.type(
-      screen.getByPlaceholderText('0x... or ENS name'),
-      'not-an-address',
-    )
+    await user.type(screen.getByPlaceholderText('0x...'), 'not-an-address')
     expect(
       screen.getByRole('button', { name: 'Change resolver' }),
     ).toBeDisabled()
@@ -99,7 +96,7 @@ describe('ChangeResolverForm', () => {
       />,
     )
     await user.type(
-      screen.getByPlaceholderText('0x... or ENS name'),
+      screen.getByPlaceholderText('0x...'),
       '0xabcdef123456789012345678901234567890abcd',
     )
     await user.click(screen.getByRole('button', { name: 'Change resolver' }))
@@ -118,7 +115,7 @@ describe('ChangeResolverForm', () => {
         registryAddress={registryAddress as `0x${string}`}
       />,
     )
-    await user.type(screen.getByPlaceholderText('0x... or ENS name'), '0xshort')
+    await user.type(screen.getByPlaceholderText('0x...'), '0xshort')
     await user.click(screen.getByRole('button', { name: 'Change resolver' }))
 
     expect(mockChangeResolverAsync).not.toHaveBeenCalled()
