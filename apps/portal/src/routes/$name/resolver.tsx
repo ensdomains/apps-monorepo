@@ -13,6 +13,8 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
 import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
+import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { DedicatedResolverBanner } from '@/features/resolver/components/DedicatedResolverBanner'
 import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
 import { ResolverNetwork } from '@/features/resolver/components/ResolverNetwork'
@@ -33,9 +35,27 @@ interface EditButtonsProps {
 }
 
 const EditButtons = ({ address, name }: EditButtonsProps) => {
-  const { data } = useQuery(getEnsOwnerQueryOptions({ name }))
+  const { data: ownerData } = useQuery(getEnsOwnerQueryOptions({ name }))
+  const registryQuery = useQuery(
+    getNameRegistriesQueryOptions({ name, network: 'namechainSepolia' }),
+  )
+  const currentNameRegistry = registryQuery.data?.registries?.[1]
+  const label = name.split('.')[0]
+  const roleQuery = useQuery({
+    ...getHasRolesQueryOptions({
+      registryAddress: currentNameRegistry ?? zeroAddress,
+      label,
+      roles: ['ROLE_SET_RESOLVER'],
+      account: address,
+    }),
+    enabled: !!address && !!currentNameRegistry,
+  })
 
-  if (data?.owner !== address) return null
+  const isOwner = ownerData?.owner === address
+  const hasSetResolverRole = roleQuery.data === true
+  const canChangeResolver = isOwner || hasSetResolverRole
+
+  if (!canChangeResolver) return null
 
   return (
     <div className="flex flex-row gap-2">
