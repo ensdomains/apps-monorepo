@@ -3,11 +3,9 @@ import { HTTPException } from 'hono/http-exception'
 import { logger, prettifyError } from '#utils/logger.js'
 import { createApp } from './middleware/hono'
 import authApp from './routes/auth'
-import expiryApp from './routes/expiry'
 import favoritesApp from './routes/favorites'
 import notificationsApp from './routes/notifications'
 import walletApp from './routes/wallet'
-import watchersApp from './routes/watchers'
 import webhookApp from './routes/webhook'
 
 const app = createApp()
@@ -16,8 +14,6 @@ const app = createApp()
   .route('/', favoritesApp)
   .route('/', notificationsApp)
   .route('/', webhookApp)
-  .route('/', expiryApp)
-  .route('/', watchersApp)
   .route('/', walletApp)
   .onError((err, c) => {
     if (err instanceof HTTPException) {
