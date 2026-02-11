@@ -1,52 +1,11 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { Calendar, Wallet } from 'lucide-react'
+import { Calendar, Clock } from 'lucide-react'
 import type { Address } from 'viem'
-import { CopyToClipboard } from '@/components/atoms/CopyToClipboard'
 import { Highlight } from '@/components/atoms/Highlight'
+import { PrimaryBadge } from '@/features/dashboard/components/PrimaryBadge'
 import { profileExpiryQuery } from '../../service/profileExpiry'
+import { profileRegistrationQuery } from '../../service/profileRegistration'
 import { profileReverseNameQuery } from '../../service/profileReverseName'
-
-interface OwnerLinkProps {
-  address?: Address
-  profileName: string
-}
-
-const OwnerLink = ({ address, profileName }: OwnerLinkProps) => {
-  const ownerName = useQuery({
-    ...profileReverseNameQuery(address as Address),
-  })
-
-  if (!address) {
-    return <span className="font-medium">{profileName}</span>
-  }
-
-  if (!ownerName.data) {
-    return (
-      <Link
-        className="font-medium underline underline-offset-2"
-        params={{ name: address }}
-        to="/p/$name"
-      >
-        {address}
-      </Link>
-    )
-  }
-
-  if (ownerName.data === profileName) {
-    return <span className="font-medium">{ownerName.data}</span>
-  }
-
-  return (
-    <Link
-      className="font-medium underline underline-offset-2"
-      params={{ name: ownerName.data }}
-      to="/p/$name"
-    >
-      {ownerName.data}
-    </Link>
-  )
-}
 
 const formatDate = (date: Date) => {
   return date.toLocaleDateString('en-US', {
@@ -66,37 +25,38 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
     ...profileExpiryQuery(name),
   })
 
+  const registration = useQuery({
+    ...profileRegistrationQuery(name),
+  })
+
+  const ownerReverseName = useQuery({
+    ...profileReverseNameQuery(owner),
+  })
+
+  const isPrimaryName = ownerReverseName.data === name
+
   return (
-    <div className="flex w-full flex-col items-start gap-3 bg-white px-4 pt-16 pb-4 text-center md:px-6 md:pt-16 md:pb-6 md:text-left">
+    <div className="flex w-full flex-col items-start gap-3 bg-white px-4 pt-16 pb-4 md:px-6 md:pt-16 md:pb-6">
       <Highlight className="text-lg md:text-2xl">{name}</Highlight>
-      <div className="flex items-center gap-x-1 whitespace-pre-wrap">
-        <Wallet className="size-5" />
-        Owned by <OwnerLink address={owner} profileName={name} />
-      </div>
+      {isPrimaryName && <PrimaryBadge />}
+      {registration.data?.registrationDate && (
+        <div className="mt-3 flex items-center gap-x-1 whitespace-pre-wrap text-sm">
+          <Calendar className="size-4" />
+          Registered{' '}
+          <span className="font-medium">
+            {formatDate(new Date(registration.data.registrationDate * 1000))}
+          </span>
+        </div>
+      )}
       {expiry.data?.expiry && (
-        <div className="flex items-center gap-x-1 whitespace-pre-wrap">
-          <Calendar className="size-5" />
+        <div className="flex items-center gap-x-1 whitespace-pre-wrap text-sm">
+          <Clock className="size-4" />
           Expires{' '}
           <span className="font-medium">
             {formatDate(new Date(Number(expiry.data?.expiry) * 1000))}
           </span>
         </div>
       )}
-      <div className="flex items-center gap-x-2">
-        <Link
-          className="underline underline-offset-2"
-          params={{ name }}
-          rel="noopener noreferrer"
-          target="_blank"
-          to="/p/$name"
-        >
-          app.ens.domains/p/{name}
-        </Link>
-        <CopyToClipboard
-          className="size-4"
-          value={`https://app.ens.domains/p/${name}`}
-        />
-      </div>
     </div>
   )
 }
