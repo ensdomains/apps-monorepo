@@ -5,11 +5,15 @@ import { chunk } from '#utils/chunk.js'
 import { logger, prettifyError } from '#utils/logger.js'
 import {
   loadNotificationCursors,
-  storeNotificationCursors,
   type NotificationCursors,
+  storeNotificationCursors,
 } from './cursors.js'
 import { fetchExpiringNamesPage } from './indexer.js'
-import { getUpperBoundForStage, STAGES, type ExpiryStageConfig } from './stages.js'
+import {
+  type ExpiryStageConfig,
+  getUpperBoundForStage,
+  STAGES,
+} from './stages.js'
 
 const QUEUE_BATCH_SIZE = 100
 
@@ -17,7 +21,10 @@ class QueuePublishError extends TaggedError('QUEUE_PUBLISH_ERROR')<{
   stageId: string
 }> {}
 
-function buildExpiryEvents(stage: ExpiryStageConfig, domains: { name: string; expiryDate: number; owner?: string }[]): ExpiryEvent[] {
+function buildExpiryEvents(
+  stage: ExpiryStageConfig,
+  domains: { name: string; expiryDate: number; owner?: string }[],
+): ExpiryEvent[] {
   return domains.map((domain) => ({
     type: 'name_expiring',
     name: domain.name,
@@ -36,6 +43,7 @@ const processStage = ResultFn(async function* (ctx: {
 }) {
   const upperBound = getUpperBoundForStage(ctx.stage, ctx.nowSec)
 
+  // Cursor already caught up with the stage window.
   if (ctx.cursor >= upperBound) {
     return ok({
       stageId: ctx.stage.id,
@@ -64,6 +72,7 @@ const processStage = ResultFn(async function* (ctx: {
   const events = buildExpiryEvents(ctx.stage, page.domains)
 
   for (const eventChunk of chunk(events, QUEUE_BATCH_SIZE)) {
+    // One sendBatch call counts as one subrequest regardless of chunk size.
     yield* fromPromise(
       ctx.env.EVENT_INGESTION_QUEUE.sendBatch(
         eventChunk.map((event) => ({ body: event })),
@@ -124,6 +133,7 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
       continue
     }
 
+    // Per-stage commit policy: successful stages move forward even if others fail.
     nextCursors[stage.id] = {
       expiry_timestamp: result.value.nextCursor,
     }

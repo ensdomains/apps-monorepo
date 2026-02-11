@@ -6,7 +6,7 @@ import * as v from 'valibot'
 import { channelSupportsNotification } from '#config/notifications.js'
 import { getDatabase, intoDbResult, TABLE } from '#core/database/index.js'
 import type { BaseDeliveryJob } from '#types/delivery.js'
-import { expiryEventSchema, type ExpiryEvent } from '#types/events/index.js'
+import { type ExpiryEvent, expiryEventSchema } from '#types/events/index.js'
 import { chunk } from '#utils/chunk.js'
 import { logger, prettifyError } from '#utils/logger.js'
 
@@ -24,10 +24,17 @@ class EventIngestionProcessingError extends TaggedError(
 
 type WatchReason = 'owned' | 'favourited' | 'manual'
 
-function shouldCreateExternalDeliveries(watchReason: WatchReason, settings: {
+type NotificationSettings = {
   owned_name_expiry: boolean
   favourited_name_expiry: boolean
-}): boolean {
+}
+
+type RecipientMap = Map<string, WatchReason>
+
+function shouldCreateExternalDeliveries(
+  watchReason: WatchReason,
+  settings: NotificationSettings,
+): boolean {
   switch (watchReason) {
     case 'owned':
       return settings.owned_name_expiry
@@ -36,6 +43,43 @@ function shouldCreateExternalDeliveries(watchReason: WatchReason, settings: {
     case 'manual':
       return settings.owned_name_expiry || settings.favourited_name_expiry
   }
+}
+
+function buildIdempotencyKey(event: ExpiryEvent, userId: string): string {
+  return `name-expiry:${userId}:${event.name}:${event.stage}:${event.expiryDate}`
+}
+
+function collectRecipientsForEvent(
+  event: ExpiryEvent,
+  ownerToUserId: Map<string, string>,
+  favoriteUsersByName: Map<string, Set<string>>,
+): RecipientMap {
+  const recipients: RecipientMap = new Map()
+
+  if (event.owner) {
+    const ownerUserId = ownerToUserId.get(event.owner.toLowerCase())
+    if (ownerUserId) {
+      recipients.set(ownerUserId, 'owned')
+    }
+  }
+
+  if (!event.includeFavorites) {
+    return recipients
+  }
+
+  const favoriteUserIds = favoriteUsersByName.get(event.name)
+  if (!favoriteUserIds) {
+    return recipients
+  }
+
+  for (const favoriteUserId of favoriteUserIds) {
+    // Owner notifications have higher priority than favourites when a user is both.
+    if (!recipients.has(favoriteUserId)) {
+      recipients.set(favoriteUserId, 'favourited')
+    }
+  }
+
+  return recipients
 }
 
 const processExpiryEvents = ResultFn(async function* (ctx: {
@@ -48,6 +92,7 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
 
   const db = getDatabase(ctx.env)
 
+  // Resolve recipients in two set-based lookups to avoid per-event DB round trips.
   const ownerAddresses = Array.from(
     new Set(
       ctx.events
@@ -107,29 +152,16 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
   const existingIdempotencyKeys = new Set<string>()
 
   for (const event of ctx.events) {
-    const recipients = new Map<string, WatchReason>()
-
-    if (event.owner) {
-      const ownerUserId = ownerToUserId.get(event.owner.toLowerCase())
-      if (ownerUserId) {
-        recipients.set(ownerUserId, 'owned')
-      }
-    }
-
-    if (event.includeFavorites) {
-      const favoriteUserIds = favoriteUsersByName.get(event.name)
-      if (favoriteUserIds) {
-        for (const favoriteUserId of favoriteUserIds) {
-          if (!recipients.has(favoriteUserId)) {
-            recipients.set(favoriteUserId, 'favourited')
-          }
-        }
-      }
-    }
+    const recipients = collectRecipientsForEvent(
+      event,
+      ownerToUserId,
+      favoriteUsersByName,
+    )
 
     for (const [userId, watchReason] of recipients.entries()) {
-      const idempotencyKey = `name-expiry:${userId}:${event.name}:${event.stage}:${event.expiryDate}`
+      const idempotencyKey = buildIdempotencyKey(event, userId)
 
+      // Dedupe inside the same queue batch before relying on DB conflict handling.
       if (existingIdempotencyKeys.has(idempotencyKey)) {
         continue
       }
@@ -239,11 +271,14 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
       }
 
       if (!channel.target) {
-        logger.warn('Skipping delivery because verified channel has no target', {
-          channel: channel.channel,
-          userId: notification.user_id,
-          notificationId: notification.id,
-        })
+        logger.warn(
+          'Skipping delivery because verified channel has no target',
+          {
+            channel: channel.channel,
+            userId: notification.user_id,
+            notificationId: notification.id,
+          },
+        )
         continue
       }
 
@@ -290,6 +325,7 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
     const jobChunks = chunk(jobs, QUEUE_BATCH_SIZE)
 
     for (const jobChunk of jobChunks) {
+      // Keep below Cloudflare sendBatch limit (100) with a small headroom.
       yield* fromPromise(
         queue.sendBatch(jobChunk.map((job) => ({ body: job }))),
         (error: unknown) =>
@@ -332,6 +368,7 @@ export const handleEventIngestionQueue = async (
       continue
     }
 
+    // Invalid schema is treated as a permanent poison message: ack and log.
     const parsed = v.safeParse(expiryEventSchema, body)
     if (!parsed.success) {
       logger.warn('Invalid expiry event payload', {
