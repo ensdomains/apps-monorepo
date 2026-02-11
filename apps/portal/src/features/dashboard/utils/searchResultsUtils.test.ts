@@ -8,12 +8,10 @@ function suggestion(
   overrides: Partial<Suggestion> & { id: string; inputValue: string },
 ): Suggestion {
   return {
-    id: overrides.id,
-    label: overrides.label ?? overrides.inputValue,
-    description: '',
-    inputValue: overrides.inputValue,
-    action: noop,
     ...overrides,
+    label: overrides.label ?? overrides.inputValue,
+    description: overrides.description ?? '',
+    action: overrides.action ?? noop,
   }
 }
 
