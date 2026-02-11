@@ -18,14 +18,8 @@ import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button, buttonVariants } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
+import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
 import { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
@@ -33,6 +27,7 @@ import {
   type ImageType,
   uploadImageMutationOptions,
 } from '@/features/profile/service/profileImageUpload'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
 import { inspect } from '@/utils/xstate'
 
@@ -50,6 +45,34 @@ const ErrorDisplay = ({ error }: ErrorDisplayProps) => {
     </Alert>
   )
 }
+
+interface StepHeaderProps {
+  title: string
+  description?: React.ReactNode
+  onBack?: () => void
+}
+
+const StepHeader = ({ title, description, onBack }: StepHeaderProps) => (
+  <>
+    <div className="flex items-center gap-2">
+      {onBack && (
+        <Button onClick={onBack} size="sm" variant="ghost">
+          <ArrowLeft className="size-4" />
+        </Button>
+      )}
+      <h3 className="font-semibold text-lg">{title}</h3>
+    </div>
+    {description && <p className="text-gray-600 text-sm">{description}</p>}
+  </>
+)
+
+interface StepFooterProps {
+  children: React.ReactNode
+}
+
+const StepFooter = ({ children }: StepFooterProps) => (
+  <div className="flex justify-end gap-2">{children}</div>
+)
 
 interface ImageSelectionDialogProps {
   currentImage?: string
@@ -77,6 +100,7 @@ export const ImageSelectionDialog = ({
   const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dropZoneRef = useRef<HTMLButtonElement>(null)
+  const isDesktop = useMediaQuery('(min-width: 768px)')
 
   const hasImage = currentImage && currentImage.trim() !== ''
 
@@ -185,23 +209,11 @@ export const ImageSelectionDialog = ({
   // Main step - shows all options
   const renderMainStep = () => (
     <>
-      <DialogHeader>
-        <DialogTitle>{title}</DialogTitle>
-        {description && <p className="text-gray-600 text-sm">{description}</p>}
-      </DialogHeader>
+      <StepHeader description={description} title={title} />
 
       <ErrorDisplay error={state.context.error} />
 
       <div className="space-y-4">
-        {/* <Button
-          onClick={() => send({ type: 'OPEN_NFT_SELECTION' })}
-          variant="outline"
-          className="w-full justify-start"
-        >
-          <Image className="size-4" />
-          Choose an NFT
-        </Button> */}
-
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Upload className="size-4" />
@@ -251,24 +263,11 @@ export const ImageSelectionDialog = ({
   // Remove confirmation step
   const renderRemoveConfirmationStep = () => (
     <>
-      <DialogHeader>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => send({ type: 'BACK' })}
-            size="sm"
-            variant="ghost"
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
-          <DialogTitle>
-            Remove {type === 'avatar' ? 'Avatar' : 'Header'}
-          </DialogTitle>
-        </div>
-        <p className="text-gray-600 text-sm">
-          Are you sure you want to remove your current {type}? This will revert
-          to the default image.
-        </p>
-      </DialogHeader>
+      <StepHeader
+        description={`Are you sure you want to remove your current ${type}? This will revert to the default image.`}
+        onBack={() => send({ type: 'BACK' })}
+        title={`Remove ${type === 'avatar' ? 'Avatar' : 'Header'}`}
+      />
 
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
@@ -303,7 +302,7 @@ export const ImageSelectionDialog = ({
         </div>
       </div>
 
-      <DialogFooter>
+      <StepFooter>
         <Button onClick={() => send({ type: 'CANCEL' })} variant="outline">
           Cancel
         </Button>
@@ -313,25 +312,14 @@ export const ImageSelectionDialog = ({
         >
           Remove
         </Button>
-      </DialogFooter>
+      </StepFooter>
     </>
   )
 
   // NFT selection step
   const renderNFTSelectionStep = () => (
     <>
-      <DialogHeader>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => send({ type: 'BACK' })}
-            size="sm"
-            variant="ghost"
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
-          <DialogTitle>Choose an NFT</DialogTitle>
-        </div>
-      </DialogHeader>
+      <StepHeader onBack={() => send({ type: 'BACK' })} title="Choose an NFT" />
 
       <ErrorDisplay error={state.context.error} />
 
@@ -377,18 +365,10 @@ export const ImageSelectionDialog = ({
 
     return (
       <>
-        <DialogHeader>
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => send({ type: 'BACK' })}
-              size="sm"
-              variant="ghost"
-            >
-              <ArrowLeft className="size-4" />
-            </Button>
-            <DialogTitle>Confirm NFT Selection</DialogTitle>
-          </div>
-        </DialogHeader>
+        <StepHeader
+          onBack={() => send({ type: 'BACK' })}
+          title="Confirm NFT Selection"
+        />
 
         <div className="space-y-4">
           <div className="text-center">
@@ -402,14 +382,14 @@ export const ImageSelectionDialog = ({
           </div>
         </div>
 
-        <DialogFooter>
+        <StepFooter>
           <Button onClick={() => send({ type: 'BACK' })} variant="outline">
             Back
           </Button>
           <Button onClick={() => send({ type: 'CONFIRM_NFT' })}>
             Use This NFT
           </Button>
-        </DialogFooter>
+        </StepFooter>
       </>
     )
   }
@@ -417,22 +397,11 @@ export const ImageSelectionDialog = ({
   // Upload preview step
   const renderUploadPreviewStep = () => (
     <>
-      <DialogHeader>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => send({ type: 'BACK' })}
-            size="sm"
-            variant="ghost"
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
-          <DialogTitle>Crop Image</DialogTitle>
-        </div>
-        <p className="text-gray-600 text-sm">
-          Crop your image to fit the {type === 'avatar' ? 'avatar' : 'header'}{' '}
-          dimensions.
-        </p>
-      </DialogHeader>
+      <StepHeader
+        description={`Crop your image to fit the ${type === 'avatar' ? 'avatar' : 'header'} dimensions.`}
+        onBack={() => send({ type: 'BACK' })}
+        title="Crop Image"
+      />
 
       <ErrorDisplay error={state.context.error} />
 
@@ -450,43 +419,37 @@ export const ImageSelectionDialog = ({
         </div>
       </div>
 
-      <DialogFooter>
+      <StepFooter>
         <Button onClick={() => send({ type: 'BACK' })} variant="outline">
           Back
         </Button>
         <Button disabled={isUploading} onClick={() => uploadImage()}>
           {isUploading ? 'Uploading…' : 'Upload & Use Image'}
         </Button>
-      </DialogFooter>
+      </StepFooter>
     </>
   )
 
   // Manual input step
   const renderManualInputStep = () => (
     <>
-      <DialogHeader>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => send({ type: 'BACK' })}
-            size="sm"
-            variant="ghost"
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
-          <DialogTitle>Enter Image URL</DialogTitle>
-        </div>
-        <p className="text-gray-600 text-sm">
-          Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP.
-          <a
-            className="ml-1 text-blue-600 hover:underline"
-            href="https://docs.ens.domains/ens-app/profile/records/avatar"
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            Learn more
-          </a>
-        </p>
-      </DialogHeader>
+      <StepHeader
+        description={
+          <>
+            Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP.
+            <a
+              className="ml-1 text-blue-600 hover:underline"
+              href="https://docs.ens.domains/ens-app/profile/records/avatar"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Learn more
+            </a>
+          </>
+        }
+        onBack={() => send({ type: 'BACK' })}
+        title="Enter Image URL"
+      />
 
       <ErrorDisplay error={state.context.error} />
 
@@ -517,18 +480,7 @@ export const ImageSelectionDialog = ({
   // Manual preview step
   const renderManualPreviewStep = () => (
     <>
-      <DialogHeader>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => send({ type: 'BACK' })}
-            size="sm"
-            variant="ghost"
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
-          <DialogTitle>Preview Image</DialogTitle>
-        </div>
-      </DialogHeader>
+      <StepHeader onBack={() => send({ type: 'BACK' })} title="Preview Image" />
 
       <ErrorDisplay error={state.context.error} />
 
@@ -554,14 +506,14 @@ export const ImageSelectionDialog = ({
         </div>
       </div>
 
-      <DialogFooter>
+      <StepFooter>
         <Button onClick={() => send({ type: 'BACK' })} variant="outline">
           Back
         </Button>
         <Button onClick={() => send({ type: 'CONFIRM_MANUAL_URL' })}>
           Use This Image
         </Button>
-      </DialogFooter>
+      </StepFooter>
     </>
   )
 
@@ -582,84 +534,101 @@ export const ImageSelectionDialog = ({
     return null
   }
 
-  return (
-    <Dialog
-      onOpenChange={(isOpen) => {
-        if (isOpen) {
-          send({ type: 'RESET' })
-        }
-        setOpen(isOpen)
-      }}
-      open={open}
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen) {
+      send({ type: 'RESET' })
+    }
+    setOpen(isOpen)
+  }
+
+  const trigger = (
+    <button
+      className={clsx(
+        'group relative block w-full cursor-pointer overflow-hidden',
+        type === 'avatar' && 'rounded-md',
+        type === 'header' && 'aspect-[3/1] md:aspect-[5/1]',
+      )}
+      title={`Change ${type}`}
+      type="button"
     >
-      <DialogTrigger asChild>
-        <button
-          className={clsx(
-            'group relative block w-full cursor-pointer overflow-hidden',
-            type === 'avatar' && 'rounded-md',
-            type === 'header' && 'aspect-[3/1] md:aspect-[5/1]',
-          )}
-          title={`Change ${type}`}
-          type="button"
-        >
-          <div
-            className={clsx(
-              'absolute inset-0 flex items-center justify-center bg-transparent transition-all duration-200 group-hover:bg-black/20',
-              type === 'avatar' && 'rounded-md',
-            )}
-          >
-            <div className="opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-              <Image className="size-6 text-white" />
-            </div>
-          </div>
-          <ImageFallback.Root>
-            <ImageFallback.Image
-              alt={`${name || 'Profile'} ${type}`}
-              className="h-full w-full object-cover"
-              src={displayImage}
-            />
-            <ImageFallback.Fallback>
-              {defaultImage ? (
-                <img
-                  alt={`Default ${type}`}
-                  className="h-full w-full object-cover"
-                  src={defaultImage}
-                />
-              ) : (
-                <div
-                  className={clsx(
-                    type === 'header'
-                      ? 'h-full w-full'
-                      : 'h-48 w-full bg-gray-200 md:h-64',
-                  )}
-                  style={
-                    type === 'header'
-                      ? {
-                          backgroundColor: 'var(--color-ens-lapis-dust)',
-                          backgroundImage:
-                            'radial-gradient(circle, var(--color-ens-lapis-surface) 1px, transparent 1px)',
-                          backgroundSize: '8px 8px',
-                        }
-                      : undefined
-                  }
-                />
-              )}
-            </ImageFallback.Fallback>
-          </ImageFallback.Root>
-        </button>
-      </DialogTrigger>
-
-      <DialogContent className="max-w-md">
-        {renderStep()}
-
-        <input
-          accept="image/*"
-          className="hidden"
-          onChange={handleFileChange}
-          ref={fileInputRef}
-          type="file"
+      <div
+        className={clsx(
+          'absolute inset-0 flex items-center justify-center bg-transparent transition-all duration-200 group-hover:bg-black/20',
+          type === 'avatar' && 'rounded-md',
+        )}
+      >
+        <div className="opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+          <Image className="size-6 text-white" />
+        </div>
+      </div>
+      <ImageFallback.Root>
+        <ImageFallback.Image
+          alt={`${name || 'Profile'} ${type}`}
+          className="h-full w-full object-cover"
+          src={displayImage}
         />
-      </DialogContent>
-    </Dialog>
+        <ImageFallback.Fallback>
+          {defaultImage ? (
+            <img
+              alt={`Default ${type}`}
+              className="h-full w-full object-cover"
+              src={defaultImage}
+            />
+          ) : (
+            <div
+              className={clsx(
+                type === 'header'
+                  ? 'h-full w-full'
+                  : 'h-48 w-full bg-gray-200 md:h-64',
+              )}
+              style={
+                type === 'header'
+                  ? {
+                      backgroundColor: 'var(--color-ens-lapis-dust)',
+                      backgroundImage:
+                        'radial-gradient(circle, var(--color-ens-lapis-surface) 1px, transparent 1px)',
+                      backgroundSize: '8px 8px',
+                    }
+                  : undefined
+              }
+            />
+          )}
+        </ImageFallback.Fallback>
+      </ImageFallback.Root>
+    </button>
+  )
+
+  const fileInput = (
+    <input
+      accept="image/*"
+      className="hidden"
+      onChange={handleFileChange}
+      ref={fileInputRef}
+      type="file"
+    />
+  )
+
+  if (isDesktop) {
+    return (
+      <Dialog onOpenChange={handleOpenChange} open={open}>
+        <DialogTrigger asChild>{trigger}</DialogTrigger>
+        <DialogContent className="max-w-md">
+          {renderStep()}
+          {fileInput}
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
+  return (
+    <Drawer onOpenChange={handleOpenChange} open={open}>
+      <DrawerTrigger asChild>{trigger}</DrawerTrigger>
+      <DrawerContent>
+        <div className="space-y-4 px-4 pb-4">
+          {renderStep()}
+          {fileInput}
+        </div>
+      </DrawerContent>
+    </Drawer>
   )
 }

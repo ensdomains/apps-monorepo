@@ -9,6 +9,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  Drawer,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import type { TextRecordDef } from '../../data/records/types'
 import { IconRenderer } from '../IconRenderer'
 
@@ -27,6 +36,7 @@ export const AddTextRecordsDialog = ({
 }: AddTextRecordsDialogProps) => {
   const [open, setOpen] = useState(false)
   const [selectedKeys, setSelectedKeys] = useState<string[]>([])
+  const isDesktop = useMediaQuery('(min-width: 768px)')
 
   const handleToggle = (key: string) => {
     setSelectedKeys((prev) => {
@@ -43,57 +53,86 @@ export const AddTextRecordsDialog = ({
     setOpen(false)
   }
 
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen)
+    if (!newOpen) {
+      setSelectedKeys([])
+    }
+  }
+
+  const triggerButton = (
+    <Button
+      className="h-auto gap-[11px] py-1 pr-1 pl-0! text-muted-foreground text-sm hover:bg-transparent hover:text-muted-foreground"
+      size="sm"
+      variant="ghost"
+    >
+      <Plus className="size-4" />
+      {buttonLabel}
+    </Button>
+  )
+
+  const content =
+    records.length > 0 ? (
+      <div className="flex flex-wrap justify-center gap-3">
+        {records.map((record) => {
+          const isSelected = selectedKeys.includes(record.key)
+          return (
+            <Button
+              className="flex w-auto items-center gap-2 rounded-full"
+              key={record.key}
+              onClick={() => handleToggle(record.key)}
+              variant={isSelected ? 'default' : 'secondary'}
+            >
+              <IconRenderer className="size-4" icon={record.icon} />
+              <span>{record.name}</span>
+              {isSelected ? (
+                <CircleCheck className="size-4" />
+              ) : (
+                <Plus className="size-4" />
+              )}
+            </Button>
+          )
+        })}
+      </div>
+    ) : (
+      <p>No more records to add</p>
+    )
+
+  const addButton = (
+    <Button
+      className="w-full"
+      disabled={selectedKeys.length === 0}
+      onClick={handleAdd}
+    >
+      Add
+    </Button>
+  )
+
+  if (isDesktop) {
+    return (
+      <Dialog onOpenChange={handleOpenChange} open={open}>
+        <DialogTrigger asChild>{triggerButton}</DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+          </DialogHeader>
+          {content}
+          <DialogFooter>{addButton}</DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
   return (
-    <Dialog onOpenChange={setOpen} open={open}>
-      <DialogTrigger asChild>
-        <Button
-          className="h-auto gap-[11px] py-1 pr-1 pl-0! text-muted-foreground text-sm hover:bg-transparent hover:text-muted-foreground"
-          size="sm"
-          variant="ghost"
-        >
-          <Plus className="size-4" />
-          {buttonLabel}
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        {records.length > 0 ? (
-          <div className="flex flex-wrap justify-center gap-3">
-            {records.map((record) => {
-              const isSelected = selectedKeys.includes(record.key)
-              return (
-                <Button
-                  className="flex w-auto items-center gap-2 rounded-full"
-                  key={record.key}
-                  onClick={() => handleToggle(record.key)}
-                  variant={isSelected ? 'default' : 'secondary'}
-                >
-                  <IconRenderer className="size-4" icon={record.icon} />
-                  <span>{record.name}</span>
-                  {isSelected ? (
-                    <CircleCheck className="size-4" />
-                  ) : (
-                    <Plus className="size-4" />
-                  )}
-                </Button>
-              )
-            })}
-          </div>
-        ) : (
-          <p>No more records to add</p>
-        )}
-        <DialogFooter>
-          <Button
-            className="w-full"
-            disabled={selectedKeys.length === 0}
-            onClick={handleAdd}
-          >
-            Add
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <Drawer onOpenChange={handleOpenChange} open={open}>
+      <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
+      <DrawerContent>
+        <DrawerHeader>
+          <DrawerTitle>{title}</DrawerTitle>
+        </DrawerHeader>
+        <div className="px-4">{content}</div>
+        <DrawerFooter>{addButton}</DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   )
 }
