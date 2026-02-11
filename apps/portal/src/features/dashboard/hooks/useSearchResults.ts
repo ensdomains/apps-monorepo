@@ -73,9 +73,52 @@ export const useSearchResults = ({
     [searchValue, isMobile, navigateToAddress, navigateToName, validTlds],
   )
 
+  const addressForOwned = (connectedAddress ??
+    '0x0000000000000000000000000000000000000000') as Address
+
+  const [v1NamesQuery, v2NamesQuery] = useQueries({
+    queries: [
+      {
+        ...getV1NamesForAddressQueryOptions({ address: addressForOwned }),
+        enabled: Boolean(connectedAddress),
+      },
+      {
+        ...getV2NamesForAddressQueryOptions({ address: addressForOwned }),
+        enabled: Boolean(connectedAddress),
+      },
+    ],
+  })
+
+  const ownedNamesMerged = useMemo(
+    () =>
+      mergeOwnedNames(
+        v1NamesQuery.data ?? [],
+        (v2NamesQuery.data ?? []).map((d) => ({ name: d.name })),
+      ),
+    [v1NamesQuery.data, v2NamesQuery.data],
+  )
+
+  const ownedNamesFiltered = useMemo(
+    () =>
+      filterAndSortOwnedNames(ownedNamesMerged, searchValue, {
+        max: MAX_OWNED_NAMES,
+      }),
+    [searchValue, ownedNamesMerged],
+  )
+
+  /** Exclude suggestions for names the user already has in "Names you own" to avoid showing the same name twice. */
+  const suggestionsFiltered = useMemo(() => {
+    const ownedSet = new Set(
+      ownedNamesFiltered.map((d) => d.name.trim().toLowerCase()),
+    )
+    return suggestions.filter(
+      (s) => !ownedSet.has(s.inputValue.trim().toLowerCase()),
+    )
+  }, [suggestions, ownedNamesFiltered])
+
   const nameSuggestions = useMemo(
-    () => suggestions.filter((s) => s.id.startsWith('name:')),
-    [suggestions],
+    () => suggestionsFiltered.filter((s) => s.id.startsWith('name:')),
+    [suggestionsFiltered],
   )
 
   const ownerQueries = useQueries({
@@ -120,40 +163,7 @@ export const useSearchResults = ({
     [namesToCheckAvailability, availabilityQueries],
   )
 
-  const addressForOwned = (connectedAddress ??
-    '0x0000000000000000000000000000000000000000') as Address
-
-  const [v1NamesQuery, v2NamesQuery] = useQueries({
-    queries: [
-      {
-        ...getV1NamesForAddressQueryOptions({ address: addressForOwned }),
-        enabled: Boolean(connectedAddress),
-      },
-      {
-        ...getV2NamesForAddressQueryOptions({ address: addressForOwned }),
-        enabled: Boolean(connectedAddress),
-      },
-    ],
-  })
-
-  const ownedNamesMerged = useMemo(
-    () =>
-      mergeOwnedNames(
-        v1NamesQuery.data ?? [],
-        (v2NamesQuery.data ?? []).map((d) => ({ name: d.name })),
-      ),
-    [v1NamesQuery.data, v2NamesQuery.data],
-  )
-
-  const ownedNamesFiltered = useMemo(
-    () =>
-      filterAndSortOwnedNames(ownedNamesMerged, searchValue, {
-        max: MAX_OWNED_NAMES,
-      }),
-    [searchValue, ownedNamesMerged],
-  )
-
-  const hasSuggestions = suggestions.length > 0
+  const hasSuggestions = suggestionsFiltered.length > 0
   const hasAvailable = availableNames.length > 0
   const hasOwned = ownedNamesFiltered.length > 0
   const hasAnySection = hasSuggestions || hasAvailable || hasOwned
@@ -161,15 +171,15 @@ export const useSearchResults = ({
   const allItems = useMemo(
     () =>
       buildSearchResultItems({
-        suggestions,
+        suggestions: suggestionsFiltered,
         availableNames,
         ownedNamesFiltered,
       }),
-    [suggestions, availableNames, ownedNamesFiltered],
+    [suggestionsFiltered, availableNames, ownedNamesFiltered],
   )
 
   return {
-    suggestions,
+    suggestions: suggestionsFiltered,
     ownerBySuggestionId,
     availableNames,
     ownedNamesFiltered,

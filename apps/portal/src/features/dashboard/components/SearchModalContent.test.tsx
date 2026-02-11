@@ -15,11 +15,12 @@ vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: () => false,
 }))
 
+let connectedAddressOverride: string | undefined
 vi.mock('wagmi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wagmi')>()
   return {
     ...actual,
-    useConnection: () => ({ address: undefined }),
+    useConnection: () => ({ address: connectedAddressOverride }),
   }
 })
 
@@ -62,10 +63,11 @@ vi.mock('../hooks/useV1NamesForAddress', () => ({
     queryFn: () => Promise.resolve([]),
   }),
 }))
+let ownedNamesOverride: { name: string }[] | null = null
 vi.mock('../hooks/useV2NamesForAddress', () => ({
   getV2NamesForAddressQueryOptions: (params: { address: string }) => ({
     queryKey: ['get-v2-names-for-address', params],
-    queryFn: () => Promise.resolve([]),
+    queryFn: () => Promise.resolve(ownedNamesOverride ?? []),
   }),
 }))
 
@@ -89,6 +91,8 @@ describe('SearchModalContent', () => {
     mockOnSelectSuggestion.mockClear()
     mockOnSelectAvailableName.mockClear()
     mockOnSelectOwnedName.mockClear()
+    connectedAddressOverride = undefined
+    ownedNamesOverride = null
     mockBuildSearchSuggestions.mockImplementation(
       ({ value }: { value: string }) => {
         if (!value.trim()) return []
@@ -244,5 +248,47 @@ describe('SearchModalContent', () => {
         validTlds: ['eth'],
       }),
     )
+  })
+
+  it('shows owned name only in Names you own, not in Suggestions', async () => {
+    connectedAddressOverride = '0x7Bc153b2a4C8a2f3428bd0da77a901b81c6dD809'
+    ownedNamesOverride = [{ name: 'foo.eth' }]
+    mockBuildSearchSuggestions.mockReturnValue([
+      {
+        id: 'name:foo.eth',
+        label: 'foo.eth',
+        description: 'View ENS name details',
+        inputValue: 'foo.eth',
+        action: () => mockNavigateToName('foo.eth'),
+      },
+    ])
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Command>
+          <SearchModalContent
+            searchValue="foo"
+            onSelectSuggestion={mockOnSelectSuggestion}
+            onSelectOwnedName={mockOnSelectOwnedName}
+            navigateToName={mockNavigateToName}
+            navigateToAddress={mockNavigateToAddress}
+          />
+        </Command>
+      </QueryClientProvider>,
+    )
+
+    await vi.waitFor(() => {
+      expect(
+        screen.getByRole('group', { name: 'Names you own' }),
+      ).toBeInTheDocument()
+    })
+    const optionsWithFoo = screen
+      .getAllByRole('option')
+      .filter((el) => el.textContent?.includes('foo.eth'))
+    expect(optionsWithFoo).toHaveLength(1)
+    expect(optionsWithFoo[0]).toHaveAttribute('data-value', 'owned:foo.eth')
   })
 })
