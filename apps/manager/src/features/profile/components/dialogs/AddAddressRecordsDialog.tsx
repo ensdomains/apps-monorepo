@@ -117,7 +117,7 @@ export const AddAddressRecordsDialog = ({
             <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
           <div className="max-h-[60vh] overflow-y-auto">{content}</div>
-          <DialogFooter>{addButton}</DialogFooter>
+          <DialogFooter className="pt-2">{addButton}</DialogFooter>
         </DialogContent>
       </Dialog>
     )
