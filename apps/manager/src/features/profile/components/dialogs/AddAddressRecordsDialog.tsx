@@ -1,4 +1,4 @@
-import { Check, Plus } from 'lucide-react'
+import { CircleCheck, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -73,20 +73,20 @@ export const AddAddressRecordsDialog = ({
 
   const content =
     records.length > 0 ? (
-      <div className="flex flex-wrap gap-2 overflow-y-auto">
+      <div className="flex flex-wrap justify-center gap-3">
         {records.map((record) => {
           const isSelected = selectedCoinTypes.includes(record.coinType)
           return (
             <Button
-              className="flex min-w-fit max-w-1/2 flex-1 items-center gap-2"
+              className="flex w-auto items-center gap-2 rounded-full"
               key={record.coinType}
               onClick={() => handleToggle(record.coinType)}
-              variant={isSelected ? 'default' : 'outline'}
+              variant={isSelected ? 'default' : 'secondary'}
             >
               <IconRenderer className="size-4" icon={record.icon} />
               <span>{record.name}</span>
               {isSelected ? (
-                <Check className="size-4" />
+                <CircleCheck className="size-4" />
               ) : (
                 <Plus className="size-4" />
               )}
@@ -116,7 +116,7 @@ export const AddAddressRecordsDialog = ({
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
-          {content}
+          <div className="max-h-[60vh] overflow-y-auto">{content}</div>
           <DialogFooter>{addButton}</DialogFooter>
         </DialogContent>
       </Dialog>
