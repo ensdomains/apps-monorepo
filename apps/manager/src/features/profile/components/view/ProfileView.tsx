@@ -35,17 +35,11 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   const { accountAddress: smartAccountAddress } = useSmartAccountContext()
 
   const normalizedOwner = ownerData?.owner?.toLowerCase()
-  const connectedAddresses = [wallet?.address, smartAccountAddress]
-    .filter((addr): addr is string => Boolean(addr))
-    .map((addr) => addr.toLowerCase())
-
-  const isOwner = Boolean(
-    normalizedOwner && connectedAddresses.includes(normalizedOwner),
-  )
-
-  if (!records) {
-    return null
-  }
+  const isOwner =
+    !!normalizedOwner &&
+    [wallet?.address, smartAccountAddress]
+      .filter((addr): addr is string => !!addr)
+      .some((addr) => addr.toLowerCase() === normalizedOwner)
 
   return (
     <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]">

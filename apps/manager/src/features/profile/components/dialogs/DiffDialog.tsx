@@ -79,35 +79,17 @@ export const DiffDialog = ({
     },
   })
 
-  const handleSave = () => {
-    onSave()
-  }
+  const changeIcons = {
+    added: <Plus className="size-4 text-green-600" />,
+    removed: <X className="size-4 text-red-600" />,
+    modified: <Check className="size-4 text-blue-600" />,
+  } as const
 
-  const handleCancel = () => {
-    setOpen(false)
-  }
-
-  const getChangeIcon = (type: 'added' | 'removed' | 'modified') => {
-    switch (type) {
-      case 'added':
-        return <Plus className="size-4 text-green-600" />
-      case 'removed':
-        return <X className="size-4 text-red-600" />
-      case 'modified':
-        return <Check className="size-4 text-blue-600" />
-    }
-  }
-
-  const getChangeLabel = (type: 'added' | 'removed' | 'modified') => {
-    switch (type) {
-      case 'added':
-        return 'Added'
-      case 'removed':
-        return 'Removed'
-      case 'modified':
-        return 'Modified'
-    }
-  }
+  const changeLabels = {
+    added: 'Added',
+    removed: 'Removed',
+    modified: 'Modified',
+  } as const
 
   const issuesByField =
     validationIssues?.reduce<Record<string, string[]>>((acc, issue) => {
@@ -150,7 +132,7 @@ export const DiffDialog = ({
               {Object.entries(diff).map(([key, change]) => (
                 <div className="rounded-lg border p-4" key={key}>
                   <div className="mb-2 flex items-center gap-2">
-                    {getChangeIcon(change.type)}
+                    {changeIcons[change.type]}
                     <span className="flex items-center gap-1 font-medium">
                       {change.sectionLabel && change.fieldLabel ? (
                         <>
@@ -162,9 +144,7 @@ export const DiffDialog = ({
                         key
                       )}
                     </span>
-                    <Badge variant="outline">
-                      {getChangeLabel(change.type)}
-                    </Badge>
+                    <Badge variant="outline">{changeLabels[change.type]}</Badge>
                   </div>
                   {change.type === 'added' && (
                     <div className="break-words rounded bg-green-50 p-2 text-green-700 text-sm">
@@ -228,10 +208,10 @@ export const DiffDialog = ({
     </LinkButton>
   ) : (
     <>
-      <Button onClick={handleCancel} variant="outline">
+      <Button onClick={() => setOpen(false)} variant="outline">
         Cancel
       </Button>
-      <Button disabled={!hasChanges || Boolean(isSaving)} onClick={handleSave}>
+      <Button disabled={!hasChanges || Boolean(isSaving)} onClick={onSave}>
         {isSaving ? (
           <>
             <Loader2 className="mr-2 size-4 animate-spin" />

@@ -32,8 +32,6 @@ export const FavoriteButton = ({ name }: FavoriteButtonProps) => {
   )
 
   const toggleFavorite = () => {
-    if (!isAuthed) return
-
     if (isFavorite) {
       removeMutation.mutate({ name })
     } else {
