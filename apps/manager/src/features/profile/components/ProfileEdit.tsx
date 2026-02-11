@@ -22,6 +22,7 @@ import {
 import { RecordsValidationError, saveRecords } from './ProfileEdit.transactions'
 import { SaveChanges } from './SaveChanges'
 import { BioSection } from './sections/BioSection'
+import { ContactInformationSection } from './sections/ContactInformationSection'
 import { HeaderSection } from './sections/HeaderSection'
 import { LinksSection } from './sections/LinksSection'
 import { SocialLinksSection } from './sections/SocialLinksSection'
@@ -121,6 +122,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         <div className="space-y-4 md:col-span-7 lg:col-span-8">
           <BioSection form={form} />
+          <ContactInformationSection form={form} />
           <SocialLinksSection form={form} />
           <LinksSection form={form} />
         </div>
