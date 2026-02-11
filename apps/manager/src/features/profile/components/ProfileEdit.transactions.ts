@@ -190,18 +190,27 @@ const computeRecordChanges = (
   before: ServiceRecordSnapshot,
   after: ServiceRecordSnapshot,
 ): RecordChanges => {
+  const textChanges: TextChange[] = []
+  const coinChanges: CoinChange[] = []
+
   const beforeTexts = new Map(
     before.texts.map(({ key, value }) => [key, value]),
   )
   const afterTexts = new Map(after.texts.map(({ key, value }) => [key, value]))
 
-  const texts = [
-    ...new Set([...beforeTexts.keys(), ...afterTexts.keys()]),
-  ].flatMap<TextChange>((key) => {
+  const textKeys = new Set([...beforeTexts.keys(), ...afterTexts.keys()])
+
+  for (const key of textKeys) {
     const prev = (beforeTexts.get(key) ?? '').trim()
     const next = (afterTexts.get(key) ?? '').trim()
-    return prev !== next ? [{ key, value: next === '' ? null : next }] : []
-  })
+
+    if (prev !== next) {
+      textChanges.push({
+        key,
+        value: next === '' ? null : next,
+      })
+    }
+  }
 
   const beforeCoins = new Map(
     before.coins.map(({ coinType, value }) => [String(coinType), value]),
@@ -210,17 +219,21 @@ const computeRecordChanges = (
     after.coins.map(({ coinType, value }) => [String(coinType), value]),
   )
 
-  const coins = [
-    ...new Set([...beforeCoins.keys(), ...afterCoins.keys()]),
-  ].flatMap<CoinChange>((key) => {
+  const coinKeys = new Set([...beforeCoins.keys(), ...afterCoins.keys()])
+
+  for (const key of coinKeys) {
     const prev = (beforeCoins.get(key) ?? '').trim()
     const next = (afterCoins.get(key) ?? '').trim()
-    return prev !== next
-      ? [{ coin: Number.parseInt(key, 10), value: next === '' ? null : next }]
-      : []
-  })
 
-  return { texts, coins }
+    if (prev !== next) {
+      coinChanges.push({
+        coin: Number.parseInt(key, 10),
+        value: next === '' ? null : next,
+      })
+    }
+  }
+
+  return { texts: textChanges, coins: coinChanges }
 }
 
 const bioUrlSchema = v.pipe(v.string(), v.trim(), v.url('Invalid Bio URL'))
@@ -276,23 +289,27 @@ const buildTextCalls = (options: {
   texts: TextChange[]
   buildArgs: (key: string, value: string | null) => readonly [string, string]
 }): { calls: Hex[]; issues: RecordIssue[] } => {
-  const validated = options.texts.map((change) => ({
-    change,
-    issues: validateTextChange(change),
-  }))
+  const calls: Hex[] = []
+  const issues: RecordIssue[] = []
 
-  return {
-    issues: validated.flatMap(({ issues }) => issues),
-    calls: validated
-      .filter(({ issues }) => issues.length === 0)
-      .map(({ change }) =>
-        encodeFunctionData({
-          abi: options.abi,
-          functionName: 'setText',
-          args: options.buildArgs(change.key, change.value ?? ''),
-        }),
-      ),
+  for (const change of options.texts) {
+    const changeIssues = validateTextChange(change)
+
+    if (changeIssues.length > 0) {
+      issues.push(...changeIssues)
+      continue
+    }
+
+    calls.push(
+      encodeFunctionData({
+        abi: options.abi,
+        functionName: 'setText',
+        args: options.buildArgs(change.key, change.value ?? ''),
+      }),
+    )
   }
+
+  return { calls, issues }
 }
 
 const buildCoinCalls = (options: {
@@ -302,33 +319,37 @@ const buildCoinCalls = (options: {
     coinType: number,
     encoded: Hex,
   ) => readonly [bigint, `0x${string}`]
-}): { calls: Hex[]; issues: RecordIssue[] } =>
-  options.coins.reduce<{ calls: Hex[]; issues: RecordIssue[] }>(
-    (acc, { coin, value }) => {
-      const coder = getCoderFromCoin(coin)
+}): { calls: Hex[]; issues: RecordIssue[] } => {
+  const calls: Hex[] = []
+  const issues: RecordIssue[] = []
 
-      try {
-        const encoded = encodeCoinValue(coder, value)
-        acc.calls.push(
-          encodeFunctionData({
-            abi: options.abi,
-            functionName: 'setAddr',
-            args: options.buildArgs(coder.coinType, encoded),
-          }),
-        )
-      } catch (error) {
-        acc.issues.push({
-          sectionKey: 'address',
-          fieldKey: String(coder.coinType),
-          message:
-            error instanceof Error ? error.message : 'Invalid coin address',
-        })
-      }
+  for (const { coin, value } of options.coins) {
+    const coder = getCoderFromCoin(coin)
 
-      return acc
-    },
-    { calls: [], issues: [] },
-  )
+    try {
+      const encoded = encodeCoinValue(coder, value)
+
+      calls.push(
+        encodeFunctionData({
+          abi: options.abi,
+          functionName: 'setAddr',
+          args: options.buildArgs(coder.coinType, encoded),
+        }),
+      )
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Invalid coin address'
+
+      issues.push({
+        sectionKey: 'address',
+        fieldKey: String(coder.coinType),
+        message,
+      })
+    }
+  }
+
+  return { calls, issues }
+}
 
 const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => {
   const allIssues: RecordIssue[] = []
