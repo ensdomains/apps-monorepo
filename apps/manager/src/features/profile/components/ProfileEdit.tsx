@@ -115,7 +115,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
   return (
     <form
-      className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]"
+      className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]"
       onSubmit={handleSubmit}
     >
       <HeaderSection form={form} name={name} owner={ownerAddress} />
