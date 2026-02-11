@@ -255,6 +255,7 @@ export const HomeSearchInput = () => {
         title="Search"
         description="Search for ENS names or Ethereum addresses"
         showCloseButton={false}
+        shouldFilter={false}
       >
         <CommandInput
           placeholder="Search name or address..."

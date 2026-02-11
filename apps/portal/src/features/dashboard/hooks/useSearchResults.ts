@@ -1,4 +1,4 @@
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
@@ -8,7 +8,16 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 import type { Suggestion } from '../utils/buildSearchSuggestions'
 import { buildSearchSuggestions } from '../utils/buildSearchSuggestions'
+import {
+  filterAndSortOwnedNames,
+  mergeOwnedNames,
+} from '../utils/ownedNamesUtils'
+import {
+  buildSearchResultItems,
+  type SearchResultItem,
+} from '../utils/searchResultsUtils'
 import { useSuggestionTlds } from './useSuggestionTlds'
+import { getV1NamesForAddressQueryOptions } from './useV1NamesForAddress'
 import { getV2NamesForAddressQueryOptions } from './useV2NamesForAddress'
 
 const MAX_OWNED_NAMES = 5
@@ -20,10 +29,7 @@ export type UseSearchResultsParams = {
   navigateToAddress: (address: string) => void
 }
 
-export type SearchResultItem =
-  | { type: 'suggestion'; value: string; suggestion: Suggestion }
-  | { type: 'available'; value: string; name: string }
-  | { type: 'owned'; value: string; name: string }
+export type { SearchResultItem } from '../utils/searchResultsUtils'
 
 export type UseSearchResultsReturn = {
   suggestions: Suggestion[]
@@ -114,44 +120,53 @@ export const useSearchResults = ({
     [namesToCheckAvailability, availabilityQueries],
   )
 
-  const { data: ownedNamesData } = useQuery({
-    ...getV2NamesForAddressQueryOptions({
-      address: (connectedAddress ??
-        '0x0000000000000000000000000000000000000000') as Address,
-    }),
-    enabled: Boolean(connectedAddress),
+  const addressForOwned = (connectedAddress ??
+    '0x0000000000000000000000000000000000000000') as Address
+
+  const [v1NamesQuery, v2NamesQuery] = useQueries({
+    queries: [
+      {
+        ...getV1NamesForAddressQueryOptions({ address: addressForOwned }),
+        enabled: Boolean(connectedAddress),
+      },
+      {
+        ...getV2NamesForAddressQueryOptions({ address: addressForOwned }),
+        enabled: Boolean(connectedAddress),
+      },
+    ],
   })
 
-  const ownedNamesFiltered = useMemo(() => {
-    if (!searchValue.trim() || !ownedNamesData) return []
-    const q = searchValue.trim().toLowerCase()
-    return ownedNamesData
-      .filter((d) => d.name.toLowerCase().includes(q))
-      .slice(0, MAX_OWNED_NAMES)
-  }, [searchValue, ownedNamesData])
+  const ownedNamesMerged = useMemo(
+    () =>
+      mergeOwnedNames(
+        v1NamesQuery.data ?? [],
+        (v2NamesQuery.data ?? []).map((d) => ({ name: d.name })),
+      ),
+    [v1NamesQuery.data, v2NamesQuery.data],
+  )
+
+  const ownedNamesFiltered = useMemo(
+    () =>
+      filterAndSortOwnedNames(ownedNamesMerged, searchValue, {
+        max: MAX_OWNED_NAMES,
+      }),
+    [searchValue, ownedNamesMerged],
+  )
 
   const hasSuggestions = suggestions.length > 0
   const hasAvailable = availableNames.length > 0
   const hasOwned = ownedNamesFiltered.length > 0
   const hasAnySection = hasSuggestions || hasAvailable || hasOwned
 
-  const allItems = useMemo<SearchResultItem[]>(() => {
-    const items: SearchResultItem[] = []
-    for (const s of suggestions) {
-      items.push({ type: 'suggestion', value: s.id, suggestion: s })
-    }
-    for (const s of availableNames) {
-      items.push({
-        type: 'available',
-        value: `available:${s.inputValue}`,
-        name: s.inputValue,
-      })
-    }
-    for (const d of ownedNamesFiltered) {
-      items.push({ type: 'owned', value: `owned:${d.name}`, name: d.name })
-    }
-    return items
-  }, [suggestions, availableNames, ownedNamesFiltered])
+  const allItems = useMemo(
+    () =>
+      buildSearchResultItems({
+        suggestions,
+        availableNames,
+        ownedNamesFiltered,
+      }),
+    [suggestions, availableNames, ownedNamesFiltered],
+  )
 
   return {
     suggestions,
