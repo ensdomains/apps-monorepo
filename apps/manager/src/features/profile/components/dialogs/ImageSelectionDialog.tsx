@@ -553,12 +553,12 @@ export const ImageSelectionDialog = ({
     >
       <div
         className={clsx(
-          'absolute inset-0 flex items-center justify-center bg-transparent transition-all duration-200 group-hover:bg-black/20',
+          'absolute inset-0 flex items-center justify-center bg-transparent transition-all duration-200 group-hover:bg-black/20 motion-reduce:transition-none',
           type === 'avatar' && 'rounded-md',
           type === 'header' && 'pb-12',
         )}
       >
-        <div className="opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+        <div className="opacity-0 transition-opacity duration-200 group-hover:opacity-100 motion-reduce:transition-none">
           <Image className="size-6 text-white" />
         </div>
       </div>

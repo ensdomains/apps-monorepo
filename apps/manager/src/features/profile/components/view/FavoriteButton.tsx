@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
 import clsx from 'clsx'
 import { Heart } from 'lucide-react'
-import { motion } from 'motion/react'
+import { motion, useReducedMotion } from 'motion/react'
 import {
   Tooltip,
   TooltipContent,
@@ -18,6 +18,7 @@ interface FavoriteButtonProps {
 }
 
 export const FavoriteButton = ({ name }: FavoriteButtonProps) => {
+  const shouldReduceMotion = useReducedMotion()
   const isAuthed = useAtom(isBackendAuthed)
 
   const { data: favorites = [] } = useQuery({
@@ -44,9 +45,9 @@ export const FavoriteButton = ({ name }: FavoriteButtonProps) => {
       className="flex size-10 items-center justify-center rounded-full bg-white/90 shadow-md backdrop-blur-sm disabled:cursor-not-allowed"
       disabled={!isAuthed}
       onClick={isAuthed ? toggleFavorite : undefined}
-      transition={{ duration: 0.1 }}
+      transition={shouldReduceMotion ? undefined : { duration: 0.1 }}
       type="button"
-      whileTap={isAuthed ? { scale: 0.8 } : undefined}
+      whileTap={isAuthed && !shouldReduceMotion ? { scale: 0.8 } : undefined}
     >
       <Heart
         className={clsx(
