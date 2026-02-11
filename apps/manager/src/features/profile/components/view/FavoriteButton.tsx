@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
+import clsx from 'clsx'
 import { Heart } from 'lucide-react'
 import { motion } from 'motion/react'
 import {
@@ -50,7 +51,11 @@ export const FavoriteButton = ({ name }: FavoriteButtonProps) => {
       whileTap={isAuthed ? { scale: 0.8 } : undefined}
     >
       <Heart
-        className={`size-5 ${isFavorite ? 'fill-[#f53293] text-[#f53293]' : 'text-gray-500'} ${isAuthed ? '' : 'opacity-50'}`}
+        className={clsx(
+          'size-5',
+          isFavorite ? 'fill-[#f53293] text-[#f53293]' : 'text-gray-500',
+          !isAuthed && 'opacity-50',
+        )}
         strokeWidth={2}
       />
     </motion.button>
