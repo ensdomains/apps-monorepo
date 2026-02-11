@@ -196,14 +196,14 @@ export const ImageSelectionDialog = ({
         medium: 'size-32',
         large: 'size-40',
       }
-      return `${baseClasses} ${sizeClasses[size]}`
+      return clsx(baseClasses, sizeClasses[size])
     }
     const sizeClasses = {
       small: 'h-20 w-full',
       medium: 'h-32 w-full',
       large: 'h-40 w-full',
     }
-    return `${baseClasses} ${sizeClasses[size]}`
+    return clsx(baseClasses, sizeClasses[size])
   }
 
   // Main step - shows all options
