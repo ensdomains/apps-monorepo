@@ -13,26 +13,23 @@ const defaultSectionKeys = {
   social: ['com.twitter', 'org.telegram'],
 } as const
 
-const ensureDefaultSectionFields = (
-  records: ProfileRecords,
-): ProfileRecords => {
-  let result = records
-  for (const [section, keys] of Object.entries(defaultSectionKeys)) {
-    const sectionKey = section as keyof typeof defaultSectionKeys
-    const existingKeys = new Set(result[sectionKey].map((r) => r.key))
-    const missing = keys
-      .filter((key) => !existingKeys.has(key))
-      .map((key) => ({ key, value: '' }))
+const ensureDefaultSectionFields = (records: ProfileRecords): ProfileRecords =>
+  Object.entries(defaultSectionKeys).reduce(
+    (result, [section, keys]) => {
+      const sectionKey = section as keyof typeof defaultSectionKeys
+      const existingKeys = new Set(result[sectionKey].map((r) => r.key))
+      const missing = keys
+        .filter((key) => !existingKeys.has(key))
+        .map((key) => ({ key, value: '' }))
 
-    if (missing.length > 0) {
-      result = {
-        ...result,
-        [sectionKey]: [...missing, ...result[sectionKey]],
+      if (missing.length > 0) {
+        result[sectionKey] = [...missing, ...result[sectionKey]]
       }
-    }
-  }
-  return result
-}
+
+      return result
+    },
+    { ...records },
+  )
 
 const emptyProfileRecords = (): ProfileRecords => ({
   base: {},
