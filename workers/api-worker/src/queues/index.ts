@@ -4,6 +4,7 @@ import type {
   TelegramDeliveryJob,
 } from '#types/delivery.js'
 import { handleEmailQueue } from './email.js'
+import { handleEventIngestionQueue } from './event-ingestion.js'
 import { handlePushQueue } from './push.js'
 import { handleTelegramQueue } from './telegram.js'
 
@@ -21,6 +22,9 @@ export const handleQueue = async (
       break
     case 'app-api-worker-push-delivery':
       await handlePushQueue(batch as MessageBatch<PushDeliveryJob>, env)
+      break
+    case 'app-api-worker-event-ingestion':
+      await handleEventIngestionQueue(batch, env)
       break
     default:
       console.error(`Unknown queue: ${batch.queue}`)
