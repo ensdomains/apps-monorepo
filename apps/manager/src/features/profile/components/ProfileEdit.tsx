@@ -119,61 +119,52 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       onSubmit={handleSubmit}
     >
       <HeaderSection form={form} name={name} owner={ownerAddress} />
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
-        <div className="space-y-4 md:col-span-7 lg:col-span-8">
-          <BioSection form={form} />
-          <ContactInformationSection form={form} />
-          <SocialLinksSection form={form} />
-          <WalletAddressesSection form={form} />
-          <LinksSection form={form} />
-        </div>
-        <div className="space-y-4 md:col-span-5 lg:col-span-4">
-          {/* Hidden for alpha - users don't need to change the resolver
-          <UpdateResolverDialog
-            currentResolver={resolverAddress}
-            name={name}
-            onUpdated={refetchRecords}
-          /> */}
-          <SetPrimaryNameDialog
-            name={name}
-            onUpdated={refetchRecords}
-            owner={ownerAddress}
-          />
-          <div className="space-y-2">
-            <form.Subscribe
-              selector={(state) => createDiff(defaultValues, state.values)}
-            >
-              {(diff) =>
-                Object.keys(diff).length > 0 && (
-                  <Button
-                    className="w-full"
-                    onClick={handleReset}
-                    type="button"
-                    variant="outline"
-                  >
-                    Reset Changes
-                  </Button>
-                )
-              }
-            </form.Subscribe>
-            <SaveChanges
-              errorMessage={saveRecordsMutation.error?.message}
-              form={form}
-              isSaving={saveRecordsMutation.isPending}
-              isSuccess={saveRecordsMutation.isSuccess}
-              name={name}
-              onReset={saveRecordsMutation.reset}
-              onSave={handleSave}
-              originalData={defaultValues}
-              txHash={saveRecordsMutation.data?.hash}
-              validationIssues={
-                saveRecordsMutation.error instanceof RecordsValidationError
-                  ? saveRecordsMutation.error.issues
-                  : undefined
-              }
-            />
-          </div>
-        </div>
+      <div className="space-y-4">
+        <BioSection form={form} />
+        <ContactInformationSection form={form} />
+        <SocialLinksSection form={form} />
+        <WalletAddressesSection form={form} />
+        <LinksSection form={form} />
+        {/* Hidden for alpha - users don't need to change the resolver
+        <UpdateResolverDialog
+          currentResolver={resolverAddress}
+          name={name}
+          onUpdated={refetchRecords}
+        /> */}
+        <SetPrimaryNameDialog
+          name={name}
+          onUpdated={refetchRecords}
+          owner={ownerAddress}
+        />
+      </div>
+      <div className="flex gap-2">
+        <form.Subscribe
+          selector={(state) => createDiff(defaultValues, state.values)}
+        >
+          {(diff) =>
+            Object.keys(diff).length > 0 && (
+              <Button onClick={handleReset} type="button" variant="outline">
+                Reset Changes
+              </Button>
+            )
+          }
+        </form.Subscribe>
+        <SaveChanges
+          errorMessage={saveRecordsMutation.error?.message}
+          form={form}
+          isSaving={saveRecordsMutation.isPending}
+          isSuccess={saveRecordsMutation.isSuccess}
+          name={name}
+          onReset={saveRecordsMutation.reset}
+          onSave={handleSave}
+          originalData={defaultValues}
+          txHash={saveRecordsMutation.data?.hash}
+          validationIssues={
+            saveRecordsMutation.error instanceof RecordsValidationError
+              ? saveRecordsMutation.error.issues
+              : undefined
+          }
+        />
       </div>
     </form>
   )
