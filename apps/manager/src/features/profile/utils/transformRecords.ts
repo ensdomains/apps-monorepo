@@ -8,7 +8,33 @@ import type {
 import type { ProfileRecordsResult } from '../service/profileRecords'
 import type { ProfileRecords } from '../types'
 
-export const newEmptyProfileRecords = (): ProfileRecords => ({
+const defaultSectionKeys = {
+  contact: ['email', 'location'],
+  social: ['com.twitter', 'org.telegram'],
+} as const
+
+const ensureDefaultSectionFields = (
+  records: ProfileRecords,
+): ProfileRecords => {
+  let result = records
+  for (const [section, keys] of Object.entries(defaultSectionKeys)) {
+    const sectionKey = section as keyof typeof defaultSectionKeys
+    const existingKeys = new Set(result[sectionKey].map((r) => r.key))
+    const missing = keys
+      .filter((key) => !existingKeys.has(key))
+      .map((key) => ({ key, value: '' }))
+
+    if (missing.length > 0) {
+      result = {
+        ...result,
+        [sectionKey]: [...missing, ...result[sectionKey]],
+      }
+    }
+  }
+  return result
+}
+
+const emptyProfileRecords = (): ProfileRecords => ({
   base: {},
   addresses: [],
   links: [],
@@ -21,6 +47,9 @@ export const newEmptyProfileRecords = (): ProfileRecords => ({
     {} as Pick<ProfileRecords, Section | SpecialSection>,
   ),
 })
+
+export const newEmptyProfileRecords = (): ProfileRecords =>
+  ensureDefaultSectionFields(emptyProfileRecords())
 export const defaultProfileRecords = newEmptyProfileRecords()
 
 const LinksSchema = v.array(
@@ -75,14 +104,16 @@ export const transformProfileRecords = (
     }
   }
 
-  const baseRecords = newEmptyProfileRecords()
+  const baseRecords = emptyProfileRecords()
   const withAddresses: ProfileRecords = {
     ...baseRecords,
     addresses: profile.coins,
     resolverAddress: profile.resolverAddress,
   }
 
-  return profile.texts.reduce(processTextRecord, withAddresses)
+  return ensureDefaultSectionFields(
+    profile.texts.reduce(processTextRecord, withAddresses),
+  )
 }
 
 /**
