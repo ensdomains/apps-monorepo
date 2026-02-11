@@ -113,9 +113,7 @@ export const SetPrimaryNameDialog = ({
   return (
     <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>
-        <Button className="w-full" variant="outline">
-          Set Primary Name
-        </Button>
+        <Button variant="outline">Set Primary Name</Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>

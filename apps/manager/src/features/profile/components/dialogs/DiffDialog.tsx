@@ -120,7 +120,7 @@ export const DiffDialog = ({
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogTrigger asChild>
-        <Button className="w-full" disabled={!hasChanges}>
+        <Button disabled={!hasChanges}>
           <Save className="mr-2 size-4" />
           Save Changes
         </Button>

@@ -131,13 +131,13 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
           name={name}
           onUpdated={refetchRecords}
         /> */}
+      </div>
+      <div className="flex items-center justify-end gap-2">
         <SetPrimaryNameDialog
           name={name}
           onUpdated={refetchRecords}
           owner={ownerAddress}
         />
-      </div>
-      <div className="flex gap-2">
         <form.Subscribe
           selector={(state) => createDiff(defaultValues, state.values)}
         >
