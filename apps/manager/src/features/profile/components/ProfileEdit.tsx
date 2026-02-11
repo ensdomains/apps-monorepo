@@ -124,10 +124,10 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
           <BioSection form={form} />
           <ContactInformationSection form={form} />
           <SocialLinksSection form={form} />
+          <WalletAddressesSection form={form} />
           <LinksSection form={form} />
         </div>
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
-          <WalletAddressesSection form={form} />
           {/* Hidden for alpha - users don't need to change the resolver
           <UpdateResolverDialog
             currentResolver={resolverAddress}
