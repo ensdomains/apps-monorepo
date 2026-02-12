@@ -16,6 +16,9 @@ import { DEBUG_PROFILE } from '../MOCK'
 import { getIndexerRecords } from './getIndexerRecords'
 import { getResolver } from './profileResolver'
 
+/** Bitmask requesting all ABI content types (JSON, zlib, CBOR, URI) */
+const ABI_CONTENT_TYPE_BITMASK = 0xf
+
 const COIN_TYPE_NAME_MAP = coinTypeToNameMap as Record<
   string,
   readonly [string, string]
@@ -152,7 +155,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
       address: resolverAddress,
       abi: DEDICATED_RESOLVER_ABI,
       functionName: 'ABI' as const,
-      args: [node, BigInt(0xf)] as const,
+      args: [node, BigInt(ABI_CONTENT_TYPE_BITMASK)] as const,
     },
   ]
 
