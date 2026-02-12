@@ -1,3 +1,4 @@
+import type { FailedRunPayloadV1 } from '@ens-apps/transaction-manager'
 import posthog, { type CaptureOptions } from 'posthog-js'
 
 export type PostHogEvents = {
@@ -10,6 +11,11 @@ export type PostHogEvents = {
   'wallet:disconnect': undefined
 
   'intercom:booted': undefined
+
+  'tm:failed_run': FailedRunPayloadV1 & {
+    source_app: 'manager'
+    build_env: string
+  }
 }
 
 export type PostHogEvent = keyof PostHogEvents

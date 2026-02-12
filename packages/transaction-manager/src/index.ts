@@ -109,7 +109,10 @@ export {
   useTransactionRegistry,
 } from './providers/TransactionManagerProvider'
 // Services
-export { transactionManager } from './providers/transactionManager'
+export {
+  estimateTelemetryBytes,
+  transactionManager,
+} from './providers/transactionManager'
 export {
   addAuditEntry,
   clearAuditTrail,
@@ -123,8 +126,12 @@ export type {
   AuditEntry,
   DebugReport,
   ErrorSummary,
+  FailedRunPayloadV1,
   PerformanceMetrics,
+  RunTelemetrySubscriber,
   StateTransition,
+  TransactionRunEvent,
+  TransactionRunStatus,
 } from './types/audit.types'
 export type {
   EOASigner,

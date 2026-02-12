@@ -1,3 +1,4 @@
+import { transactionManager } from '@ens-apps/transaction-manager'
 import {
   boot as bootIntercom,
   getVisitorId,
@@ -43,6 +44,20 @@ export const PHProvider = ({
         },
       })
     }
+
+    const unsubscribe = transactionManager.onFailedRunTelemetry((payload) => {
+      try {
+        track('tm:failed_run', {
+          ...payload,
+          source_app: 'manager',
+          build_env: import.meta.env.MODE,
+        })
+      } catch (error) {
+        console.warn('Failed to capture tm:failed_run telemetry', error)
+      }
+    })
+
+    return unsubscribe
   }, [isHydrated])
 
   useConnectionEffect({

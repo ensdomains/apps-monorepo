@@ -51,3 +51,48 @@ export interface PerformanceMetrics {
   minTransitionTime: number
   totalTransitions: number
 }
+
+export type TransactionRunStatus = 'success' | 'error' | 'cancelled'
+
+export interface TransactionRunEvent {
+  timestamp: number
+  state: string
+  eventType?: string
+  hash?: string
+  error?: {
+    name?: string
+    message?: string
+    stack?: string
+  }
+  retryCount: number
+  chainId?: number
+  requestType?: string
+  signerType?: string
+}
+
+export interface FailedRunPayloadV1 {
+  schemaVersion: 'tm-failed-run-v1'
+  runId: string
+  txId: string
+  status: Exclude<TransactionRunStatus, 'success'>
+  startedAt: number
+  endedAt: number
+  durationMs: number
+  eventCount: number
+  truncated: boolean
+  droppedEvents: number
+  events: TransactionRunEvent[]
+  summary: {
+    finalState: string
+    finalError?: {
+      name?: string
+      message?: string
+      stack?: string
+    }
+    chainId?: number
+    requestType?: string
+    signerType?: string
+  }
+}
+
+export type RunTelemetrySubscriber = (payload: FailedRunPayloadV1) => void
