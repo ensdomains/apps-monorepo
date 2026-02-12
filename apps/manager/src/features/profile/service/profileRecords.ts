@@ -139,12 +139,56 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     })
   }
 
+  // Fetch content hash and ABI
+  const extraContracts = [
+    {
+      address: resolverAddress,
+      abi: DEDICATED_RESOLVER_ABI,
+      functionName: 'contenthash' as const,
+      args: [node] as const,
+    },
+    {
+      address: resolverAddress,
+      abi: DEDICATED_RESOLVER_ABI,
+      functionName: 'ABI' as const,
+      args: [node, BigInt(0xf)] as const,
+    },
+  ]
+
+  const extraResults = await multicall(client, {
+    contracts: extraContracts,
+    allowFailure: true,
+  })
+
+  const contentHashEntry = extraResults[0]
+  if (contentHashEntry?.status === 'success') {
+    const raw = contentHashEntry.result as `0x${string}` | null
+    if (raw && raw !== '0x') {
+      result.contentHash = raw
+    }
+  }
+
+  const abiEntry = extraResults[1]
+  if (abiEntry?.status === 'success') {
+    const [contentType, data] = abiEntry.result as [bigint, `0x${string}`]
+    if (contentType === 1n && data && data !== '0x') {
+      try {
+        const decoded = new TextDecoder().decode(hexToBytes(data))
+        result.abi = decoded
+      } catch {
+        // ignore decode errors
+      }
+    }
+  }
+
   return ok(result)
 })
 
 export type ProfileRecordsResult = {
   texts: Array<{ key: string; value: string }>
   coins: Array<{ coinType: number; value: string; symbol?: string }>
+  contentHash?: string
+  abi?: string
   resolverAddress?: Address
   _rawSubgraphRecords?: unknown
 }

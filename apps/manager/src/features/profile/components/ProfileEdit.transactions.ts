@@ -28,6 +28,7 @@ import {
   type Hex,
   namehash,
   type PublicClient,
+  stringToHex,
   zeroAddress,
 } from 'viem'
 
@@ -55,6 +56,23 @@ const DEDICATED_RESOLVER_ABI = [
     type: 'function',
   },
   {
+    inputs: [{ internalType: 'bytes', name: 'hash', type: 'bytes' }],
+    name: 'setContenthash',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'uint256', name: 'contentType', type: 'uint256' },
+      { internalType: 'bytes', name: 'data', type: 'bytes' },
+    ],
+    name: 'setABI',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
     inputs: [
       { internalType: 'bytes32', name: '', type: 'bytes32' },
       { internalType: 'bytes[]', name: 'calls', type: 'bytes[]' },
@@ -75,6 +93,8 @@ const ENS_SEPOLIA_CONTRACTS = {
 export interface ServiceRecordSnapshot {
   texts: Array<{ key: string; value: string }>
   coins: Array<{ coinType: number; value: string }>
+  contentHash?: string
+  abi?: string
 }
 
 type TextChange = {
@@ -90,6 +110,8 @@ type CoinChange = {
 type RecordChanges = {
   texts: TextChange[]
   coins: CoinChange[]
+  contentHash?: { before?: string; after?: string }
+  abi?: { before?: string; after?: string }
 }
 
 export type RecordIssue = {
@@ -233,7 +255,27 @@ const computeRecordChanges = (
     }
   }
 
-  return { texts: textChanges, coins: coinChanges }
+  const changes: RecordChanges = { texts: textChanges, coins: coinChanges }
+
+  const beforeContentHash = (before.contentHash ?? '').trim()
+  const afterContentHash = (after.contentHash ?? '').trim()
+  if (beforeContentHash !== afterContentHash) {
+    changes.contentHash = {
+      before: beforeContentHash || undefined,
+      after: afterContentHash || undefined,
+    }
+  }
+
+  const beforeAbi = (before.abi ?? '').trim()
+  const afterAbi = (after.abi ?? '').trim()
+  if (beforeAbi !== afterAbi) {
+    changes.abi = {
+      before: beforeAbi || undefined,
+      after: afterAbi || undefined,
+    }
+  }
+
+  return changes
 }
 
 const bioUrlSchema = v.pipe(v.string(), v.trim(), v.url('Invalid Bio URL'))
@@ -372,7 +414,33 @@ const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => {
     throw new RecordsValidationError(allIssues)
   }
 
-  return [...textCalls, ...coinCalls]
+  const extraCalls: Hex[] = []
+
+  if (changes.contentHash) {
+    const hash = changes.contentHash.after ?? ''
+    extraCalls.push(
+      encodeFunctionData({
+        abi: DEDICATED_RESOLVER_ABI,
+        functionName: 'setContenthash',
+        args: [(hash || '0x') as Hex],
+      }),
+    )
+  }
+
+  if (changes.abi) {
+    const abiJson = changes.abi.after ?? ''
+    const abiBytes = abiJson ? stringToHex(abiJson) : '0x'
+    const contentType = abiJson ? 1n : 0n
+    extraCalls.push(
+      encodeFunctionData({
+        abi: DEDICATED_RESOLVER_ABI,
+        functionName: 'setABI',
+        args: [contentType, abiBytes as Hex],
+      }),
+    )
+  }
+
+  return [...textCalls, ...coinCalls, ...extraCalls]
 }
 
 function createTransactionRequest(params: {
@@ -446,7 +514,13 @@ function buildRecordsUpdateRequest(params: {
 
   const changes = computeRecordChanges(before, after)
 
-  if (changes.texts.length === 0 && changes.coins.length === 0) {
+  const hasChanges =
+    changes.texts.length > 0 ||
+    changes.coins.length > 0 ||
+    changes.contentHash !== undefined ||
+    changes.abi !== undefined
+
+  if (!hasChanges) {
     throw new Error('No profile record changes to apply')
   }
 
