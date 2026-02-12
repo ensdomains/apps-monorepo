@@ -31,7 +31,7 @@ type NotificationSettings = {
 
 type RecipientMap = Map<string, WatchReason>
 
-function shouldCreateExternalDeliveries(
+export function shouldCreateExternalDeliveries(
   watchReason: WatchReason,
   settings: NotificationSettings,
 ): boolean {
@@ -45,11 +45,14 @@ function shouldCreateExternalDeliveries(
   }
 }
 
-function buildIdempotencyKey(event: ExpiryEvent, userId: string): string {
+export function buildIdempotencyKey(
+  event: ExpiryEvent,
+  userId: string,
+): string {
   return `name-expiry:${userId}:${event.name}:${event.stage}:${event.expiryDate}`
 }
 
-function collectRecipientsForEvent(
+export function collectRecipientsForEvent(
   event: ExpiryEvent,
   ownerToUserId: Map<string, string>,
   favoriteUsersByName: Map<string, Set<string>>,
