@@ -42,7 +42,7 @@ export const getSubnames = ResultFn(async function* ({
         }),
     )
 
-    return ok(subnames)
+    return ok(subnames ?? [])
   } else {
     const v2Request = yield* fromPromise(
       graphqlIndexerClient.request<
@@ -75,9 +75,11 @@ export const getSubnames = ResultFn(async function* ({
       (e) => new GetSubnamesError({ cause: e as ClientError }),
     )
 
-    const subnames = v2Request.domains[0]?.subdomains.map(
-      ({ owner, ...name }) => ({ ...name, owner: checksumAddress(owner.id) }),
-    )
+    const domain = v2Request.domains[0]
+    const subnames = (domain?.subdomains ?? []).map(({ owner, ...name }) => ({
+      ...name,
+      owner: checksumAddress(owner.id),
+    }))
     return ok(subnames)
   }
 })
