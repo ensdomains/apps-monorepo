@@ -31,7 +31,10 @@ export const STAGES: ExpiryStageConfig[] = [
 
 const DAY_IN_SECONDS = 24 * 60 * 60
 
-export function getUpperBoundForStage(stage: ExpiryStageConfig, nowSec: number) {
+export function getUpperBoundForStage(
+  stage: ExpiryStageConfig,
+  nowSec: number,
+) {
   if (stage.id === 'expired') {
     return nowSec
   }

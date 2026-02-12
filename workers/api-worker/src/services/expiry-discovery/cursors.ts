@@ -17,7 +17,10 @@ const cursorSchema = v.object({
   expired: v.optional(cursorValueSchema),
 })
 
-export type NotificationCursors = Record<ExpiryStageId, { expiry_timestamp: number }>
+export type NotificationCursors = Record<
+  ExpiryStageId,
+  { expiry_timestamp: number }
+>
 
 class CursorParseError extends TaggedError('CURSOR_PARSE_ERROR') {}
 
