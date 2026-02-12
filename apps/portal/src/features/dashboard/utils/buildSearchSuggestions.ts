@@ -19,6 +19,8 @@ type BuildSuggestionsOptions = {
   isMobile: boolean
   navigateToAddress: NavigateToAddress
   navigateToName: NavigateToName
+  /** When set and value is a single label (no dots), suggest label.tld for each valid TLD. */
+  validTlds?: readonly string[]
 }
 
 /**
@@ -33,6 +35,7 @@ export const buildSearchSuggestions = ({
   isMobile,
   navigateToAddress,
   navigateToName,
+  validTlds,
 }: BuildSuggestionsOptions): Suggestion[] => {
   const trimmedValue = value.trim()
   if (!trimmedValue) return []
@@ -59,6 +62,11 @@ export const buildSearchSuggestions = ({
 
   // Input is NOT a valid address, treat it as an ENS name
   const lowercaseValue = trimmedValue.toLowerCase()
+  const dotIndex = lowercaseValue.indexOf('.')
+  const labelBeforeDot =
+    dotIndex >= 0 ? lowercaseValue.slice(0, dotIndex) : lowercaseValue
+  const partialTld = dotIndex >= 0 ? lowercaseValue.slice(dotIndex + 1) : ''
+  const hasLabelForTlds = labelBeforeDot.length > 0
 
   // Helper to create a name suggestion
   const createNameSuggestion = (name: string): Suggestion => {
@@ -70,6 +78,25 @@ export const buildSearchSuggestions = ({
       inputValue: name,
       action: () => navigateToName(name),
     }
+  }
+
+  // Multi-TLD mode: suggest label.tld. If user typed a partial TLD (e.g. "fresh.e" or "fresh.c"),
+  // only suggest .eth (always) plus TLDs that start with that prefix (e.g. .eth for "e"; .eth and .com for "c").
+  if (validTlds?.length && hasLabelForTlds) {
+    const tldsToSuggest =
+      partialTld === ''
+        ? [...validTlds]
+        : [
+            'eth',
+            ...validTlds.filter((t) => t !== 'eth' && t.startsWith(partialTld)),
+          ]
+    for (const tld of tldsToSuggest) {
+      const name = `${labelBeforeDot}.${tld}`
+      if (isValidEnsName(name)) {
+        items.push(createNameSuggestion(name))
+      }
+    }
+    return items
   }
 
   // If input is already a valid ENS name (e.g., "eth", "vitalik.eth"), show it first
