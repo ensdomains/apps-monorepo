@@ -1,5 +1,6 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
-import { Calendar, Clock, User } from 'lucide-react'
+import { Calendar, Check, Clock, Copy, User } from 'lucide-react'
+import { useState } from 'react'
 import type { Address } from 'viem'
 import { Highlight } from '@/components/atoms/Highlight'
 import { PrimaryBadge } from '@/features/dashboard/components/PrimaryBadge'
@@ -33,6 +34,7 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
     ...profileReverseNameQuery(owner),
   })
 
+  const [copied, setCopied] = useState(false)
   const isPrimaryName = ownerReverseName.data === name
 
   return (
@@ -40,14 +42,28 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
       <Highlight className="text-lg md:text-2xl">{name}</Highlight>
       {isPrimaryName && <PrimaryBadge />}
       {owner && (
-        <div className="mt-3 flex items-center gap-x-1 whitespace-pre-wrap text-sm">
+        <button
+          className="mt-3 flex cursor-pointer items-center gap-x-1 whitespace-pre-wrap text-sm transition-opacity hover:opacity-70"
+          onClick={() => {
+            navigator.clipboard.writeText(owner)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+          }}
+          title="Copy address"
+          type="button"
+        >
           <User className="size-4" />
           Owned by{' '}
           <span className="font-medium">
             {ownerReverseName.data ??
               `${owner.slice(0, 6)}...${owner.slice(-4)}`}
           </span>
-        </div>
+          {copied ? (
+            <Check className="ml-1 size-3.5 text-green-600" />
+          ) : (
+            <Copy className="ml-1 size-3.5 text-muted-foreground" />
+          )}
+        </button>
       )}
       {registration.data?.registrationDate && (
         <div className="flex items-center gap-x-1 whitespace-pre-wrap text-sm">
