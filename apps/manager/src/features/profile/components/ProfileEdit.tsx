@@ -1,4 +1,10 @@
-import { useMutation, useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query'
 import type { Address, PublicClient } from 'viem'
 import { Button } from '@/components/ui/button'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -44,11 +50,19 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   })
 
   const account = useSmartAccountContext()
+  const queryClient = useQueryClient()
 
   const saveRecordsMutation = useMutation({
     mutationFn: saveRecords,
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       refetchRecords()
+      const ethBefore = variables.before.coins.find((c) => c.coinType === 60)
+      const ethAfter = variables.after.coins.find((c) => c.coinType === 60)
+      if (ethBefore?.value !== ethAfter?.value) {
+        queryClient.invalidateQueries({
+          queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
+        })
+      }
     },
   })
 
