@@ -29,7 +29,6 @@ import {
   namehash,
   type PublicClient,
   stringToHex,
-  zeroAddress,
 } from 'viem'
 
 // --- Constants ---
@@ -309,10 +308,6 @@ const encodeCoinValue = (
   try {
     let encoded: Hex | Uint8Array =
       value && value.trim() !== '' ? coder.decode(value) : '0x'
-
-    if (coder.coinType === 60 && encoded === '0x') {
-      encoded = coder.decode(zeroAddress)
-    }
 
     if (typeof encoded !== 'string') {
       encoded = bytesToHex(encoded)
