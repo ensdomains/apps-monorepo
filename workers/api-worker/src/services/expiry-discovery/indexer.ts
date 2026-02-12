@@ -1,32 +1,27 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { fromPromise, ok } from 'neverthrow'
 import { ClientError, gql, request } from 'graphql-request'
+import { fromPromise, ok } from 'neverthrow'
 import * as v from 'valibot'
 import { logger } from '#utils/logger.js'
 import type { ExpiryStageConfig } from './stages.js'
 
 const DEFAULT_INDEXER_URL = 'https://graphql.ens.dev/'
-const PAGE_SIZE = 1000
+export const PAGE_SIZE = 1000
 const MAX_RETRIES = 3
 const BASE_RETRY_DELAY_MS = 300
 
 const expiringNamesQuery = gql`
-  query GetExpiringNames($cursor: BigInt!, $upper_bound: BigInt!) {
+  query GetExpiringNames($cursor: Int!, $upper_bound: Int!) {
     domains(
       where: { expiry_gt: $cursor, expiry_lte: $upper_bound }
       orderBy: expiryDate
       orderDirection: asc
-      first: 1000
+      first: ${PAGE_SIZE}
     ) {
       name
       expiryDate
       owner {
         id
-      }
-      resolver {
-        addr {
-          id
-        }
       }
     }
   }
@@ -36,28 +31,18 @@ const expiringNamesQuery = gql`
  * TODO: keep this query contract aligned with the external ENS indexer.
  * Required schema:
  * - domains[].name: string
- * - domains[].expiryDate: BigInt unix seconds
+ * - domains[].expiryDate: Int unix seconds
  * - domains[].owner.id: string | null
- * - domains[].resolver.addr.id: string | null
  */
 
 const indexerResponseSchema = v.object({
   domains: v.array(
     v.object({
       name: v.string(),
-      expiryDate: v.string(),
+      expiryDate: v.number(),
       owner: v.nullable(
         v.object({
           id: v.nullable(v.string()),
-        }),
-      ),
-      resolver: v.nullable(
-        v.object({
-          addr: v.nullable(
-            v.object({
-              id: v.nullable(v.string()),
-            }),
-          ),
         }),
       ),
     }),
@@ -145,20 +130,11 @@ const executeIndexerQuery = ResultFn(async function* (ctx: {
   const domains: ExpiringDomain[] = []
 
   for (const domain of parsedResponse.domains) {
-    const expiryDate = Number.parseInt(domain.expiryDate, 10)
-    if (!Number.isFinite(expiryDate)) {
-      return yield* new InvalidExpiryTimestampError({
-        message: 'Indexer returned invalid expiryDate',
-        name: domain.name,
-        expiryDate: domain.expiryDate,
-      })
-    }
-
     const owner = domain.owner?.id?.toLowerCase() ?? undefined
 
     domains.push({
       name: domain.name,
-      expiryDate,
+      expiryDate: domain.expiryDate,
       owner,
     })
   }
@@ -204,12 +180,14 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
       status: result.error.status,
     })
 
-    yield* fromPromise(wait(delayMs), (error) =>
-      new IndexerRequestError({
-        message: 'Failed while waiting to retry indexer request',
-        cause: error,
-        attempt,
-      }),
+    yield* fromPromise(
+      wait(delayMs),
+      (error) =>
+        new IndexerRequestError({
+          message: 'Failed while waiting to retry indexer request',
+          cause: error,
+          attempt,
+        }),
     )
   }
 

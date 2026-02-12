@@ -12,7 +12,7 @@ vi.mock('graphql-request', async () => {
 })
 
 import { request } from 'graphql-request'
-import { fetchExpiringNamesPage } from './indexer.js'
+import { fetchExpiringNamesPage, PAGE_SIZE } from './indexer.js'
 import { STAGES } from './stages.js'
 
 const mockRequest = vi.mocked(request)
@@ -30,7 +30,6 @@ describe('fetchExpiringNamesPage', () => {
           name: 'alpha.eth',
           expiryDate: '1700000000',
           owner: { id: '0xABC' },
-          resolver: null,
         },
       ],
     })
@@ -47,7 +46,8 @@ describe('fetchExpiringNamesPage', () => {
     expect(result.isOk()).toBe(true)
     expect(mockRequest).toHaveBeenCalledTimes(1)
 
-    const [, , variables] = mockRequest.mock.calls[0]
+    const [, document, variables] = mockRequest.mock.calls[0]
+    expect(String(document)).toContain(`first: ${PAGE_SIZE}`)
     expect(variables).toEqual({
       cursor: '100',
       upper_bound: '200',
@@ -112,7 +112,6 @@ describe('fetchExpiringNamesPage', () => {
           name: 'bad.eth',
           expiryDate: 'not-a-number',
           owner: null,
-          resolver: null,
         },
       ],
     })
@@ -138,7 +137,6 @@ describe('fetchExpiringNamesPage', () => {
         name: `${i}.eth`,
         expiryDate: String(1_700_000_000 + i),
         owner: null,
-        resolver: null,
       })),
     })
 
