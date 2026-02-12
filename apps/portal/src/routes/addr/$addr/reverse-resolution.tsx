@@ -67,7 +67,7 @@ function RouteComponent() {
             <br />
             You can search for a name or address, or{' '}
             <a
-              href="https://docs.ens.domains"
+              href="https://support.ens.domains/en/"
               className="underline decoration-dotted"
             >
               visit our support

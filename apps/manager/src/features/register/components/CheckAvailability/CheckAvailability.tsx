@@ -14,6 +14,7 @@ import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
 import { ValidationError } from '@/features/register/components/CheckAvailability/ValidationError'
+import { truncateToMaxBytes } from '@/features/register/components/Pricing/utils'
 import { useDebounce } from '@/hooks/useDebounce'
 
 const dropdownAnimation = {
@@ -45,7 +46,7 @@ export const CheckAvailability = ({
   } = useCheckAvailability({ inputValue, debouncedInput: debouncedValue })
 
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setInputValue(event.target.value)
+    setInputValue(truncateToMaxBytes(event.target.value))
   }
 
   const { data: unavailableRecords } = useQuery({

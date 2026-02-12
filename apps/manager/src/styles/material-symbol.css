@@ -54,7 +54,7 @@
   --ms-weight-500: 500;
   --ms-weight-600: 600;
   --ms-weight-700: 700;
-  --default-ms-weight: var(--ms-weight-400, 400);
+  --default-ms-weight: var(--ms-weight-200, 200);
 
   /* Fill default (0 = outlined, 1 = filled) */
   --default-ms-fill: 0;

@@ -202,12 +202,6 @@ function RouteComponent() {
             <div className="flex flex-col gap-4">
               <UpNextItem
                 icon={Grid3x3}
-                title="Managing names"
-                description="Browse, filter, organize and manage ENS names in one place."
-                status="Up next"
-              />
-              <UpNextItem
-                icon={Grid3x3}
                 title="L2 Primary Names"
                 description="Set and view primary names on other networks."
                 status="Up next"

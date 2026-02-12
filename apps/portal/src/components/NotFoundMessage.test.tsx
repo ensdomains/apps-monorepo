@@ -9,7 +9,7 @@ describe('NotFoundMessage', () => {
     expect(screen.getByText('Not found')).toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: 'visit our support' }),
-    ).toHaveAttribute('href', 'https://docs.ens.domains')
+    ).toHaveAttribute('href', 'https://support.ens.domains/en/')
   })
 
   it('renders custom title and description', () => {

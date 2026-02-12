@@ -12,7 +12,9 @@ import { ViewCryptoSection } from './ViewCryptoSection'
 import { ViewDynamicSection } from './ViewDynamicSection'
 import { ViewHeaderSection } from './ViewHeaderSection'
 import { ViewLinksSection } from './ViewLinksSection'
-import { ViewResolverSection } from './ViewResolverSection'
+
+// Hidden for alpha - users don't need to change the resolver
+// import { ViewResolverSection } from './ViewResolverSection'
 
 interface ProfileViewProps {
   name: string
@@ -46,13 +48,13 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   }
 
   return (
-    <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)] md:space-y-4">
+    <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]">
       <ViewHeaderSection
         name={name}
         owner={ownerData?.owner as Address | undefined}
         records={records}
       />
-      <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-12">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         {/* Left/main column */}
         <div className="space-y-4 md:col-span-7 lg:col-span-8">
           <ViewBioSection records={records} />
@@ -68,7 +70,8 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
         {/* Right/side column */}
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
           <ViewCryptoSection records={records} />
-          <ViewResolverSection resolverAddress={records.resolverAddress} />
+          {/* Hidden for alpha - users don't need to change the resolver
+          <ViewResolverSection resolverAddress={records.resolverAddress} /> */}
           <ViewLinksSection records={records} />
 
           {/* Edit Button */}

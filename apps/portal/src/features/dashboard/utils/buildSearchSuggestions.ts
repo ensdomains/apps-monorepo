@@ -1,6 +1,7 @@
 import { type Address, checksumAddress, isAddress } from 'viem'
 import { ensureEthSuffix } from '@/utils/ens/ensureEthSuffix'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { isValidEnsName } from '@/utils/token/isNormalized'
 
 export type Suggestion = {
   id: string
@@ -18,6 +19,8 @@ type BuildSuggestionsOptions = {
   isMobile: boolean
   navigateToAddress: NavigateToAddress
   navigateToName: NavigateToName
+  /** When set and value is a single label (no dots), suggest label.tld for each valid TLD. */
+  validTlds?: readonly string[]
 }
 
 /**
@@ -32,6 +35,7 @@ export const buildSearchSuggestions = ({
   isMobile,
   navigateToAddress,
   navigateToName,
+  validTlds,
 }: BuildSuggestionsOptions): Suggestion[] => {
   const trimmedValue = value.trim()
   if (!trimmedValue) return []
@@ -57,22 +61,60 @@ export const buildSearchSuggestions = ({
   }
 
   // Input is NOT a valid address, treat it as an ENS name
-  // Add .eth suffix if not present
-  const valueWithEthSuffix = ensureEthSuffix(trimmedValue)
+  const lowercaseValue = trimmedValue.toLowerCase()
+  const dotIndex = lowercaseValue.indexOf('.')
+  const labelBeforeDot =
+    dotIndex >= 0 ? lowercaseValue.slice(0, dotIndex) : lowercaseValue
+  const partialTld = dotIndex >= 0 ? lowercaseValue.slice(dotIndex + 1) : ''
+  const hasLabelForTlds = labelBeforeDot.length > 0
 
-  // Truncate long names on mobile to prevent overflow
-  // Show 18 chars from start, 8 from end (including .eth) = ~27 chars total
-  const displayLabel = isMobile
-    ? truncateAddress(valueWithEthSuffix, 18, 8)
-    : valueWithEthSuffix
+  // Helper to create a name suggestion
+  const createNameSuggestion = (name: string): Suggestion => {
+    const displayLabel = isMobile ? truncateAddress(name, 18, 8) : name
+    return {
+      id: `name:${name}`,
+      label: displayLabel,
+      description: 'View ENS name details',
+      inputValue: name,
+      action: () => navigateToName(name),
+    }
+  }
 
-  items.push({
-    id: `name:${valueWithEthSuffix}`,
-    label: displayLabel,
-    description: 'View ENS name details',
-    inputValue: valueWithEthSuffix,
-    action: () => navigateToName(valueWithEthSuffix),
-  })
+  // Multi-TLD mode: suggest label.tld. If user typed a partial TLD (e.g. "fresh.e" or "fresh.c"),
+  // only suggest .eth (always) plus TLDs that start with that prefix (e.g. .eth for "e"; .eth and .com for "c").
+  if (validTlds?.length && hasLabelForTlds) {
+    const tldsToSuggest =
+      partialTld === ''
+        ? [...validTlds]
+        : [
+            'eth',
+            ...validTlds.filter((t) => t !== 'eth' && t.startsWith(partialTld)),
+          ]
+    for (const tld of tldsToSuggest) {
+      const name = `${labelBeforeDot}.${tld}`
+      if (isValidEnsName(name)) {
+        items.push(createNameSuggestion(name))
+      }
+    }
+    return items
+  }
+
+  // If input is already a valid ENS name (e.g., "eth", "vitalik.eth"), show it first
+  if (isValidEnsName(lowercaseValue)) {
+    items.push(createNameSuggestion(lowercaseValue))
+  }
+
+  // If input doesn't end with .eth, also suggest the .eth version (if different)
+  if (!lowercaseValue.endsWith('.eth')) {
+    const valueWithEthSuffix = ensureEthSuffix(lowercaseValue)
+    // Only add if it's different from the original (ensureEthSuffix returns same value if input has dots)
+    if (
+      valueWithEthSuffix !== lowercaseValue &&
+      isValidEnsName(valueWithEthSuffix)
+    ) {
+      items.push(createNameSuggestion(valueWithEthSuffix))
+    }
+  }
 
   return items
 }

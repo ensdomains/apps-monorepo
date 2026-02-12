@@ -2,16 +2,10 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { DurationSelector } from './DurationSelector'
 
 const pricing = {
-  1: { price: 640, discount: 0, label: '1 year' },
-  2: {
-    price: 540,
-    discount: 15,
-    label: '2 years' as const,
-    badge: 'best' as const,
-  },
-  3: { price: 540, discount: 40, label: '3 years' },
-  4: { price: 540, discount: 45, label: '4 years' },
-  5: { price: 540, discount: 50, label: '5 years+' },
+  1: { price: 160, discount: 0, label: '1 year', total: 160 },
+  3: { price: 160, discount: 0, label: '3 years', total: 480 },
+  5: { price: 160, discount: 0, label: '5 years', total: 800 },
+  10: { price: 160, discount: 0, label: '10 years', total: 1600 },
 }
 
 const meta = {
@@ -24,6 +18,8 @@ const meta = {
   args: {
     pricing,
     onSelect: () => {},
+    durationInputValue: '',
+    onInputChange: () => {},
   },
 } satisfies Meta<typeof DurationSelector>
 
@@ -32,7 +28,7 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   args: {
-    selectedDuration: 2,
+    selectedDuration: 3,
   },
 }
 
@@ -46,5 +42,12 @@ export const Disabled: Story = {
 export const SingleYearSelected: Story = {
   args: {
     selectedDuration: 1,
+  },
+}
+
+export const CustomDurationSelected: Story = {
+  args: {
+    selectedDuration: 7,
+    durationInputValue: '7',
   },
 }

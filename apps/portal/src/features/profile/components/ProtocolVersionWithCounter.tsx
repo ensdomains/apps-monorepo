@@ -33,9 +33,16 @@ const RoleCount = ({ name }: { name: string }) => {
         width={24}
         className="p-2 w-8 h-8 rounded-4xl bg-secondary"
       />
-      <div>
+      <div className="flex-1">
         <span className="font-medium">{(data || { size: 0 }).size}</span> roles
       </div>
+      <Link
+        to="/$name/roles"
+        params={{ name }}
+        className="h-8 w-8 p-2 rounded-sm duration-150 bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+      >
+        <ChevronRight height={16} width={16} />
+      </Link>
     </div>
   )
 }
@@ -56,9 +63,16 @@ const FuseCount = ({ name }: { name: string }) => {
         width={24}
         className="p-2 w-8 h-8 rounded-4xl bg-secondary"
       />
-      <div>
+      <div className="flex-1">
         <span className="font-medium">{data || 0}</span> fuses burned
       </div>
+      <Link
+        to="/$name/ownership"
+        params={{ name }}
+        className="h-8 w-8 p-2 rounded-sm duration-150 bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+      >
+        <ChevronRight height={16} width={16} />
+      </Link>
     </div>
   )
 }

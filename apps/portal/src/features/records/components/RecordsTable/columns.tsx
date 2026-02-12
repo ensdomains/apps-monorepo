@@ -1,5 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { ArrowUpDown } from 'lucide-react'
+import { SortButton } from '@/components/table/SortButton'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
@@ -7,25 +7,14 @@ import { cn } from '@/lib/utils'
 type AddressRecord = { type: 'address'; id: number; key: string }
 type ContentHashRecord = { type: 'contentHash' }
 type TextRecord = { type: 'text'; key: string }
+type AbiRecord = { type: 'abi' }
 
 export type NameRecord = { value: string } & (
   | AddressRecord
   | ContentHashRecord
   | TextRecord
+  | AbiRecord
 )
-
-const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
-  return (
-    <button
-      className="p-0 flex flex-row items-center cursor-pointer"
-      type="button"
-      {...props}
-    >
-      {children}
-      <ArrowUpDown className="ml-2 h-4 w-4" />
-    </button>
-  )
-}
 
 export const columns: ColumnDef<NameRecord>[] = [
   {
@@ -54,6 +43,7 @@ export const columns: ColumnDef<NameRecord>[] = [
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        sortDirection={column.getIsSorted()}
       >
         Type
       </SortButton>
@@ -65,22 +55,34 @@ export const columns: ColumnDef<NameRecord>[] = [
       return (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          sortDirection={column.getIsSorted()}
         >
           Key
         </SortButton>
       )
     },
-    cell: ({ column, row }) => {
+    cell: ({ row }) => {
       const type = row.original.type
-      const value = row.getValue(column.id) as string
+
+      // Single-value records use type as key
+      if (type === 'contentHash' || type === 'abi') {
+        return <span className="font-mono">{type}</span>
+      }
+
+      // Address records show coin type + coin name
       if (type === 'address') {
         return (
-          <span className={'flex flex-row items-center gap-2'}>
+          <span className="flex flex-row items-center gap-2 font-mono">
             {row.original.id}{' '}
-            <span className="font-sans text-gray-500 uppercase">{value}</span>
+            <span className="font-sans text-gray-500 uppercase">
+              {row.original.key}
+            </span>
           </span>
         )
-      } else return <span className="font-mono">{value}</span>
+      }
+
+      // Text records show the key
+      return <span className="font-mono">{row.original.key}</span>
     },
   },
   {
@@ -89,6 +91,7 @@ export const columns: ColumnDef<NameRecord>[] = [
       return (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          sortDirection={column.getIsSorted()}
         >
           Value
         </SortButton>

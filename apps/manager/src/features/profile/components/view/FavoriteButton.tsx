@@ -19,7 +19,10 @@ interface FavoriteButtonProps {
 export const FavoriteButton = ({ name }: FavoriteButtonProps) => {
   const isAuthed = useAtom(isBackendAuthed)
 
-  const { data: favorites = [] } = useQuery(favoritesQueryOptions)
+  const { data: favorites = [] } = useQuery({
+    ...favoritesQueryOptions,
+    enabled: isAuthed,
+  })
   const addMutation = useMutation(addFavoriteMutationOptions)
   const removeMutation = useMutation(removeFavoriteMutationOptions)
 

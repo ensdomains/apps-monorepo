@@ -1,5 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { ArrowUpDown } from 'lucide-react'
+import { SortButton } from '@/components/table/SortButton'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn, fromCoinType } from '@/lib/utils'
 import { CoinTypeLabel } from '../CoinTypeLabel'
@@ -9,25 +9,13 @@ export type ForwardName = {
   coinTypes: string[]
 }
 
-const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
-  return (
-    <button
-      className="p-0 flex flex-row items-center cursor-pointer"
-      type="button"
-      {...props}
-    >
-      {children}
-      <ArrowUpDown className="ml-2 h-4 w-4" />
-    </button>
-  )
-}
-
 export const columns: ColumnDef<ForwardName>[] = [
   {
     accessorKey: 'name',
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        sortDirection={column.getIsSorted()}
       >
         Name
       </SortButton>
@@ -39,6 +27,7 @@ export const columns: ColumnDef<ForwardName>[] = [
       return (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          sortDirection={column.getIsSorted()}
         >
           Networks
         </SortButton>

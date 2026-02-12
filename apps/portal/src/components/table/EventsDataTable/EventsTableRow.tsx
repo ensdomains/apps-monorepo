@@ -33,22 +33,29 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
       </TableRow>
       {row.getIsExpanded() &&
         row.original.events.map((event, eventIndex) => {
+          // First try to extract address from event details (for V1 events with owner/registrant/newOwner)
+          // Fall back to the transaction's from address (for V2 events)
           const eventDetails = event.details as Record<string, unknown>
-          const fromAddress = extractFromAddress(eventDetails)
+          const eventAddress = extractFromAddress(eventDetails)
+          const fromAddress = eventAddress ?? row.original.from
+
+          const cellClassName = cn('px-6', tableView.compact ? 'py-2' : 'py-4')
+          const totalColumns = row.getVisibleCells().length
+          const trailingColSpan = totalColumns - 4 // 2 leading + 1 event type + 1 address
 
           return (
             <TableRow
               key={`${row.original.transactionID}-${event.id}-${eventIndex}`}
               className="hover:bg-gray-200"
             >
-              <TableCell colSpan={2} />
+              <TableCell colSpan={2} className={cellClassName} />
 
               {/* Transaction column - show event type */}
-              <TableCell>
+              <TableCell className={cellClassName}>
                 <span>{event.type}</span>
               </TableCell>
 
-              <TableCell>
+              <TableCell className={cellClassName}>
                 {fromAddress ? (
                   <AddressDisplay address={fromAddress as Address} />
                 ) : (
@@ -56,7 +63,12 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
                 )}
               </TableCell>
 
-              <TableCell colSpan={2} />
+              {trailingColSpan > 0 && (
+                <TableCell
+                  colSpan={trailingColSpan}
+                  className={cellClassName}
+                />
+              )}
             </TableRow>
           )
         })}

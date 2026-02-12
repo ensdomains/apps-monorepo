@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { AlertCircle, Search } from 'lucide-react'
-import { zeroAddress } from 'viem'
+import { AlertCircle, Info, Search } from 'lucide-react'
+import { type Address, zeroAddress } from 'viem'
+import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -12,6 +13,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
+import { MessageCard } from '@/components/ui/message-card'
 import {
   Table,
   TableBody,
@@ -26,6 +28,7 @@ import {
 } from '@/features/names/components/SubnamesTable'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 
 export const Route = createFileRoute('/$name/subnames')({
@@ -35,9 +38,13 @@ export const Route = createFileRoute('/$name/subnames')({
 
 interface NoSubregistryMessageProps {
   readonly name: string
+  readonly canDeploy: boolean
 }
 
-const NoSubregistryMessage = ({ name }: NoSubregistryMessageProps) => (
+const NoSubregistryMessage = ({
+  name,
+  canDeploy,
+}: NoSubregistryMessageProps) => (
   <>
     <header className="bg-gray-100 px-6 pb-6 pt-12 flex flex-col gap-4 sticky top-0 z-10">
       <h1 className="text-[30px] font-medium leading-tight">Subnames</h1>
@@ -66,14 +73,16 @@ const NoSubregistryMessage = ({ name }: NoSubregistryMessageProps) => (
             <div className="flex flex-row items-center gap-4">
               <AlertCircle className="size-6 text-gray-500 shrink-0" />
               <p className="flex-1">
-                This name does not have a subregistry. You must deploy one to
-                create subnames.
+                This name does not have a subregistry.
+                {canDeploy ? ' You must deploy one to create subnames.' : ''}
               </p>
-              <Button asChild variant="secondary">
-                <Link to="/$name/registry" params={{ name }}>
-                  Deploy subregistry
-                </Link>
-              </Button>
+              {canDeploy && (
+                <Button asChild variant="secondary">
+                  <Link to="/$name/registry" params={{ name }}>
+                    Deploy subregistry
+                  </Link>
+                </Button>
+              )}
             </div>
           </TableCell>
         </TableRow>
@@ -88,6 +97,8 @@ interface V2SubnamesContentProps {
 }
 
 const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
+  const { address: connectedAccount } = useAccount()
+
   const {
     data: registriesData,
     isLoading: registriesLoading,
@@ -101,13 +112,40 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
   const hasSubregistry =
     subregistryAddress && subregistryAddress !== zeroAddress
 
+  // Check if connected account has ROLE_REGISTRAR on the subregistry ROOT resource
+  const { data: hasRegistrarRole } = useQuery({
+    ...getHasRolesQueryOptions({
+      registryAddress: subregistryAddress as Address,
+      label: '',
+      roles: ['ROLE_REGISTRAR'],
+      account: connectedAccount as Address,
+    }),
+    enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
+  })
+
+  // Check if connected account can deploy a subregistry (ROLE_SET_SUBREGISTRY on parent registry)
+  const parentRegistryAddress = registriesData?.registries[1]
+  const firstLabel = name.split('.')[0]
+  const { data: hasSetSubregistryRole } = useQuery({
+    ...getHasRolesQueryOptions({
+      registryAddress: parentRegistryAddress as Address,
+      label: firstLabel,
+      roles: ['ROLE_SET_SUBREGISTRY'],
+      account: connectedAccount as Address,
+    }),
+    enabled:
+      Boolean(parentRegistryAddress) &&
+      Boolean(connectedAccount) &&
+      !hasSubregistry,
+  })
+
   const {
     data: subnames,
     isLoading: subnamesLoading,
     error: subnamesError,
   } = useQuery({
     ...getSubnamesQueryOptions({ name, network }),
-    enabled: !!hasSubregistry,
+    enabled: Boolean(hasSubregistry),
   })
 
   if (registriesLoading) {
@@ -124,7 +162,12 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
   }
 
   if (!hasSubregistry) {
-    return <NoSubregistryMessage name={name} />
+    return (
+      <NoSubregistryMessage
+        name={name}
+        canDeploy={Boolean(hasSetSubregistryRole)}
+      />
+    )
   }
 
   if (subnamesLoading) {
@@ -145,19 +188,30 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
     owner: subname.owner,
   }))
 
-  return <SubnamesTable subnames={subnameRows} />
+  const canCreateSubname = Boolean(hasRegistrarRole)
+
+  return (
+    <SubnamesTable
+      subnames={subnameRows}
+      name={name}
+      canCreateSubname={canCreateSubname}
+    />
+  )
 }
 
 const V1SubnamesMessage = () => (
-  <div className="max-w-360 w-full mx-auto flex flex-col gap-4 p-6">
-    <h1 className="text-[28px] font-medium">Subnames</h1>
-    <div className="bg-gray-50 rounded-lg p-8 text-center">
-      <p className="text-gray-600">This page is only for ENSv2 names.</p>
-      <p className="text-gray-500 text-sm mt-2">
-        ENSv1 subnames are managed differently.
-      </p>
-    </div>
-  </div>
+  <MessageCard
+    icon={<Info size={30} strokeWidth={1.5} />}
+    title="ENSv1 Name"
+    description={
+      <>
+        <p>This page is only for ENSv2 names.</p>
+        <p className="text-gray-500 text-sm mt-2">
+          ENSv1 subnames are managed differently.
+        </p>
+      </>
+    }
+  />
 )
 
 function RouteComponent() {

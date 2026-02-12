@@ -1,11 +1,12 @@
 import { vValidator } from '@hono/valibot-validator'
 import { and, eq, gt } from 'drizzle-orm'
 import { okAsync } from 'neverthrow'
+import { match, P } from 'ts-pattern'
 import * as v from 'valibot'
 import { requireAuth } from '#app/middleware/auth.js'
 import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
-import { TABLE } from '#core/database/index.js'
+import { intoDbResult, TABLE } from '#core/database/index.js'
 import { sendVerificationEmail } from '#services/email/verification.js'
 import { sendWelcomeEmail } from '#services/email/welcome.js'
 import { sanitizeChannel } from '#services/notifications/helpers.js'
@@ -502,6 +503,8 @@ const idRoutes = createApp()
         email: channel.target,
         error: emailResult.error,
       })
+
+      return c.json({ error: 'Failed to send verification email' }, 500)
     } else {
       logger.info('Verification email resent', {
         channelId,
@@ -642,20 +645,72 @@ export default createApp()
             '• Domain expiry reminders\n' +
             '• Domain transfers\n' +
             '• And other important events\n\n' +
-            'Click the button below to customize which notifications you receive.',
+            'Click the button below to customize which notifications you receive.\n\n' +
+            '👥 *Want more ENS news & updates?*\n' +
+            'Join our announcements group for broadcasts: [t.me/ens_updates](https://t.me/ens_updates)',
           parse_mode: 'Markdown',
           reply_markup: keyboard,
         },
       )
 
-      if (messageResult.isErr()) {
-        logger.error('Failed to send telegram message on channel creation', {
-          error: messageResult.error,
-          channelId: channel.id,
-        })
-        return c.json({ error: 'Failed to send message' }, 400)
-      }
+      if (messageResult.isErr())
+        return match(messageResult.error)
+          .with(
+            { code: 'TELEGRAM_API_REQUEST_ERROR', errorCode: 403 },
+            async (e) => {
+              logger.warn(
+                'Telegram bot is not authorized to send messages to this user',
+                {
+                  channelId: channel.id,
+                  userId,
+                  error: e,
+                },
+              )
 
+              const updateResult = await intoDbResult(
+                c.var.db
+                  .update(TABLE.userChannels)
+                  .set({
+                    status: 'pending',
+                    status_reason: 'FORBIDDEN_BY_TELEGRAM',
+                  })
+                  .where(eq(TABLE.userChannels.id, channel.id)),
+              )
+
+              if (updateResult.isErr()) {
+                logger.error('Failed to update user channel status', {
+                  channelId: channel.id,
+                  userId,
+                  error: updateResult.error,
+                })
+                return c.json(
+                  { error: 'Failed to mark channel as pending' },
+                  500,
+                )
+              }
+
+              return c.json({ ok: true })
+            },
+          )
+          .with(
+            {
+              code: P.union(
+                'TELEGRAM_API_RESPONSE_PARSE_ERROR',
+                'TELEGRAM_API_REQUEST_ERROR',
+              ),
+            },
+            (e) => {
+              logger.error(
+                'Failed to send telegram message on channel creation',
+                {
+                  channelId: channel.id,
+                  error: e,
+                },
+              )
+              return c.json({ error: 'Failed to send message' }, 400)
+            },
+          )
+          .exhaustive()
       return c.json({ ok: true })
     },
   )

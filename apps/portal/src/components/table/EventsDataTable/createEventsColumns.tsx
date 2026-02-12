@@ -1,29 +1,12 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import {
-  ArrowUpDown,
-  ChevronDown,
-  ChevronUp,
-  PanelRightOpen,
-} from 'lucide-react'
+import { ChevronDown, ChevronUp, PanelRightOpen } from 'lucide-react'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
+import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/utils/formatting/formatDateRange'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { BaseEvent, EventsTableData } from './types'
-
-const SortButton = ({ children, ...props }: React.ComponentProps<'button'>) => {
-  return (
-    <button
-      className="p-0 flex flex-row items-center cursor-pointer"
-      type="button"
-      {...props}
-    >
-      {children}
-      <ArrowUpDown className="ml-2 h-4 w-4" />
-    </button>
-  )
-}
 
 type ColumnConfig = {
   enableSidebar?: boolean
@@ -41,6 +24,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
   const baseColumns: ColumnDef<EventsTableData<TEvent>>[] = [
     {
       id: 'expander',
+      size: 80,
       header: () => <div />,
       cell: ({ row }) => {
         const eventCount = row.original.events.length
@@ -68,9 +52,11 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
     },
     {
       accessorKey: 'timestamp',
+      size: 160,
       header: ({ column }) => (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          sortDirection={column.getIsSorted()}
         >
           Date
         </SortButton>
@@ -85,9 +71,11 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
     },
     {
       accessorKey: 'transactionID',
+      size: 240,
       header: ({ column }) => (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          sortDirection={column.getIsSorted()}
         >
           Transaction
         </SortButton>
@@ -107,9 +95,11 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
     },
     {
       accessorKey: 'from',
+      size: 240,
       header: ({ column }) => (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          sortDirection={column.getIsSorted()}
         >
           From
         </SortButton>
@@ -126,9 +116,11 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
   if (enableNetwork) {
     baseColumns.push({
       accessorKey: 'network',
+      size: 140,
       header: ({ column }) => (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          sortDirection={column.getIsSorted()}
         >
           Network
         </SortButton>
@@ -156,6 +148,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
   if (enableSidebar) {
     baseColumns.push({
       id: 'more',
+      size: 120,
       header: () => null,
       cell: ({ row, table }) => {
         return (

@@ -1,6 +1,5 @@
 import { AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import type { PricingDuration } from '@/features/register/components/Pricing/types'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import {
   CreditCardPaymentDrawer,
@@ -11,7 +10,7 @@ type PricingPaymentSectionProps = {
   isConnected: boolean
   isLoading: boolean
   domainName: string
-  selectedDuration: PricingDuration
+  selectedDuration: number
   priceUSD: number
   isPriceLoading: boolean
   isUsingAA: boolean

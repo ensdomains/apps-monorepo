@@ -4,10 +4,7 @@ import { PricingDomainHeader } from '@/features/register/components/Pricing/Pric
 import { PricingPaymentSection } from '@/features/register/components/Pricing/PricingPaymentSection'
 import { PricingRegistrationSummaryCard } from '@/features/register/components/Pricing/PricingRegistrationSummaryCard'
 import { PricingTotalPriceCard } from '@/features/register/components/Pricing/PricingTotalPriceCard'
-import type {
-  PricingDuration,
-  PricingProps,
-} from '@/features/register/components/Pricing/types'
+import type { PricingProps } from '@/features/register/components/Pricing/types'
 import { usePricing } from '@/features/register/components/Pricing/usePricing'
 
 export const Pricing = ({
@@ -41,6 +38,10 @@ export const Pricing = ({
     // Account/connection
     isUsingAA,
 
+    // Shared input state
+    durationInputValue,
+    setDurationInputValue,
+
     // Handlers
     handleChange,
     handleConfirmPayment,
@@ -72,7 +73,7 @@ export const Pricing = ({
   }, [finalPrice, discountAmount, isPriceLoading, onPricingDataChange])
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 pt-4 pb-12 md:px-10">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 pt-4 pb-12 md:px-10">
       {/* Domain Name Header */}
       <PricingDomainHeader
         domainName={domainName}
@@ -80,14 +81,16 @@ export const Pricing = ({
       />
 
       {/* Two Column Layout - Desktop / Single Column - Mobile */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_420px] lg:items-stretch">
+      <div className="grid grid-cols-1 gap-2 lg:grid-cols-[2fr_420px] lg:items-stretch">
         {/* Left Column: Duration Selector */}
         <div className="flex flex-col space-y-2 duration-selector-container">
           <DurationSelector
             disabled={isPricingLoading || isLoading}
-            onSelect={(duration: PricingDuration) => handleChange(duration)}
+            durationInputValue={durationInputValue}
+            onInputChange={setDurationInputValue}
+            onSelect={handleChange}
             pricing={pricingOptions}
-            selectedDuration={selectedDuration as PricingDuration}
+            selectedDuration={selectedDuration}
           />
           {isPricingLoading && (
             <div className="text-center">
@@ -100,14 +103,16 @@ export const Pricing = ({
         <div className="summary-cards-container flex w-full flex-col gap-2">
           {/* Registration Summary Card */}
           <PricingRegistrationSummaryCard
+            durationInputValue={durationInputValue}
             expirationDate={expirationDate}
             formattedExpiration={formattedExpiration}
             onChange={handleChange}
+            onInputChange={setDurationInputValue}
             paddedDuration={paddedDuration}
           />
 
           {/* Total & Payment Card */}
-          <div className="total-payment-card h-full space-y-6 rounded-2xl border border-ens-gray-two bg-white px-6 py-6 shadow-sm">
+          <div className="total-payment-card flex h-full flex-col justify-between space-y-6 rounded-2xl border border-ens-gray-two bg-white px-6 py-6 shadow-sm">
             {/* Total Price Section */}
             <PricingTotalPriceCard
               discountAmount={discountAmount}
@@ -129,7 +134,7 @@ export const Pricing = ({
               onCryptoSelect={onSelectCrypto}
               onPaymentSelect={onSelectPayment}
               priceUSD={finalPrice}
-              selectedDuration={selectedDuration as PricingDuration}
+              selectedDuration={selectedDuration}
             />
           </div>
         </div>
