@@ -120,7 +120,11 @@ export const SetPrimaryNameDialog = ({
     handlePrimaryNameCancel(primaryNameActor)
   }
 
-  const triggerButton = <Button variant="outline">Set Primary Name</Button>
+  const triggerButton = (
+    <Button className="w-full" variant="outline">
+      Set Primary Name
+    </Button>
+  )
 
   const content = (
     <>

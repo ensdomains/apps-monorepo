@@ -110,7 +110,7 @@ export const DiffDialog = ({
     }, {}) ?? {}
 
   const triggerButton = (
-    <Button disabled={!hasChanges}>
+    <Button className="w-full" disabled={!hasChanges}>
       <Save className="mr-2 size-4" />
       Save Changes
     </Button>
