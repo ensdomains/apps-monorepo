@@ -430,6 +430,29 @@ const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => {
 
   if (changes.abi) {
     const abiJson = changes.abi.after ?? ''
+    if (abiJson) {
+      try {
+        const parsed = JSON.parse(abiJson)
+        if (!Array.isArray(parsed)) {
+          allIssues.push({
+            sectionKey: 'other',
+            fieldKey: 'abi',
+            message: 'ABI must be a JSON array',
+          })
+        }
+      } catch {
+        allIssues.push({
+          sectionKey: 'other',
+          fieldKey: 'abi',
+          message: 'ABI must be valid JSON',
+        })
+      }
+    }
+
+    if (allIssues.length > 0) {
+      throw new RecordsValidationError(allIssues)
+    }
+
     const abiBytes = abiJson ? stringToHex(abiJson) : '0x'
     const contentType = abiJson ? 1n : 0n
     extraCalls.push(
