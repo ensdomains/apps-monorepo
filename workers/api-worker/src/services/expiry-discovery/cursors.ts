@@ -1,10 +1,8 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { ok } from 'neverthrow'
 import * as v from 'valibot'
-import { intoKVResult } from '#core/kv/index.js'
+import { intoKVResult, KV_KEY } from '#core/kv/index.js'
 import type { ExpiryStageId } from '#types/events/index.js'
-
-export const NOTIFICATION_CURSORS_KV_KEY = 'notification_cursors'
 
 const cursorValueSchema = v.object({
   expiry_timestamp: v.number(),
@@ -38,7 +36,7 @@ export const loadNotificationCursors = ResultFn(async function* (
   nowSec: number,
 ) {
   const value = yield* intoKVResult(
-    env.KV.get(NOTIFICATION_CURSORS_KV_KEY, 'json'),
+    env.KV.get(KV_KEY.EXPIRY_DISCOVERY.CURSORS, 'json'),
   )
 
   if (!value) {
@@ -70,7 +68,7 @@ export const storeNotificationCursors = ResultFn(async function* (
   cursors: NotificationCursors,
 ) {
   yield* intoKVResult(
-    env.KV.put(NOTIFICATION_CURSORS_KV_KEY, JSON.stringify(cursors)),
+    env.KV.put(KV_KEY.EXPIRY_DISCOVERY.CURSORS, JSON.stringify(cursors)),
   )
 
   return ok(undefined)

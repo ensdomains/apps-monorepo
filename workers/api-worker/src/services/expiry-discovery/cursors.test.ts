@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  loadNotificationCursors,
-  NOTIFICATION_CURSORS_KV_KEY,
-  storeNotificationCursors,
-} from './cursors.js'
+import { KV_KEY } from '#core/kv/index.js'
+import { loadNotificationCursors, storeNotificationCursors } from './cursors.js'
 
 class MockKV {
   private store = new Map<string, string>()
@@ -44,7 +41,7 @@ describe('notification cursors', () => {
 
   it('fills missing stages from defaults when KV value is partial', async () => {
     const kv = new MockKV()
-    kv.seed(NOTIFICATION_CURSORS_KV_KEY, {
+    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, {
       '30d': { expiry_timestamp: 10 },
       expired: { expiry_timestamp: 5 },
     })
@@ -63,7 +60,7 @@ describe('notification cursors', () => {
 
   it('returns CURSOR_PARSE_ERROR when KV value is invalid', async () => {
     const kv = new MockKV()
-    kv.seed(NOTIFICATION_CURSORS_KV_KEY, {
+    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, {
       '30d': { expiry_timestamp: 'oops' },
     })
 
@@ -87,7 +84,7 @@ describe('notification cursors', () => {
 
     expect(writeResult.isOk()).toBe(true)
 
-    const stored = kv.readRaw(NOTIFICATION_CURSORS_KV_KEY)
+    const stored = kv.readRaw(KV_KEY.EXPIRY_DISCOVERY.CURSORS)
     expect(stored).toBeTruthy()
     expect(JSON.parse(stored!)).toEqual({
       '30d': { expiry_timestamp: 1 },

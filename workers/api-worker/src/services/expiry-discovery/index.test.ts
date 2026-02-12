@@ -5,6 +5,7 @@ vi.mock('./indexer.js', () => ({
   fetchExpiringNamesPage: vi.fn(),
 }))
 
+import { KV_KEY } from '#core/kv/index.js'
 import { runExpiryDiscoveryCron } from './index.js'
 import { fetchExpiringNamesPage } from './indexer.js'
 import { STAGES } from './stages.js'
@@ -77,7 +78,7 @@ describe('runExpiryDiscoveryCron', () => {
     expect(firstBatch?.[0].body.stage).toBe('30d')
 
     const cursors = (await env.KV.get(
-      'notification_cursors',
+      KV_KEY.EXPIRY_DISCOVERY.CURSORS,
       'json',
     )) as CursorState
     expect(cursors['30d'].expiry_timestamp).toBeGreaterThan(
@@ -91,7 +92,7 @@ describe('runExpiryDiscoveryCron', () => {
     )
 
     const kv = new MockKV()
-    kv.seed('notification_cursors', {
+    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, {
       '30d': { expiry_timestamp: 111 },
       '7d': { expiry_timestamp: 222 },
       '1d': { expiry_timestamp: 333 },
@@ -107,7 +108,7 @@ describe('runExpiryDiscoveryCron', () => {
 
     expect(result.isOk()).toBe(true)
     const cursors = (await kv.get(
-      'notification_cursors',
+      KV_KEY.EXPIRY_DISCOVERY.CURSORS,
       'json',
     )) as CursorState
     expect(cursors).toEqual({
@@ -122,7 +123,7 @@ describe('runExpiryDiscoveryCron', () => {
     const nowSec = Math.floor(new Date('2026-02-11T12:00:00Z').getTime() / 1000)
 
     const kv = new MockKV()
-    kv.seed('notification_cursors', {
+    kv.seed(KV_KEY.EXPIRY_DISCOVERY.CURSORS, {
       '30d': { expiry_timestamp: nowSec + 31 * 86_400 },
       '7d': { expiry_timestamp: nowSec + 8 * 86_400 },
       '1d': { expiry_timestamp: nowSec + 2 * 86_400 },
@@ -175,7 +176,7 @@ describe('runExpiryDiscoveryCron', () => {
     expect(result._unsafeUnwrap().failedStages).toBe(1)
 
     const cursors = (await env.KV.get(
-      'notification_cursors',
+      KV_KEY.EXPIRY_DISCOVERY.CURSORS,
       'json',
     )) as CursorState
     const nowSec = Math.floor(new Date('2026-02-11T12:00:00Z').getTime() / 1000)
