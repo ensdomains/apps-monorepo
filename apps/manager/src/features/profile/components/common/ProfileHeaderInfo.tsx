@@ -4,6 +4,7 @@ import { Calendar, Wallet } from 'lucide-react'
 import type { Address } from 'viem'
 import { CopyToClipboard } from '@/components/atoms/CopyToClipboard'
 import { Highlight } from '@/components/atoms/Highlight'
+import { truncateAddress } from '@/lib/utils'
 import { profileExpiryQuery } from '../../service/profileExpiry'
 import { profileReverseNameQuery } from '../../service/profileReverseName'
 
@@ -28,7 +29,8 @@ const OwnerLink = ({ address, profileName }: OwnerLinkProps) => {
         params={{ name: address }}
         to="/p/$name"
       >
-        {address}
+        <span className="md:hidden">{truncateAddress(address)}</span>
+        <span className="hidden md:inline">{address}</span>
       </Link>
     )
   }
@@ -71,7 +73,8 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
       <Highlight className="text-lg md:text-2xl">{name}</Highlight>
       <div className="flex items-center gap-x-1 whitespace-pre-wrap">
         <Wallet className="size-5" />
-        Owned by <OwnerLink address={owner} profileName={name} />
+        Owned by
+        <OwnerLink address={owner} profileName={name} />
       </div>
       {expiry.data?.expiry && (
         <div className="flex items-center gap-x-1 whitespace-pre-wrap">
