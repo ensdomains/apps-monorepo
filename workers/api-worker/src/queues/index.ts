@@ -1,8 +1,10 @@
 import type {
+  BaseDeliveryJob,
   EmailDeliveryJob,
   PushDeliveryJob,
   TelegramDeliveryJob,
 } from '#types/delivery.js'
+import { handleDlqQueue } from './dlq.js'
 import { handleEmailQueue } from './email.js'
 import { handlePushQueue } from './push.js'
 import { handleTelegramQueue } from './telegram.js'
@@ -21,6 +23,9 @@ export const handleQueue = async (
       break
     case 'app-api-worker-push-delivery':
       await handlePushQueue(batch as MessageBatch<PushDeliveryJob>, env)
+      break
+    case 'app-api-worker-dlq':
+      await handleDlqQueue(batch as MessageBatch<BaseDeliveryJob>, env)
       break
     default:
       console.error(`Unknown queue: ${batch.queue}`)

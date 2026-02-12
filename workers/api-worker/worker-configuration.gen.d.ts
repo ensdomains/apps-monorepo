@@ -25,6 +25,7 @@ declare namespace Cloudflare {
 		TELEGRAM_QUEUE: Queue;
 		EMAIL_QUEUE: Queue;
 		PUSH_QUEUE: Queue;
+		DLQ: Queue;
 	}
 }
 interface CloudflareBindings extends Cloudflare.Env {}
