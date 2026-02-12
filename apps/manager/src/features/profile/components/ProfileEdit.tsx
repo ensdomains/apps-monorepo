@@ -24,6 +24,7 @@ import { SaveChanges } from './SaveChanges'
 import { BioSection } from './sections/BioSection'
 import { HeaderSection } from './sections/HeaderSection'
 import { LinksSection } from './sections/LinksSection'
+import { OtherSection } from './sections/OtherSection'
 import { SocialLinksSection } from './sections/SocialLinksSection'
 import { WalletAddressesSection } from './sections/WalletAddressesSection'
 
@@ -123,6 +124,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
           <BioSection form={form} />
           <SocialLinksSection form={form} />
           <LinksSection form={form} />
+          <OtherSection form={form} />
         </div>
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
           <WalletAddressesSection form={form} />

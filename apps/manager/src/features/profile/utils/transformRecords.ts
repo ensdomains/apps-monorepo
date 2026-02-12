@@ -12,6 +12,8 @@ export const newEmptyProfileRecords = (): ProfileRecords => ({
   base: {},
   addresses: [],
   links: [],
+  contentHash: undefined,
+  abi: undefined,
   unknown: [],
   ...allSections.reduce(
     (acc, key) => {
@@ -79,6 +81,8 @@ export const transformProfileRecords = (
   const withAddresses: ProfileRecords = {
     ...baseRecords,
     addresses: profile.coins,
+    contentHash: profile.contentHash,
+    abi: profile.abi,
     resolverAddress: profile.resolverAddress,
   }
 
@@ -94,6 +98,8 @@ export const transformToServiceFormat = (
 ): {
   texts: Array<{ key: string; value: string }>
   coins: Array<{ coinType: number; value: string }>
+  contentHash?: string
+  abi?: string
 } => {
   const sectionTexts = allSections.flatMap((section) =>
     records[section].map(({ key, value }) => ({ key, value })),
@@ -120,7 +126,7 @@ export const transformToServiceFormat = (
     .filter(({ value }) => value && value.trim() !== '')
     .map(({ coinType, value }) => ({ coinType, value }))
 
-  return { texts, coins }
+  return { texts, coins, contentHash: records.contentHash, abi: records.abi }
 }
 
 /**
