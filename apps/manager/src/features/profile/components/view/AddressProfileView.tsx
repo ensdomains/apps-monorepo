@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import clsx from 'clsx'
 import {
   ArrowUpRight,
   CircleArrowLeft,
@@ -231,7 +232,7 @@ export const AddressProfileView = ({
         </div>
 
         <div
-          className={isPlaceholderData ? 'opacity-50 transition-opacity' : ''}
+          className={clsx(isPlaceholderData && 'opacity-50 transition-opacity')}
         >
           {namesContent}
         </div>
