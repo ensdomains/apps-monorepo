@@ -43,7 +43,7 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
         <div className="mt-3 flex items-center gap-x-1 whitespace-pre-wrap text-sm">
           <User className="size-4" />
           Owned by{' '}
-          <span className="font-medium font-mono">
+          <span className="font-medium">
             {ownerReverseName.data ??
               `${owner.slice(0, 6)}...${owner.slice(-4)}`}
           </span>
