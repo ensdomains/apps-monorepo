@@ -12,8 +12,10 @@ import {
   estimateTelemetryBytes,
 } from '../services/run-telemetry.service'
 import type {
-  FailedRunPayloadV1,
+  FailedRunPayloadV2,
+  RunTelemetryEventSubscriber,
   RunTelemetrySubscriber,
+  TransactionRunEventV2,
   TransactionRunStatus,
 } from '../types/audit.types'
 import type { Signer } from '../types/signer.types'
@@ -70,6 +72,7 @@ class TransactionManager {
   >()
   private listeners = new Set<TransactionChangeListener>()
   private telemetryListeners = new Set<RunTelemetrySubscriber>()
+  private telemetryEventListeners = new Set<RunTelemetryEventSubscriber>()
   private publicClients = new Map<number, PublicClient>() // chainId -> PublicClient
   private completedTelemetry = new Set<string>()
   private runTelemetry = createRunTelemetryService()
@@ -204,10 +207,15 @@ class TransactionManager {
       },
     })
 
-    this.runTelemetry.startRun(txId, {
+    this.runTelemetry.startRun({
+      txId,
       chainId,
-      requestType: request?.type || intent?.type,
-      signerType: signer.type,
+      intent,
+      request:
+        request || (intent?.type === 'custom' ? intent.request : undefined),
+      signer,
+      options: transactionOptions,
+      useSmartAccount: Boolean(useSmartAccount),
     })
 
     actor.start()
@@ -219,7 +227,14 @@ class TransactionManager {
       const state = getRootState(snapshot.value)
       const ctx = snapshot.context
 
-      this.runTelemetry.recordSnapshot(txId, snapshot)
+      const telemetryEvent = this.runTelemetry.recordSnapshot(txId, snapshot)
+      if (telemetryEvent) {
+        this.notifyTelemetryEventListeners(
+          telemetryEvent.runId,
+          txId,
+          telemetryEvent.event,
+        )
+      }
 
       console.log(`📊 [TRANSACTION MANAGER] Transaction ${txId} state:`, state)
 
@@ -341,6 +356,13 @@ class TransactionManager {
     }
   }
 
+  onRunTelemetryEvent(listener: RunTelemetryEventSubscriber): () => void {
+    this.telemetryEventListeners.add(listener)
+    return () => {
+      this.telemetryEventListeners.delete(listener)
+    }
+  }
+
   /**
    * Notify all listeners of transaction changes
    */
@@ -351,13 +373,42 @@ class TransactionManager {
     })
   }
 
-  private notifyTelemetryListeners(payload: FailedRunPayloadV1): void {
+  private notifyTelemetryListeners(payload: FailedRunPayloadV2): void {
     this.telemetryListeners.forEach((listener) => {
       try {
         listener(payload)
       } catch (error) {
         console.error(
           `❌ [TRANSACTION MANAGER ${this.instanceId}] Failed run telemetry listener crashed:`,
+          error,
+        )
+      }
+    })
+  }
+
+  private notifyTelemetryEventListeners(
+    runId: string,
+    txId: string,
+    event: TransactionRunEventV2,
+  ): void {
+    this.telemetryEventListeners.forEach((listener) => {
+      try {
+        listener({
+          runId,
+          txId,
+          status:
+            event.phase === 'success'
+              ? 'success'
+              : event.phase === 'error' && event.substate === 'cancelled'
+                ? 'cancelled'
+                : event.phase === 'error'
+                  ? 'error'
+                  : undefined,
+          event,
+        })
+      } catch (error) {
+        console.error(
+          `❌ [TRANSACTION MANAGER ${this.instanceId}] Telemetry event listener crashed:`,
           error,
         )
       }

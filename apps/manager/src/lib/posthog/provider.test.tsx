@@ -6,14 +6,21 @@ const mocks = vi.hoisted(() => {
   const mockTrack = vi.fn()
   const mockTrackWithOptions = vi.fn()
   const mockUnsubscribe = vi.fn()
+  const mockLiveUnsubscribe = vi.fn()
   const onFailedRunTelemetry = vi.fn(
     (_listener: (payload: Record<string, unknown>) => void) => mockUnsubscribe,
+  )
+  const onRunTelemetryEvent = vi.fn(
+    (_listener: (payload: Record<string, unknown>) => void) =>
+      mockLiveUnsubscribe,
   )
   return {
     mockTrack,
     mockTrackWithOptions,
     mockUnsubscribe,
+    mockLiveUnsubscribe,
     onFailedRunTelemetry,
+    onRunTelemetryEvent,
   }
 })
 
@@ -48,6 +55,7 @@ vi.mock('wagmi', () => ({
 vi.mock('@ens-apps/transaction-manager', () => ({
   transactionManager: {
     onFailedRunTelemetry: mocks.onFailedRunTelemetry,
+    onRunTelemetryEvent: mocks.onRunTelemetryEvent,
   },
 }))
 
@@ -60,6 +68,9 @@ describe('PHProvider failed run telemetry bridge', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.onFailedRunTelemetry.mockImplementation(() => mocks.mockUnsubscribe)
+    mocks.onRunTelemetryEvent.mockImplementation(
+      () => mocks.mockLiveUnsubscribe,
+    )
   })
 
   afterEach(() => {
@@ -74,8 +85,10 @@ describe('PHProvider failed run telemetry bridge', () => {
     )
 
     expect(mocks.onFailedRunTelemetry).toHaveBeenCalledTimes(1)
+    expect(mocks.onRunTelemetryEvent).toHaveBeenCalledTimes(1)
     view.unmount()
     expect(mocks.mockUnsubscribe).toHaveBeenCalledTimes(1)
+    expect(mocks.mockLiveUnsubscribe).toHaveBeenCalledTimes(1)
   })
 
   it('tracks tm:failed_run payload when callback fires', () => {
@@ -91,25 +104,46 @@ describe('PHProvider failed run telemetry bridge', () => {
     expect(listener).toBeDefined()
 
     listener?.({
-      schemaVersion: 'tm-failed-run-v1',
-      runId: 'run-1',
-      txId: 'tx-1',
-      status: 'error',
-      startedAt: 1,
-      endedAt: 2,
-      durationMs: 1,
-      eventCount: 1,
-      truncated: false,
-      droppedEvents: 0,
-      events: [],
-      summary: { finalState: 'error' },
+      schemaVersion: 'tm-failed-run-v2',
+      run: {
+        runId: 'run-1',
+        txId: 'tx-1',
+        status: 'error',
+        startedAt: 1,
+        endedAt: 2,
+        durationMs: 1,
+      },
+      initial: {
+        txId: 'tx-1',
+        createdAt: 1,
+        useSmartAccount: false,
+        options: { hasModalConfig: false },
+        smartAccount: { enabled: false },
+      },
+      timeline: [],
+      summary: {
+        finalState: 'error.submission',
+        failureStage: 'submission',
+        attemptCount: 2,
+        requestFingerprint: 'abc',
+      },
+      truncation: {
+        truncated: false,
+        droppedEvents: 0,
+        totalEvents: 3,
+      },
     })
 
     expect(mocks.mockTrack).toHaveBeenCalledTimes(1)
     expect(mocks.mockTrack).toHaveBeenCalledWith(
       'tm:failed_run',
       expect.objectContaining({
-        runId: 'run-1',
+        tm_run_id: 'run-1',
+        tm_tx_id: 'tx-1',
+        tm_failure_stage: 'submission',
+        tm_payload: expect.objectContaining({
+          schemaVersion: 'tm-failed-run-v2',
+        }),
         source_app: 'manager',
       }),
     )
@@ -132,18 +166,34 @@ describe('PHProvider failed run telemetry bridge', () => {
 
     expect(() =>
       listener?.({
-        schemaVersion: 'tm-failed-run-v1',
-        runId: 'run-2',
-        txId: 'tx-2',
-        status: 'cancelled',
-        startedAt: 1,
-        endedAt: 2,
-        durationMs: 1,
-        eventCount: 1,
-        truncated: false,
-        droppedEvents: 0,
-        events: [],
-        summary: { finalState: 'error.cancelled' },
+        schemaVersion: 'tm-failed-run-v2',
+        run: {
+          runId: 'run-2',
+          txId: 'tx-2',
+          status: 'cancelled',
+          startedAt: 1,
+          endedAt: 2,
+          durationMs: 1,
+        },
+        initial: {
+          txId: 'tx-2',
+          createdAt: 1,
+          useSmartAccount: false,
+          options: { hasModalConfig: false },
+          smartAccount: { enabled: false },
+        },
+        timeline: [],
+        summary: {
+          finalState: 'error.cancelled',
+          failureStage: 'cancelled',
+          attemptCount: 0,
+          requestFingerprint: 'abc',
+        },
+        truncation: {
+          truncated: false,
+          droppedEvents: 0,
+          totalEvents: 1,
+        },
       }),
     ).not.toThrow()
   })

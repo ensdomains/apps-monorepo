@@ -126,11 +126,15 @@ export type {
   AuditEntry,
   DebugReport,
   ErrorSummary,
-  FailedRunPayloadV1,
+  FailedRunPayloadV2,
   PerformanceMetrics,
+  RunTelemetryEventSubscriber,
   RunTelemetrySubscriber,
+  SerializedRunError,
   StateTransition,
-  TransactionRunEvent,
+  TransactionPhase,
+  TransactionRunEventV2,
+  TransactionRunInitialSnapshot,
   TransactionRunStatus,
 } from './types/audit.types'
 export type {

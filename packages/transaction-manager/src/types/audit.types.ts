@@ -54,45 +54,119 @@ export interface PerformanceMetrics {
 
 export type TransactionRunStatus = 'success' | 'error' | 'cancelled'
 
-export interface TransactionRunEvent {
+export type TransactionPhase =
+  | 'idle'
+  | 'preparing'
+  | 'submitting'
+  | 'pending'
+  | 'checkingFallback'
+  | 'confirming'
+  | 'retrying'
+  | 'success'
+  | 'error'
+  | 'unknown'
+
+export interface SerializedRunError {
+  name?: string
+  message?: string
+  stack?: string
+  code?: string | number
+  cause?: SerializedRunError
+}
+
+export interface TransactionRunEventV2 {
+  sequence: number
   timestamp: number
+  deltaMs: number
+  phase: TransactionPhase
+  substate?: string
+  reason: string
   state: string
-  eventType?: string
-  hash?: string
-  error?: {
-    name?: string
-    message?: string
-    stack?: string
-  }
   retryCount: number
+  hash?: string
+  userOpHash?: string
+  context: Record<string, unknown>
+  error?: SerializedRunError
+  isTerminal: boolean
+}
+
+export interface TransactionRunInitialSnapshot {
+  txId: string
+  createdAt: number
   chainId?: number
+  intentType?: string
   requestType?: string
   signerType?: string
-}
-
-export interface FailedRunPayloadV1 {
-  schemaVersion: 'tm-failed-run-v1'
-  runId: string
-  txId: string
-  status: Exclude<TransactionRunStatus, 'success'>
-  startedAt: number
-  endedAt: number
-  durationMs: number
-  eventCount: number
-  truncated: boolean
-  droppedEvents: number
-  events: TransactionRunEvent[]
-  summary: {
-    finalState: string
-    finalError?: {
-      name?: string
-      message?: string
-      stack?: string
-    }
-    chainId?: number
-    requestType?: string
+  useSmartAccount: boolean
+  options: {
+    retryCount?: number
+    retryDelay?: number
+    timeout?: number
+    confirmations?: number
+    usePrivateMempool?: boolean
+    hasModalConfig: boolean
+  }
+  request?: {
+    from?: string
+    to?: string
+    value?: string
+    nonce?: number
+    gas?: string
+    gasPrice?: string
+    maxFeePerGas?: string
+    maxPriorityFeePerGas?: string
+    data?: string
+    dataTruncated?: boolean
+    dataBytes?: number
+    dataSelector?: string
+  }
+  smartAccount: {
+    enabled: boolean
     signerType?: string
+    accountType?: string
+    sponsored?: boolean
   }
 }
 
-export type RunTelemetrySubscriber = (payload: FailedRunPayloadV1) => void
+export interface FailedRunPayloadV2 {
+  schemaVersion: 'tm-failed-run-v2'
+  run: {
+    runId: string
+    txId: string
+    status: Exclude<TransactionRunStatus, 'success'>
+    startedAt: number
+    endedAt: number
+    durationMs: number
+  }
+  initial: TransactionRunInitialSnapshot
+  timeline: TransactionRunEventV2[]
+  summary: {
+    finalState: string
+    failureStage: string
+    attemptCount: number
+    firstErrorName?: string
+    finalErrorName?: string
+    finalError?: SerializedRunError
+    chainId?: number
+    intentType?: string
+    requestType?: string
+    signerType?: string
+    hash?: string
+    userOpHash?: string
+    requestFingerprint: string
+  }
+  truncation: {
+    truncated: boolean
+    droppedEvents: number
+    totalEvents: number
+  }
+}
+
+export type RunTelemetrySubscriber = (payload: FailedRunPayloadV2) => void
+
+export type RunTelemetryEventSubscriber = (event: {
+  runId: string
+  txId: string
+  status?: TransactionRunStatus
+  event: TransactionRunEventV2
+}) => void
