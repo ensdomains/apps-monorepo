@@ -1,5 +1,6 @@
 import { primaryNameMachine } from '@ens-apps/transaction-manager'
-import { useQuery } from '@tanstack/react-query'
+import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle } from 'lucide-react'
@@ -46,17 +47,21 @@ function usePrimaryNameSuccessRedirect(params: {
   onUpdated?: () => void
   navigate: ReturnType<typeof useNavigate>
   setOpen: (open: boolean) => void
+  queryClient: ReturnType<typeof useQueryClient>
 }) {
-  const { isSuccess, name, navigate, onUpdated, setOpen } = params
+  const { isSuccess, name, navigate, onUpdated, setOpen, queryClient } = params
 
   useEffect(() => {
     if (!isSuccess) return
 
+    queryClient.invalidateQueries({
+      queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
+    })
     onUpdated?.()
     setOpen(false)
     toast.success('Primary name set successfully')
     navigate({ to: '/p/$name', params: { name } })
-  }, [isSuccess, name, navigate, onUpdated, setOpen])
+  }, [isSuccess, name, navigate, onUpdated, setOpen, queryClient])
 }
 
 export const SetPrimaryNameDialog = ({
@@ -66,6 +71,7 @@ export const SetPrimaryNameDialog = ({
 }: SetPrimaryNameDialogProps) => {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const account = useSmartAccountContext()
   const isDesktop = useMediaQuery('(min-width: 768px)')
 
@@ -101,6 +107,7 @@ export const SetPrimaryNameDialog = ({
     navigate,
     onUpdated,
     setOpen,
+    queryClient,
   })
 
   const handleSave = () => {
