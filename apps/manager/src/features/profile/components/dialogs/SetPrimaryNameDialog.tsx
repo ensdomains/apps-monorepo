@@ -33,6 +33,7 @@ import {
   handleSetPrimaryName,
   hasEthAddressRecord,
 } from '../ProfileEdit.handlers'
+import { saveRecords } from '../ProfileEdit.transactions'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 interface SetPrimaryNameDialogProps {
@@ -98,8 +99,9 @@ export const SetPrimaryNameDialog = ({
     ...profileRecordsQuery(name),
     enabled: open,
   })
-  const showNoEthWarning =
+  const needsEthAddress =
     open && !isLoadingRecords && !hasEthAddressRecord(records)
+  const [isSettingEthAddress, setIsSettingEthAddress] = useState(false)
 
   usePrimaryNameSuccessRedirect({
     isSuccess,
@@ -110,14 +112,39 @@ export const SetPrimaryNameDialog = ({
     queryClient,
   })
 
-  const handleSave = () => {
+  const walletAddress = account.ownerAddress as Address | undefined
+
+  const handleSave = async () => {
+    if (needsEthAddress && walletAddress) {
+      if (!account.signer || !account.accountAddress) return
+
+      setIsSettingEthAddress(true)
+      try {
+        await saveRecords({
+          name,
+          before: { texts: [], coins: [] },
+          after: { texts: [], coins: [{ coinType: 60, value: walletAddress }] },
+          signer: account.signer,
+          accountAddress: account.accountAddress,
+          publicClient: publicClient as PublicClient,
+          chainId: customSepolia.id,
+          resolverAddress: records?.resolverAddress,
+        })
+      } catch (error) {
+        console.error('Failed to set ETH address record:', error)
+        toast.error('Failed to set ETH address record')
+        setIsSettingEthAddress(false)
+        return
+      }
+      setIsSettingEthAddress(false)
+    }
+
     handleSetPrimaryName(
       { name, owner },
       {
         account,
         primaryNameActor,
         publicClient: publicClient as PublicClient,
-        records,
       },
     )
   }
@@ -146,25 +173,39 @@ export const SetPrimaryNameDialog = ({
         ENS name for this account, so compatible apps and wallets can display it
         as your default identity.
       </p>
-      {showNoEthWarning && (
-        <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3">
-          <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
-          <p className="text-red-800 text-sm">
-            This name doesn&apos;t have an ETH address record set. Please add
-            one before setting it as your primary name.
-          </p>
+      {needsEthAddress && walletAddress && (
+        <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3">
+          <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+          <div className="text-amber-800 text-sm">
+            <p>
+              No ETH address record set. If you proceed, your current wallet
+              address will be set as the ETH address and this name will be set
+              as your primary name.
+            </p>
+            <div className="mt-2 rounded-md bg-amber-100/60 px-2.5 py-1.5">
+              <p className="break-all font-mono text-amber-900 text-xs">
+                {walletAddress}
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </>
   )
 
+  const isBusy = isSubmitting || isSettingEthAddress
+
   const footer = (
     <>
-      <Button disabled={isSubmitting} onClick={handleCancel} variant="outline">
+      <Button disabled={isBusy} onClick={handleCancel} variant="outline">
         Cancel
       </Button>
-      <Button disabled={isSubmitting || showNoEthWarning} onClick={handleSave}>
-        {isSubmitting ? 'Setting…' : 'Set as Primary'}
+      <Button disabled={isBusy} onClick={handleSave}>
+        {isSettingEthAddress
+          ? 'Setting ETH address…'
+          : isSubmitting
+            ? 'Setting…'
+            : 'Set as Primary'}
       </Button>
     </>
   )

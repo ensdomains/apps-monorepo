@@ -62,7 +62,6 @@ export interface PrimaryNameOptions {
   }
   primaryNameActor: ActorRefFrom<typeof primaryNameMachine>
   publicClient: PublicClient
-  records?: ProfileRecordsResult
 }
 
 export interface ProfileResetParams {
@@ -157,17 +156,13 @@ export function handleSetPrimaryName(
   options: PrimaryNameOptions,
 ): string | undefined {
   const { name, owner } = params
-  const { account, primaryNameActor, publicClient, records } = options
+  const { account, primaryNameActor, publicClient } = options
 
   if (!owner) {
     const message = 'Cannot set primary name - ENS owner is not available.'
     console.warn(message)
     alert(message)
     return message
-  }
-
-  if (!hasEthAddressRecord(records)) {
-    return "This name doesn't have an ETH address record set. Please add one before setting it as your primary name."
   }
 
   const walletClient = account.walletClient

@@ -3,10 +3,9 @@ import { primaryNameMachine } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useWallet } from '@getpara/react-sdk-lite'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, Check } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
@@ -28,6 +27,7 @@ import {
   type PrimaryNameOptions,
   type PrimaryNameParams,
 } from '@/features/profile/components/ProfileEdit.handlers'
+import { saveRecords } from '@/features/profile/components/ProfileEdit.transactions'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
@@ -112,10 +112,11 @@ export const ChoosePrimaryNameDialog = ({
     ...profileRecordsQuery(selectedName ?? ''),
     enabled: !!selectedName,
   })
-  const showNoEthWarning =
+  const needsEthAddress =
     !!selectedName &&
     !isLoadingRecords &&
     !hasEthAddressRecord(selectedNameRecords)
+  const [isSettingEthAddress, setIsSettingEthAddress] = useState(false)
 
   // Set selected name to current primary on mount
   useEffect(() => {
@@ -149,8 +150,35 @@ export const ChoosePrimaryNameDialog = ({
     }
   }
 
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(async () => {
     if (!selectedName || !account.ownerAddress) return
+
+    if (needsEthAddress) {
+      if (!account.signer || !account.accountAddress) return
+
+      setIsSettingEthAddress(true)
+      try {
+        await saveRecords({
+          name: selectedName,
+          before: { texts: [], coins: [] },
+          after: {
+            texts: [],
+            coins: [{ coinType: 60, value: account.ownerAddress as string }],
+          },
+          signer: account.signer,
+          accountAddress: account.accountAddress,
+          publicClient: publicClient as PublicClient,
+          chainId: customSepolia.id,
+          resolverAddress: selectedNameRecords?.resolverAddress,
+        })
+      } catch (error) {
+        console.error('Failed to set ETH address record:', error)
+        toast.error('Failed to set ETH address record')
+        setIsSettingEthAddress(false)
+        return
+      }
+      setIsSettingEthAddress(false)
+    }
 
     const params: PrimaryNameParams = {
       name: selectedName,
@@ -161,14 +189,19 @@ export const ChoosePrimaryNameDialog = ({
       account,
       primaryNameActor,
       publicClient: publicClient as PublicClient,
-      records: selectedNameRecords,
     }
 
     const error = handleSetPrimaryName(params, options)
     if (error) {
       console.error(error)
     }
-  }
+  }, [
+    selectedName,
+    account,
+    needsEthAddress,
+    selectedNameRecords,
+    primaryNameActor,
+  ])
 
   const handleCancel = () => {
     if (!isSubmitting) {
@@ -279,29 +312,29 @@ export const ChoosePrimaryNameDialog = ({
               Failed to set primary name. Please try again.
             </div>
           )}
-          {/* No ETH Address Warning */}
-          {showNoEthWarning && (
-            <div className="flex items-start gap-2 rounded-[4px] border border-red-200 bg-red-50 p-3">
-              <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
-              <p className="text-red-800 text-sm">
-                This name doesn&apos;t have an ETH address record set. Please
-                add one before setting it as your primary name.{' '}
-                <Link
-                  className="font-semibold underline hover:text-red-900"
-                  onClick={() => setOpen(false)}
-                  params={{ name: selectedName }}
-                  to="/p/$name/edit"
-                >
-                  Edit profile
-                </Link>
-              </p>
+          {/* No ETH Address Info */}
+          {needsEthAddress && account.ownerAddress && (
+            <div className="flex items-start gap-2 rounded-[4px] border border-amber-200 bg-amber-50 p-3">
+              <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+              <div className="text-amber-800 text-sm">
+                <p>
+                  No ETH address record set. If you proceed, your current wallet
+                  address will be set as the ETH address and this name will be
+                  set as your primary name.
+                </p>
+                <div className="mt-2 rounded-md bg-amber-100/60 px-2.5 py-1.5">
+                  <p className="break-all font-mono text-amber-900 text-xs">
+                    {account.ownerAddress}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
           {/* Action Buttons */}
           <div className="flex gap-3">
             <Button
               className="h-[48px] flex-1 rounded-xs border-ens-white bg-ens-white font-mono text-ens-blue text-sm uppercase tracking-wider transition-colors hover:bg-ens-white/80 disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isSettingEthAddress}
               onClick={handleCancel}
               variant="outline"
             >
@@ -310,11 +343,18 @@ export const ChoosePrimaryNameDialog = ({
             <Button
               className="h-[48px] flex-1 rounded-xs border-ens-blue bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-ens-blue-hover disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
               disabled={
-                isSubmitting || !hasChanges || !selectedName || showNoEthWarning
+                isSubmitting ||
+                isSettingEthAddress ||
+                !hasChanges ||
+                !selectedName
               }
               onClick={handleConfirm}
             >
-              {isSubmitting ? 'Setting...' : 'Set as Primary'}
+              {isSettingEthAddress
+                ? 'Setting ETH address...'
+                : isSubmitting
+                  ? 'Setting...'
+                  : 'Set as Primary'}
             </Button>
           </div>
         </div>
