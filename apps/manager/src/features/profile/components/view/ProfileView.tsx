@@ -72,7 +72,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
           {isOwner && (
             <div>
               <LinkButton
-                className="w-full md:w-auto"
+                className="w-full"
                 params={{ name }}
                 to="/p/$name/edit"
               >
