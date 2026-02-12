@@ -20,6 +20,7 @@ import {
   getCoderByCoinName,
   getCoderByCoinType,
 } from '@ensdomains/address-encoder'
+import { encodeContentHash } from '@ensdomains/ensjs/utils'
 import * as v from 'valibot'
 import {
   type Address,
@@ -413,11 +414,16 @@ const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => {
 
   if (changes.contentHash) {
     const hash = changes.contentHash.after ?? ''
+    const encodedHash: Hex = hash
+      ? hash.startsWith('0x')
+        ? (hash as Hex)
+        : encodeContentHash(hash)
+      : '0x'
     extraCalls.push(
       encodeFunctionData({
         abi: DEDICATED_RESOLVER_ABI,
         functionName: 'setContenthash',
-        args: [(hash || '0x') as Hex],
+        args: [encodedHash],
       }),
     )
   }

@@ -6,8 +6,9 @@ import {
   coinTypeToNameMap,
   getCoderByCoinType,
 } from '@ensdomains/address-encoder'
+import { decodeContentHash } from '@ensdomains/ensjs/utils'
 import { ok } from 'neverthrow'
-import { type Address, hexToBytes, namehash } from 'viem'
+import { type Address, type Hex, hexToBytes, namehash } from 'viem'
 import { multicall } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { alwaysProbeAddressRecords, forceFetchRecords } from '../data/records'
@@ -162,9 +163,12 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
 
   const contentHashEntry = extraResults[0]
   if (contentHashEntry?.status === 'success') {
-    const raw = contentHashEntry.result as `0x${string}` | null
+    const raw = contentHashEntry.result as Hex | null
     if (raw && raw !== '0x') {
-      result.contentHash = raw
+      const decoded = decodeContentHash(raw)
+      result.contentHash = decoded
+        ? `${decoded.protocolType}://${decoded.decoded}`
+        : raw
     }
   }
 
