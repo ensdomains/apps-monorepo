@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useSelector } from '@xstate/store-react'
 import { useEffect, useMemo, useState } from 'react'
+import { match } from 'ts-pattern'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -96,12 +97,11 @@ function RouteComponent() {
 
     if (!isCustomValid) return
 
-    const nextOverride =
-      mode === 'env'
-        ? undefined
-        : mode === 'proxy'
-          ? '/api'
-          : trimmedCustomInput
+    const nextOverride = match(mode)
+      .with('env', () => undefined)
+      .with('proxy', () => '/api')
+      .with('custom', () => trimmedCustomInput)
+      .exhaustive()
 
     const currentEffective = resolveBaseUrlForDisplay(getBackendApiBaseUrl())
     const nextEffective = resolveBaseUrlForDisplay(
