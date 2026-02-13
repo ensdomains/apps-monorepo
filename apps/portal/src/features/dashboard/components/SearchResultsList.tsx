@@ -79,9 +79,9 @@ export const SearchResultsList = ({
     <>
       {avatar}
       <div className="flex min-w-0 flex-col items-start gap-0.5">
-        <span className="font-medium">{label}</span>
+        <span className="truncate font-medium">{label}</span>
         {description && (
-          <span className="text-xs text-muted-foreground">{description}</span>
+          <span className="truncate text-xs text-muted-foreground">{description}</span>
         )}
       </div>
     </>
