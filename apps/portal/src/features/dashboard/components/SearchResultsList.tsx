@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import {
   CommandGroup,
   CommandItem,
@@ -8,6 +9,24 @@ import { cn } from '@/lib/utils'
 import type { Suggestion } from '../utils/buildSearchSuggestions'
 
 const AVATAR_SIZE = '32px'
+
+const REGISTER_URL = 'https://app.ens.dev/register?name='
+
+const RegisterLink = ({ name }: { name: string }) => (
+  <Button asChild variant="outline" size="sm">
+    <a
+      href={`${REGISTER_URL}${name}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="ml-auto shrink-0 rounded-md px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      Register
+    </a>
+  </Button>
+)
 
 const AvatarPlaceholder = ({ isLoading = false }: { isLoading?: boolean }) => (
   <div
@@ -68,8 +87,9 @@ export const SearchResultsList = ({
   activeIndex = -1,
 }: SearchResultsListProps) => {
   const hasSuggestions = suggestions.length > 0
-  const hasAvailable = availableNames.length > 0
   const hasOwned = ownedNamesFiltered.length > 0
+
+  const availableNameIds = new Set(availableNames.map((s) => s.id))
 
   const rowContent = (
     avatar: React.ReactNode,
@@ -97,8 +117,7 @@ export const SearchResultsList = ({
     )
 
   const suggestionsStartIdx = 0
-  const availableStartIdx = suggestions.length
-  const ownedStartIdx = suggestions.length + availableNames.length
+  const ownedStartIdx = suggestions.length
 
   return (
     <>
@@ -126,6 +145,10 @@ export const SearchResultsList = ({
               ) : (
                 <AvatarPlaceholder />
               )
+              const isAvailable = availableNameIds.has(suggestion.id)
+              const description = isAvailable
+                ? 'Available to register'
+                : suggestion.description
               return (
                 <CommandItem
                   key={suggestion.id}
@@ -133,7 +156,8 @@ export const SearchResultsList = ({
                   onSelect={onSelect}
                   className="flex flex-row items-center gap-3 py-2"
                 >
-                  {rowContent(avatar, suggestion.label, suggestion.description)}
+                  {rowContent(avatar, suggestion.label, description)}
+                  {isAvailable && <RegisterLink name={suggestion.inputValue} />}
                 </CommandItem>
               )
             })}
@@ -162,6 +186,10 @@ export const SearchResultsList = ({
               ) : (
                 <AvatarPlaceholder />
               )
+              const isAvailable = availableNameIds.has(suggestion.id)
+              const description = isAvailable
+                ? 'Available to register'
+                : suggestion.description
               return (
                 <button
                   key={suggestion.id}
@@ -172,7 +200,8 @@ export const SearchResultsList = ({
                   className={rowClassName(idx === activeIndex)}
                   onClick={() => onSelect(suggestion.id)}
                 >
-                  {rowContent(avatar, suggestion.label, suggestion.description)}
+                  {rowContent(avatar, suggestion.label, description)}
+                  {isAvailable && <RegisterLink name={suggestion.inputValue} />}
                 </button>
               )
             })}
@@ -180,58 +209,6 @@ export const SearchResultsList = ({
         ))}
 
       {hasSuggestions &&
-        (hasAvailable || hasOwned) &&
-        (variant === 'command' ? (
-          <CommandSeparator />
-        ) : (
-          <hr className="my-1 border-border" />
-        ))}
-
-      {hasAvailable &&
-        (variant === 'command' ? (
-          <CommandGroup heading="Available to register">
-            {availableNames.map((s) => (
-              <CommandItem
-                key={`available:${s.inputValue}`}
-                value={`available:${s.inputValue}`}
-                onSelect={onSelect}
-                className="flex flex-row items-center gap-3 py-2"
-              >
-                {rowContent(
-                  <AvatarPlaceholder />,
-                  s.inputValue,
-                  'Available to register',
-                )}
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        ) : (
-          <fieldset className="border-0 p-0 m-0 min-w-0">
-            <SectionLegend>Available to register</SectionLegend>
-            {availableNames.map((s, i) => {
-              const idx = availableStartIdx + i
-              return (
-                <button
-                  key={`available:${s.inputValue}`}
-                  id={listboxId ? `${listboxId}-opt-${idx}` : undefined}
-                  type="button"
-                  role="option"
-                  aria-selected={idx === activeIndex}
-                  className={rowClassName(idx === activeIndex)}
-                  onClick={() => onSelect(`available:${s.inputValue}`)}
-                >
-                  {rowContent(
-                    <AvatarPlaceholder />,
-                    s.inputValue,
-                    'Available to register',
-                  )}
-                </button>
-              )
-            })}
-          </fieldset>
-        ))}
-
-      {hasAvailable &&
         hasOwned &&
         (variant === 'command' ? (
           <CommandSeparator />

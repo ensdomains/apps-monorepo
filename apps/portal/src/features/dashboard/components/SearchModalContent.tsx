@@ -8,7 +8,6 @@ export type SearchModalContentProps = {
   /** Trimmed, debounced search value */
   searchValue: string
   onSelectSuggestion: (suggestion: Suggestion) => void
-  onSelectAvailableName?: (name: string) => void
   onSelectOwnedName?: (name: string) => void
   navigateToName: (name: string) => void
   navigateToAddress: (address: string) => void
@@ -17,7 +16,6 @@ export type SearchModalContentProps = {
 export const SearchModalContent = ({
   searchValue,
   onSelectSuggestion,
-  onSelectAvailableName,
   onSelectOwnedName,
   navigateToName,
   navigateToAddress,
@@ -37,10 +35,6 @@ export const SearchModalContent = ({
 
   const handleSelect = useCallback(
     (value: string) => {
-      if (value.startsWith('available:')) {
-        onSelectAvailableName?.(value.slice('available:'.length))
-        return
-      }
       if (value.startsWith('owned:')) {
         onSelectOwnedName?.(value.slice('owned:'.length))
         return
@@ -48,7 +42,7 @@ export const SearchModalContent = ({
       const suggestion = suggestions.find((s) => s.id === value)
       if (suggestion) onSelectSuggestion(suggestion)
     },
-    [suggestions, onSelectSuggestion, onSelectAvailableName, onSelectOwnedName],
+    [suggestions, onSelectSuggestion, onSelectOwnedName],
   )
 
   return (

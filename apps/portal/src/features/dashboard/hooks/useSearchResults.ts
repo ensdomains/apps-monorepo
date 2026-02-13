@@ -164,18 +164,16 @@ export const useSearchResults = ({
   )
 
   const hasSuggestions = suggestionsFiltered.length > 0
-  const hasAvailable = availableNames.length > 0
   const hasOwned = ownedNamesFiltered.length > 0
-  const hasAnySection = hasSuggestions || hasAvailable || hasOwned
+  const hasAnySection = hasSuggestions || hasOwned
 
   const allItems = useMemo(
     () =>
       buildSearchResultItems({
         suggestions: suggestionsFiltered,
-        availableNames,
         ownedNamesFiltered,
       }),
-    [suggestionsFiltered, availableNames, ownedNamesFiltered],
+    [suggestionsFiltered, ownedNamesFiltered],
   )
 
   return {
