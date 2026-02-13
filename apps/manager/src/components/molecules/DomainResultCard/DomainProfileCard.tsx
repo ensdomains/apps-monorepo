@@ -49,7 +49,7 @@ export const DomainProfileCard = ({
       )}
     >
       {/* Left section: Avatar and Domain Info */}
-      <div className="flex h-full items-center gap-4">
+      <div className="flex h-full min-w-0 flex-1 items-center gap-4">
         {/* Avatar */}
         <div className="relative size-[113px] shrink-0">
           <div className="size-[113px] overflow-clip rounded-[5.215px] bg-ens-white">
@@ -62,10 +62,10 @@ export const DomainProfileCard = ({
         </div>
 
         {/* Domain Info */}
-        <div className="flex h-full flex-col justify-start gap-2">
+        <div className="flex h-full min-w-0 flex-1 flex-col justify-start gap-2">
           {/* Domain Name Badge */}
-          <div className="flex w-fit items-center justify-center gap-[10px] rounded-sm bg-ens-magenta px-2 py-1 font-medium text-2xl text-ens-white leading-none tracking-[-0.64px]">
-            {domainName}
+          <div className="flex max-w-full items-center justify-center gap-[10px] rounded-sm bg-ens-magenta px-2 py-1 font-medium text-2xl text-ens-white leading-none tracking-[-0.64px]">
+            <span className="break-all">{domainName}</span>
           </div>
 
           {/* Registration and Expiry Info */}
