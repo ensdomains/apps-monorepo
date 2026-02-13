@@ -43,8 +43,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: "opus"
-          claude_args: "--dangerously-skip-permissions"
+          claude_args: "--dangerously-skip-permissions --model opus"
 
           # Only set prompt for repository_dispatch (Linear) events.
           # For comment events, the action auto-detects the context.
