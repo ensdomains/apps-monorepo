@@ -90,14 +90,8 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
               >
                 Manage Para Wallet
               </button>
-              <div className="flex items-center gap-1 text-muted-foreground text-xs leading-ens-normal">
-                <span className="truncate">
-                  {truncateAddress(accountAddress)}
-                </span>
-                <CopyToClipboard
-                  className="size-3 text-muted-foreground"
-                  value={accountAddress}
-                />
+              <div className="truncate text-muted-foreground text-xs leading-ens-normal">
+                {truncateAddress(accountAddress)}
               </div>
             </div>
           </div>
