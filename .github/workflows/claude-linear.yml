@@ -43,6 +43,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: "--dangerously-skip-permissions"
 
           # Only set prompt for repository_dispatch (Linear) events.
           # For comment events, the action auto-detects the context.
@@ -51,10 +52,12 @@ jobs:
               github.event_name == 'repository_dispatch' &&
               !github.event.client_payload.followup &&
               format(
-                'Implement the following task and create a PR when done.\n\nTitle: {0}\nDescription: {1}\nLinear Ticket: {2}\n\nUse branch name: claude/{2}\nDo NOT include the raw description in the PR body. Write a concise summary of what you implemented instead.',
+                'Implement the following task and create a PR when done.\n\nTitle: {0}\nDescription: {1}\nLinear Ticket: {2}\nProject: {3}\n\nUse branch name: claude/{2}\n\nIMPORTANT: The Project name indicates which app in the monorepo to work in. The project name contains the app folder name (e.g. "Manager v4 beta" means work in apps/manager/). Only modify files in the relevant app directory unless shared code changes are genuinely needed.\n\nDo NOT include the raw description in the PR body. Write a concise summary of what you implemented instead.',
                 github.event.client_payload.title,
                 github.event.client_payload.description,
-                github.event.client_payload.ticket_id
+                github.event.client_payload.ticket_id,
+                github.event.client_payload.project,
+                github.event.client_payload.team
               ) || ''
             }}
             ${{
