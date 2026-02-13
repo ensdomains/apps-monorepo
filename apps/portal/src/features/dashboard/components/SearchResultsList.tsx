@@ -30,6 +30,26 @@ const RegisterLink = ({ name }: { name: string }) => (
   </Button>
 )
 
+const getSuggestionDescription = ({
+  isAvailable,
+  isName,
+  ownerResolved,
+  isPendingAvailability,
+  defaultDescription,
+}: {
+  isAvailable: boolean
+  isName: boolean
+  ownerResolved: boolean
+  isPendingAvailability: boolean
+  defaultDescription: string
+}): React.ReactNode => {
+  if (isAvailable) return 'Available to register'
+  if (isName && (!ownerResolved || isPendingAvailability)) {
+    return <Skeleton className="h-3 w-24" />
+  }
+  return defaultDescription
+}
+
 const AvatarPlaceholder = ({ isLoading = false }: { isLoading?: boolean }) => (
   <div
     className={cn(
@@ -159,18 +179,15 @@ export const SearchResultsList = ({
                 <AvatarPlaceholder />
               )
               const isAvailable = availableNameIds.has(suggestion.id)
-              const isPendingAvailability = pendingAvailabilityIds.has(
-                suggestion.id,
-              )
-              // Show a skeleton while the owner or availability check is loading
-              // to avoid flicker when it switches to "Available to register".
-              const description = isAvailable ? (
-                'Available to register'
-              ) : isName && (!ownerResolved || isPendingAvailability) ? (
-                <Skeleton className="h-3 w-24" />
-              ) : (
-                suggestion.description
-              )
+              const description = getSuggestionDescription({
+                isAvailable,
+                isName,
+                ownerResolved,
+                isPendingAvailability: pendingAvailabilityIds.has(
+                  suggestion.id,
+                ),
+                defaultDescription: suggestion.description,
+              })
               return (
                 <CommandItem
                   key={suggestion.id}
@@ -210,16 +227,15 @@ export const SearchResultsList = ({
                 <AvatarPlaceholder />
               )
               const isAvailable = availableNameIds.has(suggestion.id)
-              const isPendingAvailability = pendingAvailabilityIds.has(
-                suggestion.id,
-              )
-              const description = isAvailable ? (
-                'Available to register'
-              ) : isName && (!ownerResolved || isPendingAvailability) ? (
-                <Skeleton className="h-3 w-24" />
-              ) : (
-                suggestion.description
-              )
+              const description = getSuggestionDescription({
+                isAvailable,
+                isName,
+                ownerResolved,
+                isPendingAvailability: pendingAvailabilityIds.has(
+                  suggestion.id,
+                ),
+                defaultDescription: suggestion.description,
+              })
               return (
                 <button
                   key={suggestion.id}
