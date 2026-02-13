@@ -1,10 +1,18 @@
 import { useLogout, useModal } from '@getpara/react-sdk-lite'
 import { useSelector } from '@xstate/store-react'
-import { BookmarkCheckIcon, UnlinkIcon, WalletIcon } from 'lucide-react'
+import {
+  BookmarkCheckIcon,
+  CheckIcon,
+  CopyIcon,
+  UnlinkIcon,
+  WalletIcon,
+} from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import paraColorIcon from '@/assets/icons/para-color.svg'
 import { CopyToClipboard } from '@/components/atoms/CopyToClipboard'
 import { Switch } from '@/components/ui/switch'
+import { copyToClipboard } from '@/lib/clipboard'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { truncateAddress } from '@/lib/utils'
 import { backendAuthStore } from '@/utils/backend-client'
@@ -18,6 +26,20 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
   const { isSessionClient, walletSource, accountAddress, openSessionModal } =
     useSmartAccountContext()
 
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (!copied) return
+    const t = setTimeout(() => setCopied(false), 1500)
+    return () => clearTimeout(t)
+  }, [copied])
+
+  const handleCopyAddress = async () => {
+    if (!accountAddress) return
+    await copyToClipboard(accountAddress)
+    setCopied(true)
+  }
+
   const shouldShowSiweButton = useSelector(
     backendAuthStore,
     (state) =>
@@ -30,6 +52,25 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
 
   return (
     <div className="mb-3 space-y-4">
+      {accountAddress && (
+        <button
+          className="flex w-full items-center gap-2"
+          onClick={handleCopyAddress}
+          type="button"
+        >
+          {copied ? (
+            <CheckIcon className="size-5 text-green-600" />
+          ) : (
+            <CopyIcon className="size-5 text-ens-lapis-core" />
+          )}
+          <span className="text-base text-ens-lapis-core leading-ens-tight">
+            {copied
+              ? 'Copied!'
+              : `Copy Address (${truncateAddress(accountAddress)})`}
+          </span>
+        </button>
+      )}
+
       {match(walletSource)
         .with('para-embedded', () => (
           <div className="flex items-center gap-2">
