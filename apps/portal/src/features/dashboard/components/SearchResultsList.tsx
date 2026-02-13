@@ -73,6 +73,7 @@ type SearchResultsListData = {
     | undefined
   >
   availableNames: Suggestion[]
+  pendingAvailabilityIds: Set<string>
   ownedNamesFiltered: { name: string }[]
 }
 
@@ -87,6 +88,7 @@ export const SearchResultsList = ({
   suggestions,
   ownerBySuggestionId,
   availableNames,
+  pendingAvailabilityIds,
   ownedNamesFiltered,
   onSelect,
   variant,
@@ -130,7 +132,10 @@ export const SearchResultsList = ({
     <>
       {hasSuggestions &&
         (variant === 'command' ? (
-          <CommandGroup>
+          <CommandGroup
+            heading="Suggestions"
+            className="**:[[cmdk-group-heading]]:sr-only"
+          >
             <SectionLegend>Suggestions</SectionLegend>
             {suggestions.map((suggestion) => {
               const isName = suggestion.id.startsWith('name:')
@@ -154,11 +159,14 @@ export const SearchResultsList = ({
                 <AvatarPlaceholder />
               )
               const isAvailable = availableNameIds.has(suggestion.id)
-              // Show a skeleton only while the owner query is still loading.
-              // Once resolved, show "Available to register" or the default description.
+              const isPendingAvailability = pendingAvailabilityIds.has(
+                suggestion.id,
+              )
+              // Show a skeleton while the owner or availability check is loading
+              // to avoid flicker when it switches to "Available to register".
               const description = isAvailable ? (
                 'Available to register'
-              ) : isName && !ownerResolved ? (
+              ) : isName && (!ownerResolved || isPendingAvailability) ? (
                 <Skeleton className="h-3 w-24" />
               ) : (
                 suggestion.description
@@ -202,9 +210,12 @@ export const SearchResultsList = ({
                 <AvatarPlaceholder />
               )
               const isAvailable = availableNameIds.has(suggestion.id)
+              const isPendingAvailability = pendingAvailabilityIds.has(
+                suggestion.id,
+              )
               const description = isAvailable ? (
                 'Available to register'
-              ) : isName && !ownerResolved ? (
+              ) : isName && (!ownerResolved || isPendingAvailability) ? (
                 <Skeleton className="h-3 w-24" />
               ) : (
                 suggestion.description
@@ -239,7 +250,10 @@ export const SearchResultsList = ({
 
       {hasOwned &&
         (variant === 'command' ? (
-          <CommandGroup>
+          <CommandGroup
+            heading="Names you own"
+            className="**:[[cmdk-group-heading]]:sr-only"
+          >
             <SectionLegend>Names you own</SectionLegend>
             {ownedNamesFiltered.map((d) => (
               <CommandItem

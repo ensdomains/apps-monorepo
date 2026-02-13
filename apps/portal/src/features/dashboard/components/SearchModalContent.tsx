@@ -24,6 +24,7 @@ export const SearchModalContent = ({
     suggestions,
     ownerBySuggestionId,
     availableNames,
+    pendingAvailabilityIds,
     ownedNamesFiltered,
     isTldsLoading,
     hasAnySection,
@@ -56,6 +57,7 @@ export const SearchModalContent = ({
         suggestions={suggestions}
         ownerBySuggestionId={ownerBySuggestionId}
         availableNames={availableNames}
+        pendingAvailabilityIds={pendingAvailabilityIds}
         ownedNamesFiltered={ownedNamesFiltered}
         onSelect={handleSelect}
         variant="command"
