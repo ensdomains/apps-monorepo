@@ -9,7 +9,6 @@ All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE
 - Keep PRs focused on the ticket scope
 - Do NOT include raw ticket descriptions in PR bodies
 - Summarize changes made, not the full requirements
-- Always run tests before creating the PR
 
 ## Package-Specific Documentation
 
