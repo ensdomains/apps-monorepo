@@ -95,6 +95,10 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
 
   const db = getDatabase(ctx.env)
 
+  logger.debug('Processing expiry events', {
+    eventCount: ctx.events.length,
+  })
+
   // Resolve recipients in two set-based lookups to avoid per-event DB round trips.
   const ownerAddresses = Array.from(
     new Set(
@@ -111,6 +115,11 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
         .map((event) => event.name),
     ),
   )
+
+  logger.trace('Resolved event lookup keys', {
+    ownerAddressCount: ownerAddresses.length,
+    favoriteNameCount: favoriteNames.length,
+  })
 
   const owners =
     ownerAddresses.length > 0
@@ -138,6 +147,11 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
         )
       : []
 
+  logger.trace('Loaded recipient source records', {
+    ownerCount: owners.length,
+    favoriteCount: favorites.length,
+  })
+
   const ownerToUserId = new Map(
     owners.map((owner) => [owner.address.toLowerCase(), owner.id]),
   )
@@ -161,15 +175,29 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
       favoriteUsersByName,
     )
 
+    logger.trace('Resolved event recipients', {
+      name: event.name,
+      recipientCount: recipients.size,
+    })
+
     for (const [userId, watchReason] of recipients.entries()) {
       const idempotencyKey = buildIdempotencyKey(event, userId)
 
       // Dedupe inside the same queue batch before relying on DB conflict handling.
       if (existingIdempotencyKeys.has(idempotencyKey)) {
+        logger.debug('Skipping duplicate idempotency key', {
+          idempotencyKey,
+        })
         continue
       }
 
       existingIdempotencyKeys.add(idempotencyKey)
+
+      logger.trace('Adding notification to insert list', {
+        userId,
+        watchReason,
+        idempotencyKey,
+      })
 
       notificationsToInsert.push({
         user_id: userId,
@@ -186,8 +214,15 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
   }
 
   if (notificationsToInsert.length === 0) {
+    logger.debug('No recipients found for expiry events', {
+      eventCount: ctx.events.length,
+    })
     return ok(undefined)
   }
+
+  logger.debug('Inserting notifications', {
+    count: notificationsToInsert.length,
+  })
 
   const insertedNotifications = yield* intoDbResult(
     db
@@ -204,7 +239,14 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
       }),
   )
 
+  logger.debug('Inserted notifications', {
+    count: insertedNotifications.length,
+  })
+
   if (insertedNotifications.length === 0) {
+    logger.debug('All notifications already exist (idempotency conflict)', {
+      eventCount: ctx.events.length,
+    })
     return ok(undefined)
   }
 
@@ -226,6 +268,11 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
     }),
   )
 
+  logger.debug('Loaded user channels for deliveries', {
+    userCount: insertedUserIds.length,
+    channelCount: channels.length,
+  })
+
   const settingsRows = yield* intoDbResult(
     db.query.userNotificationSettings.findMany({
       where: inArray(TABLE.userNotificationSettings.user_id, insertedUserIds),
@@ -237,10 +284,18 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
     }),
   )
 
+  logger.debug('Loaded user notification settings', {
+    userCount: settingsRows.length,
+  })
+
   const channelsByUserId = Map.groupBy(channels, (channel) => channel.user_id)
   const settingsByUserId = new Map(
     settingsRows.map((row) => [row.user_id, row]),
   )
+
+  logger.trace('Mapped settings by user ID', {
+    userCount: settingsByUserId.size,
+  })
 
   const deliveriesToInsert: (typeof TABLE.notificationDeliveries.$inferInsert)[] =
     []
@@ -327,6 +382,12 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
     const queue = ctx.env[queueBinding] as Queue<BaseDeliveryJob>
     const jobChunks = chunk(jobs, QUEUE_BATCH_SIZE)
 
+    logger.debug('Enqueueing delivery jobs', {
+      queue: queueBinding,
+      jobCount: jobs.length,
+      chunkCount: jobChunks.length,
+    })
+
     for (const jobChunk of jobChunks) {
       // Keep below Cloudflare sendBatch limit (100) with a small headroom.
       yield* fromPromise(
@@ -359,7 +420,9 @@ export const handleEventIngestionQueue = async (
     const body = message.body
 
     if (!body || typeof body !== 'object') {
-      logger.warn('Unsupported event payload shape', { body })
+      logger.warn('Unsupported event payload shape', {
+        bodyType: typeof body,
+      })
       message.ack()
       continue
     }
@@ -376,7 +439,6 @@ export const handleEventIngestionQueue = async (
     if (!parsed.success) {
       logger.warn('Invalid expiry event payload', {
         issues: parsed.issues,
-        body,
       })
       message.ack()
       continue
@@ -391,6 +453,13 @@ export const handleEventIngestionQueue = async (
   if (validMessages.length === 0) {
     return
   }
+
+  logger.info('Processing event-ingestion batch', {
+    validMessageCount: validMessages.length,
+  })
+  logger.debug('Event-ingestion batch names', {
+    eventNames: [...new Set(validMessages.map((m) => m.event.name))],
+  })
 
   const result = await processExpiryEvents({
     env,
@@ -414,4 +483,8 @@ export const handleEventIngestionQueue = async (
   for (const { message } of validMessages) {
     message.ack()
   }
+
+  logger.info('Event-ingestion batch completed', {
+    messageCount: validMessages.length,
+  })
 }

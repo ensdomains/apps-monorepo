@@ -3,6 +3,7 @@ import { ok } from 'neverthrow'
 import * as v from 'valibot'
 import { intoKVResult, KV_KEY } from '#core/kv/index.js'
 import type { ExpiryStageId } from '#types/events/index.js'
+import { logger } from '#utils/logger.js'
 
 const cursorValueSchema = v.object({
   expiry_timestamp: v.number(),
@@ -40,6 +41,7 @@ export const loadNotificationCursors = ResultFn(async function* (
   )
 
   if (!value) {
+    logger.debug('No cursors in KV, initializing defaults', { nowSec })
     return ok(createDefaultCursors(nowSec))
   }
 
@@ -47,6 +49,9 @@ export const loadNotificationCursors = ResultFn(async function* (
   try {
     parsed = v.parse(cursorSchema, value)
   } catch (error) {
+    logger.warn('Failed to parse notification cursors from KV', {
+      error: String(error),
+    })
     return yield* new CursorParseError({
       message: 'Failed to parse notification cursor state from KV',
       cause: error,
@@ -67,6 +72,11 @@ export const storeNotificationCursors = ResultFn(async function* (
   env: CloudflareBindings,
   cursors: NotificationCursors,
 ) {
+  logger.debug('Storing notification cursors', {
+    cursors: Object.fromEntries(
+      Object.entries(cursors).map(([k, v]) => [k, v.expiry_timestamp]),
+    ),
+  })
   yield* intoKVResult(
     env.KV.put(KV_KEY.EXPIRY_DISCOVERY.CURSORS, JSON.stringify(cursors)),
   )

@@ -6,6 +6,7 @@ vi.mock('#services/expiry-discovery/index.js', () => ({
 }))
 
 import { runExpiryDiscoveryCron } from '#services/expiry-discovery/index.js'
+import { logger } from '#utils/logger.js'
 import { handleScheduled } from './index.js'
 
 const mockRunExpiryDiscoveryCron = vi.mocked(runExpiryDiscoveryCron)
@@ -20,7 +21,7 @@ describe('handleScheduled', () => {
       okAsync({ totalEnqueued: 10, failedStages: 0 }),
     )
 
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => undefined)
 
     await handleScheduled(
       {
@@ -31,13 +32,11 @@ describe('handleScheduled', () => {
       {} as ExecutionContext,
     )
 
-    expect(logSpy).toHaveBeenCalledWith(
-      'Scheduled expiry discovery completed',
-      {
-        totalEnqueued: 10,
-        failedStages: 0,
-      },
-    )
+    expect(infoSpy).toHaveBeenCalledWith('Scheduled expiry discovery completed', {
+      cron: '0 */1 * * *',
+      totalEnqueued: 10,
+      failedStages: 0,
+    })
   })
 
   it('logs errors and does not throw on failure', async () => {
@@ -46,7 +45,7 @@ describe('handleScheduled', () => {
     )
 
     const errorSpy = vi
-      .spyOn(console, 'error')
+      .spyOn(logger, 'error')
       .mockImplementation(() => undefined)
 
     await expect(
@@ -60,7 +59,7 @@ describe('handleScheduled', () => {
       ),
     ).resolves.toBeUndefined()
 
-    expect(errorSpy).toHaveBeenCalled()
+    expect(errorSpy).toHaveBeenCalledWith('Scheduled expiry discovery failed', expect.any(Object))
   })
 
   it('surfaces partial failures in completion log payload', async () => {
@@ -68,7 +67,7 @@ describe('handleScheduled', () => {
       okAsync({ totalEnqueued: 50, failedStages: 1 }),
     )
 
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => undefined)
 
     await handleScheduled(
       {
@@ -79,12 +78,10 @@ describe('handleScheduled', () => {
       {} as ExecutionContext,
     )
 
-    expect(logSpy).toHaveBeenCalledWith(
-      'Scheduled expiry discovery completed',
-      {
-        totalEnqueued: 50,
-        failedStages: 1,
-      },
-    )
+    expect(infoSpy).toHaveBeenCalledWith('Scheduled expiry discovery completed', {
+      cron: '0 */1 * * *',
+      totalEnqueued: 50,
+      failedStages: 1,
+    })
   })
 })

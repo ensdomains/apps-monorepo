@@ -119,6 +119,10 @@ const executeIndexerQuery = ResultFn(async function* (ctx: {
   try {
     parsedResponse = v.parse(indexerResponseSchema, rawResponse)
   } catch (error) {
+    logger.warn('Indexer response validation failed', {
+      stage: ctx.stage.id,
+      error: String(error),
+    })
     return yield* new IndexerValidationError({
       message: `Indexer response validation failed for stage ${ctx.stage.id}`,
       cause: error,
@@ -149,6 +153,12 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
   cursor: number
   upperBound: number
 }) {
+  logger.debug('Fetching expiring names page from indexer', {
+    stage: ctx.stage.id,
+    cursor: ctx.cursor,
+    upperBound: ctx.upperBound,
+  })
+
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     const result = await executeIndexerQuery({
       env: ctx.env,
@@ -159,6 +169,11 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
     })
 
     if (result.isOk()) {
+      logger.debug('Indexer query succeeded', {
+        stage: ctx.stage.id,
+        domainCount: result.value.domains.length,
+        hasMore: result.value.hasMore,
+      })
       return ok(result.value)
     }
 
@@ -176,6 +191,8 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
       attempt,
       delayMs,
       status: result.error.status,
+      error: result.error,
+      cause: result.error.cause,
     })
 
     yield* fromPromise(
@@ -189,6 +206,10 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
     )
   }
 
+  logger.error('Indexer query exhausted retries', {
+    stage: ctx.stage.id,
+    attempt: MAX_RETRIES,
+  })
   return yield* new IndexerRequestError({
     message: `Indexer query exhausted retries for stage ${ctx.stage.id}`,
     attempt: MAX_RETRIES,

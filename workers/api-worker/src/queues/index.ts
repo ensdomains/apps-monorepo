@@ -3,6 +3,7 @@ import type {
   PushDeliveryJob,
   TelegramDeliveryJob,
 } from '#types/delivery.js'
+import { logger } from '#utils/logger.js'
 import { handleEmailQueue } from './email.js'
 import { handleEventIngestionQueue } from './event-ingestion.js'
 import { handlePushQueue } from './push.js'
@@ -12,6 +13,11 @@ export const handleQueue = async (
   batch: MessageBatch,
   env: CloudflareBindings,
 ): Promise<void> => {
+  logger.debug('Queue batch received', {
+    queue: batch.queue,
+    messageCount: batch.messages.length,
+  })
+
   // Route to appropriate queue handler based on queue name
   switch (batch.queue) {
     case 'app-api-worker-telegram-delivery':
@@ -27,6 +33,6 @@ export const handleQueue = async (
       await handleEventIngestionQueue(batch, env)
       break
     default:
-      console.error(`Unknown queue: ${batch.queue}`)
+      logger.error('Unknown queue', { queue: batch.queue })
   }
 }

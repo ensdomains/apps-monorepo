@@ -13,6 +13,7 @@ vi.mock('./event-ingestion.js', () => ({
   handleEventIngestionQueue: vi.fn(async () => undefined),
 }))
 
+import { logger } from '#utils/logger.js'
 import { handleEmailQueue } from './email.js'
 import { handleEventIngestionQueue } from './event-ingestion.js'
 import { handleQueue } from './index.js'
@@ -51,10 +52,12 @@ describe('handleQueue', () => {
   })
 
   it('logs unknown queue names', async () => {
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const spy = vi.spyOn(logger, 'error').mockImplementation(() => undefined)
 
     await handleQueue(batch('unknown-queue'), env)
 
-    expect(spy).toHaveBeenCalledWith('Unknown queue: unknown-queue')
+    expect(spy).toHaveBeenCalledWith('Unknown queue', {
+      queue: 'unknown-queue',
+    })
   })
 })

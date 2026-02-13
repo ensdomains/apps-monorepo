@@ -45,6 +45,11 @@ const processStage = ResultFn(async function* (ctx: {
 
   // Cursor already caught up with the stage window.
   if (ctx.cursor >= upperBound) {
+    logger.debug('Expiry stage skipped, cursor already caught up', {
+      stage: ctx.stage.id,
+      cursor: ctx.cursor,
+      upperBound,
+    })
     return ok({
       stageId: ctx.stage.id,
       nextCursor: ctx.cursor,
@@ -52,6 +57,12 @@ const processStage = ResultFn(async function* (ctx: {
       hasMore: false,
     })
   }
+
+  logger.debug('Fetching expiring names from indexer', {
+    stage: ctx.stage.id,
+    cursor: ctx.cursor,
+    upperBound,
+  })
 
   const page = yield* fetchExpiringNamesPage({
     env: ctx.env,
@@ -61,6 +72,10 @@ const processStage = ResultFn(async function* (ctx: {
   })
 
   if (page.domains.length === 0) {
+    logger.debug('Expiry stage returned empty page', {
+      stage: ctx.stage.id,
+      cursor: ctx.cursor,
+    })
     return ok({
       stageId: ctx.stage.id,
       nextCursor: ctx.cursor,
@@ -72,6 +87,10 @@ const processStage = ResultFn(async function* (ctx: {
   const events = buildExpiryEvents(ctx.stage, page.domains)
 
   for (const eventChunk of chunk(events, QUEUE_BATCH_SIZE)) {
+    logger.debug('Enqueueing expiry events batch', {
+      stage: ctx.stage.id,
+      chunkSize: eventChunk.length,
+    })
     // One sendBatch call counts as one subrequest regardless of chunk size.
     yield* fromPromise(
       ctx.env.EVENT_INGESTION_QUEUE.sendBatch(
@@ -98,7 +117,14 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
   env: CloudflareBindings,
 ) {
   const nowSec = Math.floor(Date.now() / 1000)
+  logger.info('Expiry discovery cron started', { nowSec })
+
   const cursors = yield* loadNotificationCursors(env, nowSec)
+  logger.debug('Loaded notification cursors', {
+    cursors: Object.fromEntries(
+      Object.entries(cursors).map(([k, v]) => [k, v.expiry_timestamp]),
+    ),
+  })
 
   const stageResults = await Promise.all(
     STAGES.map(async (stage) => {
@@ -149,6 +175,10 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
   }
 
   yield* storeNotificationCursors(env, nextCursors)
+  logger.info('Expiry discovery cron completed', {
+    totalEnqueued,
+    failedStages,
+  })
 
   return ok({
     totalEnqueued,
