@@ -23,7 +23,7 @@ export const addUserIfNotExists = ResultFn(async function* (
     db
       .insert(users)
       .values({
-        address,
+        address: address.toLowerCase(),
       })
       .returning()
       .then((result) => result[0]),
