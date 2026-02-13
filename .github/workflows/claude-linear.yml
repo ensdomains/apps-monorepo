@@ -55,7 +55,9 @@ jobs:
                 'Implement the following task and create a PR when done.\n\nTitle: {0}\nDescription: {1}\nLinear Ticket: {2}\n\nUse branch name: claude/{2}\nDo NOT include the raw description in the PR body. Write a concise summary of what you implemented instead.',
                 github.event.client_payload.title,
                 github.event.client_payload.description,
-                github.event.client_payload.ticket_id
+                github.event.client_payload.ticket_id,
+                github.event.client_payload.project,
+                github.event.client_payload.team
               ) || ''
             }}
             ${{

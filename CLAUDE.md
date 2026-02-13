@@ -4,7 +4,15 @@
 
 All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE.md](./STYLEGUIDE.md)**. Follow the rules and patterns defined there.
 
-## PR Conventions
+## PR Conventions when working from Linear tickets
+
+This is a monorepo with multiple apps under `apps/`. When working on a ticket,
+use the Linear project name to determine which app to work in — the project name
+will contain the app folder name (e.g. "manager app v4 beta" → `apps/manager/`).
+
+Only modify files within the relevant app directory unless the change
+genuinely requires shared code updates (e.g., packages/).
+
 - Branch naming, if initiated from a linear ticket: `linear/<linear-ticket-id>`
 - Keep PRs focused on the ticket scope
 - Do NOT include raw ticket descriptions in PR bodies
