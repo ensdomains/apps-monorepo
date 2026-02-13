@@ -9,6 +9,7 @@ import {
 import { FloatingTextarea } from '@/components/ui/floating-textarea'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
+import { validateUrl } from '@/features/profile/utils/validateUrl'
 
 export const BioSection = withForm({
   ...sharedOptions,
@@ -45,10 +46,19 @@ export const BioSection = withForm({
           )}
         </form.Field>
 
-        <form.Field name="base.url">
+        <form.Field
+          name="base.url"
+          validators={{ onBlur: ({ value }) => validateUrl(value) }}
+        >
           {(field) => (
             <RecordEntry
+              error={
+                field.state.meta.isTouched && field.state.meta.errors.length > 0
+                  ? field.state.meta.errors[0]
+                  : undefined
+              }
               name="website"
+              onBlur={field.handleBlur}
               onChange={field.handleChange}
               onRemove={() => field.handleChange('')}
               placeholder="https://"

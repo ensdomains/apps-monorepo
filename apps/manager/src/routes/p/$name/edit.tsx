@@ -73,7 +73,7 @@ function RouteComponent() {
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-background">
+    <div className="flex flex-1 flex-col">
       <Suspense fallback={<ProfileLoading />}>
         <ProfileEdit name={name} />
       </Suspense>

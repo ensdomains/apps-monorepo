@@ -31,7 +31,7 @@ export const validateContentHash = (
   const protocolType = getProtocolType(trimmed)
 
   if (!protocolType) {
-    return 'Invalid content hash. Supported protocols: ipfs://, ipns://, bzz://, onion://, onion3://, sia://, ar://'
+    return 'Enter a valid content hash (e.g. ipfs://..., ipns://..., bzz://..., ar://...)'
   }
 
   if (!protocolType.decoded) {
