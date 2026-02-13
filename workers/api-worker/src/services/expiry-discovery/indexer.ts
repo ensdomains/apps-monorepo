@@ -27,6 +27,11 @@ const expiringNamesQuery = gql`
   }
 `
 
+type ExpiringNamesQueryVariables = {
+  cursor: number
+  upper_bound: number
+}
+
 /**
  * TODO: keep this query contract aligned with the external ENS indexer.
  * Required schema:
@@ -55,13 +60,6 @@ class IndexerRequestError extends TaggedError('INDEXER_REQUEST_ERROR')<{
 }> {}
 
 class IndexerValidationError extends TaggedError('INDEXER_VALIDATION_ERROR') {}
-
-class InvalidExpiryTimestampError extends TaggedError(
-  'INVALID_EXPIRY_TIMESTAMP_ERROR',
-)<{
-  name: string
-  expiryDate: string
-}> {}
 
 function getIndexerUrl(env: CloudflareBindings): string {
   return env.ENS_INDEXER_GRAPHQL_URL || DEFAULT_INDEXER_URL
@@ -100,9 +98,9 @@ const executeIndexerQuery = ResultFn(async function* (ctx: {
 }) {
   const rawResponse = yield* fromPromise(
     request(getIndexerUrl(ctx.env), expiringNamesQuery, {
-      cursor: ctx.cursor.toString(),
-      upper_bound: ctx.upperBound.toString(),
-    }),
+      cursor: ctx.cursor,
+      upper_bound: ctx.upperBound,
+    } satisfies ExpiringNamesQueryVariables),
     (error) => {
       const status =
         error instanceof ClientError ? error.response.status : undefined
