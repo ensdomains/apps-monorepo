@@ -28,7 +28,7 @@ describe('fetchExpiringNamesPage', () => {
       domains: [
         {
           name: 'alpha.eth',
-          expiryDate: '1700000000',
+          expiryDate: 1700000000,
           owner: { id: '0xABC' },
         },
       ],
@@ -126,16 +126,14 @@ describe('fetchExpiringNamesPage', () => {
     })
 
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr()._tag).toBe(
-      'INVALID_EXPIRY_TIMESTAMP_ERROR',
-    )
+    expect(result._unsafeUnwrapErr()._tag).toBe('INDEXER_VALIDATION_ERROR')
   })
 
   it('marks hasMore=true for exactly 1000 rows', async () => {
     mockRequest.mockResolvedValue({
       domains: Array.from({ length: 1000 }, (_, i) => ({
         name: `${i}.eth`,
-        expiryDate: String(1_700_000_000 + i),
+        expiryDate: 1_700_000_000 + i,
         owner: null,
       })),
     })
