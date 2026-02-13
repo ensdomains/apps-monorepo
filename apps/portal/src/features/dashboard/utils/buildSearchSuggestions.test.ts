@@ -231,6 +231,74 @@ describe('buildSearchSuggestions', () => {
       expect(result.length).toBe(1)
       expect(result[0].label).toBe('sub.vitalik.eth')
     })
+
+    it('should suggest multiple TLDs when validTlds is provided and value is single label', () => {
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: 'vitalik',
+        validTlds: ['eth', 'xyz', 'com'],
+      })
+
+      expect(result.length).toBe(3)
+      expect(result.map((s) => s.label)).toEqual([
+        'vitalik.eth',
+        'vitalik.xyz',
+        'vitalik.com',
+      ])
+      result.forEach((s) => {
+        expect(s.description).toBe('View ENS name details')
+        s.action()
+      })
+      expect(mockNavigateToName).toHaveBeenCalledTimes(3)
+      expect(mockNavigateToName).toHaveBeenNthCalledWith(1, 'vitalik.eth')
+      expect(mockNavigateToName).toHaveBeenNthCalledWith(2, 'vitalik.xyz')
+      expect(mockNavigateToName).toHaveBeenNthCalledWith(3, 'vitalik.com')
+    })
+
+    it('should not use validTlds when value is a complete name', () => {
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: 'vitalik.eth',
+        validTlds: ['eth', 'xyz'],
+      })
+
+      expect(result.length).toBe(1)
+      expect(result[0].label).toBe('vitalik.eth')
+    })
+
+    it('should suggest all TLDs when only a trailing dot (fox.) - partial TLD empty', () => {
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: 'fox.',
+        validTlds: ['eth', 'xyz', 'com'],
+      })
+      expect(result.length).toBe(3)
+      expect(result.map((s) => s.label)).toEqual([
+        'fox.eth',
+        'fox.xyz',
+        'fox.com',
+      ])
+    })
+
+    it('should suggest only .eth when partial TLD is e (fresh.e) - .eth always included', () => {
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: 'fresh.e',
+        validTlds: ['eth', 'xyz', 'box', 'com', 'lol'],
+      })
+      expect(result.length).toBe(1)
+      expect(result[0].label).toBe('fresh.eth')
+    })
+
+    it('should suggest .eth and .com when partial TLD is c (fresh.c)', () => {
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: 'fresh.c',
+        validTlds: ['eth', 'xyz', 'box', 'com', 'lol'],
+      })
+      expect(result.length).toBe(2)
+      expect(result.map((s) => s.label)).toEqual(['fresh.eth', 'fresh.com'])
+    })
   })
 
   describe('Long ENS Name Truncation', () => {

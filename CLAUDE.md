@@ -4,6 +4,12 @@
 
 All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE.md](./STYLEGUIDE.md)**. Follow the rules and patterns defined there.
 
+## PR Conventions
+- Branch naming, if initiated from a linear ticket: `linear/<linear-ticket-id>`
+- Keep PRs focused on the ticket scope
+- Do NOT include raw ticket descriptions in PR bodies
+- Summarize changes made, not the full requirements
+
 ## Package-Specific Documentation
 
 When working in specific packages, consult these design documents:
