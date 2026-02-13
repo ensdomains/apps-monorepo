@@ -15,6 +15,7 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
+  id-token: write
 
 jobs:
   claude:
@@ -31,6 +32,7 @@ jobs:
       )
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -75,16 +77,11 @@ jobs:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           TICKET_ID: ${{ github.event.client_payload.ticket_id }}
         run: |
-          # You need to replace YOUR_IN_REVIEW_STATE_ID with your actual
-          # Linear workflow state ID. Find it via Linear's API or the
-          # GraphQL explorer at https://studio.apollographql.com/sandbox
-          #
-          # Query to find state IDs:
-          # { workflowStates { nodes { id name } } }
+          # Update Linear ticket status to "In Review" after PR creation
           #
           curl -s -X POST https://api.linear.app/graphql \
             -H "Authorization: $LINEAR_API_KEY" \
             -H "Content-Type: application/json" \
             -d "{
-              \"query\": \"mutation { issueUpdate(id: \\\"$TICKET_ID\\\", input: { stateId: \\\"YOUR_IN_REVIEW_STATE_ID\\\" }) { success } }\"
+              \"query\": \"mutation { issueUpdate(id: \\\"$TICKET_ID\\\", input: { stateId: \\\"f404d20f-cc26-4174-8617-44501a652be9\\\" }) { success } }\"
             }"
