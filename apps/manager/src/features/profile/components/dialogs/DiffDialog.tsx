@@ -30,6 +30,7 @@ interface DiffDialogProps {
   currentData: ProfileRecords
   onSave: () => void
   onReset?: () => void
+  canSubmit?: boolean
   isSaving?: boolean
   isSuccess?: boolean
   errorMessage?: string
@@ -47,6 +48,7 @@ export const DiffDialog = ({
   currentData,
   onSave,
   onReset,
+  canSubmit = true,
   isSaving,
   isSuccess,
   errorMessage,
@@ -110,7 +112,7 @@ export const DiffDialog = ({
     }, {}) ?? {}
 
   const triggerButton = (
-    <Button className="w-full" disabled={!hasChanges}>
+    <Button className="w-full" disabled={!hasChanges || !canSubmit}>
       <Save className="mr-2 size-4" />
       Save Changes
     </Button>
@@ -211,7 +213,10 @@ export const DiffDialog = ({
       <Button onClick={() => setOpen(false)} variant="outline">
         Cancel
       </Button>
-      <Button disabled={!hasChanges || Boolean(isSaving)} onClick={onSave}>
+      <Button
+        disabled={!hasChanges || !canSubmit || Boolean(isSaving)}
+        onClick={onSave}
+      >
         {isSaving ? (
           <>
             <Loader2 className="mr-2 size-4 animate-spin" />
