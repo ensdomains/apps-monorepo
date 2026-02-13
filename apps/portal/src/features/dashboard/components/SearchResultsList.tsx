@@ -78,10 +78,10 @@ export const SearchResultsList = ({
   ) => (
     <>
       {avatar}
-      <div className="flex min-w-0 flex-col items-start gap-0.5">
-        <span className="font-medium">{label}</span>
+      <div className="flex min-w-0 flex-col items-start gap-0.5 overflow-hidden">
+        <span className="font-medium truncate w-full">{label}</span>
         {description && (
-          <span className="text-xs text-muted-foreground">{description}</span>
+          <span className="text-xs text-muted-foreground truncate w-full">{description}</span>
         )}
       </div>
     </>
@@ -89,7 +89,7 @@ export const SearchResultsList = ({
 
   const rowClassName = (isActive: boolean) =>
     cn(
-      'w-full flex flex-row items-center gap-3 rounded-sm px-2 py-1.5 text-left text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      'w-full flex flex-row items-center gap-3 rounded-sm px-2 py-1.5 text-left text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring min-w-0',
       variant === 'listbox' &&
         (isActive
           ? 'bg-accent text-accent-foreground'
@@ -131,7 +131,7 @@ export const SearchResultsList = ({
                   key={suggestion.id}
                   value={suggestion.id}
                   onSelect={onSelect}
-                  className="flex flex-row items-center gap-3 py-2"
+                  className="flex flex-row items-center gap-3 py-2 min-w-0"
                 >
                   {rowContent(avatar, suggestion.label, suggestion.description)}
                 </CommandItem>
@@ -195,7 +195,7 @@ export const SearchResultsList = ({
                 key={`available:${s.inputValue}`}
                 value={`available:${s.inputValue}`}
                 onSelect={onSelect}
-                className="flex flex-row items-center gap-3 py-2"
+                className="flex flex-row items-center gap-3 py-2 min-w-0"
               >
                 {rowContent(
                   <AvatarPlaceholder />,
@@ -247,7 +247,7 @@ export const SearchResultsList = ({
                 key={`owned:${d.name}`}
                 value={`owned:${d.name}`}
                 onSelect={onSelect}
-                className="flex flex-row items-center gap-3 py-2"
+                className="flex flex-row items-center gap-3 py-2 min-w-0"
               >
                 {rowContent(
                   <NameAvatar
