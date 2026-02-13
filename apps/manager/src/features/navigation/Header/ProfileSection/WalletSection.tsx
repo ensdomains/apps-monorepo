@@ -63,11 +63,14 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
           ) : (
             <CopyIcon className="size-5 text-ens-lapis-core" />
           )}
-          <span className="text-base text-ens-lapis-core leading-ens-tight">
-            {copied
-              ? 'Copied!'
-              : `Copy Address (${truncateAddress(accountAddress)})`}
-          </span>
+          <div className="flex flex-col items-start">
+            <span className="text-base text-ens-lapis-core leading-ens-tight">
+              {copied ? 'Copied!' : 'Copy Address'}
+            </span>
+            <span className="text-xs text-muted-foreground leading-ens-normal">
+              {truncateAddress(accountAddress)}
+            </span>
+          </div>
         </button>
       )}
 
