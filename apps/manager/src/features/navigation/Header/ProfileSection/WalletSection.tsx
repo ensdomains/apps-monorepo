@@ -3,6 +3,7 @@ import { useSelector } from '@xstate/store-react'
 import { BookmarkCheckIcon, UnlinkIcon, WalletIcon } from 'lucide-react'
 import { match } from 'ts-pattern'
 import paraColorIcon from '@/assets/icons/para-color.svg'
+import { CopyToClipboard } from '@/components/atoms/CopyToClipboard'
 import { Switch } from '@/components/ui/switch'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { truncateAddress } from '@/lib/utils'
@@ -31,29 +32,48 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
     <div className="mb-3 space-y-4">
       {match(walletSource)
         .with('para-embedded', () => (
-          <button
-            className="flex items-center gap-2"
-            onClick={() => openModal()}
-            type="button"
-          >
+          <div className="flex items-center gap-2">
             <img
               alt="Para Logo"
               className="size-6 bg-[#FEF9F8] p-1"
               src={paraColorIcon}
             />
             <div className="flex flex-col items-start gap-1">
-              <div className="font-medium text-foreground text-sm">
+              <button
+                className="font-medium text-foreground text-sm"
+                onClick={() => openModal()}
+                type="button"
+              >
                 Manage Para Wallet
-              </div>
-              <div className="truncate text-muted-foreground text-xs leading-ens-normal">
-                {truncateAddress(accountAddress)}
+              </button>
+              <div className="flex items-center gap-1 text-muted-foreground text-xs leading-ens-normal">
+                <span className="truncate">
+                  {truncateAddress(accountAddress)}
+                </span>
+                <CopyToClipboard
+                  className="size-3 text-muted-foreground"
+                  value={accountAddress}
+                />
               </div>
             </div>
-          </button>
+          </div>
         ))
         .with('external-wallet', () => (
-          // biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: Accessible via toggle
-          <div
+          <>
+            <div className="flex items-center gap-2">
+              <WalletIcon className="size-5 text-muted-foreground" />
+              <div className="flex items-center gap-1 text-muted-foreground text-sm">
+                <span className="truncate">
+                  {truncateAddress(accountAddress)}
+                </span>
+                <CopyToClipboard
+                  className="size-3.5 text-muted-foreground"
+                  value={accountAddress}
+                />
+              </div>
+            </div>
+            {/* biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: Accessible via toggle */}
+            <div
             className={tw(
               'flex items-center gap-2',
               !isSessionClient && 'cursor-pointer',
@@ -85,6 +105,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
               }}
             />
           </div>
+          </>
         ))
         .otherwise(() => null)}
 
