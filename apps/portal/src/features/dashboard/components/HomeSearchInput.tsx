@@ -107,16 +107,6 @@ export const HomeSearchInput = () => {
   const handleSelectByValue = useCallback(
     (value: string) => {
       closePopover()
-      if (value.startsWith('available:')) {
-        setModalOpen(false)
-        setMenuOpen(false)
-        window.open(
-          `https://app.ens.dev/register?name=${encodeURIComponent(value.slice('available:'.length))}`,
-          '_blank',
-          'noopener,noreferrer',
-        )
-        return
-      }
       if (value.startsWith('owned:')) {
         setModalOpen(false)
         setMenuOpen(false)
@@ -135,16 +125,6 @@ export const HomeSearchInput = () => {
   const handleModalSelectSuggestion = useCallback((suggestion: Suggestion) => {
     setModalOpen(false)
     suggestion.action()
-  }, [])
-
-  const handleSelectAvailableName = useCallback((name: string) => {
-    setModalOpen(false)
-    setMenuOpen(false)
-    window.open(
-      `https://app.ens.dev/register?name=${encodeURIComponent(name)}`,
-      '_blank',
-      'noopener,noreferrer',
-    )
   }, [])
 
   const handleSelectOwnedName = useCallback(
@@ -265,7 +245,6 @@ export const HomeSearchInput = () => {
         <SearchModalContent
           searchValue={trimmedModalSearch}
           onSelectSuggestion={handleModalSelectSuggestion}
-          onSelectAvailableName={handleSelectAvailableName}
           onSelectOwnedName={handleSelectOwnedName}
           navigateToName={navigateToName}
           navigateToAddress={navigateToAddress}
