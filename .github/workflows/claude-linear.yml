@@ -43,8 +43,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          allowed_tools: "Bash,Read,Write,Edit,MultiEdit,TodoRead,TodoWrite,WebFetch,Glob,Grep"
-
+          claude_args: "--dangerously-skip-permissions"
 
           # Only set prompt for repository_dispatch (Linear) events.
           # For comment events, the action auto-detects the context.
