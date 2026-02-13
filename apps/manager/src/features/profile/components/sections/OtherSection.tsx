@@ -38,7 +38,7 @@ export const OtherSection = withForm({
                   label="Content Hash"
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
-                  placeholder="ipfs://... or 0x..."
+                  placeholder="ipfs://..."
                   value={field.state.value ?? ''}
                 />
                 <button

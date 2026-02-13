@@ -164,7 +164,7 @@ export function validateRecord(record: EditableRecord): string | null {
 
   if (type === 'contentHash') {
     if (!isValidContentHash(value)) {
-      return 'Invalid content hash. Supported protocols: ipfs://, ipns://, bzz://, onion://, onion3://, sia://, ar://, or 0x'
+      return 'Invalid content hash. Supported protocols: ipfs://, ipns://, bzz://, onion://, onion3://, sia://, ar://'
     }
   }
 
