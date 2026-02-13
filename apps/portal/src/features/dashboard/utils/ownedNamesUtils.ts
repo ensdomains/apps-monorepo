@@ -48,6 +48,9 @@ export type FilterAndSortOwnedNamesOptions = {
 /**
  * Filters owned names by search query (includes, case-insensitive, trimmed)
  * and sorts: 2LD names first, then subnames (3+ labels), then alphabetically by name within each group.
+ *
+ * The TLD suffix (e.g. ".eth") is stripped from the query before matching so
+ * that searching "dom.eth" still finds "dominico.eth".
  */
 export function filterAndSortOwnedNames(
   ownedNames: OwnedName[],
@@ -57,8 +60,13 @@ export function filterAndSortOwnedNames(
   const q = searchQuery.trim().toLowerCase()
   if (!q) return []
 
+  // Strip TLD suffix so "dom.eth" matches names containing "dom"
+  const lastDot = q.lastIndexOf('.')
+  const matchQuery = lastDot >= 0 ? q.slice(0, lastDot) : q
+  if (!matchQuery) return []
+
   const matching = ownedNames.filter((d) =>
-    d.name.trim().toLowerCase().includes(q),
+    d.name.trim().toLowerCase().includes(matchQuery),
   )
 
   const normalized = (name: string) => name.trim().toLowerCase()
