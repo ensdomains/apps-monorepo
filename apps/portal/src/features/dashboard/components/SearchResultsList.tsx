@@ -1,9 +1,5 @@
 import { Button } from '@/components/ui/button'
-import {
-  CommandGroup,
-  CommandItem,
-  CommandSeparator,
-} from '@/components/ui/command'
+import { CommandGroup, CommandItem } from '@/components/ui/command'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
@@ -252,16 +248,6 @@ export const SearchResultsList = ({
               )
             })}
           </fieldset>
-        ))}
-
-      {hasSuggestions &&
-        hasOwned &&
-        (variant === 'command' ? (
-          <CommandSeparator />
-        ) : (
-          <div className="px-2 py-2">
-            <Separator />
-          </div>
         ))}
 
       {hasOwned &&
