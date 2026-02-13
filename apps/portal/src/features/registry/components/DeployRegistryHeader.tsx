@@ -3,7 +3,7 @@ import { ArrowLeftIcon } from 'lucide-react'
 import { Fragment } from 'react'
 import { Button } from '@/components/ui/button'
 
-export function DeployRegistryHeader({ name }: { readonly name: string }) {
+export const DeployRegistryHeader = ({ name }: { readonly name: string }) => {
   return (
     <Fragment>
       <Link to="/$name/registry" params={{ name }}>
