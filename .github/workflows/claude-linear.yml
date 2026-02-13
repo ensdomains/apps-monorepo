@@ -46,8 +46,6 @@ jobs:
           trigger_phrase: "@claude"
           claude_args: "--dangerously-skip-permissions --model opus"
 
-          # Only set prompt for repository_dispatch (Linear) events.
-          # For comment events, the action auto-detects the context.
           prompt: |
             ${{
               github.event_name == 'repository_dispatch' &&
@@ -68,6 +66,14 @@ jobs:
                 'You have an existing PR on branch claude/{0}. Check out that branch and apply the following changes:\n\nFeedback: {1}\n\nPush commits to the existing branch. Do NOT create a new PR.',
                 github.event.client_payload.ticket_id,
                 github.event.client_payload.feedback
+              ) || ''
+            }}
+            ${{
+              (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
+              format(
+                'You are on PR #{0}. Apply the following changes and push a commit:\n\n{1}\n\nDo NOT create a new PR. Push to the existing branch.',
+                github.event.issue.number || github.event.pull_request.number,
+                github.event.comment.body
               ) || ''
             }}
 
