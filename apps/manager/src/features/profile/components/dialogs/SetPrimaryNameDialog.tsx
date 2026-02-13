@@ -29,9 +29,10 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { profileRecordsQuery } from '../../service/profileRecords'
 import {
+  getEthAddressFromRecords,
   handlePrimaryNameCancel,
   handleSetPrimaryName,
-  hasEthAddressRecord,
+  hasMatchingEthAddress,
 } from '../ProfileEdit.handlers'
 import { saveRecords } from '../ProfileEdit.transactions'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
@@ -99,8 +100,6 @@ export const SetPrimaryNameDialog = ({
     ...profileRecordsQuery(name),
     enabled: open,
   })
-  const needsEthAddress =
-    open && !isLoadingRecords && !hasEthAddressRecord(records)
   const [isSettingEthAddress, setIsSettingEthAddress] = useState(false)
 
   usePrimaryNameSuccessRedirect({
@@ -113,16 +112,24 @@ export const SetPrimaryNameDialog = ({
   })
 
   const walletAddress = account.ownerAddress as Address | undefined
+  const existingEthAddress = getEthAddressFromRecords(records)
+  const needsEthAddressUpdate =
+    open && !isLoadingRecords && !hasMatchingEthAddress(records, walletAddress)
 
   const handleSave = async () => {
-    if (needsEthAddress && walletAddress) {
+    if (needsEthAddressUpdate && walletAddress) {
       if (!account.signer || !account.accountAddress) return
 
       setIsSettingEthAddress(true)
       try {
         await saveRecords({
           name,
-          before: { texts: [], coins: [] },
+          before: {
+            texts: [],
+            coins: existingEthAddress
+              ? [{ coinType: 60, value: existingEthAddress }]
+              : [],
+          },
           after: { texts: [], coins: [{ coinType: 60, value: walletAddress }] },
           signer: account.signer,
           accountAddress: account.accountAddress,
@@ -173,14 +180,14 @@ export const SetPrimaryNameDialog = ({
         ENS name for this account, so compatible apps and wallets can display it
         as your default identity.
       </p>
-      {needsEthAddress && walletAddress && (
+      {needsEthAddressUpdate && walletAddress && (
         <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3">
           <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
           <div className="text-amber-800 text-sm">
             <p>
-              No ETH address record set. If you proceed, your current wallet
-              address will be set as the ETH address and this name will be set
-              as your primary name.
+              {existingEthAddress
+                ? 'The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name.'
+                : 'No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name.'}
             </p>
             <div className="mt-2 rounded-md bg-amber-100/60 px-2.5 py-1.5">
               <p className="break-all font-mono text-amber-900 text-xs">

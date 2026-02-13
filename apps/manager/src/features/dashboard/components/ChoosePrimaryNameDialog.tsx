@@ -21,9 +21,10 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import {
+  getEthAddressFromRecords,
   handlePrimaryNameCancel,
   handleSetPrimaryName,
-  hasEthAddressRecord,
+  hasMatchingEthAddress,
   type PrimaryNameOptions,
   type PrimaryNameParams,
 } from '@/features/profile/components/ProfileEdit.handlers'
@@ -112,10 +113,14 @@ export const ChoosePrimaryNameDialog = ({
     ...profileRecordsQuery(selectedName ?? ''),
     enabled: !!selectedName,
   })
-  const needsEthAddress =
+  const existingEthAddress = getEthAddressFromRecords(selectedNameRecords)
+  const needsEthAddressUpdate =
     !!selectedName &&
     !isLoadingRecords &&
-    !hasEthAddressRecord(selectedNameRecords)
+    !hasMatchingEthAddress(
+      selectedNameRecords,
+      account.ownerAddress ?? undefined,
+    )
   const [isSettingEthAddress, setIsSettingEthAddress] = useState(false)
 
   // Set selected name to current primary on mount
@@ -153,14 +158,19 @@ export const ChoosePrimaryNameDialog = ({
   const handleConfirm = useCallback(async () => {
     if (!selectedName || !account.ownerAddress) return
 
-    if (needsEthAddress) {
+    if (needsEthAddressUpdate) {
       if (!account.signer || !account.accountAddress) return
 
       setIsSettingEthAddress(true)
       try {
         await saveRecords({
           name: selectedName,
-          before: { texts: [], coins: [] },
+          before: {
+            texts: [],
+            coins: existingEthAddress
+              ? [{ coinType: 60, value: existingEthAddress }]
+              : [],
+          },
           after: {
             texts: [],
             coins: [{ coinType: 60, value: account.ownerAddress as string }],
@@ -198,7 +208,8 @@ export const ChoosePrimaryNameDialog = ({
   }, [
     selectedName,
     account,
-    needsEthAddress,
+    needsEthAddressUpdate,
+    existingEthAddress,
     selectedNameRecords,
     primaryNameActor,
   ])
@@ -312,15 +323,15 @@ export const ChoosePrimaryNameDialog = ({
               Failed to set primary name. Please try again.
             </div>
           )}
-          {/* No ETH Address Info */}
-          {needsEthAddress && account.ownerAddress && (
+          {/* ETH Address Mismatch/Missing Info */}
+          {needsEthAddressUpdate && account.ownerAddress && (
             <div className="flex items-start gap-2 rounded-[4px] border border-amber-200 bg-amber-50 p-3">
               <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
               <div className="text-amber-800 text-sm">
                 <p>
-                  No ETH address record set. If you proceed, your current wallet
-                  address will be set as the ETH address and this name will be
-                  set as your primary name.
+                  {existingEthAddress
+                    ? 'The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name.'
+                    : 'No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name.'}
                 </p>
                 <div className="mt-2 rounded-md bg-amber-100/60 px-2.5 py-1.5">
                   <p className="break-all font-mono text-amber-900 text-xs">
