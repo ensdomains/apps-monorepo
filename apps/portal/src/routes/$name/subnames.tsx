@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
+import { useCallback } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -13,6 +14,7 @@ import {
 } from '@/features/names/components/SubnamesTable'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { useDeleteSubname } from '@/features/registry/hooks/useDeleteSubname'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 
@@ -110,6 +112,55 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     enabled: Boolean(hasSubregistry),
   })
 
+  // Hook must be called unconditionally (React rules of hooks).
+  // We pass zeroAddress as fallback when subregistry is not yet known.
+  const { deleteSubnameAsync } = useDeleteSubname({
+    name,
+    registryAddress: (subregistryAddress as Address) ?? zeroAddress,
+  })
+
+  /**
+   * Extract the first label from a full subname.
+   * e.g. "cold.domico.eth" → "cold"
+   */
+  const getLabel = useCallback(
+    (subname: string) => {
+      // Remove the parent suffix (e.g. ".domico.eth") to get the label
+      const suffix = `.${name}`
+      if (subname.endsWith(suffix)) {
+        return subname.slice(0, -suffix.length)
+      }
+      // Fallback: take first label
+      return subname.split('.')[0]
+    },
+    [name],
+  )
+
+  const handleDeleteSubname = useCallback(
+    (subname: SubnameRow) => {
+      deleteSubnameAsync({
+        subname: subname.name,
+        label: getLabel(subname.name),
+        owner: subname.owner,
+      })
+    },
+    [deleteSubnameAsync, getLabel],
+  )
+
+  const handleClearSelected = useCallback(
+    async (selected: SubnameRow[]) => {
+      // Delete sequentially to avoid nonce conflicts
+      for (const subname of selected) {
+        await deleteSubnameAsync({
+          subname: subname.name,
+          label: getLabel(subname.name),
+          owner: subname.owner,
+        })
+      }
+    },
+    [deleteSubnameAsync, getLabel],
+  )
+
   if (registriesLoading) {
     return <LoadingMessage title="Checking registry..." />
   }
@@ -157,6 +208,8 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
       subnames={subnameRows}
       name={name}
       canCreateSubname={canCreateSubname}
+      onDeleteSubname={handleDeleteSubname}
+      onClearSelected={handleClearSelected}
     />
   )
 }

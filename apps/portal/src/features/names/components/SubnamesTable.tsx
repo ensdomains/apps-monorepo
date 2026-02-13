@@ -5,15 +5,17 @@ import {
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
+  type RowSelectionState,
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { Plus, Search } from 'lucide-react'
-import { useState } from 'react'
+import { Check, Plus, Search, Trash2, X } from 'lucide-react'
+import React, { useCallback, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   InputGroup,
   InputGroupAddon,
@@ -46,63 +48,135 @@ const OwnerCell = ({ owner }: { owner: Address }) => (
   </div>
 )
 
-const columns: ColumnDef<SubnameRow>[] = [
-  {
-    accessorKey: 'name',
-    header: ({ column }) => (
-      <SortButton
-        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-        sortDirection={column.getIsSorted()}
-      >
-        Subname
-      </SortButton>
-    ),
-    cell: ({ row }) => {
-      const name = row.original.name
-
-      return (
-        <div className="flex flex-row gap-2 items-center">
-          <NameAvatar
-            name={name}
-            height="20px"
-            width="20px"
-            rounded="rounded-sm"
-          />
-          <EntityBadgeWithActions variant="name" name={name}>
-            {name}
-          </EntityBadgeWithActions>
-        </div>
-      )
-    },
-  },
-  {
-    accessorKey: 'owner',
-    header: ({ column }) => (
-      <SortButton
-        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-        sortDirection={column.getIsSorted()}
-      >
-        Owner
-      </SortButton>
-    ),
-    cell: ({ row }) => <OwnerCell owner={row.original.owner} />,
-  },
-]
-
 interface SubnamesTableProps {
   readonly subnames: readonly SubnameRow[]
   readonly name: string
   readonly canCreateSubname?: boolean
+  /** Called when user confirms delete on a single subname. Omit to hide/disable single delete. */
+  readonly onDeleteSubname?: (subname: SubnameRow) => void
+  /** Called when user clicks Clear with selection. Omit to hide/disable bulk delete. */
+  readonly onClearSelected?: (subnames: SubnameRow[]) => void
+}
+
+function buildColumns(
+  onDeleteClick?: (name: string) => void,
+): ColumnDef<SubnameRow>[] {
+  return [
+    {
+      enableSorting: false,
+      id: 'select',
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && 'indeterminate')
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+    },
+    {
+      accessorKey: 'name',
+      header: ({ column }) => (
+        <SortButton
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          sortDirection={column.getIsSorted()}
+        >
+          Subname
+        </SortButton>
+      ),
+      cell: ({ row }) => {
+        const name = row.original.name
+        return (
+          <div className="flex flex-row gap-2 items-center">
+            <NameAvatar
+              name={name}
+              height="20px"
+              width="20px"
+              rounded="rounded-sm"
+            />
+            <EntityBadgeWithActions variant="name" name={name}>
+              {name}
+            </EntityBadgeWithActions>
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: 'owner',
+      header: ({ column }) => (
+        <SortButton
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          sortDirection={column.getIsSorted()}
+        >
+          Owner
+        </SortButton>
+      ),
+      cell: ({ row }) => <OwnerCell owner={row.original.owner} />,
+    },
+    {
+      enableSorting: false,
+      id: 'actions',
+      header: () => null,
+      cell: ({ row }) =>
+        onDeleteClick ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 text-gray-500 hover:text-red-600"
+            aria-label={`Delete ${row.original.name}`}
+            onClick={() => onDeleteClick(row.original.name)}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        ) : null,
+    },
+  ]
 }
 
 export const SubnamesTable = ({
   subnames,
   name,
   canCreateSubname,
+  onDeleteSubname,
+  onClearSelected,
 }: SubnamesTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [tableView] = useTableViewSettings()
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const [pendingDeleteName, setPendingDeleteName] = useState<string | null>(
+    null,
+  )
+
+  const handleDeleteClick = useCallback((subnameName: string) => {
+    setPendingDeleteName(subnameName)
+  }, [])
+
+  const handleCancelDelete = useCallback(() => {
+    setPendingDeleteName(null)
+  }, [])
+
+  const handleConfirmDelete = useCallback(
+    (subname: SubnameRow) => {
+      onDeleteSubname?.(subname)
+      setPendingDeleteName(null)
+    },
+    [onDeleteSubname],
+  )
+
+  const columns = useMemo(
+    () => buildColumns(onDeleteSubname ? handleDeleteClick : undefined),
+    [onDeleteSubname, handleDeleteClick],
+  )
 
   const table = useReactTable({
     data: subnames as SubnameRow[],
@@ -111,15 +185,22 @@ export const SubnamesTable = ({
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getRowId: (row) => row.name,
+    enableRowSelection: true,
+    onRowSelectionChange: setRowSelection,
     state: {
       sorting,
       globalFilter,
+      rowSelection,
     },
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: 'includesString',
   })
 
   const rows = table.getRowModel().rows
+  const selectedRows = table.getSelectedRowModel().rows
+  const selectedCount = selectedRows.length
+  const selectedSubnames = selectedRows.map((r) => r.original)
 
   return (
     <>
@@ -131,12 +212,36 @@ export const SubnamesTable = ({
           {canCreateSubname && (
             <Button variant="default" asChild>
               <Link to="/$name/create-subname" params={{ name }}>
-                <Plus className="size-6" />
+                <Plus className="size-4" />
                 Create subname
               </Link>
             </Button>
           )}
         </div>
+        {selectedCount > 0 && (
+          <div className="flex flex-row items-center gap-2">
+            <button
+              type="button"
+              className="cursor-pointer"
+              onClick={() => setRowSelection({})}
+            >
+              <X className="size-6" />
+            </button>
+            <span className="text-sm text-muted-foreground flex-1">
+              {selectedCount} selected
+            </span>
+            {onClearSelected && (
+              <Button
+                variant="outline"
+                className="flex items-center gap-2"
+                onClick={() => onClearSelected(selectedSubnames)}
+              >
+                <Trash2 className="size-4" />
+                Clear
+              </Button>
+            )}
+          </div>
+        )}
         <InputGroup className="bg-background rounded-sm">
           <InputGroupInput
             className="w-full"
@@ -153,33 +258,83 @@ export const SubnamesTable = ({
       {/* Mobile view - Card layout */}
       <div className="md:hidden">
         {rows.length > 0 ? (
-          rows.map((row) => (
-            <div
-              key={row.id}
-              className="border-b border-border px-6 py-4 flex flex-col gap-3"
-            >
-              <div className="flex flex-row gap-2 items-center">
-                <NameAvatar
-                  name={row.original.name}
-                  height="20px"
-                  width="20px"
-                  rounded="rounded-sm"
-                />
-                <EntityBadgeWithActions variant="name" name={row.original.name}>
-                  {row.original.name}
-                </EntityBadgeWithActions>
-              </div>
-              <div className="flex flex-row gap-2 items-center">
-                <span className="text-sm text-muted-foreground">Owner:</span>
-                <EntityBadgeWithActions
-                  variant="address"
-                  address={row.original.owner}
-                >
-                  {truncateAddress(row.original.owner)}
-                </EntityBadgeWithActions>
-              </div>
-            </div>
-          ))
+          rows.map((row) => {
+            const isPendingDelete = pendingDeleteName === row.original.name
+
+            return (
+              <React.Fragment key={row.id}>
+                <div className="border-b border-border px-6 py-4 flex flex-col gap-3">
+                  <div className="flex flex-row gap-2 items-center">
+                    {onDeleteSubname && (
+                      <Checkbox
+                        checked={row.getIsSelected()}
+                        onCheckedChange={(value) => row.toggleSelected(!!value)}
+                        aria-label="Select row"
+                      />
+                    )}
+                    <NameAvatar
+                      name={row.original.name}
+                      height="20px"
+                      width="20px"
+                      rounded="rounded-sm"
+                    />
+                    <EntityBadgeWithActions variant="name" name={row.original.name}>
+                      {row.original.name}
+                    </EntityBadgeWithActions>
+                    {onDeleteSubname && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 shrink-0 ml-auto text-muted-foreground hover:text-red-600"
+                        aria-label={`Delete ${row.original.name}`}
+                        onClick={() => setPendingDeleteName(row.original.name)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex flex-row gap-2 items-center">
+                    <span className="text-sm text-muted-foreground">Owner:</span>
+                    <EntityBadgeWithActions
+                      variant="address"
+                      address={row.original.owner}
+                    >
+                      {truncateAddress(row.original.owner)}
+                    </EntityBadgeWithActions>
+                  </div>
+                </div>
+                {isPendingDelete && (
+                  <div className="border-b border-border bg-muted px-6 py-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">
+                        Remove {row.original.name}?
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCancelDelete}
+                          className="gap-1"
+                        >
+                          Cancel
+                          <X className="size-4" />
+                        </Button>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleConfirmDelete(row.original)}
+                          className="gap-1"
+                        >
+                          Confirm
+                          <Check className="size-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </React.Fragment>
+            )
+          })
         ) : (
           <div className="px-6 py-8 text-center text-muted-foreground">
             No subnames found.
@@ -207,24 +362,67 @@ export const SubnamesTable = ({
         </TableHeader>
         <TableBody>
           {rows.length > 0 ? (
-            rows.map((row) => (
-              <TableRow
-                key={row.id}
-                className={cn(
-                  'hover:bg-muted',
-                  tableView.strippedRows && 'odd:bg-muted',
-                )}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell
-                    className={cn('px-6', tableView.compact ? 'py-2' : 'py-4')}
-                    key={cell.id}
+            rows.map((row) => {
+              const isPendingDelete = pendingDeleteName === row.original.name
+
+              return (
+                <React.Fragment key={row.id}>
+                  <TableRow
+                    data-state={row.getIsSelected() && 'selected'}
+                    className={cn(
+                      'hover:bg-muted',
+                      tableView.strippedRows && 'odd:bg-muted',
+                    )}
                   >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        className={cn(
+                          'px-6',
+                          tableView.compact ? 'py-2' : 'py-4',
+                        )}
+                        key={cell.id}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {isPendingDelete && (
+                    <TableRow className="bg-muted hover:bg-muted">
+                      <TableCell colSpan={columns.length} className="px-6 py-3">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">
+                            Remove {row.original.name}?
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleCancelDelete}
+                              className="gap-1"
+                            >
+                              Cancel
+                              <X className="size-4" />
+                            </Button>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleConfirmDelete(row.original)}
+                              className="gap-1"
+                            >
+                              Confirm
+                              <Check className="size-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
+              )
+            })
           ) : (
             <TableRow>
               <TableCell colSpan={columns.length} className="h-24 text-center">
