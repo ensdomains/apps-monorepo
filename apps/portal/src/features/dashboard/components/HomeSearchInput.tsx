@@ -74,6 +74,7 @@ export const HomeSearchInput = () => {
     suggestions,
     ownerBySuggestionId,
     availableNames,
+    pendingAvailabilityIds,
     ownedNamesFiltered,
   } = searchResults
 
@@ -218,6 +219,7 @@ export const HomeSearchInput = () => {
                 suggestions={suggestions}
                 ownerBySuggestionId={ownerBySuggestionId}
                 availableNames={availableNames}
+                pendingAvailabilityIds={pendingAvailabilityIds}
                 ownedNamesFiltered={ownedNamesFiltered}
                 onSelect={handleSelectByValue}
                 variant="listbox"
