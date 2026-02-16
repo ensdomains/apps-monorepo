@@ -1,6 +1,6 @@
 import { primaryNameMachine } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle } from 'lucide-react'
@@ -100,7 +100,6 @@ export const SetPrimaryNameDialog = ({
     ...profileRecordsQuery(name),
     enabled: open,
   })
-  const [isSettingEthAddress, setIsSettingEthAddress] = useState(false)
 
   usePrimaryNameSuccessRedirect({
     isSuccess,
@@ -115,35 +114,44 @@ export const SetPrimaryNameDialog = ({
   const existingEthAddress = getEthAddressFromRecords(records)
   const needsEthAddressUpdate =
     open && !isLoadingRecords && !hasMatchingEthAddress(records, walletAddress)
+  const updateEthAddressMutation = useMutation({
+    mutationFn: async () => {
+      if (!walletAddress || !account.signer || !account.accountAddress) return
+
+      await saveRecords({
+        name,
+        before: {
+          texts: [],
+          coins: existingEthAddress
+            ? [{ coinType: 60, value: existingEthAddress }]
+            : [],
+        },
+        after: { texts: [], coins: [{ coinType: 60, value: walletAddress }] },
+        signer: account.signer,
+        accountAddress: account.accountAddress,
+        publicClient: publicClient as PublicClient,
+        chainId: customSepolia.id,
+        resolverAddress: records?.resolverAddress,
+      })
+    },
+    onError: (error) => {
+      console.error('Failed to set ETH address record:', error)
+      toast.error('Failed to set ETH address record')
+    },
+  })
 
   const handleSave = async () => {
     if (needsEthAddressUpdate && walletAddress) {
-      if (!account.signer || !account.accountAddress) return
-
-      setIsSettingEthAddress(true)
-      try {
-        await saveRecords({
-          name,
-          before: {
-            texts: [],
-            coins: existingEthAddress
-              ? [{ coinType: 60, value: existingEthAddress }]
-              : [],
-          },
-          after: { texts: [], coins: [{ coinType: 60, value: walletAddress }] },
-          signer: account.signer,
-          accountAddress: account.accountAddress,
-          publicClient: publicClient as PublicClient,
-          chainId: customSepolia.id,
-          resolverAddress: records?.resolverAddress,
-        })
-      } catch (error) {
-        console.error('Failed to set ETH address record:', error)
-        toast.error('Failed to set ETH address record')
-        setIsSettingEthAddress(false)
+      if (!account.signer || !account.accountAddress) {
+        toast.error('Wallet signer not available')
         return
       }
-      setIsSettingEthAddress(false)
+
+      try {
+        await updateEthAddressMutation.mutateAsync()
+      } catch {
+        return
+      }
     }
 
     handleSetPrimaryName(
@@ -200,7 +208,7 @@ export const SetPrimaryNameDialog = ({
     </>
   )
 
-  const isBusy = isSubmitting || isSettingEthAddress
+  const isBusy = isSubmitting || updateEthAddressMutation.isPending
 
   const footer = (
     <>
@@ -208,7 +216,7 @@ export const SetPrimaryNameDialog = ({
         Cancel
       </Button>
       <Button disabled={isBusy} onClick={handleSave}>
-        {isSettingEthAddress
+        {updateEthAddressMutation.isPending
           ? 'Setting ETH address…'
           : isSubmitting
             ? 'Setting…'
