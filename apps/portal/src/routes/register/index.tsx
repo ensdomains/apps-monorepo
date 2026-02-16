@@ -1,11 +1,10 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { BadgeCheck } from 'lucide-react'
 import { NavBar } from '@/components/NavBar'
 import { MessageCard } from '@/components/ui/message-card'
 
 interface RegisterSearch {
   name?: string
-  duration?: number
 }
 
 function RegisterPage() {
@@ -45,15 +44,6 @@ function RegisterPage() {
               href: '/',
             }}
           />
-
-          <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-muted-foreground">
-            <p>Placeholder: Pricing, duration selector, and payment flow</p>
-            <p className="mt-2">
-              <Link to="/" className="underline hover:no-underline">
-                Return home
-              </Link>
-            </p>
-          </div>
         </div>
       </main>
     </div>
@@ -68,12 +58,6 @@ export const Route = createFileRoute('/register/')({
     const name = rawName?.trim() && rawName !== '.eth' ? rawName : undefined
     return {
       name,
-      duration:
-        typeof search.duration === 'number'
-          ? search.duration
-          : typeof search.duration === 'string'
-            ? Number.parseInt(search.duration, 10) || undefined
-            : undefined,
     }
   },
 })
