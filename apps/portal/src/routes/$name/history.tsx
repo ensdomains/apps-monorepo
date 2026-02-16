@@ -10,7 +10,6 @@ import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2Name
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/$name/history')({
-  staticData: { hasSidebar: true },
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
   loader: ({ params }) => {

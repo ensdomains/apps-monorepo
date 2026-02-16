@@ -34,7 +34,6 @@ import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useName
 export const Route = createFileRoute('/$name/subnames')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  staticData: { hasSidebar: true },
 })
 
 interface NoSubregistryMessageProps {

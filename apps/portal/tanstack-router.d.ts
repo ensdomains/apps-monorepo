@@ -3,7 +3,7 @@ export {}
 
 declare module '@tanstack/react-router' {
   interface StaticDataRouteOption {
-    /** Required: every route must declare whether it uses SidebarProvider */
-    hasSidebar: boolean
+    /** Set to true for routes without SidebarProvider (/, /register). Defaults to false. */
+    hideSidebar?: boolean
   }
 }

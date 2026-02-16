@@ -24,7 +24,7 @@ import { DashboardProfilePreview } from '@/features/dashboard/components/Dashboa
 export const Route = createFileRoute('/')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  staticData: { hasSidebar: false },
+  staticData: { hideSidebar: true },
 })
 
 function RouteComponent() {

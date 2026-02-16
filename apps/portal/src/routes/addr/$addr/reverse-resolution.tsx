@@ -26,7 +26,6 @@ import { getReverseResolutionQueryOptions } from '@/features/reverse-resolution/
 export const Route = createFileRoute('/addr/$addr/reverse-resolution')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  staticData: { hasSidebar: true },
 })
 
 function RouteComponent() {

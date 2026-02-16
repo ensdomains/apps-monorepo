@@ -19,7 +19,7 @@ const RegisterPage = () => {
 
 export const Route = createFileRoute('/register/')({
   component: RegisterPage,
-  staticData: { hasSidebar: false },
+  staticData: { hideSidebar: true },
   validateSearch: (search: Record<string, unknown>): RegisterSearch => {
     const rawName = typeof search.name === 'string' ? search.name : undefined
     const name = rawName?.trim() && rawName !== '.eth' ? rawName : undefined

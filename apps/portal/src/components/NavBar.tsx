@@ -29,12 +29,8 @@ export const NavBar = () => {
   const { location } = useRouterState()
   const matches = useMatches()
 
-  // Show sidebar trigger only when current route has staticData.hasSidebar === true
-  // This is the recommended way to do this according to the TanStack Router docs
-  // https://tanstack.com/router/latest/docs/guide/static-route-data
-  const hasSidebar = matches.some(
-    (match) => match.staticData?.hasSidebar === true,
-  )
+  // Show sidebar when any match in the route chain has hideSidebar !== true (default)
+  const hasSidebar = matches.some((match) => !match.staticData?.hideSidebar)
 
   return (
     <nav className="sticky top-0 left-0 flex flex-row gap-2 p-4 bg-background text-foreground w-full justify-between border-b border-b-gray-300 h-(--header-height) z-50">

@@ -7,7 +7,6 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 export const Route = createFileRoute('/$name')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  staticData: { hasSidebar: true },
 })
 
 function RouteComponent() {

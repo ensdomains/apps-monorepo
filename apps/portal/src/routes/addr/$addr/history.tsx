@@ -11,7 +11,6 @@ import { getV1HistoryForAddressQueryOptions } from '@/features/address/hooks/use
 export const Route = createFileRoute('/addr/$addr/history')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  staticData: { hasSidebar: true },
 })
 
 function RouteComponent() {
