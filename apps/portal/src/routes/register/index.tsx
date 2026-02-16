@@ -7,7 +7,7 @@ interface RegisterSearch {
   name?: string
 }
 
-function RegisterPage() {
+const RegisterPage = () => {
   const { name } = Route.useSearch()
 
   return (
@@ -23,7 +23,7 @@ function RegisterPage() {
           </div>
 
           <MessageCard
-            icon={<BadgeCheck size={30} strokeWidth={1.5} />}
+            icon={<BadgeCheck className="size-8" strokeWidth={1.5} />}
             title="Registration coming soon"
             description={
               <div className="text-base">
