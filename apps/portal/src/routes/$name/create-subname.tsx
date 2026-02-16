@@ -29,6 +29,7 @@ import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
 const getClient = () => wagmiConfig.getClient({ chainId: namechainSepolia.id })
 
 export const Route = createFileRoute('/$name/create-subname')({
+  staticData: { hasSidebar: true },
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
 })

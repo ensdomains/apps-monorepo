@@ -25,6 +25,7 @@ import {
 } from '@/lib/constants/verifiableFactory'
 
 export const Route = createFileRoute('/$name/deploy-registry')({
+  staticData: { hasSidebar: true },
   component: RouteComponent,
 })
 

@@ -15,6 +15,7 @@ import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNa
 import { namechainEthRegistryAddress } from '@/lib/constants/registry'
 
 export const Route = createFileRoute('/$name/roles/')({
+  staticData: { hasSidebar: true },
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
 })

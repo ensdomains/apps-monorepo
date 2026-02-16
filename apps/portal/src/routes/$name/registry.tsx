@@ -21,6 +21,7 @@ import { namechainVerifiableFactory } from '@/lib/constants/verifiableFactory'
 import type { WithEnsNetwork } from '@/utils/types'
 
 export const Route = createFileRoute('/$name/registry')({
+  staticData: { hasSidebar: true },
   component: RouteComponent,
 })
 

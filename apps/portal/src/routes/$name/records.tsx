@@ -13,6 +13,7 @@ import { queryClient } from '@/utils/queryClient'
 export const Route = createFileRoute('/$name/records')({
   component: App,
   notFoundComponent: () => <NotFoundMessage />,
+  staticData: { hasSidebar: true },
   loader: ({ params }) => {
     return queryClient.prefetchQuery(getProfileQueryOptions(params.name))
   },

@@ -30,6 +30,7 @@ import { recordsToTableData } from '@/utils/records/recordsToTableData'
 import { validateRecords } from '@/utils/records/validateRecord'
 
 export const Route = createFileRoute('/$name/edit-records')({
+  staticData: { hasSidebar: true },
   component: EditRecordsPage,
   notFoundComponent: () => <NotFoundMessage />,
   loader: ({ params }) => {

@@ -27,6 +27,7 @@ import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 export const Route = createFileRoute('/addr/$addr/resolution')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
+  staticData: { hasSidebar: true },
 })
 
 function RouteComponent() {

@@ -12,6 +12,7 @@ import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useName
 import { ChangeResolverForm } from '@/features/resolver/components/ChangeResolverForm'
 
 export const Route = createFileRoute('/$name/change-resolver')({
+  staticData: { hasSidebar: true },
   component: RouteComponent,
 })
 

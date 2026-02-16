@@ -22,6 +22,7 @@ import { escapeUnicode } from '@/utils/token/escapeUnicode'
 import { isNormalized } from '@/utils/token/isNormalized'
 
 export const Route = createFileRoute('/$name/token')({
+  staticData: { hasSidebar: true },
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
 })

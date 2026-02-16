@@ -25,6 +25,7 @@ import { namechainSepolia } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
 export const Route = createFileRoute('/$name/resolver')({
+  staticData: { hasSidebar: true },
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
 })

@@ -1,5 +1,5 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { Link, useRouterState } from '@tanstack/react-router'
+import { Link, useMatches, useRouterState } from '@tanstack/react-router'
 import { BookIcon, CircleQuestionMarkIcon, Menu } from 'lucide-react'
 import { lazy, Suspense } from 'react'
 import { ExternalLink } from 'react-external-link'
@@ -25,19 +25,16 @@ const SidebarTrigger = lazy(() =>
   import('./ui/sidebar').then((mod) => ({ default: mod.SidebarTrigger })),
 )
 
-/** Routes that don't use SidebarProvider - sidebar trigger must not render here */
-const ROUTES_WITHOUT_SIDEBAR = ['/', '/register']
-
 export const NavBar = () => {
   const { location } = useRouterState()
-  // Only show sidebar trigger on routes that have a sidebar (/$name or /addr/$addr)
+  const matches = useMatches()
 
-  const hideSidebar = ROUTES_WITHOUT_SIDEBAR.includes(location.pathname)
-
-  const hasSidebar =
-    !hideSidebar &&
-    (location.pathname.match(/^\/[^/]+(\/|$)/) ||
-      location.pathname.startsWith('/addr/'))
+  // Show sidebar trigger only when current route has staticData.hasSidebar === true
+  // This is the recommended way to do this according to the TanStack Router docs
+  // https://tanstack.com/router/latest/docs/guide/static-route-data
+  const hasSidebar = matches.some(
+    (match) => match.staticData?.hasSidebar === true,
+  )
 
   return (
     <nav className="sticky top-0 left-0 flex flex-row gap-2 p-4 bg-background text-foreground w-full justify-between border-b border-b-gray-300 h-(--header-height) z-50">

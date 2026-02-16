@@ -103,6 +103,7 @@ const getNameLength = (name: string | null): string => {
 export const Route = createFileRoute('/addr/$addr/names')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
+  staticData: { hasSidebar: true },
 })
 
 function RouteComponent() {

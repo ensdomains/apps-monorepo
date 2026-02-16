@@ -1,5 +1,5 @@
 {
-  "include": ["**/*.ts", "**/*.tsx", "./module.d.ts"],
+  "include": ["**/*.ts", "**/*.tsx", "./module.d.ts", "./tanstack-router.d.ts"],
   "compilerOptions": {
     "target": "es2023",
     "jsx": "react-jsx",

@@ -8,6 +8,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 export const Route = createFileRoute('/addr/$addr')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
+  staticData: { hasSidebar: true },
   beforeLoad: (ctx) => {
     if (!isAddress(ctx.params.addr, { strict: false })) {
       throw redirect({ to: '/$name', params: { name: ctx.params.addr } })

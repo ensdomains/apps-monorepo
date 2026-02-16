@@ -15,6 +15,7 @@ import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Ev
 export const Route = createFileRoute('/addr/$addr/')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
+  staticData: { hasSidebar: true },
 })
 
 interface PrimaryNameProps {

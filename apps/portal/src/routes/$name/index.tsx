@@ -32,6 +32,7 @@ import { isValidEnsName } from '@/utils/token/isNormalized'
 export const Route = createFileRoute('/$name/')({
   component: App,
   notFoundComponent: () => <NotFoundMessage />,
+  staticData: { hasSidebar: true },
 })
 
 const Profile = ({

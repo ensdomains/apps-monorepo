@@ -36,6 +36,7 @@ function TransactionManagerSetup({ children }: { children: ReactNode }) {
 }
 
 export const Route = createRootRoute({
+  staticData: { hasSidebar: false },
   component: () => {
     return (
       <>

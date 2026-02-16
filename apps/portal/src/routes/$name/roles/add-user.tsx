@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
 
 export const Route = createFileRoute('/$name/roles/add-user')({
+  staticData: { hasSidebar: true },
   component: RouteComponent,
 })
 
