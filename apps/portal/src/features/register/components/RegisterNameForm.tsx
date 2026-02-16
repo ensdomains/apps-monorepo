@@ -2,7 +2,8 @@ import { CalendarIcon } from 'lucide-react'
 import { useState } from 'react'
 import { CopyButton } from '@/components/CopyButton'
 import { Button } from '@/components/ui/button'
-import { DatePicker } from '@/components/ui/date-picker'
+import { RegistrationDurationPicker } from './RegistrationDurationPicker'
+import { RegistrationExpiryDatePicker } from './RegistrationExpiryDatePicker'
 
 type RegisterNameFormProps = {
   name: string
@@ -14,14 +15,15 @@ enum RegistrationSpanType {
 }
 
 export const RegisterNameForm = ({ name }: RegisterNameFormProps) => {
-  const [date, setDate] = useState<Date>(new Date())
+  const [years, setYears] = useState(1)
+  const [expiryDate, setExpiryDate] = useState<Date>(() => {
+    const d = new Date()
+    d.setFullYear(d.getFullYear() + 1)
+    return d
+  })
 
   const [registrationSpanType, setRegistrationSpanType] =
     useState<RegistrationSpanType>(RegistrationSpanType.YEARS)
-
-  const handleDateChange = (date: Date) => {
-    setDate(date)
-  }
 
   return (
     <div className="p-6 col-span-2">
@@ -29,28 +31,45 @@ export const RegisterNameForm = ({ name }: RegisterNameFormProps) => {
         <h1 className="text-[40px] font-medium">{name}</h1>
         <CopyButton value={name} />
       </div>
-      <div className="flex items-center justify-between py-6">
-        <span className="text-base font-medium">Register for</span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() =>
-            setRegistrationSpanType(
-              registrationSpanType === RegistrationSpanType.YEARS
-                ? RegistrationSpanType.DATE
-                : RegistrationSpanType.YEARS,
-            )
-          }
-          className="gap-1"
-        >
-          <span className="text-xs font-normal">
-            Choose by{' '}
+      <div className="flex flex-col gap-2 py-6">
+        <div className="flex items-center justify-between">
+          <span className="text-base font-medium">
+            Register{' '}
             {registrationSpanType === RegistrationSpanType.YEARS
-              ? 'years'
-              : 'date'}
+              ? 'for'
+              : 'until'}
           </span>
-          <CalendarIcon className="size-3" />
-        </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() =>
+              setRegistrationSpanType(
+                registrationSpanType === RegistrationSpanType.YEARS
+                  ? RegistrationSpanType.DATE
+                  : RegistrationSpanType.YEARS,
+              )
+            }
+            className="gap-1"
+          >
+            <span className="text-xs font-normal">
+              Choose by{' '}
+              {registrationSpanType === RegistrationSpanType.YEARS
+                ? 'date'
+                : 'years'}
+            </span>
+            <CalendarIcon className="size-3" />
+          </Button>
+        </div>
+
+        {registrationSpanType === RegistrationSpanType.YEARS ? (
+          <RegistrationDurationPicker value={years} onChange={setYears} />
+        ) : (
+          <RegistrationExpiryDatePicker
+            date={expiryDate}
+            onDateChange={setExpiryDate}
+            minDate={new Date()}
+          />
+        )}
       </div>
     </div>
   )
