@@ -39,6 +39,8 @@ export const RegistrationDurationPicker = ({
       const parsed = parseInt(e.target.value, 10)
       if (!Number.isNaN(parsed) && parsed >= min && parsed <= max) {
         onChange(parsed)
+      } else {
+        onChange(min)
       }
     },
     [min, max, onChange],

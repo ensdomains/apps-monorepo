@@ -1,13 +1,19 @@
 import { CalendarIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { CopyButton } from '@/components/CopyButton'
 import { Button } from '@/components/ui/button'
+import {
+  calculateDurationFromDate,
+  calculateExpirationDate,
+} from '../utils/registrationDuration'
 import { RegistrationDurationPicker } from './RegistrationDurationPicker'
 import { RegistrationExpiryDatePicker } from './RegistrationExpiryDatePicker'
 import { RegistrationOptionalSettings } from './RegistrationOptionalSettings'
 
 type RegisterNameFormProps = {
   name: string
+  duration: number
+  setDuration: (duration: number) => void
 }
 
 enum RegistrationSpanType {
@@ -15,19 +21,21 @@ enum RegistrationSpanType {
   DATE = 'date',
 }
 
-export const RegisterNameForm = ({ name }: RegisterNameFormProps) => {
-  const [years, setYears] = useState(1)
-  const [expiryDate, setExpiryDate] = useState<Date>(() => {
-    const d = new Date()
-    d.setFullYear(d.getFullYear() + 1)
-    return d
-  })
+export const RegisterNameForm = ({
+  name,
+  duration,
+  setDuration,
+}: RegisterNameFormProps) => {
+  const expiryDate = useMemo(
+    () => calculateExpirationDate(duration),
+    [duration],
+  )
 
   const [registrationSpanType, setRegistrationSpanType] =
     useState<RegistrationSpanType>(RegistrationSpanType.YEARS)
 
   return (
-    <div className="p-6 col-span-2">
+    <div className="p-6 col-span-3">
       <div className="flex items-center gap-2">
         <h1 className="text-[40px] font-medium">{name}</h1>
         <CopyButton value={name} />
@@ -63,11 +71,13 @@ export const RegisterNameForm = ({ name }: RegisterNameFormProps) => {
         </div>
 
         {registrationSpanType === RegistrationSpanType.YEARS ? (
-          <RegistrationDurationPicker value={years} onChange={setYears} />
+          <RegistrationDurationPicker value={duration} onChange={setDuration} />
         ) : (
           <RegistrationExpiryDatePicker
             date={expiryDate}
-            onDateChange={setExpiryDate}
+            onDateChange={(date) =>
+              setDuration(calculateDurationFromDate(date))
+            }
             minDate={new Date()}
           />
         )}
