@@ -2,9 +2,9 @@ import { useWallet } from '@getpara/react-sdk-lite'
 import { useQuery } from '@tanstack/react-query'
 import type { ErrorComponentProps } from '@tanstack/react-router'
 import { createFileRoute } from '@tanstack/react-router'
+import { Loader2 } from 'lucide-react'
 import { Suspense } from 'react'
 import { LinkButton } from '@/components/ui/button'
-import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { ProfileEdit } from '@/features/profile/components/ProfileEdit'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -21,6 +21,17 @@ function ProfileEditRouteError({ error }: ErrorComponentProps) {
         <div className="text-red-600">
           Error loading profile: {error.message}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function ProfileEditLoading() {
+  return (
+    <div className="mx-auto max-w-md space-y-4">
+      <div className="flex items-center justify-center gap-2 py-8 text-gray-600">
+        <Loader2 className="size-4 animate-spin" />
+        Loading profile editor...
       </div>
     </div>
   )
@@ -54,7 +65,7 @@ function RouteComponent() {
     (!isOwner && (isSmartAccountLoading || !isAccountReady))
 
   if (isCheckingOwnership) {
-    return <ProfileLoading />
+    return <ProfileEditLoading />
   }
 
   if (!isOwner) {
@@ -73,8 +84,8 @@ function RouteComponent() {
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-background">
-      <Suspense fallback={<ProfileLoading />}>
+    <div className="flex flex-1 flex-col">
+      <Suspense fallback={<ProfileEditLoading />}>
         <ProfileEdit name={name} />
       </Suspense>
     </div>

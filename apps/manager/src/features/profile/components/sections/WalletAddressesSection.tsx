@@ -19,9 +19,7 @@ export const WalletAddressesSection = withForm({
   render: ({ form }) => (
     <Card className="border-[0.25px] border-border bg-white shadow-none">
       <CardHeader>
-        <CardTitle className="text-base tracking-tight">
-          Wallet Addresses
-        </CardTitle>
+        <CardTitle className="text-base tracking-tight">Address</CardTitle>
         <CardDescription className="text-base">
           Add your wallet addresses to receive payments. All addresses will be
           publicly visible on your profile.
