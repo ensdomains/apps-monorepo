@@ -1,13 +1,50 @@
-import {
-  CommandGroup,
-  CommandItem,
-  CommandSeparator,
-} from '@/components/ui/command'
+import { Button } from '@/components/ui/button'
+import { CommandGroup, CommandItem } from '@/components/ui/command'
+import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
 import type { Suggestion } from '../utils/buildSearchSuggestions'
 
 const AVATAR_SIZE = '32px'
+
+const REGISTER_URL = 'https://app.ens.dev/register?name='
+
+const RegisterLink = ({ name }: { name: string }) => (
+  <Button asChild variant="outline" size="sm">
+    <a
+      href={`${REGISTER_URL}${name}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="ml-auto shrink-0 rounded-md px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      Register
+    </a>
+  </Button>
+)
+
+const getSuggestionDescription = ({
+  isAvailable,
+  isName,
+  ownerResolved,
+  isPendingAvailability,
+  defaultDescription,
+}: {
+  isAvailable: boolean
+  isName: boolean
+  ownerResolved: boolean
+  isPendingAvailability: boolean
+  defaultDescription: string
+}): React.ReactNode => {
+  if (isAvailable) return 'Available to register'
+  if (isName && (!ownerResolved || isPendingAvailability)) {
+    return <Skeleton className="h-3 w-24" />
+  }
+  return defaultDescription
+}
 
 const AvatarPlaceholder = ({ isLoading = false }: { isLoading?: boolean }) => (
   <div
@@ -28,14 +65,19 @@ const SectionLegend = ({
   children: React.ReactNode
   className?: string
 }) => (
-  <legend
-    className={cn(
-      'px-2 py-1.5 text-xs font-medium text-muted-foreground',
-      className,
-    )}
-  >
-    {children}
-  </legend>
+  <>
+    <legend
+      className={cn(
+        'px-2 pt-2 pb-2 text-xs font-medium text-muted-foreground',
+        className,
+      )}
+    >
+      {children}
+    </legend>
+    <div className="px-2 pb-2">
+      <Separator />
+    </div>
+  </>
 )
 
 type SearchResultsListData = {
@@ -47,6 +89,7 @@ type SearchResultsListData = {
     | undefined
   >
   availableNames: Suggestion[]
+  pendingAvailabilityIds: Set<string>
   ownedNamesFiltered: { name: string }[]
 }
 
@@ -61,6 +104,7 @@ export const SearchResultsList = ({
   suggestions,
   ownerBySuggestionId,
   availableNames,
+  pendingAvailabilityIds,
   ownedNamesFiltered,
   onSelect,
   variant,
@@ -68,13 +112,14 @@ export const SearchResultsList = ({
   activeIndex = -1,
 }: SearchResultsListProps) => {
   const hasSuggestions = suggestions.length > 0
-  const hasAvailable = availableNames.length > 0
   const hasOwned = ownedNamesFiltered.length > 0
+
+  const availableNameIds = new Set(availableNames.map((s) => s.id))
 
   const rowContent = (
     avatar: React.ReactNode,
     label: string,
-    description?: string,
+    description?: React.ReactNode,
   ) => (
     <>
       {avatar}
@@ -97,14 +142,17 @@ export const SearchResultsList = ({
     )
 
   const suggestionsStartIdx = 0
-  const availableStartIdx = suggestions.length
-  const ownedStartIdx = suggestions.length + availableNames.length
+  const ownedStartIdx = suggestions.length
 
   return (
     <>
       {hasSuggestions &&
         (variant === 'command' ? (
-          <CommandGroup heading="Suggestions">
+          <CommandGroup
+            heading="Suggestions"
+            className="**:[[cmdk-group-heading]]:sr-only"
+          >
+            <SectionLegend>Suggestions</SectionLegend>
             {suggestions.map((suggestion) => {
               const isName = suggestion.id.startsWith('name:')
               const ownerData = isName
@@ -126,6 +174,16 @@ export const SearchResultsList = ({
               ) : (
                 <AvatarPlaceholder />
               )
+              const isAvailable = availableNameIds.has(suggestion.id)
+              const description = getSuggestionDescription({
+                isAvailable,
+                isName,
+                ownerResolved,
+                isPendingAvailability: pendingAvailabilityIds.has(
+                  suggestion.id,
+                ),
+                defaultDescription: suggestion.description,
+              })
               return (
                 <CommandItem
                   key={suggestion.id}
@@ -133,7 +191,8 @@ export const SearchResultsList = ({
                   onSelect={onSelect}
                   className="flex flex-row items-center gap-3 py-2"
                 >
-                  {rowContent(avatar, suggestion.label, suggestion.description)}
+                  {rowContent(avatar, suggestion.label, description)}
+                  {isAvailable && <RegisterLink name={suggestion.inputValue} />}
                 </CommandItem>
               )
             })}
@@ -147,6 +206,7 @@ export const SearchResultsList = ({
               const ownerData = isName
                 ? ownerBySuggestionId.get(suggestion.id)
                 : undefined
+              const ownerResolved = ownerData !== undefined
               const hasOwner = ownerData !== null && ownerData !== undefined
               const avatar = isName ? (
                 hasOwner ? (
@@ -162,6 +222,16 @@ export const SearchResultsList = ({
               ) : (
                 <AvatarPlaceholder />
               )
+              const isAvailable = availableNameIds.has(suggestion.id)
+              const description = getSuggestionDescription({
+                isAvailable,
+                isName,
+                ownerResolved,
+                isPendingAvailability: pendingAvailabilityIds.has(
+                  suggestion.id,
+                ),
+                defaultDescription: suggestion.description,
+              })
               return (
                 <button
                   key={suggestion.id}
@@ -172,76 +242,21 @@ export const SearchResultsList = ({
                   className={rowClassName(idx === activeIndex)}
                   onClick={() => onSelect(suggestion.id)}
                 >
-                  {rowContent(avatar, suggestion.label, suggestion.description)}
+                  {rowContent(avatar, suggestion.label, description)}
+                  {isAvailable && <RegisterLink name={suggestion.inputValue} />}
                 </button>
               )
             })}
           </fieldset>
-        ))}
-
-      {hasSuggestions &&
-        (hasAvailable || hasOwned) &&
-        (variant === 'command' ? (
-          <CommandSeparator />
-        ) : (
-          <hr className="my-1 border-border" />
-        ))}
-
-      {hasAvailable &&
-        (variant === 'command' ? (
-          <CommandGroup heading="Available to register">
-            {availableNames.map((s) => (
-              <CommandItem
-                key={`available:${s.inputValue}`}
-                value={`available:${s.inputValue}`}
-                onSelect={onSelect}
-                className="flex flex-row items-center gap-3 py-2"
-              >
-                {rowContent(
-                  <AvatarPlaceholder />,
-                  s.inputValue,
-                  'Available to register',
-                )}
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        ) : (
-          <fieldset className="border-0 p-0 m-0 min-w-0">
-            <SectionLegend>Available to register</SectionLegend>
-            {availableNames.map((s, i) => {
-              const idx = availableStartIdx + i
-              return (
-                <button
-                  key={`available:${s.inputValue}`}
-                  id={listboxId ? `${listboxId}-opt-${idx}` : undefined}
-                  type="button"
-                  role="option"
-                  aria-selected={idx === activeIndex}
-                  className={rowClassName(idx === activeIndex)}
-                  onClick={() => onSelect(`available:${s.inputValue}`)}
-                >
-                  {rowContent(
-                    <AvatarPlaceholder />,
-                    s.inputValue,
-                    'Available to register',
-                  )}
-                </button>
-              )
-            })}
-          </fieldset>
-        ))}
-
-      {hasAvailable &&
-        hasOwned &&
-        (variant === 'command' ? (
-          <CommandSeparator />
-        ) : (
-          <hr className="my-1 border-border" />
         ))}
 
       {hasOwned &&
         (variant === 'command' ? (
-          <CommandGroup heading="Names you own">
+          <CommandGroup
+            heading="Names you own"
+            className="**:[[cmdk-group-heading]]:sr-only"
+          >
+            <SectionLegend>Names you own</SectionLegend>
             {ownedNamesFiltered.map((d) => (
               <CommandItem
                 key={`owned:${d.name}`}

@@ -3,16 +3,10 @@ name: Claude Style Review
 on:
   pull_request:
     types: [opened, synchronize]
-  issue_comment:
-    types: [created]
 
 jobs:
   review:
     runs-on: ubuntu-latest
-    # Run on PR events, or on issue comments that mention @claude
-    if: |
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
     permissions:
       contents: read
       pull-requests: write

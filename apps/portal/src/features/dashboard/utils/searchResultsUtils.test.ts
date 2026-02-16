@@ -20,7 +20,6 @@ describe('buildSearchResultItems', () => {
     expect(
       buildSearchResultItems({
         suggestions: [],
-        availableNames: [],
         ownedNamesFiltered: [],
       }),
     ).toEqual([])
@@ -33,7 +32,6 @@ describe('buildSearchResultItems', () => {
     ]
     const result = buildSearchResultItems({
       suggestions,
-      availableNames: [],
       ownedNamesFiltered: [],
     })
     expect(result).toHaveLength(2)
@@ -49,29 +47,9 @@ describe('buildSearchResultItems', () => {
     })
   })
 
-  it('puts available names after suggestions', () => {
-    const suggestions: Suggestion[] = [
-      suggestion({ id: 'name:a.eth', inputValue: 'a.eth' }),
-    ]
-    const availableNames = [{ inputValue: 'new.eth' }]
-    const result = buildSearchResultItems({
-      suggestions,
-      availableNames,
-      ownedNamesFiltered: [],
-    })
-    expect(result).toHaveLength(2)
-    expect(result[0].type).toBe('suggestion')
-    expect(result[1]).toEqual({
-      type: 'available',
-      value: 'available:new.eth',
-      name: 'new.eth',
-    })
-  })
-
-  it('puts owned names last', () => {
+  it('puts owned names after suggestions', () => {
     const result = buildSearchResultItems({
       suggestions: [],
-      availableNames: [],
       ownedNamesFiltered: [{ name: 'fox.eth' }, { name: 'bar.eth' }],
     })
     expect(result).toHaveLength(2)
@@ -87,25 +65,18 @@ describe('buildSearchResultItems', () => {
     })
   })
 
-  it('returns items in order: suggestions, then available, then owned', () => {
+  it('returns items in order: suggestions, then owned', () => {
     const suggestions: Suggestion[] = [
       suggestion({ id: 'name:x.eth', inputValue: 'x.eth' }),
     ]
-    const availableNames = [{ inputValue: 'available.eth' }]
     const ownedNamesFiltered = [{ name: 'owned.eth' }]
     const result = buildSearchResultItems({
       suggestions,
-      availableNames,
       ownedNamesFiltered,
     })
-    expect(result).toHaveLength(3)
+    expect(result).toHaveLength(2)
     expect(result[0]).toMatchObject({ type: 'suggestion', value: 'name:x.eth' })
     expect(result[1]).toMatchObject({
-      type: 'available',
-      value: 'available:available.eth',
-      name: 'available.eth',
-    })
-    expect(result[2]).toMatchObject({
       type: 'owned',
       value: 'owned:owned.eth',
       name: 'owned.eth',
@@ -118,7 +89,6 @@ describe('buildSearchResultItems', () => {
     ]
     const result = buildSearchResultItems({
       suggestions,
-      availableNames: [],
       ownedNamesFiltered: [],
     })
     expect(result[0]).toMatchObject({
@@ -127,15 +97,11 @@ describe('buildSearchResultItems', () => {
     })
   })
 
-  it('prefixes available and owned values with "available:" and "owned:"', () => {
+  it('prefixes owned values with "owned:"', () => {
     const result = buildSearchResultItems({
       suggestions: [],
-      availableNames: [{ inputValue: 'test.eth' }],
       ownedNamesFiltered: [{ name: 'my.eth' }],
     })
-    expect(result[0].type === 'available' && result[0].value).toBe(
-      'available:test.eth',
-    )
-    expect(result[1].type === 'owned' && result[1].value).toBe('owned:my.eth')
+    expect(result[0].type === 'owned' && result[0].value).toBe('owned:my.eth')
   })
 })

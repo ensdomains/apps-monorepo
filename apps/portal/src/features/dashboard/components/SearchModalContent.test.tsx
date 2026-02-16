@@ -8,7 +8,6 @@ import { SearchModalContent } from './SearchModalContent'
 const mockNavigateToName = vi.fn()
 const mockNavigateToAddress = vi.fn()
 const mockOnSelectSuggestion = vi.fn()
-const mockOnSelectAvailableName = vi.fn()
 const mockOnSelectOwnedName = vi.fn()
 
 vi.mock('@/hooks/use-mobile', () => ({
@@ -89,7 +88,6 @@ describe('SearchModalContent', () => {
     mockNavigateToName.mockClear()
     mockNavigateToAddress.mockClear()
     mockOnSelectSuggestion.mockClear()
-    mockOnSelectAvailableName.mockClear()
     mockOnSelectOwnedName.mockClear()
     connectedAddressOverride = undefined
     ownedNamesOverride = null
@@ -114,7 +112,6 @@ describe('SearchModalContent', () => {
       <SearchModalContent
         searchValue=""
         onSelectSuggestion={mockOnSelectSuggestion}
-        onSelectAvailableName={mockOnSelectAvailableName}
         onSelectOwnedName={mockOnSelectOwnedName}
         navigateToName={mockNavigateToName}
         navigateToAddress={mockNavigateToAddress}
@@ -190,7 +187,7 @@ describe('SearchModalContent', () => {
     )
   })
 
-  it('shows Available to register section and calls onSelectAvailableName when that item is selected', async () => {
+  it('shows "Available to register" as description on a suggestion when the name is available', async () => {
     mockBuildSearchSuggestions.mockReturnValue([
       {
         id: 'name:new.eth',
@@ -214,7 +211,6 @@ describe('SearchModalContent', () => {
           <SearchModalContent
             searchValue="new"
             onSelectSuggestion={mockOnSelectSuggestion}
-            onSelectAvailableName={mockOnSelectAvailableName}
             navigateToName={mockNavigateToName}
             navigateToAddress={mockNavigateToAddress}
           />
@@ -225,9 +221,11 @@ describe('SearchModalContent', () => {
     const availableItem = await screen.findByRole('option', {
       name: /new\.eth.*Available to register/,
     })
-    expect(availableItem).toHaveAttribute('data-value', 'available:new.eth')
+    expect(availableItem).toHaveAttribute('data-value', 'name:new.eth')
     await user.click(availableItem)
-    expect(mockOnSelectAvailableName).toHaveBeenCalledWith('new.eth')
+    expect(mockOnSelectSuggestion).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'name:new.eth', inputValue: 'new.eth' }),
+    )
     availabilityOverride = null
   })
 
