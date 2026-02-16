@@ -6,6 +6,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
 import { formatDateLong } from '@/utils/formatting/formatDateRange'
 
 type RegistrationExpiryDatePickerProps = {
@@ -20,12 +21,15 @@ export const RegistrationExpiryDatePicker = ({
   onDateChange,
   minDate,
 }: RegistrationExpiryDatePickerProps) => {
-  const displayValue = formatDateLong(date) ?? 'Select date'
+  const displayValue = formatDateLong(date)
 
   return (
     <Label
       htmlFor={'registration-expiry-date'}
-      className="flex cursor-pointer items-center gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] hover:bg-accent/50"
+      className={cn(
+        'flex h-13 cursor-pointer items-center gap-2 rounded-md border',
+        'w-full p-3 text-foreground',
+      )}
     >
       <Popover>
         <PopoverTrigger asChild>
@@ -34,9 +38,11 @@ export const RegistrationExpiryDatePicker = ({
             type="button"
             className="flex flex-1 items-center justify-between gap-2 text-left outline-none"
           >
-            <span className="flex-1 truncate">{displayValue}</span>
-            <span className="shrink-0 text-muted-foreground">
-              <CalendarIcon className="size-4" />
+            <span className="flex-1 truncate text-2xl font-medium">
+              {displayValue}
+            </span>
+            <span className="shrink-0 bg-gray-200 rounded-sm p-1 h-9 w-9 flex items-center justify-center">
+              <CalendarIcon className="size-3" />
             </span>
           </button>
         </PopoverTrigger>

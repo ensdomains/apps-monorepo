@@ -23,9 +23,7 @@ export const formatDate = (date?: Date): string | undefined => {
 /**
  * Formats a Date to long form (e.g. "February 26, 2026")
  */
-export const formatDateLong = (date?: Date): string | undefined => {
-  if (!date) return undefined
-
+export const formatDateLong = (date: Date): string => {
   return new Intl.DateTimeFormat(undefined, {
     year: 'numeric',
     month: 'long',
