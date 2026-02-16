@@ -4,6 +4,7 @@ import { CopyButton } from '@/components/CopyButton'
 import { Button } from '@/components/ui/button'
 import { RegistrationDurationPicker } from './RegistrationDurationPicker'
 import { RegistrationExpiryDatePicker } from './RegistrationExpiryDatePicker'
+import { RegistrationOptionalSettings } from './RegistrationOptionalSettings'
 
 type RegisterNameFormProps = {
   name: string
@@ -71,6 +72,7 @@ export const RegisterNameForm = ({ name }: RegisterNameFormProps) => {
           />
         )}
       </div>
+      <RegistrationOptionalSettings />
     </div>
   )
 }
