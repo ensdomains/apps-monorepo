@@ -1,5 +1,5 @@
 import { Minus, Plus } from 'lucide-react'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,9 +17,11 @@ export const RegistrationDurationPicker = ({
   value,
   onChange,
   min = 1,
-  max = 100,
+  max = 9007199254740990,
   className,
 }: RegistrationDurationPickerProps) => {
+  const [isFocused, setIsFocused] = useState(false)
+
   const handleDecrement = useCallback(() => {
     if (value > min) {
       onChange(value - 1)
@@ -48,6 +50,7 @@ export const RegistrationDurationPicker = ({
     <div
       className={cn(
         'flex items-center gap-0 rounded-md border border-input bg-background px-2 h-13',
+        'overflow-hidden',
         className,
       )}
     >
@@ -57,30 +60,41 @@ export const RegistrationDurationPicker = ({
         variant="secondary"
         onClick={handleDecrement}
         disabled={value <= min}
-        className="size-9 shrink-0 bg-gray-200"
+        className="size-10 shrink-0 bg-gray-200"
       >
-        <Minus className="size-3" strokeWidth={2} />
+        <Minus className="size-4" strokeWidth={2} />
       </Button>
 
-      <div className="flex min-w-0 flex-1 items-baseline justify-center gap-1.5 px-2 py-1">
+      <div className="relative flex min-w-0 flex-1 items-center justify-center px-2 py-1">
         <Input
           type="number"
           min={min}
           max={max}
           inputMode="numeric"
+          pattern="[0-9]*"
           value={value}
           onChange={handleInputChange}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           aria-label={label}
           className={cn(
-            'w-10 border-0 bg-transparent p-0 text-center',
+            'h-8 w-full min-w-0 border-0 bg-transparent p-0 text-center',
             'shadow-none focus-visible:ring-0 [appearance:textfield]',
             '[&::-webkit-inner-spin-button]:appearance-none',
             '[&::-webkit-outer-spin-button]:appearance-none',
-            'text-2xl font-medium md:text-2xl',
+            'text-2xl md:text-2xl',
+            isFocused && 'font-medium',
           )}
         />
-        <span className="text-2xl font-normal text-muted-foreground">
-          {value === 1 ? 'year' : 'years'}
+        <span
+          className={cn(
+            'pointer-events-none absolute inset-0',
+            'text-2xl font-medium',
+            'flex items-center justify-center bg-background',
+            isFocused && 'hidden',
+          )}
+        >
+          {label}
         </span>
       </div>
 
@@ -90,9 +104,9 @@ export const RegistrationDurationPicker = ({
         size="icon"
         onClick={handleIncrement}
         disabled={value >= max}
-        className="size-9 shrink-0 bg-gray-200"
+        className="size-10 shrink-0 bg-gray-200"
       >
-        <Plus className="size-3" strokeWidth={2} />
+        <Plus className="size-4" strokeWidth={2} />
       </Button>
     </div>
   )
