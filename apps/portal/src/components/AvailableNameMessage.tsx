@@ -23,7 +23,7 @@ export function AvailableNameMessage({
   // Determine if this is a .eth name (registration) or DNS name (import)
   const isEthName = name.endsWith('.eth')
   const actionUrl = isEthName
-    ? `https://app.ens.dev/register?name=${name}`
+    ? `/register?name=${name}`
     : `https://app.ens.domains/${name}/import`
 
   const defaultDescription = (
