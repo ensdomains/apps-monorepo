@@ -22,7 +22,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     enabled: Boolean(name),
   })
 
-  const nameExists =
+  const isNameAvailable =
     !isLoading && !isError && availability && !availability.isAvailable
 
   return (
@@ -36,11 +36,11 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
           )
         }
 
-        if (nameExists) {
+        if (isNameAvailable) {
           return (
             <MessageCard
               icon={<UserCheck className="size-8" strokeWidth={1.5} />}
-              title={`${availability?.name ?? name} is already registered`}
+              title={`${name} is already registered`}
               description={
                 <div className="text-base">
                   <p>
@@ -51,8 +51,8 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
               }
               badge="Alpha"
               actionButton={{
-                label: `View ${availability?.name ?? name}`,
-                href: `/${availability?.name ?? name}`,
+                label: `View ${name}`,
+                href: `/${name}`,
               }}
             />
           )
