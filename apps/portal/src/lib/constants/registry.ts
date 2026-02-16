@@ -6,3 +6,5 @@ export const namechainEthRegistryAddress =
 
 export const l2RegistryFinderAddress =
   '0x55E9161e41D420f035010ADAaeDB663Ce9106D92'
+
+export const fastTestETHRegistrar = '0xe37a1366c827d18dc0ad57f3767de4b3025ceac2'
