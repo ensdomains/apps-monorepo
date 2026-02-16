@@ -1,3 +1,11 @@
+import {
+  addMonths,
+  addYears,
+  differenceInDays,
+  differenceInMonths,
+  differenceInYears,
+} from 'date-fns'
+
 /**
  * Calculates the expiry date by adding years to today.
  */
@@ -5,6 +13,42 @@ export const calculateExpirationDate = (years: number): Date => {
   const date = new Date()
   date.setFullYear(date.getFullYear() + years)
   return date
+}
+
+/**
+ * Formats the duration from today to an expiry date as a human-readable string.
+ * e.g. "1 year", "2 years 3 months", "6 months 15 days"
+ */
+export const formatRegistrationDuration = (expiryDate: Date): string => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const target = new Date(expiryDate)
+  target.setHours(0, 0, 0, 0)
+
+  if (target.getTime() <= today.getTime()) {
+    return '1 year'
+  }
+
+  const years = differenceInYears(target, today)
+  const afterYears = addYears(today, years)
+  const months = differenceInMonths(target, afterYears)
+  const afterMonths = addMonths(afterYears, months)
+  const days = differenceInDays(target, afterMonths)
+
+  const parts: string[] = []
+  if (years > 0) {
+    parts.push(years === 1 ? '1 year' : `${years} years`)
+  }
+
+  if (months > 0) {
+    parts.push(months === 1 ? '1 month' : `${months} months`)
+  }
+
+  if (days > 0 && months === 0) {
+    parts.push(days === 1 ? '1 day' : `${days} days`)
+  }
+
+  return parts.length > 0 ? parts.join(' ') : '1 year'
 }
 
 /**

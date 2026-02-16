@@ -4,7 +4,10 @@ import { Fragment, useMemo, useState } from 'react'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { MessageCard } from '@/components/ui/message-card'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
-import { calculateDurationFromDate } from '@/features/register/utils/registrationDuration'
+import {
+  calculateDurationFromDate,
+  formatRegistrationDuration,
+} from '@/features/register/utils/registrationDuration'
 import { run } from '@/utils/run'
 import { RegisterNameForm } from './RegisterNameForm'
 import { RegisterNameCheckoutSummary } from './RegisterNameSummary'
@@ -80,7 +83,11 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
               expiryDate={expiryDate}
               setExpiryDate={setExpiryDate}
             />
-            <RegisterNameCheckoutSummary name={name} duration={duration} />
+            <RegisterNameCheckoutSummary
+              name={name}
+              duration={duration}
+              durationLabel={formatRegistrationDuration(expiryDate)}
+            />
           </Fragment>
         )
       })}

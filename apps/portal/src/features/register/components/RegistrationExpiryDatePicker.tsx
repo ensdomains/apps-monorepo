@@ -60,7 +60,10 @@ export const RegistrationExpiryDatePicker = ({
           </span>
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent
+        className="w-auto p-0 border border-border rounded-md"
+        align="start"
+      >
         <Calendar
           captionLayout="dropdown"
           defaultMonth={date}

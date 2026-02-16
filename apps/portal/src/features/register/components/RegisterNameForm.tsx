@@ -34,6 +34,16 @@ export const RegisterNameForm = ({
   const [registrationSpanType, setRegistrationSpanType] =
     useState<RegistrationSpanType>(RegistrationSpanType.YEARS)
 
+  const handleRegistrationSpanTypeChange = () => {
+    if (registrationSpanType === RegistrationSpanType.YEARS) {
+      setRegistrationSpanType(RegistrationSpanType.DATE)
+    } else {
+      setRegistrationSpanType(RegistrationSpanType.YEARS)
+    }
+
+    setExpiryDate(calculateExpirationDate(1.5))
+  }
+
   return (
     <div className="p-6 col-span-3">
       <div className="flex items-center gap-2">
@@ -51,13 +61,7 @@ export const RegisterNameForm = ({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() =>
-              setRegistrationSpanType(
-                registrationSpanType === RegistrationSpanType.YEARS
-                  ? RegistrationSpanType.DATE
-                  : RegistrationSpanType.YEARS,
-              )
-            }
+            onClick={handleRegistrationSpanTypeChange}
             className="gap-1"
           >
             <span className="text-xs font-normal">
