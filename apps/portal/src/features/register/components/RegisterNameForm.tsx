@@ -29,7 +29,7 @@ export const RegisterNameForm = ({ name }: RegisterNameFormProps) => {
   return (
     <div className="p-6 col-span-2">
       <div className="flex items-center gap-2">
-        <h1 className="text-[40px] font-medium">{name}</h1>
+        <h1 className="text-4xl font-medium">{name}</h1>
         <CopyButton value={name} />
       </div>
       <div className="flex flex-col gap-2 py-6">
