@@ -2,10 +2,15 @@ import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
 import { primaryNameMachine } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useWallet } from '@getpara/react-sdk-lite'
-import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, Check } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
@@ -121,7 +126,35 @@ export const ChoosePrimaryNameDialog = ({
       selectedNameRecords,
       account.ownerAddress ?? undefined,
     )
-  const [isSettingEthAddress, setIsSettingEthAddress] = useState(false)
+  const updateEthAddressMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedName || !account.ownerAddress) return
+      if (!account.signer || !account.accountAddress) return
+
+      await saveRecords({
+        name: selectedName,
+        before: {
+          texts: [],
+          coins: existingEthAddress
+            ? [{ coinType: 60, value: existingEthAddress }]
+            : [],
+        },
+        after: {
+          texts: [],
+          coins: [{ coinType: 60, value: account.ownerAddress as string }],
+        },
+        signer: account.signer,
+        accountAddress: account.accountAddress,
+        publicClient: publicClient as PublicClient,
+        chainId: customSepolia.id,
+        resolverAddress: selectedNameRecords?.resolverAddress,
+      })
+    },
+    onError: (error) => {
+      console.error('Failed to set ETH address record:', error)
+      toast.error('Failed to set ETH address record')
+    },
+  })
 
   // Set selected name to current primary on mount
   useEffect(() => {
@@ -155,39 +188,20 @@ export const ChoosePrimaryNameDialog = ({
     }
   }
 
-  const handleConfirm = useCallback(async () => {
+  const handleConfirm = async () => {
     if (!selectedName || !account.ownerAddress) return
 
     if (needsEthAddressUpdate) {
-      if (!account.signer || !account.accountAddress) return
-
-      setIsSettingEthAddress(true)
-      try {
-        await saveRecords({
-          name: selectedName,
-          before: {
-            texts: [],
-            coins: existingEthAddress
-              ? [{ coinType: 60, value: existingEthAddress }]
-              : [],
-          },
-          after: {
-            texts: [],
-            coins: [{ coinType: 60, value: account.ownerAddress as string }],
-          },
-          signer: account.signer,
-          accountAddress: account.accountAddress,
-          publicClient: publicClient as PublicClient,
-          chainId: customSepolia.id,
-          resolverAddress: selectedNameRecords?.resolverAddress,
-        })
-      } catch (error) {
-        console.error('Failed to set ETH address record:', error)
-        toast.error('Failed to set ETH address record')
-        setIsSettingEthAddress(false)
+      if (!account.signer || !account.accountAddress) {
+        toast.error('Wallet signer not available')
         return
       }
-      setIsSettingEthAddress(false)
+
+      try {
+        await updateEthAddressMutation.mutateAsync()
+      } catch {
+        return
+      }
     }
 
     const params: PrimaryNameParams = {
@@ -205,14 +219,7 @@ export const ChoosePrimaryNameDialog = ({
     if (error) {
       console.error(error)
     }
-  }, [
-    selectedName,
-    account,
-    needsEthAddressUpdate,
-    existingEthAddress,
-    selectedNameRecords,
-    primaryNameActor,
-  ])
+  }
 
   const handleCancel = () => {
     if (!isSubmitting) {
@@ -345,7 +352,7 @@ export const ChoosePrimaryNameDialog = ({
           <div className="flex gap-3">
             <Button
               className="h-[48px] flex-1 rounded-xs border-ens-white bg-ens-white font-mono text-ens-blue text-sm uppercase tracking-wider transition-colors hover:bg-ens-white/80 disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
-              disabled={isSubmitting || isSettingEthAddress}
+              disabled={isSubmitting || updateEthAddressMutation.isPending}
               onClick={handleCancel}
               variant="outline"
             >
@@ -355,13 +362,13 @@ export const ChoosePrimaryNameDialog = ({
               className="h-[48px] flex-1 rounded-xs border-ens-blue bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-ens-blue-hover disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
               disabled={
                 isSubmitting ||
-                isSettingEthAddress ||
+                updateEthAddressMutation.isPending ||
                 !hasChanges ||
                 !selectedName
               }
               onClick={handleConfirm}
             >
-              {isSettingEthAddress
+              {updateEthAddressMutation.isPending
                 ? 'Setting ETH address...'
                 : isSubmitting
                   ? 'Setting...'
