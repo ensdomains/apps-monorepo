@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button'
+
 type RegisterNameCheckoutSummaryProps = {
   name: string
   duration: number
@@ -40,6 +42,9 @@ export const RegisterNameCheckoutSummary = ({
           </dd>
         </div>
       </dl>
+      <Button size="lg" className="w-full mt-4">
+        Register
+      </Button>
     </section>
   )
 }
