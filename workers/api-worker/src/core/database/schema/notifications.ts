@@ -14,6 +14,7 @@ import type {
   AnyBroadcastPayload,
   AnyChannelData,
   AnyUserNotificationPayload,
+  BroadcastKind,
   UserChannel,
   UserNotificationKind,
 } from '#types/notifications.js'
@@ -236,7 +237,6 @@ export const notificationDeliveryRelations = relations(
 
 // ===============================
 
-export type BroadcastKind = 'blog-post'
 export const broadcasts = pgTable('broadcasts', {
   id: uuid('id').primaryKey().default(randomUUIDv7),
   kind: text('kind').$type<BroadcastKind>().notNull(),

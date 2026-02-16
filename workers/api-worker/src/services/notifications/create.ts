@@ -11,6 +11,7 @@ import {
   channelSupportsNotification,
   type NotificationKind,
   type NotificationPayloads,
+  notificationDefinitions,
 } from '#config/notifications.js'
 import { type Database, intoDbResult, TABLE } from '#core/database/index.js'
 import type { BaseDeliveryJob } from '#types/delivery.js'
@@ -19,36 +20,64 @@ import { logger } from '#utils/logger.js'
 
 type WatchReason = 'owned' | 'favourited' | 'manual'
 
-function shouldCreateExternalDeliveriesForNotification(
+type DeliveryPreferenceSettings = {
+  owned_name_expiry: boolean
+  favourited_name_expiry: boolean
+  ens_labs_updates: boolean
+}
+
+export function shouldCreateExternalDeliveriesForNotification(
   kind: NotificationKind,
   payload: NotificationPayloads[NotificationKind],
-  settings: {
-    owned_name_expiry: boolean
-    favourited_name_expiry: boolean
-    ens_labs_updates: boolean
-  },
+  settings: DeliveryPreferenceSettings,
 ): boolean {
-  if (kind === 'name-expiry') {
-    const p = payload as NotificationPayloads['name-expiry']
-    const watchReason: WatchReason =
-      // Prefer explicit watch reason (new flow)
-      p.watchReason ??
-      // Fallback for old payloads / tests
-      (p.isOwner ? 'owned' : 'favourited')
-
-    switch (watchReason) {
-      case 'owned':
-        return settings.owned_name_expiry
-      case 'favourited':
-        return settings.favourited_name_expiry
-      case 'manual':
-        // Conservative default: manual watches follow either toggle.
-        return settings.owned_name_expiry || settings.favourited_name_expiry
-    }
+  const definition = notificationDefinitions[kind]
+  if (definition.delivery.mode === 'none') {
+    return false
   }
 
-  // For now (per current product scope), other kinds remain UI-only.
-  return false
+  const preferenceKey = definition.delivery.preferenceKey as
+    | 'ownedNameExpiry'
+    | 'favouritedNameExpiry'
+    | 'ensLabsUpdates'
+    | 'watchBasedNameExpiry'
+    | undefined
+
+  switch (preferenceKey) {
+    case 'ownedNameExpiry':
+      return settings.owned_name_expiry
+    case 'favouritedNameExpiry':
+      return settings.favourited_name_expiry
+    case 'ensLabsUpdates':
+      return settings.ens_labs_updates
+    case 'watchBasedNameExpiry': {
+      if (kind !== 'name-expiry') {
+        return settings.owned_name_expiry || settings.favourited_name_expiry
+      }
+
+      const nameExpiryPayload = payload as NotificationPayloads['name-expiry']
+      const watchReason: WatchReason =
+        // Prefer explicit watch reason (new flow)
+        nameExpiryPayload.watchReason ??
+        // Fallback for old payloads / tests
+        (nameExpiryPayload.isOwner ? 'owned' : 'favourited')
+
+      switch (watchReason) {
+        case 'owned':
+          return settings.owned_name_expiry
+        case 'favourited':
+          return settings.favourited_name_expiry
+        case 'manual':
+          // Conservative default: manual watches follow either toggle.
+          return settings.owned_name_expiry || settings.favourited_name_expiry
+      }
+
+      return settings.owned_name_expiry || settings.favourited_name_expiry
+    }
+    default:
+      // Opt-in kind without a preference key defaults to enabled.
+      return true
+  }
 }
 
 /**

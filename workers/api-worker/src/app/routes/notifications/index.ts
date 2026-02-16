@@ -146,8 +146,8 @@ export default createApp()
   /**
    * GET /notifications/unread-count
    *
-   * Returns the count of unread personal notifications for the authenticated user.
-   * Note: Broadcast notifications are not included in this count as they're handled separately.
+   * Returns the count of unread notifications for the authenticated user.
+   * Includes unread personal notifications and unseen broadcasts.
    *
    * @returns Object with unreadCount number
    */
@@ -155,7 +155,7 @@ export default createApp()
     const userId = c.var.user_id
 
     // Count only personal notifications that haven't been read
-    const unreadCount = await c.var.db.$count(
+    const unreadPersonal = await c.var.db.$count(
       TABLE.notifications,
       and(
         eq(TABLE.notifications.user_id, userId),
@@ -163,7 +163,23 @@ export default createApp()
       ),
     )
 
-    return c.json({ unreadCount })
+    // Count broadcasts the user has not marked as read yet.
+    const unseenBroadcasts = await c.var.db
+      .select({
+        count: sql<number>`count(*)`.as('count'),
+      })
+      .from(TABLE.broadcasts)
+      .leftJoin(
+        TABLE.broadcastsSeen,
+        and(
+          eq(TABLE.broadcasts.id, TABLE.broadcastsSeen.broadcast_id),
+          eq(TABLE.broadcastsSeen.user_id, userId),
+        ),
+      )
+      .where(isNull(TABLE.broadcastsSeen.read_at))
+      .then((rows) => rows[0]?.count ?? 0)
+
+    return c.json({ unreadCount: unreadPersonal + unseenBroadcasts })
   })
   /**
    * PATCH /notifications/read

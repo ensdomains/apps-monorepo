@@ -1,5 +1,10 @@
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { Loader2Icon } from 'lucide-react'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { NotificationItem } from '@/features/notifications/components/items'
+import { selectLatestNotifications } from '@/features/notifications/model/selectors'
+import { notificationsInfiniteQuery } from '@/features/notifications/queries/notifications'
 import { UnreadCount } from './unread-count'
 
 interface NotificationsDropdownProps {
@@ -9,6 +14,12 @@ interface NotificationsDropdownProps {
 export const NotificationsDropdown = ({
   onAction,
 }: NotificationsDropdownProps) => {
+  const { data, isLoading, isError } = useInfiniteQuery(
+    notificationsInfiniteQuery,
+  )
+
+  const notifications = selectLatestNotifications(data ?? [], 5)
+
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex flex-col gap-6">
@@ -30,29 +41,52 @@ export const NotificationsDropdown = ({
             <MSymbol className="ms-opsz-30 ms-wght-200" symbol="settings" />
           </Link>
         </div>
-        {/* TODO: Add back together with notifications list */}
-        {/* <div className="flex gap-3">
-          <FilterBadge active={true} label="All" size="sm" />
-          <FilterBadge active={false} label="Unread" size="sm" />
-        </div> */}
       </div>
-      {/* TODO: Add back together with notifications list */}
-      {/* <Link
+      <Link
         className="ml-auto font-normal text-base text-ens-lapis-core leading-ens-normal hover:underline"
+        onClick={() => onAction?.()}
         to="/notifications"
       >
         See all
-      </Link> */}
+      </Link>
 
-      <div className="flex flex-col items-center justify-center gap-4 py-10">
-        <MSymbol
-          className="ms-opsz-72 ms-wght-200 text-[#515151]"
-          symbol="drafts"
-        />
-        <span className="text-[#717182] text-sm leading-ens-none">
-          Nothing here yet!
-        </span>
-      </div>
+      {isLoading ? (
+        <div className="flex min-h-40 items-center justify-center py-8">
+          <Loader2Icon className="size-6 animate-spin text-[#717182]" />
+        </div>
+      ) : null}
+
+      {isError ? (
+        <div className="flex min-h-40 items-center justify-center py-8">
+          <span className="text-[#717182] text-sm leading-ens-none">
+            Failed to load notifications
+          </span>
+        </div>
+      ) : null}
+
+      {!isLoading && !isError && notifications.length > 0 ? (
+        <div className="flex max-h-[28rem] flex-col overflow-y-auto">
+          {notifications.map((notification) => (
+            <NotificationItem
+              key={notification.id}
+              notification={notification}
+              onAction={onAction}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {!isLoading && !isError && notifications.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-4 py-10">
+          <MSymbol
+            className="ms-opsz-72 ms-wght-200 text-[#515151]"
+            symbol="drafts"
+          />
+          <span className="text-[#717182] text-sm leading-ens-none">
+            Nothing here yet!
+          </span>
+        </div>
+      ) : null}
     </div>
   )
 }

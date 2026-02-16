@@ -1,14 +1,31 @@
 import * as v from 'valibot'
 import type {
+  BroadcastNotificationKind,
+  BroadcastPayloads,
   ChannelType,
+  NotificationCatalogItem,
+  NotificationCatalogKind,
   NotificationKind,
   NotificationPayloads,
 } from '#config/notifications.js'
-import { channelConfigs, notificationConfigs } from '#config/notifications.js'
-import type { KindToPayload, Prettify } from './helpers'
+import {
+  channelConfigs,
+  notificationCatalog,
+  notificationConfigs,
+  notificationDefinitions,
+} from '#config/notifications.js'
+import type { Prettify } from './helpers'
 
 // Re-export for convenience
-export type { NotificationKind, NotificationPayloads, ChannelType }
+export type {
+  BroadcastNotificationKind,
+  BroadcastPayloads,
+  ChannelType,
+  NotificationCatalogItem,
+  NotificationCatalogKind,
+  NotificationKind,
+  NotificationPayloads,
+}
 export type UserNotificationKind = NotificationKind
 export type UserChannel = ChannelType
 
@@ -24,7 +41,9 @@ export const UserChannelSchema = v.union(
 // Metadata access
 export const USER_NOTIFICATION_METADATA = Object.fromEntries(
   Object.entries(notificationConfigs).map(([k, v]) => [k, v.metadata]),
-)
+) as {
+  [K in NotificationKind]: (typeof notificationConfigs)[K]['metadata']
+}
 
 // Legacy types for backward compatibility
 export type UserNotifications = NotificationPayloads
@@ -35,40 +54,48 @@ export type AnyUserNotificationPayload =
 // Broadcasts (keeping for backward compatibility)
 // ===============================
 
-const BROADCASTS = [
-  v.pipe(
-    v.object({
-      kind: v.literal('blog-post'),
-      title: v.string(),
-      url: v.string(),
-      imageUrl: v.string(),
-    }),
-    v.metadata({
-      recommended: false,
-      category: 'Marketing',
-      label: 'Blog Post',
-      description: 'Get notified when a new blog post is published',
-    }),
-  ),
-]
+const BROADCAST_KINDS = Object.entries(notificationDefinitions)
+  .filter(([, definition]) => definition.source === 'broadcast')
+  .map(([kind]) => kind as BroadcastNotificationKind)
 
-export const BroadcastSchema = v.variant('kind', BROADCASTS)
-export type Broadcast = v.InferOutput<typeof BroadcastSchema>
+export type BroadcastKind = BroadcastNotificationKind
 
-export const BROADCAST_METADATA: {
-  [S in (typeof BROADCASTS)[number] as S['entries']['kind']['literal']]: v.InferMetadata<S>
-} = Object.fromEntries(
-  BROADCASTS.map((n) => [n.entries.kind, v.getMetadata(n)]),
-)
+export type Broadcasts = BroadcastPayloads
 
-export type Broadcasts = KindToPayload<Broadcast>
+export type Broadcast = {
+  [K in BroadcastNotificationKind]: {
+    kind: K
+  } & BroadcastPayloads[K]
+}[BroadcastNotificationKind]
 
 export type AnyBroadcastPayload = Broadcasts[keyof Broadcasts]
 
 export const BroadcastKindSchema = v.union(
-  BroadcastSchema.options.map((o) => o.entries.kind),
+  BROADCAST_KINDS.map((kind) => v.literal(kind)),
 )
-export type BroadcastKind = v.InferOutput<typeof BroadcastKindSchema>
+
+export const BroadcastSchema = v.variant(
+  'kind',
+  BROADCAST_KINDS.map((kind) =>
+    v.object({
+      kind: v.literal(kind),
+      ...(
+        notificationDefinitions[kind].payloadSchema as {
+          entries: Record<
+            string,
+            v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>
+          >
+        }
+      ).entries,
+    }),
+  ),
+)
+
+export const BROADCAST_METADATA = Object.fromEntries(
+  BROADCAST_KINDS.map((kind) => [kind, notificationDefinitions[kind].metadata]),
+) as {
+  [K in BroadcastNotificationKind]: (typeof notificationDefinitions)[K]['metadata']
+}
 
 export const NOTIFICATION_METADATA: {
   [K in keyof typeof USER_NOTIFICATION_METADATA]: (typeof USER_NOTIFICATION_METADATA)[K] & {
@@ -140,3 +167,5 @@ export const UserNotificationSettingsSchema = v.object({
 export type UserNotificationSettings = v.InferOutput<
   typeof UserNotificationSettingsSchema
 >
+
+export const NOTIFICATION_CATALOG = notificationCatalog
