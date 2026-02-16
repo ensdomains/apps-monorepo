@@ -63,14 +63,14 @@ const RegistrationOptionalSettingsItem = <T,>({
 export const RegistrationOptionalSettings = () => {
   // mock states to finish up the UI - will be replaced with actual states in the next iteration
   const [setAsDefaultPrimaryName, setSetAsDefaultPrimaryName] = useState(false)
-  const [nameOwner, setNameOwner] = useState<string>(
-    '0x0000000000000000000000000000000000000000',
-  )
-  const [resolver, setResolver] = useState<string>(
-    '0x0000000000000000000000000000000000000000',
-  )
-  const [nameRoles, setNameRoles] = useState<string[]>([])
-  const [subregistryAddress, setSubregistryAddress] = useState<string>()
+  // const [nameOwner, setNameOwner] = useState<string>(
+  //   '0x0000000000000000000000000000000000000000',
+  // )
+  // const [resolver, setResolver] = useState<string>(
+  //   '0x0000000000000000000000000000000000000000',
+  // )
+  // const [nameRoles, setNameRoles] = useState<string[]>([])
+  // const [subregistryAddress, setSubregistryAddress] = useState<string>()
 
   return (
     <section className="flex flex-col gap-2">
@@ -82,7 +82,7 @@ export const RegistrationOptionalSettings = () => {
           value={setAsDefaultPrimaryName}
           onChange={setSetAsDefaultPrimaryName}
         />
-        <RegistrationOptionalSettingsItem
+        {/* <RegistrationOptionalSettingsItem
           label="Name owner"
           tooltipText="Set the owner of this name. This will be the address that can control the name."
           value={nameOwner}
@@ -105,7 +105,7 @@ export const RegistrationOptionalSettings = () => {
           tooltipText="Set the subregistry address for this name. This will be the subregistry address that can control the name."
           value={subregistryAddress}
           onChange={setSubregistryAddress}
-        />
+        /> */}
       </div>
     </section>
   )

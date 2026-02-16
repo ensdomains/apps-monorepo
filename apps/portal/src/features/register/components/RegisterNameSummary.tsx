@@ -42,9 +42,7 @@ export const RegisterNameCheckoutSummary = ({
           </dd>
         </div>
       </dl>
-      <Button size="lg" className="w-full mt-4">
-        Register
-      </Button>
+      <Button className="w-full mt-4 h-12">Continue</Button>
     </section>
   )
 }
