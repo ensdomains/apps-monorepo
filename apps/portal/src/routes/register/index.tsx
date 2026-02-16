@@ -8,7 +8,7 @@ interface RegisterSearch {
   duration?: number
 }
 
-function RegisterPage() {
+const RegisterPage = () => {
   const { name } = Route.useSearch()
 
   return (
