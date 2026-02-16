@@ -153,8 +153,8 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
   cursor: number
   upperBound: number
 }) {
-  logger.debug('Fetching expiring names page from indexer', {
-    stage: ctx.stage.id,
+  logger.trace('Fetching expiring names page from indexer', {
+    stageId: ctx.stage.id,
     cursor: ctx.cursor,
     upperBound: ctx.upperBound,
   })
@@ -169,9 +169,16 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
     })
 
     if (result.isOk()) {
+      const firstExpiryDate = result.value.domains[0]?.expiryDate
+      const lastExpiryDate =
+        result.value.domains[result.value.domains.length - 1]?.expiryDate
+
       logger.debug('Indexer query succeeded', {
-        stage: ctx.stage.id,
+        stageId: ctx.stage.id,
+        attempt,
         domainCount: result.value.domains.length,
+        firstExpiryDate,
+        lastExpiryDate,
         hasMore: result.value.hasMore,
       })
       return ok(result.value)
@@ -187,12 +194,16 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
 
     const delayMs = toRetryDelayMs(attempt)
     logger.warn('Retrying indexer request after transient failure', {
-      stage: ctx.stage.id,
+      stageId: ctx.stage.id,
       attempt,
+      maxAttempts: MAX_RETRIES,
       delayMs,
       status: result.error.status,
-      error: result.error,
-      cause: result.error.cause,
+      error: result.error.message,
+      cause:
+        result.error.cause instanceof Error
+          ? result.error.cause.message
+          : String(result.error.cause),
     })
 
     yield* fromPromise(
@@ -207,8 +218,10 @@ export const fetchExpiringNamesPage = ResultFn(async function* (ctx: {
   }
 
   logger.error('Indexer query exhausted retries', {
-    stage: ctx.stage.id,
-    attempt: MAX_RETRIES,
+    stageId: ctx.stage.id,
+    attempts: MAX_RETRIES,
+    cursor: ctx.cursor,
+    upperBound: ctx.upperBound,
   })
   return yield* new IndexerRequestError({
     message: `Indexer query exhausted retries for stage ${ctx.stage.id}`,

@@ -23,6 +23,15 @@ export type NotificationCursors = Record<
 
 class CursorParseError extends TaggedError('CURSOR_PARSE_ERROR') {}
 
+function summarizeCursorLagSec(cursors: NotificationCursors, nowSec: number) {
+  return Object.fromEntries(
+    Object.entries(cursors).map(([stageId, value]) => [
+      stageId,
+      Math.max(0, nowSec - value.expiry_timestamp),
+    ]),
+  )
+}
+
 function createDefaultCursors(nowSec: number): NotificationCursors {
   return {
     '30d': { expiry_timestamp: nowSec },
@@ -41,8 +50,12 @@ export const loadNotificationCursors = ResultFn(async function* (
   )
 
   if (!value) {
-    logger.debug('No cursors in KV, initializing defaults', { nowSec })
-    return ok(createDefaultCursors(nowSec))
+    const defaults = createDefaultCursors(nowSec)
+    logger.debug('No expiry cursors found in KV, using defaults', {
+      nowSec,
+      cursors: defaults,
+    })
+    return ok(defaults)
   }
 
   let parsed: v.InferOutput<typeof cursorSchema>
@@ -51,6 +64,7 @@ export const loadNotificationCursors = ResultFn(async function* (
   } catch (error) {
     logger.warn('Failed to parse notification cursors from KV', {
       error: String(error),
+      valueType: typeof value,
     })
     return yield* new CursorParseError({
       message: 'Failed to parse notification cursor state from KV',
@@ -60,23 +74,26 @@ export const loadNotificationCursors = ResultFn(async function* (
 
   const defaults = createDefaultCursors(nowSec)
 
-  return ok({
+  const normalized = {
     '30d': parsed['30d'] ?? defaults['30d'],
     '7d': parsed['7d'] ?? defaults['7d'],
     '1d': parsed['1d'] ?? defaults['1d'],
     expired: parsed.expired ?? defaults.expired,
+  }
+
+  logger.trace('Loaded and normalized expiry cursors', {
+    cursors: normalized,
+    lagSecByStage: summarizeCursorLagSec(normalized, nowSec),
   })
+
+  return ok(normalized)
 })
 
 export const storeNotificationCursors = ResultFn(async function* (
   env: CloudflareBindings,
   cursors: NotificationCursors,
 ) {
-  logger.debug('Storing notification cursors', {
-    cursors: Object.fromEntries(
-      Object.entries(cursors).map(([k, v]) => [k, v.expiry_timestamp]),
-    ),
-  })
+  logger.debug('Persisting expiry cursors', { cursors })
   yield* intoKVResult(
     env.KV.put(KV_KEY.EXPIRY_DISCOVERY.CURSORS, JSON.stringify(cursors)),
   )

@@ -21,6 +21,17 @@ class QueuePublishError extends TaggedError('QUEUE_PUBLISH_ERROR')<{
   stageId: string
 }> {}
 
+type StageRunMetrics = {
+  stageId: string
+  cursorStart: number
+  cursorEnd: number
+  upperBound: number
+  enqueuedCount: number
+  pageDomainCount: number
+  chunkCount: number
+  hasMore: boolean
+}
+
 function buildExpiryEvents(
   stage: ExpiryStageConfig,
   domains: { name: string; expiryDate: number; owner?: string }[],
@@ -42,26 +53,32 @@ const processStage = ResultFn(async function* (ctx: {
   nowSec: number
 }) {
   const upperBound = getUpperBoundForStage(ctx.stage, ctx.nowSec)
+  const lagSec = Math.max(0, upperBound - ctx.cursor)
 
   // Cursor already caught up with the stage window.
   if (ctx.cursor >= upperBound) {
-    logger.debug('Expiry stage skipped, cursor already caught up', {
-      stage: ctx.stage.id,
-      cursor: ctx.cursor,
+    logger.debug('Expiry stage skipped (cursor caught up)', {
+      stageId: ctx.stage.id,
+      cursorStart: ctx.cursor,
       upperBound,
     })
     return ok({
       stageId: ctx.stage.id,
-      nextCursor: ctx.cursor,
+      cursorStart: ctx.cursor,
+      cursorEnd: ctx.cursor,
+      upperBound,
       enqueuedCount: 0,
+      pageDomainCount: 0,
+      chunkCount: 0,
       hasMore: false,
-    })
+    } satisfies StageRunMetrics)
   }
 
-  logger.debug('Fetching expiring names from indexer', {
-    stage: ctx.stage.id,
-    cursor: ctx.cursor,
+  logger.debug('Processing expiry stage window', {
+    stageId: ctx.stage.id,
+    cursorStart: ctx.cursor,
     upperBound,
+    lagSec,
   })
 
   const page = yield* fetchExpiringNamesPage({
@@ -72,23 +89,31 @@ const processStage = ResultFn(async function* (ctx: {
   })
 
   if (page.domains.length === 0) {
-    logger.debug('Expiry stage returned empty page', {
-      stage: ctx.stage.id,
-      cursor: ctx.cursor,
+    logger.debug('Expiry stage returned no domains', {
+      stageId: ctx.stage.id,
+      cursorStart: ctx.cursor,
+      upperBound,
     })
     return ok({
       stageId: ctx.stage.id,
-      nextCursor: ctx.cursor,
+      cursorStart: ctx.cursor,
+      cursorEnd: ctx.cursor,
+      upperBound,
       enqueuedCount: 0,
+      pageDomainCount: 0,
+      chunkCount: 0,
       hasMore: false,
-    })
+    } satisfies StageRunMetrics)
   }
 
   const events = buildExpiryEvents(ctx.stage, page.domains)
+  const eventChunks = chunk(events, QUEUE_BATCH_SIZE)
+  const firstExpiryDate = page.domains[0]?.expiryDate
+  const lastExpiryDate = page.domains[page.domains.length - 1]?.expiryDate
 
-  for (const eventChunk of chunk(events, QUEUE_BATCH_SIZE)) {
-    logger.debug('Enqueueing expiry events batch', {
-      stage: ctx.stage.id,
+  for (const eventChunk of eventChunks) {
+    logger.trace('Enqueueing expiry events chunk', {
+      stageId: ctx.stage.id,
       chunkSize: eventChunk.length,
     })
     // One sendBatch call counts as one subrequest regardless of chunk size.
@@ -107,20 +132,34 @@ const processStage = ResultFn(async function* (ctx: {
 
   return ok({
     stageId: ctx.stage.id,
-    nextCursor: page.domains[page.domains.length - 1].expiryDate,
+    cursorStart: ctx.cursor,
+    cursorEnd: lastExpiryDate ?? ctx.cursor,
+    upperBound,
     enqueuedCount: events.length,
+    pageDomainCount: page.domains.length,
+    chunkCount: eventChunks.length,
     hasMore: page.hasMore,
+    firstExpiryDate,
+    lastExpiryDate,
+  } satisfies StageRunMetrics & {
+    firstExpiryDate?: number
+    lastExpiryDate?: number
   })
 })
 
 export const runExpiryDiscoveryCron = ResultFn(async function* (
   env: CloudflareBindings,
 ) {
+  const startedAt = Date.now()
   const nowSec = Math.floor(Date.now() / 1000)
-  logger.info('Expiry discovery cron started', { nowSec })
+  logger.info('Expiry discovery cron started', {
+    nowSec,
+    stageCount: STAGES.length,
+    stages: STAGES.map((stage) => stage.id),
+  })
 
   const cursors = yield* loadNotificationCursors(env, nowSec)
-  logger.debug('Loaded notification cursors', {
+  logger.debug('Loaded expiry notification cursors', {
     cursors: Object.fromEntries(
       Object.entries(cursors).map(([k, v]) => [k, v.expiry_timestamp]),
     ),
@@ -148,12 +187,15 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
 
   let totalEnqueued = 0
   let failedStages = 0
+  const stageMetrics: Record<string, StageRunMetrics> = {}
 
   for (const { stage, result } of stageResults) {
     if (result.isErr()) {
       failedStages += 1
       logger.error('Expiry discovery stage failed', {
-        stage: stage.id,
+        stageId: stage.id,
+        cursorStart: cursors[stage.id].expiry_timestamp,
+        upperBound: getUpperBoundForStage(stage, nowSec),
         error: prettifyError(result.error),
       })
       continue
@@ -161,23 +203,34 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
 
     // Per-stage commit policy: successful stages move forward even if others fail.
     nextCursors[stage.id] = {
-      expiry_timestamp: result.value.nextCursor,
+      expiry_timestamp: result.value.cursorEnd,
     }
     totalEnqueued += result.value.enqueuedCount
+    stageMetrics[stage.id] = result.value
 
     logger.info('Expiry discovery stage completed', {
-      stage: stage.id,
-      cursorStart: cursors[stage.id].expiry_timestamp,
-      cursorEnd: result.value.nextCursor,
+      stageId: stage.id,
+      cursorStart: result.value.cursorStart,
+      cursorEnd: result.value.cursorEnd,
+      upperBound: result.value.upperBound,
+      cursorAdvancedBySec: result.value.cursorEnd - result.value.cursorStart,
+      pageDomainCount: result.value.pageDomainCount,
       enqueuedCount: result.value.enqueuedCount,
+      chunkCount: result.value.chunkCount,
       hasMore: result.value.hasMore,
     })
   }
 
   yield* storeNotificationCursors(env, nextCursors)
+
+  const durationMs = Date.now() - startedAt
+  const successfulStages = STAGES.length - failedStages
   logger.info('Expiry discovery cron completed', {
+    durationMs,
+    successfulStages,
     totalEnqueued,
     failedStages,
+    stageMetrics,
   })
 
   return ok({

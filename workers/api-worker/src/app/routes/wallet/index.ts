@@ -117,7 +117,11 @@ export default createApp()
         getErc20Balance(walletClient, address, TOKENS.DAI.address),
       ])
 
-      logger.debug('Checked faucet balances', { usdcBalance, daiBalance, address })
+      logger.debug('Checked faucet balances', {
+        usdcBalance,
+        daiBalance,
+        address,
+      })
 
       // Don't send out tokens if they already have enough to prevent abuse
       if (

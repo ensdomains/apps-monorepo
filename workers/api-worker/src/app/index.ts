@@ -1,6 +1,6 @@
 import { cors } from 'hono/cors'
 import { HTTPException } from 'hono/http-exception'
-import { logger, prettifyError } from '#utils/logger.js'
+import { logger } from '#utils/logger.js'
 import { createApp } from './middleware/hono'
 import authApp from './routes/auth'
 import favoritesApp from './routes/favorites'
@@ -24,7 +24,7 @@ const app = createApp()
     logger.error('Internal server error', {
       path: c.req.path,
       method: c.req.method,
-      error: prettifyError(err),
+      error: err,
     })
 
     return c.json({ error: 'Internal server error' }, 500)

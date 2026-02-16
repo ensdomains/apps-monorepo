@@ -32,11 +32,14 @@ describe('handleScheduled', () => {
       {} as ExecutionContext,
     )
 
-    expect(infoSpy).toHaveBeenCalledWith('Scheduled expiry discovery completed', {
-      cron: '0 */1 * * *',
-      totalEnqueued: 10,
-      failedStages: 0,
-    })
+    expect(infoSpy).toHaveBeenCalledWith(
+      'Scheduled expiry discovery completed',
+      {
+        cron: '0 */1 * * *',
+        totalEnqueued: 10,
+        failedStages: 0,
+      },
+    )
   })
 
   it('logs errors and does not throw on failure', async () => {
@@ -59,7 +62,10 @@ describe('handleScheduled', () => {
       ),
     ).resolves.toBeUndefined()
 
-    expect(errorSpy).toHaveBeenCalledWith('Scheduled expiry discovery failed', expect.any(Object))
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Scheduled expiry discovery failed',
+      expect.any(Object),
+    )
   })
 
   it('surfaces partial failures in completion log payload', async () => {
@@ -78,10 +84,13 @@ describe('handleScheduled', () => {
       {} as ExecutionContext,
     )
 
-    expect(infoSpy).toHaveBeenCalledWith('Scheduled expiry discovery completed', {
-      cron: '0 */1 * * *',
-      totalEnqueued: 50,
-      failedStages: 1,
-    })
+    expect(infoSpy).toHaveBeenCalledWith(
+      'Scheduled expiry discovery completed',
+      {
+        cron: '0 */1 * * *',
+        totalEnqueued: 50,
+        failedStages: 1,
+      },
+    )
   })
 })

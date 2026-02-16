@@ -11,7 +11,7 @@ export const addUserIfNotExists = ResultFn(async function* (
 ) {
   const existingUser = yield* intoDbResult(
     db.query.users.findFirst({
-      where: eq(users.address, address),
+      where: eq(users.address, address.toLowerCase()),
     }),
   )
 

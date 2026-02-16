@@ -30,6 +30,14 @@ type NotificationSettings = {
 }
 
 type RecipientMap = Map<string, WatchReason>
+type StageCounts = Partial<Record<ExpiryEvent['stage'], number>>
+
+function countByStage(events: ExpiryEvent[]): StageCounts {
+  return events.reduce<StageCounts>((counts, event) => {
+    counts[event.stage] = (counts[event.stage] ?? 0) + 1
+    return counts
+  }, {})
+}
 
 export function shouldCreateExternalDeliveries(
   watchReason: WatchReason,
@@ -94,9 +102,11 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
   }
 
   const db = getDatabase(ctx.env)
+  const stageCounts = countByStage(ctx.events)
 
   logger.debug('Processing expiry events', {
     eventCount: ctx.events.length,
+    stageCounts,
   })
 
   // Resolve recipients in two set-based lookups to avoid per-event DB round trips.
@@ -167,6 +177,7 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
 
   const notificationsToInsert: (typeof TABLE.notifications.$inferInsert)[] = []
   const existingIdempotencyKeys = new Set<string>()
+  let duplicateIdempotencyCount = 0
 
   for (const event of ctx.events) {
     const recipients = collectRecipientsForEvent(
@@ -185,9 +196,7 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
 
       // Dedupe inside the same queue batch before relying on DB conflict handling.
       if (existingIdempotencyKeys.has(idempotencyKey)) {
-        logger.debug('Skipping duplicate idempotency key', {
-          idempotencyKey,
-        })
+        duplicateIdempotencyCount += 1
         continue
       }
 
@@ -216,6 +225,7 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
   if (notificationsToInsert.length === 0) {
     logger.debug('No recipients found for expiry events', {
       eventCount: ctx.events.length,
+      duplicateIdempotencyCount,
     })
     return ok(undefined)
   }
@@ -301,6 +311,10 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
     []
   const jobsByQueue = new Map<keyof CloudflareBindings, BaseDeliveryJob[]>()
   let deliveryCounter = 0
+  let suppressedBySettingsCount = 0
+  let unsupportedChannelCount = 0
+  let missingTargetCount = 0
+  let missingQueueBindingCount = 0
 
   for (const notification of insertedNotifications) {
     const payload = notification.payload as {
@@ -318,6 +332,7 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
     })
 
     if (!shouldCreate) {
+      suppressedBySettingsCount += 1
       continue
     }
 
@@ -325,27 +340,18 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
 
     for (const channel of userChannels) {
       if (!channelSupportsNotification(channel.channel, 'name-expiry')) {
+        unsupportedChannelCount += 1
         continue
       }
 
       if (!channel.target) {
-        logger.warn(
-          'Skipping delivery because verified channel has no target',
-          {
-            channel: channel.channel,
-            userId: notification.user_id,
-            notificationId: notification.id,
-          },
-        )
+        missingTargetCount += 1
         continue
       }
 
       const queueBinding = CHANNEL_TO_QUEUE[channel.channel]
       if (!queueBinding) {
-        logger.warn('No queue binding configured for channel', {
-          channel: channel.channel,
-          notificationId: notification.id,
-        })
+        missingQueueBindingCount += 1
         continue
       }
 
@@ -370,6 +376,20 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
         kind: notification.kind,
       })
     }
+  }
+
+  if (suppressedBySettingsCount > 0 || unsupportedChannelCount > 0) {
+    logger.debug('Some expiry notifications skipped during delivery fanout', {
+      suppressedBySettingsCount,
+      unsupportedChannelCount,
+    })
+  }
+
+  if (missingTargetCount > 0 || missingQueueBindingCount > 0) {
+    logger.warn('Delivery fanout encountered channel configuration issues', {
+      missingTargetCount,
+      missingQueueBindingCount,
+    })
   }
 
   if (deliveriesToInsert.length > 0) {
@@ -403,7 +423,13 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
 
   logger.info('Processed expiry event batch', {
     eventCount: ctx.events.length,
+    stageCounts,
+    duplicateIdempotencyCount,
     insertedNotifications: insertedNotifications.length,
+    suppressedBySettingsCount,
+    unsupportedChannelCount,
+    missingTargetCount,
+    missingQueueBindingCount,
     createdDeliveries: deliveriesToInsert.length,
   })
 
@@ -415,21 +441,22 @@ export const handleEventIngestionQueue = async (
   env: CloudflareBindings,
 ): Promise<void> => {
   const validMessages: Array<{ message: Message; event: ExpiryEvent }> = []
+  let invalidShapeCount = 0
+  let unsupportedTypeCount = 0
+  let invalidSchemaCount = 0
 
   for (const message of batch.messages) {
     const body = message.body
 
     if (!body || typeof body !== 'object') {
-      logger.warn('Unsupported event payload shape', {
-        bodyType: typeof body,
-      })
+      invalidShapeCount += 1
       message.ack()
       continue
     }
 
     const eventType = (body as Record<string, unknown>).type
     if (eventType !== 'name_expiring') {
-      logger.warn('Unsupported event type', { type: eventType })
+      unsupportedTypeCount += 1
       message.ack()
       continue
     }
@@ -437,7 +464,8 @@ export const handleEventIngestionQueue = async (
     // Invalid schema is treated as a permanent poison message: ack and log.
     const parsed = v.safeParse(expiryEventSchema, body)
     if (!parsed.success) {
-      logger.warn('Invalid expiry event payload', {
+      invalidSchemaCount += 1
+      logger.trace('Invalid expiry event payload details', {
         issues: parsed.issues,
       })
       message.ack()
@@ -451,25 +479,62 @@ export const handleEventIngestionQueue = async (
   }
 
   if (validMessages.length === 0) {
+    const droppedCount =
+      invalidShapeCount + unsupportedTypeCount + invalidSchemaCount
+
+    if (droppedCount > 0) {
+      logger.warn('Dropped non-processable event-ingestion messages', {
+        queue: batch.queue,
+        messageCount: batch.messages.length,
+        droppedCount,
+        invalidShapeCount,
+        unsupportedTypeCount,
+        invalidSchemaCount,
+      })
+    }
     return
   }
 
+  const droppedCount =
+    invalidShapeCount + unsupportedTypeCount + invalidSchemaCount
+  const events = validMessages.map(({ event }) => event)
+  const stageCounts = countByStage(events)
+
+  if (droppedCount > 0) {
+    logger.warn('Dropped some non-processable event-ingestion messages', {
+      queue: batch.queue,
+      messageCount: batch.messages.length,
+      validMessageCount: validMessages.length,
+      droppedCount,
+      invalidShapeCount,
+      unsupportedTypeCount,
+      invalidSchemaCount,
+    })
+  }
+
   logger.info('Processing event-ingestion batch', {
+    queue: batch.queue,
+    messageCount: batch.messages.length,
     validMessageCount: validMessages.length,
+    droppedCount,
+    stageCounts,
   })
   logger.debug('Event-ingestion batch names', {
-    eventNames: [...new Set(validMessages.map((m) => m.event.name))],
+    eventNames: [...new Set(events.map((event) => event.name))],
   })
 
   const result = await processExpiryEvents({
     env,
-    events: validMessages.map(({ event }) => event),
+    events,
   })
 
   if (result.isErr()) {
     logger.error('Failed to process event-ingestion queue batch', {
       queue: batch.queue,
-      messageCount: validMessages.length,
+      messageCount: batch.messages.length,
+      validMessageCount: validMessages.length,
+      droppedCount,
+      stageCounts,
       error: prettifyError(result.error),
     })
 
@@ -485,6 +550,10 @@ export const handleEventIngestionQueue = async (
   }
 
   logger.info('Event-ingestion batch completed', {
-    messageCount: validMessages.length,
+    queue: batch.queue,
+    messageCount: batch.messages.length,
+    validMessageCount: validMessages.length,
+    droppedCount,
+    stageCounts,
   })
 }

@@ -39,7 +39,7 @@ export default createApp()
         env: c.env,
         client: c.var.ethClient,
         db: c.var.db,
-        address,
+        address: address,
         message,
         signature,
         nonce,
