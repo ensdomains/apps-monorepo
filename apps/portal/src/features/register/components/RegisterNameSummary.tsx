@@ -1,8 +1,6 @@
 import { Button } from '@/components/ui/button'
 
 type RegisterNameCheckoutSummaryProps = {
-  name: string
-  duration: number
   durationLabel: string
 }
 

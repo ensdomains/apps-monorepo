@@ -14,7 +14,6 @@ type RegistrationExpiryDatePickerProps = {
   date: Date
   onDateChange: (date: Date) => void
   minDate?: Date
-  id?: string
 }
 
 export const RegistrationExpiryDatePicker = ({
@@ -49,7 +48,7 @@ export const RegistrationExpiryDatePicker = ({
           id="registration-expiry-date"
           type="button"
           className={cn(
-            'flex h-13 w-full cursor-pointer items-center gap-2 rounded-md border p-3 text-left text-foreground outline-none transition-[color,box-shadow] hover:bg-accent/50 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]',
+            'flex h-13 w-full cursor-pointer items-center gap-2 rounded-md border p-3 text-left text-foreground outline-none transition-[color,box-shadow] hover:bg-accent/50 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2',
           )}
         >
           <span className="flex-1 truncate text-2xl font-medium">

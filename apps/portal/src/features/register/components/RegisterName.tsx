@@ -1,13 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { UserCheck } from 'lucide-react'
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useState } from 'react'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { MessageCard } from '@/components/ui/message-card'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
-import {
-  calculateDurationFromDate,
-  formatRegistrationDuration,
-} from '@/features/register/utils/registrationDuration'
+import { formatRegistrationDuration } from '@/features/register/utils/registrationDuration'
 import { run } from '@/utils/run'
 import { RegisterNameForm } from './RegisterNameForm'
 import { RegisterNameCheckoutSummary } from './RegisterNameSummary'
@@ -24,10 +21,6 @@ const initialExpiryDate = () => {
 
 export const RegisterName = ({ name }: RegisterNameProps) => {
   const [expiryDate, setExpiryDate] = useState(initialExpiryDate)
-  const duration = useMemo(
-    () => calculateDurationFromDate(expiryDate),
-    [expiryDate],
-  )
 
   const {
     data: availability,
@@ -38,7 +31,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     enabled: Boolean(name),
   })
 
-  const isNameAvailable =
+  const isNameTaken =
     !isLoading && !isError && availability && !availability.isAvailable
 
   return (
@@ -52,7 +45,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
           )
         }
 
-        if (isNameAvailable) {
+        if (isNameTaken) {
           return (
             <div className="col-span-5">
               <MessageCard
@@ -84,8 +77,6 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
               setExpiryDate={setExpiryDate}
             />
             <RegisterNameCheckoutSummary
-              name={name}
-              duration={duration}
               durationLabel={formatRegistrationDuration(expiryDate)}
             />
           </Fragment>
