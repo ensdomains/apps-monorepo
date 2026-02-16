@@ -12,8 +12,8 @@ import { RegistrationOptionalSettings } from './RegistrationOptionalSettings'
 
 type RegisterNameFormProps = {
   name: string
-  duration: number
-  setDuration: (duration: number) => void
+  expiryDate: Date
+  setExpiryDate: (date: Date) => void
 }
 
 enum RegistrationSpanType {
@@ -23,12 +23,12 @@ enum RegistrationSpanType {
 
 export const RegisterNameForm = ({
   name,
-  duration,
-  setDuration,
+  expiryDate,
+  setExpiryDate,
 }: RegisterNameFormProps) => {
-  const expiryDate = useMemo(
-    () => calculateExpirationDate(duration),
-    [duration],
+  const duration = useMemo(
+    () => calculateDurationFromDate(expiryDate),
+    [expiryDate],
   )
 
   const [registrationSpanType, setRegistrationSpanType] =
@@ -71,13 +71,14 @@ export const RegisterNameForm = ({
         </div>
 
         {registrationSpanType === RegistrationSpanType.YEARS ? (
-          <RegistrationDurationPicker value={duration} onChange={setDuration} />
+          <RegistrationDurationPicker
+            value={duration}
+            onChange={(years) => setExpiryDate(calculateExpirationDate(years))}
+          />
         ) : (
           <RegistrationExpiryDatePicker
             date={expiryDate}
-            onDateChange={(date) =>
-              setDuration(calculateDurationFromDate(date))
-            }
+            onDateChange={setExpiryDate}
             minDate={new Date()}
           />
         )}

@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { UserCheck } from 'lucide-react'
-import { Fragment, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { MessageCard } from '@/components/ui/message-card'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
+import { calculateDurationFromDate } from '@/features/register/utils/registrationDuration'
 import { run } from '@/utils/run'
 import { RegisterNameForm } from './RegisterNameForm'
 import { RegisterNameCheckoutSummary } from './RegisterNameSummary'
@@ -12,8 +13,18 @@ type RegisterNameProps = {
   name: string
 }
 
+const initialExpiryDate = () => {
+  const d = new Date()
+  d.setFullYear(d.getFullYear() + 1)
+  return d
+}
+
 export const RegisterName = ({ name }: RegisterNameProps) => {
-  const [duration, setDuration] = useState(1)
+  const [expiryDate, setExpiryDate] = useState(initialExpiryDate)
+  const duration = useMemo(
+    () => calculateDurationFromDate(expiryDate),
+    [expiryDate],
+  )
 
   const {
     data: availability,
@@ -66,8 +77,8 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
           <Fragment>
             <RegisterNameForm
               name={name}
-              duration={duration}
-              setDuration={setDuration}
+              expiryDate={expiryDate}
+              setExpiryDate={setExpiryDate}
             />
             <RegisterNameCheckoutSummary name={name} duration={duration} />
           </Fragment>
