@@ -7,10 +7,11 @@ describe('AvailableNameMessage', () => {
     render(<AvailableNameMessage name="example.eth" />)
 
     expect(screen.getByText('example.eth is available!')).toBeInTheDocument()
-    expect(screen.getByText('Alpha')).toBeInTheDocument()
-    expect(
-      screen.getByRole('link', { name: 'Register in Manager Alpha' }),
-    ).toHaveAttribute('href', 'https://app.ens.dev/register?name=example.eth')
+    expect(screen.getByText('Click below to claim it')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Register' })).toHaveAttribute(
+      'href',
+      '/register?name=example.eth',
+    )
   })
 
   it('uses custom description and action button', () => {

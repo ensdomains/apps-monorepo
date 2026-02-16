@@ -29,21 +29,17 @@ export function AvailableNameMessage({
   const defaultDescription = (
     <div className="text-base">
       <p>
-        You're using an early version of the new ENS Explorer! This Alpha is in
-        active development, and registration is coming soon.
-      </p>
-      <p>
         {isEthName
-          ? 'Instead, you can register this name in the new Manager Alpha.'
-          : 'Instead, you can import this DNS name in the new Manager Alpha.'}
+          ? 'This name is available to register. Click below to claim it.'
+          : 'This DNS name can be imported to ENS in the Manager Alpha.'}
       </p>
     </div>
   )
 
   const defaultActionButton = {
-    label: isEthName ? 'Register in Manager Alpha' : 'Import in Manager Alpha',
+    label: isEthName ? 'Register' : 'Import in Manager Alpha',
     href: actionUrl,
-    external: true,
+    external: !isEthName,
   }
 
   return (
