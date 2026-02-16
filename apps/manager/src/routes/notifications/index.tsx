@@ -7,9 +7,9 @@ import {
 } from '@/components/ui/input-group'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { Switch } from '@/components/ui/switch'
-import { FilterBadge } from '@/features/notifications/components/filter-badge'
-import { NotificationsList } from '@/features/notifications/components/list'
-import { UnreadCount } from '@/features/notifications/components/unread-count'
+import { FilterBadge } from '@/features/notifications/ui/filter-badge'
+import { NotificationsList } from '@/features/notifications/ui/list'
+import { UnreadCount } from '@/features/notifications/ui/unread-count'
 
 export const Route = createFileRoute('/notifications/')({
   component: RouteComponent,

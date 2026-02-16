@@ -1,18 +1,12 @@
 import * as v from 'valibot'
 
 type NotificationSource = 'personal' | 'broadcast'
-type NotificationTemplate = 'name-card' | 'content-card' | 'message-card'
-type NotificationAction =
-  | {
-      kind: 'internal-link'
-      label: string
-    }
-  | {
-      kind: 'external-link'
-      label: string
-    }
 type NotificationPriority = 'low' | 'medium' | 'high'
 type DeliveryMode = 'none' | 'opt-in'
+/**
+ * Preference keys used when deciding if an `opt-in` notification should create
+ * external deliveries (email/telegram/push) for a user.
+ */
 type DeliveryPreferenceKey =
   | 'ownedNameExpiry'
   | 'favouritedNameExpiry'
@@ -31,24 +25,28 @@ type NotificationMetadata = {
   thresholds?: readonly number[]
 }
 
-type NotificationUI = {
-  template: NotificationTemplate
-  supportsGrouping: boolean
-  action?: NotificationAction
-}
-
+/**
+ * Delivery policy attached to each notification kind.
+ * - `mode: none` means dashboard/nav only (no external channel sends)
+ * - `mode: opt-in` means external delivery is allowed when user preferences enable it
+ */
 type NotificationDelivery = {
   mode: DeliveryMode
   channels: readonly ChannelType[]
   preferenceKey?: DeliveryPreferenceKey
 }
 
+/**
+ * Backend notification contract.
+ *
+ * This is intentionally presentation-agnostic. Frontend rendering templates,
+ * actions, and component selection are owned by the manager app.
+ */
 type NotificationDefinition = {
   kind: string
   source: NotificationSource
   payloadSchema: PayloadSchema
   metadata: NotificationMetadata
-  ui: NotificationUI
   delivery: NotificationDelivery
 }
 
@@ -83,7 +81,7 @@ const channelConfigs = {
 
 export type ChannelType = keyof typeof channelConfigs
 
-// Canonical notification definitions with schema + metadata + UI + delivery
+// Canonical notification definitions with schema + metadata + delivery policy.
 const notificationDefinitions = {
   'name-expiry': {
     kind: 'name-expiry',
@@ -102,14 +100,6 @@ const notificationDefinitions = {
       recommended: true,
       thresholds: [30, 7, 1],
       tags: ['expiry'],
-    },
-    ui: {
-      template: 'name-card',
-      supportsGrouping: true,
-      action: {
-        kind: 'internal-link',
-        label: 'Extend',
-      },
     },
     delivery: {
       mode: 'opt-in',
@@ -133,14 +123,6 @@ const notificationDefinitions = {
       recommended: true,
       tags: ['transfer'],
     },
-    ui: {
-      template: 'name-card',
-      supportsGrouping: false,
-      action: {
-        kind: 'external-link',
-        label: 'View on Etherscan',
-      },
-    },
     delivery: {
       // Keep current behaviour: stored in dashboard/nav, no external delivery yet.
       mode: 'none',
@@ -162,14 +144,6 @@ const notificationDefinitions = {
       priority: 'low',
       recommended: false,
       tags: ['education', 'updates'],
-    },
-    ui: {
-      template: 'content-card',
-      supportsGrouping: false,
-      action: {
-        kind: 'external-link',
-        label: 'Go to post',
-      },
     },
     delivery: {
       mode: 'none',
@@ -193,10 +167,6 @@ const notificationDefinitions = {
       recommended: false,
       tags: ['onboarding'],
     },
-    ui: {
-      template: 'message-card',
-      supportsGrouping: false,
-    },
     delivery: {
       mode: 'none',
       channels: [],
@@ -217,14 +187,6 @@ const notificationDefinitions = {
       priority: 'medium',
       recommended: true,
       tags: ['updates'],
-    },
-    ui: {
-      template: 'message-card',
-      supportsGrouping: false,
-      action: {
-        kind: 'external-link',
-        label: 'Read more',
-      },
     },
     delivery: {
       mode: 'none',
@@ -267,10 +229,14 @@ export type NotificationCatalogItem<K extends NotificationCatalogKind> = {
   kind: K
   source: NotificationDefinitions[K]['source']
   metadata: NotificationDefinitions[K]['metadata']
-  ui: NotificationDefinitions[K]['ui']
   delivery: NotificationDefinitions[K]['delivery']
 }
 
+/**
+ * Runtime-safe catalog exported for consumers (e.g. manager app).
+ *
+ * Note: payload schemas are intentionally excluded from this object.
+ */
 export const notificationCatalog = Object.fromEntries(
   Object.entries(notificationDefinitions).map(([kind, definition]) => [
     kind,
@@ -278,7 +244,6 @@ export const notificationCatalog = Object.fromEntries(
       kind: definition.kind,
       source: definition.source,
       metadata: definition.metadata,
-      ui: definition.ui,
       delivery: definition.delivery,
     },
   ]),

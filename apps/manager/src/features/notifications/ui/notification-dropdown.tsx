@@ -2,9 +2,9 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Loader2Icon } from 'lucide-react'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { NotificationItem } from '@/features/notifications/components/items'
-import { selectLatestNotifications } from '@/features/notifications/model/selectors'
+import { selectRenderableNotifications } from '@/features/notifications/kinds/selectors'
 import { notificationsInfiniteQuery } from '@/features/notifications/queries/notifications'
+import { ResolvedNotificationItem } from './items/notification-item'
 import { UnreadCount } from './unread-count'
 
 interface NotificationsDropdownProps {
@@ -18,7 +18,7 @@ export const NotificationsDropdown = ({
     notificationsInfiniteQuery,
   )
 
-  const notifications = selectLatestNotifications(data ?? [], 5)
+  const notifications = selectRenderableNotifications(data ?? [], 5)
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -67,10 +67,10 @@ export const NotificationsDropdown = ({
       {!isLoading && !isError && notifications.length > 0 ? (
         <div className="flex max-h-[28rem] flex-col overflow-y-auto">
           {notifications.map((notification) => (
-            <NotificationItem
-              key={notification.id}
-              notification={notification}
+            <ResolvedNotificationItem
+              key={notification.notification.id}
               onAction={onAction}
+              resolved={notification}
             />
           ))}
         </div>

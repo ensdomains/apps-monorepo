@@ -11,7 +11,6 @@ describe('notification catalog contract', () => {
       expect(definition.kind).toBe(kind)
       expect(definition.payloadSchema).toBeDefined()
       expect(definition.metadata).toBeDefined()
-      expect(definition.ui).toBeDefined()
       expect(definition.delivery).toBeDefined()
       expect(definition.source).toMatch(/^(personal|broadcast)$/)
     }
@@ -25,6 +24,7 @@ describe('notification catalog contract', () => {
       expect(catalogItem.kind).toBe(kind)
       expect(catalogItem.metadata.label.length).toBeGreaterThan(0)
       expect('payloadSchema' in (catalogItem as object)).toBe(false)
+      expect('ui' in (catalogItem as object)).toBe(false)
     }
   })
 })

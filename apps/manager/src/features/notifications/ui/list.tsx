@@ -2,8 +2,9 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { Loader2Icon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { NotificationItem } from '@/features/notifications/components/items'
+import { selectRenderableNotifications } from '@/features/notifications/kinds/selectors'
 import { notificationsInfiniteQuery } from '@/features/notifications/queries/notifications'
+import { ResolvedNotificationItem } from './items/notification-item'
 
 export const NotificationsList = () => {
   const {
@@ -15,8 +16,7 @@ export const NotificationsList = () => {
     isFetchingNextPage,
   } = useInfiniteQuery(notificationsInfiniteQuery)
 
-  // Flatten all notifications from all pages
-  const allNotifications = data ?? []
+  const allNotifications = selectRenderableNotifications(data ?? [])
 
   if (isLoading) {
     return (
@@ -48,7 +48,10 @@ export const NotificationsList = () => {
   return (
     <div className="flex flex-col gap-8">
       {allNotifications.map((notification) => (
-        <NotificationItem key={notification.id} notification={notification} />
+        <ResolvedNotificationItem
+          key={notification.notification.id}
+          resolved={notification}
+        />
       ))}
       {hasNextPage && (
         <Button
