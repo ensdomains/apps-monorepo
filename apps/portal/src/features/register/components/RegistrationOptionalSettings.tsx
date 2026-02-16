@@ -22,6 +22,8 @@ const RegistrationOptionalSettingsItem = <T,>({
   value,
   onChange,
 }: RegistrationOptionalSettingsItemProps<T>) => {
+  // NOTE : This is a temporary component UI - ideally this would not be a genric component
+  // since each settings have a unique set of update logics and validations
   return (
     <div className="flex items-center gap-2 border border-border rounded-lg p-4 justify-between">
       <div className="flex items-center gap-2">
