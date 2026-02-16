@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { BadgeCheck } from 'lucide-react'
-import { NavBar } from '@/components/NavBar'
 import { MessageCard } from '@/components/ui/message-card'
 
 interface RegisterSearch {
@@ -13,7 +12,6 @@ function RegisterPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <NavBar />
       <main className="flex-1 mx-auto w-full max-w-2xl px-6 py-12">
         <div className="flex flex-col gap-6">
           <div>
@@ -43,7 +41,6 @@ function RegisterPage() {
             actionButton={{
               label: 'Back to Explorer',
               href: '/',
-              external: false,
             }}
           />
 

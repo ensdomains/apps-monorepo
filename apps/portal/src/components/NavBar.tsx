@@ -25,11 +25,17 @@ const SidebarTrigger = lazy(() =>
   import('./ui/sidebar').then((mod) => ({ default: mod.SidebarTrigger })),
 )
 
+/** Routes that don't use SidebarProvider - sidebar trigger must not render here */
+const ROUTES_WITHOUT_SIDEBAR = ['/', '/register']
+
 export const NavBar = () => {
   const { location } = useRouterState()
   // Only show sidebar trigger on routes that have a sidebar (/$name or /addr/$addr)
+
+  const hideSidebar = ROUTES_WITHOUT_SIDEBAR.includes(location.pathname)
+
   const hasSidebar =
-    location.pathname !== '/' &&
+    !hideSidebar &&
     (location.pathname.match(/^\/[^/]+(\/|$)/) ||
       location.pathname.startsWith('/addr/'))
 
