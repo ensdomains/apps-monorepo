@@ -569,6 +569,20 @@ export const ProfileCard = function({ name, address }: ProfileCardProps) {
 
 **Note**: Function declarations (`function`) are reserved for utility functions and helpers, not React components.
 
+**Exception — Route component functions**: In TanStack Router route files (`routes/`), the `RouteComponent` function referenced by `createFileRoute` may use a function declaration. This is the convention used by TanStack Router's code generation and keeps route files consistent with the router's own patterns.
+
+```typescript
+// Good - Function declaration for route components in route files
+export const Route = createFileRoute('/$name/deploy-registry')({
+  component: RouteComponent,
+})
+
+function RouteComponent() {
+  const { name } = Route.useParams()
+  // ...
+}
+```
+
 ### Component Props
 
 Define props interfaces next to the component:
