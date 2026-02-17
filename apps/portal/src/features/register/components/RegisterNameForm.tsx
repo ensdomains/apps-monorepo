@@ -8,7 +8,6 @@ import {
 } from '../utils/registrationDuration'
 import { RegistrationDurationPicker } from './RegistrationDurationPicker'
 import { RegistrationExpiryDatePicker } from './RegistrationExpiryDatePicker'
-import { RegistrationOptionalSettings } from './RegistrationOptionalSettings'
 
 type RegisterNameFormProps = {
   name: string
@@ -87,7 +86,6 @@ export const RegisterNameForm = ({
           />
         )}
       </div>
-      <RegistrationOptionalSettings />
     </div>
   )
 }
