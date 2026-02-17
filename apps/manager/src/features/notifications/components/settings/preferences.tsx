@@ -84,6 +84,10 @@ export const NotificationPreferences = () => {
   const hasVerifiedChannels =
     (preferences.data?.verifiedChannels?.length ?? 0) > 0
 
+  if (!hasVerifiedChannels) {
+    return null
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <h2 className="font-medium font-sans text-[#232222] text-base leading-ens-none">
@@ -95,7 +99,7 @@ export const NotificationPreferences = () => {
             <Preference
               checked={field.state.value}
               description="You'll be notified 30, 7, and 1 day before expiry"
-              disabled={false}
+              disabled={preferences.isRefetching}
               icon={
                 <MSymbol
                   className="ms-wght-300 text-ens-lapis-surface"
@@ -113,7 +117,7 @@ export const NotificationPreferences = () => {
             <Preference
               checked={field.state.value}
               description="Get updated on the latest releases and features"
-              disabled={false}
+              disabled={preferences.isRefetching}
               icon={
                 <MSymbol
                   className="ms-wght-300 text-ens-lapis-surface"
@@ -131,7 +135,7 @@ export const NotificationPreferences = () => {
             <Preference
               checked={field.state.value}
               description="Get notified when names in your favourites expire"
-              disabled={false}
+              disabled={preferences.isRefetching}
               icon={
                 <MSymbol
                   className="ms-wght-300 text-ens-lapis-surface"
