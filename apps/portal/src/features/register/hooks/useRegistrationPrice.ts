@@ -1,10 +1,13 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getPrice } from '@ensdomains/ensjs/public'
+import { l2EthRegistrarRentPriceSnippet } from '@ensdomains/ensjs/contracts'
 import { fromPromise, ok } from 'neverthrow'
-import { formatUnits } from 'viem'
-import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
+import { formatUnits, zeroAddress } from 'viem'
+import { readContract } from 'viem/actions'
+import { fastTestETHRegistrar } from '@/lib/constants/registry'
+import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
+import { safeGetClient } from '@/lib/wagmi/helpers'
 import { formatUsdCeil } from '@/utils/formatting/formatUsdCeil'
 
 class GetRegistrationPriceError extends TaggedError(
@@ -33,15 +36,25 @@ export const getRegistrationPrice = ResultFn(async function* ({
   name,
   durationYears,
 }: RegistrationPriceParameters) {
-  const client = yield* safeGetNamechainSepoliaClient()
+  const client = yield* safeGetClient()
 
   const years = Math.max(1, Math.floor(durationYears))
   const durationSeconds = years * ONE_YEAR_SECONDS
+  const cleanName = name.replace(/\.eth$/i, '')
 
-  const { base, premium } = yield* fromPromise(
-    getPrice(client, {
-      nameOrNames: name,
-      duration: durationSeconds,
+  const [base, premium] = yield* fromPromise(
+    // TODO : replace this with ensjs `getPrice` function
+    // temporarily using readContract to get the price since ensjs `getPrice` function throws contract mismatch errors
+    readContract(client, {
+      address: fastTestETHRegistrar,
+      abi: l2EthRegistrarRentPriceSnippet,
+      functionName: 'rentPrice',
+      args: [
+        cleanName,
+        zeroAddress,
+        BigInt(durationSeconds),
+        SUPPORTED_TOKENS.USDC,
+      ],
     }),
     (e) => new GetRegistrationPriceError({ cause: e }),
   )
