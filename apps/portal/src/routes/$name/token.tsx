@@ -77,7 +77,6 @@ const DataRow = ({
     </div>
   )
 }
-}
 
 const TokenInfoCard = ({
   contractAddress,
