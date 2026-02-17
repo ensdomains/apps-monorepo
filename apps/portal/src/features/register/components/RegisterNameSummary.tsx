@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Button } from '@/components/ui/button'
+import { PremiumPill } from '@/features/register/components/PremiumPill'
 import {
   getRegistrationPriceQueryOptions,
   type RegistrationPriceResult,
 } from '@/features/register/hooks/useRegistrationPrice'
+import { getPremiumLabel } from '@/features/register/utils/premium'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
 function isPriceResult(value: unknown): value is RegistrationPriceResult {
@@ -69,7 +71,11 @@ export const RegisterNameCheckoutSummary = ({
           </pre>
         </div>
       ) : price && isPriceResult(price) ? (
-        <PriceBreakdown price={price} durationLabel={durationLabel} />
+        <PriceBreakdown
+          name={name}
+          price={price}
+          durationLabel={durationLabel}
+        />
       ) : (
         <div className="border border-border rounded-md p-4">
           <p className="text-muted-foreground text-sm">Unable to load price</p>
@@ -88,52 +94,75 @@ export const RegisterNameCheckoutSummary = ({
 }
 
 type PriceBreakdownProps = {
+  name: string
   price: RegistrationPriceResult
   durationLabel: string
 }
 
-const PriceBreakdown = ({ price, durationLabel }: PriceBreakdownProps) => (
-  <dl className="border border-border rounded-md p-4 space-y-3">
-    <div className="flex items-center justify-between">
-      <dt className="text-base font-normal">{durationLabel} registration</dt>
-      <dd className="flex items-center gap-1 m-0">
-        <span className="font-mono text-base font-medium">{price.base}</span>
-        <span className="text-xs">USD</span>
-      </dd>
+const PriceBreakdown = ({
+  name,
+  price,
+  durationLabel,
+}: PriceBreakdownProps) => {
+  const premiumLabel = getPremiumLabel(name)
+
+  return (
+    <div className="space-y-3">
+      {premiumLabel && (
+        <div className="flex flex-wrap items-center gap-2">
+          <PremiumPill
+            label={premiumLabel.label}
+            variant={premiumLabel.variant}
+          />
+        </div>
+      )}
+      <dl className="border border-border rounded-md p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <dt className="text-base font-normal">
+            {durationLabel} registration
+          </dt>
+          <dd className="flex items-center gap-1 m-0">
+            <span className="font-mono text-base font-medium">
+              {price.base}
+            </span>
+            <span className="text-xs">USD</span>
+          </dd>
+        </div>
+
+        {price.hasPremium && (
+          <div className="flex items-center justify-between">
+            <dt className="text-base font-normal text-muted-foreground">
+              {premiumLabel?.label ?? 'Premium (short name)'}
+            </dt>
+            <dd className="flex items-center gap-1 m-0">
+              <span className="font-mono text-base font-medium">
+                {price.premium}
+              </span>
+              <span className="text-xs">USD</span>
+            </dd>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <dt className="text-base font-normal">Est. gas cost</dt>
+          <dd className="flex items-center gap-1 m-0 text-muted-foreground text-sm">
+            <span className="font-mono">~{formatUsd(EST_GAS_USD)}</span>
+            <span className="text-xs">USD</span>
+          </dd>
+        </div>
+
+        <div className="flex items-center justify-between pt-3 border-t border-border">
+          <dt className="text-xl font-bold">Est. total</dt>
+          <dd className="flex items-center gap-1 m-0">
+            <span className="font-mono text-xl font-bold">{price.total}</span>
+            <span className="text-xs">USD</span>
+          </dd>
+        </div>
+
+        <p className="text-xs text-muted-foreground pt-1">
+          Paid in USDC or DAI. Gas cost is an approximation.
+        </p>
+      </dl>
     </div>
-
-    {price.hasPremium && (
-      <div className="flex items-center justify-between">
-        <dt className="text-base font-normal text-muted-foreground">
-          Premium (short name)
-        </dt>
-        <dd className="flex items-center gap-1 m-0">
-          <span className="font-mono text-base font-medium">
-            {price.premium}
-          </span>
-          <span className="text-xs">USD</span>
-        </dd>
-      </div>
-    )}
-
-    <div className="flex items-center justify-between">
-      <dt className="text-base font-normal">Est. gas cost</dt>
-      <dd className="flex items-center gap-1 m-0 text-muted-foreground text-sm">
-        <span className="font-mono">~{formatUsd(EST_GAS_USD)}</span>
-        <span className="text-xs">USD</span>
-      </dd>
-    </div>
-
-    <div className="flex items-center justify-between pt-3 border-t border-border">
-      <dt className="text-xl font-bold">Est. total</dt>
-      <dd className="flex items-center gap-1 m-0">
-        <span className="font-mono text-xl font-bold">{price.total}</span>
-        <span className="text-xs">USD</span>
-      </dd>
-    </div>
-
-    <p className="text-xs text-muted-foreground pt-1">
-      Paid in USDC or DAI. Gas cost is an approximation.
-    </p>
-  </dl>
-)
+  )
+}
