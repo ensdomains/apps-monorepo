@@ -1,15 +1,10 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { l2EthRegistrarRentPriceSnippet } from '@ensdomains/ensjs/contracts'
+import { getPrice } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
-import { formatUnits, zeroAddress } from 'viem'
-import { readContract } from 'viem/actions'
-import {
-  fastTestETHRegistrar,
-  SUPPORTED_TOKENS,
-} from '@/lib/constants/registry'
-import { safeGetClient } from '@/lib/wagmi/helpers'
+import { formatUnits } from 'viem'
+import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
 import { formatUsdCeil } from '@/utils/formatting/formatUsdCeil'
 
 class GetRegistrationPriceError extends TaggedError(
@@ -24,47 +19,40 @@ export type RegistrationPriceParameters = {
 }
 
 export type RegistrationPriceResult = {
-  readonly base: bigint
-  readonly premium: bigint
-  readonly total: bigint
-  readonly baseFormatted: string
-  readonly premiumFormatted: string
-  readonly totalFormatted: string
+  readonly base: string
+  readonly premium: string
+  readonly total: string
+  readonly hasPremium: boolean
 }
 
 const USDC_DECIMALS = 6
+
+const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60
 
 export const getRegistrationPrice = ResultFn(async function* ({
   name,
   durationYears,
 }: RegistrationPriceParameters) {
-  const client = yield* safeGetClient()
+  const client = yield* safeGetNamechainSepoliaClient()
 
-  const cleanName = name.replace(/\.eth$/i, '')
-  const oneYearSeconds = BigInt(365 * 24 * 60 * 60)
   const years = Math.max(1, Math.floor(durationYears))
+  const durationSeconds = years * ONE_YEAR_SECONDS
 
-  const [base1yr, premium1yr] = yield* fromPromise(
-    readContract(client, {
-      address: fastTestETHRegistrar,
-      abi: l2EthRegistrarRentPriceSnippet,
-      functionName: 'rentPrice',
-      args: [cleanName, zeroAddress, oneYearSeconds, SUPPORTED_TOKENS.USDC],
+  const { base, premium } = yield* fromPromise(
+    getPrice(client, {
+      nameOrNames: name,
+      duration: durationSeconds,
     }),
     (e) => new GetRegistrationPriceError({ cause: e }),
   )
 
-  const base = base1yr * BigInt(years)
-  const premium = premium1yr * BigInt(years)
   const total = base + premium
 
   return ok<RegistrationPriceResult>({
-    base,
-    premium,
-    total,
-    baseFormatted: formatUsdCeil(formatUnits(base, USDC_DECIMALS)),
-    premiumFormatted: formatUsdCeil(formatUnits(premium, USDC_DECIMALS)),
-    totalFormatted: formatUsdCeil(formatUnits(total, USDC_DECIMALS)),
+    base: formatUsdCeil(formatUnits(base, USDC_DECIMALS)),
+    premium: formatUsdCeil(formatUnits(premium, USDC_DECIMALS)),
+    total: formatUsdCeil(formatUnits(total, USDC_DECIMALS)),
+    hasPremium: premium > 0n,
   })
 })
 

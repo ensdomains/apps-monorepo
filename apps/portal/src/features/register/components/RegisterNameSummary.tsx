@@ -10,8 +10,8 @@ function isPriceResult(value: unknown): value is RegistrationPriceResult {
   return (
     typeof value === 'object' &&
     value !== null &&
-    'baseFormatted' in value &&
-    'totalFormatted' in value
+    'base' in value &&
+    'total' in value
   )
 }
 
@@ -98,21 +98,19 @@ const PriceBreakdown = ({ price, durationLabel }: PriceBreakdownProps) => (
     <div className="flex items-center justify-between">
       <dt className="text-base font-normal">{durationLabel} registration</dt>
       <dd className="flex items-center gap-1 m-0">
-        <span className="font-mono text-base font-medium">
-          {price.baseFormatted}
-        </span>
+        <span className="font-mono text-base font-medium">{price.base}</span>
         <span className="text-xs">USD</span>
       </dd>
     </div>
 
-    {price.premium > 0n && (
+    {price.hasPremium && (
       <div className="flex items-center justify-between">
         <dt className="text-base font-normal text-muted-foreground">
           Premium (short name)
         </dt>
         <dd className="flex items-center gap-1 m-0">
           <span className="font-mono text-base font-medium">
-            {price.premiumFormatted}
+            {price.premium}
           </span>
           <span className="text-xs">USD</span>
         </dd>
@@ -130,9 +128,7 @@ const PriceBreakdown = ({ price, durationLabel }: PriceBreakdownProps) => (
     <div className="flex items-center justify-between pt-3 border-t border-border">
       <dt className="text-xl font-bold">Est. total</dt>
       <dd className="flex items-center gap-1 m-0">
-        <span className="font-mono text-xl font-bold">
-          {price.totalFormatted}
-        </span>
+        <span className="font-mono text-xl font-bold">{price.total}</span>
         <span className="text-xs">USD</span>
       </dd>
     </div>
