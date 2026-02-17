@@ -65,7 +65,7 @@ export const getRegistrationPrice = ResultFn(async function* ({
     base: formatUsdCeil(formatUnits(base, USDC_DECIMALS)),
     premium: formatUsdCeil(formatUnits(premium, USDC_DECIMALS)),
     total: formatUsdCeil(formatUnits(total, USDC_DECIMALS)),
-    hasPremium: premium > 0n,
+    hasPremium: true ?? premium > 0n,
   })
 })
 

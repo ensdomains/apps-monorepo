@@ -1,7 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
+import { InfoIcon } from 'lucide-react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PremiumPill } from '@/features/register/components/PremiumPill'
+import { TemporaryPremiumDrawer } from '@/features/register/components/TemporaryPremiumDrawer'
 import {
   getRegistrationPriceQueryOptions,
   type RegistrationPriceResult,
@@ -36,6 +39,7 @@ export const RegisterNameCheckoutSummary = ({
   durationLabel,
   onContinue,
 }: RegisterNameCheckoutSummaryProps) => {
+  const [premiumDrawerOpen, setPremiumDrawerOpen] = useState(false)
   const isNameValid = !validateNameLength(name)
 
   const {
@@ -81,6 +85,7 @@ export const RegisterNameCheckoutSummary = ({
           name={name}
           price={price}
           durationLabel={durationLabel}
+          onOpenPremiumDrawer={() => setPremiumDrawerOpen(true)}
         />
       ) : (
         <div className="border border-border rounded-md p-4">
@@ -95,6 +100,14 @@ export const RegisterNameCheckoutSummary = ({
       >
         Continue
       </Button>
+
+      {price && isPriceResult(price) && price.hasPremium && (
+        <TemporaryPremiumDrawer
+          open={premiumDrawerOpen}
+          onOpenChange={setPremiumDrawerOpen}
+          currentPremium={price.premium}
+        />
+      )}
     </section>
   )
 }
@@ -161,12 +174,14 @@ type PriceBreakdownProps = {
   name: string
   price: RegistrationPriceResult
   durationLabel: string
+  onOpenPremiumDrawer?: () => void
 }
 
 const PriceBreakdown = ({
   name,
   price,
   durationLabel,
+  onOpenPremiumDrawer,
 }: PriceBreakdownProps) => {
   const premiumLabel = getPremiumLabel(name)
 
@@ -195,8 +210,18 @@ const PriceBreakdown = ({
 
         {price.hasPremium && (
           <div className="flex items-center justify-between">
-            <dt className="text-base font-normal text-muted-foreground">
-              {premiumLabel?.label ?? 'Premium (short name)'}
+            <dt className="text-base font-normal flex items-center gap-1">
+              Temporary premium{' '}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-6"
+                onClick={onOpenPremiumDrawer}
+                aria-label="Learn more about temporary premium"
+              >
+                <InfoIcon className="size-3.5" />
+              </Button>
             </dt>
             <dd className="flex items-center gap-1 m-0">
               <span className="font-mono text-base font-medium">
