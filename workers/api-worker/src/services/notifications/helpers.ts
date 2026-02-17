@@ -9,18 +9,7 @@ const channelSanitizers = {
       })
       return 'Unknown Email'
     }
-    // sanitize email by only showing the domain and the first letter of the username
-    const parts = target.split('@')
-    if (parts.length !== 2) {
-      logger.warn('Email target is invalid', {
-        hasData: Boolean(data),
-      })
-      return 'Unknown Email'
-    }
-    const username = parts[0]
-    const domain = parts[1]
-
-    return `${username.slice(0, 1)}${'*'.repeat(username.length - 1)}@${domain}`
+    return target
   },
   telegram: (_target, data) => {
     return `@${data.username}`

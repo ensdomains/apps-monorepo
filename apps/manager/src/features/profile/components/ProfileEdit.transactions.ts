@@ -20,6 +20,7 @@ import {
   getCoderByCoinName,
   getCoderByCoinType,
 } from '@ensdomains/address-encoder'
+import { encodeContentHash } from '@ensdomains/ensjs/utils'
 import * as v from 'valibot'
 import {
   type Address,
@@ -28,7 +29,7 @@ import {
   type Hex,
   namehash,
   type PublicClient,
-  zeroAddress,
+  stringToHex,
 } from 'viem'
 
 // --- Constants ---
@@ -55,6 +56,23 @@ const DEDICATED_RESOLVER_ABI = [
     type: 'function',
   },
   {
+    inputs: [{ internalType: 'bytes', name: 'hash', type: 'bytes' }],
+    name: 'setContenthash',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'uint256', name: 'contentType', type: 'uint256' },
+      { internalType: 'bytes', name: 'data', type: 'bytes' },
+    ],
+    name: 'setABI',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
     inputs: [
       { internalType: 'bytes32', name: '', type: 'bytes32' },
       { internalType: 'bytes[]', name: 'calls', type: 'bytes[]' },
@@ -75,6 +93,8 @@ const ENS_SEPOLIA_CONTRACTS = {
 export interface ServiceRecordSnapshot {
   texts: Array<{ key: string; value: string }>
   coins: Array<{ coinType: number; value: string }>
+  contentHash?: string
+  abi?: string
 }
 
 type TextChange = {
@@ -90,6 +110,8 @@ type CoinChange = {
 type RecordChanges = {
   texts: TextChange[]
   coins: CoinChange[]
+  contentHash?: { before?: string; after?: string }
+  abi?: { before?: string; after?: string }
 }
 
 export type RecordIssue = {
@@ -233,7 +255,27 @@ const computeRecordChanges = (
     }
   }
 
-  return { texts: textChanges, coins: coinChanges }
+  const changes: RecordChanges = { texts: textChanges, coins: coinChanges }
+
+  const beforeContentHash = (before.contentHash ?? '').trim()
+  const afterContentHash = (after.contentHash ?? '').trim()
+  if (beforeContentHash !== afterContentHash) {
+    changes.contentHash = {
+      before: beforeContentHash || undefined,
+      after: afterContentHash || undefined,
+    }
+  }
+
+  const beforeAbi = (before.abi ?? '').trim()
+  const afterAbi = (after.abi ?? '').trim()
+  if (beforeAbi !== afterAbi) {
+    changes.abi = {
+      before: beforeAbi || undefined,
+      after: afterAbi || undefined,
+    }
+  }
+
+  return changes
 }
 
 const bioUrlSchema = v.pipe(v.string(), v.trim(), v.url('Invalid Bio URL'))
@@ -267,10 +309,6 @@ const encodeCoinValue = (
   try {
     let encoded: Hex | Uint8Array =
       value && value.trim() !== '' ? coder.decode(value) : '0x'
-
-    if (coder.coinType === 60 && encoded === '0x') {
-      encoded = coder.decode(zeroAddress)
-    }
 
     if (typeof encoded !== 'string') {
       encoded = bytesToHex(encoded)
@@ -372,7 +410,61 @@ const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => {
     throw new RecordsValidationError(allIssues)
   }
 
-  return [...textCalls, ...coinCalls]
+  const extraCalls: Hex[] = []
+
+  if (changes.contentHash) {
+    const hash = changes.contentHash.after ?? ''
+    const encodedHash: Hex = hash
+      ? hash.startsWith('0x')
+        ? (hash as Hex)
+        : encodeContentHash(hash)
+      : '0x'
+    extraCalls.push(
+      encodeFunctionData({
+        abi: DEDICATED_RESOLVER_ABI,
+        functionName: 'setContenthash',
+        args: [encodedHash],
+      }),
+    )
+  }
+
+  if (changes.abi) {
+    const abiJson = changes.abi.after ?? ''
+    if (abiJson) {
+      try {
+        const parsed = JSON.parse(abiJson)
+        if (!Array.isArray(parsed)) {
+          allIssues.push({
+            sectionKey: 'other',
+            fieldKey: 'abi',
+            message: 'ABI must be a JSON array',
+          })
+        }
+      } catch {
+        allIssues.push({
+          sectionKey: 'other',
+          fieldKey: 'abi',
+          message: 'ABI must be valid JSON',
+        })
+      }
+    }
+
+    if (allIssues.length > 0) {
+      throw new RecordsValidationError(allIssues)
+    }
+
+    const abiBytes = abiJson ? stringToHex(abiJson) : '0x'
+    const contentType = abiJson ? 1n : 0n
+    extraCalls.push(
+      encodeFunctionData({
+        abi: DEDICATED_RESOLVER_ABI,
+        functionName: 'setABI',
+        args: [contentType, abiBytes as Hex],
+      }),
+    )
+  }
+
+  return [...textCalls, ...coinCalls, ...extraCalls]
 }
 
 function createTransactionRequest(params: {
@@ -446,7 +538,13 @@ function buildRecordsUpdateRequest(params: {
 
   const changes = computeRecordChanges(before, after)
 
-  if (changes.texts.length === 0 && changes.coins.length === 0) {
+  const hasChanges =
+    changes.texts.length > 0 ||
+    changes.coins.length > 0 ||
+    changes.contentHash !== undefined ||
+    changes.abi !== undefined
+
+  if (!hasChanges) {
     throw new Error('No profile record changes to apply')
   }
 

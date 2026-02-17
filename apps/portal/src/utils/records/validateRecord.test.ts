@@ -289,12 +289,46 @@ describe('validateRecord', () => {
       expect(validateRecord(record)).toBeNull()
     })
 
+    it('accepts valid bzz:// contentHash (Swarm, ENSIP-7)', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value:
+          'bzz://d1de9994b4d039f6548d191eb26786769f580809256b4685ef316805265ea162',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('accepts valid onion3:// contentHash', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value:
+          'onion3://p53lf57qovyuvwsc6xnrppyply3vtqm7l6pcobkmyqsiofyeznfu5uqd',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('accepts /ipfs/ path format', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: '/ipfs/QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('accepts /ipns/ path format', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: '/ipns/example.eth',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
     it('rejects contentHash with unsupported protocol', () => {
       const record: EditableRecord = {
         type: 'contentHash',
         value: 'ftp://example.com/file.txt',
       }
-      expect(validateRecord(record)).toContain('Invalid contentHash')
+      expect(validateRecord(record)).toContain('Invalid content hash')
     })
 
     it('rejects contentHash without protocol', () => {
@@ -302,7 +336,7 @@ describe('validateRecord', () => {
         type: 'contentHash',
         value: 'QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG',
       }
-      expect(validateRecord(record)).toContain('Invalid contentHash')
+      expect(validateRecord(record)).toContain('Invalid content hash')
     })
 
     it('rejects contentHash with only protocol (no identifier)', () => {
@@ -310,7 +344,40 @@ describe('validateRecord', () => {
         type: 'contentHash',
         value: 'ipfs://',
       }
-      expect(validateRecord(record)).toContain('Invalid contentHash')
+      expect(validateRecord(record)).toContain('Invalid content hash')
+    })
+
+    it('accepts valid 0x hex contentHash', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value:
+          '0xe3010170122029f2d17be6139079dc48696d1f582a8530eb9805b561eda517e22a892c7e3f1f',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('rejects an Ethereum address as contentHash', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: '0x7Bc153b2a4C8a2f3428bd0da77a901b81c6dD809',
+      }
+      expect(validateRecord(record)).toContain('Invalid content hash')
+    })
+
+    it('rejects 0x hex contentHash that is too short', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: '0x',
+      }
+      expect(validateRecord(record)).toContain('Invalid content hash')
+    })
+
+    it('rejects 0x hex contentHash with non-hex characters', () => {
+      const record: EditableRecord = {
+        type: 'contentHash',
+        value: '0xZZZZ',
+      }
+      expect(validateRecord(record)).toContain('Invalid content hash')
     })
 
     it('accepts empty value (deletion)', () => {

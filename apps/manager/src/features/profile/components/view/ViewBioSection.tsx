@@ -63,8 +63,11 @@ interface ViewBioSectionProps {
 }
 
 export const ViewBioSection = ({ records }: ViewBioSectionProps) => {
+  const contactsWithValues = records.contact.filter((r) => r.value)
   const hasContent =
-    records.base.description || records.base.url || records.contact.length > 0
+    records.base.description ||
+    records.base.url ||
+    contactsWithValues.length > 0
 
   if (!hasContent) {
     return null
@@ -91,11 +94,11 @@ export const ViewBioSection = ({ records }: ViewBioSectionProps) => {
           </a>
         ) : null}
 
-        {records.contact.length > 0 ? (
+        {contactsWithValues.length > 0 ? (
           <>
             <hr className="my-2" />
             <div className="flex flex-wrap gap-3 max-md:justify-center">
-              {records.contact.map((record, i) => (
+              {contactsWithValues.map((record, i) => (
                 <ContactItem key={`${record.key}-${i}`} record={record} />
               ))}
             </div>
