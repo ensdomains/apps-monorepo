@@ -645,7 +645,9 @@ export default createApp()
             '• Domain expiry reminders\n' +
             '• Domain transfers\n' +
             '• And other important events\n\n' +
-            'Click the button below to customize which notifications you receive.',
+            'Click the button below to customize which notifications you receive.\n\n' +
+            '👥 *Want more ENS news & updates?*\n' +
+            'Join our announcements group for broadcasts: [t.me/ens_updates](https://t.me/ens_updates)',
           parse_mode: 'Markdown',
           reply_markup: keyboard,
         },
