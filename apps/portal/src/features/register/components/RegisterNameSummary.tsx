@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { PremiumPill } from '@/features/register/components/PremiumPill'
 import {
   getRegistrationPriceQueryOptions,
@@ -61,9 +61,10 @@ export const RegisterNameCheckoutSummary = ({
       </h2>
 
       {isLoading ? (
-        <div className="border border-border rounded-md p-4">
-          <LoadingSpinner title="Loading price..." />
-        </div>
+        <PriceBreakdownSkeleton
+          durationLabel={durationLabel}
+          premiumLabel={getPremiumLabel(name)}
+        />
       ) : isError ? (
         <div className="border border-border rounded-md p-4">
           <p className="text-destructive text-sm">
@@ -97,6 +98,64 @@ export const RegisterNameCheckoutSummary = ({
     </section>
   )
 }
+
+type PriceBreakdownSkeletonProps = {
+  durationLabel: string
+  premiumLabel: ReturnType<typeof getPremiumLabel>
+}
+
+const PriceBreakdownSkeleton = ({
+  durationLabel,
+  premiumLabel,
+}: PriceBreakdownSkeletonProps) => (
+  <div className="space-y-3">
+    {premiumLabel && (
+      <div className="flex flex-wrap items-center gap-2">
+        <PremiumPill
+          label={premiumLabel.label}
+          variant={premiumLabel.variant}
+        />
+      </div>
+    )}
+    <dl className="border border-border rounded-md p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <dt className="text-base font-normal">{durationLabel} registration</dt>
+        <dd className="flex items-center gap-1 m-0">
+          <Skeleton className="h-5 w-12" />
+          <span className="text-xs">USD</span>
+        </dd>
+      </div>
+      {premiumLabel && (
+        <div className="flex items-center justify-between">
+          <dt className="text-base font-normal text-muted-foreground">
+            {premiumLabel.label}
+          </dt>
+          <dd className="flex items-center gap-1 m-0">
+            <Skeleton className="h-5 w-12" />
+            <span className="text-xs">USD</span>
+          </dd>
+        </div>
+      )}
+      <div className="flex items-center justify-between">
+        <dt className="text-base font-normal">Est. gas cost</dt>
+        <dd className="flex items-center gap-1 m-0 text-muted-foreground text-sm">
+          <span className="font-mono">~{formatUsd(EST_GAS_USD)}</span>
+          <span className="text-xs">USD</span>
+        </dd>
+      </div>
+      <div className="flex items-center justify-between pt-3 border-t border-border">
+        <dt className="text-xl font-bold">Est. total</dt>
+        <dd className="flex items-center gap-1 m-0">
+          <Skeleton className="h-7 w-14" />
+          <span className="text-xs">USD</span>
+        </dd>
+      </div>
+      <p className="text-xs text-muted-foreground pt-1">
+        Paid in USDC or DAI. Gas cost is an approximation.
+      </p>
+    </dl>
+  </div>
+)
 
 type PriceBreakdownProps = {
   name: string
