@@ -22,8 +22,15 @@ type RegisterNameCheckoutSummaryProps = {
   onContinue?: () => void
 }
 
-/** Placeholder for gas paid in native token (ETH) - not part of USDC registration cost */
-const EST_GAS_USD = '~$0.01'
+const EST_GAS_USD = 0.01
+
+const formatUsd = (value: number): string =>
+  value.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
 
 export const RegisterNameCheckoutSummary = ({
   name,
@@ -90,8 +97,11 @@ const PriceBreakdown = ({ price, durationLabel }: PriceBreakdownProps) => (
   <dl className="border border-border rounded-md p-4 space-y-3">
     <div className="flex items-center justify-between">
       <dt className="text-base font-normal">{durationLabel} registration</dt>
-      <dd className="flex items-center gap-1 m-0 font-medium">
-        {price.baseFormatted}
+      <dd className="flex items-center gap-1 m-0">
+        <span className="font-mono text-base font-medium">
+          {price.baseFormatted}
+        </span>
+        <span className="text-xs">USD</span>
       </dd>
     </div>
 
@@ -100,8 +110,11 @@ const PriceBreakdown = ({ price, durationLabel }: PriceBreakdownProps) => (
         <dt className="text-base font-normal text-muted-foreground">
           Premium (short name)
         </dt>
-        <dd className="flex items-center gap-1 m-0 font-medium">
-          {price.premiumFormatted}
+        <dd className="flex items-center gap-1 m-0">
+          <span className="font-mono text-base font-medium">
+            {price.premiumFormatted}
+          </span>
+          <span className="text-xs">USD</span>
         </dd>
       </div>
     )}
@@ -109,14 +122,18 @@ const PriceBreakdown = ({ price, durationLabel }: PriceBreakdownProps) => (
     <div className="flex items-center justify-between">
       <dt className="text-base font-normal">Est. gas cost</dt>
       <dd className="flex items-center gap-1 m-0 text-muted-foreground text-sm">
-        {EST_GAS_USD}
+        <span className="font-mono">~{formatUsd(EST_GAS_USD)}</span>
+        <span className="text-xs">USD</span>
       </dd>
     </div>
 
     <div className="flex items-center justify-between pt-3 border-t border-border">
       <dt className="text-xl font-bold">Est. total</dt>
-      <dd className="flex items-center gap-1 m-0 text-xl font-bold">
-        {price.totalFormatted}
+      <dd className="flex items-center gap-1 m-0">
+        <span className="font-mono text-xl font-bold">
+          {price.totalFormatted}
+        </span>
+        <span className="text-xs">USD</span>
       </dd>
     </div>
 
