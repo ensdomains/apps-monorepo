@@ -5,6 +5,7 @@ import {
   getRegistrationPriceQueryOptions,
   type RegistrationPriceResult,
 } from '@/features/register/hooks/useRegistrationPrice'
+import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
 function isPriceResult(value: unknown): value is RegistrationPriceResult {
   return (
@@ -24,14 +25,6 @@ type RegisterNameCheckoutSummaryProps = {
 
 const EST_GAS_USD = 0.01
 
-const formatUsd = (value: number): string =>
-  value.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-
 export const RegisterNameCheckoutSummary = ({
   name,
   duration,
@@ -42,6 +35,7 @@ export const RegisterNameCheckoutSummary = ({
     data: price,
     isLoading,
     isError,
+    error,
   } = useQuery({
     ...getRegistrationPriceQueryOptions({ name, durationYears: duration }),
     enabled: Boolean(name) && duration >= 1,
@@ -68,6 +62,13 @@ export const RegisterNameCheckoutSummary = ({
           <p className="text-destructive text-sm">
             Failed to load price. Please try again.
           </p>
+          {import.meta.env.DEV && error && (
+            <pre className="mt-2 text-xs overflow-auto max-h-24 text-muted-foreground">
+              {error instanceof Error
+                ? `${error.message}${(error as { cause?: unknown }).cause ? `\nCause: ${String((error as { cause?: unknown }).cause)}` : ''}`
+                : String(error)}
+            </pre>
+          )}
         </div>
       ) : price && isPriceResult(price) ? (
         <PriceBreakdown price={price} durationLabel={durationLabel} />
