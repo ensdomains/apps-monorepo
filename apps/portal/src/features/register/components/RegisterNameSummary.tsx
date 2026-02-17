@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { InfoIcon } from 'lucide-react'
 import { useState } from 'react'
+import { ExternalLink } from 'react-external-link'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PremiumPill } from '@/features/register/components/PremiumPill'
@@ -32,6 +33,10 @@ type RegisterNameCheckoutSummaryProps = {
 }
 
 const EST_GAS_USD = 0.05
+
+/** ENS docs explaining premium pricing for short names */
+const ENS_PREMIUM_PRICING_DOCS_URL =
+  'https://docs.ens.domains/registry/eth/#3-4-and-5-letter-names'
 
 export const RegisterNameCheckoutSummary = ({
   name,
@@ -128,6 +133,12 @@ const PriceBreakdownSkeleton = ({
           label={premiumLabel.label}
           variant={premiumLabel.variant}
         />
+        <ExternalLink
+          href={ENS_PREMIUM_PRICING_DOCS_URL}
+          className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2"
+        >
+          Learn more
+        </ExternalLink>
       </div>
     )}
     <dl className="space-y-3">
@@ -182,6 +193,12 @@ const PriceBreakdown = ({
             label={premiumLabel.label}
             variant={premiumLabel.variant}
           />
+          <ExternalLink
+            href={ENS_PREMIUM_PRICING_DOCS_URL}
+            className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2"
+          >
+            Learn more
+          </ExternalLink>
         </div>
       )}
       <dl className="space-y-3">
