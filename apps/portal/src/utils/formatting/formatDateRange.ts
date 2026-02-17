@@ -20,17 +20,6 @@ export const formatDate = (date?: Date): string | undefined => {
     .replace(/-/g, '/')
 }
 
-/**
- * Formats a Date to long form (e.g. "February 26, 2026")
- */
-export const formatDateLong = (date: Date): string => {
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(date)
-}
-
 export type DateRange = {
   from?: Date
   to?: Date

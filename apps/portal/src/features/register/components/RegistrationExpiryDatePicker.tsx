@@ -8,7 +8,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
-import { formatDateLong } from '@/utils/formatting/formatDateRange'
+import { formatDateTime } from '@/utils/formatting/formatDateTime'
 
 type RegistrationExpiryDatePickerProps = {
   date: Date
@@ -22,7 +22,7 @@ export const RegistrationExpiryDatePicker = ({
   minDate,
 }: RegistrationExpiryDatePickerProps) => {
   const [isOpen, setIsOpen] = useState(false)
-  const displayValue = formatDateLong(date)
+  const displayValue = formatDateTime(date) ?? ''
 
   const handleSelect = (d: Date | undefined) => {
     if (d) {

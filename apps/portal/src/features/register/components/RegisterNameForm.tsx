@@ -1,6 +1,6 @@
 import { CalendarIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { CopyButton } from '@/components/CopyButton'
+import { CopyableRecord } from '@/components/CopyableRecord'
 import { Button } from '@/components/ui/button'
 import {
   calculateDurationFromDate,
@@ -46,8 +46,10 @@ export const RegisterNameForm = ({
   return (
     <div className="p-6 col-span-3">
       <div className="flex items-center gap-2">
-        <h1 className="text-4xl font-medium">{name}</h1>
-        <CopyButton value={name} />
+        <CopyableRecord
+          value={name}
+          textClassName="text-2xl sm:text-4xl font-medium"
+        />
       </div>
       <div className="flex flex-col gap-2 py-6">
         <div className="flex items-center justify-between">
