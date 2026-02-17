@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { UserCheck } from 'lucide-react'
+import { AlertCircle, UserCheck } from 'lucide-react'
 import { useState } from 'react'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { MessageCard } from '@/components/ui/message-card'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
+import { validateNameLength } from '@/features/register/utils/premium'
 import {
   calculateExpirationDate,
   formatRegistrationDuration,
@@ -18,17 +19,35 @@ type RegisterNameProps = {
 export const RegisterName = ({ name }: RegisterNameProps) => {
   const [duration, setDuration] = useState<number>(1)
 
+  const nameLengthError = validateNameLength(name)
+  const isNameValid = !nameLengthError
+
   const {
     data: availability,
     isLoading,
     isError,
   } = useQuery({
     ...getNameAvailabilityQueryOptions({ name }),
-    enabled: Boolean(name),
+    enabled: Boolean(name) && isNameValid,
   })
 
   const isNameTaken =
     !isLoading && !isError && availability && !availability.isAvailable
+
+  if (nameLengthError) {
+    return (
+      <MessageCard
+        icon={<AlertCircle className="size-8" strokeWidth={1.5} />}
+        title="Name too short"
+        description={
+          <div className="text-base">
+            <p>{nameLengthError}</p>
+          </div>
+        }
+        badge="Alpha"
+      />
+    )
+  }
 
   if (isLoading) {
     return (

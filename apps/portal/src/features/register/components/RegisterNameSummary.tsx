@@ -6,7 +6,10 @@ import {
   getRegistrationPriceQueryOptions,
   type RegistrationPriceResult,
 } from '@/features/register/hooks/useRegistrationPrice'
-import { getPremiumLabel } from '@/features/register/utils/premium'
+import {
+  getPremiumLabel,
+  validateNameLength,
+} from '@/features/register/utils/premium'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
 function isPriceResult(value: unknown): value is RegistrationPriceResult {
@@ -33,6 +36,8 @@ export const RegisterNameCheckoutSummary = ({
   durationLabel,
   onContinue,
 }: RegisterNameCheckoutSummaryProps) => {
+  const isNameValid = !validateNameLength(name)
+
   const {
     data: price,
     isLoading,
@@ -40,7 +45,7 @@ export const RegisterNameCheckoutSummary = ({
     error,
   } = useQuery({
     ...getRegistrationPriceQueryOptions({ name, durationYears: duration }),
-    enabled: Boolean(name) && duration >= 1,
+    enabled: Boolean(name) && duration >= 1 && isNameValid,
   })
 
   const isReady = !isLoading && !isError && price
