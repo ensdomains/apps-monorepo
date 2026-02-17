@@ -1,5 +1,5 @@
 import { CalendarIcon } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,8 +11,8 @@ import { RegistrationExpiryDatePicker } from './RegistrationExpiryDatePicker'
 
 type RegisterNameFormProps = {
   name: string
-  expiryDate: Date
-  setExpiryDate: (date: Date) => void
+  duration: number
+  setDuration: (duration: number) => void
 }
 
 enum RegistrationSpanType {
@@ -22,14 +22,9 @@ enum RegistrationSpanType {
 
 export const RegisterNameForm = ({
   name,
-  expiryDate,
-  setExpiryDate,
+  duration,
+  setDuration,
 }: RegisterNameFormProps) => {
-  const duration = useMemo(
-    () => calculateDurationFromDate(expiryDate),
-    [expiryDate],
-  )
-
   const [registrationSpanType, setRegistrationSpanType] =
     useState<RegistrationSpanType>(RegistrationSpanType.YEARS)
 
@@ -40,7 +35,7 @@ export const RegisterNameForm = ({
       setRegistrationSpanType(RegistrationSpanType.YEARS)
     }
 
-    setExpiryDate(calculateExpirationDate(1.5))
+    setDuration(2)
   }
 
   return (
@@ -78,12 +73,14 @@ export const RegisterNameForm = ({
         {registrationSpanType === RegistrationSpanType.YEARS ? (
           <RegistrationDurationPicker
             value={duration}
-            onChange={(years) => setExpiryDate(calculateExpirationDate(years))}
+            onChange={(years) => setDuration(years)}
           />
         ) : (
           <RegistrationExpiryDatePicker
-            date={expiryDate}
-            onDateChange={setExpiryDate}
+            date={calculateExpirationDate(duration)}
+            onDateChange={(date) =>
+              setDuration(calculateDurationFromDate(date))
+            }
             minDate={new Date()}
           />
         )}

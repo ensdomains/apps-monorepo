@@ -71,3 +71,21 @@ export const calculateDurationFromDate = (targetDate: Date): number => {
 
   return Math.max(1, roundedYears)
 }
+
+/** Seconds in one year (365.25 days) - matches ENS duration calculation */
+const SECONDS_PER_YEAR = 365.25 * 24 * 60 * 60
+
+/**
+ * Converts an expiry date to duration in seconds for ENS price/registration.
+ * Uses the same year length as calculateDurationFromDate.
+ */
+export const getDurationInSeconds = (expiryDate: Date): number => {
+  const years = calculateDurationFromDate(expiryDate)
+  return Math.floor(years * SECONDS_PER_YEAR)
+}
+
+/**
+ * Converts duration in years to seconds for ENS price/registration.
+ */
+export const getDurationInSecondsFromYears = (years: number): number =>
+  Math.floor(Math.max(1, years) * SECONDS_PER_YEAR)

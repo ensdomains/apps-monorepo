@@ -4,7 +4,10 @@ import { useState } from 'react'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { MessageCard } from '@/components/ui/message-card'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
-import { formatRegistrationDuration } from '@/features/register/utils/registrationDuration'
+import {
+  calculateExpirationDate,
+  formatRegistrationDuration,
+} from '@/features/register/utils/registrationDuration'
 import { RegisterNameForm } from './RegisterNameForm'
 import { RegisterNameCheckoutSummary } from './RegisterNameSummary'
 
@@ -12,14 +15,8 @@ type RegisterNameProps = {
   name: string
 }
 
-const initialExpiryDate = () => {
-  const d = new Date()
-  d.setFullYear(d.getFullYear() + 1)
-  return d
-}
-
 export const RegisterName = ({ name }: RegisterNameProps) => {
-  const [expiryDate, setExpiryDate] = useState(initialExpiryDate)
+  const [duration, setDuration] = useState<number>(1)
 
   const {
     data: availability,
@@ -67,11 +64,15 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     <main className="flex-1 mx-auto w-full max-w-6xl px-6 grid grid-cols-1 lg:grid-cols-5">
       <RegisterNameForm
         name={name}
-        expiryDate={expiryDate}
-        setExpiryDate={setExpiryDate}
+        duration={duration}
+        setDuration={setDuration}
       />
       <RegisterNameCheckoutSummary
-        durationLabel={formatRegistrationDuration(expiryDate)}
+        name={name}
+        duration={duration}
+        durationLabel={formatRegistrationDuration(
+          calculateExpirationDate(duration),
+        )}
       />
     </main>
   )

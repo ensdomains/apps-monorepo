@@ -4,6 +4,8 @@ import {
   calculateDurationFromDate,
   calculateExpirationDate,
   formatRegistrationDuration,
+  getDurationInSeconds,
+  getDurationInSecondsFromYears,
 } from './registrationDuration'
 
 describe('registrationDuration', () => {
@@ -129,6 +131,42 @@ describe('registrationDuration', () => {
     it('should return at least 1', () => {
       const farPast = new Date('2020-01-01')
       expect(calculateDurationFromDate(farPast)).toBe(1)
+    })
+  })
+
+  describe('getDurationInSeconds', () => {
+    const SECONDS_PER_YEAR = 365.25 * 24 * 60 * 60
+
+    it('should return ~31557600 for 1 year', () => {
+      const oneYearFromNow = addYears(FIXED_TODAY, 1)
+      expect(getDurationInSeconds(oneYearFromNow)).toBe(SECONDS_PER_YEAR)
+    })
+
+    it('should return ~63115200 for 2 years', () => {
+      const twoYearsFromNow = addYears(FIXED_TODAY, 2)
+      expect(getDurationInSeconds(twoYearsFromNow)).toBe(2 * SECONDS_PER_YEAR)
+    })
+
+    it('should return at least 1 year in seconds for past dates', () => {
+      expect(getDurationInSeconds(new Date('2024-01-01'))).toBe(
+        SECONDS_PER_YEAR,
+      )
+    })
+  })
+
+  describe('getDurationInSecondsFromYears', () => {
+    const SECONDS_PER_YEAR = 365.25 * 24 * 60 * 60
+
+    it('should return ~31557600 for 1 year', () => {
+      expect(getDurationInSecondsFromYears(1)).toBe(SECONDS_PER_YEAR)
+    })
+
+    it('should return ~63115200 for 2 years', () => {
+      expect(getDurationInSecondsFromYears(2)).toBe(2 * SECONDS_PER_YEAR)
+    })
+
+    it('should return at least 1 year in seconds for values less than 1', () => {
+      expect(getDurationInSecondsFromYears(0.5)).toBe(SECONDS_PER_YEAR)
     })
   })
 })

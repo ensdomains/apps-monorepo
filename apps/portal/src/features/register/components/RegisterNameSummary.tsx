@@ -1,6 +1,8 @@
 import { Button } from '@/components/ui/button'
 
 type RegisterNameCheckoutSummaryProps = {
+  name: string
+  duration: number
   durationLabel: string
 }
 
@@ -21,22 +23,19 @@ export const RegisterNameCheckoutSummary = ({
             {durationLabel} registration
           </dt>
           <dd className="flex items-center gap-1 m-0">
-            <span className="font-mono text-base font-medium">$100</span>
-            <span className="text-xs">USD</span>
+            <span className="text-muted-foreground">—</span>
           </dd>
         </div>
         <div className="flex items-center justify-between">
           <dt className="text-base font-normal">Est. gas cost</dt>
           <dd className="flex items-center gap-1 m-0">
-            <span className="font-mono text-base font-medium">$0.003</span>
-            <span className="text-xs">USD</span>
+            <span className="text-muted-foreground">—</span>
           </dd>
         </div>
         <div className="flex items-center justify-between pt-3 border-t border-border">
           <dt className="text-xl font-bold">Est. total</dt>
           <dd className="flex items-center gap-1 m-0">
-            <span className="font-mono text-xl font-bold">$100.003</span>
-            <span className="text-xs">USD</span>
+            <span className="text-muted-foreground">—</span>
           </dd>
         </div>
       </dl>
