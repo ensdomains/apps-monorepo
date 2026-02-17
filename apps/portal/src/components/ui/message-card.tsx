@@ -41,7 +41,7 @@ export function MessageCard({
         </Badge>
       )}
 
-      <div className="flex flex-col items-center gap-4 text-center w-full">
+      <div className="flex flex-col items-center gap-3 text-center w-full">
         <div className="flex items-center justify-center">{icon}</div>
 
         <h2 className="text-2xl font-bold">{title}</h2>
