@@ -23,7 +23,7 @@ type RegisterNameCheckoutSummaryProps = {
   onContinue?: () => void
 }
 
-const EST_GAS_USD = 0.01
+const EST_GAS_USD = 0.05
 
 export const RegisterNameCheckoutSummary = ({
   name,
@@ -62,13 +62,11 @@ export const RegisterNameCheckoutSummary = ({
           <p className="text-destructive text-sm">
             Failed to load price. Please try again.
           </p>
-          {import.meta.env.DEV && error && (
-            <pre className="mt-2 text-xs overflow-auto max-h-24 text-muted-foreground">
-              {error instanceof Error
-                ? `${error.message}${(error as { cause?: unknown }).cause ? `\nCause: ${String((error as { cause?: unknown }).cause)}` : ''}`
-                : String(error)}
-            </pre>
-          )}
+          <pre className="mt-2 text-xs overflow-auto max-h-24 text-muted-foreground">
+            {error instanceof Error
+              ? `${error.message}${(error as { cause?: unknown }).cause ? `\nCause: ${String((error as { cause?: unknown }).cause)}` : ''}`
+              : String(error)}
+          </pre>
         </div>
       ) : price && isPriceResult(price) ? (
         <PriceBreakdown price={price} durationLabel={durationLabel} />
@@ -134,6 +132,8 @@ const PriceBreakdown = ({ price, durationLabel }: PriceBreakdownProps) => (
       </dd>
     </div>
 
-    <p className="text-xs text-muted-foreground pt-1">Paid in USDC or DAI</p>
+    <p className="text-xs text-muted-foreground pt-1">
+      Paid in USDC or DAI. Gas cost is an approximation.
+    </p>
   </dl>
 )
