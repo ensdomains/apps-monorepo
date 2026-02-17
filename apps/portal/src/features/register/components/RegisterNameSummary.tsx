@@ -137,8 +137,6 @@ const PriceBreakdown = ({ price, durationLabel }: PriceBreakdownProps) => (
       </dd>
     </div>
 
-    <p className="text-xs text-muted-foreground pt-1">
-      Paid in {price.paymentToken}
-    </p>
+    <p className="text-xs text-muted-foreground pt-1">Paid in USDC or DAI</p>
   </dl>
 )

@@ -9,5 +9,7 @@ export const l2RegistryFinderAddress =
 
 export const fastTestETHRegistrar = '0xe37a1366c827d18dc0ad57f3767de4b3025ceac2'
 
-/** USDC on Sepolia  */
-export const usdcSepolia = '0x2c3d8dfac22def2947e94432bcd6bb51e1ac55e6' as const
+export const SUPPORTED_TOKENS = {
+  USDC: '0x2c3d8dfac22def2947e94432bcd6bb51e1ac55e6',
+  DAI: '0xd030a2465ee661338de1f02d05042bbf20d5d127',
+} as const
