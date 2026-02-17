@@ -10,7 +10,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  Drawer,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer'
 import { FloatingInput } from '@/components/ui/floating-input'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { staticTextRecords, textRecords } from '../../data/records'
 
 const reservedTextRecordKeys = new Set<string>([
@@ -67,6 +76,7 @@ export const AddLinkDialog = ({
   const [url, setUrl] = useState('')
   const [nameError, setNameError] = useState<string | null>(null)
   const [urlError, setUrlError] = useState<string | null>(null)
+  const isDesktop = useMediaQuery('(min-width: 768px)')
 
   const resetState = () => {
     setName('')
@@ -115,54 +125,77 @@ export const AddLinkDialog = ({
 
   const canSubmit = name.trim().length > 0 && url.trim().length > 0
 
+  const triggerButton = (
+    <Button
+      className="h-auto gap-[11px] py-1 pr-1 pl-0! text-muted-foreground text-sm hover:bg-transparent hover:text-muted-foreground"
+      size="sm"
+      variant="ghost"
+    >
+      <Plus className="size-4" />
+      {buttonLabel}
+    </Button>
+  )
+
+  const content = (
+    <div className="space-y-4">
+      <div>
+        <FloatingInput
+          aria-invalid={!!nameError}
+          label="Name"
+          onChange={(e) => handleNameChange(e.target.value)}
+          placeholder="Personal Site"
+          value={name}
+        />
+        {nameError && (
+          <p className="mt-1 px-1 text-destructive text-sm">{nameError}</p>
+        )}
+      </div>
+      <div>
+        <FloatingInput
+          aria-invalid={!!urlError}
+          label="Link"
+          onChange={(e) => handleUrlChange(e.target.value)}
+          placeholder="https://example.com"
+          value={url}
+        />
+        {urlError && (
+          <p className="mt-1 px-1 text-destructive text-sm">{urlError}</p>
+        )}
+      </div>
+    </div>
+  )
+
+  const addButton = (
+    <Button className="w-full" disabled={!canSubmit} onClick={handleAdd}>
+      Add
+    </Button>
+  )
+
+  if (isDesktop) {
+    return (
+      <Dialog onOpenChange={handleOpenChange} open={open}>
+        <DialogTrigger asChild>{triggerButton}</DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+          </DialogHeader>
+          {content}
+          <DialogFooter>{addButton}</DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
   return (
-    <Dialog onOpenChange={handleOpenChange} open={open}>
-      <DialogTrigger asChild>
-        <Button
-          className="h-auto gap-[11px] py-1 pr-1 pl-0! text-muted-foreground text-sm hover:bg-transparent hover:text-muted-foreground"
-          size="sm"
-          variant="ghost"
-        >
-          <Plus className="size-4" />
-          {buttonLabel}
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <FloatingInput
-              aria-invalid={!!nameError}
-              label="Name"
-              onChange={(e) => handleNameChange(e.target.value)}
-              placeholder="Personal Site"
-              value={name}
-            />
-            {nameError && (
-              <p className="mt-1 px-1 text-destructive text-sm">{nameError}</p>
-            )}
-          </div>
-          <div>
-            <FloatingInput
-              aria-invalid={!!urlError}
-              label="Link"
-              onChange={(e) => handleUrlChange(e.target.value)}
-              placeholder="https://example.com"
-              value={url}
-            />
-            {urlError && (
-              <p className="mt-1 px-1 text-destructive text-sm">{urlError}</p>
-            )}
-          </div>
-        </div>
-        <DialogFooter>
-          <Button className="w-full" disabled={!canSubmit} onClick={handleAdd}>
-            Add
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <Drawer onOpenChange={handleOpenChange} open={open}>
+      <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
+      <DrawerContent>
+        <DrawerHeader>
+          <DrawerTitle>{title}</DrawerTitle>
+        </DrawerHeader>
+        <div className="px-4">{content}</div>
+        <DrawerFooter>{addButton}</DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   )
 }

@@ -70,7 +70,7 @@ export const ViewDynamicSection = ({
   section,
 }: ViewDynamicSectionProps) => {
   const sectionData = sections[section]
-  const sectionRecords = records[section]
+  const sectionRecords = records[section].filter((r) => r.value)
 
   if (sectionRecords.length === 0) {
     return null

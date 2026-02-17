@@ -38,9 +38,15 @@ export const SaveChanges = withForm({
     txHash,
     validationIssues,
   }) => (
-    <form.Subscribe selector={(state) => state.values}>
-      {(currentData) => (
+    <form.Subscribe
+      selector={(state) => ({
+        values: state.values,
+        canSubmit: state.canSubmit,
+      })}
+    >
+      {({ values: currentData, canSubmit }) => (
         <DiffDialog
+          canSubmit={canSubmit}
           currentData={currentData}
           errorMessage={errorMessage}
           isSaving={isSaving}

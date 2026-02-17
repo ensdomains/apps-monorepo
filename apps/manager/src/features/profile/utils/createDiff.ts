@@ -245,5 +245,32 @@ export const createDiff = (
     }
   }
 
+  // Process content hash
+  const contentHashDiff = createDiffEntry(
+    original.contentHash,
+    current.contentHash,
+  )
+  if (contentHashDiff) {
+    diff['Other: Content Hash'] = {
+      ...contentHashDiff,
+      sectionLabel: 'Other',
+      fieldLabel: 'Content Hash',
+      sectionKey: 'other',
+      fieldKey: 'contentHash',
+    }
+  }
+
+  // Process ABI
+  const abiDiff = createDiffEntry(original.abi, current.abi)
+  if (abiDiff) {
+    diff['Other: ABI'] = {
+      ...abiDiff,
+      sectionLabel: 'Other',
+      fieldLabel: 'ABI',
+      sectionKey: 'other',
+      fieldKey: 'abi',
+    }
+  }
+
   return diff
 }
