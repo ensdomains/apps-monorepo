@@ -80,7 +80,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   }
 
   return (
-    <main className="flex-1 mx-auto w-full max-w-6xl px-6 grid grid-cols-1 lg:grid-cols-5">
+    <main className="flex-1 mx-auto w-full max-w-xl px-6 py-8 flex flex-col gap-8">
       <RegisterNameForm
         name={name}
         duration={duration}

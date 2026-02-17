@@ -57,11 +57,11 @@ export const RegisterNameCheckoutSummary = ({
 
   return (
     <section
-      className="py-9 lg:border-l lg:border-border p-6 col-span-2"
+      className="border border-border rounded-lg bg-card p-5"
       aria-labelledby="checkout-heading"
     >
-      <h2 id="checkout-heading" className="text-3xl font-medium mb-4">
-        Register name
+      <h2 id="checkout-heading" className="text-lg font-semibold mb-4">
+        Registration summary
       </h2>
 
       {isLoading ? (
@@ -130,7 +130,7 @@ const PriceBreakdownSkeleton = ({
         />
       </div>
     )}
-    <dl className="border border-border rounded-md p-4 space-y-3">
+    <dl className="space-y-3">
       <div className="flex items-center justify-between">
         <dt className="text-base font-normal">{durationLabel} registration</dt>
         <dd className="flex items-center gap-1 m-0">
@@ -138,17 +138,6 @@ const PriceBreakdownSkeleton = ({
           <span className="text-xs">USD</span>
         </dd>
       </div>
-      {premiumLabel && (
-        <div className="flex items-center justify-between">
-          <dt className="text-base font-normal text-muted-foreground">
-            {premiumLabel.label}
-          </dt>
-          <dd className="flex items-center gap-1 m-0">
-            <Skeleton className="h-5 w-12" />
-            <span className="text-xs">USD</span>
-          </dd>
-        </div>
-      )}
       <div className="flex items-center justify-between">
         <dt className="text-base font-normal">Est. gas cost</dt>
         <dd className="flex items-center gap-1 m-0 text-muted-foreground text-sm">
@@ -195,7 +184,7 @@ const PriceBreakdown = ({
           />
         </div>
       )}
-      <dl className="border border-border rounded-md p-4 space-y-3">
+      <dl className="space-y-3">
         <div className="flex items-center justify-between">
           <dt className="text-base font-normal">
             {durationLabel} registration

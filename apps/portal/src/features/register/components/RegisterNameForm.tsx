@@ -39,14 +39,14 @@ export const RegisterNameForm = ({
   }
 
   return (
-    <div className="p-6 col-span-3">
+    <div className="space-y-6">
       <div className="flex items-center gap-2">
         <CopyableRecord
           value={name}
-          textClassName="text-2xl sm:text-4xl font-medium"
+          textClassName="text-3xl sm:text-4xl font-medium"
         />
       </div>
-      <div className="flex flex-col gap-2 py-6">
+      <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-base font-medium">
             Register{' '}
