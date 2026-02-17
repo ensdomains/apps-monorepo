@@ -7,7 +7,8 @@ import { formatUnits, zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
 import { fastTestETHRegistrar, usdcSepolia } from '@/lib/constants/registry'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { getDurationInSecondsFromYears } from '../utils/registrationDuration'
+
+const SECONDS_PER_YEAR = 365 * 24 * 60 * 60
 
 class GetRegistrationPriceError extends TaggedError(
   'GetRegistrationPriceError',
@@ -33,21 +34,21 @@ export type RegistrationPriceResult = {
 
 const USDC_DECIMALS = 6
 
-/** Formats a numeric string as USD, avoiding overflow for large numbers */
-const formatUsd = (value: string): string => {
+const formatUsdCeil = (value: string): string => {
   const num = Number.parseFloat(value)
   if (!Number.isFinite(num)) return '—'
-  return num.toLocaleString('en-US', {
+  return Math.ceil(num).toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   })
 }
 
 /**
- * Fetches registration price (base + premium) from FastTestETHRegistrar.
- * Uses USDC as the payment token.
+ * Fetches registration price from FastTestETHRegistrar.
+ * Uses same logic as manager: fetches 1-year price, multiplies by duration.
+ * This matches manager app pricing (365 days per year, no multi-year discount).
  */
 export const getRegistrationPrice = ResultFn(async function* ({
   name,
@@ -56,27 +57,34 @@ export const getRegistrationPrice = ResultFn(async function* ({
   const client = yield* safeGetClient()
 
   const cleanName = name.replace(/\.eth$/i, '')
-  const durationSeconds = BigInt(getDurationInSecondsFromYears(durationYears))
+  const oneYearSeconds = BigInt(SECONDS_PER_YEAR)
 
-  const [base, premium] = yield* fromPromise(
+  const [base1yr, premium1yr] = yield* fromPromise(
     readContract(client, {
       address: fastTestETHRegistrar,
       abi: l2EthRegistrarRentPriceSnippet,
       functionName: 'rentPrice',
-      args: [cleanName, zeroAddress, durationSeconds, usdcSepolia],
+      args: [cleanName, zeroAddress, oneYearSeconds, usdcSepolia],
     }),
     (e) => new GetRegistrationPriceError({ cause: e }),
   )
 
+  const years = Math.max(1, Math.floor(durationYears))
+  const base = base1yr * BigInt(years)
+  const premium = premium1yr * BigInt(years)
   const total = base + premium
+
+  const totalFormattedStr = formatUnits(total, USDC_DECIMALS)
+  const baseFormattedStr = formatUnits(base, USDC_DECIMALS)
+  const premiumFormattedStr = formatUnits(premium, USDC_DECIMALS)
 
   return ok<RegistrationPriceResult>({
     base,
     premium,
     total,
-    baseFormatted: formatUsd(formatUnits(base, USDC_DECIMALS)),
-    premiumFormatted: formatUsd(formatUnits(premium, USDC_DECIMALS)),
-    totalFormatted: formatUsd(formatUnits(total, USDC_DECIMALS)),
+    baseFormatted: formatUsdCeil(baseFormattedStr),
+    premiumFormatted: formatUsdCeil(premiumFormattedStr),
+    totalFormatted: formatUsdCeil(totalFormattedStr),
     paymentToken: 'USDC',
     decimals: USDC_DECIMALS,
   })
