@@ -73,6 +73,9 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
         durationLabel={formatRegistrationDuration(
           calculateExpirationDate(duration),
         )}
+        onContinue={() => {
+          // TODO: Wire to registration flow (transaction manager)
+        }}
       />
     </main>
   )
