@@ -51,7 +51,7 @@ export const Route = createFileRoute('/$name/token')({
   notFoundComponent: () => <NotFoundMessage />,
 })
 
-function DataRow({
+const DataRow = ({
   label,
   tooltip,
   children,
@@ -59,7 +59,7 @@ function DataRow({
   label: string
   tooltip?: string
   children: React.ReactNode
-}) {
+}) => {
   return (
     <div className="flex flex-col lg:flex-row gap-2 lg:gap-4 items-start lg:items-center w-full">
       <div className="flex gap-1 items-center min-w-[160px]">
@@ -76,6 +76,7 @@ function DataRow({
       <div className="flex-1 min-w-0 w-full">{children}</div>
     </div>
   )
+}
 }
 
 const TokenInfoCard = ({
