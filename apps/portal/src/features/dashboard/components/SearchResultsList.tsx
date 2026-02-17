@@ -8,7 +8,7 @@ import type { Suggestion } from '../utils/buildSearchSuggestions'
 
 const AVATAR_SIZE = '32px'
 
-const REGISTER_URL = 'https://app.ens.dev/register?name='
+const REGISTER_URL = '/register?name='
 
 const RegisterLink = ({ name }: { name: string }) => (
   <Button asChild variant="outline" size="sm">
