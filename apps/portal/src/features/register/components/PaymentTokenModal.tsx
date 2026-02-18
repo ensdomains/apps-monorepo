@@ -240,10 +240,6 @@ export const PaymentTokenModal = ({
       selectedTokenData ? (
         <div className="flex min-h-[320px] flex-col justify-between gap-6">
           <div className="flex flex-col items-center gap-6">
-            <h2 className="text-center font-medium text-2xl tracking-wide">
-              Registering
-            </h2>
-
             <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-xl bg-muted/50 px-6 py-8">
               <span
                 className="w-full min-w-0 text-center font-medium text-2xl leading-tight tracking-tight"
@@ -290,7 +286,7 @@ export const PaymentTokenModal = ({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="sr-only">{stepTitle}</DialogTitle>
+          <DialogTitle>{stepTitle}</DialogTitle>
         </DialogHeader>
         {currentContent}
       </DialogContent>
