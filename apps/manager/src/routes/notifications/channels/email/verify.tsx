@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { useAtom } from '@xstate/store-react'
 import { CheckCircle, Mail, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import * as v from 'valibot'
@@ -14,6 +15,7 @@ import {
 } from '@/components/ui/card'
 import { EmailVerifyStep } from '@/features/notifications/components/email-verify-step'
 import { verifyEmailMutationOptions } from '@/features/notifications/queries/channels'
+import { isBackendAuthed } from '@/utils/backend-client'
 
 // Shared card wrapper component
 function VerificationCard({ children }: { children: React.ReactNode }) {
@@ -60,11 +62,15 @@ export const Route = createFileRoute('/notifications/channels/email/verify')({
 function EmailVerificationPage() {
   const { token } = Route.useLoaderDeps()
   const navigate = useNavigate()
+  const isAuthed = useAtom(isBackendAuthed)
 
   const verifyEmailMutation = useMutation(verifyEmailMutationOptions)
 
+  const continueTo = isAuthed ? '/notifications/settings' : '/'
+  const continueLabel = isAuthed ? 'Continue to Settings' : 'Continue to Home'
+
   const handleContinue = () => {
-    navigate({ to: '/notifications/settings' })
+    navigate({ to: continueTo })
   }
 
   const handleVerify = (verificationToken?: string) => {
@@ -75,7 +81,7 @@ function EmailVerificationPage() {
       onSuccess: () => {
         toast.success('Email verified successfully')
         setTimeout(() => {
-          navigate({ to: '/notifications/settings' })
+          navigate({ to: continueTo })
         }, 1200)
       },
       onError: () => {
@@ -190,7 +196,7 @@ function EmailVerificationPage() {
               size="lg"
               variant="outline"
             >
-              Continue to Settings
+              {continueLabel}
             </Button>
           </div>
         ) : isSuccess ? (
@@ -200,7 +206,7 @@ function EmailVerificationPage() {
             size="lg"
             variant="lightBlue"
           >
-            Continue to Settings
+            {continueLabel}
           </Button>
         ) : (
           <div className="space-y-2">
@@ -218,7 +224,11 @@ function EmailVerificationPage() {
               size="lg"
               variant="outline"
             >
-              <Link to="/notifications/settings">Back to Settings</Link>
+              {isAuthed ? (
+                <Link to="/notifications/settings">Back to Settings</Link>
+              ) : (
+                <Link to="/">Back to Home</Link>
+              )}
             </Button>
           </div>
         )}

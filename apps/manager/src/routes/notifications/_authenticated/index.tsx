@@ -11,7 +11,7 @@ import { FilterBadge } from '@/features/notifications/components/filter-badge'
 import { NotificationsList } from '@/features/notifications/components/list'
 import { UnreadCount } from '@/features/notifications/components/unread-count'
 
-export const Route = createFileRoute('/notifications/')({
+export const Route = createFileRoute('/notifications/_authenticated/')({
   component: RouteComponent,
 })
 
@@ -20,15 +20,12 @@ function RouteComponent() {
     <div className="mx-auto w-full max-w-5xl flex-1 space-y-12 rounded-lg border-[#dededf] bg-white px-6 py-8 lg:my-5 lg:border">
       <div className="flex flex-col gap-8">
         <div className="flex justify-between">
-          {/* title row */}
           <div className="flex items-center gap-3">
-            {/* title */}
             <div className="font-[350] font-serif text-[#232222] text-temp-32px leading-ens-none">
               All Notifications
             </div>
             <UnreadCount />
           </div>
-          {/* right slot */}
           <Link
             className="group flex items-center gap-2"
             to="/notifications/settings"
@@ -50,7 +47,6 @@ function RouteComponent() {
             </FieldLabel>
           </Field>
 
-          {/* right slot */}
           <button
             className="font-normal text-base text-ens-lapis-core leading-ens-normal hover:underline"
             type="button"

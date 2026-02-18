@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { Suspense } from 'react'
+import { Suspense, useEffect } from 'react'
 import { DashboardLoading } from '@/features/dashboard/components/DashboardLoading'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 import { isConnectedToPara, useParaLogoutEffect } from '@/lib/para'
@@ -15,14 +15,25 @@ export const Route = createFileRoute('/dashboard')({
 
 function RouteComponent() {
   const navigate = useNavigate()
-  const { isLoading, hasInitialized } = useSmartAccountContext()
+  const { isLoading, hasInitialized, isConnected } = useSmartAccountContext()
 
   // Fallback to event listener to watch for disconnects post load.
   useParaLogoutEffect(() => {
     navigate({ to: '/' })
   })
 
+  useEffect(() => {
+    if (!hasInitialized || isLoading) return
+    if (!isConnected) {
+      navigate({ to: '/' })
+    }
+  }, [hasInitialized, isLoading, isConnected, navigate])
+
   if (isLoading || !hasInitialized) {
+    return <DashboardLoading />
+  }
+
+  if (!isConnected) {
     return <DashboardLoading />
   }
 

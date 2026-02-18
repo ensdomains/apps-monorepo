@@ -11,34 +11,57 @@ export const getParaClient = (): ParaWeb | undefined => {
 const PARA_CONNECTION_COOKIE_NAME = 'ens.wallet.address'
 const COOKIE_EXPIRATION_TIME = 1000 * 60 * 60 * 24 * 30 // 30 days
 
+const getCookieFromDocument = () => {
+  const cookieValue =
+    document.cookie
+      .split('; ')
+      .find((row) => row.startsWith(`${PARA_CONNECTION_COOKIE_NAME}=`))
+      ?.substring(PARA_CONNECTION_COOKIE_NAME.length + 1) ?? null
+
+  if (!cookieValue) return null
+
+  return decodeURIComponent(cookieValue)
+}
+
 export const getParaConnectionCookie = createIsomorphicFn()
   .server(() => {
     const cookie = getCookie(PARA_CONNECTION_COOKIE_NAME)
     return cookie ?? null
   })
   .client(() => {
-    return (
-      document.cookie
-        .split('; ')
-        .find((row) => row.startsWith(`${PARA_CONNECTION_COOKIE_NAME}=`))
-        ?.substring(PARA_CONNECTION_COOKIE_NAME.length + 1) ?? null
-    )
+    return getCookieFromDocument()
   })
 
 export const setParaConnectionCookie = createClientOnlyFn(
   async (address: string | null) => {
+    if (typeof cookieStore !== 'undefined') {
+      if (address) {
+        await cookieStore.set({
+          name: PARA_CONNECTION_COOKIE_NAME,
+          value: address,
+          path: '/',
+          expires: Date.now() + COOKIE_EXPIRATION_TIME,
+        })
+      } else {
+        await cookieStore.delete({
+          name: PARA_CONNECTION_COOKIE_NAME,
+          path: '/',
+        })
+      }
+
+      return
+    }
+
     if (address) {
-      await cookieStore.set({
-        name: PARA_CONNECTION_COOKIE_NAME,
-        value: address,
-        path: '/',
-        expires: Date.now() + COOKIE_EXPIRATION_TIME,
-      })
+      const expires = new Date(
+        Date.now() + COOKIE_EXPIRATION_TIME,
+      ).toUTCString()
+      const value = encodeURIComponent(address)
+      // biome-ignore lint/suspicious/noDocumentCookie: Fallback for browsers without cookieStore support.
+      document.cookie = `${PARA_CONNECTION_COOKIE_NAME}=${value}; path=/; expires=${expires}; SameSite=Lax`
     } else {
-      await cookieStore.delete({
-        name: PARA_CONNECTION_COOKIE_NAME,
-        path: '/',
-      })
+      // biome-ignore lint/suspicious/noDocumentCookie: Fallback for browsers without cookieStore support.
+      document.cookie = `${PARA_CONNECTION_COOKIE_NAME}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
     }
   },
 )
