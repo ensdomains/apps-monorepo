@@ -150,7 +150,10 @@ export const PaymentTokenModal = ({
 
   function getStepContent(): React.ReactNode {
     switch (step) {
-      case PaymentModalStep.SelectToken:
+      case PaymentModalStep.SelectToken: {
+        const isContinueDisabled =
+          !selectedToken || !hasSufficientBalance || isPriceLoading || !address
+
         return (
           <>
             <div className="flex items-center gap-2">
@@ -226,12 +229,7 @@ export const PaymentTokenModal = ({
             <Button
               className="w-full"
               onClick={handleContinueToConfirm}
-              disabled={
-                !selectedToken ||
-                !hasSufficientBalance ||
-                isPriceLoading ||
-                !address
-              }
+              disabled={isContinueDisabled}
             >
               {selectedTokenData?.symbol
                 ? `Continue with ${selectedTokenData.symbol}`
@@ -239,6 +237,7 @@ export const PaymentTokenModal = ({
             </Button>
           </>
         )
+      }
       case PaymentModalStep.ConfirmPurchase:
         if (!selectedTokenData) return null
         return (
