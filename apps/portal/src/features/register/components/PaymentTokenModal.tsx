@@ -22,12 +22,10 @@ import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { cn } from '@/lib/utils'
 
-const PaymentModalStep = {
-  SelectToken: 'select_token',
-  ConfirmPurchase: 'confirm_purchase',
-} as const
-
-type PaymentModalStep = (typeof PaymentModalStep)[keyof typeof PaymentModalStep]
+enum PaymentModalStep {
+  SelectToken = 'select_token',
+  ConfirmPurchase = 'confirm_purchase',
+}
 
 const PAYMENT_TOKENS = [
   {
@@ -43,218 +41,6 @@ const PAYMENT_TOKENS = [
     Icon: DAIcon,
   },
 ] as const
-
-type TokenDataItem = {
-  symbol: string
-  address: Address
-  decimals: number
-  Icon: React.ComponentType<{ className?: string }>
-  price: { total: string; totalRaw: bigint }
-  balance: bigint
-}
-
-type StepContentProps = {
-  step: PaymentModalStep
-  tokenData: ReadonlyArray<TokenDataItem>
-  selectedToken: Address | null
-  setSelectedToken: (address: Address | null) => void
-  selectedTokenData: TokenDataItem | null
-  hasSufficientBalance: boolean
-  isPriceLoading: boolean
-  address: Address | undefined
-  onContinueToConfirm: () => void
-  premiumLabel:
-    | { label: string; variant: 'premium-3' | 'premium-4' }
-    | undefined
-  name: string
-  onBuyName: () => void
-  onBack: () => void
-}
-
-function getStepContent(props: StepContentProps): React.ReactNode {
-  const {
-    step,
-    tokenData,
-    selectedToken,
-    setSelectedToken,
-    selectedTokenData,
-    hasSufficientBalance,
-    isPriceLoading,
-    address,
-    onContinueToConfirm,
-    premiumLabel,
-    name,
-    onBuyName,
-    onBack,
-  } = props
-
-  switch (step) {
-    case PaymentModalStep.SelectToken:
-      return (
-        <>
-          <div className="flex items-center gap-2">
-            <p className="text-muted-foreground text-sm">
-              Choose USDC or DAI to pay for your registration.
-            </p>
-            <div className="flex items-center gap-1">
-              <USDCIcon className="size-5" />
-              <DAIcon className="size-5" />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            {tokenData.map((token) => {
-              const priceReady = token.price && isPriceResult(token.price)
-              const hasInsufficient = Boolean(
-                priceReady && token.balance < token.price.totalRaw,
-              )
-
-              return (
-                <button
-                  key={token.symbol}
-                  type="button"
-                  onClick={() => setSelectedToken(token.address)}
-                  disabled={hasInsufficient}
-                  className={cn(
-                    'flex w-full items-center justify-between rounded-lg border p-4 text-left transition-colors',
-                    selectedToken === token.address
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:bg-muted/50',
-                    hasInsufficient && 'cursor-not-allowed opacity-60',
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden">
-                      <token.Icon className="size-8 min-w-0 shrink-0" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{token.symbol}</p>
-                      <p className="text-muted-foreground text-sm">
-                        {priceReady ? (
-                          <>
-                            Balance:{' '}
-                            {Number(
-                              formatUnits(token.balance, token.decimals),
-                            ).toLocaleString()}
-                          </>
-                        ) : (
-                          <Skeleton className="h-4 w-20" />
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    {priceReady ? (
-                      <>
-                        <p className="font-medium">{token.price.total} USD</p>
-                        {hasInsufficient && (
-                          <p className="text-destructive text-xs">
-                            Insufficient balance
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      <Skeleton className="h-5 w-14" />
-                    )}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-
-          <Button
-            className="w-full"
-            onClick={onContinueToConfirm}
-            disabled={
-              !selectedToken ||
-              !hasSufficientBalance ||
-              isPriceLoading ||
-              !address
-            }
-          >
-            {selectedToken
-              ? `Continue with ${selectedTokenData?.symbol ?? ''}`
-              : 'Select a token'}
-          </Button>
-        </>
-      )
-    case PaymentModalStep.ConfirmPurchase:
-      if (!selectedTokenData) return null
-      return (
-        <div className="flex min-h-[320px] flex-col justify-between gap-6">
-          <div className="flex flex-col items-center gap-6">
-            <h2 className="text-center font-medium text-2xl tracking-wide">
-              Registering
-            </h2>
-
-            <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-xl bg-muted/50 px-6 py-8">
-              {premiumLabel && (
-                <PremiumPill
-                  label={premiumLabel.label}
-                  variant={premiumLabel.variant}
-                />
-              )}
-              <span
-                className="w-full min-w-0 text-center font-medium text-2xl leading-tight tracking-tight"
-                title={name}
-              >
-                {name.length > 10 ? `${name.slice(0, 10)}…` : name}
-              </span>
-            </div>
-
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-muted-foreground text-sm">for</span>
-              <div className="flex items-baseline gap-1">
-                <selectedTokenData.Icon className="size-6 shrink-0" />
-                <span className="font-medium text-2xl tracking-tight">
-                  {selectedTokenData.price.total} USD
-                </span>
-                <span className="text-muted-foreground text-lg">
-                  {selectedTokenData.symbol}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Button
-              className="h-12 w-full"
-              onClick={onBuyName}
-              disabled={!selectedToken || !hasSufficientBalance}
-            >
-              Buy name
-            </Button>
-            <Button
-              variant="ghost"
-              className="w-full"
-              onClick={onBack}
-              aria-label="Back to token selection"
-            >
-              <ArrowLeft className="mr-2 size-4" />
-              Back
-            </Button>
-          </div>
-        </div>
-      )
-    default: {
-      const _exhaustive: never = step
-      throw new Error(`Unhandled payment modal step: ${_exhaustive}`)
-    }
-  }
-}
-
-function getStepTitle(step: PaymentModalStep): string {
-  switch (step) {
-    case PaymentModalStep.SelectToken:
-      return 'Select payment token'
-    case PaymentModalStep.ConfirmPurchase:
-      return 'Confirm purchase'
-    default: {
-      const _exhaustive: never = step
-      throw new Error(`Unhandled payment modal step: ${_exhaustive}`)
-    }
-  }
-}
 
 type PaymentTokenModalProps = {
   open: boolean
@@ -365,23 +151,177 @@ export const PaymentTokenModal = ({
     onOpenChange(newOpen)
   }
 
+  const handleBack = () => setStep(PaymentModalStep.SelectToken)
   const premiumLabel = getPremiumLabel(name)
 
-  const currentContent = getStepContent({
-    step,
-    tokenData,
-    selectedToken,
-    setSelectedToken,
-    selectedTokenData: selectedTokenData ?? null,
-    hasSufficientBalance: Boolean(hasSufficientBalance),
-    isPriceLoading,
-    address,
-    onContinueToConfirm: handleContinueToConfirm,
-    premiumLabel,
-    name,
-    onBuyName: handleBuyName,
-    onBack: () => setStep(PaymentModalStep.SelectToken),
-  })
+  function getStepContent(): React.ReactNode {
+    switch (step) {
+      case PaymentModalStep.SelectToken:
+        return (
+          <>
+            <div className="flex items-center gap-2">
+              <p className="text-muted-foreground text-sm">
+                Choose USDC or DAI to pay for your registration.
+              </p>
+              <div className="flex items-center gap-1">
+                <USDCIcon className="size-5" />
+                <DAIcon className="size-5" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {tokenData.map((token) => {
+                const priceReady = token.price && isPriceResult(token.price)
+                const hasInsufficient = Boolean(
+                  priceReady && token.balance < token.price.totalRaw,
+                )
+
+                return (
+                  <button
+                    key={token.symbol}
+                    type="button"
+                    onClick={() => setSelectedToken(token.address)}
+                    disabled={hasInsufficient}
+                    className={cn(
+                      'flex w-full items-center justify-between rounded-lg border p-4 text-left transition-colors',
+                      selectedToken === token.address
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:bg-muted/50',
+                      hasInsufficient && 'cursor-not-allowed opacity-60',
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden">
+                        <token.Icon className="size-8 min-w-0 shrink-0" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{token.symbol}</p>
+                        <p className="text-muted-foreground text-sm">
+                          {priceReady ? (
+                            <>
+                              Balance:{' '}
+                              {Number(
+                                formatUnits(token.balance, token.decimals),
+                              ).toLocaleString()}
+                            </>
+                          ) : (
+                            <Skeleton className="h-4 w-20" />
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      {priceReady ? (
+                        <>
+                          <p className="font-medium">{token.price.total} USD</p>
+                          {hasInsufficient && (
+                            <p className="text-destructive text-xs">
+                              Insufficient balance
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <Skeleton className="h-5 w-14" />
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            <Button
+              className="w-full"
+              onClick={handleContinueToConfirm}
+              disabled={
+                !selectedToken ||
+                !hasSufficientBalance ||
+                isPriceLoading ||
+                !address
+              }
+            >
+              {selectedToken
+                ? `Continue with ${selectedTokenData?.symbol ?? ''}`
+                : 'Select a token'}
+            </Button>
+          </>
+        )
+      case PaymentModalStep.ConfirmPurchase:
+        if (!selectedTokenData) return null
+        return (
+          <div className="flex min-h-[320px] flex-col justify-between gap-6">
+            <div className="flex flex-col items-center gap-6">
+              <h2 className="text-center font-medium text-2xl tracking-wide">
+                Registering
+              </h2>
+
+              <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-xl bg-muted/50 px-6 py-8">
+                {premiumLabel && (
+                  <PremiumPill
+                    label={premiumLabel.label}
+                    variant={premiumLabel.variant}
+                  />
+                )}
+                <span
+                  className="w-full min-w-0 text-center font-medium text-2xl leading-tight tracking-tight"
+                  title={name}
+                >
+                  {name.length > 10 ? `${name.slice(0, 10)}…` : name}
+                </span>
+              </div>
+
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-muted-foreground text-sm">for</span>
+                <div className="flex items-baseline gap-1">
+                  <selectedTokenData.Icon className="size-6 shrink-0" />
+                  <span className="font-medium text-2xl tracking-tight">
+                    {selectedTokenData.price.total} USD
+                  </span>
+                  <span className="text-muted-foreground text-lg">
+                    {selectedTokenData.symbol}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Button
+                className="h-12 w-full"
+                onClick={handleBuyName}
+                disabled={!selectedToken || !hasSufficientBalance}
+              >
+                Buy name
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={handleBack}
+                aria-label="Back to token selection"
+              >
+                <ArrowLeft className="mr-2 size-4" />
+                Back
+              </Button>
+            </div>
+          </div>
+        )
+      default: {
+        throw new Error(`Unhandled payment modal step: ${step}`)
+      }
+    }
+  }
+
+  function getStepTitle(step: PaymentModalStep): string {
+    switch (step) {
+      case PaymentModalStep.SelectToken:
+        return 'Select payment token'
+      case PaymentModalStep.ConfirmPurchase:
+        return 'Confirm purchase'
+      default: {
+        throw new Error(`Unhandled payment modal step: ${step}`)
+      }
+    }
+  }
+
+  const currentContent = getStepContent()
   const stepTitle = getStepTitle(step)
 
   return (
