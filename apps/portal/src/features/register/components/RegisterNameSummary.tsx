@@ -18,16 +18,8 @@ import {
   getPremiumLabel,
   validateNameLength,
 } from '@/features/register/utils/premium'
+import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-
-function isPriceResult(value: unknown): value is RegistrationPriceResult {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'base' in value &&
-    'total' in value
-  )
-}
 
 type RegisterNameCheckoutSummaryProps = {
   readonly name: string
