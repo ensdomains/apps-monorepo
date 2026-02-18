@@ -1,10 +1,11 @@
 import { ERC20_ABI } from '@ens-apps/transaction-manager/contracts/abis/ERC20.abi'
 import { useQueries } from '@tanstack/react-query'
-import { CircleDollarSign } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { formatUnits } from 'viem'
 import { useConnection, useReadContract } from 'wagmi'
+import { DAIcon } from '@/assets/dai-icon'
+import { USDCIcon } from '@/assets/usdc-icon'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,8 +22,18 @@ import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { cn } from '@/lib/utils'
 
 const PAYMENT_TOKENS = [
-  { symbol: 'USDC', address: SUPPORTED_TOKENS.USDC, decimals: 6 },
-  { symbol: 'DAI', address: SUPPORTED_TOKENS.DAI, decimals: 18 },
+  {
+    symbol: 'USDC',
+    address: SUPPORTED_TOKENS.USDC,
+    decimals: 6,
+    Icon: USDCIcon,
+  },
+  {
+    symbol: 'DAI',
+    address: SUPPORTED_TOKENS.DAI,
+    decimals: 18,
+    Icon: DAIcon,
+  },
 ] as const
 
 function isPriceResult(value: unknown): value is RegistrationPriceResult {
@@ -138,9 +149,15 @@ export const PaymentTokenModal = ({
           <DialogTitle>Select payment token</DialogTitle>
         </DialogHeader>
 
-        <p className="text-muted-foreground text-sm">
-          Choose USDC or DAI to pay for your registration.
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-muted-foreground text-sm">
+            Choose USDC or DAI to pay for your registration.
+          </p>
+          <div className="flex items-center gap-1">
+            <USDCIcon className="size-5" />
+            <DAIcon className="size-5" />
+          </div>
+        </div>
 
         <div className="space-y-2">
           {tokenData.map((token) => {
@@ -164,8 +181,8 @@ export const PaymentTokenModal = ({
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-full bg-muted">
-                    <CircleDollarSign className="size-5 text-muted-foreground" />
+                  <div className="flex size-10 shrink-0 items-center justify-center">
+                    <token.Icon className="size-8" />
                   </div>
                   <div>
                     <p className="font-medium">{token.symbol}</p>
