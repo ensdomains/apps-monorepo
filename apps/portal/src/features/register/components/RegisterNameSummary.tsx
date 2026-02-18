@@ -29,7 +29,12 @@ type RegisterNameCheckoutSummaryProps = {
   name: string
   duration: number
   durationLabel: string
-  onContinue?: () => void
+type RegisterNameCheckoutSummaryProps = {
+  readonly name: string
+  readonly duration: number
+  readonly durationLabel: string
+  readonly onContinue?: () => void
+}
 }
 
 const EST_GAS_USD = 0.05
