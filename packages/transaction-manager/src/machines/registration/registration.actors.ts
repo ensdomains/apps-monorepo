@@ -193,7 +193,16 @@ function selectRegistrarAddress(useFastRegistrar: boolean): Address {
     : ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 }
 
-function getSmartAccountAddress(signer: Signer): Address {
+function getSignerAddress(signer: Signer): Address {
+  if (signer.type === 'eoa') {
+    const account = signer.walletClient.account
+
+    if (!account) {
+      throw new Error('EOA wallet client has no account connected')
+    }
+    return account.address
+  }
+
   if (signer.type === 'rhinestone') {
     // Rhinestone SDK account - use getAddress method
     return signer.account.getAddress() as Address
@@ -220,7 +229,7 @@ function getSmartAccountAddress(signer: Signer): Address {
   }
 
   throw new Error(
-    'Only Rhinestone or ZeroDev signer is supported for registration',
+    'Only EOA, Rhinestone, or ZeroDev signer is supported for registration',
   )
 }
 
@@ -239,6 +248,17 @@ function createTransactionRequest(params: {
   sponsored?: boolean
 }): TransactionRequest {
   const { signer, from, to, data, value, chainId, calls, sponsored } = params
+
+  if (signer.type === 'eoa') {
+    return {
+      type: 'eoa',
+      from,
+      to,
+      data,
+      value,
+      chainId,
+    }
+  }
 
   if (signer.type === 'rhinestone') {
     return {
@@ -291,7 +311,7 @@ export function submitResolverDeploymentActor(input: {
 }): ResultAsync<{ txId: string; salt: bigint }, Error> {
   return ResultAsync.fromSafePromise(
     Promise.resolve().then(() => {
-      const smartAccountAddress = getSmartAccountAddress(input.signer)
+      const smartAccountAddress = getSignerAddress(input.signer)
       const salt = generateResolverSalt(input.name)
       const initCalldata = getResolverInitCalldata(input.owner)
 
@@ -410,7 +430,7 @@ export function submitCommitmentActor(input: {
         },
       )
 
-      const smartAccountAddress = getSmartAccountAddress(input.signer)
+      const smartAccountAddress = getSignerAddress(input.signer)
 
       const commitmentData = encodeCommitmentData(input.commitment.commitment)
 
@@ -589,7 +609,7 @@ export function submitApprovalActor(input: {
 
   return ResultAsync.fromSafePromise(
     Promise.resolve().then(() => {
-      const smartAccountAddress = getSmartAccountAddress(input.signer)
+      const smartAccountAddress = getSignerAddress(input.signer)
 
       const tokenAddress = getPaymentTokenAddress(input.selectedToken)
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
@@ -657,7 +677,7 @@ export function submitRegistrationActor(input: {
 
   return fromPromise(
     (async () => {
-      const smartAccountAddress = getSmartAccountAddress(input.signer)
+      const smartAccountAddress = getSignerAddress(input.signer)
 
       const paymentToken = getPaymentTokenAddress(input.selectedToken)
       // Normalize to lowercase to avoid Rhinestone SDK validation issues

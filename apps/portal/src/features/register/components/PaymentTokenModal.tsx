@@ -45,7 +45,7 @@ type PaymentTokenModalProps = {
   onOpenChange: (open: boolean) => void
   name: string
   duration: number
-  onConfirm: (selectedToken: Address) => void
+  onConfirm: (selectedToken: Address, tokenPrice: bigint) => void
 }
 
 export const PaymentTokenModal = ({
@@ -133,8 +133,8 @@ export const PaymentTokenModal = ({
   }
 
   const handleBuyName = () => {
-    if (selectedToken && hasSufficientBalance) {
-      onConfirm(selectedToken)
+    if (selectedToken && hasSufficientBalance && selectedTokenData) {
+      onConfirm(selectedToken, selectedTokenData.price.totalRaw)
       onOpenChange(false)
       setSelectedToken(null)
       setStep(PaymentModalStep.SelectToken)

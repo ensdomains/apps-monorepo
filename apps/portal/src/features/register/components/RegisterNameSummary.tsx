@@ -25,7 +25,7 @@ type RegisterNameCheckoutSummaryProps = {
   readonly name: string
   readonly duration: number
   readonly durationLabel: string
-  readonly onContinue: (selectedToken: Address) => void
+  readonly onContinue: (selectedToken: Address, tokenPrice: bigint) => void
 }
 
 const EST_GAS_USD = 0.05
