@@ -49,8 +49,8 @@ describe('fetchExpiringNamesPage', () => {
     const [, document, variables] = mockRequest.mock.calls[0]
     expect(String(document)).toContain(`first: ${PAGE_SIZE}`)
     expect(variables).toEqual({
-      cursor: '100',
-      upper_bound: '200',
+      cursor: 100,
+      upper_bound: 200,
     })
 
     expect(result._unsafeUnwrap()).toEqual({

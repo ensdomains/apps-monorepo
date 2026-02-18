@@ -1,6 +1,6 @@
 /* Structured logger for Cloudflare Workers */
 export interface LogMeta {
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error'
