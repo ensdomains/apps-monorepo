@@ -25,6 +25,7 @@ export type RegistrationPriceResult = {
   readonly base: string
   readonly premium: string
   readonly total: string
+  readonly totalRaw: bigint
   readonly hasPremium: boolean
 }
 
@@ -65,6 +66,7 @@ export const getRegistrationPrice = ResultFn(async function* ({
     base: formatUsdCeil(formatUnits(base, USDC_DECIMALS)),
     premium: formatUsdCeil(formatUnits(premium, USDC_DECIMALS)),
     total: formatUsdCeil(formatUnits(total, USDC_DECIMALS)),
+    totalRaw: total,
     hasPremium: premium > 0n,
   })
 })
