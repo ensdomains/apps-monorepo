@@ -171,10 +171,10 @@ const PriceBreakdownSkeleton = ({
 )
 
 type PriceBreakdownProps = {
-  name: string
-  price: RegistrationPriceResult
-  durationLabel: string
-  onOpenPremiumDrawer?: () => void
+  readonly name: string
+  readonly price: RegistrationPriceResult
+  readonly durationLabel: string
+  readonly onOpenPremiumDrawer: () => void
 }
 
 const PriceBreakdown = ({
