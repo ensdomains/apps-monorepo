@@ -146,7 +146,7 @@ export const PaymentTokenModal = ({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Select payment token</DialogTitle>
+          <DialogTitle>Pay with stable coins</DialogTitle>
         </DialogHeader>
 
         <div className="flex items-center gap-2">
@@ -181,8 +181,8 @@ export const PaymentTokenModal = ({
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex size-10 shrink-0 items-center justify-center">
-                    <token.Icon className="size-8" />
+                  <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden">
+                    <token.Icon className="size-8 min-w-0 shrink-0" />
                   </div>
                   <div>
                     <p className="font-medium">{token.symbol}</p>
