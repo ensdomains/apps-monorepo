@@ -25,15 +25,18 @@ export class Logger {
   private readonly isDev = isDevelopment()
 
   private shouldLog(level: LogLevel): boolean {
-    if (!LEVELS.includes(level)) {
-      return false
-    }
-
-    if (DEV_ONLY_LEVELS.has(level) && !this.isDev) {
-      return false
-    }
-
+    // Temporarily allow all levels for debugging in production.
     return true
+
+    // if (!LEVELS.includes(level)) {
+    //   return false
+    // }
+
+    // if (DEV_ONLY_LEVELS.has(level) && !this.isDev) {
+    //   return false
+    // }
+
+    // return true
   }
 
   private serialize(entry: Record<string, unknown>): string {
