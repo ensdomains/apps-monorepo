@@ -92,8 +92,8 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
         durationLabel={formatRegistrationDuration(
           calculateExpirationDate(duration),
         )}
-        onContinue={() => {
-          // TODO: Wire to registration flow (transaction manager)
+        onContinue={(selectedToken) => {
+          // TODO: Wire to registration flow (transaction manager) with selectedToken
         }}
       />
     </main>

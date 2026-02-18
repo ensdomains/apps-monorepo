@@ -3,6 +3,7 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { l2EthRegistrarRentPriceSnippet } from '@ensdomains/ensjs/contracts'
 import { fromPromise, ok } from 'neverthrow'
+import type { Address } from 'viem'
 import { formatUnits, zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
 import { fastTestETHRegistrar } from '@/lib/constants/registry'
@@ -19,6 +20,7 @@ class GetRegistrationPriceError extends TaggedError(
 export type RegistrationPriceParameters = {
   readonly name: string
   readonly durationYears: number
+  readonly token?: Address
 }
 
 export type RegistrationPriceResult = {
@@ -29,13 +31,18 @@ export type RegistrationPriceResult = {
   readonly hasPremium: boolean
 }
 
-const USDC_DECIMALS = 6
-
 const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60
+
+const USDC_DECIMALS = 6
+const DAI_DECIMALS = 18
+
+const getTokenDecimals = (token: Address) =>
+  token === SUPPORTED_TOKENS.USDC ? USDC_DECIMALS : DAI_DECIMALS
 
 export const getRegistrationPrice = ResultFn(async function* ({
   name,
   durationYears,
+  token = SUPPORTED_TOKENS.USDC,
 }: RegistrationPriceParameters) {
   const client = yield* safeGetClient()
 
@@ -50,22 +57,18 @@ export const getRegistrationPrice = ResultFn(async function* ({
       address: fastTestETHRegistrar,
       abi: l2EthRegistrarRentPriceSnippet,
       functionName: 'rentPrice',
-      args: [
-        cleanName,
-        zeroAddress,
-        BigInt(durationSeconds),
-        SUPPORTED_TOKENS.USDC,
-      ],
+      args: [cleanName, zeroAddress, BigInt(durationSeconds), token],
     }),
     (e) => new GetRegistrationPriceError({ cause: e }),
   )
 
   const total = base + premium
+  const decimals = getTokenDecimals(token)
 
   return ok<RegistrationPriceResult>({
-    base: formatUsdCeil(formatUnits(base, USDC_DECIMALS)),
-    premium: formatUsdCeil(formatUnits(premium, USDC_DECIMALS)),
-    total: formatUsdCeil(formatUnits(total, USDC_DECIMALS)),
+    base: formatUsdCeil(formatUnits(base, decimals)),
+    premium: formatUsdCeil(formatUnits(premium, decimals)),
+    total: formatUsdCeil(formatUnits(total, decimals)),
     totalRaw: total,
     hasPremium: premium > 0n,
   })

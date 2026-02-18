@@ -1,12 +1,13 @@
-import { ERC20_ABI } from '@ens-apps/transaction-manager/contracts/abis/ERC20.abi'
 import { useQuery } from '@tanstack/react-query'
 import { InfoIcon } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { match } from 'ts-pattern'
-import { useConnection, useReadContract } from 'wagmi'
+import type { Address } from 'viem'
+import { useConnection } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PaymentTokenModal } from '@/features/register/components/PaymentTokenModal'
 import { PremiumPill } from '@/features/register/components/PremiumPill'
 import { TemporaryPremiumDrawer } from '@/features/register/components/TemporaryPremiumDrawer'
 import {
@@ -17,7 +18,6 @@ import {
   getPremiumLabel,
   validateNameLength,
 } from '@/features/register/utils/premium'
-import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
 function isPriceResult(value: unknown): value is RegistrationPriceResult {
@@ -33,7 +33,7 @@ type RegisterNameCheckoutSummaryProps = {
   readonly name: string
   readonly duration: number
   readonly durationLabel: string
-  readonly onContinue: () => void
+  readonly onContinue: (selectedToken: Address) => void
 }
 
 const EST_GAS_USD = 0.05
@@ -49,20 +49,10 @@ export const RegisterNameCheckoutSummary = ({
   onContinue,
 }: RegisterNameCheckoutSummaryProps) => {
   const [premiumDrawerOpen, setPremiumDrawerOpen] = useState(false)
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   const isNameValid = !validateNameLength(name)
 
   const { address, isConnected } = useConnection()
-
-  const { data: usdcBalance, isPending: isBalanceLoading } = useReadContract({
-    address: SUPPORTED_TOKENS.USDC,
-    abi: ERC20_ABI,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-    query: { enabled: Boolean(address) },
-  })
-
-  console.log('usdcBalance', usdcBalance)
-  console.log('isBalanceLoading', isBalanceLoading)
 
   const {
     data: price,
@@ -74,41 +64,13 @@ export const RegisterNameCheckoutSummary = ({
     enabled: Boolean(name) && duration >= 1 && isNameValid,
   })
 
-  const { hasInsufficientBalance, canContinue } = useMemo(() => {
-    const isReady = !isLoading && !isError && price
-    const hasPrice = price && isPriceResult(price)
-    const totalRaw = hasPrice ? price.totalRaw : 0n
-    const usdcBalanceValue = typeof usdcBalance === 'bigint' ? usdcBalance : 0n
+  const isReady = !isLoading && !isError && price
+  const hasPrice = price && isPriceResult(price)
+  const canContinue = isReady && hasPrice && isConnected && Boolean(address)
 
-    const hasSufficientBalance =
-      !isBalanceLoading && usdcBalanceValue >= totalRaw
-
-    const hasInsufficientBalance =
-      isConnected &&
-      hasPrice &&
-      !isBalanceLoading &&
-      usdcBalanceValue < totalRaw
-
-    const canContinue =
-      isReady &&
-      hasPrice &&
-      isConnected &&
-      Boolean(address) &&
-      hasSufficientBalance
-
-    return {
-      hasInsufficientBalance,
-      canContinue,
-    }
-  }, [
-    isLoading,
-    isError,
-    price,
-    usdcBalance,
-    isBalanceLoading,
-    isConnected,
-    address,
-  ])
+  const handleContinueClick = () => {
+    if (canContinue) setPaymentModalOpen(true)
+  }
 
   return (
     <section
@@ -150,21 +112,25 @@ export const RegisterNameCheckoutSummary = ({
 
       <Button
         className="w-full mt-4 h-12"
-        onClick={onContinue}
+        onClick={handleContinueClick}
         disabled={!canContinue}
       >
         {match({
           isConnected,
           isLoading,
-          isBalanceLoading,
-          hasInsufficientBalance,
         })
           .with({ isConnected: false }, () => 'Connect Wallet')
           .with({ isLoading: true }, () => 'Loading...')
-          .with({ isBalanceLoading: true }, () => 'Loading...')
-          .with({ hasInsufficientBalance: true }, () => 'Insufficient balance')
           .otherwise(() => 'Continue')}
       </Button>
+
+      <PaymentTokenModal
+        open={paymentModalOpen}
+        onOpenChange={setPaymentModalOpen}
+        name={name}
+        duration={duration}
+        onConfirm={onContinue}
+      />
 
       {price && isPriceResult(price) && price.hasPremium && (
         <TemporaryPremiumDrawer
