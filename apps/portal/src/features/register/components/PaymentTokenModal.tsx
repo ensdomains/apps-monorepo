@@ -1,6 +1,5 @@
 import { ERC20_ABI } from '@ens-apps/transaction-manager/contracts/abis/ERC20.abi'
 import { useQueries } from '@tanstack/react-query'
-import { ArrowLeft } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { formatUnits } from 'viem'
@@ -15,9 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PremiumPill } from '@/features/register/components/PremiumPill'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
-import { getPremiumLabel } from '@/features/register/utils/premium'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { cn } from '@/lib/utils'
@@ -151,9 +148,6 @@ export const PaymentTokenModal = ({
     onOpenChange(newOpen)
   }
 
-  const handleBack = () => setStep(PaymentModalStep.SelectToken)
-  const premiumLabel = getPremiumLabel(name)
-
   function getStepContent(): React.ReactNode {
     switch (step) {
       case PaymentModalStep.SelectToken:
@@ -239,8 +233,8 @@ export const PaymentTokenModal = ({
                 !address
               }
             >
-              {selectedToken
-                ? `Continue with ${selectedTokenData?.symbol ?? ''}`
+              {selectedTokenData?.symbol
+                ? `Continue with ${selectedTokenData.symbol}`
                 : 'Select a token'}
             </Button>
           </>
@@ -255,12 +249,6 @@ export const PaymentTokenModal = ({
               </h2>
 
               <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-xl bg-muted/50 px-6 py-8">
-                {premiumLabel && (
-                  <PremiumPill
-                    label={premiumLabel.label}
-                    variant={premiumLabel.variant}
-                  />
-                )}
                 <span
                   className="w-full min-w-0 text-center font-medium text-2xl leading-tight tracking-tight"
                   title={name}
@@ -274,7 +262,7 @@ export const PaymentTokenModal = ({
                 <div className="flex items-baseline gap-1">
                   <selectedTokenData.Icon className="size-6 shrink-0" />
                   <span className="font-medium text-2xl tracking-tight">
-                    {selectedTokenData.price.total} USD
+                    {selectedTokenData.price.total}
                   </span>
                   <span className="text-muted-foreground text-lg">
                     {selectedTokenData.symbol}
@@ -285,20 +273,11 @@ export const PaymentTokenModal = ({
 
             <div className="flex flex-col gap-2">
               <Button
-                className="h-12 w-full"
+                className="h-12 w-full mt-8"
                 onClick={handleBuyName}
                 disabled={!selectedToken || !hasSufficientBalance}
               >
                 Buy name
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full"
-                onClick={handleBack}
-                aria-label="Back to token selection"
-              >
-                <ArrowLeft className="mr-2 size-4" />
-                Back
               </Button>
             </div>
           </div>
