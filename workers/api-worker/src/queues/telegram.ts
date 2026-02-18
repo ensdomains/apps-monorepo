@@ -11,13 +11,20 @@ export const handleTelegramQueue = async (
   env: CloudflareBindings,
 ): Promise<void> => {
   const db = getDatabase(env)
+  let succeeded = 0
+  let failed = 0
+
+  logger.debug('Processing telegram delivery batch', {
+    messageCount: batch.messages.length,
+  })
 
   for (const message of batch.messages) {
     const job = message.body
 
-    logger.info('Processing telegram delivery', {
+    logger.trace('Processing telegram delivery', {
       jobId: job.id,
       kind: job.kind,
+      attempt: message.attempts + 1,
     })
 
     // Attempt delivery
@@ -28,26 +35,24 @@ export const handleTelegramQueue = async (
     )
 
     if (result.isErr()) {
+      failed += 1
+      logger.warn('Telegram delivery failed, scheduling retry', {
+        jobId: job.id,
+        error: result.error.message,
+        attempt: message.attempts + 1,
+      })
       await handleTelegramDeliveryFailure(db, message, result.error.message)
       message.retry()
-      // // Handle failure
-      // if (message.attempts < job.maxAttempts) {
-      //   // Retry with exponential backoff
-      //   const delaySeconds = Math.pow(2, job.attempts) * 60
-      //   logger.info('Retrying telegram delivery', {
-      //     jobId: job.id,
-      //     attempt: job.attempts + 1,
-      //     delaySeconds,
-      //   })
-      //   await message.retry({ delaySeconds })
-      // } else {
-      //   // Max attempts reached
-      //   await handleTelegramDeliveryFailure(db, job, result.error.message)
-      //   message.ack()
-      // }
     } else {
-      // Success
+      succeeded += 1
+      logger.trace('Telegram delivery succeeded', { jobId: job.id })
       message.ack()
     }
   }
+
+  logger.info('Telegram delivery batch completed', {
+    messageCount: batch.messages.length,
+    succeeded,
+    failed,
+  })
 }
