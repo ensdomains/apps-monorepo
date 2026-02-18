@@ -334,6 +334,132 @@ describe('handleEventIngestionQueue', () => {
     expect((secondChunk as Array<unknown>).length).toBe(25)
   })
 
+  it('continues fanout when one channel queue fails after retries', async () => {
+    const message = makeQueueMessage<ExpiryEvent>({
+      type: 'name_expiring',
+      name: 'alpha.eth',
+      expiryDate: 1_700_000_000,
+      stage: '7d',
+      owner: '0xabc',
+      includeFavorites: true,
+    })
+    const batch = makeQueueBatch('app-api-worker-event-ingestion', [message])
+
+    const dbFixture = makeMockDb({
+      users: [{ id: 'user-1', address: '0xabc' }],
+      favorites: [],
+      insertedNotifications: [
+        {
+          id: 'notif-1',
+          user_id: 'user-1',
+          kind: 'name-expiry',
+          payload: {
+            name: 'alpha.eth',
+            expiryDate: 1_700_000_000_000,
+            isOwner: true,
+            watchReason: 'owned',
+          },
+        },
+      ],
+      userChannels: [
+        { user_id: 'user-1', channel: 'email', target: 'user@example.com' },
+        { user_id: 'user-1', channel: 'telegram', target: '123456' },
+      ],
+      userSettings: [
+        {
+          user_id: 'user-1',
+          owned_name_expiry: true,
+          favourited_name_expiry: true,
+        },
+      ],
+    })
+    mockGetDatabase.mockReturnValue(dbFixture.db as never)
+
+    const emailQueue = {
+      send: vi.fn(async () => undefined),
+      sendBatch: vi.fn(
+        async (_messages: Array<{ body: unknown }>) => undefined,
+      ),
+    }
+    const telegramQueue = {
+      send: vi.fn(async () => undefined),
+      sendBatch: vi.fn(async () => {
+        throw new Error('rate limited')
+      }),
+    }
+
+    const env = makeMockEnv({
+      EMAIL_QUEUE: emailQueue as unknown as Queue,
+      TELEGRAM_QUEUE: telegramQueue as unknown as Queue,
+    })
+
+    await handleEventIngestionQueue(batch, env)
+
+    expect(dbFixture.deliveriesInsertValues).toHaveLength(2)
+    expect(emailQueue.sendBatch).toHaveBeenCalledTimes(1)
+    expect(telegramQueue.sendBatch).toHaveBeenCalledTimes(3)
+    expect(message.ack).toHaveBeenCalledTimes(1)
+    expect(message.retry).not.toHaveBeenCalled()
+  })
+
+  it('retries transient queue failures and still acks batch', async () => {
+    const message = makeQueueMessage<ExpiryEvent>({
+      type: 'name_expiring',
+      name: 'alpha.eth',
+      expiryDate: 1_700_000_000,
+      stage: '7d',
+      owner: '0xabc',
+      includeFavorites: true,
+    })
+    const batch = makeQueueBatch('app-api-worker-event-ingestion', [message])
+
+    const dbFixture = makeMockDb({
+      users: [{ id: 'user-1', address: '0xabc' }],
+      favorites: [],
+      insertedNotifications: [
+        {
+          id: 'notif-1',
+          user_id: 'user-1',
+          kind: 'name-expiry',
+          payload: {
+            name: 'alpha.eth',
+            expiryDate: 1_700_000_000_000,
+            isOwner: true,
+            watchReason: 'owned',
+          },
+        },
+      ],
+      userChannels: [
+        { user_id: 'user-1', channel: 'email', target: 'user@example.com' },
+      ],
+      userSettings: [
+        {
+          user_id: 'user-1',
+          owned_name_expiry: true,
+          favourited_name_expiry: true,
+        },
+      ],
+    })
+    mockGetDatabase.mockReturnValue(dbFixture.db as never)
+
+    const emailQueue = {
+      send: vi.fn(async () => undefined),
+      sendBatch: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('temporary'))
+        .mockResolvedValue(undefined),
+    }
+    const env = makeMockEnv({
+      EMAIL_QUEUE: emailQueue as unknown as Queue,
+    })
+
+    await handleEventIngestionQueue(batch, env)
+
+    expect(emailQueue.sendBatch).toHaveBeenCalledTimes(2)
+    expect(message.ack).toHaveBeenCalledTimes(1)
+    expect(message.retry).not.toHaveBeenCalled()
+  })
+
   it('retries valid messages when processing fails', async () => {
     const message = makeQueueMessage<ExpiryEvent>({
       type: 'name_expiring',

@@ -17,10 +17,21 @@ const CHANNEL_TO_QUEUE: Partial<Record<string, keyof CloudflareBindings>> = {
 }
 
 const QUEUE_BATCH_SIZE = 95
+const QUEUE_SEND_MAX_RETRIES = 3
+const QUEUE_SEND_BASE_DELAY_MS = 300
 
 class EventIngestionProcessingError extends TaggedError(
   'EVENT_INGESTION_PROCESSING_ERROR',
 ) {}
+
+function toQueueRetryDelayMs(attempt: number): number {
+  const jitter = Math.floor(Math.random() * 100)
+  return QUEUE_SEND_BASE_DELAY_MS * 2 ** (attempt - 1) + jitter
+}
+
+async function wait(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 type WatchReason = 'owned' | 'favourited' | 'manual'
 
@@ -398,6 +409,12 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
     )
   }
 
+  let queueChunksAttempted = 0
+  let queueChunksSucceeded = 0
+  let queueChunksFailed = 0
+  let queueRetryCount = 0
+  const failedQueues = new Set<keyof CloudflareBindings>()
+
   for (const [queueBinding, jobs] of jobsByQueue.entries()) {
     const queue = ctx.env[queueBinding] as Queue<BaseDeliveryJob>
     const jobChunks = chunk(jobs, QUEUE_BATCH_SIZE)
@@ -408,16 +425,53 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
       chunkCount: jobChunks.length,
     })
 
-    for (const jobChunk of jobChunks) {
+    for (const [chunkIndex, jobChunk] of jobChunks.entries()) {
+      queueChunksAttempted += 1
+
       // Keep below Cloudflare sendBatch limit (100) with a small headroom.
-      yield* fromPromise(
-        queue.sendBatch(jobChunk.map((job) => ({ body: job }))),
-        (error: unknown) =>
-          new EventIngestionProcessingError({
-            message: `Failed to enqueue ${queueBinding} delivery jobs`,
-            cause: error,
-          }),
-      )
+      for (let attempt = 1; attempt <= QUEUE_SEND_MAX_RETRIES; attempt++) {
+        const sendResult = await fromPromise(
+          queue.sendBatch(jobChunk.map((job) => ({ body: job }))),
+          (error: unknown) =>
+            new EventIngestionProcessingError({
+              message: `Failed to enqueue ${queueBinding} delivery jobs`,
+              cause: error,
+            }),
+        )
+
+        if (sendResult.isOk()) {
+          queueChunksSucceeded += 1
+          break
+        }
+
+        const isLastAttempt = attempt === QUEUE_SEND_MAX_RETRIES
+        if (isLastAttempt) {
+          queueChunksFailed += 1
+          failedQueues.add(queueBinding)
+          logger.error('Queue send failed after retries, skipping chunk', {
+            queue: queueBinding,
+            chunkIndex,
+            chunkSize: jobChunk.length,
+            maxRetries: QUEUE_SEND_MAX_RETRIES,
+            error: prettifyError(sendResult.error),
+          })
+          break
+        }
+
+        queueRetryCount += 1
+        const delayMs = toQueueRetryDelayMs(attempt)
+        logger.warn('Queue send failed, retrying chunk', {
+          queue: queueBinding,
+          chunkIndex,
+          chunkSize: jobChunk.length,
+          attempt,
+          maxRetries: QUEUE_SEND_MAX_RETRIES,
+          delayMs,
+          error: prettifyError(sendResult.error),
+        })
+
+        await wait(delayMs)
+      }
     }
   }
 
@@ -431,6 +485,11 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
     missingTargetCount,
     missingQueueBindingCount,
     createdDeliveries: deliveriesToInsert.length,
+    queueChunksAttempted,
+    queueChunksSucceeded,
+    queueChunksFailed,
+    queueRetryCount,
+    failedQueues: Array.from(failedQueues),
   })
 
   return ok(undefined)
