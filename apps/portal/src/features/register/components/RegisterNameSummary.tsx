@@ -26,15 +26,10 @@ function isPriceResult(value: unknown): value is RegistrationPriceResult {
 }
 
 type RegisterNameCheckoutSummaryProps = {
-  name: string
-  duration: number
-  durationLabel: string
-type RegisterNameCheckoutSummaryProps = {
   readonly name: string
   readonly duration: number
   readonly durationLabel: string
-  readonly onContinue?: () => void
-}
+  readonly onContinue: () => void
 }
 
 const EST_GAS_USD = 0.05
