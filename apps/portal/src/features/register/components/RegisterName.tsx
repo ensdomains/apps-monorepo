@@ -4,30 +4,19 @@ import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, UserCheck } from 'lucide-react'
 import { useState } from 'react'
-import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
-import { usePublicClient, useWalletClient } from 'wagmi'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { MessageCard } from '@/components/ui/message-card'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
+import { useStartRegistration } from '@/features/register/hooks/useStartRegistration'
 import { validateNameLength } from '@/features/register/utils/premium'
 import {
   calculateExpirationDate,
   formatRegistrationDuration,
 } from '@/features/register/utils/registrationDuration'
-import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { RegisterNameForm } from './RegisterNameForm'
 import { RegisterNameCheckoutSummary } from './RegisterNameSummary'
 import { RegistrationProgress } from './RegistrationProgress'
-
-const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60
-
-function addressToToken(address: Address): 'USDC' | 'DAI' {
-  return address.toLowerCase() === SUPPORTED_TOKENS.DAI.toLowerCase()
-    ? 'DAI'
-    : 'USDC'
-}
 
 type RegisterNameProps = {
   readonly name: string
@@ -37,11 +26,14 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   const navigate = useNavigate()
   const [duration, setDuration] = useState<number>(1)
 
-  const { data: walletClient } = useWalletClient({ chainId: sepolia.id })
-  const publicClient = usePublicClient({ chainId: sepolia.id })
-
   const actor = useActorRef(registrationMachine, {
     input: { chainId: sepolia.id },
+  })
+
+  const { startRegistration } = useStartRegistration({
+    name,
+    duration,
+    actor,
   })
 
   const machineState = useSelector(actor, (state) => state.value)
@@ -61,29 +53,6 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
 
   const isNameTaken =
     !isLoading && !isError && availability && !availability.isAvailable
-
-  const handleContinue = (selectedToken: Address, tokenPrice: bigint) => {
-    if (!walletClient?.account || !publicClient) {
-      console.error('Wallet or public client not ready')
-      return
-    }
-
-    const signer = createEOASigner(walletClient)
-    const durationSeconds = BigInt(duration * ONE_YEAR_SECONDS)
-
-    actor.send({
-      type: 'START_REGISTRATION',
-      name,
-      duration: durationSeconds,
-      token: addressToToken(selectedToken),
-      price: tokenPrice,
-      signer,
-      accountAddress: walletClient.account.address,
-      publicClient,
-      useFastRegistrar: true,
-      sponsored: false,
-    })
-  }
 
   const handleViewProfile = () => {
     navigate({ to: '/$name', params: { name } })
@@ -149,7 +118,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
             durationLabel={formatRegistrationDuration(
               calculateExpirationDate(duration),
             )}
-            onContinue={handleContinue}
+            onContinue={startRegistration}
           />
         </>
       ) : (
