@@ -1,8 +1,14 @@
 import type ParaWeb from '@getpara/react-sdk-lite'
-import { getClient, type LogoutEvent, ParaEvent } from '@getpara/react-sdk-lite'
+import {
+  getClient,
+  type LogoutEvent,
+  ParaEvent,
+  useWallet,
+} from '@getpara/react-sdk-lite'
 import { createClientOnlyFn, createIsomorphicFn } from '@tanstack/react-start'
 import { getCookie } from '@tanstack/react-start/server'
 import { useEffect } from 'react'
+import { match } from 'ts-pattern'
 
 export const getParaClient = (): ParaWeb | undefined => {
   return getClient() as ParaWeb | undefined
@@ -86,4 +92,32 @@ export const useParaLogoutEffect = (
       window.removeEventListener(ParaEvent.LOGOUT_EVENT, onDisconnect)
     }
   }, [onDisconnect])
+}
+
+// Simple status checker for now.
+// TODO: Build a more robust wallet status logic taking into account wagmi wallet client, para status, etc.
+export const useParaWalletStatus = () => {
+  const paraWallet = useWallet()
+
+  return match({
+    status: paraWallet.status,
+    hasWallet: !!paraWallet.data,
+  })
+    .with(
+      {
+        status: 'success',
+        hasWallet: true,
+      },
+      () => 'connected',
+    )
+    .with(
+      {
+        status: 'success',
+        hasWallet: false,
+      },
+      () => 'disconnected',
+    )
+    .with({ status: 'pending' }, () => 'pending')
+    .with({ status: 'error' }, () => 'error')
+    .exhaustive()
 }

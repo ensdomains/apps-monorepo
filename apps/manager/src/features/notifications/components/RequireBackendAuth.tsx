@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { signInBackendMutation } from '@/features/notifications/queries/auth'
+import { useParaWalletStatus } from '@/lib/para'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { backendAuthStore, isBackendAuthed } from '@/utils/backend-client'
 
@@ -20,11 +21,12 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
     (state) => state.context.address,
   )
   const { data: walletClient } = useWalletClient()
-  const { hasInitialized, isConnected, accountAddress } =
-    useSmartAccountContext()
+  const { ownerAddress } = useSmartAccountContext()
   const { openModal } = useModal()
 
-  if (!hasInitialized) {
+  const walletStatus = useParaWalletStatus()
+
+  if (walletStatus === 'pending') {
     return (
       <div className="mx-auto max-w-md px-4 py-6 text-center">
         <p className="text-muted-foreground text-sm">
@@ -34,10 +36,11 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
     )
   }
 
+  // This should never happen, but just in case
   const isWrongWallet =
     !!authAddress &&
-    !!accountAddress &&
-    authAddress.toLowerCase() !== accountAddress.toLowerCase()
+    !!ownerAddress &&
+    authAddress.toLowerCase() !== ownerAddress.toLowerCase()
 
   if (isWrongWallet) {
     return (
@@ -47,6 +50,11 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
           <p className="text-muted-foreground text-sm">
             Reconnect the wallet used for notifications, then sign in again.
           </p>
+          {/* Show the two addresses */}
+          <div className="flex flex-col gap-2">
+            <div>Auth address: {authAddress}</div>
+            <div>Account address: {ownerAddress}</div>
+          </div>
           <Button className="w-full" onClick={() => openModal()} size="lg">
             Reconnect Wallet
           </Button>
@@ -59,7 +67,7 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
     return <>{children}</>
   }
 
-  if (!isConnected) {
+  if (walletStatus === 'disconnected') {
     return (
       <div className="mx-auto max-w-md px-4 py-6">
         <div className="space-y-4 text-center">
@@ -111,15 +119,6 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
           <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3">
             <p className="text-destructive text-sm">
               Failed to sign in. Please try again.
-            </p>
-          </div>
-        )}
-
-        {!walletClient && (
-          <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3">
-            <p className="text-destructive text-sm">
-              Wallet client is still initializing. Please wait a moment and try
-              again.
             </p>
           </div>
         )}
