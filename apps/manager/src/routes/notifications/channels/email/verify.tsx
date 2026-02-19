@@ -13,7 +13,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { EmailVerifyStep } from '@/features/notifications/components/email-verify-step'
 import { verifyEmailMutationOptions } from '@/features/notifications/queries/channels'
 import { isBackendAuthed } from '@/utils/backend-client'
 
@@ -95,21 +94,23 @@ function EmailVerificationPage() {
     return (
       <VerificationCard>
         <VerificationHeader
-          description="Enter the verification code from your email to verify your address."
+          description="Open the verification link from your email to finish setup."
           icon={<Mail className="h-6 w-6 text-gray-400" />}
-          title="Enter Verification Code"
+          title="Check Your Email"
         />
-        <CardContent>
-          <EmailVerifyStep
-            channelId=""
-            isVerified={verifyEmailMutation.isSuccess}
-            isVerifying={verifyEmailMutation.isPending}
-            onBackToSend={() => {}}
-            onCancel={handleContinue}
-            onSuccess={handleContinue} // Not applicable for this route
-            onVerifyCode={(code) => handleVerify(code)}
-            verificationError={verifyEmailMutation.error?.message || null}
-          />
+        <CardContent className="space-y-4">
+          <p className="text-center text-muted-foreground text-sm">
+            This page can only verify your email when opened from the link in
+            the verification email.
+          </p>
+          <Button
+            className="w-full text-sm leading-ens-none"
+            onClick={handleContinue}
+            size="lg"
+            variant="outline"
+          >
+            {continueLabel}
+          </Button>
         </CardContent>
       </VerificationCard>
     )
