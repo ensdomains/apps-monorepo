@@ -1,4 +1,9 @@
 export type {
+  AddressSuggestionCardProps,
+  AddressSuggestionCardVariant,
+} from './AddressSuggestionCard'
+export { AddressSuggestionCard } from './AddressSuggestionCard'
+export type {
   DomainAttributePillProps,
   DomainAttributePillVariant,
 } from './DomainAttributePill'

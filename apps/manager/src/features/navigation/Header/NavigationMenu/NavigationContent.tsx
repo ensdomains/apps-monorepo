@@ -8,7 +8,7 @@ import {
   YoutubeIcon,
 } from 'lucide-react'
 
-import ensBlack from '@/assets/icons/ens-black.svg'
+import ensMobile from '@/assets/icons/ens-mobile.svg'
 
 interface NavigationContentProps {
   onAction: () => void
@@ -33,7 +33,7 @@ interface SocialIcon {
   icon: LucideIcon
 }
 
-const LogoIconBlack = () => <img alt="Logo" src={ensBlack} />
+const LogoIconBlack = () => <img alt="Logo" src={ensMobile} />
 
 const navigationSections: NavigationSection[] = [
   {
