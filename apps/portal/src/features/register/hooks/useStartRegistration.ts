@@ -1,5 +1,4 @@
 import type { registrationMachine } from '@ens-apps/transaction-manager'
-import { useMutation } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
@@ -20,11 +19,6 @@ type UseStartRegistrationParams = {
   readonly actor: ActorRefFrom<typeof registrationMachine>
 }
 
-type StartRegistrationVariables = {
-  readonly selectedToken: Address
-  readonly tokenPrice: bigint
-}
-
 export function useStartRegistration({
   name,
   duration,
@@ -34,11 +28,8 @@ export function useStartRegistration({
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })
 
-  const mutation = useMutation({
-    mutationFn: async ({
-      selectedToken,
-      tokenPrice,
-    }: StartRegistrationVariables) => {
+  const startRegistration = useCallback(
+    (selectedToken: Address, tokenPrice: bigint) => {
       if (!walletClient || !publicClient) {
         throw new Error('Wallet not connected')
       }
@@ -61,24 +52,9 @@ export function useStartRegistration({
         useFastRegistrar: true,
         sponsored: false,
       })
-
-      return { sent: true }
     },
-  })
-
-  const startRegistration = useCallback(
-    (selectedToken: Address, tokenPrice: bigint) => {
-      mutation.mutate({ selectedToken, tokenPrice })
-    },
-    [mutation],
+    [actor, duration, name, publicClient, walletClient],
   )
 
-  return {
-    startRegistration,
-    isPending: mutation.isPending,
-    isError: mutation.isError,
-    error: mutation.error,
-    reset: mutation.reset,
-    hasWallet: !!walletClient,
-  }
+  return startRegistration
 }

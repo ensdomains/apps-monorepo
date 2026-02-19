@@ -33,7 +33,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     input: { chainId: sepolia.id },
   })
 
-  const { startRegistration } = useStartRegistration({
+  const startRegistration = useStartRegistration({
     name,
     duration,
     actor,
