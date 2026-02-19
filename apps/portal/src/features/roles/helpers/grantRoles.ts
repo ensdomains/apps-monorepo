@@ -28,13 +28,13 @@ import { namechainEthRegistryAddress } from '@/lib/constants/registry'
 // ============================================================================
 
 export type GrantRolesParameters = {
-  name: string
-  account: Address
-  roles: Role[]
-  walletClient: WalletClient
-  publicClient: PublicClient
-  signer: Signer
-  chainId: number
+  readonly name: string
+  readonly account: Address
+  readonly roles: Role[]
+  readonly walletClient: WalletClient
+  readonly publicClient: PublicClient
+  readonly signer: Signer
+  readonly chainId: number
 }
 
 export interface GrantRolesResult {
