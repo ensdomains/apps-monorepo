@@ -5,15 +5,7 @@ import {
   differenceInMonths,
   differenceInYears,
 } from 'date-fns'
-
-/**
- * Calculates the expiry date by adding years to today.
- */
-export const calculateExpirationDate = (years: number): Date => {
-  const date = new Date()
-  date.setFullYear(date.getFullYear() + years)
-  return date
-}
+import { SECONDS_PER_YEAR } from '@/lib/constants/duration'
 
 /**
  * Formats the duration from today to an expiry date as a human-readable string.
@@ -52,7 +44,8 @@ export const formatRegistrationDuration = (expiryDate: Date): string => {
 }
 
 /**
- * Calculates the duration in years from today to a target date, rounding up.
+ * Calculates the duration in years from today to a target date.
+ * Returns exact fractional years (e.g. 2.12) - no rounding for accurate pricing.
  */
 export const calculateDurationFromDate = (targetDate: Date): number => {
   const today = new Date()
@@ -66,26 +59,31 @@ export const calculateDurationFromDate = (targetDate: Date): number => {
     return 1
   }
 
-  const diffYears = diffMs / (365.25 * 24 * 60 * 60 * 1000)
-  const roundedYears = Math.ceil(diffYears)
-
-  return Math.max(1, roundedYears)
+  const diffYears = diffMs / (SECONDS_PER_YEAR * 1000)
+  return diffYears
 }
-
-/** Seconds in one year (365.25 days) - matches ENS duration calculation */
-const SECONDS_PER_YEAR = 365.25 * 24 * 60 * 60
 
 /**
  * Converts an expiry date to duration in seconds for ENS price/registration.
- * Uses the same year length as calculateDurationFromDate.
  */
 export const getDurationInSeconds = (expiryDate: Date): number => {
   const years = calculateDurationFromDate(expiryDate)
-  return Math.floor(years * SECONDS_PER_YEAR)
+  return getDurationInSecondsFromYears(years)
 }
 
 /**
  * Converts duration in years to seconds for ENS price/registration.
+ * Supports fractional years (e.g. 2.12) for exact date picker values.
  */
 export const getDurationInSecondsFromYears = (years: number): number =>
   Math.floor(Math.max(1, years) * SECONDS_PER_YEAR)
+
+/**
+ * Converts duration in seconds to an expiry Date for display.
+ * Use when storing duration in state and need a Date for formatting.
+ */
+export const getExpiryDateFromSeconds = (seconds: number): Date => {
+  const date = new Date()
+  date.setTime(date.getTime() + seconds * 1000)
+  return date
+}

@@ -58,8 +58,11 @@ export const RegisterNameCheckoutSummary = ({
     isError,
     error,
   } = useQuery({
-    ...getRegistrationPriceQueryOptions({ name, durationYears: duration }),
-    enabled: Boolean(name) && duration >= 1 && isNameValid,
+    ...getRegistrationPriceQueryOptions({
+      name,
+      duration,
+    }),
+    enabled: Boolean(name) && duration > 0 && isNameValid,
   })
 
   const isReady = !isLoading && !isError && price

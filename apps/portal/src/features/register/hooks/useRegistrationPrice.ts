@@ -19,7 +19,7 @@ class GetRegistrationPriceError extends TaggedError(
 
 export type RegistrationPriceParameters = {
   readonly name: string
-  readonly durationYears: number
+  readonly duration: number
   readonly token?: Address
 }
 
@@ -31,23 +31,21 @@ export type RegistrationPriceResult = {
   readonly hasPremium: boolean
 }
 
-const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60
-
 const USDC_DECIMALS = 6
 const DAI_DECIMALS = 18
 
-const getTokenDecimals = (token: Address) =>
-  token === SUPPORTED_TOKENS.USDC ? USDC_DECIMALS : DAI_DECIMALS
+const getTokenDecimals = (
+  token: Address,
+  supportedTokens: { USDC: Address; DAI: Address },
+) => (token === supportedTokens.USDC ? USDC_DECIMALS : DAI_DECIMALS)
 
 export const getRegistrationPrice = ResultFn(async function* ({
   name,
-  durationYears,
-  token = SUPPORTED_TOKENS.USDC,
+  duration,
+  token,
 }: RegistrationPriceParameters) {
   const client = yield* safeGetClient()
-
-  const years = Math.max(1, Math.floor(durationYears))
-  const durationSeconds = years * ONE_YEAR_SECONDS
+  const resolvedToken = token ?? SUPPORTED_TOKENS.USDC
   const cleanName = name.replace(/\.eth$/i, '')
 
   const [base, premium] = yield* fromPromise(
@@ -57,13 +55,13 @@ export const getRegistrationPrice = ResultFn(async function* ({
       address: fastTestETHRegistrar,
       abi: l2EthRegistrarRentPriceSnippet,
       functionName: 'rentPrice',
-      args: [cleanName, zeroAddress, BigInt(durationSeconds), token],
+      args: [cleanName, zeroAddress, BigInt(duration), resolvedToken],
     }),
     (e) => new GetRegistrationPriceError({ cause: e }),
   )
 
   const total = base + premium
-  const decimals = getTokenDecimals(token)
+  const decimals = getTokenDecimals(resolvedToken, SUPPORTED_TOKENS)
 
   return ok<RegistrationPriceResult>({
     base: formatUsdCeil(formatUnits(base, decimals)),

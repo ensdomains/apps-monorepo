@@ -8,8 +8,6 @@ import type { ActorRefFrom } from 'xstate'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 
-const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60
-
 function addressToToken(address: Address): 'USDC' | 'DAI' {
   return address.toLowerCase() === SUPPORTED_TOKENS.DAI.toLowerCase()
     ? 'DAI'
@@ -50,12 +48,11 @@ export function useStartRegistration({
       }
 
       const signer = createEOASigner(walletClient)
-      const durationSeconds = BigInt(duration * ONE_YEAR_SECONDS)
 
       actor.send({
         type: 'START_REGISTRATION',
         name,
-        duration: durationSeconds,
+        duration: BigInt(duration),
         token: addressToToken(selectedToken),
         price: tokenPrice,
         signer,

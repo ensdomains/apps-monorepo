@@ -1,11 +1,12 @@
 import { addMonths, addYears } from 'date-fns'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import {
   calculateDurationFromDate,
-  calculateExpirationDate,
   formatRegistrationDuration,
   getDurationInSeconds,
   getDurationInSecondsFromYears,
+  getExpiryDateFromSeconds,
 } from './registrationDuration'
 
 describe('registrationDuration', () => {
@@ -18,28 +19,6 @@ describe('registrationDuration', () => {
 
   afterEach(() => {
     vi.useRealTimers()
-  })
-
-  describe('calculateExpirationDate', () => {
-    it('should add years to today', () => {
-      const result = calculateExpirationDate(1)
-
-      expect(result.getFullYear()).toBe(2026)
-      expect(result.getMonth()).toBe(FIXED_TODAY.getMonth())
-      expect(result.getDate()).toBe(FIXED_TODAY.getDate())
-    })
-
-    it('should add multiple years', () => {
-      const result = calculateExpirationDate(5)
-
-      expect(result.getFullYear()).toBe(2030)
-    })
-
-    it('should handle zero years by returning current year', () => {
-      const result = calculateExpirationDate(0)
-
-      expect(result.getFullYear()).toBe(2025)
-    })
   })
 
   describe('formatRegistrationDuration', () => {
@@ -107,25 +86,33 @@ describe('registrationDuration', () => {
       expect(calculateDurationFromDate(new Date('2024-01-01'))).toBe(1)
     })
 
-    it('should return 1 for exactly one year from today', () => {
+    it('should return ~1 for exactly one year from today', () => {
       const oneYearFromNow = addYears(FIXED_TODAY, 1)
-      expect(calculateDurationFromDate(oneYearFromNow)).toBe(1)
+      const result = calculateDurationFromDate(oneYearFromNow)
+      expect(result).toBeGreaterThan(0.99)
+      expect(result).toBeLessThan(1.01)
     })
 
-    it('should return 2 for two years from today', () => {
+    it('should return ~2 for two years from today', () => {
       const twoYearsFromNow = addYears(FIXED_TODAY, 2)
-      expect(calculateDurationFromDate(twoYearsFromNow)).toBe(2)
+      const result = calculateDurationFromDate(twoYearsFromNow)
+      expect(result).toBeGreaterThan(1.99)
+      expect(result).toBeLessThan(2.01)
     })
 
-    it('should round up partial years', () => {
+    it('should preserve fractional years (no rounding)', () => {
       const sixMonthsFromNow = addMonths(FIXED_TODAY, 6)
-      expect(calculateDurationFromDate(sixMonthsFromNow)).toBe(1)
+      const result = calculateDurationFromDate(sixMonthsFromNow)
+      expect(result).toBeGreaterThan(0.49)
+      expect(result).toBeLessThan(0.51)
     })
 
-    it('should round up 1 year and 1 day to 2 years', () => {
+    it('should preserve fractional years for 1 year and 1 day', () => {
       const justOverOneYear = addYears(FIXED_TODAY, 1)
       justOverOneYear.setDate(justOverOneYear.getDate() + 1)
-      expect(calculateDurationFromDate(justOverOneYear)).toBe(2)
+      const result = calculateDurationFromDate(justOverOneYear)
+      expect(result).toBeGreaterThan(1)
+      expect(result).toBeLessThan(1.01)
     })
 
     it('should return at least 1', () => {
@@ -135,8 +122,6 @@ describe('registrationDuration', () => {
   })
 
   describe('getDurationInSeconds', () => {
-    const SECONDS_PER_YEAR = 365.25 * 24 * 60 * 60
-
     it('should return ~31557600 for 1 year', () => {
       const oneYearFromNow = addYears(FIXED_TODAY, 1)
       expect(getDurationInSeconds(oneYearFromNow)).toBe(SECONDS_PER_YEAR)
@@ -144,7 +129,9 @@ describe('registrationDuration', () => {
 
     it('should return ~63115200 for 2 years', () => {
       const twoYearsFromNow = addYears(FIXED_TODAY, 2)
-      expect(getDurationInSeconds(twoYearsFromNow)).toBe(2 * SECONDS_PER_YEAR)
+      const result = getDurationInSeconds(twoYearsFromNow)
+      expect(result).toBeGreaterThanOrEqual(63_000_000)
+      expect(result).toBeLessThanOrEqual(63_200_000)
     })
 
     it('should return at least 1 year in seconds for past dates', () => {
@@ -155,8 +142,6 @@ describe('registrationDuration', () => {
   })
 
   describe('getDurationInSecondsFromYears', () => {
-    const SECONDS_PER_YEAR = 365.25 * 24 * 60 * 60
-
     it('should return ~31557600 for 1 year', () => {
       expect(getDurationInSecondsFromYears(1)).toBe(SECONDS_PER_YEAR)
     })
@@ -167,6 +152,21 @@ describe('registrationDuration', () => {
 
     it('should return at least 1 year in seconds for values less than 1', () => {
       expect(getDurationInSecondsFromYears(0.5)).toBe(SECONDS_PER_YEAR)
+    })
+  })
+
+  describe('getExpiryDateFromSeconds', () => {
+    it('should return date ~1 year from now for SECONDS_PER_YEAR', () => {
+      const result = getExpiryDateFromSeconds(SECONDS_PER_YEAR)
+      const expectedMs = FIXED_TODAY.getTime() + SECONDS_PER_YEAR * 1000
+      expect(result.getTime()).toBe(expectedMs)
+    })
+
+    it('should round-trip with getDurationInSeconds', () => {
+      const date = addYears(FIXED_TODAY, 2)
+      const seconds = getDurationInSeconds(date)
+      const backToDate = getExpiryDateFromSeconds(seconds)
+      expect(backToDate.getTime()).toBe(FIXED_TODAY.getTime() + seconds * 1000)
     })
   })
 })

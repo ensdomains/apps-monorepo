@@ -25,21 +25,6 @@ enum PaymentModalStep {
   ConfirmPurchase = 'confirm_purchase',
 }
 
-const PAYMENT_TOKENS = [
-  {
-    symbol: 'USDC',
-    address: SUPPORTED_TOKENS.USDC,
-    decimals: 6,
-    Icon: USDCIcon,
-  },
-  {
-    symbol: 'DAI',
-    address: SUPPORTED_TOKENS.DAI,
-    decimals: 18,
-    Icon: DAIcon,
-  },
-] as const
-
 type PaymentTokenModalProps = {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
@@ -61,11 +46,29 @@ export const PaymentTokenModal = ({
     PaymentModalStep.SelectToken,
   )
 
+  const paymentTokens = useMemo(
+    () => [
+      {
+        symbol: 'USDC' as const,
+        address: SUPPORTED_TOKENS.USDC,
+        decimals: 6,
+        Icon: USDCIcon,
+      },
+      {
+        symbol: 'DAI' as const,
+        address: SUPPORTED_TOKENS.DAI,
+        decimals: 18,
+        Icon: DAIcon,
+      },
+    ],
+    [],
+  )
+
   const priceQueries = useQueries({
-    queries: PAYMENT_TOKENS.map((token) =>
+    queries: paymentTokens.map((token) =>
       getRegistrationPriceQueryOptions({
         name,
-        durationYears: duration,
+        duration,
         token: token.address,
       }),
     ),
@@ -104,17 +107,23 @@ export const PaymentTokenModal = ({
 
     return [
       {
-        ...PAYMENT_TOKENS[0],
+        ...paymentTokens[0],
         price: usdcPrice && isPriceResult(usdcPrice) ? usdcPrice : defaultPrice,
         balance: typeof usdcBalance === 'bigint' ? usdcBalance : 0n,
       },
       {
-        ...PAYMENT_TOKENS[1],
+        ...paymentTokens[1],
         price: daiPrice && isPriceResult(daiPrice) ? daiPrice : defaultPrice,
         balance: typeof daiBalance === 'bigint' ? daiBalance : 0n,
       },
     ]
-  }, [usdcPriceQuery.data, daiPriceQuery.data, usdcBalance, daiBalance])
+  }, [
+    paymentTokens,
+    usdcPriceQuery.data,
+    daiPriceQuery.data,
+    usdcBalance,
+    daiBalance,
+  ])
 
   const selectedTokenData = selectedToken
     ? tokenData.find((t) => t.address === selectedToken)

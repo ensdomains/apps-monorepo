@@ -11,8 +11,9 @@ import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNam
 import { useStartRegistration } from '@/features/register/hooks/useStartRegistration'
 import { validateNameLength } from '@/features/register/utils/premium'
 import {
-  calculateExpirationDate,
   formatRegistrationDuration,
+  getDurationInSecondsFromYears,
+  getExpiryDateFromSeconds,
 } from '@/features/register/utils/registrationDuration'
 import { RegisterNameForm } from './RegisterNameForm'
 import { RegisterNameCheckoutSummary } from './RegisterNameSummary'
@@ -24,7 +25,9 @@ type RegisterNameProps = {
 
 export const RegisterName = ({ name }: RegisterNameProps) => {
   const navigate = useNavigate()
-  const [duration, setDuration] = useState<number>(1)
+  const [duration, setDuration] = useState<number>(() =>
+    getDurationInSecondsFromYears(1),
+  )
 
   const actor = useActorRef(registrationMachine, {
     input: { chainId: sepolia.id },
@@ -116,7 +119,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
             name={name}
             duration={duration}
             durationLabel={formatRegistrationDuration(
-              calculateExpirationDate(duration),
+              getExpiryDateFromSeconds(duration),
             )}
             onContinue={startRegistration}
           />
