@@ -1,26 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { AlertCircle, Search } from 'lucide-react'
+import { createFileRoute } from '@tanstack/react-router'
+import { AlertCircle, Info } from 'lucide-react'
 import { type Address, zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { SortButton } from '@/components/table/SortButton'
-import { Button } from '@/components/ui/button'
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from '@/components/ui/input-group'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { MessageCard } from '@/components/ui/message-card'
 import {
   type SubnameRow,
   SubnamesTable,
@@ -44,50 +30,28 @@ const NoSubregistryMessage = ({
   name,
   canDeploy,
 }: NoSubregistryMessageProps) => (
-  <>
-    <header className="bg-gray-100 px-6 pb-6 pt-12 flex flex-col gap-4 sticky top-0 z-10">
-      <h1 className="text-[30px] font-medium leading-tight">Subnames</h1>
-      <InputGroup className="bg-white rounded-sm">
-        <InputGroupInput className="w-full" placeholder="Search..." disabled />
-        <InputGroupAddon>
-          <Search />
-        </InputGroupAddon>
-      </InputGroup>
-    </header>
-
-    <Table className="relative">
-      <TableHeader>
-        <TableRow>
-          <TableHead className="px-6 py-2">
-            <SortButton disabled>Subname</SortButton>
-          </TableHead>
-          <TableHead className="px-6 py-2">
-            <SortButton disabled>Owner</SortButton>
-          </TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        <TableRow>
-          <TableCell colSpan={2} className="px-6 py-6">
-            <div className="flex flex-row items-center gap-4">
-              <AlertCircle className="size-6 text-gray-500 shrink-0" />
-              <p className="flex-1">
-                This name does not have a subregistry.
-                {canDeploy ? ' You must deploy one to create subnames.' : ''}
-              </p>
-              {canDeploy && (
-                <Button asChild variant="secondary">
-                  <Link to="/$name/registry" params={{ name }}>
-                    Deploy subregistry
-                  </Link>
-                </Button>
-              )}
-            </div>
-          </TableCell>
-        </TableRow>
-      </TableBody>
-    </Table>
-  </>
+  <MessageCard
+    icon={<AlertCircle size={30} strokeWidth={1.5} className="text-gray-500" />}
+    title="No subregistry"
+    description={
+      <p>
+        This name does not have a subregistry.
+        <br />
+        {canDeploy
+          ? 'You must deploy one to create subnames.'
+          : 'You do not have permission to deploy one.'}
+      </p>
+    }
+    actionButton={
+      canDeploy
+        ? {
+            label: 'Deploy subregistry',
+            variant: 'default',
+            href: `/${name}/registry`,
+          }
+        : undefined
+    }
+  />
 )
 
 interface V2SubnamesContentProps {
@@ -199,15 +163,18 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
 }
 
 const V1SubnamesMessage = () => (
-  <div className="max-w-360 w-full mx-auto flex flex-col gap-4 p-6">
-    <h1 className="text-[28px] font-medium">Subnames</h1>
-    <div className="bg-gray-50 rounded-lg p-8 text-center">
-      <p className="text-gray-600">This page is only for ENSv2 names.</p>
-      <p className="text-gray-500 text-sm mt-2">
-        ENSv1 subnames are managed differently.
-      </p>
-    </div>
-  </div>
+  <MessageCard
+    icon={<Info size={30} strokeWidth={1.5} />}
+    title="ENSv1 Name"
+    description={
+      <>
+        <p>This page is only for ENSv2 names.</p>
+        <p className="text-gray-500 text-sm mt-2">
+          ENSv1 subnames are managed differently.
+        </p>
+      </>
+    }
+  />
 )
 
 function RouteComponent() {

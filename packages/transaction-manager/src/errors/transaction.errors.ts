@@ -17,7 +17,12 @@ export class TransactionSubmissionError extends TransactionError {
     public readonly request: TransactionRequest,
     cause?: unknown,
   ) {
-    super('Failed to submit transaction', cause)
+    super(
+      cause instanceof Error
+        ? `Failed to submit transaction: ${cause.message}`
+        : 'Failed to submit transaction',
+      cause,
+    )
   }
 }
 

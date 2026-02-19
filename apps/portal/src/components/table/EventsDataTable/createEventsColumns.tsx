@@ -24,6 +24,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
   const baseColumns: ColumnDef<EventsTableData<TEvent>>[] = [
     {
       id: 'expander',
+      size: 80,
       header: () => <div />,
       cell: ({ row }) => {
         const eventCount = row.original.events.length
@@ -51,6 +52,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
     },
     {
       accessorKey: 'timestamp',
+      size: 160,
       header: ({ column }) => (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
@@ -69,6 +71,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
     },
     {
       accessorKey: 'transactionID',
+      size: 240,
       header: ({ column }) => (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
@@ -92,6 +95,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
     },
     {
       accessorKey: 'from',
+      size: 240,
       header: ({ column }) => (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
@@ -112,6 +116,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
   if (enableNetwork) {
     baseColumns.push({
       accessorKey: 'network',
+      size: 140,
       header: ({ column }) => (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
@@ -143,6 +148,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
   if (enableSidebar) {
     baseColumns.push({
       id: 'more',
+      size: 120,
       header: () => null,
       cell: ({ row, table }) => {
         return (

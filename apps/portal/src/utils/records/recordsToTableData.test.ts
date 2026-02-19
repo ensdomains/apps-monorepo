@@ -174,4 +174,62 @@ describe('recordsToTableData', () => {
     expect(result[1]).toMatchObject({ key: 'BTC', type: 'address' })
     expect(result[2]).toMatchObject({ key: 'BNB', type: 'address' })
   })
+
+  it('should transform ABI record with object into table data', () => {
+    const records: GetRecordsReturnType = {
+      texts: [],
+      coins: [],
+      contentHash: null,
+      abi: {
+        contentType: 1,
+        decoded: true,
+        abi: { name: 'test', type: 'function', inputs: [] },
+      },
+      resolverAddress: MOCK_RESOLVER,
+    }
+
+    const result = recordsToTableData(records)
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).toEqual({
+      type: 'abi',
+      value: '{"name":"test","type":"function","inputs":[]}',
+    })
+  })
+
+  it('should transform ABI record with string into table data', () => {
+    const records: GetRecordsReturnType = {
+      texts: [],
+      coins: [],
+      contentHash: null,
+      abi: {
+        contentType: 1,
+        decoded: true,
+        abi: '[{"name":"test"}]',
+      },
+      resolverAddress: MOCK_RESOLVER,
+    }
+
+    const result = recordsToTableData(records)
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).toEqual({
+      type: 'abi',
+      value: '[{"name":"test"}]',
+    })
+  })
+
+  it('should handle null ABI record', () => {
+    const records: GetRecordsReturnType = {
+      texts: [],
+      coins: [],
+      contentHash: null,
+      abi: null,
+      resolverAddress: MOCK_RESOLVER,
+    }
+
+    const result = recordsToTableData(records)
+
+    expect(result).toHaveLength(0)
+  })
 })

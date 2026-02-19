@@ -9,10 +9,19 @@ import type { NameRecord } from '@/features/records/components/RecordsTable/colu
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
 import { getRecordId } from '@/utils/records/editRecordUtils'
 
+/** ABI encoding format as expected by ensjs */
+type AbiInputJson = {
+  encodeAs: 'json'
+  data: Record<string, unknown> | Record<string, unknown>[] | null
+}
+
+type AbiInput = AbiInputJson
+
 export type SetRecordsInput = {
   texts?: Array<{ key: string; value: string }>
   coins?: Array<{ coin: number; value: string }>
   contentHash?: string | null
+  abi?: AbiInput
 }
 
 type PendingChanges = {
@@ -45,6 +54,27 @@ export function transformPendingChangesToSetRecords(
   const texts: Array<{ key: string; value: string }> = []
   const coins: Array<{ coin: number; value: string }> = []
   let contentHash: string | null | undefined
+  let abi: AbiInput | undefined
+
+  /**
+   * Parse ABI JSON string to object for ensjs.
+   * Returns null data if empty/invalid (to delete the ABI).
+   */
+  const parseAbiValue = (value: string): AbiInput | undefined => {
+    if (!value || value.trim() === '') {
+      return { encodeAs: 'json', data: null }
+    }
+    try {
+      const parsed = JSON.parse(value) as
+        | Record<string, unknown>
+        | Record<string, unknown>[]
+      return { encodeAs: 'json', data: parsed }
+    } catch {
+      // Invalid JSON - treat as null to avoid errors
+      console.warn('Invalid ABI JSON:', value)
+      return undefined
+    }
+  }
 
   // Process new records
   for (const record of newRecords) {
@@ -57,6 +87,9 @@ export function transformPendingChangesToSetRecords(
         break
       case 'contentHash':
         contentHash = record.value
+        break
+      case 'abi':
+        abi = parseAbiValue(record.value)
         break
     }
   }
@@ -77,6 +110,9 @@ export function transformPendingChangesToSetRecords(
       case 'contentHash':
         contentHash = newValue
         break
+      case 'abi':
+        abi = parseAbiValue(newValue)
+        break
     }
   }
 
@@ -95,6 +131,9 @@ export function transformPendingChangesToSetRecords(
       case 'contentHash':
         contentHash = null
         break
+      case 'abi':
+        abi = { encodeAs: 'json', data: null }
+        break
     }
   }
 
@@ -110,6 +149,10 @@ export function transformPendingChangesToSetRecords(
 
   if (contentHash !== undefined) {
     result.contentHash = contentHash
+  }
+
+  if (abi !== undefined) {
+    result.abi = abi
   }
 
   return result

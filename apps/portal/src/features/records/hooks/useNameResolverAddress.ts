@@ -5,7 +5,6 @@
  * appropriate registry contract.
  */
 
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -14,6 +13,7 @@ import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, namehash, zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
+import { namechainEthRegistryAddress } from '@/lib/constants/registry'
 import {
   safeGetClient,
   safeGetNamechainSepoliaClient,
@@ -79,7 +79,7 @@ export const getNameResolverAddress = ResultFn(async function* (
 
     const resolverAddress = yield* fromPromise(
       getNameResolverAddressV2(client, {
-        registryAddress: ENS_SEPOLIA_CONTRACTS.ETHRegistry as Address,
+        registryAddress: namechainEthRegistryAddress,
         label,
       }),
       (e) => new GetNameResolverAddressError({ cause: e }),

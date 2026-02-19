@@ -1,7 +1,6 @@
 import { relations } from 'drizzle-orm'
 import { index, pgTable, text, uuid } from 'drizzle-orm/pg-core'
 import { randomUUIDv7 } from '../utils/schemaHelpers'
-import { ensWatchers } from './expiry'
 import { favorites } from './favorites'
 import { notifications, userChannels } from './notifications'
 
@@ -15,7 +14,6 @@ export const users = pgTable(
 )
 
 export const usersRelations = relations(users, ({ many }) => ({
-  watchers: many(ensWatchers),
   favorites: many(favorites),
   notifications: many(notifications),
   userChannels: many(userChannels),

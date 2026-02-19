@@ -1,17 +1,23 @@
 import { useWallet } from '@getpara/react-sdk-lite'
 import { useQuery } from '@tanstack/react-query'
 import type { ErrorComponentProps } from '@tanstack/react-router'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { Loader2 } from 'lucide-react'
 import { Suspense } from 'react'
 import { LinkButton } from '@/components/ui/button'
-import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { ProfileEdit } from '@/features/profile/components/ProfileEdit'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
+import { isConnectedToPara, useParaLogoutEffect } from '@/lib/para'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const Route = createFileRoute('/p/$name/edit')({
   component: RouteComponent,
   errorComponent: ProfileEditRouteError,
+  beforeLoad: ({ params: { name } }) => {
+    if (!isConnectedToPara()) {
+      throw redirect({ to: '/p/$name', params: { name } })
+    }
+  },
 })
 
 function ProfileEditRouteError({ error }: ErrorComponentProps) {
@@ -26,8 +32,20 @@ function ProfileEditRouteError({ error }: ErrorComponentProps) {
   )
 }
 
+function ProfileEditLoading() {
+  return (
+    <div className="mx-auto max-w-md space-y-4">
+      <div className="flex items-center justify-center gap-2 py-8 text-gray-600">
+        <Loader2 className="size-4 animate-spin" />
+        Loading profile editor...
+      </div>
+    </div>
+  )
+}
+
 function RouteComponent() {
   const { name } = Route.useParams()
+  const navigate = useNavigate()
   const { data: wallet, isLoading: isWalletLoading } = useWallet()
   const { data: ownerData, isLoading: isOwnerLoading } = useQuery({
     ...profileOwnerQuery(name),
@@ -36,7 +54,7 @@ function RouteComponent() {
   const {
     accountAddress: smartAccountAddress,
     isLoading: isSmartAccountLoading,
-    isAccountReady,
+    hasInitialized,
   } = useSmartAccountContext()
 
   const normalizedOwner = ownerData?.owner?.toLowerCase()
@@ -48,13 +66,18 @@ function RouteComponent() {
     normalizedOwner && connectedAddresses.includes(normalizedOwner),
   )
 
+  useParaLogoutEffect(() => {
+    navigate({ to: '/p/$name', params: { name }, replace: true })
+  })
+
   const isCheckingOwnership =
     isWalletLoading ||
     isOwnerLoading ||
-    (!isOwner && (isSmartAccountLoading || !isAccountReady))
+    !hasInitialized ||
+    isSmartAccountLoading
 
   if (isCheckingOwnership) {
-    return <ProfileLoading />
+    return <ProfileEditLoading />
   }
 
   if (!isOwner) {
@@ -73,8 +96,8 @@ function RouteComponent() {
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-background">
-      <Suspense fallback={<ProfileLoading />}>
+    <div className="flex flex-1 flex-col">
+      <Suspense fallback={<ProfileEditLoading />}>
         <ProfileEdit name={name} />
       </Suspense>
     </div>

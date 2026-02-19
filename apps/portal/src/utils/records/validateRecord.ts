@@ -1,4 +1,9 @@
-import { isAddress } from 'viem'
+import { getCoderByCoinName } from '@ensdomains/address-encoder'
+import {
+  getProtocolType,
+  isValidContentHash as isValidEncodedContentHash,
+} from '@ensdomains/ensjs/utils'
+import { getAddress } from 'viem'
 import type { EditableRecord } from './editRecordUtils'
 
 export interface ValidationError {
@@ -38,12 +43,88 @@ function isValidEmail(value: string): boolean {
 }
 
 /**
- * Validates an Ethereum address.
+ * Normalizes an ETH address to checksum format if possible.
  */
-function isValidEthereumAddress(value: string): boolean {
+function normalizeCoinAddress(coin: string, address: string): string {
+  if (coin.toLowerCase() === 'eth') {
+    try {
+      return getAddress(address)
+    } catch {
+      return address
+    }
+  }
+  return address
+}
+
+/**
+ * Validates a cryptocurrency address using the address-encoder library.
+ * Returns an error message if invalid, or null if valid.
+ */
+function validateCryptoAddress(coin: string, address: string): string | null {
+  if (!address) return null // Empty is valid (means deletion)
+
+  try {
+    const normalizedAddress = normalizeCoinAddress(coin, address)
+    const coder = getCoderByCoinName(coin.toLowerCase())
+    coder.decode(normalizedAddress)
+    return null // Valid
+  } catch (e: unknown) {
+    // Extract error message
+    if (typeof e === 'string') return e
+    if (e instanceof Error) {
+      // Clean up common error messages
+      if (e.message.includes('Invalid checksum'))
+        return 'Invalid address checksum'
+      if (e.message.includes('Invalid address')) return 'Invalid address format'
+      return e.message
+    }
+    return 'Invalid address format'
+  }
+}
+
+/**
+ * Validates a contentHash value per ENSIP-7.
+ * Uses ensjs's getProtocolType for protocol validation, which supports:
+ * ipfs://, ipns://, bzz://, onion://, onion3://, sia://, ar://, arweave://,
+ * and /ipfs/..., /ipns/... path formats.
+ * Also accepts raw hex (0x...).
+ */
+function isValidContentHash(value: string): boolean {
   if (!value) return true // Empty is valid (means deletion)
 
-  return isAddress(value)
+  // Validate raw hex via ensjs (checks for valid multicodec prefix, not just any hex)
+  if (value.startsWith('0x')) {
+    try {
+      return isValidEncodedContentHash(value)
+    } catch {
+      return false
+    }
+  }
+
+  // Use ensjs's protocol matching (supports all ENSIP-7 protocols)
+  const result = getProtocolType(value)
+  return result !== null && result.decoded.length > 0
+}
+
+/**
+ * Validates an ABI value - must be a valid JSON array.
+ * Returns a specific error message if invalid, or null if valid.
+ */
+function validateAbi(value: string): string | null {
+  if (!value) return null
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    return 'Invalid JSON format. ABI must be a valid JSON array.'
+  }
+
+  if (!Array.isArray(parsed)) {
+    return 'ABI must be a JSON array (starting with [ and ending with ]).'
+  }
+
+  return null
 }
 
 /**
@@ -80,10 +161,23 @@ export function validateRecord(record: EditableRecord): string | null {
   }
 
   if (type === 'address') {
-    // Only validate ETH addresses (coinType 60)
-    if (record.id === 60 && !isValidEthereumAddress(value)) {
-      return 'Invalid Ethereum address format'
+    // Validate all cryptocurrency addresses using address-encoder
+    const coin = record.key || 'eth'
+    const error = validateCryptoAddress(coin, value)
+    if (error) {
+      return `Invalid ${coin.toUpperCase()} address: ${error}`
     }
+  }
+
+  if (type === 'contentHash') {
+    if (!isValidContentHash(value)) {
+      return 'Invalid content hash. Supported protocols: ipfs://, ipns://, bzz://, onion://, onion3://, sia://, ar://'
+    }
+  }
+
+  if (type === 'abi') {
+    const abiError = validateAbi(value)
+    if (abiError) return abiError
   }
 
   return null
@@ -104,12 +198,16 @@ export function validateRecords(records: EditableRecord[]): ValidationError[] {
 
     const error = validateRecord(record)
     if (error) {
+      // Include _uid in recordId for new records to ensure uniqueness
+      const uid = record._uid ? `-${record._uid}` : ''
       const recordId =
         record.type === 'contentHash'
-          ? 'contentHash'
-          : record.type === 'address'
-            ? `address-${record.id}`
-            : `text-${record.key}`
+          ? `contentHash${uid}`
+          : record.type === 'abi'
+            ? `abi${uid}`
+            : record.type === 'address'
+              ? `address-${record.key}${uid}`
+              : `text-${record.key}${uid}`
 
       errors.push({ recordId, message: error })
     }

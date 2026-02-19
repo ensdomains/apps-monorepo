@@ -5,7 +5,10 @@ export const KV_KEY = {
   AUTH: {
     NONCE: (nonce: string) => `auth:nonce:${nonce}`,
   },
-}
+  EXPIRY_DISCOVERY: {
+    CURSORS: 'expiry_discovery:cursors',
+  },
+} as const
 
 export const intoKVError = (err: unknown) => {
   const error =
