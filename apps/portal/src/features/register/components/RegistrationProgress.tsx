@@ -1,11 +1,13 @@
 import type { registrationMachine } from '@ens-apps/transaction-manager'
 import { useSelector } from '@xstate/react'
-import { AlertCircle, CheckCircle2, Info } from 'lucide-react'
+import { CheckCircle2, Info } from 'lucide-react'
 import { match } from 'ts-pattern'
 import type { ActorRefFrom } from 'xstate'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
+import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 
 type RegistrationProgressProps = {
   readonly domainName: string
@@ -157,19 +159,10 @@ export const RegistrationProgress = ({
 
   const progress = STAGE_PROGRESS[progressStage]
 
+  const errorInfo = error ? getTransactionErrorInfo(error) : null
+
   return (
     <div className="flex flex-col gap-6 rounded-lg border border-border bg-card p-8">
-      {isInProgress && (
-        <Alert variant="warning">
-          <Info className="size-4" />
-          <AlertTitle>Please stay on this page</AlertTitle>
-          <AlertDescription>
-            Do not refresh or exit this page. Your registration is in progress.
-            Closing or refreshing may interrupt the process.
-          </AlertDescription>
-        </Alert>
-      )}
-
       <div className="flex flex-col items-center gap-6">
         {match({ isComplete, isError })
           .with({ isComplete: true }, () => (
@@ -183,13 +176,17 @@ export const RegistrationProgress = ({
             </Alert>
           ))
           .with({ isError: true }, () => (
-            <Alert variant="destructive" className="w-full max-w-md">
-              <AlertCircle aria-hidden />
-              <AlertTitle>Registration failed</AlertTitle>
-              <AlertDescription>
-                {error?.message ?? 'An error occurred. Please try again.'}
-              </AlertDescription>
-            </Alert>
+            <div className="w-full max-w-md">
+              <TransactionErrorAlert
+                title="Registration failed"
+                summary={
+                  errorInfo?.summary ??
+                  error?.message ??
+                  'An error occurred. Please try again.'
+                }
+                details={errorInfo?.details}
+              />
+            </div>
           ))
           .otherwise(() => (
             <>
@@ -216,6 +213,17 @@ export const RegistrationProgress = ({
         <h3 className="text-2xl font-bold" title={domainName}>
           {domainName}
         </h3>
+
+        {isInProgress && (
+          <Alert variant="warning" className="w-full max-w-md">
+            <Info className="size-4" />
+            <AlertTitle>Please stay on this page</AlertTitle>
+            <AlertDescription>
+              Do not refresh or exit this page. Your registration is in
+              progress. Closing or refreshing may interrupt the process.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="flex flex-col gap-2 sm:flex-row">
           {match({ isComplete, isError })
