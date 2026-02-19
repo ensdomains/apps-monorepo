@@ -213,9 +213,9 @@ export const RegistrationProgress = ({
             </>
           ))}
 
-        <p className="text-muted-foreground text-sm" title={domainName}>
+        <h3 className="text-2xl font-bold" title={domainName}>
           {domainName}
-        </p>
+        </h3>
 
         <div className="flex flex-col gap-2 sm:flex-row">
           {match({ isComplete, isError })
