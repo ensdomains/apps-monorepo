@@ -1,5 +1,6 @@
 import { createMiddleware } from 'hono/factory'
 import { createEnsClient, type ViemClient } from '#core/eth/client.js'
+import { logger, prettifyError } from '#utils/logger.js'
 import type { BaseEnv, Variables } from './hono'
 
 export type InjectEthClientContext = Variables<{
@@ -12,7 +13,11 @@ export const injectEthClient = createMiddleware<
   const ethClient = createEnsClient(c.env)
 
   if (ethClient.isErr()) {
-    console.error('Failed to create ENS client', ethClient.error)
+    logger.error('Failed to create ENS client', {
+      error: prettifyError(ethClient.error),
+      path: c.req.path,
+      method: c.req.method,
+    })
     return c.json(
       {
         error: 'SERVER_NOT_AVAILABLE',

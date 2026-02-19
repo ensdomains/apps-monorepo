@@ -25,12 +25,13 @@ export const createApp = <
 
 export function internalServerError(
   c: Context,
-  error: { message: string; _tag?: string },
+  error: { message: string; _tag?: string; cause?: unknown },
 ) {
   logger.error(error.message, {
     _tag: error._tag,
     path: c.req.path,
     method: c.req.method,
+    cause: error.cause,
   })
 
   return c.json({ error: 'Internal server error' }, 500)

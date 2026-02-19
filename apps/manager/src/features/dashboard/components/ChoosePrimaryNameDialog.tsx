@@ -233,7 +233,7 @@ export const ChoosePrimaryNameDialog = ({
   return (
     <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-h-[90vh] max-w-[500px] overflow-y-auto">
+      <DialogContent className="flex max-h-[90vh] max-w-[500px] flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="font-serif text-[24px] text-foreground">
             Choose Primary Name
@@ -244,9 +244,9 @@ export const ChoosePrimaryNameDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
           {/* Names List */}
-          <div className="flex flex-col gap-2">
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
             {match({ isLoading, domains })
               .with({ isLoading: true }, () => (
                 <div className="flex flex-col gap-2">
@@ -349,7 +349,7 @@ export const ChoosePrimaryNameDialog = ({
             </div>
           )}
           {/* Action Buttons */}
-          <div className="flex gap-3">
+          <div className="flex shrink-0 gap-3">
             <Button
               className="h-[48px] flex-1 rounded-xs border-ens-white bg-ens-white font-mono text-ens-blue text-sm uppercase tracking-wider transition-colors hover:bg-ens-white/80 disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
               disabled={isSubmitting || updateEthAddressMutation.isPending}

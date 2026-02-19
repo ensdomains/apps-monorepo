@@ -82,7 +82,7 @@ export const deliverTelegramNotification = ResultFn(async function* (
     })
     .where(eq(TABLE.notificationDeliveries.id, job.id))
 
-  logger.info('Telegram notification delivered', {
+  logger.debug('Telegram notification delivered', {
     jobId: job.id,
     kind: job.kind,
     messageId: result.message_id,
