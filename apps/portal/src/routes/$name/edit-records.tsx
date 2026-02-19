@@ -5,6 +5,7 @@ import { ArrowLeftIcon, ChevronDown, CirclePlus, Search } from 'lucide-react'
 import { useCallback, useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
+import { CoinSelect } from '@/components/CoinSelect'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -26,6 +27,7 @@ import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
 import { queryClient } from '@/utils/queryClient'
 import type { RecordType } from '@/utils/records/editRecordUtils'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
+import { validateRecords } from '@/utils/records/validateRecord'
 
 export const Route = createFileRoute('/$name/edit-records')({
   component: EditRecordsPage,
@@ -41,6 +43,9 @@ const RECORD_TYPES: { value: RecordType; label: string }[] = [
   { value: 'abi', label: 'ABI' },
   { value: 'contentHash', label: 'Contenthash' },
 ]
+
+/** Record types that don't require a key input (single-value records) */
+const KEYLESS_RECORD_TYPES: RecordType[] = ['contentHash', 'abi']
 
 function EditRecordsPage() {
   const { name } = Route.useParams()
@@ -169,6 +174,12 @@ const EditRecordsContent = ({
   const [keyInput, setKeyInput] = useState('')
   const [valueInput, setValueInput] = useState('')
 
+  // Reset key input when type changes (different types have different key requirements)
+  const handleTypeChange = (newType: RecordType | '') => {
+    setSelectedType(newType)
+    setKeyInput('') // Reset key when type changes
+  }
+
   // UI state
   const [activeTab, setActiveTab] = useState<string>('all')
   const [globalFilter, setGlobalFilter] = useState('')
@@ -190,6 +201,10 @@ const EditRecordsContent = ({
     updateRecord,
     discardAll,
   } = useEditRecordsState(originalRecords)
+
+  // Validate records whenever they change
+  const validationErrors = useMemo(() => validateRecords(records), [records])
+  const hasValidationErrors = validationErrors.length > 0
 
   // Navigate to records page after sync completes.
   // This avoids the issue where deleted records reappear if we clear local state
@@ -232,6 +247,7 @@ const EditRecordsContent = ({
     for (const record of visible) {
       if (record.type === 'text') counts.text++
       if (record.type === 'address') counts.address++
+      if (record.type === 'abi') counts.abi++
       if (record.type === 'contentHash') counts.contentHash++
     }
     return counts
@@ -249,8 +265,13 @@ const EditRecordsContent = ({
   const keyInputId = useId()
   const valueInputId = useId()
 
+  // Check if the selected type requires a key
+  const requiresKey =
+    selectedType !== '' && !KEYLESS_RECORD_TYPES.includes(selectedType)
+
   const handleAddRecord = () => {
-    if (!selectedType || !keyInput) return
+    if (!selectedType) return
+    if (requiresKey && !keyInput) return
 
     addRecord(selectedType, keyInput, valueInput)
 
@@ -286,7 +307,7 @@ const EditRecordsContent = ({
               <select
                 id={typeSelectId}
                 value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value as RecordType)}
+                onChange={(e) => handleTypeChange(e.target.value as RecordType)}
                 className="h-9 w-full appearance-none rounded-sm border border-input bg-white px-3 pr-8 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
               >
                 <option value="">Select...</option>
@@ -300,23 +321,40 @@ const EditRecordsContent = ({
             </div>
           </div>
 
-          {/* Key Input */}
-          <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
-            <label
-              htmlFor={keyInputId}
-              className="text-xs text-gray-500 flex items-center gap-1"
-            >
-              Key
-            </label>
-            <input
-              id={keyInputId}
-              type="text"
-              value={keyInput}
-              onChange={(e) => setKeyInput(e.target.value)}
-              placeholder=""
-              className="h-9 w-full rounded-sm border border-input bg-white px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-            />
-          </div>
+          {/* Key Input - dropdown for address, text input for text, hidden for contentHash and abi */}
+          {selectedType === 'address' && (
+            <div className="flex flex-col gap-1 min-w-[220px]">
+              <label
+                htmlFor={keyInputId}
+                className="text-xs text-gray-500 flex items-center gap-1"
+              >
+                Coin
+              </label>
+              <CoinSelect
+                value={keyInput}
+                onChange={setKeyInput}
+                placeholder="Select coin..."
+              />
+            </div>
+          )}
+          {selectedType === 'text' && (
+            <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
+              <label
+                htmlFor={keyInputId}
+                className="text-xs text-gray-500 flex items-center gap-1"
+              >
+                Key
+              </label>
+              <input
+                id={keyInputId}
+                type="text"
+                value={keyInput}
+                onChange={(e) => setKeyInput(e.target.value)}
+                placeholder=""
+                className="h-9 w-full rounded-sm border border-input bg-white px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+              />
+            </div>
+          )}
 
           {/* Value Input */}
           <div className="flex flex-col gap-1 flex-2 min-w-[200px]">
@@ -339,7 +377,7 @@ const EditRecordsContent = ({
             <Button
               variant="outline"
               onClick={handleAddRecord}
-              disabled={!selectedType || !keyInput}
+              disabled={!selectedType || (requiresKey && !keyInput)}
               className="flex items-center gap-2 whitespace-nowrap"
             >
               Add record
@@ -400,6 +438,7 @@ const EditRecordsContent = ({
               globalFilter={globalFilter}
               onDeleteRecord={deleteRecord}
               onUpdateRecord={updateRecord}
+              validationErrors={validationErrors}
             />
           </TabsContent>
         </Tabs>
@@ -415,6 +454,7 @@ const EditRecordsContent = ({
         isSaving={isWriting || isConfirming}
         isSyncing={isSyncing}
         errorMessage={saveError?.message}
+        hasValidationErrors={hasValidationErrors}
       />
     </div>
   )

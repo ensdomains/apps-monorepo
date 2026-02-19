@@ -40,6 +40,8 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
           const fromAddress = eventAddress ?? row.original.from
 
           const cellClassName = cn('px-6', tableView.compact ? 'py-2' : 'py-4')
+          const totalColumns = row.getVisibleCells().length
+          const trailingColSpan = totalColumns - 4 // 2 leading + 1 event type + 1 address
 
           return (
             <TableRow
@@ -61,7 +63,12 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
                 )}
               </TableCell>
 
-              <TableCell colSpan={2} className={cellClassName} />
+              {trailingColSpan > 0 && (
+                <TableCell
+                  colSpan={trailingColSpan}
+                  className={cellClassName}
+                />
+              )}
             </TableRow>
           )
         })}

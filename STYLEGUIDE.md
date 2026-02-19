@@ -126,7 +126,7 @@ These rules protect against bugs, security issues, or severe maintainability pro
 These rules represent best practices but allow pragmatic exceptions:
 
 - **TanStack Query for async data** - Don't manually manage loading/error states with useState
-- **Extract useEffect** - Effects should be in custom hooks (≤5 lines can stay inline)
+- **Extract useEffect** - Effects in components should be in custom hooks (≤5 lines can stay inline)
 - **Avoid query waterfalls** - Split dependent queries into separate components
 - **Handle query states independently** - Don't group loading/error states with `||`
 - **Use useQueries for parallel queries** - More concise than multiple useQuery calls
@@ -569,6 +569,20 @@ export const ProfileCard = function({ name, address }: ProfileCardProps) {
 
 **Note**: Function declarations (`function`) are reserved for utility functions and helpers, not React components.
 
+**Exception — Route component functions**: In TanStack Router route files (`routes/`), the `RouteComponent` function referenced by `createFileRoute` may use a function declaration. This is the convention used by TanStack Router's code generation and keeps route files consistent with the router's own patterns.
+
+```typescript
+// Good - Function declaration for route components in route files
+export const Route = createFileRoute('/$name/deploy-registry')({
+  component: RouteComponent,
+})
+
+function RouteComponent() {
+  const { name } = Route.useParams()
+  // ...
+}
+```
+
 ### Component Props
 
 Define props interfaces next to the component:
@@ -748,7 +762,7 @@ export const ProfilePage = ({ name }: { name: string }) => {
 
 ### useEffect Usage Policy (🟡 Default)
 
-**Default rule**: Extract `useEffect` into a named custom hook to document intent and keep components readable.
+**Default rule**: In components, extract `useEffect` into a named custom hook to document intent and keep components readable.
 
 **Valid use cases for useEffect:**
 - DOM manipulation (focus, scroll, resize observers)
@@ -824,6 +838,8 @@ export const AutoFocusInput = () => {
 ```
 
 **If an effect grows beyond these constraints, extract it immediately.**
+
+**Note**: This rule applies to components only. Inside custom hooks, `useEffect` is expected and does not need further extraction—that's where effects belong.
 
 ### Component Size and Complexity (🟢 Guideline)
 
@@ -3706,7 +3722,7 @@ const data: any = externalLibrary.getData()
 #### React Patterns
 
 20. **Never useEffect for data fetching** - Always use TanStack Query (🔴 Must)
-21. **Extract effects** - Extract `useEffect` to custom hooks (🟡 Default, ≤5 lines OK)
+21. **Extract effects** - Extract `useEffect` in components to custom hooks (🟡 Default, ≤5 lines OK)
 22. **Pattern match** - Use ts-pattern over conditionals (🟡 Default)
 23. **Custom hooks for APIs** - Only for DOM/framework APIs, not business logic (🟡 Default)
 24. **Component composition** - Build flexible UIs with composition (🟢 Guideline)

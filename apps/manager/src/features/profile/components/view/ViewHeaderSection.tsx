@@ -60,7 +60,7 @@ export const ViewHeaderSection = ({
           <FavoriteButton name={name} />
           <ShareProfileDialog avatarUrl={avatarUrl} name={name} url={url} />
         </div>
-        <div className="-bottom-10 max-md:-translate-x-1/2 absolute left-1/2 size-24 md:left-6 md:size-36 lg:size-40">
+        <div className="-bottom-10 -translate-x-1/2 absolute left-1/2 size-24 md:size-36 lg:size-40">
           <div className="size-full overflow-hidden rounded-xl bg-gray-200 shadow-md ring-2 ring-white">
             <ImageFallback.Root className="contents">
               <ImageFallback.Image

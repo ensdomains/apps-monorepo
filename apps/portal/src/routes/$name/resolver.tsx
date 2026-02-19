@@ -1,6 +1,7 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import type { GetUnderlyingResolverReturnType } from '@ensdomains/ensjs/public/v2'
-import { createFileRoute, useParams } from '@tanstack/react-router'
+import { createFileRoute, Link, useParams } from '@tanstack/react-router'
+import { EditIcon } from 'lucide-react'
 import { type Address, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useConnection, useEnsResolver } from 'wagmi'
@@ -10,7 +11,10 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
+import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
+import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { DedicatedResolverBanner } from '@/features/resolver/components/DedicatedResolverBanner'
 import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
 import { ResolverNetwork } from '@/features/resolver/components/ResolverNetwork'
@@ -31,30 +35,45 @@ interface EditButtonsProps {
 }
 
 const EditButtons = ({ address, name }: EditButtonsProps) => {
-  const { data } = useQuery(getEnsOwnerQueryOptions({ name }))
+  const { data: ownerData } = useQuery(getEnsOwnerQueryOptions({ name }))
+  const registryQuery = useQuery(
+    getNameRegistriesQueryOptions({ name, network: 'namechainSepolia' }),
+  )
+  const currentNameRegistry = registryQuery.data?.registries?.[1]
+  const label = name.split('.')[0]
+  const roleQuery = useQuery({
+    ...getHasRolesQueryOptions({
+      registryAddress: currentNameRegistry ?? zeroAddress,
+      label,
+      roles: ['ROLE_SET_RESOLVER'],
+      account: address,
+    }),
+    enabled: !!address && !!currentNameRegistry,
+  })
 
-  if (data?.owner !== address) return null
+  const isOwner = ownerData?.owner === address
+  const hasSetResolverRole = roleQuery.data === true
+  const canChangeResolver = isOwner || hasSetResolverRole
 
-  return null
+  if (!canChangeResolver) return null
 
-  // return (
-  //   <div className="flex flex-row gap-2">
-  //     <button
-  //       type="button"
-  //       className="text-base font-medium flex flex-row gap-1 items-center px-4 py-2 bg-secondary hover:bg-gray-400 cursor-pointer h-[38px] rounded-sm"
-  //     >
-  //       <XIcon className="w-4 h-4" />
-  //       <span>Clear records</span>
-  //     </button>
-  //     <a
-  //       href="#change"
-  //       className="text-base font-medium flex flex-row gap-1 items-center px-4 py-2 bg-secondary hover:bg-gray-400 cursor-pointer h-[38px] rounded-sm"
-  //     >
-  //       <EditIcon className="w-4 h-4" />
-  //       <span>Change resolver</span>
-  //     </a>
-  //   </div>
-  // )
+  return (
+    <div className="flex flex-row gap-2">
+      {/* <button
+        type="button"
+        className="text-base font-medium flex flex-row gap-1 items-center px-4 py-2 bg-secondary hover:bg-gray-400 cursor-pointer h-[38px] rounded-sm"
+      >
+        <XIcon className="w-4 h-4" />
+        <span>Clear records</span>
+      </button> */}
+      <Button variant="outline" className="flex items-center gap-2" asChild>
+        <Link to="/$name/change-resolver" params={{ name }}>
+          <EditIcon className="size-4" />
+          Change resolver
+        </Link>
+      </Button>
+    </div>
+  )
 }
 
 const sepoliaUrl = sepolia.blockExplorers.default.url
@@ -87,7 +106,7 @@ const UnderlyingResolverInfo = ({
           <div className="flex flex-row flex-wrap gap-y-4 gap-x-6">
             <ResolverPrimaryName resolverAddress={data[0]} />
             <ResolverType resolverAddress={data[0]} />
-            <ResolverNetwork resolverAddress={data[0]} />
+            <ResolverNetwork />
           </div>
           <ResolverDetails
             resolverAddress={data[0]}
@@ -120,7 +139,7 @@ const UnderlyingResolverInfo = ({
           <h2 className="font-medium text-2xl">L1 Resolver</h2>
           <div className="flex flex-row gap-6">
             <ResolverType resolverAddress={data[0]} />
-            <ResolverNetwork resolverAddress={data[0]} />
+            <ResolverNetwork />
           </div>
           <ResolverDetails
             resolverAddress={data[0]}

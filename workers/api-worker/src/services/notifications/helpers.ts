@@ -4,19 +4,12 @@ import { logger } from '#utils/logger.js'
 const channelSanitizers = {
   email: (target, data) => {
     if (!target) {
-      logger.warn('Email target is undefined', { target, data })
+      logger.warn('Email target is undefined', {
+        hasData: Boolean(data),
+      })
       return 'Unknown Email'
     }
-    // sanitize email by only showing the domain and the first letter of the username
-    const parts = target.split('@')
-    if (parts.length !== 2) {
-      logger.warn('Email target is invalid', { target, data })
-      return 'Unknown Email'
-    }
-    const username = parts[0]
-    const domain = parts[1]
-
-    return `${username.slice(0, 1)}${'*'.repeat(username.length - 1)}@${domain}`
+    return target
   },
   telegram: (_target, data) => {
     return `@${data.username}`

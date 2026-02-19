@@ -12,6 +12,8 @@ export type MessageCardProps = {
     label: string
     onClick?: () => void
     href?: string
+    /** Opens link in a new tab */
+    external?: boolean
     variant?: React.ComponentProps<typeof Button>['variant']
   }
   className?: string
@@ -39,7 +41,7 @@ export function MessageCard({
         </Badge>
       )}
 
-      <div className="flex flex-col items-center gap-4 text-center w-full">
+      <div className="flex flex-col items-center gap-3 text-center w-full">
         <div className="flex items-center justify-center">{icon}</div>
 
         <h2 className="text-2xl font-bold">{title}</h2>
@@ -57,7 +59,15 @@ export function MessageCard({
           className="mt-2"
         >
           {actionButton.href ? (
-            <a href={actionButton.href}>{actionButton.label}</a>
+            <a
+              href={actionButton.href}
+              {...(actionButton.external && {
+                target: '_blank',
+                rel: 'noopener noreferrer',
+              })}
+            >
+              {actionButton.label}
+            </a>
           ) : (
             actionButton.label
           )}

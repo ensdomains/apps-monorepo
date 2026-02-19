@@ -82,7 +82,7 @@ export const deliverEmailNotification = ResultFn(async function* (
     })
     .where(eq(TABLE.notificationDeliveries.id, job.id))
 
-  logger.info('Email notification delivered', {
+  logger.debug('Email notification delivered', {
     jobId: job.id,
     kind: job.kind,
     templateId: templateData.templateId,

@@ -9,7 +9,7 @@ describe('InvalidNameMessage', () => {
     expect(screen.getByText('Invalid name')).toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: 'visit our support' }),
-    ).toHaveAttribute('href', 'https://support.ens.domains/e')
+    ).toHaveAttribute('href', 'https://support.ens.domains/en/')
   })
 
   it('renders custom title and description', () => {

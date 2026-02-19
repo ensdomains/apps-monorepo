@@ -1,23 +1,34 @@
-import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
+import type { GetRecordHistoryParameters } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import { SearchIcon, TrashIcon } from 'lucide-react'
-import { ExternalLink } from 'react-external-link'
 import { zeroAddress } from 'viem'
 import type { Address } from 'viem/accounts'
 import { useEnsResolver } from 'wagmi'
+import { CopyableRecord } from '@/components/CopyableRecord'
 import { DataTable } from '@/components/DataTable'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
+import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
 import { ResolverField } from '@/features/resolver/components/ResolverField'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import {
+  filterV2EventsByRecord,
+  type HistoryEvent,
+  sortHistoryEvents,
+  transformV1Events,
+  transformV2Events,
+} from '@/utils/history/transformRecordHistory'
 import { filterRecordHistoryByRecord } from '@/utils/subgraph/filterRecordHistoryByRecord'
 import { recordTypeToSubgraphKey } from '@/utils/subgraph/recordTypeToSubgraphKey'
+import type { EnsNetworkName } from '@/utils/types'
 import type { NameRecord } from './RecordsTable/columns'
 
 interface AddressRecordValueProps {
@@ -183,38 +194,65 @@ const ResolverView = ({ name }: ResolverViewProps) => {
   )
 }
 
-const columns: ColumnDef<ReturnResolverEvent>[] = [
+const columns: ColumnDef<HistoryEvent>[] = [
   {
-    header: 'Block',
-    accessorKey: 'blockNumber',
-    cell({ column, row }) {
-      const value = row.getValue(column.id) as number
-
-      return (
-        <ExternalLink href={`https://etherscan.io/block/${value}`}>
-          <span className="font-mono underline decoration-dashed underline-offset-4 hover:text-gray-600">
-            {value}
+    header: 'Date',
+    accessorKey: 'timestamp',
+    cell({ row }) {
+      const timestamp = row.original.timestamp
+      if (!timestamp) {
+        // Fallback to block number if no timestamp
+        return (
+          <span className="font-mono text-gray-500">
+            Block {row.original.blockNumber}
           </span>
-        </ExternalLink>
+        )
+      }
+      const date = new Date(timestamp * 1000)
+      return (
+        <span className="font-mono">
+          {new Intl.DateTimeFormat(undefined, {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          })
+            .format(date)
+            .replace(/-/g, '/')}
+        </span>
       )
     },
   },
   {
-    accessorFn: (val) => {
-      switch (val.type) {
-        case 'ContenthashChanged':
-          return val.contentHash
-        case 'TextChanged':
-          return `${val.key}: ${val.value ?? 'null'}`
-        case 'AddrChanged':
-        case 'MulticoinAddrChanged':
-          return val.addr
-      }
+    header: 'Transaction',
+    accessorKey: 'transactionHash',
+    cell({ row }) {
+      const txHash = row.original.transactionHash
+      return (
+        <CopyableRecord
+          value={txHash}
+          displayValue={
+            <span className="font-mono">{truncateAddress(txHash)}</span>
+          }
+          className="text-sm underline decoration-dashed underline-offset-4"
+          href={`https://sepolia.etherscan.io/tx/${txHash}`}
+        />
+      )
     },
-    header: 'Value',
+  },
+  {
+    header: 'Type',
+    accessorKey: 'type',
     cell({ column, row }) {
       const value = row.getValue(column.id) as string
       return <span className="font-mono">{value}</span>
+    },
+  },
+  {
+    header: 'Value',
+    accessorKey: 'value',
+    cell({ column, row }) {
+      const value = row.getValue(column.id) as string | undefined
+      return <span className="font-mono">{value ?? '-'}</span>
     },
   },
 ]
@@ -222,33 +260,103 @@ const columns: ColumnDef<ReturnResolverEvent>[] = [
 interface HistoryViewProps {
   name: string
   record: NameRecord
+  network?: EnsNetworkName
 }
 
-const HistoryView = ({ name, record }: HistoryViewProps) => {
-  const {
-    data: history,
-    isLoading,
-    error,
-  } = useQuery(
-    getRecordHistoryQueryOptions({
-      name,
-      key: recordTypeToSubgraphKey(record.type),
-    }),
-  )
+const HistoryView = ({ name, record, network }: HistoryViewProps) => {
+  const isV1 = network === 'sepolia'
+  const isV2 = network === 'namechainSepolia'
 
-  if (error) {
-    return <div>History Error: {error.cause?.message || error.message}</div>
+  // Only query V1 history for V1 names, V2 history for V2 names
+  // If network is undefined, we don't know which to query yet
+  const v1HistoryQuery = useQuery({
+    ...getRecordHistoryQueryOptions({
+      name,
+      key: recordTypeToSubgraphKey(
+        record.type,
+      ) as GetRecordHistoryParameters['key'],
+    }),
+    enabled: isV1,
+  })
+
+  const v2HistoryQuery = useQuery({
+    ...getV2NameHistoryQueryOptions({ name }),
+    enabled: isV2,
+  })
+
+  // Filter V1 events (need to do this before fetching timestamps)
+  const filteredV1Events = isV1
+    ? filterRecordHistoryByRecord(v1HistoryQuery.data || [], record)
+    : []
+
+  // Fetch timestamps for V1 events (they don't include timestamps)
+  const v1BlockNumbers = filteredV1Events.map((e) => BigInt(e.blockNumber))
+  const { data: blockTimestamps, isLoading: isLoadingTimestamps } =
+    useBlockTimestamps({
+      blocks: v1BlockNumbers,
+      enabled: isV1 && v1BlockNumbers.length > 0,
+    })
+
+  // Handle loading and error states
+  if (!network) {
+    return <LoadingSpinner title="Loading..." />
   }
 
-  if (isLoading) return <LoadingSpinner title="Loading..." />
+  if (isV1) {
+    if (v1HistoryQuery.isLoading) {
+      return <LoadingSpinner title="Loading history..." />
+    }
+    if (v1BlockNumbers.length > 0 && isLoadingTimestamps) {
+      return <LoadingSpinner title="Loading timestamps..." />
+    }
+    if (v1HistoryQuery.error) {
+      return (
+        <div>
+          History Error:{' '}
+          {v1HistoryQuery.error.cause?.message || v1HistoryQuery.error.message}
+        </div>
+      )
+    }
+  } else {
+    if (v2HistoryQuery.isLoading) {
+      return <LoadingSpinner title="Loading history..." />
+    }
+    if (v2HistoryQuery.error) {
+      return (
+        <div>
+          History Error:{' '}
+          {v2HistoryQuery.error.cause?.message || v2HistoryQuery.error.message}
+        </div>
+      )
+    }
+  }
+
+  // Transform V1 events with fetched timestamps
+  const v1Events = isV1
+    ? transformV1Events(filteredV1Events, blockTimestamps)
+    : []
+
+  // Filter and transform V2 events (they already have timestamps)
+  const filteredV2Events = isV2
+    ? filterV2EventsByRecord(v2HistoryQuery.data || [], record)
+    : []
+  const v2Events = isV2 ? transformV2Events(filteredV2Events) : []
+
+  // Merge and sort by timestamp (descending), fallback to block number
+  const allEvents = sortHistoryEvents([...v1Events, ...v2Events])
+
+  const hasNoHistory = allEvents.length === 0
 
   return (
     <div className="flex flex-col gap-6 p-6 border border-gray-300 rounded-lg">
       <h3 className="text-2xl font-medium">History</h3>
-      <DataTable
-        data={filterRecordHistoryByRecord(history || [], record)}
-        columns={columns}
-      />
+      {hasNoHistory ? (
+        <p className="text-gray-500 text-sm py-4">
+          No history available for this record.
+        </p>
+      ) : (
+        <DataTable data={allEvents} columns={columns} />
+      )}
     </div>
   )
 }
@@ -277,9 +385,14 @@ const RecordDetailsView = ({
 interface RecordDetailsProps {
   record: NameRecord
   name: string
+  network?: EnsNetworkName
 }
 
-export const RecordDetails = ({ record, name }: RecordDetailsProps) => {
+export const RecordDetails = ({
+  record,
+  name,
+  network,
+}: RecordDetailsProps) => {
   const { data: canEditRecords } = useCanEditRecords({ name })
 
   return (
@@ -296,7 +409,7 @@ export const RecordDetails = ({ record, name }: RecordDetailsProps) => {
       </SheetHeader>
       <RecordDetailsView {...{ record, canEditRecords }} />
       <ResolverView name={name} />
-      <HistoryView {...{ name, record }} />
+      <HistoryView {...{ name, record, network }} />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, Link, useParams } from '@tanstack/react-router'
-import { AlertCircle, ArrowLeftIcon } from 'lucide-react'
+import { createFileRoute, useParams } from '@tanstack/react-router'
+import { AlertCircle } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
@@ -8,8 +8,8 @@ import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
 import { DeployRegistryForm } from '@/features/registry/components/DeployRegistryForm'
+import { DeployRegistryHeader } from '@/features/registry/components/DeployRegistryHeader'
 import { DeployTransactionStatus } from '@/features/registry/components/DeployTransactionStatus'
 import { SetSubregistryTransactionStatus } from '@/features/registry/components/SetSubregistryTransactionStatus'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
@@ -72,18 +72,22 @@ function RouteComponent() {
     ? namechainUserRegistryAddress
     : sepoliaUserRegistryAddress
 
-  const currentNameRegistry = registryData?.registries.at(-2) ?? null
-  const finalFactoryAddress = useCustomRegistry
-    ? (contractAddress as Address)
-    : factoryAddress
+  // For custom registry: pass the address as customSubregistryAddress (skip deploy)
+  // For normal flow: use the factory to deploy a new subregistry
+  const customSubregistryAddress =
+    useCustomRegistry && contractAddress.trim()
+      ? (contractAddress as Address)
+      : null
 
   const { deploySubregistry, deployState, setSubregistryState, hasWallet } =
     useSubregistryDeployment({
       name,
-      factoryAddress: finalFactoryAddress,
+      factoryAddress,
       implAddress,
-      currentNameRegistry,
+      // Use parentRegistry (registries[1]) - the registry that manages this name
+      currentNameRegistry: parentRegistry,
       protocolVersion: registryData?.protocolVersion ?? null,
+      customSubregistryAddress,
     })
 
   const isSubmitDisabled =
@@ -134,15 +138,7 @@ function RouteComponent() {
 
     return (
       <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
-        <Link to="/$name/registry" params={{ name }}>
-          <Button variant="ghost" className="flex items-center gap-2 -ml-2">
-            <ArrowLeftIcon className="size-4" />
-            Back
-          </Button>
-        </Link>
-        <h1 className="text-[28px] font-medium leading-none">
-          Deploy registry
-        </h1>
+        <DeployRegistryHeader name={name} />
         <Alert variant="destructive" className="max-w-full">
           <AlertCircle />
           <AlertTitle>Error</AlertTitle>
@@ -158,15 +154,7 @@ function RouteComponent() {
   if (registryData?.protocolVersion === 'ENSv1') {
     return (
       <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
-        <Link to="/$name/registry" params={{ name }}>
-          <Button variant="ghost" className="flex items-center gap-2 -ml-2">
-            <ArrowLeftIcon className="size-4" />
-            Back
-          </Button>
-        </Link>
-        <h1 className="text-[28px] font-medium leading-none">
-          Deploy registry
-        </h1>
+        <DeployRegistryHeader name={name} />
         <Alert className="max-w-full">
           <AlertCircle />
           <AlertTitle>Not Available for V1 Names</AlertTitle>
@@ -187,15 +175,7 @@ function RouteComponent() {
   if (connectedAddress && !hasSetSubregistryRole) {
     return (
       <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
-        <Link to="/$name/registry" params={{ name }}>
-          <Button variant="ghost" className="flex items-center gap-2 -ml-2">
-            <ArrowLeftIcon className="size-4" />
-            Back
-          </Button>
-        </Link>
-        <h1 className="text-[28px] font-medium leading-none">
-          Deploy registry
-        </h1>
+        <DeployRegistryHeader name={name} />
         <ErrorMessage
           title="Permission Denied"
           description={
@@ -216,15 +196,7 @@ function RouteComponent() {
   if (!connectedAddress) {
     return (
       <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
-        <Link to="/$name/registry" params={{ name }}>
-          <Button variant="ghost" className="flex items-center gap-2 -ml-2">
-            <ArrowLeftIcon className="size-4" />
-            Back
-          </Button>
-        </Link>
-        <h1 className="text-[28px] font-medium leading-none">
-          Deploy registry
-        </h1>
+        <DeployRegistryHeader name={name} />
         <ErrorMessage
           title="Wallet Not Connected"
           description="Please connect your wallet to deploy or change a registry."
@@ -235,14 +207,7 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-6 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
-      <Link to="/$name/registry" params={{ name }}>
-        <Button variant="ghost" className="flex items-center gap-2 -ml-2">
-          <ArrowLeftIcon className="size-4" />
-          Back
-        </Button>
-      </Link>
-
-      <h1 className="text-[28px] font-medium leading-none">Deploy registry</h1>
+      <DeployRegistryHeader name={name} />
 
       <DeployRegistryForm
         useCustomRegistry={useCustomRegistry}

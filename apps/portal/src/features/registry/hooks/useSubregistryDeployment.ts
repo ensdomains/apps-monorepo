@@ -3,12 +3,14 @@ import {
   type transactionMachine,
   transactionManager,
 } from '@ens-apps/transaction-manager'
+import { setSubregistryWriteParameters } from '@ensdomains/ensjs/wallet'
 import { useSelector } from '@xstate/react'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
-import { sepolia } from 'viem/chains'
+import type { Address } from 'viem'
+import { encodeFunctionData } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
-import type { SnapshotFrom } from 'xstate'
+import type { ActorRefFrom, SnapshotFrom } from 'xstate'
 import {
   type SubregistryDeploymentActor,
   startSubregistryDeployment,
@@ -23,6 +25,7 @@ import {
   isHash,
   isTransactionReceipt,
 } from '@/features/registry/utils/type-guards'
+import { namechainSepolia } from '@/lib/wagmi'
 
 const IDLE_STATE: TransactionState = { status: 'idle' }
 
@@ -198,6 +201,9 @@ function deriveStatesFromOperation(
  * The actor is created lazily when deploySubregistry is called,
  * not on component mount. This ensures the machine only runs
  * when the user initiates a deployment.
+ *
+ * If customSubregistryAddress is provided, skips the deploy step and
+ * directly calls setSubregistry to link the custom address.
  */
 export function useSubregistryDeployment({
   name,
@@ -205,21 +211,43 @@ export function useSubregistryDeployment({
   implAddress,
   currentNameRegistry,
   protocolVersion,
+  customSubregistryAddress,
 }: UseSubregistryDeploymentParams) {
-  const { data: walletClient } = useWalletClient({ chainId: sepolia.id })
-  const publicClient = usePublicClient({ chainId: sepolia.id })
+  // V2 subregistry deployment only works on Namechain Sepolia
+  const chainId = namechainSepolia.id
+  const { data: walletClient } = useWalletClient({ chainId })
+  const publicClient = usePublicClient({ chainId })
 
-  // Actor is created lazily when deployment starts
+  // Actor is created lazily when deployment starts (for full deploy flow)
   const [actor, setActor] = useState<SubregistryDeploymentActor | undefined>(
     undefined,
   )
 
+  // Transaction actor for custom subregistry flow (setSubregistry only)
+  type TransactionActor = ActorRefFrom<typeof transactionMachine>
+  const [customTxActor, setCustomTxActor] = useState<
+    TransactionActor | undefined
+  >(undefined)
+
   // Subscribe to operation state (useSelector handles null actor)
   const operationState = useSelector(actor, selectOperationState)
 
-  // Derive individual transaction states
-  const { deployState, setSubregistryState } =
-    deriveStatesFromOperation(operationState)
+  // Subscribe to custom transaction actor state (for reactive updates)
+  const customTxSnapshot = useSelector(customTxActor, (snapshot) => snapshot)
+  const customTxData = selectTransactionData(customTxSnapshot)
+  const customSetSubregistryState = deriveTransactionState(customTxData)
+
+  // Derive individual transaction states from machine (for full deploy flow)
+  const machineStates = deriveStatesFromOperation(operationState)
+
+  // Use appropriate states based on whether we're in custom mode
+  const isCustomMode = !!customSubregistryAddress
+  const deployState = isCustomMode
+    ? ({ status: 'success' } as TransactionState) // Skip deploy for custom
+    : machineStates.deployState
+  const setSubregistryState = isCustomMode
+    ? customSetSubregistryState
+    : machineStates.setSubregistryState
 
   const deploySubregistry = () => {
     if (!walletClient || !publicClient || !currentNameRegistry) {
@@ -233,9 +261,60 @@ export function useSubregistryDeployment({
       return
     }
 
+    const label = name.split('.')[0]
     const signer = createEOASigner(walletClient)
 
-    // Start the deployment and store the actor reference
+    // Custom subregistry flow: skip deploy, directly call setSubregistry
+    if (customSubregistryAddress) {
+      const writeParams = setSubregistryWriteParameters(
+        walletClient as Parameters<typeof setSubregistryWriteParameters>[0],
+        {
+          registryAddress: currentNameRegistry,
+          label,
+          subregistryAddress: customSubregistryAddress,
+        },
+      )
+
+      const data = encodeFunctionData({
+        abi: writeParams.abi,
+        functionName: writeParams.functionName,
+        args: writeParams.args,
+      })
+
+      if (!walletClient.account) {
+        console.error('Wallet client has no account')
+        return
+      }
+
+      const txId = transactionManager.startTransaction(
+        {
+          type: 'custom',
+          request: {
+            type: 'eoa',
+            from: walletClient.account.address,
+            to: writeParams.address as Address,
+            data,
+            chainId,
+            gas: 500000n,
+          },
+        },
+        signer,
+        {
+          description: `Set custom subregistry for ${name}`,
+          publicClient,
+          timeout: 120000,
+        },
+      )
+
+      // Get the transaction actor for reactive state updates
+      const txActor = transactionManager.getTransaction(txId)
+      if (txActor) {
+        setCustomTxActor(txActor as TransactionActor)
+      }
+      return
+    }
+
+    // Full deploy flow: use the XState machine
     const deploymentActor = startSubregistryDeployment({
       name,
       factoryAddress,
@@ -244,7 +323,7 @@ export function useSubregistryDeployment({
       signer,
       publicClient,
       walletClient,
-      chainId: sepolia.id,
+      chainId,
     })
 
     setActor(deploymentActor)
