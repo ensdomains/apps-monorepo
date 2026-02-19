@@ -142,7 +142,7 @@ export const InteractiveExample = {
 }
 
 // Byte-tier font scaling stories (Tier 0-3)
-export const ByteLengthTier0: Story = {
+export const ByteLengthTier0 = {
   render: () => (
     <div className="flex max-w-xl flex-col gap-4">
       <div>
@@ -163,7 +163,7 @@ export const ByteLengthTier0: Story = {
   ),
 }
 
-export const ByteLengthTier1: Story = {
+export const ByteLengthTier1 = {
   render: () => (
     <div className="flex max-w-xl flex-col gap-4">
       <div>
@@ -190,7 +190,7 @@ export const ByteLengthTier1: Story = {
   ),
 }
 
-export const ByteLengthTier2: Story = {
+export const ByteLengthTier2 = {
   render: () => (
     <div className="flex max-w-xl flex-col gap-4">
       <div>
@@ -217,7 +217,7 @@ export const ByteLengthTier2: Story = {
   ),
 }
 
-export const ByteLengthTier3: Story = {
+export const ByteLengthTier3 = {
   render: () => (
     <div className="flex max-w-xl flex-col gap-4">
       <div>
@@ -240,7 +240,7 @@ export const ByteLengthTier3: Story = {
 }
 
 // Multi-byte character showcase
-export const MultiByteCardExamples: Story = {
+export const MultiByteCardExamples = {
   render: () => (
     <div className="flex max-w-xl flex-col gap-4">
       <div>
@@ -281,7 +281,7 @@ export const MultiByteCardExamples: Story = {
 }
 
 // Complete tier comparison
-export const ByteTierComparison: Story = {
+export const ByteTierComparison = {
   render: () => (
     <div className="space-y-6">
       <h3 className="font-semibold text-lg">Font Size by Byte Length Tiers</h3>

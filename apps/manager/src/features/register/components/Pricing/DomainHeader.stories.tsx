@@ -182,7 +182,7 @@ export const WithPremiumLabel4Char: Story = {
 }
 
 // Comparison stories showing all tiers
-export const AllTiersComparison: Story = {
+export const AllTiersComparison = {
   render: () => (
     <div className="space-y-12">
       <div>
@@ -236,7 +236,7 @@ export const AllTiersComparison: Story = {
 }
 
 // Multi-byte character showcase
-export const MultiByteShowcase: Story = {
+export const MultiByteShowcase = {
   render: () => (
     <div className="space-y-8">
       <div>
@@ -295,7 +295,7 @@ export const MultiByteShowcase: Story = {
 }
 
 // Premium with different tiers
-export const PremiumAcrossTiers: Story = {
+export const PremiumAcrossTiers = {
   render: () => (
     <div className="space-y-8">
       <div>
