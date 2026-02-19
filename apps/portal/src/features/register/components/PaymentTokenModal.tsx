@@ -41,11 +41,11 @@ const PAYMENT_TOKENS = [
 ] as const
 
 type PaymentTokenModalProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  name: string
-  duration: number
-  onConfirm: (selectedToken: Address, tokenPrice: bigint) => void
+  readonly open: boolean
+  readonly onOpenChange: (open: boolean) => void
+  readonly name: string
+  readonly duration: number
+  readonly onConfirm: (selectedToken: Address, tokenPrice: bigint) => void
 }
 
 export const PaymentTokenModal = ({

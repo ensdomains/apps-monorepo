@@ -6,9 +6,9 @@ import {
 } from '@/components/ui/sheet'
 
 type TemporaryPremiumDrawerProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  currentPremium: string
+  readonly open: boolean
+  readonly onOpenChange: (open: boolean) => void
+  readonly currentPremium: string
 }
 
 /**

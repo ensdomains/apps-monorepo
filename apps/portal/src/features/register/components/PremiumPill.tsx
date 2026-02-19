@@ -3,9 +3,9 @@ import { cn } from '@/lib/utils'
 export type PremiumPillVariant = 'premium-3' | 'premium-4'
 
 export type PremiumPillProps = {
-  label: string
-  variant: PremiumPillVariant
-  className?: string
+  readonly label: string
+  readonly variant: PremiumPillVariant
+  readonly className?: string
 }
 
 const variantStyles: Record<PremiumPillVariant, string> = {

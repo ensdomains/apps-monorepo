@@ -10,9 +10,9 @@ import { RegistrationDurationPicker } from './RegistrationDurationPicker'
 import { RegistrationExpiryDatePicker } from './RegistrationExpiryDatePicker'
 
 type RegisterNameFormProps = {
-  name: string
-  duration: number
-  setDuration: (duration: number) => void
+  readonly name: string
+  readonly duration: number
+  readonly setDuration: (duration: number) => void
 }
 
 enum RegistrationSpanType {

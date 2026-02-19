@@ -142,8 +142,8 @@ export const RegisterNameCheckoutSummary = ({
 }
 
 type PriceBreakdownSkeletonProps = {
-  durationLabel: string
-  premiumLabel: ReturnType<typeof getPremiumLabel>
+  readonly durationLabel: string
+  readonly premiumLabel: ReturnType<typeof getPremiumLabel>
 }
 
 const PriceBreakdownSkeleton = ({
@@ -181,7 +181,7 @@ const PriceBreakdownSkeleton = ({
         </dd>
       </div>
       <div className="flex items-center justify-between">
-        <dt className="text-base font-normal">Network fee</dt>
+        <dt className="text-base font-normal">Est. network fee</dt>
         <dd className="flex items-center gap-1 m-0 text-muted-foreground text-sm">
           <span className="font-mono">~{formatUsd(EST_GAS_USD)}</span>
           <span className="text-xs">USD</span>
@@ -278,7 +278,7 @@ const PriceBreakdown = ({
         </div>
 
         <div className="flex items-center justify-between">
-          <dt className="text-base font-normal">Network fee</dt>
+          <dt className="text-base font-normal">Est. network fee</dt>
           <dd className="flex items-center gap-1 m-0 text-muted-foreground text-sm">
             <span className="font-mono">~{formatUsd(EST_GAS_USD)}</span>
             <span className="text-xs">USD</span>

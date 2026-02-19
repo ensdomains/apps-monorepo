@@ -30,7 +30,7 @@ function addressToToken(address: Address): 'USDC' | 'DAI' {
 }
 
 type RegisterNameProps = {
-  name: string
+  readonly name: string
 }
 
 export const RegisterName = ({ name }: RegisterNameProps) => {

@@ -5,9 +5,9 @@ import type { ActorRefFrom } from 'xstate'
 import { Button } from '@/components/ui/button'
 
 type RegistrationProgressProps = {
-  domainName: string
-  actor: ActorRefFrom<typeof registrationMachine>
-  onViewProfile: () => void
+  readonly domainName: string
+  readonly actor: ActorRefFrom<typeof registrationMachine>
+  readonly onViewProfile: () => void
 }
 
 function mapStateToLabel(stateValue: string | Record<string, unknown>): string {
