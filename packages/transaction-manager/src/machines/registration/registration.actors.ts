@@ -311,7 +311,7 @@ export function submitResolverDeploymentActor(input: {
 }): ResultAsync<{ txId: string; salt: bigint }, Error> {
   return ResultAsync.fromSafePromise(
     Promise.resolve().then(() => {
-      const smartAccountAddress = getSignerAddress(input.signer)
+      const accountAddress = getSignerAddress(input.signer)
       const salt = generateResolverSalt(input.name)
       const initCalldata = getResolverInitCalldata(input.owner)
 
@@ -323,7 +323,7 @@ export function submitResolverDeploymentActor(input: {
 
       const request = createTransactionRequest({
         signer: input.signer,
-        from: smartAccountAddress,
+        from: accountAddress,
         to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
         data: deployCalldata,
         value: 0n,
@@ -431,7 +431,7 @@ export function submitCommitmentActor(input: {
         },
       )
 
-      const smartAccountAddress = getSignerAddress(input.signer)
+      const accountAddress = getSignerAddress(input.signer)
 
       const commitmentData = encodeCommitmentData(input.commitment.commitment)
 
@@ -442,7 +442,7 @@ export function submitCommitmentActor(input: {
 
       const request = createTransactionRequest({
         signer: input.signer,
-        from: smartAccountAddress,
+        from: accountAddress,
         to: registrarAddress,
         data: commitmentData,
         value: 0n,
@@ -611,7 +611,7 @@ export function submitApprovalActor(input: {
 
   return ResultAsync.fromSafePromise(
     Promise.resolve().then(() => {
-      const smartAccountAddress = getSignerAddress(input.signer)
+      const accountAddress = getSignerAddress(input.signer)
 
       const tokenAddress = getPaymentTokenAddress(input.selectedToken)
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
@@ -627,7 +627,7 @@ export function submitApprovalActor(input: {
 
       const request = createTransactionRequest({
         signer: input.signer,
-        from: smartAccountAddress,
+        from: accountAddress,
         to: normalizedTokenAddress,
         data: approvalData,
         value: 0n,
@@ -680,7 +680,7 @@ export function submitRegistrationActor(input: {
 
   return fromPromise(
     (async () => {
-      const smartAccountAddress = getSignerAddress(input.signer)
+      const accountAddress = getSignerAddress(input.signer)
 
       const paymentToken = getPaymentTokenAddress(input.selectedToken)
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
@@ -719,7 +719,7 @@ export function submitRegistrationActor(input: {
 
       const request = createTransactionRequest({
         signer: input.signer,
-        from: smartAccountAddress,
+        from: accountAddress,
         to: registrarAddress,
         data: registrationData,
         value: 0n,
