@@ -1,4 +1,4 @@
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
 import { useCallback } from 'react'
@@ -112,7 +112,6 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     enabled: Boolean(hasSubregistry),
   })
 
-  // We pass zeroAddress as fallback when subregistry is not yet known.
   const { deleteSubnameAsync } = useDeleteSubname({
     name,
     registryAddress: (subregistryAddress as Address) ?? zeroAddress,
@@ -133,19 +132,6 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     [name],
   )
 
-  // Check ROLE_BURN per-subname (resource-scoped, not root)
-  const burnRoleQueries = useQueries({
-    queries: (subnames ?? []).map((subname) => ({
-      ...getHasRolesQueryOptions({
-        registryAddress: subregistryAddress as Address,
-        label: getLabel(subname.name ?? ''),
-        roles: ['ROLE_BURN' as const],
-        account: connectedAccount as Address,
-      }),
-      enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
-    })),
-  })
-
   const handleDeleteSubname = useCallback(
     (subname: SubnameRow) => {
       deleteSubnameAsync({
@@ -159,7 +145,6 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
 
   const handleClearSelected = useCallback(
     async (selected: SubnameRow[]) => {
-      // Delete sequentially to avoid nonce conflicts
       for (const subname of selected) {
         await deleteSubnameAsync({
           subname: subname.name,
@@ -206,10 +191,14 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     )
   }
 
-  const subnameRows: SubnameRow[] = (subnames || []).map((subname, i) => ({
+  // TODO: ROLE_BURN check via hasRoles on the subregistry gives false positives.
+  // The hasRoles view function returns true, but the burn call reverts.
+  // Disabled until ROLE_BURN can be properly granted on the subregistry
+  // and the hasRoles check reliably matches the burn permission.
+  const subnameRows: SubnameRow[] = (subnames || []).map((subname) => ({
     name: subname.name || '',
     owner: subname.owner,
-    canDelete: Boolean(burnRoleQueries[i]?.data),
+    canDelete: false,
   }))
 
   const canCreateSubname = Boolean(hasRegistrarRole)

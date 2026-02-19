@@ -1,15 +1,9 @@
 /**
  * Pure async function to delete (burn) a subname from an ENS V2 registry.
  *
- * Follows the same pattern as changeResolver:
- * 1. Get tokenId from registry (getRegistryNameData)
- * 2. Encode ERC-1155 burn call with the real tokenId
- * 3. Submit via transaction manager
- * 4. Wait for confirmation
- *
- * IMPORTANT: We must query the actual tokenId from the registry rather than
- * using labelhash directly, because token IDs can change via regeneration.
- * This is the same approach changeResolver uses.
+ * Uses ensjs deleteSubnameV2WriteParameters to build the burn call after
+ * resolving the actual token ID via getTokenId(labelhash(label)).
+ * The burn also requires the caller to hold ROLE_BURN for the subname.
  */
 
 import {
@@ -17,12 +11,13 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { erc1155BurnSnippet } from '@ensdomains/ensjs/contracts'
-import { getRegistryNameData } from '@ensdomains/ensjs/public/v2'
+import { permissionedRegistryGetTokenIdSnippet } from '@ensdomains/ensjs/contracts'
+import { deleteSubnameV2WriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import {
   type Address,
   encodeFunctionData,
   type Hex,
+  labelhash,
   type PublicClient,
   type WalletClient,
 } from 'viem'
@@ -58,8 +53,8 @@ export interface DeleteSubnameResult {
 /**
  * Delete a subname by burning its ERC-1155 token in the parent registry.
  *
- * Queries the real tokenId from the registry first (same as changeResolver),
- * then encodes a burn call with that tokenId.
+ * Resolves the actual token ID via ensjs's permissionedRegistryGetTokenIdSnippet,
+ * then builds the burn call using deleteSubnameV2WriteParameters.
  *
  * @throws Error if wallet not connected, name not found, or transaction fails
  */
@@ -81,34 +76,34 @@ export const deleteSubname = async (
     throw new Error('Wallet client must have account and chain configured')
   }
 
-  // Step 1: Get the real tokenId from the registry (same as changeResolver)
-  const [tokenId] = await getRegistryNameData(publicClient, {
-    registryAddress,
-    label,
+  const tokenId = await publicClient.readContract({
+    address: registryAddress,
+    abi: permissionedRegistryGetTokenIdSnippet,
+    functionName: 'getTokenId',
+    args: [BigInt(labelhash(label))],
   })
 
   if (tokenId === 0n) {
     throw new Error(`Name "${name}" not found in registry`)
   }
 
-  console.log('[deleteSubname] Registry lookup:', {
+  const writeParams = deleteSubnameV2WriteParameters(
+    walletClient as Parameters<typeof deleteSubnameV2WriteParameters>[0],
+    { registryAddress, label, owner, tokenId },
+  )
+
+  const data = encodeFunctionData({
+    abi: writeParams.abi,
+    functionName: writeParams.functionName,
+    args: writeParams.args,
+  })
+
+  console.log('[deleteSubname] Burn:', {
     label,
     registryAddress,
     tokenId: tokenId.toString(),
-  })
-
-  // Step 2: Encode burn(owner, tokenId, 1) using the real tokenId
-  const data = encodeFunctionData({
-    abi: erc1155BurnSnippet,
-    functionName: 'burn',
-    args: [owner, tokenId, 1n],
-  })
-
-  console.log('[deleteSubname] Encoded transaction:', {
     from: walletClient.account.address,
-    to: registryAddress,
     owner,
-    tokenId: tokenId.toString(),
     chainId,
   })
 
