@@ -5,9 +5,9 @@ import { cn } from '@/lib/utils'
 export type AddressSuggestionCardVariant = 'compact' | 'card'
 
 export interface AddressSuggestionCardProps {
-  address: string
-  variant?: AddressSuggestionCardVariant
-  onClick?: () => void
+  readonly address: string
+  readonly variant?: AddressSuggestionCardVariant
+  readonly onClick?: () => void
 }
 
 export const AddressSuggestionCard = ({
@@ -29,12 +29,7 @@ export const AddressSuggestionCard = ({
       params={{ name: address }}
       to="/p/$name"
     >
-      <div
-        className={cn(
-          'flex w-full items-center',
-          isCompact ? 'gap-3' : 'gap-3',
-        )}
-      >
+      <div className={cn('flex w-full items-center gap-3')}>
         <div
           className={cn(
             'flex shrink-0 items-center justify-center rounded-full bg-slate-100',

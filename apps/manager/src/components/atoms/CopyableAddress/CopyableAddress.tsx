@@ -17,23 +17,18 @@ export const CopyableAddress = ({
   className,
   textClassName,
   truncate = false,
-}: CopyableAddressProps) => {
-  return (
-    <div className={cn('flex items-center gap-2', className)}>
-      <span className={cn('font-mono', textClassName)}>
-        {truncate ? (
-          shortenAddress(address)
-        ) : (
-          <>
-            <span className="md:hidden">{shortenAddress(address)}</span>
-            <span className="hidden md:inline">{address}</span>
-          </>
-        )}
-      </span>
-      <CopyToClipboard
-        className="size-4 text-muted-foreground"
-        value={address}
-      />
-    </div>
-  )
-}
+}: CopyableAddressProps) => (
+  <span className={cn('inline-flex items-center gap-2', className)}>
+    <span className={cn('font-mono', textClassName)}>
+      {truncate ? (
+        shortenAddress(address)
+      ) : (
+        <>
+          <span className="md:hidden">{shortenAddress(address)}</span>
+          <span className="hidden md:inline">{address}</span>
+        </>
+      )}
+    </span>
+    <CopyToClipboard className="size-4 text-muted-foreground" value={address} />
+  </span>
+)

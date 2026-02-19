@@ -65,10 +65,11 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
             className,
           )}
           data-loading={isLoading || undefined}
+          onChange={onChange}
           onKeyDown={handleKeyDown}
           ref={ref}
           type="text"
-          {...(value !== undefined && { value, onChange })}
+          {...(value !== undefined && { value })}
           {...props}
         />
         <Search

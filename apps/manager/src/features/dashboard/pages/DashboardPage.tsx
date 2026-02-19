@@ -80,7 +80,6 @@ export const DashboardPage = () => {
             (ownerAddress && (
               <CopyableAddress
                 address={ownerAddress}
-                className="inline-flex"
                 textClassName="font-serif text-[28px] leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]"
                 truncate={true}
               />
