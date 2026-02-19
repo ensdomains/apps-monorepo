@@ -390,20 +390,53 @@ describe('validateRecord', () => {
   })
 
   describe('ABI validation', () => {
-    it('accepts valid JSON object', () => {
-      const record: EditableRecord = {
-        type: 'abi',
-        value: '{"name":"test","type":"function","inputs":[]}',
-      }
-      expect(validateRecord(record)).toBeNull()
-    })
-
     it('accepts valid JSON array', () => {
       const record: EditableRecord = {
         type: 'abi',
         value: '[{"name":"test","type":"function","inputs":[]}]',
       }
       expect(validateRecord(record)).toBeNull()
+    })
+
+    it('accepts empty JSON array', () => {
+      const record: EditableRecord = {
+        type: 'abi',
+        value: '[]',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('accepts JSON array with multiple entries', () => {
+      const record: EditableRecord = {
+        type: 'abi',
+        value:
+          '[{"name":"foo","type":"function","inputs":[]},{"name":"bar","type":"event","inputs":[]}]',
+      }
+      expect(validateRecord(record)).toBeNull()
+    })
+
+    it('rejects JSON object (must be an array)', () => {
+      const record: EditableRecord = {
+        type: 'abi',
+        value: '{"name":"test","type":"function","inputs":[]}',
+      }
+      expect(validateRecord(record)).toContain('must be a JSON array')
+    })
+
+    it('rejects JSON string', () => {
+      const record: EditableRecord = {
+        type: 'abi',
+        value: '"hello"',
+      }
+      expect(validateRecord(record)).toContain('must be a JSON array')
+    })
+
+    it('rejects JSON number', () => {
+      const record: EditableRecord = {
+        type: 'abi',
+        value: '42',
+      }
+      expect(validateRecord(record)).toContain('must be a JSON array')
     })
 
     it('rejects invalid JSON', () => {
