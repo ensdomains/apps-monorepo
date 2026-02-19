@@ -347,6 +347,7 @@ export function submitResolverDeploymentActor(input: {
         {
           description: `Deploy dedicated resolver for ${input.name}.eth`,
           publicClient: input.publicClient,
+          timeout: 120_000,
         },
       )
 
@@ -465,6 +466,7 @@ export function submitCommitmentActor(input: {
         {
           description: `Commit to register ${input.name}.eth`,
           publicClient: input.publicClient,
+          timeout: 120_000,
         },
       )
 
@@ -649,6 +651,7 @@ export function submitApprovalActor(input: {
         {
           description: `Approve ${input.selectedToken} for registration`,
           publicClient: input.publicClient,
+          timeout: 120_000,
         },
       )
 
@@ -740,6 +743,7 @@ export function submitRegistrationActor(input: {
         {
           description: `Register ${input.name}.eth`,
           publicClient: input.publicClient,
+          timeout: 120_000,
         },
       )
 
