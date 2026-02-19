@@ -1,11 +1,11 @@
 import type { registrationMachine } from '@ens-apps/transaction-manager'
 import { useSelector } from '@xstate/react'
-import { AlertCircle, CheckCircle2, Info, Loader2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Info } from 'lucide-react'
 import { match } from 'ts-pattern'
 import type { ActorRefFrom } from 'xstate'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { Progress } from '@/components/ui/progress'
 
 type RegistrationProgressProps = {
   readonly domainName: string
@@ -52,6 +52,22 @@ function mapStateToProgressStage(
   }
 }
 
+const CANCEL_ALLOWED_STATES = new Set([
+  'settingUpRegistration',
+  'deployingResolver',
+  'waitingForResolverDeployment',
+  'preparingCommitment',
+  'committingTransaction',
+  'waitingForCommitment',
+  'commitmentCooldown',
+  'validatingCommitment',
+])
+
+function canCancel(stateValue: string | Record<string, unknown>): boolean {
+  if (typeof stateValue === 'object') return false
+  return CANCEL_ALLOWED_STATES.has(stateValue)
+}
+
 const STAGE_PROGRESS: Record<ProgressStage, number> = {
   settingUp: 33,
   approving: 66,
@@ -65,101 +81,58 @@ const STATE_MESSAGES: Record<
   { primary: string; description?: string }[]
 > = {
   settingUpRegistration: [
-    {
-      primary: 'Setting up registration',
-      description:
-        'Preparing your ENS name. ENS names make crypto addresses human-readable.',
-    },
+    { primary: 'Setting up', description: 'Preparing your name.' },
   ],
   deployingResolver: [
-    {
-      primary: 'Deploying resolver',
-      description:
-        'Setting up a dedicated resolver for your name. ENS names are stored on-chain as NFTs.',
-    },
+    { primary: 'Getting your name ready', description: 'Please wait...' },
   ],
   waitingForResolverDeployment: [
-    {
-      primary: 'Waiting for resolver deployment',
-      description:
-        'Confirming on-chain. Over 2 million ENS names have been registered.',
-    },
+    { primary: 'Confirming', description: 'This usually takes a moment.' },
   ],
   preparingCommitment: [
-    {
-      primary: 'Preparing commitment',
-      description:
-        'Commit-reveal prevents front-running and ensures fair registration.',
-    },
+    { primary: 'Preparing', description: 'Almost ready for the next step.' },
   ],
   committingTransaction: [
-    {
-      primary: 'Committing',
-      description:
-        'Waiting for your wallet signature. ENS names can be up to 255 characters.',
-    },
+    { primary: 'Check your wallet', description: 'Approve the transaction.' },
   ],
   waitingForCommitment: [
-    {
-      primary: 'Confirming commitment',
-      description:
-        'Transaction is being confirmed. You can set multiple records: ETH, BTC, email.',
-    },
+    { primary: 'Confirming', description: 'Please wait...' },
   ],
   commitmentCooldown: [
     {
-      primary: 'Waiting period',
-      description:
-        'Brief wait to prevent attacks. Your name works across all EVM-compatible chains.',
+      primary: 'Almost there',
+      description: 'Short wait before the next step.',
     },
   ],
   validatingCommitment: [
-    {
-      primary: 'Validating commitment',
-      description:
-        'Almost ready to register. Create unlimited subdomains for free.',
-    },
+    { primary: 'Validating', description: 'Almost ready to register.' },
   ],
   approvingToken: [
-    {
-      primary: 'Approving payment',
-      description:
-        'Authorizing the registrar to charge. Supports USDC and DAI payments.',
-    },
+    { primary: 'Approve payment', description: 'Check your wallet.' },
   ],
   waitingForApproval: [
-    {
-      primary: 'Confirming approval',
-      description:
-        'Waiting for confirmation. You can transfer your name to any wallet later.',
-    },
+    { primary: 'Confirming payment', description: 'Please wait...' },
   ],
   registeringDomain: [
-    {
-      primary: 'Registering name',
-      description:
-        'Finalizing registration. Names are permanent and only expire if not renewed.',
-    },
+    { primary: 'Registering', description: 'Final step — check your wallet.' },
   ],
   waitingForRegistration: [
     {
       primary: 'Almost complete',
-      description:
-        'Your ENS domain will be active shortly. Receive crypto from any chain.',
+      description: 'Your name will be ready shortly.',
     },
   ],
   success: [
     {
       primary: 'Registration complete!',
-      description:
-        'Your ENS domain has been successfully registered and is now active.',
+      description: 'Your name is now active.',
     },
   ],
 }
 
 const DEFAULT_MESSAGE = {
-  primary: 'Setting up registration',
-  description: 'Preparing your ENS name. Please wait...',
+  primary: 'Setting up',
+  description: 'Please wait...',
 }
 
 export const RegistrationProgress = ({
@@ -177,7 +150,9 @@ export const RegistrationProgress = ({
   const currentMessage = messages[0]
 
   const isComplete = stateValue === 'success'
-  const isError = typeof stateValue === 'object' && 'error' in stateValue
+  const isError =
+    stateValue === 'error' ||
+    (typeof stateValue === 'object' && 'error' in stateValue)
   const isInProgress = !isComplete && !isError
 
   const progress = STAGE_PROGRESS[progressStage]
@@ -198,37 +173,23 @@ export const RegistrationProgress = ({
       <div className="flex flex-col items-center gap-6">
         {match({ isComplete, isError })
           .with({ isComplete: true }, () => (
-            <div className="flex w-full max-w-md items-start gap-3 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-900/50 dark:bg-green-950/30">
-              <CheckCircle2
-                aria-hidden
-                className="size-5 shrink-0 text-green-600 dark:text-green-500"
-              />
-              <div className="flex flex-col gap-1">
-                <p className="font-medium text-green-800 text-sm dark:text-green-200">
-                  Registration complete!
-                </p>
-                <p className="text-green-700 text-sm dark:text-green-300">
-                  Your ENS domain has been successfully registered and is now
-                  active.
-                </p>
-              </div>
-            </div>
+            <Alert variant="success" className="w-full max-w-md">
+              <CheckCircle2 aria-hidden />
+              <AlertTitle>Registration complete!</AlertTitle>
+              <AlertDescription>
+                Your ENS domain has been successfully registered and is now
+                active.
+              </AlertDescription>
+            </Alert>
           ))
           .with({ isError: true }, () => (
-            <div className="flex w-full max-w-md items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
-              <AlertCircle
-                aria-hidden
-                className="size-5 shrink-0 text-destructive"
-              />
-              <div className="flex flex-col gap-1">
-                <p className="font-medium text-destructive text-sm">
-                  Registration failed
-                </p>
-                <p className="text-destructive/90 text-sm">
-                  {error?.message ?? 'An error occurred. Please try again.'}
-                </p>
-              </div>
-            </div>
+            <Alert variant="destructive" className="w-full max-w-md">
+              <AlertCircle aria-hidden />
+              <AlertTitle>Registration failed</AlertTitle>
+              <AlertDescription>
+                {error?.message ?? 'An error occurred. Please try again.'}
+              </AlertDescription>
+            </Alert>
           ))
           .otherwise(() => (
             <>
@@ -243,19 +204,12 @@ export const RegistrationProgress = ({
                     </p>
                   )}
                 </div>
-                <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={cn(
-                      'absolute h-full rounded-l-full bg-primary transition-all duration-500 ease-out',
-                    )}
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
+                <Progress
+                  value={progress}
+                  className="h-2"
+                  indicatorClassName="animate-pulse"
+                />
               </div>
-              <Loader2
-                aria-hidden
-                className="size-12 animate-spin text-primary"
-              />
             </>
           ))}
 
@@ -279,7 +233,19 @@ export const RegistrationProgress = ({
                 Try again
               </Button>
             ))
-            .otherwise(() => null)}
+            .otherwise(() => (
+              <>
+                {isInProgress && canCancel(stateValue) && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => actor.send({ type: 'CANCEL' })}
+                    className="min-w-32 text-muted-foreground"
+                  >
+                    Cancel
+                  </Button>
+                )}
+              </>
+            ))}
         </div>
       </div>
     </div>
