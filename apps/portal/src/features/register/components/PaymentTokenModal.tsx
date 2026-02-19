@@ -46,6 +46,12 @@ type PaymentTokenModalProps = {
   name: string
   duration: number
   onConfirm: (selectedToken: Address, tokenPrice: bigint) => void
+type PaymentTokenModalProps = {
+  readonly open: boolean
+  readonly onOpenChange: (open: boolean) => void
+  readonly name: string
+  readonly duration: number
+  readonly onConfirm: (selectedToken: Address) => void
 }
 
 export const PaymentTokenModal = ({
