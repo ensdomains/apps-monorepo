@@ -30,6 +30,12 @@ type RegisterNameCheckoutSummaryProps = {
 
 const EST_GAS_USD = 0.05
 
+/** Parse USD string (e.g. "$5.00") to number for adding gas/network fees */
+const parseUsdString = (s: string): number => {
+  const num = Number.parseFloat(s.replace(/[$,]/g, ''))
+  return Number.isFinite(num) ? num : 0
+}
+
 /** ENS docs explaining premium pricing for short names */
 const ENS_PREMIUM_PRICING_DOCS_URL =
   'https://docs.ens.domains/registry/eth/#3-4-and-5-letter-names'
@@ -174,6 +180,13 @@ const PriceBreakdownSkeleton = ({
           <span className="text-xs">USD</span>
         </dd>
       </div>
+      <div className="flex items-center justify-between">
+        <dt className="text-base font-normal">Network fee</dt>
+        <dd className="flex items-center gap-1 m-0 text-muted-foreground text-sm">
+          <span className="font-mono">~{formatUsd(EST_GAS_USD)}</span>
+          <span className="text-xs">USD</span>
+        </dd>
+      </div>
       <div className="flex items-center justify-between pt-3 border-t border-border">
         <dt className="text-xl font-bold">Est. total</dt>
         <dd className="flex items-center gap-1 m-0">
@@ -182,7 +195,7 @@ const PriceBreakdownSkeleton = ({
         </dd>
       </div>
       <p className="text-xs text-muted-foreground pt-1">
-        Paid in USDC or DAI. Gas cost is an approximation.
+        Paid in USDC or DAI. Gas and network fees are approximations.
       </p>
     </dl>
   </div>
@@ -264,16 +277,26 @@ const PriceBreakdown = ({
           </dd>
         </div>
 
+        <div className="flex items-center justify-between">
+          <dt className="text-base font-normal">Network fee</dt>
+          <dd className="flex items-center gap-1 m-0 text-muted-foreground text-sm">
+            <span className="font-mono">~{formatUsd(EST_GAS_USD)}</span>
+            <span className="text-xs">USD</span>
+          </dd>
+        </div>
+
         <div className="flex items-center justify-between pt-3 border-t border-border">
           <dt className="text-xl font-bold">Est. total</dt>
           <dd className="flex items-center gap-1 m-0">
-            <span className="font-mono text-xl font-bold">{price.total}</span>
+            <span className="font-mono text-xl font-bold">
+              {formatUsd(parseUsdString(price.total) + EST_GAS_USD * 2)}
+            </span>
             <span className="text-xs">USD</span>
           </dd>
         </div>
 
         <p className="text-xs text-muted-foreground pt-1">
-          Paid in USDC or DAI. Gas cost is an approximation.
+          Paid in USDC or DAI. Gas and network fees are approximations.
         </p>
       </dl>
     </div>
