@@ -1,20 +1,17 @@
-import { getRegistryNameData } from '@ensdomains/ensjs/public/v2'
-import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
-import { labelToCanonicalId, type Role } from '@ensdomains/ensjs/utils/v2'
-import { grantRolesWriteParameters } from '@ensdomains/ensjs/wallet/v2'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import type { Role } from '@ensdomains/ensjs/utils/v2'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { type Address, isAddress } from 'viem'
 import { getEnsAddress } from 'viem/actions'
-import { useWalletClient, useWriteContract } from 'wagmi'
+import { useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { namechainEthRegistryAddress } from '@/lib/constants/registry'
+import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
 import { permissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
@@ -27,14 +24,46 @@ const client = wagmiConfig.getClient({ chainId: namechainSepolia.id })
 
 function RouteComponent() {
   const { name } = Route.useParams()
+  const navigate = useNavigate()
 
   const [address, setAddress] = useState<Address | null>(null)
 
   const { data: walletClient } = useWalletClient()
 
-  const { writeContract, isPending, error } = useWriteContract()
+  const handleSyncComplete = useCallback(() => {
+    navigate({ to: '/$name/roles', params: { name } })
+  }, [navigate, name])
+
+  const {
+    grantRoles,
+    isWriting,
+    isSyncing,
+    error,
+    reset: resetError,
+  } = useGrantRoles({ onSyncComplete: handleSyncComplete })
 
   if (!walletClient?.account) return <div>Not connected.</div>
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!e.currentTarget.reportValidity()) return
+
+    const fd = new FormData(e.currentTarget)
+    const roles: Role[] = []
+
+    for (const [k, v] of fd.entries()) {
+      if (v === 'on') {
+        roles.push(k as Role)
+      }
+    }
+
+    if (address && roles.length > 0) {
+      resetError()
+      grantRoles({ name, account: address, roles })
+    }
+  }
+
+  const isBusy = isWriting || isSyncing
 
   return (
     <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
@@ -62,12 +91,12 @@ function RouteComponent() {
                 if (isAddress(nameOrAddress)) {
                   setAddress(nameOrAddress)
                 } else {
-                  const address = await getEnsAddress(client, {
+                  const resolved = await getEnsAddress(client, {
                     name: nameOrAddress,
                     universalResolverAddress:
                       '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce',
                   })
-                  setAddress(address)
+                  setAddress(resolved)
                 }
               }
             }}
@@ -75,44 +104,7 @@ function RouteComponent() {
           />
         </Field>
 
-        <form
-          onSubmit={async (e) => {
-            e.preventDefault()
-            if (e.currentTarget.reportValidity()) {
-              const fd = new FormData(e.currentTarget)
-
-              const roles: Role[] = []
-
-              for (const [k, v] of fd.entries()) {
-                if (v === 'on') {
-                  roles.push(k as Role)
-                }
-              }
-
-              if (address) {
-                const { label } = makeLabelNodeAndParent(name)
-                // ugly and unsafe code, refactor later to a proper hook
-                const [_, entry] = await getRegistryNameData(client, {
-                  label,
-                  registryAddress: namechainEthRegistryAddress,
-                })
-
-                const resource =
-                  labelToCanonicalId(label) | BigInt(entry.eacVersionId)
-
-                const parameters = grantRolesWriteParameters(walletClient, {
-                  registryAddress: namechainEthRegistryAddress,
-                  account: address,
-                  resource,
-                  roles,
-                })
-
-                writeContract(parameters)
-              }
-            }
-          }}
-          className="flex flex-col gap-4"
-        >
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <h2 className="text-lg font-medium">Roles</h2>
           <div className="border rounded-lg divide-y">
             {permissions.map((permission) => {
@@ -192,12 +184,8 @@ function RouteComponent() {
               </div>
             </div>
           </div>
-          <Button
-            type="submit"
-            className="w-fit"
-            disabled={!address || isPending}
-          >
-            Save roles
+          <Button type="submit" className="w-fit" disabled={!address || isBusy}>
+            {isSyncing ? 'Syncing...' : isWriting ? 'Saving...' : 'Save roles'}
           </Button>
           {error && (
             <ErrorMessage description={error.message} title={error.name} />
