@@ -34,6 +34,7 @@ jobs:
         id: changed
         run: |
           echo "🔍 Detecting changed packages..."
+          # "[origin/main]" means packages changed since the merge-base with origin/main.
           CHANGED_PACKAGES=$(pnpm --filter="[origin/main]" list --depth=-1 --json | jq -r '.[].name' | tr '\n' ' ')
           echo "Changed packages: $CHANGED_PACKAGES"
           echo "packages=$CHANGED_PACKAGES" >> $GITHUB_OUTPUT
@@ -45,20 +46,17 @@ jobs:
             echo "has_apps=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build type artifacts for dependency graph
-        run: |
-          echo "🏗️ Building type artifacts for dependencies of changed packages..."
-          pnpm --filter="[origin/main]^..." --if-present run build:types || pnpm -r --if-present run build:types
-
       - name: Type check changed packages
         run: |
           echo "🔍 Type checking changed packages and their dependents..."
+          # "...[origin/main]" means changed packages plus their dependents.
           pnpm --filter="...[origin/main]" typecheck || echo "No packages to type check"
 
       - name: Build changed apps
         if: steps.changed.outputs.has_apps == 'true'
         run: |
           echo "🏗️ Building changed apps and dependents..."
+          # "...[origin/main]" means changed packages plus their dependents.
           pnpm --filter="...[origin/main]" --if-present build
 
       - name: Build all apps (fallback)

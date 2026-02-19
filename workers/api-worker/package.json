@@ -16,6 +16,7 @@
     "dev": "concurrently \"pnpm dev:vite\" \"pnpm dev:tsc\" --names \"vite,tsc\" --prefix-colors \"cyan,yellow\" --kill-others-on-fail --restart-tries 3 --restart-after 2000",
     "dev:vite": "vite dev",
     "dev:tsc": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "build:types": "tsc -p tsconfig.build.json --emitDeclarationOnly",
     "build:vite": "vite build",
     "build:tsc": "tsc -p tsconfig.build.json",
