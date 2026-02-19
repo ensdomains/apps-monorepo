@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
 import { useCallback } from 'react'
@@ -112,7 +112,6 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     enabled: Boolean(hasSubregistry),
   })
 
-  // Hook must be called unconditionally (React rules of hooks).
   // We pass zeroAddress as fallback when subregistry is not yet known.
   const { deleteSubnameAsync } = useDeleteSubname({
     name,
@@ -125,16 +124,27 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
    */
   const getLabel = useCallback(
     (subname: string) => {
-      // Remove the parent suffix (e.g. ".domico.eth") to get the label
       const suffix = `.${name}`
       if (subname.endsWith(suffix)) {
         return subname.slice(0, -suffix.length)
       }
-      // Fallback: take first label
       return subname.split('.')[0]
     },
     [name],
   )
+
+  // Check ROLE_BURN per-subname (resource-scoped, not root)
+  const burnRoleQueries = useQueries({
+    queries: (subnames ?? []).map((subname) => ({
+      ...getHasRolesQueryOptions({
+        registryAddress: subregistryAddress as Address,
+        label: getLabel(subname.name ?? ''),
+        roles: ['ROLE_BURN' as const],
+        account: connectedAccount as Address,
+      }),
+      enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
+    })),
+  })
 
   const handleDeleteSubname = useCallback(
     (subname: SubnameRow) => {
@@ -196,9 +206,10 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     )
   }
 
-  const subnameRows: SubnameRow[] = (subnames || []).map((subname) => ({
+  const subnameRows: SubnameRow[] = (subnames || []).map((subname, i) => ({
     name: subname.name || '',
     owner: subname.owner,
+    canDelete: Boolean(burnRoleQueries[i]?.data),
   }))
 
   const canCreateSubname = Boolean(hasRegistrarRole)

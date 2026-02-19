@@ -37,6 +37,8 @@ import { truncateAddress } from '@/utils/formatting/truncateAddress'
 export interface SubnameRow {
   readonly name: string
   readonly owner: Address
+  /** Whether the connected user has ROLE_BURN for this specific subname. */
+  readonly canDelete?: boolean
 }
 
 const OwnerCell = ({ owner }: { owner: Address }) => (
@@ -52,9 +54,9 @@ interface SubnamesTableProps {
   readonly subnames: readonly SubnameRow[]
   readonly name: string
   readonly canCreateSubname?: boolean
-  /** Called when user confirms delete on a single subname. Omit to hide/disable single delete. */
+  /** Called when user confirms delete on a single subname. */
   readonly onDeleteSubname?: (subname: SubnameRow) => void
-  /** Called when user clicks Clear with selection. Omit to hide/disable bulk delete. */
+  /** Called when user clicks Clear with selection. */
   readonly onClearSelected?: (subnames: SubnameRow[]) => void
 }
 
@@ -127,7 +129,7 @@ function buildColumns(
       id: 'actions',
       header: () => null,
       cell: ({ row }) =>
-        onDeleteClick ? (
+        row.original.canDelete && onDeleteClick ? (
           <Button
             variant="ghost"
             size="icon"
@@ -200,7 +202,9 @@ export const SubnamesTable = ({
   const rows = table.getRowModel().rows
   const selectedRows = table.getSelectedRowModel().rows
   const selectedCount = selectedRows.length
-  const selectedSubnames = selectedRows.map((r) => r.original)
+  const deletableSelected = selectedRows
+    .filter((r) => r.original.canDelete)
+    .map((r) => r.original)
 
   return (
     <>
@@ -230,11 +234,11 @@ export const SubnamesTable = ({
             <span className="text-sm text-muted-foreground flex-1">
               {selectedCount} selected
             </span>
-            {onClearSelected && (
+            {onClearSelected && deletableSelected.length > 0 && (
               <Button
                 variant="outline"
                 className="flex items-center gap-2"
-                onClick={() => onClearSelected(selectedSubnames)}
+                onClick={() => onClearSelected(deletableSelected)}
               >
                 <Trash2 className="size-4" />
                 Clear
@@ -281,7 +285,7 @@ export const SubnamesTable = ({
                     <EntityBadgeWithActions variant="name" name={row.original.name}>
                       {row.original.name}
                     </EntityBadgeWithActions>
-                    {onDeleteSubname && (
+                    {row.original.canDelete && (
                       <Button
                         variant="ghost"
                         size="icon"
