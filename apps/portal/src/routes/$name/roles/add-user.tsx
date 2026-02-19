@@ -1,17 +1,20 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { type Address, isAddress } from 'viem'
 import { getEnsAddress } from 'viem/actions'
-import { useWalletClient } from 'wagmi'
+import { usePublicClient, useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
+import { pollForIndexerSync } from '@/features/records/helpers/pollForIndexerSync'
+import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { grantRoles } from '@/features/roles/helpers/grantRoles'
 import { permissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
@@ -25,22 +28,42 @@ const client = wagmiConfig.getClient({ chainId: namechainSepolia.id })
 function RouteComponent() {
   const { name } = Route.useParams()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const [address, setAddress] = useState<Address | null>(null)
 
-  const { data: walletClient } = useWalletClient()
+  const chainId = namechainSepolia.id
+  const { data: walletClient } = useWalletClient({ chainId })
+  const publicClient = usePublicClient({ chainId })
 
-  const handleSyncComplete = useCallback(() => {
-    navigate({ to: '/$name/roles', params: { name } })
-  }, [navigate, name])
+  const mutation = useMutation({
+    mutationFn: (params: { account: Address; roles: Role[] }) => {
+      if (!walletClient?.account || !publicClient) {
+        throw new Error('Wallet not connected')
+      }
 
-  const {
-    grantRoles,
-    isWriting,
-    isSyncing,
-    error,
-    reset: resetError,
-  } = useGrantRoles({ onSyncComplete: handleSyncComplete })
+      return grantRoles({
+        name,
+        account: params.account,
+        roles: params.roles,
+        walletClient,
+        publicClient,
+        signer: createEOASigner(walletClient),
+        chainId,
+      })
+    },
+    onSuccess: async () => {
+      await pollForIndexerSync({
+        invalidateQueries: () =>
+          queryClient.invalidateQueries({
+            predicate: (query) =>
+              query.queryKey[0] === 'get-name-roles-accounts',
+            refetchType: 'all',
+          }),
+      })
+      navigate({ to: '/$name/roles', params: { name } })
+    },
+  })
 
   if (!walletClient?.account) return <div>Not connected.</div>
 
@@ -58,12 +81,10 @@ function RouteComponent() {
     }
 
     if (address && roles.length > 0) {
-      resetError()
-      grantRoles({ name, account: address, roles })
+      mutation.reset()
+      mutation.mutate({ account: address, roles })
     }
   }
-
-  const isBusy = isWriting || isSyncing
 
   return (
     <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
@@ -184,11 +205,18 @@ function RouteComponent() {
               </div>
             </div>
           </div>
-          <Button type="submit" className="w-fit" disabled={!address || isBusy}>
-            {isSyncing ? 'Syncing...' : isWriting ? 'Saving...' : 'Save roles'}
+          <Button
+            type="submit"
+            className="w-fit"
+            disabled={!address || mutation.isPending}
+          >
+            {mutation.isPending ? 'Saving...' : 'Save roles'}
           </Button>
-          {error && (
-            <ErrorMessage description={error.message} title={error.name} />
+          {mutation.error && (
+            <ErrorMessage
+              description={mutation.error.message}
+              title={mutation.error.name}
+            />
           )}
         </form>
       </div>
