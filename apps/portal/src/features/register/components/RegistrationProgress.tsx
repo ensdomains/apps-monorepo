@@ -62,7 +62,7 @@ export const RegistrationProgress = ({
       <div className="flex flex-col items-center gap-2 text-center">
         <p className="font-medium">{label}</p>
         <p className="text-muted-foreground text-sm" title={domainName}>
-          {domainName.length > 20 ? `${domainName.slice(0, 20)}…` : domainName}
+          {domainName}
         </p>
       </div>
       {error && (

@@ -245,7 +245,7 @@ export const PaymentTokenModal = ({
                 className="w-full min-w-0 text-center font-medium text-2xl leading-tight tracking-tight"
                 title={name}
               >
-                {name.length > 10 ? `${name.slice(0, 10)}…` : name}
+                {name}
               </span>
             </div>
 
