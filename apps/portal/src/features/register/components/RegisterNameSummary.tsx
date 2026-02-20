@@ -111,10 +111,20 @@ export const RegisterNameCheckoutSummary = ({
         </div>
       )}
 
-      {!isConnected && openConnectModal ? (
-        <Button className="w-full mt-4 h-12" onClick={openConnectModal}>
-          Connect Wallet
-        </Button>
+      {!isConnected ? (
+        openConnectModal ? (
+          <Button
+            className="w-full mt-4 h-12"
+            onClick={openConnectModal}
+            type="button"
+          >
+            Connect Wallet
+          </Button>
+        ) : (
+          <Button className="w-full mt-4 h-12" disabled type="button">
+            Wallet not connected
+          </Button>
+        )
       ) : (
         <Button
           className="w-full mt-4 h-12"
