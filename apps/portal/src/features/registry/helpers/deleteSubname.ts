@@ -98,15 +98,6 @@ export const deleteSubname = async (
     args: writeParams.args,
   })
 
-  console.log('[deleteSubname] Burn:', {
-    label,
-    registryAddress,
-    tokenId: tokenId.toString(),
-    from: walletClient.account.address,
-    owner,
-    chainId,
-  })
-
   const txId = transactionManager.startTransaction(
     {
       type: 'custom',
@@ -127,14 +118,7 @@ export const deleteSubname = async (
     },
   )
 
-  console.log('[deleteSubname] Transaction started, txId:', txId)
-
   const result = await waitForTransaction(txId)
-
-  console.log('[deleteSubname] Transaction result:', {
-    txId,
-    hash: result.hash,
-  })
 
   return {
     txId,

@@ -87,6 +87,17 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
   })
 
+  // Check if connected account has ROLE_BURN on the subregistry ROOT resource
+  const { data: hasBurnRole } = useQuery({
+    ...getHasRolesQueryOptions({
+      registryAddress: subregistryAddress as Address,
+      label: '',
+      roles: ['ROLE_BURN'],
+      account: connectedAccount as Address,
+    }),
+    enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
+  })
+
   // Check if connected account can deploy a subregistry (ROLE_SET_SUBREGISTRY on parent registry)
   const parentRegistryAddress = registriesData?.[1]
   const firstLabel = name.split('.')[0]
@@ -191,14 +202,12 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     )
   }
 
-  // TODO: ROLE_BURN check via hasRoles on the subregistry gives false positives.
-  // The hasRoles view function returns true, but the burn call reverts.
-  // Disabled until ROLE_BURN can be properly granted on the subregistry
-  // and the hasRoles check reliably matches the burn permission.
+  const canDeleteSubname = Boolean(hasBurnRole)
+
   const subnameRows: SubnameRow[] = (subnames || []).map((subname) => ({
     name: subname.name || '',
     owner: subname.owner,
-    canDelete: false,
+    canDelete: canDeleteSubname,
   }))
 
   const canCreateSubname = Boolean(hasRegistrarRole)
