@@ -1,5 +1,6 @@
-import type { Address } from 'viem'
+import type { JSX, SVGProps } from 'react'
 import { USDC_DECIMALS } from '@/lib/constants/tokens'
+import type { SupportedTokenAddresses } from '../types/tokens'
 import { isPriceResult } from './registrationPrice'
 
 export type TokenPrice = {
@@ -18,15 +19,23 @@ export const DEFAULT_PRICE: TokenPrice = {
   hasPremium: false,
 }
 
-type TokenWithPriceAndBalance<T> = T & { price: TokenPrice; balance: bigint }
+type TokenInput = {
+  symbol: string
+  address: SupportedTokenAddresses
+  decimals: number
+  Icon: (props: SVGProps<SVGSVGElement>) => JSX.Element
+}
 
-export function buildTokenData<
-  T extends { symbol: string; address: Address; decimals: number },
->(
-  tokens: readonly T[],
-  prices: (TokenPrice | undefined)[],
-  balances: bigint[],
-): TokenWithPriceAndBalance<T>[] {
+export type TokenWithPriceAndBalance = TokenInput & {
+  price: TokenPrice
+  balance: bigint
+}
+
+export function buildTokenData(
+  tokens: readonly TokenInput[],
+  prices: readonly (TokenPrice | undefined)[],
+  balances: readonly bigint[],
+): TokenWithPriceAndBalance[] {
   return tokens.map((token, i) => {
     const price = prices[i]
     return {

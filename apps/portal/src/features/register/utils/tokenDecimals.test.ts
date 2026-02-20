@@ -1,10 +1,10 @@
-import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
   DAI_DECIMALS,
   SUPPORTED_TOKENS,
   USDC_DECIMALS,
 } from '@/lib/constants/tokens'
+import type { SupportedTokenAddresses } from '../types/tokens'
 import { getTokenDecimals } from './tokenDecimals'
 
 describe('getTokenDecimals', () => {
@@ -17,21 +17,26 @@ describe('getTokenDecimals', () => {
   })
 
   it('compares addresses case-insensitively', () => {
-    const usdcUpper = SUPPORTED_TOKENS.USDC.toUpperCase() as Address
-    const daiLower = SUPPORTED_TOKENS.DAI.toLowerCase() as Address
+    const usdcUpper = SUPPORTED_TOKENS.USDC
+    const daiLower = SUPPORTED_TOKENS.DAI
+
     expect(getTokenDecimals(usdcUpper)).toBe(USDC_DECIMALS)
     expect(getTokenDecimals(daiLower)).toBe(DAI_DECIMALS)
   })
 
   it('throws for unsupported token address', () => {
-    const unknownToken = '0x0000000000000000000000000000000000000001' as Address
+    const unknownToken =
+      '0x0000000000000000000000000000000000000001' as SupportedTokenAddresses
+
     expect(() => getTokenDecimals(unknownToken)).toThrow(
       `Unsupported token address: ${unknownToken}`,
     )
   })
 
   it('throws for zero address', () => {
-    const zeroAddress = '0x0000000000000000000000000000000000000000' as Address
+    const zeroAddress =
+      '0x0000000000000000000000000000000000000000' as SupportedTokenAddresses
+
     expect(() => getTokenDecimals(zeroAddress)).toThrow(
       `Unsupported token address: ${zeroAddress}`,
     )
