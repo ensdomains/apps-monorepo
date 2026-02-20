@@ -101,7 +101,14 @@ export default createApp()
 
       // TODO: If ensLabsUpdates changes, sync SendGrid marketing list (handled in separate PR).
 
-      logger.info('Notification settings updated', { userId, patch, row })
+      logger.info('Notification settings updated', {
+        userId,
+        changedFields: Object.keys(patch),
+      })
+      logger.trace('Notification settings row updated', {
+        userId,
+        rowUserId: row.user_id,
+      })
 
       return c.json({
         settings: {

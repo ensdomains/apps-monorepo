@@ -18,8 +18,8 @@ const meta = {
     ),
   ],
   args: {
-    onConfirm: (settings) => {
-      console.log('Notification preferences confirmed:', settings)
+    onConfirm: () => {
+      console.log('Notification preferences confirmed')
     },
     onSkip: () => {
       console.log('Skip clicked')
