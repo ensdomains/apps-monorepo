@@ -1,5 +1,5 @@
 import type {
-  NotificationPayloads,
+  PersonalNotificationPayloads,
   SupportedNotifications,
 } from '@ens-apps/shared-schema/notifications'
 
@@ -17,7 +17,7 @@ type TelegramMessage = {
 
 // Template function type
 export type TelegramTemplate<K extends SupportedNotifications<'telegram'>> = (
-  payload: NotificationPayloads[K],
+  payload: PersonalNotificationPayloads[K],
 ) => TelegramMessage
 
 // Define all telegram templates

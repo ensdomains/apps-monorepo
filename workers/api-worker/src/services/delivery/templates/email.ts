@@ -1,10 +1,10 @@
 import type {
-  NotificationPayloads,
+  PersonalNotificationPayloads,
   SupportedNotifications,
 } from '@ens-apps/shared-schema/notifications'
 
 export type EmailTemplate<K extends SupportedNotifications<'email'>> = (
-  payload: NotificationPayloads[K],
+  payload: PersonalNotificationPayloads[K],
 ) => {
   templateId: string
   dynamicData: Record<string, any>

@@ -1,40 +1,25 @@
 export type {
   BroadcastNotificationKind,
-  BroadcastPayloads,
+  BroadcastNotificationPayloads,
   NotificationKind,
   NotificationPayloads,
-  SupportedChannels,
+  PersonalNotificationKind,
+  PersonalNotificationPayloads,
   SupportedNotifications,
 } from './catalog'
 export {
   channelSupportsNotification,
-  notificationConfigs,
   notificationDefinitions,
-  UserChannelSchema,
 } from './catalog'
 export type { ChannelType } from './channels'
-export { channelConfigs } from './channels'
+export { channelDefinitions } from './channels'
 export type {
-  AnyBroadcastPayload,
+  AnyBroadcastNotificationPayload,
   AnyChannelData,
-  AnyUserNotificationPayload,
-  Broadcast,
-  BroadcastKind,
-  Broadcasts,
+  AnyNotificationPayload,
+  AnyPersonalNotificationPayload,
+  BroadcastNotification,
   ChannelData,
   UserNotificationSettings,
-  UserNotifications,
 } from './schemas'
-export {
-  ChannelDataSchemas,
-  UserNotificationSettingsSchema,
-} from './schemas'
-export type {
-  DeliveryMode,
-  DeliveryPreferenceKey,
-  NotificationDefinition,
-  NotificationDelivery,
-  NotificationMetadata,
-  NotificationPriority,
-  NotificationSource,
-} from './types'
+export { UserNotificationSettingsSchema } from './schemas'

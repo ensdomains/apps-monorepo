@@ -10,8 +10,26 @@ Runtime shared schemas, constants, and derived types used by both manager and ap
 ## Purpose
 
 - One canonical runtime source for notification kinds and payload schemas
-- Shared semantic catalog for frontend/backend consumption
+- Shared notification definitions for frontend/backend consumption
 - Shared telegram auth schema/type
+
+## Notifications Glossary
+
+- Notification: umbrella term for all notification kinds.
+- Personal notification: user-specific notification records.
+- Broadcast notification: system-wide announcement records.
+
+## Channel Definitions
+
+`@ens-apps/shared-schema/notifications` exports:
+
+- `ChannelType`
+- `channelDefinitions`
+
+Channel definitions are intentionally minimal runtime metadata:
+
+- `label`
+- `requiresVerification`
 
 ## Authoring Notifications
 

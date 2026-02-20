@@ -1,8 +1,7 @@
 import type {
-  Broadcasts,
-  NotificationKind,
-  NotificationPayloads,
-  UserNotifications,
+  BroadcastNotificationPayloads,
+  PersonalNotificationKind,
+  PersonalNotificationPayloads,
 } from '@ens-apps/shared-schema/notifications'
 import { vValidator } from '@hono/valibot-validator'
 import { and, desc, eq, inArray, isNull, lt, sql } from 'drizzle-orm'
@@ -112,13 +111,13 @@ export default createApp()
       //
       const merged = [
         ...(personal as DiscriminatedPayloadMapper<
-          UserNotifications,
+          PersonalNotificationPayloads,
           (typeof personal)[number],
           'kind',
           'payload'
         >[]),
         ...(broadcasts as DiscriminatedPayloadMapper<
-          Broadcasts,
+          BroadcastNotificationPayloads,
           (typeof broadcasts)[number],
           'kind',
           'payload'
@@ -366,8 +365,9 @@ export default createApp()
         db: c.var.db,
         env: c.env,
         userId,
-        kind: kind as NotificationKind,
-        payload: payload as NotificationPayloads[NotificationKind],
+        kind: kind as PersonalNotificationKind,
+        payload:
+          payload as PersonalNotificationPayloads[PersonalNotificationKind],
         idempotencyKey: `test-${kind}-${userId}-${Date.now()}`,
       })
 

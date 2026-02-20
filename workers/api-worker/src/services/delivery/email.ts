@@ -1,4 +1,4 @@
-import type { AnyUserNotificationPayload } from '@ens-apps/shared-schema/notifications'
+import type { AnyPersonalNotificationPayload } from '@ens-apps/shared-schema/notifications'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
 import { ok } from 'neverthrow'
@@ -48,7 +48,7 @@ export const deliverEmailNotification = ResultFn(async function* (
 
   // Generate the template data
   const templateData = template(
-    deliveryJob.notification.payload as AnyUserNotificationPayload,
+    deliveryJob.notification.payload as AnyPersonalNotificationPayload,
   )
 
   // Send via SendGrid API

@@ -1,8 +1,8 @@
 import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
+import * as sharedSchema from '../index'
 import {
-  type NotificationCatalogKind,
-  notificationCatalog,
+  channelDefinitions,
   notificationDefinitions,
   TelegramAuthSchema,
 } from '../index'
@@ -18,15 +18,33 @@ describe('notifications catalog', () => {
     }
   })
 
-  it('exports runtime-safe catalog without payload schemas', () => {
-    for (const kind of Object.keys(
-      notificationCatalog,
-    ) as NotificationCatalogKind[]) {
-      const catalogItem = notificationCatalog[kind]
-      expect(catalogItem.kind).toBe(kind)
-      expect(catalogItem.metadata.label.length).toBeGreaterThan(0)
-      expect('payloadSchema' in (catalogItem as object)).toBe(false)
-    }
+  it('defines minimal channel metadata for all supported channel types', () => {
+    expect(Object.keys(channelDefinitions).sort()).toEqual([
+      'email',
+      'push',
+      'telegram',
+    ])
+    expect(channelDefinitions.email.requiresVerification).toBe(true)
+    expect(channelDefinitions.telegram.label).toBe('Telegram')
+  })
+
+  it('partitions kinds into personal and broadcast by source', () => {
+    const definitions = Object.values(notificationDefinitions)
+    const personal = definitions.filter((d) => d.source === 'personal')
+    const broadcast = definitions.filter((d) => d.source === 'broadcast')
+
+    expect(personal.length + broadcast.length).toBe(definitions.length)
+    expect(personal.length).toBeGreaterThan(0)
+    expect(broadcast.length).toBeGreaterThan(0)
+  })
+
+  it('exposes canonical notification exports only', () => {
+    expect('NotificationKind' in sharedSchema).toBe(false)
+    expect('BroadcastKind' in sharedSchema).toBe(false)
+    expect('Broadcasts' in sharedSchema).toBe(false)
+    expect('UserNotifications' in sharedSchema).toBe(false)
+    expect('AnyUserNotificationPayload' in sharedSchema).toBe(false)
+    expect('AnyBroadcastPayload' in sharedSchema).toBe(false)
   })
 })
 

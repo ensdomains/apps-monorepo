@@ -18,6 +18,12 @@ Each manager notification kind lives in one file under `notifications/` and defi
 
 Invalid payloads and unknown kinds are dropped from UI.
 
+## Glossary
+
+- Notification: umbrella term for all notification kinds.
+- Personal notification: user-specific notifications shown in dashboard/nav.
+- Broadcast notification: system-wide notifications shown for all users.
+
 ## Folder Structure
 
 - `notifications/`

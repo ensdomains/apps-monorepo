@@ -1,10 +1,10 @@
 import type {
-  AnyBroadcastPayload,
+  AnyBroadcastNotificationPayload,
   AnyChannelData,
-  AnyUserNotificationPayload,
-  BroadcastKind,
+  AnyPersonalNotificationPayload,
+  BroadcastNotificationKind,
   ChannelType,
-  NotificationKind,
+  PersonalNotificationKind,
 } from '@ens-apps/shared-schema/notifications'
 import { relations } from 'drizzle-orm'
 import {
@@ -176,11 +176,11 @@ export const notifications = pgTable('notifications', {
   /**
    * Notification kind
    */
-  kind: text('kind').$type<NotificationKind>().notNull(),
+  kind: text('kind').$type<PersonalNotificationKind>().notNull(),
   /**
    * Payload
    */
-  payload: jsonb('payload').$type<AnyUserNotificationPayload>(),
+  payload: jsonb('payload').$type<AnyPersonalNotificationPayload>(),
   created_at: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -239,8 +239,8 @@ export const notificationDeliveryRelations = relations(
 
 export const broadcasts = pgTable('broadcasts', {
   id: uuid('id').primaryKey().default(randomUUIDv7),
-  kind: text('kind').$type<BroadcastKind>().notNull(),
-  payload: jsonb('payload').$type<AnyBroadcastPayload>(),
+  kind: text('kind').$type<BroadcastNotificationKind>().notNull(),
+  payload: jsonb('payload').$type<AnyBroadcastNotificationPayload>(),
   created_at: timestamp('created_at', { withTimezone: true })
     .defaultNow()
     .notNull(),

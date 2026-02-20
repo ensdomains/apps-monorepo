@@ -1,9 +1,9 @@
 import {
   type ChannelType,
   channelSupportsNotification,
-  type NotificationKind,
-  type NotificationPayloads,
   notificationDefinitions,
+  type PersonalNotificationKind,
+  type PersonalNotificationPayloads,
 } from '@ens-apps/shared-schema/notifications'
 import {
   getFirstOrFallback,
@@ -27,8 +27,8 @@ type DeliveryPreferenceSettings = {
 }
 
 export function shouldCreateExternalDeliveriesForNotification(
-  kind: NotificationKind,
-  payload: NotificationPayloads[NotificationKind],
+  kind: PersonalNotificationKind,
+  payload: PersonalNotificationPayloads[PersonalNotificationKind],
   settings: DeliveryPreferenceSettings,
 ): boolean {
   const definition = notificationDefinitions[kind]
@@ -55,7 +55,8 @@ export function shouldCreateExternalDeliveriesForNotification(
         return settings.owned_name_expiry || settings.favourited_name_expiry
       }
 
-      const nameExpiryPayload = payload as NotificationPayloads['name-expiry']
+      const nameExpiryPayload =
+        payload as PersonalNotificationPayloads['name-expiry']
       const watchReason: WatchReason =
         // Prefer explicit watch reason (new flow)
         nameExpiryPayload.watchReason ??
@@ -117,13 +118,13 @@ class NotificationCreationError extends TaggedError(
 ) {}
 
 export const createNotification = ResultFn(async function* <
-  K extends NotificationKind,
+  K extends PersonalNotificationKind,
 >(ctx: {
   env: CloudflareBindings
   db: Database
   userId: string
   kind: K
-  payload: NotificationPayloads[K]
+  payload: PersonalNotificationPayloads[K]
   idempotencyKey: string
 }) {
   // Create the notification record
@@ -175,7 +176,7 @@ export const createNotification = ResultFn(async function* <
 
   const shouldCreateDeliveries = shouldCreateExternalDeliveriesForNotification(
     ctx.kind,
-    ctx.payload as NotificationPayloads[NotificationKind],
+    ctx.payload as PersonalNotificationPayloads[PersonalNotificationKind],
     settings,
   )
 
@@ -285,14 +286,14 @@ export const createNotification = ResultFn(async function* <
  * @returns Result containing summary of created notifications, or error
  */
 export const createBatchNotifications = ResultFn(async function* <
-  K extends NotificationKind,
+  K extends PersonalNotificationKind,
 >(ctx: {
   env: CloudflareBindings
   db: Database
   kind: K
   notifications: Array<{
     userId: string
-    payload: NotificationPayloads[K]
+    payload: PersonalNotificationPayloads[K]
     idempotencyKey: string
   }>
 }) {
@@ -406,7 +407,7 @@ export const createBatchNotifications = ResultFn(async function* <
     const shouldCreateDeliveries =
       shouldCreateExternalDeliveriesForNotification(
         ctx.kind,
-        notification.payload as NotificationPayloads[NotificationKind],
+        notification.payload as PersonalNotificationPayloads[PersonalNotificationKind],
         settings,
       )
 

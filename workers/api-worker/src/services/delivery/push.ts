@@ -1,5 +1,5 @@
 import { buildPushPayload } from '@block65/webcrypto-web-push'
-import type { AnyUserNotificationPayload } from '@ens-apps/shared-schema/notifications'
+import type { AnyPersonalNotificationPayload } from '@ens-apps/shared-schema/notifications'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
 import { ok } from 'neverthrow'
@@ -76,7 +76,7 @@ export const deliverPushNotification = ResultFn(async function* (
 
   // 4. generate notification content
   const notificationData = template(
-    deliveryJob.notification.payload as AnyUserNotificationPayload,
+    deliveryJob.notification.payload as AnyPersonalNotificationPayload,
   )
 
   // 5. build the Web Push subscription object

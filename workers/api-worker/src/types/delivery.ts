@@ -1,11 +1,11 @@
-import type { NotificationKind } from '@ens-apps/shared-schema/notifications'
+import type { PersonalNotificationKind } from '@ens-apps/shared-schema/notifications'
 
 // Base delivery job
 export type BaseDeliveryJob = {
   id: string
   notificationId: string
   userId: string
-  kind: NotificationKind
+  kind: PersonalNotificationKind
 }
 
 // Channel-specific delivery jobs

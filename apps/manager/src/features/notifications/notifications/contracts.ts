@@ -1,7 +1,8 @@
+import type { NotificationKind as SharedNotificationKind } from '@ens-apps/shared-schema/notifications'
 import type { FC } from 'react'
 import type { BackendNotification } from '@/features/notifications/data/queries/notifications'
 
-export type NotificationKind = BackendNotification['kind']
+export type NotificationKind = SharedNotificationKind
 
 export type NotificationForKind<K extends NotificationKind> = Extract<
   BackendNotification,

@@ -1,4 +1,4 @@
-import type { AnyUserNotificationPayload } from '@ens-apps/shared-schema/notifications'
+import type { AnyPersonalNotificationPayload } from '@ens-apps/shared-schema/notifications'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
 import { ok } from 'neverthrow'
@@ -56,7 +56,7 @@ export const deliverTelegramNotification = ResultFn(async function* (
 
   // Generate the message
   const message = template(
-    deliveryJob.notification.payload as AnyUserNotificationPayload,
+    deliveryJob.notification.payload as AnyPersonalNotificationPayload,
   )
 
   // Create keyboard if buttons exist

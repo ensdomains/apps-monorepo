@@ -1,29 +1,34 @@
-type ChannelConfig = {
-  label: string
-  requiresVerification: boolean
-  supportsRichContent: boolean
-  batchable: boolean
-}
+import * as v from 'valibot'
 
-export const channelConfigs = {
+export const channelDefinitions = {
   email: {
     label: 'Email',
     requiresVerification: true,
-    supportsRichContent: true,
-    batchable: true,
+    dataSchema: v.null(),
   },
   telegram: {
     label: 'Telegram',
     requiresVerification: true,
-    supportsRichContent: true,
-    batchable: false,
+    dataSchema: v.object({
+      username: v.string(),
+    }),
   },
   push: {
     label: 'Push Notification',
     requiresVerification: true,
-    supportsRichContent: false,
-    batchable: false,
+    dataSchema: v.object({
+      auth: v.string(),
+      p256dh: v.string(),
+      expirationTime: v.optional(v.nullable(v.number())),
+    }),
   },
-} as const satisfies Record<string, ChannelConfig>
+} as const satisfies Record<
+  string,
+  {
+    label: string
+    requiresVerification: boolean
+    dataSchema: v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>
+  }
+>
 
-export type ChannelType = keyof typeof channelConfigs
+export type ChannelType = keyof typeof channelDefinitions

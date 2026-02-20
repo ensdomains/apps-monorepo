@@ -15,7 +15,7 @@ export const notificationKindRegistry = {
   'blog-post': blogPostKind,
   'alpha-welcome': alphaWelcomeKind,
   'ens-update': ensUpdateKind,
-} as const satisfies { [K in BackendNotification['kind']]: KindDefinition<K> }
+} as const satisfies Record<NotificationKind, KindDefinition<any>>
 
 type RuntimeNotification =
   | BackendNotification

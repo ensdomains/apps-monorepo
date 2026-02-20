@@ -1,44 +1,33 @@
 import * as v from 'valibot'
 import type {
   BroadcastNotificationKind,
-  BroadcastPayloads,
+  BroadcastNotificationPayloads,
+  NotificationKind,
   NotificationPayloads,
+  PersonalNotificationKind,
+  PersonalNotificationPayloads,
 } from './catalog'
+import type { channelDefinitions } from './channels'
 
-export type UserNotifications = NotificationPayloads
-export type AnyUserNotificationPayload =
-  NotificationPayloads[keyof NotificationPayloads]
+export type AnyNotificationPayload = NotificationPayloads[NotificationKind]
+export type AnyPersonalNotificationPayload =
+  PersonalNotificationPayloads[PersonalNotificationKind]
+export type AnyBroadcastNotificationPayload =
+  BroadcastNotificationPayloads[BroadcastNotificationKind]
 
-export type BroadcastKind = BroadcastNotificationKind
-export type Broadcasts = BroadcastPayloads
-
-export type Broadcast = {
+export type BroadcastNotification = {
   [K in BroadcastNotificationKind]: {
     kind: K
-  } & BroadcastPayloads[K]
+  } & BroadcastNotificationPayloads[K]
 }[BroadcastNotificationKind]
 
-export type AnyBroadcastPayload = Broadcasts[keyof Broadcasts]
-
-export const ChannelDataSchemas = v.object({
-  email: v.null(),
-  telegram: v.object({
-    username: v.string(),
-  }),
-  push: v.object({
-    auth: v.string(),
-    p256dh: v.string(),
-    expirationTime: v.optional(v.nullable(v.number())),
-  }),
-})
-
 export type ChannelData = {
-  [K in keyof typeof ChannelDataSchemas.entries]: v.InferOutput<
-    (typeof ChannelDataSchemas.entries)[K]
+  [K in keyof typeof channelDefinitions]: v.InferOutput<
+    (typeof channelDefinitions)[K]['dataSchema']
   >
 }
 
-export type AnyChannelData = ChannelData[keyof ChannelData & string]
+export type AnyChannelData = ChannelData[keyof ChannelData]
 
 export const UserNotificationSettingsSchema = v.object({
   ownedNameExpiry: v.boolean(),
