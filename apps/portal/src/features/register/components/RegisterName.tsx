@@ -25,6 +25,7 @@ type RegisterNameProps = {
 
 export const RegisterName = ({ name }: RegisterNameProps) => {
   const navigate = useNavigate()
+
   const [duration, setDuration] = useState<number>(() =>
     getDurationInSecondsFromYears(1),
   )
@@ -40,6 +41,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   })
 
   const machineState = useSelector(actor, (state) => state.value)
+
   const isIdle = machineState === 'idle'
 
   const nameLengthError = validateNameLength(name)
