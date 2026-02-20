@@ -36,8 +36,6 @@ export const RegisterNameForm = ({
     } else {
       setRegistrationSpanType(REGISTRATION_SPAN_TYPE.YEARS)
     }
-
-    setDuration(getDurationInSecondsFromYears(2))
   }
 
   return (
