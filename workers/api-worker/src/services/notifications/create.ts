@@ -1,4 +1,11 @@
 import {
+  type ChannelType,
+  channelSupportsNotification,
+  type NotificationKind,
+  type NotificationPayloads,
+  notificationDefinitions,
+} from '@ens-apps/shared-schema/notifications'
+import {
   getFirstOrFallback,
   ResultFn,
   TaggedError,
@@ -6,13 +13,6 @@ import {
 import { and, eq, inArray } from 'drizzle-orm'
 import { ok } from 'neverthrow'
 import { v7 as uuidv7 } from 'uuid'
-import {
-  type ChannelType,
-  channelSupportsNotification,
-  type NotificationKind,
-  type NotificationPayloads,
-  notificationDefinitions,
-} from '#config/notifications.js'
 import { type Database, intoDbResult, TABLE } from '#core/database/index.js'
 import type { BaseDeliveryJob } from '#types/delivery.js'
 import { chunk } from '#utils/chunk.js'
@@ -88,7 +88,7 @@ export function shouldCreateExternalDeliveriesForNotification(
  * across the codebase.
  *
  * To add a new channel:
- * 1. Add the channel type to ChannelType in config/notifications.ts
+ * 1. Add the channel type to ChannelType in @ens-apps/shared-schema/notifications
  * 2. Add the queue binding to wrangler.jsonc and update CloudflareBindings type
  * 3. Add an entry here mapping channel -> queue binding name
  * 4. Add the queue handler in queues/index.ts

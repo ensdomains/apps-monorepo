@@ -1,3 +1,4 @@
+import type { AnyUserNotificationPayload } from '@ens-apps/shared-schema/notifications'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
 import { ok } from 'neverthrow'
@@ -8,7 +9,6 @@ import {
   makeTelegramRequest,
 } from '#services/telegram/utils.js'
 import type { TelegramDeliveryJob } from '#types/delivery.js'
-import type { AnyUserNotificationPayload } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
 import { NotificationDeliveryNotFoundError } from './errors.js'
 import {

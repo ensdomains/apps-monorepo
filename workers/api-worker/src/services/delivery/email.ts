@@ -1,3 +1,4 @@
+import type { AnyUserNotificationPayload } from '@ens-apps/shared-schema/notifications'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
 import { ok } from 'neverthrow'
@@ -5,7 +6,6 @@ import type { Database } from '#core/database/index.js'
 import { TABLE } from '#core/database/index.js'
 import { sendMailV3 } from '#services/email/utils.js'
 import type { EmailDeliveryJob } from '#types/delivery.js'
-import type { AnyUserNotificationPayload } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
 import {
   NotificationDeliveryNotFoundError,

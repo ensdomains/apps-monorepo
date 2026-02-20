@@ -1,3 +1,11 @@
+import type {
+  AnyBroadcastPayload,
+  AnyChannelData,
+  AnyUserNotificationPayload,
+  BroadcastKind,
+  ChannelType,
+  NotificationKind,
+} from '@ens-apps/shared-schema/notifications'
 import { relations } from 'drizzle-orm'
 import {
   boolean,
@@ -10,14 +18,6 @@ import {
   unique,
   uuid,
 } from 'drizzle-orm/pg-core'
-import type {
-  AnyBroadcastPayload,
-  AnyChannelData,
-  AnyUserNotificationPayload,
-  BroadcastKind,
-  UserChannel,
-  UserNotificationKind,
-} from '#types/notifications.js'
 import { randomUUIDv7 } from '../utils/schemaHelpers'
 import { users } from './core'
 
@@ -35,7 +35,7 @@ export const userChannels = pgTable(
     /**
      * Which medium (email, push, telegram)
      */
-    channel: text('channel').$type<UserChannel>().notNull(),
+    channel: text('channel').$type<ChannelType>().notNull(),
     /**
      * The actual identifier (email address, FCM endpoint, etc)
      */
@@ -104,7 +104,7 @@ export const channelVerifications = pgTable('channel_verifications', {
     })
     .notNull(),
 
-  channel: text('channel').$type<UserChannel>().notNull(),
+  channel: text('channel').$type<ChannelType>().notNull(),
   target: text('target'), // email during email verification, null for Telegram until bot callback
 
   purpose: text('purpose').notNull(), // 'verify' | 'unsubscribe' | 'link'
@@ -176,7 +176,7 @@ export const notifications = pgTable('notifications', {
   /**
    * Notification kind
    */
-  kind: text('kind').$type<UserNotificationKind>().notNull(),
+  kind: text('kind').$type<NotificationKind>().notNull(),
   /**
    * Payload
    */

@@ -1,7 +1,7 @@
 import type {
   NotificationPayloads,
   SupportedNotifications,
-} from '#config/notifications.js'
+} from '@ens-apps/shared-schema/notifications'
 
 export type EmailTemplate<K extends SupportedNotifications<'email'>> = (
   payload: NotificationPayloads[K],

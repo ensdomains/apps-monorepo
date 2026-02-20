@@ -1,4 +1,4 @@
-import type { NotificationKind } from '#config/notifications.js'
+import type { NotificationKind } from '@ens-apps/shared-schema/notifications'
 
 // Base delivery job
 export type BaseDeliveryJob = {

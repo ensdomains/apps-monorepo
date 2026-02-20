@@ -1,3 +1,9 @@
+import type {
+  Broadcasts,
+  NotificationKind,
+  NotificationPayloads,
+  UserNotifications,
+} from '@ens-apps/shared-schema/notifications'
 import { vValidator } from '@hono/valibot-validator'
 import { and, desc, eq, inArray, isNull, lt, sql } from 'drizzle-orm'
 import * as v from 'valibot'
@@ -7,12 +13,6 @@ import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
 import { createNotification } from '#services/notifications/create.js'
 import type { DiscriminatedPayloadMapper } from '#types/helpers.js'
-import type {
-  Broadcasts,
-  NotificationKind,
-  NotificationPayloads,
-  UserNotifications,
-} from '#types/notifications.js'
 import channels from './channels.js'
 import preferences from './preferences.js'
 
