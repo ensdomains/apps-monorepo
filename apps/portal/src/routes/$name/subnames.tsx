@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
+import { fromPromise } from 'neverthrow'
 import { useCallback } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
@@ -123,7 +124,11 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     enabled: Boolean(hasSubregistry),
   })
 
-  const { deleteSubnameAsync } = useDeleteSubname({
+  const {
+    deleteSubname: deleteSubnameMutate,
+    deleteSubnameAsync,
+    error: deleteError,
+  } = useDeleteSubname({
     name,
     registryAddress: (subregistryAddress as Address) ?? zeroAddress,
   })
@@ -145,23 +150,27 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
 
   const handleDeleteSubname = useCallback(
     (subname: SubnameRow) => {
-      deleteSubnameAsync({
+      deleteSubnameMutate({
         subname: subname.name,
         label: getLabel(subname.name),
         owner: subname.owner,
       })
     },
-    [deleteSubnameAsync, getLabel],
+    [deleteSubnameMutate, getLabel],
   )
 
   const handleClearSelected = useCallback(
     async (selected: SubnameRow[]) => {
       for (const subname of selected) {
-        await deleteSubnameAsync({
-          subname: subname.name,
-          label: getLabel(subname.name),
-          owner: subname.owner,
-        })
+        const result = await fromPromise(
+          deleteSubnameAsync({
+            subname: subname.name,
+            label: getLabel(subname.name),
+            owner: subname.owner,
+          }),
+          (error) => error as Error,
+        )
+        if (result.isErr()) break
       }
     },
     [deleteSubnameAsync, getLabel],
@@ -213,13 +222,21 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   const canCreateSubname = Boolean(hasRegistrarRole)
 
   return (
-    <SubnamesTable
-      subnames={subnameRows}
-      name={name}
-      canCreateSubname={canCreateSubname}
-      onDeleteSubname={handleDeleteSubname}
-      onClearSelected={handleClearSelected}
-    />
+    <>
+      <SubnamesTable
+        subnames={subnameRows}
+        name={name}
+        canCreateSubname={canCreateSubname}
+        onDeleteSubname={handleDeleteSubname}
+        onClearSelected={handleClearSelected}
+      />
+      {deleteError && (
+        <ErrorMessage
+          title="Failed to delete subname"
+          description={deleteError.message}
+        />
+      )}
+    </>
   )
 }
 
