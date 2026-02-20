@@ -1,10 +1,7 @@
 import { AvailabilityCheckIcon } from '@/components/atoms/AvailabilityCheckIcon'
-import {
-  getByteLength,
-  getDomainCardSizeClasses,
-} from '@/features/register/components/Pricing/utils'
 import type { PremiumLabel } from '@/features/register/utils'
 import { cn } from '@/lib/utils'
+import { getByteLength, getDomainCardSizeClasses } from '@/utils/domain'
 import { DomainAttributePill } from './DomainAttributePill'
 
 interface DomainResultCardProps {

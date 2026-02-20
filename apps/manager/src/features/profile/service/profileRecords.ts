@@ -6,14 +6,18 @@ import {
   coinTypeToNameMap,
   getCoderByCoinType,
 } from '@ensdomains/address-encoder'
+import { decodeContentHash } from '@ensdomains/ensjs/utils'
 import { ok } from 'neverthrow'
-import { type Address, hexToBytes, namehash } from 'viem'
+import { type Address, type Hex, hexToBytes, namehash } from 'viem'
 import { multicall } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { alwaysProbeAddressRecords, forceFetchRecords } from '../data/records'
 import { DEBUG_PROFILE } from '../MOCK'
 import { getIndexerRecords } from './getIndexerRecords'
 import { getResolver } from './profileResolver'
+
+/** Bitmask requesting all ABI content types (JSON, zlib, CBOR, URI) */
+const ABI_CONTENT_TYPE_BITMASK = 0xf
 
 const COIN_TYPE_NAME_MAP = coinTypeToNameMap as Record<
   string,
@@ -139,12 +143,59 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     })
   }
 
+  // Fetch content hash and ABI
+  const extraContracts = [
+    {
+      address: resolverAddress,
+      abi: DEDICATED_RESOLVER_ABI,
+      functionName: 'contenthash' as const,
+      args: [node] as const,
+    },
+    {
+      address: resolverAddress,
+      abi: DEDICATED_RESOLVER_ABI,
+      functionName: 'ABI' as const,
+      args: [node, BigInt(ABI_CONTENT_TYPE_BITMASK)] as const,
+    },
+  ]
+
+  const extraResults = await multicall(client, {
+    contracts: extraContracts,
+    allowFailure: true,
+  })
+
+  const contentHashEntry = extraResults[0]
+  if (contentHashEntry?.status === 'success') {
+    const raw = contentHashEntry.result as Hex | null
+    if (raw && raw !== '0x') {
+      const decoded = decodeContentHash(raw)
+      result.contentHash = decoded
+        ? `${decoded.protocolType}://${decoded.decoded}`
+        : raw
+    }
+  }
+
+  const abiEntry = extraResults[1]
+  if (abiEntry?.status === 'success') {
+    const [contentType, data] = abiEntry.result as [bigint, `0x${string}`]
+    if (contentType === 1n && data && data !== '0x') {
+      try {
+        const decoded = new TextDecoder().decode(hexToBytes(data))
+        result.abi = decoded
+      } catch {
+        // ignore decode errors
+      }
+    }
+  }
+
   return ok(result)
 })
 
 export type ProfileRecordsResult = {
   texts: Array<{ key: string; value: string }>
   coins: Array<{ coinType: number; value: string; symbol?: string }>
+  contentHash?: string
+  abi?: string
   resolverAddress?: Address
   _rawSubgraphRecords?: unknown
 }

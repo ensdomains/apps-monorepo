@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
 import {
   GithubIcon,
@@ -7,7 +8,7 @@ import {
   YoutubeIcon,
 } from 'lucide-react'
 
-import ensBlack from '@/assets/icons/ens-black.svg'
+import ensMobile from '@/assets/icons/ens-mobile.svg'
 
 interface NavigationContentProps {
   onAction: () => void
@@ -15,8 +16,11 @@ interface NavigationContentProps {
 
 interface NavigationLink {
   label: string
-  href: string
+  href?: string
+  to?: string
   icon?: React.ReactNode
+  target?: '_blank'
+  rel?: 'noreferrer'
 }
 
 interface NavigationSection {
@@ -29,9 +33,8 @@ interface SocialIcon {
   icon: LucideIcon
 }
 
-const LogoIconBlack = () => <img alt="Logo" src={ensBlack} />
+const LogoIconBlack = () => <img alt="Logo" src={ensMobile} />
 
-// TODO: Update links to actual URLs
 const navigationSections: NavigationSection[] = [
   {
     title: '',
@@ -46,38 +49,67 @@ const navigationSections: NavigationSection[] = [
   {
     title: 'Need help?',
     links: [
-      { label: 'Support', href: '#support' },
-      { label: 'Contact', href: '#contact' },
+      {
+        label: 'Support',
+        href: 'https://support.ens.domains',
+        target: '_blank',
+        rel: 'noreferrer',
+      },
+      {
+        label: 'Contact',
+        href: 'mailto:support@ens.domains',
+      },
     ],
   },
   {
     title: 'ENS',
     links: [
-      { label: 'Privacy Policy', href: '#privacy' },
-      { label: 'Terms of Use', href: '#terms' },
-      { label: 'Bug bounty', href: '#bug-bounty' },
-      { label: 'Brand', href: '#brand' },
-      { label: 'Careers', href: '#careers' },
+      {
+        label: 'Privacy Policy',
+        to: '/legal/privacy-policy',
+      },
+      {
+        label: 'Terms of Use',
+        to: '/legal/terms-of-use',
+      },
+      {
+        label: 'Trademark Guidelines',
+        to: '/legal/trademark-guidelines',
+      },
+      {
+        label: 'Bug bounty',
+        href: 'https://immunefi.com/bug-bounty/ens/information',
+        target: '_blank',
+        rel: 'noreferrer',
+      },
     ],
   },
 
   {
     title: 'Join the community',
     links: [
-      { label: 'Blog', href: '#blog' },
-      { label: 'Feedback', href: '#feedback' },
-      { label: 'DAO Forum', href: '#dao-forum' },
+      {
+        label: 'Blog',
+        href: 'https://ens.domains/blog',
+        target: '_blank',
+        rel: 'noreferrer',
+      },
+      {
+        label: 'DAO Forum',
+        href: 'https://discuss.ens.domains/',
+        target: '_blank',
+        rel: 'noreferrer',
+      },
     ],
   },
 ]
 
-// TODO: Update social icons to actual URLs
 const socialIcons: SocialIcon[] = [
-  { href: '#twitter', icon: TwitterIcon },
-  { href: '#github', icon: GithubIcon },
-  { href: '#discord', icon: MessageCircleIcon },
-  { href: '#chat', icon: MessageSquareIcon },
-  { href: '#youtube', icon: YoutubeIcon },
+  { href: 'https://x.com/ensdomains', icon: TwitterIcon },
+  { href: 'https://github.com/ensdomains', icon: GithubIcon },
+  { href: 'https://chat.ens.domains', icon: MessageCircleIcon },
+  { href: 'https://support.ens.domains', icon: MessageSquareIcon },
+  { href: 'https://www.youtube.com/@ENSdomains', icon: YoutubeIcon },
 ]
 
 export const NavigationContent = ({ onAction }: NavigationContentProps) => {
@@ -96,16 +128,32 @@ export const NavigationContent = ({ onAction }: NavigationContentProps) => {
             </h3>
             <div className="flex flex-col gap-4">
               {section.links.map((link) => (
-                <div className="flex items-center gap-2">
+                <div
+                  className="flex items-center gap-2"
+                  key={`${section.title}-${link.label}-${link.to ?? link.href}`}
+                >
                   {link.icon && <div className="size-6">{link.icon}</div>}
-                  <a
-                    className="text-ens-lapis-core text-sm leading-ens-normal transition-colors hover:underline"
-                    href={link.href}
-                    key={link.href}
-                    onClick={handleLinkClick}
-                  >
-                    {link.label}
-                  </a>
+                  {link.to ? (
+                    <Link
+                      className="text-ens-lapis-core text-sm leading-ens-normal transition-colors hover:underline"
+                      key={link.label}
+                      onClick={handleLinkClick}
+                      to={link.to}
+                    >
+                      {link.label}
+                    </Link>
+                  ) : (
+                    <a
+                      className="text-ens-lapis-core text-sm leading-ens-normal transition-colors hover:underline"
+                      href={link.href}
+                      key={link.label}
+                      onClick={handleLinkClick}
+                      rel={link.rel}
+                      target={link.target}
+                    >
+                      {link.label}
+                    </a>
+                  )}
                 </div>
               ))}
             </div>
@@ -120,6 +168,8 @@ export const NavigationContent = ({ onAction }: NavigationContentProps) => {
             href={href}
             key={href}
             onClick={handleLinkClick}
+            rel="noreferrer"
+            target="_blank"
           >
             <Icon className="size-5" />
           </a>

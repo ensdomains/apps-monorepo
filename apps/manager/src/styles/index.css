@@ -75,3 +75,7 @@
 @utility w-full-* {
   width: calc(100% - --value([length]));
 }
+
+@utility max-w-full-* {
+  max-width: calc(100% - --value([length]));
+}

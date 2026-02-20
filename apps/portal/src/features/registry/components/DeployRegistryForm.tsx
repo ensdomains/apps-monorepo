@@ -36,13 +36,12 @@ export const DeployRegistryForm = ({
             Use custom registry
           </Label>
         </div>
-        {!useCustomRegistry && (
-          <span className="text-sm text-muted-foreground">
-            Deploy a new verified subregistry.
-          </span>
-        )}
       </div>
-
+      {!useCustomRegistry && (
+        <span className="text-sm text-muted-foreground">
+          Deploy a new verified subregistry.
+        </span>
+      )}
       {useCustomRegistry && (
         <div className="flex flex-col gap-3">
           <Label

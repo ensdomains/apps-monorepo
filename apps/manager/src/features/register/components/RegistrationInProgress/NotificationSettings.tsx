@@ -83,7 +83,7 @@ const NotificationPreferences = ({
             <Preference
               checked={field.state.value}
               description="You'll be notified 30, 7, and 1 day before expiry"
-              disabled={false}
+              disabled={!hasVerifiedChannels || preferences.isRefetching}
               icon={
                 <MSymbol
                   className="ms-wght-300 text-ens-lapis-surface"
@@ -101,7 +101,7 @@ const NotificationPreferences = ({
             <Preference
               checked={field.state.value}
               description="Get updated on the latest releases and features"
-              disabled={false}
+              disabled={!hasVerifiedChannels || preferences.isRefetching}
               icon={
                 <MSymbol
                   className="ms-wght-300 text-ens-lapis-surface"
@@ -119,7 +119,7 @@ const NotificationPreferences = ({
             <Preference
               checked={field.state.value}
               description="Get notified when names in your favourites expire"
-              disabled={false}
+              disabled={!hasVerifiedChannels || preferences.isRefetching}
               icon={
                 <MSymbol
                   className="ms-wght-300 text-ens-lapis-surface"
@@ -184,7 +184,7 @@ export const NotificationSettings = ({
   onSkip,
 }: NotificationSettingsProps) => {
   return (
-    <div className="mx-auto w-full max-w-5xl flex-1 space-y-12 rounded-lg border-[#dededf] bg-white px-6 py-8 lg:my-5 lg:border">
+    <div className="mx-auto w-full max-w-5xl space-y-12 rounded-lg border-[#dededf] bg-white px-6 py-8 lg:my-5 lg:border">
       {/* title row */}
       <div className="flex flex-col gap-4">
         {/* title */}

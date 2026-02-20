@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import clsx from 'clsx'
 import {
   ArrowUpRight,
   CircleArrowLeft,
@@ -147,11 +148,11 @@ export const AddressProfileView = ({
               {...staggerProps(index)}
             >
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex items-center gap-2 md:gap-[12px]">
+                <div className="flex min-w-0 items-center gap-2 md:max-w-full-[180px] md:gap-[12px]">
                   <NameAvatar name={label} />
                   <div className="flex min-w-0 items-center rounded-[2.8px] bg-[#e5f7ff] px-2 py-1 md:px-[8px] md:py-[4px]">
                     <Link
-                      className="mr-1 break-all font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] [text-wrap:pretty] md:mr-2 md:tracking-[-0.32px]"
+                      className="mr-1 min-w-0 break-all font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] [text-wrap:pretty] md:mr-2 md:tracking-[-0.32px]"
                       params={{ name: label }}
                       to="/p/$name"
                     >
@@ -163,7 +164,7 @@ export const AddressProfileView = ({
                     />
                   </div>
                 </div>
-                <span className="text-muted-foreground text-sm tracking-[-0.24px]">
+                <span className="shrink-0 text-muted-foreground text-sm tracking-[-0.24px]">
                   {formatExpiry(domain.expiryDate)}
                 </span>
               </div>
@@ -231,7 +232,7 @@ export const AddressProfileView = ({
         </div>
 
         <div
-          className={isPlaceholderData ? 'opacity-50 transition-opacity' : ''}
+          className={clsx(isPlaceholderData && 'opacity-50 transition-opacity')}
         >
           {namesContent}
         </div>

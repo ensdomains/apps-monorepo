@@ -10,6 +10,7 @@ import type {
 
 // Constants
 const MAX_TRANSITIONS = 1000
+const MAX_AUDIT_LOG = 2000
 const MAX_AGE = 24 * 60 * 60 * 1000 // 24 hours
 const STORAGE_KEY = '@ens/audit-trail'
 
@@ -49,6 +50,22 @@ function getSessionId(): string {
 }
 
 // Storage helpers (can be easily mocked in tests)
+function serializeStorageValue(value: unknown): unknown {
+  if (typeof value === 'bigint') {
+    return value.toString()
+  }
+
+  if (value instanceof Error) {
+    return {
+      name: value.name,
+      message: value.message,
+      stack: value.stack,
+    }
+  }
+
+  return value
+}
+
 function loadFromStorage(): AuditTrailData {
   if (typeof window === 'undefined' || !localStorage) {
     return { transitions: [], auditLog: [] }
@@ -76,11 +93,7 @@ function saveToStorage(data: AuditTrailData): void {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify(data, (_key, value) => {
-        // Convert BigInt to string for JSON serialization
-        if (typeof value === 'bigint') {
-          return value.toString()
-        }
-        return value
+        return serializeStorageValue(value)
       }),
     )
   } catch (error) {
@@ -137,6 +150,10 @@ export function addAuditEntry(
     }
 
     data.auditLog.push(entry)
+
+    if (data.auditLog.length > MAX_AUDIT_LOG) {
+      data.auditLog.shift()
+    }
 
     if (level === 'critical') {
       console.error('[CRITICAL]', message, details)

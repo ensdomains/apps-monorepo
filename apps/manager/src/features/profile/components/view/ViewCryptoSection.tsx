@@ -36,6 +36,12 @@ interface ViewCryptoSectionProps {
 }
 
 export const ViewCryptoSection = ({ records }: ViewCryptoSectionProps) => {
+  const addressesWithValues = records.addresses.filter((a) => a.value)
+
+  if (addressesWithValues.length === 0) {
+    return null
+  }
+
   return (
     <Card className="border-[0.25px] border-border bg-white shadow-none">
       <CardHeader>
@@ -44,18 +50,11 @@ export const ViewCryptoSection = ({ records }: ViewCryptoSectionProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {records.addresses.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {records.addresses.map((address, i) => (
-              <CryptoAddress
-                address={address}
-                key={`${address.coinType}-${i}`}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-600 text-sm">No crypto addresses added</p>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {addressesWithValues.map((address, i) => (
+            <CryptoAddress address={address} key={`${address.coinType}-${i}`} />
+          ))}
+        </div>
       </CardContent>
     </Card>
   )

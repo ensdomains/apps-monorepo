@@ -47,17 +47,13 @@ export const PricingPaymentSection = ({
 
   if (!isConnected) {
     return (
-      <div className="px-5 md:px-0">
-        <Button
-          className="h-16 w-full rounded bg-ens-blue hover:bg-ens-blue-hover md:h-20"
-          onClick={onConnect}
-          variant="default"
-        >
-          <span className="font-medium font-mono text-sm text-white uppercase tracking-wider">
-            Connect or sign in to register
-          </span>
-        </Button>
-      </div>
+      <Button
+        className="h-16 w-full rounded bg-ens-blue font-medium font-mono text-sm text-white uppercase tracking-wider hover:bg-ens-blue-hover md:h-20"
+        onClick={onConnect}
+        variant="default"
+      >
+        Connect or sign in to register
+      </Button>
     )
   }
 
