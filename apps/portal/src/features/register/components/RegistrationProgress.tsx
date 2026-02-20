@@ -2,6 +2,7 @@ import type {
   RegistrationMachineActor,
   RegistrationMachineState,
 } from '@ens-apps/transaction-manager'
+import { useBlocker } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { CheckCircle2, Info } from 'lucide-react'
 import { useEffect } from 'react'
@@ -140,6 +141,17 @@ export const RegistrationProgress = ({
   const isError = progressStage === PROGRESS_STAGE.ERROR
 
   const isInProgress = !isComplete && !isError
+
+  useBlocker({
+    shouldBlockFn: () => {
+      if (!isInProgress) return false
+
+      const shouldLeave = confirm(
+        'Your registration is in progress. Leaving may interrupt it and you could lose your commitment. Are you sure you want to leave?',
+      )
+      return !shouldLeave
+    },
+  })
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
