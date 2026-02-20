@@ -5,7 +5,6 @@ import {
   createEmptyPricingQuoteMap,
   formatDuration,
   formatExpirationDate,
-  getByteLength,
   getInitialPricingOptions,
   INITIAL_PRICING_OPTIONS,
   sanitizePricingDuration,
@@ -54,11 +53,6 @@ describe('Pricing utils', () => {
     expect(
       formatExpirationDate(new Date('2024-03-15T00:00:00.000Z')).toString(),
     ).toMatch(/March/)
-  })
-
-  it('calculates byte length with UTF-8 encoding', () => {
-    expect(getByteLength('hello')).toBe(5)
-    expect(getByteLength('hello🔥')).toBe(9)
   })
 
   it('calculates expiration date from years', () => {

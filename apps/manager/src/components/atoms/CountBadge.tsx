@@ -7,7 +7,7 @@ interface CountBadgeProps
 }
 
 const baseClassName =
-  'inline-flex h-[19.68px] items-center justify-center rounded-[14px] bg-[#ffecf5] px-[6.56px] py-[1.64px] font-sans text-[#f53293] text-sm leading-[1.05] tracking-[0.28px]'
+  'inline-flex h-5 items-center justify-center rounded-full bg-ens-magenta/10 px-2 py-0.5 font-sans text-ens-garnet-core text-sm leading-none tracking-wide'
 
 export const CountBadge = ({ value, className, ...props }: CountBadgeProps) => (
   <span className={cn(baseClassName, className)} {...props}>
