@@ -1,5 +1,11 @@
 import { X } from 'lucide-react'
-import { formatRelativeTime } from '@/utils/time'
+import * as ImageFallback from '@/components/atoms/ImageFallback'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { formatAbsoluteTime, formatRelativeTime } from '@/utils/time'
 
 export type NotificationPillTone = 'default' | 'success' | 'warning' | 'update'
 
@@ -48,9 +54,14 @@ export const NotificationHeader = ({
     >
       {category}
     </span>
-    <span className="ml-auto text-[#717182] text-sm">
-      {formatRelativeTime(timestamp)}
-    </span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="ml-auto text-[#717182] text-sm">
+          {formatRelativeTime(timestamp)}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{formatAbsoluteTime(timestamp)}</TooltipContent>
+    </Tooltip>
     {onRemove ? (
       <button className="cursor-pointer" onClick={onRemove} type="button">
         <X className="size-4 text-[#9b9cac]" />
@@ -95,7 +106,16 @@ export const NotificationBody = ({
 
 export const MediaThumb = ({ src, alt }: { src: string; alt: string }) => (
   <div className="h-14 w-14 overflow-hidden rounded-sm bg-[#f1f2f5]">
-    <img alt={alt} className="h-full w-full object-cover" src={src} />
+    <ImageFallback.Root>
+      <ImageFallback.Image
+        alt={alt}
+        className="h-full w-full object-cover"
+        src={src}
+      />
+      <ImageFallback.Fallback>
+        <div className="h-full w-full bg-[#f1f2f5]" />
+      </ImageFallback.Fallback>
+    </ImageFallback.Root>
   </div>
 )
 
