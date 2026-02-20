@@ -56,7 +56,7 @@ function mapStateToProgressStage(
   }
 }
 
-const CANCEL_ALLOWED_STATES = new Set([
+const CANCEL_ALLOWED_STATES = new Set<RegistrationMachineState>([
   'settingUpRegistration',
   'deployingResolver',
   'waitingForResolverDeployment',
@@ -67,23 +67,24 @@ const CANCEL_ALLOWED_STATES = new Set([
   'validatingCommitment',
 ])
 
-function canCancel(stateValue: string | Record<string, unknown>): boolean {
-  if (typeof stateValue === 'object') return false
+function canCancel(stateValue: RegistrationMachineState): boolean {
   return CANCEL_ALLOWED_STATES.has(stateValue)
 }
 
 const STAGE_PROGRESS: Record<ProgressStage, number> = {
   settingUp: 33,
   approving: 66,
-  registering: 100,
+  registering: 80,
   complete: 100,
   error: 0,
 }
 
 const STATE_MESSAGES: Record<
-  string,
-  { primary: string; description?: string }[]
+  RegistrationMachineState,
+  { primary: string; description: string }[]
 > = {
+  idle: [{ primary: 'Setting up', description: 'Please wait...' }],
+  error: [{ primary: 'Registration failed', description: 'Please try again.' }],
   settingUpRegistration: [
     { primary: 'Setting up', description: 'Preparing your name.' },
   ],
