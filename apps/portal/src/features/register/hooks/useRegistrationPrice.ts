@@ -3,7 +3,6 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { l2EthRegistrarRentPriceSnippet } from '@ensdomains/ensjs/contracts'
 import { fromPromise, ok } from 'neverthrow'
-import type { Address } from 'viem'
 import { formatUnits, zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
 import { getTokenDecimals } from '@/features/register/utils/tokenDecimals'
@@ -11,6 +10,7 @@ import { fastTestETHRegistrar } from '@/lib/constants/registry'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { formatUsdCeil } from '@/utils/formatting/formatUsdCeil'
+import type { SupportedTokenAddresses } from '../types/tokens'
 
 class GetRegistrationPriceError extends TaggedError(
   'GetRegistrationPriceError',
@@ -21,7 +21,7 @@ class GetRegistrationPriceError extends TaggedError(
 export type RegistrationPriceParameters = {
   readonly name: string
   readonly duration: number
-  readonly token?: Address
+  readonly token?: SupportedTokenAddresses
 }
 
 export type RegistrationPriceResult = {
