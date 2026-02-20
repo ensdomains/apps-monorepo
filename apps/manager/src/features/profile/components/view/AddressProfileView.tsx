@@ -23,12 +23,12 @@ import {
   resolveDomainLabel,
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
+import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import { useAvatarFromName } from '../../service/profileAvatar'
 import {
   PROFILE_NAMES_PAGE_SIZE,
   profileOwnedNamesQuery,
 } from '../../service/profileOwnedNames'
-import { profileOwnedNamesCountQuery } from '../../service/profileOwnedNamesCount'
 
 const shortenAddress = (value: string) =>
   `${value.slice(0, 6)}...${value.slice(-4)}`
@@ -85,7 +85,7 @@ export const AddressProfileView = ({
         placeholderData: keepPreviousData,
       },
       {
-        ...profileOwnedNamesCountQuery(address),
+        ...ownedNamesCountQueryOptions(address),
       },
     ],
   })

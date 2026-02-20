@@ -12,9 +12,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
-import { ownedNamesCountQueryOptions } from '../service/queries/getOwnedNamesCount'
 import { FavoritesList } from './FavoritesList'
 import { MyNamesList } from './MyNamesList'
 

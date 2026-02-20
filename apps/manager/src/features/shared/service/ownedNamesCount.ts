@@ -9,20 +9,21 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
 import { ok, ResultAsync } from 'neverthrow'
-import type { Address } from 'viem'
 
-class GetOwnedNamesCountError extends TaggedError('GetOwnedNamesCountError')<{
+export class GetOwnedNamesCountError extends TaggedError(
+  'GetOwnedNamesCountError',
+)<{
   cause: unknown
 }> {}
 
 export const getOwnedNamesCount = ResultFn(async function* (
-  where: OwnedNamesCountQueryVariables,
+  variables: OwnedNamesCountQueryVariables,
 ) {
   const data = yield* await ResultAsync.fromPromise(
     indexerClient
       .query<OwnedNamesCountQuery, OwnedNamesCountQueryVariables>(
         OwnedNamesCountDocument,
-        where,
+        variables,
       )
       .toPromise()
       .then((result) => {
@@ -36,18 +37,17 @@ export const getOwnedNamesCount = ResultFn(async function* (
   return ok(data.registrationConnection.totalCount ?? 0)
 })
 
-export const profileOwnedNamesCountQuery = (address?: Address) =>
+const ownedNamesCountQueryKey = (address?: string) =>
+  qk('owned_names_count', {
+    address: address?.toLowerCase(),
+  })
+
+export const ownedNamesCountQueryOptions = (address?: string) =>
   resultQueryOptions({
-    queryKey: qk('profile', 'owned_names_count', {
-      address: address?.toLowerCase(),
-    }),
+    queryKey: ownedNamesCountQueryKey(address),
     queryFn: address
       ? () =>
-          getOwnedNamesCount({
-            where: {
-              registrant: address.toLowerCase(),
-            },
-          })
+          getOwnedNamesCount({ where: { registrant: address.toLowerCase() } })
       : skipToken,
     meta: {
       dependsOn: ['indexer'],
