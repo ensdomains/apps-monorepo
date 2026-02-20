@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
-import { Badge } from '@/components/ui/badge'
 import { NameCardTemplate } from '@/features/notifications/renderers/templates'
+import { getNotificationActionButtonClass } from '@/features/notifications/ui/items/common'
 import { formatExpiryTime } from '@/utils/time'
 import { isBoolean, isNumber, isObject, isString } from './helpers'
 import type {
@@ -26,6 +26,7 @@ const isNameExpiryPayload = (
 
 const NameExpiryComponent = ({
   notification,
+  layout = 'default',
   onAction,
   onMarkAsRead,
   onRemove,
@@ -36,21 +37,29 @@ const NameExpiryComponent = ({
     <NameCardTemplate
       action={
         <Link
-          className="inline-flex h-8 items-center justify-center rounded-md border border-input bg-background px-3 font-medium text-sm"
+          className={getNotificationActionButtonClass(layout)}
           onClick={onAction}
           params={{
             name: notification.payload.name,
           }}
           to="/p/$name"
         >
-          {expiry.isExpired ? 'View' : 'Extend'}
+          {expiry.isExpired ? 'View profile' : 'Extend'}
         </Link>
       }
-      badge={<Badge variant="lightOrange">{expiry.text}</Badge>}
-      description={expiry.isExpired ? 'Name has expired' : undefined}
+      category="Expiry"
+      categoryTone="warning"
+      description={
+        expiry.isExpired
+          ? 'This name has expired and should be renewed as soon as possible.'
+          : undefined
+      }
+      layout={layout}
       name={notification.payload.name}
       onMarkAsRead={onMarkAsRead}
       onRemove={onRemove}
+      seen={notification.seen}
+      statusText={expiry.text}
       timestamp={notification.timestamp}
     />
   )

@@ -58,7 +58,7 @@ describe('NotificationsDropdown', () => {
     expect(screen.getByText('Failed to load notifications')).toBeTruthy()
   })
 
-  it('shows top 5 renderable notifications when available', () => {
+  it('shows top 3 renderable notifications when available', () => {
     const validExpiryPayload = {
       name: 'example.eth',
       expiryDate: Date.now() + 1_000_000,
@@ -122,7 +122,7 @@ describe('NotificationsDropdown', () => {
     })
 
     render(<NotificationsDropdown />)
-    expect(screen.getAllByTestId('notification-item')).toHaveLength(5)
+    expect(screen.getAllByTestId('notification-item')).toHaveLength(3)
   })
 
   it('filters invalid notifications', () => {

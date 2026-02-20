@@ -1,5 +1,5 @@
-import { Badge } from '@/components/ui/badge'
 import { NameCardTemplate } from '@/features/notifications/renderers/templates'
+import { getNotificationActionButtonClass } from '@/features/notifications/ui/items/common'
 import { isObject, isString } from './helpers'
 import type {
   KindComponentProps,
@@ -19,6 +19,7 @@ const isNameTransferredPayload = (
 
 const NameTransferredComponent = ({
   notification,
+  layout = 'default',
   onAction,
   onMarkAsRead,
   onRemove,
@@ -26,19 +27,23 @@ const NameTransferredComponent = ({
   <NameCardTemplate
     action={
       <a
-        className="text-blue-600 text-sm underline hover:text-blue-800"
+        className={getNotificationActionButtonClass(layout)}
         href={`https://etherscan.io/tx/${notification.payload.txHash}`}
         onClick={onAction}
         rel="noopener noreferrer"
         target="_blank"
       >
-        View on Etherscan
+        View tx
       </a>
     }
-    badge={<Badge variant="lightBlue">Transferred</Badge>}
+    category="Activity"
+    categoryTone="default"
+    layout={layout}
     name={notification.payload.name}
     onMarkAsRead={onMarkAsRead}
     onRemove={onRemove}
+    seen={notification.seen}
+    statusText="Transferred"
     timestamp={notification.timestamp}
   />
 )

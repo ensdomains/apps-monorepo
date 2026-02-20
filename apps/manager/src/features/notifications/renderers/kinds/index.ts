@@ -1,4 +1,4 @@
-import type { BackendNotification } from '../queries/notifications'
+import type { BackendNotification } from '../../queries/notifications'
 import { alphaWelcomeKind } from './alpha-welcome'
 import { blogPostKind } from './blog-post'
 import { ensUpdateKind } from './ens-update'

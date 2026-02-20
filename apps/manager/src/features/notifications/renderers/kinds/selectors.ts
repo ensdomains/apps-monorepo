@@ -1,4 +1,4 @@
-import type { BackendNotification } from '../queries/notifications'
+import type { BackendNotification } from '../../queries/notifications'
 import {
   type RenderableNotification,
   resolveRenderableNotification,

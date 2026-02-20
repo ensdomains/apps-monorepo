@@ -1,4 +1,5 @@
 import { ContentCardTemplate } from '@/features/notifications/renderers/templates'
+import { getNotificationActionButtonClass } from '@/features/notifications/ui/items/common'
 import { isObject, isString } from './helpers'
 import type {
   KindComponentProps,
@@ -20,6 +21,7 @@ const isBlogPostPayload = (
 
 const BlogPostComponent = ({
   notification,
+  layout = 'default',
   onAction,
   onMarkAsRead,
   onRemove,
@@ -27,7 +29,7 @@ const BlogPostComponent = ({
   <ContentCardTemplate
     action={
       <a
-        className="text-blue-600 text-sm underline hover:text-blue-800"
+        className={getNotificationActionButtonClass(layout)}
         href={notification.payload.url}
         onClick={onAction}
         rel="noopener noreferrer"
@@ -36,9 +38,13 @@ const BlogPostComponent = ({
         Go to post
       </a>
     }
+    category="ENS Update"
+    categoryTone="update"
     imageUrl={notification.payload.imageUrl}
+    layout={layout}
     onMarkAsRead={onMarkAsRead}
     onRemove={onRemove}
+    seen={notification.seen}
     timestamp={notification.timestamp}
     title={notification.payload.title}
   />

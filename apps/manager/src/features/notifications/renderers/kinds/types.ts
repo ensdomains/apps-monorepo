@@ -1,5 +1,5 @@
 import type { FC } from 'react'
-import type { BackendNotification } from '../queries/notifications'
+import type { BackendNotification } from '../../queries/notifications'
 
 export type NotificationKind = BackendNotification['kind']
 
@@ -11,8 +11,11 @@ export type NotificationForKind<K extends NotificationKind> = Extract<
 export type NotificationPayloadForKind<K extends NotificationKind> =
   NotificationForKind<K>['payload']
 
+export type NotificationLayout = 'default' | 'compact'
+
 export type KindComponentProps<K extends NotificationKind> = {
   notification: NotificationForKind<K>
+  layout?: NotificationLayout
   onAction?: () => void
   onMarkAsRead?: () => void
   onRemove?: () => void

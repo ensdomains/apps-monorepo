@@ -1,46 +1,66 @@
 import type { ReactNode } from 'react'
 import {
-  ActionRow,
+  MediaThumb,
   NameDisplay,
+  NotificationBody,
   NotificationHeader,
+  type NotificationPillTone,
   NotificationWrapper,
 } from '@/features/notifications/ui/items/common'
 
 type TemplateCommonProps = {
+  category: string
+  categoryTone?: NotificationPillTone
+  seen: boolean
   timestamp: number
+  layout?: 'default' | 'compact'
   onMarkAsRead?: () => void
   onRemove?: () => void
 }
 
 type NameCardTemplateProps = TemplateCommonProps & {
-  badge?: ReactNode
+  statusText?: string
   name: string
   description?: string
   action?: ReactNode
 }
 
 export const NameCardTemplate = ({
-  badge,
+  category,
+  categoryTone,
+  seen,
+  statusText,
   name,
   description,
   action,
   timestamp,
+  layout = 'default',
   onMarkAsRead,
   onRemove,
 }: NameCardTemplateProps) => (
   <NotificationWrapper>
     <NotificationHeader
+      category={category}
+      categoryTone={categoryTone}
       onMarkAsRead={onMarkAsRead}
       onRemove={onRemove}
+      seen={seen}
       timestamp={timestamp}
-    >
-      {badge}
-    </NotificationHeader>
-    <NameDisplay name={name} />
-    {description ? (
-      <div className="text-gray-600 text-sm">{description}</div>
-    ) : null}
-    {action ? <ActionRow>{action}</ActionRow> : null}
+    />
+    <NotificationBody
+      action={action}
+      main={
+        <div className="space-y-2">
+          {statusText ? (
+            <p className="font-medium text-[#6a6d7d] text-sm">{statusText}</p>
+          ) : null}
+          <NameDisplay layout={layout} name={name} />
+          {description ? (
+            <p className="text-[#5f6172] text-sm leading-snug">{description}</p>
+          ) : null}
+        </div>
+      }
+    />
   </NotificationWrapper>
 )
 
@@ -52,40 +72,47 @@ type ContentCardTemplateProps = TemplateCommonProps & {
 }
 
 export const ContentCardTemplate = ({
+  category,
+  categoryTone,
+  seen,
   title,
   imageUrl,
   description,
   action,
   timestamp,
+  layout = 'default',
   onMarkAsRead,
   onRemove,
 }: ContentCardTemplateProps) => (
   <NotificationWrapper>
     <NotificationHeader
+      category={category}
+      categoryTone={categoryTone}
       onMarkAsRead={onMarkAsRead}
       onRemove={onRemove}
+      seen={seen}
       timestamp={timestamp}
     />
-    <div className="flex items-center gap-4">
-      {imageUrl ? (
-        <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded">
-          <img
-            alt={title}
-            className="h-full w-full object-cover"
-            src={imageUrl}
-          />
+    <NotificationBody
+      action={action}
+      main={
+        <div className="space-y-1">
+          <h3
+            className={`line-clamp-2 font-medium text-[#2d2f36] ${
+              layout === 'compact'
+                ? 'text-[1rem] leading-[1.35]'
+                : 'text-[1.15rem] leading-[1.35]'
+            }`}
+          >
+            {title}
+          </h3>
+          {description ? (
+            <p className="text-[#5f6172] text-sm leading-snug">{description}</p>
+          ) : null}
         </div>
-      ) : null}
-      <div className="flex flex-col justify-center gap-1">
-        <h3 className="line-clamp-2 font-medium text-gray-900 leading-tight">
-          {title}
-        </h3>
-        {description ? (
-          <p className="text-gray-600 text-sm">{description}</p>
-        ) : null}
-        {action}
-      </div>
-    </div>
+      }
+      media={imageUrl ? <MediaThumb alt={title} src={imageUrl} /> : undefined}
+    />
   </NotificationWrapper>
 )
 
@@ -96,25 +123,44 @@ type MessageCardTemplateProps = TemplateCommonProps & {
 }
 
 export const MessageCardTemplate = ({
+  category,
+  categoryTone,
+  seen,
   title,
   description,
   action,
   timestamp,
+  layout = 'default',
   onMarkAsRead,
   onRemove,
 }: MessageCardTemplateProps) => (
   <NotificationWrapper>
     <NotificationHeader
+      category={category}
+      categoryTone={categoryTone}
       onMarkAsRead={onMarkAsRead}
       onRemove={onRemove}
+      seen={seen}
       timestamp={timestamp}
     />
-    <div className="space-y-1">
-      <div className="font-medium text-gray-900">{title}</div>
-      {description ? (
-        <div className="text-gray-600 text-sm">{description}</div>
-      ) : null}
-      {action}
-    </div>
+    <NotificationBody
+      action={action}
+      main={
+        <div className="space-y-1">
+          <h3
+            className={`font-medium text-[#2d2f36] ${
+              layout === 'compact'
+                ? 'text-[1rem] leading-[1.35]'
+                : 'text-[1.15rem] leading-[1.35]'
+            }`}
+          >
+            {title}
+          </h3>
+          {description ? (
+            <p className="text-[#5f6172] text-sm leading-snug">{description}</p>
+          ) : null}
+        </div>
+      }
+    />
   </NotificationWrapper>
 )

@@ -1,4 +1,5 @@
 import { MessageCardTemplate } from '@/features/notifications/renderers/templates'
+import { getNotificationActionButtonClass } from '@/features/notifications/ui/items/common'
 import { isObject, isOptionalString, isString } from './helpers'
 import type {
   KindComponentProps,
@@ -21,6 +22,7 @@ const isAlphaWelcomePayload = (
 
 const AlphaWelcomeComponent = ({
   notification,
+  layout = 'default',
   onAction,
   onMarkAsRead,
   onRemove,
@@ -29,7 +31,7 @@ const AlphaWelcomeComponent = ({
     action={
       notification.payload.ctaLabel && notification.payload.ctaUrl ? (
         <a
-          className="text-blue-600 text-sm underline hover:text-blue-800"
+          className={getNotificationActionButtonClass(layout)}
           href={notification.payload.ctaUrl}
           onClick={onAction}
           rel="noopener noreferrer"
@@ -39,9 +41,13 @@ const AlphaWelcomeComponent = ({
         </a>
       ) : null
     }
+    category="ENS Update"
+    categoryTone="update"
     description={notification.payload.body}
+    layout={layout}
     onMarkAsRead={onMarkAsRead}
     onRemove={onRemove}
+    seen={notification.seen}
     timestamp={notification.timestamp}
     title={notification.payload.title}
   />

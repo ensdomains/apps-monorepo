@@ -1,4 +1,5 @@
 import { MessageCardTemplate } from '@/features/notifications/renderers/templates'
+import { getNotificationActionButtonClass } from '@/features/notifications/ui/items/common'
 import { isObject, isOptionalString, isString } from './helpers'
 import type {
   KindComponentProps,
@@ -20,6 +21,7 @@ const isEnsUpdatePayload = (
 
 const EnsUpdateComponent = ({
   notification,
+  layout = 'default',
   onAction,
   onMarkAsRead,
   onRemove,
@@ -28,7 +30,7 @@ const EnsUpdateComponent = ({
     action={
       notification.payload.url ? (
         <a
-          className="text-blue-600 text-sm underline hover:text-blue-800"
+          className={getNotificationActionButtonClass(layout)}
           href={notification.payload.url}
           onClick={onAction}
           rel="noopener noreferrer"
@@ -38,9 +40,13 @@ const EnsUpdateComponent = ({
         </a>
       ) : null
     }
+    category="ENS Update"
+    categoryTone="update"
     description={notification.payload.summary}
+    layout={layout}
     onMarkAsRead={onMarkAsRead}
     onRemove={onRemove}
+    seen={notification.seen}
     timestamp={notification.timestamp}
     title={notification.payload.title}
   />

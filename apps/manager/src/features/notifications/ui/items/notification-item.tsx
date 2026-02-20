@@ -1,13 +1,18 @@
 import type { FC } from 'react'
+import type { BackendNotification } from '../../queries/notifications'
 import {
   type RenderableNotification,
   resolveRenderableNotification,
-} from '../../kinds'
-import type { KindComponentProps, NotificationKind } from '../../kinds/types'
-import type { BackendNotification } from '../../queries/notifications'
+} from '../../renderers/kinds'
+import type {
+  KindComponentProps,
+  NotificationKind,
+  NotificationLayout,
+} from '../../renderers/kinds/types'
 
 type NotificationItemProps = {
   notification: BackendNotification
+  layout?: NotificationLayout
   onAction?: () => void
   onMarkAsRead?: () => void
   onRemove?: () => void
@@ -25,6 +30,7 @@ const getRenderableComponent = (resolved: RenderableNotification) =>
 
 export const ResolvedNotificationItem = ({
   resolved,
+  layout = 'default',
   onAction,
   onMarkAsRead,
   onRemove,
@@ -33,6 +39,7 @@ export const ResolvedNotificationItem = ({
 
   return (
     <Component
+      layout={layout}
       notification={resolved.notification}
       onAction={onAction}
       onMarkAsRead={onMarkAsRead}
@@ -43,6 +50,7 @@ export const ResolvedNotificationItem = ({
 
 export const NotificationItem = ({
   notification,
+  layout = 'default',
   onAction,
   onMarkAsRead,
   onRemove,
@@ -55,6 +63,7 @@ export const NotificationItem = ({
 
   return (
     <ResolvedNotificationItem
+      layout={layout}
       onAction={onAction}
       onMarkAsRead={onMarkAsRead}
       onRemove={onRemove}

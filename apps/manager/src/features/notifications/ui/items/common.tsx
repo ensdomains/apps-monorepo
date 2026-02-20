@@ -1,44 +1,102 @@
 import { X } from 'lucide-react'
 import { formatRelativeTime } from '@/utils/time'
 
-// Shared UI components used across notification components
+export type NotificationPillTone = 'default' | 'success' | 'warning' | 'update'
+
+const pillToneClass: Record<NotificationPillTone, string> = {
+  default: 'bg-[#edf2fb] text-[#3558a8]',
+  success: 'bg-[#e6f7ea] text-[#1f8a49]',
+  warning: 'bg-[#fff4e5] text-[#b26000]',
+  update: 'bg-[#efe8ff] text-[#7647d8]',
+}
+
+export const getNotificationActionButtonClass = (
+  layout: 'default' | 'compact',
+) =>
+  layout === 'compact'
+    ? 'inline-flex h-8 items-center justify-center rounded-sm border border-[#0b97ea] px-3 font-medium text-[#0b7fd1] text-xs uppercase tracking-[0.015em] transition-colors hover:bg-[#f5fbff]'
+    : 'inline-flex h-9 items-center justify-center rounded-sm border border-[#0b97ea] px-4 font-medium text-[#0b7fd1] text-sm uppercase tracking-[0.015em] transition-colors hover:bg-[#f5fbff]'
+
 export const NotificationWrapper = ({
   children,
 }: {
   children: React.ReactNode
-}) => <div className="space-y-3 border-gray-200 border-b py-4">{children}</div>
+}) => (
+  <article className="space-y-2.5 border-[#e7e8ec] border-b py-5 first:pt-0">
+    {children}
+  </article>
+)
 
 export const NotificationHeader = ({
-  children,
+  category,
+  categoryTone = 'default',
+  seen,
   timestamp,
   onRemove,
 }: {
-  children?: React.ReactNode
+  category: string
+  categoryTone?: NotificationPillTone
+  seen: boolean
   timestamp: number
   onMarkAsRead?: () => void
   onRemove?: () => void
 }) => (
   <div className="flex items-center gap-2">
-    {children}
-    <span className="ml-auto text-gray-500 text-sm">
+    {seen ? null : <span className="size-2 rounded-full bg-[#ff5a3d]" />}
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 font-medium text-sm ${pillToneClass[categoryTone]}`}
+    >
+      {category}
+    </span>
+    <span className="ml-auto text-[#717182] text-sm">
       {formatRelativeTime(timestamp)}
     </span>
-    {onRemove && (
+    {onRemove ? (
       <button className="cursor-pointer" onClick={onRemove} type="button">
-        <X className="size-5 text-gray-500" />
+        <X className="size-4 text-[#9b9cac]" />
       </button>
-    )}
+    ) : null}
   </div>
 )
 
-export const NameDisplay = ({ name }: { name: string }) => (
-  <div className="wrap-anywhere w-fit max-w-3/4 rounded-md bg-gray-900 px-2 py-1 font-mono text-sm text-white leading-ens-none">
+export const NameDisplay = ({
+  name,
+  layout,
+}: {
+  name: string
+  layout: 'default' | 'compact'
+}) => (
+  <div
+    className={`wrap-anywhere w-fit max-w-full rounded-sm bg-[#dff0ff] px-2 py-1 font-semibold text-[#086eac] leading-none ${
+      layout === 'compact' ? 'text-[1.15rem]' : 'text-[1.55rem]'
+    }`}
+  >
     {name}
   </div>
 )
 
-export const ActionRow = ({ children }: { children: React.ReactNode }) => (
-  <div className="mt-3 flex justify-end">{children}</div>
+export const NotificationBody = ({
+  media,
+  main,
+  action,
+}: {
+  media?: React.ReactNode
+  main: React.ReactNode
+  action?: React.ReactNode
+}) => (
+  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
+    {media ? <div className="pt-0.5 sm:shrink-0">{media}</div> : null}
+    <div className="min-w-0 flex-1">{main}</div>
+    {action ? (
+      <div className="self-start sm:ml-3 sm:shrink-0 sm:self-end">{action}</div>
+    ) : null}
+  </div>
+)
+
+export const MediaThumb = ({ src, alt }: { src: string; alt: string }) => (
+  <div className="h-14 w-14 overflow-hidden rounded-sm bg-[#f1f2f5]">
+    <img alt={alt} className="h-full w-full object-cover" src={src} />
+  </div>
 )
 
 export const NotificationsTitleRow = ({

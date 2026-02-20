@@ -2,8 +2,8 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { Loader2Icon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { selectRenderableNotifications } from '@/features/notifications/kinds/selectors'
 import { notificationsInfiniteQuery } from '@/features/notifications/queries/notifications'
+import { selectRenderableNotifications } from '@/features/notifications/renderers/kinds/selectors'
 import { ResolvedNotificationItem } from './items/notification-item'
 
 export const NotificationsList = () => {

@@ -2,8 +2,8 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Loader2Icon } from 'lucide-react'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { selectRenderableNotifications } from '@/features/notifications/kinds/selectors'
 import { notificationsInfiniteQuery } from '@/features/notifications/queries/notifications'
+import { selectRenderableNotifications } from '@/features/notifications/renderers/kinds/selectors'
 import { ResolvedNotificationItem } from './items/notification-item'
 import { UnreadCount } from './unread-count'
 
@@ -18,21 +18,18 @@ export const NotificationsDropdown = ({
     notificationsInfiniteQuery,
   )
 
-  const notifications = selectRenderableNotifications(data ?? [], 5)
+  const notifications = selectRenderableNotifications(data ?? [], 3)
 
   return (
     <div className="flex flex-col gap-2.5">
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         <div className="flex justify-between">
-          {/* title row */}
           <div className="flex items-center gap-3">
-            {/* title */}
             <div className="font-[350] font-serif text-2xl text-[#232222] leading-ens-none">
               Notifications
             </div>
             <UnreadCount />
           </div>
-          {/* right slot */}
           <Link
             className="group flex items-center gap-2"
             onClick={() => onAction?.()}
@@ -65,10 +62,11 @@ export const NotificationsDropdown = ({
       ) : null}
 
       {!isLoading && !isError && notifications.length > 0 ? (
-        <div className="flex max-h-[28rem] flex-col overflow-y-auto">
+        <div className="flex flex-col">
           {notifications.map((notification) => (
             <ResolvedNotificationItem
               key={notification.notification.id}
+              layout="compact"
               onAction={onAction}
               resolved={notification}
             />
