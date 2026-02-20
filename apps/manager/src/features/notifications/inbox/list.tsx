@@ -4,6 +4,7 @@ import { Loader2Icon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { notificationsInfiniteQuery } from '@/features/notifications/data/queries/notifications'
+import { groupNotificationsByTime } from '@/features/notifications/utils/grouping'
 import { NotificationItem } from './notification-item'
 
 type NotificationsListProps = {
@@ -36,6 +37,7 @@ export const NotificationsList = ({
           | undefined) ?? []
       return tags.includes(selectedTag)
     }) ?? []
+  const grouped = groupNotificationsByTime(filteredData)
 
   if (isLoading) {
     return (
@@ -66,8 +68,20 @@ export const NotificationsList = ({
 
   return (
     <div className="flex flex-col gap-8">
-      {filteredData.map((notification) => (
-        <NotificationItem key={notification.id} notification={notification} />
+      {grouped.groups.map((group) => (
+        <section className="space-y-4" key={group.title}>
+          <h3 className="font-serif text-[#232222] text-temp-32px leading-ens-none">
+            {group.title}
+          </h3>
+          <div className="flex flex-col">
+            {group.notifications.map((notification) => (
+              <NotificationItem
+                key={notification.id}
+                notification={notification}
+              />
+            ))}
+          </div>
+        </section>
       ))}
       {hasNextPage && (
         <Button
