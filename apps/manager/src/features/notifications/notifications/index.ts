@@ -1,10 +1,10 @@
-import type { BackendNotification } from '../../queries/notifications'
+import type { BackendNotification } from '@/features/notifications/data/queries/notifications'
 import { alphaWelcomeKind } from './alpha-welcome'
 import { blogPostKind } from './blog-post'
+import type { KindDefinition, NotificationKind } from './contracts'
 import { ensUpdateKind } from './ens-update'
 import { nameExpiryKind } from './name-expiry'
 import { nameTransferredKind } from './name-transferred'
-import type { KindDefinition, NotificationKind } from './types'
 
 /**
  * Single source of truth for manager-side notification kind behavior.

@@ -2,10 +2,10 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Loader2Icon } from 'lucide-react'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { notificationsInfiniteQuery } from '@/features/notifications/queries/notifications'
-import { selectRenderableNotifications } from '@/features/notifications/renderers/kinds/selectors'
-import { ResolvedNotificationItem } from './items/notification-item'
-import { UnreadCount } from './unread-count'
+import { notificationsInfiniteQuery } from '@/features/notifications/data/queries/notifications'
+import { selectRenderableNotifications } from '@/features/notifications/data/selectors'
+import { ResolvedNotificationItem } from '@/features/notifications/inbox/notification-item'
+import { UnreadCount } from '@/features/notifications/inbox/unread-count'
 
 interface NotificationsDropdownProps {
   onAction?: () => void

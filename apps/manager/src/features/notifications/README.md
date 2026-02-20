@@ -2,81 +2,74 @@
 
 ## Overview
 
-Notifications use a kind-centric, render-first architecture.
+Notifications are organized by product surface and kind-local rendering.
 
-- `workers/api-worker` owns semantic notification definitions:
-  - `kind`
-  - payload schema
+- `@ens-apps/shared-schema/notifications` owns runtime notification definitions:
+  - kind identity
+  - payload schemas
   - metadata
   - delivery policy
-- `apps/manager` owns payload safety checks and rendering.
+- Manager owns notification rendering and UX behavior.
 
-Each manager kind module defines:
+Each manager notification kind lives in one file under `notifications/` and defines:
 
-- `isValidPayload(payload)`
-- `Component`
+- payload validation for that kind
+- render component for that kind
 
 Invalid payloads and unknown kinds are dropped from UI.
 
-## Data Flow
-
-```mermaid
-flowchart LR
-  A["Backend notification\n(kind + payload + source + timestamp)"] --> B["Kind registry\nnotificationKindRegistry[kind]"]
-  B --> C["Payload guard\nisValidPayload(payload)"]
-  C -->|valid| D["Kind component\nComponent"]
-  C -->|invalid or unknown| E["Drop from UI\n(dev-only debug log)"]
-```
-
 ## Folder Structure
 
-- `kinds/`
-- Per-kind modules and single typed registry.
+- `notifications/`
+- one module per notification kind + registry
 
-- `renderers/templates/`
-- Optional reusable card templates used by kind components.
+- `inbox/`
+- notifications page item/list UI
 
-- `ui/`
-- Notification list/dropdown/item components.
+- `dropdown/`
+- navbar dropdown UI
 
-- `queries/`
-- TanStack Query API integration.
+- `settings/`
+- contact methods and preferences UI
 
-- `components/settings/*`
-- Settings and channel configuration UI.
+- `data/`
+- queries and data selectors
 
-## Add A New Notification Kind (4 Steps)
+- `shared/`
+- shared templates and primitives
 
-1. Add backend semantic kind
-- File: `workers/api-worker/src/config/notifications.ts`
-- Define `kind`, `source`, `payloadSchema`, `metadata`, `delivery`.
+- `types/`
+- settings/contact method UI types
 
-2. Add manager kind module
-- File: `apps/manager/src/features/notifications/kinds/<new-kind>.tsx`
-- Export `KindDefinition<'<new-kind>'>` with:
-  - `kind`
-  - `isValidPayload(payload)`
-  - `Component`
+- `utils/`
+- formatting/grouping/telegram helpers
 
-3. Register kind in one place
-- File: `apps/manager/src/features/notifications/kinds/index.ts`
-- Add entry to `notificationKindRegistry`.
+## Add A New Notification Kind
 
-4. Add focused tests
-- Add/extend tests in `kinds/index.test.ts` and relevant UI tests.
+1. Add shared runtime definition
+- file: `packages/shared-schema/src/notifications/kinds/<kind>.ts`
+- include `kind`, `source`, `payloadSchema`, `metadata`, `delivery`
 
-## Internal/External Actions
+2. Add manager renderer module
+- file: `apps/manager/src/features/notifications/notifications/<kind>.tsx`
+- export kind definition with payload guard and component
 
-- Internal navigation: use `<Link to="..." params={...}>` directly in the kind component.
-- External links: render explicit `<a href="..." target="_blank" rel="noopener noreferrer">`.
+3. Register the kind
+- file: `apps/manager/src/features/notifications/notifications/index.ts`
+
+4. Add tests
+- add/extend kind registry and UI tests
+
+## Rendering Contract
+
+- `resolveRenderableNotification()` resolves one backend notification
+- valid => render
+- invalid payload => filtered out
+- unknown kind => filtered out
 
 ## Testing Checklist
 
-- Backend catalog remains semantic-only (no presentation fields).
-- Delivery gating behavior unchanged for `opt-in` vs `none` kinds.
-- Kind registry covers every backend kind.
-- Resolver behavior:
-  - valid => renderable
-  - invalid payload => filtered out
-  - unknown kind => filtered out
-- Dropdown/list keep loading/error/empty/data behavior.
+- kind registry covers all backend kinds
+- invalid payloads/unknown kinds are filtered
+- dropdown and inbox states remain correct
+- settings and channel mutations still invalidate queries correctly

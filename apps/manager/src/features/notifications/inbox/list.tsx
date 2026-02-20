@@ -2,9 +2,9 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { Loader2Icon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { notificationsInfiniteQuery } from '@/features/notifications/queries/notifications'
-import { selectRenderableNotifications } from '@/features/notifications/renderers/kinds/selectors'
-import { ResolvedNotificationItem } from './items/notification-item'
+import { notificationsInfiniteQuery } from '@/features/notifications/data/queries/notifications'
+import { selectRenderableNotifications } from '@/features/notifications/data/selectors'
+import { ResolvedNotificationItem } from './notification-item'
 
 export const NotificationsList = () => {
   const {

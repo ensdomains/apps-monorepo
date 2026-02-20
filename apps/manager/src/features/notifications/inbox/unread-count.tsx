@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { unreadCountQuery } from '@/features/notifications/queries/notifications'
+import { unreadCountQuery } from '@/features/notifications/data/queries/notifications'
 import { tw } from '@/utils/tailwind'
 
 export const UnreadCount = () => {

@@ -1,5 +1,5 @@
 import type { FC } from 'react'
-import type { BackendNotification } from '../../queries/notifications'
+import type { BackendNotification } from '@/features/notifications/data/queries/notifications'
 
 export type NotificationKind = BackendNotification['kind']
 

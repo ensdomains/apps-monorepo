@@ -1,22 +1,20 @@
-import { ContentCardTemplate } from '@/features/notifications/renderers/templates'
-import { getNotificationActionButtonClass } from '@/features/notifications/ui/items/common'
-import { isObject, isString } from './helpers'
+import { notificationDefinitions } from '@ens-apps/shared-schema/notifications'
+import * as v from 'valibot'
+import { getNotificationActionButtonClass } from '@/features/notifications/shared/primitives'
+import { ContentCardTemplate } from '@/features/notifications/shared/templates'
 import type {
   KindComponentProps,
   KindDefinition,
   NotificationPayloadForKind,
-} from './types'
+} from './contracts'
 
 const isBlogPostPayload = (
   payload: unknown,
 ): payload is NotificationPayloadForKind<'blog-post'> => {
-  if (!isObject(payload)) return false
-
-  return (
-    isString(payload.title) &&
-    isString(payload.url) &&
-    isString(payload.imageUrl)
-  )
+  return v.safeParse(
+    notificationDefinitions['blog-post'].payloadSchema,
+    payload,
+  ).success
 }
 
 const BlogPostComponent = ({

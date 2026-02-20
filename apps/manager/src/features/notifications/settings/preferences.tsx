@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch'
 import {
   preferencesQueryOptions,
   updatePreferenceMutationOptions,
-} from '@/features/notifications/queries/preferences'
+} from '@/features/notifications/data/queries/preferences'
 
 export const Preference = ({
   icon,

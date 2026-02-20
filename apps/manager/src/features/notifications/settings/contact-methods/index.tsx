@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { channelsQueryOptions } from '@/features/notifications/queries/channels'
+import { channelsQueryOptions } from '@/features/notifications/data/queries/channels'
 import { EmailContactMethod } from './email'
 import { TelegramContactMethod } from './telegram'
 

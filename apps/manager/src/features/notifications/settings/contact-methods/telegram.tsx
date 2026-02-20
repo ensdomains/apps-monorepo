@@ -22,7 +22,7 @@ import {
   type Channel,
   deleteChannelMutationOptions,
   telegramAuthMutationOptions,
-} from '@/features/notifications/queries/channels'
+} from '@/features/notifications/data/queries/channels'
 
 const TELEGRAM_BOT_USERNAME = '@ens_earl_bot'
 

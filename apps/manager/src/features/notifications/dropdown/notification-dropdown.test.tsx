@@ -9,7 +9,7 @@ vi.mock('@tanstack/react-query', () => ({
   useInfiniteQuery: () => mockUseInfiniteQuery(),
 }))
 
-vi.mock('@/features/notifications/queries/notifications', () => ({
+vi.mock('@/features/notifications/data/queries/notifications', () => ({
   notificationsInfiniteQuery: {},
 }))
 
@@ -19,7 +19,7 @@ vi.mock('@tanstack/react-router', () => ({
   ),
 }))
 
-vi.mock('@/features/notifications/ui/items/notification-item', () => ({
+vi.mock('@/features/notifications/inbox/notification-item', () => ({
   ResolvedNotificationItem: ({
     resolved,
   }: {
@@ -27,7 +27,7 @@ vi.mock('@/features/notifications/ui/items/notification-item', () => ({
   }) => <div data-testid="notification-item">{resolved.notification.kind}</div>,
 }))
 
-vi.mock('@/features/notifications/ui/unread-count', () => ({
+vi.mock('@/features/notifications/inbox/unread-count', () => ({
   UnreadCount: () => <div>0</div>,
 }))
 

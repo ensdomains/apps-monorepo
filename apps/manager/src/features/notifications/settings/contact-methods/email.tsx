@@ -32,7 +32,7 @@ import {
   type Channel,
   deleteChannelMutationOptions,
   resendVerificationMutationOptions,
-} from '@/features/notifications/queries/channels'
+} from '@/features/notifications/data/queries/channels'
 
 const newEmailContactMethodFormSchema = v.object({
   email: v.pipe(v.string(), v.email('Please enter a valid email address')),

@@ -1,20 +1,20 @@
-import { NameCardTemplate } from '@/features/notifications/renderers/templates'
-import { getNotificationActionButtonClass } from '@/features/notifications/ui/items/common'
-import { isObject, isString } from './helpers'
+import { notificationDefinitions } from '@ens-apps/shared-schema/notifications'
+import * as v from 'valibot'
+import { getNotificationActionButtonClass } from '@/features/notifications/shared/primitives'
+import { NameCardTemplate } from '@/features/notifications/shared/templates'
 import type {
   KindComponentProps,
   KindDefinition,
   NotificationPayloadForKind,
-} from './types'
+} from './contracts'
 
 const isNameTransferredPayload = (
   payload: unknown,
 ): payload is NotificationPayloadForKind<'name-transferred'> => {
-  if (!isObject(payload)) return false
-
-  return (
-    isString(payload.name) && isString(payload.txHash) && isString(payload.to)
-  )
+  return v.safeParse(
+    notificationDefinitions['name-transferred'].payloadSchema,
+    payload,
+  ).success
 }
 
 const NameTransferredComponent = ({

@@ -1,10 +1,10 @@
 import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
-import { backendClient } from '@/utils/backend-client'
 import type {
   PreferencesResponse,
   PreferenceUpdateRequest,
-} from '../types/preferences'
+} from '@/features/notifications/types/preferences'
+import { backendClient } from '@/utils/backend-client'
 
 // Queries
 export const preferencesQueryOptions = queryOptions({

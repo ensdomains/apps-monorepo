@@ -1,8 +1,8 @@
-import type { BackendNotification } from '../../queries/notifications'
+import type { BackendNotification } from '@/features/notifications/data/queries/notifications'
 import {
   type RenderableNotification,
   resolveRenderableNotification,
-} from './index'
+} from '@/features/notifications/notifications'
 
 const logDroppedNotification = (
   notification: BackendNotification,

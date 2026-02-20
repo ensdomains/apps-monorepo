@@ -1,14 +1,14 @@
 import type { FC } from 'react'
-import type { BackendNotification } from '../../queries/notifications'
+import type { BackendNotification } from '@/features/notifications/data/queries/notifications'
 import {
   type RenderableNotification,
   resolveRenderableNotification,
-} from '../../renderers/kinds'
+} from '@/features/notifications/notifications'
 import type {
   KindComponentProps,
   NotificationKind,
   NotificationLayout,
-} from '../../renderers/kinds/types'
+} from '@/features/notifications/notifications/contracts'
 
 type NotificationItemProps = {
   notification: BackendNotification

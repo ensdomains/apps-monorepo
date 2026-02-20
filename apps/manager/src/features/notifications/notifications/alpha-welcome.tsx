@@ -1,23 +1,20 @@
-import { MessageCardTemplate } from '@/features/notifications/renderers/templates'
-import { getNotificationActionButtonClass } from '@/features/notifications/ui/items/common'
-import { isObject, isOptionalString, isString } from './helpers'
+import { notificationDefinitions } from '@ens-apps/shared-schema/notifications'
+import * as v from 'valibot'
+import { getNotificationActionButtonClass } from '@/features/notifications/shared/primitives'
+import { MessageCardTemplate } from '@/features/notifications/shared/templates'
 import type {
   KindComponentProps,
   KindDefinition,
   NotificationPayloadForKind,
-} from './types'
+} from './contracts'
 
 const isAlphaWelcomePayload = (
   payload: unknown,
 ): payload is NotificationPayloadForKind<'alpha-welcome'> => {
-  if (!isObject(payload)) return false
-
-  return (
-    isString(payload.title) &&
-    isString(payload.body) &&
-    isOptionalString(payload.ctaLabel) &&
-    isOptionalString(payload.ctaUrl)
-  )
+  return v.safeParse(
+    notificationDefinitions['alpha-welcome'].payloadSchema,
+    payload,
+  ).success
 }
 
 const AlphaWelcomeComponent = ({

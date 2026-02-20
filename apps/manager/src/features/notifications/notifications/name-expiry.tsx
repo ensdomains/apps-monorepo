@@ -1,27 +1,22 @@
+import { notificationDefinitions } from '@ens-apps/shared-schema/notifications'
 import { Link } from '@tanstack/react-router'
-import { NameCardTemplate } from '@/features/notifications/renderers/templates'
-import { getNotificationActionButtonClass } from '@/features/notifications/ui/items/common'
+import * as v from 'valibot'
+import { getNotificationActionButtonClass } from '@/features/notifications/shared/primitives'
+import { NameCardTemplate } from '@/features/notifications/shared/templates'
 import { formatExpiryTime } from '@/utils/time'
-import { isBoolean, isNumber, isObject, isString } from './helpers'
 import type {
   KindComponentProps,
   KindDefinition,
   NotificationPayloadForKind,
-} from './types'
+} from './contracts'
 
 const isNameExpiryPayload = (
   payload: unknown,
 ): payload is NotificationPayloadForKind<'name-expiry'> => {
-  if (!isObject(payload)) return false
-
-  return (
-    isString(payload.name) &&
-    isNumber(payload.expiryDate) &&
-    isBoolean(payload.isOwner) &&
-    (payload.watchReason === 'owned' ||
-      payload.watchReason === 'favourited' ||
-      payload.watchReason === 'manual')
-  )
+  return v.safeParse(
+    notificationDefinitions['name-expiry'].payloadSchema,
+    payload,
+  ).success
 }
 
 const NameExpiryComponent = ({

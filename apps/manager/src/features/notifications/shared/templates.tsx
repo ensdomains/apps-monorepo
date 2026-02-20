@@ -6,7 +6,7 @@ import {
   NotificationHeader,
   type NotificationPillTone,
   NotificationWrapper,
-} from '@/features/notifications/ui/items/common'
+} from '@/features/notifications/shared/primitives'
 
 type TemplateCommonProps = {
   category: string

@@ -1,22 +1,20 @@
-import { MessageCardTemplate } from '@/features/notifications/renderers/templates'
-import { getNotificationActionButtonClass } from '@/features/notifications/ui/items/common'
-import { isObject, isOptionalString, isString } from './helpers'
+import { notificationDefinitions } from '@ens-apps/shared-schema/notifications'
+import * as v from 'valibot'
+import { getNotificationActionButtonClass } from '@/features/notifications/shared/primitives'
+import { MessageCardTemplate } from '@/features/notifications/shared/templates'
 import type {
   KindComponentProps,
   KindDefinition,
   NotificationPayloadForKind,
-} from './types'
+} from './contracts'
 
 const isEnsUpdatePayload = (
   payload: unknown,
 ): payload is NotificationPayloadForKind<'ens-update'> => {
-  if (!isObject(payload)) return false
-
-  return (
-    isString(payload.title) &&
-    isString(payload.summary) &&
-    isOptionalString(payload.url)
-  )
+  return v.safeParse(
+    notificationDefinitions['ens-update'].payloadSchema,
+    payload,
+  ).success
 }
 
 const EnsUpdateComponent = ({
