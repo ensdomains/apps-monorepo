@@ -163,11 +163,10 @@ export default createApp()
         isNull(TABLE.notifications.read_at), // read_at is null for unread notifications
       ),
     )
-
     // Count broadcasts the user has not marked as read yet.
     const unseenBroadcasts = await c.var.db
       .select({
-        count: sql<number>`count(*)`.as('count'),
+        count: c.var.db.$count(TABLE.broadcasts),
       })
       .from(TABLE.broadcasts)
       .leftJoin(
