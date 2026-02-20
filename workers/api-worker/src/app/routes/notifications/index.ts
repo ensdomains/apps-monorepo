@@ -361,8 +361,6 @@ export default createApp()
     async (c) => {
       const userId = c.var.user_id
       const { kind, payload } = c.req.valid('json')
-      console.log('kind', kind)
-      console.log('payload', payload)
 
       const result = await createNotification({
         db: c.var.db,
@@ -374,7 +372,6 @@ export default createApp()
       })
 
       if (result.isErr()) {
-        console.error(result.error)
         return c.json({ error: result.error }, 500)
       }
 

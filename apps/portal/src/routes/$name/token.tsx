@@ -1,7 +1,12 @@
 import { ens_split } from '@adraffy/ens-normalize'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { CheckCircleIcon } from 'lucide-react'
+import {
+  ArrowRightFromLineIcon,
+  CheckCircleIcon,
+  InfoIcon,
+  XCircleIcon,
+} from 'lucide-react'
 import type { Address, Hex } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { CopyableRecord } from '@/components/CopyableRecord'
@@ -9,8 +14,28 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getRegistryNameDataQueryOptions } from '@/features/registry/hooks/useRegistryNameData'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
@@ -26,7 +51,34 @@ export const Route = createFileRoute('/$name/token')({
   notFoundComponent: () => <NotFoundMessage />,
 })
 
-const ContractInfo = ({
+const DataRow = ({
+  label,
+  tooltip,
+  children,
+}: {
+  label: string
+  tooltip?: string
+  children: React.ReactNode
+}) => {
+  return (
+    <div className="flex flex-col lg:flex-row gap-2 lg:gap-4 items-start lg:items-center w-full">
+      <div className="flex gap-1 items-center min-w-[160px]">
+        <span className="font-medium text-base">{label}</span>
+        {tooltip && (
+          <Tooltip>
+            <TooltipTrigger>
+              <InfoIcon className="size-4 text-gray-400" />
+            </TooltipTrigger>
+            <TooltipContent>{tooltip}</TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+      <div className="flex-1 min-w-0 w-full">{children}</div>
+    </div>
+  )
+}
+
+const TokenInfoCard = ({
   contractAddress,
   tokenId,
   hex,
@@ -38,25 +90,97 @@ const ContractInfo = ({
   tokenStandard: 'ERC-1155' | 'ERC-721'
 }) => {
   return (
-    <div className="flex border border-gray-300 rounded-lg w-full p-6 gap-6 flex-wrap">
-      <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
-        <Label info="The address of the contract that owns the name">
-          Contract
-        </Label>
-        <CopyableRecord value={contractAddress} />
-      </div>
-      <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
-        <Label>Token Standard</Label>
+    <div className="flex border border-gray-200 rounded-2xl w-full p-6 flex-col gap-4">
+      <DataRow label="Protocol" tooltip="The ENS protocol version">
+        <span className="text-base">ENSv2</span>
+      </DataRow>
+
+      <DataRow label="Token Standard" tooltip="The token standard used">
         <CopyableRecord value={tokenStandard} />
-      </div>
-      <div className="flex flex-col gap-1 w-full max-w-full">
-        <Label>Token ID</Label>
-        <CopyableRecord value={tokenId} className="max-w-full" />
-      </div>
-      <div className="flex flex-col gap-1 w-full max-w-full lg:w-max">
-        <Label>Token ID (HEX)</Label>
-        <CopyableRecord value={hex} />
-      </div>
+      </DataRow>
+
+      <DataRow label="Contract" tooltip="The smart contract address">
+        <CopyableRecord value={contractAddress} />
+      </DataRow>
+
+      <DataRow label="Token ID" tooltip="The token identifier">
+        <div className="flex items-center gap-4 justify-between w-full">
+          <CopyableRecord value={tokenId} className="flex-1 min-w-0" />
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="bg-sky-100 text-sky-600 hover:bg-sky-200 gap-1 shrink-0"
+              >
+                <ArrowRightFromLineIcon className="size-4" />
+                <span className="text-xs font-medium">More</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent
+              side="right"
+              className="w-full sm:max-w-2xl overflow-y-auto"
+            >
+              <SheetHeader className="px-8 pt-8">
+                <SheetTitle className="text-[30px] font-medium leading-tight">
+                  Token ID
+                </SheetTitle>
+              </SheetHeader>
+              <div className="flex flex-col gap-6 px-8 py-6">
+                <div className="flex flex-col gap-4">
+                  <DataRow label="Hash" tooltip="The full token ID hash">
+                    <CopyableRecord value={tokenId} />
+                  </DataRow>
+
+                  <DataRow label="HEX" tooltip="The token ID in hexadecimal">
+                    <CopyableRecord value={hex} />
+                  </DataRow>
+
+                  <DataRow
+                    label="Last changed"
+                    tooltip="When the token ID was last updated"
+                  >
+                    <span className="font-mono text-base">—</span>
+                  </DataRow>
+                </div>
+
+                <div className="bg-gray-100 rounded-lg p-3 flex gap-2 items-start">
+                  <InfoIcon className="size-6 text-gray-600 shrink-0 mt-0.5" />
+                  <p className="text-base">
+                    The Token ID will change anytime the roles are updated.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-2xl font-medium mb-4">History</h3>
+                  <div className="border border-gray-200 rounded-2xl overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-b-2">
+                          <TableHead className="px-3">Date</TableHead>
+                          <TableHead className="px-3">Transaction</TableHead>
+                          <TableHead className="px-3">Token ID Hash</TableHead>
+                          <TableHead className="px-3">Token ID HEX</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell
+                            colSpan={4}
+                            className="text-center py-8 text-gray-500"
+                          >
+                            No history available
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </DataRow>
     </div>
   )
 }
@@ -92,7 +216,7 @@ const TokenV1Name = ({ name }: { name: string }) => {
   const hex = isWrapped ? namehash(name) : labelhash(name.split('.')[0])
   const tokenId = BigInt(hex).toString(10)
 
-  return <ContractInfo {...{ contractAddress, tokenId, hex, tokenStandard }} />
+  return <TokenInfoCard {...{ contractAddress, tokenId, hex, tokenStandard }} />
 }
 
 const TokenV2Name = ({ name }: { name: string }) => {
@@ -115,7 +239,7 @@ const TokenV2Name = ({ name }: { name: string }) => {
   if (!data) return null
 
   return (
-    <ContractInfo
+    <TokenInfoCard
       tokenStandard="ERC-1155"
       tokenId={data[0].toString(10)}
       hex={hex}
@@ -152,110 +276,141 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-6 p-6 max-w-360 mx-auto w-full">
       <header>
-        <h1 className="text-[28px] font-medium">Token info</h1>
+        <h1 className="text-[30px] font-medium leading-tight">Token Info</h1>
       </header>
+
       {data?.network === 'sepolia' ? (
         <TokenV1Name name={name} />
       ) : (
         <TokenV2Name name={name} />
       )}
-      <div className="flex border border-gray-300 rounded-lg flex-col">
-        <div className="flex flex-col w-full p-6 gap-6">
-          <h2 className="font-medium text-2xl">Normalization</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="flex flex-col gap-1">
-              <Label>Input</Label>
-              <div className="flex flex-row gap-1 flex-wrap min-w-[38px] items-end">
-                {parts.map((label, idx) => (
-                  <>
-                    <span
-                      className="px-1 py-2 font-mono border border-gray-300 rounded-sm"
-                      key={String.fromCodePoint(...label.input)}
-                    >
-                      {String.fromCodePoint(...label.input)}
-                    </span>
-                    {idx < parts.length - 1 && (
-                      <span className="mx-1 py-2">·</span>
-                    )}
-                  </>
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label>Normalization</Label>
-              <div className="flex flex-row gap-4 items-center">
+
+      {/* Normalization Section */}
+      <h2 className="font-medium text-2xl">Normalization</h2>
+      <div className="flex border border-gray-200 rounded-2xl flex-col">
+        <div className="flex flex-col w-full p-6 gap-4">
+          <DataRow label="Input" tooltip="The input name parts">
+            <div className="flex flex-row gap-1 flex-wrap items-center">
+              {parts.map((label, idx) => (
                 <div
-                  className={cn(
-                    'p-2 pr-4 rounded-[99px] w-max flex flex-row items-center gap-1',
-                    normalized ? 'bg-green-200' : 'bg-red-200',
-                  )}
+                  key={String.fromCodePoint(...label.input)}
+                  className="contents"
                 >
-                  <CheckCircleIcon className="size-4" />
-                  <div>{normalized ? 'Normalized' : 'Not Normalized'}</div>
+                  <span className="px-2 py-1 font-mono border border-gray-200 rounded">
+                    {String.fromCodePoint(...label.input)}
+                  </span>
+                  {idx < parts.length - 1 && <span className="mx-0.5">.</span>}
                 </div>
-                <div>{hasEmoji ? `${encoding} + Emoji` : encoding}</div>
+              ))}
+            </div>
+          </DataRow>
+
+          <DataRow label="Normalization" tooltip="The normalization status">
+            <div className="flex flex-row gap-2 items-center flex-wrap">
+              <span className="font-mono">
+                {hasEmoji ? `${encoding} + Emoji` : encoding}
+              </span>
+              <div
+                className={cn(
+                  'px-2 py-1 rounded-full flex flex-row items-center gap-1',
+                  normalized ? 'bg-green-100' : 'bg-red-100',
+                )}
+              >
+                {normalized ? (
+                  <CheckCircleIcon className="size-4 text-green-600" />
+                ) : (
+                  <XCircleIcon className="size-4 text-red-600" />
+                )}
+                <span className="text-xs font-medium">
+                  {normalized ? 'Normalized' : 'Not Normalized'}
+                </span>
               </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <Label>Unicode</Label>
-              <CopyableRecord value={escapeUnicode(name)} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label>ASCII</Label>
-              <CopyableRecord value={ascii} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label>DNS-encoded</Label>
-              <CopyableRecord value={dnsEncode} className="max-w-full" />
-            </div>
-            <div className="flex flex-col gap-1 w-full max-w-full">
-              <Label>Namehash</Label>
-              <CopyableRecord value={hash} className="max-w-full" />
-            </div>
-          </div>
+          </DataRow>
+
+          <DataRow label="Unicode" tooltip="The Unicode representation">
+            <CopyableRecord value={escapeUnicode(name)} />
+          </DataRow>
+
+          <DataRow label="ASCII" tooltip="The ASCII representation">
+            <CopyableRecord value={ascii} />
+          </DataRow>
+
+          <DataRow label="DNS encoded" tooltip="The DNS-encoded representation">
+            <CopyableRecord value={dnsEncode} className="max-w-full" />
+          </DataRow>
+
+          <DataRow label="Namehash" tooltip="The namehash of the name">
+            <CopyableRecord value={hash} className="max-w-full" />
+          </DataRow>
         </div>
-        {labels[0] ? (
-          <Tabs defaultValue={labels[0]}>
-            <div className="pl-6 border-b w-full border-b-gray-300">
-              <span className="font-medium">Labels: </span>
+      </div>
+
+      {/* Labels Section */}
+      <h2 className="font-medium text-2xl">Labels</h2>
+      {labels[0] ? (
+        <div className="border border-gray-200 rounded-2xl overflow-hidden">
+          <Tabs defaultValue={labels[0]} className="gap-0">
+            <div className="px-6 border-b border-gray-200 flex items-center gap-2">
               <TabsList>
-                {labels.map((label) => {
-                  return (
-                    <TabsTrigger key={label} value={label}>
-                      {label}
-                    </TabsTrigger>
-                  )
-                })}
+                {labels.map((label, idx) => (
+                  <div key={label} className="contents">
+                    <TabsTrigger value={label}>{label}</TabsTrigger>
+                    {idx < labels.length - 1 && (
+                      <span className="font-medium">.</span>
+                    )}
+                  </div>
+                ))}
               </TabsList>
             </div>
             {parts.map((part) => {
               const label = String.fromCodePoint(...part.input)
+              const labelBytes = new TextEncoder().encode(label).length
+              const labelChars = [...label].length
               return (
                 <TabsContent
-                  className="grid grid-cols-2 gap-6"
+                  className="flex flex-col gap-4 m-0"
                   value={label}
                   key={label}
                 >
-                  <div className="flex flex-col gap-1">
-                    <Label>Input</Label>
-                    <CopyableRecord value={label} />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <Label>Normalization</Label>
-                    <CopyableRecord value={part.type as string} />
-                  </div>
-                  <div className="flex flex-col gap-1 col-span-full">
-                    <Label>Labelhash</Label>
+                  <DataRow label="Input" tooltip="The label input">
+                    <CopyableRecord value={escapeUnicode(label)} />
+                  </DataRow>
+
+                  <DataRow
+                    label="Normalization"
+                    tooltip="The normalization type"
+                  >
+                    <span>{part.type as string}</span>
+                  </DataRow>
+
+                  <DataRow label="Bytes" tooltip="The byte length of the label">
+                    <CopyableRecord value={labelBytes} />
+                  </DataRow>
+
+                  <DataRow
+                    label="Characters"
+                    tooltip="The character count of the label"
+                  >
+                    <CopyableRecord value={labelChars} />
+                  </DataRow>
+
+                  <DataRow
+                    label="Labelhash"
+                    tooltip="The labelhash of this label"
+                  >
                     <CopyableRecord value={labelhash(label)} />
-                  </div>
+                  </DataRow>
                 </TabsContent>
               )
             })}
           </Tabs>
-        ) : (
-          <div>Invalid name: no labels</div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="border border-gray-200 rounded-2xl p-6">
+          Invalid name: no labels
+        </div>
+      )}
     </div>
   )
 }

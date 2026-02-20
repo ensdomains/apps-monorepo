@@ -9,6 +9,7 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "test": "vitest --typecheck",
     "test:run": "vitest run --typecheck"
   },
