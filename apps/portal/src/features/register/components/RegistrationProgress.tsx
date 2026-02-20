@@ -1,8 +1,10 @@
-import type { registrationMachine } from '@ens-apps/transaction-manager'
+import type {
+  RegistrationMachineActor,
+  RegistrationMachineState,
+} from '@ens-apps/transaction-manager'
 import { useSelector } from '@xstate/react'
 import { CheckCircle2, Info } from 'lucide-react'
 import { match } from 'ts-pattern'
-import type { ActorRefFrom } from 'xstate'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -11,7 +13,7 @@ import { getTransactionErrorInfo } from '@/features/registry/utils/transactionEr
 
 type RegistrationProgressProps = {
   readonly domainName: string
-  readonly actor: ActorRefFrom<typeof registrationMachine>
+  readonly actor: RegistrationMachineActor
   readonly onViewProfile: () => void
 }
 
@@ -23,13 +25,13 @@ type ProgressStage =
   | 'error'
 
 function mapStateToProgressStage(
-  stateValue: string | Record<string, unknown>,
+  stateValue: RegistrationMachineState | Record<string, unknown>,
 ): ProgressStage {
   if (typeof stateValue === 'object' && 'error' in stateValue) {
     return 'error'
   }
-  const state = String(stateValue)
-  switch (state) {
+
+  switch (stateValue) {
     case 'settingUpRegistration':
     case 'deployingResolver':
     case 'waitingForResolverDeployment':

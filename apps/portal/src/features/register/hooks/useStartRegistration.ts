@@ -1,9 +1,8 @@
-import type { registrationMachine } from '@ens-apps/transaction-manager'
+import type { RegistrationMachineActor } from '@ens-apps/transaction-manager'
 import { useCallback } from 'react'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import { usePublicClient, useWalletClient } from 'wagmi'
-import type { ActorRefFrom } from 'xstate'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 
@@ -16,7 +15,7 @@ function addressToToken(address: Address): 'USDC' | 'DAI' {
 type UseStartRegistrationParams = {
   readonly name: string
   readonly duration: number
-  readonly actor: ActorRefFrom<typeof registrationMachine>
+  readonly actor: RegistrationMachineActor
 }
 
 export function useStartRegistration({
