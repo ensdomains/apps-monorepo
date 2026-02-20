@@ -16,12 +16,12 @@ describe('classifyDeliveryError', () => {
       expect(result.category).toBe('hard_bounce')
     })
 
-    it('classifies unverified sender as hard_bounce', () => {
+    it('classifies unverified sender as account_error', () => {
       const result = classifyDeliveryError(
         'email',
         'Sender not verified for this domain',
       )
-      expect(result.category).toBe('hard_bounce')
+      expect(result.category).toBe('account_error')
     })
 
     it('classifies 429 as rate_limit with 300s delay', () => {

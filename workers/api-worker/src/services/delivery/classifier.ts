@@ -25,11 +25,10 @@ export function classifyDeliveryError(
 }
 
 function classifyEmailError(error: string): ClassificationResult {
-  // hard bounce: invalid recipient, non-existent address, unverified sender
+  // hard bounce: invalid recipient, non-existent address
   if (
     /invalid.*email|email.*invalid/i.test(error) ||
-    /does not exist/i.test(error) ||
-    /not.*verified/i.test(error)
+    /does not exist/i.test(error)
   ) {
     return { category: 'hard_bounce' }
   }
@@ -39,11 +38,12 @@ function classifyEmailError(error: string): ClassificationResult {
     return { category: 'rate_limit', delaySeconds: 300 }
   }
 
-  // account error: auth/permission issues
+  // account error: auth/permission issues, sender/domain not verified
   if (
     /unauthorized/i.test(error) ||
     /forbidden/i.test(error) ||
-    /suspended/i.test(error)
+    /suspended/i.test(error) ||
+    /not.*verified/i.test(error)
   ) {
     return { category: 'account_error' }
   }
