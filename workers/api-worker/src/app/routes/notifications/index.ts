@@ -166,7 +166,7 @@ export default createApp()
     // Count broadcasts the user has not marked as read yet.
     const unseenBroadcasts = await c.var.db
       .select({
-        count: c.var.db.$count(TABLE.broadcasts),
+        count: sql`count(*)`.mapWith(Number).as('count'),
       })
       .from(TABLE.broadcasts)
       .leftJoin(
