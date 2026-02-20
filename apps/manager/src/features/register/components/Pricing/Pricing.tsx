@@ -112,7 +112,7 @@ export const Pricing = ({
           />
 
           {/* Total & Payment Card */}
-          <div className="total-payment-card flex h-full flex-col justify-between space-y-6 rounded-2xl border border-ens-gray-two bg-white px-6 py-6 shadow-sm">
+          <div className="total-payment-card flex h-full flex-col justify-between space-y-6 rounded-2xl border border-ens-gray-two bg-white px-4 py-6 shadow-sm md:px-6">
             {/* Total Price Section */}
             <PricingTotalPriceCard
               discountAmount={discountAmount}

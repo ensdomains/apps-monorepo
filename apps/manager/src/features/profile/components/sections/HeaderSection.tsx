@@ -47,7 +47,7 @@ export const HeaderSection = withForm({
             )}
           </form.Subscribe>
         </div>
-        <div className="-bottom-10 max-md:-translate-x-1/2 absolute left-1/2 size-24 md:left-6 md:size-36 lg:size-40">
+        <div className="-bottom-10 -translate-x-1/2 absolute left-1/2 size-24 md:size-36 lg:size-40">
           <div className="size-full overflow-hidden rounded-xl bg-gray-200 shadow-md ring-2 ring-white">
             <form.Field name="base.avatar">
               {(field) => (

@@ -20,8 +20,8 @@ export const PrimaryBadge = ({
     <span className="font-sans text-[13px] text-ens-blue leading-[1.15] tracking-[-0.24px] md:text-[16px]">
       {label}
     </span>
-    <div className="flex size-[10px] items-center justify-center rounded-full bg-ens-blue">
-      <Check className="size-[6px] text-ens-white" strokeWidth={4} />
+    <div className="flex size-[13px] items-center justify-center rounded-full bg-ens-blue">
+      <Check className="size-[8px] text-ens-white" strokeWidth={4} />
     </div>
   </div>
 )

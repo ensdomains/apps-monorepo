@@ -144,7 +144,7 @@ export const deliverPushNotification = ResultFn(async function* (
     })
     .where(eq(TABLE.notificationDeliveries.id, job.id))
 
-  logger.info('Push notification delivered', {
+  logger.debug('Push notification delivered', {
     jobId: job.id,
     kind: job.kind,
     endpoint: `${deliveryJob.target.substring(0, 50)}...`,

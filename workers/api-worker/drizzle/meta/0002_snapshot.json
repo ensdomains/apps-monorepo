@@ -1,5 +1,5 @@
 {
-  "id": "c3f5fdf8-ead4-47b2-9430-7c271fe11561",
+  "id": "6ba1f1d0-e6da-4ef0-9805-9e4196787e1c",
   "prevId": "3e8f8b96-b0fa-42be-989a-61e6b0f9d66b",
   "version": "7",
   "dialect": "postgresql",
@@ -48,148 +48,6 @@
           "columns": ["address"]
         }
       },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ens_eval_pointers": {
-      "name": "ens_eval_pointers",
-      "schema": "",
-      "columns": {
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "next_eval_at": {
-          "name": "next_eval_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "lease_until": {
-          "name": "lease_until",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "ens_eval_pointers_name_ens_names_name_fk": {
-          "name": "ens_eval_pointers_name_ens_names_name_fk",
-          "tableFrom": "ens_eval_pointers",
-          "tableTo": "ens_names",
-          "columnsFrom": ["name"],
-          "columnsTo": ["name"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ens_names": {
-      "name": "ens_names",
-      "schema": "",
-      "columns": {
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "expiry_at": {
-          "name": "expiry_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_checked_at": {
-          "name": "last_checked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ens_watchers": {
-      "name": "ens_watchers",
-      "schema": "",
-      "columns": {
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "watch_reason": {
-          "name": "watch_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'manual'"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "ens_watchers_user_id_users_id_fk": {
-          "name": "ens_watchers_user_id_users_id_fk",
-          "tableFrom": "ens_watchers",
-          "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "ens_watchers_name_ens_names_name_fk": {
-          "name": "ens_watchers_name_ens_names_name_fk",
-          "tableFrom": "ens_watchers",
-          "tableTo": "ens_names",
-          "columnsFrom": ["name"],
-          "columnsTo": ["name"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "ens_watchers_user_id_name_pk": {
-          "name": "ens_watchers_user_id_name_pk",
-          "columns": ["user_id", "name"]
-        }
-      },
-      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -496,19 +354,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "failure_category": {
-          "name": "failure_category",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "dlq_attempts": {
-          "name": "dlq_attempts",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "default": 0
         },
         "created_at": {
           "name": "created_at",

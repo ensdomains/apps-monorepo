@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/card'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
+import { validateUrl } from '@/features/profile/utils/validateUrl'
 import { AddLinkDialog } from '../dialogs/AddLinkDialog'
 
 export const LinksSection = withForm({
@@ -24,12 +25,25 @@ export const LinksSection = withForm({
           {(linksField) => (
             <>
               {linksField.state.value.map(({ name }, i: number) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
-                <form.Field key={i} name={`links[${i}].url`}>
+                <form.Field
+                  // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
+                  key={i}
+                  name={`links[${i}].url`}
+                  validators={{
+                    onBlur: ({ value }) => validateUrl(value),
+                  }}
+                >
                   {(field) => {
                     return (
                       <RecordEntry
+                        error={
+                          field.state.meta.isTouched &&
+                          field.state.meta.errors.length > 0
+                            ? field.state.meta.errors[0]
+                            : undefined
+                        }
                         name={name}
+                        onBlur={field.handleBlur}
                         onChange={field.handleChange}
                         onRemove={() => {
                           linksField.removeValue(i)
