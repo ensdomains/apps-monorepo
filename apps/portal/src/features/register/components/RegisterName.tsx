@@ -51,6 +51,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     data: availability,
     isLoading,
     isError,
+    refetch,
   } = useQuery({
     ...getNameAvailabilityQueryOptions({ name }),
     enabled: Boolean(name) && isNameValid,
@@ -83,6 +84,28 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
       <div className="flex-1 flex items-center justify-center">
         <LoadingSpinner />
       </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <MessageCard
+        icon={<AlertCircle className="size-8" strokeWidth={1.5} />}
+        title="Could not check availability"
+        description={
+          <div className="text-base">
+            <p>
+              We couldn&apos;t verify if this name is available. Please try
+              again.
+            </p>
+          </div>
+        }
+        badge="Alpha"
+        actionButton={{
+          label: 'Try again',
+          onClick: () => refetch(),
+        }}
+      />
     )
   }
 
