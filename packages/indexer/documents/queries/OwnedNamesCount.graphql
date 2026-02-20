@@ -1,4 +1,4 @@
-query MyNamesCount($where: RegistrationFilter!) {
+query OwnedNamesCount($where: RegistrationFilter!) {
   registrationConnection(first: 0, where: $where) {
     totalCount
   }

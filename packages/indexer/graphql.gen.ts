@@ -445,12 +445,12 @@ export type DomainsQuery = { __typename?: 'Query', domains: Array<(
     & DomainFragment
   )> };
 
-export type MyNamesCountQueryVariables = Exact<{
+export type OwnedNamesCountQueryVariables = Exact<{
   where: RegistrationFilter;
 }>;
 
 
-export type MyNamesCountQuery = { __typename?: 'Query', registrationConnection: { __typename?: 'RegistrationConnection', totalCount?: number | null } };
+export type OwnedNamesCountQuery = { __typename?: 'Query', registrationConnection: { __typename?: 'RegistrationConnection', totalCount?: number | null } };
 
 export const Resolver = gql`
     fragment Resolver on Resolver {
@@ -505,8 +505,8 @@ export const DomainsDocument = gql`
   }
 }
     ${Domain}`;
-export const MyNamesCountDocument = gql`
-    query MyNamesCount($where: RegistrationFilter!) {
+export const OwnedNamesCountDocument = gql`
+    query OwnedNamesCount($where: RegistrationFilter!) {
   registrationConnection(first: 0, where: $where) {
     totalCount
   }

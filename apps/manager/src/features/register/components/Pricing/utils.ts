@@ -132,3 +132,7 @@ export const calculateDurationFromDate = (targetDate: Date): number => {
 
   return Math.max(1, roundedYears)
 }
+
+export const getByteLength = (value: string): number => {
+  return new TextEncoder().encode(value).length
+}
