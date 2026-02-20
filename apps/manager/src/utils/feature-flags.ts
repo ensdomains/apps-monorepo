@@ -33,6 +33,9 @@ export const FEATURE_FLAGS: Record<string, FeatureFlagConfig | boolean> = {
   SKIP_NOTIFICATION_SETTINGS: {
     enabled: false,
   },
+  SEARCH_RESULTS_BLUR_BACKDROP: {
+    enabled: import.meta.env.VITE_FF_SEARCH_RESULTS_BLUR_BACKDROP === 'true',
+  },
 } as const
 
 export type FeatureFlag = keyof typeof FEATURE_FLAGS

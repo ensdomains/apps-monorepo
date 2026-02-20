@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
+import { type Address, isAddress } from 'viem'
+import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import type { PricingOptions } from '@/features/register/components/Pricing/types'
 import {
   INITIAL_PRICING_OPTIONS,
@@ -18,6 +20,7 @@ import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 
 export type DisplayState =
   | { type: 'idle' }
+  | { type: 'address'; address: Address }
   | { type: 'searching'; domainName: string }
   | { type: 'available'; domainName: string }
   | { type: 'unavailable'; domainName: string }
@@ -47,19 +50,33 @@ export const useCheckAvailability = ({
   const trimmedInput = effectiveInput.trim()
   const trimmedDebouncedInput = effectiveDebouncedInput.trim()
 
-  // Instant validation on current input (not debounced)
-  const validation = useMemo(
-    () => (trimmedInput ? validateENSName(trimmedInput) : null),
+  const isAddressInput = useMemo(
+    () => trimmedInput.length > 0 && isAddress(trimmedInput, { strict: false }),
     [trimmedInput],
   )
 
-  // Only normalize debounced input if validation passes
+  // Fetch primary ENS name for address input
+  const primaryNameQuery = useQuery({
+    ...profileReverseNameQuery(
+      isAddressInput ? (trimmedInput as Address) : undefined,
+    ),
+    enabled: isAddressInput,
+  })
+
+  // Instant validation on current input (not debounced) - skip for addresses
+  const validation = useMemo(
+    () =>
+      trimmedInput && !isAddressInput ? validateENSName(trimmedInput) : null,
+    [trimmedInput, isAddressInput],
+  )
+
+  // Only normalize debounced input if validation passes and not an address
   const normalizedName = useMemo(
     () =>
-      !validation && trimmedDebouncedInput
+      !validation && trimmedDebouncedInput && !isAddressInput
         ? normalizeQuery(trimmedDebouncedInput)
         : null,
-    [validation, trimmedDebouncedInput],
+    [validation, trimmedDebouncedInput, isAddressInput],
   )
 
   // Is currently debouncing (input changed but debounce hasn't fired yet)
@@ -112,6 +129,11 @@ export const useCheckAvailability = ({
     // No input
     if (!trimmedInput) return { type: 'idle' }
 
+    // Address input → show address profile card
+    if (isAddressInput) {
+      return { type: 'address', address: trimmedInput as Address }
+    }
+
     // Validation error - show idle (error shown separately)
     if (validation) return { type: 'idle' }
 
@@ -140,6 +162,7 @@ export const useCheckAvailability = ({
     return { type: 'idle' }
   }, [
     trimmedInput,
+    isAddressInput,
     validation,
     availabilityQuery.isFetching,
     availabilityQuery.data,
@@ -177,6 +200,8 @@ export const useCheckAvailability = ({
     pricing,
     displayState,
     premiumLabel,
+    primaryName: primaryNameQuery.data ?? null,
+    isPrimaryNameLoading: primaryNameQuery.isLoading,
     selectedName: availabilityQuery.data?.name ?? null,
     isAvailable: availabilityQuery.data?.isAvailable ?? false,
     isSearching: availabilityQuery.isFetching,
