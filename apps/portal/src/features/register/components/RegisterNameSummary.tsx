@@ -32,6 +32,7 @@ type RegisterNameCheckoutSummaryProps = {
 }
 
 const EST_GAS_USD = 0.05
+const EST_NETWORK_FEE_USD = 0.05
 
 /** ENS docs explaining premium pricing for short names */
 const ENS_PREMIUM_PRICING_DOCS_URL =
@@ -184,7 +185,7 @@ const PriceBreakdownSkeleton = ({
       <div className="flex items-center justify-between">
         <dt className="text-base font-normal">Est. network fee</dt>
         <dd className="flex items-center gap-1 m-0 text-muted-foreground text-sm">
-          <span className="font-mono">~{formatUsd(EST_GAS_USD)}</span>
+          <span className="font-mono">~{formatUsd(EST_NETWORK_FEE_USD)}</span>
           <span className="text-xs">USD</span>
         </dd>
       </div>
@@ -281,7 +282,7 @@ const PriceBreakdown = ({
         <div className="flex items-center justify-between">
           <dt className="text-base font-normal">Est. network fee</dt>
           <dd className="flex items-center gap-1 m-0 text-muted-foreground text-sm">
-            <span className="font-mono">~{formatUsd(EST_GAS_USD)}</span>
+            <span className="font-mono">~{formatUsd(EST_NETWORK_FEE_USD)}</span>
             <span className="text-xs">USD</span>
           </dd>
         </div>
@@ -290,7 +291,10 @@ const PriceBreakdown = ({
           <dt className="text-xl font-bold">Est. total</dt>
           <dd className="flex items-center gap-1 m-0">
             <span className="font-mono text-xl font-bold">
-              {formatTotalWithGasAndFees(price.totalRaw, EST_GAS_USD * 2)}
+              {formatTotalWithGasAndFees(
+                price.totalRaw,
+                EST_GAS_USD + EST_NETWORK_FEE_USD,
+              )}
             </span>
             <span className="text-xs">USD</span>
           </dd>
