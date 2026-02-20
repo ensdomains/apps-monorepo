@@ -13,11 +13,10 @@ interface NotificationsDropdownProps {
 export const NotificationsDropdown = ({
   onAction,
 }: NotificationsDropdownProps) => {
-  const { data, isLoading, isError } = useInfiniteQuery({
-    ...notificationsInfiniteQuery,
-    select: (data) =>
-      data.pages.flatMap((page) => page.notifications).slice(0, 3),
-  })
+  const { data, isLoading, isError } = useInfiniteQuery(
+    notificationsInfiniteQuery,
+  )
+  const notifications = (data ?? []).slice(0, 3)
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -60,9 +59,9 @@ export const NotificationsDropdown = ({
         </div>
       ) : null}
 
-      {!isLoading && !isError && data && data.length > 0 ? (
+      {!isLoading && !isError && notifications.length > 0 ? (
         <div className="flex flex-col">
-          {data.map((notification) => (
+          {notifications.map((notification) => (
             <NotificationItem
               key={notification.id}
               layout="compact"
@@ -73,7 +72,7 @@ export const NotificationsDropdown = ({
         </div>
       ) : null}
 
-      {!isLoading && !isError && data && data.length === 0 ? (
+      {!isLoading && !isError && notifications.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-4 py-10">
           <MSymbol
             className="ms-opsz-72 ms-wght-200 text-[#515151]"

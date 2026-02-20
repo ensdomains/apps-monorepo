@@ -1,3 +1,4 @@
+import { notificationDefinitions } from '@ens-apps/shared-schema/notifications'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { Loader2Icon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -5,7 +6,15 @@ import { MSymbol } from '@/components/ui/material-symbol'
 import { notificationsInfiniteQuery } from '@/features/notifications/data/queries/notifications'
 import { NotificationItem } from './notification-item'
 
-export const NotificationsList = () => {
+type NotificationsListProps = {
+  unreadOnly?: boolean
+  selectedTag?: string
+}
+
+export const NotificationsList = ({
+  unreadOnly = false,
+  selectedTag = 'all',
+}: NotificationsListProps) => {
   const {
     data,
     isLoading,
@@ -14,6 +23,19 @@ export const NotificationsList = () => {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery(notificationsInfiniteQuery)
+
+  const filteredData =
+    data?.filter((notification) => {
+      if (unreadOnly && notification.seen) return false
+
+      if (selectedTag === 'all') return true
+
+      const tags =
+        (notificationDefinitions[notification.kind].metadata.tags as
+          | readonly string[]
+          | undefined) ?? []
+      return tags.includes(selectedTag)
+    }) ?? []
 
   if (isLoading) {
     return (
@@ -33,7 +55,7 @@ export const NotificationsList = () => {
     )
   }
 
-  if (!data || data.length === 0) {
+  if (filteredData.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center">
         <MSymbol className="ms-opsz-75 ms-wght-200" symbol="sentiment_calm" />
@@ -44,7 +66,7 @@ export const NotificationsList = () => {
 
   return (
     <div className="flex flex-col gap-8">
-      {data.map((notification) => (
+      {filteredData.map((notification) => (
         <NotificationItem key={notification.id} notification={notification} />
       ))}
       {hasNextPage && (

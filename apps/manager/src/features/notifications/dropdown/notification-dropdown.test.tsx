@@ -20,11 +20,9 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 
 vi.mock('@/features/notifications/inbox/notification-item', () => ({
-  ResolvedNotificationItem: ({
-    resolved,
-  }: {
-    resolved: { notification: { kind: string } }
-  }) => <div data-testid="notification-item">{resolved.notification.kind}</div>,
+  NotificationItem: ({ notification }: { notification: { kind: string } }) => (
+    <div data-testid="notification-item">{notification.kind}</div>
+  ),
 }))
 
 vi.mock('@/features/notifications/inbox/unread-count', () => ({
@@ -125,21 +123,13 @@ describe('NotificationsDropdown', () => {
     expect(screen.getAllByTestId('notification-item')).toHaveLength(3)
   })
 
-  it('filters invalid notifications', () => {
+  it('renders query-selected notifications', () => {
     mockUseInfiniteQuery.mockReturnValue({
       data: [
         {
           id: '1',
           kind: 'ens-update',
           payload: { title: 'Good', summary: 'Summary' },
-          source: 'broadcast',
-          seen: false,
-          timestamp: Date.now(),
-        },
-        {
-          id: '2',
-          kind: 'ens-update',
-          payload: { title: 'Bad', summary: 123 },
           source: 'broadcast',
           seen: false,
           timestamp: Date.now(),

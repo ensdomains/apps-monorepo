@@ -68,10 +68,9 @@ Invalid payloads and unknown kinds are dropped from UI.
 
 ## Rendering Contract
 
-- `resolveRenderableNotification()` resolves one backend notification
-- valid => render
-- invalid payload => filtered out
-- unknown kind => filtered out
+- payload and kind validation happens in query select (`selectValidNotifications`)
+- `NotificationItem` renders known kinds without re-validating payload on each render
+- invalid payloads and unknown kinds are filtered before reaching list/dropdown UIs
 
 ## Testing Checklist
 

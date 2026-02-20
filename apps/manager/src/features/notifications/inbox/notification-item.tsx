@@ -1,5 +1,3 @@
-import { useMemo } from 'react'
-import { safeParse } from 'valibot'
 import type { BackendNotification } from '@/features/notifications/data/queries/notifications'
 import { getNotificationData } from '@/features/notifications/notifications'
 import type { NotificationLayout } from '@/features/notifications/notifications/contracts'
@@ -19,16 +17,9 @@ export const NotificationItem = ({
   onMarkAsRead,
   onRemove,
 }: NotificationItemProps) => {
-  type NotificationKind = typeof notification.kind
-  const { Component, definition } = getNotificationData<NotificationKind>(
-    notification.kind,
-  )
+  const { Component, definition } = getNotificationData(notification.kind)
 
-  const validPayload = useMemo(() => {
-    return safeParse(definition.payloadSchema, notification.payload).success
-  }, [notification.payload, definition.payloadSchema])
-
-  if (!Component || !validPayload) {
+  if (!Component || !definition) {
     return null
   }
 
@@ -38,7 +29,7 @@ export const NotificationItem = ({
       onAction={onAction}
       onMarkAsRead={onMarkAsRead}
       onRemove={onRemove}
-      // biome-ignore lint/suspicious/noExplicitAny: Can't type this properly
+      // biome-ignore lint/suspicious/noExplicitAny: Generic component union
       payload={notification.payload as any}
       seen={notification.seen}
       timestamp={notification.timestamp}

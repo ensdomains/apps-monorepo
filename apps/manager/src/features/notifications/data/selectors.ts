@@ -1,8 +1,6 @@
+import { safeParse } from 'valibot'
 import type { BackendNotification } from '@/features/notifications/data/queries/notifications'
-import {
-  type RenderableNotification,
-  resolveRenderableNotification,
-} from '@/features/notifications/notifications'
+import { getNotificationData } from '@/features/notifications/notifications'
 
 const logDroppedNotification = (
   notification: BackendNotification,
@@ -18,26 +16,29 @@ const logDroppedNotification = (
 }
 
 /**
- * Resolve and keep only renderable notifications.
- * Invalid payloads and unknown kinds are filtered out.
+ * Keep only notifications with known kind and valid payload.
+ * This runs in TanStack Query select-path (not the render tree).
  */
-export const selectRenderableNotifications = (
+export const selectValidNotifications = (
   notifications: BackendNotification[],
-  limit?: number,
-): RenderableNotification[] => {
-  const renderable: RenderableNotification[] = []
+): BackendNotification[] => {
+  const valid: BackendNotification[] = []
 
   for (const notification of notifications) {
-    const resolved = resolveRenderableNotification(notification)
+    const { Component, definition } = getNotificationData(notification.kind)
 
-    if (resolved.type === 'renderable') {
-      renderable.push(resolved)
-      if (limit !== undefined && renderable.length >= limit) break
+    if (!Component || !definition) {
+      logDroppedNotification(notification, 'unknown-kind')
       continue
     }
 
-    logDroppedNotification(notification, resolved.type)
+    if (!safeParse(definition.payloadSchema, notification.payload).success) {
+      logDroppedNotification(notification, 'invalid')
+      continue
+    }
+
+    valid.push(notification)
   }
 
-  return renderable
+  return valid
 }

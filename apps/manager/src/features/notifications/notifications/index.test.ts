@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import notificationKindRegistry, {
-  resolveRenderableNotification,
-} from './index'
+import notificationKindRegistry, { getNotificationData } from './index'
 
 describe('notification kind registry', () => {
   it('contains all known backend kinds', () => {
@@ -15,51 +13,16 @@ describe('notification kind registry', () => {
   })
 })
 
-describe('resolveRenderableNotification', () => {
-  it('returns renderable for known kind with valid payload', () => {
-    const resolved = resolveRenderableNotification({
-      id: '1',
-      kind: 'name-expiry',
-      payload: {
-        name: 'example.eth',
-        expiryDate: Date.now() + 1_000_000,
-        isOwner: true,
-        watchReason: 'owned',
-      },
-      source: 'personal',
-      seen: false,
-      timestamp: Date.now(),
-    })
-
-    expect(resolved.type).toBe('renderable')
+describe('getNotificationData', () => {
+  it('returns component and definition for known kind', () => {
+    const resolved = getNotificationData('name-expiry')
+    expect(resolved.Component).toBeDefined()
+    expect(resolved.definition).toBeDefined()
   })
 
-  it('returns invalid for known kind with malformed payload', () => {
-    const resolved = resolveRenderableNotification({
-      id: '2',
-      kind: 'name-expiry',
-      payload: {
-        name: 'example.eth',
-        expiryDate: 'tomorrow',
-      },
-      source: 'personal',
-      seen: false,
-      timestamp: Date.now(),
-    } as unknown as Parameters<typeof resolveRenderableNotification>[0])
-
-    expect(resolved.type).toBe('invalid')
-  })
-
-  it('returns unknown-kind when kind is not registered', () => {
-    const resolved = resolveRenderableNotification({
-      id: '3',
-      kind: 'future-kind',
-      payload: {},
-      source: 'personal',
-      seen: false,
-      timestamp: Date.now(),
-    } as unknown as Parameters<typeof resolveRenderableNotification>[0])
-
-    expect(resolved.type).toBe('unknown-kind')
+  it('returns undefined component/definition for unknown kind', () => {
+    const resolved = getNotificationData('future-kind' as never)
+    expect(resolved.Component).toBeUndefined()
+    expect(resolved.definition).toBeUndefined()
   })
 })

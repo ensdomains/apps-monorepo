@@ -32,7 +32,7 @@ describe('NotificationItem', () => {
     expect(getByText('example.eth')).toBeInTheDocument()
   })
 
-  it('returns null for invalid payloads', () => {
+  it('renders when kind exists (payload validation handled in query select)', () => {
     const { container } = render(
       <NotificationItem
         notification={
@@ -51,7 +51,7 @@ describe('NotificationItem', () => {
       />,
     )
 
-    expect(container.querySelector('.border-b')).toBeNull()
+    expect(container.querySelector('.border-b')).not.toBeNull()
   })
 
   it('returns null for unknown kinds', () => {

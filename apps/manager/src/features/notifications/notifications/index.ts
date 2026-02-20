@@ -25,10 +25,12 @@ export const getNotificationData = <K extends NotificationKind>(
   kind: K,
 ): {
   Component: (typeof NOTIFICATION_COMPONENT_REGISTRY)[K] | undefined
-  definition: NotificationDefinitions[K]
+  definition: NotificationDefinitions[K] | undefined
 } => {
   return {
     Component: NOTIFICATION_COMPONENT_REGISTRY[kind] ?? undefined,
-    definition: notificationDefinitions[kind],
+    definition: notificationDefinitions[kind] ?? undefined,
   }
 }
+
+export default NOTIFICATION_COMPONENT_REGISTRY
