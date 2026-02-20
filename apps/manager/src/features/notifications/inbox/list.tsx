@@ -1,6 +1,8 @@
 import { notificationDefinitions } from '@ens-apps/shared-schema/notifications'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { Loader2Icon } from 'lucide-react'
+import { useInView } from 'motion/react'
+import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { notificationsInfiniteQuery } from '@/features/notifications/data/queries/notifications'
@@ -10,6 +12,42 @@ import { NotificationItem } from './notification-item'
 type NotificationsListProps = {
   unreadOnly?: boolean
   selectedTag?: string
+}
+
+const LoadMoreButton = ({
+  isFetchingNextPage,
+  fetchNextPage,
+  hasNextPage,
+}: {
+  isFetchingNextPage: boolean
+  fetchNextPage: () => void
+  hasNextPage: boolean
+}) => {
+  const loadMoreRef = useRef<HTMLDivElement | null>(null)
+  const isLoadMoreInView = useInView(loadMoreRef)
+
+  // When the load more button is in view and there are more pages to fetch, fetch the next page.
+  useEffect(() => {
+    if (isLoadMoreInView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage()
+    }
+  }, [isLoadMoreInView, hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  return (
+    <div className="flex items-center gap-3" ref={loadMoreRef}>
+      <Button
+        className="w-fit"
+        disabled={isFetchingNextPage}
+        onClick={() => fetchNextPage()}
+        variant="outline"
+      >
+        {isFetchingNextPage ? 'Loading...' : 'Load more'}
+      </Button>
+      {isFetchingNextPage ? (
+        <Loader2Icon className="size-5 animate-spin text-[#717182]" />
+      ) : null}
+    </div>
+  )
 }
 
 export const NotificationsList = ({
@@ -83,16 +121,13 @@ export const NotificationsList = ({
           </div>
         </section>
       ))}
-      {hasNextPage && (
-        <Button
-          className="w-fit"
-          disabled={isFetchingNextPage}
-          onClick={() => fetchNextPage()}
-          variant="outline"
-        >
-          {isFetchingNextPage ? 'Loading...' : 'Load more'}
-        </Button>
-      )}
+      {hasNextPage ? (
+        <LoadMoreButton
+          fetchNextPage={fetchNextPage}
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+        />
+      ) : null}
     </div>
   )
 }
