@@ -3,7 +3,6 @@ import type { ChannelType } from './channels'
 
 export type NotificationSource = 'personal' | 'broadcast'
 export type NotificationPriority = 'low' | 'medium' | 'high'
-export type DeliveryMode = 'none' | 'opt-in'
 
 export type DeliveryPreferenceKey =
   | 'ownedNameExpiry'
@@ -23,11 +22,15 @@ export type NotificationMetadata = {
   thresholds?: readonly number[]
 }
 
-export type NotificationDelivery = {
-  mode: DeliveryMode
-  channels: readonly ChannelType[]
-  preferenceKey?: DeliveryPreferenceKey
-}
+export type NotificationDelivery =
+  | {
+      mode: 'opt-in'
+      channels: readonly ChannelType[]
+      preferenceKey?: DeliveryPreferenceKey
+    }
+  | {
+      mode: 'none'
+    }
 
 export type NotificationDefinition = {
   kind: string

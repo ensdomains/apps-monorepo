@@ -33,7 +33,10 @@ export type BroadcastNotificationPayloads = {
 }
 
 export type SupportedNotifications<C extends ChannelType> = {
-  [K in PersonalNotificationKind]: C extends NotificationDefinitions[K]['delivery']['channels'][number]
+  [K in PersonalNotificationKind]: C extends Extract<
+    NotificationDefinitions[K]['delivery'],
+    { mode: 'opt-in' }
+  >['channels'][number]
     ? K
     : never
 }[PersonalNotificationKind]
@@ -41,4 +44,6 @@ export type SupportedNotifications<C extends ChannelType> = {
 export const channelSupportsNotification = (
   channel: ChannelType,
   kind: PersonalNotificationKind,
-): boolean => notificationDefinitions[kind].delivery.channels.includes(channel)
+): boolean =>
+  'channels' in notificationDefinitions[kind].delivery &&
+  notificationDefinitions[kind].delivery.channels.includes(channel)

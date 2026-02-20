@@ -18,7 +18,7 @@ export const nameTransferredDefinition = {
     tags: ['transfer'],
   },
   delivery: {
-    mode: 'none',
+    mode: 'opt-in',
     channels: ['email', 'telegram', 'push'],
   },
 } as const satisfies NotificationDefinition

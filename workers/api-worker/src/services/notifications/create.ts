@@ -1,6 +1,7 @@
 import {
   type ChannelType,
   channelSupportsNotification,
+  type NotificationDefinition,
   notificationDefinitions,
   type PersonalNotificationKind,
   type PersonalNotificationPayloads,
@@ -31,17 +32,12 @@ export function shouldCreateExternalDeliveriesForNotification(
   payload: PersonalNotificationPayloads[PersonalNotificationKind],
   settings: DeliveryPreferenceSettings,
 ): boolean {
-  const definition = notificationDefinitions[kind]
+  const definition = notificationDefinitions[kind] as NotificationDefinition
   if (definition.delivery.mode === 'none') {
     return false
   }
 
-  const preferenceKey = definition.delivery.preferenceKey as
-    | 'ownedNameExpiry'
-    | 'favouritedNameExpiry'
-    | 'ensLabsUpdates'
-    | 'watchBasedNameExpiry'
-    | undefined
+  const preferenceKey = definition.delivery.preferenceKey
 
   switch (preferenceKey) {
     case 'ownedNameExpiry':

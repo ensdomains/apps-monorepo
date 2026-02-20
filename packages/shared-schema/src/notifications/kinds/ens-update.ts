@@ -19,6 +19,5 @@ export const ensUpdateDefinition = {
   },
   delivery: {
     mode: 'none',
-    channels: [],
   },
 } as const satisfies NotificationDefinition

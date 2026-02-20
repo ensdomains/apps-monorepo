@@ -19,6 +19,5 @@ export const blogPostDefinition = {
   },
   delivery: {
     mode: 'none',
-    channels: [],
   },
 } as const satisfies NotificationDefinition

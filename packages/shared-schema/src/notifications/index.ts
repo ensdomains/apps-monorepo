@@ -24,3 +24,4 @@ export type {
   UserNotificationSettings,
 } from './schemas'
 export { UserNotificationSettingsSchema } from './schemas'
+export type { NotificationDefinition } from './types'

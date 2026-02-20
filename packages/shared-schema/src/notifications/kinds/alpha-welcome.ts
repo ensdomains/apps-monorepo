@@ -20,6 +20,5 @@ export const alphaWelcomeDefinition = {
   },
   delivery: {
     mode: 'none',
-    channels: [],
   },
 } as const satisfies NotificationDefinition
