@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { formatUnits } from 'viem'
-import { useConnection, useReadContract } from 'wagmi'
+import { useConnection, useReadContracts } from 'wagmi'
 import { DAIcon } from '@/assets/dai-icon'
 import { USDCIcon } from '@/assets/usdc-icon'
 import { Button } from '@/components/ui/button'
@@ -20,9 +20,9 @@ import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { cn } from '@/lib/utils'
 
-enum PaymentModalStep {
-  SelectToken = 'select_token',
-  ConfirmPurchase = 'confirm_purchase',
+enum PAYMENT_MODAL_STEP {
+  SELECT_TOKEN = 'select_token',
+  CONFIRM_PURCHASE = 'confirm_purchase',
 }
 
 type PaymentTokenModalProps = {
@@ -33,6 +33,21 @@ type PaymentTokenModalProps = {
   readonly onConfirm: (selectedToken: Address, tokenPrice: bigint) => void
 }
 
+const PAYMENT_TOKENS = [
+  {
+    symbol: 'USDC' as const,
+    address: SUPPORTED_TOKENS.USDC,
+    decimals: 6,
+    Icon: USDCIcon,
+  },
+  {
+    symbol: 'DAI' as const,
+    address: SUPPORTED_TOKENS.DAI,
+    decimals: 18,
+    Icon: DAIcon,
+  },
+]
+
 export const PaymentTokenModal = ({
   open,
   onOpenChange,
@@ -42,30 +57,12 @@ export const PaymentTokenModal = ({
 }: PaymentTokenModalProps) => {
   const { address } = useConnection()
   const [selectedToken, setSelectedToken] = useState<Address | null>(null)
-  const [step, setStep] = useState<PaymentModalStep>(
-    PaymentModalStep.SelectToken,
-  )
-
-  const paymentTokens = useMemo(
-    () => [
-      {
-        symbol: 'USDC' as const,
-        address: SUPPORTED_TOKENS.USDC,
-        decimals: 6,
-        Icon: USDCIcon,
-      },
-      {
-        symbol: 'DAI' as const,
-        address: SUPPORTED_TOKENS.DAI,
-        decimals: 18,
-        Icon: DAIcon,
-      },
-    ],
-    [],
+  const [step, setStep] = useState<PAYMENT_MODAL_STEP>(
+    PAYMENT_MODAL_STEP.SELECT_TOKEN,
   )
 
   const priceQueries = useQueries({
-    queries: paymentTokens.map((token) =>
+    queries: PAYMENT_TOKENS.map((token) =>
       getRegistrationPriceQueryOptions({
         name,
         duration,
@@ -77,20 +74,21 @@ export const PaymentTokenModal = ({
   const usdcPriceQuery = priceQueries[0]
   const daiPriceQuery = priceQueries[1]
 
-  const { data: usdcBalance } = useReadContract({
-    address: SUPPORTED_TOKENS.USDC,
-    abi: ERC20_ABI,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-    query: { enabled: Boolean(address) && open },
+  const { data: balances } = useReadContracts({
+    contracts: PAYMENT_TOKENS.map((token) => ({
+      address: token.address,
+      abi: ERC20_ABI,
+      functionName: 'balanceOf',
+      args: address ? [address] : undefined,
+    })),
+    query: { enabled: Boolean(address) },
   })
 
-  const { data: daiBalance } = useReadContract({
-    address: SUPPORTED_TOKENS.DAI,
-    abi: ERC20_ABI,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-    query: { enabled: Boolean(address) && open },
+  const [usdcBalance, daiBalance] = balances?.map((b) => {
+    if (b?.status === 'success' && b.result !== undefined) {
+      return BigInt(b.result)
+    }
+    return 0n
   })
 
   const tokenData = useMemo(() => {
@@ -107,23 +105,17 @@ export const PaymentTokenModal = ({
 
     return [
       {
-        ...paymentTokens[0],
+        ...PAYMENT_TOKENS[0],
         price: usdcPrice && isPriceResult(usdcPrice) ? usdcPrice : defaultPrice,
         balance: typeof usdcBalance === 'bigint' ? usdcBalance : 0n,
       },
       {
-        ...paymentTokens[1],
+        ...PAYMENT_TOKENS[1],
         price: daiPrice && isPriceResult(daiPrice) ? daiPrice : defaultPrice,
         balance: typeof daiBalance === 'bigint' ? daiBalance : 0n,
       },
     ]
-  }, [
-    paymentTokens,
-    usdcPriceQuery.data,
-    daiPriceQuery.data,
-    usdcBalance,
-    daiBalance,
-  ])
+  }, [usdcPriceQuery.data, daiPriceQuery.data, usdcBalance, daiBalance])
 
   const selectedTokenData = selectedToken
     ? tokenData.find((t) => t.address === selectedToken)
@@ -137,7 +129,7 @@ export const PaymentTokenModal = ({
 
   const handleContinueToConfirm = () => {
     if (selectedToken && hasSufficientBalance) {
-      setStep(PaymentModalStep.ConfirmPurchase)
+      setStep(PAYMENT_MODAL_STEP.CONFIRM_PURCHASE)
     }
   }
 
@@ -146,14 +138,14 @@ export const PaymentTokenModal = ({
       onConfirm(selectedToken, selectedTokenData.price.totalRaw)
       onOpenChange(false)
       setSelectedToken(null)
-      setStep(PaymentModalStep.SelectToken)
+      setStep(PAYMENT_MODAL_STEP.SELECT_TOKEN)
     }
   }
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       setSelectedToken(null)
-      setStep(PaymentModalStep.SelectToken)
+      setStep(PAYMENT_MODAL_STEP.SELECT_TOKEN)
     }
     onOpenChange(newOpen)
   }
@@ -162,7 +154,7 @@ export const PaymentTokenModal = ({
     !selectedToken || !hasSufficientBalance || isPriceLoading || !address
 
   const currentContent = match(step)
-    .with(PaymentModalStep.SelectToken, () => (
+    .with(PAYMENT_MODAL_STEP.SELECT_TOKEN, () => (
       <>
         <div className="flex items-center gap-2">
           <p className="text-muted-foreground text-sm">
@@ -245,7 +237,7 @@ export const PaymentTokenModal = ({
         </Button>
       </>
     ))
-    .with(PaymentModalStep.ConfirmPurchase, () =>
+    .with(PAYMENT_MODAL_STEP.CONFIRM_PURCHASE, () =>
       selectedTokenData ? (
         <div className="flex min-h-[320px] flex-col justify-between gap-6">
           <div className="flex flex-col items-center gap-6">
@@ -287,8 +279,8 @@ export const PaymentTokenModal = ({
     .exhaustive()
 
   const stepTitle = match(step)
-    .with(PaymentModalStep.SelectToken, () => 'Select payment token')
-    .with(PaymentModalStep.ConfirmPurchase, () => 'Confirm purchase')
+    .with(PAYMENT_MODAL_STEP.SELECT_TOKEN, () => 'Select payment token')
+    .with(PAYMENT_MODAL_STEP.CONFIRM_PURCHASE, () => 'Confirm purchase')
     .exhaustive()
 
   return (
