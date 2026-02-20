@@ -5,7 +5,7 @@ import { l2EthRegistrarRentPriceSnippet } from '@ensdomains/ensjs/contracts'
 import { fromPromise, ok } from 'neverthrow'
 import { zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
-import { getTokenDecimals } from '@/features/register/utils/tokenDecimals'
+import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { fastTestETHRegistrar } from '@/lib/constants/registry'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -53,7 +53,7 @@ export const getRegistrationPrice = ResultFn(async function* ({
   )
 
   const total = base + premium
-  const decimals = getTokenDecimals(resolvedToken)
+  const decimals = getTokenMetadataWithAddress(resolvedToken).decimals
 
   return ok<RegistrationPriceResult>({
     base,

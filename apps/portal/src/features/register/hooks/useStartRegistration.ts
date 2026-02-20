@@ -3,14 +3,8 @@ import { useCallback } from 'react'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import { usePublicClient, useWalletClient } from 'wagmi'
+import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
-
-function addressToToken(address: Address): 'USDC' | 'DAI' {
-  return address.toLowerCase() === SUPPORTED_TOKENS.DAI.toLowerCase()
-    ? 'DAI'
-    : 'USDC'
-}
 
 type UseStartRegistrationParams = {
   readonly name: string
@@ -43,7 +37,7 @@ export function useStartRegistration({
         type: 'START_REGISTRATION',
         name,
         duration: BigInt(duration),
-        token: addressToToken(selectedToken),
+        token: getTokenMetadataWithAddress(selectedToken).symbol,
         price: tokenPrice,
         signer,
         accountAddress: walletClient.account.address,
