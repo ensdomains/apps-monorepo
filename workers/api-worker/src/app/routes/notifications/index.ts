@@ -15,6 +15,8 @@ import type { DiscriminatedPayloadMapper } from '#types/helpers.js'
 import channels from './channels.js'
 import preferences from './preferences.js'
 
+const PAGE_SIZE = 20
+
 /**
  * Notification routes for managing user notifications and broadcasts.
  *
@@ -50,7 +52,6 @@ export default createApp()
     ),
     async (c) => {
       const { cursor } = c.req.valid('query')
-      const limit = 20 // Fixed page size for consistent performance
       const userId = c.var.user_id
 
       //
@@ -77,7 +78,7 @@ export default createApp()
           cursor ? lt(TABLE.notifications.id, cursor) : undefined,
         ),
         orderBy: desc(TABLE.notifications.id), // Newest first (UUIDv7 is time-ordered)
-        limit: limit,
+        limit: PAGE_SIZE + 1,
       })
 
       //
@@ -103,7 +104,7 @@ export default createApp()
         )
         .where(cursor ? lt(TABLE.broadcasts.id, cursor) : undefined)
         .orderBy(desc(TABLE.broadcasts.id))
-        .limit(limit) // ← cheap, table is tiny (broadcasts are system-wide, not user-specific)
+        .limit(PAGE_SIZE + 1) // ← cheap, table is tiny (broadcasts are system-wide, not user-specific)
 
       //
       // Merge personal and broadcast notifications, then sort by creation time
@@ -132,13 +133,14 @@ export default createApp()
           timestamp: created_at.getTime(),
         }))
 
-      // Apply final limit after merging and sorting
-      const page = merged.slice(0, limit)
+      const notifications = merged.slice(0, PAGE_SIZE)
+      const hasMore = merged.length > PAGE_SIZE
 
       return c.json({
-        notifications: page,
-        // Return the last notification's ID as the next cursor, or null if no more pages
-        nextCursor: page.length ? page[page.length - 1].id : null,
+        notifications,
+        nextCursor: hasMore
+          ? (notifications[notifications.length - 1]?.id ?? null)
+          : null,
       })
     },
   )
