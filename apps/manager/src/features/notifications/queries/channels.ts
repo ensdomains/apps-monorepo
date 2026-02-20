@@ -187,7 +187,7 @@ export const verifyEmailMutationOptions = mutationOptions({
 
 // push notification mutations
 export const vapidPublicKeyQueryOptions = queryOptions({
-  queryKey: qk('channels', 'push', 'vapid-public-key'),
+  queryKey: qk('channels', 'push', { key: 'vapid-public-key' }),
   queryFn: async () => {
     const response =
       await backendClient.notifications.channels.push['vapid-public-key'].$get()

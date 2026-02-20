@@ -247,14 +247,6 @@ export async function unsubscribeFromPush(channelId: string): Promise<{
   error?: string
 }> {
   try {
-    // get current subscription
-    const subscription = await getExistingSubscription()
-
-    if (subscription) {
-      // unsubscribe locally
-      await subscription.unsubscribe()
-    }
-
     // notify server
     const response = await backendClient.notifications.channels[':id'].$delete({
       param: { id: channelId },
@@ -266,6 +258,13 @@ export async function unsubscribeFromPush(channelId: string): Promise<{
         success: false,
         error: 'error' in error ? error.error : 'Failed to unsubscribe',
       }
+    }
+
+    // unsubscribe locally after server confirms
+    const subscription = await getExistingSubscription()
+
+    if (subscription) {
+      await subscription.unsubscribe()
     }
 
     return { success: true }
