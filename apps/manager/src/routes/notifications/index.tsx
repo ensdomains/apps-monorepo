@@ -11,7 +11,6 @@ import {
 import { MSymbol } from '@/components/ui/material-symbol'
 import { Switch } from '@/components/ui/switch'
 import {
-  type BackendNotification,
   markAllNotificationsReadMutationOptions,
   notificationsInfiniteQuery,
 } from '@/features/notifications/data/queries/notifications'
@@ -56,10 +55,12 @@ function RouteComponent() {
   }
 
   const handleMarkAllAsRead = () => {
+    const notificationsQueryData = queryClient.getQueryData(
+      notificationsInfiniteQuery.queryKey,
+    )
+
     const loadedNotifications =
-      queryClient.getQueryData<BackendNotification[]>(
-        notificationsInfiniteQuery.queryKey,
-      ) ?? []
+      notificationsQueryData?.pages.flatMap((page) => page.notifications) ?? []
 
     markAllAsRead.mutate(loadedNotifications)
   }
