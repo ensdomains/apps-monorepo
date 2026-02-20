@@ -1,6 +1,6 @@
 import { ERC20_ABI } from '@ens-apps/transaction-manager/contracts/abis/ERC20.abi'
 import { useQueries } from '@tanstack/react-query'
-import { useCallback, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { formatUnits } from 'viem'
@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
-import { isPriceResult } from '@/features/register/utils/registrationPrice'
+import { buildTokenData } from '@/features/register/utils/tokenData'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { cn } from '@/lib/utils'
 
@@ -75,48 +75,30 @@ export const PaymentTokenModal = ({
   const usdcPriceQuery = priceQueries[0]
   const daiPriceQuery = priceQueries[1]
 
-  const { data: balances } = useReadContracts({
-    contracts: PAYMENT_TOKENS.map((token) => ({
-      address: token.address,
-      abi: ERC20_ABI,
-      functionName: 'balanceOf',
-      args: address ? [address] : undefined,
-    })),
-    query: { enabled: Boolean(address) },
-  })
+  const { data: balances = [], isLoading: isLoadingBalances } =
+    useReadContracts({
+      contracts: PAYMENT_TOKENS.map((token) => ({
+        address: token.address,
+        abi: ERC20_ABI,
+        functionName: 'balanceOf',
+        args: address ? [address] : undefined,
+      })),
+      query: { enabled: Boolean(address) },
+    })
 
-  const [usdcBalance, daiBalance] = (balances ?? []).map((b) => {
-    if (b?.status === 'success' && b.result !== undefined) {
-      return BigInt(b.result)
+  const [usdcBalance, daiBalance] = balances.map((balance) => {
+    if (balance.status === 'success' && balance.result !== undefined) {
+      return BigInt(balance.result)
     }
+
     return 0n
   })
 
-  const tokenData = useMemo(() => {
-    const usdcPrice = usdcPriceQuery.data
-    const daiPrice = daiPriceQuery.data
-
-    const defaultPrice = {
-      total: '$0',
-      totalRaw: 0n,
-      base: '$0',
-      premium: '$0',
-      hasPremium: false,
-    }
-
-    return [
-      {
-        ...PAYMENT_TOKENS[0],
-        price: usdcPrice && isPriceResult(usdcPrice) ? usdcPrice : defaultPrice,
-        balance: typeof usdcBalance === 'bigint' ? usdcBalance : 0n,
-      },
-      {
-        ...PAYMENT_TOKENS[1],
-        price: daiPrice && isPriceResult(daiPrice) ? daiPrice : defaultPrice,
-        balance: typeof daiBalance === 'bigint' ? daiBalance : 0n,
-      },
-    ]
-  }, [usdcPriceQuery.data, daiPriceQuery.data, usdcBalance, daiBalance])
+  const tokenData = buildTokenData(
+    PAYMENT_TOKENS,
+    [usdcPriceQuery.data, daiPriceQuery.data],
+    [usdcBalance, daiBalance],
+  )
 
   const selectedTokenData = selectedToken
     ? tokenData.find((t) => t.address === selectedToken)
@@ -126,7 +108,8 @@ export const PaymentTokenModal = ({
     selectedTokenData &&
     selectedTokenData.balance >= selectedTokenData.price.totalRaw
 
-  const isPriceLoading = usdcPriceQuery.isLoading || daiPriceQuery.isLoading
+  const isPriceLoading =
+    usdcPriceQuery.isLoading || daiPriceQuery.isLoading || isLoadingBalances
 
   const resetState = () => {
     setSelectedToken(null)
