@@ -17,7 +17,11 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
 import { buildTokenData } from '@/features/register/utils/tokenData'
-import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
+import {
+  DAI_DECIMALS,
+  SUPPORTED_TOKENS,
+  USDC_DECIMALS,
+} from '@/lib/constants/tokens'
 import { cn } from '@/lib/utils'
 
 enum PAYMENT_MODAL_STEP {
@@ -37,13 +41,13 @@ const PAYMENT_TOKENS = [
   {
     symbol: 'USDC' as const,
     address: SUPPORTED_TOKENS.USDC,
-    decimals: 6,
+    decimals: USDC_DECIMALS,
     Icon: USDCIcon,
   },
   {
     symbol: 'DAI' as const,
     address: SUPPORTED_TOKENS.DAI,
-    decimals: 18,
+    decimals: DAI_DECIMALS,
     Icon: DAIcon,
   },
 ]

@@ -6,6 +6,7 @@ import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { formatUnits, zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
+import { getTokenDecimals } from '@/features/register/utils/tokenDecimals'
 import { fastTestETHRegistrar } from '@/lib/constants/registry'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -31,14 +32,6 @@ export type RegistrationPriceResult = {
   readonly hasPremium: boolean
 }
 
-const USDC_DECIMALS = 6
-const DAI_DECIMALS = 18
-
-const getTokenDecimals = (
-  token: Address,
-  supportedTokens: { USDC: Address; DAI: Address },
-) => (token === supportedTokens.USDC ? USDC_DECIMALS : DAI_DECIMALS)
-
 export const getRegistrationPrice = ResultFn(async function* ({
   name,
   duration,
@@ -61,7 +54,7 @@ export const getRegistrationPrice = ResultFn(async function* ({
   )
 
   const total = base + premium
-  const decimals = getTokenDecimals(resolvedToken, SUPPORTED_TOKENS)
+  const decimals = getTokenDecimals(resolvedToken)
 
   return ok<RegistrationPriceResult>({
     base: formatUsdCeil(formatUnits(base, decimals)),

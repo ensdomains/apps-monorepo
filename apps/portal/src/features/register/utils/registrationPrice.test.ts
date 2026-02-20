@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { DAI_DECIMALS, USDC_DECIMALS } from '@/lib/constants/tokens'
 import { formatTotalWithGasAndFees, isPriceResult } from './registrationPrice'
 
 const validPriceResult = {
@@ -50,26 +51,26 @@ describe('isPriceResult', () => {
 
 describe('formatTotalWithGasAndFees', () => {
   it('adds gas and fees to totalRaw and formats as USD', () => {
-    const totalRaw = 5_000_000n // 5 USDC (6 decimals)
+    const totalRaw = 5_000_000n // 5 USDC (USDC_DECIMALS)
     const result = formatTotalWithGasAndFees(totalRaw, 0.1)
     expect(result).toBe('$5.10')
   })
 
-  it('uses default decimals (6) when not specified', () => {
+  it('uses default decimals (USDC) when not specified', () => {
     const totalRaw = 10_000_000n // 10 USDC
     const result = formatTotalWithGasAndFees(totalRaw, 0.05)
     expect(result).toBe('$10.05')
   })
 
-  it('accepts custom decimals for DAI (18)', () => {
-    const totalRaw = 5_000_000_000_000_000_000n // 5 DAI (18 decimals)
-    const result = formatTotalWithGasAndFees(totalRaw, 0.1, 18)
+  it('accepts custom decimals for DAI', () => {
+    const totalRaw = 5_000_000_000_000_000_000n // 5 DAI (DAI_DECIMALS)
+    const result = formatTotalWithGasAndFees(totalRaw, 0.1, DAI_DECIMALS)
     expect(result).toBe('$5.10')
   })
 
   it('rounds gas and fees to nearest token unit', () => {
     const totalRaw = 5_000_000n // 5 USDC
-    const result = formatTotalWithGasAndFees(totalRaw, 0.101, 6)
+    const result = formatTotalWithGasAndFees(totalRaw, 0.101, USDC_DECIMALS)
     expect(result).toBe('$5.10')
   })
 
