@@ -1,8 +1,13 @@
 import { getLabel } from '@/utils/token/getLabel'
 
+export enum PREMIUM_LABEL_VARIANT {
+  PREMIUM_3 = 'premium-3',
+  PREMIUM_4 = 'premium-4',
+}
+
 export type PremiumLabel = {
   label: string
-  variant: 'premium-3' | 'premium-4'
+  variant: PREMIUM_LABEL_VARIANT
 }
 
 /**
@@ -12,7 +17,10 @@ export type PremiumLabel = {
  */
 export const determinePremium = (name: string): boolean => {
   const label = getLabel(name)
-  if (label === null) return false
+  if (label === null) {
+    return false
+  }
+
   return label.length >= 3 && label.length <= 4
 }
 
@@ -24,15 +32,21 @@ export const getPremiumLabel = (
   domainName: string,
 ): PremiumLabel | undefined => {
   const label = getLabel(domainName)
-  if (label === null) return undefined
+
+  if (!label) {
+    return undefined
+  }
 
   const length = label.length
-  if (length < 3 || length > 4) return undefined
 
-  const variant: 'premium-3' | 'premium-4' =
-    length === 3 ? 'premium-3' : 'premium-4'
-  return {
-    label: `${length} character premium name`,
-    variant,
-  } as const
+  if (length < 3 || length > 4) {
+    return undefined
+  }
+
+  const variant: PREMIUM_LABEL_VARIANT =
+    length === 3
+      ? PREMIUM_LABEL_VARIANT.PREMIUM_3
+      : PREMIUM_LABEL_VARIANT.PREMIUM_4
+
+  return { label: `${length} character premium name`, variant }
 }

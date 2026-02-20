@@ -1,17 +1,16 @@
 import { cn } from '@/lib/utils'
-
-export type PremiumPillVariant = 'premium-3' | 'premium-4'
+import { PREMIUM_LABEL_VARIANT } from '../utils/premium'
 
 export type PremiumPillProps = {
   readonly label: string
-  readonly variant: PremiumPillVariant
+  readonly variant: PREMIUM_LABEL_VARIANT
   readonly className?: string
 }
 
-const variantStyles: Record<PremiumPillVariant, string> = {
-  'premium-3':
+const variantStyles: Record<PREMIUM_LABEL_VARIANT, string> = {
+  [PREMIUM_LABEL_VARIANT.PREMIUM_3]:
     'rounded-[14.182px] bg-[linear-gradient(94deg,#E9D4BC_2.94%,#8E6616_299.58%)] text-black font-medium',
-  'premium-4':
+  [PREMIUM_LABEL_VARIANT.PREMIUM_4]:
     'rounded-[14.182px] bg-[linear-gradient(103deg,#E2E8F0_22.67%,#606262_287.71%)] text-black font-medium',
 }
 

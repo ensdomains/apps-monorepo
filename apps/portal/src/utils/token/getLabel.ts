@@ -11,7 +11,11 @@ export function getLabel(name: string): string | null {
     const normalized = ens_normalize(name)
     const labels = ens_split(normalized)
     const first = labels[0]
-    if (!first || first.error) return null
+
+    if (!first || first.error) {
+      return null
+    }
+
     return String.fromCodePoint(...first.input)
   } catch {
     return null
