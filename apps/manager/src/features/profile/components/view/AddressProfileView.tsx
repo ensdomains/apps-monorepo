@@ -15,6 +15,7 @@ import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import { CopyableAddress } from '@/components/atoms/CopyableAddress'
+import { CountBadge } from '@/components/atoms/CountBadge'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { Card } from '@/components/ui/card'
 import {
@@ -237,9 +238,7 @@ export const AddressProfileView = ({
               Registered ENS names
             </span>
             {namesCount !== undefined && namesCount > 0 && (
-              <span className="inline-flex h-[19.68px] items-center justify-center rounded-[14px] bg-[#ffecf5] px-[6.56px] py-[1.64px] font-sans text-[#f53293] text-sm leading-[1.05] tracking-[0.28px]">
-                {namesCount}
-              </span>
+              <CountBadge value={namesCount} />
             )}
           </div>
           <span className="text-muted-foreground text-sm">
