@@ -17,7 +17,7 @@ type RegisterNameFormProps = {
   readonly setDuration: (seconds: number) => void
 }
 
-enum RegistrationSpanType {
+enum REGISTRATION_SPAN_TYPE {
   YEARS = 'years',
   DATE = 'date',
 }
@@ -28,13 +28,13 @@ export const RegisterNameForm = ({
   setDuration,
 }: RegisterNameFormProps) => {
   const [registrationSpanType, setRegistrationSpanType] =
-    useState<RegistrationSpanType>(RegistrationSpanType.YEARS)
+    useState<REGISTRATION_SPAN_TYPE>(REGISTRATION_SPAN_TYPE.YEARS)
 
   const handleRegistrationSpanTypeChange = () => {
-    if (registrationSpanType === RegistrationSpanType.YEARS) {
-      setRegistrationSpanType(RegistrationSpanType.DATE)
+    if (registrationSpanType === REGISTRATION_SPAN_TYPE.YEARS) {
+      setRegistrationSpanType(REGISTRATION_SPAN_TYPE.DATE)
     } else {
-      setRegistrationSpanType(RegistrationSpanType.YEARS)
+      setRegistrationSpanType(REGISTRATION_SPAN_TYPE.YEARS)
     }
 
     setDuration(getDurationInSecondsFromYears(2))
@@ -52,7 +52,7 @@ export const RegisterNameForm = ({
         <div className="flex items-center justify-between">
           <span className="text-base font-medium">
             Register{' '}
-            {registrationSpanType === RegistrationSpanType.YEARS
+            {registrationSpanType === REGISTRATION_SPAN_TYPE.YEARS
               ? 'for'
               : 'until'}
           </span>
@@ -64,7 +64,7 @@ export const RegisterNameForm = ({
           >
             <span className="text-xs font-normal">
               Choose by{' '}
-              {registrationSpanType === RegistrationSpanType.YEARS
+              {registrationSpanType === REGISTRATION_SPAN_TYPE.YEARS
                 ? 'date'
                 : 'years'}
             </span>
@@ -72,7 +72,7 @@ export const RegisterNameForm = ({
           </Button>
         </div>
 
-        {registrationSpanType === RegistrationSpanType.YEARS ? (
+        {registrationSpanType === REGISTRATION_SPAN_TYPE.YEARS ? (
           <RegistrationDurationPicker
             value={Math.round(duration / SECONDS_PER_YEAR)}
             onChange={(years) =>
