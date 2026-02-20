@@ -104,10 +104,6 @@ export const PaymentTokenModal = ({
     ? tokenData.find((t) => t.address === selectedToken)
     : null
 
-  const hasSufficientBalance =
-    selectedTokenData &&
-    selectedTokenData.balance >= selectedTokenData.price.totalRaw
-
   const isPriceLoading =
     usdcPriceQuery.isLoading || daiPriceQuery.isLoading || isLoadingBalances
 
@@ -117,13 +113,13 @@ export const PaymentTokenModal = ({
   }
 
   const handleContinueToConfirm = () => {
-    if (selectedToken && hasSufficientBalance) {
+    if (selectedToken) {
       setStep(PAYMENT_MODAL_STEP.CONFIRM_PURCHASE)
     }
   }
 
   const handleBuyName = () => {
-    if (selectedToken && hasSufficientBalance && selectedTokenData) {
+    if (selectedToken && selectedTokenData) {
       onConfirm(selectedToken, selectedTokenData.price.totalRaw)
       onOpenChange(false)
       resetState()
@@ -135,8 +131,7 @@ export const PaymentTokenModal = ({
     onOpenChange(newOpen)
   }
 
-  const isContinueDisabled =
-    !selectedToken || !hasSufficientBalance || isPriceLoading || !address
+  const isContinueDisabled = !selectedToken || isPriceLoading || !address
 
   const currentContent = match(step)
     .with(PAYMENT_MODAL_STEP.SELECT_TOKEN, () => (
@@ -153,6 +148,8 @@ export const PaymentTokenModal = ({
 
         <div className="space-y-2">
           {tokenData.map((token) => {
+            const hasSufficientBalance = token.balance >= token.price.totalRaw
+
             return (
               <button
                 key={token.symbol}
@@ -248,7 +245,7 @@ export const PaymentTokenModal = ({
             <Button
               className="h-12 w-full mt-8"
               onClick={handleBuyName}
-              disabled={!selectedToken || !hasSufficientBalance}
+              disabled={!selectedToken}
             >
               Buy name
             </Button>

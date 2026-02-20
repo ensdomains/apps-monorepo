@@ -4,6 +4,7 @@ import type {
 } from '@ens-apps/transaction-manager'
 import { useSelector } from '@xstate/react'
 import { CheckCircle2, Info } from 'lucide-react'
+import { useEffect } from 'react'
 import { match } from 'ts-pattern'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -139,6 +140,18 @@ export const RegistrationProgress = ({
   const isError = progressStage === PROGRESS_STAGE.ERROR
 
   const isInProgress = !isComplete && !isError
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+    }
+
+    if (isInProgress) {
+      window.addEventListener('beforeunload', handleBeforeUnload)
+    }
+
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isInProgress])
 
   const currentMessage = STATE_MESSAGES[stateValue]
 
