@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQueries } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
 import {
@@ -27,6 +27,7 @@ import {
   PROFILE_NAMES_PAGE_SIZE,
   profileOwnedNamesQuery,
 } from '../../service/profileOwnedNames'
+import { profileOwnedNamesCountQuery } from '../../service/profileOwnedNamesCount'
 
 const shortenAddress = (value: string) =>
   `${value.slice(0, 6)}...${value.slice(-4)}`
@@ -74,12 +75,22 @@ export const AddressProfileView = ({
   const shouldReduceMotion = useReducedMotion()
   const [page, setPage] = useState(1)
 
-  const { data, isPending, isError, isPlaceholderData } = useQuery({
-    ...profileOwnedNamesQuery(address, {
-      skip: (page - 1) * PROFILE_NAMES_PAGE_SIZE,
-    }),
-    placeholderData: keepPreviousData,
+  const [ownedNamesQuery, ownedNamesCountQueryState] = useQueries({
+    queries: [
+      {
+        ...profileOwnedNamesQuery(address, {
+          skip: (page - 1) * PROFILE_NAMES_PAGE_SIZE,
+        }),
+        placeholderData: keepPreviousData,
+      },
+      {
+        ...profileOwnedNamesCountQuery(address),
+      },
+    ],
   })
+
+  const { data, isPending, isError, isPlaceholderData } = ownedNamesQuery
+  const { data: namesCount } = ownedNamesCountQueryState
 
   const names = data?.domains ?? []
   const hasNextPage = names.length === PROFILE_NAMES_PAGE_SIZE
@@ -225,6 +236,11 @@ export const AddressProfileView = ({
             <span className="font-serif text-[20px] text-foreground leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]">
               Registered ENS names
             </span>
+            {namesCount !== undefined && namesCount > 0 && (
+              <span className="inline-flex h-[19.68px] items-center justify-center rounded-[14px] bg-[#ffecf5] px-[6.56px] py-[1.64px] font-sans text-[#f53293] text-sm leading-[1.05] tracking-[0.28px]">
+                {namesCount}
+              </span>
+            )}
           </div>
           <span className="text-muted-foreground text-sm">
             {shortenAddress(address)}

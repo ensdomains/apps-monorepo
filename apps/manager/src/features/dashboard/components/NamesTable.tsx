@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/tooltip'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
-import { myNamesCountQueryOptions } from '../service/queries/getMyNamesCount'
+import { ownedNamesCountQueryOptions } from '../service/queries/getOwnedNamesCount'
 import { FavoritesList } from './FavoritesList'
 import { MyNamesList } from './MyNamesList'
 
@@ -79,28 +79,28 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const isAuthed = useAtom(isBackendAuthed)
   const { data: wallet } = useWallet()
   const normalizedAddress = wallet?.address?.toLowerCase()
-  const [favoritesQuery, myNamesCountQuery] = useQueries({
+  const [favoritesQuery, ownedNamesCountQuery] = useQueries({
     queries: [
       {
         ...favoritesQueryOptions,
         enabled: isAuthed,
       },
       {
-        ...myNamesCountQueryOptions(normalizedAddress),
+        ...ownedNamesCountQueryOptions(normalizedAddress),
         enabled: Boolean(normalizedAddress),
       },
     ],
   })
 
   const { data: favorites = [] } = favoritesQuery
-  const { data: myNamesCount } = myNamesCountQuery
+  const { data: ownedNamesCount } = ownedNamesCountQuery
   const favoritesCount = favorites.length
 
   const tabs = [
     {
       key: 'myNames' as const,
       label: 'My Names',
-      badge: myNamesCount,
+      badge: ownedNamesCount,
     },
     {
       key: 'favorites' as const,
