@@ -2,13 +2,14 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { l2EthRegistrarRentPriceSnippet } from '@ensdomains/ensjs/contracts'
-import { fromPromise, ok } from 'neverthrow'
+import { err, fromPromise, ok } from 'neverthrow'
 import { zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { fastTestETHRegistrar } from '@/lib/constants/registry'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { getLabel } from '@/utils/token/getLabel'
 import type { SupportedTokenAddresses } from '../types/tokens'
 
 class GetRegistrationPriceError extends TaggedError(
@@ -38,7 +39,14 @@ export const getRegistrationPrice = ResultFn(async function* ({
 }: RegistrationPriceParameters) {
   const client = yield* safeGetClient()
   const resolvedToken = token ?? SUPPORTED_TOKENS.USDC
-  const cleanName = name.replace(/\.eth$/i, '')
+
+  const label = getLabel(name)
+
+  if (label === null) {
+    return err(
+      new GetRegistrationPriceError({ cause: new Error('Invalid name') }),
+    )
+  }
 
   const [base, premium] = yield* fromPromise(
     // TODO : replace this with ensjs `getPrice` function
@@ -47,7 +55,7 @@ export const getRegistrationPrice = ResultFn(async function* ({
       address: fastTestETHRegistrar,
       abi: l2EthRegistrarRentPriceSnippet,
       functionName: 'rentPrice',
-      args: [cleanName, zeroAddress, BigInt(duration), resolvedToken],
+      args: [label, zeroAddress, BigInt(duration), resolvedToken],
     }),
     (e) => new GetRegistrationPriceError({ cause: e }),
   )
