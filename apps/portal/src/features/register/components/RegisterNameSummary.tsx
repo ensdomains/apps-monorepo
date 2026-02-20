@@ -1,8 +1,8 @@
+import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { useQuery } from '@tanstack/react-query'
 import { InfoIcon } from 'lucide-react'
 import { useState } from 'react'
 import { ExternalLink } from 'react-external-link'
-import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { Button } from '@/components/ui/button'
@@ -49,6 +49,7 @@ export const RegisterNameCheckoutSummary = ({
   const isNameValid = !validateNameLength(name)
 
   const { address, isConnected } = useConnection()
+  const { openConnectModal } = useConnectModal()
 
   const {
     data: price,
@@ -110,19 +111,19 @@ export const RegisterNameCheckoutSummary = ({
         </div>
       )}
 
-      <Button
-        className="w-full mt-4 h-12"
-        onClick={handleContinueClick}
-        disabled={!canContinue}
-      >
-        {match({
-          isConnected,
-          isLoading,
-        })
-          .with({ isConnected: false }, () => 'Connect Wallet')
-          .with({ isLoading: true }, () => 'Loading...')
-          .otherwise(() => 'Continue')}
-      </Button>
+      {!isConnected && openConnectModal ? (
+        <Button className="w-full mt-4 h-12" onClick={openConnectModal}>
+          Connect Wallet
+        </Button>
+      ) : (
+        <Button
+          className="w-full mt-4 h-12"
+          onClick={handleContinueClick}
+          disabled={!canContinue}
+        >
+          {isLoading ? 'Loading...' : 'Continue'}
+        </Button>
+      )}
 
       <PaymentTokenModal
         open={paymentModalOpen}
