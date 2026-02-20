@@ -1,6 +1,6 @@
 import { ERC20_ABI } from '@ens-apps/transaction-manager/contracts/abis/ERC20.abi'
 import { useQueries } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { formatUnits } from 'viem'
@@ -128,6 +128,11 @@ export const PaymentTokenModal = ({
 
   const isPriceLoading = usdcPriceQuery.isLoading || daiPriceQuery.isLoading
 
+  const resetState = () => {
+    setSelectedToken(null)
+    setStep(PAYMENT_MODAL_STEP.SELECT_TOKEN)
+  }
+
   const handleContinueToConfirm = () => {
     if (selectedToken && hasSufficientBalance) {
       setStep(PAYMENT_MODAL_STEP.CONFIRM_PURCHASE)
@@ -138,16 +143,12 @@ export const PaymentTokenModal = ({
     if (selectedToken && hasSufficientBalance && selectedTokenData) {
       onConfirm(selectedToken, selectedTokenData.price.totalRaw)
       onOpenChange(false)
-      setSelectedToken(null)
-      setStep(PAYMENT_MODAL_STEP.SELECT_TOKEN)
+      resetState()
     }
   }
 
   const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen) {
-      setSelectedToken(null)
-      setStep(PAYMENT_MODAL_STEP.SELECT_TOKEN)
-    }
+    if (!newOpen) resetState()
     onOpenChange(newOpen)
   }
 
