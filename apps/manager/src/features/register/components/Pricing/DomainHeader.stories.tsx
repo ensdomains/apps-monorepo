@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { getByteLength } from '@/utils/domain'
 import { DomainHeader } from './DomainHeader'
 import type { PremiumLabel } from './types'
-import { getByteLength } from './utils'
 
 const meta = {
   title: 'Features/Register/Pricing/DomainHeader',
