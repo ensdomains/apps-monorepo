@@ -50,7 +50,7 @@ jobs:
         run: |
           echo "🔍 Type checking changed packages and their dependents..."
           # "...[origin/main]" means changed packages plus their dependents.
-          pnpm --filter="...[origin/main]" typecheck || echo "No packages to type check"
+          pnpm --filter="...[origin/main]" --if-present typecheck
 
       - name: Build changed apps
         if: steps.changed.outputs.has_apps == 'true'
