@@ -34,7 +34,6 @@ export const NameCardTemplate = ({
   description,
   action,
   timestamp,
-  layout = 'default',
   onMarkAsRead,
   onRemove,
 }: NameCardTemplateProps) => (
@@ -54,7 +53,7 @@ export const NameCardTemplate = ({
           {statusText ? (
             <p className="font-medium text-[#6a6d7d] text-sm">{statusText}</p>
           ) : null}
-          <NameDisplay layout={layout} name={name} />
+          <NameDisplay name={name} />
           {description ? (
             <p className="text-[#5f6172] text-sm leading-snug">{description}</p>
           ) : null}
@@ -98,10 +97,8 @@ export const ContentCardTemplate = ({
       main={
         <div className="space-y-1">
           <h3
-            className={`line-clamp-2 font-medium text-[#2d2f36] ${
-              layout === 'compact'
-                ? 'text-[1rem] leading-[1.35]'
-                : 'text-[1.15rem] leading-[1.35]'
+            className={`line-clamp-2 font-normal text-[#2d2f36] ${
+              layout === 'compact' ? 'text-[1rem] leading-[1.35]' : 'text-lg'
             }`}
           >
             {title}
@@ -148,10 +145,8 @@ export const MessageCardTemplate = ({
       main={
         <div className="space-y-1">
           <h3
-            className={`font-medium text-[#2d2f36] ${
-              layout === 'compact'
-                ? 'text-[1rem] leading-[1.35]'
-                : 'text-[1.15rem] leading-[1.35]'
+            className={`font-normal text-[#2d2f36] ${
+              layout === 'compact' ? 'text-base' : 'text-lg'
             }`}
           >
             {title}

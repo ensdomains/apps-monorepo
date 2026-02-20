@@ -13,7 +13,7 @@ const pillToneClass: Record<NotificationPillTone, string> = {
   default: 'bg-[#edf2fb] text-[#3558a8]',
   success: 'bg-[#e6f7ea] text-[#1f8a49]',
   warning: 'bg-[#fff4e5] text-[#b26000]',
-  update: 'bg-[#efe8ff] text-[#7647d8]',
+  update: 'bg-[#EFE5FF] text-[#864FCE]',
 }
 
 export const getNotificationActionButtonClass = (
@@ -50,7 +50,7 @@ export const NotificationHeader = ({
   <div className="flex items-center gap-2">
     {seen ? null : <span className="size-2 rounded-full bg-[#ff5a3d]" />}
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 font-medium text-sm ${pillToneClass[categoryTone]}`}
+      className={`inline-flex items-center rounded-full px-2 py-1 font-normal text-sm leading-none ${pillToneClass[categoryTone]}`}
     >
       {category}
     </span>
@@ -70,17 +70,11 @@ export const NotificationHeader = ({
   </div>
 )
 
-export const NameDisplay = ({
-  name,
-  layout,
-}: {
-  name: string
-  layout: 'default' | 'compact'
-}) => (
+export const NameDisplay = ({ name }: { name: string }) => (
   <div
-    className={`wrap-anywhere w-fit max-w-full rounded-sm bg-[#dff0ff] px-2 py-1 font-semibold text-[#086eac] leading-none ${
-      layout === 'compact' ? 'text-[1.15rem]' : 'text-[1.55rem]'
-    }`}
+    className={
+      'wrap-anywhere w-fit max-w-full rounded-sm bg-[#dff0ff] px-2 py-1 font-semibold text-[#086eac] text-base leading-none'
+    }
   >
     {name}
   </div>
