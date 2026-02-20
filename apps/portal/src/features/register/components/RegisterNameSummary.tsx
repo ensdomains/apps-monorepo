@@ -18,7 +18,10 @@ import {
   getPremiumLabel,
   validateNameLength,
 } from '@/features/register/utils/premium'
-import { isPriceResult } from '@/features/register/utils/registrationPrice'
+import {
+  formatTotalWithGasAndFees,
+  isPriceResult,
+} from '@/features/register/utils/registrationPrice'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
 type RegisterNameCheckoutSummaryProps = {
@@ -29,12 +32,6 @@ type RegisterNameCheckoutSummaryProps = {
 }
 
 const EST_GAS_USD = 0.05
-
-/** Parse USD string (e.g. "$5.00") to number for adding gas/network fees */
-const parseUsdString = (s: string): number => {
-  const num = Number.parseFloat(s.replace(/[$,]/g, ''))
-  return Number.isFinite(num) ? num : 0
-}
 
 /** ENS docs explaining premium pricing for short names */
 const ENS_PREMIUM_PRICING_DOCS_URL =
@@ -67,6 +64,7 @@ export const RegisterNameCheckoutSummary = ({
 
   const isReady = !isLoading && !isError && price
   const hasPrice = price && isPriceResult(price)
+
   const canContinue = isReady && hasPrice && isConnected && Boolean(address)
 
   const handleContinueClick = () => {
@@ -98,7 +96,7 @@ export const RegisterNameCheckoutSummary = ({
               : String(error)}
           </pre>
         </div>
-      ) : price && isPriceResult(price) ? (
+      ) : hasPrice ? (
         <PriceBreakdown
           name={name}
           price={price}
@@ -133,7 +131,7 @@ export const RegisterNameCheckoutSummary = ({
         onConfirm={onContinue}
       />
 
-      {price && isPriceResult(price) && price.hasPremium && (
+      {hasPrice && price.hasPremium && (
         <TemporaryPremiumDrawer
           open={premiumDrawerOpen}
           onOpenChange={setPremiumDrawerOpen}
@@ -292,7 +290,7 @@ const PriceBreakdown = ({
           <dt className="text-xl font-bold">Est. total</dt>
           <dd className="flex items-center gap-1 m-0">
             <span className="font-mono text-xl font-bold">
-              {formatUsd(parseUsdString(price.total) + EST_GAS_USD * 2)}
+              {formatTotalWithGasAndFees(price.totalRaw, EST_GAS_USD * 2)}
             </span>
             <span className="text-xs">USD</span>
           </dd>
