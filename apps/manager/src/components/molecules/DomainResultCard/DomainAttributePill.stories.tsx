@@ -47,6 +47,10 @@ export const Premium4: Story = {
 }
 
 export const AllVariants: Story = {
+  args: {
+    label: 'available',
+    variant: 'available',
+  },
   render: () => (
     <div className="flex flex-wrap items-center gap-3">
       <DomainAttributePill label="available" variant="available" />
