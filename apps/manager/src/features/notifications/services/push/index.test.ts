@@ -33,9 +33,7 @@ import {
 const mockVapidGet = vi.mocked(
   backendClient.notifications.channels.push['vapid-public-key'].$get,
 )
-const mockPushPost = vi.mocked(
-  backendClient.notifications.channels.push.$post,
-)
+const mockPushPost = vi.mocked(backendClient.notifications.channels.push.$post)
 const mockChannelDelete = vi.mocked(
   backendClient.notifications.channels[':id'].$delete,
 )
@@ -46,8 +44,10 @@ function createMockSubscription(overrides?: {
   p256dh?: string | null
 }) {
   const endpoint = overrides?.endpoint ?? 'https://push.example.com/sub/123'
-  const auth = overrides && 'auth' in overrides ? overrides.auth : 'auth-key-base64'
-  const p256dh = overrides && 'p256dh' in overrides ? overrides.p256dh : 'p256dh-key-base64'
+  const auth =
+    overrides && 'auth' in overrides ? overrides.auth : 'auth-key-base64'
+  const p256dh =
+    overrides && 'p256dh' in overrides ? overrides.p256dh : 'p256dh-key-base64'
 
   return {
     endpoint,
@@ -80,12 +80,14 @@ function stubPushEnvironment(options?: {
 
   const mockRegistration = {
     pushManager: {
-      subscribe: options?.subscribeFn ?? vi.fn().mockResolvedValue(subscription),
+      subscribe:
+        options?.subscribeFn ?? vi.fn().mockResolvedValue(subscription),
       getSubscription: vi.fn().mockResolvedValue(subscription),
     },
   }
 
-  const registerFn = options?.registerFn ?? vi.fn().mockResolvedValue(mockRegistration)
+  const registerFn =
+    options?.registerFn ?? vi.fn().mockResolvedValue(mockRegistration)
 
   Object.defineProperty(navigator, 'serviceWorker', {
     value: {
@@ -223,7 +225,9 @@ describe('push notification service', () => {
 
     it('should return null when registration fails', async () => {
       stubPushEnvironment({
-        registerFn: vi.fn().mockRejectedValue(new Error('SW registration failed')),
+        registerFn: vi
+          .fn()
+          .mockRejectedValue(new Error('SW registration failed')),
       })
 
       const result = await registerServiceWorker()
@@ -308,7 +312,10 @@ describe('push notification service', () => {
     })
 
     it('should return error when permission is denied', async () => {
-      stubPushEnvironment({ permission: 'default', requestPermission: 'denied' })
+      stubPushEnvironment({
+        permission: 'default',
+        requestPermission: 'denied',
+      })
 
       const result = await subscribeToPush()
 
@@ -332,7 +339,10 @@ describe('push notification service', () => {
     })
 
     it('should unsubscribe locally if subscription data is invalid', async () => {
-      const badSubscription = createMockSubscription({ auth: null, p256dh: null })
+      const badSubscription = createMockSubscription({
+        auth: null,
+        p256dh: null,
+      })
       stubPushEnvironment({
         requestPermission: 'granted',
         subscribeFn: vi.fn().mockResolvedValue(badSubscription),
@@ -436,7 +446,9 @@ describe('push notification service', () => {
     it('should handle pushManager.subscribe throwing', async () => {
       stubPushEnvironment({
         requestPermission: 'granted',
-        subscribeFn: vi.fn().mockRejectedValue(new Error('User dismissed prompt')),
+        subscribeFn: vi
+          .fn()
+          .mockRejectedValue(new Error('User dismissed prompt')),
       })
 
       mockVapidGet.mockResolvedValue({
@@ -456,12 +468,12 @@ describe('push notification service', () => {
       const callOrder: string[] = []
 
       const mockSubscription = createMockSubscription()
-      ;(mockSubscription.unsubscribe as ReturnType<typeof vi.fn>).mockImplementation(
-        () => {
-          callOrder.push('local-unsubscribe')
-          return Promise.resolve(true)
-        },
-      )
+      ;(
+        mockSubscription.unsubscribe as ReturnType<typeof vi.fn>
+      ).mockImplementation(() => {
+        callOrder.push('local-unsubscribe')
+        return Promise.resolve(true)
+      })
 
       mockChannelDelete.mockImplementation(() => {
         callOrder.push('server-delete')
