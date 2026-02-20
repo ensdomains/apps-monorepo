@@ -17,18 +17,19 @@ type RegistrationProgressProps = {
   readonly onViewProfile: () => void
 }
 
-type ProgressStage =
-  | 'settingUp'
-  | 'approving'
-  | 'registering'
-  | 'complete'
-  | 'error'
+enum PROGRESS_STAGE {
+  SETTING_UP = 'settingUp',
+  APPROVING = 'approving',
+  REGISTERING = 'registering',
+  COMPLETE = 'complete',
+  ERROR = 'error',
+}
 
 function mapStateToProgressStage(
   stateValue: RegistrationMachineState | Record<string, unknown>,
-): ProgressStage {
+): PROGRESS_STAGE {
   if (typeof stateValue === 'object' && 'error' in stateValue) {
-    return 'error'
+    return PROGRESS_STAGE.ERROR
   }
 
   switch (stateValue) {
@@ -40,104 +41,88 @@ function mapStateToProgressStage(
     case 'waitingForCommitment':
     case 'commitmentCooldown':
     case 'validatingCommitment':
-      return 'settingUp'
+      return PROGRESS_STAGE.SETTING_UP
     case 'approvingToken':
     case 'waitingForApproval':
-      return 'approving'
+      return PROGRESS_STAGE.APPROVING
     case 'registeringDomain':
     case 'waitingForRegistration':
-      return 'registering'
+      return PROGRESS_STAGE.REGISTERING
     case 'success':
-      return 'complete'
+      return PROGRESS_STAGE.COMPLETE
     case 'error':
-      return 'error'
+      return PROGRESS_STAGE.ERROR
     default:
-      return 'settingUp'
+      return PROGRESS_STAGE.SETTING_UP
   }
 }
 
-const CANCEL_ALLOWED_STATES = new Set<RegistrationMachineState>([
-  'settingUpRegistration',
-  'deployingResolver',
-  'waitingForResolverDeployment',
-  'preparingCommitment',
-  'committingTransaction',
-  'waitingForCommitment',
-  'commitmentCooldown',
-  'validatingCommitment',
-])
-
-function canCancel(stateValue: RegistrationMachineState): boolean {
-  return CANCEL_ALLOWED_STATES.has(stateValue)
-}
-
-const STAGE_PROGRESS: Record<ProgressStage, number> = {
-  settingUp: 33,
-  approving: 66,
-  registering: 80,
-  complete: 100,
-  error: 0,
+const STAGE_PROGRESS: Record<PROGRESS_STAGE, number> = {
+  [PROGRESS_STAGE.SETTING_UP]: 33,
+  [PROGRESS_STAGE.APPROVING]: 66,
+  [PROGRESS_STAGE.REGISTERING]: 80,
+  [PROGRESS_STAGE.COMPLETE]: 100,
+  [PROGRESS_STAGE.ERROR]: 0,
 }
 
 const STATE_MESSAGES: Record<
   RegistrationMachineState,
-  { primary: string; description: string }[]
+  { primary: string; description: string }
 > = {
-  idle: [{ primary: 'Setting up', description: 'Please wait...' }],
-  error: [{ primary: 'Registration failed', description: 'Please try again.' }],
-  settingUpRegistration: [
-    { primary: 'Setting up', description: 'Preparing your name.' },
-  ],
-  deployingResolver: [
-    { primary: 'Getting your name ready', description: 'Please wait...' },
-  ],
-  waitingForResolverDeployment: [
-    { primary: 'Confirming', description: 'This usually takes a moment.' },
-  ],
-  preparingCommitment: [
-    { primary: 'Preparing', description: 'Almost ready for the next step.' },
-  ],
-  committingTransaction: [
-    { primary: 'Check your wallet', description: 'Approve the transaction.' },
-  ],
-  waitingForCommitment: [
-    { primary: 'Confirming', description: 'Please wait...' },
-  ],
-  commitmentCooldown: [
-    {
-      primary: 'Almost there',
-      description: 'Short wait before the next step.',
-    },
-  ],
-  validatingCommitment: [
-    { primary: 'Validating', description: 'Almost ready to register.' },
-  ],
-  approvingToken: [
-    { primary: 'Approve payment', description: 'Check your wallet.' },
-  ],
-  waitingForApproval: [
-    { primary: 'Confirming payment', description: 'Please wait...' },
-  ],
-  registeringDomain: [
-    { primary: 'Registering', description: 'Final step — check your wallet.' },
-  ],
-  waitingForRegistration: [
-    {
-      primary: 'Almost complete',
-      description: 'Your name will be ready shortly.',
-    },
-  ],
-  success: [
-    {
-      primary: 'Registration complete!',
-      description: 'Your name is now active.',
-    },
-  ],
-}
-
-const DEFAULT_MESSAGE = {
-  primary: 'Setting up',
-  description: 'Please wait...',
+  idle: { primary: 'Setting up', description: 'Please wait...' },
+  error: { primary: 'Registration failed', description: 'Please try again.' },
+  settingUpRegistration: {
+    primary: 'Setting up',
+    description: 'Preparing your name.',
+  },
+  deployingResolver: {
+    primary: 'Getting your name ready',
+    description: 'Please wait...',
+  },
+  waitingForResolverDeployment: {
+    primary: 'Confirming',
+    description: 'This usually takes a moment.',
+  },
+  preparingCommitment: {
+    primary: 'Preparing',
+    description: 'Almost ready for the next step.',
+  },
+  committingTransaction: {
+    primary: 'Check your wallet',
+    description: 'Approve the transaction.',
+  },
+  waitingForCommitment: {
+    primary: 'Confirming',
+    description: 'Please wait...',
+  },
+  commitmentCooldown: {
+    primary: 'Almost there',
+    description: 'Short wait before the next step.',
+  },
+  validatingCommitment: {
+    primary: 'Validating',
+    description: 'Almost ready to register.',
+  },
+  approvingToken: {
+    primary: 'Approve payment',
+    description: 'Check your wallet.',
+  },
+  waitingForApproval: {
+    primary: 'Confirming payment',
+    description: 'Please wait...',
+  },
+  registeringDomain: {
+    primary: 'Registering',
+    description: 'Final step — check your wallet.',
+  },
+  waitingForRegistration: {
+    primary: 'Almost complete',
+    description: 'Your name will be ready shortly.',
+  },
+  success: {
+    primary: 'Registration complete!',
+    description: 'Your name is now active.',
+  },
 }
 
 export const RegistrationProgress = ({
@@ -149,16 +134,13 @@ export const RegistrationProgress = ({
   const error = useSelector(actor, (state) => state.context.error)
 
   const progressStage = mapStateToProgressStage(stateValue)
-  const machineState = typeof stateValue === 'string' ? stateValue : 'error'
 
-  const messages = STATE_MESSAGES[machineState] ?? [DEFAULT_MESSAGE]
-  const currentMessage = messages[0]
+  const isComplete = progressStage === PROGRESS_STAGE.COMPLETE
+  const isError = progressStage === PROGRESS_STAGE.ERROR
 
-  const isComplete = stateValue === 'success'
-  const isError =
-    stateValue === 'error' ||
-    (typeof stateValue === 'object' && 'error' in stateValue)
   const isInProgress = !isComplete && !isError
+
+  const currentMessage = STATE_MESSAGES[stateValue]
 
   const progress = STAGE_PROGRESS[progressStage]
 
@@ -244,9 +226,9 @@ export const RegistrationProgress = ({
                 Try again
               </Button>
             ))
-            .otherwise(() => (
-              <>
-                {isInProgress && canCancel(stateValue) && (
+            .otherwise(
+              () =>
+                progressStage === PROGRESS_STAGE.SETTING_UP && (
                   <Button
                     variant="ghost"
                     onClick={() => actor.send({ type: 'CANCEL' })}
@@ -254,9 +236,8 @@ export const RegistrationProgress = ({
                   >
                     Cancel
                   </Button>
-                )}
-              </>
-            ))}
+                ),
+            )}
         </div>
       </div>
     </div>
