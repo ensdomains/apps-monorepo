@@ -57,6 +57,7 @@ export const PaymentTokenModal = ({
 }: PaymentTokenModalProps) => {
   const { address } = useConnection()
   const [selectedToken, setSelectedToken] = useState<Address | null>(null)
+
   const [step, setStep] = useState<PAYMENT_MODAL_STEP>(
     PAYMENT_MODAL_STEP.SELECT_TOKEN,
   )
@@ -84,7 +85,7 @@ export const PaymentTokenModal = ({
     query: { enabled: Boolean(address) },
   })
 
-  const [usdcBalance, daiBalance] = balances?.map((b) => {
+  const [usdcBalance, daiBalance] = (balances ?? []).map((b) => {
     if (b?.status === 'success' && b.result !== undefined) {
       return BigInt(b.result)
     }
@@ -168,23 +169,18 @@ export const PaymentTokenModal = ({
 
         <div className="space-y-2">
           {tokenData.map((token) => {
-            const priceReady = token.price && isPriceResult(token.price)
-            const hasInsufficient = Boolean(
-              priceReady && token.balance < token.price.totalRaw,
-            )
-
             return (
               <button
                 key={token.symbol}
                 type="button"
                 onClick={() => setSelectedToken(token.address)}
-                disabled={hasInsufficient}
+                disabled={!hasSufficientBalance}
                 className={cn(
                   'flex w-full items-center justify-between rounded-lg border p-4 text-left transition-colors',
                   selectedToken === token.address
                     ? 'border-primary bg-primary/5'
                     : 'border-border hover:bg-muted/50',
-                  hasInsufficient && 'cursor-not-allowed opacity-60',
+                  !hasSufficientBalance && 'cursor-not-allowed opacity-60',
                 )}
               >
                 <div className="flex items-center gap-3">
@@ -194,31 +190,31 @@ export const PaymentTokenModal = ({
                   <div>
                     <p className="font-medium">{token.symbol}</p>
                     <p className="text-muted-foreground text-sm">
-                      {priceReady ? (
+                      {isPriceLoading ? (
+                        <Skeleton className="h-4 w-20" />
+                      ) : (
                         <>
                           Balance:{' '}
                           {Number(
                             formatUnits(token.balance, token.decimals),
                           ).toLocaleString()}
                         </>
-                      ) : (
-                        <Skeleton className="h-4 w-20" />
                       )}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  {priceReady ? (
+                  {isPriceLoading ? (
+                    <Skeleton className="h-5 w-14" />
+                  ) : (
                     <>
                       <p className="font-medium">{token.price.total} USD</p>
-                      {hasInsufficient && (
+                      {!hasSufficientBalance && (
                         <p className="text-destructive text-xs">
                           Insufficient balance
                         </p>
                       )}
                     </>
-                  ) : (
-                    <Skeleton className="h-5 w-14" />
                   )}
                 </div>
               </button>
