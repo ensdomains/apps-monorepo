@@ -14,16 +14,14 @@ import {
   getRegistrationPriceQueryOptions,
   type RegistrationPriceResult,
 } from '@/features/register/hooks/useRegistrationPrice'
-import {
-  getPremiumLabel,
-  validateNameLength,
-} from '@/features/register/utils/premium'
+import { getPremiumLabel } from '@/features/register/utils/premium'
 import {
   formatPriceDisplay,
   formatTotalWithGasAndFees,
   isPriceResult,
 } from '@/features/register/utils/registrationPrice'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
+import { validateNameLength } from '@/utils/token/nameValidation'
 
 type RegisterNameCheckoutSummaryProps = {
   readonly name: string

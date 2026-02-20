@@ -9,12 +9,12 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { MessageCard } from '@/components/ui/message-card'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { useStartRegistration } from '@/features/register/hooks/useStartRegistration'
-import { validateNameLength } from '@/features/register/utils/premium'
 import {
   formatRegistrationDuration,
   getDurationInSecondsFromYears,
   getExpiryDateFromSeconds,
 } from '@/features/register/utils/registrationDuration'
+import { validateNameLength } from '@/utils/token/nameValidation'
 import { RegisterNameForm } from './RegisterNameForm'
 import { RegisterNameCheckoutSummary } from './RegisterNameSummary'
 import { RegistrationProgress } from './RegistrationProgress'
