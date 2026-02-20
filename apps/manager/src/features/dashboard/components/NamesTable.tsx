@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
+import { useWallet } from '@getpara/react-sdk-lite'
+import { useQueries } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
 import { Search } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
@@ -12,6 +13,7 @@ import {
 } from '@/components/ui/tooltip'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
+import { myNamesCountQueryOptions } from '../service/queries/getMyNamesCount'
 import { FavoritesList } from './FavoritesList'
 import { MyNamesList } from './MyNamesList'
 
@@ -75,16 +77,30 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const [searchQuery, setSearchQuery] = useState('')
   const shouldReduceMotion = useReducedMotion()
   const isAuthed = useAtom(isBackendAuthed)
-  const { data: favorites = [] } = useQuery({
-    ...favoritesQueryOptions,
-    enabled: isAuthed,
+  const { data: wallet } = useWallet()
+  const normalizedAddress = wallet?.address?.toLowerCase()
+  const [favoritesQuery, myNamesCountQuery] = useQueries({
+    queries: [
+      {
+        ...favoritesQueryOptions,
+        enabled: isAuthed,
+      },
+      {
+        ...myNamesCountQueryOptions(normalizedAddress),
+        enabled: Boolean(normalizedAddress),
+      },
+    ],
   })
+
+  const { data: favorites = [] } = favoritesQuery
+  const { data: myNamesCount } = myNamesCountQuery
   const favoritesCount = favorites.length
 
   const tabs = [
     {
       key: 'myNames' as const,
       label: 'My Names',
+      badge: myNamesCount,
     },
     {
       key: 'favorites' as const,

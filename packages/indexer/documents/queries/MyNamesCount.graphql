@@ -1,0 +1,5 @@
+query MyNamesCount($where: RegistrationFilter!) {
+  registrationConnection(first: 0, where: $where) {
+    totalCount
+  }
+}
