@@ -19,6 +19,7 @@ import {
   validateNameLength,
 } from '@/features/register/utils/premium'
 import {
+  formatPriceDisplay,
   formatTotalWithGasAndFees,
   isPriceResult,
 } from '@/features/register/utils/registrationPrice'
@@ -147,7 +148,7 @@ export const RegisterNameCheckoutSummary = ({
         <TemporaryPremiumDrawer
           open={premiumDrawerOpen}
           onOpenChange={setPremiumDrawerOpen}
-          currentPremium={price.premium}
+          currentPremium={formatPriceDisplay(price.premium, price.decimals)}
         />
       )}
     </section>
@@ -252,7 +253,7 @@ const PriceBreakdown = ({
           </dt>
           <dd className="flex items-center gap-1 m-0">
             <span className="font-mono text-base font-medium">
-              {price.base}
+              {formatPriceDisplay(price.base, price.decimals)}
             </span>
             <span className="text-xs">USD</span>
           </dd>
@@ -275,7 +276,7 @@ const PriceBreakdown = ({
             </dt>
             <dd className="flex items-center gap-1 m-0">
               <span className="font-mono text-base font-medium">
-                {price.premium}
+                {formatPriceDisplay(price.premium, price.decimals)}
               </span>
               <span className="text-xs">USD</span>
             </dd>
@@ -303,8 +304,9 @@ const PriceBreakdown = ({
           <dd className="flex items-center gap-1 m-0">
             <span className="font-mono text-xl font-bold">
               {formatTotalWithGasAndFees(
-                price.totalRaw,
+                price.total,
                 EST_GAS_USD + EST_NETWORK_FEE_USD,
+                price.decimals,
               )}
             </span>
             <span className="text-xs">USD</span>

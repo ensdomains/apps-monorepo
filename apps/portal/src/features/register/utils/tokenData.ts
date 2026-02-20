@@ -1,19 +1,20 @@
 import type { Address } from 'viem'
+import { USDC_DECIMALS } from '@/lib/constants/tokens'
 import { isPriceResult } from './registrationPrice'
 
 export type TokenPrice = {
-  total: string
-  totalRaw: bigint
-  base: string
-  premium: string
+  total: bigint
+  base: bigint
+  premium: bigint
+  decimals: number
   hasPremium: boolean
 }
 
 export const DEFAULT_PRICE: TokenPrice = {
-  total: '$0',
-  totalRaw: 0n,
-  base: '$0',
-  premium: '$0',
+  total: 0n,
+  base: 0n,
+  premium: 0n,
+  decimals: USDC_DECIMALS,
   hasPremium: false,
 }
 
@@ -31,7 +32,7 @@ export function buildTokenData<
     return {
       ...token,
       price: price && isPriceResult(price) ? price : DEFAULT_PRICE,
-      balance: typeof balances[i] === 'bigint' ? (balances[i] as bigint) : 0n,
+      balance: typeof balances[i] === 'bigint' ? balances[i] : 0n,
     }
   })
 }

@@ -9,7 +9,6 @@ import { getTokenDecimals } from '@/features/register/utils/tokenDecimals'
 import { fastTestETHRegistrar } from '@/lib/constants/registry'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { formatUsdCeil } from '@/utils/formatting/formatUsdCeil'
 import type { SupportedTokenAddresses } from '../types/tokens'
 
 class GetRegistrationPriceError extends TaggedError(
@@ -25,10 +24,10 @@ export type RegistrationPriceParameters = {
 }
 
 export type RegistrationPriceResult = {
-  readonly base: string
-  readonly premium: string
-  readonly total: string
-  readonly totalRaw: bigint
+  readonly base: bigint
+  readonly premium: bigint
+  readonly total: bigint
+  readonly decimals: number
   readonly hasPremium: boolean
 }
 
@@ -57,10 +56,10 @@ export const getRegistrationPrice = ResultFn(async function* ({
   const decimals = getTokenDecimals(resolvedToken)
 
   return ok<RegistrationPriceResult>({
-    base: formatUsdCeil(formatUnits(base, decimals)),
-    premium: formatUsdCeil(formatUnits(premium, decimals)),
-    total: formatUsdCeil(formatUnits(total, decimals)),
-    totalRaw: total,
+    base,
+    premium,
+    total,
+    decimals,
     hasPremium: premium > 0n,
   })
 })

@@ -11,10 +11,10 @@ const mockToken = (symbol: string, address: Address, decimals: number) => ({
 })
 
 const validPrice = {
-  total: '$5.00',
-  totalRaw: 5_000_000n,
-  base: '$5.00',
-  premium: '$0.00',
+  total: 5_000_000n,
+  base: 5_000_000n,
+  premium: 0n,
+  decimals: USDC_DECIMALS,
   hasPremium: false,
 }
 
@@ -24,10 +24,7 @@ describe('buildTokenData', () => {
       mockToken('USDC', '0xUSDC' as Address, USDC_DECIMALS),
       mockToken('DAI', '0xDAI' as Address, DAI_DECIMALS),
     ]
-    const prices = [
-      validPrice,
-      { ...validPrice, total: '$10.00', totalRaw: 10_000_000n },
-    ]
+    const prices = [validPrice, { ...validPrice, total: 10_000_000n }]
     const balances = [100_000_000n, 50_000_000_000_000_000_000n]
 
     const result = buildTokenData(tokens, prices, balances)

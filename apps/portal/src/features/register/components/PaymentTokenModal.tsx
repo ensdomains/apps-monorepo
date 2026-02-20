@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
+import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
 import { buildTokenData } from '@/features/register/utils/tokenData'
 import {
   DAI_DECIMALS,
@@ -124,7 +125,7 @@ export const PaymentTokenModal = ({
 
   const handleBuyName = () => {
     if (selectedToken && selectedTokenData) {
-      onConfirm(selectedToken, selectedTokenData.price.totalRaw)
+      onConfirm(selectedToken, selectedTokenData.price.total)
       onOpenChange(false)
       resetState()
     }
@@ -152,7 +153,7 @@ export const PaymentTokenModal = ({
 
         <div className="space-y-2">
           {tokenData.map((token) => {
-            const hasSufficientBalance = token.balance >= token.price.totalRaw
+            const hasSufficientBalance = token.balance >= token.price.total
 
             return (
               <button
@@ -193,7 +194,13 @@ export const PaymentTokenModal = ({
                     <Skeleton className="h-5 w-14" />
                   ) : (
                     <>
-                      <p className="font-medium">{token.price.total} USD</p>
+                      <p className="font-medium">
+                        {formatPriceDisplay(
+                          token.price.total,
+                          token.price.decimals,
+                        )}{' '}
+                        USD
+                      </p>
                       {!hasSufficientBalance && (
                         <p className="text-destructive text-xs">
                           Insufficient balance
@@ -236,7 +243,10 @@ export const PaymentTokenModal = ({
               <div className="flex items-baseline gap-1">
                 <selectedTokenData.Icon className="size-6 shrink-0" />
                 <span className="font-medium text-2xl tracking-tight">
-                  {selectedTokenData.price.total}
+                  {formatPriceDisplay(
+                    selectedTokenData.price.total,
+                    selectedTokenData.price.decimals,
+                  )}
                 </span>
                 <span className="text-muted-foreground text-lg">
                   {selectedTokenData.symbol}

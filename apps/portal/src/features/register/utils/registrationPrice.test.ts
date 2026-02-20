@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { DAI_DECIMALS, USDC_DECIMALS } from '@/lib/constants/tokens'
-import { formatTotalWithGasAndFees, isPriceResult } from './registrationPrice'
+import {
+  formatPriceDisplay,
+  formatTotalWithGasAndFees,
+  isPriceResult,
+} from './registrationPrice'
 
 const validPriceResult = {
-  base: '$5.00',
-  premium: '$0.00',
-  total: '$5.00',
-  totalRaw: 5_000_000n,
+  base: 5_000_000n,
+  premium: 0n,
+  total: 5_000_000n,
+  decimals: USDC_DECIMALS,
   hasPremium: false,
 }
 
@@ -43,9 +47,9 @@ describe('isPriceResult', () => {
     expect(isPriceResult(withoutTotal)).toBe(false)
   })
 
-  it('returns false when totalRaw is missing', () => {
-    const { totalRaw: _, ...withoutTotalRaw } = validPriceResult
-    expect(isPriceResult(withoutTotalRaw)).toBe(false)
+  it('returns false when decimals is missing', () => {
+    const { decimals: _, ...withoutDecimals } = validPriceResult
+    expect(isPriceResult(withoutDecimals)).toBe(false)
   })
 })
 
@@ -83,5 +87,12 @@ describe('formatTotalWithGasAndFees', () => {
   it('handles zero totalRaw', () => {
     const result = formatTotalWithGasAndFees(0n, 0.1)
     expect(result).toBe('$0.10')
+  })
+})
+
+describe('formatPriceDisplay', () => {
+  it('formats raw amount with given decimals', () => {
+    expect(formatPriceDisplay(5_000_000n, 6)).toBe('$5.00')
+    expect(formatPriceDisplay(5_000_000_000_000_000_000n, 18)).toBe('$5.00')
   })
 })
