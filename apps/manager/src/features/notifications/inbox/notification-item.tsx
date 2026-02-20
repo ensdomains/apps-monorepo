@@ -1,14 +1,8 @@
-import type { FC } from 'react'
+import { useMemo } from 'react'
+import { safeParse } from 'valibot'
 import type { BackendNotification } from '@/features/notifications/data/queries/notifications'
-import {
-  type RenderableNotification,
-  resolveRenderableNotification,
-} from '@/features/notifications/notifications'
-import type {
-  KindComponentProps,
-  NotificationKind,
-  NotificationLayout,
-} from '@/features/notifications/notifications/contracts'
+import { getNotificationData } from '@/features/notifications/notifications'
+import type { NotificationLayout } from '@/features/notifications/notifications/contracts'
 
 type NotificationItemProps = {
   notification: BackendNotification
@@ -18,36 +12,6 @@ type NotificationItemProps = {
   onRemove?: () => void
 }
 
-type ResolvedNotificationItemProps = Omit<
-  NotificationItemProps,
-  'notification'
-> & {
-  resolved: RenderableNotification
-}
-
-const getRenderableComponent = (resolved: RenderableNotification) =>
-  resolved.definition.Component as FC<KindComponentProps<NotificationKind>>
-
-export const ResolvedNotificationItem = ({
-  resolved,
-  layout = 'default',
-  onAction,
-  onMarkAsRead,
-  onRemove,
-}: ResolvedNotificationItemProps) => {
-  const Component = getRenderableComponent(resolved)
-
-  return (
-    <Component
-      layout={layout}
-      notification={resolved.notification}
-      onAction={onAction}
-      onMarkAsRead={onMarkAsRead}
-      onRemove={onRemove}
-    />
-  )
-}
-
 export const NotificationItem = ({
   notification,
   layout = 'default',
@@ -55,19 +19,29 @@ export const NotificationItem = ({
   onMarkAsRead,
   onRemove,
 }: NotificationItemProps) => {
-  const resolved = resolveRenderableNotification(notification)
+  type NotificationKind = typeof notification.kind
+  const { Component, definition } = getNotificationData<NotificationKind>(
+    notification.kind,
+  )
 
-  if (resolved.type !== 'renderable') {
+  const validPayload = useMemo(() => {
+    return safeParse(definition.payloadSchema, notification.payload).success
+  }, [notification.payload, definition.payloadSchema])
+
+  if (!Component || !validPayload) {
     return null
   }
 
   return (
-    <ResolvedNotificationItem
+    <Component
       layout={layout}
       onAction={onAction}
       onMarkAsRead={onMarkAsRead}
       onRemove={onRemove}
-      resolved={resolved}
+      // biome-ignore lint/suspicious/noExplicitAny: Can't type this properly
+      payload={notification.payload as any}
+      seen={notification.seen}
+      timestamp={notification.timestamp}
     />
   )
 }

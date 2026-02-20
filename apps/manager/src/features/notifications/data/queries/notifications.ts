@@ -3,13 +3,6 @@ import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
 import type { InferResponseType } from 'hono'
 import { backendClient } from '@/utils/backend-client'
 
-// export type NotificationsResponse = {
-//   notifications: BackendNotification[]
-//   nextCursor: string | null
-// }
-
-// export type BackendNotification
-
 export type NotificationsResponse = InferResponseType<
   typeof backendClient.notifications.$get
 >

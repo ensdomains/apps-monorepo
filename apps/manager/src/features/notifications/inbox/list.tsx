@@ -3,8 +3,7 @@ import { Loader2Icon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { notificationsInfiniteQuery } from '@/features/notifications/data/queries/notifications'
-import { selectRenderableNotifications } from '@/features/notifications/data/selectors'
-import { ResolvedNotificationItem } from './notification-item'
+import { NotificationItem } from './notification-item'
 
 export const NotificationsList = () => {
   const {
@@ -15,8 +14,6 @@ export const NotificationsList = () => {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery(notificationsInfiniteQuery)
-
-  const allNotifications = selectRenderableNotifications(data ?? [])
 
   if (isLoading) {
     return (
@@ -36,7 +33,7 @@ export const NotificationsList = () => {
     )
   }
 
-  if (allNotifications.length === 0) {
+  if (!data || data.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center">
         <MSymbol className="ms-opsz-75 ms-wght-200" symbol="sentiment_calm" />
@@ -47,11 +44,8 @@ export const NotificationsList = () => {
 
   return (
     <div className="flex flex-col gap-8">
-      {allNotifications.map((notification) => (
-        <ResolvedNotificationItem
-          key={notification.notification.id}
-          resolved={notification}
-        />
+      {data.map((notification) => (
+        <NotificationItem key={notification.id} notification={notification} />
       ))}
       {hasNextPage && (
         <Button

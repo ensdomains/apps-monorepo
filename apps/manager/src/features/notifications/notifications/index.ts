@@ -1,91 +1,34 @@
-import type { BackendNotification } from '@/features/notifications/data/queries/notifications'
-import { alphaWelcomeKind } from './alpha-welcome'
-import { blogPostKind } from './blog-post'
-import type { KindDefinition, NotificationKind } from './contracts'
-import { ensUpdateKind } from './ens-update'
-import { nameExpiryKind } from './name-expiry'
-import { nameTransferredKind } from './name-transferred'
+import {
+  type NotificationDefinitions,
+  notificationDefinitions,
+} from '@ens-apps/shared-schema/notifications'
+import type { FC } from 'react'
+import { AlphaWelcomeComponent } from './alpha-welcome'
+import { BlogPostComponent } from './blog-post'
+import type { KindComponentProps, NotificationKind } from './contracts'
+import { EnsUpdateComponent } from './ens-update'
+import { NameExpiryComponent } from './name-expiry'
+import { NameTransferredComponent } from './name-transferred'
 
 /**
  * Single source of truth for manager-side notification kind behavior.
  */
-export const notificationKindRegistry = {
-  'name-expiry': nameExpiryKind,
-  'name-transferred': nameTransferredKind,
-  'blog-post': blogPostKind,
-  'alpha-welcome': alphaWelcomeKind,
-  'ens-update': ensUpdateKind,
-} as const satisfies Record<NotificationKind, KindDefinition<any>>
+export const NOTIFICATION_COMPONENT_REGISTRY = {
+  'name-expiry': NameExpiryComponent,
+  'name-transferred': NameTransferredComponent,
+  'blog-post': BlogPostComponent,
+  'alpha-welcome': AlphaWelcomeComponent,
+  'ens-update': EnsUpdateComponent,
+} as const satisfies { [K in NotificationKind]: FC<KindComponentProps<K>> }
 
-type RuntimeNotification =
-  | BackendNotification
-  | {
-      id: string
-      kind: string
-      payload: unknown
-      source: BackendNotification['source']
-      seen: boolean
-      timestamp: number
-    }
-
-type AnyKindDefinition = {
-  [K in NotificationKind]: KindDefinition<K>
-}[NotificationKind]
-
-export type RenderableNotification = {
-  type: 'renderable'
-  definition: AnyKindDefinition
-  notification: BackendNotification
-}
-
-export type InvalidNotification = {
-  type: 'invalid'
-  id: string
-  kind: string
-}
-
-export type UnknownKindNotification = {
-  type: 'unknown-kind'
-  id: string
-  kind: string
-}
-
-export type NotificationResolveResult =
-  | RenderableNotification
-  | InvalidNotification
-  | UnknownKindNotification
-
-const runtimeRegistry: Record<string, AnyKindDefinition> =
-  notificationKindRegistry
-
-/**
- * Resolve one notification into a renderable kind definition.
- * Invalid payloads and unknown kinds are rejected for UI safety.
- */
-export const resolveRenderableNotification = (
-  notification: RuntimeNotification,
-): NotificationResolveResult => {
-  const definition = runtimeRegistry[notification.kind]
-
-  if (!definition) {
-    return {
-      type: 'unknown-kind',
-      id: notification.id,
-      kind: notification.kind,
-    }
-  }
-
-  if (!definition.isValidPayload(notification.payload)) {
-    return {
-      type: 'invalid',
-      id: notification.id,
-      kind: notification.kind,
-    }
-  }
-
+export const getNotificationData = <K extends NotificationKind>(
+  kind: K,
+): {
+  Component: (typeof NOTIFICATION_COMPONENT_REGISTRY)[K] | undefined
+  definition: NotificationDefinitions[K]
+} => {
   return {
-    type: 'renderable',
-    definition,
-    notification: notification as BackendNotification,
+    Component: NOTIFICATION_COMPONENT_REGISTRY[kind] ?? undefined,
+    definition: notificationDefinitions[kind],
   }
 }

@@ -3,8 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { Loader2Icon } from 'lucide-react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { notificationsInfiniteQuery } from '@/features/notifications/data/queries/notifications'
-import { selectRenderableNotifications } from '@/features/notifications/data/selectors'
-import { ResolvedNotificationItem } from '@/features/notifications/inbox/notification-item'
+import { NotificationItem } from '@/features/notifications/inbox/notification-item'
 import { UnreadCount } from '@/features/notifications/inbox/unread-count'
 
 interface NotificationsDropdownProps {
@@ -14,11 +13,11 @@ interface NotificationsDropdownProps {
 export const NotificationsDropdown = ({
   onAction,
 }: NotificationsDropdownProps) => {
-  const { data, isLoading, isError } = useInfiniteQuery(
-    notificationsInfiniteQuery,
-  )
-
-  const notifications = selectRenderableNotifications(data ?? [], 3)
+  const { data, isLoading, isError } = useInfiniteQuery({
+    ...notificationsInfiniteQuery,
+    select: (data) =>
+      data.pages.flatMap((page) => page.notifications).slice(0, 3),
+  })
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -61,20 +60,20 @@ export const NotificationsDropdown = ({
         </div>
       ) : null}
 
-      {!isLoading && !isError && notifications.length > 0 ? (
+      {!isLoading && !isError && data && data.length > 0 ? (
         <div className="flex flex-col">
-          {notifications.map((notification) => (
-            <ResolvedNotificationItem
-              key={notification.notification.id}
+          {data.map((notification) => (
+            <NotificationItem
+              key={notification.id}
               layout="compact"
+              notification={notification}
               onAction={onAction}
-              resolved={notification}
             />
           ))}
         </div>
       ) : null}
 
-      {!isLoading && !isError && notifications.length === 0 ? (
+      {!isLoading && !isError && data && data.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-4 py-10">
           <MSymbol
             className="ms-opsz-72 ms-wght-200 text-[#515151]"

@@ -1,34 +1,21 @@
-import { notificationDefinitions } from '@ens-apps/shared-schema/notifications'
-import * as v from 'valibot'
 import { getNotificationActionButtonClass } from '@/features/notifications/shared/primitives'
 import { NameCardTemplate } from '@/features/notifications/shared/templates'
-import type {
-  KindComponentProps,
-  KindDefinition,
-  NotificationPayloadForKind,
-} from './contracts'
+import type { KindComponent } from './contracts'
 
-const isNameTransferredPayload = (
-  payload: unknown,
-): payload is NotificationPayloadForKind<'name-transferred'> => {
-  return v.safeParse(
-    notificationDefinitions['name-transferred'].payloadSchema,
-    payload,
-  ).success
-}
-
-const NameTransferredComponent = ({
-  notification,
+export const NameTransferredComponent: KindComponent<'name-transferred'> = ({
+  payload,
+  seen,
+  timestamp,
   layout = 'default',
   onAction,
   onMarkAsRead,
   onRemove,
-}: KindComponentProps<'name-transferred'>) => (
+}) => (
   <NameCardTemplate
     action={
       <a
         className={getNotificationActionButtonClass(layout)}
-        href={`https://etherscan.io/tx/${notification.payload.txHash}`}
+        href={`https://etherscan.io/tx/${payload.txHash}`}
         onClick={onAction}
         rel="noopener noreferrer"
         target="_blank"
@@ -39,17 +26,11 @@ const NameTransferredComponent = ({
     category="Activity"
     categoryTone="default"
     layout={layout}
-    name={notification.payload.name}
+    name={payload.name}
     onMarkAsRead={onMarkAsRead}
     onRemove={onRemove}
-    seen={notification.seen}
+    seen={seen}
     statusText="Transferred"
-    timestamp={notification.timestamp}
+    timestamp={timestamp}
   />
 )
-
-export const nameTransferredKind: KindDefinition<'name-transferred'> = {
-  kind: 'name-transferred',
-  isValidPayload: isNameTransferredPayload,
-  Component: NameTransferredComponent,
-}

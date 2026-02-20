@@ -1,24 +1,11 @@
-import { notificationDefinitions } from '@ens-apps/shared-schema/notifications'
-import * as v from 'valibot'
 import { getNotificationActionButtonClass } from '@/features/notifications/shared/primitives'
 import { MessageCardTemplate } from '@/features/notifications/shared/templates'
-import type {
-  KindComponentProps,
-  KindDefinition,
-  NotificationPayloadForKind,
-} from './contracts'
+import type { KindComponentProps } from './contracts'
 
-const isEnsUpdatePayload = (
-  payload: unknown,
-): payload is NotificationPayloadForKind<'ens-update'> => {
-  return v.safeParse(
-    notificationDefinitions['ens-update'].payloadSchema,
-    payload,
-  ).success
-}
-
-const EnsUpdateComponent = ({
-  notification,
+export const EnsUpdateComponent = ({
+  payload,
+  seen,
+  timestamp,
   layout = 'default',
   onAction,
   onMarkAsRead,
@@ -26,10 +13,10 @@ const EnsUpdateComponent = ({
 }: KindComponentProps<'ens-update'>) => (
   <MessageCardTemplate
     action={
-      notification.payload.url ? (
+      payload.url ? (
         <a
           className={getNotificationActionButtonClass(layout)}
-          href={notification.payload.url}
+          href={payload.url}
           onClick={onAction}
           rel="noopener noreferrer"
           target="_blank"
@@ -40,18 +27,12 @@ const EnsUpdateComponent = ({
     }
     category="ENS Update"
     categoryTone="update"
-    description={notification.payload.summary}
+    description={payload.summary}
     layout={layout}
     onMarkAsRead={onMarkAsRead}
     onRemove={onRemove}
-    seen={notification.seen}
-    timestamp={notification.timestamp}
-    title={notification.payload.title}
+    seen={seen}
+    timestamp={timestamp}
+    title={payload.title}
   />
 )
-
-export const ensUpdateKind: KindDefinition<'ens-update'> = {
-  kind: 'ens-update',
-  isValidPayload: isEnsUpdatePayload,
-  Component: EnsUpdateComponent,
-}

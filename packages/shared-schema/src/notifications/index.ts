@@ -1,6 +1,7 @@
 export type {
   BroadcastNotificationKind,
   BroadcastNotificationPayloads,
+  NotificationDefinitions,
   NotificationKind,
   NotificationPayloads,
   PersonalNotificationKind,

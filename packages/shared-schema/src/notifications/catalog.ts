@@ -2,11 +2,9 @@ import type * as v from 'valibot'
 import type { ChannelType } from './channels'
 import { type NotificationDefinitions, notificationDefinitions } from './kinds'
 
-export { notificationDefinitions }
+export { notificationDefinitions, type NotificationDefinitions }
 
-export type NotificationKind = {
-  [K in keyof NotificationDefinitions]: K
-}[keyof NotificationDefinitions]
+export type NotificationKind = keyof NotificationDefinitions
 
 export type PersonalNotificationKind = {
   [K in keyof NotificationDefinitions]: NotificationDefinitions[K]['source'] extends 'personal'
@@ -20,22 +18,18 @@ export type BroadcastNotificationKind = {
     : never
 }[keyof NotificationDefinitions]
 
-type NotificationCatalogPayloads = {
-  [K in keyof NotificationDefinitions]: v.InferOutput<
+export type NotificationPayloads = {
+  [K in NotificationKind]: v.InferOutput<
     NotificationDefinitions[K]['payloadSchema']
   >
 }
 
-export type NotificationPayloads = {
-  [K in NotificationKind]: NotificationCatalogPayloads[K]
-}
-
 export type PersonalNotificationPayloads = {
-  [K in PersonalNotificationKind]: NotificationCatalogPayloads[K]
+  [K in PersonalNotificationKind]: NotificationPayloads[K]
 }
 
 export type BroadcastNotificationPayloads = {
-  [K in BroadcastNotificationKind]: NotificationCatalogPayloads[K]
+  [K in BroadcastNotificationKind]: NotificationPayloads[K]
 }
 
 export type SupportedNotifications<C extends ChannelType> = {

@@ -1,24 +1,11 @@
-import { notificationDefinitions } from '@ens-apps/shared-schema/notifications'
-import * as v from 'valibot'
 import { getNotificationActionButtonClass } from '@/features/notifications/shared/primitives'
 import { ContentCardTemplate } from '@/features/notifications/shared/templates'
-import type {
-  KindComponentProps,
-  KindDefinition,
-  NotificationPayloadForKind,
-} from './contracts'
+import type { KindComponentProps } from './contracts'
 
-const isBlogPostPayload = (
-  payload: unknown,
-): payload is NotificationPayloadForKind<'blog-post'> => {
-  return v.safeParse(
-    notificationDefinitions['blog-post'].payloadSchema,
-    payload,
-  ).success
-}
-
-const BlogPostComponent = ({
-  notification,
+export const BlogPostComponent = ({
+  payload,
+  seen,
+  timestamp,
   layout = 'default',
   onAction,
   onMarkAsRead,
@@ -28,7 +15,7 @@ const BlogPostComponent = ({
     action={
       <a
         className={getNotificationActionButtonClass(layout)}
-        href={notification.payload.url}
+        href={payload.url}
         onClick={onAction}
         rel="noopener noreferrer"
         target="_blank"
@@ -38,18 +25,12 @@ const BlogPostComponent = ({
     }
     category="ENS Update"
     categoryTone="update"
-    imageUrl={notification.payload.imageUrl}
+    imageUrl={payload.imageUrl}
     layout={layout}
     onMarkAsRead={onMarkAsRead}
     onRemove={onRemove}
-    seen={notification.seen}
-    timestamp={notification.timestamp}
-    title={notification.payload.title}
+    seen={seen}
+    timestamp={timestamp}
+    title={payload.title}
   />
 )
-
-export const blogPostKind: KindDefinition<'blog-post'> = {
-  kind: 'blog-post',
-  isValidPayload: isBlogPostPayload,
-  Component: BlogPostComponent,
-}

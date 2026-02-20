@@ -1,4 +1,7 @@
-import type { NotificationKind as SharedNotificationKind } from '@ens-apps/shared-schema/notifications'
+import type {
+  NotificationPayloads,
+  NotificationKind as SharedNotificationKind,
+} from '@ens-apps/shared-schema/notifications'
 import type { FC } from 'react'
 import type { BackendNotification } from '@/features/notifications/data/queries/notifications'
 
@@ -15,7 +18,9 @@ export type NotificationPayloadForKind<K extends NotificationKind> =
 export type NotificationLayout = 'default' | 'compact'
 
 export type KindComponentProps<K extends NotificationKind> = {
-  notification: NotificationForKind<K>
+  payload: NotificationPayloads[K]
+  seen: boolean
+  timestamp: number
   layout?: NotificationLayout
   onAction?: () => void
   onMarkAsRead?: () => void
@@ -28,8 +33,6 @@ export type KindComponentProps<K extends NotificationKind> = {
  * Each kind module owns payload validation and the final React component.
  * Invalid payloads are filtered out before rendering.
  */
-export type KindDefinition<K extends NotificationKind> = {
-  kind: K
-  isValidPayload: (payload: unknown) => payload is NotificationPayloadForKind<K>
-  Component: FC<KindComponentProps<K>>
-}
+export type KindComponent<K extends NotificationKind> = FC<
+  KindComponentProps<K>
+>

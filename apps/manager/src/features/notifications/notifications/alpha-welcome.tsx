@@ -1,24 +1,11 @@
-import { notificationDefinitions } from '@ens-apps/shared-schema/notifications'
-import * as v from 'valibot'
 import { getNotificationActionButtonClass } from '@/features/notifications/shared/primitives'
 import { MessageCardTemplate } from '@/features/notifications/shared/templates'
-import type {
-  KindComponentProps,
-  KindDefinition,
-  NotificationPayloadForKind,
-} from './contracts'
+import type { KindComponentProps } from './contracts'
 
-const isAlphaWelcomePayload = (
-  payload: unknown,
-): payload is NotificationPayloadForKind<'alpha-welcome'> => {
-  return v.safeParse(
-    notificationDefinitions['alpha-welcome'].payloadSchema,
-    payload,
-  ).success
-}
-
-const AlphaWelcomeComponent = ({
-  notification,
+export const AlphaWelcomeComponent = ({
+  payload,
+  seen,
+  timestamp,
   layout = 'default',
   onAction,
   onMarkAsRead,
@@ -26,32 +13,26 @@ const AlphaWelcomeComponent = ({
 }: KindComponentProps<'alpha-welcome'>) => (
   <MessageCardTemplate
     action={
-      notification.payload.ctaLabel && notification.payload.ctaUrl ? (
+      payload.ctaLabel && payload.ctaUrl ? (
         <a
           className={getNotificationActionButtonClass(layout)}
-          href={notification.payload.ctaUrl}
+          href={payload.ctaUrl}
           onClick={onAction}
           rel="noopener noreferrer"
           target="_blank"
         >
-          {notification.payload.ctaLabel}
+          {payload.ctaLabel}
         </a>
       ) : null
     }
     category="ENS Update"
     categoryTone="update"
-    description={notification.payload.body}
+    description={payload.body}
     layout={layout}
     onMarkAsRead={onMarkAsRead}
     onRemove={onRemove}
-    seen={notification.seen}
-    timestamp={notification.timestamp}
-    title={notification.payload.title}
+    seen={seen}
+    timestamp={timestamp}
+    title={payload.title}
   />
 )
-
-export const alphaWelcomeKind: KindDefinition<'alpha-welcome'> = {
-  kind: 'alpha-welcome',
-  isValidPayload: isAlphaWelcomePayload,
-  Component: AlphaWelcomeComponent,
-}

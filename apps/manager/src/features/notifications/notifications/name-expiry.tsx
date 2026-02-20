@@ -1,32 +1,19 @@
-import { notificationDefinitions } from '@ens-apps/shared-schema/notifications'
 import { Link } from '@tanstack/react-router'
-import * as v from 'valibot'
 import { getNotificationActionButtonClass } from '@/features/notifications/shared/primitives'
 import { NameCardTemplate } from '@/features/notifications/shared/templates'
 import { formatExpiryTime } from '@/utils/time'
-import type {
-  KindComponentProps,
-  KindDefinition,
-  NotificationPayloadForKind,
-} from './contracts'
+import type { KindComponent } from './contracts'
 
-const isNameExpiryPayload = (
-  payload: unknown,
-): payload is NotificationPayloadForKind<'name-expiry'> => {
-  return v.safeParse(
-    notificationDefinitions['name-expiry'].payloadSchema,
-    payload,
-  ).success
-}
-
-const NameExpiryComponent = ({
-  notification,
+export const NameExpiryComponent: KindComponent<'name-expiry'> = ({
+  payload,
+  seen,
+  timestamp,
   layout = 'default',
   onAction,
   onMarkAsRead,
   onRemove,
-}: KindComponentProps<'name-expiry'>) => {
-  const expiry = formatExpiryTime(notification.payload.expiryDate)
+}) => {
+  const expiry = formatExpiryTime(payload.expiryDate)
 
   return (
     <NameCardTemplate
@@ -35,7 +22,7 @@ const NameExpiryComponent = ({
           className={getNotificationActionButtonClass(layout)}
           onClick={onAction}
           params={{
-            name: notification.payload.name,
+            name: payload.name,
           }}
           to="/p/$name"
         >
@@ -50,18 +37,12 @@ const NameExpiryComponent = ({
           : undefined
       }
       layout={layout}
-      name={notification.payload.name}
+      name={payload.name}
       onMarkAsRead={onMarkAsRead}
       onRemove={onRemove}
-      seen={notification.seen}
+      seen={seen}
       statusText={expiry.text}
-      timestamp={notification.timestamp}
+      timestamp={timestamp}
     />
   )
-}
-
-export const nameExpiryKind: KindDefinition<'name-expiry'> = {
-  kind: 'name-expiry',
-  isValidPayload: isNameExpiryPayload,
-  Component: NameExpiryComponent,
 }
