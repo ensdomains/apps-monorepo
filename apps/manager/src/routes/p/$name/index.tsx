@@ -9,6 +9,7 @@ import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileOwnedNamesQuery } from '@/features/profile/service/profileOwnedNames'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { seo } from '@/utils/seo'
 
@@ -37,11 +38,18 @@ export const Route = createFileRoute('/p/$name/')({
       }
     }
 
-    const [profileRecords] = await Promise.all([
+    const [profileRecords, ownerData] = await Promise.all([
       queryClient.ensureQueryData(profileRecordsQuery(resolvedName)),
-      queryClient.prefetchQuery(profileOwnerQuery(resolvedName)),
+      queryClient.ensureQueryData(profileOwnerQuery(resolvedName)),
       queryClient.prefetchQuery(profileExpiryQuery(resolvedName)),
+      queryClient.prefetchQuery(profileRegistrationQuery(resolvedName)),
     ])
+
+    if (ownerData?.owner) {
+      await queryClient.prefetchQuery(
+        profileReverseNameQuery(ownerData.owner as Address),
+      )
+    }
 
     const description = profileRecords.texts.find(
       (r) => r.key === 'description',

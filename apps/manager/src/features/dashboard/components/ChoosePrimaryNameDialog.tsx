@@ -2,7 +2,12 @@ import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
 import { primaryNameMachine } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useWallet } from '@getpara/react-sdk-lite'
-import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, Check } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -21,12 +26,14 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import {
+  getEthAddressFromRecords,
   handlePrimaryNameCancel,
   handleSetPrimaryName,
-  hasEthAddressRecord,
+  hasMatchingEthAddress,
   type PrimaryNameOptions,
   type PrimaryNameParams,
 } from '@/features/profile/components/ProfileEdit.handlers'
+import { saveRecords } from '@/features/profile/components/ProfileEdit.transactions'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
@@ -111,10 +118,43 @@ export const ChoosePrimaryNameDialog = ({
     ...profileRecordsQuery(selectedName ?? ''),
     enabled: !!selectedName,
   })
-  const showNoEthWarning =
+  const existingEthAddress = getEthAddressFromRecords(selectedNameRecords)
+  const needsEthAddressUpdate =
     !!selectedName &&
     !isLoadingRecords &&
-    !hasEthAddressRecord(selectedNameRecords)
+    !hasMatchingEthAddress(
+      selectedNameRecords,
+      account.ownerAddress ?? undefined,
+    )
+  const updateEthAddressMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedName || !account.ownerAddress) return
+      if (!account.signer || !account.accountAddress) return
+
+      await saveRecords({
+        name: selectedName,
+        before: {
+          texts: [],
+          coins: existingEthAddress
+            ? [{ coinType: 60, value: existingEthAddress }]
+            : [],
+        },
+        after: {
+          texts: [],
+          coins: [{ coinType: 60, value: account.ownerAddress as string }],
+        },
+        signer: account.signer,
+        accountAddress: account.accountAddress,
+        publicClient: publicClient as PublicClient,
+        chainId: customSepolia.id,
+        resolverAddress: selectedNameRecords?.resolverAddress,
+      })
+    },
+    onError: (error) => {
+      console.error('Failed to set ETH address record:', error)
+      toast.error('Failed to set ETH address record')
+    },
+  })
 
   // Set selected name to current primary on mount
   useEffect(() => {
@@ -148,8 +188,21 @@ export const ChoosePrimaryNameDialog = ({
     }
   }
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!selectedName || !account.ownerAddress) return
+
+    if (needsEthAddressUpdate) {
+      if (!account.signer || !account.accountAddress) {
+        toast.error('Wallet signer not available')
+        return
+      }
+
+      try {
+        await updateEthAddressMutation.mutateAsync()
+      } catch {
+        return
+      }
+    }
 
     const params: PrimaryNameParams = {
       name: selectedName,
@@ -160,7 +213,6 @@ export const ChoosePrimaryNameDialog = ({
       account,
       primaryNameActor,
       publicClient: publicClient as PublicClient,
-      records: selectedNameRecords,
     }
 
     const error = handleSetPrimaryName(params, options)
@@ -181,7 +233,7 @@ export const ChoosePrimaryNameDialog = ({
   return (
     <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-h-[90vh] max-w-[500px] overflow-y-auto">
+      <DialogContent className="flex max-h-[90vh] max-w-[500px] flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="font-serif text-[24px] text-foreground">
             Choose Primary Name
@@ -192,9 +244,9 @@ export const ChoosePrimaryNameDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
           {/* Names List */}
-          <div className="flex flex-col gap-2">
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
             {match({ isLoading, domains })
               .with({ isLoading: true }, () => (
                 <div className="flex flex-col gap-2">
@@ -278,21 +330,29 @@ export const ChoosePrimaryNameDialog = ({
               Failed to set primary name. Please try again.
             </div>
           )}
-          {/* No ETH Address Warning */}
-          {showNoEthWarning && (
-            <div className="flex items-start gap-2 rounded-[4px] border border-red-200 bg-red-50 p-3">
-              <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
-              <p className="text-red-800 text-sm">
-                This name doesn&apos;t have an ETH address record set. Please
-                add one before setting it as your primary name.
-              </p>
+          {/* ETH Address Mismatch/Missing Info */}
+          {needsEthAddressUpdate && account.ownerAddress && (
+            <div className="flex items-start gap-2 rounded-[4px] border border-amber-200 bg-amber-50 p-3">
+              <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+              <div className="text-amber-800 text-sm">
+                <p>
+                  {existingEthAddress
+                    ? 'The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name.'
+                    : 'No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name.'}
+                </p>
+                <div className="mt-2 rounded-md bg-amber-100/60 px-2.5 py-1.5">
+                  <p className="break-all font-mono text-amber-900 text-xs">
+                    {account.ownerAddress}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
           {/* Action Buttons */}
-          <div className="flex gap-3">
+          <div className="flex shrink-0 gap-3">
             <Button
               className="h-[48px] flex-1 rounded-xs border-ens-white bg-ens-white font-mono text-ens-blue text-sm uppercase tracking-wider transition-colors hover:bg-ens-white/80 disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
-              disabled={isSubmitting}
+              disabled={isSubmitting || updateEthAddressMutation.isPending}
               onClick={handleCancel}
               variant="outline"
             >
@@ -301,11 +361,18 @@ export const ChoosePrimaryNameDialog = ({
             <Button
               className="h-[48px] flex-1 rounded-xs border-ens-blue bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-ens-blue-hover disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
               disabled={
-                isSubmitting || !hasChanges || !selectedName || showNoEthWarning
+                isSubmitting ||
+                updateEthAddressMutation.isPending ||
+                !hasChanges ||
+                !selectedName
               }
               onClick={handleConfirm}
             >
-              {isSubmitting ? 'Setting...' : 'Set as Primary'}
+              {updateEthAddressMutation.isPending
+                ? 'Setting ETH address...'
+                : isSubmitting
+                  ? 'Setting...'
+                  : 'Set as Primary'}
             </Button>
           </div>
         </div>

@@ -7,28 +7,73 @@ import {
 } from './editRecordUtils'
 
 describe('getRecordId', () => {
-  it('returns "contentHash" for contentHash records', () => {
+  it('returns "contentHash" for contentHash records without _uid', () => {
     expect(getRecordId({ type: 'contentHash', value: 'ipfs://abc' })).toBe(
       'contentHash',
     )
   })
 
-  it('returns "address-{id}" for address records', () => {
+  it('returns "contentHash-{_uid}" for contentHash records with _uid', () => {
     expect(
-      getRecordId({ type: 'address', key: 'ETH', value: '0x123', id: 60 }),
-    ).toBe('address-60')
-    expect(
-      getRecordId({ type: 'address', key: 'BTC', value: 'bc1...', id: 0 }),
-    ).toBe('address-0')
+      getRecordId({ type: 'contentHash', value: 'ipfs://abc', _uid: 'abc123' }),
+    ).toBe('contentHash-abc123')
   })
 
-  it('returns "text-{key}" for text records', () => {
+  it('returns "abi" for abi records without _uid', () => {
+    expect(getRecordId({ type: 'abi', value: '[{"type":"function"}]' })).toBe(
+      'abi',
+    )
+  })
+
+  it('returns "abi-{_uid}" for abi records with _uid', () => {
+    expect(
+      getRecordId({
+        type: 'abi',
+        value: '[{"type":"function"}]',
+        _uid: 'xyz789',
+      }),
+    ).toBe('abi-xyz789')
+  })
+
+  it('returns "address-{key}" for address records without _uid', () => {
+    expect(
+      getRecordId({ type: 'address', key: 'ETH', value: '0x123', id: 60 }),
+    ).toBe('address-ETH')
+    expect(
+      getRecordId({ type: 'address', key: 'BTC', value: 'bc1...', id: 0 }),
+    ).toBe('address-BTC')
+  })
+
+  it('returns "address-{key}-{_uid}" for address records with _uid', () => {
+    expect(
+      getRecordId({
+        type: 'address',
+        key: 'ETH',
+        value: '0x123',
+        id: 60,
+        _uid: 'def456',
+      }),
+    ).toBe('address-ETH-def456')
+  })
+
+  it('returns "text-{key}" for text records without _uid', () => {
     expect(getRecordId({ type: 'text', key: 'name', value: 'John' })).toBe(
       'text-name',
     )
     expect(
       getRecordId({ type: 'text', key: 'description', value: 'Hello' }),
     ).toBe('text-description')
+  })
+
+  it('returns "text-{key}-{_uid}" for text records with _uid', () => {
+    expect(
+      getRecordId({
+        type: 'text',
+        key: 'name',
+        value: 'John',
+        _uid: 'ghi012',
+      }),
+    ).toBe('text-name-ghi012')
   })
 })
 
@@ -147,43 +192,94 @@ describe('mergeRecordsWithChanges', () => {
 })
 
 describe('createNewRecord', () => {
-  it('creates a text record', () => {
+  it('creates a text record with unique _uid', () => {
     const record = createNewRecord('text', 'name', 'John')
 
-    expect(record).toEqual({
+    expect(record).toMatchObject({
       type: 'text',
       key: 'name',
       value: 'John',
     })
+    expect(record._uid).toBeDefined()
+    expect(typeof record._uid).toBe('string')
   })
 
-  it('creates an address record with default ETH coin type', () => {
+  it('creates unique _uids for multiple records', () => {
+    const record1 = createNewRecord('text', 'name', 'John')
+    const record2 = createNewRecord('text', 'name', 'Jane')
+
+    expect(record1._uid).not.toBe(record2._uid)
+  })
+
+  it('creates an ETH address record with coin type 60', () => {
     const record = createNewRecord('address', 'ETH', '0x123')
 
-    expect(record).toEqual({
+    expect(record).toMatchObject({
       type: 'address',
       key: 'ETH',
       value: '0x123',
       id: 60,
     })
+    expect(record._uid).toBeDefined()
+  })
+
+  it('creates a BTC address record with coin type 0', () => {
+    const record = createNewRecord('address', 'btc', 'bc1...')
+
+    expect(record).toMatchObject({
+      type: 'address',
+      key: 'btc',
+      value: 'bc1...',
+      id: 0,
+    })
+    expect(record._uid).toBeDefined()
+  })
+
+  it('creates a SOL address record with correct coin type', () => {
+    const record = createNewRecord(
+      'address',
+      'sol',
+      'So11111111111111111111111111111111111111112',
+    )
+
+    expect(record).toMatchObject({
+      type: 'address',
+      key: 'sol',
+      value: 'So11111111111111111111111111111111111111112',
+      id: 501,
+    })
+    expect(record._uid).toBeDefined()
+  })
+
+  it('defaults to ETH coin type (60) for unknown coin names', () => {
+    const record = createNewRecord('address', 'UNKNOWN', 'someaddress')
+
+    expect(record).toMatchObject({
+      type: 'address',
+      key: 'UNKNOWN',
+      value: 'someaddress',
+      id: 60,
+    })
+    expect(record._uid).toBeDefined()
   })
 
   it('creates a contentHash record', () => {
     const record = createNewRecord('contentHash', '', 'ipfs://abc')
 
-    expect(record).toEqual({
+    expect(record).toMatchObject({
       type: 'contentHash',
       value: 'ipfs://abc',
     })
+    expect(record._uid).toBeDefined()
   })
 
-  it('creates ABI as text record for now', () => {
-    const record = createNewRecord('abi', 'myAbi', '[{"type":"function"}]')
+  it('creates ABI record without key', () => {
+    const record = createNewRecord('abi', '', '[{"type":"function"}]')
 
-    expect(record).toEqual({
-      type: 'text',
-      key: 'myAbi',
+    expect(record).toMatchObject({
+      type: 'abi',
       value: '[{"type":"function"}]',
     })
+    expect(record._uid).toBeDefined()
   })
 })

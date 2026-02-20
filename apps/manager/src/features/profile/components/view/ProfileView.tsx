@@ -12,7 +12,9 @@ import { ViewCryptoSection } from './ViewCryptoSection'
 import { ViewDynamicSection } from './ViewDynamicSection'
 import { ViewHeaderSection } from './ViewHeaderSection'
 import { ViewLinksSection } from './ViewLinksSection'
-import { ViewResolverSection } from './ViewResolverSection'
+
+// Hidden for alpha - users don't need to change the resolver
+// import { ViewResolverSection } from './ViewResolverSection'
 
 interface ProfileViewProps {
   name: string
@@ -33,20 +35,14 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   const { accountAddress: smartAccountAddress } = useSmartAccountContext()
 
   const normalizedOwner = ownerData?.owner?.toLowerCase()
-  const connectedAddresses = [wallet?.address, smartAccountAddress]
-    .filter((addr): addr is string => Boolean(addr))
-    .map((addr) => addr.toLowerCase())
-
-  const isOwner = Boolean(
-    normalizedOwner && connectedAddresses.includes(normalizedOwner),
-  )
-
-  if (!records) {
-    return null
-  }
+  const isOwner =
+    !!normalizedOwner &&
+    [wallet?.address, smartAccountAddress]
+      .filter((addr): addr is string => !!addr)
+      .some((addr) => addr.toLowerCase() === normalizedOwner)
 
   return (
-    <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]">
+    <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]">
       <ViewHeaderSection
         name={name}
         owner={ownerData?.owner as Address | undefined}
@@ -68,14 +64,15 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
         {/* Right/side column */}
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
           <ViewCryptoSection records={records} />
-          <ViewResolverSection resolverAddress={records.resolverAddress} />
+          {/* Hidden for alpha - users don't need to change the resolver
+          <ViewResolverSection resolverAddress={records.resolverAddress} /> */}
           <ViewLinksSection records={records} />
 
           {/* Edit Button */}
           {isOwner && (
             <div>
               <LinkButton
-                className="w-full md:w-auto"
+                className="w-full"
                 params={{ name }}
                 to="/p/$name/edit"
               >

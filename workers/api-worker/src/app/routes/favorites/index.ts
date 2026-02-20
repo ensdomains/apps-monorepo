@@ -22,7 +22,7 @@ export default createApp()
     const { name } = c.req.param()
     const { user_id } = c.var
 
-    logger.info('Adding favorite', { name, user_id })
+    logger.debug('Adding favorite', { name, user_id })
 
     await c.var.db
       .insert(schema.favorites)
@@ -39,7 +39,7 @@ export default createApp()
     const { name } = c.req.param()
     const { user_id } = c.var
 
-    logger.info('Deleting favorite', { name, user_id })
+    logger.debug('Deleting favorite', { name, user_id })
 
     const result = await c.var.db
       .delete(schema.favorites)

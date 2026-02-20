@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ChangeEvent, useState } from 'react'
 import {
+  AddressSuggestionCard,
   DomainProfileCard,
   DomainResultCard,
 } from '@/components/molecules/DomainResultCard'
@@ -15,7 +16,9 @@ import { profileRegistrationQuery } from '@/features/profile/service/profileRegi
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
 import { ValidationError } from '@/features/register/components/CheckAvailability/ValidationError'
 import { useDebounce } from '@/hooks/useDebounce'
+
 import { truncateToMaxBytes } from '@/utils/domain'
+import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 
 const dropdownAnimation = {
   initial: { opacity: 0, y: -8, scale: 0.98 },
@@ -40,6 +43,7 @@ export const CheckAvailability = ({
     displayState,
     pricing,
     premiumLabel,
+    primaryName,
     selectedName,
     isLoading,
     error,
@@ -49,34 +53,51 @@ export const CheckAvailability = ({
     setInputValue(truncateToMaxBytes(event.target.value))
   }
 
-  const { data: unavailableRecords } = useQuery({
-    ...profileRecordsQuery(selectedName ?? ''),
-    enabled: displayState.type === 'unavailable' && !!selectedName,
+  // Determine which name to fetch profile data for
+  const profileName =
+    displayState.type === 'unavailable'
+      ? selectedName
+      : displayState.type === 'address' && primaryName
+        ? primaryName
+        : null
+
+  const { data: profileRecords } = useQuery({
+    ...profileRecordsQuery(profileName ?? ''),
+    enabled: !!profileName,
   })
 
-  const avatarRecord = unavailableRecords?.texts.find(
+  const avatarRecord = profileRecords?.texts.find(
     (text) => text.key === 'avatar',
   )?.value
 
-  const { data: unavailableAvatar } = useQuery({
+  const { data: profileAvatar } = useQuery({
     ...parseAvatarQuery(avatarRecord),
-    enabled:
-      displayState.type === 'unavailable' && !!selectedName && !!avatarRecord,
+    enabled: !!profileName && !!avatarRecord,
   })
 
-  const { data: unavailableExpiry } = useQuery({
-    ...profileExpiryQuery(selectedName ?? ''),
-    enabled: displayState.type === 'unavailable' && !!selectedName,
+  const { data: profileExpiry } = useQuery({
+    ...profileExpiryQuery(profileName ?? ''),
+    enabled: !!profileName,
   })
 
-  const { data: unavailableRegistration } = useQuery({
-    ...profileRegistrationQuery(selectedName ?? ''),
-    enabled: displayState.type === 'unavailable' && !!selectedName,
+  const { data: profileRegistration } = useQuery({
+    ...profileRegistrationQuery(profileName ?? ''),
+    enabled: !!profileName,
   })
+
+  const showResults = displayState.type !== 'idle' && !validation && !error
+
+  const blurBackdropEnabled = useFeatureFlag('SEARCH_RESULTS_BLUR_BACKDROP')
 
   return (
     <div className="relative flex flex-col gap-2">
-      <div className="relative">
+      {showResults && blurBackdropEnabled && (
+        <div
+          aria-hidden
+          className="fixed inset-x-0 top-[360px] bottom-0 z-10 bg-[#FCFBFB]/40 backdrop-blur-[2px] md:top-[380px]"
+        />
+      )}
+      <div className="relative z-20">
         <SearchField
           className="w-full"
           isLoading={isLoading}
@@ -85,7 +106,7 @@ export const CheckAvailability = ({
           value={inputValue}
         />
 
-        <div className="absolute top-full z-10 mt-2 w-full space-y-4">
+        <div className="absolute top-full z-10 mt-2 w-full space-y-4 drop-shadow-lg">
           <AnimatePresence mode="wait">
             {validation && (
               <motion.div key="validation-error" {...dropdownAnimation}>
@@ -107,9 +128,43 @@ export const CheckAvailability = ({
 
             {displayState.type !== 'idle' && !validation && !error && (
               <motion.div
-                key={`result-${displayState.domainName}`}
+                key={
+                  displayState.type === 'address'
+                    ? `result-${displayState.address}`
+                    : `result-${displayState.domainName}`
+                }
                 {...dropdownAnimation}
               >
+                {displayState.type === 'address' && (
+                  <div className="flex flex-col gap-3">
+                    <AddressSuggestionCard
+                      address={displayState.address}
+                      variant="card"
+                    />
+                    {primaryName && (
+                      <Link params={{ name: primaryName }} to="/p/$name">
+                        <DomainProfileCard
+                          avatarUrl={profileAvatar}
+                          clickable
+                          domainName={primaryName}
+                          expiryDate={
+                            profileExpiry?.expiry != null
+                              ? new Date(Number(profileExpiry.expiry) * 1000)
+                              : null
+                          }
+                          registeredDate={
+                            profileRegistration?.registrationDate != null
+                              ? new Date(
+                                  profileRegistration.registrationDate * 1000,
+                                )
+                              : null
+                          }
+                        />
+                      </Link>
+                    )}
+                  </div>
+                )}
+
                 {displayState.type === 'searching' && (
                   <DomainResultCard
                     domainName={displayState.domainName}
@@ -142,18 +197,18 @@ export const CheckAvailability = ({
                     to="/p/$name"
                   >
                     <DomainProfileCard
-                      avatarUrl={unavailableAvatar}
+                      avatarUrl={profileAvatar}
                       clickable
                       domainName={displayState.domainName}
                       expiryDate={
-                        unavailableExpiry?.expiry != null
-                          ? new Date(Number(unavailableExpiry.expiry) * 1000)
+                        profileExpiry?.expiry != null
+                          ? new Date(Number(profileExpiry.expiry) * 1000)
                           : null
                       }
                       registeredDate={
-                        unavailableRegistration?.registrationDate != null
+                        profileRegistration?.registrationDate != null
                           ? new Date(
-                              unavailableRegistration.registrationDate * 1000,
+                              profileRegistration.registrationDate * 1000,
                             )
                           : null
                       }

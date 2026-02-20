@@ -11,13 +11,20 @@ export const handlePushQueue = async (
   env: CloudflareBindings,
 ): Promise<void> => {
   const db = getDatabase(env)
+  let succeeded = 0
+  let failed = 0
+
+  logger.debug('Processing push delivery batch', {
+    messageCount: batch.messages.length,
+  })
 
   for (const message of batch.messages) {
     const job = message.body
 
-    logger.info('Processing push delivery', {
+    logger.trace('Processing push delivery', {
       jobId: job.id,
       kind: job.kind,
+      attempt: message.attempts + 1,
     })
 
     // attempt delivery
@@ -32,11 +39,24 @@ export const handlePushQueue = async (
     )
 
     if (result.isErr()) {
+      failed += 1
+      logger.warn('Push delivery failed, scheduling retry', {
+        jobId: job.id,
+        error: result.error.message,
+        attempt: message.attempts + 1,
+      })
       await handlePushDeliveryFailure(db, message, result.error.message)
       message.retry()
     } else {
-      // success
+      succeeded += 1
+      logger.trace('Push delivery succeeded', { jobId: job.id })
       message.ack()
     }
   }
+
+  logger.info('Push delivery batch completed', {
+    messageCount: batch.messages.length,
+    succeeded,
+    failed,
+  })
 }

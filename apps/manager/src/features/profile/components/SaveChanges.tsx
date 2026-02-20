@@ -7,6 +7,7 @@ interface SaveChangesProps {
   name: string
   originalData: ProfileRecords
   onSave: () => void
+  onReset?: () => void
   isSaving?: boolean
   isSuccess?: boolean
   errorMessage?: string
@@ -30,20 +31,28 @@ export const SaveChanges = withForm({
     name,
     originalData,
     onSave,
+    onReset,
     isSaving,
     isSuccess,
     errorMessage,
     txHash,
     validationIssues,
   }) => (
-    <form.Subscribe selector={(state) => state.values}>
-      {(currentData) => (
+    <form.Subscribe
+      selector={(state) => ({
+        values: state.values,
+        canSubmit: state.canSubmit,
+      })}
+    >
+      {({ values: currentData, canSubmit }) => (
         <DiffDialog
+          canSubmit={canSubmit}
           currentData={currentData}
           errorMessage={errorMessage}
           isSaving={isSaving}
           isSuccess={isSuccess}
           name={name}
+          onReset={onReset}
           onSave={onSave}
           originalData={originalData}
           txHash={txHash}

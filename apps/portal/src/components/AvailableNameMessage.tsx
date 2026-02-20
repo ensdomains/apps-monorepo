@@ -10,6 +10,7 @@ export type AvailableNameMessageProps = {
     label: string
     onClick?: () => void
     href?: string
+    external?: boolean
   }
 }
 
@@ -19,19 +20,30 @@ export function AvailableNameMessage({
   badge = 'Alpha',
   actionButton,
 }: AvailableNameMessageProps) {
+  // Determine if this is a .eth name (registration) or DNS name (import)
+  const isEthName = name.endsWith('.eth')
+  const actionUrl = isEthName
+    ? `https://app.ens.dev/register?name=${name}`
+    : `https://app.ens.domains/${name}/import`
+
   const defaultDescription = (
     <div className="text-base">
       <p>
         You're using an early version of the new ENS Explorer! This Alpha is in
         active development, and registration is coming soon.
       </p>
-      <p> Instead, you can register this name in the new Manager Alpha. </p>
+      <p>
+        {isEthName
+          ? 'Instead, you can register this name in the new Manager Alpha.'
+          : 'Instead, you can import this DNS name in the new Manager Alpha.'}
+      </p>
     </div>
   )
 
   const defaultActionButton = {
-    label: 'Register in Manager Alpha',
-    href: 'https://app.ens.domains',
+    label: isEthName ? 'Register in Manager Alpha' : 'Import in Manager Alpha',
+    href: actionUrl,
+    external: true,
   }
 
   return (

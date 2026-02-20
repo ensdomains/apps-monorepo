@@ -16,6 +16,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarSeparator,
 } from './ui/sidebar'
 
 const itemGroups = [
@@ -74,26 +75,40 @@ export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
           </span>
         </div>
       </SidebarHeader>
+      <SidebarSeparator />
       <SidebarContent>
-        {itemGroups.map((items) => (
-          <SidebarGroup className="p-6" key={items[0].url}>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild>
-                      <Link params={{ addr }} to={item.url}>
-                        <item.icon className="size-6" />
-                        <span className="text-sm font-medium">
-                          {item.title}
-                        </span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+        {itemGroups.map((items, i) => (
+          <div key={items[0].url}>
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {items.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild>
+                        <Link
+                          params={{ addr }}
+                          to={item.url}
+                          activeProps={{
+                            'data-active': 'true',
+                            className: '!bg-black/10 dark:!bg-white/15',
+                          }}
+                          activeOptions={{
+                            exact: item.url === '/addr/$addr',
+                          }}
+                        >
+                          <item.icon className="size-6" />
+                          <span className="text-sm font-medium">
+                            {item.title}
+                          </span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            {i < itemGroups.length - 1 && <SidebarSeparator />}
+          </div>
         ))}
       </SidebarContent>
     </Sidebar>

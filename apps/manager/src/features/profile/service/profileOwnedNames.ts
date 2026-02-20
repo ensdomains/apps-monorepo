@@ -5,14 +5,20 @@ import { skipToken } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { getDomains } from '@/features/dashboard/service/queries/getDashboardDomains'
 
-export const profileOwnedNamesQuery = (address?: Address) =>
+export const PROFILE_NAMES_PAGE_SIZE = 5
+
+export const profileOwnedNamesQuery = (
+  address?: Address,
+  { skip = 0 }: { skip?: number } = {},
+) =>
   resultQueryOptions({
-    queryKey: qk('profile', 'owned_names', { address }),
+    queryKey: qk('profile', 'owned_names', { address, skip }),
     queryFn: address
       ? () =>
           getDomains({
             where: { owner: address.toLowerCase() },
-            first: 10,
+            first: PROFILE_NAMES_PAGE_SIZE,
+            skip,
             orderBy: Domain_OrderBy.RegistrationDate,
             orderDirection: OrderDirection.Desc,
           })

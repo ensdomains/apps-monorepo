@@ -1,4 +1,10 @@
-import { useMutation, useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query'
 import type { Address, PublicClient } from 'viem'
 import { Button } from '@/components/ui/button'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -12,7 +18,8 @@ import {
   transformToServiceFormat,
 } from '../utils/transformRecords'
 import { SetPrimaryNameDialog } from './dialogs/SetPrimaryNameDialog'
-import { UpdateResolverDialog } from './dialogs/UpdateResolverDialog'
+// Hidden for alpha - users don't need to change the resolver
+// import { UpdateResolverDialog } from './dialogs/UpdateResolverDialog'
 import { useAppForm } from './form'
 import {
   handleProfileFormSubmit,
@@ -21,8 +28,10 @@ import {
 import { RecordsValidationError, saveRecords } from './ProfileEdit.transactions'
 import { SaveChanges } from './SaveChanges'
 import { BioSection } from './sections/BioSection'
+import { ContactInformationSection } from './sections/ContactInformationSection'
 import { HeaderSection } from './sections/HeaderSection'
 import { LinksSection } from './sections/LinksSection'
+import { OtherSection } from './sections/OtherSection'
 import { SocialLinksSection } from './sections/SocialLinksSection'
 import { WalletAddressesSection } from './sections/WalletAddressesSection'
 
@@ -41,11 +50,19 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   })
 
   const account = useSmartAccountContext()
+  const queryClient = useQueryClient()
 
   const saveRecordsMutation = useMutation({
     mutationFn: saveRecords,
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       refetchRecords()
+      const ethBefore = variables.before.coins.find((c) => c.coinType === 60)
+      const ethAfter = variables.after.coins.find((c) => c.coinType === 60)
+      if (ethBefore?.value !== ethAfter?.value) {
+        queryClient.invalidateQueries({
+          queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
+        })
+      }
     },
   })
 
@@ -113,29 +130,32 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
   return (
     <form
-      className="mx-auto mb-12 w-full max-w-7xl space-y-4 md:w-[calc(100%-4rem)]"
+      className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]"
       onSubmit={handleSubmit}
     >
       <HeaderSection form={form} name={name} owner={ownerAddress} />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         <div className="space-y-4 md:col-span-7 lg:col-span-8">
           <BioSection form={form} />
+          <ContactInformationSection form={form} />
           <SocialLinksSection form={form} />
           <LinksSection form={form} />
+          <OtherSection form={form} />
         </div>
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
           <WalletAddressesSection form={form} />
+          {/* Hidden for alpha - users don't need to change the resolver
           <UpdateResolverDialog
             currentResolver={resolverAddress}
             name={name}
             onUpdated={refetchRecords}
-          />
+          /> */}
           <SetPrimaryNameDialog
             name={name}
             onUpdated={refetchRecords}
             owner={ownerAddress}
           />
-          <div className="space-y-2 pt-2">
+          <div className="space-y-2">
             <form.Subscribe
               selector={(state) => createDiff(defaultValues, state.values)}
             >
@@ -158,6 +178,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
               isSaving={saveRecordsMutation.isPending}
               isSuccess={saveRecordsMutation.isSuccess}
               name={name}
+              onReset={saveRecordsMutation.reset}
               onSave={handleSave}
               originalData={defaultValues}
               txHash={saveRecordsMutation.data?.hash}
