@@ -1,12 +1,14 @@
+import { endOfDay } from 'date-fns'
 import { CalendarIcon } from 'lucide-react'
 import { useState } from 'react'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Button } from '@/components/ui/button'
 import { SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import {
-  getDurationInSeconds,
   getDurationInSecondsFromYears,
-  getExpiryDateFromSeconds,
+  getEndOfToday,
+  getRegistrationDurationInSeconds,
+  getRegistrationExpiryDateFromSeconds,
 } from '../utils/registrationDuration'
 import { RegistrationDurationPicker } from './RegistrationDurationPicker'
 import { RegistrationExpiryDatePicker } from './RegistrationExpiryDatePicker'
@@ -79,9 +81,18 @@ export const RegisterNameForm = ({
           />
         ) : (
           <RegistrationExpiryDatePicker
-            date={getExpiryDateFromSeconds(duration)}
-            onDateChange={(date) => setDuration(getDurationInSeconds(date))}
-            minDate={new Date()}
+            date={endOfDay(
+              getRegistrationExpiryDateFromSeconds(getEndOfToday(), duration),
+            )}
+            onDateChange={(date) =>
+              setDuration(
+                getRegistrationDurationInSeconds(
+                  getEndOfToday(),
+                  endOfDay(date),
+                ),
+              )
+            }
+            minDate={getEndOfToday()}
           />
         )}
       </div>
