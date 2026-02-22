@@ -67,7 +67,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
             <span className="text-base text-ens-lapis-core leading-ens-tight">
               {copied ? 'Copied!' : 'Copy Address'}
             </span>
-            <span className="text-xs text-muted-foreground leading-ens-normal">
+            <span className="text-muted-foreground text-xs leading-ens-normal">
               {truncateAddress(accountAddress)}
             </span>
           </div>
@@ -112,37 +112,37 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
             </div>
             {/* biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: Accessible via toggle */}
             <div
-            className={tw(
-              'flex items-center gap-2',
-              !isSessionClient && 'cursor-pointer',
-            )}
-            onClick={() => {
-              if (!isSessionClient) {
-                openSessionModal()
-              }
-
-              onAction?.()
-            }}
-          >
-            <BookmarkCheckIcon className="size-5 text-ens-lapis-core" />
-            <div className="text-base text-ens-lapis-surface">
-              {isSessionClient
-                ? 'Smart Session Active'
-                : 'Smart Session Disabled'}
-            </div>
-            <Switch
-              checked={isSessionClient}
-              className="ml-auto"
-              disabled={isSessionClient}
-              onCheckedChange={() => {
+              className={tw(
+                'flex items-center gap-2',
+                !isSessionClient && 'cursor-pointer',
+              )}
+              onClick={() => {
                 if (!isSessionClient) {
                   openSessionModal()
                 }
 
                 onAction?.()
               }}
-            />
-          </div>
+            >
+              <BookmarkCheckIcon className="size-5 text-ens-lapis-core" />
+              <div className="text-base text-ens-lapis-surface">
+                {isSessionClient
+                  ? 'Smart Session Active'
+                  : 'Smart Session Disabled'}
+              </div>
+              <Switch
+                checked={isSessionClient}
+                className="ml-auto"
+                disabled={isSessionClient}
+                onCheckedChange={() => {
+                  if (!isSessionClient) {
+                    openSessionModal()
+                  }
+
+                  onAction?.()
+                }}
+              />
+            </div>
           </>
         ))
         .otherwise(() => null)}
