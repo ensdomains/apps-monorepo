@@ -5,13 +5,13 @@ import type {
 import { useBlocker } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { CheckCircle2, Info } from 'lucide-react'
-import { useEffect } from 'react'
 import { match } from 'ts-pattern'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
+import { usePreventUnload } from '@/hooks/usePreventUnload'
 
 type RegistrationProgressProps = {
   readonly domainName: string
@@ -153,17 +153,7 @@ export const RegistrationProgress = ({
     },
   })
 
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault()
-    }
-
-    if (isInProgress) {
-      window.addEventListener('beforeunload', handleBeforeUnload)
-    }
-
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [isInProgress])
+  usePreventUnload(isInProgress)
 
   const currentMessage = STATE_MESSAGES[stateValue]
 
