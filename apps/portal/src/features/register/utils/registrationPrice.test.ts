@@ -51,6 +51,33 @@ describe('isPriceResult', () => {
     const { decimals: _, ...withoutDecimals } = validPriceResult
     expect(isPriceResult(withoutDecimals)).toBe(false)
   })
+
+  it('returns false when hasPremium is missing', () => {
+    const { hasPremium: _, ...withoutHasPremium } = validPriceResult
+    expect(isPriceResult(withoutHasPremium)).toBe(false)
+  })
+
+  it('returns false when total is wrong type (string instead of bigint)', () => {
+    expect(isPriceResult({ ...validPriceResult, total: '5000000' })).toBe(false)
+  })
+
+  it('returns false when base is wrong type', () => {
+    expect(isPriceResult({ ...validPriceResult, base: 5 })).toBe(false)
+  })
+
+  it('returns false when premium is wrong type', () => {
+    expect(isPriceResult({ ...validPriceResult, premium: '0' })).toBe(false)
+  })
+
+  it('returns false when decimals is wrong type', () => {
+    expect(isPriceResult({ ...validPriceResult, decimals: '6' })).toBe(false)
+  })
+
+  it('returns false when hasPremium is wrong type', () => {
+    expect(isPriceResult({ ...validPriceResult, hasPremium: 'false' })).toBe(
+      false,
+    )
+  })
 })
 
 describe('formatTotalWithGasAndFees', () => {

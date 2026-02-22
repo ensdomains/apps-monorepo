@@ -28,12 +28,15 @@ export function formatTotalWithGasAndFees(
 export function isPriceResult(
   value: unknown,
 ): value is RegistrationPriceResult {
+  if (typeof value !== 'object' || value === null) return false
+
+  const v = value as Record<string, unknown>
+
   return (
-    typeof value === 'object' &&
-    value !== null &&
-    'total' in value &&
-    'base' in value &&
-    'premium' in value &&
-    'decimals' in value
+    typeof v.base === 'bigint' &&
+    typeof v.premium === 'bigint' &&
+    typeof v.total === 'bigint' &&
+    typeof v.decimals === 'number' &&
+    typeof v.hasPremium === 'boolean'
   )
 }
