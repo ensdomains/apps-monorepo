@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button'
 import { SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import {
   getDurationInSecondsFromYears,
-  getEndOfToday,
   getRegistrationDurationInSeconds,
   getRegistrationExpiryDateFromSeconds,
+  getStartOfToday,
 } from '../utils/registrationDuration'
 import { RegistrationDurationPicker } from './RegistrationDurationPicker'
 import { RegistrationExpiryDatePicker } from './RegistrationExpiryDatePicker'
@@ -82,17 +82,17 @@ export const RegisterNameForm = ({
         ) : (
           <RegistrationExpiryDatePicker
             date={endOfDay(
-              getRegistrationExpiryDateFromSeconds(getEndOfToday(), duration),
+              getRegistrationExpiryDateFromSeconds(getStartOfToday(), duration),
             )}
             onDateChange={(date) =>
               setDuration(
                 getRegistrationDurationInSeconds(
-                  getEndOfToday(),
+                  getStartOfToday(),
                   endOfDay(date),
                 ),
               )
             }
-            minDate={getEndOfToday()}
+            minDate={getStartOfToday()}
           />
         )}
       </div>

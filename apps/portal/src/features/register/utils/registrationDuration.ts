@@ -4,7 +4,7 @@ import {
   differenceInDays,
   differenceInMonths,
   differenceInYears,
-  endOfDay,
+  startOfDay,
 } from 'date-fns'
 import { SECONDS_PER_YEAR } from '@/lib/constants/duration'
 
@@ -35,7 +35,7 @@ export const formatRegistrationDuration = (
     parts.push(months === 1 ? '1 month' : `${months} months`)
   }
 
-  if (days > 0 && months === 0) {
+  if (days > 0) {
     parts.push(days === 1 ? '1 day' : `${days} days`)
   }
 
@@ -100,7 +100,7 @@ export const getRegistrationExpiryDateFromSeconds = (
 }
 
 /**
- * Returns the end of today (23:59:59.999) as a Date.
+ * Returns the start of today (00:00:00.000) as a Date.
  * Use as the canonical reference date for registration duration calculations.
  */
-export const getEndOfToday = (): Date => endOfDay(new Date())
+export const getStartOfToday = (): Date => startOfDay(new Date())

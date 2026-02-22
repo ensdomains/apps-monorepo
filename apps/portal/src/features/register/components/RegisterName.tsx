@@ -12,8 +12,8 @@ import { useStartRegistration } from '@/features/register/hooks/useStartRegistra
 import {
   formatRegistrationDuration,
   getDurationInSecondsFromYears,
-  getEndOfToday,
   getRegistrationExpiryDateFromSeconds,
+  getStartOfToday,
 } from '@/features/register/utils/registrationDuration'
 import { validateNameLength } from '@/utils/token/nameValidation'
 import { RegisterNameForm } from './RegisterNameForm'
@@ -145,8 +145,8 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
             name={name}
             duration={duration}
             durationLabel={formatRegistrationDuration(
-              getEndOfToday(),
-              getRegistrationExpiryDateFromSeconds(getEndOfToday(), duration),
+              getStartOfToday(),
+              getRegistrationExpiryDateFromSeconds(getStartOfToday(), duration),
             )}
             onContinue={startRegistration}
           />
