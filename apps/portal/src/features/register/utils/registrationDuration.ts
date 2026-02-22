@@ -4,6 +4,7 @@ import {
   differenceInDays,
   differenceInMonths,
   differenceInYears,
+  endOfDay,
   startOfDay,
 } from 'date-fns'
 import { SECONDS_PER_YEAR } from '@/lib/constants/duration'
@@ -102,5 +103,45 @@ export const getRegistrationExpiryDateFromSeconds = (
 /**
  * Returns the start of today (00:00:00.000) as a Date.
  * Use as the canonical reference date for registration duration calculations.
+ * Pass `now` for deterministic testing.
  */
-export const getStartOfToday = (): Date => startOfDay(new Date())
+export const getStartOfToday = (now: Date = new Date()): Date => startOfDay(now)
+
+/**
+ * Formats a duration (seconds) as a human-readable label.
+ * e.g. formatDurationLabel(31557600) → "1 year"
+ * Pass `startOfToday` for deterministic testing.
+ */
+export const formatDurationLabel = (
+  durationInSeconds: number,
+  startOfToday: Date = getStartOfToday(),
+): string => {
+  const expiry = getRegistrationExpiryDateFromSeconds(
+    startOfToday,
+    durationInSeconds,
+  )
+  return formatRegistrationDuration(startOfToday, expiry)
+}
+
+/**
+ * Converts duration (seconds) to expiry Date for the date picker.
+ * Returns end of the expiry day for consistent picker behavior.
+ * Pass `startOfToday` for deterministic testing.
+ */
+export const getExpiryDateForPicker = (
+  durationInSeconds: number,
+  startOfToday: Date = getStartOfToday(),
+): Date =>
+  endOfDay(
+    getRegistrationExpiryDateFromSeconds(startOfToday, durationInSeconds),
+  )
+
+/**
+ * Converts a date picker selection to duration (seconds).
+ * Treats the selected date as end of that day.
+ * Pass `startOfToday` for deterministic testing.
+ */
+export const getDurationFromPickerDate = (
+  date: Date,
+  startOfToday: Date = getStartOfToday(),
+): number => getRegistrationDurationInSeconds(startOfToday, endOfDay(date))

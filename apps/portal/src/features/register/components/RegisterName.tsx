@@ -10,10 +10,8 @@ import { MessageCard } from '@/components/ui/message-card'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { useStartRegistration } from '@/features/register/hooks/useStartRegistration'
 import {
-  formatRegistrationDuration,
+  formatDurationLabel,
   getDurationInSecondsFromYears,
-  getRegistrationExpiryDateFromSeconds,
-  getStartOfToday,
 } from '@/features/register/utils/registrationDuration'
 import { validateNameLength } from '@/utils/token/nameValidation'
 import { RegisterNameForm } from './RegisterNameForm'
@@ -144,10 +142,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
           <RegisterNameCheckoutSummary
             name={name}
             duration={duration}
-            durationLabel={formatRegistrationDuration(
-              getStartOfToday(),
-              getRegistrationExpiryDateFromSeconds(getStartOfToday(), duration),
-            )}
+            durationLabel={formatDurationLabel(duration)}
             onContinue={startRegistration}
           />
         </>
