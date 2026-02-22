@@ -1,6 +1,5 @@
 import { addMonths, addYears } from 'date-fns'
 import { describe, expect, it } from 'vitest'
-import { SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import {
   calculateDurationFromDate,
   formatDurationLabel,
@@ -10,6 +9,7 @@ import {
   getExpiryDateForPicker,
   getRegistrationDurationInSeconds,
   getRegistrationExpiryDateFromSeconds,
+  getYearsFromDuration,
 } from './registrationDuration'
 
 describe('registrationDuration', () => {
@@ -156,100 +156,124 @@ describe('registrationDuration', () => {
   })
 
   describe('getRegistrationDurationInSeconds', () => {
-    it('should return ~31557600 for 1 year', () => {
+    it('should return exact seconds for 1 calendar year', () => {
       const oneYearFromNow = addYears(startOfFixedToday, 1)
-      expect(
-        getRegistrationDurationInSeconds(startOfFixedToday, oneYearFromNow),
-      ).toBe(SECONDS_PER_YEAR)
+      const result = getRegistrationDurationInSeconds(
+        startOfFixedToday,
+        oneYearFromNow,
+      )
+      expect(result).toBe(31_536_000) // 365 days in 2025
     })
 
-    it('should return ~63115200 for 2 years', () => {
+    it('should return exact seconds for 2 calendar years', () => {
       const twoYearsFromNow = addYears(startOfFixedToday, 2)
       const result = getRegistrationDurationInSeconds(
         startOfFixedToday,
         twoYearsFromNow,
       )
-      expect(result).toBeGreaterThanOrEqual(63_000_000)
-      expect(result).toBeLessThanOrEqual(63_200_000)
+      expect(result).toBe(63_072_000) // 730 days (2025, 2026 non-leap)
     })
 
     it('should return at least 1 year in seconds for past dates', () => {
-      expect(
-        getRegistrationDurationInSeconds(
-          startOfFixedToday,
-          new Date('2024-01-01'),
-        ),
-      ).toBe(SECONDS_PER_YEAR)
+      const result = getRegistrationDurationInSeconds(
+        startOfFixedToday,
+        new Date('2024-01-01'),
+      )
+      expect(result).toBe(31_536_000) // min 1 year
     })
   })
 
   describe('getDurationInSecondsFromYears', () => {
-    it('should return ~31557600 for 1 year', () => {
-      expect(getDurationInSecondsFromYears(1)).toBe(SECONDS_PER_YEAR)
+    it('should return exact seconds for 1 calendar year', () => {
+      expect(getDurationInSecondsFromYears(1, startOfFixedToday)).toBe(
+        31_536_000,
+      ) // 365 days
     })
 
-    it('should return ~63115200 for 2 years', () => {
-      expect(getDurationInSecondsFromYears(2)).toBe(2 * SECONDS_PER_YEAR)
+    it('should return exact seconds for 3 calendar years', () => {
+      const result = getDurationInSecondsFromYears(3, startOfFixedToday)
+      const expectedExpiry = addYears(startOfFixedToday, 3)
+      const expectedSeconds = Math.floor(
+        (expectedExpiry.getTime() - startOfFixedToday.getTime()) / 1000,
+      )
+      expect(result).toBe(expectedSeconds)
     })
 
-    it('should return at least 1 year in seconds for values less than 1', () => {
-      expect(getDurationInSecondsFromYears(0.5)).toBe(SECONDS_PER_YEAR)
+    it('should return at least 1 year for values less than 1', () => {
+      expect(getDurationInSecondsFromYears(0.5, startOfFixedToday)).toBe(
+        31_536_000,
+      )
+    })
+
+    it('should give Jan 1 2029 for 3 years from Jan 1 2026', () => {
+      const jan1_2026 = new Date('2026-01-01T00:00:00Z')
+      const duration = getDurationInSecondsFromYears(3, jan1_2026)
+      const expiry = getRegistrationExpiryDateFromSeconds(jan1_2026, duration)
+      expect(expiry.getFullYear()).toBe(2029)
+      expect(expiry.getMonth()).toBe(0)
+      expect(expiry.getDate()).toBe(1)
     })
   })
 
   describe('formatDurationLabel', () => {
     it('should return "1 year" for 1 year duration', () => {
-      expect(formatDurationLabel(SECONDS_PER_YEAR, startOfFixedToday)).toBe(
-        '1 year',
-      )
+      const duration = getDurationInSecondsFromYears(1, startOfFixedToday)
+      expect(formatDurationLabel(duration, startOfFixedToday)).toBe('1 year')
     })
 
-    it('should return "2 years" for 2 year duration', () => {
-      expect(formatDurationLabel(2 * SECONDS_PER_YEAR, startOfFixedToday)).toBe(
-        '2 years',
-      )
+    it('should return "3 years" for 3 year duration', () => {
+      const duration = getDurationInSecondsFromYears(3, startOfFixedToday)
+      expect(formatDurationLabel(duration, startOfFixedToday)).toBe('3 years')
+    })
+  })
+
+  describe('getYearsFromDuration', () => {
+    it('should return 3 for 3 year duration', () => {
+      const duration = getDurationInSecondsFromYears(3, startOfFixedToday)
+      expect(getYearsFromDuration(duration, startOfFixedToday)).toBe(3)
     })
   })
 
   describe('getExpiryDateForPicker', () => {
-    it('should return end of expiry day for 1 year duration', () => {
-      const result = getExpiryDateForPicker(SECONDS_PER_YEAR, startOfFixedToday)
-      const expectedMs = startOfFixedToday.getTime() + SECONDS_PER_YEAR * 1000
-      expect(result.getTime()).toBeGreaterThanOrEqual(expectedMs - 86400_000)
-      expect(result.getTime()).toBeLessThanOrEqual(expectedMs + 86400_000)
+    it('should return Jan 15 2026 end of day for 1 year from Jan 15 2025', () => {
+      const duration = getDurationInSecondsFromYears(1, startOfFixedToday)
+      const result = getExpiryDateForPicker(duration, startOfFixedToday)
+      const expectedExpiry = addYears(startOfFixedToday, 1)
+      expect(result.getDate()).toBe(expectedExpiry.getDate())
+      expect(result.getMonth()).toBe(expectedExpiry.getMonth())
+      expect(result.getFullYear()).toBe(expectedExpiry.getFullYear())
     })
   })
 
   describe('getDurationFromPickerDate', () => {
-    it('should round-trip with getExpiryDateForPicker', () => {
-      const duration = 2 * SECONDS_PER_YEAR
+    it('should round-trip years: 3 years → date picker → 3 years', () => {
+      const duration = getDurationInSecondsFromYears(3, startOfFixedToday)
       const date = getExpiryDateForPicker(duration, startOfFixedToday)
       const result = getDurationFromPickerDate(date, startOfFixedToday)
-      expect(result).toBeGreaterThanOrEqual(63_000_000)
-      expect(result).toBeLessThanOrEqual(63_200_000)
+      expect(getYearsFromDuration(result, startOfFixedToday)).toBe(3)
     })
   })
 
   describe('getRegistrationExpiryDateFromSeconds', () => {
-    it('should return date ~1 year from start for SECONDS_PER_YEAR', () => {
+    it('should return Jan 15 2026 for 1 year from Jan 15 2025', () => {
+      const duration = getDurationInSecondsFromYears(1, startOfFixedToday)
       const result = getRegistrationExpiryDateFromSeconds(
         startOfFixedToday,
-        SECONDS_PER_YEAR,
+        duration,
       )
-      const expectedMs = startOfFixedToday.getTime() + SECONDS_PER_YEAR * 1000
-      expect(result.getTime()).toBe(expectedMs)
+      const expected = addYears(startOfFixedToday, 1)
+      expect(result.getTime()).toBe(expected.getTime())
     })
 
-    it('should round-trip with getRegistrationDurationInSeconds', () => {
-      const date = addYears(startOfFixedToday, 2)
-      const seconds = getRegistrationDurationInSeconds(startOfFixedToday, date)
-      const backToDate = getRegistrationExpiryDateFromSeconds(
+    it('should round-trip: 3 years picker → date picker → 3 years', () => {
+      const duration = getDurationInSecondsFromYears(3, startOfFixedToday)
+      const expiry = getRegistrationExpiryDateFromSeconds(
         startOfFixedToday,
-        seconds,
+        duration,
       )
-      expect(backToDate.getTime()).toBe(
-        startOfFixedToday.getTime() + seconds * 1000,
-      )
+      expect(expiry.getFullYear()).toBe(2028)
+      expect(expiry.getMonth()).toBe(0) // Jan
+      expect(expiry.getDate()).toBe(15)
     })
   })
 })

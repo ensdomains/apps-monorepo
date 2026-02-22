@@ -2,12 +2,12 @@ import { CalendarIcon } from 'lucide-react'
 import { useState } from 'react'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Button } from '@/components/ui/button'
-import { SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import {
   getDurationFromPickerDate,
   getDurationInSecondsFromYears,
   getExpiryDateForPicker,
   getStartOfToday,
+  getYearsFromDuration,
 } from '../utils/registrationDuration'
 import { RegistrationDurationPicker } from './RegistrationDurationPicker'
 import { RegistrationExpiryDatePicker } from './RegistrationExpiryDatePicker'
@@ -73,7 +73,7 @@ export const RegisterNameForm = ({
 
         {registrationSpanType === REGISTRATION_SPAN_TYPE.YEARS ? (
           <RegistrationDurationPicker
-            value={Math.round(duration / SECONDS_PER_YEAR)}
+            value={Math.max(1, Math.round(getYearsFromDuration(duration)))}
             onChange={(years) =>
               setDuration(getDurationInSecondsFromYears(years))
             }

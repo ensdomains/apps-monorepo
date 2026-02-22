@@ -67,21 +67,46 @@ export const calculateDurationFromDate = (
 
 /**
  * Converts an expiry date to duration in seconds for ENS price/registration.
+ * Uses actual calendar difference (includes leap years).
  */
 export const getRegistrationDurationInSeconds = (
   startDate: Date,
   expiryDate: Date,
 ): number => {
-  const years = calculateDurationFromDate(startDate, expiryDate)
-  return getDurationInSecondsFromYears(years)
+  const diffMs = expiryDate.getTime() - startDate.getTime()
+  if (diffMs <= 0) {
+    return getDurationInSecondsFromYears(1, startDate)
+  }
+  const seconds = Math.floor(diffMs / 1000)
+  const minDuration = getDurationInSecondsFromYears(1, startDate)
+  return Math.max(seconds, minDuration)
 }
 
 /**
- * Converts duration in years to seconds for ENS price/registration.
- * Supports fractional years (e.g. 2.12) for exact date picker values.
+ * Converts duration in years to seconds using calendar math (addYears).
+ * 3 years from Jan 1 2026 = Jan 1 2029 exactly, including leap years.
  */
-export const getDurationInSecondsFromYears = (years: number): number =>
-  Math.floor(Math.max(1, years) * SECONDS_PER_YEAR)
+export const getDurationInSecondsFromYears = (
+  years: number,
+  startOfToday: Date = getStartOfToday(),
+): number => {
+  const expiry = addYears(startOfToday, Math.max(1, years))
+  return Math.floor((expiry.getTime() - startOfToday.getTime()) / 1000)
+}
+
+/**
+ * Returns the calendar years for a duration (for years picker display).
+ */
+export const getYearsFromDuration = (
+  durationInSeconds: number,
+  startOfToday: Date = getStartOfToday(),
+): number => {
+  const expiry = getRegistrationExpiryDateFromSeconds(
+    startOfToday,
+    durationInSeconds,
+  )
+  return differenceInYears(expiry, startOfToday)
+}
 
 /**
  * Converts duration in seconds to an expiry Date for display.
