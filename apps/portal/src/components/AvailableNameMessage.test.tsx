@@ -7,7 +7,7 @@ describe('AvailableNameMessage', () => {
     render(<AvailableNameMessage name="example.eth" />)
 
     expect(screen.getByText('example.eth is available!')).toBeInTheDocument()
-    expect(screen.getByText('Click below to claim it')).toBeInTheDocument()
+    expect(screen.getByText(/Click below to claim it/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Register' })).toHaveAttribute(
       'href',
       '/register?name=example.eth',

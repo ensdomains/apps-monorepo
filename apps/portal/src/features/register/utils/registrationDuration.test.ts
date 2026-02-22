@@ -16,16 +16,16 @@ describe('registrationDuration', () => {
   const startOfFixedToday = new Date('2025-01-15T00:00:00Z')
 
   describe('formatRegistrationDuration', () => {
-    it('should return "1 year" when expiry is today or in the past', () => {
-      expect(
+    it('should throw when expiry is today or in the past', () => {
+      expect(() =>
         formatRegistrationDuration(
           startOfFixedToday,
           new Date('2025-01-15T00:00:00Z'),
         ),
-      ).toBe('1 year')
-      expect(
+      ).toThrow('Expiry date must be after start date')
+      expect(() =>
         formatRegistrationDuration(startOfFixedToday, new Date('2024-06-01')),
-      ).toBe('1 year')
+      ).toThrow('Expiry date must be after start date')
     })
 
     it('should return "1 year" for exactly one year from today', () => {
@@ -86,11 +86,11 @@ describe('registrationDuration', () => {
       )
     })
 
-    it('should not include days when months are present', () => {
+    it('should include days when months and extra days are present', () => {
       const target = addMonths(startOfFixedToday, 1)
       target.setDate(target.getDate() + 5)
       expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
-        '1 month',
+        '1 month 5 days',
       )
     })
   })
