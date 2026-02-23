@@ -10,7 +10,7 @@ import {
 } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, Check } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
@@ -55,6 +55,9 @@ export const ChoosePrimaryNameDialog = ({
   const [open, setOpen] = useState(false)
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const { t } = useTranslation('dashboard')
+  const primaryNameSuccessToastRef = useRef(
+    t('choosePrimaryName.toasts.primaryNameSetSuccess'),
+  )
   const { data: wallet } = useWallet()
   const account = useSmartAccountContext()
   const queryClient = useQueryClient()
@@ -165,11 +168,17 @@ export const ChoosePrimaryNameDialog = ({
     }
   }, [reverseName, selectedName])
 
+  useEffect(() => {
+    primaryNameSuccessToastRef.current = t(
+      'choosePrimaryName.toasts.primaryNameSetSuccess',
+    )
+  }, [t])
+
   // Subscribe to actor state changes
   useEffect(() => {
     const subscription = primaryNameActor.subscribe((snapshot) => {
       if (snapshot.matches('success')) {
-        toast.success(t('choosePrimaryName.toasts.primaryNameSetSuccess'))
+        toast.success(primaryNameSuccessToastRef.current)
         queryClient.invalidateQueries({
           queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
         })
@@ -182,7 +191,7 @@ export const ChoosePrimaryNameDialog = ({
     })
 
     return () => subscription.unsubscribe()
-  }, [primaryNameActor, queryClient, onUpdated, t])
+  }, [primaryNameActor, queryClient, onUpdated])
 
   const handleSelectName = (name: string) => {
     if (!isSubmitting) {
