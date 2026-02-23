@@ -58,6 +58,7 @@ export const HeaderSection = withForm({
                   name={name}
                   onImageChange={(url) => field.handleChange(url)}
                   onImageRemove={() => field.handleChange('')}
+                  ownerAddress={owner}
                   title="Change Avatar"
                   type="avatar"
                 />

@@ -12,7 +12,9 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import type { Address } from 'viem'
 import { useAccount, useChainId, useSignTypedData } from 'wagmi'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
@@ -27,6 +29,7 @@ import {
   type ImageType,
   uploadImageMutationOptions,
 } from '@/features/profile/service/profileImageUpload'
+import { profileNftsQuery } from '@/features/profile/service/profileNfts'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
 import { inspect } from '@/utils/xstate'
@@ -83,6 +86,7 @@ interface ImageSelectionDialogProps {
   description?: string
   type: ImageType
   name?: string // For better alt text and debugging
+  ownerAddress?: Address
 }
 
 export const ImageSelectionDialog = ({
@@ -94,6 +98,7 @@ export const ImageSelectionDialog = ({
   description,
   type,
   name,
+  ownerAddress,
 }: ImageSelectionDialogProps) => {
   const [open, setOpen] = useState(false)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
@@ -103,19 +108,33 @@ export const ImageSelectionDialog = ({
   const isDesktop = useMediaQuery('(min-width: 768px)')
 
   const hasImage = currentImage && currentImage.trim() !== ''
+  const shouldResolveImage =
+    !!currentImage &&
+    (open ||
+      currentImage.startsWith('eip155:') ||
+      currentImage.startsWith('ipfs://'))
+  const { address, isConnected } = useAccount()
+  const chainId = useChainId()
+  const { signTypedDataAsync } = useSignTypedData()
 
   // Resolve the current image if it's an IPFS/NFT URL
   const resolvedImage = useQuery({
     ...parseAvatarQuery(currentImage),
-    enabled: !!currentImage && open, // Only resolve when dialog is open
+    enabled: shouldResolveImage,
   })
 
   // Use resolved image if available, otherwise fall back to original
   const displayImage = resolvedImage.data || currentImage
 
-  const { address, isConnected } = useAccount()
-  const chainId = useChainId()
-  const { signTypedDataAsync } = useSignTypedData()
+  const nftOwnerAddress = ownerAddress ?? address
+
+  const nftQuery = useQuery({
+    ...profileNftsQuery({
+      address: nftOwnerAddress,
+      chainId,
+    }),
+    enabled: open && type === 'avatar' && !!nftOwnerAddress,
+  })
 
   const [state, send] = useMachine(imageSelectionMachine, {
     input: {
@@ -130,6 +149,11 @@ export const ImageSelectionDialog = ({
     },
     inspect,
   })
+
+  useEffect(() => {
+    if (type !== 'avatar') return
+    send({ type: 'SET_NFTS', nfts: nftQuery.data ?? [] })
+  }, [nftQuery.data, send, type])
 
   // File handling functions
   const handleDragOver = (e: React.DragEvent) => {
@@ -237,6 +261,17 @@ export const ImageSelectionDialog = ({
           </button>
         </div>
 
+        {type === 'avatar' && (
+          <Button
+            className="w-full justify-start"
+            onClick={() => send({ type: 'OPEN_NFT_SELECTION' })}
+            variant="outline"
+          >
+            <Image className="size-4" />
+            Choose from Wallet NFTs
+          </Button>
+        )}
+
         <Button
           className="w-full justify-start"
           onClick={() => send({ type: 'OPEN_MANUAL_INPUT' })}
@@ -317,46 +352,81 @@ export const ImageSelectionDialog = ({
   )
 
   // NFT selection step
-  const renderNFTSelectionStep = () => (
-    <>
-      <StepHeader onBack={() => send({ type: 'BACK' })} title="Choose an NFT" />
+  const renderNFTSelectionStep = () => {
+    const nftLoadError = nftQuery.error
+      ? nftQuery.error instanceof Error
+        ? nftQuery.error.message
+        : 'Failed to load NFTs'
+      : null
 
-      <ErrorDisplay error={state.context.error} />
+    const emptyStateMessage = state.context.searchQuery
+      ? 'No NFTs match your search.'
+      : 'No NFTs found for this wallet on this network.'
 
-      <div className="space-y-4">
-        <div className="relative">
-          <Search className="-translate-y-1/2 absolute top-1/2 left-3 size-4 text-gray-400" />
-          <Input
-            className="pl-10"
-            onChange={(e) =>
-              send({ type: 'UPDATE_SEARCH_QUERY', query: e.target.value })
-            }
-            placeholder="Search your NFTs..."
-            value={state.context.searchQuery}
-          />
+    return (
+      <>
+        <StepHeader
+          onBack={() => send({ type: 'BACK' })}
+          title="Choose an NFT"
+        />
+
+        <ErrorDisplay error={nftLoadError ?? state.context.error} />
+
+        <div className="space-y-4">
+          {nftOwnerAddress ? (
+            <>
+              <div className="relative">
+                <Search className="-translate-y-1/2 absolute top-1/2 left-3 size-4 text-gray-400" />
+                <Input
+                  className="pl-10"
+                  onChange={(e) =>
+                    send({ type: 'UPDATE_SEARCH_QUERY', query: e.target.value })
+                  }
+                  placeholder="Search your NFTs..."
+                  value={state.context.searchQuery}
+                />
+              </div>
+
+              {nftQuery.isPending ? (
+                <div className="rounded-md border border-dashed p-4 text-gray-500 text-sm">
+                  Loading NFTs...
+                </div>
+              ) : state.context.filteredNFTs.length === 0 ? (
+                <div className="rounded-md border border-dashed p-4 text-gray-500 text-sm">
+                  {emptyStateMessage}
+                </div>
+              ) : (
+                <div className="grid max-h-64 grid-cols-2 gap-4 overflow-y-auto">
+                  {state.context.filteredNFTs.map((nft) => (
+                    <button
+                      className="rounded-md p-2 text-left transition-colors hover:bg-gray-50"
+                      key={nft.id}
+                      onClick={() => send({ type: 'SELECT_NFT', nft })}
+                      type="button"
+                    >
+                      <img
+                        alt={nft.name}
+                        className="mb-2 h-24 w-full rounded-md object-cover"
+                        src={nft.image}
+                      />
+                      <p className="truncate font-medium text-sm">{nft.name}</p>
+                      <p className="truncate text-gray-500 text-xs">
+                        {nft.collection}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="rounded-md border border-dashed p-4 text-gray-600 text-sm">
+              Unable to determine wallet address for NFT lookup.
+            </p>
+          )}
         </div>
-
-        <div className="grid max-h-64 grid-cols-2 gap-4 overflow-y-auto">
-          {state.context.filteredNFTs.map((nft) => (
-            <button
-              className="rounded-md p-2 text-left transition-colors hover:bg-gray-50"
-              key={nft.id}
-              onClick={() => send({ type: 'SELECT_NFT', nft })}
-              type="button"
-            >
-              <img
-                alt={nft.name}
-                className="mb-2 h-24 w-full rounded-md object-cover"
-                src={nft.image}
-              />
-              <p className="truncate font-medium text-sm">{nft.name}</p>
-              <p className="truncate text-gray-500 text-xs">{nft.collection}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-    </>
-  )
+      </>
+    )
+  }
 
   // NFT confirmation step
   const renderNFTConfirmationStep = () => {
@@ -386,7 +456,11 @@ export const ImageSelectionDialog = ({
           <Button onClick={() => send({ type: 'BACK' })} variant="outline">
             Back
           </Button>
-          <Button onClick={() => send({ type: 'CONFIRM_NFT' })}>
+          <Button
+            onClick={() => {
+              toast('NFT avatar selection is coming soon')
+            }}
+          >
             Use This NFT
           </Button>
         </StepFooter>

@@ -6,6 +6,7 @@ export interface NFT {
   readonly name: string
   readonly image: string
   readonly collection: string
+  readonly avatarRecord: string
 }
 
 export interface ImageSelectionContext {
@@ -29,28 +30,6 @@ export interface ImageSelectionContext {
   error: string | null
 }
 
-// Mock NFT data - replace with actual NFT fetching logic
-const mockNFTs: NFT[] = [
-  {
-    id: '1',
-    name: 'Cool NFT #1',
-    image: 'https://via.placeholder.com/150',
-    collection: 'Cool Collection',
-  },
-  {
-    id: '2',
-    name: 'Awesome NFT #2',
-    image: 'https://via.placeholder.com/150',
-    collection: 'Awesome Collection',
-  },
-  {
-    id: '3',
-    name: 'Epic NFT #3',
-    image: 'https://via.placeholder.com/150',
-    collection: 'Epic Collection',
-  },
-]
-
 const initialContext: Omit<
   ImageSelectionContext,
   'onImageChange' | 'onImageRemove'
@@ -59,8 +38,8 @@ const initialContext: Omit<
   searchQuery: '',
   selectedNFT: null,
   uploadedImage: null,
-  nfts: mockNFTs,
-  filteredNFTs: mockNFTs,
+  nfts: [],
+  filteredNFTs: [],
   error: null,
 }
 
@@ -83,6 +62,7 @@ export const imageSelectionMachine = setup({
       | { type: 'PREVIEW_MANUAL_URL' }
       | { type: 'CONFIRM_MANUAL_URL' }
       | { type: 'UPDATE_SEARCH_QUERY'; query: string }
+      | { type: 'SET_NFTS'; nfts: NFT[] }
       | { type: 'SET_ERROR'; error: string }
       | { type: 'CLEAR_ERROR' },
     input: {} as {
@@ -123,17 +103,40 @@ export const imageSelectionMachine = setup({
       },
     }),
 
-    updateFilteredNFTs: assign({
-      filteredNFTs: ({ context }) =>
-        context.nfts.filter(
+    assignNFTs: assign({
+      nfts: ({ context, event }) => {
+        if (event.type !== 'SET_NFTS') return context.nfts
+        return event.nfts
+      },
+      filteredNFTs: ({ context, event }) => {
+        if (event.type !== 'SET_NFTS') return context.filteredNFTs
+
+        const query = context.searchQuery.trim().toLowerCase()
+        if (!query) return event.nfts
+
+        return event.nfts.filter(
           (nft) =>
-            nft.name
-              .toLowerCase()
-              .includes(context.searchQuery.toLowerCase()) ||
-            nft.collection
-              .toLowerCase()
-              .includes(context.searchQuery.toLowerCase()),
-        ),
+            nft.name.toLowerCase().includes(query) ||
+            nft.collection.toLowerCase().includes(query),
+        )
+      },
+    }),
+
+    updateFilteredNFTs: assign({
+      filteredNFTs: ({ context, event }) => {
+        const query =
+          event.type === 'UPDATE_SEARCH_QUERY'
+            ? event.query.trim().toLowerCase()
+            : context.searchQuery.trim().toLowerCase()
+
+        if (!query) return context.nfts
+
+        return context.nfts.filter(
+          (nft) =>
+            nft.name.toLowerCase().includes(query) ||
+            nft.collection.toLowerCase().includes(query),
+        )
+      },
     }),
 
     setError: assign({
@@ -163,7 +166,7 @@ export const imageSelectionMachine = setup({
 
     handleNFTSelection: ({ context }) => {
       if (context.selectedNFT) {
-        context.onImageChange(context.selectedNFT.image)
+        context.onImageChange(context.selectedNFT.avatarRecord)
       }
     },
 
@@ -215,6 +218,9 @@ export const imageSelectionMachine = setup({
     RESET: {
       target: '.main',
       actions: ['resetContext', 'clearError'],
+    },
+    SET_NFTS: {
+      actions: 'assignNFTs',
     },
   },
   states: {
