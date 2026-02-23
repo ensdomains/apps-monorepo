@@ -1,5 +1,12 @@
 import type { NotificationKind } from '#config/notifications.js'
 
+export type FailureCategory =
+  | 'transient'
+  | 'hard_bounce'
+  | 'rate_limit'
+  | 'account_error'
+  | 'unknown'
+
 // Base delivery job
 export type BaseDeliveryJob = {
   id: string
