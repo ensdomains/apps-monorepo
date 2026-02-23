@@ -4,36 +4,28 @@ import {
   differenceInDays,
   differenceInMonths,
   differenceInYears,
+  endOfDay,
+  startOfDay,
 } from 'date-fns'
-
-/**
- * Calculates the expiry date by adding years to today.
- */
-export const calculateExpirationDate = (years: number): Date => {
-  const date = new Date()
-  date.setFullYear(date.getFullYear() + years)
-  return date
-}
+import { SECONDS_PER_YEAR } from '@/lib/constants/duration'
 
 /**
  * Formats the duration from today to an expiry date as a human-readable string.
  * e.g. "1 year", "2 years 3 months", "6 months 15 days"
  */
-export const formatRegistrationDuration = (expiryDate: Date): string => {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const target = new Date(expiryDate)
-  target.setHours(0, 0, 0, 0)
-
-  if (target.getTime() <= today.getTime()) {
-    return '1 year'
+export const formatRegistrationDuration = (
+  startDate: Date,
+  expiryDate: Date,
+): string => {
+  if (expiryDate.getTime() <= startDate.getTime()) {
+    throw new Error('Expiry date must be after start date')
   }
 
-  const years = differenceInYears(target, today)
-  const afterYears = addYears(today, years)
-  const months = differenceInMonths(target, afterYears)
+  const years = differenceInYears(expiryDate, startDate)
+  const afterYears = addYears(startDate, years)
+  const months = differenceInMonths(expiryDate, afterYears)
   const afterMonths = addMonths(afterYears, months)
-  const days = differenceInDays(target, afterMonths)
+  const days = differenceInDays(expiryDate, afterMonths)
 
   const parts: string[] = []
   if (years > 0) {
@@ -44,30 +36,137 @@ export const formatRegistrationDuration = (expiryDate: Date): string => {
     parts.push(months === 1 ? '1 month' : `${months} months`)
   }
 
-  if (days > 0 && months === 0) {
+  if (days > 0) {
     parts.push(days === 1 ? '1 day' : `${days} days`)
   }
 
-  return parts.length > 0 ? parts.join(' ') : '1 year'
+  if (parts.length === 0) {
+    throw new Error('Duration is less than 1 day')
+  }
+
+  return parts.join(' ')
 }
 
 /**
- * Calculates the duration in years from today to a target date, rounding up.
+ * Calculates the duration in years from today to a target date.
+ * Returns exact fractional years (e.g. 2.12) - no rounding for accurate pricing.
  */
-export const calculateDurationFromDate = (targetDate: Date): number => {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const target = new Date(targetDate)
-  target.setHours(0, 0, 0, 0)
-
-  const diffMs = target.getTime() - today.getTime()
+export const calculateDurationFromDate = (
+  startDate: Date,
+  expiryDate: Date,
+): number => {
+  const diffMs = expiryDate.getTime() - startDate.getTime()
 
   if (diffMs <= 0) {
     return 1
   }
 
-  const diffYears = diffMs / (365.25 * 24 * 60 * 60 * 1000)
-  const roundedYears = Math.ceil(diffYears)
-
-  return Math.max(1, roundedYears)
+  const diffYears = diffMs / (SECONDS_PER_YEAR * 1000)
+  return diffYears
 }
+
+/**
+ * Converts an expiry date to duration in seconds for ENS price/registration.
+ * Uses actual calendar difference (includes leap years).
+ */
+export const getRegistrationDurationInSeconds = (
+  startDate: Date,
+  expiryDate: Date,
+): number => {
+  const diffMs = expiryDate.getTime() - startDate.getTime()
+  if (diffMs <= 0) {
+    return getDurationInSecondsFromYears(1, startDate)
+  }
+  const seconds = Math.floor(diffMs / 1000)
+  const minDuration = getDurationInSecondsFromYears(1, startDate)
+  return Math.max(seconds, minDuration)
+}
+
+/**
+ * Converts duration in years to seconds using calendar math (addYears).
+ * 3 years from Jan 1 2026 = Jan 1 2029 exactly, including leap years.
+ */
+export const getDurationInSecondsFromYears = (
+  years: number,
+  startOfToday: Date = getStartOfToday(),
+): number => {
+  const expiry = addYears(startOfToday, Math.max(1, years))
+  return Math.floor((expiry.getTime() - startOfToday.getTime()) / 1000)
+}
+
+/**
+ * Returns the calendar years for a duration (for years picker display).
+ */
+export const getYearsFromDuration = (
+  durationInSeconds: number,
+  startOfToday: Date = getStartOfToday(),
+): number => {
+  const expiry = getRegistrationExpiryDateFromSeconds(
+    startOfToday,
+    durationInSeconds,
+  )
+  return differenceInYears(expiry, startOfToday)
+}
+
+/**
+ * Converts duration in seconds to an expiry Date for display.
+ * Use when storing duration in state and need a Date for formatting.
+ */
+export const getRegistrationExpiryDateFromSeconds = (
+  startDate: Date,
+  durationInSeconds: number,
+): Date => {
+  const expiryDate = new Date(startDate.getTime() + durationInSeconds * 1000)
+
+  if (expiryDate.getTime() <= startDate.getTime()) {
+    throw new Error('Expiry date must be after start date')
+  }
+
+  return expiryDate
+}
+
+/**
+ * Returns the start of today (00:00:00.000) as a Date.
+ * Use as the canonical reference date for registration duration calculations.
+ * Pass `now` for deterministic testing.
+ */
+export const getStartOfToday = (now: Date = new Date()): Date => startOfDay(now)
+
+/**
+ * Formats a duration (seconds) as a human-readable label.
+ * e.g. formatDurationLabel(31557600) → "1 year"
+ * Pass `startOfToday` for deterministic testing.
+ */
+export const formatDurationLabel = (
+  durationInSeconds: number,
+  startOfToday: Date = getStartOfToday(),
+): string => {
+  const expiry = getRegistrationExpiryDateFromSeconds(
+    startOfToday,
+    durationInSeconds,
+  )
+  return formatRegistrationDuration(startOfToday, expiry)
+}
+
+/**
+ * Converts duration (seconds) to expiry Date for the date picker.
+ * Returns end of the expiry day for consistent picker behavior.
+ * Pass `startOfToday` for deterministic testing.
+ */
+export const getExpiryDateForPicker = (
+  durationInSeconds: number,
+  startOfToday: Date = getStartOfToday(),
+): Date =>
+  endOfDay(
+    getRegistrationExpiryDateFromSeconds(startOfToday, durationInSeconds),
+  )
+
+/**
+ * Converts a date picker selection to duration (seconds).
+ * Treats the selected date as end of that day.
+ * Pass `startOfToday` for deterministic testing.
+ */
+export const getDurationFromPickerDate = (
+  date: Date,
+  startOfToday: Date = getStartOfToday(),
+): number => getRegistrationDurationInSeconds(startOfToday, endOfDay(date))

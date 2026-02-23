@@ -4,16 +4,15 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
+import { ensureEthSuffix } from '@/utils/ens/ensureEthSuffix'
 import type { Suggestion } from '../utils/buildSearchSuggestions'
 
 const AVATAR_SIZE = '32px'
 
-const REGISTER_URL = '/register?name='
-
 const RegisterLink = ({ name }: { name: string }) => (
   <Button asChild variant="outline" size="sm">
     <a
-      href={`${REGISTER_URL}${name}`}
+      href={`/register?name=${encodeURIComponent(ensureEthSuffix(name))}`}
       target="_blank"
       rel="noopener noreferrer"
       className="ml-auto shrink-0 rounded-md px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"

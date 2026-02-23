@@ -9,6 +9,7 @@ const mockNavigateToName = vi.fn()
 const mockNavigateToAddress = vi.fn()
 const mockOnSelectSuggestion = vi.fn()
 const mockOnSelectOwnedName = vi.fn()
+const mockOnSelectAvailableName = vi.fn()
 
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: () => false,
@@ -89,6 +90,7 @@ describe('SearchModalContent', () => {
     mockNavigateToAddress.mockClear()
     mockOnSelectSuggestion.mockClear()
     mockOnSelectOwnedName.mockClear()
+    mockOnSelectAvailableName.mockClear()
     connectedAddressOverride = undefined
     ownedNamesOverride = null
     mockBuildSearchSuggestions.mockImplementation(
@@ -226,6 +228,49 @@ describe('SearchModalContent', () => {
     expect(mockOnSelectSuggestion).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'name:new.eth', inputValue: 'new.eth' }),
     )
+    availabilityOverride = null
+  })
+
+  it('calls onSelectAvailableName when an available name is selected and callback is provided', async () => {
+    mockBuildSearchSuggestions.mockReturnValue([
+      {
+        id: 'name:new.eth',
+        label: 'new.eth',
+        description: 'View ENS name details',
+        inputValue: 'new.eth',
+        action: () => mockNavigateToName('new.eth'),
+      },
+    ])
+    availabilityOverride = { isAvailable: true, name: 'new.eth' }
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    queryClient.setQueryData(['get-ens-owner', { name: 'new.eth' }], null)
+
+    const user = userEvent.setup()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Command>
+          <SearchModalContent
+            searchValue="new"
+            onSelectSuggestion={mockOnSelectSuggestion}
+            onSelectAvailableName={mockOnSelectAvailableName}
+            navigateToName={mockNavigateToName}
+            navigateToAddress={mockNavigateToAddress}
+          />
+        </Command>
+      </QueryClientProvider>,
+    )
+
+    const availableItem = await screen.findByRole('option', {
+      name: /new\.eth.*Available to register/,
+    })
+    await user.click(availableItem)
+
+    expect(mockOnSelectAvailableName).toHaveBeenCalledTimes(1)
+    expect(mockOnSelectAvailableName).toHaveBeenCalledWith('new.eth')
+    expect(mockOnSelectSuggestion).not.toHaveBeenCalled()
     availabilityOverride = null
   })
 
