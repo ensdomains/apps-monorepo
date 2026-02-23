@@ -15,6 +15,10 @@ type RegistrationExpiryDatePickerProps = {
   readonly minDate?: Date
 }
 type RegistrationExpiryDatePickerProps = {
+  readonly date: Date
+  readonly onDateChange: (date: Date) => void
+  readonly minDate?: Date
+}
   date: Date
   onDateChange: (date: Date) => void
   minDate?: Date
