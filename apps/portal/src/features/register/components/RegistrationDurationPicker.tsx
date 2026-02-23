@@ -18,7 +18,13 @@ export const RegistrationDurationPicker = ({
   onChange,
   min = 1,
   max = 9007199254740990,
-  className,
+type RegistrationDurationPickerProps = {
+  readonly value: number
+  readonly onChange: (value: number) => void
+  readonly min?: number
+  readonly max?: number
+  readonly className?: string
+}
 }: RegistrationDurationPickerProps) => {
   const [isFocused, setIsFocused] = useState(false)
 
