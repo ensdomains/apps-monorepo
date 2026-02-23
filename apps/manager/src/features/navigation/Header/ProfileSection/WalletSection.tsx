@@ -10,7 +10,6 @@ import {
 import { useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import paraColorIcon from '@/assets/icons/para-color.svg'
-import { CopyToClipboard } from '@/components/atoms/CopyToClipboard'
 import { Switch } from '@/components/ui/switch'
 import { copyToClipboard } from '@/lib/clipboard'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -61,16 +60,11 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
           {copied ? (
             <CheckIcon className="size-5 text-green-600" />
           ) : (
-            <CopyIcon className="size-5 text-ens-lapis-core" />
+            <CopyIcon className="size-5" />
           )}
-          <div className="flex flex-col items-start">
-            <span className="text-base text-ens-lapis-core leading-ens-tight">
-              {copied ? 'Copied!' : 'Copy Address'}
-            </span>
-            <span className="text-muted-foreground text-xs leading-ens-normal">
-              {truncateAddress(accountAddress)}
-            </span>
-          </div>
+          <span className="text-base leading-ens-tight">
+            {copied ? 'Copied!' : truncateAddress(accountAddress)}
+          </span>
         </button>
       )}
 
@@ -98,18 +92,6 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
         ))
         .with('external-wallet', () => (
           <>
-            <div className="flex items-center gap-2">
-              <WalletIcon className="size-5 text-muted-foreground" />
-              <div className="flex items-center gap-1 text-muted-foreground text-sm">
-                <span className="truncate">
-                  {truncateAddress(accountAddress)}
-                </span>
-                <CopyToClipboard
-                  className="size-3.5 text-muted-foreground"
-                  value={accountAddress}
-                />
-              </div>
-            </div>
             {/* biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: Accessible via toggle */}
             <div
               className={tw(
