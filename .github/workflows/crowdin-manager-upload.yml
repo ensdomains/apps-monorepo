@@ -1,0 +1,44 @@
+name: Crowdin Manager Upload
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - apps/manager/locales/en/**/*.json
+      - apps/manager/crowdin.yml
+      - .github/workflows/crowdin-manager-upload.yml
+  workflow_dispatch:
+
+concurrency:
+  group: crowdin-manager-upload-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  upload-sources:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "lts/*"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate Crowdin config
+        run: pnpm --filter manager run i18n:lint
+
+      - name: Upload source strings to Crowdin
+        env:
+          CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}
+        run: pnpm --filter manager run i18n:push
