@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { getByteLength } from '@/features/register/components/Pricing/utils'
+import { getByteLength } from '@/utils/domain'
 import { DomainResultCard } from './DomainResultCard'
 
 const meta = {
@@ -143,6 +143,10 @@ export const InteractiveExample = {
 
 // Byte-tier font scaling stories (Tier 0-3)
 export const ByteLengthTier0: Story = {
+  args: {
+    domainName: 'a.eth',
+    status: 'premium',
+  },
   render: () => (
     <div className="flex max-w-xl flex-col gap-4">
       <div>
@@ -164,6 +168,10 @@ export const ByteLengthTier0: Story = {
 }
 
 export const ByteLengthTier1: Story = {
+  args: {
+    domainName: 'verylongdomainnamewithmore.eth',
+    status: 'available',
+  },
   render: () => (
     <div className="flex max-w-xl flex-col gap-4">
       <div>
@@ -191,6 +199,11 @@ export const ByteLengthTier1: Story = {
 }
 
 export const ByteLengthTier2: Story = {
+  args: {
+    domainName:
+      'verylongdomainnamewithmultiplewordsinreallylongformatwithlots.eth',
+    status: 'available',
+  },
   render: () => (
     <div className="flex max-w-xl flex-col gap-4">
       <div>
@@ -218,6 +231,11 @@ export const ByteLengthTier2: Story = {
 }
 
 export const ByteLengthTier3: Story = {
+  args: {
+    domainName:
+      'verylongdomainnamewithmultiplewordsinreallylongformatwithmultiplelinesthisgoesonevenmorewithmorecontentandmore.eth',
+    status: 'available',
+  },
   render: () => (
     <div className="flex max-w-xl flex-col gap-4">
       <div>
@@ -241,6 +259,10 @@ export const ByteLengthTier3: Story = {
 
 // Multi-byte character showcase
 export const MultiByteCardExamples: Story = {
+  args: {
+    domainName: '🎉🎊🎈.eth',
+    status: 'premium',
+  },
   render: () => (
     <div className="flex max-w-xl flex-col gap-4">
       <div>
@@ -282,6 +304,10 @@ export const MultiByteCardExamples: Story = {
 
 // Complete tier comparison
 export const ByteTierComparison: Story = {
+  args: {
+    domainName: 'abc.eth',
+    status: 'premium',
+  },
   render: () => (
     <div className="space-y-6">
       <h3 className="font-semibold text-lg">Font Size by Byte Length Tiers</h3>

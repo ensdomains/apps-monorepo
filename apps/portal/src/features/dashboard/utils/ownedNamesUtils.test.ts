@@ -80,10 +80,34 @@ describe('filterAndSortOwnedNames', () => {
     expect(filterAndSortOwnedNames(names, '   ')).toEqual([])
   })
 
+  it('returns empty when query is only a TLD like ".eth"', () => {
+    expect(filterAndSortOwnedNames(names, '.eth')).toEqual([])
+  })
+
   it('filters by case-insensitive includes', () => {
     const result = filterAndSortOwnedNames(names, 'fox')
     expect(result.map((d) => d.name)).toContain('fox.eth')
     expect(result.map((d) => d.name)).toContain('big.fox.eth')
+    expect(result.map((d) => d.name)).not.toContain('other.eth')
+  })
+
+  it('strips TLD suffix so "dom.eth" matches names containing "dom"', () => {
+    const owned = [
+      { name: 'dominico.eth' },
+      { name: 'other.eth' },
+      { name: 'dom.eth' },
+    ]
+    const result = filterAndSortOwnedNames(owned, 'dom.eth')
+    const resultNames = result.map((d) => d.name)
+    expect(resultNames).toContain('dom.eth')
+    expect(resultNames).toContain('dominico.eth')
+    expect(resultNames).not.toContain('other.eth')
+  })
+
+  it('matches partial label without TLD (e.g. "fre" matches "fresh.eth")', () => {
+    const owned = [{ name: 'fresh.eth' }, { name: 'other.eth' }]
+    const result = filterAndSortOwnedNames(owned, 'fre')
+    expect(result.map((d) => d.name)).toContain('fresh.eth')
     expect(result.map((d) => d.name)).not.toContain('other.eth')
   })
 
@@ -115,17 +139,23 @@ describe('filterAndSortOwnedNames', () => {
     }
   })
 
-  it('sorts 2LDs (fox.eth, arcticfox.eth, notif-fox.eth) before subnames when searching "fox.eth"', () => {
+  it('sorts 2LDs before subnames when searching "fox.eth" (TLD stripped to "fox")', () => {
     const result = filterAndSortOwnedNames(names, 'fox.eth')
     const ordered = result.map((d) => d.name)
-    // 2LDs containing "fox.eth": arcticfox.eth, fox.eth, notif-fox.eth (alphabetical)
-    // Subnames: big.fox.eth, mini.arcticfox.eth, mini.fox.eth (alphabetical)
+    // Matches all names containing "fox": arcticfox.eth, fox.eth, notif-fox.eth, big.fox.eth, mini.arcticfox.eth, mini.fox.eth
     expect(ordered[0]).toBe('arcticfox.eth')
     expect(ordered[1]).toBe('fox.eth')
     expect(ordered[2]).toBe('notif-fox.eth')
     expect(ordered[3]).toBe('big.fox.eth')
     expect(ordered[4]).toBe('mini.arcticfox.eth')
     expect(ordered[5]).toBe('mini.fox.eth')
+  })
+
+  it('handles subname search by stripping only the TLD', () => {
+    const result = filterAndSortOwnedNames(names, 'big.fox.eth')
+    const ordered = result.map((d) => d.name)
+    // Stripped to "big.fox" — matches names containing "big.fox"
+    expect(ordered).toContain('big.fox.eth')
   })
 
   it('respects max option', () => {

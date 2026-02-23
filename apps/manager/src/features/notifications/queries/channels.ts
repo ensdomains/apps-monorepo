@@ -120,7 +120,7 @@ export const deleteChannelMutationOptions = mutationOptions({
     return response.json()
   },
   meta: {
-    invalidates: [qk('channels', 'list')],
+    invalidates: [qk('channels', 'list'), qk('preferences', 'list')],
   },
 })
 

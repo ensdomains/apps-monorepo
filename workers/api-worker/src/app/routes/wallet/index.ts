@@ -66,7 +66,9 @@ const createWalletClient = (privateKey: string | undefined) => {
   }
 
   const walletAccount = privateKeyToAccount(privateKey as Hex)
-  console.log('walletAccount', walletAccount.address)
+  logger.trace('Loaded wallet funding account', {
+    walletAddress: walletAccount.address,
+  })
 
   return createClient({
     chain: sepolia,
@@ -115,7 +117,11 @@ export default createApp()
         getErc20Balance(walletClient, address, TOKENS.DAI.address),
       ])
 
-      logger.debug('Balances', { usdcBalance, daiBalance, TOKENS })
+      logger.debug('Checked faucet balances', {
+        usdcBalance,
+        daiBalance,
+        address,
+      })
 
       // Don't send out tokens if they already have enough to prevent abuse
       if (

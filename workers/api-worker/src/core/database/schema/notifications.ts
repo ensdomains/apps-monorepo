@@ -10,6 +10,7 @@ import {
   unique,
   uuid,
 } from 'drizzle-orm/pg-core'
+import type { FailureCategory } from '#types/delivery.js'
 import type {
   AnyBroadcastPayload,
   AnyChannelData,
@@ -202,7 +203,7 @@ export const notificationRelations = relations(
 // ===============================
 
 type DeliveryChannel = 'email' | 'push' | 'telegram'
-type DeliveryStatus = 'queued' | 'delivered' | 'failed'
+type DeliveryStatus = 'queued' | 'delivered' | 'failed' | 'permanently_failed'
 
 export const notificationDeliveries = pgTable('notification_deliveries', {
   id: uuid('id').primaryKey().default(randomUUIDv7),
@@ -219,6 +220,9 @@ export const notificationDeliveries = pgTable('notification_deliveries', {
   provider_msg_id: text('provider_msg_id'),
 
   error: text('error'),
+
+  failure_category: text('failure_category').$type<FailureCategory>(),
+  dlq_attempts: integer('dlq_attempts').default(0),
 
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),

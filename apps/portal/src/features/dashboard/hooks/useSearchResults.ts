@@ -40,6 +40,8 @@ export type UseSearchResultsReturn = {
     | undefined
   >
   availableNames: Suggestion[]
+  /** IDs of suggestions whose availability check is still in progress. */
+  pendingAvailabilityIds: Set<string>
   ownedNamesFiltered: { name: string }[]
   /** Flat list in render order for keyboard nav (suggestions, then available, then owned). */
   allItems: SearchResultItem[]
@@ -163,25 +165,34 @@ export const useSearchResults = ({
     [namesToCheckAvailability, availabilityQueries],
   )
 
+  const pendingAvailabilityIds = useMemo(() => {
+    const set = new Set<string>()
+    namesToCheckAvailability.forEach((s, i) => {
+      if (availabilityQueries[i]?.data === undefined) {
+        set.add(s.id)
+      }
+    })
+    return set
+  }, [namesToCheckAvailability, availabilityQueries])
+
   const hasSuggestions = suggestionsFiltered.length > 0
-  const hasAvailable = availableNames.length > 0
   const hasOwned = ownedNamesFiltered.length > 0
-  const hasAnySection = hasSuggestions || hasAvailable || hasOwned
+  const hasAnySection = hasSuggestions || hasOwned
 
   const allItems = useMemo(
     () =>
       buildSearchResultItems({
         suggestions: suggestionsFiltered,
-        availableNames,
         ownedNamesFiltered,
       }),
-    [suggestionsFiltered, availableNames, ownedNamesFiltered],
+    [suggestionsFiltered, ownedNamesFiltered],
   )
 
   return {
     suggestions: suggestionsFiltered,
     ownerBySuggestionId,
     availableNames,
+    pendingAvailabilityIds,
     ownedNamesFiltered,
     allItems,
     isTldsLoading,

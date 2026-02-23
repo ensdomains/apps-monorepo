@@ -9,7 +9,7 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "test": "echo \"No tests for transaction-manager package\"",
+    "test": "echo \"No tests defined for @ens-apps/transaction-manager\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

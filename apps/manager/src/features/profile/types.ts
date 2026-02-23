@@ -31,6 +31,8 @@ export type ProfileRecords = Prettify<
     }
     addresses: AddressRecordValue[]
     links: LinkItem[]
+    contentHash?: string
+    abi?: string
     unknown: TextRecordValue[] // For any custom records
     resolverAddress?: Address
   }
