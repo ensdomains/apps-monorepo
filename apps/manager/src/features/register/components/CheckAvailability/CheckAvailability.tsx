@@ -17,9 +17,7 @@ import { useCheckAvailability } from '@/features/register/components/CheckAvaila
 import { ValidationError } from '@/features/register/components/CheckAvailability/ValidationError'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
-
 import { truncateToMaxBytes } from '@/utils/domain'
-import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 
 const dropdownAnimation = {
   initial: { opacity: 0, y: -8, scale: 0.98 },
