@@ -22,6 +22,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer'
+import { FloatingInput } from '@/components/ui/floating-input'
 import { Input } from '@/components/ui/input'
 import { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
@@ -528,7 +529,8 @@ export const ImageSelectionDialog = ({
       <ErrorDisplay error={state.context.error} />
 
       <div className="space-y-4">
-        <Input
+        <FloatingInput
+          label="Enter Image URL"
           onChange={(e) =>
             send({ type: 'UPDATE_MANUAL_URL', url: e.target.value })
           }
@@ -538,6 +540,7 @@ export const ImageSelectionDialog = ({
             }
           }}
           placeholder="https://example.com/image.jpg"
+          type="url"
           value={state.context.manualUrl}
         />
         <Button
