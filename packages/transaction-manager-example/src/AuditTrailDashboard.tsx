@@ -4,20 +4,20 @@ import type {
 } from '@ens-apps/transaction-manager'
 import * as auditTrail from '@ens-apps/transaction-manager'
 import type React from 'react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 export const AuditTrailDashboard = () => {
   const [history, setHistory] = useState<StateTransition[]>([])
   const [report, setReport] = useState<DebugReport | null>(null)
   const [autoRefresh, setAutoRefresh] = useState(false)
 
-  const handleViewHistory = () => {
+  const handleViewHistory = useCallback(() => {
     const transitions = auditTrail.getTransitionHistory({
       fromTime: Date.now() - 3600000, // Last hour
       includeErrors: true,
     })
     setHistory(transitions)
-  }
+  }, [])
 
   useEffect(() => {
     if (autoRefresh) {
@@ -100,19 +100,27 @@ export const AuditTrailDashboard = () => {
       </div>
 
       <div className="button-group">
-        <button className="primary" onClick={handleViewHistory}>
+        <button className="primary" onClick={handleViewHistory} type="button">
           🔍 View History
         </button>
-        <button className="primary" onClick={handleGenerateReport}>
+        <button
+          className="primary"
+          onClick={handleGenerateReport}
+          type="button"
+        >
           📈 Generate Report
         </button>
-        <button className="secondary" onClick={handleExportAudit}>
+        <button className="secondary" onClick={handleExportAudit} type="button">
           📥 Export Audit
         </button>
-        <button className="secondary" onClick={handleAddCustomEntry}>
+        <button
+          className="secondary"
+          onClick={handleAddCustomEntry}
+          type="button"
+        >
           ➕ Add Entry
         </button>
-        <button className="danger" onClick={handleClearAudit}>
+        <button className="danger" onClick={handleClearAudit} type="button">
           🗑️ Clear All
         </button>
       </div>

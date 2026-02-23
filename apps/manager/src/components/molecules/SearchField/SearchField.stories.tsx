@@ -370,7 +370,8 @@ export const MixedCharacterTypes: Story = {
     const byteLen = getByteLength(value)
 
     // Calculate byte breakdown
-    const breakdown = value.split('').map((char) => ({
+    const breakdown = value.split('').map((char, index) => ({
+      id: `${index}-${char}`,
       char,
       bytes: getByteLength(char),
     }))
@@ -394,10 +395,10 @@ export const MixedCharacterTypes: Story = {
         <div className="rounded-md border p-3">
           <p className="mb-2 font-medium text-sm">Character breakdown:</p>
           <div className="flex flex-wrap gap-1">
-            {breakdown.map((item, idx) => (
+            {breakdown.map((item) => (
               <span
                 className="rounded bg-slate-200 px-2 py-1 font-mono text-xs"
-                key={idx}
+                key={item.id}
                 title={`${item.bytes} byte${item.bytes > 1 ? 's' : ''}`}
               >
                 {item.char}
@@ -416,12 +417,12 @@ export const TruncationEdgeCases: Story = {
     const cases = [
       {
         name: '4-byte emoji at boundary',
-        original: 'a'.repeat(251) + '😀',
+        original: `${'a'.repeat(251)}😀`,
         description: 'Should truncate emoji (would be 255 bytes)',
       },
       {
         name: 'Chinese char at boundary',
-        original: 'a'.repeat(253) + '中',
+        original: `${'a'.repeat(253)}中`,
         description: 'Should truncate Chinese char (would be 256 bytes)',
       },
       {
@@ -431,7 +432,7 @@ export const TruncationEdgeCases: Story = {
       },
       {
         name: 'Mixed content overflow',
-        original: 'test'.repeat(30) + '😀😀😀中国中国',
+        original: `${'test'.repeat(30)}😀😀😀中国中国`,
         description: 'Mixed ASCII, emoji, and Chinese near limit',
       },
     ]
