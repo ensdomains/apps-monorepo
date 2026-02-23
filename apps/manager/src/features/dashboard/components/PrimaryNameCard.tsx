@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Calendar, Clock } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
+import { useTranslation } from 'react-i18next'
 import { match } from 'ts-pattern'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -20,6 +21,7 @@ export const PrimaryNameCard = ({
   avatarUrl,
 }: PrimaryNameCardProps) => {
   const shouldReduceMotion = useReducedMotion()
+  const { t } = useTranslation('dashboard')
 
   const { data: registration, isLoading: isRegistrationLoading } = useQuery({
     ...profileRegistrationQuery(primaryName ?? ''),
@@ -42,12 +44,12 @@ export const PrimaryNameCard = ({
   const formattedRegisteredDate = formatDashboardDate(registeredDate)
   const formattedExpiryDate = formatDashboardDate(expiryDate)
   const hasAvatar = Boolean(avatarUrl)
-  const displayName = primaryName ?? 'Your ENS name'
+  const displayName = primaryName ?? t('primaryCard.fallbackName')
   const registeredLabel = isRegistrationLoading
-    ? 'Loading...'
+    ? t('primaryCard.loading')
     : formattedRegisteredDate
   const expiryLabel = isReverseExpiryLoading
-    ? 'Loading...'
+    ? t('primaryCard.loading')
     : formattedExpiryDate
   const canViewProfile = Boolean(primaryName)
 
@@ -107,7 +109,9 @@ export const PrimaryNameCard = ({
                   strokeWidth={1.5}
                 />
                 <div className="flex items-end gap-1 text-xs leading-[0.96] tracking-[-0.24px] md:text-sm">
-                  <span className="text-muted-foreground">Registered</span>
+                  <span className="text-muted-foreground">
+                    {t('primaryCard.registered')}
+                  </span>
                   <span className="font-semibold text-muted-foreground">
                     {registeredLabel}
                   </span>
@@ -119,7 +123,9 @@ export const PrimaryNameCard = ({
                   strokeWidth={1.5}
                 />
                 <div className="flex items-end gap-1 text-xs leading-[0.96] tracking-[-0.24px] md:text-sm">
-                  <span className="text-muted-foreground">Expires</span>
+                  <span className="text-muted-foreground">
+                    {t('primaryCard.expires')}
+                  </span>
                   <span className="font-semibold text-muted-foreground">
                     {expiryLabel}
                   </span>
@@ -135,7 +141,9 @@ export const PrimaryNameCard = ({
           to="/p/$name"
           variant="outline"
         >
-          <span className="font-sans text-sm leading-normal">View profile</span>
+          <span className="font-sans text-sm leading-normal">
+            {t('primaryCard.viewProfile')}
+          </span>
         </LinkButton>
       </div>
     </Card>

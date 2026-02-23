@@ -4,6 +4,7 @@ import { useAtom } from '@xstate/store-react'
 import { Search } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { match } from 'ts-pattern'
 import { CountBadge } from '@/components/atoms/CountBadge'
 import { Input } from '@/components/ui/input'
@@ -73,6 +74,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>('myNames')
   const [searchQuery, setSearchQuery] = useState('')
   const shouldReduceMotion = useReducedMotion()
+  const { t } = useTranslation('dashboard')
   const isAuthed = useAtom(isBackendAuthed)
   const { data: wallet } = useWallet()
   const normalizedAddress = wallet?.address?.toLowerCase()
@@ -96,15 +98,15 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const tabs = [
     {
       key: 'myNames' as const,
-      label: 'My Names',
+      label: t('namesTable.tabs.myNames'),
       badge: ownedNamesCount,
     },
     {
       key: 'favorites' as const,
-      label: 'Favorites',
+      label: t('namesTable.tabs.favorites'),
       badge: favoritesCount,
       disabled: !isAuthed,
-      disabledTooltip: 'Sign in to view favorites',
+      disabledTooltip: t('namesTable.favoritesDisabledTooltip'),
     },
   ]
 
@@ -139,7 +141,9 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
             className="h-[32px] rounded-[4.1px] border-none bg-ens-white text-[13.12px] text-muted-foreground placeholder:text-muted-foreground"
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder={
-              activeTab === 'myNames' ? 'Search my name...' : 'Search name...'
+              activeTab === 'myNames'
+                ? t('namesTable.search.myNamesPlaceholder')
+                : t('namesTable.search.favoritesPlaceholder')
             }
             size="sm"
             startIcon={<Search className="size-[18px] text-muted-foreground" />}

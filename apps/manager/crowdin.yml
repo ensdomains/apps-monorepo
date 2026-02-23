@@ -1,0 +1,15 @@
+"project_id": 874428
+"api_token": "set-via-cli-token-flag"
+"base_path": "."
+"base_url": "https://api.crowdin.com"
+"preserve_hierarchy": true
+"files": [
+  {
+    "source": "/locales/en/dashboard.json",
+    "translation": "/locales/%two_letters_code%/dashboard.json"
+  },
+  {
+    "source": "/locales/en/navigation.json",
+    "translation": "/locales/%two_letters_code%/navigation.json"
+  }
+]

@@ -11,6 +11,7 @@ import { Layout } from '@/components/Layout'
 import { MATERIAL_SYMBOLS_URL } from '@/components/ui/material-symbol'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
 import { ParaWagmiSyncWatcher } from '@/features/wallet/components/ParaWagmiSyncWatcher'
+import '@/lib/i18n'
 import { RootProviders } from '@/lib/RootProviders'
 import appCss from '@/styles/index.css?url'
 

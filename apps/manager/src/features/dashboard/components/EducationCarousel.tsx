@@ -1,5 +1,6 @@
 import { CircleArrowLeft, CircleArrowRight } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { FEATURE_CARDS } from '@/features/landing/FeaturesCarousel'
 import { cn } from '@/lib/utils'
 
@@ -7,6 +8,7 @@ const CARDS_PER_PAGE = 2
 
 export const EducationCarousel = () => {
   const [currentPage, setCurrentPage] = useState(0)
+  const { t } = useTranslation('dashboard')
   const totalPages = Math.ceil(FEATURE_CARDS.length / CARDS_PER_PAGE)
 
   const startIndex = currentPage * CARDS_PER_PAGE
@@ -19,7 +21,7 @@ export const EducationCarousel = () => {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-3">
         <h2 className="font-serif text-[28px] text-foreground leading-[0.96] tracking-[0.28px]">
-          Did You Know?
+          {t('education.title')}
         </h2>
         <div className="flex items-center gap-2">
           <button
@@ -34,7 +36,10 @@ export const EducationCarousel = () => {
             <CircleArrowLeft className="size-8" strokeWidth={1} />
           </button>
           <span className="text-muted-foreground text-xs leading-[1.2] tracking-[0.12px]">
-            {currentPage + 1} of {totalPages}
+            {t('education.pageIndicator', {
+              current: currentPage + 1,
+              total: totalPages,
+            })}
           </span>
           <button
             className={cn(

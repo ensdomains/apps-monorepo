@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { match, P } from 'ts-pattern'
 import {
   formatDashboardDate,
@@ -88,6 +89,7 @@ export const MyNamesList = ({
   searchQuery = '',
 }: MyNamesListProps) => {
   const shouldReduceMotion = useReducedMotion()
+  const { t } = useTranslation('dashboard')
   const { data: wallet } = useWallet()
   const [page, setPage] = useState(1)
   const [sortField, setSortField] = useState<SortField>('registration')
@@ -172,7 +174,7 @@ export const MyNamesList = ({
   if (isError) {
     return (
       <div className="py-8 text-center font-sans text-red-500 text-sm">
-        Error loading names
+        {t('myNames.errorLoading')}
       </div>
     )
   }
@@ -183,10 +185,10 @@ export const MyNamesList = ({
       <div className="mb-4 flex md:hidden">
         <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">
           <span className="font-sans text-foreground text-xs tracking-[0.24px]">
-            Sort by
+            {t('myNames.sortBy')}
           </span>
           <select
-            aria-label="Sort names by"
+            aria-label={t('myNames.sortNamesAriaLabel')}
             className="bg-transparent font-medium font-sans text-foreground text-xs tracking-[0.24px] outline-none"
             onChange={(e) => {
               const [field, direction] = e.target.value.split('-') as [
@@ -204,10 +206,16 @@ export const MyNamesList = ({
                 : 'name-asc'
             }
           >
-            <option value="name-asc">Name (A-Z)</option>
-            <option value="name-desc">Name (Z-A)</option>
-            <option value="expiry-asc">Expiry date (Earliest)</option>
-            <option value="expiry-desc">Expiry date (Latest)</option>
+            <option value="name-asc">{t('myNames.sortOptions.nameAsc')}</option>
+            <option value="name-desc">
+              {t('myNames.sortOptions.nameDesc')}
+            </option>
+            <option value="expiry-asc">
+              {t('myNames.sortOptions.expiryAsc')}
+            </option>
+            <option value="expiry-desc">
+              {t('myNames.sortOptions.expiryDesc')}
+            </option>
           </select>
         </div>
       </div>
@@ -222,7 +230,7 @@ export const MyNamesList = ({
           <span
             className={`font-sans text-[16px] tracking-[0.24px] ${sortDirection !== null && sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
-            Name
+            {t('myNames.columns.name')}
           </span>
           <SortIndicator
             direction={sortDirection ?? undefined}
@@ -237,7 +245,7 @@ export const MyNamesList = ({
           <span
             className={`font-sans text-[16px] tracking-[0.24px] ${sortDirection !== null && sortField === 'expiry' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
-            Expiry
+            {t('myNames.columns.expiry')}
           </span>
           <SortIndicator
             direction={sortDirection ?? undefined}
@@ -270,7 +278,7 @@ export const MyNamesList = ({
                 strokeWidth={1}
               />
               <span className="font-sans text-muted-foreground text-sm">
-                No names to display
+                {t('myNames.noNames')}
               </span>
             </div>
           ))
@@ -328,7 +336,9 @@ export const MyNamesList = ({
                               strokeWidth={2}
                             />
                             <span className="font-sans text-[#c68a1b] text-[10px] leading-[1.05] tracking-[0.2px] md:text-xs md:tracking-[0.24px]">
-                              Expires in {daysUntilExpiry} days
+                              {t('myNames.expiresInDays', {
+                                count: daysUntilExpiry,
+                              })}
                             </span>
                           </div>
                         )}
@@ -364,7 +374,7 @@ export const MyNamesList = ({
           {isPlaceholderData && (
             <Loader2 className="size-[12px] animate-spin" />
           )}
-          Showing your names
+          {t('myNames.showingYourNames')}
         </span>
       </div>
     </div>

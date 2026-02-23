@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { match, P } from 'ts-pattern'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
@@ -68,6 +69,7 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
 
 export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
   const shouldReduceMotion = useReducedMotion()
+  const { t } = useTranslation('dashboard')
   const [page, setPage] = useState(1)
   const [sortField, setSortField] = useState<SortField>('name')
   const [sortDirection, setSortDirection] = useState<OrderDirection | null>(
@@ -142,10 +144,10 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
       <div className="mb-4 flex md:hidden">
         <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">
           <span className="font-sans text-foreground text-xs tracking-[0.24px]">
-            Sort by
+            {t('favorites.sortBy')}
           </span>
           <select
-            aria-label="Sort favorites by"
+            aria-label={t('favorites.sortFavoritesAriaLabel')}
             className="bg-transparent font-medium font-sans text-foreground text-xs tracking-[0.24px] outline-none"
             onChange={(e) => {
               const [field, direction] = e.target.value.split('-') as [
@@ -163,10 +165,18 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                 : 'name-asc'
             }
           >
-            <option value="name-asc">Name (A-Z)</option>
-            <option value="name-desc">Name (Z-A)</option>
-            <option value="addedAt-asc">Date added (Oldest)</option>
-            <option value="addedAt-desc">Date added (Newest)</option>
+            <option value="name-asc">
+              {t('favorites.sortOptions.nameAsc')}
+            </option>
+            <option value="name-desc">
+              {t('favorites.sortOptions.nameDesc')}
+            </option>
+            <option value="addedAt-asc">
+              {t('favorites.sortOptions.addedAtAsc')}
+            </option>
+            <option value="addedAt-desc">
+              {t('favorites.sortOptions.addedAtDesc')}
+            </option>
           </select>
         </div>
       </div>
@@ -181,7 +191,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
           <span
             className={`font-sans text-[16px] tracking-[0.24px] ${sortDirection !== null && sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
-            Name
+            {t('favorites.columns.name')}
           </span>
           <SortIndicator
             direction={sortDirection ?? undefined}
@@ -212,7 +222,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                 strokeWidth={1}
               />
               <span className="font-sans text-muted-foreground text-sm">
-                No names to display
+                {t('favorites.noNames')}
               </span>
             </div>
           ))
@@ -223,7 +233,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                 strokeWidth={1}
               />
               <span className="font-sans text-muted-foreground text-sm">
-                No names to display
+                {t('favorites.noNames')}
               </span>
             </div>
           ))
@@ -283,7 +293,11 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
             </button>
           </div>
           <span className="font-sans text-[16px] text-muted-foreground leading-[1.2] tracking-[0.14px]">
-            Showing {startIndex}-{endIndex} of {totalCount}
+            {t('favorites.showingRange', {
+              start: startIndex,
+              end: endIndex,
+              total: totalCount,
+            })}
           </span>
         </div>
       )}

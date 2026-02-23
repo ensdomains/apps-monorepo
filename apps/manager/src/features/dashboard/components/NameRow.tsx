@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowUpRight, Heart } from 'lucide-react'
 import { motion } from 'motion/react'
+import { useTranslation } from 'react-i18next'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import {
@@ -26,6 +27,8 @@ export const NameRow = ({
   isAuthenticated = true,
   showFavoriteButton = false,
 }: NameRowProps) => {
+  const { t } = useTranslation('dashboard')
+
   const heartButton = showFavoriteButton ? (
     <motion.button
       className="flex shrink-0 items-center justify-center disabled:cursor-not-allowed"
@@ -50,20 +53,20 @@ export const NameRow = ({
         ) : (
           <Tooltip>
             <TooltipTrigger asChild>{heartButton}</TooltipTrigger>
-            <TooltipContent>Login to favorite</TooltipContent>
+            <TooltipContent>{t('nameRow.loginToFavorite')}</TooltipContent>
           </Tooltip>
         ))}
       <div className="flex items-center gap-2 md:gap-[12px]">
         <div className="relative size-[32px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
           <ImageFallback.Root className="contents">
             <ImageFallback.Image
-              alt={`${label} avatar`}
+              alt={t('nameRow.avatarAlt', { label })}
               className="size-full object-cover"
               src={avatarUrl}
             />
             <ImageFallback.Fallback>
               <img
-                alt={`${label} avatar placeholder`}
+                alt={t('nameRow.avatarPlaceholderAlt', { label })}
                 className="size-full object-cover"
                 src={placeholderAvatar}
               />
