@@ -9,7 +9,11 @@ import {
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
-
+type RegistrationExpiryDatePickerProps = {
+  readonly date: Date
+  readonly onDateChange: (date: Date) => void
+  readonly minDate?: Date
+}
 type RegistrationExpiryDatePickerProps = {
   date: Date
   onDateChange: (date: Date) => void
