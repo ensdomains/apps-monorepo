@@ -396,7 +396,7 @@ export const ImageSelectionDialog = ({
                   {emptyStateMessage}
                 </div>
               ) : (
-                <div className="grid max-h-64 grid-cols-2 gap-4 overflow-y-auto">
+                <div className="grid max-h-[28rem] grid-cols-2 gap-4 overflow-y-auto">
                   {state.context.filteredNFTs.map((nft) => (
                     <button
                       className="rounded-md p-2 text-left transition-colors hover:bg-gray-50"
@@ -406,7 +406,7 @@ export const ImageSelectionDialog = ({
                     >
                       <img
                         alt={nft.name}
-                        className="mb-2 h-24 w-full rounded-md object-cover"
+                        className="mb-2 aspect-square w-full rounded-md object-cover"
                         src={nft.image}
                       />
                       <p className="truncate font-medium text-sm">{nft.name}</p>
@@ -687,7 +687,7 @@ export const ImageSelectionDialog = ({
     return (
       <Dialog onOpenChange={handleOpenChange} open={open}>
         <DialogTrigger asChild>{trigger}</DialogTrigger>
-        <DialogContent className="max-w-md">
+        <DialogContent>
           {renderStep()}
           {fileInput}
         </DialogContent>
