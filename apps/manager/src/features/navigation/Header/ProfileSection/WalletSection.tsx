@@ -1,7 +1,6 @@
 import { useLogout, useModal } from '@getpara/react-sdk-lite'
 import { useSelector } from '@xstate/store-react'
 import { BookmarkCheckIcon, UnlinkIcon, WalletIcon } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
 import { match } from 'ts-pattern'
 import paraColorIcon from '@/assets/icons/para-color.svg'
 import { Switch } from '@/components/ui/switch'
@@ -15,7 +14,6 @@ interface WalletSectionProps {
 }
 
 export const WalletSection = ({ onAction }: WalletSectionProps) => {
-  const { t } = useTranslation('navigation')
   const { isSessionClient, walletSource, accountAddress, openSessionModal } =
     useSmartAccountContext()
 
@@ -45,7 +43,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
             />
             <div className="flex flex-col items-start gap-1">
               <div className="font-medium text-foreground text-sm">
-                {t('wallet.manageParaWallet')}
+                Manage Para Wallet
               </div>
               <div className="truncate text-muted-foreground text-xs leading-ens-normal">
                 {truncateAddress(accountAddress)}
@@ -71,8 +69,8 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
             <BookmarkCheckIcon className="size-5 text-ens-lapis-core" />
             <div className="text-base text-ens-lapis-surface">
               {isSessionClient
-                ? t('wallet.smartSessionActive')
-                : t('wallet.smartSessionDisabled')}
+                ? 'Smart Session Active'
+                : 'Smart Session Disabled'}
             </div>
             <Switch
               checked={isSessionClient}
@@ -102,7 +100,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
         >
           <WalletIcon className="size-5 text-ens-lapis-core" />
           <span className="text-base text-ens-lapis-core leading-ens-tight">
-            {t('wallet.verifyWalletOwnership')}
+            Verify wallet ownership
           </span>
         </button>
       )}
@@ -121,7 +119,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
           <UnlinkIcon className="size-5" />
         )}
         <span className="text-base text-foreground leading-ens-tight">
-          {t('wallet.disconnect')}
+          Disconnect
         </span>
       </button>
     </div>

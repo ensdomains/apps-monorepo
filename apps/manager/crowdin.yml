@@ -7,9 +7,5 @@
   {
     "source": "/locales/en/dashboard.json",
     "translation": "/locales/%two_letters_code%/dashboard.json"
-  },
-  {
-    "source": "/locales/en/navigation.json",
-    "translation": "/locales/%two_letters_code%/navigation.json"
   }
 ]

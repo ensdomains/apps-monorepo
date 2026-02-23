@@ -1,7 +1,6 @@
 import { useAccount } from '@getpara/react-sdk-lite'
 import { ChevronDownIcon, Loader2Icon, UserIcon } from 'lucide-react'
 import type { ButtonHTMLAttributes } from 'react'
-import { useTranslation } from 'react-i18next'
 import { match, P } from 'ts-pattern'
 import paraIcon from '@/assets/icons/para-color.svg'
 import { useConnectedAvatar } from '@/features/wallet/hooks/useConnectedAvatar'
@@ -14,18 +13,14 @@ const getHeaderDisplayName = ({
   isLoading,
   ownerAddress,
   reverseName,
-  connectedLabel,
-  initializingLabel,
 }: {
   account: ReturnType<typeof useAccount>
   isLoading: boolean
   ownerAddress: string | null | undefined
   reverseName: string | null
-  connectedLabel: string
-  initializingLabel: string
 }) => {
   if (isLoading) {
-    return initializingLabel
+    return 'Initializing...'
   }
 
   if (reverseName) {
@@ -68,13 +63,12 @@ const getHeaderDisplayName = ({
     return truncateAddress(ownerAddress)
   }
 
-  return connectedLabel
+  return 'Connected'
 }
 
 export const ProfileTriggerButton = (
   props: ButtonHTMLAttributes<HTMLButtonElement>,
 ) => {
-  const { t } = useTranslation('navigation')
   const { ownerAddress } = useSmartAccountContext()
   const reverseNameQuery = useConnectedReverseName()
   const avatar = useConnectedAvatar()
@@ -122,8 +116,6 @@ export const ProfileTriggerButton = (
             isLoading: paraAccount.isLoading,
             ownerAddress,
             reverseName: reverseNameQuery.data ?? null,
-            connectedLabel: t('profileTrigger.connected'),
-            initializingLabel: t('profileTrigger.initializing'),
           })}
         </span>
       </div>

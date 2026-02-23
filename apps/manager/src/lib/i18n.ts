@@ -50,7 +50,7 @@ if (!i18n.isInitialized) {
     lng: initialLanguage,
     fallbackLng,
     supportedLngs: supportedLngs.length > 0 ? supportedLngs : [fallbackLng],
-    ns: ['dashboard', 'navigation'],
+    ns: ['dashboard'],
     defaultNS: 'dashboard',
     interpolation: {
       escapeValue: false,

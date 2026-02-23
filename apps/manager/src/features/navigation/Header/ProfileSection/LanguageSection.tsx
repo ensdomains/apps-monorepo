@@ -36,7 +36,7 @@ const toComparableLanguage = (language: string | null | undefined) =>
   language?.toLowerCase() ?? ''
 
 export const LanguageSection = ({ onAction }: LanguageSectionProps) => {
-  const { t, i18n } = useTranslation('navigation')
+  const { i18n } = useTranslation()
 
   const supportedLanguages = i18n.options.supportedLngs
 
@@ -76,12 +76,12 @@ export const LanguageSection = ({ onAction }: LanguageSectionProps) => {
         className="block px-3 py-1 font-medium text-foreground text-sm"
         htmlFor="language-selector"
       >
-        {t('language.title')}
+        Language
       </label>
       <div className="flex items-center gap-2 rounded border border-border px-3 py-2">
         <LanguagesIcon className="size-4 text-muted-foreground" />
         <select
-          aria-label={t('language.title')}
+          aria-label="Language"
           className="w-full bg-transparent text-foreground text-sm outline-none"
           id="language-selector"
           onChange={async (event) => {

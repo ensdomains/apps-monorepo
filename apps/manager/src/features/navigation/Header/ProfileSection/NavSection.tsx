@@ -1,6 +1,5 @@
 import { Link, type LinkOptions, linkOptions } from '@tanstack/react-router'
 import { LayoutDashboardIcon, UserIcon } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
 import { useConnectedReverseName } from '@/features/wallet/hooks/useConnectedReverseName'
 import { tw } from '@/utils/tailwind'
 
@@ -8,45 +7,46 @@ interface NavSectionProps {
   onAction: () => void
 }
 
-export const NavSection = ({ onAction }: NavSectionProps) => {
-  const { t } = useTranslation('navigation')
-  const reverseNameQuery = useConnectedReverseName()
-  const reverseName = reverseNameQuery.data ?? undefined
+const getNavItems = (
+  reverseName: string | undefined,
+): {
+  icon: React.ReactNode
+  label: React.ReactNode
+  link: LinkOptions
+}[] => [
+  {
+    icon: <UserIcon className="size-4" />,
+    label: (
+      <>
+        Profile
+        {!reverseName && (
+          <span className="ml-1 font-normal text-[#6B6B6B] text-sm">
+            {' '}
+            (No Name)
+          </span>
+        )}
+      </>
+    ),
+    link: linkOptions({
+      to: '/p/$name',
+      params: {
+        name: reverseName ?? '',
+      },
+      disabled: !reverseName,
+    }),
+  },
+  {
+    icon: <LayoutDashboardIcon className="size-4" />,
+    label: 'Dashboard',
+    link: linkOptions({
+      to: '/dashboard',
+    }),
+  },
+]
 
-  const navItems: {
-    icon: React.ReactNode
-    label: React.ReactNode
-    link: LinkOptions
-  }[] = [
-    {
-      icon: <UserIcon className="size-4" />,
-      label: (
-        <>
-          {t('nav.profile')}
-          {!reverseName && (
-            <span className="ml-1 font-normal text-[#6B6B6B] text-sm">
-              {' '}
-              ({t('nav.noName')})
-            </span>
-          )}
-        </>
-      ),
-      link: linkOptions({
-        to: '/p/$name',
-        params: {
-          name: reverseName ?? '',
-        },
-        disabled: !reverseName,
-      }),
-    },
-    {
-      icon: <LayoutDashboardIcon className="size-4" />,
-      label: t('nav.dashboard'),
-      link: linkOptions({
-        to: '/dashboard',
-      }),
-    },
-  ]
+export const NavSection = ({ onAction }: NavSectionProps) => {
+  const reverseNameQuery = useConnectedReverseName()
+  const navItems = getNavItems(reverseNameQuery.data ?? undefined)
 
   return (
     <div className="flex flex-col gap-0.5">
