@@ -24,7 +24,10 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer'
 import { FloatingInput } from '@/components/ui/floating-input'
 import { Input } from '@/components/ui/input'
-import { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
+import {
+  imageSelectionMachine,
+  type NFT,
+} from '@/features/profile/machines/imageSelection'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import {
   type ImageType,
@@ -34,6 +37,21 @@ import { profileNftsQuery } from '@/features/profile/service/profileNfts'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
 import { inspect } from '@/utils/xstate'
+
+const useSyncNftsToMachine = ({
+  type,
+  nftData,
+  send,
+}: {
+  type: ImageType
+  nftData: NFT[] | undefined
+  send: (event: { type: 'SET_NFTS'; nfts: NFT[] }) => void
+}) => {
+  useEffect(() => {
+    if (type !== 'avatar') return
+    send({ type: 'SET_NFTS', nfts: nftData ?? [] })
+  }, [nftData, send, type])
+}
 
 interface ErrorDisplayProps {
   error: string | null
@@ -151,10 +169,7 @@ export const ImageSelectionDialog = ({
     inspect,
   })
 
-  useEffect(() => {
-    if (type !== 'avatar') return
-    send({ type: 'SET_NFTS', nfts: nftQuery.data ?? [] })
-  }, [nftQuery.data, send, type])
+  useSyncNftsToMachine({ type, nftData: nftQuery.data, send })
 
   // File handling functions
   const handleDragOver = (e: React.DragEvent) => {
@@ -690,7 +705,7 @@ export const ImageSelectionDialog = ({
     return (
       <Dialog onOpenChange={handleOpenChange} open={open}>
         <DialogTrigger asChild>{trigger}</DialogTrigger>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           {renderStep()}
           {fileInput}
         </DialogContent>
