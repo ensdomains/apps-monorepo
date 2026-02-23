@@ -56,11 +56,9 @@ export const LinksSection = withForm({
                 </form.Field>
               ))}
               <AddLinkDialog
-                buttonLabel="Add more"
                 onAdd={(link) => {
                   linksField.pushValue(link)
                 }}
-                title="Add Link"
               />
             </>
           )}

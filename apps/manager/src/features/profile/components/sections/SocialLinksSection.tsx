@@ -22,43 +22,45 @@ export const SocialLinksSection = withForm({
       </CardHeader>
       <CardContent className="space-y-4">
         <form.Field mode="array" name="social">
-          {(socialField) => (
-            <>
-              {socialField.state.value.map(({ key }, i: number) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
-                <form.Field key={i} name={`social[${i}].value`}>
-                  {(field) => {
-                    const record = getRecordDef(key)
-                    if (!record) return null
-                    return (
-                      <RecordEntry
-                        name={record.name}
-                        onChange={field.handleChange}
-                        onRemove={() => {
-                          socialField.removeValue(i)
-                        }}
-                        placeholder={record.placeholder}
-                        value={field.state.value}
-                      />
-                    )
+          {(socialField) => {
+            const availableRecords = getAvailableRecords(
+              socialField.state.value.map(({ key }) => key),
+              'social',
+            )
+
+            return (
+              <>
+                <AddTextRecordsDialog
+                  onAdd={(keys) => {
+                    for (const key of keys) {
+                      socialField.pushValue({ key, value: '' })
+                    }
                   }}
-                </form.Field>
-              ))}
-              <AddTextRecordsDialog
-                buttonLabel="Add more"
-                onAdd={(keys) => {
-                  for (const key of keys) {
-                    socialField.pushValue({ key, value: '' })
-                  }
-                }}
-                records={getAvailableRecords(
-                  socialField.state.value.map(({ key }) => key),
-                  'social',
-                )}
-                title="Add Social Link"
-              />
-            </>
-          )}
+                  records={availableRecords}
+                />
+                {socialField.state.value.map(({ key }, i: number) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
+                  <form.Field key={i} name={`social[${i}].value`}>
+                    {(field) => {
+                      const record = getRecordDef(key)
+                      if (!record) return null
+                      return (
+                        <RecordEntry
+                          name={record.name}
+                          onChange={field.handleChange}
+                          onRemove={() => {
+                            socialField.removeValue(i)
+                          }}
+                          placeholder={record.placeholder}
+                          value={field.state.value}
+                        />
+                      )
+                    }}
+                  </form.Field>
+                ))}
+              </>
+            )
+          }}
         </form.Field>
       </CardContent>
     </Card>

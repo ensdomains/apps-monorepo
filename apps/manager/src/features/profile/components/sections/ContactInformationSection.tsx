@@ -16,62 +16,62 @@ export const ContactInformationSection = withForm({
       </CardHeader>
       <CardContent className="space-y-4">
         <form.Field mode="array" name="contact">
-          {(contactField) => (
-            <>
-              {contactField.state.value.map(
-                ({ key }: { key: string }, i: number) => (
-                  <form.Field
-                    // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
-                    key={i}
-                    name={`contact[${i}].value`}
-                    validators={
-                      key === 'email'
-                        ? { onBlur: ({ value }) => validateEmail(value) }
-                        : undefined
+          {(contactField) => {
+            const availableRecords = getAvailableRecords(
+              contactField.state.value.map(({ key }: { key: string }) => key),
+              'contact',
+            )
+
+            return (
+              <>
+                <AddTextRecordsDialog
+                  onAdd={(keys) => {
+                    for (const key of keys) {
+                      contactField.pushValue({ key, value: '' })
                     }
-                  >
-                    {(field) => {
-                      const record = getRecordDef(key)
-                      if (!record) return null
-                      return (
-                        <RecordEntry
-                          error={
-                            field.state.meta.isTouched &&
-                            field.state.meta.errors.length > 0
-                              ? field.state.meta.errors[0]
-                              : undefined
-                          }
-                          name={record.name}
-                          onBlur={field.handleBlur}
-                          onChange={field.handleChange}
-                          onRemove={() => {
-                            contactField.removeValue(i)
-                          }}
-                          placeholder={record.placeholder}
-                          value={field.state.value}
-                        />
-                      )
-                    }}
-                  </form.Field>
-                ),
-              )}
-              <AddTextRecordsDialog
-                buttonLabel="Add more"
-                onAdd={(keys) => {
-                  for (const key of keys) {
-                    contactField.pushValue({ key, value: '' })
-                  }
-                }}
-                records={getAvailableRecords(
-                  contactField.state.value.map(
-                    ({ key }: { key: string }) => key,
+                  }}
+                  records={availableRecords}
+                />
+                {contactField.state.value.map(
+                  ({ key }: { key: string }, i: number) => (
+                    <form.Field
+                      // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
+                      key={i}
+                      name={`contact[${i}].value`}
+                      validators={
+                        key === 'email'
+                          ? { onBlur: ({ value }) => validateEmail(value) }
+                          : undefined
+                      }
+                    >
+                      {(field) => {
+                        const record = getRecordDef(key)
+                        if (!record) return null
+                        return (
+                          <RecordEntry
+                            error={
+                              field.state.meta.isTouched &&
+                              field.state.meta.errors.length > 0
+                                ? field.state.meta.errors[0]
+                                : undefined
+                            }
+                            name={record.name}
+                            onBlur={field.handleBlur}
+                            onChange={field.handleChange}
+                            onRemove={() => {
+                              contactField.removeValue(i)
+                            }}
+                            placeholder={record.placeholder}
+                            value={field.state.value}
+                          />
+                        )
+                      }}
+                    </form.Field>
                   ),
-                  'contact',
                 )}
-                title="Add Contact Information"
-              />
-            </>
-          )}
+              </>
+            )
+          }}
         </form.Field>
       </CardContent>
     </Card>

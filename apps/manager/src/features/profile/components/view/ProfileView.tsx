@@ -1,11 +1,16 @@
 import { useWallet } from '@getpara/react-sdk-lite'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
+import { useEffect } from 'react'
 import type { Address } from 'viem'
 import { LinkButton } from '@/components/ui/button'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { sectionsList } from '../../data/records'
 import { profileOwnerQuery } from '../../service/profileOwner'
-import { profileRecordsQuery } from '../../service/profileRecords'
+import {
+  type ProfileRecordsResult,
+  profileRecordsQuery,
+} from '../../service/profileRecords'
 import { transformProfileRecords } from '../../utils/transformRecords'
 import { ViewBioSection } from './ViewBioSection'
 import { ViewCryptoSection } from './ViewCryptoSection'
@@ -20,11 +25,24 @@ interface ProfileViewProps {
   name: string
 }
 
+const hasConfiguredProfileRecords = ({
+  texts,
+  coins,
+  contentHash,
+  abi,
+}: ProfileRecordsResult): boolean =>
+  texts.length > 0 ||
+  coins.length > 0 ||
+  Boolean(contentHash?.trim()) ||
+  Boolean(abi?.trim())
+
 export const ProfileView = ({ name }: ProfileViewProps) => {
-  const { data: records } = useSuspenseQuery({
+  const navigate = useNavigate()
+  const { data: profileRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
-    select: transformProfileRecords,
   })
+  const records = transformProfileRecords(profileRecords)
+  const isProfileEmpty = !hasConfiguredProfileRecords(profileRecords)
 
   const { data: ownerData } = useQuery({
     ...profileOwnerQuery(name),
@@ -40,6 +58,17 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     [wallet?.address, smartAccountAddress]
       .filter((addr): addr is string => !!addr)
       .some((addr) => addr.toLowerCase() === normalizedOwner)
+
+  useEffect(() => {
+    // If profile is empty and user is owner, redirect to edit page
+    if (isOwner && isProfileEmpty) {
+      navigate({ to: '/p/$name/edit', params: { name }, replace: true })
+    }
+  }, [isOwner, isProfileEmpty, navigate, name])
+
+  if (isOwner && isProfileEmpty) {
+    return null
+  }
 
   return (
     <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]">
