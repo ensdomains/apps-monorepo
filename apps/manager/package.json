@@ -10,6 +10,7 @@
     "cf-typegen": "pnpm dlx wrangler types --env-interface Env worker-configuration.gen.d.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "pretypecheck": "pnpm --filter api-worker run build:types",
     "typecheck": "tsc --noEmit",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",

@@ -11,9 +11,9 @@ import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 
 type RegistrationExpiryDatePickerProps = {
-  date: Date
-  onDateChange: (date: Date) => void
-  minDate?: Date
+  readonly date: Date
+  readonly onDateChange: (date: Date) => void
+  readonly minDate?: Date
 }
 
 export const RegistrationExpiryDatePicker = ({

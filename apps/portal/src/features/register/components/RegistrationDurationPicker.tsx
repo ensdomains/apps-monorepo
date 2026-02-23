@@ -6,11 +6,11 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 type RegistrationDurationPickerProps = {
-  value: number
-  onChange: (value: number) => void
-  min?: number
-  max?: number
-  className?: string
+  readonly value: number
+  readonly onChange: (value: number) => void
+  readonly min?: number
+  readonly max?: number
+  readonly className?: string
 }
 
 export const RegistrationDurationPicker = ({
