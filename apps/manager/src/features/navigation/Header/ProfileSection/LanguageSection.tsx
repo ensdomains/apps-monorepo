@@ -36,7 +36,7 @@ const toComparableLanguage = (language: string | null | undefined) =>
   language?.toLowerCase() ?? ''
 
 export const LanguageSection = ({ onAction }: LanguageSectionProps) => {
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation('dashboard')
 
   const supportedLanguages = i18n.options.supportedLngs
 
@@ -76,12 +76,12 @@ export const LanguageSection = ({ onAction }: LanguageSectionProps) => {
         className="block px-3 py-1 font-medium text-foreground text-sm"
         htmlFor="language-selector"
       >
-        Language
+        {t('common.language')}
       </label>
       <div className="flex items-center gap-2 rounded border border-border px-3 py-2">
         <LanguagesIcon className="size-4 text-muted-foreground" />
         <select
-          aria-label="Language"
+          aria-label={t('common.language')}
           className="w-full bg-transparent text-foreground text-sm outline-none"
           id="language-selector"
           onChange={async (event) => {

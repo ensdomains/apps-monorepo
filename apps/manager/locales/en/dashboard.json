@@ -1,4 +1,7 @@
 {
+  "common": {
+    "language": "Language"
+  },
   "loading": {
     "dashboard": "Loading dashboard..."
   },
