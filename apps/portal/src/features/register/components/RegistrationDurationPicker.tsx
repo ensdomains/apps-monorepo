@@ -6,17 +6,11 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 type RegistrationDurationPickerProps = {
-  value: number
-  onChange: (value: number) => void
-  min?: number
-type RegistrationDurationPickerProps = {
   readonly value: number
   readonly onChange: (value: number) => void
   readonly min?: number
   readonly max?: number
   readonly className?: string
-}
-  className?: string
 }
 
 export const RegistrationDurationPicker = ({
@@ -24,13 +18,7 @@ export const RegistrationDurationPicker = ({
   onChange,
   min = 1,
   max = 9007199254740990,
-type RegistrationDurationPickerProps = {
-  readonly value: number
-  readonly onChange: (value: number) => void
-  readonly min?: number
-  readonly max?: number
-  readonly className?: string
-}
+  className,
 }: RegistrationDurationPickerProps) => {
   const [isFocused, setIsFocused] = useState(false)
 
