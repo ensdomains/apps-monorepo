@@ -4,6 +4,7 @@ import { fromSync, ResultFn } from '../generator-functions'
 
 describe('ResultFn', () => {
   it('should work with sync generator', () => {
+    // biome-ignore lint/correctness/useYield: Test code
     const processData = ResultFn(function* (data: string) {
       if (!data) {
         return err('Data is required')
@@ -67,7 +68,7 @@ describe('ResultFn', () => {
         return err('Initial error')
       }
 
-      const _data = yield* ok('success')
+      yield* ok('success')
       const processed = yield* err('Processing failed')
 
       return ok(processed)
