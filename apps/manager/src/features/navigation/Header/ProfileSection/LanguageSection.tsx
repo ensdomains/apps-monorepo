@@ -8,22 +8,8 @@ interface LanguageSectionProps {
 
 const LANGUAGE_LABELS: Record<string, string> = {
   en: 'English',
-  de: 'Deutsch',
   es: 'Español',
   fr: 'Français',
-  it: 'Italiano',
-  ja: '日本語',
-  ko: '한국어',
-  nl: 'Nederlands',
-  pl: 'Polski',
-  pt: 'Português',
-  'pt-br': 'Português (Brasil)',
-  ru: 'Русский',
-  tr: 'Türkçe',
-  uk: 'Українська',
-  vi: 'Tiếng Việt',
-  'zh-cn': '中文 (简体)',
-  'zh-tw': '中文 (繁體)',
 }
 
 const getLanguageLabel = (language: string) => {
@@ -31,6 +17,8 @@ const getLanguageLabel = (language: string) => {
 
   return LANGUAGE_LABELS[normalizedLanguage] ?? language
 }
+
+const allowedLanguages = new Set(Object.keys(LANGUAGE_LABELS))
 
 const toComparableLanguage = (language: string | null | undefined) =>
   language?.toLowerCase() ?? ''
@@ -48,6 +36,9 @@ export const LanguageSection = ({ onAction }: LanguageSectionProps) => {
     return languageList
       .filter((language): language is string => Boolean(language))
       .filter((language) => language !== 'cimode')
+      .filter((language) =>
+        allowedLanguages.has(toComparableLanguage(language)),
+      )
       .sort((languageA, languageB) =>
         getLanguageLabel(languageA).localeCompare(getLanguageLabel(languageB)),
       )
