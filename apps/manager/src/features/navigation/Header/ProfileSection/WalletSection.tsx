@@ -7,11 +7,10 @@ import {
   UnlinkIcon,
   WalletIcon,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import paraColorIcon from '@/assets/icons/para-color.svg'
 import { Switch } from '@/components/ui/switch'
-import { copyToClipboard } from '@/lib/clipboard'
+import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { truncateAddress } from '@/lib/utils'
 import { backendAuthStore } from '@/utils/backend-client'
@@ -25,19 +24,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
   const { isSessionClient, walletSource, accountAddress, openSessionModal } =
     useSmartAccountContext()
 
-  const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
-    if (!copied) return
-    const t = setTimeout(() => setCopied(false), 1500)
-    return () => clearTimeout(t)
-  }, [copied])
-
-  const handleCopyAddress = async () => {
-    if (!accountAddress) return
-    await copyToClipboard(accountAddress)
-    setCopied(true)
-  }
+  const { copied, copy } = useCopyFeedback()
 
   const shouldShowSiweButton = useSelector(
     backendAuthStore,
@@ -54,7 +41,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
       {accountAddress && (
         <button
           className="flex w-full items-center gap-2"
-          onClick={handleCopyAddress}
+          onClick={() => accountAddress && copy(accountAddress)}
           type="button"
         >
           {copied ? (
