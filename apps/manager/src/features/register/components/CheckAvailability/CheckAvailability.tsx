@@ -15,8 +15,10 @@ import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
 import { ValidationError } from '@/features/register/components/CheckAvailability/ValidationError'
-import { truncateToMaxBytes } from '@/features/register/components/Pricing/utils'
 import { useDebounce } from '@/hooks/useDebounce'
+import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+
+import { truncateToMaxBytes } from '@/utils/domain'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 
 const dropdownAnimation = {

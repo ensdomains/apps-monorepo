@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQueries } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
 import {
@@ -15,6 +15,7 @@ import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import { CopyableAddress } from '@/components/atoms/CopyableAddress'
+import { CountBadge } from '@/components/atoms/CountBadge'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { Card } from '@/components/ui/card'
 import {
@@ -22,6 +23,7 @@ import {
   resolveDomainLabel,
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
+import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import { useAvatarFromName } from '../../service/profileAvatar'
 import {
   PROFILE_NAMES_PAGE_SIZE,
@@ -74,12 +76,22 @@ export const AddressProfileView = ({
   const shouldReduceMotion = useReducedMotion()
   const [page, setPage] = useState(1)
 
-  const { data, isPending, isError, isPlaceholderData } = useQuery({
-    ...profileOwnedNamesQuery(address, {
-      skip: (page - 1) * PROFILE_NAMES_PAGE_SIZE,
-    }),
-    placeholderData: keepPreviousData,
+  const [ownedNamesQuery, ownedNamesCountQueryState] = useQueries({
+    queries: [
+      {
+        ...profileOwnedNamesQuery(address, {
+          skip: (page - 1) * PROFILE_NAMES_PAGE_SIZE,
+        }),
+        placeholderData: keepPreviousData,
+      },
+      {
+        ...ownedNamesCountQueryOptions(address),
+      },
+    ],
   })
+
+  const { data, isPending, isError, isPlaceholderData } = ownedNamesQuery
+  const { data: namesCount } = ownedNamesCountQueryState
 
   const names = data?.domains ?? []
   const hasNextPage = names.length === PROFILE_NAMES_PAGE_SIZE
@@ -225,6 +237,9 @@ export const AddressProfileView = ({
             <span className="font-serif text-[20px] text-foreground leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]">
               Registered ENS names
             </span>
+            {namesCount !== undefined && namesCount > 0 && (
+              <CountBadge value={namesCount} />
+            )}
           </div>
           <span className="text-muted-foreground text-sm">
             {shortenAddress(address)}
