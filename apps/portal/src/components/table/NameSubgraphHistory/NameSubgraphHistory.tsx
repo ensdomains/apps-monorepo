@@ -96,6 +96,7 @@ const NameSubgraphHistoryTable = ({
   // For V2, create a timestamp map from the events themselves
   const finalTimestampsData = hasTimestamps
     ? new Map(
+        // biome-ignore lint/style/noNonNullAssertion: <need to check this>
         history.map((event) => [BigInt(event.blockNumber), event.timestamp!]),
       )
     : timestampsData
