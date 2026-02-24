@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { InfoIcon } from 'lucide-react'
 import { useState } from 'react'
 import { ExternalLink } from 'react-external-link'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { Button } from '@/components/ui/button'
@@ -81,58 +82,80 @@ export const RegisterNameCheckoutSummary = ({
         Registration summary
       </h2>
 
-      {isLoading ? (
-        <PriceBreakdownSkeleton
-          durationLabel={durationLabel}
-          premiumLabel={getPremiumLabel(name)}
-        />
-      ) : isError ? (
-        <div className="border border-border rounded-md p-4">
-          <p className="text-destructive text-sm">
-            Failed to load price. Please try again.
-          </p>
-          <pre className="mt-2 text-xs overflow-auto max-h-24 text-muted-foreground">
-            {error instanceof Error
-              ? `${error.message}${(error as { cause?: unknown }).cause ? `\nCause: ${String((error as { cause?: unknown }).cause)}` : ''}`
-              : String(error)}
-          </pre>
-        </div>
-      ) : hasPrice ? (
-        <PriceBreakdown
-          name={name}
-          price={price}
-          durationLabel={durationLabel}
-          onOpenPremiumDrawer={() => setPremiumDrawerOpen(true)}
-        />
-      ) : (
-        <div className="border border-border rounded-md p-4">
-          <p className="text-muted-foreground text-sm">Unable to load price</p>
-        </div>
-      )}
+      {match({ isLoading, isError, hasPrice })
+        .with({ isLoading: true }, () => (
+          <PriceBreakdownSkeleton
+            durationLabel={durationLabel}
+            premiumLabel={getPremiumLabel(name)}
+          />
+        ))
+        .with({ isError: true }, () => (
+          <div className="border border-border rounded-md p-4">
+            <p className="text-destructive text-sm">
+              Failed to load price. Please try again.
+            </p>
+            <pre className="mt-2 text-xs overflow-auto max-h-24 text-muted-foreground">
+              {match(error)
+                .when(
+                  (e) => e instanceof Error,
+                  (e) => {
+                    const err = e as Error & { cause?: unknown }
+                    return `${err.message}${err.cause ? `\nCause: ${String(err.cause)}` : ''}`
+                  },
+                )
+                .otherwise((e) => String(e))}
+            </pre>
+          </div>
+        ))
+        .with({ hasPrice: true }, () =>
+          price ? (
+            <PriceBreakdown
+              name={name}
+              price={price}
+              durationLabel={durationLabel}
+              onOpenPremiumDrawer={() => setPremiumDrawerOpen(true)}
+            />
+          ) : null,
+        )
+        .otherwise(() => (
+          <div className="border border-border rounded-md p-4">
+            <p className="text-muted-foreground text-sm">
+              Unable to load price
+            </p>
+          </div>
+        ))}
 
-      {!isConnected ? (
-        openConnectModal ? (
+      {match({ isConnected, openConnectModal })
+        .when(
+          ({ isConnected, openConnectModal }) =>
+            !isConnected && typeof openConnectModal === 'function',
+          ({ openConnectModal }) => (
+            <Button
+              className="w-full mt-4 h-12"
+              onClick={() => openConnectModal?.()}
+              type="button"
+            >
+              Connect Wallet
+            </Button>
+          ),
+        )
+        .when(
+          ({ isConnected }) => !isConnected,
+          () => (
+            <Button className="w-full mt-4 h-12" disabled type="button">
+              Wallet not connected
+            </Button>
+          ),
+        )
+        .otherwise(() => (
           <Button
             className="w-full mt-4 h-12"
-            onClick={openConnectModal}
-            type="button"
+            onClick={handleContinueClick}
+            disabled={!canContinue}
           >
-            Connect Wallet
+            {isLoading ? 'Loading...' : 'Continue'}
           </Button>
-        ) : (
-          <Button className="w-full mt-4 h-12" disabled type="button">
-            Wallet not connected
-          </Button>
-        )
-      ) : (
-        <Button
-          className="w-full mt-4 h-12"
-          onClick={handleContinueClick}
-          disabled={!canContinue}
-        >
-          {isLoading ? 'Loading...' : 'Continue'}
-        </Button>
-      )}
+        ))}
 
       <PaymentTokenModal
         open={paymentModalOpen}
