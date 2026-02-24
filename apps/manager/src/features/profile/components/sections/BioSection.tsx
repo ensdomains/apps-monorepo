@@ -39,13 +39,13 @@ export const BioSection = withForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <AnimatePresence mode="popLayout">
+          <AnimatePresence initial={false} mode="popLayout">
             {pills.length > 0 && (
               <motion.div
                 className="flex flex-wrap gap-3 pb-2"
                 {...pillContainerAnimation}
               >
-                <AnimatePresence mode="popLayout">
+                <AnimatePresence initial={false} mode="popLayout">
                   {pills.map((pill) => (
                     <motion.div key={pill.key} layout {...pillAnimation}>
                       <Button
@@ -68,7 +68,7 @@ export const BioSection = withForm({
             )}
           </AnimatePresence>
 
-          <AnimatePresence mode="popLayout">
+          <AnimatePresence initial={false} mode="popLayout">
             {showBio && (
               <motion.div key="bio" layout {...entryAnimation}>
                 <form.Field name="base.description">

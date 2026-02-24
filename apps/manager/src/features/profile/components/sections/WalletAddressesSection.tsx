@@ -30,7 +30,7 @@ export const WalletAddressesSection = withForm({
         <form.Field mode="array" name="addresses">
           {(addressField) => (
             <>
-              <AnimatePresence mode="popLayout">
+              <AnimatePresence initial={false} mode="popLayout">
                 {addressField.state.value.map(
                   ({ coinType }: { coinType: number }, i: number) => (
                     <form.Field key={coinType} name={`addresses[${i}].value`}>

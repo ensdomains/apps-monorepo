@@ -25,7 +25,7 @@ export const LinksSection = withForm({
         <form.Field mode="array" name="links">
           {(linksField) => (
             <>
-              <AnimatePresence mode="popLayout">
+              <AnimatePresence initial={false} mode="popLayout">
                 {linksField.state.value.map(({ name }, i: number) => (
                   <form.Field
                     key={name}

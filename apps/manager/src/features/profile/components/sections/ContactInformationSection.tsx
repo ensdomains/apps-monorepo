@@ -42,7 +42,7 @@ export const ContactInformationSection = withForm({
                   }}
                   records={availableRecords}
                 />
-                <AnimatePresence mode="popLayout">
+                <AnimatePresence initial={false} mode="popLayout">
                   {contactField.state.value.map(
                     ({ key }: { key: string }, i: number) => (
                       <form.Field

@@ -46,13 +46,13 @@ export const OtherSection = withForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <AnimatePresence mode="popLayout">
+          <AnimatePresence initial={false} mode="popLayout">
             {pills.length > 0 && (
               <motion.div
                 className="flex flex-wrap gap-3 pb-2"
                 {...pillContainerAnimation}
               >
-                <AnimatePresence mode="popLayout">
+                <AnimatePresence initial={false} mode="popLayout">
                   {pills.map((pill) => (
                     <motion.div key={pill.key} layout {...pillAnimation}>
                       <Button
@@ -76,7 +76,7 @@ export const OtherSection = withForm({
             )}
           </AnimatePresence>
 
-          <AnimatePresence mode="popLayout">
+          <AnimatePresence initial={false} mode="popLayout">
             {showContentHash && (
               <motion.div key="contentHash" layout {...entryAnimation}>
                 <form.Field

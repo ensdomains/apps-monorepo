@@ -15,13 +15,13 @@ export const AddTextRecordsDialog = ({
   onAdd,
 }: AddTextRecordsDialogProps) => {
   return (
-    <AnimatePresence mode="popLayout">
+    <AnimatePresence initial={false} mode="popLayout">
       {records.length > 0 && (
         <motion.div
           className="flex flex-wrap gap-3 pb-2"
           {...pillContainerAnimation}
         >
-          <AnimatePresence mode="popLayout">
+          <AnimatePresence initial={false} mode="popLayout">
             {records.map((record) => (
               <motion.div key={record.key} layout {...pillAnimation}>
                 <Button

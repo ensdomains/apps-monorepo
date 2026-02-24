@@ -39,7 +39,7 @@ export const SocialLinksSection = withForm({
                   }}
                   records={availableRecords}
                 />
-                <AnimatePresence mode="popLayout">
+                <AnimatePresence initial={false} mode="popLayout">
                   {socialField.state.value.map(({ key }, i: number) => (
                     <form.Field key={key} name={`social[${i}].value`}>
                       {(field) => {
