@@ -37,7 +37,7 @@ export const DedicatedResolverBanner = ({
           This resolver is an instance of the official{' '}
           <ExternalLink
             className="underline decoration-dashed underline-offset-4"
-            href="https://github.com/ensdomains/namechain/blob/main/contracts/src/common/resolver/DedicatedResolver.sol"
+            href="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/OwnedResolver.sol"
           >
             ENS Dedicated Resolver
           </ExternalLink>
