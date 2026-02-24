@@ -14,7 +14,7 @@ import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLabel } from '@/utils/token/getLabel'
 import type { SupportedTokenAddresses } from '../types/tokens'
 
-class GetRegistrationPriceError extends TaggedError(
+export class GetRegistrationPriceError extends TaggedError(
   'GetRegistrationPriceError',
 )<{
   readonly cause: GetPriceErrorType

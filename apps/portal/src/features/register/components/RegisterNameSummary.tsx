@@ -21,6 +21,8 @@ import {
   formatTotalWithGasAndFees,
   isPriceResult,
 } from '@/features/register/utils/registrationPrice'
+import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
+import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { validateNameLength } from '@/utils/token/nameValidation'
 
@@ -89,24 +91,18 @@ export const RegisterNameCheckoutSummary = ({
             premiumLabel={getPremiumLabel(name)}
           />
         ))
-        .with({ isError: true }, () => (
-          <div className="border border-border rounded-md p-4">
-            <p className="text-destructive text-sm">
-              Failed to load price. Please try again.
-            </p>
-            <pre className="mt-2 text-xs overflow-auto max-h-24 text-muted-foreground">
-              {match(error)
-                .when(
-                  (e) => e instanceof Error,
-                  (e) => {
-                    const err = e as Error & { cause?: unknown }
-                    return `${err.message}${err.cause ? `\nCause: ${String(err.cause)}` : ''}`
-                  },
-                )
-                .otherwise((e) => String(e))}
-            </pre>
-          </div>
-        ))
+        .with({ isError: true }, () => {
+          const errorInfo = error ? getTransactionErrorInfo(error) : null
+          return (
+            <TransactionErrorAlert
+              title="Failed to load price"
+              summary={
+                errorInfo?.summary ?? 'Failed to load price. Please try again.'
+              }
+              details={errorInfo?.details}
+            />
+          )
+        })
         .with({ hasPrice: true }, () =>
           price ? (
             <PriceBreakdown

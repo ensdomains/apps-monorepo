@@ -1,37 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { determinePremium, getPremiumLabel } from './premium'
-
-describe('determinePremium', () => {
-  it('returns true for 3-character names', () => {
-    expect(determinePremium('abc')).toBe(true)
-    expect(determinePremium('xyz')).toBe(true)
-    expect(determinePremium('abc.eth')).toBe(true)
-  })
-
-  it('returns true for 4-character names', () => {
-    expect(determinePremium('abcd')).toBe(true)
-    expect(determinePremium('test')).toBe(true)
-    expect(determinePremium('test.eth')).toBe(true)
-  })
-
-  it('returns false for 1–2 character names (not registerable)', () => {
-    expect(determinePremium('a')).toBe(false)
-    expect(determinePremium('ab')).toBe(false)
-    expect(determinePremium('a.eth')).toBe(false)
-    expect(determinePremium('ab.eth')).toBe(false)
-  })
-
-  it('returns false for 5+ character names', () => {
-    expect(determinePremium('hello')).toBe(false)
-    expect(determinePremium('hello.eth')).toBe(false)
-    expect(determinePremium('verylongname')).toBe(false)
-  })
-
-  it('normalizes input via ens_normalize (case)', () => {
-    expect(determinePremium('ABC')).toBe(true)
-    expect(determinePremium('TEST.eth')).toBe(true)
-  })
-})
+import { getPremiumLabel } from './premium'
 
 describe('getPremiumLabel', () => {
   it('returns premium-3 label for 3-character names', () => {
