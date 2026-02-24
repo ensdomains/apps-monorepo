@@ -117,7 +117,7 @@ export const RecentActivity = ({ name }: RecentActivityProps) => {
             Full history
           </Link>
         </div>
-        <div className="p-6 border border-gray-300 rounded-lg">
+        <div className="p-6 border border-border rounded-lg">
           No recent activity
         </div>
       </div>
@@ -137,7 +137,7 @@ export const RecentActivity = ({ name }: RecentActivityProps) => {
           Full history
         </Link>
       </div>
-      <div className="border border-gray-300 rounded-lg overflow-hidden">
+      <div className="border border-border rounded-lg overflow-hidden">
         <RecentActivityTable
           name={name}
           events={[

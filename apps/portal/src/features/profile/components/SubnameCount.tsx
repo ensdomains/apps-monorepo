@@ -26,8 +26,8 @@ export const SubnameCount = ({
   if (isLoading) return <LoadingSpinner title="Loading..." />
 
   return (
-    <div className="flex flex-col rounded-2xl overflow-hidden  border border-gray-300 ">
-      <div className="w-full p-6 border-b border-b-gray-300 flex flex-row items-center gap-6">
+    <div className="flex flex-col rounded-2xl overflow-hidden  border border-border ">
+      <div className="w-full p-6 border-b border-b-border flex flex-row items-center gap-6">
         <ListIcon className="p-2 w-8 h-8 rounded-4xl bg-citrine-100 text-citrine-500" />
         <div className="flex-1">
           <span className="font-medium">{data ? data.length : 0}</span> subnames

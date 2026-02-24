@@ -156,7 +156,7 @@ export const SubnamesTable = ({
           rows.map((row) => (
             <div
               key={row.id}
-              className="border-b border-gray-200 px-6 py-4 flex flex-col gap-3"
+              className="border-b border-border px-6 py-4 flex flex-col gap-3"
             >
               <div className="flex flex-row gap-2 items-center">
                 <NameAvatar

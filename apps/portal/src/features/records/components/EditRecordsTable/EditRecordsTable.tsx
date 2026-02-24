@@ -74,7 +74,7 @@ const EditableValueCell = memo(function EditableValueCell({
         className={`font-mono bg-gray-50 ${
           error
             ? 'border-red-500 focus-visible:ring-red-500/50'
-            : 'border-gray-300'
+            : 'border-border'
         }`}
         onChange={(e) => {
           onUpdate?.(record, e.target.value)

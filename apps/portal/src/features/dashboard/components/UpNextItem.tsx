@@ -11,7 +11,7 @@ export const UpNextItem = ({
   description: string
   status: string
 }) => (
-  <div className="w-full p-4 rounded-lg border border-gray-300">
+  <div className="w-full p-4 rounded-lg border border-border">
     <div className="flex flex-row justify-between items-center gap-4">
       <div className="flex items-start gap-3">
         <div className="p-2 rounded-lg shrink-0">

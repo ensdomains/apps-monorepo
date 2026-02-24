@@ -27,7 +27,7 @@ export const WhatsNewItem = ({
 } & RouteConfig) => (
   <button
     type="button"
-    className="w-full p-4 rounded-lg border border-gray-300 hover:border-gray-300 transition-colors text-left group"
+    className="w-full p-4 rounded-lg border border-border hover:border-border transition-colors text-left group"
   >
     <div className="flex flex-row justify-between items-center gap-4">
       <div className="flex items-start gap-3">

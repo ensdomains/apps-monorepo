@@ -9,7 +9,7 @@ export function NetworkCard({ network }: NetworkCardProps) {
   const isNamechain = network === 'namechainSepolia'
 
   return (
-    <div className="p-6 flex flex-row rounded-2xl gap-6 items-center border border-gray-300">
+    <div className="p-6 flex flex-row rounded-2xl gap-6 items-center border border-border">
       {isNamechain ? (
         <NamechainSVG height={40} width={40} />
       ) : (
