@@ -6,7 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { AddTextRecordsDialog } from '@/features/profile/components/dialogs/AddTextRecordsDialog'
+import { AddTextRecordsPills } from '@/features/profile/components/AddTextRecordsPills'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
 import { getAvailableRecords, getRecordDef } from '../../data/records'
@@ -31,7 +31,7 @@ export const SocialLinksSection = withForm({
 
             return (
               <>
-                <AddTextRecordsDialog
+                <AddTextRecordsPills
                   onAdd={(keys) => {
                     for (const key of keys) {
                       socialField.pushValue({ key, value: '' })

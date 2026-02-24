@@ -1,19 +1,19 @@
 import { Plus } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { Button } from '@/components/ui/button'
-import type { TextRecordDef } from '../../data/records/types'
-import { IconRenderer } from '../IconRenderer'
-import { pillAnimation, pillContainerAnimation } from '../motion'
+import type { TextRecordDef } from '../data/records/types'
+import { IconRenderer } from './IconRenderer'
+import { pillAnimation, pillContainerAnimation } from './motion'
 
-interface AddTextRecordsDialogProps {
+interface AddTextRecordsPillsProps {
   records: TextRecordDef[]
   onAdd: (keys: string[]) => void
 }
 
-export const AddTextRecordsDialog = ({
+export const AddTextRecordsPills = ({
   records,
   onAdd,
-}: AddTextRecordsDialogProps) => {
+}: AddTextRecordsPillsProps) => {
   const reduceMotion = useReducedMotion()
 
   return (
