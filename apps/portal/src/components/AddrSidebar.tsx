@@ -108,7 +108,7 @@ export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
                             {item.title}
                           </span>
                           {item.upcoming && (
-                            <Badge className="ml-auto text-[10px] px-1.5 py-0 bg-peridot-100 text-peridot-500 hover:bg-peridot-100">
+                            <Badge className="ml-auto text-xs px-1.5 py-0 bg-peridot-100 text-peridot-500 hover:bg-peridot-100">
                               Soon
                             </Badge>
                           )}
