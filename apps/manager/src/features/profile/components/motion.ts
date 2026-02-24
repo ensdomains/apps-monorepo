@@ -23,7 +23,7 @@ export const pillAnimation = (reduceMotion?: boolean | null) =>
   reduceMotion
     ? empty
     : ({
-        initial: { opacity: 1, scale: 1, filter: 'blur(0px)' },
+        initial: { opacity: 0, scale: 0.95, filter: 'blur(2px)' },
         animate: { opacity: 1, scale: 1, filter: 'blur(0px)' },
         exit: { opacity: 0, scale: 0.95, filter: 'blur(2px)' },
         layout: true,

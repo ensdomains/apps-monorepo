@@ -102,31 +102,32 @@ export const BioSection = withForm({
             )}
 
             {showWebsite && (
-              <form.Field
-                key="website"
-                name="base.url"
-                validators={{ onBlur: ({ value }) => validateUrl(value) }}
-              >
-                {(field) => (
-                  <RecordEntry
-                    error={
-                      field.state.meta.isTouched &&
-                      field.state.meta.errors.length > 0
-                        ? field.state.meta.errors[0]
-                        : undefined
-                    }
-                    name="Website"
-                    onBlur={field.handleBlur}
-                    onChange={field.handleChange}
-                    onRemove={() => {
-                      field.handleChange('')
-                      setShowWebsite(false)
-                    }}
-                    placeholder="https://"
-                    value={field.state.value}
-                  />
-                )}
-              </form.Field>
+              <motion.div key="website" {...entryAnimation(reduceMotion)}>
+                <form.Field
+                  name="base.url"
+                  validators={{ onBlur: ({ value }) => validateUrl(value) }}
+                >
+                  {(field) => (
+                    <RecordEntry
+                      error={
+                        field.state.meta.isTouched &&
+                        field.state.meta.errors.length > 0
+                          ? field.state.meta.errors[0]
+                          : undefined
+                      }
+                      name="Website"
+                      onBlur={field.handleBlur}
+                      onChange={field.handleChange}
+                      onRemove={() => {
+                        field.handleChange('')
+                        setShowWebsite(false)
+                      }}
+                      placeholder="https://"
+                      value={field.state.value}
+                    />
+                  )}
+                </form.Field>
+              </motion.div>
             )}
           </AnimatePresence>
         </CardContent>

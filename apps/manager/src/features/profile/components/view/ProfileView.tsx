@@ -61,8 +61,7 @@ const useOwnerRedirect = (name: string, isProfileEmpty: boolean) => {
   return {
     isOwner,
     owner: ownerData?.owner as Address | undefined,
-    shouldHide:
-      (isOwner || (isOwnerPending && isProfileEmpty)) && isProfileEmpty,
+    shouldHide: (isOwner || isOwnerPending) && isProfileEmpty,
   }
 }
 
