@@ -100,14 +100,12 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
     <div className="flex flex-col gap-4">
       <div className="flex flex-row justify-between items-center">
         <h3 className="text-[26px] font-medium">History</h3>
-        <Link
-          to="/$name/history"
-          params={{ name }}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-secondary hover:bg-secondary/80 text-secondary-foreground"
-        >
-          <Clock className="size-4" />
-          Full history
-        </Link>
+        <Button variant="secondary" size="sm" asChild>
+          <Link to="/$name/history" params={{ name }}>
+            <Clock className="size-4" />
+            Full history
+          </Link>
+        </Button>
       </div>
       <EventsDataTable name={name} data={dataWithTimestampsAndSenders} />
     </div>

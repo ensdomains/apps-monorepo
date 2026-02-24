@@ -148,7 +148,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
       <Link
         to="/addr/$addr/names"
         params={{ addr: address }}
-        className="flex items-center justify-center gap-1 bg-secondary p-4 text-sm font-medium hover:bg-secondary/80 transition-colors"
+        className="flex items-center justify-center gap-1 bg-quartz-50 p-4 text-sm font-medium hover:bg-quartz-100 transition-colors"
       >
         <GripHorizontal size={16} />
         Go to full list ({allData.length})

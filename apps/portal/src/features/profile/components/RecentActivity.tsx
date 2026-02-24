@@ -9,6 +9,7 @@ import { Clock } from 'lucide-react'
 import type { Hash } from 'viem'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
+import { Button } from '@/components/ui/button'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import { LoadingMessage } from '../../../components/LoadingMessage'
 import { useBlockTimestamps } from '../hooks/useBlockTimestamps'
@@ -108,14 +109,12 @@ export const RecentActivity = ({ name }: RecentActivityProps) => {
       <div className="flex flex-col gap-4 w-full">
         <div className="flex flex-row justify-between items-center">
           <h2 className="text-[26px] font-medium">History</h2>
-          <Link
-            to="/$name/history"
-            params={{ name }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-secondary hover:bg-secondary/80 text-secondary-foreground"
-          >
-            <Clock className="size-4" />
-            Full history
-          </Link>
+          <Button variant="secondary" size="sm" asChild>
+            <Link to="/$name/history" params={{ name }}>
+              <Clock className="size-4" />
+              Full history
+            </Link>
+          </Button>
         </div>
         <div className="p-6 border border-border rounded-lg">
           No recent activity
@@ -128,14 +127,12 @@ export const RecentActivity = ({ name }: RecentActivityProps) => {
     <div className="flex flex-col gap-4 w-full">
       <div className="flex flex-row justify-between items-center">
         <h2 className="text-[26px] font-medium">History</h2>
-        <Link
-          to="/$name/history"
-          params={{ name }}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-secondary hover:bg-secondary/80 text-secondary-foreground"
-        >
-          <Clock className="size-4" />
-          Full history
-        </Link>
+        <Button variant="secondary" size="sm" asChild>
+          <Link to="/$name/history" params={{ name }}>
+            <Clock className="size-4" />
+            Full history
+          </Link>
+        </Button>
       </div>
       <div className="border border-border rounded-lg overflow-hidden">
         <RecentActivityTable
