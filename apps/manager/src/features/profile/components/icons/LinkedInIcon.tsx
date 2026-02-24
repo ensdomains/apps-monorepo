@@ -1,8 +1,8 @@
 export const LinkedInIcon = (props: React.SVGProps<SVGSVGElement>) => {
   return (
     <svg
+      aria-hidden="true"
       fill="currentColor"
-      role="presentation"
       viewBox="0 0 24 24"
       xmlns="http://www.w3.org/2000/svg"
       {...props}
