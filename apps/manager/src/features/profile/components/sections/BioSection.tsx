@@ -126,45 +126,31 @@ export const BioSection = withForm({
             )}
 
             {showWebsite && (
-              <motion.div
-                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, scale: 0.98, filter: 'blur(2px)' }}
-                initial={{ opacity: 0, y: -8, filter: 'blur(2px)' }}
+              <form.Field
                 key="website"
-                layout
-                transition={{
-                  layout: { type: 'spring', bounce: 0.05, duration: 0.25 },
-                  opacity: { duration: 0.15 },
-                  scale: { duration: 0.15 },
-                  filter: { duration: 0.15 },
-                  y: { type: 'spring', bounce: 0.1, duration: 0.3 },
-                }}
+                name="base.url"
+                validators={{ onBlur: ({ value }) => validateUrl(value) }}
               >
-                <form.Field
-                  name="base.url"
-                  validators={{ onBlur: ({ value }) => validateUrl(value) }}
-                >
-                  {(field) => (
-                    <RecordEntry
-                      error={
-                        field.state.meta.isTouched &&
-                        field.state.meta.errors.length > 0
-                          ? field.state.meta.errors[0]
-                          : undefined
-                      }
-                      name="website"
-                      onBlur={field.handleBlur}
-                      onChange={field.handleChange}
-                      onRemove={() => {
-                        field.handleChange('')
-                        setShowWebsite(false)
-                      }}
-                      placeholder="https://"
-                      value={field.state.value}
-                    />
-                  )}
-                </form.Field>
-              </motion.div>
+                {(field) => (
+                  <RecordEntry
+                    error={
+                      field.state.meta.isTouched &&
+                      field.state.meta.errors.length > 0
+                        ? field.state.meta.errors[0]
+                        : undefined
+                    }
+                    name="Website"
+                    onBlur={field.handleBlur}
+                    onChange={field.handleChange}
+                    onRemove={() => {
+                      field.handleChange('')
+                      setShowWebsite(false)
+                    }}
+                    placeholder="https://"
+                    value={field.state.value}
+                  />
+                )}
+              </form.Field>
             )}
           </AnimatePresence>
         </CardContent>
