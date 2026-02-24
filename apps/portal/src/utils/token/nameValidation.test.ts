@@ -24,7 +24,7 @@ describe('validateNameLength', () => {
     expect(validateNameLength('hello.eth')).toBeNull()
   })
 
-  it('returns null for empty string', () => {
-    expect(validateNameLength('')).toBeNull()
+  it('returns error for invalid names (empty, unparseable)', () => {
+    expect(validateNameLength('')).toBe('Invalid name')
   })
 })

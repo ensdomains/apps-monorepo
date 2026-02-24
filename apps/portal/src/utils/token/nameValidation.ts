@@ -6,8 +6,12 @@ import { getLabel } from './getLabel'
  * Uses ens_normalize/ens_split for proper label extraction.
  */
 export const validateNameLength = (name: string): string | null => {
-  const label = getLabel(name)
-  if (label === null) return null
+  let label: string
+  try {
+    label = getLabel(name)
+  } catch {
+    return 'Invalid name'
+  }
   if (label.length > 0 && label.length < 3) {
     return 'Names must be 3 characters or more to register.'
   }

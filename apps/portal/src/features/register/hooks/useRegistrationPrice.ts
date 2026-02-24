@@ -1,7 +1,7 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { UnsupportedNameTypeError } from '@ensdomains/ensjs'
+import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
 import { l2EthRegistrarRentPriceSnippet } from '@ensdomains/ensjs/contracts'
 import type { GetPriceErrorType } from '@ensdomains/ensjs/public'
 import { err, fromPromise, ok } from 'neverthrow'
@@ -17,7 +17,7 @@ import type { SupportedTokenAddresses } from '../types/tokens'
 export class GetRegistrationPriceError extends TaggedError(
   'GetRegistrationPriceError',
 )<{
-  readonly cause: GetPriceErrorType
+  readonly cause: GetPriceErrorType | UnsupportedNameTypeError
 }> {}
 
 export type RegistrationPriceParameters = {
@@ -42,17 +42,13 @@ export const getRegistrationPrice = ResultFn(async function* ({
   const client = yield* safeGetClient()
   const resolvedToken = token ?? SUPPORTED_TOKENS.USDC
 
-  const label = getLabel(name)
+  let label: string
 
-  if (label === null) {
+  try {
+    label = getLabel(name)
+  } catch (e) {
     return err(
-      new GetRegistrationPriceError({
-        cause: new UnsupportedNameTypeError({
-          nameType: 'root',
-          supportedNameTypes: ['eth-2ld', 'tld'],
-          details: 'Could not parse label from name',
-        }),
-      }),
+      new GetRegistrationPriceError({ cause: e as UnsupportedNameTypeError }),
     )
   }
 

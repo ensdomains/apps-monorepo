@@ -14,9 +14,11 @@ export type PremiumLabel = {
 export const getPremiumLabel = (
   domainName: string,
 ): PremiumLabel | undefined => {
-  const label = getLabel(domainName)
+  let label: string
 
-  if (!label) {
+  try {
+    label = getLabel(domainName)
+  } catch {
     return undefined
   }
 
