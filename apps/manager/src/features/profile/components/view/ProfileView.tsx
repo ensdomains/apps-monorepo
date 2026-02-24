@@ -36,20 +36,13 @@ const hasConfiguredProfileRecords = ({
   Boolean(contentHash?.trim()) ||
   Boolean(abi?.trim())
 
-export const ProfileView = ({ name }: ProfileViewProps) => {
+const useOwnerRedirect = (name: string, isProfileEmpty: boolean) => {
   const navigate = useNavigate()
-  const { data: profileRecords } = useSuspenseQuery({
-    ...profileRecordsQuery(name),
-  })
-  const records = transformProfileRecords(profileRecords)
-  const isProfileEmpty = !hasConfiguredProfileRecords(profileRecords)
-
-  const { data: ownerData } = useQuery({
+  const { data: ownerData, isPending: isOwnerPending } = useQuery({
     ...profileOwnerQuery(name),
   })
 
   const { data: wallet } = useWallet()
-
   const { accountAddress: smartAccountAddress } = useSmartAccountContext()
 
   const normalizedOwner = ownerData?.owner?.toLowerCase()
@@ -60,23 +53,35 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
       .some((addr) => addr.toLowerCase() === normalizedOwner)
 
   useEffect(() => {
-    // If profile is empty and user is owner, redirect to edit page
     if (isOwner && isProfileEmpty) {
       navigate({ to: '/p/$name/edit', params: { name }, replace: true })
     }
   }, [isOwner, isProfileEmpty, navigate, name])
 
-  if (isOwner && isProfileEmpty) {
+  return {
+    isOwner,
+    owner: ownerData?.owner as Address | undefined,
+    shouldHide:
+      (isOwner || (isOwnerPending && isProfileEmpty)) && isProfileEmpty,
+  }
+}
+
+export const ProfileView = ({ name }: ProfileViewProps) => {
+  const { data: profileRecords } = useSuspenseQuery({
+    ...profileRecordsQuery(name),
+  })
+  const records = transformProfileRecords(profileRecords)
+  const isProfileEmpty = !hasConfiguredProfileRecords(profileRecords)
+
+  const { isOwner, owner, shouldHide } = useOwnerRedirect(name, isProfileEmpty)
+
+  if (shouldHide) {
     return null
   }
 
   return (
     <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]">
-      <ViewHeaderSection
-        name={name}
-        owner={ownerData?.owner as Address | undefined}
-        records={records}
-      />
+      <ViewHeaderSection name={name} owner={owner} records={records} />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         {/* Left/main column */}
         <div className="space-y-4 md:col-span-7 lg:col-span-8">
