@@ -118,7 +118,7 @@ const RegistryInfo = ({
   const ethRegistryAddress = data.registries.at(-2)
 
   return (
-    <div className="max-w-360 mx-auto w-full flex flex-col p-4 gap-4 md:p-6 md:gap-6">
+    <div className="max-w-360 mx-auto w-full flex flex-col p-4 gap-4 sm:p-6 sm:gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-[28px] font-medium leading-none">Registry</h1>
         {ethRegistryAddress &&
