@@ -75,7 +75,7 @@ export const RecordList = ({
           <h1 className="text-[28px] font-medium">{recordCount} Records</h1>
           {canEdit && (
             <Button
-              variant="outline"
+              variant="secondary"
               className="flex items-center gap-2"
               asChild
             >

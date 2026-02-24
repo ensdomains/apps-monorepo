@@ -309,15 +309,15 @@ function RouteComponent() {
               <div
                 className={cn(
                   'px-2 py-1 rounded-full flex flex-row items-center gap-1',
-                  normalized ? 'bg-green-100' : 'bg-red-100',
+                  normalized ? 'bg-peridot-100' : 'bg-garnet-100',
                 )}
               >
                 {normalized ? (
-                  <CheckCircleIcon className="size-4 text-green-600" />
+                  <CheckCircleIcon className="size-4 text-peridot-500" />
                 ) : (
-                  <XCircleIcon className="size-4 text-red-600" />
+                  <XCircleIcon className="size-4 text-garnet-500" />
                 )}
-                <span className="text-xs font-medium">
+                <span className="text-xs font-medium text-peridot-500">
                   {normalized ? 'Normalized' : 'Not Normalized'}
                 </span>
               </div>

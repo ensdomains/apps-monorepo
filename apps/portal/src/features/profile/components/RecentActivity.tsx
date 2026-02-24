@@ -113,7 +113,7 @@ export const RecentActivity = ({ name }: RecentActivityProps) => {
             params={{ name }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-secondary hover:bg-secondary/80 text-secondary-foreground"
           >
-            <Clock height={16} width={16} />
+            <Clock className="size-4" />
             Full history
           </Link>
         </div>
@@ -133,7 +133,7 @@ export const RecentActivity = ({ name }: RecentActivityProps) => {
           params={{ name }}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-secondary hover:bg-secondary/80 text-secondary-foreground"
         >
-          <Clock height={16} width={16} />
+          <Clock className="size-4" />
           Full history
         </Link>
       </div>

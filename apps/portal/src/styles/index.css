@@ -14,7 +14,7 @@
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: #DBF0F8;
+  --secondary: #dbf0f8;
   --secondary-foreground: #0082BB;
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
@@ -33,25 +33,25 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
 
-  --lapis-100: #DBF0F8;
-  --lapis-400: #80C4E0;
-  --lapis-500: #0082BB;
-  --lapis-900: #02293B;
+  --lapis-100: #dbf0f8;
+  --lapis-400: #80c4e0;
+  --lapis-500: #0082bb;
+  --lapis-900: #02293b;
 
-  --citrine-100: #F8F7E2;
-  --citrine-400: #E1B77E;
-  --citrine-500: #914B1C;
-  --citrine-900: #441B03;
+  --citrine-100: #f8f7e2;
+  --citrine-400: #e1b77e;
+  --citrine-500: #914b1c;
+  --citrine-900: #441b03;
 
-  --peridot-100: #D1EEDF;
-  --peridot-400: #65D388;
-  --peridot-500: #007C20;
+  --peridot-100: #d1eedf;
+  --peridot-400: #65d388;
+  --peridot-500: #007c20;
   --peridot-900: #033010;
 
-  --garnet-100: #FEEAF0;
-  --garnet-400: #FFB0D0;
-  --garnet-500: #ED2496;
-  --garnet-900: #5A0024;
+  --garnet-100: #feeaf0;
+  --garnet-400: #ffb0d0;
+  --garnet-500: #ed2496;
+  --garnet-900: #5a0024;
 
   --avatar-placeholder-gradient: linear-gradient(
     135deg,

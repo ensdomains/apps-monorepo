@@ -66,7 +66,7 @@ const EditButtons = ({ address, name }: EditButtonsProps) => {
         <XIcon className="w-4 h-4" />
         <span>Clear records</span>
       </button> */}
-      <Button variant="outline" className="flex items-center gap-2" asChild>
+      <Button variant="secondary" className="flex items-center gap-2" asChild>
         <Link to="/$name/change-resolver" params={{ name }}>
           <EditIcon className="size-4" />
           Change resolver

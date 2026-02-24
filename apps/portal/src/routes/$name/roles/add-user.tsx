@@ -207,6 +207,7 @@ function RouteComponent() {
           </div>
           <Button
             type="submit"
+            variant="secondary"
             className="w-fit"
             disabled={!address || mutation.isPending}
           >

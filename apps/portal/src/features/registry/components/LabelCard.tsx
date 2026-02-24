@@ -7,7 +7,7 @@ type NetworkCardProps = {
 export function LabelCard({ label }: NetworkCardProps) {
   return (
     <div className="p-6 flex flex-row rounded-2xl gap-6 items-center border border-gray-300">
-      <div className="bg-gray-100 rounded-full p-3">
+      <div className="bg-secondary text-secondary-foreground rounded-full p-3">
         <Network />
       </div>
       <div className="flex flex-col">

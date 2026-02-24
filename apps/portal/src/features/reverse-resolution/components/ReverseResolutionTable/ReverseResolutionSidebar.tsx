@@ -3,7 +3,7 @@ import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
-import { ArrowLeftRight, CheckCircle2, XCircle } from 'lucide-react'
+import { ArrowLeftRight, CheckCircle2, Clock, XCircle } from 'lucide-react'
 import {
   type FC,
   type PropsWithChildren,
@@ -100,10 +100,13 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
     <div className="flex flex-col gap-4">
       <div className="flex flex-row justify-between items-center">
         <h3 className="text-[26px] font-medium">History</h3>
-        <Link to="/$name/history" params={{ name }}>
-          <Button variant="outline" size="sm">
-            Full history
-          </Button>
+        <Link
+          to="/$name/history"
+          params={{ name }}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-secondary hover:bg-secondary/80 text-secondary-foreground"
+        >
+          <Clock className="size-4" />
+          Full history
         </Link>
       </div>
       <EventsDataTable name={name} data={dataWithTimestampsAndSenders} />
