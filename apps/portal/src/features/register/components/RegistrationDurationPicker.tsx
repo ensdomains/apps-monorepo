@@ -1,5 +1,5 @@
 import { Minus, Plus } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,29 +22,26 @@ export const RegistrationDurationPicker = ({
 }: RegistrationDurationPickerProps) => {
   const [isFocused, setIsFocused] = useState(false)
 
-  const handleDecrement = useCallback(() => {
+  const handleDecrement = () => {
     if (value > min) {
       onChange(value - 1)
     }
-  }, [value, min, onChange])
+  }
 
-  const handleIncrement = useCallback(() => {
+  const handleIncrement = () => {
     if (value < max) {
       onChange(value + 1)
     }
-  }, [value, max, onChange])
+  }
 
-  const handleInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const parsed = parseInt(e.target.value, 10)
-      if (!Number.isNaN(parsed) && parsed >= min && parsed <= max) {
-        onChange(parsed)
-      } else {
-        onChange(min)
-      }
-    },
-    [min, max, onChange],
-  )
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const parsed = parseInt(e.target.value, 10)
+    if (!Number.isNaN(parsed) && parsed >= min && parsed <= max) {
+      onChange(parsed)
+    } else {
+      onChange(min)
+    }
+  }
 
   const label = value === 1 ? '1 year' : `${value} years`
 
