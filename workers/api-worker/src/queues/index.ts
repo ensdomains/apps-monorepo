@@ -1,9 +1,11 @@
 import type {
+  BaseDeliveryJob,
   EmailDeliveryJob,
   PushDeliveryJob,
   TelegramDeliveryJob,
 } from '#types/delivery.js'
 import { logger } from '#utils/logger.js'
+import { handleDlqQueue } from './dlq.js'
 import { handleEmailQueue } from './email.js'
 import { handleEventIngestionQueue } from './event-ingestion.js'
 import { handlePushQueue } from './push.js'
@@ -31,6 +33,9 @@ export const handleQueue = async (
       break
     case 'app-api-worker-event-ingestion':
       await handleEventIngestionQueue(batch, env)
+      break
+    case 'app-api-worker-dlq':
+      await handleDlqQueue(batch as MessageBatch<BaseDeliveryJob>, env)
       break
     default:
       logger.error('Unknown queue', { queue: batch.queue })
