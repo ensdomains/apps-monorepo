@@ -1,4 +1,5 @@
 import { X } from 'lucide-react'
+import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { FloatingInput } from '@/components/ui/floating-input'
 
@@ -23,7 +24,12 @@ export const RecordEntry = ({
   onBlur,
   onRemove,
 }: RecordEntryProps) => (
-  <div className="flex flex-col gap-1 pt-1">
+  <motion.div
+    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+    className="flex flex-col gap-1 pt-1"
+    initial={{ opacity: 0, y: -8, filter: 'blur(2px)' }}
+    transition={{ type: 'spring', bounce: 0.1, duration: 0.3 }}
+  >
     <div className="flex items-center gap-3">
       <FloatingInput
         aria-invalid={Boolean(error)}
@@ -37,13 +43,13 @@ export const RecordEntry = ({
       />
       <button
         aria-label={`Remove ${name}`}
-        className="text-muted-foreground transition-colors hover:text-foreground"
+        className="py-4 text-muted-foreground transition-colors hover:text-foreground"
         onClick={onRemove}
         type="button"
       >
-        <X className="size-3" />
+        <X className="size-4" />
       </button>
     </div>
     {error && <p className="text-destructive text-xs">{error}</p>}
-  </div>
+  </motion.div>
 )
