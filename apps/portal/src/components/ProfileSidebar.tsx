@@ -123,7 +123,10 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
                               {item.title}
                             </span>
                             {item.upcoming && (
-                              <Badge className="ml-auto text-xs px-1.5 py-0 bg-peridot-100 text-peridot-500 hover:bg-peridot-100">
+                              <Badge
+                                variant="success"
+                                className="ml-auto text-[10px] px-1.5 py-0"
+                              >
                                 Soon
                               </Badge>
                             )}
@@ -135,7 +138,6 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
                               to={item.url}
                               activeProps={{
                                 'data-active': 'true',
-                                className: '!bg-lapis-100 !text-lapis-500',
                               }}
                               activeOptions={{
                                 exact: item.url === '/$name',
