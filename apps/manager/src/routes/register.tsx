@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { normalizeDomainNameFromUrl } from '@/features/register/components/Pricing/utils'
 import { Registration } from '@/features/register/pages/RegistrationPage'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { normalizeDomainNameFromUrl } from '@/utils/domain'
 
 interface RegisterSearch {
   name?: string

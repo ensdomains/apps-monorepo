@@ -107,17 +107,24 @@ function isValidContentHash(value: string): boolean {
 }
 
 /**
- * Validates an ABI value - must be valid JSON.
+ * Validates an ABI value - must be a valid JSON array.
+ * Returns a specific error message if invalid, or null if valid.
  */
-function isValidAbi(value: string): boolean {
-  if (!value) return true // Empty is valid (means deletion)
+function validateAbi(value: string): string | null {
+  if (!value) return null
 
+  let parsed: unknown
   try {
-    JSON.parse(value)
-    return true
+    parsed = JSON.parse(value)
   } catch {
-    return false
+    return 'Invalid JSON format. ABI must be a valid JSON array.'
   }
+
+  if (!Array.isArray(parsed)) {
+    return 'ABI must be a JSON array (starting with [ and ending with ]).'
+  }
+
+  return null
 }
 
 /**
@@ -169,9 +176,8 @@ export function validateRecord(record: EditableRecord): string | null {
   }
 
   if (type === 'abi') {
-    if (!isValidAbi(value)) {
-      return 'Invalid JSON format'
-    }
+    const abiError = validateAbi(value)
+    if (abiError) return abiError
   }
 
   return null

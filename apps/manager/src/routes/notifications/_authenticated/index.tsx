@@ -1,4 +1,7 @@
+import { notificationDefinitions } from '@ens-apps/shared-schema/notifications'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { useMemo, useState } from 'react'
 import { Field, FieldLabel } from '@/components/ui/field'
 import {
   InputGroup,
@@ -7,15 +10,61 @@ import {
 } from '@/components/ui/input-group'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { Switch } from '@/components/ui/switch'
-import { FilterBadge } from '@/features/notifications/components/filter-badge'
-import { NotificationsList } from '@/features/notifications/components/list'
-import { UnreadCount } from '@/features/notifications/components/unread-count'
+import {
+  markAllNotificationsReadMutationOptions,
+  notificationsInfiniteQuery,
+} from '@/features/notifications/data/queries/notifications'
+import { FilterBadge } from '@/features/notifications/inbox/filter-badge'
+import { NotificationsList } from '@/features/notifications/inbox/list'
+import { UnreadCount } from '@/features/notifications/inbox/unread-count'
 
 export const Route = createFileRoute('/notifications/_authenticated/')({
   component: RouteComponent,
 })
 
 function RouteComponent() {
+  const [unreadOnly, setUnreadOnly] = useState(false)
+  const [selectedTag, setSelectedTag] = useState<string>('all')
+  const markAllAsRead = useMutation(markAllNotificationsReadMutationOptions)
+  const queryClient = useQueryClient()
+
+  const tagOptions = useMemo(() => {
+    const tags = new Set<string>()
+    for (const definition of Object.values(notificationDefinitions)) {
+      for (const tag of definition.metadata.tags ?? []) {
+        tags.add(tag)
+      }
+    }
+    return Array.from(tags)
+  }, [])
+
+  const formatTagLabel = (tag: string) => {
+    const preset: Record<string, string> = {
+      expiry: 'Expiry',
+      updates: 'ENS Updates',
+      education: 'Education',
+      onboarding: 'Onboarding',
+      transfer: 'Transfers',
+    }
+
+    if (preset[tag]) return preset[tag]
+    return tag
+      .split('-')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ')
+  }
+
+  const handleMarkAllAsRead = () => {
+    const notificationsQueryData = queryClient.getQueryData(
+      notificationsInfiniteQuery.queryKey,
+    )
+
+    const loadedNotifications =
+      notificationsQueryData?.pages.flatMap((page) => page.notifications) ?? []
+
+    markAllAsRead.mutate(loadedNotifications)
+  }
+
   return (
     <div className="mx-auto w-full max-w-5xl flex-1 space-y-12 rounded-lg border-[#dededf] bg-white px-6 py-8 lg:my-5 lg:border">
       <div className="flex flex-col gap-8">
@@ -38,7 +87,11 @@ function RouteComponent() {
         </div>
         <div className="flex justify-between">
           <Field className="w-fit" orientation="horizontal">
-            <Switch id="switch-disabled-unchecked" />
+            <Switch
+              checked={unreadOnly}
+              id="switch-disabled-unchecked"
+              onCheckedChange={(checked) => setUnreadOnly(Boolean(checked))}
+            />
             <FieldLabel
               className="font-normal"
               htmlFor="switch-disabled-unchecked"
@@ -49,9 +102,11 @@ function RouteComponent() {
 
           <button
             className="font-normal text-base text-ens-lapis-core leading-ens-normal hover:underline"
+            disabled={markAllAsRead.isPending}
+            onClick={handleMarkAllAsRead}
             type="button"
           >
-            Mark all as read
+            {markAllAsRead.isPending ? 'Marking...' : 'Mark all as read'}
           </button>
         </div>
         <InputGroup className="h-10 border-0 bg-[#FCFBFB]">
@@ -61,13 +116,22 @@ function RouteComponent() {
           </InputGroupAddon>
         </InputGroup>
         <div className="flex gap-3">
-          <FilterBadge active={true} label="All" />
-          <FilterBadge active={false} label="Expiry" />
-          <FilterBadge active={false} label="ENS Updates" />
-          <FilterBadge active={false} label="Education" />
+          <FilterBadge
+            active={selectedTag === 'all'}
+            label="All"
+            onClick={() => setSelectedTag('all')}
+          />
+          {tagOptions.map((tag) => (
+            <FilterBadge
+              active={selectedTag === tag}
+              key={tag}
+              label={formatTagLabel(tag)}
+              onClick={() => setSelectedTag(tag)}
+            />
+          ))}
         </div>
       </div>
-      <NotificationsList />
+      <NotificationsList selectedTag={selectedTag} unreadOnly={unreadOnly} />
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { PremiumLabel } from '@/features/register/utils'
+import { getByteLength } from '@/utils/domain'
 import { PricingDomainHeader } from './PricingDomainHeader'
-import { getByteLength } from './utils'
 
 const meta = {
   title: 'Features/Register/Pricing/PricingDomainHeader',
@@ -111,6 +111,10 @@ export const WithPremiumLabel4Char: Story = {
 
 // Comparison story
 export const AllTiersComparison: Story = {
+  args: {
+    domainName: 'abc.eth',
+    premiumLabel: undefined,
+  },
   render: () => (
     <div className="space-y-12">
       <div>
@@ -158,6 +162,10 @@ export const AllTiersComparison: Story = {
 
 // Multi-byte character showcase
 export const MultiByteShowcase: Story = {
+  args: {
+    domainName: '🎉🎊🎈.eth',
+    premiumLabel: undefined,
+  },
   render: () => (
     <div className="space-y-8">
       <div>
@@ -191,6 +199,13 @@ export const MultiByteShowcase: Story = {
 
 // Premium with different byte tiers
 export const PremiumAcrossTiers: Story = {
+  args: {
+    domainName: 'abc.eth',
+    premiumLabel: {
+      label: '3 character premium name',
+      variant: 'premium-3',
+    } as PremiumLabel,
+  },
   render: () => (
     <div className="space-y-8">
       <div>

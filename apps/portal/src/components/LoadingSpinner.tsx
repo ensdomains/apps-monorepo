@@ -8,7 +8,9 @@ export const LoadingSpinner = ({ title }: LoadingSpinnerProps) => {
   return (
     <div className="p-8 gap-4 flex flex-row items-center justify-start">
       <Spinner />
-      {title && <p className="text-base font-medium text-gray-500">{title}</p>}
+      {title && (
+        <p className="text-base font-medium text-quartz-500">{title}</p>
+      )}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import type { PremiumLabel } from '@/features/register/utils'
 import { cn } from '@/lib/utils'
-import { getByteLength, getDomainHeaderSizeClasses } from './utils'
+import { getByteLength, getDomainHeaderSizeClasses } from '@/utils/domain'
 
 type PricingDomainHeaderProps = {
   domainName: string

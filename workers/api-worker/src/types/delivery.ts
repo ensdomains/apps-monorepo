@@ -1,11 +1,18 @@
-import type { NotificationKind } from '#config/notifications.js'
+import type { PersonalNotificationKind } from '@ens-apps/shared-schema/notifications'
+
+export type FailureCategory =
+  | 'transient'
+  | 'hard_bounce'
+  | 'rate_limit'
+  | 'account_error'
+  | 'unknown'
 
 // Base delivery job
 export type BaseDeliveryJob = {
   id: string
   notificationId: string
   userId: string
-  kind: NotificationKind
+  kind: PersonalNotificationKind
 }
 
 // Channel-specific delivery jobs

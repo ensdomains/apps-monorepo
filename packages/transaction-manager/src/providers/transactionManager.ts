@@ -7,6 +7,17 @@ import {
   saveTransaction,
 } from '../helpers/transaction-persistence'
 import { transactionMachine } from '../machines/transaction.machine'
+import {
+  createRunTelemetryService,
+  estimateTelemetryBytes,
+} from '../services/run-telemetry.service'
+import type {
+  FailedRunPayloadV2,
+  RunTelemetryEventSubscriber,
+  RunTelemetrySubscriber,
+  TransactionRunEventV2,
+  TransactionRunStatus,
+} from '../types/audit.types'
 import type { Signer } from '../types/signer.types'
 import type {
   TransactionIntent,
@@ -17,6 +28,21 @@ import type {
 type TransactionChangeListener = (
   transactions: Map<string, ActorRefFrom<typeof transactionMachine>>,
 ) => void
+
+function getRootState(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (value && typeof value === 'object') {
+    const keys = Object.keys(value)
+    if (keys.length > 0 && keys[0]) return keys[0]
+  }
+  return String(value)
+}
+
+function isCancelledState(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false
+  const root = (value as Record<string, unknown>).error
+  return root === 'cancelled'
+}
 
 /**
  * Transaction Manager Singleton
@@ -45,7 +71,11 @@ class TransactionManager {
     ActorRefFrom<typeof transactionMachine>
   >()
   private listeners = new Set<TransactionChangeListener>()
+  private telemetryListeners = new Set<RunTelemetrySubscriber>()
+  private telemetryEventListeners = new Set<RunTelemetryEventSubscriber>()
   private publicClients = new Map<number, PublicClient>() // chainId -> PublicClient
+  private completedTelemetry = new Set<string>()
+  private runTelemetry = createRunTelemetryService()
 
   constructor() {
     console.log(`🔧 [TRANSACTION MANAGER] Instance created: ${this.instanceId}`)
@@ -177,14 +207,34 @@ class TransactionManager {
       },
     })
 
+    this.runTelemetry.startRun({
+      txId,
+      chainId,
+      intent,
+      request:
+        request || (intent?.type === 'custom' ? intent.request : undefined),
+      signer,
+      options: transactionOptions,
+      useSmartAccount: Boolean(useSmartAccount),
+    })
+
     actor.start()
 
     console.log('✅ [TRANSACTION MANAGER] Actor started:', txId)
 
     // Subscribe to actor state changes for persistence
     actor.subscribe((snapshot) => {
-      const state = snapshot.value as string
+      const state = getRootState(snapshot.value)
       const ctx = snapshot.context
+
+      const telemetryEvent = this.runTelemetry.recordSnapshot(txId, snapshot)
+      if (telemetryEvent) {
+        this.notifyTelemetryEventListeners(
+          telemetryEvent.runId,
+          txId,
+          telemetryEvent.event,
+        )
+      }
 
       console.log(`📊 [TRANSACTION MANAGER] Transaction ${txId} state:`, state)
 
@@ -219,6 +269,23 @@ class TransactionManager {
             err,
           ),
         )
+      }
+
+      if (
+        (state === 'success' || state === 'error') &&
+        !this.completedTelemetry.has(txId)
+      ) {
+        this.completedTelemetry.add(txId)
+        const terminalStatus: TransactionRunStatus =
+          state === 'success'
+            ? 'success'
+            : isCancelledState(snapshot.value)
+              ? 'cancelled'
+              : 'error'
+        const payload = this.runTelemetry.completeRun(txId, terminalStatus)
+        if (payload) {
+          this.notifyTelemetryListeners(payload)
+        }
       }
     })
 
@@ -282,6 +349,20 @@ class TransactionManager {
     }
   }
 
+  onFailedRunTelemetry(listener: RunTelemetrySubscriber): () => void {
+    this.telemetryListeners.add(listener)
+    return () => {
+      this.telemetryListeners.delete(listener)
+    }
+  }
+
+  onRunTelemetryEvent(listener: RunTelemetryEventSubscriber): () => void {
+    this.telemetryEventListeners.add(listener)
+    return () => {
+      this.telemetryEventListeners.delete(listener)
+    }
+  }
+
   /**
    * Notify all listeners of transaction changes
    */
@@ -289,6 +370,48 @@ class TransactionManager {
     const txCopy = this.getTransactions()
     this.listeners.forEach((listener) => {
       listener(txCopy)
+    })
+  }
+
+  private notifyTelemetryListeners(payload: FailedRunPayloadV2): void {
+    this.telemetryListeners.forEach((listener) => {
+      try {
+        listener(payload)
+      } catch (error) {
+        console.error(
+          `❌ [TRANSACTION MANAGER ${this.instanceId}] Failed run telemetry listener crashed:`,
+          error,
+        )
+      }
+    })
+  }
+
+  private notifyTelemetryEventListeners(
+    runId: string,
+    txId: string,
+    event: TransactionRunEventV2,
+  ): void {
+    this.telemetryEventListeners.forEach((listener) => {
+      try {
+        listener({
+          runId,
+          txId,
+          status:
+            event.phase === 'success'
+              ? 'success'
+              : event.phase === 'error' && event.substate === 'cancelled'
+                ? 'cancelled'
+                : event.phase === 'error'
+                  ? 'error'
+                  : undefined,
+          event,
+        })
+      } catch (error) {
+        console.error(
+          `❌ [TRANSACTION MANAGER ${this.instanceId}] Telemetry event listener crashed:`,
+          error,
+        )
+      }
     })
   }
 
@@ -300,6 +423,8 @@ class TransactionManager {
       actor.stop()
     })
     this.transactions.clear()
+    this.completedTelemetry.clear()
+    this.runTelemetry.clear()
     this.notifyListeners()
   }
 
@@ -321,6 +446,8 @@ class TransactionManager {
     })
 
     this.transactions.clear()
+    this.completedTelemetry.clear()
+    this.runTelemetry.clear()
     this.notifyListeners()
 
     try {
@@ -339,3 +466,4 @@ class TransactionManager {
 
 // Export singleton instance
 export const transactionManager = new TransactionManager()
+export { estimateTelemetryBytes }

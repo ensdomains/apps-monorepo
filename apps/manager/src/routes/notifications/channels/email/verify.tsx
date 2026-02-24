@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { verifyEmailMutationOptions } from '@/features/notifications/queries/channels'
+import { verifyEmailMutationOptions } from '@/features/notifications/data/queries/channels'
 import { isBackendAuthed } from '@/utils/backend-client'
 
 // Shared card wrapper component

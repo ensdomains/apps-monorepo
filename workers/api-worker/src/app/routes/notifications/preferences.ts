@@ -1,3 +1,4 @@
+import { UserNotificationSettingsSchema } from '@ens-apps/shared-schema/notifications'
 import { vValidator } from '@hono/valibot-validator'
 import { and, eq } from 'drizzle-orm'
 import * as v from 'valibot'
@@ -5,7 +6,6 @@ import { requireAuth } from '#app/middleware/auth.js'
 import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
-import { UserNotificationSettingsSchema } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
 
 /**
@@ -101,7 +101,14 @@ export default createApp()
 
       // TODO: If ensLabsUpdates changes, sync SendGrid marketing list (handled in separate PR).
 
-      logger.info('Notification settings updated', { userId, patch, row })
+      logger.info('Notification settings updated', {
+        userId,
+        changedFields: Object.keys(patch),
+      })
+      logger.trace('Notification settings row updated', {
+        userId,
+        rowUserId: row.user_id,
+      })
 
       return c.json({
         settings: {

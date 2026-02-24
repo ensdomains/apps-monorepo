@@ -10,6 +10,7 @@
     "cf-typegen": "pnpm dlx wrangler types --env-interface Env worker-configuration.gen.d.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "pretypecheck": "pnpm --filter api-worker run build:types",
     "typecheck": "tsc --noEmit",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
@@ -79,7 +80,8 @@
     "vaul": "^1.1.2",
     "viem": "^2.40.3",
     "wagmi": "^3.0.2",
-    "xstate": "catalog:"
+    "xstate": "catalog:",
+    "@ens-apps/shared-schema": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.23.1",

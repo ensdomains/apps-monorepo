@@ -4,7 +4,7 @@ import {
   getByteLength,
   MAX_DOMAIN_BYTES,
   truncateToMaxBytes,
-} from '@/features/register/components/Pricing/utils'
+} from '@/utils/domain'
 import { SearchField } from './SearchField'
 
 const meta = {

@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
-import { RequireBackendAuth } from '@/features/notifications/components/RequireBackendAuth'
+import { RequireBackendAuth } from '@/features/notifications/RequireBackendAuth'
 
 export const Route = createFileRoute('/notifications/_authenticated')({
   component: RouteComponent,

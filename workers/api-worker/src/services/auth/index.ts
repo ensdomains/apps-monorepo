@@ -6,6 +6,7 @@ import { signJWT } from '#core/auth/jwt.js'
 import type { Database } from '#core/database/index.js'
 import type { ViemClient } from '#core/eth/client.js'
 import { intoKVResult, KV_KEY } from '#core/kv/index.js'
+import { logger } from '#utils/logger.js'
 import { addUserIfNotExists } from '../users'
 import { safeVerifySiweMessage } from './helpers'
 
@@ -78,7 +79,10 @@ export const createJWT = ({
     }
 
     const user = yield* addUserIfNotExists(db, address)
-    console.log('user', user)
+    logger.trace('SIWE user resolved', {
+      userId: user.id,
+      address,
+    })
 
     const jwt = yield* signJWT(
       {
