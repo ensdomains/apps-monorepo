@@ -18,10 +18,7 @@ type RegisterNameFormProps = {
   readonly setDuration: (seconds: number) => void
 }
 
-enum REGISTRATION_SPAN_TYPE {
-  YEARS = 'years',
-  DATE = 'date',
-}
+type RegistrationSpanType = 'years' | 'date'
 
 export const RegisterNameForm = ({
   name,
@@ -29,13 +26,13 @@ export const RegisterNameForm = ({
   setDuration,
 }: RegisterNameFormProps) => {
   const [registrationSpanType, setRegistrationSpanType] =
-    useState<REGISTRATION_SPAN_TYPE>(REGISTRATION_SPAN_TYPE.YEARS)
+    useState<RegistrationSpanType>('years')
 
   const handleRegistrationSpanTypeChange = () => {
-    if (registrationSpanType === REGISTRATION_SPAN_TYPE.YEARS) {
-      setRegistrationSpanType(REGISTRATION_SPAN_TYPE.DATE)
+    if (registrationSpanType === 'years') {
+      setRegistrationSpanType('date')
     } else {
-      setRegistrationSpanType(REGISTRATION_SPAN_TYPE.YEARS)
+      setRegistrationSpanType('years')
     }
   }
 
@@ -50,10 +47,7 @@ export const RegisterNameForm = ({
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-base font-medium">
-            Register{' '}
-            {registrationSpanType === REGISTRATION_SPAN_TYPE.YEARS
-              ? 'for'
-              : 'until'}
+            Register {registrationSpanType === 'years' ? 'for' : 'until'}
           </span>
           <Button
             variant="ghost"
@@ -62,16 +56,13 @@ export const RegisterNameForm = ({
             className="gap-1"
           >
             <span className="text-xs font-normal">
-              Choose by{' '}
-              {registrationSpanType === REGISTRATION_SPAN_TYPE.YEARS
-                ? 'date'
-                : 'years'}
+              Choose by {registrationSpanType === 'years' ? 'date' : 'years'}
             </span>
             <CalendarIcon className="size-3" />
           </Button>
         </div>
 
-        {registrationSpanType === REGISTRATION_SPAN_TYPE.YEARS ? (
+        {registrationSpanType === 'years' ? (
           <RegistrationDurationPicker
             value={Math.max(1, Math.round(getYearsFromDuration(duration)))}
             onChange={(years) =>

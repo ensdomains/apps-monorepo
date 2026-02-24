@@ -1,13 +1,10 @@
 import { getLabel } from '@/utils/token/getLabel'
 
-export enum PREMIUM_LABEL_VARIANT {
-  PREMIUM_3 = 'premium-3',
-  PREMIUM_4 = 'premium-4',
-}
+export type PremiumLabelVariant = 'premium-3' | 'premium-4'
 
 export type PremiumLabel = {
   label: string
-  variant: PREMIUM_LABEL_VARIANT
+  variant: PremiumLabelVariant
 }
 
 /**
@@ -43,10 +40,7 @@ export const getPremiumLabel = (
     return undefined
   }
 
-  const variant: PREMIUM_LABEL_VARIANT =
-    length === 3
-      ? PREMIUM_LABEL_VARIANT.PREMIUM_3
-      : PREMIUM_LABEL_VARIANT.PREMIUM_4
+  const variant: PremiumLabelVariant = length === 3 ? 'premium-3' : 'premium-4'
 
   return { label: `${length} character premium name`, variant }
 }

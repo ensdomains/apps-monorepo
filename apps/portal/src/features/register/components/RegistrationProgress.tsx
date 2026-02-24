@@ -19,19 +19,18 @@ type RegistrationProgressProps = {
   readonly onViewProfile: () => void
 }
 
-enum PROGRESS_STAGE {
-  SETTING_UP = 'settingUp',
-  APPROVING = 'approving',
-  REGISTERING = 'registering',
-  COMPLETE = 'complete',
-  ERROR = 'error',
-}
+type ProgressStage =
+  | 'settingUp'
+  | 'approving'
+  | 'registering'
+  | 'complete'
+  | 'error'
 
 function mapStateToProgressStage(
   stateValue: RegistrationMachineState | Record<string, unknown>,
-): PROGRESS_STAGE {
+): ProgressStage {
   if (typeof stateValue === 'object' && 'error' in stateValue) {
-    return PROGRESS_STAGE.ERROR
+    return 'error'
   }
 
   switch (stateValue) {
@@ -43,28 +42,28 @@ function mapStateToProgressStage(
     case 'waitingForCommitment':
     case 'commitmentCooldown':
     case 'validatingCommitment':
-      return PROGRESS_STAGE.SETTING_UP
+      return 'settingUp'
     case 'approvingToken':
     case 'waitingForApproval':
-      return PROGRESS_STAGE.APPROVING
+      return 'approving'
     case 'registeringDomain':
     case 'waitingForRegistration':
-      return PROGRESS_STAGE.REGISTERING
+      return 'registering'
     case 'success':
-      return PROGRESS_STAGE.COMPLETE
+      return 'complete'
     case 'error':
-      return PROGRESS_STAGE.ERROR
+      return 'error'
     default:
-      return PROGRESS_STAGE.SETTING_UP
+      return 'settingUp'
   }
 }
 
-const STAGE_PROGRESS: Record<PROGRESS_STAGE, number> = {
-  [PROGRESS_STAGE.SETTING_UP]: 33,
-  [PROGRESS_STAGE.APPROVING]: 66,
-  [PROGRESS_STAGE.REGISTERING]: 80,
-  [PROGRESS_STAGE.COMPLETE]: 100,
-  [PROGRESS_STAGE.ERROR]: 0,
+const STAGE_PROGRESS: Record<ProgressStage, number> = {
+  settingUp: 33,
+  approving: 66,
+  registering: 80,
+  complete: 100,
+  error: 0,
 }
 
 const STATE_MESSAGES: Record<
@@ -137,8 +136,8 @@ export const RegistrationProgress = ({
 
   const progressStage = mapStateToProgressStage(stateValue)
 
-  const isComplete = progressStage === PROGRESS_STAGE.COMPLETE
-  const isError = progressStage === PROGRESS_STAGE.ERROR
+  const isComplete = progressStage === 'complete'
+  const isError = progressStage === 'error'
 
   const isInProgress = !isComplete && !isError
 
@@ -243,7 +242,7 @@ export const RegistrationProgress = ({
             ))
             .otherwise(
               () =>
-                progressStage === PROGRESS_STAGE.SETTING_UP && (
+                progressStage === 'settingUp' && (
                   <Button
                     variant="ghost"
                     onClick={() => actor.send({ type: 'CANCEL' })}

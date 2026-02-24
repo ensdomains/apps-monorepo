@@ -25,10 +25,7 @@ import {
 } from '@/lib/constants/tokens'
 import { cn } from '@/lib/utils'
 
-enum PAYMENT_MODAL_STEP {
-  SELECT_TOKEN = 'select_token',
-  CONFIRM_PURCHASE = 'confirm_purchase',
-}
+type PaymentModalStep = 'select_token' | 'confirm_purchase'
 
 type PaymentTokenModalProps = {
   readonly open: boolean
@@ -63,9 +60,7 @@ export const PaymentTokenModal = ({
   const { address } = useConnection()
   const [selectedToken, setSelectedToken] = useState<Address | null>(null)
 
-  const [step, setStep] = useState<PAYMENT_MODAL_STEP>(
-    PAYMENT_MODAL_STEP.SELECT_TOKEN,
-  )
+  const [step, setStep] = useState<PaymentModalStep>('select_token')
 
   const priceQueries = useQueries({
     queries: PAYMENT_TOKENS.map((token) =>
@@ -114,12 +109,12 @@ export const PaymentTokenModal = ({
 
   const resetState = () => {
     setSelectedToken(null)
-    setStep(PAYMENT_MODAL_STEP.SELECT_TOKEN)
+    setStep('select_token')
   }
 
   const handleContinueToConfirm = () => {
     if (selectedToken) {
-      setStep(PAYMENT_MODAL_STEP.CONFIRM_PURCHASE)
+      setStep('confirm_purchase')
     }
   }
 
@@ -139,7 +134,7 @@ export const PaymentTokenModal = ({
   const isContinueDisabled = !selectedToken || isPriceLoading || !address
 
   const currentContent = match(step)
-    .with(PAYMENT_MODAL_STEP.SELECT_TOKEN, () => (
+    .with('select_token', () => (
       <>
         <div className="flex items-center gap-2">
           <p className="text-muted-foreground text-sm">
@@ -225,7 +220,7 @@ export const PaymentTokenModal = ({
         </Button>
       </>
     ))
-    .with(PAYMENT_MODAL_STEP.CONFIRM_PURCHASE, () =>
+    .with('confirm_purchase', () =>
       selectedTokenData ? (
         <div className="flex min-h-[320px] flex-col justify-between gap-6">
           <div className="flex flex-col items-center gap-6">
@@ -270,8 +265,8 @@ export const PaymentTokenModal = ({
     .exhaustive()
 
   const stepTitle = match(step)
-    .with(PAYMENT_MODAL_STEP.SELECT_TOKEN, () => 'Select payment token')
-    .with(PAYMENT_MODAL_STEP.CONFIRM_PURCHASE, () => 'Confirm purchase')
+    .with('select_token', () => 'Select payment token')
+    .with('confirm_purchase', () => 'Confirm purchase')
     .exhaustive()
 
   return (
