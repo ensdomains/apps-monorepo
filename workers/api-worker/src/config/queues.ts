@@ -1,4 +1,4 @@
-import type { ChannelType } from '#config/notifications.js'
+import type { ChannelType } from '@ens-apps/shared-schema/notifications'
 
 /**
  * Maps channel types to their corresponding Cloudflare queue bindings.

@@ -1,4 +1,4 @@
-import type { TelegramAuthData } from 'api-worker/types'
+import type { TelegramAuthData } from '@ens-apps/shared-schema/telegram'
 
 export interface TelegramLoginOptions {
   botId?: string

@@ -1,4 +1,12 @@
 import {
+  type ChannelType,
+  channelSupportsNotification,
+  type NotificationDefinition,
+  notificationDefinitions,
+  type PersonalNotificationKind,
+  type PersonalNotificationPayloads,
+} from '@ens-apps/shared-schema/notifications'
+import {
   getFirstOrFallback,
   ResultFn,
   TaggedError,
@@ -6,12 +14,6 @@ import {
 import { and, eq, inArray } from 'drizzle-orm'
 import { ok } from 'neverthrow'
 import { v7 as uuidv7 } from 'uuid'
-import {
-  type ChannelType,
-  channelSupportsNotification,
-  type NotificationKind,
-  type NotificationPayloads,
-} from '#config/notifications.js'
 import { getQueueForChannel } from '#config/queues.js'
 import { type Database, intoDbResult, TABLE } from '#core/database/index.js'
 import type { BaseDeliveryJob } from '#types/delivery.js'
@@ -20,36 +22,60 @@ import { logger } from '#utils/logger.js'
 
 type WatchReason = 'owned' | 'favourited' | 'manual'
 
-function shouldCreateExternalDeliveriesForNotification(
-  kind: NotificationKind,
-  payload: NotificationPayloads[NotificationKind],
-  settings: {
-    owned_name_expiry: boolean
-    favourited_name_expiry: boolean
-    ens_labs_updates: boolean
-  },
-): boolean {
-  if (kind === 'name-expiry') {
-    const p = payload as NotificationPayloads['name-expiry']
-    const watchReason: WatchReason =
-      // Prefer explicit watch reason (new flow)
-      p.watchReason ??
-      // Fallback for old payloads / tests
-      (p.isOwner ? 'owned' : 'favourited')
+type DeliveryPreferenceSettings = {
+  owned_name_expiry: boolean
+  favourited_name_expiry: boolean
+  ens_labs_updates: boolean
+}
 
-    switch (watchReason) {
-      case 'owned':
-        return settings.owned_name_expiry
-      case 'favourited':
-        return settings.favourited_name_expiry
-      case 'manual':
-        // Conservative default: manual watches follow either toggle.
-        return settings.owned_name_expiry || settings.favourited_name_expiry
-    }
+export function shouldCreateExternalDeliveriesForNotification(
+  kind: PersonalNotificationKind,
+  payload: PersonalNotificationPayloads[PersonalNotificationKind],
+  settings: DeliveryPreferenceSettings,
+): boolean {
+  const definition = notificationDefinitions[kind] as NotificationDefinition
+  if (definition.delivery.mode === 'none') {
+    return false
   }
 
-  // For now (per current product scope), other kinds remain UI-only.
-  return false
+  const preferenceKey = definition.delivery.preferenceKey
+
+  switch (preferenceKey) {
+    case 'ownedNameExpiry':
+      return settings.owned_name_expiry
+    case 'favouritedNameExpiry':
+      return settings.favourited_name_expiry
+    case 'ensLabsUpdates':
+      return settings.ens_labs_updates
+    case 'watchBasedNameExpiry': {
+      if (kind !== 'name-expiry') {
+        return settings.owned_name_expiry || settings.favourited_name_expiry
+      }
+
+      const nameExpiryPayload =
+        payload as PersonalNotificationPayloads['name-expiry']
+      const watchReason: WatchReason =
+        // Prefer explicit watch reason (new flow)
+        nameExpiryPayload.watchReason ??
+        // Fallback for old payloads / tests
+        (nameExpiryPayload.isOwner ? 'owned' : 'favourited')
+
+      switch (watchReason) {
+        case 'owned':
+          return settings.owned_name_expiry
+        case 'favourited':
+          return settings.favourited_name_expiry
+        case 'manual':
+          // Conservative default: manual watches follow either toggle.
+          return settings.owned_name_expiry || settings.favourited_name_expiry
+      }
+
+      return settings.owned_name_expiry || settings.favourited_name_expiry
+    }
+    default:
+      // Opt-in kind without a preference key defaults to enabled.
+      return true
+  }
 }
 
 class NotificationCreationError extends TaggedError(
@@ -57,13 +83,13 @@ class NotificationCreationError extends TaggedError(
 ) {}
 
 export const createNotification = ResultFn(async function* <
-  K extends NotificationKind,
+  K extends PersonalNotificationKind,
 >(ctx: {
   env: CloudflareBindings
   db: Database
   userId: string
   kind: K
-  payload: NotificationPayloads[K]
+  payload: PersonalNotificationPayloads[K]
   idempotencyKey: string
 }) {
   // Create the notification record
@@ -115,7 +141,7 @@ export const createNotification = ResultFn(async function* <
 
   const shouldCreateDeliveries = shouldCreateExternalDeliveriesForNotification(
     ctx.kind,
-    ctx.payload as NotificationPayloads[NotificationKind],
+    ctx.payload as PersonalNotificationPayloads[PersonalNotificationKind],
     settings,
   )
 
@@ -225,14 +251,14 @@ export const createNotification = ResultFn(async function* <
  * @returns Result containing summary of created notifications, or error
  */
 export const createBatchNotifications = ResultFn(async function* <
-  K extends NotificationKind,
+  K extends PersonalNotificationKind,
 >(ctx: {
   env: CloudflareBindings
   db: Database
   kind: K
   notifications: Array<{
     userId: string
-    payload: NotificationPayloads[K]
+    payload: PersonalNotificationPayloads[K]
     idempotencyKey: string
   }>
 }) {
@@ -346,7 +372,7 @@ export const createBatchNotifications = ResultFn(async function* <
     const shouldCreateDeliveries =
       shouldCreateExternalDeliveriesForNotification(
         ctx.kind,
-        notification.payload as NotificationPayloads[NotificationKind],
+        notification.payload as PersonalNotificationPayloads[PersonalNotificationKind],
         settings,
       )
 

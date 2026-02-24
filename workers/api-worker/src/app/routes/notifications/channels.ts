@@ -1,3 +1,5 @@
+import type { ChannelData } from '@ens-apps/shared-schema/notifications'
+import { TelegramAuthSchema } from '@ens-apps/shared-schema/telegram'
 import { vValidator } from '@hono/valibot-validator'
 import { and, eq, gt } from 'drizzle-orm'
 import { okAsync } from 'neverthrow'
@@ -15,15 +17,11 @@ import {
   deleteContact,
   searchContact,
 } from '#services/sendgrid/contacts.js'
-import {
-  TelegramAuthSchema,
-  verifyTelegramAuth,
-} from '#services/telegram/auth.js'
+import { verifyTelegramAuth } from '#services/telegram/auth.js'
 import {
   createInlineKeyboard,
   makeTelegramRequest,
 } from '#services/telegram/utils.js'
-import type { ChannelData } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
 
 // allowed push service endpoint prefixes (for SSRF protection)
