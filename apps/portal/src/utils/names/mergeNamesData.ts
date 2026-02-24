@@ -116,14 +116,10 @@ export const mergeNamesData = (
     }
   })
 
-  const merged = [...v1Transformed, ...v2Transformed]
-
-  merged.sort((a, b) => {
+  return [...v1Transformed, ...v2Transformed].toSorted((a, b) => {
     if (!a.expiryDate && !b.expiryDate) return 0
     if (!a.expiryDate) return 1
     if (!b.expiryDate) return -1
     return a.expiryDate.getTime() - b.expiryDate.getTime()
   })
-
-  return merged
 }
