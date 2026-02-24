@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { useEnsAvatar } from 'wagmi'
+import { LogoSVG } from '@/assets/logo'
 import { cn } from '@/lib/utils'
 
 export const NameAvatar = ({
@@ -24,15 +25,15 @@ export const NameAvatar = ({
     },
   })
 
+  const sizeStyle = {
+    '--height': height,
+    '--width': width,
+  } as CSSProperties
+
   if (error || isLoading) {
     return (
       <div
-        style={
-          {
-            '--height': height,
-            '--width': width,
-          } as CSSProperties
-        }
+        style={sizeStyle}
         className={cn(
           'bg-gray-200 animate-pulse',
           rounded,
@@ -52,19 +53,44 @@ export const NameAvatar = ({
         width={width}
       />
     )
+
+  const size = Number.parseInt(width, 10)
+  const isLarge = size >= 80
+
   return (
     <div
-      style={
-        {
-          '--height': height,
-          '--width': width,
-        } as CSSProperties
-      }
+      style={sizeStyle}
       className={cn(
         '[background:var(--avatar-placeholder-gradient)]',
         rounded,
-        `        w-(--width) h-(--height)`,
+        'relative overflow-hidden w-(--width) h-(--height)',
       )}
-    />
+    >
+      {isLarge && (
+        <>
+          <LogoSVG
+            className="absolute text-white"
+            style={{
+              top: '10%',
+              left: '10%',
+              width: '20%',
+              height: 'auto',
+              opacity: 0.9,
+            }}
+          />
+          <span
+            className="absolute text-white font-bold leading-none truncate"
+            style={{
+              bottom: '10%',
+              left: '10%',
+              right: '10%',
+              fontSize: `${Math.max(size * 0.11, 10)}px`,
+            }}
+          >
+            {name}
+          </span>
+        </>
+      )}
+    </div>
   )
 }
