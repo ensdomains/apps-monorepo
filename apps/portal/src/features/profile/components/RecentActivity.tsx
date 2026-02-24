@@ -108,7 +108,7 @@ export const RecentActivity = ({ name }: RecentActivityProps) => {
     return (
       <div className="flex flex-col gap-4 w-full">
         <div className="flex flex-row justify-between items-center">
-          <h2 className="text-[26px] font-medium">History</h2>
+          <h2 className="text-2xl font-medium">History</h2>
           <Button variant="secondary" size="sm" asChild>
             <Link to="/$name/history" params={{ name }}>
               <Clock className="size-4" />
@@ -126,7 +126,7 @@ export const RecentActivity = ({ name }: RecentActivityProps) => {
   return (
     <div className="flex flex-col gap-4 w-full">
       <div className="flex flex-row justify-between items-center">
-        <h2 className="text-[26px] font-medium">History</h2>
+        <h2 className="text-2xl font-medium">History</h2>
         <Button variant="secondary" size="sm" asChild>
           <Link to="/$name/history" params={{ name }}>
             <Clock className="size-4" />

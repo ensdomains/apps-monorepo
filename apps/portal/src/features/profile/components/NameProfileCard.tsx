@@ -80,7 +80,7 @@ export const NameProfileCard = ({ name }: { name: string }) => {
       <NameAvatar name={name} />
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-0.5 ">
-          <h2 className="text-[26px] font-medium w-max">
+          <h2 className="text-2xl font-medium w-max">
             {labels.join('.')}.
             <span className="text-base text-gray-500">{parent}</span>
           </h2>
