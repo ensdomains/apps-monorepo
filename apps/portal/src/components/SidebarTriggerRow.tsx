@@ -23,8 +23,8 @@ export const SidebarTriggerRow = <T extends RowData = RowData>({
   return (
     <TableRow
       className={cn(
-        'hover:bg-gray-200',
-        tableView.strippedRows && 'even:bg-gray-100',
+        'hover:bg-quartz-100',
+        tableView.strippedRows && 'even:bg-quartz-100',
       )}
       key={row.id}
       data-state={row.getIsSelected() && 'selected'}

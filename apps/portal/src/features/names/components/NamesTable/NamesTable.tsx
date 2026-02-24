@@ -33,7 +33,9 @@ export const NamesTable = ({ table }: NamesTableProps) => {
             />
           ))
         ) : (
-          <div className="px-6 py-8 text-center text-gray-500">No results.</div>
+          <div className="px-6 py-8 text-center text-quartz-500">
+            No results.
+          </div>
         )}
       </div>
 

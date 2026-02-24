@@ -104,7 +104,7 @@ export const RolesSidebar = <TData extends { items: string[] }>({
                             <div className="font-medium">
                               {permission.title}
                             </div>
-                            <div className="text-sm text-gray-600">
+                            <div className="text-sm text-quartz-500">
                               {permission.description}
                             </div>
                           </div>
@@ -117,7 +117,7 @@ export const RolesSidebar = <TData extends { items: string[] }>({
                               />
                               <Label
                                 htmlFor={`${permission.key}-manager`}
-                                className="font-normal cursor-pointer text-gray-600"
+                                className="font-normal cursor-pointer text-quartz-500"
                               >
                                 Manager
                               </Label>
@@ -130,7 +130,7 @@ export const RolesSidebar = <TData extends { items: string[] }>({
                               />
                               <Label
                                 htmlFor={`${permission.key}-admin`}
-                                className="font-normal cursor-pointer text-gray-600"
+                                className="font-normal cursor-pointer text-quartz-500"
                               >
                                 Admin
                               </Label>
@@ -144,7 +144,7 @@ export const RolesSidebar = <TData extends { items: string[] }>({
               </div>
             </div>
           ) : (
-            <div className="text-gray-400 text-center py-12">
+            <div className="text-quartz-400 text-center py-12">
               No role selected
             </div>
           )}

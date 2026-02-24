@@ -81,7 +81,7 @@ const AddUserButton = ({
   if (!hasAdmin) return null
 
   return (
-    <Button variant="outline" className="flex items-center gap-2" asChild>
+    <Button variant="secondary" className="flex items-center gap-2" asChild>
       <Link to="/$name/roles/add-user" params={{ name }}>
         <Plus className="size-4" />
         Add user

@@ -34,18 +34,18 @@ function RouteComponent() {
         <header className="flex flex-col gap-6">
           <div>
             <h1 className="text-[40px] font-bold">ENS Explorer</h1>
-            <p className="text-gray-600">The definitive ENS name explorer.</p>
+            <p className="text-quartz-500">The definitive ENS name explorer.</p>
           </div>
           <HomeSearchInput />
         </header>
 
-        <section className="bg-gray-100 xl:rounded-lg border border-gray-300 p-8 -mx-6 md:mx-0">
+        <section className="bg-peridot-100 text-quartz-900 xl:rounded-lg border border-border p-8 -mx-6 md:mx-0">
           <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8">
             <div className="flex flex-col gap-4 items-start">
               <h2 className="text-2xl font-bold">
                 Welcome to the ENS Explorer Alpha
               </h2>
-              <p className="text-gray-700">
+              <p className="text-quartz-700">
                 You're using an early version of the new ENS Explorer — our new
                 source of truth for the ENS protocol. This Alpha is in active
                 development, and new features will roll out regularly as we
@@ -54,7 +54,7 @@ function RouteComponent() {
             </div>
             <div className="flex flex-col gap-3 text-sm">
               <div>
-                <span className="font-medium text-gray-700 mr-2">
+                <span className="font-medium text-quartz-700 mr-2">
                   Need an ENSv2 name?
                 </span>
                 <ExternalLink
@@ -65,7 +65,7 @@ function RouteComponent() {
                 </ExternalLink>
               </div>
               <div>
-                <span className="font-medium text-gray-700 mr-2">
+                <span className="font-medium text-quartz-700 mr-2">
                   Deep dive into the new contracts?
                 </span>
                 <ExternalLink
@@ -76,7 +76,7 @@ function RouteComponent() {
                 </ExternalLink>
               </div>
               <div>
-                <span className="font-medium text-gray-700 mr-2">
+                <span className="font-medium text-quartz-700 mr-2">
                   Want to learn more about ENSv2?
                 </span>
                 <ExternalLink
@@ -87,7 +87,7 @@ function RouteComponent() {
                 </ExternalLink>
               </div>
               {/* <div>
-                <span className="font-medium text-gray-700 mr-2">
+                <span className="font-medium text-quartz-700 mr-2">
                   Want to share feedback on the Alpha?
                 </span>
                 <ExternalLink

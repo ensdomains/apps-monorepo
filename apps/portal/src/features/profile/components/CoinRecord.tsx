@@ -39,10 +39,8 @@ export const CoinRecord = ({
   return (
     <img
       src={icons[coinType]}
-      height={24}
-      width={24}
       className={cn(
-        'first:z-10 h-6 w-max duration-150 will-change-transform hover:-translate-y-0.5',
+        'size-6 first:z-10 w-max duration-150 will-change-transform hover:-translate-y-0.5',
         className,
       )}
       alt={coinType}

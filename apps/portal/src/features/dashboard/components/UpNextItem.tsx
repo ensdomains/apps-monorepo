@@ -11,7 +11,7 @@ export const UpNextItem = ({
   description: string
   status: string
 }) => (
-  <div className="w-full p-4 rounded-lg border border-gray-300">
+  <div className="w-full p-4 rounded-lg border border-border">
     <div className="flex flex-row justify-between items-center gap-4">
       <div className="flex items-start gap-3">
         <div className="p-2 rounded-lg shrink-0">
@@ -19,7 +19,7 @@ export const UpNextItem = ({
         </div>
         <div>
           <h4 className="font-semibold text-base mb-1">{title}</h4>
-          <p className="text-sm text-gray-600">{description}</p>
+          <p className="text-sm text-quartz-500">{description}</p>
         </div>
       </div>
       <Badge variant="secondary" className="text-xs">
