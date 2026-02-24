@@ -317,7 +317,12 @@ function RouteComponent() {
                 ) : (
                   <XCircleIcon className="size-4 text-garnet-500" />
                 )}
-                <span className="text-xs font-medium text-peridot-500">
+                <span
+                  className={cn(
+                    'text-xs font-medium',
+                    normalized ? 'text-peridot-500' : 'text-garnet-500',
+                  )}
+                >
                   {normalized ? 'Normalized' : 'Not Normalized'}
                 </span>
               </div>
