@@ -1,3 +1,4 @@
+import { AnimatePresence } from 'motion/react'
 import {
   Card,
   CardContent,
@@ -41,43 +42,44 @@ export const ContactInformationSection = withForm({
                   }}
                   records={availableRecords}
                 />
-                {contactField.state.value.map(
-                  ({ key }: { key: string }, i: number) => (
-                    <form.Field
-                      // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
-                      key={i}
-                      name={`contact[${i}].value`}
-                      validators={
-                        key === 'email'
-                          ? { onBlur: ({ value }) => validateEmail(value) }
-                          : undefined
-                      }
-                    >
-                      {(field) => {
-                        const record = getRecordDef(key)
-                        if (!record) return null
-                        return (
-                          <RecordEntry
-                            error={
-                              field.state.meta.isTouched &&
-                              field.state.meta.errors.length > 0
-                                ? field.state.meta.errors[0]
-                                : undefined
-                            }
-                            name={record.name}
-                            onBlur={field.handleBlur}
-                            onChange={field.handleChange}
-                            onRemove={() => {
-                              contactField.removeValue(i)
-                            }}
-                            placeholder={record.placeholder}
-                            value={field.state.value}
-                          />
-                        )
-                      }}
-                    </form.Field>
-                  ),
-                )}
+                <AnimatePresence mode="popLayout">
+                  {contactField.state.value.map(
+                    ({ key }: { key: string }, i: number) => (
+                      <form.Field
+                        key={key}
+                        name={`contact[${i}].value`}
+                        validators={
+                          key === 'email'
+                            ? { onBlur: ({ value }) => validateEmail(value) }
+                            : undefined
+                        }
+                      >
+                        {(field) => {
+                          const record = getRecordDef(key)
+                          if (!record) return null
+                          return (
+                            <RecordEntry
+                              error={
+                                field.state.meta.isTouched &&
+                                field.state.meta.errors.length > 0
+                                  ? field.state.meta.errors[0]
+                                  : undefined
+                              }
+                              name={record.name}
+                              onBlur={field.handleBlur}
+                              onChange={field.handleChange}
+                              onRemove={() => {
+                                contactField.removeValue(i)
+                              }}
+                              placeholder={record.placeholder}
+                              value={field.state.value}
+                            />
+                          )
+                        }}
+                      </form.Field>
+                    ),
+                  )}
+                </AnimatePresence>
               </>
             )
           }}

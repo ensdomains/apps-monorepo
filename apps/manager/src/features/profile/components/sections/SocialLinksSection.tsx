@@ -1,3 +1,4 @@
+import { AnimatePresence } from 'motion/react'
 import {
   Card,
   CardContent,
@@ -38,26 +39,27 @@ export const SocialLinksSection = withForm({
                   }}
                   records={availableRecords}
                 />
-                {socialField.state.value.map(({ key }, i: number) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
-                  <form.Field key={i} name={`social[${i}].value`}>
-                    {(field) => {
-                      const record = getRecordDef(key)
-                      if (!record) return null
-                      return (
-                        <RecordEntry
-                          name={record.name}
-                          onChange={field.handleChange}
-                          onRemove={() => {
-                            socialField.removeValue(i)
-                          }}
-                          placeholder={record.placeholder}
-                          value={field.state.value}
-                        />
-                      )
-                    }}
-                  </form.Field>
-                ))}
+                <AnimatePresence mode="popLayout">
+                  {socialField.state.value.map(({ key }, i: number) => (
+                    <form.Field key={key} name={`social[${i}].value`}>
+                      {(field) => {
+                        const record = getRecordDef(key)
+                        if (!record) return null
+                        return (
+                          <RecordEntry
+                            name={record.name}
+                            onChange={field.handleChange}
+                            onRemove={() => {
+                              socialField.removeValue(i)
+                            }}
+                            placeholder={record.placeholder}
+                            value={field.state.value}
+                          />
+                        )
+                      }}
+                    </form.Field>
+                  ))}
+                </AnimatePresence>
               </>
             )
           }}
