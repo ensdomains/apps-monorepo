@@ -9,7 +9,7 @@ import type { ProfileRecordsResult } from '../service/profileRecords'
 import type { ProfileRecords } from '../types'
 
 const defaultSectionKeys = {
-  contact: ['email', 'location'],
+  contact: [],
   social: ['com.twitter', 'org.telegram'],
 } as const
 

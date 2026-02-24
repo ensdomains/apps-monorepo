@@ -1,4 +1,6 @@
-import { X } from 'lucide-react'
+import { Braces, Hash, Plus, X } from 'lucide-react'
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -13,75 +15,125 @@ import { validateContentHash } from '@/features/profile/utils/validateContentHas
 
 export const OtherSection = withForm({
   ...sharedOptions,
-  render: ({ form }) => (
-    <Card className="border-[0.25px] border-border bg-white shadow-none">
-      <CardHeader>
-        <CardTitle className="text-base tracking-tight">Other</CardTitle>
-        <CardDescription className="text-base">
-          Set the content hash and ABI for your name
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <form.Field
-          name="contentHash"
-          validators={{ onBlur: ({ value }) => validateContentHash(value) }}
-        >
-          {(field) => (
-            <div className="flex flex-col gap-1 pt-1">
-              <div className="flex items-center gap-3">
-                <FloatingInput
-                  aria-invalid={
-                    field.state.meta.isTouched &&
-                    field.state.meta.errors.length > 0
-                  }
-                  className="flex-1"
-                  label="Content Hash"
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  placeholder="ipfs://..."
-                  value={field.state.value ?? ''}
-                />
-                <button
-                  aria-label="Clear content hash"
-                  className="text-muted-foreground transition-colors hover:text-foreground"
-                  onClick={() => field.handleChange('')}
-                  type="button"
-                >
-                  <X className="size-3" />
-                </button>
-              </div>
-              {field.state.meta.isTouched &&
-                field.state.meta.errors.length > 0 && (
-                  <p className="text-destructive text-xs">
-                    {field.state.meta.errors[0]}
-                  </p>
-                )}
-            </div>
-          )}
-        </form.Field>
+  render: ({ form }) => {
+    const [showContentHash, setShowContentHash] = useState(
+      !!form.state.values.contentHash,
+    )
+    const [showAbi, setShowAbi] = useState(!!form.state.values.abi)
 
-        <form.Field name="abi">
-          {(field) => (
-            <div className="flex items-start gap-3 pt-1">
-              <FloatingTextarea
-                className="flex-1 font-mono text-xs"
-                label="ABI"
-                onChange={(e) => field.handleChange(e.target.value)}
-                placeholder='[{"type":"function",...}]'
-                value={field.state.value ?? ''}
-              />
-              <button
-                aria-label="Clear ABI"
-                className="mt-5 text-muted-foreground transition-colors hover:text-foreground"
-                onClick={() => field.handleChange('')}
-                type="button"
-              >
-                <X className="size-3" />
-              </button>
+    const pills = [
+      {
+        key: 'contentHash',
+        label: 'Content Hash',
+        icon: Hash,
+        visible: showContentHash,
+      },
+      { key: 'abi', label: 'ABI', icon: Braces, visible: showAbi },
+    ].filter((p) => !p.visible)
+
+    return (
+      <Card className="border-[0.25px] border-border bg-white shadow-none">
+        <CardHeader>
+          <CardTitle className="text-base tracking-tight">Other</CardTitle>
+          <CardDescription className="text-base">
+            Set the content hash and ABI for your name
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {pills.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              {pills.map((pill) => (
+                <Button
+                  className="h-auto w-auto gap-2 rounded-full px-4 py-2 text-muted-foreground hover:text-foreground"
+                  key={pill.key}
+                  onClick={() => {
+                    if (pill.key === 'contentHash') setShowContentHash(true)
+                    if (pill.key === 'abi') setShowAbi(true)
+                  }}
+                  type="button"
+                  variant="secondary"
+                >
+                  <pill.icon className="size-4" />
+                  <span>{pill.label}</span>
+                  <Plus className="size-4" />
+                </Button>
+              ))}
             </div>
           )}
-        </form.Field>
-      </CardContent>
-    </Card>
-  ),
+
+          {showContentHash && (
+            <form.Field
+              name="contentHash"
+              validators={{
+                onBlur: ({ value }) => validateContentHash(value),
+              }}
+            >
+              {(field) => (
+                <div className="flex flex-col gap-1 pt-1">
+                  <div className="flex items-center gap-3">
+                    <FloatingInput
+                      aria-invalid={
+                        field.state.meta.isTouched &&
+                        field.state.meta.errors.length > 0
+                      }
+                      className="flex-1"
+                      label="Content Hash"
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      placeholder="ipfs://..."
+                      value={field.state.value ?? ''}
+                    />
+                    <button
+                      aria-label="Remove content hash"
+                      className="text-muted-foreground transition-colors hover:text-foreground"
+                      onClick={() => {
+                        field.handleChange('')
+                        setShowContentHash(false)
+                      }}
+                      type="button"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                  {field.state.meta.isTouched &&
+                    field.state.meta.errors.length > 0 && (
+                      <p className="text-destructive text-xs">
+                        {field.state.meta.errors[0]}
+                      </p>
+                    )}
+                </div>
+              )}
+            </form.Field>
+          )}
+
+          {showAbi && (
+            <form.Field name="abi">
+              {(field) => (
+                <div className="flex items-start gap-3 pt-1">
+                  <FloatingTextarea
+                    className="flex-1 font-mono text-xs"
+                    label="ABI"
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    placeholder='[{"type":"function",...}]'
+                    value={field.state.value ?? ''}
+                  />
+                  <button
+                    aria-label="Remove ABI"
+                    className="mt-5 text-muted-foreground transition-colors hover:text-foreground"
+                    onClick={() => {
+                      field.handleChange('')
+                      setShowAbi(false)
+                    }}
+                    type="button"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              )}
+            </form.Field>
+          )}
+        </CardContent>
+      </Card>
+    )
+  },
 })

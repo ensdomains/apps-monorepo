@@ -1,4 +1,10 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { AddTextRecordsDialog } from '@/features/profile/components/dialogs/AddTextRecordsDialog'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
@@ -13,6 +19,9 @@ export const ContactInformationSection = withForm({
         <CardTitle className="text-base tracking-tight">
           Contact Information
         </CardTitle>
+        <CardDescription className="text-base">
+          Add your contact details so people can reach you
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <form.Field mode="array" name="contact">
