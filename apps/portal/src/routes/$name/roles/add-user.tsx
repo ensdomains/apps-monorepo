@@ -141,12 +141,12 @@ function RouteComponent() {
                   key={permission.key}
                   className={cn(
                     'flex items-center justify-between p-4 gap-4',
-                    disabledRole && 'text-gray-500',
+                    disabledRole && 'text-quartz-500',
                   )}
                 >
                   <div className="flex flex-col gap-1 flex-1">
                     <div className="font-medium">{permission.title}</div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-quartz-500">
                       {permission.description}
                     </div>
                   </div>
@@ -159,7 +159,7 @@ function RouteComponent() {
                       />
                       <Label
                         htmlFor={permission.key}
-                        className="font-normal cursor-pointer text-gray-600"
+                        className="font-normal cursor-pointer text-quartz-500"
                       >
                         Manager
                       </Label>
@@ -172,7 +172,7 @@ function RouteComponent() {
                       />
                       <Label
                         htmlFor={`${permission.key}_ADMIN`}
-                        className="font-normal cursor-pointer text-gray-600"
+                        className="font-normal cursor-pointer text-quartz-500"
                       >
                         Admin
                       </Label>
@@ -181,10 +181,10 @@ function RouteComponent() {
                 </div>
               )
             })}
-            <div className="flex items-center justify-between p-4 gap-4 text-gray-500">
+            <div className="flex items-center justify-between p-4 gap-4 text-quartz-500">
               <div className="flex flex-col gap-1 flex-1">
                 <div className="font-medium">Can transfer admin</div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-quartz-500">
                   Administrator role to transfer a name
                 </div>
               </div>
@@ -197,7 +197,7 @@ function RouteComponent() {
                   />
                   <Label
                     htmlFor="ROLE_CAN_TRANSFER_ADMIN"
-                    className="font-normal cursor-pointer text-gray-600"
+                    className="font-normal cursor-pointer text-quartz-500"
                   >
                     Admin
                   </Label>

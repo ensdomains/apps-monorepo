@@ -36,7 +36,7 @@ export const WhatsNewItem = ({
         </div>
         <div>
           <h4 className="font-semibold text-base mb-1">{title}</h4>
-          <p className="text-sm text-gray-600">{description}</p>
+          <p className="text-sm text-quartz-500">{description}</p>
         </div>
       </div>
       <Button asChild variant="secondary" size="sm">

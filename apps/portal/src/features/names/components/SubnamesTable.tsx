@@ -123,7 +123,7 @@ export const SubnamesTable = ({
 
   return (
     <>
-      <header className="bg-gray-100 px-6 pb-6 pt-12 flex flex-col gap-4 sticky top-0 z-10">
+      <header className="bg-quartz-50 px-6 pb-6 pt-12 flex flex-col gap-4 sticky top-0 z-10">
         <div className="flex flex-row items-center gap-2">
           <h1 className="text-[30px] font-medium leading-tight flex-1">
             {subnames.length} subname{subnames.length !== 1 ? 's' : ''}
@@ -175,7 +175,7 @@ export const SubnamesTable = ({
                   </Link>
                 </div>
               </div>
-              <div className="flex flex-row gap-2 items-center text-sm text-gray-500">
+              <div className="flex flex-row gap-2 items-center text-sm text-quartz-500">
                 <span>Owner:</span>
                 <Link
                   to="/addr/$addr"
@@ -188,7 +188,7 @@ export const SubnamesTable = ({
             </div>
           ))
         ) : (
-          <div className="px-6 py-8 text-center text-gray-500">
+          <div className="px-6 py-8 text-center text-quartz-500">
             No subnames found.
           </div>
         )}

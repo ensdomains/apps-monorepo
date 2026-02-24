@@ -67,7 +67,7 @@ const DataRow = ({
         {tooltip && (
           <Tooltip>
             <TooltipTrigger>
-              <InfoIcon className="size-4 text-gray-400" />
+              <InfoIcon className="size-4 text-quartz-400" />
             </TooltipTrigger>
             <TooltipContent>{tooltip}</TooltipContent>
           </Tooltip>
@@ -140,8 +140,8 @@ const TokenInfoCard = ({
                   </DataRow>
                 </div>
 
-                <div className="bg-gray-100 rounded-lg p-3 flex gap-2 items-start">
-                  <InfoIcon className="size-6 text-gray-600 shrink-0 mt-0.5" />
+                <div className="bg-quartz-50 rounded-lg p-3 flex gap-2 items-start">
+                  <InfoIcon className="size-6 text-quartz-500 shrink-0 mt-0.5" />
                   <p className="text-base">
                     The Token ID will change anytime the roles are updated.
                   </p>
@@ -163,7 +163,7 @@ const TokenInfoCard = ({
                         <TableRow>
                           <TableCell
                             colSpan={4}
-                            className="text-center py-8 text-gray-500"
+                            className="text-center py-8 text-quartz-500"
                           >
                             No history available
                           </TableCell>

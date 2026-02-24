@@ -31,7 +31,9 @@ const NoSubregistryMessage = ({
   canDeploy,
 }: NoSubregistryMessageProps) => (
   <MessageCard
-    icon={<AlertCircle size={30} strokeWidth={1.5} className="text-gray-500" />}
+    icon={
+      <AlertCircle size={30} strokeWidth={1.5} className="text-quartz-500" />
+    }
     title="No subregistry"
     description={
       <p>
@@ -169,7 +171,7 @@ const V1SubnamesMessage = () => (
     description={
       <>
         <p>This page is only for ENSv2 names.</p>
-        <p className="text-gray-500 text-sm mt-2">
+        <p className="text-quartz-500 text-sm mt-2">
           ENSv1 subnames are managed differently.
         </p>
       </>

@@ -37,7 +37,7 @@ const SupportedFeatures = ({
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      <span className="font-sans font-normal text-sm text-gray-500">
+      <span className="font-sans font-normal text-sm text-quartz-500">
         Interfaces
       </span>
       <div className="flex flex-row flex-wrap gap-x-4 gap-y-2">

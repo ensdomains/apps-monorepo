@@ -35,7 +35,7 @@ export const NameAvatar = ({
       <div
         style={sizeStyle}
         className={cn(
-          'bg-gray-200 animate-pulse',
+          'bg-quartz-100 animate-pulse',
           rounded,
           'w-(--width) h-(--height)',
         )}

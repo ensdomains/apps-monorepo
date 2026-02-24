@@ -71,7 +71,7 @@ const EditableValueCell = memo(function EditableValueCell({
       <Input
         ref={inputRef}
         defaultValue={record.value}
-        className={`font-mono bg-gray-50 ${
+        className={`font-mono bg-quartz-50 ${
           error
             ? 'border-red-500 focus-visible:ring-red-500/50'
             : 'border-border'
@@ -175,7 +175,7 @@ export const EditRecordsTable = ({
             return (
               <span className="flex flex-row items-center gap-2 font-mono">
                 {row.original.id}{' '}
-                <span className="font-sans text-gray-500 uppercase">
+                <span className="font-sans text-quartz-500 uppercase">
                   {row.original.key}
                 </span>
               </span>
