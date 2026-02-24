@@ -43,6 +43,16 @@
   --citrine-500: #914B1C;
   --citrine-900: #441B03;
 
+  --peridot-100: #D1EEDF;
+  --peridot-400: #65D388;
+  --peridot-500: #007C20;
+  --peridot-900: #033010;
+
+  --garnet-100: #FEEAF0;
+  --garnet-400: #FFB0D0;
+  --garnet-500: #ED2496;
+  --garnet-900: #5A0024;
+
   --avatar-placeholder-gradient: linear-gradient(
     135deg,
     #ef7eb8 0%,
@@ -82,6 +92,14 @@
   --color-citrine-400: var(--citrine-400);
   --color-citrine-500: var(--citrine-500);
   --color-citrine-900: var(--citrine-900);
+  --color-peridot-100: var(--peridot-100);
+  --color-peridot-400: var(--peridot-400);
+  --color-peridot-500: var(--peridot-500);
+  --color-peridot-900: var(--peridot-900);
+  --color-garnet-100: var(--garnet-100);
+  --color-garnet-400: var(--garnet-400);
+  --color-garnet-500: var(--garnet-500);
+  --color-garnet-900: var(--garnet-900);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);

@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import type { LucideIcon } from 'lucide-react'
 import {
   ClockIcon,
   CoinsIcon,
@@ -10,6 +11,7 @@ import {
   UserLockIcon,
   UserRoundCog,
 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import {
   Sidebar,
   SidebarContent,
@@ -22,7 +24,15 @@ import {
   SidebarSeparator,
 } from './ui/sidebar'
 
-const itemGroups = [
+type SidebarItem = {
+  title: string
+  url: string
+  icon: LucideIcon
+  disabled?: boolean
+  upcoming?: boolean
+}
+
+const itemGroups: SidebarItem[][] = [
   [
     {
       title: 'Overview',
@@ -80,7 +90,7 @@ const itemGroups = [
       icon: ClockIcon,
     },
   ],
-] as const
+]
 
 interface ProfileSidebarProps {
   name: string
@@ -103,24 +113,41 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
                   <SidebarMenu>
                     {items.map((item) => (
                       <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton asChild>
-                          <Link
-                            params={{ name }}
-                            to={item.url}
-                            activeProps={{
-                              'data-active': 'true',
-                              className: '!bg-lapis-100 !text-lapis-500',
-                            }}
-                            activeOptions={{
-                              exact: item.url === '/$name',
-                            }}
+                        {item.disabled || item.upcoming ? (
+                          <SidebarMenuButton
+                            disabled
+                            className="opacity-50 cursor-not-allowed"
                           >
-                            <item.icon className="size-6 text-foreground" />
+                            <item.icon className="size-6" />
                             <span className="text-sm font-medium">
                               {item.title}
                             </span>
-                          </Link>
-                        </SidebarMenuButton>
+                            {item.upcoming && (
+                              <Badge className="ml-auto text-[10px] px-1.5 py-0 bg-peridot-100 text-peridot-500 hover:bg-peridot-100">
+                                Soon
+                              </Badge>
+                            )}
+                          </SidebarMenuButton>
+                        ) : (
+                          <SidebarMenuButton asChild>
+                            <Link
+                              params={{ name }}
+                              to={item.url}
+                              activeProps={{
+                                'data-active': 'true',
+                                className: '!bg-lapis-100 !text-lapis-500',
+                              }}
+                              activeOptions={{
+                                exact: item.url === '/$name',
+                              }}
+                            >
+                              <item.icon className="size-6" />
+                              <span className="text-sm font-medium">
+                                {item.title}
+                              </span>
+                            </Link>
+                          </SidebarMenuButton>
+                        )}
                       </SidebarMenuItem>
                     ))}
                   </SidebarMenu>

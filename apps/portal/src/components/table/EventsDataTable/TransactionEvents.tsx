@@ -199,7 +199,7 @@ export const TransactionEvents = ({
                         }
                       />
 
-                      <Button asChild variant="outline" size="sm">
+                      <Button variant="secondary" asChild size="sm">
                         <a
                           href="https://github.com/ensdomains/ens-contracts"
                           target="_blank"
