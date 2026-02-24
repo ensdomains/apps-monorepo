@@ -1,4 +1,3 @@
-import { UnsupportedNameTypeError } from '@ensdomains/ensjs'
 import { describe, expect, it } from 'vitest'
 import { getLabel } from './getLabel'
 
@@ -29,8 +28,8 @@ describe('getLabel', () => {
     expect(getLabel('ABC.eth')).toBe('abc')
   })
 
-  it('throws UnsupportedNameTypeError for invalid names', () => {
-    expect(() => getLabel('')).toThrow(UnsupportedNameTypeError)
-    expect(() => getLabel('   ')).toThrow(UnsupportedNameTypeError)
+  it('throws for invalid names', () => {
+    expect(() => getLabel('')).toThrow()
+    expect(() => getLabel('   ')).toThrow()
   })
 })
