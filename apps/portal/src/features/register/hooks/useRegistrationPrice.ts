@@ -1,7 +1,9 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { UnsupportedNameTypeError } from '@ensdomains/ensjs'
 import { l2EthRegistrarRentPriceSnippet } from '@ensdomains/ensjs/contracts'
+import type { GetPriceErrorType } from '@ensdomains/ensjs/public'
 import { err, fromPromise, ok } from 'neverthrow'
 import { zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
@@ -15,7 +17,7 @@ import type { SupportedTokenAddresses } from '../types/tokens'
 class GetRegistrationPriceError extends TaggedError(
   'GetRegistrationPriceError',
 )<{
-  cause: unknown
+  readonly cause: GetPriceErrorType
 }> {}
 
 export type RegistrationPriceParameters = {
@@ -44,7 +46,13 @@ export const getRegistrationPrice = ResultFn(async function* ({
 
   if (label === null) {
     return err(
-      new GetRegistrationPriceError({ cause: new Error('Invalid name') }),
+      new GetRegistrationPriceError({
+        cause: new UnsupportedNameTypeError({
+          nameType: 'root',
+          supportedNameTypes: ['eth-2ld', 'tld'],
+          details: 'Could not parse label from name',
+        }),
+      }),
     )
   }
 
@@ -57,7 +65,7 @@ export const getRegistrationPrice = ResultFn(async function* ({
       functionName: 'rentPrice',
       args: [label, zeroAddress, BigInt(duration), resolvedToken],
     }),
-    (e) => new GetRegistrationPriceError({ cause: e }),
+    (e) => new GetRegistrationPriceError({ cause: e as GetPriceErrorType }),
   )
 
   const total = base + premium
