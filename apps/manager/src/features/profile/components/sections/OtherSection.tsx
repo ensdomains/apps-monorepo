@@ -1,5 +1,5 @@
 import { Braces, Hash, Plus, X } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,6 +22,7 @@ import { validateContentHash } from '@/features/profile/utils/validateContentHas
 export const OtherSection = withForm({
   ...sharedOptions,
   render: ({ form }) => {
+    const reduceMotion = useReducedMotion()
     const [showContentHash, setShowContentHash] = useState(
       !!form.state.values.contentHash,
     )
@@ -50,11 +51,11 @@ export const OtherSection = withForm({
             {pills.length > 0 && (
               <motion.div
                 className="flex flex-wrap gap-3 pb-2"
-                {...pillContainerAnimation}
+                {...pillContainerAnimation(reduceMotion)}
               >
                 <AnimatePresence initial={false} mode="popLayout">
                   {pills.map((pill) => (
-                    <motion.div key={pill.key} layout {...pillAnimation}>
+                    <motion.div key={pill.key} {...pillAnimation(reduceMotion)}>
                       <Button
                         className="h-auto w-auto gap-2 rounded-full px-4 py-2 text-muted-foreground hover:text-foreground"
                         onClick={() => {
@@ -78,7 +79,7 @@ export const OtherSection = withForm({
 
           <AnimatePresence initial={false} mode="popLayout">
             {showContentHash && (
-              <motion.div key="contentHash" layout {...entryAnimation}>
+              <motion.div key="contentHash" {...entryAnimation(reduceMotion)}>
                 <form.Field
                   name="contentHash"
                   validators={{
@@ -125,7 +126,7 @@ export const OtherSection = withForm({
             )}
 
             {showAbi && (
-              <motion.div key="abi" layout {...entryAnimation}>
+              <motion.div key="abi" {...entryAnimation(reduceMotion)}>
                 <form.Field name="abi">
                   {(field) => (
                     <div className="flex items-start gap-3 pt-1">

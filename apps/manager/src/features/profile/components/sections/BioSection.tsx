@@ -1,5 +1,5 @@
 import { CircleUserRound, Globe, Plus, X } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,6 +22,7 @@ import { validateUrl } from '@/features/profile/utils/validateUrl'
 export const BioSection = withForm({
   ...sharedOptions,
   render: ({ form }) => {
+    const reduceMotion = useReducedMotion()
     const [showBio, setShowBio] = useState(!!form.state.values.base.description)
     const [showWebsite, setShowWebsite] = useState(!!form.state.values.base.url)
 
@@ -43,11 +44,11 @@ export const BioSection = withForm({
             {pills.length > 0 && (
               <motion.div
                 className="flex flex-wrap gap-3 pb-2"
-                {...pillContainerAnimation}
+                {...pillContainerAnimation(reduceMotion)}
               >
                 <AnimatePresence initial={false} mode="popLayout">
                   {pills.map((pill) => (
-                    <motion.div key={pill.key} layout {...pillAnimation}>
+                    <motion.div key={pill.key} {...pillAnimation(reduceMotion)}>
                       <Button
                         className="h-auto w-auto gap-2 rounded-full px-4 py-2 text-muted-foreground hover:text-foreground"
                         onClick={() => {
@@ -70,7 +71,7 @@ export const BioSection = withForm({
 
           <AnimatePresence initial={false} mode="popLayout">
             {showBio && (
-              <motion.div key="bio" layout {...entryAnimation}>
+              <motion.div key="bio" {...entryAnimation(reduceMotion)}>
                 <form.Field name="base.description">
                   {(field) => (
                     <div className="flex items-start gap-3 pt-1">
