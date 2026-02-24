@@ -12,6 +12,11 @@ import {
 import { FloatingInput } from '@/components/ui/floating-input'
 import { FloatingTextarea } from '@/components/ui/floating-textarea'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
+import {
+  entryAnimation,
+  pillAnimation,
+  pillContainerAnimation,
+} from '@/features/profile/components/motion'
 import { validateContentHash } from '@/features/profile/utils/validateContentHash'
 
 export const OtherSection = withForm({
@@ -44,29 +49,12 @@ export const OtherSection = withForm({
           <AnimatePresence mode="popLayout">
             {pills.length > 0 && (
               <motion.div
-                animate={{ opacity: 1, height: 'auto' }}
                 className="flex flex-wrap gap-3 pb-2"
-                exit={{ opacity: 0, height: 0 }}
-                initial={{ opacity: 0, height: 0 }}
-                transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
+                {...pillContainerAnimation}
               >
                 <AnimatePresence mode="popLayout">
                   {pills.map((pill) => (
-                    <motion.div
-                      animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-                      exit={{ opacity: 0, scale: 0.95, filter: 'blur(2px)' }}
-                      initial={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-                      key={pill.key}
-                      layout
-                      transition={{
-                        layout: {
-                          type: 'spring',
-                          bounce: 0.1,
-                          duration: 0.25,
-                        },
-                        default: { duration: 0.12 },
-                      }}
-                    >
+                    <motion.div key={pill.key} layout {...pillAnimation}>
                       <Button
                         className="h-auto w-auto gap-2 rounded-full px-4 py-2 text-muted-foreground hover:text-foreground"
                         onClick={() => {
@@ -90,20 +78,7 @@ export const OtherSection = withForm({
 
           <AnimatePresence mode="popLayout">
             {showContentHash && (
-              <motion.div
-                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, scale: 0.98, filter: 'blur(2px)' }}
-                initial={{ opacity: 0, y: -8, filter: 'blur(2px)' }}
-                key="contentHash"
-                layout
-                transition={{
-                  layout: { type: 'spring', bounce: 0.05, duration: 0.25 },
-                  opacity: { duration: 0.15 },
-                  scale: { duration: 0.15 },
-                  filter: { duration: 0.15 },
-                  y: { type: 'spring', bounce: 0.1, duration: 0.3 },
-                }}
-              >
+              <motion.div key="contentHash" layout {...entryAnimation}>
                 <form.Field
                   name="contentHash"
                   validators={{
@@ -150,20 +125,7 @@ export const OtherSection = withForm({
             )}
 
             {showAbi && (
-              <motion.div
-                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, scale: 0.98, filter: 'blur(2px)' }}
-                initial={{ opacity: 0, y: -8, filter: 'blur(2px)' }}
-                key="abi"
-                layout
-                transition={{
-                  layout: { type: 'spring', bounce: 0.05, duration: 0.25 },
-                  opacity: { duration: 0.15 },
-                  scale: { duration: 0.15 },
-                  filter: { duration: 0.15 },
-                  y: { type: 'spring', bounce: 0.1, duration: 0.3 },
-                }}
-              >
+              <motion.div key="abi" layout {...entryAnimation}>
                 <form.Field name="abi">
                   {(field) => (
                     <div className="flex items-start gap-3 pt-1">

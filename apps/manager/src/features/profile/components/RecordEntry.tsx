@@ -2,6 +2,7 @@ import { X } from 'lucide-react'
 import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { FloatingInput } from '@/components/ui/floating-input'
+import { entryAnimation } from './motion'
 
 interface RecordEntryProps {
   name: string
@@ -24,20 +25,7 @@ export const RecordEntry = ({
   onBlur,
   onRemove,
 }: RecordEntryProps) => (
-  <motion.div
-    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-    className="flex flex-col gap-1 pt-1"
-    exit={{ opacity: 0, scale: 0.98, filter: 'blur(2px)' }}
-    initial={{ opacity: 0, y: -8, filter: 'blur(2px)' }}
-    layout
-    transition={{
-      layout: { type: 'spring', bounce: 0.05, duration: 0.25 },
-      opacity: { duration: 0.15 },
-      scale: { duration: 0.15 },
-      filter: { duration: 0.15 },
-      y: { type: 'spring', bounce: 0.1, duration: 0.3 },
-    }}
-  >
+  <motion.div className="flex flex-col gap-1 pt-1" layout {...entryAnimation}>
     <div className="flex items-center gap-3">
       <FloatingInput
         aria-invalid={Boolean(error)}

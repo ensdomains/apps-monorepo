@@ -11,6 +11,11 @@ import {
 } from '@/components/ui/card'
 import { FloatingTextarea } from '@/components/ui/floating-textarea'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
+import {
+  entryAnimation,
+  pillAnimation,
+  pillContainerAnimation,
+} from '@/features/profile/components/motion'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
 import { validateUrl } from '@/features/profile/utils/validateUrl'
 
@@ -37,29 +42,12 @@ export const BioSection = withForm({
           <AnimatePresence mode="popLayout">
             {pills.length > 0 && (
               <motion.div
-                animate={{ opacity: 1, height: 'auto' }}
                 className="flex flex-wrap gap-3 pb-2"
-                exit={{ opacity: 0, height: 0 }}
-                initial={{ opacity: 0, height: 0 }}
-                transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
+                {...pillContainerAnimation}
               >
                 <AnimatePresence mode="popLayout">
                   {pills.map((pill) => (
-                    <motion.div
-                      animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-                      exit={{ opacity: 0, scale: 0.95, filter: 'blur(2px)' }}
-                      initial={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-                      key={pill.key}
-                      layout
-                      transition={{
-                        layout: {
-                          type: 'spring',
-                          bounce: 0.1,
-                          duration: 0.25,
-                        },
-                        default: { duration: 0.12 },
-                      }}
-                    >
+                    <motion.div key={pill.key} layout {...pillAnimation}>
                       <Button
                         className="h-auto w-auto gap-2 rounded-full px-4 py-2 text-muted-foreground hover:text-foreground"
                         onClick={() => {
@@ -82,20 +70,7 @@ export const BioSection = withForm({
 
           <AnimatePresence mode="popLayout">
             {showBio && (
-              <motion.div
-                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, scale: 0.98, filter: 'blur(2px)' }}
-                initial={{ opacity: 0, y: -8, filter: 'blur(2px)' }}
-                key="bio"
-                layout
-                transition={{
-                  layout: { type: 'spring', bounce: 0.05, duration: 0.25 },
-                  opacity: { duration: 0.15 },
-                  scale: { duration: 0.15 },
-                  filter: { duration: 0.15 },
-                  y: { type: 'spring', bounce: 0.1, duration: 0.3 },
-                }}
-              >
+              <motion.div key="bio" layout {...entryAnimation}>
                 <form.Field name="base.description">
                   {(field) => (
                     <div className="flex items-start gap-3 pt-1">
