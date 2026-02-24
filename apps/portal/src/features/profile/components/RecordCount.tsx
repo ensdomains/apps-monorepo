@@ -44,7 +44,7 @@ export const RecordCount = ({
         <ListIcon
           height={24}
           width={24}
-          className="p-2 w-8 h-8 rounded-4xl bg-secondary"
+          className="p-2 w-8 h-8 rounded-4xl bg-citrine-100 text-citrine-500"
         />
         <div className="flex-1">
           <span className="font-medium">{recordCount}</span> records set
@@ -52,7 +52,7 @@ export const RecordCount = ({
         <Link
           to="/$name/records"
           params={{ name }}
-          className="h-8 w-8 p-2 rounded-sm duration-150 bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+          className="h-8 w-8 p-2 rounded-sm duration-150 bg-secondary hover:bg-secondary/80 text-secondary-foreground flex items-center justify-center"
         >
           <ChevronRight height={16} width={16} />
         </Link>
@@ -61,7 +61,7 @@ export const RecordCount = ({
         <FileCodeIcon
           height={24}
           width={24}
-          className="p-2 w-8 h-8 rounded-4xl bg-secondary"
+          className="p-2 w-8 h-8 rounded-4xl bg-citrine-100 text-citrine-500"
         />
         <div className="flex-1">
           <span className="font-medium">Resolver</span>
@@ -83,7 +83,7 @@ export const RecordCount = ({
           to="/$name/resolver"
           search={{ view: 'list' }}
           params={{ name }}
-          className="h-8 w-8 p-2 rounded-sm duration-150 bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+          className="h-8 w-8 p-2 rounded-sm duration-150 bg-secondary hover:bg-secondary/80 text-secondary-foreground flex items-center justify-center"
         >
           <ChevronRight height={16} width={16} />
         </Link>

@@ -90,13 +90,13 @@ export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
                           to={item.url}
                           activeProps={{
                             'data-active': 'true',
-                            className: '!bg-black/10 dark:!bg-white/15',
+                            className: '!bg-lapis-100 !text-lapis-500',
                           }}
                           activeOptions={{
                             exact: item.url === '/addr/$addr',
                           }}
                         >
-                          <item.icon className="size-6" />
+                          <item.icon className="size-6 text-foreground" />
                           <span className="text-sm font-medium">
                             {item.title}
                           </span>

@@ -31,7 +31,7 @@ const RoleCount = ({ name }: { name: string }) => {
       <ListIcon
         height={24}
         width={24}
-        className="p-2 w-8 h-8 rounded-4xl bg-secondary"
+        className="p-2 w-8 h-8 rounded-4xl bg-citrine-100 text-citrine-500"
       />
       <div className="flex-1">
         <span className="font-medium">{(data || { size: 0 }).size}</span> roles
@@ -39,7 +39,7 @@ const RoleCount = ({ name }: { name: string }) => {
       <Link
         to="/$name/roles"
         params={{ name }}
-        className="h-8 w-8 p-2 rounded-sm duration-150 bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+        className="h-8 w-8 p-2 rounded-sm duration-150 bg-secondary hover:bg-secondary/80 text-secondary-foreground flex items-center justify-center"
       >
         <ChevronRight height={16} width={16} />
       </Link>
@@ -61,7 +61,7 @@ const FuseCount = ({ name }: { name: string }) => {
       <ListIcon
         height={24}
         width={24}
-        className="p-2 w-8 h-8 rounded-4xl bg-secondary"
+        className="p-2 w-8 h-8 rounded-4xl bg-citrine-100 text-citrine-500"
       />
       <div className="flex-1">
         <span className="font-medium">{data || 0}</span> fuses burned
@@ -69,7 +69,7 @@ const FuseCount = ({ name }: { name: string }) => {
       <Link
         to="/$name/ownership"
         params={{ name }}
-        className="h-8 w-8 p-2 rounded-sm duration-150 bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+        className="h-8 w-8 p-2 rounded-sm duration-150 bg-secondary hover:bg-secondary/80 text-secondary-foreground flex items-center justify-center"
       >
         <ChevronRight height={16} width={16} />
       </Link>
@@ -92,7 +92,7 @@ export const ProtocolVersionWithCounter = ({
         <HashIcon
           height={24}
           width={24}
-          className="p-2 w-8 h-8 rounded-4xl bg-secondary"
+          className="p-2 w-8 h-8 rounded-4xl bg-citrine-100 text-citrine-500"
         />
         <div className="flex-1">
           <div className="font-medium">Protocol</div>
@@ -102,7 +102,7 @@ export const ProtocolVersionWithCounter = ({
           to="/$name/records"
           search={{ view: 'list' }}
           params={{ name }}
-          className="h-8 w-8 p-2 rounded-sm duration-150 bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+          className="h-8 w-8 p-2 rounded-sm duration-150 bg-secondary hover:bg-secondary/80 text-secondary-foreground flex items-center justify-center"
         >
           <ChevronRight height={16} width={16} />
         </Link>

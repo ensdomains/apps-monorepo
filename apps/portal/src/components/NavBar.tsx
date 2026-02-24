@@ -57,12 +57,14 @@ export const NavBar = () => {
             <LogoWithTextSVG width={72} height="auto" />
             <Badge
               variant="secondary"
-              className="absolute -top-3 -right-25 text-xs z-10"
+              className="absolute -top-3 -right-34 text-xs z-10"
             >
               Alpha
             </Badge>
           </div>
-          <span className="font-bold hidden md:inline">Explorer</span>
+          <span className="font-bold text-2xl hidden md:inline text-lapis-500">
+            Explorer
+          </span>
         </Link>
       </div>
       {location.pathname !== '/' && (

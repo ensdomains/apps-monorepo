@@ -14,8 +14,8 @@
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
+  --secondary: #DBF0F8;
+  --secondary-foreground: #0082BB;
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
@@ -32,6 +32,16 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  --lapis-100: #DBF0F8;
+  --lapis-400: #80C4E0;
+  --lapis-500: #0082BB;
+  --lapis-900: #02293B;
+
+  --citrine-100: #F8F7E2;
+  --citrine-400: #E1B77E;
+  --citrine-500: #914B1C;
+  --citrine-900: #441B03;
 
   --avatar-placeholder-gradient: linear-gradient(
     135deg,
@@ -64,6 +74,14 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-lapis-100: var(--lapis-100);
+  --color-lapis-400: var(--lapis-400);
+  --color-lapis-500: var(--lapis-500);
+  --color-lapis-900: var(--lapis-900);
+  --color-citrine-100: var(--citrine-100);
+  --color-citrine-400: var(--citrine-400);
+  --color-citrine-500: var(--citrine-500);
+  --color-citrine-900: var(--citrine-900);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
