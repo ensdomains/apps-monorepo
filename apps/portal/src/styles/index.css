@@ -53,6 +53,15 @@
   --garnet-500: #ed2496;
   --garnet-900: #5a0024;
 
+  --quartz-0: #ffffff;
+  --quartz-50: #f8f8f8;
+  --quartz-100: #e5e5e5;
+  --quartz-200: #c3c7c8;
+  --quartz-350: #a1a1a1;
+  --quartz-400: #737373;
+  --quartz-500: #5d5751;
+  --quartz-900: #191919;
+
   --avatar-placeholder-gradient: linear-gradient(
     135deg,
     #ef7eb8 0%,
@@ -100,6 +109,14 @@
   --color-garnet-400: var(--garnet-400);
   --color-garnet-500: var(--garnet-500);
   --color-garnet-900: var(--garnet-900);
+  --color-quartz-0: var(--quartz-0);
+  --color-quartz-50: var(--quartz-50);
+  --color-quartz-100: var(--quartz-100);
+  --color-quartz-200: var(--quartz-200);
+  --color-quartz-350: var(--quartz-350);
+  --color-quartz-400: var(--quartz-400);
+  --color-quartz-500: var(--quartz-500);
+  --color-quartz-900: var(--quartz-900);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);

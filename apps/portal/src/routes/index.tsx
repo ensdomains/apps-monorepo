@@ -39,7 +39,7 @@ function RouteComponent() {
           <HomeSearchInput />
         </header>
 
-        <section className="bg-gray-100 xl:rounded-lg border border-gray-300 p-8 -mx-6 md:mx-0">
+        <section className="bg-peridot-100 text-quartz-900 xl:rounded-lg border border-gray-300 p-8 -mx-6 md:mx-0">
           <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8">
             <div className="flex flex-col gap-4 items-start">
               <h2 className="text-2xl font-bold">
