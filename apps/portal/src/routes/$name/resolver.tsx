@@ -59,13 +59,6 @@ const EditButtons = ({ address, name }: EditButtonsProps) => {
 
   return (
     <div className="flex flex-row gap-2">
-      {/* <button
-        type="button"
-        className="text-base font-medium flex flex-row gap-1 items-center px-4 py-2 bg-secondary hover:bg-gray-400 cursor-pointer h-[38px] rounded-sm"
-      >
-        <XIcon className="w-4 h-4" />
-        <span>Clear records</span>
-      </button> */}
       <Button variant="secondary" className="flex items-center gap-2" asChild>
         <Link to="/$name/change-resolver" params={{ name }}>
           <EditIcon className="size-4" />

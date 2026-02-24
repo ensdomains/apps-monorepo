@@ -27,7 +27,7 @@ export const Owner = ({
     return (
       <div
         className={cn(
-          'p-6 flex flex-col rounded-2xl border border-border hover:bg-gray-100',
+          'p-6 flex flex-col rounded-2xl border border-border hover:bg-quartz-50',
           className,
         )}
       >
@@ -43,7 +43,7 @@ export const Owner = ({
       to="/addr/$addr"
       params={{ addr: owner }}
       className={cn(
-        'p-6 flex flex-row rounded-2xl gap-6 items-center border border-border hover:bg-gray-100',
+        'p-6 flex flex-row rounded-2xl gap-6 items-center border border-border hover:bg-quartz-50',
         className,
       )}
     >

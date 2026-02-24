@@ -45,7 +45,7 @@ const SupportedFeatures = ({
           <ExternalLink
             key={feature.name}
             href={feature.link}
-            className="text-sm sm:text-base font-normal underline underline-offset-2 decoration-dotted hover:text-blue-600 transition-colors"
+            className="text-sm sm:text-base font-normal underline underline-offset-2 decoration-dotted hover:text-lapis-500 transition-colors"
           >
             {feature.name}
           </ExternalLink>

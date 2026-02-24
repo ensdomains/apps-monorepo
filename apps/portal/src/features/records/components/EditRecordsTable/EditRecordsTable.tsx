@@ -280,7 +280,7 @@ export const EditRecordsTable = ({
               <React.Fragment key={row.id}>
                 <TableRow
                   data-state={row.getIsSelected() && 'selected'}
-                  className="hover:bg-gray-100"
+                  className="hover:bg-quartz-50"
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className="px-4 sm:px-6 py-4">
@@ -292,7 +292,7 @@ export const EditRecordsTable = ({
                   ))}
                 </TableRow>
                 {isPendingDelete && (
-                  <TableRow className="bg-gray-50 hover:bg-gray-50">
+                  <TableRow className="bg-quartz-50 hover:bg-quartz-50">
                     <TableCell
                       colSpan={editColumns.length}
                       className="px-4 sm:px-6 py-3"
