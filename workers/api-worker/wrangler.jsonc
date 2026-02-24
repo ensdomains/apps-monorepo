@@ -45,6 +45,10 @@
       {
         "binding": "PUSH_QUEUE",
         "queue": "app-api-worker-push-delivery"
+      },
+      {
+        "binding": "DLQ",
+        "queue": "app-api-worker-dlq"
       }
     ],
     "consumers": [
@@ -52,25 +56,34 @@
         "queue": "app-api-worker-telegram-delivery",
         "max_batch_size": 10,
         "max_batch_timeout": 5,
-        "max_retries": 3
+        "max_retries": 3,
+        "dead_letter_queue": "app-api-worker-dlq"
       },
       {
         "queue": "app-api-worker-email-delivery",
         "max_batch_size": 50,
         "max_batch_timeout": 3,
-        "max_retries": 3
+        "max_retries": 3,
+        "dead_letter_queue": "app-api-worker-dlq"
       },
       {
         "queue": "app-api-worker-push-delivery",
         "max_batch_size": 50,
         "max_batch_timeout": 3,
-        "max_retries": 3
+        "max_retries": 3,
+        "dead_letter_queue": "app-api-worker-dlq"
       },
       {
         "queue": "app-api-worker-event-ingestion",
         "max_batch_size": 50,
         "max_batch_timeout": 3,
         "max_retries": 3
+      },
+      {
+        "queue": "app-api-worker-dlq",
+        "max_batch_size": 10,
+        "max_batch_timeout": 30,
+        "max_retries": 0
       }
     ]
   },

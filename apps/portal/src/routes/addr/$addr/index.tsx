@@ -88,7 +88,7 @@ function RouteComponent() {
       </div>
       <PrimaryName address={addr} />
       <h2 className="font-medium text-[26px]">Names</h2>
-      <NameList address={addr} limit={5} />
+      <NameList address={addr} limit={3} />
       <h2 className="font-medium text-[26px]">History</h2>
       <AddressHistory address={addr} />
     </div>

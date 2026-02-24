@@ -1,6 +1,8 @@
 import type { NameWithRelation } from '@ensdomains/ensjs/subgraph'
 import { useQueries } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
+import { GripHorizontal } from 'lucide-react'
 import type { Address } from 'viem/accounts'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { DataTable } from '@/components/DataTable'
@@ -16,8 +18,8 @@ import { getV1NamesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
 import { getV2NamesWithRolesForAddressQueryOptions } from '../hooks/useV2NamesWithRolesForAddress'
 
 interface NameListProps {
-  address: Address
-  limit?: number
+  readonly address: Address
+  readonly limit?: number
 }
 
 type column = WithEnsNetwork<MergedName>
@@ -57,22 +59,6 @@ const columns: ColumnDef<column>[] = [
         )
       }
       return formatDateTime(expiryDate)
-    },
-  },
-  {
-    accessorKey: 'recordCount',
-    header: 'Records',
-    cell(cell) {
-      const recordCount = cell.getValue() as number | undefined
-      return recordCount !== undefined ? recordCount.toString() : '0'
-    },
-  },
-  {
-    accessorKey: 'subdomainCount',
-    header: 'Subnames',
-    cell(cell) {
-      const subdomainCount = cell.getValue() as number | undefined
-      return subdomainCount !== undefined ? subdomainCount.toString() : '0'
     },
   },
   {
@@ -159,9 +145,14 @@ export const NameList = ({ address, limit }: NameListProps) => {
         <DataTable data={data} columns={columns} />
       </div>
 
-      <div className="bg-secondary p-4 text-center">
-        Full name list Coming Soon
-      </div>
+      <Link
+        to="/addr/$addr/names"
+        params={{ addr: address }}
+        className="flex items-center justify-center gap-1 bg-secondary p-4 text-sm font-medium hover:bg-secondary/80 transition-colors"
+      >
+        <GripHorizontal size={16} />
+        Go to full list ({allData.length})
+      </Link>
     </div>
   )
 }

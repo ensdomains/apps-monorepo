@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { getByteLength } from '@/features/register/components/Pricing/utils'
+import { getByteLength } from '@/utils/domain'
 import { DomainResultCard } from './DomainResultCard'
 
 const meta = {

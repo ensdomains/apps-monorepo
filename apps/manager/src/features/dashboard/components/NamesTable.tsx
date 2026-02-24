@@ -1,15 +1,18 @@
-import { useQuery } from '@tanstack/react-query'
+import { useWallet } from '@getpara/react-sdk-lite'
+import { useQueries } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
 import { Search } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
+import { CountBadge } from '@/components/atoms/CountBadge'
 import { Input } from '@/components/ui/input'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import { FavoritesList } from './FavoritesList'
@@ -46,11 +49,7 @@ const DashboardTabButton = ({
       >
         {label}
       </span>
-      {badge !== undefined && badge > 0 && (
-        <span className="flex h-[19.68px] items-center justify-center rounded-[14px] bg-[#ffecf5] px-[6.56px] py-[1.64px] font-sans text-[#f53293] text-sm leading-[1.05] tracking-[0.28px]">
-          {badge}
-        </span>
-      )}
+      {badge !== undefined && badge > 0 && <CountBadge value={badge} />}
     </button>
   )
 
@@ -75,16 +74,30 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const [searchQuery, setSearchQuery] = useState('')
   const shouldReduceMotion = useReducedMotion()
   const isAuthed = useAtom(isBackendAuthed)
-  const { data: favorites = [] } = useQuery({
-    ...favoritesQueryOptions,
-    enabled: isAuthed,
+  const { data: wallet } = useWallet()
+  const normalizedAddress = wallet?.address?.toLowerCase()
+  const [favoritesQuery, ownedNamesCountQuery] = useQueries({
+    queries: [
+      {
+        ...favoritesQueryOptions,
+        enabled: isAuthed,
+      },
+      {
+        ...ownedNamesCountQueryOptions(normalizedAddress),
+        enabled: Boolean(normalizedAddress),
+      },
+    ],
   })
+
+  const { data: favorites = [] } = favoritesQuery
+  const { data: ownedNamesCount } = ownedNamesCountQuery
   const favoritesCount = favorites.length
 
   const tabs = [
     {
       key: 'myNames' as const,
       label: 'My Names',
+      badge: ownedNamesCount,
     },
     {
       key: 'favorites' as const,
