@@ -14,6 +14,7 @@ import {
 import { and, eq, inArray } from 'drizzle-orm'
 import { ok } from 'neverthrow'
 import { v7 as uuidv7 } from 'uuid'
+import { getQueueForChannel } from '#config/queues.js'
 import { type Database, intoDbResult, TABLE } from '#core/database/index.js'
 import type { BaseDeliveryJob } from '#types/delivery.js'
 import { chunk } from '#utils/chunk.js'
@@ -75,38 +76,6 @@ export function shouldCreateExternalDeliveriesForNotification(
       // Opt-in kind without a preference key defaults to enabled.
       return true
   }
-}
-
-/**
- * Maps channel types to their corresponding Cloudflare queue bindings.
- *
- * This centralizes the channel-to-queue mapping so that when a new channel is added,
- * you only need to update this mapping rather than hunting through switch statements
- * across the codebase.
- *
- * To add a new channel:
- * 1. Add the channel type to ChannelType in @ens-apps/shared-schema/notifications
- * 2. Add the queue binding to wrangler.jsonc and update CloudflareBindings type
- * 3. Add an entry here mapping channel -> queue binding name
- * 4. Add the queue handler in queues/index.ts
- */
-const CHANNEL_TO_QUEUE: Partial<Record<ChannelType, keyof CloudflareBindings>> =
-  {
-    telegram: 'TELEGRAM_QUEUE',
-    email: 'EMAIL_QUEUE',
-    push: 'PUSH_QUEUE',
-  } as const
-
-/**
- * Gets the queue for a given channel type.
- *
- * @param channel - The channel type
- * @returns The queue binding name, or undefined if channel is not supported
- */
-function getQueueForChannel(
-  channel: ChannelType,
-): keyof CloudflareBindings | undefined {
-  return CHANNEL_TO_QUEUE[channel]
 }
 
 class NotificationCreationError extends TaggedError(
