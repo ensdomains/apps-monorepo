@@ -70,7 +70,7 @@ export const RecordList = ({
 
   return (
     <>
-      <header className="bg-gray-100 px-8 pb-4 pt-12 flex flex-col gap-4">
+      <header className="bg-quartz-50 px-8 pb-4 pt-12 flex flex-col gap-4">
         <div className="flex flex-row justify-between">
           <h1 className="text-[28px] font-medium">{recordCount} Records</h1>
           {canEdit && (

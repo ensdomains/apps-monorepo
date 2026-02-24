@@ -315,7 +315,7 @@ function RouteComponent() {
 
   return (
     <>
-      <header className="bg-gray-100 px-8 pb-4 pt-12 flex flex-col gap-4 sticky top-0 z-10">
+      <header className="bg-quartz-50 px-8 pb-4 pt-12 flex flex-col gap-4 sticky top-0 z-10">
         <div className="flex flex-row justify-between">
           <h1 className="text-[28px] font-medium">
             {hasActiveFilters ? `${nameCount} of ${totalCount}` : nameCount}{' '}
