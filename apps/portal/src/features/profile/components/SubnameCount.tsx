@@ -28,11 +28,7 @@ export const SubnameCount = ({
   return (
     <div className="flex flex-col rounded-2xl overflow-hidden  border border-gray-300 ">
       <div className="w-full p-6 border-b border-b-gray-300 flex flex-row items-center gap-6">
-        <ListIcon
-          height={24}
-          width={24}
-          className="p-2 w-8 h-8 rounded-4xl bg-citrine-100 text-citrine-500"
-        />
+        <ListIcon className="p-2 w-8 h-8 rounded-4xl bg-citrine-100 text-citrine-500" />
         <div className="flex-1">
           <span className="font-medium">{data ? data.length : 0}</span> subnames
         </div>
@@ -41,15 +37,11 @@ export const SubnameCount = ({
           params={{ name }}
           className="h-8 w-8 p-2 rounded-sm duration-150 bg-secondary hover:bg-secondary/80 text-secondary-foreground flex items-center justify-center"
         >
-          <ChevronRight height={16} width={16} />
+          <ChevronRight className="size-4" />
         </Link>
       </div>
       <div className="w-full p-6 duration-150 flex flex-row gap-6 items-center">
-        <ListStartIcon
-          height={24}
-          width={24}
-          className="p-2 w-8 h-8 rounded-4xl bg-citrine-100 text-citrine-500"
-        />
+        <ListStartIcon className="p-2 w-8 h-8 rounded-4xl bg-citrine-100 text-citrine-500" />
         {registryAddress && registryAddress !== v1EnsRegistry ? (
           <RegistryLocation name={name} registryAddress={registryAddress} />
         ) : (
@@ -64,7 +56,7 @@ export const SubnameCount = ({
           params={{ name }}
           className="h-8 w-8 p-2 rounded-sm duration-150 bg-secondary hover:bg-secondary/80 text-secondary-foreground flex items-center justify-center"
         >
-          <ChevronRight height={16} width={16} />
+          <ChevronRight className="size-4" />
         </Link>
       </div>
     </div>
