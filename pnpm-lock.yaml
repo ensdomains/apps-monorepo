@@ -120,6 +120,9 @@ importers:
       '@getpara/web-sdk':
         specifier: 2.2.0
         version: 2.2.0
+      '@icons-pack/react-simple-icons':
+        specifier: ^13.11.2
+        version: 13.11.2(react@19.2.4)
       '@intercom/messenger-js-sdk':
         specifier: ^0.0.18
         version: 0.0.18
@@ -2660,6 +2663,12 @@ packages:
     peerDependencies:
       hono: '>=3.9.0'
       valibot: ^1.0.0 || ^1.0.0-beta.4 || ^1.0.0-rc
+
+  '@icons-pack/react-simple-icons@13.11.2':
+    resolution: {integrity: sha512-IiYWH7Dlp4HvTxsL9Mh/1tjKKhLikKzL+578H1ngQkoREhfXaS9yNl1SXkjNGEAYqNH2w5/tBQc0uXLWAkcSFA==}
+    engines: {node: '>=24', pnpm: '>=10'}
+    peerDependencies:
+      react: ^16.13 || ^17 || ^18 || ^19
 
   '@img/colour@1.0.0':
     resolution: {integrity: sha512-A5P/LfWGFSl6nsckYtjw9da+19jB8hkJ6ACTGcDfEJ0aE+l2n2El7dsVM7UVHZQ9s2lmYMWlrS21YLy2IR1LUw==}
@@ -6912,6 +6921,7 @@ packages:
 
   glob@10.5.0:
     resolution: {integrity: sha512-DfXN8DfhJ7NH3Oe7cFmu3NCu1wKbkReJ8TorzSAFbSKrlNaQSKfIzqYqVY8zlbs2NLBbWpRiU52GX2PbaBVNkg==}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   globby@11.1.0:
@@ -11375,6 +11385,10 @@ snapshots:
     dependencies:
       hono: 4.10.8
       valibot: 1.2.0(typescript@5.9.3)
+
+  '@icons-pack/react-simple-icons@13.11.2(react@19.2.4)':
+    dependencies:
+      react: 19.2.4
 
   '@img/colour@1.0.0': {}
 
