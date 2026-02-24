@@ -4,11 +4,12 @@ import {
   DAI_DECIMALS,
   SUPPORTED_TOKENS,
   SUPPORTED_TOKENS_SYMBOLS,
+  type SupportedTokenSymbol,
   USDC_DECIMALS,
 } from '@/lib/constants/tokens'
 
 export type TokenInfo = {
-  symbol: SUPPORTED_TOKENS_SYMBOLS
+  symbol: SupportedTokenSymbol
   address: Address
   decimals: number
 }

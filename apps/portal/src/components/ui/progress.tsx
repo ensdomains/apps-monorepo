@@ -3,14 +3,14 @@ import type * as React from 'react'
 
 import { cn } from '@/lib/utils'
 
-function Progress({
+export const Progress = ({
   className,
   indicatorClassName,
   value,
   ...props
 }: React.ComponentProps<typeof ProgressPrimitive.Root> & {
   indicatorClassName?: string
-}) {
+}) => {
   return (
     <ProgressPrimitive.Root
       data-slot="progress"
@@ -31,5 +31,3 @@ function Progress({
     </ProgressPrimitive.Root>
   )
 }
-
-export { Progress }
