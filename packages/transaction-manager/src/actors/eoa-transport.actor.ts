@@ -1,6 +1,5 @@
-import { fromPromise, type ResultAsync } from 'neverthrow'
+import type { ResultAsync } from 'neverthrow'
 import { type Hash, UserRejectedRequestError } from 'viem'
-import { type SendTransactionErrorType, sendTransaction } from 'viem/actions'
 import {
   TransactionSubmissionError,
   TransactionUserRejectedError,
