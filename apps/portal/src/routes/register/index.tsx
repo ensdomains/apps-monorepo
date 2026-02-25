@@ -5,7 +5,7 @@ import { MessageCard } from '@/components/ui/message-card'
 import { RegisterName } from '@/features/register/components'
 
 interface RegisterSearch {
-  name?: string
+  readonly name?: string
 }
 
 const RegisterPage = () => {

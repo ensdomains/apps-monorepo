@@ -9,9 +9,9 @@ import {
 } from '@/lib/constants/tokens'
 
 export type TokenInfo = {
-  symbol: SupportedTokenSymbol
-  address: Address
-  decimals: number
+  readonly symbol: SupportedTokenSymbol
+  readonly address: Address
+  readonly decimals: number
 }
 
 /**

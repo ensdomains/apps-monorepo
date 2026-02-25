@@ -4,11 +4,11 @@ import type { SupportedTokenAddresses } from '../types/tokens'
 import { isPriceResult } from './registrationPrice'
 
 export type TokenPrice = {
-  total: bigint
-  base: bigint
-  premium: bigint
-  decimals: number
-  hasPremium: boolean
+  readonly total: bigint
+  readonly base: bigint
+  readonly premium: bigint
+  readonly decimals: number
+  readonly hasPremium: boolean
 }
 
 export const DEFAULT_PRICE: TokenPrice = {
@@ -20,15 +20,15 @@ export const DEFAULT_PRICE: TokenPrice = {
 }
 
 type TokenInput = {
-  symbol: string
-  address: SupportedTokenAddresses
-  decimals: number
-  Icon: (props: SVGProps<SVGSVGElement>) => JSX.Element
+  readonly symbol: string
+  readonly address: SupportedTokenAddresses
+  readonly decimals: number
+  readonly Icon: (props: SVGProps<SVGSVGElement>) => JSX.Element
 }
 
 export type TokenWithPriceAndBalance = TokenInput & {
-  price: TokenPrice
-  balance: bigint
+  readonly price: TokenPrice
+  readonly balance: bigint
 }
 
 export function buildTokenData(

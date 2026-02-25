@@ -3,8 +3,8 @@ import { getLabel } from '@/utils/token/getLabel'
 export type PremiumLabelVariant = 'premium-3' | 'premium-4'
 
 export type PremiumLabel = {
-  label: string
-  variant: PremiumLabelVariant
+  readonly label: string
+  readonly variant: PremiumLabelVariant
 }
 
 /**
