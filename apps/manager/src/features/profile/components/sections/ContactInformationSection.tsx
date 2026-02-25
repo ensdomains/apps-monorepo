@@ -10,7 +10,7 @@ import { AddTextRecordsPills } from '@/features/profile/components/AddTextRecord
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
 import { validateEmail } from '@/features/profile/utils/validateUrl'
-import { getAvailableRecords, getRecordDef } from '../../data/records'
+import { getRecordDef, getRecordsForSection } from '../../data/records'
 
 export const ContactInformationSection = withForm({
   ...sharedOptions,
@@ -27,20 +27,27 @@ export const ContactInformationSection = withForm({
       <CardContent className="space-y-4">
         <form.Field mode="array" name="contact">
           {(contactField) => {
-            const availableRecords = getAvailableRecords(
-              contactField.state.value.map(({ key }: { key: string }) => key),
-              'contact',
+            const allRecords = getRecordsForSection('contact')
+            const activeKeys = contactField.state.value.map(
+              ({ key }: { key: string }) => key,
             )
 
             return (
               <>
                 <AddTextRecordsPills
+                  activeKeys={activeKeys}
                   onAdd={(keys) => {
                     for (const key of keys) {
                       contactField.pushValue({ key, value: '' })
                     }
                   }}
-                  records={availableRecords}
+                  onRemove={(key) => {
+                    const index = contactField.state.value.findIndex(
+                      (v: { key: string }) => v.key === key,
+                    )
+                    if (index !== -1) contactField.removeValue(index)
+                  }}
+                  records={allRecords}
                 />
                 <AnimatePresence initial={false} mode="popLayout">
                   {contactField.state.value.map(
@@ -68,9 +75,6 @@ export const ContactInformationSection = withForm({
                               name={record.name}
                               onBlur={field.handleBlur}
                               onChange={field.handleChange}
-                              onRemove={() => {
-                                contactField.removeValue(i)
-                              }}
                               placeholder={record.placeholder}
                               value={field.state.value}
                             />

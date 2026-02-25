@@ -9,7 +9,7 @@ import {
 import { AddTextRecordsPills } from '@/features/profile/components/AddTextRecordsPills'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
-import { getAvailableRecords, getRecordDef } from '../../data/records'
+import { getRecordDef, getRecordsForSection } from '../../data/records'
 
 export const SocialLinksSection = withForm({
   ...sharedOptions,
@@ -24,20 +24,25 @@ export const SocialLinksSection = withForm({
       <CardContent className="space-y-4">
         <form.Field mode="array" name="social">
           {(socialField) => {
-            const availableRecords = getAvailableRecords(
-              socialField.state.value.map(({ key }) => key),
-              'social',
-            )
+            const allRecords = getRecordsForSection('social')
+            const activeKeys = socialField.state.value.map(({ key }) => key)
 
             return (
               <>
                 <AddTextRecordsPills
+                  activeKeys={activeKeys}
                   onAdd={(keys) => {
                     for (const key of keys) {
                       socialField.pushValue({ key, value: '' })
                     }
                   }}
-                  records={availableRecords}
+                  onRemove={(key) => {
+                    const index = socialField.state.value.findIndex(
+                      (v) => v.key === key,
+                    )
+                    if (index !== -1) socialField.removeValue(index)
+                  }}
+                  records={allRecords}
                 />
                 <AnimatePresence initial={false} mode="popLayout">
                   {socialField.state.value.map(({ key }, i: number) => (
@@ -49,9 +54,6 @@ export const SocialLinksSection = withForm({
                           <RecordEntry
                             name={record.name}
                             onChange={field.handleChange}
-                            onRemove={() => {
-                              socialField.removeValue(i)
-                            }}
                             placeholder={record.placeholder}
                             value={field.state.value}
                           />

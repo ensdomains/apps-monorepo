@@ -1,4 +1,4 @@
-import { Braces, Hash, Plus, X } from 'lucide-react'
+import { Braces, Hash, Minus, Plus } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -18,6 +18,7 @@ import {
   pillContainerAnimation,
 } from '@/features/profile/components/motion'
 import { validateContentHash } from '@/features/profile/utils/validateContentHash'
+import { cn } from '@/lib/utils'
 
 export const OtherSection = withForm({
   ...sharedOptions,
@@ -33,10 +34,10 @@ export const OtherSection = withForm({
         key: 'contentHash',
         label: 'Content Hash',
         icon: Hash,
-        visible: showContentHash,
+        active: showContentHash,
       },
-      { key: 'abi', label: 'ABI', icon: Braces, visible: showAbi },
-    ].filter((p) => !p.visible)
+      { key: 'abi', label: 'ABI', icon: Braces, active: showAbi },
+    ]
 
     return (
       <Card className="border-[0.25px] border-border bg-white shadow-none">
@@ -48,33 +49,53 @@ export const OtherSection = withForm({
         </CardHeader>
         <CardContent className="space-y-4">
           <AnimatePresence initial={false} mode="popLayout">
-            {pills.length > 0 && (
-              <motion.div
-                className="flex flex-wrap gap-3 pb-2"
-                {...pillContainerAnimation(reduceMotion)}
-              >
-                <AnimatePresence initial={false} mode="popLayout">
-                  {pills.map((pill) => (
-                    <motion.div key={pill.key} {...pillAnimation(reduceMotion)}>
-                      <Button
-                        className="h-auto w-auto gap-2 rounded-full px-4 py-2 text-muted-foreground hover:text-foreground"
-                        onClick={() => {
-                          if (pill.key === 'contentHash')
+            <motion.div
+              className="flex flex-wrap gap-3 pb-2"
+              {...pillContainerAnimation(reduceMotion)}
+            >
+              <AnimatePresence initial={false} mode="popLayout">
+                {pills.map((pill) => (
+                  <motion.div key={pill.key} {...pillAnimation(reduceMotion)}>
+                    <Button
+                      className={cn(
+                        'h-auto w-auto gap-2 rounded-full px-4 py-2',
+                        pill.active
+                          ? 'bg-neutral-600 text-neutral-300 hover:bg-neutral-500 hover:text-neutral-200'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                      onClick={() => {
+                        if (pill.key === 'contentHash') {
+                          if (showContentHash) {
+                            form.setFieldValue('contentHash', '')
+                            setShowContentHash(false)
+                          } else {
                             setShowContentHash(true)
-                          if (pill.key === 'abi') setShowAbi(true)
-                        }}
-                        type="button"
-                        variant="secondary"
-                      >
-                        <pill.icon className="size-4" />
-                        <span>{pill.label}</span>
+                          }
+                        }
+                        if (pill.key === 'abi') {
+                          if (showAbi) {
+                            form.setFieldValue('abi', '')
+                            setShowAbi(false)
+                          } else {
+                            setShowAbi(true)
+                          }
+                        }
+                      }}
+                      type="button"
+                      variant={pill.active ? 'ghost' : 'secondary'}
+                    >
+                      <pill.icon className="size-4" />
+                      <span>{pill.label}</span>
+                      {pill.active ? (
+                        <Minus className="size-4" />
+                      ) : (
                         <Plus className="size-4" />
-                      </Button>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </motion.div>
-            )}
+                      )}
+                    </Button>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </motion.div>
           </AnimatePresence>
 
           <AnimatePresence initial={false} mode="popLayout">
@@ -88,31 +109,18 @@ export const OtherSection = withForm({
                 >
                   {(field) => (
                     <div className="flex flex-col gap-1 pt-1">
-                      <div className="flex items-center gap-3">
-                        <FloatingInput
-                          aria-invalid={
-                            field.state.meta.isTouched &&
-                            field.state.meta.errors.length > 0
-                          }
-                          className="flex-1"
-                          label="Content Hash"
-                          onBlur={field.handleBlur}
-                          onChange={(e) => field.handleChange(e.target.value)}
-                          placeholder="ipfs://..."
-                          value={field.state.value ?? ''}
-                        />
-                        <button
-                          aria-label="Remove content hash"
-                          className="py-4 text-muted-foreground transition-colors hover:text-foreground"
-                          onClick={() => {
-                            field.handleChange('')
-                            setShowContentHash(false)
-                          }}
-                          type="button"
-                        >
-                          <X className="size-4" />
-                        </button>
-                      </div>
+                      <FloatingInput
+                        aria-invalid={
+                          field.state.meta.isTouched &&
+                          field.state.meta.errors.length > 0
+                        }
+                        className="flex-1"
+                        label="Content Hash"
+                        onBlur={field.handleBlur}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        placeholder="ipfs://..."
+                        value={field.state.value ?? ''}
+                      />
                       {field.state.meta.isTouched &&
                         field.state.meta.errors.length > 0 && (
                           <p className="text-destructive text-xs">
@@ -129,7 +137,7 @@ export const OtherSection = withForm({
               <motion.div key="abi" {...entryAnimation(reduceMotion)}>
                 <form.Field name="abi">
                   {(field) => (
-                    <div className="flex items-start gap-3 pt-1">
+                    <div className="pt-1">
                       <FloatingTextarea
                         className="flex-1 font-mono text-xs"
                         label="ABI"
@@ -137,17 +145,6 @@ export const OtherSection = withForm({
                         placeholder='[{"type":"function",...}]'
                         value={field.state.value ?? ''}
                       />
-                      <button
-                        aria-label="Remove ABI"
-                        className="mt-5 py-4 text-muted-foreground transition-colors hover:text-foreground"
-                        onClick={() => {
-                          field.handleChange('')
-                          setShowAbi(false)
-                        }}
-                        type="button"
-                      >
-                        <X className="size-4" />
-                      </button>
                     </div>
                   )}
                 </form.Field>

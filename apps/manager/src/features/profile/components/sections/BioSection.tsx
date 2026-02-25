@@ -1,4 +1,4 @@
-import { CircleUserRound, Globe, Plus, X } from 'lucide-react'
+import { CircleUserRound, Globe, Minus, Plus } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -18,6 +18,7 @@ import {
 } from '@/features/profile/components/motion'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
 import { validateUrl } from '@/features/profile/utils/validateUrl'
+import { cn } from '@/lib/utils'
 
 export const BioSection = withForm({
   ...sharedOptions,
@@ -27,9 +28,9 @@ export const BioSection = withForm({
     const [showWebsite, setShowWebsite] = useState(!!form.state.values.base.url)
 
     const pills = [
-      { key: 'bio', label: 'Bio', icon: CircleUserRound, visible: showBio },
-      { key: 'website', label: 'Website', icon: Globe, visible: showWebsite },
-    ].filter((p) => !p.visible)
+      { key: 'bio', label: 'Bio', icon: CircleUserRound, active: showBio },
+      { key: 'website', label: 'Website', icon: Globe, active: showWebsite },
+    ]
 
     return (
       <Card className="border-[0.25px] border-border bg-white shadow-none">
@@ -41,32 +42,53 @@ export const BioSection = withForm({
         </CardHeader>
         <CardContent className="space-y-4">
           <AnimatePresence initial={false} mode="popLayout">
-            {pills.length > 0 && (
-              <motion.div
-                className="flex flex-wrap gap-3 pb-2"
-                {...pillContainerAnimation(reduceMotion)}
-              >
-                <AnimatePresence initial={false} mode="popLayout">
-                  {pills.map((pill) => (
-                    <motion.div key={pill.key} {...pillAnimation(reduceMotion)}>
-                      <Button
-                        className="h-auto w-auto gap-2 rounded-full px-4 py-2 text-muted-foreground hover:text-foreground"
-                        onClick={() => {
-                          if (pill.key === 'bio') setShowBio(true)
-                          if (pill.key === 'website') setShowWebsite(true)
-                        }}
-                        type="button"
-                        variant="secondary"
-                      >
-                        <pill.icon className="size-4" />
-                        <span>{pill.label}</span>
+            <motion.div
+              className="flex flex-wrap gap-3 pb-2"
+              {...pillContainerAnimation(reduceMotion)}
+            >
+              <AnimatePresence initial={false} mode="popLayout">
+                {pills.map((pill) => (
+                  <motion.div key={pill.key} {...pillAnimation(reduceMotion)}>
+                    <Button
+                      className={cn(
+                        'h-auto w-auto gap-2 rounded-full px-4 py-2',
+                        pill.active
+                          ? 'bg-neutral-600 text-neutral-300 hover:bg-neutral-500 hover:text-neutral-200'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                      onClick={() => {
+                        if (pill.key === 'bio') {
+                          if (showBio) {
+                            form.setFieldValue('base.description', '')
+                            setShowBio(false)
+                          } else {
+                            setShowBio(true)
+                          }
+                        }
+                        if (pill.key === 'website') {
+                          if (showWebsite) {
+                            form.setFieldValue('base.url', '')
+                            setShowWebsite(false)
+                          } else {
+                            setShowWebsite(true)
+                          }
+                        }
+                      }}
+                      type="button"
+                      variant={pill.active ? 'ghost' : 'secondary'}
+                    >
+                      <pill.icon className="size-4" />
+                      <span>{pill.label}</span>
+                      {pill.active ? (
+                        <Minus className="size-4" />
+                      ) : (
                         <Plus className="size-4" />
-                      </Button>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </motion.div>
-            )}
+                      )}
+                    </Button>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </motion.div>
           </AnimatePresence>
 
           <AnimatePresence initial={false} mode="popLayout">
@@ -74,7 +96,7 @@ export const BioSection = withForm({
               <motion.div key="bio" {...entryAnimation(reduceMotion)}>
                 <form.Field name="base.description">
                   {(field) => (
-                    <div className="flex items-start gap-3 pt-1">
+                    <div className="pt-1">
                       <FloatingTextarea
                         className="flex-1"
                         label="Short Description"
@@ -84,17 +106,6 @@ export const BioSection = withForm({
                         placeholder="Add a short bio to your profile"
                         value={field.state.value}
                       />
-                      <button
-                        aria-label="Remove bio"
-                        className="mt-5 py-4 text-muted-foreground transition-colors hover:text-foreground"
-                        onClick={() => {
-                          field.handleChange('')
-                          setShowBio(false)
-                        }}
-                        type="button"
-                      >
-                        <X className="size-4" />
-                      </button>
                     </div>
                   )}
                 </form.Field>
@@ -118,10 +129,6 @@ export const BioSection = withForm({
                       name="Website"
                       onBlur={field.handleBlur}
                       onChange={field.handleChange}
-                      onRemove={() => {
-                        field.handleChange('')
-                        setShowWebsite(false)
-                      }}
                       placeholder="https://"
                       value={field.state.value}
                     />

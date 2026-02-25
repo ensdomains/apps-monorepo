@@ -43,14 +43,16 @@ export const RecordEntry = ({
           placeholder={placeholder}
           value={value}
         />
-        <button
-          aria-label={`Remove ${name}`}
-          className="py-4 text-muted-foreground transition-colors hover:text-foreground"
-          onClick={onRemove}
-          type="button"
-        >
-          <X className="size-4" />
-        </button>
+        {onRemove && (
+          <button
+            aria-label={`Remove ${name}`}
+            className="py-4 text-muted-foreground transition-colors hover:text-foreground"
+            onClick={onRemove}
+            type="button"
+          >
+            <X className="size-4" />
+          </button>
+        )}
       </div>
       {error && <p className="text-destructive text-xs">{error}</p>}
     </motion.div>
