@@ -1,4 +1,4 @@
-import { CircleCheck, Plus } from 'lucide-react'
+import { Minus, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,6 +18,7 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { cn } from '@/lib/utils'
 import type { AddressRecordDef } from '../../data/records/types'
 import { IconRenderer } from '../IconRenderer'
 
@@ -78,15 +79,20 @@ export const AddAddressRecordsDialog = ({
           const isSelected = selectedCoinTypes.includes(record.coinType)
           return (
             <Button
-              className="flex w-auto items-center gap-2 rounded-full"
+              className={cn(
+                'flex w-auto items-center gap-2 rounded-full',
+                isSelected
+                  ? 'bg-neutral-600 text-neutral-300 hover:bg-neutral-500 hover:text-neutral-200'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
               key={record.coinType}
               onClick={() => handleToggle(record.coinType)}
-              variant={isSelected ? 'default' : 'secondary'}
+              variant={isSelected ? 'ghost' : 'secondary'}
             >
               <IconRenderer className="size-4" icon={record.icon} />
               <span>{record.name}</span>
               {isSelected ? (
-                <CircleCheck className="size-4" />
+                <Minus className="size-4" />
               ) : (
                 <Plus className="size-4" />
               )}
