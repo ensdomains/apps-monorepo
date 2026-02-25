@@ -31,7 +31,7 @@ export function MessageCard({
     <div
       data-slot="message-card"
       className={cn(
-        'bg-gray-100 rounded-lg p-8 sm:min-w-96 xl:min-w-[640px] flex flex-col items-center gap-4 relative max-w-2xl mx-auto my-4',
+        'bg-quartz-50 rounded-lg p-8 sm:min-w-96 xl:min-w-[640px] flex flex-col items-center gap-4 relative max-w-2xl mx-auto my-4',
         className,
       )}
     >

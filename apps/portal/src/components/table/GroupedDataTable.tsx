@@ -128,7 +128,7 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
       open={sidebarOpen}
       setOpen={setSidebarOpen}
     >
-      <Table className="relative border border-gray-300 rounded-2xl border-separate border-spacing-0">
+      <Table className="relative border border-border rounded-2xl border-separate border-spacing-0">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
@@ -136,7 +136,7 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
                 <TableHead
                   key={header.id}
                   className={cn(
-                    'border-b border-b-gray-300',
+                    'border-b border-b-border',
                     header.column.id === 'expander' && 'w-[100px]',
                     header.column.id === 'permissions' && 'min-w-[200px]',
                   )}
@@ -158,8 +158,8 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
               <Fragment key={row.id}>
                 <TableRow
                   className={cn(
-                    'hover:bg-gray-200',
-                    tableView.strippedRows && 'even:bg-gray-100',
+                    'hover:bg-quartz-100',
+                    tableView.strippedRows && 'even:bg-quartz-100',
                   )}
                 >
                   {row.getVisibleCells().map((cell) => (
@@ -196,7 +196,7 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
                               className={cn(
                                 'px-6',
                                 tableView.compact ? 'py-2' : 'py-4',
-                                !isLast && 'border-b border-b-gray-200',
+                                !isLast && 'border-b border-b-border',
                               )}
                             />
                             {/* Role column */}
@@ -204,7 +204,7 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
                               className={cn(
                                 'px-6',
                                 tableView.compact ? 'py-2' : 'py-4',
-                                !isLast && 'border-b border-b-gray-200',
+                                !isLast && 'border-b border-b-border',
                               )}
                             >
                               <CopyableRecord
@@ -218,7 +218,7 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
                               className={cn(
                                 'px-6',
                                 tableView.compact ? 'py-2' : 'py-4',
-                                !isLast && 'border-b border-b-gray-200',
+                                !isLast && 'border-b border-b-border',
                               )}
                             >
                               <div className="flex flex-row gap-2">
@@ -240,7 +240,7 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
                               className={cn(
                                 'px-6',
                                 tableView.compact ? 'py-2' : 'py-4',
-                                !isLast && 'border-b border-b-gray-200',
+                                !isLast && 'border-b border-b-border',
                               )}
                             />
                           </TableRow>

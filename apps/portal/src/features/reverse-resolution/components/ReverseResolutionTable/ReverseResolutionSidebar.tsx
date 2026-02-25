@@ -3,7 +3,7 @@ import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
-import { ArrowLeftRight, CheckCircle2, XCircle } from 'lucide-react'
+import { ArrowLeftRight, CheckCircle2, Clock, XCircle } from 'lucide-react'
 import {
   type FC,
   type PropsWithChildren,
@@ -99,12 +99,13 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-row justify-between items-center">
-        <h3 className="text-[26px] font-medium">History</h3>
-        <Link to="/$name/history" params={{ name }}>
-          <Button variant="outline" size="sm">
+        <h3 className="text-2xl font-medium">History</h3>
+        <Button variant="secondary" size="sm" asChild>
+          <Link to="/$name/history" params={{ name }}>
+            <Clock className="size-4" />
             Full history
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </div>
       <EventsDataTable name={name} data={dataWithTimestampsAndSenders} />
     </div>
@@ -134,7 +135,7 @@ const HistoryView = ({ name }: HistoryViewProps) => {
   if (isLoading) return <div>Loading history...</div>
 
   if (!history || history.length === 0) {
-    return <div className="text-gray-400">No history available</div>
+    return <div className="text-quartz-400">No history available</div>
   }
 
   return <AddressHistory history={history} name={name} />
@@ -247,7 +248,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
           className="sm:max-w-[880px] bg-white overflow-y-auto"
         >
           <div className="p-6 flex flex-col gap-6">
-            <div className="text-gray-400 text-center py-12">
+            <div className="text-quartz-400 text-center py-12">
               No resolution selected
             </div>
           </div>
@@ -351,7 +352,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
 
           {/* Banner */}
           {isPrimaryName && displayName && (
-            <div className="flex items-center gap-3 bg-gray-100 p-4 rounded-md">
+            <div className="flex items-center gap-3 bg-quartz-50 p-4 rounded-md">
               <CheckCircle2 className="w-6 h-6 shrink-0" />
               <span className="font-medium">
                 This is the primary name on {label}
@@ -360,7 +361,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
           )}
 
           {!isPrimaryName && displayName && (
-            <div className="flex items-center gap-3 bg-gray-100 p-4 rounded-md">
+            <div className="flex items-center gap-3 bg-quartz-50 p-4 rounded-md">
               <XCircle className="w-6 h-6 shrink-0" />
               <span className="text-sm">
                 The set address does not resolve back to this name on {label}

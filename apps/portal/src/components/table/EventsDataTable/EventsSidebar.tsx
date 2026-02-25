@@ -147,7 +147,7 @@ const TransactionDetails = ({
                 data.to ? (
                   <AddressDisplay address={data.to} />
                 ) : (
-                  <span className="text-gray-500">Contract Creation</span>
+                  <span className="text-quartz-500">Contract Creation</span>
                 )
               }
             />
@@ -204,7 +204,7 @@ export const EventsSidebar: FC<EventsSidebarProps> = ({
               events={row.original.events}
             />
           ) : (
-            <div className="text-gray-400 text-center py-12">
+            <div className="text-quartz-400 text-center py-12">
               No transaction selected
             </div>
           )}

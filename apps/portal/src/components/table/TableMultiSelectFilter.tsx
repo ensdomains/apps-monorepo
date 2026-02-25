@@ -107,7 +107,7 @@ export const TableMultiSelectFilter = ({
                     return (
                       <div
                         key={option.value}
-                        className="flex items-center gap-3 hover:bg-gray-50 p-2 rounded"
+                        className="flex items-center gap-3 hover:bg-quartz-50 p-2 rounded"
                       >
                         <Checkbox
                           id={`filter-${option.value}`}

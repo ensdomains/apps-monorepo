@@ -3,10 +3,6 @@
   "type": "module",
   "main": "src/worker.ts",
   "exports": {
-    "./types": {
-      "types": "./dist/src/types/index.d.ts",
-      "default": "./dist/src/types/index.js"
-    },
     "./hc": {
       "types": "./dist/src/hc.d.ts",
       "default": "./dist/src/hc.js"
@@ -41,7 +37,8 @@
     "uuid": "^13.0.0",
     "valibot": "^1.1.0",
     "viem": "^2.37.4",
-    "workers-og": "^0.0.27"
+    "workers-og": "^0.0.27",
+    "@ens-apps/shared-schema": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.12.3",
