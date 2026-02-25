@@ -48,6 +48,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   const machineState = useSelector(actor, (state) => state.value)
 
   const isIdle = machineState === 'idle'
+  const isSuccess = machineState === 'success'
 
   const nameLengthError = validateNameLength(name)
   const isNameValid = !nameLengthError
@@ -60,6 +61,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   } = useQuery({
     ...getNameAvailabilityQueryOptions({ name }),
     enabled: Boolean(name) && isNameValid,
+    refetchInterval: isSuccess ? false : 5000,
   })
 
   const isNameTaken =
