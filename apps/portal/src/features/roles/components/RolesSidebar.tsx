@@ -2,7 +2,7 @@ import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
 import { Save, Trash2 } from 'lucide-react'
-import { type PropsWithChildren, useEffect, useMemo, useState } from 'react'
+import { type PropsWithChildren, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
@@ -30,9 +30,12 @@ import { pollForIndexerSync } from '@/features/records/helpers/pollForIndexerSyn
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { grantRoles } from '@/features/roles/helpers/grantRoles'
 import { revokeRoles } from '@/features/roles/helpers/revokeRoles'
+import { useEditedPermissions } from '@/features/roles/hooks/useEditedPermissions'
+import { useResetMutationsOnAccountChange } from '@/features/roles/hooks/useResetMutationsOnAccountChange'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { permissions } from '@/lib/roles/permissions'
 import {
+  computeRoleChanges,
   hasPermissionsChanged,
   roleToPermissions,
 } from '@/lib/roles/rolesToPermissions'
@@ -46,11 +49,6 @@ type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
     name: string
     canManageRoles: boolean
   }>
-
-type RolePermissionState = {
-  admin: boolean
-  manager: boolean
-}
 
 export const RolesSidebar = <
   TData extends { items: string[]; account: Address },
@@ -73,18 +71,8 @@ export const RolesSidebar = <
   const selectedAccount = row?.original.account
   const originalRoles = (row?.original.items ?? []) as Role[]
 
-  // Local state for edited roles
-  const [editedPermissions, setEditedPermissions] = useState<
-    Map<string, RolePermissionState>
-  >(new Map())
-
-  // Initialize edited permissions when row changes
-  useEffect(() => {
-    if (row) {
-      const rolePermissionsMap = roleToPermissions(originalRoles)
-      setEditedPermissions(rolePermissionsMap)
-    }
-  }, [row, originalRoles])
+  // Custom hook for managing edited permissions state
+  const { editedPermissions, setEditedPermissions } = useEditedPermissions(row)
 
   // Check if there are unsaved changes
   const hasChanges = useMemo(() => {
@@ -94,42 +82,7 @@ export const RolesSidebar = <
 
   // Build the list of roles to grant and revoke based on changes
   const { rolesToGrant, rolesToRevoke } = useMemo(() => {
-    const originalPermissions = roleToPermissions(originalRoles)
-    const rolesToGrant: string[] = []
-    const rolesToRevoke: string[] = []
-
-    // Check all permissions
-    const allKeys = new Set([
-      ...originalPermissions.keys(),
-      ...editedPermissions.keys(),
-    ])
-
-    for (const key of allKeys) {
-      const original = originalPermissions.get(key) || {
-        admin: false,
-        manager: false,
-      }
-      const edited = editedPermissions.get(key) || {
-        admin: false,
-        manager: false,
-      }
-
-      // Check for admin changes
-      if (edited.admin && !original.admin) {
-        rolesToGrant.push(`${key}_ADMIN`)
-      } else if (!edited.admin && original.admin) {
-        rolesToRevoke.push(`${key}_ADMIN`)
-      }
-
-      // Check for manager changes
-      if (edited.manager && !original.manager) {
-        rolesToGrant.push(`${key}_MANAGER`)
-      } else if (!edited.manager && original.manager) {
-        rolesToRevoke.push(`${key}_MANAGER`)
-      }
-    }
-
-    return { rolesToGrant, rolesToRevoke }
+    return computeRoleChanges(originalRoles, editedPermissions)
   }, [originalRoles, editedPermissions])
 
   const saveMutation = useMutation({
@@ -138,13 +91,17 @@ export const RolesSidebar = <
         throw new Error('Wallet not connected')
       }
 
+      if (!selectedAccount) {
+        throw new Error('No account selected')
+      }
+
       const signer = createEOASigner(walletClient)
 
       // Grant new roles
       if (rolesToGrant.length > 0) {
         await grantRoles({
           name,
-          account: selectedAccount!,
+          account: selectedAccount,
           roles: rolesToGrant as Role[],
           walletClient,
           publicClient,
@@ -157,7 +114,7 @@ export const RolesSidebar = <
       if (rolesToRevoke.length > 0) {
         await revokeRoles({
           name,
-          account: selectedAccount!,
+          account: selectedAccount,
           roles: rolesToRevoke as Role[],
           walletClient,
           publicClient,
@@ -216,22 +173,12 @@ export const RolesSidebar = <
     },
   })
 
-  useEffect(() => {
-    if (
-      selectedAccount &&
-      !saveMutation.isPending &&
-      !removeUserMutation.isPending
-    ) {
-      saveMutation.reset()
-      removeUserMutation.reset()
-    }
-  }, [
-    saveMutation.isPending,
-    removeUserMutation.isPending,
-    saveMutation.reset,
-    removeUserMutation.reset,
+  // Reset mutations when account changes and mutations are not pending
+  useResetMutationsOnAccountChange(
     selectedAccount,
-  ])
+    saveMutation,
+    removeUserMutation,
+  )
 
   const handleSaveChanges = () => {
     if (!selectedAccount || saveMutation.isPending) {

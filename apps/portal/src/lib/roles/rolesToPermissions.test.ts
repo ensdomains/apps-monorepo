@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { hasPermissionsChanged, roleToPermissions } from './rolesToPermissions'
+import {
+  computeRoleChanges,
+  hasPermissionsChanged,
+  roleToPermissions,
+} from './rolesToPermissions'
 
 describe('roleToPermissions', () => {
   it('should map manager roles (without _ADMIN suffix)', () => {
@@ -83,5 +87,66 @@ describe('hasPermissionsChanged', () => {
     const edited = roleToPermissions(['owner_ADMIN'])
 
     expect(hasPermissionsChanged(original, edited)).toBe(true)
+  })
+})
+
+describe('computeRoleChanges', () => {
+  it('should return empty arrays when no changes', () => {
+    const originalRoles = ['owner_ADMIN', 'owner']
+    const editedPermissions = roleToPermissions(originalRoles)
+
+    const result = computeRoleChanges(originalRoles, editedPermissions)
+
+    expect(result.rolesToGrant).toEqual([])
+    expect(result.rolesToRevoke).toEqual([])
+  })
+
+  it('should identify role to grant', () => {
+    const originalRoles: string[] = []
+    const editedPermissions = roleToPermissions(['owner'])
+
+    const result = computeRoleChanges(originalRoles, editedPermissions)
+
+    expect(result.rolesToGrant).toContain('owner_MANAGER')
+    expect(result.rolesToRevoke).toEqual([])
+  })
+
+  it('should identify role to revoke', () => {
+    const originalRoles = ['owner_ADMIN']
+    const editedPermissions = roleToPermissions([])
+
+    const result = computeRoleChanges(originalRoles, editedPermissions)
+
+    expect(result.rolesToRevoke).toContain('owner_ADMIN')
+    expect(result.rolesToGrant).toEqual([])
+  })
+
+  it('should identify both grant and revoke changes', () => {
+    const originalRoles = ['owner_ADMIN', 'manager']
+    const editedPermissions = roleToPermissions(['owner', 'manager_ADMIN'])
+
+    const result = computeRoleChanges(originalRoles, editedPermissions)
+
+    expect(result.rolesToGrant).toContain('owner_MANAGER')
+    expect(result.rolesToRevoke).toContain('owner_ADMIN')
+    expect(result.rolesToGrant).toContain('manager_ADMIN')
+    expect(result.rolesToRevoke).toContain('manager_MANAGER')
+  })
+
+  it('should handle multiple roles at once', () => {
+    const originalRoles = ['owner_ADMIN', 'manager_ADMIN']
+    const editedPermissions = roleToPermissions(['owner', 'manager'])
+
+    const result = computeRoleChanges(originalRoles, editedPermissions)
+
+    expect(result.rolesToGrant).toEqual(['owner_MANAGER', 'manager_MANAGER'])
+    expect(result.rolesToRevoke).toEqual(['owner_ADMIN', 'manager_ADMIN'])
+  })
+
+  it('should return empty for empty inputs', () => {
+    const result = computeRoleChanges([], new Map())
+
+    expect(result.rolesToGrant).toEqual([])
+    expect(result.rolesToRevoke).toEqual([])
   })
 })

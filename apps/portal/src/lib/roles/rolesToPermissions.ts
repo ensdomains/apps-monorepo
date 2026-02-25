@@ -1,5 +1,10 @@
 export type Permission = { admin: boolean; manager: boolean }
 
+export type RoleChanges = {
+  rolesToGrant: string[]
+  rolesToRevoke: string[]
+}
+
 export const roleToPermissions = (
   items: (string | `${string}_ADMIN`)[],
 ): Map<string, Permission> => {
@@ -53,4 +58,46 @@ export const hasPermissionsChanged = (
   }
 
   return false
+}
+
+export const computeRoleChanges = (
+  originalRoles: string[],
+  editedPermissions: Map<string, Permission>,
+): RoleChanges => {
+  const originalPermissions = roleToPermissions(originalRoles)
+  const rolesToGrant: string[] = []
+  const rolesToRevoke: string[] = []
+
+  // Check all permissions
+  const allKeys = new Set([
+    ...originalPermissions.keys(),
+    ...editedPermissions.keys(),
+  ])
+
+  for (const key of allKeys) {
+    const original = originalPermissions.get(key) || {
+      admin: false,
+      manager: false,
+    }
+    const edited = editedPermissions.get(key) || {
+      admin: false,
+      manager: false,
+    }
+
+    // Check for admin changes
+    if (edited.admin && !original.admin) {
+      rolesToGrant.push(`${key}_ADMIN`)
+    } else if (!edited.admin && original.admin) {
+      rolesToRevoke.push(`${key}_ADMIN`)
+    }
+
+    // Check for manager changes
+    if (edited.manager && !original.manager) {
+      rolesToGrant.push(`${key}_MANAGER`)
+    } else if (!edited.manager && original.manager) {
+      rolesToRevoke.push(`${key}_MANAGER`)
+    }
+  }
+
+  return { rolesToGrant, rolesToRevoke }
 }
