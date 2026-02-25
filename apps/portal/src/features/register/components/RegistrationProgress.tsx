@@ -16,7 +16,8 @@ import { usePreventUnload } from '@/hooks/usePreventUnload'
 type RegistrationProgressProps = {
   readonly domainName: string
   readonly actor: RegistrationMachineActor
-  readonly onViewProfile: () => void
+  readonly onViewProfile: () => void | Promise<void>
+  readonly isViewProfileLoading: boolean
 }
 
 type ProgressStage =
@@ -130,6 +131,7 @@ export const RegistrationProgress = ({
   domainName,
   actor,
   onViewProfile,
+  isViewProfileLoading,
 }: RegistrationProgressProps) => {
   const stateValue = useSelector(actor, (state) => state.value)
   const error = useSelector(actor, (state) => state.context.error)
@@ -227,8 +229,12 @@ export const RegistrationProgress = ({
         <div className="flex flex-col gap-2 sm:flex-row">
           {match({ isComplete, isError })
             .with({ isComplete: true }, () => (
-              <Button onClick={onViewProfile} className="min-w-32">
-                View profile
+              <Button
+                onClick={onViewProfile}
+                className="min-w-32"
+                disabled={isViewProfileLoading}
+              >
+                {isViewProfileLoading ? 'Loading...' : 'View profile'}
               </Button>
             ))
             .with({ isError: true }, () => (
