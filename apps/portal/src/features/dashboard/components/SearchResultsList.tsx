@@ -13,7 +13,6 @@ const RegisterLink = ({ name }: { name: string }) => (
   <Button asChild variant="outline" size="sm">
     <a
       href={`/register?name=${encodeURIComponent(ensureEthSuffix(name))}`}
-      target="_blank"
       rel="noopener noreferrer"
       className="ml-auto shrink-0 rounded-md px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
       onClick={(e) => e.stopPropagation()}
