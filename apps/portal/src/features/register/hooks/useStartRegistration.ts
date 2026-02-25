@@ -1,7 +1,8 @@
 import type { RegistrationMachineActor } from '@ens-apps/transaction-manager'
+import { getWalletClient } from '@wagmi/core/actions'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
-import { usePublicClient, useWalletClient } from 'wagmi'
+import { useConfig, useConnection, usePublicClient } from 'wagmi'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 
@@ -17,16 +18,25 @@ export const useStartRegistration = ({
   actor,
 }: UseStartRegistrationParams) => {
   const chainId = sepolia.id
-  const { data: walletClient } = useWalletClient({ chainId })
+  const config = useConfig()
+  const connection = useConnection()
   const publicClient = usePublicClient({ chainId })
 
-  const startRegistration = (selectedToken: Address, tokenPrice: bigint) => {
-    if (!walletClient || !publicClient) {
+  const startRegistration = async (
+    selectedToken: Address,
+    tokenPrice: bigint,
+  ) => {
+    if (!publicClient || !connection.address) {
       throw new Error('Wallet not connected')
     }
 
-    if (!walletClient.account) {
-      throw new Error('No account connected')
+    const walletClient = await getWalletClient(config, {
+      connector: connection.connector,
+      account: connection.address,
+    })
+
+    if (!walletClient) {
+      throw new Error('Wallet not connected')
     }
 
     const signer = createEOASigner(walletClient)
@@ -38,7 +48,7 @@ export const useStartRegistration = ({
       token: getTokenMetadataWithAddress(selectedToken).symbol,
       price: tokenPrice,
       signer,
-      accountAddress: walletClient.account.address,
+      accountAddress: connection.address,
       publicClient,
       useFastRegistrar: true,
       sponsored: false,

@@ -7,12 +7,16 @@ import { useState } from 'react'
 import { sepolia } from 'viem/chains'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { MessageCard } from '@/components/ui/message-card'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
+import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import { pollForIndexerSync } from '@/features/records/helpers/pollForIndexerSync'
 import { useStartRegistration } from '@/features/register/hooks/useStartRegistration'
 import {
   formatDurationLabel,
   getDurationInSecondsFromYears,
 } from '@/features/register/utils/registrationDuration'
+import { queryClient } from '@/utils/queryClient'
 import { validateNameLength } from '@/utils/token/nameValidation'
 import { RegisterNameForm } from './RegisterNameForm'
 import { RegisterNameCheckoutSummary } from './RegisterNameSummary'
@@ -59,8 +63,29 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   const isNameTaken =
     !isLoading && !isError && availability && !availability.isAvailable
 
-  const handleViewProfile = () => {
-    navigate({ to: '/$name', params: { name } })
+  const handleViewProfile = async () => {
+    setIsNavigatingToProfile(true)
+    try {
+      await pollForIndexerSync({
+        invalidateQueries: async () => {
+          await queryClient.invalidateQueries({
+            queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
+            refetchType: 'all',
+          })
+          await queryClient.invalidateQueries({
+            queryKey: getNameAvailabilityQueryOptions({ name }).queryKey,
+            refetchType: 'all',
+          })
+          await queryClient.invalidateQueries({
+            queryKey: getProfileQueryOptions(name).queryKey,
+            refetchType: 'all',
+          })
+          navigate({ to: '/$name', params: { name }, replace: true })
+        },
+      })
+    } finally {
+      setIsNavigatingToProfile(false)
+    }
   }
 
   if (nameLengthError) {
