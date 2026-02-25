@@ -292,11 +292,7 @@ export const transactionMachine = setup({
     ),
   },
   guards: {
-    canRetry: ({ context, event }) => {
-      if (event instanceof TransactionUserRejectedError) {
-        return false
-      }
-
+    canRetry: ({ context }) => {
       return context.retryCount < (context.options.retryCount || 3)
     },
 
