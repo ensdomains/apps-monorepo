@@ -13,7 +13,7 @@ import { formatDateTime } from '@/utils/formatting/formatDateTime'
 type RegistrationExpiryDatePickerProps = {
   readonly date: Date
   readonly onDateChange: (date: Date) => void
-  readonly minDate?: Date
+  readonly minDate: Date
 }
 
 export const RegistrationExpiryDatePicker = ({
@@ -77,7 +77,7 @@ export const RegistrationExpiryDatePicker = ({
           onSelect={handleSelect}
           required
           selected={date}
-          startMonth={new Date()}
+          startMonth={minDate}
         />
       </PopoverContent>
     </Popover>

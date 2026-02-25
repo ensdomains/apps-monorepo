@@ -1,4 +1,5 @@
 import {
+  addDays,
   addMonths,
   addYears,
   differenceInDays,
@@ -7,7 +8,10 @@ import {
   endOfDay,
   startOfDay,
 } from 'date-fns'
-import { SECONDS_PER_YEAR } from '@/lib/constants/duration'
+import {
+  MIN_REGISTRATION_DURATION,
+  SECONDS_PER_YEAR,
+} from '@/lib/constants/duration'
 
 /**
  * Formats the duration from today to an expiry date as a human-readable string.
@@ -68,6 +72,7 @@ export const calculateDurationFromDate = (
 /**
  * Converts an expiry date to duration in seconds for ENS price/registration.
  * Uses actual calendar difference (includes leap years).
+ * Minimum 28 days (matches v3 app Pricing.tsx minSeconds).
  */
 export const getRegistrationDurationInSeconds = (
   startDate: Date,
@@ -75,11 +80,10 @@ export const getRegistrationDurationInSeconds = (
 ): number => {
   const diffMs = expiryDate.getTime() - startDate.getTime()
   if (diffMs <= 0) {
-    return getDurationInSecondsFromYears(1, startDate)
+    return MIN_REGISTRATION_DURATION
   }
   const seconds = Math.floor(diffMs / 1000)
-  const minDuration = getDurationInSecondsFromYears(1, startDate)
-  return Math.max(seconds, minDuration)
+  return Math.max(seconds, MIN_REGISTRATION_DURATION)
 }
 
 /**
@@ -131,6 +135,14 @@ export const getRegistrationExpiryDateFromSeconds = (
  * Pass `now` for deterministic testing.
  */
 export const getStartOfToday = (now: Date = new Date()): Date => startOfDay(now)
+
+/**
+ * Returns the minimum expiry date for the date picker (28 days from today).
+ * Matches v3 app minSeconds = 28 * ONE_DAY; dates before this should be disabled.
+ */
+export const getMinExpiryDateForPicker = (
+  startOfToday: Date = getStartOfToday(),
+): Date => addDays(startOfToday, 28)
 
 /**
  * Formats a duration (seconds) as a human-readable label.

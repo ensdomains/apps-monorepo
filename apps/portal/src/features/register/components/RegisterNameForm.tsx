@@ -6,7 +6,7 @@ import {
   getDurationFromPickerDate,
   getDurationInSecondsFromYears,
   getExpiryDateForPicker,
-  getStartOfToday,
+  getMinExpiryDateForPicker,
   getYearsFromDuration,
 } from '../utils/registrationDuration'
 import { RegistrationDurationPicker } from './RegistrationDurationPicker'
@@ -75,7 +75,7 @@ export const RegisterNameForm = ({
             onDateChange={(date) =>
               setDuration(getDurationFromPickerDate(date))
             }
-            minDate={getStartOfToday()}
+            minDate={getMinExpiryDateForPicker()}
           />
         )}
       </div>

@@ -174,12 +174,34 @@ describe('registrationDuration', () => {
       expect(result).toBe(63_072_000) // 730 days (2025, 2026 non-leap)
     })
 
-    it('should return at least 1 year in seconds for past dates', () => {
+    it('should return at least 28 days in seconds for past dates', () => {
       const result = getRegistrationDurationInSeconds(
         startOfFixedToday,
         new Date('2024-01-01'),
       )
-      expect(result).toBe(31_536_000) // min 1 year
+      expect(result).toBe(2_419_200) // min 28 days
+    })
+
+    it('should return exact seconds for 6 months (short duration)', () => {
+      const sixMonthsFromNow = addMonths(startOfFixedToday, 6)
+      const result = getRegistrationDurationInSeconds(
+        startOfFixedToday,
+        sixMonthsFromNow,
+      )
+      const expectedSeconds = Math.floor(
+        (sixMonthsFromNow.getTime() - startOfFixedToday.getTime()) / 1000,
+      )
+      expect(result).toBe(expectedSeconds)
+    })
+
+    it('should return 28 days minimum for tomorrow', () => {
+      const tomorrow = new Date(startOfFixedToday)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      const result = getRegistrationDurationInSeconds(
+        startOfFixedToday,
+        tomorrow,
+      )
+      expect(result).toBe(2_419_200) // min 28 days
     })
   })
 
