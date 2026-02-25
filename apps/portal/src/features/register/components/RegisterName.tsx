@@ -1,5 +1,5 @@
 import { registrationMachine } from '@ens-apps/transaction-manager'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, UserCheck } from 'lucide-react'
@@ -10,13 +10,13 @@ import { MessageCard } from '@/components/ui/message-card'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
-import { pollForIndexerSync } from '@/features/records/helpers/pollForIndexerSync'
+
 import { useStartRegistration } from '@/features/register/hooks/useStartRegistration'
 import {
   formatDurationLabel,
   getDurationInSecondsFromYears,
 } from '@/features/register/utils/registrationDuration'
-import { queryClient } from '@/utils/queryClient'
+import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { validateNameLength } from '@/utils/token/nameValidation'
 import { RegisterNameForm } from './RegisterNameForm'
 import { RegisterNameCheckoutSummary } from './RegisterNameSummary'
@@ -28,6 +28,8 @@ type RegisterNameProps = {
 
 export const RegisterName = ({ name }: RegisterNameProps) => {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [isNavigatingToProfile, setIsNavigatingToProfile] = useState(false)
 
   const [duration, setDuration] = useState<number>(() =>
     getDurationInSecondsFromYears(1),
@@ -176,6 +178,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
           domainName={name}
           actor={actor}
           onViewProfile={handleViewProfile}
+          isViewProfileLoading={isNavigatingToProfile}
         />
       )}
     </main>
