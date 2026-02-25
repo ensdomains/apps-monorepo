@@ -11,11 +11,11 @@ type UseStartRegistrationParams = {
   readonly actor: RegistrationMachineActor
 }
 
-export function useStartRegistration({
+export const useStartRegistration = ({
   name,
   duration,
   actor,
-}: UseStartRegistrationParams) {
+}: UseStartRegistrationParams) => {
   const chainId = sepolia.id
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })
