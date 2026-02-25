@@ -189,7 +189,7 @@ export const HomeSearchInput = () => {
               onKeyDown={onSearchKeyDown}
             />
             <InputGroupAddon align="inline-end" className="gap-2">
-              <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
+              <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium text-muted-foreground sm:flex">
                 {isMac ? (
                   <>
                     <CommandIcon className="size-3" />K

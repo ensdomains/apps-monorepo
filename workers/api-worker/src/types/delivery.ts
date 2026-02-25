@@ -1,4 +1,4 @@
-import type { NotificationKind } from '#config/notifications.js'
+import type { PersonalNotificationKind } from '@ens-apps/shared-schema/notifications'
 
 export type FailureCategory =
   | 'transient'
@@ -12,7 +12,7 @@ export type BaseDeliveryJob = {
   id: string
   notificationId: string
   userId: string
-  kind: NotificationKind
+  kind: PersonalNotificationKind
 }
 
 // Channel-specific delivery jobs

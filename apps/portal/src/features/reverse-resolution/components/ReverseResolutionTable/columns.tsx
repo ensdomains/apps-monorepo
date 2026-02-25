@@ -56,7 +56,7 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
       }
 
       if (!name) {
-        return <span className="text-gray-400">null</span>
+        return <span className="text-quartz-400">null</span>
       }
 
       return (
@@ -107,7 +107,7 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
 
       if (!name) {
         return (
-          <div className="flex flex-row items-center gap-2 text-gray-400">
+          <div className="flex flex-row items-center gap-2 text-quartz-400">
             <Badge variant="outline" className="text-xs">
               <XCircle className="w-4 h-4" />
               <span>False</span>

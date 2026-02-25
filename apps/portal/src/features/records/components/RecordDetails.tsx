@@ -41,13 +41,13 @@ const AddressRecordValue = ({
   canEditRecords,
 }: AddressRecordValueProps) => {
   return (
-    <div className="flex flex-row gap-4 p-6 border border-gray-300 rounded-lg w-full items-end">
+    <div className="flex flex-row gap-4 p-6 border border-border rounded-lg w-full items-end">
       <div className="flex flex-col gap-1">
         <Label htmlFor="coin_type">Coin Type</Label>
         <div className="flex flex-row gap-2">
-          <div className="border rounded-sm border-gray-300 min-w-44 flex flex-row items-center gap-2 px-3 text-center">
+          <div className="border rounded-sm border-border min-w-44 flex flex-row items-center gap-2 px-3 text-center">
             <span className="font-mono">{record.id}</span>{' '}
-            <span className="font-sans text-gray-500 uppercase">
+            <span className="font-sans text-quartz-500 uppercase">
               {record.key}
             </span>
           </div>
@@ -59,13 +59,13 @@ const AddressRecordValue = ({
       <div className="flex flex-col gap-1 w-full">
         <Label>Value</Label>
         <Input
-          className="border-gray-300 w-full font-mono disabled:opacity-100"
+          className="border-border w-full font-mono disabled:opacity-100"
           disabled={!canEditRecords}
           value={record.value}
         />
       </div>
       {canEditRecords && (
-        <Button variant="secondary" className="bg-gray-200">
+        <Button variant="secondary" className="bg-quartz-100">
           Update
         </Button>
       )}
@@ -80,18 +80,18 @@ interface TextRecordValueProps {
 
 const TextRecordValue = ({ record, canEditRecords }: TextRecordValueProps) => {
   return (
-    <div className="flex flex-row gap-4 p-6 border border-gray-300 rounded-lg w-full items-end">
+    <div className="flex flex-row gap-4 p-6 border border-border rounded-lg w-full items-end">
       <div className="flex flex-col gap-1 w-full">
         <Label htmlFor={record.key}>Text</Label>
         <Input
           id={record.key}
-          className="border-gray-300 w-full font-mono disabled:opacity-100"
+          className="border-border w-full font-mono disabled:opacity-100"
           disabled={!canEditRecords}
           value={record.value}
         />
       </div>{' '}
       {canEditRecords && (
-        <Button variant="secondary" className="bg-gray-200">
+        <Button variant="secondary" className="bg-quartz-100">
           Update
         </Button>
       )}
@@ -109,18 +109,18 @@ const ContentHashValue = ({
   canEditRecords,
 }: ContentHashValueProps) => {
   return (
-    <div className="flex flex-row gap-4 p-6 border border-gray-300 rounded-lg w-full items-end">
+    <div className="flex flex-row gap-4 p-6 border border-border rounded-lg w-full items-end">
       <div className="flex flex-col gap-1 w-full">
         <Label htmlFor={record.type}>Content Hash</Label>
         <Input
           id={record.type}
-          className="border-gray-300 w-full font-mono disabled:opacity-100"
+          className="border-border w-full font-mono disabled:opacity-100"
           disabled={!canEditRecords}
           value={record.value}
         />
       </div>{' '}
       {canEditRecords && (
-        <Button variant="secondary" className="bg-gray-200">
+        <Button variant="secondary" className="bg-quartz-100">
           Update
         </Button>
       )}
@@ -185,7 +185,7 @@ const ResolverView = ({ name }: ResolverViewProps) => {
   if (!resolverAddress) return <div>No data</div>
 
   return (
-    <div className="flex flex-col gap-6 p-6 border border-gray-300 rounded-lg">
+    <div className="flex flex-col gap-6 p-6 border border-border rounded-lg">
       <h3 className="text-2xl font-medium">Resolver</h3>
       <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
         <UnderlyingResolver {...{ name, resolverAddress }} />
@@ -203,7 +203,7 @@ const columns: ColumnDef<HistoryEvent>[] = [
       if (!timestamp) {
         // Fallback to block number if no timestamp
         return (
-          <span className="font-mono text-gray-500">
+          <span className="font-mono text-quartz-500">
             Block {row.original.blockNumber}
           </span>
         )
@@ -348,10 +348,10 @@ const HistoryView = ({ name, record, network }: HistoryViewProps) => {
   const hasNoHistory = allEvents.length === 0
 
   return (
-    <div className="flex flex-col gap-6 p-6 border border-gray-300 rounded-lg">
+    <div className="flex flex-col gap-6 p-6 border border-border rounded-lg">
       <h3 className="text-2xl font-medium">History</h3>
       {hasNoHistory ? (
-        <p className="text-gray-500 text-sm py-4">
+        <p className="text-quartz-500 text-sm py-4">
           No history available for this record.
         </p>
       ) : (
@@ -402,7 +402,7 @@ export const RecordDetails = ({
           {record.type} record
         </SheetTitle>
         {canEditRecords && (
-          <Button variant="secondary" type="button" className="bg-gray-200">
+          <Button variant="secondary" type="button" className="bg-quartz-100">
             <TrashIcon /> Delete record
           </Button>
         )}

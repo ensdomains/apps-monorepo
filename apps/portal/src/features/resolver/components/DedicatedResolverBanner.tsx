@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ShieldCheckIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 
@@ -27,19 +28,22 @@ export const DedicatedResolverBanner = ({
 
   if (isDedicatedResolver?.[0])
     return (
-      <div className="flex flex-col p-4 sm:p-6 gap-4 text-sm sm:text-base items-center rounded-2xl bg-secondary">
-        <ShieldCheckIcon className="size-6" />
-        <p>
+      <Alert
+        variant="success"
+        className="flex flex-col items-center gap-3 border-none p-8 [&>svg]:size-6"
+      >
+        <ShieldCheckIcon />
+        <AlertDescription className="block text-center">
           This resolver is an instance of the official{' '}
           <ExternalLink
             className="underline decoration-dashed underline-offset-4"
-            href="https://github.com/ensdomains/namechain/blob/main/contracts/src/common/resolver/DedicatedResolver.sol"
+            href="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/OwnedResolver.sol"
           >
             ENS Dedicated Resolver
           </ExternalLink>
           . This resolver has been audited and is considered secure.
-        </p>
-      </div>
+        </AlertDescription>
+      </Alert>
     )
   return null
 }

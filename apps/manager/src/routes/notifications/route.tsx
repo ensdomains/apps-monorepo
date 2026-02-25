@@ -3,7 +3,7 @@ import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { useAtom } from '@xstate/store-react'
 import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
-import { signInBackendMutation } from '@/features/notifications/queries/auth'
+import { signInBackendMutation } from '@/features/notifications/data/queries/auth'
 import { isBackendAuthed } from '@/utils/backend-client'
 
 export const Route = createFileRoute('/notifications')({

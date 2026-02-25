@@ -14,8 +14,7 @@ export const CoinTypeLabel = ({ coin }: CoinTypeLabelProps) =>
     >
       <img
         key={coin}
-        height={24}
-        width={24}
+        className="size-6"
         alt={coin.toString()}
         src={icons[coin as ReverseRegistrarChainId]}
       />{' '}

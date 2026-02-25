@@ -34,7 +34,7 @@ export const NavBar = () => {
       location.pathname.startsWith('/addr/'))
 
   return (
-    <nav className="sticky top-0 left-0 flex flex-row gap-2 p-4 bg-background text-foreground w-full justify-between border-b border-b-gray-300 h-(--header-height) z-50">
+    <nav className="sticky top-0 left-0 flex flex-row gap-2 p-4 bg-background text-foreground w-full justify-between border-b border-b-border h-(--header-height) z-50">
       <div className="flex flex-row gap-2 items-center w-auto md:w-full">
         {hasSidebar && (
           <Suspense fallback={null}>
@@ -57,12 +57,14 @@ export const NavBar = () => {
             <LogoWithTextSVG width={72} height="auto" />
             <Badge
               variant="secondary"
-              className="absolute -top-3 -right-25 text-xs z-10"
+              className="absolute -top-3 -right-34 text-xs z-10"
             >
               Alpha
             </Badge>
           </div>
-          <span className="font-bold hidden md:inline">Explorer</span>
+          <span className="font-bold text-2xl hidden md:inline text-lapis-500">
+            Explorer
+          </span>
         </Link>
       </div>
       {location.pathname !== '/' && (

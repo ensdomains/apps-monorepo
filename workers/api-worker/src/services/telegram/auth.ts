@@ -1,6 +1,6 @@
+import type { TelegramAuthData } from '@ens-apps/shared-schema/telegram'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok } from 'neverthrow'
-import * as v from 'valibot'
 import { createIntoError, error } from '#utils/result.js'
 
 const hmacSha256 = async (
@@ -20,21 +20,6 @@ const hmacSha256 = async (
   // @ts-ignore
   return crypto.subtle.sign('HMAC', cryptoKey, data)
 }
-
-export const TelegramAuthSchema = v.object({
-  id: v.number(),
-  first_name: v.optional(v.string()),
-  last_name: v.optional(v.string()),
-  username: v.string(),
-  photo_url: v.optional(v.string()),
-  auth_date: v.pipe(
-    v.number(),
-    v.description('Unix timestamp in seconds since epoch'),
-  ),
-  hash: v.string(),
-})
-
-export type TelegramAuthData = v.InferOutput<typeof TelegramAuthSchema>
 
 const createDataCheckString = (data: Record<string, string | number>) => {
   return Object.keys(data)
