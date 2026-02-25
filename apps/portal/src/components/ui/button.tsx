@@ -16,10 +16,11 @@ const buttonVariants = cva(
           'border bg-background hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50',
         secondary:
           'bg-secondary text-secondary-foreground hover:bg-secondary/50',
+        success: 'bg-peridot-100 text-peridot-500 hover:bg-peridot-100/50',
         ghost:
           'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
         link: 'text-primary underline-offset-4 hover:underline',
-        input: 'bg-gray-200 text-primary hover:bg-gray-300',
+        input: 'bg-quartz-100 text-primary hover:bg-quartz-200',
       },
       size: {
         default: 'h-9 py-2 px-4',

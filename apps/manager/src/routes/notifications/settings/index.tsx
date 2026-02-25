@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { ContactMethods } from '@/features/notifications/components/settings/contact-methods'
-import { NotificationPreferences } from '@/features/notifications/components/settings/preferences'
+import { ContactMethods } from '@/features/notifications/settings/contact-methods'
+import { NotificationPreferences } from '@/features/notifications/settings/preferences'
 
 export const Route = createFileRoute('/notifications/settings/')({
   component: RouteComponent,

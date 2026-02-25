@@ -59,7 +59,12 @@ export const DeployRegistryForm = ({
         </div>
       )}
 
-      <Button onClick={onSubmit} disabled={isSubmitDisabled} className="w-fit">
+      <Button
+        variant="secondary"
+        onClick={onSubmit}
+        disabled={isSubmitDisabled}
+        className="w-fit"
+      >
         <span className="flex items-center gap-2">
           <CircleCheckIcon className="size-4" />
           {buttonText}

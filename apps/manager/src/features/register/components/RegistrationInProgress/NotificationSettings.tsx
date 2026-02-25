@@ -22,12 +22,12 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { ContactMethods } from '@/features/notifications/components/settings/contact-methods'
-import { Preference } from '@/features/notifications/components/settings/preferences'
 import {
   preferencesQueryOptions,
   updatePreferenceMutationOptions,
-} from '@/features/notifications/queries/preferences'
+} from '@/features/notifications/data/queries/preferences'
+import { ContactMethods } from '@/features/notifications/settings/contact-methods'
+import { Preference } from '@/features/notifications/settings/preferences'
 
 interface NotificationSettingsProps {
   onConfirm: () => void

@@ -88,7 +88,7 @@ describe('MobileExpandedEvents', () => {
     expect(screen.getAllByText('Event')).toHaveLength(2)
 
     // Check that keys are unique by ensuring no duplicate key warnings
-    const divs = container.querySelectorAll('.pl-4.border-l-2.border-gray-300')
+    const divs = container.querySelectorAll('.pl-4.border-l-2.border-border')
     expect(divs).toHaveLength(2)
   })
 
@@ -97,7 +97,7 @@ describe('MobileExpandedEvents', () => {
 
     // Should not render any event containers
     const eventContainers = container.querySelectorAll(
-      '.pl-4.border-l-2.border-gray-300',
+      '.pl-4.border-l-2.border-border',
     )
     expect(eventContainers).toHaveLength(0)
   })
