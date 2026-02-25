@@ -294,6 +294,21 @@ export const transactionMachine = setup({
     canRetry: ({ context }) =>
       context.retryCount < (context.options.retryCount || 3),
 
+    /** Don't retry when user explicitly rejected in wallet (e.g. MetaMask) */
+    isUserRejection: ({ event }) => {
+      const error =
+        event && 'error' in event ? (event as { error?: Error }).error : null
+      if (!error) return false
+      const msg = String(
+        error instanceof Error ? error.message : error,
+      ).toLowerCase()
+      return (
+        msg.includes('user rejected') ||
+        msg.includes('user denied') ||
+        msg.includes('rejected the request')
+      )
+    },
+
     shouldCheckFallback: ({ context }) => context.fallbackChecks < 3,
 
     wouldSucceed: (_, params: { wouldSucceed?: boolean }) =>
@@ -560,6 +575,17 @@ export const transactionMachine = setup({
         },
         onError: [
           {
+            guard: 'isUserRejection',
+            target: 'error.submission',
+            actions: [
+              assign({
+                error: ({ event }) => event.error as Error,
+              }),
+              'logCritical',
+              'recordTransition',
+            ],
+          },
+          {
             guard: 'canRetry',
             target: 'retrying',
             actions: [
@@ -582,6 +608,9 @@ export const transactionMachine = setup({
             ],
           },
         ],
+      },
+      on: {
+        CANCEL: 'error.cancelled',
       },
     },
 
@@ -638,6 +667,10 @@ export const transactionMachine = setup({
           target: 'success',
           actions: 'recordTransition',
         },
+        CANCEL: {
+          target: 'error.cancelled',
+          actions: 'recordTransition',
+        },
       },
     },
 
@@ -683,6 +716,12 @@ export const transactionMachine = setup({
         ],
         onError: {
           target: 'pending',
+          actions: 'recordTransition',
+        },
+      },
+      on: {
+        CANCEL: {
+          target: 'error.cancelled',
           actions: 'recordTransition',
         },
       },
