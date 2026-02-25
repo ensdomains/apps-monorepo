@@ -1,7 +1,5 @@
-import { CircleUserRound, Globe, Minus, Plus } from 'lucide-react'
+import { CircleUserRound, Globe } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -10,27 +8,26 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { FloatingTextarea } from '@/components/ui/floating-textarea'
+import { AddTextRecordsPills } from '@/features/profile/components/AddTextRecordsPills'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
-import {
-  entryAnimation,
-  pillAnimation,
-  pillContainerAnimation,
-} from '@/features/profile/components/motion'
+import { entryAnimation } from '@/features/profile/components/motion'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
 import { validateUrl } from '@/features/profile/utils/validateUrl'
-import { cn } from '@/lib/utils'
+
+const bioRecords = [
+  { key: 'description', name: 'Bio', icon: CircleUserRound },
+  { key: 'url', name: 'Website', icon: Globe },
+] as const
+
+const fieldMap = {
+  description: 'base.description',
+  url: 'base.url',
+} as const
 
 export const BioSection = withForm({
   ...sharedOptions,
   render: ({ form }) => {
     const reduceMotion = useReducedMotion()
-    const [showBio, setShowBio] = useState(!!form.state.values.base.description)
-    const [showWebsite, setShowWebsite] = useState(!!form.state.values.base.url)
-
-    const pills = [
-      { key: 'bio', label: 'Bio', icon: CircleUserRound, active: showBio },
-      { key: 'website', label: 'Website', icon: Globe, active: showWebsite },
-    ]
 
     return (
       <Card className="border-[0.25px] border-border bg-white shadow-none">
@@ -41,102 +38,89 @@ export const BioSection = withForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <AnimatePresence initial={false} mode="popLayout">
-            <motion.div
-              className="flex flex-wrap gap-3 pb-2"
-              {...pillContainerAnimation(reduceMotion)}
-            >
-              <AnimatePresence initial={false} mode="popLayout">
-                {pills.map((pill) => (
-                  <motion.div key={pill.key} {...pillAnimation(reduceMotion)}>
-                    <Button
-                      className={cn(
-                        'h-auto w-auto gap-2 rounded-full px-4 py-2',
-                        pill.active
-                          ? 'bg-neutral-600 text-neutral-300 hover:bg-neutral-500 hover:text-neutral-200'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                      onClick={() => {
-                        if (pill.key === 'bio') {
-                          if (showBio) {
-                            form.setFieldValue('base.description', '')
-                            setShowBio(false)
-                          } else {
-                            setShowBio(true)
-                          }
-                        }
-                        if (pill.key === 'website') {
-                          if (showWebsite) {
-                            form.setFieldValue('base.url', '')
-                            setShowWebsite(false)
-                          } else {
-                            setShowWebsite(true)
-                          }
-                        }
-                      }}
-                      type="button"
-                      variant={pill.active ? 'ghost' : 'secondary'}
-                    >
-                      <pill.icon className="size-4" />
-                      <span>{pill.label}</span>
-                      {pill.active ? (
-                        <Minus className="size-4" />
-                      ) : (
-                        <Plus className="size-4" />
-                      )}
-                    </Button>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </motion.div>
-          </AnimatePresence>
+          <form.Field name="base">
+            {(baseField) => {
+              const activeKeys = bioRecords
+                .filter(
+                  ({ key }) =>
+                    baseField.state.value[
+                      key as keyof typeof baseField.state.value
+                    ] !== undefined,
+                )
+                .map(({ key }) => key)
 
-          <AnimatePresence initial={false} mode="popLayout">
-            {showBio && (
-              <motion.div key="bio" {...entryAnimation(reduceMotion)}>
-                <form.Field name="base.description">
-                  {(field) => (
-                    <div className="pt-1">
-                      <FloatingTextarea
-                        className="flex-1"
-                        label="Short Description"
-                        onChange={(e) => {
-                          field.handleChange(e.target.value)
-                        }}
-                        placeholder="Add a short bio to your profile"
-                        value={field.state.value}
-                      />
-                    </div>
-                  )}
-                </form.Field>
-              </motion.div>
-            )}
-
-            {showWebsite && (
-              <motion.div key="website" {...entryAnimation(reduceMotion)}>
-                <form.Field
-                  name="base.url"
-                  validators={{ onBlur: ({ value }) => validateUrl(value) }}
-                >
-                  {(field) => (
-                    <RecordEntry
-                      error={
-                        field.state.meta.isTouched &&
-                        field.state.meta.errors.length > 0
-                          ? field.state.meta.errors[0]
-                          : undefined
+              return (
+                <>
+                  <AddTextRecordsPills
+                    activeKeys={[...activeKeys]}
+                    onAdd={(keys) => {
+                      for (const key of keys) {
+                        const field = fieldMap[key as keyof typeof fieldMap]
+                        if (field) form.setFieldValue(field, '')
                       }
-                      name="Website"
-                      onBlur={field.handleBlur}
-                      onChange={field.handleChange}
-                      placeholder="https://"
-                      value={field.state.value}
-                    />
-                  )}
-                </form.Field>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                    }}
+                    onRemove={(key) => {
+                      const field = fieldMap[key as keyof typeof fieldMap]
+                      if (field) form.setFieldValue(field, undefined)
+                    }}
+                    records={[...bioRecords]}
+                  />
+
+                  <AnimatePresence initial={false} mode="popLayout">
+                    {activeKeys.includes('description') && (
+                      <motion.div key="bio" {...entryAnimation(reduceMotion)}>
+                        <form.Field name="base.description">
+                          {(field) => (
+                            <div className="pt-1">
+                              <FloatingTextarea
+                                className="flex-1"
+                                label="Short Description"
+                                onChange={(e) => {
+                                  field.handleChange(e.target.value)
+                                }}
+                                placeholder="Add a short bio to your profile"
+                                value={field.state.value}
+                              />
+                            </div>
+                          )}
+                        </form.Field>
+                      </motion.div>
+                    )}
+
+                    {activeKeys.includes('url') && (
+                      <motion.div
+                        key="website"
+                        {...entryAnimation(reduceMotion)}
+                      >
+                        <form.Field
+                          name="base.url"
+                          validators={{
+                            onBlur: ({ value }) => validateUrl(value),
+                          }}
+                        >
+                          {(field) => (
+                            <RecordEntry
+                              error={
+                                field.state.meta.isTouched &&
+                                field.state.meta.errors.length > 0
+                                  ? field.state.meta.errors[0]
+                                  : undefined
+                              }
+                              name="Website"
+                              onBlur={field.handleBlur}
+                              onChange={field.handleChange}
+                              placeholder="https://"
+                              value={field.state.value}
+                            />
+                          )}
+                        </form.Field>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </>
+              )
+            }}
+          </form.Field>
         </CardContent>
       </Card>
     )

@@ -1,7 +1,5 @@
-import { Braces, Hash, Minus, Plus } from 'lucide-react'
+import { Braces, Hash } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -9,35 +7,24 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { FloatingInput } from '@/components/ui/floating-input'
 import { FloatingTextarea } from '@/components/ui/floating-textarea'
+import { AddTextRecordsPills } from '@/features/profile/components/AddTextRecordsPills'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
-import {
-  entryAnimation,
-  pillAnimation,
-  pillContainerAnimation,
-} from '@/features/profile/components/motion'
+import { entryAnimation } from '@/features/profile/components/motion'
+import { RecordEntry } from '@/features/profile/components/RecordEntry'
 import { validateContentHash } from '@/features/profile/utils/validateContentHash'
-import { cn } from '@/lib/utils'
+
+const otherRecords = [
+  { key: 'contentHash', name: 'Content Hash', icon: Hash },
+  { key: 'abi', name: 'ABI', icon: Braces },
+] as const
+
+type OtherKey = (typeof otherRecords)[number]['key']
 
 export const OtherSection = withForm({
   ...sharedOptions,
   render: ({ form }) => {
     const reduceMotion = useReducedMotion()
-    const [showContentHash, setShowContentHash] = useState(
-      !!form.state.values.contentHash,
-    )
-    const [showAbi, setShowAbi] = useState(!!form.state.values.abi)
-
-    const pills = [
-      {
-        key: 'contentHash',
-        label: 'Content Hash',
-        icon: Hash,
-        active: showContentHash,
-      },
-      { key: 'abi', label: 'ABI', icon: Braces, active: showAbi },
-    ]
 
     return (
       <Card className="border-[0.25px] border-border bg-white shadow-none">
@@ -48,109 +35,96 @@ export const OtherSection = withForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <AnimatePresence initial={false} mode="popLayout">
-            <motion.div
-              className="flex flex-wrap gap-3 pb-2"
-              {...pillContainerAnimation(reduceMotion)}
-            >
-              <AnimatePresence initial={false} mode="popLayout">
-                {pills.map((pill) => (
-                  <motion.div key={pill.key} {...pillAnimation(reduceMotion)}>
-                    <Button
-                      className={cn(
-                        'h-auto w-auto gap-2 rounded-full px-4 py-2',
-                        pill.active
-                          ? 'bg-neutral-600 text-neutral-300 hover:bg-neutral-500 hover:text-neutral-200'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                      onClick={() => {
-                        if (pill.key === 'contentHash') {
-                          if (showContentHash) {
-                            form.setFieldValue('contentHash', '')
-                            setShowContentHash(false)
-                          } else {
-                            setShowContentHash(true)
-                          }
-                        }
-                        if (pill.key === 'abi') {
-                          if (showAbi) {
-                            form.setFieldValue('abi', '')
-                            setShowAbi(false)
-                          } else {
-                            setShowAbi(true)
-                          }
-                        }
-                      }}
-                      type="button"
-                      variant={pill.active ? 'ghost' : 'secondary'}
-                    >
-                      <pill.icon className="size-4" />
-                      <span>{pill.label}</span>
-                      {pill.active ? (
-                        <Minus className="size-4" />
-                      ) : (
-                        <Plus className="size-4" />
-                      )}
-                    </Button>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </motion.div>
-          </AnimatePresence>
+          <form.Field name="contentHash">
+            {(contentHashField) => (
+              <form.Field name="abi">
+                {(abiField) => {
+                  const activeKeys = otherRecords
+                    .filter(({ key }) => {
+                      if (key === 'contentHash')
+                        return contentHashField.state.value !== undefined
+                      if (key === 'abi')
+                        return abiField.state.value !== undefined
+                      return false
+                    })
+                    .map(({ key }) => key)
 
-          <AnimatePresence initial={false} mode="popLayout">
-            {showContentHash && (
-              <motion.div key="contentHash" {...entryAnimation(reduceMotion)}>
-                <form.Field
-                  name="contentHash"
-                  validators={{
-                    onBlur: ({ value }) => validateContentHash(value),
-                  }}
-                >
-                  {(field) => (
-                    <div className="flex flex-col gap-1 pt-1">
-                      <FloatingInput
-                        aria-invalid={
-                          field.state.meta.isTouched &&
-                          field.state.meta.errors.length > 0
-                        }
-                        className="flex-1"
-                        label="Content Hash"
-                        onBlur={field.handleBlur}
-                        onChange={(e) => field.handleChange(e.target.value)}
-                        placeholder="ipfs://..."
-                        value={field.state.value ?? ''}
+                  return (
+                    <>
+                      <AddTextRecordsPills
+                        activeKeys={[...activeKeys]}
+                        onAdd={(keys) => {
+                          for (const key of keys) {
+                            form.setFieldValue(key as OtherKey, '')
+                          }
+                        }}
+                        onRemove={(key) => {
+                          form.setFieldValue(key as OtherKey, undefined)
+                        }}
+                        records={[...otherRecords]}
                       />
-                      {field.state.meta.isTouched &&
-                        field.state.meta.errors.length > 0 && (
-                          <p className="text-destructive text-xs">
-                            {field.state.meta.errors[0]}
-                          </p>
+
+                      <AnimatePresence initial={false} mode="popLayout">
+                        {activeKeys.includes('contentHash') && (
+                          <motion.div
+                            key="contentHash"
+                            {...entryAnimation(reduceMotion)}
+                          >
+                            <form.Field
+                              name="contentHash"
+                              validators={{
+                                onBlur: ({ value }) =>
+                                  validateContentHash(value),
+                              }}
+                            >
+                              {(field) => (
+                                <RecordEntry
+                                  error={
+                                    field.state.meta.isTouched &&
+                                    field.state.meta.errors.length > 0
+                                      ? field.state.meta.errors[0]
+                                      : undefined
+                                  }
+                                  name="Content Hash"
+                                  onBlur={field.handleBlur}
+                                  onChange={field.handleChange}
+                                  placeholder="ipfs://..."
+                                  value={field.state.value ?? ''}
+                                />
+                              )}
+                            </form.Field>
+                          </motion.div>
                         )}
-                    </div>
-                  )}
-                </form.Field>
-              </motion.div>
-            )}
 
-            {showAbi && (
-              <motion.div key="abi" {...entryAnimation(reduceMotion)}>
-                <form.Field name="abi">
-                  {(field) => (
-                    <div className="pt-1">
-                      <FloatingTextarea
-                        className="flex-1 font-mono text-xs"
-                        label="ABI"
-                        onChange={(e) => field.handleChange(e.target.value)}
-                        placeholder='[{"type":"function",...}]'
-                        value={field.state.value ?? ''}
-                      />
-                    </div>
-                  )}
-                </form.Field>
-              </motion.div>
+                        {activeKeys.includes('abi') && (
+                          <motion.div
+                            key="abi"
+                            {...entryAnimation(reduceMotion)}
+                          >
+                            <form.Field name="abi">
+                              {(field) => (
+                                <div className="pt-1">
+                                  <FloatingTextarea
+                                    className="flex-1 font-mono text-xs"
+                                    label="ABI"
+                                    onChange={(e) =>
+                                      field.handleChange(e.target.value)
+                                    }
+                                    placeholder='[{"type":"function",...}]'
+                                    value={field.state.value ?? ''}
+                                  />
+                                </div>
+                              )}
+                            </form.Field>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </>
+                  )
+                }}
+              </form.Field>
             )}
-          </AnimatePresence>
+          </form.Field>
         </CardContent>
       </Card>
     )

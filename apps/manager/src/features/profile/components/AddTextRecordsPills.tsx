@@ -2,12 +2,17 @@ import { Minus, Plus } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { TextRecordDef } from '../data/records/types'
 import { IconRenderer } from './IconRenderer'
 import { pillAnimation, pillContainerAnimation } from './motion'
 
+interface PillRecord {
+  key: string
+  name: string
+  icon?: React.FC<{ className?: string }> | string
+}
+
 interface AddTextRecordsPillsProps {
-  records: TextRecordDef[]
+  records: PillRecord[]
   activeKeys: string[]
   onAdd: (keys: string[]) => void
   onRemove: (key: string) => void
