@@ -106,7 +106,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
       ),
       cell: ({ row }) => {
         const from = row.original.from
-        if (!from) return <span className="text-gray-400">-</span>
+        if (!from) return <span className="text-quartz-400">-</span>
 
         return <AddressDisplay address={from} />
       },

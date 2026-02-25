@@ -76,13 +76,13 @@ export const NameProfileCard = ({ name }: { name: string }) => {
   if (isLoading) return <LoadingSpinner title="Loading..." />
 
   return (
-    <div className="flex flex-col sm:flex-row p-6 items-center gap-6 rounded-lg border border-gray-300">
+    <div className="flex flex-col sm:flex-row p-6 items-center gap-6 rounded-lg border border-border">
       <NameAvatar name={name} />
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-0.5 ">
-          <h2 className="text-[26px] font-medium w-max">
+          <h2 className="text-2xl font-medium w-max">
             {labels.join('.')}.
-            <span className="text-base text-gray-500">{parent}</span>
+            <span className="text-base text-quartz-500">{parent}</span>
           </h2>
           <span>
             {texts.name && <span className="font-medium">{texts.name}</span>}{' '}

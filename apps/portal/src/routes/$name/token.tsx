@@ -67,7 +67,7 @@ const DataRow = ({
         {tooltip && (
           <Tooltip>
             <TooltipTrigger>
-              <InfoIcon className="size-4 text-gray-400" />
+              <InfoIcon className="size-4 text-quartz-400" />
             </TooltipTrigger>
             <TooltipContent>{tooltip}</TooltipContent>
           </Tooltip>
@@ -90,7 +90,7 @@ const TokenInfoCard = ({
   tokenStandard: 'ERC-1155' | 'ERC-721'
 }) => {
   return (
-    <div className="flex border border-gray-200 rounded-2xl w-full p-6 flex-col gap-4">
+    <div className="flex border border-border rounded-2xl w-full p-6 flex-col gap-4">
       <DataRow label="Protocol" tooltip="The ENS protocol version">
         <span className="text-base">ENSv2</span>
       </DataRow>
@@ -108,11 +108,7 @@ const TokenInfoCard = ({
           <CopyableRecord value={tokenId} className="flex-1 min-w-0" />
           <Sheet>
             <SheetTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="bg-sky-100 text-sky-600 hover:bg-sky-200 gap-1 shrink-0"
-              >
+              <Button variant="secondary" size="sm" className="gap-1 shrink-0">
                 <ArrowRightFromLineIcon className="size-4" />
                 <span className="text-xs font-medium">More</span>
               </Button>
@@ -144,8 +140,8 @@ const TokenInfoCard = ({
                   </DataRow>
                 </div>
 
-                <div className="bg-gray-100 rounded-lg p-3 flex gap-2 items-start">
-                  <InfoIcon className="size-6 text-gray-600 shrink-0 mt-0.5" />
+                <div className="bg-quartz-50 rounded-lg p-3 flex gap-2 items-start">
+                  <InfoIcon className="size-6 text-quartz-500 shrink-0 mt-0.5" />
                   <p className="text-base">
                     The Token ID will change anytime the roles are updated.
                   </p>
@@ -153,7 +149,7 @@ const TokenInfoCard = ({
 
                 <div>
                   <h3 className="text-2xl font-medium mb-4">History</h3>
-                  <div className="border border-gray-200 rounded-2xl overflow-hidden">
+                  <div className="border border-border rounded-2xl overflow-hidden">
                     <Table>
                       <TableHeader>
                         <TableRow className="border-b-2">
@@ -167,7 +163,7 @@ const TokenInfoCard = ({
                         <TableRow>
                           <TableCell
                             colSpan={4}
-                            className="text-center py-8 text-gray-500"
+                            className="text-center py-8 text-quartz-500"
                           >
                             No history available
                           </TableCell>
@@ -287,7 +283,7 @@ function RouteComponent() {
 
       {/* Normalization Section */}
       <h2 className="font-medium text-2xl">Normalization</h2>
-      <div className="flex border border-gray-200 rounded-2xl flex-col">
+      <div className="flex border border-border rounded-2xl flex-col">
         <div className="flex flex-col w-full p-6 gap-4">
           <DataRow label="Input" tooltip="The input name parts">
             <div className="flex flex-row gap-1 flex-wrap items-center">
@@ -296,7 +292,7 @@ function RouteComponent() {
                   key={String.fromCodePoint(...label.input)}
                   className="contents"
                 >
-                  <span className="px-2 py-1 font-mono border border-gray-200 rounded">
+                  <span className="px-2 py-1 font-mono border border-border rounded">
                     {String.fromCodePoint(...label.input)}
                   </span>
                   {idx < parts.length - 1 && <span className="mx-0.5">.</span>}
@@ -313,15 +309,20 @@ function RouteComponent() {
               <div
                 className={cn(
                   'px-2 py-1 rounded-full flex flex-row items-center gap-1',
-                  normalized ? 'bg-green-100' : 'bg-red-100',
+                  normalized ? 'bg-peridot-100' : 'bg-garnet-100',
                 )}
               >
                 {normalized ? (
-                  <CheckCircleIcon className="size-4 text-green-600" />
+                  <CheckCircleIcon className="size-4 text-peridot-500" />
                 ) : (
-                  <XCircleIcon className="size-4 text-red-600" />
+                  <XCircleIcon className="size-4 text-garnet-500" />
                 )}
-                <span className="text-xs font-medium">
+                <span
+                  className={cn(
+                    'text-xs font-medium',
+                    normalized ? 'text-peridot-500' : 'text-garnet-500',
+                  )}
+                >
                   {normalized ? 'Normalized' : 'Not Normalized'}
                 </span>
               </div>
@@ -349,9 +350,9 @@ function RouteComponent() {
       {/* Labels Section */}
       <h2 className="font-medium text-2xl">Labels</h2>
       {labels[0] ? (
-        <div className="border border-gray-200 rounded-2xl overflow-hidden">
+        <div className="border border-border rounded-2xl overflow-hidden">
           <Tabs defaultValue={labels[0]} className="gap-0">
-            <div className="px-6 border-b border-gray-200 flex items-center gap-2">
+            <div className="px-6 border-b border-border flex items-center gap-2">
               <TabsList>
                 {labels.map((label, idx) => (
                   <div key={label} className="contents">
@@ -407,7 +408,7 @@ function RouteComponent() {
           </Tabs>
         </div>
       ) : (
-        <div className="border border-gray-200 rounded-2xl p-6">
+        <div className="border border-border rounded-2xl p-6">
           Invalid name: no labels
         </div>
       )}

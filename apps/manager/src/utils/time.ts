@@ -39,6 +39,10 @@ export const formatRelativeTime = (timestamp: number): string => {
   return `${years} year${years > 1 ? 's' : ''} ago`
 }
 
+export const formatAbsoluteTime = (timestamp: number): string => {
+  return new Date(timestamp).toLocaleString()
+}
+
 export const formatExpiryTime = (
   expiryDate: number,
 ): { text: string; isExpired: boolean } => {

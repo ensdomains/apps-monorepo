@@ -189,7 +189,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
     return (
       <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
         <PageHeader name={name} />
-        <p className="text-gray-600">
+        <p className="text-quartz-500">
           This name does not have a subregistry. You must deploy one first to
           create subnames.
         </p>
@@ -331,7 +331,7 @@ const CreateSubnameContent = ({
     return (
       <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
         <PageHeader name={name} />
-        <p className="text-gray-600">
+        <p className="text-quartz-500">
           This feature is only available for ENSv2 names.
         </p>
       </div>

@@ -19,7 +19,7 @@ export const MobileExpandedEvents = <TEvent extends BaseEvent = BaseEvent>({
         return (
           <div
             key={`${event.id}-${eventIndex}`}
-            className="pl-4 border-l-2 border-gray-300 flex flex-col gap-2"
+            className="pl-4 border-l-2 border-border flex flex-col gap-2"
           >
             <div className="text-sm font-medium">Event</div>
             <div className="text-base">{event.type}</div>

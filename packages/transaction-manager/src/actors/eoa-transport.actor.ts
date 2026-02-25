@@ -1,7 +1,10 @@
-import { fromPromise, type ResultAsync } from 'neverthrow'
-import type { Hash } from 'viem'
-import { sendTransaction } from 'viem/actions'
-import { TransactionSubmissionError } from '../errors/transaction.errors'
+import type { ResultAsync } from 'neverthrow'
+import { type Hash, UserRejectedRequestError } from 'viem'
+import {
+  TransactionSubmissionError,
+  TransactionUserRejectedError,
+} from '../errors/transaction.errors'
+import { safeSendTransaction } from '../helpers/viem-neverthrow.helpers'
 import type { EOASigner } from '../types/signer.types'
 import type {
   EOATransactionRequest,
@@ -17,7 +20,10 @@ import type {
 export function submitEOATransaction(input: {
   request: TransactionRequest
   signer: EOASigner
-}): ResultAsync<Hash, TransactionSubmissionError> {
+}): ResultAsync<
+  Hash,
+  TransactionSubmissionError | TransactionUserRejectedError
+> {
   const { request, signer } = input
   const { walletClient } = signer
   const eoaRequest = request as EOATransactionRequest
@@ -54,8 +60,18 @@ export function submitEOATransaction(input: {
     gas: txParams.gas?.toString(),
   })
 
-  // Submit transaction and return ResultAsync
-  return fromPromise(sendTransaction(walletClient, txParams), (error) => {
+  return safeSendTransaction(walletClient, txParams).mapErr((error) => {
+    if (
+      error.name === 'TransactionExecutionError' &&
+      error.cause instanceof UserRejectedRequestError
+    ) {
+      console.error(
+        '❌ [EOA TRANSPORT] User rejected transaction:',
+        error.cause,
+      )
+      return new TransactionUserRejectedError(eoaRequest, error.cause)
+    }
+
     console.error('❌ [EOA TRANSPORT] Transaction submission failed:', error)
     return new TransactionSubmissionError(eoaRequest, error)
   })

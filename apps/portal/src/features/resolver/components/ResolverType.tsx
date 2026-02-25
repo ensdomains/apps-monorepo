@@ -30,7 +30,7 @@ const InterfaceCheck = ({ resolverAddress }: InterfaceCheckProps) => {
 
   if (supportsInterfaces[0]) {
     return (
-      <div className="flex flex-row p-4 sm:p-6 gap-4 sm:gap-6 rounded-2xl border border-gray-300 w-full flex-1 items-center">
+      <div className="flex flex-row p-4 sm:p-6 gap-4 sm:gap-6 rounded-2xl border border-border w-full flex-1 items-center">
         <FocusIcon className="size-10" />
         <div className="flex flex-col">
           <span className="font-medium">Type</span>
@@ -49,7 +49,7 @@ export const ResolverType = ({ resolverAddress }: ResolverTypeProps) => {
   // TODO: temp hardcoded PublicResolver address
   if (resolverAddress === '0x0e14eE0592da66Bb4c8a8090066BC8A5Af15f3E6') {
     return (
-      <div className="flex flex-row p-6 gap-6 rounded-2xl border border-gray-300 w-full flex-1 items-center">
+      <div className="flex flex-row p-6 gap-6 rounded-2xl border border-border w-full flex-1 items-center">
         <FocusIcon className="size-10" />
         <div className="flex flex-col">
           <span className="font-medium">Type</span>
