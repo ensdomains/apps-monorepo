@@ -69,21 +69,22 @@ export const RolesSidebar = <
   const publicClient = usePublicClient({ chainId })
 
   const selectedAccount = row?.original.account
-  const originalRoles = (row?.original.items ?? []) as Role[]
+  const originalRoles = useMemo(
+    () => (row?.original.items ?? []) as Role[],
+    [row],
+  )
 
   // Custom hook for managing edited permissions state
   const { editedPermissions, setEditedPermissions } = useEditedPermissions(row)
 
-  // Check if there are unsaved changes
-  const hasChanges = useMemo(() => {
-    const originalPermissions = roleToPermissions(originalRoles)
-    return hasPermissionsChanged(originalPermissions, editedPermissions)
-  }, [originalRoles, editedPermissions])
-
-  // Build the list of roles to grant and revoke based on changes
-  const { rolesToGrant, rolesToRevoke } = useMemo(() => {
-    return computeRoleChanges(originalRoles, editedPermissions)
-  }, [originalRoles, editedPermissions])
+  const hasChanges = hasPermissionsChanged(
+    roleToPermissions(originalRoles),
+    editedPermissions,
+  )
+  const { rolesToGrant, rolesToRevoke } = computeRoleChanges(
+    originalRoles,
+    editedPermissions,
+  )
 
   const saveMutation = useMutation({
     mutationFn: async () => {

@@ -13,18 +13,16 @@ type RolePermissionState = {
 export const useEditedPermissions = (
   row: { original: { items: string[]; account: string } } | null,
 ) => {
-  const originalRoles = (row?.original.items ?? []) as Role[]
-
   const [editedPermissions, setEditedPermissions] = useState<
     Map<string, RolePermissionState>
   >(new Map())
 
   useEffect(() => {
     if (row) {
-      const rolePermissionsMap = roleToPermissions(originalRoles)
-      setEditedPermissions(rolePermissionsMap as Map<string, Permission>)
+      const roles = (row.original.items ?? []) as Role[]
+      setEditedPermissions(roleToPermissions(roles) as Map<string, Permission>)
     }
-  }, [row, originalRoles])
+  }, [row])
 
   return { editedPermissions, setEditedPermissions }
 }
