@@ -7,6 +7,7 @@ import { formatUnits } from 'viem'
 import { useConnection, useReadContracts } from 'wagmi'
 import { DAIcon } from '@/assets/dai-icon'
 import { USDCIcon } from '@/assets/usdc-icon'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -133,9 +134,34 @@ export const PaymentTokenModal = ({
 
   const isContinueDisabled = !selectedToken || isPriceLoading || !address
 
+  const noSupportedTokenHasSufficientBalance =
+    !isPriceLoading &&
+    tokenData.every((token) => token.balance < token.price.total)
+
   const currentContent = match(step)
     .with('select_token', () => (
       <>
+        {noSupportedTokenHasSufficientBalance ? (
+          <Alert variant="warning" className="mb-4">
+            <AlertTitle>Insufficient balance</AlertTitle>
+            <AlertDescription>
+              <p>
+                We auto-fund wallets with USDC and DAI on testnet since we're in
+                beta. Connect your wallet to the{' '}
+                <a
+                  href="https://app.ens.dev/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-4 hover:text-warning"
+                >
+                  Manager app
+                </a>{' '}
+                to receive test tokens, then return here to complete your
+                registration.
+              </p>
+            </AlertDescription>
+          </Alert>
+        ) : null}
         <div className="flex items-center gap-2">
           <p className="text-muted-foreground text-sm">
             Choose USDC or DAI to pay for your registration.
@@ -271,7 +297,7 @@ export const PaymentTokenModal = ({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{stepTitle}</DialogTitle>
         </DialogHeader>
