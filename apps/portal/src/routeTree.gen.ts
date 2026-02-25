@@ -172,7 +172,7 @@ export interface FileRoutesByFullPath {
   '/addr/$addr/names': typeof AddrAddrNamesRoute
   '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
   '/addr/$addr/reverse-resolution': typeof AddrAddrReverseResolutionRoute
-  '/$name/roles/': typeof NameRolesIndexRoute
+  '/$name/roles': typeof NameRolesIndexRoute
   '/addr/$addr/': typeof AddrAddrIndexRoute
 }
 export interface FileRoutesByTo {
@@ -248,7 +248,7 @@ export interface FileRouteTypes {
     | '/addr/$addr/names'
     | '/addr/$addr/resolution'
     | '/addr/$addr/reverse-resolution'
-    | '/$name/roles/'
+    | '/$name/roles'
     | '/addr/$addr/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -431,7 +431,7 @@ declare module '@tanstack/react-router' {
     '/$name/roles/': {
       id: '/$name/roles/'
       path: '/roles'
-      fullPath: '/$name/roles/'
+      fullPath: '/$name/roles'
       preLoaderRoute: typeof NameRolesIndexRouteImport
       parentRoute: typeof NameRoute
     }
