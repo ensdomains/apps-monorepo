@@ -77,13 +77,8 @@ export const getAddressRecordDef = (
 ): (typeof addressRecordIndex)[number] | undefined =>
   addressRecordIndex[coinType]
 
-export const getAvailableRecords = (
-  usedKeys: string[],
-  section: AnySection,
-): typeof textRecords =>
-  textRecords.filter(
-    (record) => !usedKeys.includes(record.key) && record.section === section,
-  )
+export const getRecordsForSection = (section: AnySection): typeof textRecords =>
+  textRecords.filter((record) => record.section === section)
 
 export const getAvailableAddressRecords = (
   usedCoinTypes: number[],
