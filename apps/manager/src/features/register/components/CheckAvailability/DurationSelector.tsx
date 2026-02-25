@@ -63,7 +63,7 @@ export const DurationSelector = ({
 
     // Only allow positive integers
     const parsed = parseInt(value, 10)
-    if (!isNaN(parsed) && parsed >= 1 && parsed <= 1000) {
+    if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 1000) {
       onInputChange(value)
       onSelect(parsed)
     }
