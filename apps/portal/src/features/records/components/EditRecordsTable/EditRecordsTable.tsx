@@ -71,10 +71,10 @@ const EditableValueCell = memo(function EditableValueCell({
       <Input
         ref={inputRef}
         defaultValue={record.value}
-        className={`font-mono bg-gray-50 ${
+        className={`font-mono bg-quartz-50 ${
           error
             ? 'border-red-500 focus-visible:ring-red-500/50'
-            : 'border-gray-300'
+            : 'border-border'
         }`}
         onChange={(e) => {
           onUpdate?.(record, e.target.value)
@@ -175,7 +175,7 @@ export const EditRecordsTable = ({
             return (
               <span className="flex flex-row items-center gap-2 font-mono">
                 {row.original.id}{' '}
-                <span className="font-sans text-gray-500 uppercase">
+                <span className="font-sans text-quartz-500 uppercase">
                   {row.original.key}
                 </span>
               </span>
@@ -280,7 +280,7 @@ export const EditRecordsTable = ({
               <React.Fragment key={row.id}>
                 <TableRow
                   data-state={row.getIsSelected() && 'selected'}
-                  className="hover:bg-gray-100"
+                  className="hover:bg-quartz-50"
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className="px-4 sm:px-6 py-4">
@@ -292,7 +292,7 @@ export const EditRecordsTable = ({
                   ))}
                 </TableRow>
                 {isPendingDelete && (
-                  <TableRow className="bg-gray-50 hover:bg-gray-50">
+                  <TableRow className="bg-quartz-50 hover:bg-quartz-50">
                     <TableCell
                       colSpan={editColumns.length}
                       className="px-4 sm:px-6 py-3"

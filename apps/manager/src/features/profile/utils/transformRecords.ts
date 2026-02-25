@@ -8,10 +8,12 @@ import type {
 import type { ProfileRecordsResult } from '../service/profileRecords'
 import type { ProfileRecords } from '../types'
 
-export const newEmptyProfileRecords = (): ProfileRecords => ({
+const emptyProfileRecords = (): ProfileRecords => ({
   base: {},
   addresses: [],
   links: [],
+  contentHash: undefined,
+  abi: undefined,
   unknown: [],
   ...allSections.reduce(
     (acc, key) => {
@@ -21,6 +23,9 @@ export const newEmptyProfileRecords = (): ProfileRecords => ({
     {} as Pick<ProfileRecords, Section | SpecialSection>,
   ),
 })
+
+export const newEmptyProfileRecords = (): ProfileRecords =>
+  emptyProfileRecords()
 export const defaultProfileRecords = newEmptyProfileRecords()
 
 const LinksSchema = v.array(
@@ -75,10 +80,12 @@ export const transformProfileRecords = (
     }
   }
 
-  const baseRecords = newEmptyProfileRecords()
+  const baseRecords = emptyProfileRecords()
   const withAddresses: ProfileRecords = {
     ...baseRecords,
     addresses: profile.coins,
+    contentHash: profile.contentHash,
+    abi: profile.abi,
     resolverAddress: profile.resolverAddress,
   }
 
@@ -94,6 +101,8 @@ export const transformToServiceFormat = (
 ): {
   texts: Array<{ key: string; value: string }>
   coins: Array<{ coinType: number; value: string }>
+  contentHash?: string
+  abi?: string
 } => {
   const sectionTexts = allSections.flatMap((section) =>
     records[section].map(({ key, value }) => ({ key, value })),
@@ -120,7 +129,7 @@ export const transformToServiceFormat = (
     .filter(({ value }) => value && value.trim() !== '')
     .map(({ coinType, value }) => ({ coinType, value }))
 
-  return { texts, coins }
+  return { texts, coins, contentHash: records.contentHash, abi: records.abi }
 }
 
 /**

@@ -74,7 +74,7 @@ export const columns: ColumnDef<NameRecord>[] = [
         return (
           <span className="flex flex-row items-center gap-2 font-mono">
             {row.original.id}{' '}
-            <span className="font-sans text-gray-500 uppercase">
+            <span className="font-sans text-quartz-500 uppercase">
               {row.original.key}
             </span>
           </span>

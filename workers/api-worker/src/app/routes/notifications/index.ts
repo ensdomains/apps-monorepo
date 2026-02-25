@@ -1,3 +1,8 @@
+import type {
+  BroadcastNotificationPayloads,
+  PersonalNotificationKind,
+  PersonalNotificationPayloads,
+} from '@ens-apps/shared-schema/notifications'
 import { vValidator } from '@hono/valibot-validator'
 import { and, desc, eq, inArray, isNull, lt, sql } from 'drizzle-orm'
 import * as v from 'valibot'
@@ -7,14 +12,10 @@ import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
 import { createNotification } from '#services/notifications/create.js'
 import type { DiscriminatedPayloadMapper } from '#types/helpers.js'
-import type {
-  Broadcasts,
-  NotificationKind,
-  NotificationPayloads,
-  UserNotifications,
-} from '#types/notifications.js'
 import channels from './channels.js'
 import preferences from './preferences.js'
+
+const PAGE_SIZE = 20
 
 /**
  * Notification routes for managing user notifications and broadcasts.
@@ -51,7 +52,6 @@ export default createApp()
     ),
     async (c) => {
       const { cursor } = c.req.valid('query')
-      const limit = 20 // Fixed page size for consistent performance
       const userId = c.var.user_id
 
       //
@@ -78,7 +78,7 @@ export default createApp()
           cursor ? lt(TABLE.notifications.id, cursor) : undefined,
         ),
         orderBy: desc(TABLE.notifications.id), // Newest first (UUIDv7 is time-ordered)
-        limit: limit,
+        limit: PAGE_SIZE + 1,
       })
 
       //
@@ -104,7 +104,7 @@ export default createApp()
         )
         .where(cursor ? lt(TABLE.broadcasts.id, cursor) : undefined)
         .orderBy(desc(TABLE.broadcasts.id))
-        .limit(limit) // ← cheap, table is tiny (broadcasts are system-wide, not user-specific)
+        .limit(PAGE_SIZE + 1) // ← cheap, table is tiny (broadcasts are system-wide, not user-specific)
 
       //
       // Merge personal and broadcast notifications, then sort by creation time
@@ -112,13 +112,13 @@ export default createApp()
       //
       const merged = [
         ...(personal as DiscriminatedPayloadMapper<
-          UserNotifications,
+          PersonalNotificationPayloads,
           (typeof personal)[number],
           'kind',
           'payload'
         >[]),
         ...(broadcasts as DiscriminatedPayloadMapper<
-          Broadcasts,
+          BroadcastNotificationPayloads,
           (typeof broadcasts)[number],
           'kind',
           'payload'
@@ -133,21 +133,22 @@ export default createApp()
           timestamp: created_at.getTime(),
         }))
 
-      // Apply final limit after merging and sorting
-      const page = merged.slice(0, limit)
+      const notifications = merged.slice(0, PAGE_SIZE)
+      const hasMore = merged.length > PAGE_SIZE
 
       return c.json({
-        notifications: page,
-        // Return the last notification's ID as the next cursor, or null if no more pages
-        nextCursor: page.length ? page[page.length - 1].id : null,
+        notifications,
+        nextCursor: hasMore
+          ? (notifications[notifications.length - 1]?.id ?? null)
+          : null,
       })
     },
   )
   /**
    * GET /notifications/unread-count
    *
-   * Returns the count of unread personal notifications for the authenticated user.
-   * Note: Broadcast notifications are not included in this count as they're handled separately.
+   * Returns the count of unread notifications for the authenticated user.
+   * Includes unread personal notifications and unseen broadcasts.
    *
    * @returns Object with unreadCount number
    */
@@ -155,15 +156,30 @@ export default createApp()
     const userId = c.var.user_id
 
     // Count only personal notifications that haven't been read
-    const unreadCount = await c.var.db.$count(
+    const unreadPersonal = await c.var.db.$count(
       TABLE.notifications,
       and(
         eq(TABLE.notifications.user_id, userId),
         isNull(TABLE.notifications.read_at), // read_at is null for unread notifications
       ),
     )
+    // Count broadcasts the user has not marked as read yet.
+    const unseenBroadcasts = await c.var.db
+      .select({
+        count: sql`count(*)`.mapWith(Number).as('count'),
+      })
+      .from(TABLE.broadcasts)
+      .leftJoin(
+        TABLE.broadcastsSeen,
+        and(
+          eq(TABLE.broadcasts.id, TABLE.broadcastsSeen.broadcast_id),
+          eq(TABLE.broadcastsSeen.user_id, userId),
+        ),
+      )
+      .where(isNull(TABLE.broadcastsSeen.read_at))
+      .then((rows) => rows[0]?.count ?? 0)
 
-    return c.json({ unreadCount })
+    return c.json({ unreadCount: unreadPersonal + unseenBroadcasts })
   })
   /**
    * PATCH /notifications/read
@@ -345,20 +361,18 @@ export default createApp()
     async (c) => {
       const userId = c.var.user_id
       const { kind, payload } = c.req.valid('json')
-      console.log('kind', kind)
-      console.log('payload', payload)
 
       const result = await createNotification({
         db: c.var.db,
         env: c.env,
         userId,
-        kind: kind as NotificationKind,
-        payload: payload as NotificationPayloads[NotificationKind],
+        kind: kind as PersonalNotificationKind,
+        payload:
+          payload as PersonalNotificationPayloads[PersonalNotificationKind],
         idempotencyKey: `test-${kind}-${userId}-${Date.now()}`,
       })
 
       if (result.isErr()) {
-        console.error(result.error)
         return c.json({ error: result.error }, 500)
       }
 

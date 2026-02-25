@@ -36,13 +36,12 @@ export const DeployRegistryForm = ({
             Use custom registry
           </Label>
         </div>
-        {!useCustomRegistry && (
-          <span className="text-sm text-muted-foreground">
-            Deploy a new verified subregistry.
-          </span>
-        )}
       </div>
-
+      {!useCustomRegistry && (
+        <span className="text-sm text-muted-foreground">
+          Deploy a new verified subregistry.
+        </span>
+      )}
       {useCustomRegistry && (
         <div className="flex flex-col gap-3">
           <Label
@@ -60,7 +59,12 @@ export const DeployRegistryForm = ({
         </div>
       )}
 
-      <Button onClick={onSubmit} disabled={isSubmitDisabled} className="w-fit">
+      <Button
+        variant="secondary"
+        onClick={onSubmit}
+        disabled={isSubmitDisabled}
+        className="w-fit"
+      >
         <span className="flex items-center gap-2">
           <CircleCheckIcon className="size-4" />
           {buttonText}

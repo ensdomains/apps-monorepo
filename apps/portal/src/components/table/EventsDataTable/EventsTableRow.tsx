@@ -18,8 +18,8 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
     <>
       <TableRow
         className={cn(
-          'hover:bg-gray-200',
-          tableView.strippedRows && 'even:bg-gray-100',
+          'hover:bg-quartz-100',
+          tableView.strippedRows && 'even:bg-quartz-100',
         )}
       >
         {row.getVisibleCells().map((cell) => (
@@ -40,11 +40,13 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
           const fromAddress = eventAddress ?? row.original.from
 
           const cellClassName = cn('px-6', tableView.compact ? 'py-2' : 'py-4')
+          const totalColumns = row.getVisibleCells().length
+          const trailingColSpan = totalColumns - 4 // 2 leading + 1 event type + 1 address
 
           return (
             <TableRow
               key={`${row.original.transactionID}-${event.id}-${eventIndex}`}
-              className="hover:bg-gray-200"
+              className="hover:bg-quartz-100"
             >
               <TableCell colSpan={2} className={cellClassName} />
 
@@ -61,7 +63,12 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
                 )}
               </TableCell>
 
-              <TableCell colSpan={2} className={cellClassName} />
+              {trailingColSpan > 0 && (
+                <TableCell
+                  colSpan={trailingColSpan}
+                  className={cellClassName}
+                />
+              )}
             </TableRow>
           )
         })}

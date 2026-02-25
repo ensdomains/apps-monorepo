@@ -1,5 +1,6 @@
 import { primaryNameMachine } from '@ens-apps/transaction-manager'
-import { useQuery } from '@tanstack/react-query'
+import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle } from 'lucide-react'
@@ -15,14 +16,25 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  Drawer,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { profileRecordsQuery } from '../../service/profileRecords'
 import {
+  getEthAddressFromRecords,
   handlePrimaryNameCancel,
   handleSetPrimaryName,
-  hasEthAddressRecord,
+  hasMatchingEthAddress,
 } from '../ProfileEdit.handlers'
+import { saveRecords } from '../ProfileEdit.transactions'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 interface SetPrimaryNameDialogProps {
@@ -37,17 +49,21 @@ function usePrimaryNameSuccessRedirect(params: {
   onUpdated?: () => void
   navigate: ReturnType<typeof useNavigate>
   setOpen: (open: boolean) => void
+  queryClient: ReturnType<typeof useQueryClient>
 }) {
-  const { isSuccess, name, navigate, onUpdated, setOpen } = params
+  const { isSuccess, name, navigate, onUpdated, setOpen, queryClient } = params
 
   useEffect(() => {
     if (!isSuccess) return
 
+    queryClient.invalidateQueries({
+      queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
+    })
     onUpdated?.()
     setOpen(false)
     toast.success('Primary name set successfully')
     navigate({ to: '/p/$name', params: { name } })
-  }, [isSuccess, name, navigate, onUpdated, setOpen])
+  }, [isSuccess, name, navigate, onUpdated, setOpen, queryClient])
 }
 
 export const SetPrimaryNameDialog = ({
@@ -57,7 +73,9 @@ export const SetPrimaryNameDialog = ({
 }: SetPrimaryNameDialogProps) => {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const account = useSmartAccountContext()
+  const isDesktop = useMediaQuery('(min-width: 768px)')
 
   const primaryNameActor = useActorRef(primaryNameMachine, {
     input: { chainId: customSepolia.id },
@@ -82,8 +100,6 @@ export const SetPrimaryNameDialog = ({
     ...profileRecordsQuery(name),
     enabled: open,
   })
-  const showNoEthWarning =
-    open && !isLoadingRecords && !hasEthAddressRecord(records)
 
   usePrimaryNameSuccessRedirect({
     isSuccess,
@@ -91,16 +107,59 @@ export const SetPrimaryNameDialog = ({
     navigate,
     onUpdated,
     setOpen,
+    queryClient,
   })
 
-  const handleSave = () => {
+  const walletAddress = account.ownerAddress as Address | undefined
+  const existingEthAddress = getEthAddressFromRecords(records)
+  const needsEthAddressUpdate =
+    open && !isLoadingRecords && !hasMatchingEthAddress(records, walletAddress)
+  const updateEthAddressMutation = useMutation({
+    mutationFn: async () => {
+      if (!walletAddress || !account.signer || !account.accountAddress) return
+
+      await saveRecords({
+        name,
+        before: {
+          texts: [],
+          coins: existingEthAddress
+            ? [{ coinType: 60, value: existingEthAddress }]
+            : [],
+        },
+        after: { texts: [], coins: [{ coinType: 60, value: walletAddress }] },
+        signer: account.signer,
+        accountAddress: account.accountAddress,
+        publicClient: publicClient as PublicClient,
+        chainId: customSepolia.id,
+        resolverAddress: records?.resolverAddress,
+      })
+    },
+    onError: (error) => {
+      console.error('Failed to set ETH address record:', error)
+      toast.error('Failed to set ETH address record')
+    },
+  })
+
+  const handleSave = async () => {
+    if (needsEthAddressUpdate && walletAddress) {
+      if (!account.signer || !account.accountAddress) {
+        toast.error('Wallet signer not available')
+        return
+      }
+
+      try {
+        await updateEthAddressMutation.mutateAsync()
+      } catch {
+        return
+      }
+    }
+
     handleSetPrimaryName(
       { name, owner },
       {
         account,
         primaryNameActor,
         publicClient: publicClient as PublicClient,
-        records,
       },
     )
   }
@@ -110,53 +169,87 @@ export const SetPrimaryNameDialog = ({
     handlePrimaryNameCancel(primaryNameActor)
   }
 
-  return (
-    <Dialog onOpenChange={setOpen} open={open}>
-      <DialogTrigger asChild>
-        <Button className="w-full" variant="outline">
-          Set Primary Name
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Set Primary Name</DialogTitle>
-        </DialogHeader>
-        <UpdateStatusPanel
-          errorMessage={machineErrorMessage}
-          isSaving={isSubmitting}
-          isSuccess={isSuccess}
-          txHash={txHash}
-        />
-        <p className="text-muted-foreground text-sm">
-          This will set <span className="font-mono">{name}</span> as your
-          primary ENS name for this account, so compatible apps and wallets can
-          display it as your default identity.
-        </p>
-        {showNoEthWarning && (
-          <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3">
-            <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
-            <p className="text-red-800 text-sm">
-              This name doesn&apos;t have an ETH address record set. Please add
-              one before setting it as your primary name.
+  const triggerButton = (
+    <Button className="w-full" variant="outline">
+      Set Primary Name
+    </Button>
+  )
+
+  const content = (
+    <>
+      <UpdateStatusPanel
+        errorMessage={machineErrorMessage}
+        isSaving={isSubmitting}
+        isSuccess={isSuccess}
+        txHash={txHash}
+      />
+      <p className="text-muted-foreground text-sm">
+        This will set <span className="font-mono">{name}</span> as your primary
+        ENS name for this account, so compatible apps and wallets can display it
+        as your default identity.
+      </p>
+      {needsEthAddressUpdate && walletAddress && (
+        <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3">
+          <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+          <div className="text-amber-800 text-sm">
+            <p>
+              {existingEthAddress
+                ? 'The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name.'
+                : 'No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name.'}
             </p>
+            <div className="mt-2 rounded-md bg-amber-100/60 px-2.5 py-1.5">
+              <p className="break-all font-mono text-amber-900 text-xs">
+                {walletAddress}
+              </p>
+            </div>
           </div>
-        )}
-        <DialogFooter>
-          <Button
-            disabled={isSubmitting}
-            onClick={handleCancel}
-            variant="outline"
-          >
-            Cancel
-          </Button>
-          <Button
-            disabled={isSubmitting || showNoEthWarning}
-            onClick={handleSave}
-          >
-            {isSubmitting ? 'Setting…' : 'Set as Primary'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      )}
+    </>
+  )
+
+  const isBusy = isSubmitting || updateEthAddressMutation.isPending
+
+  const footer = (
+    <>
+      <Button disabled={isBusy} onClick={handleCancel} variant="outline">
+        Cancel
+      </Button>
+      <Button disabled={isBusy} onClick={handleSave}>
+        {updateEthAddressMutation.isPending
+          ? 'Setting ETH address…'
+          : isSubmitting
+            ? 'Setting…'
+            : 'Set as Primary'}
+      </Button>
+    </>
+  )
+
+  if (isDesktop) {
+    return (
+      <Dialog onOpenChange={setOpen} open={open}>
+        <DialogTrigger asChild>{triggerButton}</DialogTrigger>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Set Primary Name</DialogTitle>
+          </DialogHeader>
+          {content}
+          <DialogFooter>{footer}</DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
+  return (
+    <Drawer onOpenChange={setOpen} open={open}>
+      <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
+      <DrawerContent>
+        <DrawerHeader>
+          <DrawerTitle>Set Primary Name</DrawerTitle>
+        </DrawerHeader>
+        <div className="px-4">{content}</div>
+        <DrawerFooter>{footer}</DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   )
 }

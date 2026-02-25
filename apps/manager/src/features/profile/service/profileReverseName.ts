@@ -1,10 +1,12 @@
+import { DEDICATED_RESOLVER_ABI } from '@ens-apps/transaction-manager/contracts/abis/DedicatedResolver.abi'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromPromise, ok } from 'neverthrow'
-import type { Address } from 'viem'
+import { type Address, namehash } from 'viem'
 import { readContract } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { getResolver } from './profileResolver'
 
 const REVERSE_RESOLVER_ADDRESS = '0x7cd0016f722f34394110738eec10265b00c6c7d9'
 
@@ -52,6 +54,33 @@ export const getReverseName = ResultFn(async function* (address?: Address) {
   const [name] = result ?? []
 
   if (!name) {
+    return ok(null)
+  }
+
+  // Forward-confirmed reverse resolution (ENSIP-3):
+  // Verify the name's ETH record resolves back to this address.
+  const resolverAddress = yield* getResolver(name)
+
+  if (!resolverAddress) {
+    return ok(null)
+  }
+
+  const node = namehash(name)
+
+  const forwardAddress = yield* await fromPromise(
+    readContract(client, {
+      address: resolverAddress,
+      abi: DEDICATED_RESOLVER_ABI,
+      functionName: 'addr',
+      args: [node],
+    }),
+    (e) => new ReverseResolverError({ cause: e }),
+  )
+
+  if (
+    !forwardAddress ||
+    forwardAddress.toLowerCase() !== address.toLowerCase()
+  ) {
     return ok(null)
   }
 

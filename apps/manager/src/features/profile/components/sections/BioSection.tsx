@@ -1,4 +1,5 @@
-import { X } from 'lucide-react'
+import { CircleUserRound, Globe } from 'lucide-react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
   Card,
   CardContent,
@@ -7,102 +8,121 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { FloatingTextarea } from '@/components/ui/floating-textarea'
-import { AddTextRecordsDialog } from '@/features/profile/components/dialogs/AddTextRecordsDialog'
+import { AddTextRecordsPills } from '@/features/profile/components/AddTextRecordsPills'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
+import { entryAnimation } from '@/features/profile/components/motion'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
-import { getAvailableRecords, getRecordDef } from '../../data/records'
+import { validateUrl } from '@/features/profile/utils/validateUrl'
+
+const bioRecords = [
+  { key: 'description', name: 'Bio', icon: CircleUserRound },
+  { key: 'url', name: 'Website', icon: Globe },
+] as const
+
+const fieldMap = {
+  description: 'base.description',
+  url: 'base.url',
+} as const
 
 export const BioSection = withForm({
   ...sharedOptions,
-  render: ({ form }) => (
-    <Card className="border-[0.25px] border-border bg-white shadow-none">
-      <CardHeader>
-        <CardTitle className="text-base tracking-tight">Bio</CardTitle>
-        <CardDescription className="text-base">
-          Add a bio to your profile
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <form.Field name="base.description">
-          {(field) => (
-            <div className="flex items-start gap-3 pt-1">
-              <FloatingTextarea
-                className="flex-1"
-                label="Short Description"
-                onChange={(e) => {
-                  field.handleChange(e.target.value)
-                }}
-                placeholder="Add a short bio to your profile"
-                value={field.state.value}
-              />
-              <button
-                aria-label="Clear bio"
-                className="mt-5 text-muted-foreground transition-colors hover:text-foreground"
-                onClick={() => field.handleChange('')}
-                type="button"
-              >
-                <X className="size-3" />
-              </button>
-            </div>
-          )}
-        </form.Field>
+  render: ({ form }) => {
+    const reduceMotion = useReducedMotion()
 
-        <form.Field name="base.url">
-          {(field) => (
-            <RecordEntry
-              name="website"
-              onChange={field.handleChange}
-              onRemove={() => field.handleChange('')}
-              placeholder="https://"
-              value={field.state.value}
-            />
-          )}
-        </form.Field>
+    return (
+      <Card className="border-[0.25px] border-border bg-white shadow-none">
+        <CardHeader>
+          <CardTitle className="text-base tracking-tight">Bio</CardTitle>
+          <CardDescription className="text-base">
+            Add a bio to your profile
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <form.Field name="base">
+            {(baseField) => {
+              const activeKeys = bioRecords
+                .filter(
+                  ({ key }) =>
+                    baseField.state.value[
+                      key as keyof typeof baseField.state.value
+                    ] !== undefined,
+                )
+                .map(({ key }) => key)
 
-        <form.Field mode="array" name="contact">
-          {(contactField) => (
-            <>
-              {contactField.state.value.map(
-                ({ key }: { key: string }, i: number) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
-                  <form.Field key={i} name={`contact[${i}].value`}>
-                    {(field) => {
-                      const record = getRecordDef(key)
-                      if (!record) return null
-                      return (
-                        <RecordEntry
-                          name={record.name}
-                          onChange={field.handleChange}
-                          onRemove={() => {
-                            contactField.removeValue(i)
-                          }}
-                          placeholder={record.placeholder}
-                          value={field.state.value}
-                        />
-                      )
+              return (
+                <>
+                  <AddTextRecordsPills
+                    activeKeys={[...activeKeys]}
+                    onAdd={(keys) => {
+                      for (const key of keys) {
+                        const field = fieldMap[key as keyof typeof fieldMap]
+                        if (field) form.setFieldValue(field, '')
+                      }
                     }}
-                  </form.Field>
-                ),
-              )}
-              <AddTextRecordsDialog
-                buttonLabel="Add more"
-                onAdd={(keys) => {
-                  for (const key of keys) {
-                    contactField.pushValue({ key, value: '' })
-                  }
-                }}
-                records={getAvailableRecords(
-                  contactField.state.value.map(
-                    ({ key }: { key: string }) => key,
-                  ),
-                  'contact',
-                )}
-                title="Add Contact Information"
-              />
-            </>
-          )}
-        </form.Field>
-      </CardContent>
-    </Card>
-  ),
+                    onRemove={(key) => {
+                      const field = fieldMap[key as keyof typeof fieldMap]
+                      if (field) form.setFieldValue(field, undefined)
+                    }}
+                    records={[...bioRecords]}
+                  />
+
+                  <AnimatePresence initial={false} mode="popLayout">
+                    {activeKeys.includes('description') && (
+                      <motion.div key="bio" {...entryAnimation(reduceMotion)}>
+                        <form.Field name="base.description">
+                          {(field) => (
+                            <div className="pt-1">
+                              <FloatingTextarea
+                                className="flex-1"
+                                label="Short Description"
+                                onChange={(e) => {
+                                  field.handleChange(e.target.value)
+                                }}
+                                placeholder="Add a short bio to your profile"
+                                value={field.state.value}
+                              />
+                            </div>
+                          )}
+                        </form.Field>
+                      </motion.div>
+                    )}
+
+                    {activeKeys.includes('url') && (
+                      <motion.div
+                        key="website"
+                        {...entryAnimation(reduceMotion)}
+                      >
+                        <form.Field
+                          name="base.url"
+                          validators={{
+                            onBlur: ({ value }) => validateUrl(value),
+                          }}
+                        >
+                          {(field) => (
+                            <RecordEntry
+                              error={
+                                field.state.meta.isTouched &&
+                                field.state.meta.errors.length > 0
+                                  ? field.state.meta.errors[0]
+                                  : undefined
+                              }
+                              name="Website"
+                              onBlur={field.handleBlur}
+                              onChange={field.handleChange}
+                              placeholder="https://"
+                              value={field.state.value}
+                            />
+                          )}
+                        </form.Field>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </>
+              )
+            }}
+          </form.Field>
+        </CardContent>
+      </Card>
+    )
+  },
 })

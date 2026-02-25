@@ -1,42 +1,29 @@
-import type { ChannelData, UserChannel } from '#types/notifications.js'
+import type {
+  ChannelData,
+  ChannelType as UserChannel,
+} from '@ens-apps/shared-schema/notifications'
 import { logger } from '#utils/logger.js'
-
-const channelSanitizers = {
-  email: (target, data) => {
-    if (!target) {
-      logger.warn('Email target is undefined', { target, data })
-      return 'Unknown Email'
-    }
-    // sanitize email by only showing the domain and the first letter of the username
-    const parts = target.split('@')
-    if (parts.length !== 2) {
-      logger.warn('Email target is invalid', { target, data })
-      return 'Unknown Email'
-    }
-    const username = parts[0]
-    const domain = parts[1]
-
-    return `${username.slice(0, 1)}${'*'.repeat(username.length - 1)}@${domain}`
-  },
-  telegram: (_target, data) => {
-    return `@${data.username}`
-  },
-  push: (_target, _data) => {
-    // TODO: sanitize push token
-    return 'Push Notification'
-  },
-} satisfies {
-  [K in UserChannel]: (target: string | null, data: ChannelData[K]) => any
-}
 
 export const sanitizeChannel = <T extends UserChannel>(
   channel: T,
   target: string | null,
   data: ChannelData[T],
 ) => {
-  return channelSanitizers[channel](
-    target,
-    // @ts-expect-error - we know the channel is valid
-    data as ChannelData[UserChannel],
-  ) as ReturnType<(typeof channelSanitizers)[T]>
+  switch (channel) {
+    case 'email': {
+      if (!target) {
+        logger.warn('Email target is undefined', {
+          hasData: Boolean(data),
+        })
+        return 'Unknown Email'
+      }
+      return target
+    }
+    case 'telegram':
+      return `@${(data as ChannelData['telegram']).username}`
+    case 'push':
+      return 'Push Notification'
+    default:
+      return String(target ?? 'Unknown')
+  }
 }

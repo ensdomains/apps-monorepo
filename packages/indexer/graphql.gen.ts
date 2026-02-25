@@ -22,6 +22,12 @@ export type Account = {
   registrations: Array<Registration>;
 };
 
+
+export type AccountRegistrationsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+};
+
 export type CoinAddress = {
   __typename?: 'CoinAddress';
   address: Scalars['String']['output'];
@@ -33,6 +39,7 @@ export type Domain = {
   canonicalId?: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['Int']['output'];
   events: Array<Event>;
+  eventsCount: Scalars['Int']['output'];
   expiryDate?: Maybe<Scalars['Int']['output']>;
   id: Scalars['String']['output'];
   isMigrated: Scalars['Boolean']['output'];
@@ -47,6 +54,7 @@ export type Domain = {
   resolvedAddress?: Maybe<Account>;
   resolver?: Maybe<Resolver>;
   subdomains: Array<Domain>;
+  subdomainsCount: Scalars['Int']['output'];
   tokenId?: Maybe<Scalars['String']['output']>;
   tokenVersion?: Maybe<Scalars['Int']['output']>;
   ttl?: Maybe<Scalars['Int']['output']>;
@@ -72,6 +80,10 @@ export type DomainEdge = {
 };
 
 export type DomainFilter = {
+  expiry_gt?: InputMaybe<Scalars['Int']['input']>;
+  expiry_gte?: InputMaybe<Scalars['Int']['input']>;
+  expiry_lt?: InputMaybe<Scalars['Int']['input']>;
+  expiry_lte?: InputMaybe<Scalars['Int']['input']>;
   hasSubdomains?: InputMaybe<Scalars['Boolean']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   name_contains?: InputMaybe<Scalars['String']['input']>;
@@ -98,10 +110,24 @@ export type EacRoleAssignment = {
   account: Scalars['String']['output'];
   blockNumber: Scalars['Int']['output'];
   id: Scalars['String']['output'];
+  name?: Maybe<Scalars['String']['output']>;
   resource: Scalars['String']['output'];
   roleBitmap: Scalars['String']['output'];
   timestamp: Scalars['Int']['output'];
   transactionHash: Scalars['String']['output'];
+};
+
+export type EacRoleAssignmentConnection = {
+  __typename?: 'EACRoleAssignmentConnection';
+  edges: Array<EacRoleAssignmentEdge>;
+  pageInfo: PageInfo;
+  totalCount?: Maybe<Scalars['Int']['output']>;
+};
+
+export type EacRoleAssignmentEdge = {
+  __typename?: 'EACRoleAssignmentEdge';
+  cursor: Scalars['String']['output'];
+  node: EacRoleAssignment;
 };
 
 export type Event = {
@@ -109,6 +135,7 @@ export type Event = {
   blockNumber: Scalars['Int']['output'];
   chain: Scalars['String']['output'];
   contractAddress: Scalars['String']['output'];
+  data?: Maybe<Scalars['String']['output']>;
   domain?: Maybe<Domain>;
   id: Scalars['String']['output'];
   name?: Maybe<Scalars['String']['output']>;
@@ -170,6 +197,7 @@ export type Query = {
   registrations: Array<Registration>;
   registries: Array<RegistryInfo>;
   resolvers: Array<ResolverInfo>;
+  roleConnection: EacRoleAssignmentConnection;
   roles: Array<EacRoleAssignment>;
 };
 
@@ -258,6 +286,16 @@ export type QueryRegistriesArgs = {
 
 export type QueryResolversArgs = {
   account: Scalars['String']['input'];
+};
+
+
+export type QueryRoleConnectionArgs = {
+  account?: InputMaybe<Scalars['String']['input']>;
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  resource?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -407,6 +445,13 @@ export type DomainsQuery = { __typename?: 'Query', domains: Array<(
     & DomainFragment
   )> };
 
+export type OwnedNamesCountQueryVariables = Exact<{
+  where: RegistrationFilter;
+}>;
+
+
+export type OwnedNamesCountQuery = { __typename?: 'Query', registrationConnection: { __typename?: 'RegistrationConnection', totalCount?: number | null } };
+
 export const Resolver = gql`
     fragment Resolver on Resolver {
   id
@@ -460,3 +505,10 @@ export const DomainsDocument = gql`
   }
 }
     ${Domain}`;
+export const OwnedNamesCountDocument = gql`
+    query OwnedNamesCount($where: RegistrationFilter!) {
+  registrationConnection(first: 0, where: $where) {
+    totalCount
+  }
+}
+    `;

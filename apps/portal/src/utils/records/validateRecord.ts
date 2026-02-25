@@ -1,4 +1,8 @@
 import { getCoderByCoinName } from '@ensdomains/address-encoder'
+import {
+  getProtocolType,
+  isValidContentHash as isValidEncodedContentHash,
+} from '@ensdomains/ensjs/utils'
 import { getAddress } from 'viem'
 import type { EditableRecord } from './editRecordUtils'
 
@@ -79,46 +83,48 @@ function validateCryptoAddress(coin: string, address: string): string | null {
 }
 
 /**
- * Validates a contentHash value.
- * Must use a supported protocol (ipfs://, ipns://, ar://, onion://, sia://).
+ * Validates a contentHash value per ENSIP-7.
+ * Uses ensjs's getProtocolType for protocol validation, which supports:
+ * ipfs://, ipns://, bzz://, onion://, onion3://, sia://, ar://, arweave://,
+ * and /ipfs/..., /ipns/... path formats.
+ * Also accepts raw hex (0x...).
  */
 function isValidContentHash(value: string): boolean {
   if (!value) return true // Empty is valid (means deletion)
 
-  // Check for supported protocols
-  const supportedProtocols = [
-    'ipfs://',
-    'ipns://',
-    'ar://',
-    'onion://',
-    'sia://',
-  ]
-  const hasValidProtocol = supportedProtocols.some((protocol) =>
-    value.startsWith(protocol),
-  )
-
-  if (!hasValidProtocol) {
-    return false
+  // Validate raw hex via ensjs (checks for valid multicodec prefix, not just any hex)
+  if (value.startsWith('0x')) {
+    try {
+      return isValidEncodedContentHash(value)
+    } catch {
+      return false
+    }
   }
 
-  // Basic check that there's content after the protocol
-  const protocolIndex = value.indexOf('://')
-  const content = value.slice(protocolIndex + 3)
-  return content.length > 0
+  // Use ensjs's protocol matching (supports all ENSIP-7 protocols)
+  const result = getProtocolType(value)
+  return result !== null && result.decoded.length > 0
 }
 
 /**
- * Validates an ABI value - must be valid JSON.
+ * Validates an ABI value - must be a valid JSON array.
+ * Returns a specific error message if invalid, or null if valid.
  */
-function isValidAbi(value: string): boolean {
-  if (!value) return true // Empty is valid (means deletion)
+function validateAbi(value: string): string | null {
+  if (!value) return null
 
+  let parsed: unknown
   try {
-    JSON.parse(value)
-    return true
+    parsed = JSON.parse(value)
   } catch {
-    return false
+    return 'Invalid JSON format. ABI must be a valid JSON array.'
   }
+
+  if (!Array.isArray(parsed)) {
+    return 'ABI must be a JSON array (starting with [ and ending with ]).'
+  }
+
+  return null
 }
 
 /**
@@ -165,14 +171,13 @@ export function validateRecord(record: EditableRecord): string | null {
 
   if (type === 'contentHash') {
     if (!isValidContentHash(value)) {
-      return 'Invalid contentHash. Must start with ipfs://, ipns://, ar://, onion://, or sia:// followed by a valid identifier'
+      return 'Invalid content hash. Supported protocols: ipfs://, ipns://, bzz://, onion://, onion3://, sia://, ar://'
     }
   }
 
   if (type === 'abi') {
-    if (!isValidAbi(value)) {
-      return 'Invalid JSON format'
-    }
+    const abiError = validateAbi(value)
+    if (abiError) return abiError
   }
 
   return null

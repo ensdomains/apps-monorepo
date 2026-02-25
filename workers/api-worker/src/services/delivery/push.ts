@@ -1,11 +1,11 @@
 import { buildPushPayload } from '@block65/webcrypto-web-push'
+import type { AnyPersonalNotificationPayload } from '@ens-apps/shared-schema/notifications'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
 import { ok } from 'neverthrow'
 import type { Database } from '#core/database/index.js'
 import { TABLE } from '#core/database/index.js'
 import type { PushDeliveryJob } from '#types/delivery.js'
-import type { AnyUserNotificationPayload } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
 import {
   NotificationDeliveryNotFoundError,
@@ -76,7 +76,7 @@ export const deliverPushNotification = ResultFn(async function* (
 
   // 4. generate notification content
   const notificationData = template(
-    deliveryJob.notification.payload as AnyUserNotificationPayload,
+    deliveryJob.notification.payload as AnyPersonalNotificationPayload,
   )
 
   // 5. build the Web Push subscription object
@@ -144,7 +144,7 @@ export const deliverPushNotification = ResultFn(async function* (
     })
     .where(eq(TABLE.notificationDeliveries.id, job.id))
 
-  logger.info('Push notification delivered', {
+  logger.debug('Push notification delivered', {
     jobId: job.id,
     kind: job.kind,
     endpoint: `${deliveryJob.target.substring(0, 50)}...`,

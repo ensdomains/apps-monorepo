@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import * as Drawer from '@/components/ui/drawer'
 import * as Popover from '@/components/ui/popover'
-import { NotificationsDropdown } from '@/features/notifications/components/notification-dropdown'
+import { NotificationsDropdown } from '@/features/notifications/dropdown/notification-dropdown'
 import { NotificationsTriggerButton } from './NotificationsTriggerButton'
 
 interface NotificationsSectionProps {
