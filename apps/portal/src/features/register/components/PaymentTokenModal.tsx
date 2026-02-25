@@ -17,7 +17,11 @@ import {
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
-import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
+import {
+  EST_GAS_USD,
+  EST_NETWORK_FEE_USD,
+  formatTotalWithGasAndFees,
+} from '@/features/register/utils/registrationPrice'
 import { buildTokenData } from '@/features/register/utils/tokenData'
 import {
   DAI_DECIMALS,
@@ -25,6 +29,7 @@ import {
   USDC_DECIMALS,
 } from '@/lib/constants/tokens'
 import { cn } from '@/lib/utils'
+import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
 type PaymentModalStep = 'select_token' | 'confirm_purchase'
 
@@ -216,11 +221,16 @@ export const PaymentTokenModal = ({
                   ) : (
                     <>
                       <p className="font-medium">
-                        {formatPriceDisplay(
-                          token.price.total,
+                        {formatTotalWithGasAndFees(
+                          token.price.base,
+                          token.price.premium,
+                          EST_GAS_USD + EST_NETWORK_FEE_USD,
                           token.price.decimals,
                         )}{' '}
                         USD
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        incl. est. gas & network fee
                       </p>
                       {!hasSufficientBalance && (
                         <p className="text-destructive text-xs">
@@ -260,20 +270,42 @@ export const PaymentTokenModal = ({
             </div>
 
             <div className="flex flex-col items-center gap-1">
-              <span className="text-muted-foreground text-sm">for</span>
+              <span className="text-muted-foreground text-sm">Est. total</span>
               <div className="flex items-baseline gap-1">
                 <selectedTokenData.Icon className="size-6 shrink-0" />
                 <span className="font-medium text-2xl tracking-tight">
-                  {formatPriceDisplay(
-                    selectedTokenData.price.total,
+                  {formatTotalWithGasAndFees(
+                    selectedTokenData.price.base,
+                    selectedTokenData.price.premium,
+                    EST_GAS_USD + EST_NETWORK_FEE_USD,
                     selectedTokenData.price.decimals,
                   )}
                 </span>
-                <span className="text-muted-foreground text-lg">
-                  {selectedTokenData.symbol}
-                </span>
+                <span className="text-muted-foreground text-lg">USD</span>
               </div>
             </div>
+
+            <dl className="w-full space-y-2 border-t border-border pt-4">
+              <div className="flex items-center justify-between text-sm">
+                <dt className="text-muted-foreground">Est. gas cost</dt>
+                <dd className="font-mono">~{formatUsd(EST_GAS_USD)}</dd>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <dt className="text-muted-foreground">Est. network fee</dt>
+                <dd className="font-mono">~{formatUsd(EST_NETWORK_FEE_USD)}</dd>
+              </div>
+              <div className="flex items-center justify-between border-t border-border pt-2 font-medium">
+                <dt>Est. total</dt>
+                <dd className="font-mono">
+                  {formatTotalWithGasAndFees(
+                    selectedTokenData.price.base,
+                    selectedTokenData.price.premium,
+                    EST_GAS_USD + EST_NETWORK_FEE_USD,
+                    selectedTokenData.price.decimals,
+                  )}
+                </dd>
+              </div>
+            </dl>
           </div>
 
           <div className="flex flex-col gap-2">

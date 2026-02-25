@@ -3,6 +3,9 @@ import type { RegistrationPriceResult } from '@/features/register/hooks/useRegis
 import { USDC_DECIMALS } from '@/lib/constants/tokens'
 import { formatUsd, formatUsdCeil } from '@/utils/formatting/formatUsdCeil'
 
+export const EST_GAS_USD = 0.05
+export const EST_NETWORK_FEE_USD = 0.05
+
 /**
  * Formats a raw token amount (smallest units) as USD for display.
  */

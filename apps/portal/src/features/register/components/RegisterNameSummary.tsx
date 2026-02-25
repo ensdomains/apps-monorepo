@@ -17,6 +17,8 @@ import {
 } from '@/features/register/hooks/useRegistrationPrice'
 import { getPremiumLabel } from '@/features/register/utils/premium'
 import {
+  EST_GAS_USD,
+  EST_NETWORK_FEE_USD,
   formatPriceDisplay,
   formatTotalWithGasAndFees,
   isPriceResult,
@@ -32,9 +34,6 @@ type RegisterNameCheckoutSummaryProps = {
   readonly durationLabel: string
   readonly onContinue: (selectedToken: Address, tokenPrice: bigint) => void
 }
-
-const EST_GAS_USD = 0.05
-const EST_NETWORK_FEE_USD = 0.05
 
 /** ENS docs explaining premium pricing for short names */
 const ENS_PREMIUM_PRICING_DOCS_URL =
