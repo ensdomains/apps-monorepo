@@ -1,4 +1,5 @@
-import type { Hash } from 'viem'
+import type { ITaggedError } from '@ens-apps/utils/neverthrow/error-classes'
+import type { Hash, UserRejectedRequestError } from 'viem'
 import type { TransactionRequest } from '../types/transaction.types'
 
 // Base error class for transaction errors
@@ -49,5 +50,18 @@ export class EthCallFallbackError extends TransactionError {
 export class ImportError extends TransactionError {
   constructor({ cause }: { cause?: unknown }) {
     super('Failed to import data', cause)
+  }
+}
+
+export class TransactionUserRejectedError
+  extends TransactionError
+  implements ITaggedError
+{
+  readonly _tag = 'TransactionUserRejectedError'
+  constructor(
+    public readonly request: TransactionRequest,
+    cause?: UserRejectedRequestError,
+  ) {
+    super('User rejected transaction', cause)
   }
 }

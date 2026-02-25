@@ -13,6 +13,10 @@ type DefaultErrorBody = {
 
 type AnyErrorBody = Record<string & {}, unknown>
 
+export interface ITaggedError {
+  readonly _tag: string
+}
+
 /**
  * Base error class that can be yielded in generator functions.
  *

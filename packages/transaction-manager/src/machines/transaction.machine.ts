@@ -11,6 +11,7 @@ import {
   TransactionRevertedError,
   TransactionSubmissionError,
   TransactionTimeoutError,
+  TransactionUserRejectedError,
 } from '../errors/transaction.errors'
 import * as auditTrail from '../services/audit-trail.service'
 import type { Signer } from '../types/signer.types'
@@ -291,22 +292,12 @@ export const transactionMachine = setup({
     ),
   },
   guards: {
-    canRetry: ({ context }) =>
-      context.retryCount < (context.options.retryCount || 3),
+    canRetry: ({ context, event }) => {
+      if (event instanceof TransactionUserRejectedError) {
+        return false
+      }
 
-    /** Don't retry when user explicitly rejected in wallet (e.g. MetaMask) */
-    isUserRejection: ({ event }) => {
-      const error =
-        event && 'error' in event ? (event as { error?: Error }).error : null
-      if (!error) return false
-      const msg = String(
-        error instanceof Error ? error.message : error,
-      ).toLowerCase()
-      return (
-        msg.includes('user rejected') ||
-        msg.includes('user denied') ||
-        msg.includes('rejected the request')
-      )
+      return context.retryCount < (context.options.retryCount || 3)
     },
 
     shouldCheckFallback: ({ context }) => context.fallbackChecks < 3,
@@ -575,17 +566,6 @@ export const transactionMachine = setup({
         },
         onError: [
           {
-            guard: 'isUserRejection',
-            target: 'error.submission',
-            actions: [
-              assign({
-                error: ({ event }) => event.error as Error,
-              }),
-              'logCritical',
-              'recordTransition',
-            ],
-          },
-          {
             guard: 'canRetry',
             target: 'retrying',
             actions: [
@@ -667,10 +647,6 @@ export const transactionMachine = setup({
           target: 'success',
           actions: 'recordTransition',
         },
-        CANCEL: {
-          target: 'error.cancelled',
-          actions: 'recordTransition',
-        },
       },
     },
 
@@ -716,12 +692,6 @@ export const transactionMachine = setup({
         ],
         onError: {
           target: 'pending',
-          actions: 'recordTransition',
-        },
-      },
-      on: {
-        CANCEL: {
-          target: 'error.cancelled',
           actions: 'recordTransition',
         },
       },
@@ -773,12 +743,6 @@ export const transactionMachine = setup({
         input: ({ context }) => context.options.retryDelay || 2000,
         onDone: {
           target: 'submitting',
-          actions: 'recordTransition',
-        },
-      },
-      on: {
-        CANCEL: {
-          target: 'error.cancelled',
           actions: 'recordTransition',
         },
       },
