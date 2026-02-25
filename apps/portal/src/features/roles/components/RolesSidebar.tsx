@@ -32,7 +32,10 @@ import { grantRoles } from '@/features/roles/helpers/grantRoles'
 import { revokeRoles } from '@/features/roles/helpers/revokeRoles'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { permissions } from '@/lib/roles/permissions'
-import { roleToPermissions } from '@/lib/roles/rolesToPermissions'
+import {
+  hasPermissionsChanged,
+  roleToPermissions,
+} from '@/lib/roles/rolesToPermissions'
 import { namechainSepolia } from '@/lib/wagmi'
 
 type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
@@ -86,28 +89,7 @@ export const RolesSidebar = <
   // Check if there are unsaved changes
   const hasChanges = useMemo(() => {
     const originalPermissions = roleToPermissions(originalRoles)
-    for (const [key, original] of originalPermissions) {
-      const edited = editedPermissions.get(key)
-      if (
-        !edited ||
-        original.admin !== edited.admin ||
-        original.manager !== edited.manager
-      ) {
-        return true
-      }
-    }
-    // Also check if there are new permissions in edited that weren't in original
-    for (const [key, edited] of editedPermissions) {
-      const original = originalPermissions.get(key)
-      if (
-        !original ||
-        original.admin !== edited.admin ||
-        original.manager !== edited.manager
-      ) {
-        return true
-      }
-    }
-    return false
+    return hasPermissionsChanged(originalPermissions, editedPermissions)
   }, [originalRoles, editedPermissions])
 
   // Build the list of roles to grant and revoke based on changes

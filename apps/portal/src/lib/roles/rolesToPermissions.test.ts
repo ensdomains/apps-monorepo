@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { roleToPermissions } from './rolesToPermissions'
+import { hasPermissionsChanged, roleToPermissions } from './rolesToPermissions'
 
 describe('roleToPermissions', () => {
   it('should map manager roles (without _ADMIN suffix)', () => {
@@ -39,5 +39,49 @@ describe('roleToPermissions', () => {
 
   it('should handle empty array', () => {
     expect(roleToPermissions([]).size).toBe(0)
+  })
+})
+
+describe('hasPermissionsChanged', () => {
+  it('should return false when permissions are identical', () => {
+    const original = roleToPermissions(['owner_ADMIN', 'owner'])
+    const edited = roleToPermissions(['owner_ADMIN', 'owner'])
+
+    expect(hasPermissionsChanged(original, edited)).toBe(false)
+  })
+
+  it('should return true when admin permission changed', () => {
+    const original = roleToPermissions(['owner_ADMIN'])
+    const edited = roleToPermissions([])
+
+    expect(hasPermissionsChanged(original, edited)).toBe(true)
+  })
+
+  it('should return true when manager permission added', () => {
+    const original = roleToPermissions([])
+    const edited = roleToPermissions(['owner'])
+
+    expect(hasPermissionsChanged(original, edited)).toBe(true)
+  })
+
+  it('should return true when new role added', () => {
+    const original = roleToPermissions(['owner_ADMIN'])
+    const edited = roleToPermissions(['owner_ADMIN', 'manager'])
+
+    expect(hasPermissionsChanged(original, edited)).toBe(true)
+  })
+
+  it('should return false for empty maps', () => {
+    const original = new Map()
+    const edited = new Map()
+
+    expect(hasPermissionsChanged(original, edited)).toBe(false)
+  })
+
+  it('should return true when edited has fewer roles', () => {
+    const original = roleToPermissions(['owner_ADMIN', 'manager'])
+    const edited = roleToPermissions(['owner_ADMIN'])
+
+    expect(hasPermissionsChanged(original, edited)).toBe(true)
   })
 })
