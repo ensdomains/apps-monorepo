@@ -11,18 +11,21 @@ export function formatPriceDisplay(raw: bigint, decimals: number): string {
 }
 
 /**
- * Adds USD amount to a token amount (in smallest units) and formats as USD.
- * Keeps arithmetic on bigint to avoid floating-point issues; formats once at the end.
+ * Adds USD amount to token amounts (in smallest units) and formats as USD.
+ * Uses Math.ceil for base and premium to match formatPriceDisplay, so the
+ * displayed total equals the sum of displayed line items.
  */
 export function formatTotalWithGasAndFees(
-  total: bigint,
+  base: bigint,
+  premium: bigint,
   gasAndFeesUsd: number,
   decimals: number = USDC_DECIMALS,
 ): string {
-  const gasAndFeesInUnits = BigInt(Math.round(gasAndFeesUsd * 10 ** decimals))
-  const totalWithFees = total + gasAndFeesInUnits
-  const totalAsNumber = Number(totalWithFees) / 10 ** decimals
-  return formatUsd(totalAsNumber)
+  const baseUsd = Number(base) / 10 ** decimals
+  const premiumUsd = Number(premium) / 10 ** decimals
+  const registrationCeil = Math.ceil(baseUsd) + Math.ceil(premiumUsd)
+  const totalWithFees = registrationCeil + gasAndFeesUsd
+  return formatUsd(totalWithFees)
 }
 
 export function isPriceResult(

@@ -321,7 +321,8 @@ const PriceBreakdown = ({
           <dd className="flex items-center gap-1 m-0">
             <span className="font-mono text-xl font-bold">
               {formatTotalWithGasAndFees(
-                price.total,
+                price.base,
+                price.premium,
                 EST_GAS_USD + EST_NETWORK_FEE_USD,
                 price.decimals,
               )}

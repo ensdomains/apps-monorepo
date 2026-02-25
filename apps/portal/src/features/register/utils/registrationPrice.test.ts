@@ -81,38 +81,43 @@ describe('isPriceResult', () => {
 })
 
 describe('formatTotalWithGasAndFees', () => {
-  it('adds gas and fees to totalRaw and formats as USD', () => {
-    const totalRaw = 5_000_000n // 5 USDC (USDC_DECIMALS)
-    const result = formatTotalWithGasAndFees(totalRaw, 0.1)
+  it('adds gas and fees to base+premium and formats as USD', () => {
+    const base = 5_000_000n // 5 USDC
+    const premium = 0n
+    const result = formatTotalWithGasAndFees(base, premium, 0.1)
     expect(result).toBe('$5.10')
   })
 
+  it('uses ceil for base and premium to match formatPriceDisplay', () => {
+    const base = 410_000n // 0.41 USDC (displays as $1)
+    const premium = 0n
+    const result = formatTotalWithGasAndFees(base, premium, 0.1)
+    expect(result).toBe('$1.10') // ceil(0.41) + ceil(0) + 0.10 = 1 + 0.10
+  })
+
   it('uses default decimals (USDC) when not specified', () => {
-    const totalRaw = 10_000_000n // 10 USDC
-    const result = formatTotalWithGasAndFees(totalRaw, 0.05)
+    const base = 10_000_000n
+    const premium = 0n
+    const result = formatTotalWithGasAndFees(base, premium, 0.05)
     expect(result).toBe('$10.05')
   })
 
   it('accepts custom decimals for DAI', () => {
-    const totalRaw = 5_000_000_000_000_000_000n // 5 DAI (DAI_DECIMALS)
-    const result = formatTotalWithGasAndFees(totalRaw, 0.1, DAI_DECIMALS)
-    expect(result).toBe('$5.10')
-  })
-
-  it('rounds gas and fees to nearest token unit', () => {
-    const totalRaw = 5_000_000n // 5 USDC
-    const result = formatTotalWithGasAndFees(totalRaw, 0.101, USDC_DECIMALS)
+    const base = 5_000_000_000_000_000_000n // 5 DAI
+    const premium = 0n
+    const result = formatTotalWithGasAndFees(base, premium, 0.1, DAI_DECIMALS)
     expect(result).toBe('$5.10')
   })
 
   it('handles zero gas and fees', () => {
-    const totalRaw = 5_000_000n
-    const result = formatTotalWithGasAndFees(totalRaw, 0)
+    const base = 5_000_000n
+    const premium = 0n
+    const result = formatTotalWithGasAndFees(base, premium, 0)
     expect(result).toBe('$5.00')
   })
 
-  it('handles zero totalRaw', () => {
-    const result = formatTotalWithGasAndFees(0n, 0.1)
+  it('handles zero base and premium', () => {
+    const result = formatTotalWithGasAndFees(0n, 0n, 0.1)
     expect(result).toBe('$0.10')
   })
 })
