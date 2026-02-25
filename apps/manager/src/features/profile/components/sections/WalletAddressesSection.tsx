@@ -1,3 +1,4 @@
+import { AnimatePresence } from 'motion/react'
 import { Badge } from '@/components/ui/badge'
 import {
   Card,
@@ -29,31 +30,32 @@ export const WalletAddressesSection = withForm({
         <form.Field mode="array" name="addresses">
           {(addressField) => (
             <>
-              {addressField.state.value.map(
-                ({ coinType }: { coinType: number }, i: number) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
-                  <form.Field key={i} name={`addresses[${i}].value`}>
-                    {(field) => {
-                      const record = getAddressRecordDef(coinType)
-                      if (!record) return null
-                      return (
-                        <RecordEntry
-                          badge={
-                            <Badge className="uppercase" variant="outline">
-                              {record.notation}
-                            </Badge>
-                          }
-                          name={record.name}
-                          onChange={field.handleChange}
-                          onRemove={() => addressField.removeValue(i)}
-                          placeholder="Enter wallet address"
-                          value={field.state.value}
-                        />
-                      )
-                    }}
-                  </form.Field>
-                ),
-              )}
+              <AnimatePresence initial={false} mode="popLayout">
+                {addressField.state.value.map(
+                  ({ coinType }: { coinType: number }, i: number) => (
+                    <form.Field key={coinType} name={`addresses[${i}].value`}>
+                      {(field) => {
+                        const record = getAddressRecordDef(coinType)
+                        if (!record) return null
+                        return (
+                          <RecordEntry
+                            badge={
+                              <Badge className="uppercase" variant="outline">
+                                {record.notation}
+                              </Badge>
+                            }
+                            name={record.name}
+                            onChange={field.handleChange}
+                            onRemove={() => addressField.removeValue(i)}
+                            placeholder="Enter wallet address"
+                            value={field.state.value}
+                          />
+                        )
+                      }}
+                    </form.Field>
+                  ),
+                )}
+              </AnimatePresence>
               <AddAddressRecordsDialog
                 buttonLabel="Add more"
                 onAdd={(coinTypes) => {
