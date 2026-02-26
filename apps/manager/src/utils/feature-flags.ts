@@ -14,7 +14,7 @@ export const BASE_USER_LISTS = {
   PARA_TEST: [...PARA_TEST_ACCOUNTS.EMAILS, ...PARA_TEST_ACCOUNTS.PHONES],
 } as const
 
-type UserIdentifier = {
+export type UserIdentifier = {
   walletAddress?: string | null
   email?: string | null
   phone?: string | null
@@ -36,9 +36,19 @@ export const FEATURE_FLAGS: Record<string, FeatureFlagConfig | boolean> = {
   SEARCH_RESULTS_BLUR_BACKDROP: {
     enabled: import.meta.env.VITE_FF_SEARCH_RESULTS_BLUR_BACKDROP === 'true',
   },
+  RHINESTONE_SESSIONS: {
+    enabled: import.meta.env.VITE_FF_RHINESTONE_SESSIONS === 'true',
+    allowedUsers: [...BASE_USER_LISTS.TEAM],
+  },
+  USE_WARP_INFRA: {
+    enabled: import.meta.env.VITE_FF_USE_WARP_INFRA === 'true',
+    allowedUsers: [...BASE_USER_LISTS.TEAM],
+  },
 } as const
 
 export type FeatureFlag = keyof typeof FEATURE_FLAGS
+export type SessionProvider = 'zerodev' | 'rhinestone'
+export type TransactionInfra = 'warp' | 'pimlico'
 
 function normalizeIdentifier(id: string): string {
   return id.trim().toLowerCase()
@@ -104,4 +114,38 @@ export function isFeatureEnabled(
   }
 
   return baseEnabled
+}
+
+export function getSessionProvider(
+  identifier?: UserIdentifier,
+): SessionProvider {
+  return isFeatureEnabled('RHINESTONE_SESSIONS', identifier)
+    ? 'rhinestone'
+    : 'zerodev'
+}
+
+export function getTransactionInfra(
+  identifier?: UserIdentifier,
+): TransactionInfra {
+  return isFeatureEnabled('USE_WARP_INFRA', identifier) ? 'warp' : 'pimlico'
+}
+
+/**
+ * Resolves which infrastructure to use for a transaction.
+ * Priority: explicit override > signer default > feature flag
+ */
+export function resolveInfrastructure(
+  options?: { infrastructure?: TransactionInfra },
+  signerDefaultInfra?: TransactionInfra,
+  identifier?: UserIdentifier,
+): TransactionInfra {
+  if (options?.infrastructure) {
+    return options.infrastructure
+  }
+
+  if (signerDefaultInfra) {
+    return signerDefaultInfra
+  }
+
+  return getTransactionInfra(identifier)
 }
