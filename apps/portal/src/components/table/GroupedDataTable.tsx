@@ -17,6 +17,7 @@ import {
   UserLockIcon,
 } from 'lucide-react'
 import { Fragment, type ReactNode, useState } from 'react'
+import type { Address } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { RolesSidebar } from '@/features/roles/components/RolesSidebar'
@@ -34,15 +35,22 @@ import {
 } from '../ui/table'
 
 type GroupedDataTableProps<
-  TData extends { items: string[] },
+  TData extends { items: string[]; account: Address },
   TValue,
 > = DataTableProps<TData, TValue> & {
   itemsWrapper?: (rowData: TData) => ReactNode
+  name: string
+  canManageRoles: boolean
 }
 
-export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
+export const GroupedDataTable = <
+  TData extends { items: string[]; account: Address },
+  TValue,
+>({
   data,
   columns,
+  name,
+  canManageRoles,
 }: GroupedDataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [expanded, setExpanded] = useState<ExpandedState>({})
@@ -127,6 +135,8 @@ export const GroupedDataTable = <TData extends { items: string[] }, TValue>({
       row={clickedRow}
       open={sidebarOpen}
       setOpen={setSidebarOpen}
+      name={name}
+      canManageRoles={canManageRoles}
     >
       <Table className="relative border border-border rounded-2xl border-separate border-spacing-0">
         <TableHeader>
