@@ -54,7 +54,7 @@ export const RegistrationExpiryDatePicker = ({
           <span className="flex-1 truncate text-2xl font-medium">
             {displayValue}
           </span>
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-gray-200">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-secondary">
             <CalendarIcon className="size-3" />
           </span>
         </button>
