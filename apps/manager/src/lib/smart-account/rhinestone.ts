@@ -5,7 +5,7 @@
  * Uses Pimlico as the bundler. Supports Para-wrapped accounts.
  */
 
-import type { Signer } from '@ens-apps/transaction-manager'
+import type { RhinestoneSigner } from '@ens-apps/transaction-manager'
 import { type RhinestoneAccount, RhinestoneSDK } from '@rhinestone/sdk'
 import type { Address, WalletClient } from 'viem'
 import { customSepolia, publicClient } from '@/lib/wagmi'
@@ -92,9 +92,12 @@ export async function initializeRhinestoneAccount(
 
   // Register HCA ownership via smart account (sponsored) if requested
   if (registerHCA) {
-    const signer: Signer = {
+    const signer: RhinestoneSigner = {
       type: 'rhinestone' as const,
-      account: rhinestoneAccount as any,
+      // Rhinestone account types can come from different package instances
+      // across workspace boundaries. We intentionally adapt via `unknown`
+      // to the transaction-manager signer contract while keeping runtime shape.
+      account: rhinestoneAccount as unknown as RhinestoneSigner['account'],
       config: {
         chain: customSepolia,
         accountAddress,
