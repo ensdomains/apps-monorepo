@@ -81,6 +81,11 @@ export type {
 } from './machines/registration/registration.machine'
 export { registrationMachine } from './machines/registration/registration.machine'
 export type {
+  RegistrationMachineActor,
+  RegistrationMachineEvent,
+  RegistrationMachineState,
+} from './machines/registration/registration.types'
+export type {
   ResolverContext,
   ResolverEvent,
   ResolverInput,
