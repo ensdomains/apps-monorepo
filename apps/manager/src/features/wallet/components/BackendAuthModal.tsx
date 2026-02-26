@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { useWalletClient } from 'wagmi'
 import * as AlertDialog from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { signInBackendMutation } from '@/features/notifications/queries/auth'
+import { signInBackendMutation } from '@/features/notifications/data/queries/auth'
 import { backendAuthStore } from '@/utils/backend-client'
 
 export const BackendAuthModal = () => {

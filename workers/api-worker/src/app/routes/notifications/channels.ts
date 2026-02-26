@@ -1,3 +1,5 @@
+import type { ChannelData } from '@ens-apps/shared-schema/notifications'
+import { TelegramAuthSchema } from '@ens-apps/shared-schema/telegram'
 import { vValidator } from '@hono/valibot-validator'
 import { and, eq, gt } from 'drizzle-orm'
 import { okAsync } from 'neverthrow'
@@ -15,15 +17,11 @@ import {
   deleteContact,
   searchContact,
 } from '#services/sendgrid/contacts.js'
-import {
-  TelegramAuthSchema,
-  verifyTelegramAuth,
-} from '#services/telegram/auth.js'
+import { verifyTelegramAuth } from '#services/telegram/auth.js'
 import {
   createInlineKeyboard,
   makeTelegramRequest,
 } from '#services/telegram/utils.js'
-import type { ChannelData } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
 
 // allowed push service endpoint prefixes (for SSRF protection)
@@ -628,7 +626,7 @@ export default createApp()
       const keyboard = createInlineKeyboard([
         [
           {
-            text: '⚙️ Manage Preferences',
+            text: '⚙️ Manage Notification Preferences',
             url: preferencesUrl,
           },
         ],
@@ -641,11 +639,12 @@ export default createApp()
           chat_id: auth_data.id,
           text:
             '🎉 *Welcome to ENS Notifications!*\n\n' +
-            'Your Telegram has been successfully connected. You will receive updates about:\n\n' +
+            "Your Telegram has been successfully connected and you're all set to receive notifications about your ENS domains.\n\n" +
+            "You'll receive updates about:\n\n" +
             '• Domain expiry reminders\n' +
             '• Domain transfers\n' +
             '• And other important events\n\n' +
-            'Click the button below to customize which notifications you receive.\n\n' +
+            'You can customize which notifications you receive at any time from your notification settings.\n\n' +
             '👥 *Want more ENS news & updates?*\n' +
             'Join our announcements group for broadcasts: [t.me/ens_updates](https://t.me/ens_updates)',
           parse_mode: 'Markdown',

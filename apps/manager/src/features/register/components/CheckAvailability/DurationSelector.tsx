@@ -3,6 +3,10 @@ import type {
   PricingDuration,
   PricingOptions,
 } from '@/features/register/components/Pricing/types'
+import {
+  formatYears,
+  MIN_REGISTER_DURATION_YEARS,
+} from '@/features/register/components/Pricing/utils'
 import { cn } from '@/lib/utils'
 
 type DurationSelectorProps = {
@@ -61,19 +65,39 @@ export const DurationSelector = ({
       return
     }
 
-    // Only allow positive integers
-    const parsed = parseInt(value, 10)
-    if (!isNaN(parsed) && parsed >= 1 && parsed <= 1000) {
-      onInputChange(value)
-      onSelect(parsed)
+    const normalizedValue = value.replace(',', '.')
+
+    // Only allow positive numbers with optional decimal
+    if (!/^\d*\.?\d*$/.test(normalizedValue)) {
+      return
+    }
+
+    const parsed = parseFloat(normalizedValue)
+    if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 1000) {
+      onInputChange(normalizedValue)
+      if (parsed > 0) {
+        onSelect(Math.max(MIN_REGISTER_DURATION_YEARS, parsed))
+      }
     }
   }
 
   const handleCustomInputBlur = () => {
     setIsCustomFocused(false)
-    // If empty on blur, reset to 1 year
+    // If empty on blur, reset to the minimum allowed duration
     if (customDisplayValue === '') {
-      onSelect(1)
+      onSelect(MIN_REGISTER_DURATION_YEARS)
+      onInputChange(formatYears(MIN_REGISTER_DURATION_YEARS))
+      return
+    }
+
+    const parsed = parseFloat(customDisplayValue)
+    if (!Number.isNaN(parsed)) {
+      const clamped = Math.min(
+        1000,
+        Math.max(MIN_REGISTER_DURATION_YEARS, parsed),
+      )
+      onSelect(clamped)
+      onInputChange(formatYears(clamped))
     }
   }
 
@@ -209,7 +233,7 @@ export const DurationSelector = ({
             )}
             disabled={disabled}
             max={1000}
-            min={1}
+            min={MIN_REGISTER_DURATION_YEARS}
             onBlur={handleCustomInputBlur}
             onChange={handleCustomInputChange}
             onFocus={handleCustomInputFocus}

@@ -93,10 +93,7 @@ const loadSavedData = (): Partial<RegistrationContext> => {
   try {
     const saved = {
       name: localStorage.getItem(STORAGE_KEYS.NAME) || '',
-      duration: parseInt(
-        localStorage.getItem(STORAGE_KEYS.DURATION) || '1',
-        10,
-      ),
+      duration: parseFloat(localStorage.getItem(STORAGE_KEYS.DURATION) || '1'),
       commitment: localStorage.getItem(STORAGE_KEYS.COMMITMENT) || '',
       secret: localStorage.getItem(STORAGE_KEYS.SECRET) || '',
       commitTxHash: localStorage.getItem(STORAGE_KEYS.COMMIT_TX_HASH) || '',

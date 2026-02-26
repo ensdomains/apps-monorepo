@@ -21,6 +21,7 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
+import { formatYears } from '@/features/register/components/Pricing/utils'
 import { getPremiumLabel, STABLECOINS } from '@/features/register/utils'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -57,6 +58,7 @@ export const CreditCardPaymentDrawer = ({
 }: PaymentDrawerProps) => {
   const [open, setOpen] = useState(false)
   const isDesktop = useMediaQuery('(min-width: 768px)')
+  const formattedDurationYears = formatYears(duration)
 
   // Reusable trigger button
   const triggerButton = (
@@ -81,7 +83,9 @@ export const CreditCardPaymentDrawer = ({
           {domainName}
         </div>
         <div className="text-muted-foreground text-sm">
-          × {duration} years • ${priceUSD.toLocaleString()} USD
+          × {formattedDurationYears} year
+          {Number(formattedDurationYears) === 1 ? '' : 's'} • $
+          {priceUSD.toLocaleString()} USD
         </div>
       </div>
 

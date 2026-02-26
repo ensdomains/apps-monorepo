@@ -5,9 +5,11 @@ import type {
 } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { Clock } from 'lucide-react'
 import type { Hash } from 'viem'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
+import { Button } from '@/components/ui/button'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import { LoadingMessage } from '../../../components/LoadingMessage'
 import { useBlockTimestamps } from '../hooks/useBlockTimestamps'
@@ -104,42 +106,44 @@ export const RecentActivity = ({ name }: RecentActivityProps) => {
 
   if (!events) {
     return (
-      <div className="flex flex-col gap-1 p-6 border border-gray-300 rounded-lg w-full">
+      <div className="flex flex-col gap-4 w-full">
         <div className="flex flex-row justify-between items-center">
-          <h2 className="text-[26px] font-medium">History</h2>
-          <Link
-            to="/$name/history"
-            params={{ name }}
-            className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
-          >
-            View all
-          </Link>
+          <h2 className="text-2xl font-medium">History</h2>
+          <Button variant="secondary" size="sm" asChild>
+            <Link to="/$name/history" params={{ name }}>
+              <Clock className="size-4" />
+              Full history
+            </Link>
+          </Button>
         </div>
-        <div>No recent activity</div>
+        <div className="p-6 border border-border rounded-lg">
+          No recent activity
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col gap-1 p-6 border border-gray-300 rounded-lg w-full">
+    <div className="flex flex-col gap-4 w-full">
       <div className="flex flex-row justify-between items-center">
-        <h2 className="text-[26px] font-medium">History</h2>
-        <Link
-          to="/$name/history"
-          params={{ name }}
-          className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
-        >
-          View all
-        </Link>
+        <h2 className="text-2xl font-medium">History</h2>
+        <Button variant="secondary" size="sm" asChild>
+          <Link to="/$name/history" params={{ name }}>
+            <Clock className="size-4" />
+            Full history
+          </Link>
+        </Button>
       </div>
-      <RecentActivityTable
-        name={name}
-        events={[
-          ...events.domainEvents,
-          ...(events.registrationEvents || []),
-          ...(events.resolverEvents || []),
-        ]}
-      />
+      <div className="border border-border rounded-lg overflow-hidden">
+        <RecentActivityTable
+          name={name}
+          events={[
+            ...events.domainEvents,
+            ...(events.registrationEvents || []),
+            ...(events.resolverEvents || []),
+          ]}
+        />
+      </div>
     </div>
   )
 }

@@ -1,11 +1,8 @@
 'use client'
 
 import { cva, type VariantProps } from 'class-variance-authority'
-import {
-  getByteLength,
-  getDomainCardDisplaySizeClasses,
-} from '@/features/register/components/Pricing/utils'
 import { cn } from '@/lib/utils'
+import { getByteLength, getDomainCardDisplaySizeClasses } from '@/utils/domain'
 import { DomainCardPattern } from './DomainCardPattern'
 
 const domainCardContainerVariants = cva(

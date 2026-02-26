@@ -29,9 +29,9 @@ export const PendingChangesBar = ({
   if (isSyncing) {
     return (
       <div className="sticky bottom-6 flex justify-center px-6 pointer-events-none">
-        <div className="bg-white border border-gray-300 rounded-lg shadow-lg px-4 py-2 flex items-center gap-4 pointer-events-auto">
+        <div className="bg-white border border-border rounded-lg shadow-lg px-4 py-2 flex items-center gap-4 pointer-events-auto">
           <RefreshCw className="size-4 animate-spin" />
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-quartz-500">
             Syncing changes... This may take a few seconds.
           </span>
         </div>
@@ -66,8 +66,8 @@ export const PendingChangesBar = ({
 
   return (
     <div className="sticky bottom-6 flex justify-center px-6 pointer-events-none">
-      <div className="bg-white border border-gray-300 rounded-lg shadow-lg px-4 py-2 flex items-center gap-4 pointer-events-auto">
-        <span className="text-sm text-gray-600">
+      <div className="bg-white border border-border rounded-lg shadow-lg px-4 py-2 flex items-center gap-4 pointer-events-auto">
+        <span className="text-sm text-quartz-500">
           <span className="font-medium">{updatesCount} </span>
           {updatesCount === 1 ? 'update' : 'updates'}
         </span>

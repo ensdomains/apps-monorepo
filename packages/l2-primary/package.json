@@ -12,7 +12,8 @@
     "./reverseRegistrarChainIds": "./src/reverseRegistrarChainIds.ts"
   },
   "scripts": {
-    "test": "echo \"No tests for l2-primary package\""
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"No tests defined for @ens-apps/l2-primary\""
   },
   "devDependencies": {
     "typescript": "^5.9.2"

@@ -2,6 +2,7 @@
 
 import { DomainCard } from '@/components/atoms/DomainCard'
 import { Button } from '@/components/ui/button'
+import { formatYears } from '@/features/register/components/Pricing/utils'
 import { cn } from '@/lib/utils'
 
 interface RegistrationDetailsProps {
@@ -26,6 +27,7 @@ export const RegistrationDetails = ({
   onProfileNavigate,
   isRegistrationComplete = false,
 }: RegistrationDetailsProps) => {
+  const formattedDurationYears = formatYears(duration)
   const formattedExpiresDate = expiresDate.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -74,7 +76,8 @@ export const RegistrationDetails = ({
               <div className="flex items-center justify-between">
                 <p className="text-base text-ens-gray">Registration Period</p>
                 <p className="text-base text-ens-blue-dark">
-                  {duration} {duration === 1 ? 'Year' : 'Years'}
+                  {formattedDurationYears}{' '}
+                  {Number(formattedDurationYears) === 1 ? 'Year' : 'Years'}
                 </p>
               </div>
 
@@ -85,14 +88,16 @@ export const RegistrationDetails = ({
                 </p>
               </div>
 
-              <div className="flex items-center justify-between">
-                <p className="text-base text-ens-peridot-core">
-                  Multi-year Discount ({discountPercentage}%)
-                </p>
-                <p className="text-base text-ens-peridot-core">
-                  -${formattedDiscount}
-                </p>
-              </div>
+              {discountAmount > 0 && (
+                <div className="flex items-center justify-between">
+                  <p className="text-base text-ens-peridot-core">
+                    Multi-year Discount ({discountPercentage}%)
+                  </p>
+                  <p className="text-base text-ens-peridot-core">
+                    -${formattedDiscount}
+                  </p>
+                </div>
+              )}
 
               <div className="flex items-center justify-between border-ens-gray-two border-t pt-4">
                 <p className="text-base text-ens-blue-dark">Total Paid</p>

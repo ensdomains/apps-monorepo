@@ -133,13 +133,13 @@ export interface FileRoutesByFullPath {
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
-  '/auto-renewal': typeof AutoRenewalIndexRoute
+  '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/notifications/': typeof NotificationsIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/p/$name/edit': typeof PNameEditRoute
-  '/debug/backend': typeof DebugBackendIndexRoute
-  '/notifications/settings': typeof NotificationsSettingsIndexRoute
-  '/p/$name': typeof PNameIndexRoute
+  '/debug/backend/': typeof DebugBackendIndexRoute
+  '/notifications/settings/': typeof NotificationsSettingsIndexRoute
+  '/p/$name/': typeof PNameIndexRoute
   '/notifications/channels/email/verify': typeof NotificationsChannelsEmailVerifyRoute
 }
 export interface FileRoutesByTo {
@@ -195,13 +195,13 @@ export interface FileRouteTypes {
     | '/legal/trademark-guidelines'
     | '/payment/add'
     | '/payment/list'
-    | '/auto-renewal'
+    | '/auto-renewal/'
     | '/notifications/'
     | '/debug/backend/settings'
     | '/p/$name/edit'
-    | '/debug/backend'
-    | '/notifications/settings'
-    | '/p/$name'
+    | '/debug/backend/'
+    | '/notifications/settings/'
+    | '/p/$name/'
     | '/notifications/channels/email/verify'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -309,7 +309,7 @@ declare module '@tanstack/react-router' {
     '/auto-renewal/': {
       id: '/auto-renewal/'
       path: '/auto-renewal'
-      fullPath: '/auto-renewal'
+      fullPath: '/auto-renewal/'
       preLoaderRoute: typeof AutoRenewalIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -351,21 +351,21 @@ declare module '@tanstack/react-router' {
     '/p/$name/': {
       id: '/p/$name/'
       path: '/p/$name'
-      fullPath: '/p/$name'
+      fullPath: '/p/$name/'
       preLoaderRoute: typeof PNameIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/notifications/settings/': {
       id: '/notifications/settings/'
       path: '/settings'
-      fullPath: '/notifications/settings'
+      fullPath: '/notifications/settings/'
       preLoaderRoute: typeof NotificationsSettingsIndexRouteImport
       parentRoute: typeof NotificationsRouteRoute
     }
     '/debug/backend/': {
       id: '/debug/backend/'
       path: '/debug/backend'
-      fullPath: '/debug/backend'
+      fullPath: '/debug/backend/'
       preLoaderRoute: typeof DebugBackendIndexRouteImport
       parentRoute: typeof rootRouteImport
     }

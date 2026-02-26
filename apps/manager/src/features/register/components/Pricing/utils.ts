@@ -1,105 +1,11 @@
 import type { PricingDuration, PricingOptions, PricingQuoteMap } from './types'
 
-/** Max bytes for a registerable name (UTF-8); emojis are multi-byte. */
-export const MAX_DOMAIN_BYTES = 255
-
-/** Truncate string to fit within maxBytes (UTF-8), safe at multi-byte boundaries. */
-export function truncateToMaxBytes(
-  str: string,
-  maxBytes = MAX_DOMAIN_BYTES,
-): string {
-  return new TextDecoder()
-    .decode(
-      new TextEncoder().encode(str.slice(0, maxBytes)).subarray(0, maxBytes),
-    )
-    .replace(/\uFFFD+$/u, '')
-}
-
-/** UTF-8 byte length of string (for font scaling). */
-export function getByteLength(str: string): number {
-  return new TextEncoder().encode(str).length
-}
-
-const ETH_SUFFIX = '.eth'
-
-/**
- * Normalize domain name from URL: add .eth if missing, truncate label to 255 bytes.
- * The 255-byte limit applies to the label only; .eth is appended and not counted.
- */
-export function normalizeDomainNameFromUrl(name: string): string {
-  if (!name || typeof name !== 'string') return ''
-  const label = name.toLowerCase().endsWith(ETH_SUFFIX)
-    ? name.slice(0, -ETH_SUFFIX.length)
-    : name
-  return truncateToMaxBytes(label, MAX_DOMAIN_BYTES) + ETH_SUFFIX
-}
-
-/** Breakpoints for domain byte length → font size (shared by header and card). */
-const DOMAIN_LENGTH_TIERS = [30, 80, 150, 190] as const
-
-function getDomainLengthTierIndex(length: number): number {
-  const tiers = DOMAIN_LENGTH_TIERS
-  for (let i = 0; i < tiers.length; i++) {
-    const bound = tiers[i]
-    if (bound !== undefined && length <= bound) return i
-  }
-  return tiers.length
-}
-
-/** Tailwind size classes per tier: header (large) and card (compact). */
-const DOMAIN_HEADER_SIZE_CLASSES = [
-  'text-5xl sm:text-6xl md:text-7xl',
-  'text-3xl sm:text-4xl md:text-5xl',
-  'text-xl sm:text-2xl md:text-3xl',
-  'text-base sm:text-lg md:text-xl',
-  'text-base sm:text-lg md:text-xl',
-] as const
-
-const DOMAIN_CARD_SIZE_CLASSES = [
-  'text-xl',
-  'text-base',
-  'text-sm',
-  'text-xs',
-  'text-xs',
-] as const
-
-/** DomainCard (success/registration): ≤30 text-5xl, ≤150 text-4xl, ≤190+ text-3xl. */
-const DOMAIN_CARD_DISPLAY_SIZE_CLASSES = [
-  'text-5xl', // ≤30 bytes
-  'text-4xl', // ≤80 bytes
-  'text-4xl', // ≤150 bytes
-  'text-3xl', // ≤190 bytes
-  'text-3xl', // 191+ bytes
-] as const
-
-const HEADER_CLASSES = DOMAIN_HEADER_SIZE_CLASSES as readonly string[]
-const CARD_CLASSES = DOMAIN_CARD_SIZE_CLASSES as readonly string[]
-const CARD_DISPLAY_CLASSES =
-  DOMAIN_CARD_DISPLAY_SIZE_CLASSES as readonly string[]
-
-/** Font size for domain header: smaller as byte length increases. */
-export function getDomainHeaderSizeClasses(length: number): string {
-  const i = getDomainLengthTierIndex(length)
-  return HEADER_CLASSES[i] ?? HEADER_CLASSES[HEADER_CLASSES.length - 1] ?? ''
-}
-
-/** Font size for domain card: same breakpoints, compact scale. */
-export function getDomainCardSizeClasses(length: number): string {
-  const i = getDomainLengthTierIndex(length)
-  return CARD_CLASSES[i] ?? CARD_CLASSES[CARD_CLASSES.length - 1] ?? ''
-}
-
-/** Font size for DomainCard (success/registration): min text-sm. */
-export function getDomainCardDisplaySizeClasses(length: number): string {
-  const i = getDomainLengthTierIndex(length)
-  return (
-    CARD_DISPLAY_CLASSES[i] ??
-    CARD_DISPLAY_CLASSES[CARD_DISPLAY_CLASSES.length - 1] ??
-    ''
-  )
-}
-
 export const PRICING_DURATIONS: PricingDuration[] = [1, 3, 5, 10]
+export const SECONDS_PER_DAY = 86400
+export const SECONDS_PER_YEAR = 365 * SECONDS_PER_DAY
+export const MIN_REGISTER_DURATION_SECONDS = 2419200
+export const MIN_REGISTER_DURATION_YEARS =
+  MIN_REGISTER_DURATION_SECONDS / SECONDS_PER_YEAR
 
 export const PRICING_YEAR_DISCOUNTS: Record<PricingDuration, number> = {
   1: 0,
@@ -164,24 +70,14 @@ export function getInitialPricingOptions(
 
 export function sanitizePricingDuration(
   value: number | undefined | null,
-): PricingDuration {
-  const defaultDuration: PricingDuration = 1
+): number {
+  const defaultDuration = 1
 
   if (value == null || Number.isNaN(value)) return defaultDuration
 
-  const rounded = Math.round(value)
-  const firstDuration = PRICING_DURATIONS[0] ?? 1
-  const lastDuration = PRICING_DURATIONS[PRICING_DURATIONS.length - 1] ?? 5
-  const clamped = Math.max(
-    firstDuration,
-    Math.min(lastDuration, rounded),
-  ) as PricingDuration
+  if (value <= 0) return defaultDuration
 
-  if (PRICING_DURATIONS.includes(clamped)) {
-    return clamped
-  }
-
-  return defaultDuration
+  return Math.max(MIN_REGISTER_DURATION_YEARS, value)
 }
 
 export const createEmptyPricingQuoteMap = (): PricingQuoteMap => ({
@@ -192,13 +88,11 @@ export const createEmptyPricingQuoteMap = (): PricingQuoteMap => ({
 })
 
 export const formatDuration = (duration: number): string => {
-  return duration.toString().padStart(2, '0')
+  return formatYears(duration)
 }
 
 export const calculateExpirationDate = (years: number): Date => {
-  const date = new Date()
-  date.setFullYear(date.getFullYear() + years)
-  return date
+  return new Date(Date.now() + years * SECONDS_PER_YEAR * 1000)
 }
 
 export const formatExpirationDate = (date: Date): string => {
@@ -210,24 +104,45 @@ export const formatExpirationDate = (date: Date): string => {
 }
 
 /**
- * Calculates the duration in years from today to a target date, rounding up to the nearest year
+ * Calculates the duration in years from today to a target date using calendar-day precision.
  * @param targetDate - The target expiration date
- * @returns The duration in years (minimum 1), rounded up
+ * @returns The duration in years (minimum 28 days)
  */
 export const calculateDurationFromDate = (targetDate: Date): number => {
-  const today = new Date()
+  return durationFromDateInYears(targetDate)
+}
+
+export const durationFromDateInYears = (
+  targetDate: Date,
+  now: Date = new Date(),
+): number => {
+  const today = new Date(now)
   today.setHours(0, 0, 0, 0)
   const target = new Date(targetDate)
   target.setHours(0, 0, 0, 0)
 
-  const diffMs = target.getTime() - today.getTime()
+  const diffMs = Math.max(0, target.getTime() - today.getTime())
+  const diffDays = diffMs / (SECONDS_PER_DAY * 1000)
+  const diffYears = diffDays / 365
 
-  if (diffMs <= 0) {
-    return 1
+  return Math.max(MIN_REGISTER_DURATION_YEARS, diffYears)
+}
+
+export const durationYearsToSeconds = (durationYears: number): bigint => {
+  if (!Number.isFinite(durationYears) || durationYears <= 0) {
+    return BigInt(MIN_REGISTER_DURATION_SECONDS)
   }
 
-  const diffYears = diffMs / (365.25 * 24 * 60 * 60 * 1000)
-  const roundedYears = Math.ceil(diffYears)
+  const clampedYears = Math.max(MIN_REGISTER_DURATION_YEARS, durationYears)
+  const seconds = Math.round(clampedYears * SECONDS_PER_YEAR)
 
-  return Math.max(1, roundedYears)
+  return BigInt(Math.max(MIN_REGISTER_DURATION_SECONDS, seconds))
+}
+
+export const formatYears = (years: number): string => {
+  if (!Number.isFinite(years)) return '0'
+
+  if (Number.isInteger(years)) return years.toString()
+
+  return Number(years.toFixed(2)).toString()
 }

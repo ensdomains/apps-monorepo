@@ -1,3 +1,4 @@
+import { AnimatePresence } from 'motion/react'
 import {
   Card,
   CardContent,
@@ -7,6 +8,7 @@ import {
 } from '@/components/ui/card'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
+import { validateUrl } from '@/features/profile/utils/validateUrl'
 import { AddLinkDialog } from '../dialogs/AddLinkDialog'
 
 export const LinksSection = withForm({
@@ -23,30 +25,42 @@ export const LinksSection = withForm({
         <form.Field mode="array" name="links">
           {(linksField) => (
             <>
-              {linksField.state.value.map(({ name }, i: number) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: Recommended by TanStack Form
-                <form.Field key={i} name={`links[${i}].url`}>
-                  {(field) => {
-                    return (
-                      <RecordEntry
-                        name={name}
-                        onChange={field.handleChange}
-                        onRemove={() => {
-                          linksField.removeValue(i)
-                        }}
-                        placeholder="https://example.com"
-                        value={field.state.value}
-                      />
-                    )
-                  }}
-                </form.Field>
-              ))}
+              <AnimatePresence initial={false} mode="popLayout">
+                {linksField.state.value.map(({ name }, i: number) => (
+                  <form.Field
+                    key={name}
+                    name={`links[${i}].url`}
+                    validators={{
+                      onBlur: ({ value }) => validateUrl(value),
+                    }}
+                  >
+                    {(field) => {
+                      return (
+                        <RecordEntry
+                          error={
+                            field.state.meta.isTouched &&
+                            field.state.meta.errors.length > 0
+                              ? field.state.meta.errors[0]
+                              : undefined
+                          }
+                          name={name}
+                          onBlur={field.handleBlur}
+                          onChange={field.handleChange}
+                          onRemove={() => {
+                            linksField.removeValue(i)
+                          }}
+                          placeholder="https://example.com"
+                          value={field.state.value}
+                        />
+                      )
+                    }}
+                  </form.Field>
+                ))}
+              </AnimatePresence>
               <AddLinkDialog
-                buttonLabel="Add more"
                 onAdd={(link) => {
                   linksField.pushValue(link)
                 }}
-                title="Add Link"
               />
             </>
           )}

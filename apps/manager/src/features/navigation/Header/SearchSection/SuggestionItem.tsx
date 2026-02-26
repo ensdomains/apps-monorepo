@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, linkOptions } from '@tanstack/react-router'
-import { Loader2Icon, Wallet, XIcon } from 'lucide-react'
+import { Loader2Icon, XIcon } from 'lucide-react'
 import { match, P } from 'ts-pattern'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback/ImageFallback'
+import { AddressSuggestionCard } from '@/components/molecules/DomainResultCard'
 import { useAvatarFromName } from '@/features/profile/service/profileAvatar'
 import { getSearchNameQueryOptions } from '@/features/register/services/checkNameAvailabilityService'
 import { tw } from '@/utils/tailwind'
@@ -136,8 +137,8 @@ export const AddressSuggestionItem = ({
   onNavigate,
 }: AddressSuggestionItemProps) => {
   return (
-    <Link
-      className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-slate-50"
+    <AddressSuggestionCard
+      address={address}
       onClick={() => {
         searchHistoryStore.trigger.addToHistory({
           kind: 'address',
@@ -145,19 +146,7 @@ export const AddressSuggestionItem = ({
         })
         onNavigate?.()
       }}
-      params={{ name: address }}
-      to="/p/$name"
-    >
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-100">
-        <Wallet className="size-4 text-slate-600" />
-      </div>
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate font-medium text-[#1D1B20] text-sm">
-            {address}
-          </span>
-        </div>
-      </div>
-    </Link>
+      variant="compact"
+    />
   )
 }

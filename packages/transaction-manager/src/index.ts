@@ -81,6 +81,11 @@ export type {
 } from './machines/registration/registration.machine'
 export { registrationMachine } from './machines/registration/registration.machine'
 export type {
+  RegistrationMachineActor,
+  RegistrationMachineEvent,
+  RegistrationMachineState,
+} from './machines/registration/registration.types'
+export type {
   ResolverContext,
   ResolverEvent,
   ResolverInput,
@@ -109,7 +114,10 @@ export {
   useTransactionRegistry,
 } from './providers/TransactionManagerProvider'
 // Services
-export { transactionManager } from './providers/transactionManager'
+export {
+  estimateTelemetryBytes,
+  transactionManager,
+} from './providers/transactionManager'
 export {
   addAuditEntry,
   clearAuditTrail,
@@ -123,8 +131,16 @@ export type {
   AuditEntry,
   DebugReport,
   ErrorSummary,
+  FailedRunPayloadV2,
   PerformanceMetrics,
+  RunTelemetryEventSubscriber,
+  RunTelemetrySubscriber,
+  SerializedRunError,
   StateTransition,
+  TransactionPhase,
+  TransactionRunEventV2,
+  TransactionRunInitialSnapshot,
+  TransactionRunStatus,
 } from './types/audit.types'
 export type {
   EOASigner,

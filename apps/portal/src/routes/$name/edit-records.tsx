@@ -138,7 +138,7 @@ function EditRecordsPage() {
             <>
               You don't have permission to edit records for{' '}
               <strong>{name}</strong>. Only the owner (
-              <code className="font-mono text-xs bg-gray-100 px-1 py-0.5 rounded">
+              <code className="font-mono text-xs bg-quartz-50 px-1 py-0.5 rounded">
                 {ownerQuery.data.owner}
               </code>
               ) can edit records.
@@ -284,7 +284,7 @@ const EditRecordsContent = ({
   return (
     <div className="flex flex-col min-h-full">
       {/* Header */}
-      <header className="bg-gray-100 px-8 pb-6 pt-6">
+      <header className="bg-quartz-50 px-8 pb-6 pt-6">
         <Link to="/$name/records" params={{ name }}>
           <Button variant="ghost" className="flex items-center gap-2 -ml-2">
             <ArrowLeftIcon className="size-4" />
@@ -299,7 +299,7 @@ const EditRecordsContent = ({
           <div className="flex flex-col gap-1 min-w-[140px]">
             <label
               htmlFor={typeSelectId}
-              className="text-xs text-gray-500 flex items-center gap-1"
+              className="text-xs text-quartz-500 flex items-center gap-1"
             >
               Type
             </label>
@@ -317,7 +317,7 @@ const EditRecordsContent = ({
                   </option>
                 ))}
               </select>
-              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-gray-500" />
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-quartz-500" />
             </div>
           </div>
 
@@ -326,7 +326,7 @@ const EditRecordsContent = ({
             <div className="flex flex-col gap-1 min-w-[220px]">
               <label
                 htmlFor={keyInputId}
-                className="text-xs text-gray-500 flex items-center gap-1"
+                className="text-xs text-quartz-500 flex items-center gap-1"
               >
                 Coin
               </label>
@@ -341,7 +341,7 @@ const EditRecordsContent = ({
             <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
               <label
                 htmlFor={keyInputId}
-                className="text-xs text-gray-500 flex items-center gap-1"
+                className="text-xs text-quartz-500 flex items-center gap-1"
               >
                 Key
               </label>
@@ -358,7 +358,7 @@ const EditRecordsContent = ({
 
           {/* Value Input */}
           <div className="flex flex-col gap-1 flex-2 min-w-[200px]">
-            <label htmlFor={valueInputId} className="text-xs text-gray-500">
+            <label htmlFor={valueInputId} className="text-xs text-quartz-500">
               Value
             </label>
             <input
@@ -375,7 +375,7 @@ const EditRecordsContent = ({
           <div className="flex flex-col gap-1 justify-end">
             <span className="text-xs text-transparent select-none">Action</span>
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={handleAddRecord}
               disabled={!selectedType || (requiresKey && !keyInput)}
               className="flex items-center gap-2 whitespace-nowrap"
@@ -394,23 +394,23 @@ const EditRecordsContent = ({
             <TabsList className="w-full justify-start border-b rounded-none px-4 py-0 h-auto bg-transparent">
               <TabsTrigger value="all" className="py-3 gap-2">
                 All records
-                <span className="text-gray-500">{tabCounts.all}</span>
+                <span className="text-quartz-500">{tabCounts.all}</span>
               </TabsTrigger>
               <TabsTrigger value="text" className="py-3 gap-2">
                 Text
-                <span className="text-gray-500">{tabCounts.text}</span>
+                <span className="text-quartz-500">{tabCounts.text}</span>
               </TabsTrigger>
               <TabsTrigger value="address" className="py-3 gap-2">
                 Address
-                <span className="text-gray-500">{tabCounts.address}</span>
+                <span className="text-quartz-500">{tabCounts.address}</span>
               </TabsTrigger>
               <TabsTrigger value="abi" className="py-3 gap-2">
                 ABI
-                <span className="text-gray-500">{tabCounts.abi}</span>
+                <span className="text-quartz-500">{tabCounts.abi}</span>
               </TabsTrigger>
               <TabsTrigger value="contentHash" className="py-3 gap-2">
                 Contenthash
-                <span className="text-gray-500">{tabCounts.contentHash}</span>
+                <span className="text-quartz-500">{tabCounts.contentHash}</span>
               </TabsTrigger>
             </TabsList>
           </div>

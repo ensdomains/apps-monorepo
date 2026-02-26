@@ -1,3 +1,11 @@
+import type {
+  AnyBroadcastNotificationPayload,
+  AnyChannelData,
+  AnyPersonalNotificationPayload,
+  BroadcastNotificationKind,
+  ChannelType,
+  PersonalNotificationKind,
+} from '@ens-apps/shared-schema/notifications'
 import { relations } from 'drizzle-orm'
 import {
   boolean,
@@ -10,13 +18,7 @@ import {
   unique,
   uuid,
 } from 'drizzle-orm/pg-core'
-import type {
-  AnyBroadcastPayload,
-  AnyChannelData,
-  AnyUserNotificationPayload,
-  UserChannel,
-  UserNotificationKind,
-} from '#types/notifications.js'
+import type { FailureCategory } from '#types/delivery.js'
 import { randomUUIDv7 } from '../utils/schemaHelpers'
 import { users } from './core'
 
@@ -34,7 +36,7 @@ export const userChannels = pgTable(
     /**
      * Which medium (email, push, telegram)
      */
-    channel: text('channel').$type<UserChannel>().notNull(),
+    channel: text('channel').$type<ChannelType>().notNull(),
     /**
      * The actual identifier (email address, FCM endpoint, etc)
      */
@@ -103,7 +105,7 @@ export const channelVerifications = pgTable('channel_verifications', {
     })
     .notNull(),
 
-  channel: text('channel').$type<UserChannel>().notNull(),
+  channel: text('channel').$type<ChannelType>().notNull(),
   target: text('target'), // email during email verification, null for Telegram until bot callback
 
   purpose: text('purpose').notNull(), // 'verify' | 'unsubscribe' | 'link'
@@ -175,11 +177,11 @@ export const notifications = pgTable('notifications', {
   /**
    * Notification kind
    */
-  kind: text('kind').$type<UserNotificationKind>().notNull(),
+  kind: text('kind').$type<PersonalNotificationKind>().notNull(),
   /**
    * Payload
    */
-  payload: jsonb('payload').$type<AnyUserNotificationPayload>(),
+  payload: jsonb('payload').$type<AnyPersonalNotificationPayload>(),
   created_at: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -202,7 +204,7 @@ export const notificationRelations = relations(
 // ===============================
 
 type DeliveryChannel = 'email' | 'push' | 'telegram'
-type DeliveryStatus = 'queued' | 'delivered' | 'failed'
+type DeliveryStatus = 'queued' | 'delivered' | 'failed' | 'permanently_failed'
 
 export const notificationDeliveries = pgTable('notification_deliveries', {
   id: uuid('id').primaryKey().default(randomUUIDv7),
@@ -220,6 +222,9 @@ export const notificationDeliveries = pgTable('notification_deliveries', {
 
   error: text('error'),
 
+  failure_category: text('failure_category').$type<FailureCategory>(),
+  dlq_attempts: integer('dlq_attempts').default(0),
+
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
@@ -236,11 +241,10 @@ export const notificationDeliveryRelations = relations(
 
 // ===============================
 
-export type BroadcastKind = 'blog-post'
 export const broadcasts = pgTable('broadcasts', {
   id: uuid('id').primaryKey().default(randomUUIDv7),
-  kind: text('kind').$type<BroadcastKind>().notNull(),
-  payload: jsonb('payload').$type<AnyBroadcastPayload>(),
+  kind: text('kind').$type<BroadcastNotificationKind>().notNull(),
+  payload: jsonb('payload').$type<AnyBroadcastNotificationPayload>(),
   created_at: timestamp('created_at', { withTimezone: true })
     .defaultNow()
     .notNull(),

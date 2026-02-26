@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as NameRouteImport } from './routes/$name'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RegisterIndexRouteImport } from './routes/register/index'
 import { Route as NameIndexRouteImport } from './routes/$name/index'
 import { Route as AddrAddrRouteImport } from './routes/addr/$addr'
 import { Route as NameTokenRouteImport } from './routes/$name/token'
@@ -23,6 +24,7 @@ import { Route as NameHistoryRouteImport } from './routes/$name/history'
 import { Route as NameEditRecordsRouteImport } from './routes/$name/edit-records'
 import { Route as NameDeployRegistryRouteImport } from './routes/$name/deploy-registry'
 import { Route as NameCreateSubnameRouteImport } from './routes/$name/create-subname'
+import { Route as NameChangeResolverRouteImport } from './routes/$name/change-resolver'
 import { Route as AddrAddrIndexRouteImport } from './routes/addr/$addr/index'
 import { Route as NameRolesIndexRouteImport } from './routes/$name/roles/index'
 import { Route as AddrAddrReverseResolutionRouteImport } from './routes/addr/$addr/reverse-resolution'
@@ -39,6 +41,11 @@ const NameRoute = NameRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterIndexRoute = RegisterIndexRouteImport.update({
+  id: '/register/',
+  path: '/register/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NameIndexRoute = NameIndexRouteImport.update({
@@ -101,6 +108,11 @@ const NameCreateSubnameRoute = NameCreateSubnameRouteImport.update({
   path: '/create-subname',
   getParentRoute: () => NameRoute,
 } as any)
+const NameChangeResolverRoute = NameChangeResolverRouteImport.update({
+  id: '/change-resolver',
+  path: '/change-resolver',
+  getParentRoute: () => NameRoute,
+} as any)
 const AddrAddrIndexRoute = AddrAddrIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -141,6 +153,7 @@ const NameRolesAddUserRoute = NameRolesAddUserRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$name': typeof NameRouteWithChildren
+  '/$name/change-resolver': typeof NameChangeResolverRoute
   '/$name/create-subname': typeof NameCreateSubnameRoute
   '/$name/deploy-registry': typeof NameDeployRegistryRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
@@ -153,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/$name/token': typeof NameTokenRoute
   '/addr/$addr': typeof AddrAddrRouteWithChildren
   '/$name/': typeof NameIndexRoute
+  '/register': typeof RegisterIndexRoute
   '/$name/roles/add-user': typeof NameRolesAddUserRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
@@ -163,6 +177,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$name/change-resolver': typeof NameChangeResolverRoute
   '/$name/create-subname': typeof NameCreateSubnameRoute
   '/$name/deploy-registry': typeof NameDeployRegistryRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
@@ -174,6 +189,7 @@ export interface FileRoutesByTo {
   '/$name/subnames': typeof NameSubnamesRoute
   '/$name/token': typeof NameTokenRoute
   '/$name': typeof NameIndexRoute
+  '/register': typeof RegisterIndexRoute
   '/$name/roles/add-user': typeof NameRolesAddUserRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
@@ -186,6 +202,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$name': typeof NameRouteWithChildren
+  '/$name/change-resolver': typeof NameChangeResolverRoute
   '/$name/create-subname': typeof NameCreateSubnameRoute
   '/$name/deploy-registry': typeof NameDeployRegistryRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
@@ -198,6 +215,7 @@ export interface FileRoutesById {
   '/$name/token': typeof NameTokenRoute
   '/addr/$addr': typeof AddrAddrRouteWithChildren
   '/$name/': typeof NameIndexRoute
+  '/register/': typeof RegisterIndexRoute
   '/$name/roles/add-user': typeof NameRolesAddUserRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
@@ -211,6 +229,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$name'
+    | '/$name/change-resolver'
     | '/$name/create-subname'
     | '/$name/deploy-registry'
     | '/$name/edit-records'
@@ -223,6 +242,7 @@ export interface FileRouteTypes {
     | '/$name/token'
     | '/addr/$addr'
     | '/$name/'
+    | '/register'
     | '/$name/roles/add-user'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
@@ -233,6 +253,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/$name/change-resolver'
     | '/$name/create-subname'
     | '/$name/deploy-registry'
     | '/$name/edit-records'
@@ -244,6 +265,7 @@ export interface FileRouteTypes {
     | '/$name/subnames'
     | '/$name/token'
     | '/$name'
+    | '/register'
     | '/$name/roles/add-user'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
@@ -255,6 +277,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$name'
+    | '/$name/change-resolver'
     | '/$name/create-subname'
     | '/$name/deploy-registry'
     | '/$name/edit-records'
@@ -267,6 +290,7 @@ export interface FileRouteTypes {
     | '/$name/token'
     | '/addr/$addr'
     | '/$name/'
+    | '/register/'
     | '/$name/roles/add-user'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
@@ -280,6 +304,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   NameRoute: typeof NameRouteWithChildren
   AddrAddrRoute: typeof AddrAddrRouteWithChildren
+  RegisterIndexRoute: typeof RegisterIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -296,6 +321,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register/': {
+      id: '/register/'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$name/': {
@@ -382,6 +414,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NameCreateSubnameRouteImport
       parentRoute: typeof NameRoute
     }
+    '/$name/change-resolver': {
+      id: '/$name/change-resolver'
+      path: '/change-resolver'
+      fullPath: '/$name/change-resolver'
+      preLoaderRoute: typeof NameChangeResolverRouteImport
+      parentRoute: typeof NameRoute
+    }
     '/addr/$addr/': {
       id: '/addr/$addr/'
       path: '/'
@@ -435,6 +474,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface NameRouteChildren {
+  NameChangeResolverRoute: typeof NameChangeResolverRoute
   NameCreateSubnameRoute: typeof NameCreateSubnameRoute
   NameDeployRegistryRoute: typeof NameDeployRegistryRoute
   NameEditRecordsRoute: typeof NameEditRecordsRoute
@@ -451,6 +491,7 @@ interface NameRouteChildren {
 }
 
 const NameRouteChildren: NameRouteChildren = {
+  NameChangeResolverRoute: NameChangeResolverRoute,
   NameCreateSubnameRoute: NameCreateSubnameRoute,
   NameDeployRegistryRoute: NameDeployRegistryRoute,
   NameEditRecordsRoute: NameEditRecordsRoute,
@@ -492,6 +533,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   NameRoute: NameRouteWithChildren,
   AddrAddrRoute: AddrAddrRouteWithChildren,
+  RegisterIndexRoute: RegisterIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

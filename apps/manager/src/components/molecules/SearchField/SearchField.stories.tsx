@@ -4,7 +4,7 @@ import {
   getByteLength,
   MAX_DOMAIN_BYTES,
   truncateToMaxBytes,
-} from '@/features/register/components/Pricing/utils'
+} from '@/utils/domain'
 import { SearchField } from './SearchField'
 
 const meta = {
@@ -416,12 +416,12 @@ export const TruncationEdgeCases: Story = {
     const cases = [
       {
         name: '4-byte emoji at boundary',
-        original: 'a'.repeat(251) + '😀',
+        original: `${'a'.repeat(251)}😀`,
         description: 'Should truncate emoji (would be 255 bytes)',
       },
       {
         name: 'Chinese char at boundary',
-        original: 'a'.repeat(253) + '中',
+        original: `${'a'.repeat(253)}中`,
         description: 'Should truncate Chinese char (would be 256 bytes)',
       },
       {
@@ -431,7 +431,7 @@ export const TruncationEdgeCases: Story = {
       },
       {
         name: 'Mixed content overflow',
-        original: 'test'.repeat(30) + '😀😀😀中国中国',
+        original: `${'test'.repeat(30)}😀😀😀中国中国`,
         description: 'Mixed ASCII, emoji, and Chinese near limit',
       },
     ]

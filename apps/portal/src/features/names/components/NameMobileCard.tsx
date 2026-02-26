@@ -38,7 +38,7 @@ export const NameMobileCard = ({
     recordCount !== undefined || subdomainCount !== undefined
 
   return (
-    <div className="flex flex-col gap-2 px-6 py-4 bg-white border-b border-gray-200 last:border-b-0">
+    <div className="flex flex-col gap-2 px-6 py-4 bg-white border-b border-border last:border-b-0">
       {/* Name row with checkbox, avatar and copy */}
       <div className="flex flex-row gap-3 items-center">
         {showCheckbox && (
@@ -58,7 +58,7 @@ export const NameMobileCard = ({
       </div>
 
       {/* Expiry section */}
-      <div className="text-sm font-medium text-gray-500">Expiry</div>
+      <div className="text-sm font-medium text-quartz-500">Expiry</div>
       <div className="flex items-center gap-2">
         {expiryDate ? (
           <span className="text-base">{formatDateTime(expiryDate)}</span>
@@ -86,7 +86,7 @@ export const NameMobileCard = ({
       {/* Roles section (for names page) */}
       {hasRoles && (
         <>
-          <div className="text-sm font-medium text-gray-500">Roles</div>
+          <div className="text-sm font-medium text-quartz-500">Roles</div>
           <div className="flex flex-row gap-1">
             {v2Roles.length > 0 ? (
               <Badge variant="secondary" className="text-xs">

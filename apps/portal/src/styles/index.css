@@ -12,26 +12,57 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --primary: var(--lapis-500);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
+  --secondary: #dbf0f8;
+  --secondary-foreground: #0082bb;
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --accent-foreground: var(--lapis-500);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
+  --success: var(--peridot-400);
+  --warning: oklch(0.75 0.15 75);
+  --border: var(--quartz-100);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary: var(--lapis-500);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-accent: var(--lapis-100);
+  --sidebar-accent-foreground: var(--lapis-500);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  --lapis-100: #dbf0f8;
+  --lapis-400: #80c4e0;
+  --lapis-500: #0082bb;
+  --lapis-900: #02293b;
+
+  --citrine-100: #f8f7e2;
+  --citrine-400: #e1b77e;
+  --citrine-500: #914b1c;
+  --citrine-900: #441b03;
+
+  --peridot-100: #d1eedf;
+  --peridot-400: #65d388;
+  --peridot-500: #007c20;
+  --peridot-900: #033010;
+
+  --garnet-100: #feeaf0;
+  --garnet-400: #ffb0d0;
+  --garnet-500: #ed2496;
+  --garnet-900: #5a0024;
+
+  --quartz-0: #ffffff;
+  --quartz-50: #f8f8f8;
+  --quartz-100: #e5e5e5;
+  --quartz-200: #c3c7c8;
+  --quartz-350: #a1a1a1;
+  --quartz-400: #737373;
+  --quartz-500: #5d5751;
+  --quartz-900: #191919;
 
   --avatar-placeholder-gradient: linear-gradient(
     135deg,
@@ -61,9 +92,35 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-lapis-100: var(--lapis-100);
+  --color-lapis-400: var(--lapis-400);
+  --color-lapis-500: var(--lapis-500);
+  --color-lapis-900: var(--lapis-900);
+  --color-citrine-100: var(--citrine-100);
+  --color-citrine-400: var(--citrine-400);
+  --color-citrine-500: var(--citrine-500);
+  --color-citrine-900: var(--citrine-900);
+  --color-peridot-100: var(--peridot-100);
+  --color-peridot-400: var(--peridot-400);
+  --color-peridot-500: var(--peridot-500);
+  --color-peridot-900: var(--peridot-900);
+  --color-garnet-100: var(--garnet-100);
+  --color-garnet-400: var(--garnet-400);
+  --color-garnet-500: var(--garnet-500);
+  --color-garnet-900: var(--garnet-900);
+  --color-quartz-0: var(--quartz-0);
+  --color-quartz-50: var(--quartz-50);
+  --color-quartz-100: var(--quartz-100);
+  --color-quartz-200: var(--quartz-200);
+  --color-quartz-350: var(--quartz-350);
+  --color-quartz-400: var(--quartz-400);
+  --color-quartz-500: var(--quartz-500);
+  --color-quartz-900: var(--quartz-900);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);

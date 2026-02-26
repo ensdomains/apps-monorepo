@@ -12,8 +12,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { EmailVerifyStep } from '@/features/notifications/components/email-verify-step'
-import { verifyEmailMutationOptions } from '@/features/notifications/queries/channels'
+import { verifyEmailMutationOptions } from '@/features/notifications/data/queries/channels'
+import { EmailVerifyStep } from '@/features/notifications/settings/email-verify-step'
 
 // Shared card wrapper component
 function VerificationCard({ children }: { children: React.ReactNode }) {

@@ -3,10 +3,6 @@
   "type": "module",
   "main": "src/worker.ts",
   "exports": {
-    "./types": {
-      "types": "./dist/src/types/index.d.ts",
-      "default": "./dist/src/types/index.js"
-    },
     "./hc": {
       "types": "./dist/src/hc.d.ts",
       "default": "./dist/src/hc.js"
@@ -16,6 +12,8 @@
     "dev": "concurrently \"pnpm dev:vite\" \"pnpm dev:tsc\" --names \"vite,tsc\" --prefix-colors \"cyan,yellow\" --kill-others-on-fail --restart-tries 3 --restart-after 2000",
     "dev:vite": "vite dev",
     "dev:tsc": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build:types": "tsc -p tsconfig.build.json --emitDeclarationOnly",
     "build:vite": "vite build",
     "build:tsc": "tsc -p tsconfig.build.json",
     "build": "pnpm build:vite && pnpm build:tsc",
@@ -39,7 +37,8 @@
     "uuid": "^13.0.0",
     "valibot": "^1.1.0",
     "viem": "^2.37.4",
-    "workers-og": "^0.0.27"
+    "workers-og": "^0.0.27",
+    "@ens-apps/shared-schema": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.12.3",

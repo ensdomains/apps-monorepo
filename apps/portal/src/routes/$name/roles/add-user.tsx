@@ -1,23 +1,23 @@
-import { getRegistryNameData } from '@ensdomains/ensjs/public/v2'
-import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
-import { labelToCanonicalId, type Role } from '@ensdomains/ensjs/utils/v2'
-import { grantRolesWriteParameters } from '@ensdomains/ensjs/wallet/v2'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import type { Role } from '@ensdomains/ensjs/utils/v2'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
 import { useState } from 'react'
-import { type Address, isAddress } from 'viem'
-import { getEnsAddress } from 'viem/actions'
-import { useWalletClient, useWriteContract } from 'wagmi'
+import type { Address } from 'viem'
+import { usePublicClient, useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { namechainEthRegistryAddress } from '@/lib/constants/registry'
-import { permissions } from '@/lib/roles/permissions'
+import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { grantRoles } from '@/features/roles/helpers/grantRoles'
+import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
+import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
+import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 
 export const Route = createFileRoute('/$name/roles/add-user')({
   component: RouteComponent,
@@ -27,14 +27,68 @@ const client = wagmiConfig.getClient({ chainId: namechainSepolia.id })
 
 function RouteComponent() {
   const { name } = Route.useParams()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
-  const [address, setAddress] = useState<Address | null>(null)
+  const [nameOrAddressInput, setNameOrAddressInput] = useState('')
 
-  const { data: walletClient } = useWalletClient()
+  const chainId = namechainSepolia.id
+  const { data: walletClient } = useWalletClient({ chainId })
+  const publicClient = usePublicClient({ chainId })
+  const { data: address } = useResolvedRoleAccountAddress({
+    client,
+    nameOrAddress: nameOrAddressInput,
+  })
 
-  const { writeContract, isPending, error } = useWriteContract()
+  const mutation = useMutation({
+    mutationFn: (params: { account: Address; roles: Role[] }) => {
+      if (!walletClient?.account || !publicClient) {
+        throw new Error('Wallet not connected')
+      }
+
+      return grantRoles({
+        name,
+        account: params.account,
+        roles: params.roles,
+        walletClient,
+        publicClient,
+        signer: createEOASigner(walletClient),
+        chainId,
+      })
+    },
+    onSuccess: async () => {
+      await pollForIndexerSync({
+        invalidateQueries: () =>
+          queryClient.invalidateQueries({
+            predicate: (query) =>
+              query.queryKey[0] === 'get-name-roles-accounts',
+            refetchType: 'all',
+          }),
+      })
+      navigate({ to: '/$name/roles', params: { name } })
+    },
+  })
 
   if (!walletClient?.account) return <div>Not connected.</div>
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!e.currentTarget.reportValidity()) return
+
+    const fd = new FormData(e.currentTarget)
+    const roles: Role[] = []
+
+    for (const [k, v] of fd.entries()) {
+      if (v === 'on') {
+        roles.push(k as Role)
+      }
+    }
+
+    if (address && roles.length > 0) {
+      mutation.reset()
+      mutation.mutate({ account: address, roles })
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
@@ -55,85 +109,39 @@ function RouteComponent() {
             name="user"
             placeholder="ens.eth"
             required
-            onChange={async (e) => {
-              if (e.currentTarget.checkValidity()) {
-                const nameOrAddress = e.currentTarget.value as Address
+            onChange={(e) => {
+              const nameOrAddress = e.currentTarget.value.trim()
 
-                if (isAddress(nameOrAddress)) {
-                  setAddress(nameOrAddress)
-                } else {
-                  const address = await getEnsAddress(client, {
-                    name: nameOrAddress,
-                    universalResolverAddress:
-                      '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce',
-                  })
-                  setAddress(address)
-                }
+              if (!e.currentTarget.checkValidity()) {
+                setNameOrAddressInput('')
+                return
               }
+
+              setNameOrAddressInput(nameOrAddress)
             }}
             pattern="(?:[\u002DA-Za-z0-9]+[.]eth|0x[a-fA-F0-9]{40})"
           />
         </Field>
 
-        <form
-          onSubmit={async (e) => {
-            e.preventDefault()
-            if (e.currentTarget.reportValidity()) {
-              const fd = new FormData(e.currentTarget)
-
-              const roles: Role[] = []
-
-              for (const [k, v] of fd.entries()) {
-                if (v === 'on') {
-                  roles.push(k as Role)
-                }
-              }
-
-              if (address) {
-                const { label } = makeLabelNodeAndParent(name)
-                // ugly and unsafe code, refactor later to a proper hook
-                const [_, entry] = await getRegistryNameData(client, {
-                  label,
-                  registryAddress: namechainEthRegistryAddress,
-                })
-
-                const resource =
-                  labelToCanonicalId(label) | BigInt(entry.eacVersionId)
-
-                const parameters = grantRolesWriteParameters(walletClient, {
-                  registryAddress: namechainEthRegistryAddress,
-                  account: address,
-                  resource,
-                  roles,
-                })
-
-                writeContract(parameters)
-              }
-            }
-          }}
-          className="flex flex-col gap-4"
-        >
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <h2 className="text-lg font-medium">Roles</h2>
           <div className="border rounded-lg divide-y">
             {permissions.map((permission) => {
-              // later will change it to allow for owner of eth registry to change those
-              const disabledRole =
-                permission.key === 'ROLE_REGISTRAR' ||
-                permission.key === 'ROLE_RENEW' ||
-                permission.key === 'ROLE_SET_TOKEN_OBSERVER' ||
-                permission.key === 'ROLE_BURN'
+              const isManagerRoleDisabled = !isManagerRoleSettable(
+                permission.key,
+              )
 
               return (
                 <div
                   key={permission.key}
                   className={cn(
                     'flex items-center justify-between p-4 gap-4',
-                    disabledRole && 'text-gray-500',
+                    isManagerRoleDisabled && 'text-quartz-500',
                   )}
                 >
                   <div className="flex flex-col gap-1 flex-1">
                     <div className="font-medium">{permission.title}</div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-quartz-500">
                       {permission.description}
                     </div>
                   </div>
@@ -142,11 +150,11 @@ function RouteComponent() {
                       <Checkbox
                         name={permission.key}
                         id={permission.key}
-                        disabled={disabledRole}
+                        disabled={isManagerRoleDisabled}
                       />
                       <Label
                         htmlFor={permission.key}
-                        className="font-normal cursor-pointer text-gray-600"
+                        className="font-normal cursor-pointer text-quartz-500"
                       >
                         Manager
                       </Label>
@@ -159,7 +167,7 @@ function RouteComponent() {
                       />
                       <Label
                         htmlFor={`${permission.key}_ADMIN`}
-                        className="font-normal cursor-pointer text-gray-600"
+                        className="font-normal cursor-pointer text-quartz-500"
                       >
                         Admin
                       </Label>
@@ -168,10 +176,10 @@ function RouteComponent() {
                 </div>
               )
             })}
-            <div className="flex items-center justify-between p-4 gap-4 text-gray-500">
+            <div className="flex items-center justify-between p-4 gap-4 text-quartz-500">
               <div className="flex flex-col gap-1 flex-1">
                 <div className="font-medium">Can transfer admin</div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-quartz-500">
                   Administrator role to transfer a name
                 </div>
               </div>
@@ -184,7 +192,7 @@ function RouteComponent() {
                   />
                   <Label
                     htmlFor="ROLE_CAN_TRANSFER_ADMIN"
-                    className="font-normal cursor-pointer text-gray-600"
+                    className="font-normal cursor-pointer text-quartz-500"
                   >
                     Admin
                   </Label>
@@ -194,13 +202,17 @@ function RouteComponent() {
           </div>
           <Button
             type="submit"
+            variant="secondary"
             className="w-fit"
-            disabled={!address || isPending}
+            disabled={!address || mutation.isPending}
           >
-            Save roles
+            {mutation.isPending ? 'Saving...' : 'Save roles'}
           </Button>
-          {error && (
-            <ErrorMessage description={error.message} title={error.name} />
+          {mutation.error && (
+            <ErrorMessage
+              description={mutation.error.message}
+              title={mutation.error.name}
+            />
           )}
         </form>
       </div>
