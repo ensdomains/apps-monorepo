@@ -38,7 +38,7 @@ export const PricingRegistrationSummaryCard = ({
     }
 
     const parsed = parseInt(numericValue, 10)
-    if (!isNaN(parsed) && parsed >= 1 && parsed <= MAX_DURATION_YEARS) {
+    if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= MAX_DURATION_YEARS) {
       onInputChange(numericValue)
       onChange(parsed)
     }

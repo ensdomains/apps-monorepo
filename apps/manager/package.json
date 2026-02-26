@@ -28,6 +28,7 @@
     "@getpara/react-sdk-lite": "2.12.0",
     "@getpara/viem-v2-integration": "2.12.0",
     "@getpara/web-sdk": "2.12.0",
+    "@icons-pack/react-simple-icons": "^13.11.2",
     "@intercom/messenger-js-sdk": "^0.0.18",
     "@posthog/react": "^1.7.1",
     "@radix-ui/react-alert-dialog": "^1.1.15",

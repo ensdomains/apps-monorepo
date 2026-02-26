@@ -11,6 +11,7 @@ import {
   TransactionRevertedError,
   TransactionSubmissionError,
   TransactionTimeoutError,
+  TransactionUserRejectedError,
 } from '../errors/transaction.errors'
 import * as auditTrail from '../services/audit-trail.service'
 import type { Signer } from '../types/signer.types'
@@ -130,7 +131,10 @@ export const transactionMachine = setup({
         request?: TransactionRequest
         signer?: Signer
         publicClient: PublicClient
-      }): ResultAsync<Hash, TransactionSubmissionError> => {
+      }): ResultAsync<
+        Hash,
+        TransactionSubmissionError | TransactionUserRejectedError
+      > => {
         console.log('🔧 [TRANSACTION] submitTransaction actor invoked:', {
           requestType: request?.type,
           signerType: signer?.type,
@@ -291,9 +295,6 @@ export const transactionMachine = setup({
     ),
   },
   guards: {
-    canRetry: ({ context }) =>
-      context.retryCount < (context.options.retryCount || 3),
-
     shouldCheckFallback: ({ context }) => context.fallbackChecks < 3,
 
     wouldSucceed: (_, params: { wouldSucceed?: boolean }) =>
@@ -560,7 +561,16 @@ export const transactionMachine = setup({
         },
         onError: [
           {
-            guard: 'canRetry',
+            /** Can retry? */
+            guard: ({ context, event }) => {
+              // Don't retry if the transaction was rejected by the user
+              if (event.error instanceof TransactionUserRejectedError) {
+                return false
+              }
+
+              // Retry up to the retry count
+              return context.retryCount < (context.options.retryCount || 3)
+            },
             target: 'retrying',
             actions: [
               assign({
@@ -723,9 +733,9 @@ export const transactionMachine = setup({
     retrying: {
       entry: [
         'recordTransition',
-        () => {
+        ({ context }) => {
           console.log(
-            '🔄 [TRANSACTION] Retrying transaction (attempt ${context.retryCount})',
+            `🔄 [TRANSACTION] Retrying transaction (attempt ${context.retryCount})`,
           )
         },
       ],

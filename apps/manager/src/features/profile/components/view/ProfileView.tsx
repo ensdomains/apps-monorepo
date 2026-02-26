@@ -1,11 +1,16 @@
 import { useWallet } from '@getpara/react-sdk-lite'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
+import { useEffect } from 'react'
 import type { Address } from 'viem'
 import { LinkButton } from '@/components/ui/button'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { sectionsList } from '../../data/records'
 import { profileOwnerQuery } from '../../service/profileOwner'
-import { profileRecordsQuery } from '../../service/profileRecords'
+import {
+  type ProfileRecordsResult,
+  profileRecordsQuery,
+} from '../../service/profileRecords'
 import { transformProfileRecords } from '../../utils/transformRecords'
 import { ViewBioSection } from './ViewBioSection'
 import { ViewCryptoSection } from './ViewCryptoSection'
@@ -20,18 +25,24 @@ interface ProfileViewProps {
   name: string
 }
 
-export const ProfileView = ({ name }: ProfileViewProps) => {
-  const { data: records } = useSuspenseQuery({
-    ...profileRecordsQuery(name),
-    select: transformProfileRecords,
-  })
+const hasConfiguredProfileRecords = ({
+  texts,
+  coins,
+  contentHash,
+  abi,
+}: ProfileRecordsResult): boolean =>
+  texts.length > 0 ||
+  coins.length > 0 ||
+  Boolean(contentHash?.trim()) ||
+  Boolean(abi?.trim())
 
-  const { data: ownerData } = useQuery({
+const useOwnerRedirect = (name: string, isProfileEmpty: boolean) => {
+  const navigate = useNavigate()
+  const { data: ownerData, isPending: isOwnerPending } = useQuery({
     ...profileOwnerQuery(name),
   })
 
   const { data: wallet } = useWallet()
-
   const { accountAddress: smartAccountAddress } = useSmartAccountContext()
 
   const normalizedOwner = ownerData?.owner?.toLowerCase()
@@ -41,13 +52,35 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
       .filter((addr): addr is string => !!addr)
       .some((addr) => addr.toLowerCase() === normalizedOwner)
 
+  useEffect(() => {
+    if (isOwner && isProfileEmpty) {
+      navigate({ to: '/p/$name/edit', params: { name }, replace: true })
+    }
+  }, [isOwner, isProfileEmpty, navigate, name])
+
+  return {
+    isOwner,
+    owner: ownerData?.owner as Address | undefined,
+    shouldHide: (isOwner || isOwnerPending) && isProfileEmpty,
+  }
+}
+
+export const ProfileView = ({ name }: ProfileViewProps) => {
+  const { data: profileRecords } = useSuspenseQuery({
+    ...profileRecordsQuery(name),
+  })
+  const records = transformProfileRecords(profileRecords)
+  const isProfileEmpty = !hasConfiguredProfileRecords(profileRecords)
+
+  const { isOwner, owner, shouldHide } = useOwnerRedirect(name, isProfileEmpty)
+
+  if (shouldHide) {
+    return null
+  }
+
   return (
     <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]">
-      <ViewHeaderSection
-        name={name}
-        owner={ownerData?.owner as Address | undefined}
-        records={records}
-      />
+      <ViewHeaderSection name={name} owner={owner} records={records} />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         {/* Left/main column */}
         <div className="space-y-4 md:col-span-7 lg:col-span-8">

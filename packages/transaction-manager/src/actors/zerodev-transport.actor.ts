@@ -1,7 +1,10 @@
 import { logger } from '@ens-apps/utils/logger'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
-import type { Hash, PublicClient } from 'viem'
-import { TransactionSubmissionError } from '../errors/transaction.errors'
+import { type Hash, type PublicClient, UserRejectedRequestError } from 'viem'
+import {
+  TransactionSubmissionError,
+  TransactionUserRejectedError,
+} from '../errors/transaction.errors'
 import type { ZeroDevSigner } from '../types/signer.types'
 import type {
   TransactionRequest,
@@ -19,7 +22,10 @@ export function submitZeroDevTransaction(input: {
   request: TransactionRequest
   signer: ZeroDevSigner
   publicClient?: PublicClient
-}): ResultAsync<Hash, TransactionSubmissionError> {
+}): ResultAsync<
+  Hash,
+  TransactionSubmissionError | TransactionUserRejectedError
+> {
   const { request, signer } = input
   const zerodevRequest = request as ZeroDevTransactionRequest
 
@@ -114,6 +120,11 @@ export function submitZeroDevTransaction(input: {
       return txHash as Hash
     })(),
     (error) => {
+      if (error instanceof UserRejectedRequestError) {
+        logger.error('❌ [ZERODEV TRANSPORT] User rejected transaction:', error)
+        return new TransactionUserRejectedError(zerodevRequest, error)
+      }
+
       logger.error('❌ [ZERODEV TRANSPORT] Transaction failed:', error)
       logger.error('❌ [ZERODEV TRANSPORT] Error details:', {
         name: (error as Error)?.name,
