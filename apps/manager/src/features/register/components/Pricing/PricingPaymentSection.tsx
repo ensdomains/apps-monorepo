@@ -52,7 +52,7 @@ export const PricingPaymentSection = ({
         onClick={onConnect}
         variant="default"
       >
-        Connect or sign in to register
+        Connect or sign in
       </Button>
     )
   }

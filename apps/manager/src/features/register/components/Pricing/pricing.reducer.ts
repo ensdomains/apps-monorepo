@@ -1,9 +1,15 @@
-import type { PricingOptions, PricingQuoteMap } from './types'
+import type {
+  PricingDuration,
+  PricingOptions,
+  PricingQuote,
+  PricingQuoteMap,
+} from './types'
 import {
   calculateDurationFromDate,
   calculateExpirationDate,
   createEmptyPricingQuoteMap,
   getInitialPricingOptions,
+  PRICING_DURATIONS,
 } from './utils'
 
 export type PricingState = {
@@ -11,6 +17,7 @@ export type PricingState = {
   selectedDuration: number
   selectedExpirationDate: Date | null
   isPricingLoading: boolean
+  isCustomQuoteLoading: boolean
   pricingQuotes: PricingQuoteMap
   basePricePerYear: number | null
 }
@@ -29,6 +36,12 @@ export type PricingAction =
       }
     }
   | { type: 'FETCH_PRICING_ERROR' }
+  | { type: 'FETCH_CUSTOM_QUOTE_START'; payload: { duration: number } }
+  | {
+      type: 'FETCH_CUSTOM_QUOTE_SUCCESS'
+      payload: { duration: number; quote: PricingQuote }
+    }
+  | { type: 'FETCH_CUSTOM_QUOTE_ERROR'; payload: { duration: number } }
 
 export function createInitialStateFactory(discountsEnabled: boolean) {
   const initialState: PricingState = {
@@ -36,6 +49,7 @@ export function createInitialStateFactory(discountsEnabled: boolean) {
     selectedDuration: 1,
     selectedExpirationDate: null,
     isPricingLoading: false,
+    isCustomQuoteLoading: false,
     pricingQuotes: createEmptyPricingQuoteMap(),
     basePricePerYear: null,
   }
@@ -48,6 +62,9 @@ export function createInitialStateFactory(discountsEnabled: boolean) {
   }
 }
 
+const isPresetDuration = (duration: number): boolean =>
+  PRICING_DURATIONS.includes(duration as PricingDuration)
+
 export function pricingReducer(
   state: PricingState,
   action: PricingAction,
@@ -59,6 +76,9 @@ export function pricingReducer(
         ...state,
         selectedDuration: action.payload,
         selectedExpirationDate: newExpirationDate,
+        ...(isPresetDuration(action.payload) && {
+          isCustomQuoteLoading: false,
+        }),
       }
     }
 
@@ -74,6 +94,9 @@ export function pricingReducer(
         ...state,
         selectedExpirationDate: action.payload,
         selectedDuration: calculatedDuration,
+        ...(isPresetDuration(calculatedDuration) && {
+          isCustomQuoteLoading: false,
+        }),
       }
     }
 
@@ -82,6 +105,9 @@ export function pricingReducer(
         ...state,
         selectedDuration: action.payload.duration,
         selectedExpirationDate: action.payload.date,
+        ...(isPresetDuration(action.payload.duration) && {
+          isCustomQuoteLoading: false,
+        }),
       }
     }
 
@@ -107,9 +133,43 @@ export function pricingReducer(
       return {
         ...state,
         isPricingLoading: false,
+        isCustomQuoteLoading: false,
         basePricePerYear: null,
         pricingOptions: initialOptions,
         pricingQuotes: createEmptyPricingQuoteMap(),
+      }
+    }
+
+    case 'FETCH_CUSTOM_QUOTE_START': {
+      return {
+        ...state,
+        isCustomQuoteLoading: true,
+        pricingQuotes: {
+          ...state.pricingQuotes,
+          [action.payload.duration]: {},
+        },
+      }
+    }
+
+    case 'FETCH_CUSTOM_QUOTE_SUCCESS': {
+      return {
+        ...state,
+        isCustomQuoteLoading: false,
+        pricingQuotes: {
+          ...state.pricingQuotes,
+          [action.payload.duration]: action.payload.quote,
+        },
+      }
+    }
+
+    case 'FETCH_CUSTOM_QUOTE_ERROR': {
+      return {
+        ...state,
+        isCustomQuoteLoading: false,
+        pricingQuotes: {
+          ...state.pricingQuotes,
+          [action.payload.duration]: {},
+        },
       }
     }
 

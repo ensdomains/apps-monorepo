@@ -5,6 +5,10 @@ import { ArrowRightIcon, CheckCircleIcon } from 'lucide-react'
 import { useState } from 'react'
 import { QRPattern } from '@/components/atoms'
 import { Button } from '@/components/ui/button'
+import {
+  calculateExpirationDate,
+  formatYears,
+} from '@/features/register/components/Pricing/utils'
 
 interface AutorenewalProps {
   domainName: string
@@ -21,10 +25,8 @@ export const Autorenewal = ({
 }: AutorenewalProps) => {
   const navigate = useNavigate()
   const [skipped, setSkipped] = useState(false)
-  const currentDate = new Date()
-  const expiryDate = new Date(
-    currentDate.getTime() + duration * 365.25 * 24 * 60 * 60 * 1000,
-  )
+  const expiryDate = calculateExpirationDate(duration)
+  const formattedDurationYears = formatYears(duration)
   const expiryDateString = expiryDate.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -83,8 +85,9 @@ export const Autorenewal = ({
               Protect your name with autorenewal
             </h3>
             <p className="text-gray-600 text-sm">
-              Your name expires on {expiryDateString}. Add a credit card to
-              renew it automatically. You can pause or cancel anytime.
+              Your {formattedDurationYears}-year registration expires on{' '}
+              {expiryDateString}. Add a credit card to renew it automatically.
+              You can pause or cancel anytime.
             </p>
           </div>
         )}

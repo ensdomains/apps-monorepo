@@ -8,6 +8,7 @@ import type { registrationMachine } from '@ens-apps/transaction-manager'
 import type { Address, PublicClient } from 'viem'
 import type { ActorRefFrom } from 'xstate'
 import type { SmartAccountState } from '@/lib/smart-account'
+import { durationYearsToSeconds } from '../components/Pricing/utils'
 import { SUPPORTED_TOKENS } from '../services/nameChainContractService'
 
 export interface StartRegistrationParams {
@@ -53,7 +54,7 @@ export function handleStartRegistration(
   }
 
   const token = selectedToken === SUPPORTED_TOKENS.DAI ? 'DAI' : 'USDC'
-  const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
+  const durationInSeconds = durationYearsToSeconds(duration)
   const useFastRegistrar = Boolean(fast)
 
   const enableSponsorship =

@@ -13,6 +13,7 @@ import {
   createEmptyPricingQuoteMap,
   formatDuration,
   formatExpirationDate,
+  formatYears,
   INITIAL_PRICING_OPTIONS,
   PRICING_DURATIONS,
   sanitizePricingDuration,
@@ -51,7 +52,7 @@ export const usePricing = ({
 
   // Shared input value for duration inputs across components
   const [durationInputValue, setDurationInputValue] = useState<string>(
-    state.selectedDuration.toString(),
+    formatDuration(state.selectedDuration),
   )
 
   const premiumLabel = useMemo(() => getPremiumLabel(domainName), [domainName])
@@ -63,9 +64,7 @@ export const usePricing = ({
   const selectedOption = isCustomDuration
     ? undefined
     : state.pricingOptions[state.selectedDuration as PricingDuration]
-  const selectedQuote = isCustomDuration
-    ? undefined
-    : state.pricingQuotes[state.selectedDuration as PricingDuration]
+  const selectedQuote = state.pricingQuotes[state.selectedDuration]
 
   const customDurationPrice =
     isCustomDuration && basePerYear > 0
@@ -79,9 +78,7 @@ export const usePricing = ({
         ? Math.ceil(selectedOption.price * state.selectedDuration)
         : Math.ceil(basePerYear * state.selectedDuration)))
 
-  const finalPrice = isCustomDuration
-    ? customDurationPrice
-    : (selectedQuote?.usdc ?? fallbackTotal)
+  const finalPrice = selectedQuote?.usdc ?? fallbackTotal
 
   const theoreticalTotal =
     basePerYear > 0 ? basePerYear * state.selectedDuration : 0
@@ -113,13 +110,11 @@ export const usePricing = ({
     [state.selectedDuration],
   )
 
-  const isPriceLoading = isCustomDuration
-    ? state.isPricingLoading || state.basePricePerYear === null
-    : state.isPricingLoading ||
-      state.pricingQuotes[state.selectedDuration as PricingDuration]?.usdc ===
-        undefined ||
-      state.pricingQuotes[state.selectedDuration as PricingDuration]?.usdc ===
-        null
+  const isPriceLoading =
+    state.isPricingLoading ||
+    state.basePricePerYear === null ||
+    state.isCustomQuoteLoading ||
+    selectedQuote?.usdc == null
 
   const isUsingAA = !!smartAccountClient
 
@@ -197,6 +192,65 @@ export const usePricing = ({
     }
   }, [domainName, discountsEnabled])
 
+  useEffect(() => {
+    let isCancelled = false
+    const isCustom = !PRICING_DURATIONS.includes(
+      state.selectedDuration as PricingDuration,
+    )
+
+    if (!domainName || !isCustom) {
+      return
+    }
+
+    const { selectedDuration } = state
+    dispatch({
+      type: 'FETCH_CUSTOM_QUOTE_START',
+      payload: { duration: selectedDuration },
+    })
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const result = await getTokenPrices(domainName, selectedDuration)
+
+        if (isCancelled) return
+
+        if (result.isOk()) {
+          dispatch({
+            type: 'FETCH_CUSTOM_QUOTE_SUCCESS',
+            payload: {
+              duration: selectedDuration,
+              quote: {
+                usdc: result.value.usdc
+                  ? Math.ceil(parseFloat(result.value.usdc.formatted))
+                  : undefined,
+                dai: result.value.dai
+                  ? Math.ceil(parseFloat(result.value.dai.formatted))
+                  : undefined,
+              },
+            },
+          })
+        } else if (!isCancelled) {
+          dispatch({
+            type: 'FETCH_CUSTOM_QUOTE_ERROR',
+            payload: { duration: selectedDuration },
+          })
+        }
+      } catch (_error) {
+        if (!isCancelled) {
+          dispatch({
+            type: 'FETCH_CUSTOM_QUOTE_ERROR',
+            payload: { duration: selectedDuration },
+          })
+        }
+      }
+    }, 300)
+
+    return () => {
+      isCancelled = true
+      window.clearTimeout(timeoutId)
+    }
+  }, [domainName, state.selectedDuration])
+
   const handleChange = (input: Date | number | undefined) => {
     if (input === undefined) {
       dispatch({ type: 'SET_DATE', payload: null })
@@ -206,12 +260,13 @@ export const usePricing = ({
     if (input instanceof Date) {
       dispatch({ type: 'SET_DATE', payload: input })
       const calculatedDuration = calculateDurationFromDate(input)
-      setDurationInputValue(calculatedDuration.toString())
+      setDurationInputValue(formatYears(calculatedDuration))
       onSetDuration(calculatedDuration)
     } else {
-      dispatch({ type: 'SET_DURATION', payload: input })
-      setDurationInputValue(input.toString())
-      onSetDuration(input)
+      const normalizedDuration = sanitizePricingDuration(input)
+      dispatch({ type: 'SET_DURATION', payload: normalizedDuration })
+      setDurationInputValue(formatYears(normalizedDuration))
+      onSetDuration(normalizedDuration)
     }
   }
 
