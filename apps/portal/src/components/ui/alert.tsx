@@ -11,6 +11,8 @@ const alertVariants = cva(
         default: 'bg-card text-card-foreground',
         destructive:
           'text-destructive bg-card [&>svg]:text-current *:data-[slot=alert-description]:text-destructive/90',
+        success:
+          'border-peridot-400 bg-peridot-100 text-peridot-900 [&>svg]:text-peridot-500 *:data-[slot=alert-description]:text-peridot-900/90',
       },
     },
     defaultVariants: {

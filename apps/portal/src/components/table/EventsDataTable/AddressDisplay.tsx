@@ -19,7 +19,7 @@ export const AddressDisplay = ({
     return (
       <div className="flex flex-row items-center gap-2">
         <div className="w-5 h-5 rounded-sm [background:var(--avatar-placeholder-gradient)]" />
-        <span className="text-sm text-gray-400">Loading...</span>
+        <span className="text-sm text-quartz-400">Loading...</span>
       </div>
     )
   }

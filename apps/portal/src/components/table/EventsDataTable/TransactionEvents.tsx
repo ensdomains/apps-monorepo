@@ -57,18 +57,18 @@ const EventData = ({ event, txHash }: EventDataProps) => {
       {showDecoded ? (
         <div className="border rounded-lg overflow-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-quartz-50">
               <tr>
-                <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 w-12">
+                <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700 w-12">
                   #
                 </th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">
+                <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700">
                   Name
                 </th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">
+                <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700">
                   Type
                 </th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">
+                <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700">
                   Data
                 </th>
               </tr>
@@ -97,15 +97,17 @@ const EventData = ({ event, txHash }: EventDataProps) => {
           </table>
         </div>
       ) : (
-        <div className="bg-gray-50 p-4 rounded-lg">
+        <div className="bg-quartz-50 p-4 rounded-lg">
           {eventLog ? (
             <div className="space-y-4">
               <div>
-                <p className="text-xs font-medium text-gray-600 mb-2">Data:</p>
+                <p className="text-xs font-medium text-quartz-500 mb-2">
+                  Data:
+                </p>
                 <CopyableRecord
                   value={eventLog.data}
                   displayValue={
-                    <p className="text-xs font-mono break-all text-gray-900">
+                    <p className="text-xs font-mono break-all text-quartz-900">
                       {eventLog.data}
                     </p>
                   }
@@ -113,7 +115,7 @@ const EventData = ({ event, txHash }: EventDataProps) => {
               </div>
               {eventLog.topics.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium text-gray-600 mb-2">
+                  <p className="text-xs font-medium text-quartz-500 mb-2">
                     Topics:
                   </p>
                   <div className="space-y-2">
@@ -122,7 +124,7 @@ const EventData = ({ event, txHash }: EventDataProps) => {
                         key={topic}
                         value={topic}
                         displayValue={
-                          <p className="text-xs font-mono break-all text-gray-900">
+                          <p className="text-xs font-mono break-all text-quartz-900">
                             [{i}]: {topic}
                           </p>
                         }
@@ -133,7 +135,7 @@ const EventData = ({ event, txHash }: EventDataProps) => {
               )}
             </div>
           ) : (
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-quartz-500">
               Encoded data not available. Transaction receipt may still be
               loading.
             </p>
@@ -154,7 +156,9 @@ export const TransactionEvents = ({
   txHash,
 }: TransactionEventsProps) => {
   if (events.length === 0) {
-    return <div className="text-gray-400 text-center py-6">No events found</div>
+    return (
+      <div className="text-quartz-400 text-center py-6">No events found</div>
+    )
   }
 
   const firstEventId = `${events[0].id}-0`
@@ -195,11 +199,11 @@ export const TransactionEvents = ({
                       <CopyableRecord
                         value={event.type}
                         displayValue={
-                          <h3 className="text-2xl font-medium">{event.type}</h3>
+                          <h3 className="text-xl font-medium">{event.type}</h3>
                         }
                       />
 
-                      <Button asChild variant="outline" size="sm">
+                      <Button variant="secondary" asChild size="sm">
                         <a
                           href="https://github.com/ensdomains/ens-contracts"
                           target="_blank"

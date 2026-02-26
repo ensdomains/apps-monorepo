@@ -181,7 +181,7 @@ function RouteComponent() {
           description={
             <>
               You don't have the required{' '}
-              <code className="font-mono text-sm bg-gray-100 px-1 py-0.5 rounded">
+              <code className="font-mono text-sm bg-quartz-50 px-1 py-0.5 rounded">
                 ROLE_SET_SUBREGISTRY
               </code>{' '}
               permission to change the registry for <strong>{name}</strong>.

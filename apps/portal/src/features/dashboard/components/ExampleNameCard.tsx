@@ -14,11 +14,11 @@ export const ExampleNameCard = ({
   const to = link ? `/$name/${link}` : '/$name'
 
   return (
-    <div className="p-4 rounded-lg border border-gray-300 flex flex-row justify-between items-center gap-4">
+    <div className="p-4 rounded-lg border border-border flex flex-row justify-between items-center gap-4">
       <div className="flex flex-row justify-between items-start gap-4">
         <div>
           <h4 className="font-semibold text-base mb-1 font-mono">{name}</h4>
-          <p className="text-sm text-gray-600">{description}</p>
+          <p className="text-sm text-quartz-500">{description}</p>
         </div>
       </div>
       <Button asChild variant="secondary" size="sm">

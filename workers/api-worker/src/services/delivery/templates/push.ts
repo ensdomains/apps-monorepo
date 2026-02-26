@@ -1,7 +1,7 @@
 import type {
-  NotificationPayloads,
+  PersonalNotificationPayloads,
   SupportedNotifications,
-} from '#config/notifications.js'
+} from '@ens-apps/shared-schema/notifications'
 
 export type PushNotificationData = {
   title: string
@@ -13,7 +13,7 @@ export type PushNotificationData = {
 }
 
 export type PushTemplate<K extends SupportedNotifications<'push'>> = (
-  payload: NotificationPayloads[K],
+  payload: PersonalNotificationPayloads[K],
 ) => PushNotificationData
 
 export const pushTemplates: {
