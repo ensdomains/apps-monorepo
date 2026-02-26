@@ -2,7 +2,7 @@ import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -12,8 +12,8 @@ import { Field } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { grantRoles } from '@/features/roles/helpers/grantRoles'
+import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
 import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
@@ -30,12 +30,15 @@ function RouteComponent() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
-  const [address, setAddress] = useState<Address | null>(null)
-  const resolveRequestIdRef = useRef(0)
+  const [nameOrAddressInput, setNameOrAddressInput] = useState('')
 
   const chainId = namechainSepolia.id
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })
+  const { data: address } = useResolvedRoleAccountAddress({
+    client,
+    nameOrAddress: nameOrAddressInput,
+  })
 
   const mutation = useMutation({
     mutationFn: (params: { account: Address; roles: Role[] }) => {
@@ -106,26 +109,15 @@ function RouteComponent() {
             name="user"
             placeholder="ens.eth"
             required
-            onChange={async (e) => {
+            onChange={(e) => {
               const nameOrAddress = e.currentTarget.value.trim()
-              const requestId = ++resolveRequestIdRef.current
 
               if (!e.currentTarget.checkValidity()) {
-                setAddress(null)
+                setNameOrAddressInput('')
                 return
               }
 
-              setAddress(null)
-
-              const result = await resolveAddressOrName({
-                client,
-                nameOrAddress,
-                requestId,
-              })
-
-              if (resolveRequestIdRef.current === result.requestId) {
-                setAddress(result.address)
-              }
+              setNameOrAddressInput(nameOrAddress)
             }}
             pattern="(?:[\u002DA-Za-z0-9]+[.]eth|0x[a-fA-F0-9]{40})"
           />

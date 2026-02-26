@@ -5,21 +5,14 @@ import { getEnsOwner } from '@/features/profile/hooks/useEnsOwner'
 type ResolveAddressOrNameParams = {
   client: Parameters<typeof getEnsAddress>[0]
   nameOrAddress: string
-  requestId: number
-}
-
-type ResolveAddressOrNameResult = {
-  address: Address | null
-  requestId: number
 }
 
 export async function resolveAddressOrName({
   client,
   nameOrAddress,
-  requestId,
-}: ResolveAddressOrNameParams): Promise<ResolveAddressOrNameResult> {
+}: ResolveAddressOrNameParams): Promise<Address | null> {
   if (isAddress(nameOrAddress, { strict: false })) {
-    return { address: nameOrAddress as Address, requestId }
+    return nameOrAddress as Address
   }
 
   try {
@@ -39,8 +32,8 @@ export async function resolveAddressOrName({
       }
     }
 
-    return { address: resolvedAddress, requestId }
+    return resolvedAddress
   } catch {
-    return { address: null, requestId }
+    return null
   }
 }
