@@ -271,6 +271,7 @@ describe('SearchModalContent', () => {
             onSelectAvailableName={mockOnSelectAvailableName}
             navigateToName={mockNavigateToName}
             navigateToAddress={mockNavigateToAddress}
+            navigateToResolver={mockNavigateToResolver}
           />
         </Command>
       </QueryClientProvider>,
