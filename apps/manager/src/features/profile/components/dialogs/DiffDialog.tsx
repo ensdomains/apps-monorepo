@@ -82,7 +82,7 @@ export const DiffDialog = ({
   })
 
   const changeIcons = {
-    added: <Plus className="size-4 text-green-600" />,
+    added: <Plus className="size-4 text-blue-600" />,
     removed: <X className="size-4 text-red-600" />,
     modified: <Check className="size-4 text-blue-600" />,
   } as const
@@ -149,7 +149,7 @@ export const DiffDialog = ({
                     <Badge variant="outline">{changeLabels[change.type]}</Badge>
                   </div>
                   {change.type === 'added' && (
-                    <div className="break-words rounded bg-green-50 p-2 text-green-700 text-sm">
+                    <div className="break-words rounded bg-blue-50 p-2 text-blue-700 text-sm">
                       <strong>New value:</strong> {change.current || '(empty)'}
                     </div>
                   )}
@@ -163,7 +163,7 @@ export const DiffDialog = ({
                       <div className="break-words rounded bg-red-50 p-2 text-red-700 text-sm">
                         <strong>From:</strong> {change.original || '(empty)'}
                       </div>
-                      <div className="break-words rounded bg-green-50 p-2 text-green-700 text-sm">
+                      <div className="break-words rounded bg-blue-50 p-2 text-blue-700 text-sm">
                         <strong>To:</strong> {change.current || '(empty)'}
                       </div>
                     </div>

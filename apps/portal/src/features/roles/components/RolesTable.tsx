@@ -6,6 +6,8 @@ import { GroupedDataTable } from '@/components/table/GroupedDataTable'
 
 type RolesTableProps = {
   title?: string
+  name: string
+  canManageRoles: boolean
   roles: GetNameRolesAccountsReturnType
 }
 
@@ -32,18 +34,28 @@ const columns: ColumnDef<AccountGroup>[] = [
   },
 ]
 
-export const RolesTable = ({ title, roles }: RolesTableProps) => {
-  const data: AccountGroup[] = Array.from(roles.entries()).map(
-    ([account, roleNames]) => ({
+export const RolesTable = ({
+  title,
+  roles,
+  name,
+  canManageRoles,
+}: RolesTableProps) => {
+  const data: AccountGroup[] = Array.from(roles.entries())
+    .filter(([, roleNames]) => roleNames.length > 0)
+    .map(([account, roleNames]) => ({
       account,
       items: roleNames,
-    }),
-  )
+    }))
 
   return (
     <div>
       {title && <h2>{title}</h2>}
-      <GroupedDataTable<AccountGroup, string> data={data} columns={columns} />
+      <GroupedDataTable<AccountGroup, string>
+        data={data}
+        columns={columns}
+        name={name}
+        canManageRoles={canManageRoles}
+      />
     </div>
   )
 }

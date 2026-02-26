@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { CommandEmpty, CommandList } from '@/components/ui/command'
 import { useSearchResults } from '../hooks/useSearchResults'
 import type { Suggestion } from '../utils/buildSearchSuggestions'
@@ -9,6 +9,7 @@ export type SearchModalContentProps = {
   searchValue: string
   onSelectSuggestion: (suggestion: Suggestion) => void
   onSelectOwnedName?: (name: string) => void
+  onSelectAvailableName?: (name: string) => void
   navigateToName: (name: string) => void
   navigateToAddress: (address: string) => void
 }
@@ -17,6 +18,7 @@ export const SearchModalContent = ({
   searchValue,
   onSelectSuggestion,
   onSelectOwnedName,
+  onSelectAvailableName,
   navigateToName,
   navigateToAddress,
 }: SearchModalContentProps) => {
@@ -34,6 +36,11 @@ export const SearchModalContent = ({
     navigateToAddress,
   })
 
+  const availableNameIds = useMemo(
+    () => new Set(availableNames.map((s) => s.id)),
+    [availableNames],
+  )
+
   const handleSelect = useCallback(
     (value: string) => {
       if (value.startsWith('owned:')) {
@@ -41,9 +48,20 @@ export const SearchModalContent = ({
         return
       }
       const suggestion = suggestions.find((s) => s.id === value)
-      if (suggestion) onSelectSuggestion(suggestion)
+      if (!suggestion) return
+      if (onSelectAvailableName && availableNameIds.has(suggestion.id)) {
+        onSelectAvailableName(suggestion.inputValue)
+      } else {
+        onSelectSuggestion(suggestion)
+      }
     },
-    [suggestions, onSelectSuggestion, onSelectOwnedName],
+    [
+      suggestions,
+      availableNameIds,
+      onSelectSuggestion,
+      onSelectOwnedName,
+      onSelectAvailableName,
+    ],
   )
 
   return (
