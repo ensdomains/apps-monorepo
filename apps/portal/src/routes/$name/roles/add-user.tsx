@@ -12,12 +12,12 @@ import { Field } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { grantRoles } from '@/features/roles/helpers/grantRoles'
 import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
-import { resolveAddressOrName } from './-add-user.handlers'
 
 export const Route = createFileRoute('/$name/roles/add-user')({
   component: RouteComponent,
