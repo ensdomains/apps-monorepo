@@ -40,3 +40,13 @@ export const permissions: Permission[] = [
     description: 'Can burn (delete) the name',
   },
 ] as const
+
+const nonSettableManagerRoles = new Set<Role>([
+  'ROLE_REGISTRAR',
+  'ROLE_RENEW',
+  'ROLE_SET_TOKEN_OBSERVER',
+  'ROLE_BURN',
+])
+
+export const isManagerRoleSettable = (role: Role) =>
+  !nonSettableManagerRoles.has(role)

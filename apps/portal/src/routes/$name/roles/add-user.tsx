@@ -3,8 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
 import { useState } from 'react'
-import { type Address, isAddress } from 'viem'
-import { getEnsAddress } from 'viem/actions'
+import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { Button } from '@/components/ui/button'
@@ -14,7 +13,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { grantRoles } from '@/features/roles/helpers/grantRoles'
-import { permissions } from '@/lib/roles/permissions'
+import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
+import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
@@ -30,11 +30,15 @@ function RouteComponent() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
-  const [address, setAddress] = useState<Address | null>(null)
+  const [nameOrAddressInput, setNameOrAddressInput] = useState('')
 
   const chainId = namechainSepolia.id
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })
+  const { data: address } = useResolvedRoleAccountAddress({
+    client,
+    nameOrAddress: nameOrAddressInput,
+  })
 
   const mutation = useMutation({
     mutationFn: (params: { account: Address; roles: Role[] }) => {
@@ -105,21 +109,15 @@ function RouteComponent() {
             name="user"
             placeholder="ens.eth"
             required
-            onChange={async (e) => {
-              if (e.currentTarget.checkValidity()) {
-                const nameOrAddress = e.currentTarget.value as Address
+            onChange={(e) => {
+              const nameOrAddress = e.currentTarget.value.trim()
 
-                if (isAddress(nameOrAddress)) {
-                  setAddress(nameOrAddress)
-                } else {
-                  const resolved = await getEnsAddress(client, {
-                    name: nameOrAddress,
-                    universalResolverAddress:
-                      '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce',
-                  })
-                  setAddress(resolved)
-                }
+              if (!e.currentTarget.checkValidity()) {
+                setNameOrAddressInput('')
+                return
               }
+
+              setNameOrAddressInput(nameOrAddress)
             }}
             pattern="(?:[\u002DA-Za-z0-9]+[.]eth|0x[a-fA-F0-9]{40})"
           />
@@ -129,19 +127,16 @@ function RouteComponent() {
           <h2 className="text-lg font-medium">Roles</h2>
           <div className="border rounded-lg divide-y">
             {permissions.map((permission) => {
-              // later will change it to allow for owner of eth registry to change those
-              const disabledRole =
-                permission.key === 'ROLE_REGISTRAR' ||
-                permission.key === 'ROLE_RENEW' ||
-                permission.key === 'ROLE_SET_TOKEN_OBSERVER' ||
-                permission.key === 'ROLE_BURN'
+              const isManagerRoleDisabled = !isManagerRoleSettable(
+                permission.key,
+              )
 
               return (
                 <div
                   key={permission.key}
                   className={cn(
                     'flex items-center justify-between p-4 gap-4',
-                    disabledRole && 'text-quartz-500',
+                    isManagerRoleDisabled && 'text-quartz-500',
                   )}
                 >
                   <div className="flex flex-col gap-1 flex-1">
@@ -155,7 +150,7 @@ function RouteComponent() {
                       <Checkbox
                         name={permission.key}
                         id={permission.key}
-                        disabled={disabledRole}
+                        disabled={isManagerRoleDisabled}
                       />
                       <Label
                         htmlFor={permission.key}

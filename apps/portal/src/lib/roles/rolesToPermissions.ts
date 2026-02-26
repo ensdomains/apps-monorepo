@@ -93,9 +93,9 @@ export const computeRoleChanges = (
 
     // Check for manager changes
     if (edited.manager && !original.manager) {
-      rolesToGrant.push(`${key}_MANAGER`)
+      rolesToGrant.push(key)
     } else if (!edited.manager && original.manager) {
-      rolesToRevoke.push(`${key}_MANAGER`)
+      rolesToRevoke.push(key)
     }
   }
 

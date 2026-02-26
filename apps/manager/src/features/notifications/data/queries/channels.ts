@@ -2,8 +2,8 @@ import type { TelegramAuthData } from '@ens-apps/shared-schema/telegram'
 import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
 import type { InferResponseType } from 'hono'
-import { loginWithTelegramPopup } from '@/features/notifications/utils/telegram/auth'
 import type { PushSubscriptionJSON } from '@/features/notifications/types/push'
+import { loginWithTelegramPopup } from '@/features/notifications/utils/telegram/auth'
 import { backendClient } from '@/utils/backend-client'
 
 // Types

@@ -32,12 +32,13 @@ import { revokeRoles } from '@/features/roles/helpers/revokeRoles'
 import { useEditedPermissions } from '@/features/roles/hooks/useEditedPermissions'
 import { useResetMutationsOnAccountChange } from '@/features/roles/hooks/useResetMutationsOnAccountChange'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { permissions } from '@/lib/roles/permissions'
+import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
 import {
   computeRoleChanges,
   hasPermissionsChanged,
   roleToPermissions,
 } from '@/lib/roles/rolesToPermissions'
+import { cn } from '@/lib/utils'
 import { namechainSepolia } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 
@@ -125,6 +126,7 @@ export const RolesSidebar = <
       }
     },
     onSuccess: async () => {
+      setOpen(false)
       await pollForIndexerSync({
         invalidateQueries: () =>
           queryClient.invalidateQueries({
@@ -134,7 +136,6 @@ export const RolesSidebar = <
             refetchType: 'all',
           }),
       })
-      setOpen(false)
     },
   })
 
@@ -161,6 +162,7 @@ export const RolesSidebar = <
       })
     },
     onSuccess: async () => {
+      setOpen(false)
       await pollForIndexerSync({
         invalidateQueries: () =>
           queryClient.invalidateQueries({
@@ -170,7 +172,6 @@ export const RolesSidebar = <
             refetchType: 'all',
           }),
       })
-      setOpen(false)
     },
   })
 
@@ -320,7 +321,10 @@ export const RolesSidebar = <
                 <h3 className="text-lg font-medium">Roles</h3>
                 <div className="border rounded-lg divide-y">
                   {permissions.map((permission) => {
-                    const roleKey = permission.key.slice(5) // strip ROLE_
+                    const roleKey = permission.key
+                    const isManagerRoleDisabled = !isManagerRoleSettable(
+                      permission.key,
+                    )
                     const rolePerms = editedPermissions.get(roleKey) || {
                       admin: false,
                       manager: false,
@@ -329,7 +333,10 @@ export const RolesSidebar = <
                     return (
                       <div
                         key={permission.key}
-                        className="flex items-center justify-between p-4 gap-4"
+                        className={cn(
+                          'flex items-center justify-between p-4 gap-4',
+                          isManagerRoleDisabled && 'text-quartz-500',
+                        )}
                       >
                         <div className="flex flex-col gap-1 flex-1">
                           <div className="font-medium">{permission.title}</div>
@@ -343,7 +350,9 @@ export const RolesSidebar = <
                               id={`${permission.key}-manager`}
                               checked={rolePerms.manager}
                               disabled={
-                                !canManageRoles || saveMutation.isPending
+                                !canManageRoles ||
+                                saveMutation.isPending ||
+                                isManagerRoleDisabled
                               }
                               onCheckedChange={(checked) =>
                                 handlePermissionChange(
@@ -368,16 +377,7 @@ export const RolesSidebar = <
                             <Checkbox
                               id={`${permission.key}-admin`}
                               checked={rolePerms.admin}
-                              disabled={
-                                !canManageRoles || saveMutation.isPending
-                              }
-                              onCheckedChange={(checked) =>
-                                handlePermissionChange(
-                                  roleKey,
-                                  'admin',
-                                  checked as boolean,
-                                )
-                              }
+                              disabled
                             />
                             <Label
                               htmlFor={`${permission.key}-admin`}
