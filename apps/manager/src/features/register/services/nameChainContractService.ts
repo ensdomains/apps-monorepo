@@ -17,6 +17,7 @@ import { getBlock, getChainId, readContract } from 'viem/actions'
 import { ERC20_ABI, FASTTESTETHREGISTRAR_ABI } from '@/lib/ens.abi'
 import type { RhinestoneTransactionResult } from '@/lib/smart-account/utils'
 import { customSepolia, SEPOLIA_RPC_URL } from '@/lib/wagmi'
+import { durationYearsToSeconds } from '../components/Pricing/utils'
 
 // Create standalone public client
 
@@ -53,7 +54,7 @@ export const generateCommitment = async (
 > => {
   try {
     const cleanName = name.replace('.eth', '')
-    const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
+    const durationInSeconds = durationYearsToSeconds(duration)
     const secret = keccak256(toHex(Math.random().toString()) as Hex)
 
     const commitment = await readContract(publicClient, {
@@ -240,7 +241,7 @@ export const registerDomain = async (
       )
     }
     // Convert duration from years to seconds
-    const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
+    const durationInSeconds = durationYearsToSeconds(duration)
     const cleanName = name.replace('.eth', '')
 
     // Encode the register function call with the correct parameters
@@ -340,7 +341,7 @@ export const getENSNameInfo = ResultFn(async function* (
   ownerAddress: Address = EMPTY_ADDRESS,
 ) {
   const cleanName = name.replace('.eth', '')
-  const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
+  const durationInSeconds = durationYearsToSeconds(duration)
 
   try {
     // Check availability
@@ -406,7 +407,7 @@ export const getTokenPrices = ResultFn(async function* (
   duration: number = 1, // in years
 ) {
   const cleanName = name.replace('.eth', '')
-  const durationInSeconds = BigInt(duration * 365 * 24 * 60 * 60)
+  const durationInSeconds = durationYearsToSeconds(duration)
 
   try {
     const prices: Record<string, any> = {}

@@ -1,4 +1,4 @@
-import { addMonths } from 'date-fns'
+import { addDays, addMonths } from 'date-fns'
 import { Pencil } from 'lucide-react'
 import { useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
@@ -7,9 +7,16 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import {
+  formatYears,
+  MIN_REGISTER_DURATION_SECONDS,
+  MIN_REGISTER_DURATION_YEARS,
+  SECONDS_PER_DAY,
+} from '@/features/register/components/Pricing/utils'
 import { cn } from '@/lib/utils'
 
 const MAX_DURATION_YEARS = 100
+const MIN_DURATION_DAYS = MIN_REGISTER_DURATION_SECONDS / SECONDS_PER_DAY
 
 type PricingRegistrationSummaryCardProps = {
   paddedDuration: string
@@ -29,29 +36,38 @@ export const PricingRegistrationSummaryCard = ({
   onInputChange,
 }: PricingRegistrationSummaryCardProps) => {
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false)
+  const minSelectableDate = addDays(new Date(), MIN_DURATION_DAYS)
 
   const handleDurationInputChange = (value: string) => {
-    const numericValue = value.replace(/\D/g, '')
-    if (numericValue === '') {
+    const normalized = value.replace(',', '.')
+    if (normalized === '') {
       onInputChange('')
       return
     }
 
-    const parsed = parseInt(numericValue, 10)
-    if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= MAX_DURATION_YEARS) {
-      onInputChange(numericValue)
-      onChange(parsed)
+    if (!/^\d*\.?\d*$/.test(normalized)) return
+
+    const parsed = parseFloat(normalized)
+    if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= MAX_DURATION_YEARS) {
+      onInputChange(normalized)
+      if (parsed > 0) {
+        onChange(Math.max(MIN_REGISTER_DURATION_YEARS, parsed))
+      }
     }
   }
 
   const handleDurationInputBlur = () => {
-    const numericValue = parseInt(durationInputValue, 10)
-    if (Number.isNaN(numericValue) || numericValue < 1) {
-      onChange(1)
+    const numericValue = parseFloat(durationInputValue)
+    if (Number.isNaN(numericValue) || numericValue <= 0) {
+      onInputChange(formatYears(MIN_REGISTER_DURATION_YEARS))
+      onChange(MIN_REGISTER_DURATION_YEARS)
     } else if (numericValue > MAX_DURATION_YEARS) {
+      onInputChange(formatYears(MAX_DURATION_YEARS))
       onChange(MAX_DURATION_YEARS)
     } else {
-      onChange(numericValue)
+      const clampedValue = Math.max(MIN_REGISTER_DURATION_YEARS, numericValue)
+      onInputChange(formatYears(clampedValue))
+      onChange(clampedValue)
     }
   }
 
@@ -82,12 +98,13 @@ export const PricingRegistrationSummaryCard = ({
               Registering for
             </span>
             <input
-              className="w-10 bg-transparent text-center font-medium text-ens-blue text-xl leading-none tracking-tight outline-none [appearance:textfield] md:text-2xl [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              className="w-16 bg-transparent text-center font-medium text-ens-blue text-xl leading-none tracking-tight outline-none [appearance:textfield] md:text-2xl [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               max={MAX_DURATION_YEARS}
-              min="1"
+              min={MIN_REGISTER_DURATION_YEARS}
               onBlur={handleDurationInputBlur}
               onChange={(e) => handleDurationInputChange(e.target.value)}
               onKeyDown={handleDurationInputKeyDown}
+              step={1}
               type="number"
               value={durationInputValue}
             />
@@ -122,18 +139,18 @@ export const PricingRegistrationSummaryCard = ({
                   captionLayout="dropdown"
                   defaultMonth={expirationDate}
                   disabled={(date) => {
-                    const today = new Date()
-                    today.setHours(0, 0, 0, 0)
+                    const minDate = new Date(minSelectableDate)
+                    minDate.setHours(0, 0, 0, 0)
                     const dateToCheck = new Date(date)
                     dateToCheck.setHours(0, 0, 0, 0)
-                    return dateToCheck.getTime() < today.getTime()
+                    return dateToCheck.getTime() < minDate.getTime()
                   }}
                   endMonth={addMonths(new Date(), 1200)}
                   onSelect={handleDateSelect}
                   selected={expirationDate}
                   showClearButton
                   showTodayButton
-                  startMonth={new Date()}
+                  startMonth={minSelectableDate}
                 />
               </PopoverContent>
             </Popover>
