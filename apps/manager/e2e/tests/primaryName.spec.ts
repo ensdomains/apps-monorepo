@@ -1,5 +1,4 @@
-import { expect, test } from '../fixtures/stagehand.fixture.js'
-import { createConsoleMonitor } from '../helpers/console-monitor.js'
+import { test } from '../fixtures/stagehand.fixture.js'
 import { fillParaEmailInput, sleep } from '../helpers/wait-helpers.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
@@ -15,8 +14,8 @@ test.describe('ENS primary name', () => {
   test('sets and clears a primary name via Para wallet', async ({
     stagehand,
   }) => {
-    // Login (~66s) + navigation (~15s) + transaction wait (120s) needs > 120s
-    test.setTimeout(240_000)
+    // Login (~66s) + navigation (~15s) + tx1 (60s) + tx2 (90s) needs > 240s
+    test.setTimeout(300_000)
 
     const page = stagehand.context.pages()[0]
     if (!page) throw new Error('No page in Stagehand context')
@@ -74,17 +73,40 @@ test.describe('ENS primary name', () => {
     await stagehand.act('click the Edit Profile button')
     await stagehand.act('click the Set Primary Name button')
 
-    // Start monitor before the final submit so we capture all transaction state changes
-    const monitor = createConsoleMonitor(page, {
-      onStateChange: (state, allStates) => {
-        console.log(`[PrimaryName] ${state} (seen: ${allStates.join(' → ')})`)
-      },
-    })
+    // Set up console watchers before clicking so we don't miss fast messages.
+    // Tx 1: saveRecords sets the ETH address record on the resolver.
+    // Tx 2: primary name machine sets the reverse record.
+    const waitForConsolePattern = (pattern: string, timeoutMs: number) =>
+      new Promise<void>((resolve, reject) => {
+        let done = false
+        const id = setTimeout(() => {
+          if (!done)
+            reject(new Error(`Timeout waiting for console: "${pattern}"`))
+        }, timeoutMs)
+        page.on('console', (msg) => {
+          if (!done && msg.text().includes(pattern)) {
+            done = true
+            clearTimeout(id)
+            resolve()
+          }
+        })
+      })
+
+    const tx1Done = waitForConsolePattern(
+      '[SAVE_RECORDS] Transaction completed:',
+      60_000,
+    )
+    const tx2Done = waitForConsolePattern(
+      '[PRIMARY NAME] Cleared snapshot',
+      90_000,
+    )
 
     await stagehand.act('click the Set as Primary button')
 
-    // Wait for transaction manager to reach success (or error/timeout)
-    await monitor.waitForRegistrationComplete(120_000)
-    expect(monitor.getLastState()).toBe('success')
+    await tx1Done
+    console.log('[PrimaryName] ✅ Tx 1 complete: ETH address record updated')
+
+    await tx2Done
+    console.log('[PrimaryName] ✅ Tx 2 complete: Primary name set')
   })
 })
