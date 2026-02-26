@@ -1,4 +1,5 @@
-import { test } from '../fixtures/stagehand.fixture.js'
+import { expect, test } from '../fixtures/stagehand.fixture.js'
+import { createConsoleMonitor } from '../helpers/console-monitor.js'
 import { fillParaEmailInput, sleep } from '../helpers/wait-helpers.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
@@ -14,6 +15,9 @@ test.describe('ENS primary name', () => {
   test('sets and clears a primary name via Para wallet', async ({
     stagehand,
   }) => {
+    // Login (~66s) + navigation (~15s) + transaction wait (120s) needs > 120s
+    test.setTimeout(240_000)
+
     const page = stagehand.context.pages()[0]
     if (!page) throw new Error('No page in Stagehand context')
 
@@ -64,66 +68,23 @@ test.describe('ENS primary name', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 10000))
 
-    const variables = { input1: 'primetest.eth' }
-
-    // Step 9: click the search bar at the top
-    console.log('Performing action: click the search bar at the top')
-    // xpath=/html[1]/body[1]/div[1]/nav[1]/div[1]/div[1]/div[1]/div[1]/input[1]
     await stagehand.act('click the search bar at the top')
-
-    // Step 13: type ${variables.input1} into the search bar
-    console.log(
-      `Performing action: type ${variables.input1} into the search bar`,
-    )
-    // xpath=/html[1]/body[1]/div[1]/nav[1]/div[1]/div[1]/div[1]/div[1]/input[1]
-    await stagehand.act(`type ${variables.input1} into the search bar`)
-
-    // Step 14: click on the primetest.eth search result
-    console.log('Performing action: click on the primetest.eth search result')
-    // xpath=/html[1]/body[1]/div[1]/main[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[1]/div[2]/div[1]/div[3]/div[1]/div[1]/div[1]/div[1]/div[2]/a[1]
+    await stagehand.act('type "primetest.eth" into the search bar')
     await stagehand.act('click on the primetest.eth search result')
-
-    // click the Edit Profile button
-    console.log('Performing action: click the Edit Profile button')
-    // xpath=/html[1]/body[1]/div[1]/main[1]/div[1]/div[2]/div[2]/div[1]/a[1]
     await stagehand.act('click the Edit Profile button')
-
-    // Step 15: click the Set Primary Name button
-    console.log('Performing action: click the Set Primary Name button')
-    // xpath=/html[1]/body[1]/div[1]/main[1]/div[1]/form[1]/div[2]/div[2]/button[1]
     await stagehand.act('click the Set Primary Name button')
 
-    // Step 16: click the Set as Primary button
-    console.log('Performing action: click the Set as Primary button')
-    // xpath=/html[1]/body[1]/div[6]/div[3]/button[2]
+    // Start monitor before the final submit so we capture all transaction state changes
+    const monitor = createConsoleMonitor(page, {
+      onStateChange: (state, allStates) => {
+        console.log(`[PrimaryName] ${state} (seen: ${allStates.join(' → ')})`)
+      },
+    })
+
     await stagehand.act('click the Set as Primary button')
 
-    // // Wait for transaction to confirm
-    // await page.waitForTimeout(30000);
-
-    // // click the Edit Profile button
-    // console.log(`Performing action: click the Edit Profile button`)
-    // // xpath=/html[1]/body[1]/div[1]/main[1]/div[1]/div[2]/div[2]/div[1]/a[1]
-    // await stagehand.act(`click the Edit Profile button`)
-
-    // // Step 17: click the Remove Ethereum button
-    // console.log(`Performing action: click the Remove Ethereum button`);
-    // // xpath=/html[1]/body[1]/div[1]/main[1]/div[1]/form[1]/div[2]/div[2]/div[1]/div[2]/div[1]/div[1]/button[1]
-    // await stagehand.act(`click the Remove Ethereum button`);
-
-    // // Step 18: click the Save Changes button
-    // console.log(`Performing action: click the Save Changes button`);
-    // // xpath=/html[1]/body[1]/div[1]/main[1]/div[1]/form[1]/div[2]/div[2]/div[2]/button[2]
-    // await stagehand.act(`click the Save Changes button`);
-
-    // // Step 19: click the Save Changes button in the modal
-    // console.log(`Performing action: click the Save Changes button in the modal`);
-    // // xpath=/html[1]/body[1]/div[6]/div[3]/button[2]
-    // await stagehand.act(`click the Save Changes button in the modal`);
-
-    // // Step 20: click the Go to Profile button
-    // console.log(`Performing action: click the Go to Profile button`);
-    // // xpath=/html[1]/body[1]/div[6]/div[3]/a[1]
-    // await stagehand.act(`click the Go to Profile button`);
+    // Wait for transaction manager to reach success (or error/timeout)
+    await monitor.waitForRegistrationComplete(120_000)
+    expect(monitor.getLastState()).toBe('success')
   })
 })
