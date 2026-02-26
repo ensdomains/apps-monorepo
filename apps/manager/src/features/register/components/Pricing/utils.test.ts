@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  createEmptyPricingQuoteMap,
   durationFromDateInYears,
   durationYearsToSeconds,
   formatYears,
+  getInitialPricingOptions,
   MIN_REGISTER_DURATION_SECONDS,
   MIN_REGISTER_DURATION_YEARS,
   SECONDS_PER_DAY,
@@ -162,5 +164,34 @@ describe('constants', () => {
 
   it('MIN_REGISTER_DURATION_YEARS is consistent', () => {
     expect(MIN_REGISTER_DURATION_YEARS).toBeCloseTo(28 / 365, 5)
+  })
+})
+
+describe('getInitialPricingOptions', () => {
+  it('returns INITIAL_PRICING_OPTIONS when discounts enabled', () => {
+    const result = getInitialPricingOptions(true)
+    expect(result).toEqual(
+      expect.objectContaining({
+        1: expect.objectContaining({ discount: 0 }),
+        3: expect.objectContaining({ discount: 0 }),
+        5: expect.objectContaining({ discount: 0 }),
+        10: expect.objectContaining({ discount: 0 }),
+      }),
+    )
+  })
+
+  it('returns options with zero discount when discounts disabled', () => {
+    const result = getInitialPricingOptions(false)
+    expect(result[1].discount).toBe(0)
+    expect(result[3].discount).toBe(0)
+    expect(result[5].discount).toBe(0)
+    expect(result[10].discount).toBe(0)
+  })
+})
+
+describe('createEmptyPricingQuoteMap', () => {
+  it('returns empty quote map for durations 1, 3, 5, 10', () => {
+    const result = createEmptyPricingQuoteMap()
+    expect(result).toEqual({ 1: {}, 3: {}, 5: {}, 10: {} })
   })
 })
