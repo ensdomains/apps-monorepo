@@ -61,6 +61,10 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   } = useQuery({
     ...getNameAvailabilityQueryOptions({ name }),
     enabled: Boolean(name) && isNameValid,
+    // Don't refetch when the registration is successful - this prevents the query from being refetched when the registration is successful
+    // for all other states, it important to refetch regularly to check for name availability changes
+    // This is to avoid the issue where the name availability is not updated immediately after the registration is successful
+    // avoiding users being stuck in endless failure and try again loops.
     refetchInterval: isSuccess ? false : 5000,
   })
 
