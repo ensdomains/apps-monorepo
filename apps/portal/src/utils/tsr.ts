@@ -1,11 +1,14 @@
-import type { AnyRouter, RegisteredRouter } from '@tanstack/react-router'
-import type { LinkOptionsFnOptions } from 'node_modules/@tanstack/react-router/dist/esm/link'
+import type {
+  AnyRouter,
+  RegisteredRouter,
+  ValidateLinkOptions,
+} from '@tanstack/react-router'
 
 type DefineLinkItemFn<T, TComp = 'a'> = <
   const TOptions,
   TRouter extends AnyRouter = RegisteredRouter,
 >(
-  options: T & { link: LinkOptionsFnOptions<TOptions, TComp, TRouter> },
+  options: T & { link: ValidateLinkOptions<TRouter, TOptions, string, TComp> },
 ) => T & { link: TOptions }
 
 /**

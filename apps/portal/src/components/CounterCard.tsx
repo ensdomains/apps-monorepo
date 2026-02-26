@@ -36,6 +36,7 @@ const CounterCardLinkBase = forwardRef<
     <ChevronRight className="size-4" />
   </a>
 ))
+CounterCardLinkBase.displayName = 'CounterCardLinkBase'
 
 export const CounterCardLink = createLink(CounterCardLinkBase)
 
