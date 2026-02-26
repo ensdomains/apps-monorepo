@@ -17,7 +17,7 @@ import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
-import { resolveAddressOrName } from './add-user.handlers'
+import { resolveAddressOrName } from './-add-user.handlers'
 
 export const Route = createFileRoute('/$name/roles/add-user')({
   component: RouteComponent,
