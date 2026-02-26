@@ -11,6 +11,7 @@ import {
 import type { Address } from 'viem'
 import { LogoWithTextSVG } from '@/assets/logo'
 import { Badge } from '@/components/ui/badge'
+import { createDefineLinkItem } from '@/utils/tsr'
 import {
   Sidebar,
   SidebarContent,
@@ -23,47 +24,64 @@ import {
   SidebarSeparator,
 } from './ui/sidebar'
 
-type SidebarItem = {
+type SidebarItemData = {
   title: string
-  url: string
   icon: LucideIcon
   disabled?: boolean
   upcoming?: boolean
 }
 
-const itemGroups: SidebarItem[][] = [
+const defineAddrSidebarItem = createDefineLinkItem<SidebarItemData>()
+
+const getItemGroups = (addr: string) => [
   [
-    {
+    defineAddrSidebarItem({
       title: 'Overview',
-      url: '/addr/$addr',
       icon: IdCardLanyard,
-    },
-    {
+      link: {
+        to: '/addr/$addr',
+        params: { addr },
+        activeOptions: { exact: true },
+      },
+    }),
+    defineAddrSidebarItem({
       title: 'Names',
-      url: '/addr/$addr/names',
       icon: GripHorizontal,
-    },
+      link: {
+        to: '/addr/$addr/names',
+        params: { addr },
+      },
+    }),
   ],
   [
-    {
+    defineAddrSidebarItem({
       title: 'Address Resolution',
-      url: '/addr/$addr/resolution',
       icon: CopyIcon,
       upcoming: true,
-    },
-    {
+      link: {
+        to: '/addr/$addr',
+        params: { addr },
+      },
+    }),
+    defineAddrSidebarItem({
       title: 'Reverse Resolution',
-      url: '/addr/$addr/reverse-resolution',
       icon: CopySlashIcon,
       upcoming: true,
-    },
+      link: {
+        to: '/addr/$addr',
+        params: { addr },
+      },
+    }),
   ],
   [
-    {
+    defineAddrSidebarItem({
       title: 'History',
-      url: '/addr/$addr/history',
       icon: ClockIcon,
-    },
+      link: {
+        to: '/addr/$addr/history',
+        params: { addr },
+      },
+    }),
   ],
 ]
 
@@ -72,6 +90,8 @@ interface AddrSidebarProps {
 }
 
 export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
+  const itemGroups = getItemGroups(addr)
+
   return (
     <Sidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!">
       <SidebarHeader className="p-6">
@@ -92,7 +112,7 @@ export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
       <SidebarSeparator />
       <SidebarContent>
         {itemGroups.map((items, i) => (
-          <div key={items[0].url}>
+          <div key={items[0].title}>
             <SidebarGroup>
               <SidebarGroupContent>
                 <SidebarMenu>
@@ -119,13 +139,9 @@ export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
                       ) : (
                         <SidebarMenuButton asChild>
                           <Link
-                            params={{ addr }}
-                            to={item.url}
+                            {...item.link}
                             activeProps={{
                               'data-active': 'true',
-                            }}
-                            activeOptions={{
-                              exact: item.url === '/addr/$addr',
                             }}
                           >
                             <item.icon className="size-6" />
