@@ -26,7 +26,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { pollForIndexerSync } from '@/features/records/helpers/pollForIndexerSync'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { grantRoles } from '@/features/roles/helpers/grantRoles'
 import { revokeRoles } from '@/features/roles/helpers/revokeRoles'
@@ -40,6 +39,7 @@ import {
   roleToPermissions,
 } from '@/lib/roles/rolesToPermissions'
 import { namechainSepolia } from '@/lib/wagmi'
+import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 
 type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
   PropsWithChildren<{
