@@ -3,8 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { type Address, isAddress } from 'viem'
-import { getEnsAddress } from 'viem/actions'
+import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { Button } from '@/components/ui/button'
@@ -12,13 +11,13 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Field } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { getEnsOwner } from '@/features/profile/hooks/useEnsOwner'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { grantRoles } from '@/features/roles/helpers/grantRoles'
 import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
+import { resolveAddressOrName } from './add-user.handlers'
 
 export const Route = createFileRoute('/$name/roles/add-user')({
   component: RouteComponent,
@@ -116,38 +115,16 @@ function RouteComponent() {
                 return
               }
 
-              if (isAddress(nameOrAddress, { strict: false })) {
-                setAddress(nameOrAddress as Address)
-                return
-              }
-
               setAddress(null)
 
-              try {
-                const resolved = await getEnsAddress(client, {
-                  name: nameOrAddress,
-                  universalResolverAddress:
-                    '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce',
-                })
+              const result = await resolveAddressOrName({
+                client,
+                nameOrAddress,
+                requestId,
+              })
 
-                let resolvedAddress = resolved
-
-                // Fallback for names that do not set an address record:
-                // use current ENS owner address so the role can still be granted.
-                if (!resolvedAddress) {
-                  const ownerResult = await getEnsOwner({ name: nameOrAddress })
-                  if (ownerResult.isOk()) {
-                    resolvedAddress = ownerResult.value?.owner ?? null
-                  }
-                }
-
-                if (resolveRequestIdRef.current === requestId) {
-                  setAddress(resolvedAddress)
-                }
-              } catch {
-                if (resolveRequestIdRef.current === requestId) {
-                  setAddress(null)
-                }
+              if (resolveRequestIdRef.current === result.requestId) {
+                setAddress(result.address)
               }
             }}
             pattern="(?:[\u002DA-Za-z0-9]+[.]eth|0x[a-fA-F0-9]{40})"
