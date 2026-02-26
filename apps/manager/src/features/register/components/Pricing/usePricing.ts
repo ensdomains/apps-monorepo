@@ -1,7 +1,9 @@
 import { useModal } from '@getpara/react-sdk-lite'
-import { useEffect, useMemo, useReducer, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useMemo, useReducer, useState } from 'react'
 import type { PricingDuration } from '@/features/register/components/Pricing/types'
 import { getPremiumLabel } from '@/features/register/utils'
+import { useDebounce } from '@/hooks/useDebounce'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { getTokenPrices } from '../../services/nameChainContractService'
@@ -57,14 +59,104 @@ export const usePricing = ({
 
   const premiumLabel = useMemo(() => getPremiumLabel(domainName), [domainName])
 
-  const basePerYear = state.basePricePerYear ?? 0
   const isCustomDuration = !PRICING_DURATIONS.includes(
     state.selectedDuration as PricingDuration,
   )
+
+  const isUsingAA = !!smartAccountClient
+
+  // Fetch base pricing for preset durations
+  const presetPricingQuery = useQuery({
+    queryKey: ['pricing', 'presets', domainName, discountsEnabled],
+    queryFn: async () => {
+      const baseResult = await getTokenPrices(domainName, 1)
+
+      if (baseResult.isErr() || !baseResult.value.usdc) {
+        throw new Error('Failed to fetch base pricing')
+      }
+
+      const basePerYear = parseFloat(baseResult.value.usdc.formatted)
+      const updatedOptions = { ...INITIAL_PRICING_OPTIONS }
+      const updatedQuotes = createEmptyPricingQuoteMap()
+
+      for (const dur of PRICING_DURATIONS) {
+        const discount = discountsEnabled
+          ? INITIAL_PRICING_OPTIONS[dur].discount
+          : 0
+        const discountMultiplier = discountsEnabled ? 1 - discount / 100 : 1
+        const perYearPrice = basePerYear * discountMultiplier
+        const totalPrice = Math.ceil(perYearPrice * dur)
+
+        updatedOptions[dur] = {
+          ...INITIAL_PRICING_OPTIONS[dur],
+          price: perYearPrice,
+          discount,
+          total: totalPrice,
+        }
+
+        updatedQuotes[dur] = {
+          usdc: totalPrice,
+          dai: baseResult.value.dai
+            ? Math.ceil(
+                parseFloat(baseResult.value.dai.formatted) *
+                  discountMultiplier *
+                  dur,
+              )
+            : undefined,
+        }
+      }
+
+      return {
+        basePricePerYear: basePerYear,
+        pricingOptions: updatedOptions,
+        pricingQuotes: updatedQuotes,
+      }
+    },
+    enabled: !!domainName,
+  })
+
+  // Debounce custom duration for contract price lookup
+  const { debouncedValue: debouncedCustomDuration } = useDebounce(
+    isCustomDuration ? state.selectedDuration : null,
+    { delay: 300 },
+  )
+
+  // Fetch real contract price for custom durations
+  const customQuoteQuery = useQuery({
+    queryKey: ['pricing', 'customQuote', domainName, debouncedCustomDuration],
+    queryFn: async () => {
+      const result = await getTokenPrices(domainName, debouncedCustomDuration!)
+
+      if (result.isErr()) {
+        throw new Error('Failed to fetch custom quote')
+      }
+
+      return {
+        usdc: result.value.usdc
+          ? Math.ceil(parseFloat(result.value.usdc.formatted))
+          : undefined,
+        dai: result.value.dai
+          ? Math.ceil(parseFloat(result.value.dai.formatted))
+          : undefined,
+      }
+    },
+    enabled: !!domainName && debouncedCustomDuration != null,
+  })
+
+  // Derive pricing data directly from query results
+  const pricingOptions =
+    presetPricingQuery.data?.pricingOptions ?? INITIAL_PRICING_OPTIONS
+  const presetQuotes =
+    presetPricingQuery.data?.pricingQuotes ?? createEmptyPricingQuoteMap()
+  const basePerYear = presetPricingQuery.data?.basePricePerYear ?? 0
+
   const selectedOption = isCustomDuration
     ? undefined
-    : state.pricingOptions[state.selectedDuration as PricingDuration]
-  const selectedQuote = state.pricingQuotes[state.selectedDuration]
+    : pricingOptions[state.selectedDuration as PricingDuration]
+
+  const selectedQuote = isCustomDuration
+    ? customQuoteQuery.data
+    : presetQuotes[state.selectedDuration as PricingDuration]
 
   const customDurationPrice =
     isCustomDuration && basePerYear > 0
@@ -111,145 +203,9 @@ export const usePricing = ({
   )
 
   const isPriceLoading =
-    state.isPricingLoading ||
-    state.basePricePerYear === null ||
-    state.isCustomQuoteLoading ||
+    presetPricingQuery.isPending ||
+    (isCustomDuration && customQuoteQuery.isFetching) ||
     selectedQuote?.usdc == null
-
-  const isUsingAA = !!smartAccountClient
-
-  useEffect(() => {
-    let isCancelled = false
-
-    const fetchPricingOptions = async () => {
-      if (!domainName) return
-
-      dispatch({ type: 'FETCH_PRICING_START' })
-      try {
-        const baseResult = await getTokenPrices(domainName, 1)
-
-        if (isCancelled) return
-
-        if (baseResult.isOk() && baseResult.value.usdc) {
-          const basePerYear = parseFloat(baseResult.value.usdc.formatted)
-          const updatedOptions = { ...INITIAL_PRICING_OPTIONS }
-          const updatedQuotes = createEmptyPricingQuoteMap()
-
-          for (const duration of PRICING_DURATIONS) {
-            const discount = discountsEnabled
-              ? INITIAL_PRICING_OPTIONS[duration].discount
-              : 0
-            const discountMultiplier = discountsEnabled ? 1 - discount / 100 : 1
-            const perYearPrice = basePerYear * discountMultiplier
-            const totalPrice = Math.ceil(perYearPrice * duration)
-
-            updatedOptions[duration] = {
-              ...INITIAL_PRICING_OPTIONS[duration],
-              price: perYearPrice,
-              discount,
-              total: totalPrice,
-            }
-
-            updatedQuotes[duration] = {
-              usdc: totalPrice,
-              dai: baseResult.value.dai
-                ? Math.ceil(
-                    parseFloat(baseResult.value.dai.formatted) *
-                      discountMultiplier *
-                      duration,
-                  )
-                : undefined,
-            }
-          }
-
-          if (!isCancelled) {
-            dispatch({
-              type: 'FETCH_PRICING_SUCCESS',
-              payload: {
-                basePricePerYear: basePerYear,
-                pricingOptions: updatedOptions,
-                pricingQuotes: updatedQuotes,
-              },
-            })
-          }
-        } else {
-          if (!isCancelled) {
-            dispatch({ type: 'FETCH_PRICING_ERROR' })
-          }
-        }
-      } catch (error) {
-        if (!isCancelled) {
-          console.error('Failed to get pricing options:', error)
-          dispatch({ type: 'FETCH_PRICING_ERROR' })
-        }
-      }
-    }
-
-    fetchPricingOptions()
-
-    return () => {
-      isCancelled = true
-    }
-  }, [domainName, discountsEnabled])
-
-  useEffect(() => {
-    let isCancelled = false
-    const isCustom = !PRICING_DURATIONS.includes(
-      state.selectedDuration as PricingDuration,
-    )
-
-    if (!domainName || !isCustom) {
-      return
-    }
-
-    const { selectedDuration } = state
-    dispatch({
-      type: 'FETCH_CUSTOM_QUOTE_START',
-      payload: { duration: selectedDuration },
-    })
-
-    const timeoutId = window.setTimeout(async () => {
-      try {
-        const result = await getTokenPrices(domainName, selectedDuration)
-
-        if (isCancelled) return
-
-        if (result.isOk()) {
-          dispatch({
-            type: 'FETCH_CUSTOM_QUOTE_SUCCESS',
-            payload: {
-              duration: selectedDuration,
-              quote: {
-                usdc: result.value.usdc
-                  ? Math.ceil(parseFloat(result.value.usdc.formatted))
-                  : undefined,
-                dai: result.value.dai
-                  ? Math.ceil(parseFloat(result.value.dai.formatted))
-                  : undefined,
-              },
-            },
-          })
-        } else if (!isCancelled) {
-          dispatch({
-            type: 'FETCH_CUSTOM_QUOTE_ERROR',
-            payload: { duration: selectedDuration },
-          })
-        }
-      } catch (_error) {
-        if (!isCancelled) {
-          dispatch({
-            type: 'FETCH_CUSTOM_QUOTE_ERROR',
-            payload: { duration: selectedDuration },
-          })
-        }
-      }
-    }, 300)
-
-    return () => {
-      isCancelled = true
-      window.clearTimeout(timeoutId)
-    }
-  }, [domainName, state.selectedDuration])
 
   const handleChange = (input: Date | number | undefined) => {
     if (input === undefined) {
@@ -287,11 +243,11 @@ export const usePricing = ({
   }
 
   return {
-    pricingOptions: state.pricingOptions,
+    pricingOptions,
     selectedDuration: state.selectedDuration,
-    isPricingLoading: state.isPricingLoading,
+    isPricingLoading: presetPricingQuery.isPending,
     isPriceLoading,
-    pricingQuotes: state.pricingQuotes,
+    pricingQuotes: presetQuotes,
     premiumLabel,
     finalPrice,
     discountAmount,
