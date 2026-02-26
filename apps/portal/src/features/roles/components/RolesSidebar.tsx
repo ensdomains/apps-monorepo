@@ -26,7 +26,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { pollForIndexerSync } from '@/features/records/helpers/pollForIndexerSync'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { grantRoles } from '@/features/roles/helpers/grantRoles'
 import { revokeRoles } from '@/features/roles/helpers/revokeRoles'
@@ -41,6 +40,7 @@ import {
 } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
 import { namechainSepolia } from '@/lib/wagmi'
+import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 
 type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
   PropsWithChildren<{
@@ -378,13 +378,6 @@ export const RolesSidebar = <
                               id={`${permission.key}-admin`}
                               checked={rolePerms.admin}
                               disabled
-                              onCheckedChange={(checked) =>
-                                handlePermissionChange(
-                                  roleKey,
-                                  'admin',
-                                  checked as boolean,
-                                )
-                              }
                             />
                             <Label
                               htmlFor={`${permission.key}-admin`}

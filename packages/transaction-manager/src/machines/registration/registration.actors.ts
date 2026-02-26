@@ -193,7 +193,16 @@ function selectRegistrarAddress(useFastRegistrar: boolean): Address {
     : ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 }
 
-function getSmartAccountAddress(signer: Signer): Address {
+function getSignerAddress(signer: Signer): Address {
+  if (signer.type === 'eoa') {
+    const account = signer.walletClient.account
+
+    if (!account) {
+      throw new Error('EOA wallet client has no account connected')
+    }
+    return account.address
+  }
+
   if (signer.type === 'rhinestone') {
     // Rhinestone SDK account - use getAddress method
     return signer.account.getAddress() as Address
@@ -220,7 +229,7 @@ function getSmartAccountAddress(signer: Signer): Address {
   }
 
   throw new Error(
-    'Only Rhinestone or ZeroDev signer is supported for registration',
+    'Only EOA, Rhinestone, or ZeroDev signer is supported for registration',
   )
 }
 
@@ -239,6 +248,17 @@ function createTransactionRequest(params: {
   sponsored?: boolean
 }): TransactionRequest {
   const { signer, from, to, data, value, chainId, calls, sponsored } = params
+
+  if (signer.type === 'eoa') {
+    return {
+      type: 'eoa',
+      from,
+      to,
+      data,
+      value,
+      chainId,
+    }
+  }
 
   if (signer.type === 'rhinestone') {
     return {
@@ -291,7 +311,7 @@ export function submitResolverDeploymentActor(input: {
 }): ResultAsync<{ txId: string; salt: bigint }, Error> {
   return ResultAsync.fromSafePromise(
     Promise.resolve().then(() => {
-      const smartAccountAddress = getSmartAccountAddress(input.signer)
+      const accountAddress = getSignerAddress(input.signer)
       const salt = generateResolverSalt(input.name)
       const initCalldata = getResolverInitCalldata(input.owner)
 
@@ -303,7 +323,7 @@ export function submitResolverDeploymentActor(input: {
 
       const request = createTransactionRequest({
         signer: input.signer,
-        from: smartAccountAddress,
+        from: accountAddress,
         to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
         data: deployCalldata,
         value: 0n,
@@ -327,6 +347,7 @@ export function submitResolverDeploymentActor(input: {
         {
           description: `Deploy dedicated resolver for ${input.name}.eth`,
           publicClient: input.publicClient,
+          timeout: 120_000,
         },
       )
 
@@ -410,7 +431,7 @@ export function submitCommitmentActor(input: {
         },
       )
 
-      const smartAccountAddress = getSmartAccountAddress(input.signer)
+      const accountAddress = getSignerAddress(input.signer)
 
       const commitmentData = encodeCommitmentData(input.commitment.commitment)
 
@@ -421,7 +442,7 @@ export function submitCommitmentActor(input: {
 
       const request = createTransactionRequest({
         signer: input.signer,
-        from: smartAccountAddress,
+        from: accountAddress,
         to: registrarAddress,
         data: commitmentData,
         value: 0n,
@@ -445,6 +466,7 @@ export function submitCommitmentActor(input: {
         {
           description: `Commit to register ${input.name}.eth`,
           publicClient: input.publicClient,
+          timeout: 120_000,
         },
       )
 
@@ -589,7 +611,7 @@ export function submitApprovalActor(input: {
 
   return ResultAsync.fromSafePromise(
     Promise.resolve().then(() => {
-      const smartAccountAddress = getSmartAccountAddress(input.signer)
+      const accountAddress = getSignerAddress(input.signer)
 
       const tokenAddress = getPaymentTokenAddress(input.selectedToken)
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
@@ -605,7 +627,7 @@ export function submitApprovalActor(input: {
 
       const request = createTransactionRequest({
         signer: input.signer,
-        from: smartAccountAddress,
+        from: accountAddress,
         to: normalizedTokenAddress,
         data: approvalData,
         value: 0n,
@@ -629,6 +651,7 @@ export function submitApprovalActor(input: {
         {
           description: `Approve ${input.selectedToken} for registration`,
           publicClient: input.publicClient,
+          timeout: 120_000,
         },
       )
 
@@ -657,7 +680,7 @@ export function submitRegistrationActor(input: {
 
   return fromPromise(
     (async () => {
-      const smartAccountAddress = getSmartAccountAddress(input.signer)
+      const accountAddress = getSignerAddress(input.signer)
 
       const paymentToken = getPaymentTokenAddress(input.selectedToken)
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
@@ -696,7 +719,7 @@ export function submitRegistrationActor(input: {
 
       const request = createTransactionRequest({
         signer: input.signer,
-        from: smartAccountAddress,
+        from: accountAddress,
         to: registrarAddress,
         data: registrationData,
         value: 0n,
@@ -720,6 +743,7 @@ export function submitRegistrationActor(input: {
         {
           description: `Register ${input.name}.eth`,
           publicClient: input.publicClient,
+          timeout: 120_000,
         },
       )
 
