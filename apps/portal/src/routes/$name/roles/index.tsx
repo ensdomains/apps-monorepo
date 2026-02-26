@@ -1,7 +1,7 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
-import type { Address } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -22,9 +22,11 @@ export const Route = createFileRoute('/$name/roles/')({
 const V2NameRoles = ({
   name,
   registryAddress,
+  canManageRoles,
 }: {
   name: string
   registryAddress: Address
+  canManageRoles: boolean
 }) => {
   const { currentLabel, labels } = getNameLabels(name)
 
@@ -53,32 +55,23 @@ const V2NameRoles = ({
 
   if (!nameRolesQuery.data) return 'No data'
 
-  return <RolesTable roles={nameRolesQuery.data} />
+  return (
+    <RolesTable
+      roles={nameRolesQuery.data}
+      name={name}
+      canManageRoles={canManageRoles}
+    />
+  )
 }
 
 const AddUserButton = ({
   name,
-  address,
+  canManageRoles,
 }: {
   name: string
-  address: Address
+  canManageRoles: boolean
 }) => {
-  const label = name.split('.')[0]
-
-  const { data: roles, isLoading } = useQuery(
-    getNameRolesForAccountQueryOptions({
-      registryAddress: namechainEthRegistryAddress,
-      label,
-      account: address,
-    }),
-  )
-
-  const hasAdmin = Boolean(
-    roles?.decoded.find((role) => role.endsWith('_ADMIN')),
-  )
-
-  if (isLoading) return <div>Loading</div>
-  if (!hasAdmin) return null
+  if (!canManageRoles) return null
 
   return (
     <Button variant="secondary" className="flex items-center gap-2" asChild>
@@ -94,11 +87,28 @@ function RouteComponent() {
   const { name } = Route.useParams()
 
   const { address } = useConnection()
+  const label = name.split('.')[0]
 
   const { data, isLoading, error } = useQuery({
     ...getEnsOwnerQueryOptions({ name }),
     enabled: name.endsWith('.eth'),
   })
+
+  const { data: currentAccountRoles } = useQuery({
+    ...getNameRolesForAccountQueryOptions({
+      registryAddress: data?.registryAddress ?? namechainEthRegistryAddress,
+      label,
+      account: address ?? zeroAddress,
+    }),
+    enabled:
+      Boolean(address) &&
+      Boolean(data?.registryAddress) &&
+      data?.network === 'namechainSepolia',
+  })
+
+  const canManageRoles = Boolean(
+    currentAccountRoles?.decoded.find((role) => role.endsWith('_ADMIN')),
+  )
 
   if (!name.endsWith('.eth') || name.split('.').length !== 2)
     return <ErrorMessage title="Only 2LD .eth is supported" />
@@ -116,9 +126,15 @@ function RouteComponent() {
       <div className="max-w-360 w-full mx-auto flex flex-col gap-6 m-6 px-4">
         <div className="flex items-center justify-between">
           <h1 className="text-[28px] font-medium leading-none">Roles</h1>
-          {address && <AddUserButton name={name} address={address} />}
+          {address && (
+            <AddUserButton name={name} canManageRoles={canManageRoles} />
+          )}
         </div>
-        <V2NameRoles name={name} registryAddress={data.registryAddress} />
+        <V2NameRoles
+          name={name}
+          registryAddress={data.registryAddress}
+          canManageRoles={canManageRoles}
+        />
       </div>
     )
   } else

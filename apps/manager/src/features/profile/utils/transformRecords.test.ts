@@ -38,13 +38,7 @@ describe('profile transformRecords utils', () => {
       const records = newEmptyProfileRecords()
       const result = transformToServiceFormat(records)
 
-      // newEmptyProfileRecords includes default section fields with empty values
-      expect(result.texts).toEqual([
-        { key: 'com.twitter', value: '' },
-        { key: 'org.telegram', value: '' },
-        { key: 'email', value: '' },
-        { key: 'location', value: '' },
-      ])
+      expect(result.texts).toEqual([])
       expect(result.coins).toEqual([])
     })
 

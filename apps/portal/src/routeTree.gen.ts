@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as NameRouteImport } from './routes/$name'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RegisterIndexRouteImport } from './routes/register/index'
 import { Route as NameIndexRouteImport } from './routes/$name/index'
 import { Route as ResolverAddressRouteImport } from './routes/resolver/$address'
 import { Route as AddrAddrRouteImport } from './routes/addr/$addr'
@@ -45,6 +46,11 @@ const NameRoute = NameRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterIndexRoute = RegisterIndexRouteImport.update({
+  id: '/register/',
+  path: '/register/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NameIndexRoute = NameIndexRouteImport.update({
@@ -191,6 +197,7 @@ export interface FileRoutesByFullPath {
   '/addr/$addr': typeof AddrAddrRouteWithChildren
   '/resolver/$address': typeof ResolverAddressRouteWithChildren
   '/$name/': typeof NameIndexRoute
+  '/register': typeof RegisterIndexRoute
   '/$name/roles/add-user': typeof NameRolesAddUserRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
@@ -217,6 +224,7 @@ export interface FileRoutesByTo {
   '/$name/subnames': typeof NameSubnamesRoute
   '/$name/token': typeof NameTokenRoute
   '/$name': typeof NameIndexRoute
+  '/register': typeof RegisterIndexRoute
   '/$name/roles/add-user': typeof NameRolesAddUserRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
@@ -247,6 +255,7 @@ export interface FileRoutesById {
   '/addr/$addr': typeof AddrAddrRouteWithChildren
   '/resolver/$address': typeof ResolverAddressRouteWithChildren
   '/$name/': typeof NameIndexRoute
+  '/register/': typeof RegisterIndexRoute
   '/$name/roles/add-user': typeof NameRolesAddUserRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
@@ -278,6 +287,7 @@ export interface FileRouteTypes {
     | '/addr/$addr'
     | '/resolver/$address'
     | '/$name/'
+    | '/register'
     | '/$name/roles/add-user'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
@@ -304,6 +314,7 @@ export interface FileRouteTypes {
     | '/$name/subnames'
     | '/$name/token'
     | '/$name'
+    | '/register'
     | '/$name/roles/add-user'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
@@ -333,6 +344,7 @@ export interface FileRouteTypes {
     | '/addr/$addr'
     | '/resolver/$address'
     | '/$name/'
+    | '/register/'
     | '/$name/roles/add-user'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
@@ -351,6 +363,7 @@ export interface RootRouteChildren {
   NameRoute: typeof NameRouteWithChildren
   AddrAddrRoute: typeof AddrAddrRouteWithChildren
   ResolverAddressRoute: typeof ResolverAddressRouteWithChildren
+  RegisterIndexRoute: typeof RegisterIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -367,6 +380,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register/': {
+      id: '/register/'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$name/': {
@@ -626,6 +646,7 @@ const rootRouteChildren: RootRouteChildren = {
   NameRoute: NameRouteWithChildren,
   AddrAddrRoute: AddrAddrRouteWithChildren,
   ResolverAddressRoute: ResolverAddressRouteWithChildren,
+  RegisterIndexRoute: RegisterIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

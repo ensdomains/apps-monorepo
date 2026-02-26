@@ -69,6 +69,14 @@ export const HomeSearchInput = () => {
     [navigate],
   )
 
+  const navigateToRegister = useCallback(
+    (name: string) => {
+      const nameWithEth = name.includes('.') ? name : `${name}.eth`
+      navigate({ to: '/register', search: { name: nameWithEth } })
+    },
+    [navigate],
+  )
+
   const searchResults = useSearchResults({
     searchValue: trimmedSearch,
     navigateToName,
@@ -124,16 +132,35 @@ export const HomeSearchInput = () => {
       const suggestion = suggestions.find((s) => s.id === value)
       if (suggestion) {
         setSearchValue('')
-        suggestion.action()
+        const isAvailable = availableNames.some((a) => a.id === suggestion.id)
+        if (isAvailable) {
+          navigateToRegister(suggestion.inputValue)
+        } else {
+          suggestion.action()
+        }
       }
     },
-    [closePopover, suggestions, navigateToName],
+    [
+      closePopover,
+      suggestions,
+      availableNames,
+      navigateToName,
+      navigateToRegister,
+    ],
   )
 
   const handleModalSelectSuggestion = useCallback((suggestion: Suggestion) => {
     setModalOpen(false)
     suggestion.action()
   }, [])
+
+  const handleModalSelectAvailableName = useCallback(
+    (name: string) => {
+      setModalOpen(false)
+      navigateToRegister(name)
+    },
+    [navigateToRegister],
+  )
 
   const handleSelectOwnedName = useCallback(
     (name: string) => {
@@ -255,6 +282,7 @@ export const HomeSearchInput = () => {
           searchValue={trimmedModalSearch}
           onSelectSuggestion={handleModalSelectSuggestion}
           onSelectOwnedName={handleSelectOwnedName}
+          onSelectAvailableName={handleModalSelectAvailableName}
           navigateToName={navigateToName}
           navigateToAddress={navigateToAddress}
           navigateToResolver={navigateToResolver}
