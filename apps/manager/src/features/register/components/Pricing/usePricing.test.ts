@@ -123,9 +123,10 @@ describe('usePricing', () => {
     })
 
     expect(mockOnSetDuration).toHaveBeenCalled()
-    const callArg = mockOnSetDuration.mock.calls[0][0]
+    const callArg = mockOnSetDuration.mock.calls[0]?.[0]
+    expect(callArg).toBeDefined()
     expect(typeof callArg).toBe('number')
-    expect(callArg).toBeGreaterThan(0)
+    expect(callArg as number).toBeGreaterThan(0)
   })
 
   it('calls onConfirmPayment when handleConfirmPayment is invoked', () => {

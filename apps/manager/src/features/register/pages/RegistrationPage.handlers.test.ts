@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SUPPORTED_TOKENS } from '../services/nameChainContractService'
 import {
   handleStartRegistration,
@@ -33,7 +33,7 @@ const baseOptions = {
 describe('handleStartRegistration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+  })
 
   it('returns early and alerts when account has no signer', () => {
     const alertSpy = vi.spyOn(global, 'alert').mockImplementation(() => {})
@@ -41,7 +41,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
     handleStartRegistration(
       baseParams,
-      { ...validAccount, signer: undefined },
+      { ...validAccount, signer: undefined } as never,
       mockActor as never,
       baseOptions,
     )
@@ -59,7 +59,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
     handleStartRegistration(
       baseParams,
-      { ...validAccount, accountAddress: undefined },
+      { ...validAccount, accountAddress: undefined } as never,
       mockActor as never,
       baseOptions,
     )
@@ -72,7 +72,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
   it('sends START_REGISTRATION with USDC when selectedToken is USDC', () => {
     handleStartRegistration(
       baseParams,
-      validAccount,
+      validAccount as never,
       mockActor as never,
       baseOptions,
     )
@@ -92,7 +92,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
   it('sends START_REGISTRATION with DAI when selectedToken is DAI', () => {
     handleStartRegistration(
       { ...baseParams, selectedToken: SUPPORTED_TOKENS.DAI },
-      validAccount,
+      validAccount as never,
       mockActor as never,
       baseOptions,
     )
