@@ -7,6 +7,8 @@
 
 import type { Address, Hex } from 'viem'
 
+export type SessionProvider = 'zerodev' | 'rhinestone'
+
 /**
  * Session configuration options
  */
@@ -15,10 +17,7 @@ export interface SessionConfig {
   validUntil?: number
 }
 
-/**
- * Stored session data persisted to localStorage
- */
-export interface StoredSession {
+interface BaseStoredSession {
   /** Unique session identifier */
   readonly id: string
   /** Address of the session key */
@@ -33,10 +32,62 @@ export interface StoredSession {
   readonly chainId: number
   /** Optional expiry timestamp */
   readonly validUntil?: number
-  /** Serialized session account data from ZeroDev SDK */
-  readonly serializedSessionAccount: string
   /** Session private key (hex) for signing */
   readonly sessionPrivateKey: Hex
+}
+
+/**
+ * ZeroDev session (existing format)
+ * The `provider` field is optional for backwards compatibility with existing stored sessions
+ */
+export interface ZeroDevStoredSession extends BaseStoredSession {
+  readonly provider?: 'zerodev'
+  /** Serialized session account data from ZeroDev SDK */
+  readonly serializedSessionAccount: string
+}
+
+/**
+ * Rhinestone session (new format)
+ * Uses Rhinestone SDK's session config
+ */
+export interface RhinestoneStoredSession extends BaseStoredSession {
+  readonly provider: 'rhinestone'
+  /** JSON-serialized RhinestoneSessionConfig */
+  readonly sessionConfig: string
+  /**
+   * Transitional compatibility field for existing call-sites typed against
+   * ZeroDev sessions while Rhinestone session handling is being adopted.
+   */
+  readonly serializedSessionAccount: string
+}
+
+export type StoredSession = ZeroDevStoredSession | RhinestoneStoredSession
+
+/**
+ * Type guard for ZeroDev sessions
+ * Returns true if session is ZeroDev format (provider undefined or 'zerodev')
+ */
+export function isZeroDevSession(
+  session: StoredSession,
+): session is ZeroDevStoredSession {
+  return session.provider === undefined || session.provider === 'zerodev'
+}
+
+/**
+ * Type guard for Rhinestone sessions
+ */
+export function isRhinestoneSession(
+  session: StoredSession,
+): session is RhinestoneStoredSession {
+  return session.provider === 'rhinestone'
+}
+
+/**
+ * Get the provider for a stored session
+ * Handles backwards compatibility where provider may be undefined
+ */
+export function getSessionProvider(session: StoredSession): SessionProvider {
+  return session.provider ?? 'zerodev'
 }
 
 /**
