@@ -33,7 +33,7 @@ const baseOptions = {
 describe('handleStartRegistration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-  })
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
   it('returns early and alerts when account has no signer', () => {
     const alertSpy = vi.spyOn(global, 'alert').mockImplementation(() => {})
