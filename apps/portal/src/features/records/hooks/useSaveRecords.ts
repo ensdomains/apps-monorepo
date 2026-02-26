@@ -10,7 +10,7 @@ import { sepolia } from 'viem/chains'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { pollForIndexerSync } from '../helpers/pollForIndexerSync'
+import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { type SaveRecordsParameters, saveRecords } from '../helpers/saveRecords'
 
 type UseSaveRecordsParameters = Omit<

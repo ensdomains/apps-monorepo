@@ -13,12 +13,12 @@ import { Field } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { getEnsOwner } from '@/features/profile/hooks/useEnsOwner'
-import { pollForIndexerSync } from '@/features/records/helpers/pollForIndexerSync'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { grantRoles } from '@/features/roles/helpers/grantRoles'
 import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
+import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 
 export const Route = createFileRoute('/$name/roles/add-user')({
   component: RouteComponent,
