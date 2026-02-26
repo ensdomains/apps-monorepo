@@ -238,13 +238,22 @@ export const RegistrationProgress = ({
               </Button>
             ))
             .with({ isError: true }, () => (
-              <Button
-                variant="outline"
-                onClick={() => actor.send({ type: 'RETRY' })}
-                className="min-w-32"
-              >
-                Try again
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => actor.send({ type: 'RETRY' })}
+                  className="min-w-32"
+                >
+                  Try again
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => actor.send({ type: 'CANCEL' })}
+                  className="min-w-32"
+                >
+                  Go back
+                </Button>
+              </>
             ))
             .otherwise(
               () =>
