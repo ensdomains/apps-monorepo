@@ -166,13 +166,13 @@ export interface FileRoutesByFullPath {
   '/$name/token': typeof NameTokenRoute
   '/addr/$addr': typeof AddrAddrRouteWithChildren
   '/$name/': typeof NameIndexRoute
-  '/register': typeof RegisterIndexRoute
+  '/register/': typeof RegisterIndexRoute
   '/$name/roles/add-user': typeof NameRolesAddUserRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
   '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
   '/addr/$addr/reverse-resolution': typeof AddrAddrReverseResolutionRoute
-  '/$name/roles': typeof NameRolesIndexRoute
+  '/$name/roles/': typeof NameRolesIndexRoute
   '/addr/$addr/': typeof AddrAddrIndexRoute
 }
 export interface FileRoutesByTo {
@@ -242,13 +242,13 @@ export interface FileRouteTypes {
     | '/$name/token'
     | '/addr/$addr'
     | '/$name/'
-    | '/register'
+    | '/register/'
     | '/$name/roles/add-user'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
     | '/addr/$addr/resolution'
     | '/addr/$addr/reverse-resolution'
-    | '/$name/roles'
+    | '/$name/roles/'
     | '/addr/$addr/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -326,7 +326,7 @@ declare module '@tanstack/react-router' {
     '/register/': {
       id: '/register/'
       path: '/register'
-      fullPath: '/register'
+      fullPath: '/register/'
       preLoaderRoute: typeof RegisterIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -431,7 +431,7 @@ declare module '@tanstack/react-router' {
     '/$name/roles/': {
       id: '/$name/roles/'
       path: '/roles'
-      fullPath: '/$name/roles'
+      fullPath: '/$name/roles/'
       preLoaderRoute: typeof NameRolesIndexRouteImport
       parentRoute: typeof NameRoute
     }
