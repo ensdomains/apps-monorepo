@@ -378,13 +378,6 @@ export const RolesSidebar = <
                               id={`${permission.key}-admin`}
                               checked={rolePerms.admin}
                               disabled
-                              onCheckedChange={(checked) =>
-                                handlePermissionChange(
-                                  roleKey,
-                                  'admin',
-                                  checked as boolean,
-                                )
-                              }
                             />
                             <Label
                               htmlFor={`${permission.key}-admin`}
