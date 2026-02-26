@@ -238,7 +238,7 @@ export const DurationSelector = ({
             onChange={handleCustomInputChange}
             onFocus={handleCustomInputFocus}
             ref={customInputRef}
-            step={0.01}
+            step={1}
             type="number"
             value={
               isCustomFocused

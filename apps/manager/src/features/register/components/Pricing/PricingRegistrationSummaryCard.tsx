@@ -104,7 +104,7 @@ export const PricingRegistrationSummaryCard = ({
               onBlur={handleDurationInputBlur}
               onChange={(e) => handleDurationInputChange(e.target.value)}
               onKeyDown={handleDurationInputKeyDown}
-              step="0.01"
+              step={1}
               type="number"
               value={durationInputValue}
             />

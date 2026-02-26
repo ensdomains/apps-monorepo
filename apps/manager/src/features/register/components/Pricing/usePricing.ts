@@ -1,6 +1,6 @@
 import { useModal } from '@getpara/react-sdk-lite'
 import { useQuery } from '@tanstack/react-query'
-import { useMemo, useReducer, useState } from 'react'
+import { useCallback, useMemo, useReducer, useState } from 'react'
 import type { PricingDuration } from '@/features/register/components/Pricing/types'
 import { getPremiumLabel } from '@/features/register/utils'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -65,17 +65,8 @@ export const usePricing = ({
 
   const isUsingAA = !!smartAccountClient
 
-  // Fetch base pricing for preset durations
-  const presetPricingQuery = useQuery({
-    queryKey: ['pricing', 'presets', domainName, discountsEnabled],
-    queryFn: async () => {
-      const baseResult = await getTokenPrices(domainName, 1)
-
-      if (baseResult.isErr() || !baseResult.value.usdc) {
-        throw new Error('Failed to fetch base pricing')
-      }
-
-      const basePerYear = parseFloat(baseResult.value.usdc.formatted)
+  const selectPresetPricing = useCallback(
+    (raw: { basePricePerYear: number; daiPricePerYear?: number }) => {
       const updatedOptions = { ...INITIAL_PRICING_OPTIONS }
       const updatedQuotes = createEmptyPricingQuoteMap()
 
@@ -84,7 +75,7 @@ export const usePricing = ({
           ? INITIAL_PRICING_OPTIONS[dur].discount
           : 0
         const discountMultiplier = discountsEnabled ? 1 - discount / 100 : 1
-        const perYearPrice = basePerYear * discountMultiplier
+        const perYearPrice = raw.basePricePerYear * discountMultiplier
         const totalPrice = Math.ceil(perYearPrice * dur)
 
         updatedOptions[dur] = {
@@ -96,23 +87,39 @@ export const usePricing = ({
 
         updatedQuotes[dur] = {
           usdc: totalPrice,
-          dai: baseResult.value.dai
-            ? Math.ceil(
-                parseFloat(baseResult.value.dai.formatted) *
-                  discountMultiplier *
-                  dur,
-              )
+          dai: raw.daiPricePerYear
+            ? Math.ceil(raw.daiPricePerYear * discountMultiplier * dur)
             : undefined,
         }
       }
 
       return {
-        basePricePerYear: basePerYear,
+        basePricePerYear: raw.basePricePerYear,
         pricingOptions: updatedOptions,
         pricingQuotes: updatedQuotes,
       }
     },
+    [discountsEnabled],
+  )
+
+  const basePriceQuery = useQuery({
+    queryKey: ['pricing', 'base', domainName],
+    queryFn: async () => {
+      const result = await getTokenPrices(domainName, 1)
+
+      if (result.isErr() || !result.value.usdc) {
+        throw new Error('Failed to fetch base pricing')
+      }
+
+      return {
+        basePricePerYear: parseFloat(result.value.usdc.formatted),
+        daiPricePerYear: result.value.dai
+          ? parseFloat(result.value.dai.formatted)
+          : undefined,
+      }
+    },
     enabled: !!domainName,
+    select: selectPresetPricing,
   })
 
   // Debounce custom duration for contract price lookup
@@ -145,10 +152,10 @@ export const usePricing = ({
 
   // Derive pricing data directly from query results
   const pricingOptions =
-    presetPricingQuery.data?.pricingOptions ?? INITIAL_PRICING_OPTIONS
+    basePriceQuery.data?.pricingOptions ?? INITIAL_PRICING_OPTIONS
   const presetQuotes =
-    presetPricingQuery.data?.pricingQuotes ?? createEmptyPricingQuoteMap()
-  const basePerYear = presetPricingQuery.data?.basePricePerYear ?? 0
+    basePriceQuery.data?.pricingQuotes ?? createEmptyPricingQuoteMap()
+  const basePerYear = basePriceQuery.data?.basePricePerYear ?? 0
 
   const selectedOption = isCustomDuration
     ? undefined
@@ -203,7 +210,7 @@ export const usePricing = ({
   )
 
   const isPriceLoading =
-    presetPricingQuery.isPending ||
+    basePriceQuery.isPending ||
     (isCustomDuration && customQuoteQuery.isFetching) ||
     selectedQuote?.usdc == null
 
@@ -245,7 +252,7 @@ export const usePricing = ({
   return {
     pricingOptions,
     selectedDuration: state.selectedDuration,
-    isPricingLoading: presetPricingQuery.isPending,
+    isPricingLoading: basePriceQuery.isPending,
     isPriceLoading,
     pricingQuotes: presetQuotes,
     premiumLabel,
