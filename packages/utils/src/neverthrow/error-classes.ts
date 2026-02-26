@@ -13,6 +13,10 @@ type DefaultErrorBody = {
 
 type AnyErrorBody = Record<string & {}, unknown>
 
+export interface ITaggedError {
+  readonly _tag: string
+}
+
 /**
  * Base error class that can be yielded in generator functions.
  *
@@ -153,7 +157,7 @@ export const TaggedError = <Tag extends string>(
       : TKey]: TArgs[TKey]
   },
 ) => TaggedError<Tag, TArgs>) => {
-  class Base extends DataError<{}> {
+  class Base extends DataError<{}> implements ITaggedError {
     readonly _tag = tag
   }
   ;(Base.prototype as any).name = tag

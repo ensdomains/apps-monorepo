@@ -13,8 +13,12 @@ export function useCopyFeedback() {
   }, [copied])
 
   const copy = async (value: string) => {
-    await copyToClipboard(value)
-    setCopied(true)
+    try {
+      await copyToClipboard(value)
+      setCopied(true)
+    } catch {
+      // Clipboard access denied or unavailable — silently ignore
+    }
   }
 
   return { copied, copy }
