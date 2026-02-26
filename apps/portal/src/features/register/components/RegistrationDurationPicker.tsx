@@ -59,7 +59,6 @@ export const RegistrationDurationPicker = ({
         variant="secondary"
         onClick={handleDecrement}
         disabled={value <= min}
-        className="size-10 shrink-0 bg-gray-200"
       >
         <Minus className="size-4" strokeWidth={2} />
       </Button>
@@ -103,7 +102,6 @@ export const RegistrationDurationPicker = ({
         size="icon"
         onClick={handleIncrement}
         disabled={value >= max}
-        className="size-10 shrink-0 bg-gray-200"
       >
         <Plus className="size-4" strokeWidth={2} />
       </Button>
