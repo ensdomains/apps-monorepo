@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as NameRouteImport } from './routes/$name'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as NameIndexRouteImport } from './routes/$name/index'
+import { Route as ResolverAddressRouteImport } from './routes/resolver/$address'
 import { Route as AddrAddrRouteImport } from './routes/addr/$addr'
 import { Route as NameTokenRouteImport } from './routes/$name/token'
 import { Route as NameSubnamesRouteImport } from './routes/$name/subnames'
@@ -24,8 +25,12 @@ import { Route as NameEditRecordsRouteImport } from './routes/$name/edit-records
 import { Route as NameDeployRegistryRouteImport } from './routes/$name/deploy-registry'
 import { Route as NameCreateSubnameRouteImport } from './routes/$name/create-subname'
 import { Route as NameChangeResolverRouteImport } from './routes/$name/change-resolver'
+import { Route as ResolverAddressIndexRouteImport } from './routes/resolver/$address/index'
 import { Route as AddrAddrIndexRouteImport } from './routes/addr/$addr/index'
 import { Route as NameRolesIndexRouteImport } from './routes/$name/roles/index'
+import { Route as ResolverAddressRolesRouteImport } from './routes/resolver/$address/roles'
+import { Route as ResolverAddressHistoryRouteImport } from './routes/resolver/$address/history'
+import { Route as ResolverAddressAliasesRouteImport } from './routes/resolver/$address/aliases'
 import { Route as AddrAddrReverseResolutionRouteImport } from './routes/addr/$addr/reverse-resolution'
 import { Route as AddrAddrResolutionRouteImport } from './routes/addr/$addr/resolution'
 import { Route as AddrAddrNamesRouteImport } from './routes/addr/$addr/names'
@@ -46,6 +51,11 @@ const NameIndexRoute = NameIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => NameRoute,
+} as any)
+const ResolverAddressRoute = ResolverAddressRouteImport.update({
+  id: '/resolver/$address',
+  path: '/resolver/$address',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AddrAddrRoute = AddrAddrRouteImport.update({
   id: '/addr/$addr',
@@ -107,6 +117,11 @@ const NameChangeResolverRoute = NameChangeResolverRouteImport.update({
   path: '/change-resolver',
   getParentRoute: () => NameRoute,
 } as any)
+const ResolverAddressIndexRoute = ResolverAddressIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ResolverAddressRoute,
+} as any)
 const AddrAddrIndexRoute = AddrAddrIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -116,6 +131,21 @@ const NameRolesIndexRoute = NameRolesIndexRouteImport.update({
   id: '/roles/',
   path: '/roles/',
   getParentRoute: () => NameRoute,
+} as any)
+const ResolverAddressRolesRoute = ResolverAddressRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => ResolverAddressRoute,
+} as any)
+const ResolverAddressHistoryRoute = ResolverAddressHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => ResolverAddressRoute,
+} as any)
+const ResolverAddressAliasesRoute = ResolverAddressAliasesRouteImport.update({
+  id: '/aliases',
+  path: '/aliases',
+  getParentRoute: () => ResolverAddressRoute,
 } as any)
 const AddrAddrReverseResolutionRoute =
   AddrAddrReverseResolutionRouteImport.update({
@@ -159,14 +189,19 @@ export interface FileRoutesByFullPath {
   '/$name/subnames': typeof NameSubnamesRoute
   '/$name/token': typeof NameTokenRoute
   '/addr/$addr': typeof AddrAddrRouteWithChildren
+  '/resolver/$address': typeof ResolverAddressRouteWithChildren
   '/$name/': typeof NameIndexRoute
   '/$name/roles/add-user': typeof NameRolesAddUserRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
   '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
   '/addr/$addr/reverse-resolution': typeof AddrAddrReverseResolutionRoute
-  '/$name/roles/': typeof NameRolesIndexRoute
+  '/resolver/$address/aliases': typeof ResolverAddressAliasesRoute
+  '/resolver/$address/history': typeof ResolverAddressHistoryRoute
+  '/resolver/$address/roles': typeof ResolverAddressRolesRoute
+  '/$name/roles': typeof NameRolesIndexRoute
   '/addr/$addr/': typeof AddrAddrIndexRoute
+  '/resolver/$address/': typeof ResolverAddressIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -187,8 +222,12 @@ export interface FileRoutesByTo {
   '/addr/$addr/names': typeof AddrAddrNamesRoute
   '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
   '/addr/$addr/reverse-resolution': typeof AddrAddrReverseResolutionRoute
+  '/resolver/$address/aliases': typeof ResolverAddressAliasesRoute
+  '/resolver/$address/history': typeof ResolverAddressHistoryRoute
+  '/resolver/$address/roles': typeof ResolverAddressRolesRoute
   '/$name/roles': typeof NameRolesIndexRoute
   '/addr/$addr': typeof AddrAddrIndexRoute
+  '/resolver/$address': typeof ResolverAddressIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -206,14 +245,19 @@ export interface FileRoutesById {
   '/$name/subnames': typeof NameSubnamesRoute
   '/$name/token': typeof NameTokenRoute
   '/addr/$addr': typeof AddrAddrRouteWithChildren
+  '/resolver/$address': typeof ResolverAddressRouteWithChildren
   '/$name/': typeof NameIndexRoute
   '/$name/roles/add-user': typeof NameRolesAddUserRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
   '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
   '/addr/$addr/reverse-resolution': typeof AddrAddrReverseResolutionRoute
+  '/resolver/$address/aliases': typeof ResolverAddressAliasesRoute
+  '/resolver/$address/history': typeof ResolverAddressHistoryRoute
+  '/resolver/$address/roles': typeof ResolverAddressRolesRoute
   '/$name/roles/': typeof NameRolesIndexRoute
   '/addr/$addr/': typeof AddrAddrIndexRoute
+  '/resolver/$address/': typeof ResolverAddressIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -232,14 +276,19 @@ export interface FileRouteTypes {
     | '/$name/subnames'
     | '/$name/token'
     | '/addr/$addr'
+    | '/resolver/$address'
     | '/$name/'
     | '/$name/roles/add-user'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
     | '/addr/$addr/resolution'
     | '/addr/$addr/reverse-resolution'
-    | '/$name/roles/'
+    | '/resolver/$address/aliases'
+    | '/resolver/$address/history'
+    | '/resolver/$address/roles'
+    | '/$name/roles'
     | '/addr/$addr/'
+    | '/resolver/$address/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -260,8 +309,12 @@ export interface FileRouteTypes {
     | '/addr/$addr/names'
     | '/addr/$addr/resolution'
     | '/addr/$addr/reverse-resolution'
+    | '/resolver/$address/aliases'
+    | '/resolver/$address/history'
+    | '/resolver/$address/roles'
     | '/$name/roles'
     | '/addr/$addr'
+    | '/resolver/$address'
   id:
     | '__root__'
     | '/'
@@ -278,20 +331,26 @@ export interface FileRouteTypes {
     | '/$name/subnames'
     | '/$name/token'
     | '/addr/$addr'
+    | '/resolver/$address'
     | '/$name/'
     | '/$name/roles/add-user'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
     | '/addr/$addr/resolution'
     | '/addr/$addr/reverse-resolution'
+    | '/resolver/$address/aliases'
+    | '/resolver/$address/history'
+    | '/resolver/$address/roles'
     | '/$name/roles/'
     | '/addr/$addr/'
+    | '/resolver/$address/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   NameRoute: typeof NameRouteWithChildren
   AddrAddrRoute: typeof AddrAddrRouteWithChildren
+  ResolverAddressRoute: typeof ResolverAddressRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -316,6 +375,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/$name/'
       preLoaderRoute: typeof NameIndexRouteImport
       parentRoute: typeof NameRoute
+    }
+    '/resolver/$address': {
+      id: '/resolver/$address'
+      path: '/resolver/$address'
+      fullPath: '/resolver/$address'
+      preLoaderRoute: typeof ResolverAddressRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/addr/$addr': {
       id: '/addr/$addr'
@@ -401,6 +467,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NameChangeResolverRouteImport
       parentRoute: typeof NameRoute
     }
+    '/resolver/$address/': {
+      id: '/resolver/$address/'
+      path: '/'
+      fullPath: '/resolver/$address/'
+      preLoaderRoute: typeof ResolverAddressIndexRouteImport
+      parentRoute: typeof ResolverAddressRoute
+    }
     '/addr/$addr/': {
       id: '/addr/$addr/'
       path: '/'
@@ -411,9 +484,30 @@ declare module '@tanstack/react-router' {
     '/$name/roles/': {
       id: '/$name/roles/'
       path: '/roles'
-      fullPath: '/$name/roles/'
+      fullPath: '/$name/roles'
       preLoaderRoute: typeof NameRolesIndexRouteImport
       parentRoute: typeof NameRoute
+    }
+    '/resolver/$address/roles': {
+      id: '/resolver/$address/roles'
+      path: '/roles'
+      fullPath: '/resolver/$address/roles'
+      preLoaderRoute: typeof ResolverAddressRolesRouteImport
+      parentRoute: typeof ResolverAddressRoute
+    }
+    '/resolver/$address/history': {
+      id: '/resolver/$address/history'
+      path: '/history'
+      fullPath: '/resolver/$address/history'
+      preLoaderRoute: typeof ResolverAddressHistoryRouteImport
+      parentRoute: typeof ResolverAddressRoute
+    }
+    '/resolver/$address/aliases': {
+      id: '/resolver/$address/aliases'
+      path: '/aliases'
+      fullPath: '/resolver/$address/aliases'
+      preLoaderRoute: typeof ResolverAddressAliasesRouteImport
+      parentRoute: typeof ResolverAddressRoute
     }
     '/addr/$addr/reverse-resolution': {
       id: '/addr/$addr/reverse-resolution'
@@ -509,10 +603,29 @@ const AddrAddrRouteWithChildren = AddrAddrRoute._addFileChildren(
   AddrAddrRouteChildren,
 )
 
+interface ResolverAddressRouteChildren {
+  ResolverAddressAliasesRoute: typeof ResolverAddressAliasesRoute
+  ResolverAddressHistoryRoute: typeof ResolverAddressHistoryRoute
+  ResolverAddressRolesRoute: typeof ResolverAddressRolesRoute
+  ResolverAddressIndexRoute: typeof ResolverAddressIndexRoute
+}
+
+const ResolverAddressRouteChildren: ResolverAddressRouteChildren = {
+  ResolverAddressAliasesRoute: ResolverAddressAliasesRoute,
+  ResolverAddressHistoryRoute: ResolverAddressHistoryRoute,
+  ResolverAddressRolesRoute: ResolverAddressRolesRoute,
+  ResolverAddressIndexRoute: ResolverAddressIndexRoute,
+}
+
+const ResolverAddressRouteWithChildren = ResolverAddressRoute._addFileChildren(
+  ResolverAddressRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   NameRoute: NameRouteWithChildren,
   AddrAddrRoute: AddrAddrRouteWithChildren,
+  ResolverAddressRoute: ResolverAddressRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

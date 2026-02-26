@@ -7,6 +7,7 @@ import { SearchModalContent } from './SearchModalContent'
 
 const mockNavigateToName = vi.fn()
 const mockNavigateToAddress = vi.fn()
+const mockNavigateToResolver = vi.fn()
 const mockOnSelectSuggestion = vi.fn()
 const mockOnSelectOwnedName = vi.fn()
 
@@ -69,6 +70,12 @@ vi.mock('../hooks/useV2NamesForAddress', () => ({
     queryFn: () => Promise.resolve(ownedNamesOverride ?? []),
   }),
 }))
+vi.mock('@/hooks/useSupportsInterfaces', () => ({
+  getSupportsInterfacesQueryOptions: (params: { address: string }) => ({
+    queryKey: ['supported-interfaces', params],
+    queryFn: () => Promise.resolve([]),
+  }),
+}))
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -87,6 +94,7 @@ describe('SearchModalContent', () => {
   beforeEach(() => {
     mockNavigateToName.mockClear()
     mockNavigateToAddress.mockClear()
+    mockNavigateToResolver.mockClear()
     mockOnSelectSuggestion.mockClear()
     mockOnSelectOwnedName.mockClear()
     connectedAddressOverride = undefined
@@ -115,6 +123,7 @@ describe('SearchModalContent', () => {
         onSelectOwnedName={mockOnSelectOwnedName}
         navigateToName={mockNavigateToName}
         navigateToAddress={mockNavigateToAddress}
+        navigateToResolver={mockNavigateToResolver}
       />,
       { wrapper: createWrapper() },
     )
@@ -133,6 +142,7 @@ describe('SearchModalContent', () => {
         onSelectSuggestion={mockOnSelectSuggestion}
         navigateToName={mockNavigateToName}
         navigateToAddress={mockNavigateToAddress}
+        navigateToResolver={mockNavigateToResolver}
       />,
       { wrapper: createWrapper() },
     )
@@ -147,6 +157,7 @@ describe('SearchModalContent', () => {
         onSelectSuggestion={mockOnSelectSuggestion}
         navigateToName={mockNavigateToName}
         navigateToAddress={mockNavigateToAddress}
+        navigateToResolver={mockNavigateToResolver}
       />,
       { wrapper: createWrapper() },
     )
@@ -168,6 +179,7 @@ describe('SearchModalContent', () => {
         onSelectSuggestion={mockOnSelectSuggestion}
         navigateToName={mockNavigateToName}
         navigateToAddress={mockNavigateToAddress}
+        navigateToResolver={mockNavigateToResolver}
       />,
       { wrapper: createWrapper() },
     )
@@ -213,6 +225,7 @@ describe('SearchModalContent', () => {
             onSelectSuggestion={mockOnSelectSuggestion}
             navigateToName={mockNavigateToName}
             navigateToAddress={mockNavigateToAddress}
+            navigateToResolver={mockNavigateToResolver}
           />
         </Command>
       </QueryClientProvider>,
@@ -236,6 +249,7 @@ describe('SearchModalContent', () => {
         onSelectSuggestion={mockOnSelectSuggestion}
         navigateToName={mockNavigateToName}
         navigateToAddress={mockNavigateToAddress}
+        navigateToResolver={mockNavigateToResolver}
       />,
       { wrapper: createWrapper() },
     )
@@ -273,6 +287,7 @@ describe('SearchModalContent', () => {
             onSelectOwnedName={mockOnSelectOwnedName}
             navigateToName={mockNavigateToName}
             navigateToAddress={mockNavigateToAddress}
+            navigateToResolver={mockNavigateToResolver}
           />
         </Command>
       </QueryClientProvider>,

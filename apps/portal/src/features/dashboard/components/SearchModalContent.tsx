@@ -11,6 +11,7 @@ export type SearchModalContentProps = {
   onSelectOwnedName?: (name: string) => void
   navigateToName: (name: string) => void
   navigateToAddress: (address: string) => void
+  navigateToResolver: (address: string) => void
 }
 
 export const SearchModalContent = ({
@@ -19,6 +20,7 @@ export const SearchModalContent = ({
   onSelectOwnedName,
   navigateToName,
   navigateToAddress,
+  navigateToResolver,
 }: SearchModalContentProps) => {
   const {
     suggestions,
@@ -32,6 +34,7 @@ export const SearchModalContent = ({
     searchValue,
     navigateToName,
     navigateToAddress,
+    navigateToResolver,
   })
 
   const handleSelect = useCallback(

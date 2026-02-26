@@ -62,11 +62,18 @@ export const HomeSearchInput = () => {
     },
     [navigate],
   )
+  const navigateToResolver = useCallback(
+    (address: string) => {
+      navigate({ to: '/resolver/$address', params: { address } })
+    },
+    [navigate],
+  )
 
   const searchResults = useSearchResults({
     searchValue: trimmedSearch,
     navigateToName,
     navigateToAddress,
+    navigateToResolver,
   })
   const {
     allItems,
@@ -250,6 +257,7 @@ export const HomeSearchInput = () => {
           onSelectOwnedName={handleSelectOwnedName}
           navigateToName={navigateToName}
           navigateToAddress={navigateToAddress}
+          navigateToResolver={navigateToResolver}
         />
       </CommandDialog>
     </>

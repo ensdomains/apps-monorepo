@@ -1,10 +1,12 @@
-import { useQueries } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import type { Address } from 'viem'
+import { type Address, isAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
+import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 import type { Suggestion } from '../utils/buildSearchSuggestions'
 import { buildSearchSuggestions } from '../utils/buildSearchSuggestions'
@@ -27,6 +29,7 @@ export type UseSearchResultsParams = {
   searchValue: string
   navigateToName: (name: string) => void
   navigateToAddress: (address: string) => void
+  navigateToResolver: (address: string) => void
 }
 
 export type { SearchResultItem } from '../utils/searchResultsUtils'
@@ -58,10 +61,26 @@ export const useSearchResults = ({
   searchValue,
   navigateToName,
   navigateToAddress,
+  navigateToResolver,
 }: UseSearchResultsParams): UseSearchResultsReturn => {
   const isMobile = useIsMobile()
   const { address: connectedAddress } = useConnection()
   const { validTlds, isLoading: isTldsLoading } = useSuggestionTlds()
+
+  const searchedAddress = isAddress(searchValue, { strict: false })
+    ? searchValue
+    : undefined
+
+  const { data: resolverInterfaces } = useQuery({
+    ...getSupportsInterfacesQueryOptions({
+      address: (searchedAddress ??
+        '0x0000000000000000000000000000000000000000') as Address,
+      interfaces: Object.values(RESOLVER_INTERFACE_IDS),
+    }),
+    enabled: !!searchedAddress,
+  })
+
+  const isResolver = resolverInterfaces?.some(Boolean) ?? false
 
   const suggestions = useMemo(
     () =>
@@ -70,9 +89,19 @@ export const useSearchResults = ({
         isMobile,
         navigateToAddress,
         navigateToName,
+        navigateToResolver,
+        isResolver,
         validTlds,
       }),
-    [searchValue, isMobile, navigateToAddress, navigateToName, validTlds],
+    [
+      searchValue,
+      isMobile,
+      navigateToAddress,
+      navigateToName,
+      navigateToResolver,
+      isResolver,
+      validTlds,
+    ],
   )
 
   const addressForOwned = (connectedAddress ??
