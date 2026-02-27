@@ -8,7 +8,7 @@ type PrimaryBadgeProps = {
 }
 
 export const PrimaryBadge = ({ label, className }: PrimaryBadgeProps) => {
-  const resolvedLabel = label ?? m.primaryBadge_label()
+  const resolvedLabel = label ?? m['primaryBadge.label']()
 
   return (
     <div

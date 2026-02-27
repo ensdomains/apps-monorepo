@@ -9,20 +9,20 @@ import * as m from '@/paraglide/messages.js'
 export const FaqSection = () => {
   const faqItems = [
     {
-      question: m.faq_items_sendCrypto_question(),
-      answer: m.faq_items_sendCrypto_answer(),
+      question: m['faq.items.sendCrypto.question'](),
+      answer: m['faq.items.sendCrypto.answer'](),
     },
     {
-      question: m.faq_items_showName_question(),
-      answer: m.faq_items_showName_answer(),
+      question: m['faq.items.showName.question'](),
+      answer: m['faq.items.showName.answer'](),
     },
     {
-      question: m.faq_items_changePrimaryLater_question(),
-      answer: m.faq_items_changePrimaryLater_answer(),
+      question: m['faq.items.changePrimaryLater.question'](),
+      answer: m['faq.items.changePrimaryLater.answer'](),
     },
     {
-      question: m.faq_items_secureName_question(),
-      answer: m.faq_items_secureName_answer(),
+      question: m['faq.items.secureName.question'](),
+      answer: m['faq.items.secureName.answer'](),
     },
   ]
 
@@ -30,7 +30,7 @@ export const FaqSection = () => {
     <div className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-lg md:px-6 md:py-8">
       <div className="mb-3 flex flex-col items-start gap-3 md:gap-3">
         <h2 className="font-serif text-[24px] text-foreground leading-[0.96] tracking-[0.24px] md:text-[28px] md:tracking-[0.28px]">
-          {m.faq_title()}
+          {m['faq.title']()}
         </h2>
         <a
           className="flex items-center gap-[4.92px] text-ens-blue hover:text-ens-blue-hover"
@@ -39,7 +39,7 @@ export const FaqSection = () => {
           target="_blank"
         >
           <span className="font-sans text-[13px] leading-[1.6] md:text-sm md:leading-[1.8]">
-            {m.faq_getSupport()}
+            {m['faq.getSupport']()}
           </span>
           <ArrowRight className="size-[7px] md:size-2" strokeWidth={2} />
         </a>

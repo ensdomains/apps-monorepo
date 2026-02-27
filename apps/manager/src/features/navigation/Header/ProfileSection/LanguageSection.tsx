@@ -57,12 +57,12 @@ export const LanguageSection = ({ onAction }: LanguageSectionProps) => {
         className="block px-3 py-1 font-medium text-foreground text-sm"
         htmlFor="language-selector"
       >
-        {m.common_language()}
+        {m['common.language']()}
       </label>
       <div className="flex items-center gap-2 rounded border border-border px-3 py-2">
         <LanguagesIcon className="size-4 text-muted-foreground" />
         <select
-          aria-label={m.common_language()}
+          aria-label={m['common.language']()}
           className="w-full bg-transparent text-foreground text-sm outline-none"
           id="language-selector"
           onChange={(event) => {

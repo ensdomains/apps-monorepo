@@ -20,7 +20,7 @@ export const EducationCarousel = () => {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-3">
         <h2 className="font-serif text-[28px] text-foreground leading-[0.96] tracking-[0.28px]">
-          {m.education_title()}
+          {m['education.title']()}
         </h2>
         <div className="flex items-center gap-2">
           <button
@@ -35,7 +35,7 @@ export const EducationCarousel = () => {
             <CircleArrowLeft className="size-8" strokeWidth={1} />
           </button>
           <span className="text-muted-foreground text-xs leading-[1.2] tracking-[0.12px]">
-            {m.education_pageIndicator({
+            {m['education.pageIndicator']({
               current: currentPage + 1,
               total: totalPages,
             })}

@@ -143,10 +143,10 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
       <div className="mb-4 flex md:hidden">
         <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">
           <span className="font-sans text-foreground text-xs tracking-[0.24px]">
-            {m.favorites_sortBy()}
+            {m['favorites.sortBy']()}
           </span>
           <select
-            aria-label={m.favorites_sortFavoritesAriaLabel()}
+            aria-label={m['favorites.sortFavoritesAriaLabel']()}
             className="bg-transparent font-medium font-sans text-foreground text-xs tracking-[0.24px] outline-none"
             onChange={(e) => {
               const [field, direction] = e.target.value.split('-') as [
@@ -165,16 +165,16 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
             }
           >
             <option value="name-asc">
-              {m.favorites_sortOptions_nameAsc()}
+              {m['favorites.sortOptions.nameAsc']()}
             </option>
             <option value="name-desc">
-              {m.favorites_sortOptions_nameDesc()}
+              {m['favorites.sortOptions.nameDesc']()}
             </option>
             <option value="addedAt-asc">
-              {m.favorites_sortOptions_addedAtAsc()}
+              {m['favorites.sortOptions.addedAtAsc']()}
             </option>
             <option value="addedAt-desc">
-              {m.favorites_sortOptions_addedAtDesc()}
+              {m['favorites.sortOptions.addedAtDesc']()}
             </option>
           </select>
         </div>
@@ -190,7 +190,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
           <span
             className={`font-sans text-[16px] tracking-[0.24px] ${sortDirection !== null && sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
-            {m.favorites_columns_name()}
+            {m['favorites.columns.name']()}
           </span>
           <SortIndicator
             direction={sortDirection ?? undefined}
@@ -221,7 +221,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                 strokeWidth={1}
               />
               <span className="font-sans text-muted-foreground text-sm">
-                {m.favorites_noNames()}
+                {m['favorites.noNames']()}
               </span>
             </div>
           ))
@@ -232,7 +232,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                 strokeWidth={1}
               />
               <span className="font-sans text-muted-foreground text-sm">
-                {m.favorites_noNames()}
+                {m['favorites.noNames']()}
               </span>
             </div>
           ))
@@ -292,7 +292,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
             </button>
           </div>
           <span className="font-sans text-[16px] text-muted-foreground leading-[1.2] tracking-[0.14px]">
-            {m.favorites_showingRange({
+            {m['favorites.showingRange']({
               start: startIndex,
               end: endIndex,
               total: totalCount,

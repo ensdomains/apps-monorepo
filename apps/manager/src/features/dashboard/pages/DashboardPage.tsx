@@ -61,10 +61,10 @@ export const DashboardPage = () => {
               symbol="waving_hand"
             />
             <AlertTitle className="mb-2 text-[16px] text-ens-blue tracking-[0.28px]">
-              {m.page_banner_title()}
+              {m['page.banner.title']()}
             </AlertTitle>
             <AlertDescription className="max-w-5xl text-muted-foreground text-sm">
-              {m.page_banner_description()}
+              {m['page.banner.description']()}
             </AlertDescription>
           </Alert>
         </motion.div>
@@ -72,7 +72,7 @@ export const DashboardPage = () => {
           className="px-4 font-serif text-[28px] text-foreground leading-[0.96] tracking-[0.28px] md:px-0 md:text-[40px] md:tracking-[0.4px]"
           {...stagger(1, shouldReduceMotion)}
         >
-          {m.page_greeting_hello()}{' '}
+          {m['page.greeting.hello']()}{' '}
           {defaultName ??
             (ownerAddress && (
               <CopyableAddress

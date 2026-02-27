@@ -97,15 +97,15 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const tabs = [
     {
       key: 'myNames' as const,
-      label: m.namesTable_tabs_myNames(),
+      label: m['namesTable.tabs.myNames'](),
       badge: ownedNamesCount,
     },
     {
       key: 'favorites' as const,
-      label: m.namesTable_tabs_favorites(),
+      label: m['namesTable.tabs.favorites'](),
       badge: favoritesCount,
       disabled: !isAuthed,
-      disabledTooltip: m.namesTable_favoritesDisabledTooltip(),
+      disabledTooltip: m['namesTable.favoritesDisabledTooltip'](),
     },
   ]
 
@@ -141,8 +141,8 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder={
               activeTab === 'myNames'
-                ? m.namesTable_search_myNamesPlaceholder()
-                : m.namesTable_search_favoritesPlaceholder()
+                ? m['namesTable.search.myNamesPlaceholder']()
+                : m['namesTable.search.favoritesPlaceholder']()
             }
             size="sm"
             startIcon={<Search className="size-[18px] text-muted-foreground" />}
