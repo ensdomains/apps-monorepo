@@ -1,8 +1,11 @@
 /**
- * Session Manager
+ * ZeroDev Session Manager
  *
  * Core session management for ZeroDev smart sessions.
  * Creates sessions with sudo policy and handles serialization/deserialization.
+ *
+ * This module exposes low-level pure functions that can be used from
+ * React hooks and XState actors alike.
  */
 
 import {
@@ -21,7 +24,7 @@ import {
 import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
 import { errAsync, ResultAsync } from 'neverthrow'
 import { createPimlicoClient } from 'permissionless/clients/pimlico'
-import { type Address, http } from 'viem'
+import { type Address, http, type PublicClient } from 'viem'
 import { entryPoint07Address } from 'viem/account-abstraction'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { customSepolia, publicClient } from '@/lib/wagmi'
@@ -30,7 +33,11 @@ import {
   removeSession,
   saveSession,
 } from './session-storage'
-import type { SessionConfig, StoredSession } from './types'
+import type {
+  SessionConfig,
+  StoredSession,
+  ZeroDevStoredSession,
+} from './types'
 
 const ENTRY_POINT = {
   address: entryPoint07Address,
@@ -50,21 +57,27 @@ export class SessionError extends Error {
   }
 }
 
+export interface CreateZeroDevSessionParams {
+  ownerAddress: Address
+  smartAccountAddress: Address
+  ecdsaValidator: KernelValidator<'ECDSAValidator'>
+  kernelClient: KernelAccountClient
+  chainId: number
+  config?: SessionConfig
+}
+
 /**
- * Create a new session for a smart account
+ * Internal helper – create a new ZeroDev session and persist it.
  *
- * Generates a new session key pair, creates a permission validator with sudo policy,
- * and serializes the session for storage.
- *
- * @param params - Session creation parameters
- * @returns ResultAsync with stored session or error
+ * Generates a new session key pair, creates a permission validator with sudo
+ * policy, and serializes the session for storage.
  */
-export function createSession(params: {
+function createSession(params: {
   ownerAddress: Address
   smartAccountAddress: Address
   ecdsaValidator: KernelValidator<'ECDSAValidator'>
   config?: SessionConfig
-}): ResultAsync<StoredSession, SessionError> {
+}): ResultAsync<ZeroDevStoredSession, SessionError> {
   const { ownerAddress, smartAccountAddress, ecdsaValidator, config } = params
 
   const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
@@ -74,30 +87,20 @@ export function createSession(params: {
 
   return ResultAsync.fromPromise(
     (async () => {
-      // Generate a new session private key
       const sessionPrivateKey = generatePrivateKey()
       const sessionAccount = privateKeyToAccount(sessionPrivateKey)
 
-      console.log('🔑 Creating session with key:', sessionAccount.address)
-
-      // Create ECDSA signer from the session key
       const sessionSigner = await toECDSASigner({
         signer: sessionAccount,
       })
 
-      console.log('🔧 Creating permission validator...')
-      // Create permission validator with sudo policy (unrestricted)
       const permissionValidator = await toPermissionValidator(publicClient, {
         signer: sessionSigner,
         policies: [toSudoPolicy({})],
         entryPoint: ENTRY_POINT,
         kernelVersion: KERNEL_V3_1,
       })
-      console.log('✅ Permission validator created')
 
-      console.log('🔧 Creating kernel account with session plugins...')
-      // Create kernel account with permission validator as regular and ECDSA as sudo
-      // The sudo validator is used to sign enabling the permission validator
       const kernelAccount = await createKernelAccount(publicClient, {
         entryPoint: ENTRY_POINT,
         kernelVersion: KERNEL_V3_1,
@@ -105,22 +108,15 @@ export function createSession(params: {
           sudo: ecdsaValidator,
           regular: permissionValidator,
         },
-        address: smartAccountAddress, // Use existing smart account address
+        address: smartAccountAddress,
       })
-      console.log('✅ Kernel account with session plugins created')
 
-      console.log(
-        '🔧 Serializing permission account (may prompt wallet signature)...',
-      )
-      // Serialize the permission account for storage
       const serializedSessionAccount = await serializePermissionAccount(
         kernelAccount,
         sessionPrivateKey,
       )
-      console.log('✅ Permission account serialized')
 
-      // Create stored session
-      const session: StoredSession = {
+      const session: ZeroDevStoredSession = {
         id: crypto.randomUUID(),
         sessionKeyAddress: sessionAccount.address,
         smartAccountAddress,
@@ -132,10 +128,7 @@ export function createSession(params: {
         sessionPrivateKey,
       }
 
-      // Save to localStorage
       saveSession(session)
-
-      console.log('✅ Session created:', session.id)
 
       return session
     })(),
@@ -148,15 +141,10 @@ export function createSession(params: {
 }
 
 /**
- * Get a KernelAccountClient from a stored session
- *
- * Deserializes the session and creates an account client ready for transactions.
- *
- * @param session - The stored session to restore
- * @returns ResultAsync with KernelAccountClient or error
+ * Internal helper – get a KernelAccountClient from a stored ZeroDev session.
  */
-export function getSessionClient(
-  session: StoredSession,
+function getSessionClient(
+  session: ZeroDevStoredSession,
 ): ResultAsync<KernelAccountClient, SessionError> {
   const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
   if (!pimlicoApiKey) {
@@ -167,13 +155,11 @@ export function getSessionClient(
 
   return ResultAsync.fromPromise(
     (async () => {
-      // Recreate session signer from stored private key
       const sessionAccount = privateKeyToAccount(session.sessionPrivateKey)
       const sessionSigner = await toECDSASigner({
         signer: sessionAccount,
       })
 
-      // Deserialize the permission account
       const kernelAccount = await deserializePermissionAccount(
         publicClient,
         ENTRY_POINT,
@@ -182,18 +168,15 @@ export function getSessionClient(
         sessionSigner,
       )
 
-      // Create Pimlico client for gas estimation and paymaster
       const pimlicoClient = createPimlicoClient({
         transport: http(PIMLICO_URL),
         entryPoint: ENTRY_POINT,
       })
 
-      // Create account client with Pimlico bundler
       const client = createKernelAccountClient({
         account: kernelAccount,
         chain: customSepolia,
         bundlerTransport: http(PIMLICO_URL),
-        // Use Pimlico client for gas estimation (avoids zd_getUserOperationGasPrice error)
         userOperation: {
           estimateFeesPerGas: async () => {
             return (await pimlicoClient.getUserOperationGasPrice()).fast
@@ -201,11 +184,6 @@ export function getSessionClient(
         },
         paymaster: pimlicoClient,
       })
-
-      console.log(
-        '✅ Session client restored for:',
-        session.smartAccountAddress,
-      )
 
       return client as KernelAccountClient
     })(),
@@ -218,14 +196,73 @@ export function getSessionClient(
 }
 
 /**
- * Get or create a session for an owner
+ * Create a new ZeroDev session.
  *
- * Checks localStorage for existing valid session, creates new one if needed.
- * This is the main entry point for session management.
- *
- * @param params - Owner and smart account addresses, plus ECDSA validator for new sessions
- * @returns ResultAsync with session client and session data
+ * Returns the stored session data and the corresponding session client.
+ * The session is also persisted via the existing session-storage helpers.
  */
+export function createZeroDevSession(
+  params: CreateZeroDevSessionParams,
+): ResultAsync<
+  {
+    session: ZeroDevStoredSession
+    client: KernelAccountClient
+  },
+  SessionError
+> {
+  const { ownerAddress, smartAccountAddress, ecdsaValidator, config } = params
+
+  return createSession({
+    ownerAddress,
+    smartAccountAddress,
+    ecdsaValidator,
+    config,
+  }).andThen((session) =>
+    getSessionClient(session).map((client) => ({
+      session,
+      client,
+    })),
+  )
+}
+
+export interface RestoreZeroDevSessionParams {
+  session: ZeroDevStoredSession
+  publicClient: PublicClient
+  chainId: number
+}
+
+/**
+ * Restore an existing ZeroDev session from stored data.
+ *
+ * The additional parameters are accepted for future flexibility but the
+ * current implementation relies on the shared wagmi publicClient and
+ * customSepolia chain configuration.
+ */
+export function restoreZeroDevSession(
+  params: RestoreZeroDevSessionParams,
+): ResultAsync<KernelAccountClient, SessionError> {
+  return getSessionClient(params.session)
+}
+
+/**
+ * Legacy helpers used by the existing React hook. These are left in place
+ * for backwards compatibility and simply delegate to the ZeroDev helpers.
+ */
+export function createSessionLegacy(params: {
+  ownerAddress: Address
+  smartAccountAddress: Address
+  ecdsaValidator: KernelValidator<'ECDSAValidator'>
+  config?: SessionConfig
+}): ResultAsync<StoredSession, SessionError> {
+  return createSession(params)
+}
+
+export function getSessionClientLegacy(
+  session: StoredSession,
+): ResultAsync<KernelAccountClient, SessionError> {
+  return getSessionClient(session as ZeroDevStoredSession)
+}
+
 export function getOrCreateSession(params: {
   ownerAddress: Address
   smartAccountAddress: Address
@@ -236,26 +273,21 @@ export function getOrCreateSession(params: {
 > {
   const { ownerAddress, smartAccountAddress, ecdsaValidator } = params
 
-  // Check for existing valid session
   const existingSession = getValidSessionByOwner(ownerAddress)
 
   if (existingSession) {
-    // Verify it's for the same smart account
     if (
       existingSession.smartAccountAddress.toLowerCase() ===
       smartAccountAddress.toLowerCase()
     ) {
-      console.log('📦 Found existing session:', existingSession.id)
-      return getSessionClient(existingSession).map((client) => ({
+      return getSessionClientLegacy(existingSession).map((client) => ({
         client,
         session: existingSession,
       }))
     }
-    // Different smart account, remove old session
     removeSession(existingSession.smartAccountAddress)
   }
 
-  // Create new session
   return createSession({
     ownerAddress,
     smartAccountAddress,
@@ -268,12 +300,6 @@ export function getOrCreateSession(params: {
   )
 }
 
-/**
- * Revoke a session by removing it from storage
- *
- * Note: This only removes local storage. The session key on-chain
- * would need a separate revocation transaction if supported.
- */
 export function revokeSession(accountAddress: Address): void {
   removeSession(accountAddress)
   console.log('🔒 Session revoked for:', accountAddress)
