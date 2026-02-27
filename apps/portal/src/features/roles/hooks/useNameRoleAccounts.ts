@@ -8,7 +8,7 @@ import type {
 } from '@ensdomains/ensjs/public/v2'
 import { getNameRoleAccounts as ensjs_getNameRoleAccounts } from '@ensdomains/ensjs/public/v2'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
-import { gql } from 'graphql-request'
+import { type ClientError, gql } from 'graphql-request'
 import { fromPromise, ok, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { getAddress, zeroAddress } from 'viem'
@@ -19,7 +19,7 @@ import { safeGetClient } from '@/lib/wagmi/helpers'
 class GetNameRolesAccountsIndexerError extends TaggedError(
   'GetNameRolesAccountsIndexerError',
 )<{
-  cause: unknown
+  cause: ClientError
 }> {}
 
 class GetNameRolesAccountsError extends TaggedError(
@@ -73,7 +73,7 @@ const getNameRolesAccounts = ResultFn(async function* (
 ) {
   const indexerResult = await ResultAsync.fromPromise(
     getNameRolesAccountsFromIndexer(params),
-    (e) => new GetNameRolesAccountsIndexerError({ cause: e }),
+    (e) => new GetNameRolesAccountsIndexerError({ cause: e as ClientError }),
   )
 
   if (indexerResult.isOk()) {
