@@ -31,7 +31,7 @@ import { PrimaryBadge } from './PrimaryBadge'
 
 const PAGE_SIZE = 5
 
-type SortField = 'name' | 'expiry' | 'registration'
+type SortField = 'name' | 'expiry'
 
 interface MyNamesListProps {
   readonly primaryLabel?: string | null
@@ -83,6 +83,12 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
   )
 }
 
+const toOrderBy = (field: SortField): Domain_OrderBy =>
+  match(field)
+    .with('name', () => Domain_OrderBy.Name)
+    .with('expiry', () => Domain_OrderBy.ExpiryDate)
+    .exhaustive()
+
 export const MyNamesList = ({
   primaryLabel,
   searchQuery = '',
@@ -90,9 +96,9 @@ export const MyNamesList = ({
   const shouldReduceMotion = useReducedMotion()
   const { data: wallet } = useWallet()
   const [page, setPage] = useState(1)
-  const [sortField, setSortField] = useState<SortField>('registration')
-  const [sortDirection, setSortDirection] = useState<OrderDirection | null>(
-    null,
+  const [sortField, setSortField] = useState<SortField>('name')
+  const [sortDirection, setSortDirection] = useState<OrderDirection>(
+    OrderDirection.Desc,
   )
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Reset page on search change
@@ -101,12 +107,6 @@ export const MyNamesList = ({
   }, [searchQuery, wallet?.address])
 
   const normalizedAddress = wallet?.address?.toLowerCase()
-
-  const orderBy = match(sortField)
-    .with('name', () => Domain_OrderBy.Name)
-    .with('expiry', () => Domain_OrderBy.ExpiryDate)
-    .with('registration', () => Domain_OrderBy.RegistrationDate)
-    .exhaustive()
 
   const queryVariables = normalizedAddress
     ? {
@@ -118,8 +118,8 @@ export const MyNamesList = ({
         },
         first: PAGE_SIZE,
         skip: (page - 1) * PAGE_SIZE,
-        orderBy,
-        orderDirection: sortDirection ?? OrderDirection.Desc,
+        orderBy: toOrderBy(sortField),
+        orderDirection: sortDirection,
       }
     : undefined
 
@@ -146,10 +146,11 @@ export const MyNamesList = ({
   const setSort = (field: SortField, direction: OrderDirection) => {
     setSortField(field)
     setSortDirection(direction)
+    setPage(1)
   }
 
   const toggleSort = (field: SortField) => {
-    if (sortField === field && sortDirection !== null) {
+    if (sortField === field) {
       setSortDirection((prev) =>
         prev === OrderDirection.Desc ? OrderDirection.Asc : OrderDirection.Desc,
       )
@@ -159,6 +160,7 @@ export const MyNamesList = ({
         field === 'expiry' ? OrderDirection.Asc : OrderDirection.Desc,
       )
     }
+    setPage(1)
   }
 
   const avatarQueries = useQueries({
@@ -198,11 +200,7 @@ export const MyNamesList = ({
                 direction === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
               )
             }}
-            value={
-              sortDirection
-                ? `${sortField}-${sortDirection === OrderDirection.Asc ? 'asc' : 'desc'}`
-                : 'name-asc'
-            }
+            value={`${sortField}-${sortDirection === OrderDirection.Asc ? 'asc' : 'desc'}`}
           >
             <option value="name-asc">Name (A-Z)</option>
             <option value="name-desc">Name (Z-A)</option>
@@ -220,13 +218,13 @@ export const MyNamesList = ({
           type="button"
         >
           <span
-            className={`font-sans text-[16px] tracking-[0.24px] ${sortDirection !== null && sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
+            className={`font-sans text-[16px] tracking-[0.24px] ${sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
             Name
           </span>
           <SortIndicator
-            direction={sortDirection ?? undefined}
-            isActive={sortDirection !== null && sortField === 'name'}
+            direction={sortDirection}
+            isActive={sortField === 'name'}
           />
         </button>
         <button
@@ -235,13 +233,13 @@ export const MyNamesList = ({
           type="button"
         >
           <span
-            className={`font-sans text-[16px] tracking-[0.24px] ${sortDirection !== null && sortField === 'expiry' ? 'text-foreground' : 'text-muted-foreground'}`}
+            className={`font-sans text-[16px] tracking-[0.24px] ${sortField === 'expiry' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
             Expiry
           </span>
           <SortIndicator
-            direction={sortDirection ?? undefined}
-            isActive={sortDirection !== null && sortField === 'expiry'}
+            direction={sortDirection}
+            isActive={sortField === 'expiry'}
           />
         </button>
       </div>
