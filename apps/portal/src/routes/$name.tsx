@@ -3,10 +3,14 @@ import { NavBar } from '@/components/NavBar'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { ProfileSidebar } from '@/components/ProfileSidebar'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/$name')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
+  loader: ({ params }) =>
+    queryClient.prefetchQuery(getEnsOwnerQueryOptions({ name: params.name })),
 })
 
 function RouteComponent() {
