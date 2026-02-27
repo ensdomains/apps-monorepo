@@ -197,7 +197,7 @@ export interface FileRoutesByFullPath {
   '/addr/$addr': typeof AddrAddrRouteWithChildren
   '/resolver/$address': typeof ResolverAddressRouteWithChildren
   '/$name/': typeof NameIndexRoute
-  '/register': typeof RegisterIndexRoute
+  '/register/': typeof RegisterIndexRoute
   '/$name/roles/add-user': typeof NameRolesAddUserRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
@@ -206,7 +206,7 @@ export interface FileRoutesByFullPath {
   '/resolver/$address/aliases': typeof ResolverAddressAliasesRoute
   '/resolver/$address/history': typeof ResolverAddressHistoryRoute
   '/resolver/$address/roles': typeof ResolverAddressRolesRoute
-  '/$name/roles': typeof NameRolesIndexRoute
+  '/$name/roles/': typeof NameRolesIndexRoute
   '/addr/$addr/': typeof AddrAddrIndexRoute
   '/resolver/$address/': typeof ResolverAddressIndexRoute
 }
@@ -287,7 +287,7 @@ export interface FileRouteTypes {
     | '/addr/$addr'
     | '/resolver/$address'
     | '/$name/'
-    | '/register'
+    | '/register/'
     | '/$name/roles/add-user'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
@@ -296,7 +296,7 @@ export interface FileRouteTypes {
     | '/resolver/$address/aliases'
     | '/resolver/$address/history'
     | '/resolver/$address/roles'
-    | '/$name/roles'
+    | '/$name/roles/'
     | '/addr/$addr/'
     | '/resolver/$address/'
   fileRoutesByTo: FileRoutesByTo
@@ -385,7 +385,7 @@ declare module '@tanstack/react-router' {
     '/register/': {
       id: '/register/'
       path: '/register'
-      fullPath: '/register'
+      fullPath: '/register/'
       preLoaderRoute: typeof RegisterIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -504,7 +504,7 @@ declare module '@tanstack/react-router' {
     '/$name/roles/': {
       id: '/$name/roles/'
       path: '/roles'
-      fullPath: '/$name/roles'
+      fullPath: '/$name/roles/'
       preLoaderRoute: typeof NameRolesIndexRouteImport
       parentRoute: typeof NameRoute
     }
