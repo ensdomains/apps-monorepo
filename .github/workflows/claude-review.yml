@@ -1,12 +1,14 @@
-name: Claude Style Review
+name: Claude PR Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
   review:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       pull-requests: write
@@ -25,35 +27,30 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
 
-            Review this pull request against the project's STYLEGUIDE.md.
+            Review this pull request with two goals:
+            1) Enforce STYLEGUIDE.md rules.
+            2) Catch broader engineering issues (logic bugs, security/privacy risks, performance pitfalls, missing tests, maintainability concerns).
 
-            STEP 1 - Check previous comments:
-            First, fetch any existing review comments on this PR using: gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number || github.event.issue.number }}/comments
-            Note which issues have already been flagged to avoid duplicate comments.
+            Priority:
+            - Highest: correctness, security, data-loss, and user-impact bugs.
+            - Then STYLEGUIDE.md 🔴 Must rules.
+            - Then STYLEGUIDE.md 🟡 Default rules (allow justified exceptions).
+            - STYLEGUIDE.md 🟢 Guidelines are optional suggestions.
 
-            To get thread IDs for resolving comments, use:
-            gh api graphql -f query='query { repository(owner:"ensdomains", name:"apps-monorepo") { pullRequest(number:${{ github.event.pull_request.number || github.event.issue.number }}) { reviewThreads(first:100) { nodes { id isResolved comments(first:1) { nodes { body path line } } } } } } }'
+            Review behavior:
+            - Leave actionable inline comments only for concrete issues in changed code.
+            - Avoid duplicate comments for issues already reported and still unresolved.
+            - Include the relevant STYLEGUIDE.md rule when a style rule is violated.
+            - Keep comments concise and specific, and suggest a fix when possible.
+            - Do not post praise-only inline comments.
 
-            STEP 2 - Read the style guide:
-            Read the STYLEGUIDE.md file to understand the project's coding standards.
-
-            STEP 3 - Review changes:
-            Review the PR changes and check for violations of those standards.
-
-            Focus on:
-            - Rule violations marked as 🔴 Must (these are critical)
-            - Rule violations marked as 🟡 Default (flag these but they may have valid exceptions)
-            - 🟢 Guidelines are suggestions only
-
-            IMPORTANT - Comment guidelines:
-            - ONLY use inline comments for NEW issues that need fixing. Do NOT duplicate comments that already exist.
-            - Never post positive/praise inline comments.
-            - For each issue, reference the specific rule from STYLEGUIDE.md, explain what's wrong, and suggest how to fix it.
-            - If a previous comment's issue has been FIXED in the current code, resolve that thread using:
-              gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "THREAD_ID"}) { thread { id } } }'
-            - In your summary comment, note which previous issues you resolved.
-            - Positive observations about the PR may be included in the summary only.
+            Final summary (sticky comment):
+            - Use `gh pr comment` for top-level feedback. Use `mcp__github_inline_comment__create_inline_comment` for inline code issues.
+            - Group findings by severity: critical/high, medium, low.
+            - Include a short "Styleguide" section and a short "General code quality" section.
+            - If no issues are found, clearly say "No blocking issues found".
+            - Only post GitHub comments - never approve, request changes, or submit a formal PR review state.
 
           claude_args: |
             --model claude-opus-4-5-20251101
-            --allowedTools "Read,Glob,Grep,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr review:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api:*)"
+            --allowedTools "Read,Glob,Grep,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
