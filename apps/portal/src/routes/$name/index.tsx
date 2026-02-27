@@ -27,11 +27,30 @@ import {
   isRegistrable,
   isTLD,
 } from '@/utils/ens/tldHelpers'
+import { queryClient } from '@/utils/queryClient'
 import { isValidEnsName } from '@/utils/token/isNormalized'
 
 export const Route = createFileRoute('/$name/')({
   component: App,
   notFoundComponent: () => <NotFoundMessage />,
+  loader: ({ params }) => {
+    const promises = []
+    promises.push(
+      queryClient.prefetchQuery(getProfileQueryOptions(params.name)),
+    )
+    promises.push(
+      queryClient.prefetchQuery(getEnsOwnerQueryOptions({ name: params.name })),
+    )
+
+    const tld = getTLD(params.name)
+    if (tld !== 'eth') {
+      promises.push(
+        queryClient.prefetchQuery(getDnsSecEnabledQueryOptions({ tld })),
+      )
+    }
+
+    return Promise.all(promises)
+  },
 })
 
 const Profile = ({
