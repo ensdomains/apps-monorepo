@@ -1,7 +1,7 @@
-import { useTranslation } from 'react-i18next'
+import { useTranslation } from '@/lib/use-translation'
 
 export const DashboardLoading = () => {
-  const { t } = useTranslation('dashboard')
+  const { t } = useTranslation()
 
   return (
     <div className="mx-auto max-w-md space-y-4">

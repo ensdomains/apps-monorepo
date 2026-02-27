@@ -15,7 +15,6 @@ import {
 } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { match, P } from 'ts-pattern'
 import {
   formatDashboardDate,
@@ -25,6 +24,7 @@ import {
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { useTranslation } from '@/lib/use-translation'
 import { tw } from '@/utils/tailwind'
 import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 import { NameRow } from './NameRow'
@@ -89,7 +89,7 @@ export const MyNamesList = ({
   searchQuery = '',
 }: MyNamesListProps) => {
   const shouldReduceMotion = useReducedMotion()
-  const { t } = useTranslation('dashboard')
+  const { t } = useTranslation()
   const { data: wallet } = useWallet()
   const [page, setPage] = useState(1)
   const [sortField, setSortField] = useState<SortField>('registration')

@@ -1,83 +1,59 @@
-import resources from 'virtual:i18next-loader'
-import i18n, { type Resource } from 'i18next'
-import { initReactI18next } from 'react-i18next'
+import { i18n } from '@lingui/core'
 import {
   getPersistedLanguagePreference,
   setPersistedLanguagePreference,
 } from './language-preference-store'
 
-const i18nResources = resources as Resource
-const supportedLngs = Object.keys(i18nResources)
-const fallbackLng = supportedLngs.includes('en')
-  ? 'en'
-  : (supportedLngs[0] ?? 'en')
+export const supportedLocales = ['en', 'es', 'fr'] as const
+export type SupportedLocale = (typeof supportedLocales)[number]
+export const defaultLocale: SupportedLocale = 'en'
 
 const normalizeLanguage = (language: string) => language.toLowerCase()
 
-const resolveSupportedLanguage = (
+const resolveSupportedLocale = (
   language: string | null | undefined,
-): string | null => {
-  if (!language) {
-    return null
-  }
+): SupportedLocale | null => {
+  if (!language) return null
 
-  const normalizedLanguage = normalizeLanguage(language)
-
-  const exactMatch = supportedLngs.find(
-    (supportedLanguage) =>
-      normalizeLanguage(supportedLanguage) === normalizedLanguage,
+  const normalized = normalizeLanguage(language)
+  const exactMatch = supportedLocales.find(
+    (loc) => normalizeLanguage(loc) === normalized,
   )
-
-  if (exactMatch) {
-    return exactMatch
-  }
+  if (exactMatch) return exactMatch
 
   return (
-    supportedLngs.find((supportedLanguage) =>
-      normalizedLanguage.startsWith(`${normalizeLanguage(supportedLanguage)}-`),
+    supportedLocales.find((loc) =>
+      normalized.startsWith(`${normalizeLanguage(loc)}-`),
     ) ?? null
   )
 }
 
-if (!i18n.isInitialized) {
-  const persistedLanguage = resolveSupportedLanguage(
-    getPersistedLanguagePreference(),
-  )
-  const initialLanguage = persistedLanguage ?? fallbackLng
-
-  i18n.use(initReactI18next).init({
-    resources: i18nResources,
-    lng: initialLanguage,
-    fallbackLng,
-    supportedLngs: supportedLngs.length > 0 ? supportedLngs : [fallbackLng],
-    ns: ['dashboard'],
-    defaultNS: 'dashboard',
-    interpolation: {
-      escapeValue: false,
-    },
-    returnNull: false,
-    initImmediate: false,
-  })
-
-  if (typeof window !== 'undefined') {
-    const persistedLanguageFromInit = resolveSupportedLanguage(
-      i18n.resolvedLanguage ?? i18n.language,
-    )
-
-    if (persistedLanguageFromInit) {
-      setPersistedLanguagePreference(persistedLanguageFromInit)
-    }
-
-    i18n.on('languageChanged', (language) => {
-      const supportedLanguage = resolveSupportedLanguage(language)
-
-      if (!supportedLanguage) {
-        return
-      }
-
-      setPersistedLanguagePreference(supportedLanguage)
-    })
+const loadCatalog = async (locale: SupportedLocale) => {
+  const catalog = (await import(`../../locales/${locale}/dashboard.json`)) as {
+    default: Record<string, string>
   }
+  i18n.loadAndActivate({ locale, messages: catalog.default })
+}
+
+const persistedLanguage = resolveSupportedLocale(
+  getPersistedLanguagePreference(),
+)
+const initialLocale = persistedLanguage ?? defaultLocale
+
+loadCatalog(initialLocale)
+
+if (typeof window !== 'undefined') {
+  if (persistedLanguage) {
+    setPersistedLanguagePreference(persistedLanguage)
+  }
+}
+
+export const changeLocale = async (locale: string) => {
+  const supported = resolveSupportedLocale(locale)
+  if (!supported) return
+
+  await loadCatalog(supported)
+  setPersistedLanguagePreference(supported)
 }
 
 export { i18n }

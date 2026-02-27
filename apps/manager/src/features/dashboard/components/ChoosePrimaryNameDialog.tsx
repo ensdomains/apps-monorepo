@@ -11,7 +11,6 @@ import {
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, Check } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
@@ -39,6 +38,7 @@ import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { useTranslation } from '@/lib/use-translation'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 import { resolveDomainLabel } from '../utils'
@@ -54,7 +54,7 @@ export const ChoosePrimaryNameDialog = ({
 }: ChoosePrimaryNameDialogProps) => {
   const [open, setOpen] = useState(false)
   const [selectedName, setSelectedName] = useState<string | null>(null)
-  const { t } = useTranslation('dashboard')
+  const { t } = useTranslation()
   const primaryNameSuccessToastRef = useRef(
     t('choosePrimaryName.toasts.primaryNameSetSuccess'),
   )

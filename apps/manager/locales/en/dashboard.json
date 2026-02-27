@@ -1,125 +1,68 @@
 {
-  "common": {
-    "language": "Language"
-  },
-  "loading": {
-    "dashboard": "Loading dashboard..."
-  },
-  "page": {
-    "banner": {
-      "title": "Welcome to the public alpha of the ENS app",
-      "description": "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
-    },
-    "greeting": {
-      "hello": "Hello"
-    }
-  },
-  "namesTable": {
-    "tabs": {
-      "myNames": "My Names",
-      "favorites": "Favorites"
-    },
-    "favoritesDisabledTooltip": "Sign in to view favorites",
-    "search": {
-      "myNamesPlaceholder": "Search my name...",
-      "favoritesPlaceholder": "Search name..."
-    }
-  },
-  "myNames": {
-    "errorLoading": "Error loading names",
-    "sortBy": "Sort by",
-    "sortNamesAriaLabel": "Sort names by",
-    "sortOptions": {
-      "nameAsc": "Name (A-Z)",
-      "nameDesc": "Name (Z-A)",
-      "expiryAsc": "Expiry date (Earliest)",
-      "expiryDesc": "Expiry date (Latest)"
-    },
-    "columns": {
-      "name": "Name",
-      "expiry": "Expiry"
-    },
-    "noNames": "No names to display",
-    "expiresInDays_one": "Expires in {{count}} day",
-    "expiresInDays_other": "Expires in {{count}} days",
-    "showingYourNames": "Showing your names"
-  },
-  "favorites": {
-    "sortBy": "Sort by",
-    "sortFavoritesAriaLabel": "Sort favorites by",
-    "sortOptions": {
-      "nameAsc": "Name (A-Z)",
-      "nameDesc": "Name (Z-A)",
-      "addedAtAsc": "Date added (Oldest)",
-      "addedAtDesc": "Date added (Newest)"
-    },
-    "columns": {
-      "name": "Name"
-    },
-    "noNames": "No names to display",
-    "showingRange": "Showing {{start}}-{{end}} of {{total}}"
-  },
-  "nameRow": {
-    "loginToFavorite": "Login to favorite",
-    "avatarAlt": "{{label}} avatar",
-    "avatarPlaceholderAlt": "{{label}} avatar placeholder"
-  },
-  "primaryBadge": {
-    "label": "Primary Name"
-  },
-  "primaryCard": {
-    "fallbackName": "Your ENS name",
-    "loading": "Loading...",
-    "registered": "Registered",
-    "expires": "Expires",
-    "viewProfile": "View profile"
-  },
-  "choosePrimaryName": {
-    "title": "Choose Primary Name",
-    "description": "Set which ENS name displays as your identity across apps and wallets.",
-    "noNamesFound": "No names found",
-    "selectAsPrimaryAriaLabel": "Select {{label}} as primary name",
-    "errorSetPrimaryName": "Failed to set primary name. Please try again.",
-    "warnings": {
-      "ethMismatch": "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name.",
-      "ethMissing": "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
-    },
-    "buttons": {
-      "cancel": "Cancel",
-      "settingEthAddress": "Setting ETH address...",
-      "setting": "Setting...",
-      "setAsPrimary": "Set as Primary"
-    },
-    "toasts": {
-      "failedSetEthAddressRecord": "Failed to set ETH address record",
-      "primaryNameSetSuccess": "Primary name set successfully",
-      "walletSignerUnavailable": "Wallet signer not available"
-    }
-  },
-  "faq": {
-    "title": "Frequently Asked Questions",
-    "getSupport": "Get support",
-    "items": {
-      "sendCrypto": {
-        "question": "Can I send crypto to a .eth name (instead of an address)?",
-        "answer": "Yes. Type alice.eth in the 'send to' field instead of 0x74...2d35 - the app looks up the address automatically."
-      },
-      "showName": {
-        "question": "How do I show my .eth name instead of my address?",
-        "answer": "Set it as your primary name. You can do this from your profile page in the ENS App."
-      },
-      "changePrimaryLater": {
-        "question": "Can I change my primary name later?",
-        "answer": "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
-      },
-      "secureName": {
-        "question": "How can I secure my ENS name?",
-        "answer": "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
-      }
-    }
-  },
-  "education": {
-    "title": "Did You Know?",
-    "pageIndicator": "{{current}} of {{total}}"
-  }
+  "common.language": "Language",
+  "loading.dashboard": "Loading dashboard...",
+  "page.banner.title": "Welcome to the public alpha of the ENS app",
+  "page.banner.description": "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!",
+  "page.greeting.hello": "Hello",
+  "namesTable.tabs.myNames": "My Names",
+  "namesTable.tabs.favorites": "Favorites",
+  "namesTable.favoritesDisabledTooltip": "Sign in to view favorites",
+  "namesTable.search.myNamesPlaceholder": "Search my name...",
+  "namesTable.search.favoritesPlaceholder": "Search name...",
+  "myNames.errorLoading": "Error loading names",
+  "myNames.sortBy": "Sort by",
+  "myNames.sortNamesAriaLabel": "Sort names by",
+  "myNames.sortOptions.nameAsc": "Name (A-Z)",
+  "myNames.sortOptions.nameDesc": "Name (Z-A)",
+  "myNames.sortOptions.expiryAsc": "Expiry date (Earliest)",
+  "myNames.sortOptions.expiryDesc": "Expiry date (Latest)",
+  "myNames.columns.name": "Name",
+  "myNames.columns.expiry": "Expiry",
+  "myNames.noNames": "No names to display",
+  "myNames.expiresInDays": "Expires in {count, plural, one {# day} other {# days}}",
+  "myNames.showingYourNames": "Showing your names",
+  "favorites.sortBy": "Sort by",
+  "favorites.sortFavoritesAriaLabel": "Sort favorites by",
+  "favorites.sortOptions.nameAsc": "Name (A-Z)",
+  "favorites.sortOptions.nameDesc": "Name (Z-A)",
+  "favorites.sortOptions.addedAtAsc": "Date added (Oldest)",
+  "favorites.sortOptions.addedAtDesc": "Date added (Newest)",
+  "favorites.columns.name": "Name",
+  "favorites.noNames": "No names to display",
+  "favorites.showingRange": "Showing {start}-{end} of {total}",
+  "nameRow.loginToFavorite": "Login to favorite",
+  "nameRow.avatarAlt": "{label} avatar",
+  "nameRow.avatarPlaceholderAlt": "{label} avatar placeholder",
+  "primaryBadge.label": "Primary Name",
+  "primaryCard.fallbackName": "Your ENS name",
+  "primaryCard.loading": "Loading...",
+  "primaryCard.registered": "Registered",
+  "primaryCard.expires": "Expires",
+  "primaryCard.viewProfile": "View profile",
+  "choosePrimaryName.title": "Choose Primary Name",
+  "choosePrimaryName.description": "Set which ENS name displays as your identity across apps and wallets.",
+  "choosePrimaryName.noNamesFound": "No names found",
+  "choosePrimaryName.selectAsPrimaryAriaLabel": "Select {label} as primary name",
+  "choosePrimaryName.errorSetPrimaryName": "Failed to set primary name. Please try again.",
+  "choosePrimaryName.warnings.ethMismatch": "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name.",
+  "choosePrimaryName.warnings.ethMissing": "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name.",
+  "choosePrimaryName.buttons.cancel": "Cancel",
+  "choosePrimaryName.buttons.settingEthAddress": "Setting ETH address...",
+  "choosePrimaryName.buttons.setting": "Setting...",
+  "choosePrimaryName.buttons.setAsPrimary": "Set as Primary",
+  "choosePrimaryName.toasts.failedSetEthAddressRecord": "Failed to set ETH address record",
+  "choosePrimaryName.toasts.primaryNameSetSuccess": "Primary name set successfully",
+  "choosePrimaryName.toasts.walletSignerUnavailable": "Wallet signer not available",
+  "faq.title": "Frequently Asked Questions",
+  "faq.getSupport": "Get support",
+  "faq.items.sendCrypto.question": "Can I send crypto to a .eth name (instead of an address)?",
+  "faq.items.sendCrypto.answer": "Yes. Type alice.eth in the 'send to' field instead of 0x74...2d35 - the app looks up the address automatically.",
+  "faq.items.showName.question": "How do I show my .eth name instead of my address?",
+  "faq.items.showName.answer": "Set it as your primary name. You can do this from your profile page in the ENS App.",
+  "faq.items.changePrimaryLater.question": "Can I change my primary name later?",
+  "faq.items.changePrimaryLater.answer": "Yes. You can update it anytime. You can even use different primary names on different networks (L2s).",
+  "faq.items.secureName.question": "How can I secure my ENS name?",
+  "faq.items.secureName.answer": "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name.",
+  "education.title": "Did You Know?",
+  "education.pageIndicator": "{current} of {total}"
 }

@@ -1,3 +1,4 @@
+import { I18nProvider } from '@lingui/react'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   createRootRouteWithContext,
@@ -11,7 +12,7 @@ import { Layout } from '@/components/Layout'
 import { MATERIAL_SYMBOLS_URL } from '@/components/ui/material-symbol'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
 import { ParaWagmiSyncWatcher } from '@/features/wallet/components/ParaWagmiSyncWatcher'
-import '@/lib/i18n'
+import { i18n } from '@/lib/i18n'
 import { RootProviders } from '@/lib/RootProviders'
 import appCss from '@/styles/index.css?url'
 
@@ -55,13 +56,15 @@ function RootComponent() {
         <HeadContent />
       </head>
       <body suppressHydrationWarning>
-        <RootProviders>
-          <Layout>
-            <Outlet />
-          </Layout>
-          <ParaWagmiSyncWatcher />
-          <Toaster position="bottom-center" />
-        </RootProviders>
+        <I18nProvider i18n={i18n}>
+          <RootProviders>
+            <Layout>
+              <Outlet />
+            </Layout>
+            <ParaWagmiSyncWatcher />
+            <Toaster position="bottom-center" />
+          </RootProviders>
+        </I18nProvider>
 
         <TanStackRouterDevtools position="bottom-right" />
         <Scripts />

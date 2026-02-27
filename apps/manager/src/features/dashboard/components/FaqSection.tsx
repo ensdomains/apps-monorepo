@@ -1,13 +1,13 @@
 import { ArrowRight, CircleArrowDown } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import { useTranslation } from '@/lib/use-translation'
 
 export const FaqSection = () => {
-  const { t } = useTranslation('dashboard')
+  const { t } = useTranslation()
 
   const faqItems = [
     {

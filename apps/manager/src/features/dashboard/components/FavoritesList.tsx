@@ -8,10 +8,10 @@ import {
 } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { match, P } from 'ts-pattern'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import { useTranslation } from '@/lib/use-translation'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import {
   filterFavoritesBySearch,
@@ -69,7 +69,7 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
 
 export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
   const shouldReduceMotion = useReducedMotion()
-  const { t } = useTranslation('dashboard')
+  const { t } = useTranslation()
   const [page, setPage] = useState(1)
   const [sortField, setSortField] = useState<SortField>('name')
   const [sortDirection, setSortDirection] = useState<OrderDirection | null>(

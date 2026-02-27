@@ -4,7 +4,6 @@ import { useAtom } from '@xstate/store-react'
 import { Search } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { match } from 'ts-pattern'
 import { CountBadge } from '@/components/atoms/CountBadge'
 import { Input } from '@/components/ui/input'
@@ -14,6 +13,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
+import { useTranslation } from '@/lib/use-translation'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import { FavoritesList } from './FavoritesList'
@@ -74,7 +74,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>('myNames')
   const [searchQuery, setSearchQuery] = useState('')
   const shouldReduceMotion = useReducedMotion()
-  const { t } = useTranslation('dashboard')
+  const { t } = useTranslation()
   const isAuthed = useAtom(isBackendAuthed)
   const { data: wallet } = useWallet()
   const normalizedAddress = wallet?.address?.toLowerCase()

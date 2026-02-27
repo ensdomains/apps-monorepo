@@ -1,7 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowUpRight, Heart } from 'lucide-react'
 import { motion } from 'motion/react'
-import { useTranslation } from 'react-i18next'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import {
@@ -9,6 +8,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useTranslation } from '@/lib/use-translation'
 
 interface NameRowProps {
   readonly label: string
@@ -27,7 +27,7 @@ export const NameRow = ({
   isAuthenticated = true,
   showFavoriteButton = false,
 }: NameRowProps) => {
-  const { t } = useTranslation('dashboard')
+  const { t } = useTranslation()
 
   const heartButton = showFavoriteButton ? (
     <motion.button

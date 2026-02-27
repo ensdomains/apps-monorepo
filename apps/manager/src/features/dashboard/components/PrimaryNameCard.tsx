@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { Calendar, Clock } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
-import { useTranslation } from 'react-i18next'
 import { match } from 'ts-pattern'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { formatDashboardDate } from '@/features/dashboard/utils'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
+import { useTranslation } from '@/lib/use-translation'
 import { ChoosePrimaryNameDialog } from './ChoosePrimaryNameDialog'
 import { PrimaryBadge } from './PrimaryBadge'
 
@@ -21,7 +21,7 @@ export const PrimaryNameCard = ({
   avatarUrl,
 }: PrimaryNameCardProps) => {
   const shouldReduceMotion = useReducedMotion()
-  const { t } = useTranslation('dashboard')
+  const { t } = useTranslation()
 
   const { data: registration, isLoading: isRegistrationLoading } = useQuery({
     ...profileRegistrationQuery(primaryName ?? ''),

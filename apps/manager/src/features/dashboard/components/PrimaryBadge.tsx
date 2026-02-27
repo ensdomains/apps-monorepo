@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import { useTranslation } from '@/lib/use-translation'
 
 import { cn } from '@/lib/utils'
 
@@ -9,7 +9,7 @@ type PrimaryBadgeProps = {
 }
 
 export const PrimaryBadge = ({ label, className }: PrimaryBadgeProps) => {
-  const { t } = useTranslation('dashboard')
+  const { t } = useTranslation()
   const resolvedLabel = label ?? t('primaryBadge.label')
 
   return (

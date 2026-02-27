@@ -1,14 +1,14 @@
 import { CircleArrowLeft, CircleArrowRight } from 'lucide-react'
 import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { FEATURE_CARDS } from '@/features/landing/FeaturesCarousel'
+import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
 const CARDS_PER_PAGE = 2
 
 export const EducationCarousel = () => {
   const [currentPage, setCurrentPage] = useState(0)
-  const { t } = useTranslation('dashboard')
+  const { t } = useTranslation()
   const totalPages = Math.ceil(FEATURE_CARDS.length / CARDS_PER_PAGE)
 
   const startIndex = currentPage * CARDS_PER_PAGE

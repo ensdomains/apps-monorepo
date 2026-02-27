@@ -1,6 +1,5 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
-import { useTranslation } from 'react-i18next'
 import { CopyableAddress } from '@/components/atoms/CopyableAddress'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { MSymbol } from '@/components/ui/material-symbol'
@@ -12,6 +11,7 @@ import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { useTranslation } from '@/lib/use-translation'
 
 const stagger = (index: number, shouldReduceMotion: boolean | null) =>
   shouldReduceMotion
@@ -29,7 +29,7 @@ const stagger = (index: number, shouldReduceMotion: boolean | null) =>
 export const DashboardPage = () => {
   const { ownerAddress } = useSmartAccountContext()
   const shouldReduceMotion = useReducedMotion()
-  const { t } = useTranslation('dashboard')
+  const { t } = useTranslation()
 
   const { data: reverseName } = useSuspenseQuery({
     ...profileReverseNameQuery(ownerAddress ?? undefined),
