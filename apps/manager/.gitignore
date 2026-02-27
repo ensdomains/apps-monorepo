@@ -13,3 +13,6 @@ storybook-static
 .wrangler
 .dev.vars
 .env
+
+# Paraglide generated files
+src/paraglide/

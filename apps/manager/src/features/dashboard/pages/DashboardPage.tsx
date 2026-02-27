@@ -1,6 +1,5 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
-import { useTranslation } from 'react-i18next'
 import { CopyableAddress } from '@/components/atoms/CopyableAddress'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { MSymbol } from '@/components/ui/material-symbol'
@@ -12,6 +11,7 @@ import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import * as m from '@/paraglide/messages.js'
 
 const stagger = (index: number, shouldReduceMotion: boolean | null) =>
   shouldReduceMotion
@@ -29,8 +29,6 @@ const stagger = (index: number, shouldReduceMotion: boolean | null) =>
 export const DashboardPage = () => {
   const { ownerAddress } = useSmartAccountContext()
   const shouldReduceMotion = useReducedMotion()
-  const { t } = useTranslation('dashboard')
-
   const { data: reverseName } = useSuspenseQuery({
     ...profileReverseNameQuery(ownerAddress ?? undefined),
   })
@@ -63,10 +61,10 @@ export const DashboardPage = () => {
               symbol="waving_hand"
             />
             <AlertTitle className="mb-2 text-[16px] text-ens-blue tracking-[0.28px]">
-              {t('page.banner.title')}
+              {m.page_banner_title()}
             </AlertTitle>
             <AlertDescription className="max-w-5xl text-muted-foreground text-sm">
-              {t('page.banner.description')}
+              {m.page_banner_description()}
             </AlertDescription>
           </Alert>
         </motion.div>
@@ -74,7 +72,7 @@ export const DashboardPage = () => {
           className="px-4 font-serif text-[28px] text-foreground leading-[0.96] tracking-[0.28px] md:px-0 md:text-[40px] md:tracking-[0.4px]"
           {...stagger(1, shouldReduceMotion)}
         >
-          {t('page.greeting.hello')}{' '}
+          {m.page_greeting_hello()}{' '}
           {defaultName ??
             (ownerAddress && (
               <CopyableAddress

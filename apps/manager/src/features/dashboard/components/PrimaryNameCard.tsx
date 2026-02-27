@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { Calendar, Clock } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
-import { useTranslation } from 'react-i18next'
 import { match } from 'ts-pattern'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { formatDashboardDate } from '@/features/dashboard/utils'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
+import * as m from '@/paraglide/messages.js'
 import { ChoosePrimaryNameDialog } from './ChoosePrimaryNameDialog'
 import { PrimaryBadge } from './PrimaryBadge'
 
@@ -21,8 +21,6 @@ export const PrimaryNameCard = ({
   avatarUrl,
 }: PrimaryNameCardProps) => {
   const shouldReduceMotion = useReducedMotion()
-  const { t } = useTranslation('dashboard')
-
   const { data: registration, isLoading: isRegistrationLoading } = useQuery({
     ...profileRegistrationQuery(primaryName ?? ''),
     enabled: !!primaryName,
@@ -44,12 +42,12 @@ export const PrimaryNameCard = ({
   const formattedRegisteredDate = formatDashboardDate(registeredDate)
   const formattedExpiryDate = formatDashboardDate(expiryDate)
   const hasAvatar = Boolean(avatarUrl)
-  const displayName = primaryName ?? t('primaryCard.fallbackName')
+  const displayName = primaryName ?? m.primaryCard_fallbackName()
   const registeredLabel = isRegistrationLoading
-    ? t('primaryCard.loading')
+    ? m.primaryCard_loading()
     : formattedRegisteredDate
   const expiryLabel = isReverseExpiryLoading
-    ? t('primaryCard.loading')
+    ? m.primaryCard_loading()
     : formattedExpiryDate
   const canViewProfile = Boolean(primaryName)
 
@@ -110,7 +108,7 @@ export const PrimaryNameCard = ({
                 />
                 <div className="flex items-end gap-1 text-xs leading-[0.96] tracking-[-0.24px] md:text-sm">
                   <span className="text-muted-foreground">
-                    {t('primaryCard.registered')}
+                    {m.primaryCard_registered()}
                   </span>
                   <span className="font-semibold text-muted-foreground">
                     {registeredLabel}
@@ -124,7 +122,7 @@ export const PrimaryNameCard = ({
                 />
                 <div className="flex items-end gap-1 text-xs leading-[0.96] tracking-[-0.24px] md:text-sm">
                   <span className="text-muted-foreground">
-                    {t('primaryCard.expires')}
+                    {m.primaryCard_expires()}
                   </span>
                   <span className="font-semibold text-muted-foreground">
                     {expiryLabel}
@@ -142,7 +140,7 @@ export const PrimaryNameCard = ({
           variant="outline"
         >
           <span className="font-sans text-sm leading-normal">
-            {t('primaryCard.viewProfile')}
+            {m.primaryCard_viewProfile()}
           </span>
         </LinkButton>
       </div>

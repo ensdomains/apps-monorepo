@@ -8,10 +8,10 @@ import {
 } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { match, P } from 'ts-pattern'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import * as m from '@/paraglide/messages.js'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import {
   filterFavoritesBySearch,
@@ -69,7 +69,6 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
 
 export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
   const shouldReduceMotion = useReducedMotion()
-  const { t } = useTranslation('dashboard')
   const [page, setPage] = useState(1)
   const [sortField, setSortField] = useState<SortField>('name')
   const [sortDirection, setSortDirection] = useState<OrderDirection | null>(
@@ -144,10 +143,10 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
       <div className="mb-4 flex md:hidden">
         <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">
           <span className="font-sans text-foreground text-xs tracking-[0.24px]">
-            {t('favorites.sortBy')}
+            {m.favorites_sortBy()}
           </span>
           <select
-            aria-label={t('favorites.sortFavoritesAriaLabel')}
+            aria-label={m.favorites_sortFavoritesAriaLabel()}
             className="bg-transparent font-medium font-sans text-foreground text-xs tracking-[0.24px] outline-none"
             onChange={(e) => {
               const [field, direction] = e.target.value.split('-') as [
@@ -166,16 +165,16 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
             }
           >
             <option value="name-asc">
-              {t('favorites.sortOptions.nameAsc')}
+              {m.favorites_sortOptions_nameAsc()}
             </option>
             <option value="name-desc">
-              {t('favorites.sortOptions.nameDesc')}
+              {m.favorites_sortOptions_nameDesc()}
             </option>
             <option value="addedAt-asc">
-              {t('favorites.sortOptions.addedAtAsc')}
+              {m.favorites_sortOptions_addedAtAsc()}
             </option>
             <option value="addedAt-desc">
-              {t('favorites.sortOptions.addedAtDesc')}
+              {m.favorites_sortOptions_addedAtDesc()}
             </option>
           </select>
         </div>
@@ -191,7 +190,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
           <span
             className={`font-sans text-[16px] tracking-[0.24px] ${sortDirection !== null && sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
-            {t('favorites.columns.name')}
+            {m.favorites_columns_name()}
           </span>
           <SortIndicator
             direction={sortDirection ?? undefined}
@@ -222,7 +221,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                 strokeWidth={1}
               />
               <span className="font-sans text-muted-foreground text-sm">
-                {t('favorites.noNames')}
+                {m.favorites_noNames()}
               </span>
             </div>
           ))
@@ -233,7 +232,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                 strokeWidth={1}
               />
               <span className="font-sans text-muted-foreground text-sm">
-                {t('favorites.noNames')}
+                {m.favorites_noNames()}
               </span>
             </div>
           ))
@@ -293,7 +292,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
             </button>
           </div>
           <span className="font-sans text-[16px] text-muted-foreground leading-[1.2] tracking-[0.14px]">
-            {t('favorites.showingRange', {
+            {m.favorites_showingRange({
               start: startIndex,
               end: endIndex,
               total: totalCount,

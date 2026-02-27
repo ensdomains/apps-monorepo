@@ -1,7 +1,6 @@
 import { Check } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
 import { cn } from '@/lib/utils'
+import * as m from '@/paraglide/messages.js'
 
 type PrimaryBadgeProps = {
   label?: string
@@ -9,8 +8,7 @@ type PrimaryBadgeProps = {
 }
 
 export const PrimaryBadge = ({ label, className }: PrimaryBadgeProps) => {
-  const { t } = useTranslation('dashboard')
-  const resolvedLabel = label ?? t('primaryBadge.label')
+  const resolvedLabel = label ?? m.primaryBadge_label()
 
   return (
     <div

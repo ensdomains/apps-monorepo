@@ -15,7 +15,6 @@ import {
 } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { match, P } from 'ts-pattern'
 import {
   formatDashboardDate,
@@ -25,6 +24,7 @@ import {
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import * as m from '@/paraglide/messages.js'
 import { tw } from '@/utils/tailwind'
 import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 import { NameRow } from './NameRow'
@@ -89,7 +89,6 @@ export const MyNamesList = ({
   searchQuery = '',
 }: MyNamesListProps) => {
   const shouldReduceMotion = useReducedMotion()
-  const { t } = useTranslation('dashboard')
   const { data: wallet } = useWallet()
   const [page, setPage] = useState(1)
   const [sortField, setSortField] = useState<SortField>('registration')
@@ -174,7 +173,7 @@ export const MyNamesList = ({
   if (isError) {
     return (
       <div className="py-8 text-center font-sans text-red-500 text-sm">
-        {t('myNames.errorLoading')}
+        {m.myNames_errorLoading()}
       </div>
     )
   }
@@ -185,10 +184,10 @@ export const MyNamesList = ({
       <div className="mb-4 flex md:hidden">
         <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">
           <span className="font-sans text-foreground text-xs tracking-[0.24px]">
-            {t('myNames.sortBy')}
+            {m.myNames_sortBy()}
           </span>
           <select
-            aria-label={t('myNames.sortNamesAriaLabel')}
+            aria-label={m.myNames_sortNamesAriaLabel()}
             className="bg-transparent font-medium font-sans text-foreground text-xs tracking-[0.24px] outline-none"
             onChange={(e) => {
               const [field, direction] = e.target.value.split('-') as [
@@ -206,15 +205,15 @@ export const MyNamesList = ({
                 : 'name-asc'
             }
           >
-            <option value="name-asc">{t('myNames.sortOptions.nameAsc')}</option>
+            <option value="name-asc">{m.myNames_sortOptions_nameAsc()}</option>
             <option value="name-desc">
-              {t('myNames.sortOptions.nameDesc')}
+              {m.myNames_sortOptions_nameDesc()}
             </option>
             <option value="expiry-asc">
-              {t('myNames.sortOptions.expiryAsc')}
+              {m.myNames_sortOptions_expiryAsc()}
             </option>
             <option value="expiry-desc">
-              {t('myNames.sortOptions.expiryDesc')}
+              {m.myNames_sortOptions_expiryDesc()}
             </option>
           </select>
         </div>
@@ -230,7 +229,7 @@ export const MyNamesList = ({
           <span
             className={`font-sans text-[16px] tracking-[0.24px] ${sortDirection !== null && sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
-            {t('myNames.columns.name')}
+            {m.myNames_columns_name()}
           </span>
           <SortIndicator
             direction={sortDirection ?? undefined}
@@ -245,7 +244,7 @@ export const MyNamesList = ({
           <span
             className={`font-sans text-[16px] tracking-[0.24px] ${sortDirection !== null && sortField === 'expiry' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
-            {t('myNames.columns.expiry')}
+            {m.myNames_columns_expiry()}
           </span>
           <SortIndicator
             direction={sortDirection ?? undefined}
@@ -278,7 +277,7 @@ export const MyNamesList = ({
                 strokeWidth={1}
               />
               <span className="font-sans text-muted-foreground text-sm">
-                {t('myNames.noNames')}
+                {m.myNames_noNames()}
               </span>
             </div>
           ))
@@ -336,7 +335,7 @@ export const MyNamesList = ({
                               strokeWidth={2}
                             />
                             <span className="font-sans text-[#c68a1b] text-[10px] leading-[1.05] tracking-[0.2px] md:text-xs md:tracking-[0.24px]">
-                              {t('myNames.expiresInDays', {
+                              {m.myNames_expiresInDays({
                                 count: daysUntilExpiry,
                               })}
                             </span>
@@ -374,7 +373,7 @@ export const MyNamesList = ({
           {isPlaceholderData && (
             <Loader2 className="size-[12px] animate-spin" />
           )}
-          {t('myNames.showingYourNames')}
+          {m.myNames_showingYourNames()}
         </span>
       </div>
     </div>

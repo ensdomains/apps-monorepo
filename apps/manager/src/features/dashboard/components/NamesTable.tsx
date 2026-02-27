@@ -4,7 +4,6 @@ import { useAtom } from '@xstate/store-react'
 import { Search } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { match } from 'ts-pattern'
 import { CountBadge } from '@/components/atoms/CountBadge'
 import { Input } from '@/components/ui/input'
@@ -14,6 +13,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
+import * as m from '@/paraglide/messages.js'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import { FavoritesList } from './FavoritesList'
@@ -74,7 +74,6 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>('myNames')
   const [searchQuery, setSearchQuery] = useState('')
   const shouldReduceMotion = useReducedMotion()
-  const { t } = useTranslation('dashboard')
   const isAuthed = useAtom(isBackendAuthed)
   const { data: wallet } = useWallet()
   const normalizedAddress = wallet?.address?.toLowerCase()
@@ -98,15 +97,15 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const tabs = [
     {
       key: 'myNames' as const,
-      label: t('namesTable.tabs.myNames'),
+      label: m.namesTable_tabs_myNames(),
       badge: ownedNamesCount,
     },
     {
       key: 'favorites' as const,
-      label: t('namesTable.tabs.favorites'),
+      label: m.namesTable_tabs_favorites(),
       badge: favoritesCount,
       disabled: !isAuthed,
-      disabledTooltip: t('namesTable.favoritesDisabledTooltip'),
+      disabledTooltip: m.namesTable_favoritesDisabledTooltip(),
     },
   ]
 
@@ -142,8 +141,8 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder={
               activeTab === 'myNames'
-                ? t('namesTable.search.myNamesPlaceholder')
-                : t('namesTable.search.favoritesPlaceholder')
+                ? m.namesTable_search_myNamesPlaceholder()
+                : m.namesTable_search_favoritesPlaceholder()
             }
             size="sm"
             startIcon={<Search className="size-[18px] text-muted-foreground" />}
