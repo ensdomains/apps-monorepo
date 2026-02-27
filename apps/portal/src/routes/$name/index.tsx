@@ -43,22 +43,6 @@ export const Route = createFileRoute('/$name/')({
         : []),
     ])
   },
-    promises.push(
-      queryClient.prefetchQuery(getProfileQueryOptions(params.name)),
-    )
-    promises.push(
-      queryClient.prefetchQuery(getEnsOwnerQueryOptions({ name: params.name })),
-    )
-
-    const tld = getTLD(params.name)
-    if (tld !== 'eth') {
-      promises.push(
-        queryClient.prefetchQuery(getDnsSecEnabledQueryOptions({ tld })),
-      )
-    }
-
-    return Promise.all(promises)
-  },
 })
 
 const Profile = ({
