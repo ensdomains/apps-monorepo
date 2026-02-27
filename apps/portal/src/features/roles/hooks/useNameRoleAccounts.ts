@@ -8,10 +8,11 @@ import type {
 } from '@ensdomains/ensjs/public/v2'
 import { getNameRoleAccounts as ensjs_getNameRoleAccounts } from '@ensdomains/ensjs/public/v2'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
-import { GraphQLClient, gql } from 'graphql-request'
-import { fromPromise, ok } from 'neverthrow'
+import { gql } from 'graphql-request'
+import { fromPromise, ok, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { getAddress, zeroAddress } from 'viem'
+import { graphqlIndexerClient } from '@/lib/indexer'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
@@ -20,8 +21,6 @@ class GetNameRolesAccountsError extends TaggedError(
 )<{
   cause: GetNameRolesAccountsErrorType
 }> {}
-
-const rolesPageIndexerClient = new GraphQLClient('https://ensv2.pff.sh/graphql')
 
 type IndexerRoleAssignment = {
   account: string
@@ -37,7 +36,7 @@ const getNameRolesAccountsFromIndexer = async ({
   // This indexer accepts the v2 ETHRegistry tokenId-form resource for role lookups.
   const resource = toResourceHex(labelToCanonicalId(label))
 
-  const { roles } = await rolesPageIndexerClient.request<{
+  const { roles } = await graphqlIndexerClient.request<{
     roles: IndexerRoleAssignment[]
   }>(
     gql`
@@ -66,21 +65,25 @@ const getNameRolesAccountsFromIndexer = async ({
 const getNameRolesAccounts = ResultFn(async function* (
   params: GetNameRolesAccountsParameters,
 ) {
-  let result: GetNameRolesAccountsReturnType
+  const indexerResult = await ResultAsync.fromPromise(
+    getNameRolesAccountsFromIndexer(params),
+    (e) => e,
+  )
 
-  try {
-    result = await getNameRolesAccountsFromIndexer(params)
-  } catch {
-    const client = yield* safeGetClient()
-
-    result = yield* await fromPromise(
-      ensjs_getNameRoleAccounts(client, params),
-      (e) =>
-        new GetNameRolesAccountsError({
-          cause: e as GetNameRolesAccountsErrorType,
-        }),
-    )
+  if (indexerResult.isOk()) {
+    return ok(indexerResult.value)
   }
+
+  // Fallback to ensjs when indexer fails
+  const client = yield* safeGetClient()
+
+  const result = yield* fromPromise(
+    ensjs_getNameRoleAccounts(client, params),
+    (e) =>
+      new GetNameRolesAccountsError({
+        cause: e as GetNameRolesAccountsErrorType,
+      }),
+  )
 
   return ok(result as GetNameRolesAccountsReturnType)
 })
