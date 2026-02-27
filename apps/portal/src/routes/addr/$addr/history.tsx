@@ -7,10 +7,24 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { AddressHistoryDataTable } from '@/features/address/components/AddressHistoryDataTable'
 import { getV2HistoryForAddressQueryOptions } from '@/features/address/components/hooks/useV2HistoryForAddress'
 import { getV1HistoryForAddressQueryOptions } from '@/features/address/hooks/useV1HistoryForAddress'
+import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/addr/$addr/history')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
+  loader: ({ params }) =>
+    Promise.all([
+      queryClient.prefetchQuery(
+        getV1HistoryForAddressQueryOptions({
+          address: params.addr as Address,
+        }),
+      ),
+      queryClient.prefetchQuery(
+        getV2HistoryForAddressQueryOptions({
+          address: params.addr as Address,
+        }),
+      ),
+    ]),
 })
 
 function RouteComponent() {

@@ -23,10 +23,17 @@ import { columns } from '@/features/forward-resolution/components/ForwardNamesTa
 import { ForwardNamesTable } from '@/features/forward-resolution/components/ForwardNamesTable/ForwardNamesTable'
 import { getResolvedNamesForAddressQueryOptions } from '@/features/forward-resolution/components/hooks/useNamesForResolvedAddress'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
+import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/addr/$addr/resolution')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
+  loader: ({ params }) =>
+    queryClient.prefetchQuery(
+      getResolvedNamesForAddressQueryOptions({
+        address: params.addr as Address,
+      }),
+    ),
 })
 
 function RouteComponent() {

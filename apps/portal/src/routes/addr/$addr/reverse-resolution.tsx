@@ -22,10 +22,18 @@ import { columns } from '@/features/reverse-resolution/components/ReverseResolut
 import { ReverseResolutionTable } from '@/features/reverse-resolution/components/ReverseResolutionTable/ReverseResolutionTable'
 import { REVERSE_RESOLUTION_NETWORKS } from '@/features/reverse-resolution/config'
 import { getReverseResolutionQueryOptions } from '@/features/reverse-resolution/hooks/useReverseResolution'
+import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/addr/$addr/reverse-resolution')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
+  loader: ({ params }) =>
+    queryClient.prefetchQuery(
+      getReverseResolutionQueryOptions({
+        address: params.addr as Address,
+        networks: REVERSE_RESOLUTION_NETWORKS,
+      }),
+    ),
 })
 
 function RouteComponent() {

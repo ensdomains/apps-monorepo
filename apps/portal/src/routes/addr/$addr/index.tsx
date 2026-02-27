@@ -12,9 +12,17 @@ import { NameList } from '@/features/dashboard/components/NameList'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
+import { queryClient } from '@/utils/queryClient'
+
 export const Route = createFileRoute('/addr/$addr/')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
+  loader: ({ params }) =>
+    queryClient.prefetchQuery(
+      getV2HistoryForAddressQueryOptions({
+        address: params.addr as Address,
+      }),
+    ),
 })
 
 interface PrimaryNameProps {
