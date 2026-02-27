@@ -24,7 +24,7 @@ import {
 import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
 import { errAsync, ResultAsync } from 'neverthrow'
 import { createPimlicoClient } from 'permissionless/clients/pimlico'
-import { type Address, http, type PublicClient } from 'viem'
+import { type Address, http } from 'viem'
 import { entryPoint07Address } from 'viem/account-abstraction'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { customSepolia, publicClient } from '@/lib/wagmi'
@@ -38,6 +38,7 @@ import type {
   StoredSession,
   ZeroDevStoredSession,
 } from './types'
+import { isZeroDevSession } from './types'
 
 const ENTRY_POINT = {
   address: entryPoint07Address,
@@ -61,8 +62,6 @@ export interface CreateZeroDevSessionParams {
   ownerAddress: Address
   smartAccountAddress: Address
   ecdsaValidator: KernelValidator<'ECDSAValidator'>
-  kernelClient: KernelAccountClient
-  chainId: number
   config?: SessionConfig
 }
 
@@ -227,8 +226,6 @@ export function createZeroDevSession(
 
 export interface RestoreZeroDevSessionParams {
   session: ZeroDevStoredSession
-  publicClient: PublicClient
-  chainId: number
 }
 
 /**
@@ -260,7 +257,13 @@ export function createSessionLegacy(params: {
 export function getSessionClientLegacy(
   session: StoredSession,
 ): ResultAsync<KernelAccountClient, SessionError> {
-  return getSessionClient(session as ZeroDevStoredSession)
+  if (!isZeroDevSession(session)) {
+    return errAsync(
+      new SessionError('Invalid session type', 'Expected ZeroDev session'),
+    )
+  }
+
+  return getSessionClient(session)
 }
 
 export function getOrCreateSession(params: {
