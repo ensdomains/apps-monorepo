@@ -12,6 +12,7 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { DedicatedResolverBanner } from '@/features/resolver/components/DedicatedResolverBanner'
 import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import type { HttpsUrl } from '@/utils/types'
 
 export const Route = createFileRoute('/resolver/$address/')({
   component: RouteComponent,
@@ -25,7 +26,7 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
-      <h1 className="text-2xl md:text-[28px] font-medium leading-none">
+      <h1 className="text-2xl md:text-heading font-medium leading-none">
         Resolver {truncateAddress(address, 6, 4, '...')}
       </h1>
 
@@ -73,7 +74,7 @@ function RouteComponent() {
           {
             label: 'Contract',
             value: address,
-            href: `${sepoliaUrl}/address/${address}` as `https://${string}`,
+            href: `${sepoliaUrl}/address/${address}` as HttpsUrl,
           },
         ]}
       />

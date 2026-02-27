@@ -11,7 +11,7 @@ import {
   UserLockIcon,
   UserRoundCog,
 } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { SoonBadge } from '@/components/ui/badge'
 import { createDefineLinkItem } from '@/utils/tsr'
 import {
   Sidebar,
@@ -152,14 +152,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
                           <span className="text-sm font-medium">
                             {item.title}
                           </span>
-                          {item.upcoming && (
-                            <Badge
-                              variant="success"
-                              className="ml-auto text-[10px] px-1.5 py-0"
-                            >
-                              Soon
-                            </Badge>
-                          )}
+                          {item.upcoming && <SoonBadge />}
                         </SidebarMenuButton>
                       ) : (
                         <SidebarMenuButton asChild>

@@ -1,6 +1,6 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { type Address, isAddress } from 'viem'
+import { type Address, isAddress, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
@@ -104,8 +104,7 @@ export const useSearchResults = ({
     ],
   )
 
-  const addressForOwned = (connectedAddress ??
-    '0x0000000000000000000000000000000000000000') as Address
+  const addressForOwned = connectedAddress ?? zeroAddress
 
   const [v1NamesQuery, v2NamesQuery] = useQueries({
     queries: [

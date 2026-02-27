@@ -99,7 +99,7 @@ function RouteComponent() {
         </Button>
       </Link>
 
-      <h1 className="text-[28px] font-medium leading-none">Add user</h1>
+      <h1 className="text-heading font-medium leading-none">Add user</h1>
 
       <h2 className="text-lg font-medium">User</h2>
       <div className="flex flex-col gap-6">

@@ -283,7 +283,7 @@ function App() {
   return (
     <div className="flex flex-col gap-6 p-6 w-full max-w-360 mx-auto">
       <div className="flex flex-row justify-between items-baseline">
-        <h1 className="text-[28px] font-medium leading-none">Overview</h1>
+        <h1 className="text-heading font-medium leading-none">Overview</h1>
       </div>
       <Profile name={name} resolverAddress={resolverAddress} />
     </div>
