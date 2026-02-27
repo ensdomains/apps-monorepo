@@ -51,20 +51,20 @@ export const NameRow = ({
         ) : (
           <Tooltip>
             <TooltipTrigger asChild>{heartButton}</TooltipTrigger>
-            <TooltipContent>{m['nameRow.loginToFavorite']()}</TooltipContent>
+            <TooltipContent>{m.nameRowLoginToFavorite()}</TooltipContent>
           </Tooltip>
         ))}
       <div className="flex items-center gap-2 md:gap-[12px]">
         <div className="relative size-[32px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
           <ImageFallback.Root className="contents">
             <ImageFallback.Image
-              alt={m['nameRow.avatarAlt']({ label })}
+              alt={m.nameRowAvatarAlt({ label })}
               className="size-full object-cover"
               src={avatarUrl}
             />
             <ImageFallback.Fallback>
               <img
-                alt={m['nameRow.avatarPlaceholderAlt']({ label })}
+                alt={m.nameRowAvatarPlaceholderAlt({ label })}
                 className="size-full object-cover"
                 src={placeholderAvatar}
               />

@@ -55,7 +55,7 @@ export const ChoosePrimaryNameDialog = ({
   const [open, setOpen] = useState(false)
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const primaryNameSuccessToastRef = useRef(
-    m['choosePrimaryName.toasts.primaryNameSetSuccess'](),
+    m.choosePrimaryNameToastsPrimaryNameSetSuccess(),
   )
   const { data: wallet } = useWallet()
   const account = useSmartAccountContext()
@@ -156,7 +156,7 @@ export const ChoosePrimaryNameDialog = ({
     },
     onError: (error) => {
       console.error('Failed to set ETH address record:', error)
-      toast.error(m['choosePrimaryName.toasts.failedSetEthAddressRecord']())
+      toast.error(m.choosePrimaryNameToastsFailedSetEthAddressRecord())
     },
   })
 
@@ -197,7 +197,7 @@ export const ChoosePrimaryNameDialog = ({
 
     if (needsEthAddressUpdate) {
       if (!account.signer || !account.accountAddress) {
-        toast.error(m['choosePrimaryName.toasts.walletSignerUnavailable']())
+        toast.error(m.choosePrimaryNameToastsWalletSignerUnavailable())
         return
       }
 
@@ -240,10 +240,10 @@ export const ChoosePrimaryNameDialog = ({
       <DialogContent className="flex max-h-[90vh] max-w-[500px] flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="font-serif text-[24px] text-foreground">
-            {m['choosePrimaryName.title']()}
+            {m.choosePrimaryNameTitle()}
           </DialogTitle>
           <DialogDescription className="font-sans text-muted-foreground text-sm">
-            {m['choosePrimaryName.description']()}
+            {m.choosePrimaryNameDescription()}
           </DialogDescription>
         </DialogHeader>
 
@@ -268,7 +268,7 @@ export const ChoosePrimaryNameDialog = ({
               ))
               .with({ domains: [] }, () => (
                 <div className="py-8 text-center font-sans text-muted-foreground text-sm">
-                  {m['choosePrimaryName.noNamesFound']()}
+                  {m.choosePrimaryNameNoNamesFound()}
                 </div>
               ))
               .otherwise(({ domains }) =>
@@ -282,9 +282,7 @@ export const ChoosePrimaryNameDialog = ({
 
                   return (
                     <button
-                      aria-label={m[
-                        'choosePrimaryName.selectAsPrimaryAriaLabel'
-                      ]({
+                      aria-label={m.choosePrimaryNameSelectAsPrimaryAriaLabel({
                         label,
                       })}
                       aria-pressed={isSelected}
@@ -302,13 +300,13 @@ export const ChoosePrimaryNameDialog = ({
                         <div className="relative size-[40px] shrink-0 overflow-hidden rounded-full bg-ens-white">
                           <ImageFallback.Root className="contents">
                             <ImageFallback.Image
-                              alt={m['nameRow.avatarAlt']({ label })}
+                              alt={m.nameRowAvatarAlt({ label })}
                               className="size-full object-cover"
                               src={avatarUrl}
                             />
                             <ImageFallback.Fallback>
                               <img
-                                alt={m['nameRow.avatarPlaceholderAlt']({
+                                alt={m.nameRowAvatarPlaceholderAlt({
                                   label,
                                 })}
                                 className="size-full object-cover"
@@ -336,7 +334,7 @@ export const ChoosePrimaryNameDialog = ({
           {/* Error Message */}
           {isError && (
             <div className="rounded-[4px] border border-red-200 bg-red-50 p-3 text-red-600 text-sm">
-              {m['choosePrimaryName.errorSetPrimaryName']()}
+              {m.choosePrimaryNameErrorSetPrimaryName()}
             </div>
           )}
           {/* ETH Address Mismatch/Missing Info */}
@@ -346,8 +344,8 @@ export const ChoosePrimaryNameDialog = ({
               <div className="text-amber-800 text-sm">
                 <p>
                   {existingEthAddress
-                    ? m['choosePrimaryName.warnings.ethMismatch']()
-                    : m['choosePrimaryName.warnings.ethMissing']()}
+                    ? m.choosePrimaryNameWarningsEthMismatch()
+                    : m.choosePrimaryNameWarningsEthMissing()}
                 </p>
                 <div className="mt-2 rounded-md bg-amber-100/60 px-2.5 py-1.5">
                   <p className="break-all font-mono text-amber-900 text-xs">
@@ -365,7 +363,7 @@ export const ChoosePrimaryNameDialog = ({
               onClick={handleCancel}
               variant="outline"
             >
-              {m['choosePrimaryName.buttons.cancel']()}
+              {m.choosePrimaryNameButtonsCancel()}
             </Button>
             <Button
               className="h-[48px] flex-1 rounded-xs border-ens-blue bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-ens-blue-hover disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
@@ -378,10 +376,10 @@ export const ChoosePrimaryNameDialog = ({
               onClick={handleConfirm}
             >
               {updateEthAddressMutation.isPending
-                ? m['choosePrimaryName.buttons.settingEthAddress']()
+                ? m.choosePrimaryNameButtonsSettingEthAddress()
                 : isSubmitting
-                  ? m['choosePrimaryName.buttons.setting']()
-                  : m['choosePrimaryName.buttons.setAsPrimary']()}
+                  ? m.choosePrimaryNameButtonsSetting()
+                  : m.choosePrimaryNameButtonsSetAsPrimary()}
             </Button>
           </div>
         </div>

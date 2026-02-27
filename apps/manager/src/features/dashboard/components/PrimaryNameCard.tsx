@@ -42,12 +42,12 @@ export const PrimaryNameCard = ({
   const formattedRegisteredDate = formatDashboardDate(registeredDate)
   const formattedExpiryDate = formatDashboardDate(expiryDate)
   const hasAvatar = Boolean(avatarUrl)
-  const displayName = primaryName ?? m['primaryCard.fallbackName']()
+  const displayName = primaryName ?? m.primaryCardFallbackName()
   const registeredLabel = isRegistrationLoading
-    ? m['primaryCard.loading']()
+    ? m.primaryCardLoading()
     : formattedRegisteredDate
   const expiryLabel = isReverseExpiryLoading
-    ? m['primaryCard.loading']()
+    ? m.primaryCardLoading()
     : formattedExpiryDate
   const canViewProfile = Boolean(primaryName)
 
@@ -108,7 +108,7 @@ export const PrimaryNameCard = ({
                 />
                 <div className="flex items-end gap-1 text-xs leading-[0.96] tracking-[-0.24px] md:text-sm">
                   <span className="text-muted-foreground">
-                    {m['primaryCard.registered']()}
+                    {m.primaryCardRegistered()}
                   </span>
                   <span className="font-semibold text-muted-foreground">
                     {registeredLabel}
@@ -122,7 +122,7 @@ export const PrimaryNameCard = ({
                 />
                 <div className="flex items-end gap-1 text-xs leading-[0.96] tracking-[-0.24px] md:text-sm">
                   <span className="text-muted-foreground">
-                    {m['primaryCard.expires']()}
+                    {m.primaryCardExpires()}
                   </span>
                   <span className="font-semibold text-muted-foreground">
                     {expiryLabel}
@@ -140,7 +140,7 @@ export const PrimaryNameCard = ({
           variant="outline"
         >
           <span className="font-sans text-sm leading-normal">
-            {m['primaryCard.viewProfile']()}
+            {m.primaryCardViewProfile()}
           </span>
         </LinkButton>
       </div>

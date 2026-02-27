@@ -173,7 +173,7 @@ export const MyNamesList = ({
   if (isError) {
     return (
       <div className="py-8 text-center font-sans text-red-500 text-sm">
-        {m['myNames.errorLoading']()}
+        {m.myNamesErrorLoading()}
       </div>
     )
   }
@@ -184,10 +184,10 @@ export const MyNamesList = ({
       <div className="mb-4 flex md:hidden">
         <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">
           <span className="font-sans text-foreground text-xs tracking-[0.24px]">
-            {m['myNames.sortBy']()}
+            {m.myNamesSortBy()}
           </span>
           <select
-            aria-label={m['myNames.sortNamesAriaLabel']()}
+            aria-label={m.myNamesSortNamesAriaLabel()}
             className="bg-transparent font-medium font-sans text-foreground text-xs tracking-[0.24px] outline-none"
             onChange={(e) => {
               const [field, direction] = e.target.value.split('-') as [
@@ -205,17 +205,13 @@ export const MyNamesList = ({
                 : 'name-asc'
             }
           >
-            <option value="name-asc">
-              {m['myNames.sortOptions.nameAsc']()}
-            </option>
-            <option value="name-desc">
-              {m['myNames.sortOptions.nameDesc']()}
-            </option>
+            <option value="name-asc">{m.myNamesSortOptionsNameAsc()}</option>
+            <option value="name-desc">{m.myNamesSortOptionsNameDesc()}</option>
             <option value="expiry-asc">
-              {m['myNames.sortOptions.expiryAsc']()}
+              {m.myNamesSortOptionsExpiryAsc()}
             </option>
             <option value="expiry-desc">
-              {m['myNames.sortOptions.expiryDesc']()}
+              {m.myNamesSortOptionsExpiryDesc()}
             </option>
           </select>
         </div>
@@ -231,7 +227,7 @@ export const MyNamesList = ({
           <span
             className={`font-sans text-[16px] tracking-[0.24px] ${sortDirection !== null && sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
-            {m['myNames.columns.name']()}
+            {m.myNamesColumnsName()}
           </span>
           <SortIndicator
             direction={sortDirection ?? undefined}
@@ -246,7 +242,7 @@ export const MyNamesList = ({
           <span
             className={`font-sans text-[16px] tracking-[0.24px] ${sortDirection !== null && sortField === 'expiry' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
-            {m['myNames.columns.expiry']()}
+            {m.myNamesColumnsExpiry()}
           </span>
           <SortIndicator
             direction={sortDirection ?? undefined}
@@ -279,7 +275,7 @@ export const MyNamesList = ({
                 strokeWidth={1}
               />
               <span className="font-sans text-muted-foreground text-sm">
-                {m['myNames.noNames']()}
+                {m.myNamesNoNames()}
               </span>
             </div>
           ))
@@ -337,7 +333,7 @@ export const MyNamesList = ({
                               strokeWidth={2}
                             />
                             <span className="font-sans text-[#c68a1b] text-[10px] leading-[1.05] tracking-[0.2px] md:text-xs md:tracking-[0.24px]">
-                              {m['myNames.expiresInDays']({
+                              {m.myNamesExpiresInDays({
                                 count: daysUntilExpiry,
                               })}
                             </span>
@@ -375,7 +371,7 @@ export const MyNamesList = ({
           {isPlaceholderData && (
             <Loader2 className="size-[12px] animate-spin" />
           )}
-          {m['myNames.showingYourNames']()}
+          {m.myNamesShowingYourNames()}
         </span>
       </div>
     </div>
