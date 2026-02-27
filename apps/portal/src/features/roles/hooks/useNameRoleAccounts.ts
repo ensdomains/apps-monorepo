@@ -16,6 +16,12 @@ import { graphqlIndexerClient } from '@/lib/indexer'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
+class GetNameRolesAccountsIndexerError extends TaggedError(
+  'GetNameRolesAccountsIndexerError',
+)<{
+  cause: unknown
+}> {}
+
 class GetNameRolesAccountsError extends TaggedError(
   'GetNameRolesAccountsError',
 )<{
@@ -67,7 +73,7 @@ const getNameRolesAccounts = ResultFn(async function* (
 ) {
   const indexerResult = await ResultAsync.fromPromise(
     getNameRolesAccountsFromIndexer(params),
-    (e) => e,
+    (e) => new GetNameRolesAccountsIndexerError({ cause: e }),
   )
 
   if (indexerResult.isOk()) {
