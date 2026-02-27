@@ -34,7 +34,15 @@ export const Route = createFileRoute('/$name/')({
   component: App,
   notFoundComponent: () => <NotFoundMessage />,
   loader: ({ params }) => {
-    const promises = []
+    const tld = getTLD(params.name)
+    return Promise.all([
+      queryClient.prefetchQuery(getProfileQueryOptions(params.name)),
+      queryClient.prefetchQuery(getEnsOwnerQueryOptions({ name: params.name })),
+      ...(tld !== 'eth'
+        ? [queryClient.prefetchQuery(getDnsSecEnabledQueryOptions({ tld }))]
+        : []),
+    ])
+  },
     promises.push(
       queryClient.prefetchQuery(getProfileQueryOptions(params.name)),
     )
