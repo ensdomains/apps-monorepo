@@ -61,11 +61,12 @@ const Profile = ({
   const isTldValid = isEthTld || dnsSecQuery.data === true
 
   // Check availability for 2LDs when:
-  // - Owner lookup returned null (name might be available)
   // - TLD is valid (either .eth or DNSSEC-enabled)
   // - It's a 2LD (not a TLD or 3LD+)
-  const shouldCheckAvailability =
-    !ownerQuery.isLoading && !ownerQuery.data && isTldValid && is2LD(name)
+  // For .eth 2LDs, fire in parallel with owner query to avoid waterfall.
+  // For non-.eth, we still need to wait for DNSSEC check.
+  // The result is only used when ownerQuery returns null.
+  const shouldCheckAvailability = isTldValid && is2LD(name)
 
   const availabilityQuery = useQuery({
     ...getNameAvailabilityQueryOptions({ name }),
