@@ -31,16 +31,11 @@ import { PrimaryBadge } from './PrimaryBadge'
 
 const PAGE_SIZE = 5
 
-type SortField = 'name' | 'expiry'
+type Sort = 'name-asc' | 'name-desc' | 'expiry-asc' | 'expiry-desc'
 
 interface MyNamesListProps {
   readonly primaryLabel?: string | null
   readonly searchQuery?: string
-}
-
-type SortIndicatorProps = {
-  readonly direction?: OrderDirection
-  readonly isActive: boolean
 }
 
 const NameRowSkeleton = () => (
@@ -61,7 +56,13 @@ const NameRowSkeleton = () => (
   </div>
 )
 
-const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
+const SortIndicator = ({
+  direction,
+  isActive,
+}: {
+  readonly direction: 'asc' | 'desc'
+  readonly isActive: boolean
+}) => {
   if (!isActive) {
     return (
       <div className="flex flex-col">
@@ -74,20 +75,24 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
   return (
     <div className="flex flex-col">
       <ChevronDown
-        className={`size-[8.2px] rotate-180 ${direction === OrderDirection.Asc ? 'text-ens-blue' : 'text-ens-gray-three'}`}
+        className={`size-[8.2px] rotate-180 ${direction === 'asc' ? 'text-ens-blue' : 'text-ens-gray-three'}`}
       />
       <ChevronDown
-        className={`size-[8.2px] ${direction === OrderDirection.Desc ? 'text-ens-blue' : 'text-ens-gray-three'}`}
+        className={`size-[8.2px] ${direction === 'desc' ? 'text-ens-blue' : 'text-ens-gray-three'}`}
       />
     </div>
   )
 }
 
-const toOrderBy = (field: SortField): Domain_OrderBy =>
-  match(field)
-    .with('name', () => Domain_OrderBy.Name)
-    .with('expiry', () => Domain_OrderBy.ExpiryDate)
-    .exhaustive()
+const parseSort = (sort: Sort) => {
+  const [field, dir] = sort.split('-') as ['name' | 'expiry', 'asc' | 'desc']
+  return {
+    field,
+    dir,
+    orderBy: field === 'name' ? Domain_OrderBy.Name : Domain_OrderBy.ExpiryDate,
+    orderDirection: dir === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
+  }
+}
 
 export const MyNamesList = ({
   primaryLabel,
@@ -96,10 +101,14 @@ export const MyNamesList = ({
   const shouldReduceMotion = useReducedMotion()
   const { data: wallet } = useWallet()
   const [page, setPage] = useState(1)
-  const [sortField, setSortField] = useState<SortField>('name')
-  const [sortDirection, setSortDirection] = useState<OrderDirection>(
-    OrderDirection.Desc,
-  )
+  const [sort, setSort] = useState<Sort>('name-desc')
+
+  const {
+    field: sortField,
+    dir: sortDir,
+    orderBy,
+    orderDirection,
+  } = parseSort(sort)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Reset page on search change
   useEffect(() => {
@@ -118,8 +127,8 @@ export const MyNamesList = ({
         },
         first: PAGE_SIZE,
         skip: (page - 1) * PAGE_SIZE,
-        orderBy: toOrderBy(sortField),
-        orderDirection: sortDirection,
+        orderBy,
+        orderDirection,
       }
     : undefined
 
@@ -131,34 +140,11 @@ export const MyNamesList = ({
   const names: DomainFragment[] =
     normalizedAddress && data?.domains ? data.domains : []
 
-  const handlePrev = () => {
-    if (!isPending && page > 1) {
-      setPage((p) => p - 1)
-    }
-  }
-
-  const handleNext = () => {
-    if (!isPending && names.length === PAGE_SIZE) {
-      setPage((p) => p + 1)
-    }
-  }
-
-  const setSort = (field: SortField, direction: OrderDirection) => {
-    setSortField(field)
-    setSortDirection(direction)
-    setPage(1)
-  }
-
-  const toggleSort = (field: SortField) => {
+  const toggleSort = (field: 'name' | 'expiry') => {
     if (sortField === field) {
-      setSortDirection((prev) =>
-        prev === OrderDirection.Desc ? OrderDirection.Asc : OrderDirection.Desc,
-      )
+      setSort(`${field}-${sortDir === 'desc' ? 'asc' : 'desc'}`)
     } else {
-      setSortField(field)
-      setSortDirection(
-        field === 'expiry' ? OrderDirection.Asc : OrderDirection.Desc,
-      )
+      setSort(`${field}-${field === 'expiry' ? 'asc' : 'desc'}`)
     }
     setPage(1)
   }
@@ -191,16 +177,10 @@ export const MyNamesList = ({
             aria-label="Sort names by"
             className="bg-transparent font-medium font-sans text-foreground text-xs tracking-[0.24px] outline-none"
             onChange={(e) => {
-              const [field, direction] = e.target.value.split('-') as [
-                'name' | 'expiry',
-                'asc' | 'desc',
-              ]
-              setSort(
-                field,
-                direction === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
-              )
+              setSort(e.target.value as Sort)
+              setPage(1)
             }}
-            value={`${sortField}-${sortDirection === OrderDirection.Asc ? 'asc' : 'desc'}`}
+            value={sort}
           >
             <option value="name-asc">Name (A-Z)</option>
             <option value="name-desc">Name (Z-A)</option>
@@ -222,10 +202,7 @@ export const MyNamesList = ({
           >
             Name
           </span>
-          <SortIndicator
-            direction={sortDirection}
-            isActive={sortField === 'name'}
-          />
+          <SortIndicator direction={sortDir} isActive={sortField === 'name'} />
         </button>
         <button
           className="flex cursor-pointer items-center gap-[8px]"
@@ -238,7 +215,7 @@ export const MyNamesList = ({
             Expiry
           </span>
           <SortIndicator
-            direction={sortDirection}
+            direction={sortDir}
             isActive={sortField === 'expiry'}
           />
         </button>
@@ -344,7 +321,7 @@ export const MyNamesList = ({
           <button
             className="flex size-[32px] items-center justify-center text-ens-gray-three disabled:text-border"
             disabled={isPending || page === 1}
-            onClick={handlePrev}
+            onClick={() => setPage((p) => p - 1)}
             type="button"
           >
             <CircleArrowLeft className="size-[32px]" strokeWidth={1} />
@@ -352,7 +329,7 @@ export const MyNamesList = ({
           <button
             className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
             disabled={isPending || !hasNextPage}
-            onClick={handleNext}
+            onClick={() => setPage((p) => p + 1)}
             type="button"
           >
             <CircleArrowRight className="size-[32px]" strokeWidth={1} />
