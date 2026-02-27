@@ -77,7 +77,7 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
       <div className="flex flex-col gap-2 lg:flex-row justify-between items-baseline">
-        <h1 className="text-2xl md:text-[28px] font-medium leading-none break-all">
+        <h1 className="text-2xl md:text-heading font-medium leading-none break-all">
           {addr}
         </h1>
         {isConnected && (
