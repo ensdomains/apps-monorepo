@@ -19,8 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
 import {
   EST_GAS_USD,
-  EST_NETWORK_FEE_USD,
-  formatTotalWithGasAndFees,
+  formatTotalWithGas,
 } from '@/features/register/utils/registrationPrice'
 import { buildTokenData } from '@/features/register/utils/tokenData'
 import {
@@ -221,10 +220,10 @@ export const PaymentTokenModal = ({
                   ) : (
                     <>
                       <p className="font-medium">
-                        {formatTotalWithGasAndFees(
+                        {formatTotalWithGas(
                           token.price.base,
                           token.price.premium,
-                          EST_GAS_USD + EST_NETWORK_FEE_USD,
+                          EST_GAS_USD,
                           token.price.decimals,
                         )}{' '}
                         USD
@@ -274,10 +273,10 @@ export const PaymentTokenModal = ({
               <div className="flex items-baseline gap-1">
                 <selectedTokenData.Icon className="size-6 shrink-0" />
                 <span className="font-medium text-2xl tracking-tight">
-                  {formatTotalWithGasAndFees(
+                  {formatTotalWithGas(
                     selectedTokenData.price.base,
                     selectedTokenData.price.premium,
-                    EST_GAS_USD + EST_NETWORK_FEE_USD,
+                    EST_GAS_USD,
                     selectedTokenData.price.decimals,
                   )}
                 </span>
@@ -290,17 +289,13 @@ export const PaymentTokenModal = ({
                 <dt className="text-muted-foreground">Est. gas cost</dt>
                 <dd className="font-mono">~{formatUsd(EST_GAS_USD)}</dd>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <dt className="text-muted-foreground">Est. network fee</dt>
-                <dd className="font-mono">~{formatUsd(EST_NETWORK_FEE_USD)}</dd>
-              </div>
               <div className="flex items-center justify-between border-t border-border pt-2 font-medium">
                 <dt>Est. total</dt>
                 <dd className="font-mono">
-                  {formatTotalWithGasAndFees(
+                  {formatTotalWithGas(
                     selectedTokenData.price.base,
                     selectedTokenData.price.premium,
-                    EST_GAS_USD + EST_NETWORK_FEE_USD,
+                    EST_GAS_USD,
                     selectedTokenData.price.decimals,
                   )}
                 </dd>
