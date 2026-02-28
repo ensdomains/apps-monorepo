@@ -3,9 +3,9 @@
 import type { KernelAccountClient, KernelValidator } from '@zerodev/sdk'
 import { useCallback, useEffect, useState } from 'react'
 import type { Address } from 'viem'
-import { createSession, getSessionClient } from './session-manager'
 import { getValidSessionByOwner, removeSession } from './session-storage'
 import type { StoredSession } from './types'
+import { createSessionLegacy, getSessionClientLegacy } from './zerodev-session'
 
 export interface UseSessionManagerParams {
   /** Owner EOA address */
@@ -104,7 +104,7 @@ export function useSessionManager(
       setSession(existingSession)
 
       // Restore session client
-      getSessionClient(existingSession).then((result) => {
+      getSessionClientLegacy(existingSession).then((result) => {
         if (result.isOk()) {
           setSessionClient(result.value)
           console.log('✅ Session client restored')
@@ -151,7 +151,7 @@ export function useSessionManager(
     try {
       console.log('🔑 Creating session...')
 
-      const result = await createSession({
+      const result = await createSessionLegacy({
         ownerAddress,
         smartAccountAddress,
         ecdsaValidator,
@@ -166,7 +166,7 @@ export function useSessionManager(
       setSession(newSession)
 
       // Get session client
-      const clientResult = await getSessionClient(newSession)
+      const clientResult = await getSessionClientLegacy(newSession)
       if (clientResult.isErr()) {
         throw new Error(clientResult.error.message)
       }
