@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChangeResolverForm } from './ChangeResolverForm'
@@ -26,16 +26,25 @@ vi.mock('wagmi', () => ({
 }))
 
 const mockChangeResolverAsync = vi.fn()
+const changeResolverState = {
+  txHash: undefined as `0x${string}` | undefined,
+  isWriting: false,
+  isConfirming: false,
+  isConfirmed: false,
+  isReverted: false,
+  error: null as Error | null,
+}
+
 vi.mock('@/features/resolver/hooks/useChangeResolver', () => ({
   useChangeResolver: (_params: { name: string; registryAddress: string }) => {
     return {
       changeResolverAsync: mockChangeResolverAsync,
-      txHash: undefined,
-      isWriting: false,
-      isConfirming: false,
-      isConfirmed: false,
-      isReverted: false,
-      error: null,
+      txHash: changeResolverState.txHash,
+      isWriting: changeResolverState.isWriting,
+      isConfirming: changeResolverState.isConfirming,
+      isConfirmed: changeResolverState.isConfirmed,
+      isReverted: changeResolverState.isReverted,
+      error: changeResolverState.error,
     }
   },
 }))
@@ -72,6 +81,12 @@ describe('ChangeResolverForm', () => {
   beforeEach(() => {
     mockChangeResolverAsync.mockReset()
     mockDeployDedicatedResolverAsync.mockReset()
+    changeResolverState.txHash = undefined
+    changeResolverState.isWriting = false
+    changeResolverState.isConfirming = false
+    changeResolverState.isConfirmed = false
+    changeResolverState.isReverted = false
+    changeResolverState.error = null
   })
 
   it('renders default custom resolver mode', () => {
@@ -167,5 +182,35 @@ describe('ChangeResolverForm', () => {
     expect(mockChangeResolverAsync).toHaveBeenCalledWith(
       '0x1234512345123451234512345123451234512345',
     )
+  })
+
+  it('resets the success button label after 5 seconds', () => {
+    vi.useFakeTimers()
+    try {
+      changeResolverState.isConfirmed = true
+      changeResolverState.txHash =
+        '0x1111111111111111111111111111111111111111111111111111111111111111'
+
+      render(
+        <ChangeResolverForm
+          name={name}
+          registryAddress={registryAddress as `0x${string}`}
+        />,
+      )
+
+      expect(
+        screen.getByRole('button', { name: /Resolver changed!/i }),
+      ).toBeInTheDocument()
+
+      act(() => {
+        vi.advanceTimersByTime(5000)
+      })
+
+      expect(
+        screen.getByRole('button', { name: /Save changes/i }),
+      ).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

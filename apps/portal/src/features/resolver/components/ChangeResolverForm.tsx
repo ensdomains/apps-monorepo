@@ -29,6 +29,7 @@ export const ChangeResolverForm = ({
   const [deployNewResolver, setDeployNewResolver] = useState(true)
   const [resolverAddress, setResolverAddress] = useState('')
   const [selectedExistingResolver, setSelectedExistingResolver] = useState('')
+  const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
 
   const {
     data: existingResolvers = [],
@@ -67,6 +68,22 @@ export const ChangeResolverForm = ({
 
     setSelectedExistingResolver(existingResolvers[0])
   }, [deployNewResolver, selectedExistingResolver, existingResolvers])
+
+  useEffect(() => {
+    if (!isConfirmed) {
+      setShowSuccessButtonLabel(false)
+      return
+    }
+
+    setShowSuccessButtonLabel(true)
+    const timeoutId = window.setTimeout(() => {
+      setShowSuccessButtonLabel(false)
+    }, 5000)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [isConfirmed, txHash])
 
   const isBusy = isWriting || isConfirming || isDeployConfirming
 
@@ -112,12 +129,12 @@ export const ChangeResolverForm = ({
     isDeployConfirming,
     isWriting,
     isConfirming,
-    isConfirmed,
+    showSuccessButtonLabel,
   })
     .with({ isDeployConfirming: true }, () => 'Deploying resolver...')
     .with({ isWriting: true }, () => 'Submitting transaction...')
     .with({ isConfirming: true }, () => 'Confirming...')
-    .with({ isConfirmed: true }, () => 'Resolver changed!')
+    .with({ showSuccessButtonLabel: true }, () => 'Resolver changed!')
     .otherwise(() => 'Save changes')
 
   return (
