@@ -83,7 +83,7 @@ export const ChangeResolverForm = ({
     return () => {
       window.clearTimeout(timeoutId)
     }
-  }, [isConfirmed, txHash])
+  }, [isConfirmed])
 
   const isBusy = isWriting || isConfirming || isDeployConfirming
 
