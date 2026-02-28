@@ -3,8 +3,8 @@ import type { ReactElement } from 'react'
 import type { Hash } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
-import { TransactionErrorAlert } from '@/features/transactions/components/TransactionErrorAlert'
 import { cn } from '@/lib/utils'
 
 interface DeployTransactionStatusProps {
