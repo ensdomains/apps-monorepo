@@ -15,6 +15,47 @@ import { useDeployDedicatedResolver } from '@/features/resolver/hooks/useDeployD
 import { useUserDedicatedResolvers } from '@/features/resolver/hooks/useUserDedicatedResolvers'
 import { ChangeResolverTransactionStatus } from './ChangeResolverTransactionStatus'
 
+function useAutoSelectFirstResolver(
+  deployNewResolver: boolean,
+  selectedExistingResolver: string,
+  existingResolvers: Address[],
+  setSelectedExistingResolver: (value: string) => void,
+) {
+  useEffect(() => {
+    if (deployNewResolver) return
+    if (selectedExistingResolver) return
+    if (existingResolvers.length === 0) return
+    setSelectedExistingResolver(existingResolvers[0])
+  }, [
+    deployNewResolver,
+    selectedExistingResolver,
+    existingResolvers,
+    setSelectedExistingResolver,
+  ])
+}
+
+function useResetSuccessLabelAfterDelay(
+  isConfirmed: boolean,
+  setShowSuccessButtonLabel: (value: boolean) => void,
+  delayMs = 5000,
+) {
+  useEffect(() => {
+    if (!isConfirmed) {
+      setShowSuccessButtonLabel(false)
+      return
+    }
+
+    setShowSuccessButtonLabel(true)
+    const timeoutId = window.setTimeout(() => {
+      setShowSuccessButtonLabel(false)
+    }, delayMs)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [isConfirmed, setShowSuccessButtonLabel, delayMs])
+}
+
 interface ChangeResolverFormProps {
   readonly name: string
   readonly registryAddress: Address
@@ -61,29 +102,13 @@ export const ChangeResolverForm = ({
     hasWallet: hasDeployWallet,
   } = useDeployDedicatedResolver({ name })
 
-  useEffect(() => {
-    if (deployNewResolver) return
-    if (selectedExistingResolver) return
-    if (existingResolvers.length === 0) return
-
-    setSelectedExistingResolver(existingResolvers[0])
-  }, [deployNewResolver, selectedExistingResolver, existingResolvers])
-
-  useEffect(() => {
-    if (!isConfirmed) {
-      setShowSuccessButtonLabel(false)
-      return
-    }
-
-    setShowSuccessButtonLabel(true)
-    const timeoutId = window.setTimeout(() => {
-      setShowSuccessButtonLabel(false)
-    }, 5000)
-
-    return () => {
-      window.clearTimeout(timeoutId)
-    }
-  }, [isConfirmed])
+  useAutoSelectFirstResolver(
+    deployNewResolver,
+    selectedExistingResolver,
+    existingResolvers,
+    setSelectedExistingResolver,
+  )
+  useResetSuccessLabelAfterDelay(isConfirmed, setShowSuccessButtonLabel)
 
   const isBusy = isWriting || isConfirming || isDeployConfirming
 

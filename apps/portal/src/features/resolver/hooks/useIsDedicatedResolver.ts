@@ -52,7 +52,7 @@ export const getIsDedicatedResolver = ResultFn(async function* (
 
   const client = yield* safeGetClient()
 
-  const implementationSlotValue = yield* await fromPromise(
+  const implementationSlotValue = yield* fromPromise(
     getStorageAt(client, {
       address: params.resolverAddress,
       slot: EIP1967_IMPLEMENTATION_SLOT as Hex,

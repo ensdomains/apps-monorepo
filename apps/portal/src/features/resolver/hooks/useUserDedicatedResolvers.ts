@@ -1,3 +1,4 @@
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
 import { type Address, parseAbiItem } from 'viem'
 import { usePublicClient } from 'wagmi'
@@ -12,13 +13,18 @@ interface UseUserDedicatedResolversParams {
   readonly senderAddress?: Address
 }
 
+const userDedicatedResolversQueryKey = createQueryKey<
+  'user-dedicated-resolvers',
+  { senderAddress?: Address }
+>('user-dedicated-resolvers')
+
 export const useUserDedicatedResolvers = ({
   senderAddress,
 }: UseUserDedicatedResolversParams) => {
   const publicClient = usePublicClient({ chainId: namechainSepolia.id })
 
   return useQuery({
-    queryKey: ['user-dedicated-resolvers', senderAddress],
+    queryKey: userDedicatedResolversQueryKey({ senderAddress }),
     enabled: !!senderAddress && !!publicClient,
     queryFn: async () => {
       if (!publicClient || !senderAddress) return []
