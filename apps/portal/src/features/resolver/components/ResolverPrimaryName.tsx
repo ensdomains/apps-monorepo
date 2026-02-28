@@ -13,9 +13,10 @@ export const ResolverPrimaryName = ({
     getResolverNameQueryOptions({ resolverAddress }),
   )
 
-  if (isLoading) <LoadingSpinner title="Loading..." />
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
-  if (error) return <>{error.cause?.message}</>
+  if (error)
+    return <>{error instanceof Error ? error.message : 'Failed to load data'}</>
 
   if (!data) return null
 

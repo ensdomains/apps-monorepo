@@ -4,9 +4,9 @@ import { match, P } from 'ts-pattern'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
+import { TransactionErrorAlert } from '@/features/transactions/components/TransactionErrorAlert'
 import type { TransactionStatusProps } from '@/lib/types/transaction'
 import { cn } from '@/lib/utils'
-import { TransactionErrorAlert } from './TransactionErrorAlert'
 
 interface SetSubregistryTransactionStatusProps extends TransactionStatusProps {
   readonly isSettingSubregistry: boolean

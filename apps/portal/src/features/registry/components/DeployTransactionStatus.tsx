@@ -4,14 +4,19 @@ import type { Hash } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
+import { TransactionErrorAlert } from '@/features/transactions/components/TransactionErrorAlert'
 import { cn } from '@/lib/utils'
-import { TransactionErrorAlert } from './TransactionErrorAlert'
 
 interface DeployTransactionStatusProps {
   readonly txHash: Hash | undefined
   readonly isConfirming: boolean
   readonly isConfirmed: boolean
   readonly txError: unknown | null
+  readonly pendingTitle?: string
+  readonly successTitle?: string
+  readonly pendingDescription?: string
+  readonly successDescription?: string
+  readonly txHashLabel?: string
 }
 
 export const DeployTransactionStatus = ({
@@ -19,6 +24,11 @@ export const DeployTransactionStatus = ({
   isConfirming,
   isConfirmed,
   txError,
+  pendingTitle = 'Deploying Subregistry',
+  successTitle = 'Subregistry Deployed',
+  pendingDescription = 'Waiting for confirmation...',
+  successDescription = 'Deploy transaction confirmed!',
+  txHashLabel = 'Deploy tx hash:',
 }: DeployTransactionStatusProps): ReactElement | null => {
   if (txError) {
     const { summary, details } = getTransactionErrorInfo(txError)
@@ -28,7 +38,7 @@ export const DeployTransactionStatus = ({
         summary={summary}
         details={details}
         txHash={txHash}
-        txHashLabel="Deploy tx hash:"
+        txHashLabel={txHashLabel}
       />
     )
   }
@@ -50,27 +60,23 @@ export const DeployTransactionStatus = ({
           isConfirmed && 'text-green-600',
         )}
       />
-      <AlertTitle>
-        {isConfirming ? 'Deploying Subregistry' : 'Subregistry Deployed'}
-      </AlertTitle>
+      <AlertTitle>{isConfirming ? pendingTitle : successTitle}</AlertTitle>
       <AlertDescription className="break-all whitespace-normal max-w-full overflow-wrap-anywhere">
         <div className="flex flex-col gap-2">
-          <span>
-            {isConfirming
-              ? 'Waiting for confirmation...'
-              : 'Deploy transaction confirmed!'}
-          </span>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">
-              Deploy tx hash:
-            </span>
-            <CopyableRecord
-              value={txHash}
-              href={`https://sepolia.etherscan.io/tx/${txHash}`}
-              className="text-xs"
-              truncate={false}
-            />
-          </div>
+          <span>{isConfirming ? pendingDescription : successDescription}</span>
+          {txHash && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">
+                {txHashLabel}
+              </span>
+              <CopyableRecord
+                value={txHash}
+                href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                className="text-xs"
+                truncate={false}
+              />
+            </div>
+          )}
         </div>
       </AlertDescription>
     </Alert>

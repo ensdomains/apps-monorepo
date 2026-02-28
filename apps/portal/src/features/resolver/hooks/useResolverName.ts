@@ -7,9 +7,8 @@ import type {
 } from '@ensdomains/ensjs/public/v2'
 import { getResolverName as ensjs_getResolverName } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
-import { getSupportsInterfaces } from '@/hooks/useSupportsInterfaces'
-import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { getIsDedicatedResolver } from './useIsDedicatedResolver'
 
 class GetResolverNameError extends TaggedError('GetResolverNameError')<{
   cause: GetResolverNameErrorType
@@ -20,9 +19,8 @@ const getResolverName = ResultFn(async function* (
 ) {
   const client = yield* safeGetClient()
 
-  const [supportsDedicatedResolver] = yield* await getSupportsInterfaces({
-    address: params.resolverAddress,
-    interfaces: [RESOLVER_INTERFACE_IDS.DedicatedResolver],
+  const supportsDedicatedResolver = yield* await getIsDedicatedResolver({
+    resolverAddress: params.resolverAddress,
   })
 
   if (!supportsDedicatedResolver) return ok(null)
