@@ -19,13 +19,13 @@ const getResolverName = ResultFn(async function* (
 ) {
   const client = yield* safeGetClient()
 
-  const supportsDedicatedResolver = yield* await getIsDedicatedResolver({
+  const supportsDedicatedResolver = yield* getIsDedicatedResolver({
     resolverAddress: params.resolverAddress,
   })
 
   if (!supportsDedicatedResolver) return ok(null)
 
-  const name = yield* await fromPromise(
+  const name = yield* fromPromise(
     ensjs_getResolverName(client, params),
     (e) => {
       return new GetResolverNameError({
