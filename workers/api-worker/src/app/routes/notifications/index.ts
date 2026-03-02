@@ -12,7 +12,7 @@ import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
 import { createNotification } from '#services/notifications/create.js'
 import type { DiscriminatedPayloadMapper } from '#types/helpers.js'
-import channels from './channels.js'
+import channels from './channels/index.js'
 import preferences from './preferences.js'
 
 const PAGE_SIZE = 20
@@ -359,6 +359,13 @@ export default createApp()
       }),
     ),
     async (c) => {
+      if (!import.meta.env.DEV) {
+        return c.json(
+          { error: 'This endpoint is only available in development' },
+          400,
+        )
+      }
+
       const userId = c.var.user_id
       const { kind, payload } = c.req.valid('json')
 
