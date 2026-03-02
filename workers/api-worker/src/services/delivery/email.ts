@@ -105,7 +105,7 @@ export const handleEmailDeliveryFailure = async (
       attempts: job.attempts + 1,
       updated_at: new Date(),
     })
-    .where(eq(TABLE.notificationDeliveries.id, job.id))
+    .where(eq(TABLE.notificationDeliveries.id, job.body.id))
 
   logger.error('Email notification failed', {
     jobId: job.body.id,

@@ -104,10 +104,10 @@ export const handleTelegramDeliveryFailure = async (
       attempts: job.attempts + 1,
       updated_at: new Date(),
     })
-    .where(eq(TABLE.notificationDeliveries.id, job.id))
+    .where(eq(TABLE.notificationDeliveries.id, job.body.id))
 
   logger.error('Telegram notification failed', {
-    jobId: job.id,
+    jobId: job.body.id,
     kind: job.body.kind,
     attempts: job.attempts + 1,
     error: errorMessage,
