@@ -141,7 +141,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     )
   }
 
-  if (isNameTaken) {
+  if (isNameTaken && !isNavigatingToProfile) {
     return (
       <MessageCard
         icon={<UserCheck className="size-8" strokeWidth={1.5} />}
