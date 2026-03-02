@@ -360,10 +360,7 @@ export default createApp()
     ),
     async (c) => {
       if (!import.meta.env.DEV) {
-        return c.json(
-          { error: 'This endpoint is only available in development' },
-          400,
-        )
+        return c.notFound()
       }
 
       const userId = c.var.user_id

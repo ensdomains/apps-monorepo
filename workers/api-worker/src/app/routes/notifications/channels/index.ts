@@ -5,32 +5,27 @@ import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
 import {
   type PublicChannel,
+  type QueryChannelRow,
   toPublicChannel,
 } from '#services/notifications/helpers.js'
+import { logger } from '#utils/logger.js'
 import idRoutes from './$id.js'
 import emailRoutes from './email.js'
 import pushRoutes from './push.js'
 import telegramRoutes from './telegram.js'
 
 /**
- * Notification routes for managing user notifications and broadcasts.
+ * Notification channel routes for managing delivery contacts.
  *
- * This module handles:
- * - Personal notifications (user-specific events like name expiry, transfers)
- * - Broadcast notifications (system-wide announcements like blog posts)
- * - Pagination using cursor-based approach with UUIDv7 timestamps
- * - Marking notifications as read/unread and archived
+ * This module handles channel listing and channel-specific sub-routes
+ * (email, telegram, push, and id-based operations) for the authenticated user.
  */
 export default createApp()
   .basePath('/channels')
   /**
-   * GET /notifications
+   * GET /channels
    *
-   * Retrieves a paginated list of notifications for the authenticated user.
-   * Combines personal notifications and broadcast notifications, sorted by creation time.
-   *
-   * @param cursor - Optional cursor for pagination (UUIDv7 timestamp)
-   * @returns Paginated list of notifications with next cursor
+   * Retrieves all notification channels for the authenticated user.
    */
   .get('/', ...requireAuth, injectDb, async (c) => {
     const userId = c.var.user_id
@@ -51,11 +46,7 @@ export default createApp()
       where: eq(TABLE.userChannels.user_id, userId),
     })
 
-    const publicChannels = await Promise.all(
-      channels.map((channel) => toPublicChannel(channel)),
-    ).then((results) =>
-      results.filter((result) => result.isOk()).map((result) => result.value),
-    )
+    const publicChannels = await mapPublicChannels(channels)
 
     return c.json<PublicChannel[]>(publicChannels)
   })
@@ -63,3 +54,26 @@ export default createApp()
   .route('/', telegramRoutes)
   .route('/', pushRoutes)
   .route('/', idRoutes)
+
+export const mapPublicChannels = async (channels: QueryChannelRow[]) => {
+  const mappedChannels = await Promise.all(
+    channels.map(async (channel) => ({
+      channel,
+      mapped: await toPublicChannel(channel),
+    })),
+  )
+
+  return mappedChannels.flatMap(({ channel, mapped }) => {
+    if (mapped.isErr()) {
+      logger.warn('Failed to map channel to public representation', {
+        channelId: channel.id,
+        channelType: channel.channel,
+        errorTag: mapped.error._tag,
+        errorMessage: mapped.error.message,
+      })
+      return []
+    }
+
+    return [mapped.value]
+  })
+}
