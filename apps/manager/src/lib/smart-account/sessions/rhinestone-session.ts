@@ -19,7 +19,6 @@ export interface CreateRhinestoneSessionParams {
     readonly validUntil?: number
   }
 }
-}
 
 /**
  * Create a new Rhinestone session.
@@ -71,15 +70,15 @@ export function createRhinestoneSession(
       return { session, sessionPrivateKey }
     })(),
     (error) =>
-export interface RestoreRhinestoneSessionParams {
-  readonly session: RhinestoneStoredSession
-}
+      new SessionError(
+        'Failed to create Rhinestone session',
+        error instanceof Error ? error.message : String(error),
       ),
   )
 }
 
 export interface RestoreRhinestoneSessionParams {
-  session: RhinestoneStoredSession
+  readonly session: RhinestoneStoredSession
 }
 
 /**

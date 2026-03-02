@@ -1,4 +1,5 @@
 import type { SmartAccountConfig } from '@ens-apps/transaction-manager'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { KernelAccountClient } from '@zerodev/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
@@ -41,6 +42,13 @@ export interface InitializeAccountInput {
   provider: SessionProvider
   accountType?: SmartAccountType
 }
+
+export class AccountInitializationError extends TaggedError(
+  'AccountInitializationError',
+)<{
+  provider: 'pimlico' | 'zerodev' | 'rhinestone' | 'routing'
+  cause: unknown
+}> {}
 
 function mapZeroDevConfig(
   result: ZeroDevInitResult,
@@ -109,14 +117,17 @@ function mapRhinestoneConfig(
  */
 export function initializeAccountActor(
   input: InitializeAccountInput,
-): ResultAsync<AccountInitResult, Error> {
+): ResultAsync<AccountInitResult, AccountInitializationError> {
   const { walletSource, walletClient, paraClient, provider, accountType } =
     input
 
   if (walletSource === 'para-embedded') {
     if (!paraClient) {
       return errAsync(
-        new Error('Missing Para client for Pimlico initialization'),
+        new AccountInitializationError({
+          provider: 'routing',
+          cause: new Error('Missing Para client for Pimlico initialization'),
+        }),
       )
     }
 
@@ -127,11 +138,10 @@ export function initializeAccountActor(
         accountType,
       }),
       (error) =>
-        new Error(
-          `Failed to initialize Pimlico account: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        ),
+        new AccountInitializationError({
+          provider: 'pimlico',
+          cause: error,
+        }),
     ).map((result) => {
       const ownerAddress = (result.eoaAddress ?? result.address) as Address
       return mapPimlicoConfig(result, ownerAddress)
@@ -140,13 +150,23 @@ export function initializeAccountActor(
 
   if (!walletClient) {
     return errAsync(
-      new Error('Missing wallet client for external wallet initialization'),
+      new AccountInitializationError({
+        provider: 'routing',
+        cause: new Error(
+          'Missing wallet client for external wallet initialization',
+        ),
+      }),
     )
   }
 
   const ownerAddress = walletClient.account?.address as Address | undefined
   if (!ownerAddress) {
-    return errAsync(new Error('Wallet client must have an account address'))
+    return errAsync(
+      new AccountInitializationError({
+        provider: 'routing',
+        cause: new Error('Wallet client must have an account address'),
+      }),
+    )
   }
 
   if (provider === 'rhinestone') {
@@ -156,11 +176,10 @@ export function initializeAccountActor(
         accountType,
       }),
       (error) =>
-        new Error(
-          `Failed to initialize Rhinestone account: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        ),
+        new AccountInitializationError({
+          provider: 'rhinestone',
+          cause: error,
+        }),
     ).map((result) => mapRhinestoneConfig(result, ownerAddress))
   }
 
@@ -170,10 +189,9 @@ export function initializeAccountActor(
       accountType,
     }),
     (error) =>
-      new Error(
-        `Failed to initialize ZeroDev account: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      ),
+      new AccountInitializationError({
+        provider: 'zerodev',
+        cause: error,
+      }),
   ).map((result) => mapZeroDevConfig(result, ownerAddress))
 }
