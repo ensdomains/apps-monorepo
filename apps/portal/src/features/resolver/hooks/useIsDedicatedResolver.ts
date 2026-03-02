@@ -9,7 +9,7 @@ import { decodeImplementationAddress } from '@/features/resolver/utils/dedicated
 import { namechainSepolia, sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-const EIP1967_IMPLEMENTATION_SLOT =
+const EIP1967_IMPLEMENTATION_SLOT: Hex =
   '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc'
 
 const knownDedicatedResolverImplementations = [
@@ -39,7 +39,7 @@ export const getIsDedicatedResolver = ResultFn(async function* (
   const implementationSlotValue = yield* fromPromise(
     getStorageAt(client, {
       address: params.resolverAddress,
-      slot: EIP1967_IMPLEMENTATION_SLOT as Hex,
+      slot: EIP1967_IMPLEMENTATION_SLOT,
     }),
     (error) =>
       new IsDedicatedResolverError({

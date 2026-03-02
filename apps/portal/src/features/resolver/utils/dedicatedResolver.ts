@@ -49,7 +49,7 @@ export const parseProxyDeployedAddress = (
       })
 
       if (decoded.eventName === 'ProxyDeployed') {
-        return decoded.args.proxyAddress as Address
+        return decoded.args.proxyAddress
       }
     } catch {
       // Ignore logs that don't match ProxyDeployed

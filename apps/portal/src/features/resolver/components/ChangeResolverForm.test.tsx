@@ -77,7 +77,7 @@ vi.mock('@/features/resolver/hooks/useUserDedicatedResolvers', () => ({
 
 describe('ChangeResolverForm', () => {
   const name = 'myname.eth'
-  const registryAddress = '0x1234567890123456789012345678901234567890'
+  const registryAddress: Address = '0x1234567890123456789012345678901234567890'
 
   beforeEach(() => {
     mockChangeResolverAsync.mockReset()
@@ -91,12 +91,7 @@ describe('ChangeResolverForm', () => {
   })
 
   it('renders default custom resolver mode', () => {
-    render(
-      <ChangeResolverForm
-        name={name}
-        registryAddress={registryAddress as Address}
-      />,
-    )
+    render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
 
     expect(
       screen.getByRole('heading', { name: 'Change resolver' }),
@@ -112,12 +107,7 @@ describe('ChangeResolverForm', () => {
     const user = userEvent.setup()
     mockChangeResolverAsync.mockResolvedValue(undefined)
 
-    render(
-      <ChangeResolverForm
-        name={name}
-        registryAddress={registryAddress as Address}
-      />,
-    )
+    render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
 
     await user.type(
       screen.getByPlaceholderText('0x...'),
@@ -138,12 +128,7 @@ describe('ChangeResolverForm', () => {
     })
     mockChangeResolverAsync.mockResolvedValue(undefined)
 
-    render(
-      <ChangeResolverForm
-        name={name}
-        registryAddress={registryAddress as Address}
-      />,
-    )
+    render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
 
     await user.click(
       screen.getByRole('switch', { name: /Use custom resolver/i }),
@@ -160,12 +145,7 @@ describe('ChangeResolverForm', () => {
     const user = userEvent.setup()
     mockChangeResolverAsync.mockResolvedValue(undefined)
 
-    render(
-      <ChangeResolverForm
-        name={name}
-        registryAddress={registryAddress as Address}
-      />,
-    )
+    render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
 
     await user.click(
       screen.getByRole('switch', { name: /Use custom resolver/i }),
@@ -193,10 +173,7 @@ describe('ChangeResolverForm', () => {
         '0x1111111111111111111111111111111111111111111111111111111111111111'
 
       render(
-        <ChangeResolverForm
-          name={name}
-          registryAddress={registryAddress as Address}
-        />,
+        <ChangeResolverForm name={name} registryAddress={registryAddress} />,
       )
 
       expect(
