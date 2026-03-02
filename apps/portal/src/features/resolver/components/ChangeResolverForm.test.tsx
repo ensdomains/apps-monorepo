@@ -1,5 +1,6 @@
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { Address, Hash } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChangeResolverForm } from './ChangeResolverForm'
 
@@ -27,7 +28,7 @@ vi.mock('wagmi', () => ({
 
 const mockChangeResolverAsync = vi.fn()
 const changeResolverState = {
-  txHash: undefined as `0x${string}` | undefined,
+  txHash: undefined as Hash | undefined,
   isWriting: false,
   isConfirming: false,
   isConfirmed: false,
@@ -93,7 +94,7 @@ describe('ChangeResolverForm', () => {
     render(
       <ChangeResolverForm
         name={name}
-        registryAddress={registryAddress as `0x${string}`}
+        registryAddress={registryAddress as Address}
       />,
     )
 
@@ -114,7 +115,7 @@ describe('ChangeResolverForm', () => {
     render(
       <ChangeResolverForm
         name={name}
-        registryAddress={registryAddress as `0x${string}`}
+        registryAddress={registryAddress as Address}
       />,
     )
 
@@ -140,7 +141,7 @@ describe('ChangeResolverForm', () => {
     render(
       <ChangeResolverForm
         name={name}
-        registryAddress={registryAddress as `0x${string}`}
+        registryAddress={registryAddress as Address}
       />,
     )
 
@@ -162,7 +163,7 @@ describe('ChangeResolverForm', () => {
     render(
       <ChangeResolverForm
         name={name}
-        registryAddress={registryAddress as `0x${string}`}
+        registryAddress={registryAddress as Address}
       />,
     )
 
@@ -194,7 +195,7 @@ describe('ChangeResolverForm', () => {
       render(
         <ChangeResolverForm
           name={name}
-          registryAddress={registryAddress as `0x${string}`}
+          registryAddress={registryAddress as Address}
         />,
       )
 
