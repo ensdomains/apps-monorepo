@@ -39,8 +39,10 @@ export const getRegistrationPrice = ResultFn(async function* ({
   const client = yield* safeGetClient()
   const resolvedToken = token ?? SUPPORTED_TOKENS.USDC
 
+  let label: string
+
   try {
-    getLabel(name)
+    label = getLabel(name)
   } catch (e) {
     return err(
       new GetRegistrationPriceError({ cause: e as UnsupportedNameTypeError }),
@@ -50,7 +52,7 @@ export const getRegistrationPrice = ResultFn(async function* ({
   const { base, premium } = yield* fromPromise(
     getPrice(client, {
       registrarAddress: fastTestETHRegistrar,
-      nameOrNames: name,
+      nameOrNames: label,
       duration,
       paymentToken: resolvedToken,
     }),
