@@ -5,7 +5,6 @@
  * Designed to be used from XState actors and other non-React contexts.
  */
 
-import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { fromPromise, type ResultAsync } from 'neverthrow'
 import type { Address, Hex } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
@@ -13,7 +12,6 @@ import type { RhinestoneStoredSession } from './types'
 import { SessionError } from './zerodev-session'
 
 export interface CreateRhinestoneSessionParams {
-  rhinestoneAccount: RhinestoneAccount
   ownerAddress: Address
   smartAccountAddress: Address
   chainId: number
@@ -81,7 +79,6 @@ export function createRhinestoneSession(
 
 export interface RestoreRhinestoneSessionParams {
   session: RhinestoneStoredSession
-  rhinestoneAccount: RhinestoneAccount
 }
 
 /**
@@ -93,7 +90,7 @@ export interface RestoreRhinestoneSessionParams {
  */
 export function restoreRhinestoneSession(
   params: RestoreRhinestoneSessionParams,
-): ResultAsync<{ sessionConfig: object }, SessionError> {
+): ResultAsync<{ sessionConfig: Record<string, unknown> }, SessionError> {
   const { session } = params
 
   return fromPromise(
@@ -102,7 +99,9 @@ export function restoreRhinestoneSession(
         throw new Error('Session has expired')
       }
 
-      const sessionConfig = JSON.parse(session.sessionConfig)
+      const sessionConfig: Record<string, unknown> = JSON.parse(
+        session.sessionConfig,
+      )
       return { sessionConfig }
     })(),
     (error) =>
