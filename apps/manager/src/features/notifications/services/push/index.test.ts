@@ -220,6 +220,17 @@ describe('push notification service', () => {
       const result = await unsubscribeLocalPushSubscriptionResult()
       expect(result.isOk()).toBe(true)
     })
+
+    it('returns error when unsubscribe fails', async () => {
+      const subscription = {
+        ...createMockSubscription(),
+        unsubscribe: vi.fn().mockRejectedValue(new Error('unsubscribe failed')),
+      } as unknown as PushSubscription
+      stubPushEnvironment({ subscription })
+
+      const result = await unsubscribeLocalPushSubscriptionResult()
+      expect(result.isErr()).toBe(true)
+    })
   })
 
   describe('serialization + hashing', () => {

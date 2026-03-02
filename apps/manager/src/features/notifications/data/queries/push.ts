@@ -180,7 +180,12 @@ const enableBrowserPushResult = ResultFn(async function* () {
   const vapidPublicKey = yield* getVapidPublicKeyResult()
   const subscription = yield* createPushSubscriptionResult(vapidPublicKey)
   const subscriptionJson = yield* getSubscriptionJsonResult(subscription)
-  const channel = yield* addPushChannelResult(subscriptionJson)
+  const channelResult = await addPushChannelResult(subscriptionJson)
+  if (channelResult.isErr()) {
+    await unsubscribeLocalPushSubscriptionResult(subscription)
+    return channelResult
+  }
+  const channel = channelResult.value
   return ok({ permission, channel })
 })
 
@@ -205,13 +210,7 @@ const disableBrowserPushResult = ResultFn(async function* (
     yield* new ChannelNotFoundForEndpointError({ endpointHash })
   }
 
-  const channelId = matchedChannel?.id
-  if (!channelId) {
-    yield* new ChannelNotFoundForEndpointError({ endpointHash })
-    return ok({ removed: false as const })
-  }
-
-  yield* deletePushChannelResult(channelId)
+  yield* deletePushChannelResult(matchedChannel.id)
   yield* unsubscribeLocalPushSubscriptionResult(subscription)
 
   return ok({ removed: true as const })

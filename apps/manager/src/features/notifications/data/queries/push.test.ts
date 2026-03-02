@@ -277,4 +277,22 @@ describe('push query orchestration', () => {
       _tag: 'PushChannelRequestError',
     })
   })
+
+  it('enable mutation unsubscribes local subscription when channel creation fails', async () => {
+    const subscription = createMockSubscription()
+    stubPushEnvironment({
+      requestPermission: 'granted',
+      subscription,
+    })
+    mockVapidGet.mockResolvedValue(pushGetResponse(true))
+    mockPushPost.mockResolvedValue(pushPostResponse(false))
+
+    const mutationFn = enableBrowserPushMutationOptions.mutationFn
+    if (!mutationFn) throw new Error('Missing mutationFn')
+
+    await expect(mutationFn(undefined, mutationContext)).rejects.toMatchObject({
+      _tag: 'PushChannelRequestError',
+    })
+    expect(subscription.unsubscribe).toHaveBeenCalledOnce()
+  })
 })
