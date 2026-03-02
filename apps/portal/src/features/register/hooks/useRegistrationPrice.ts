@@ -1,18 +1,20 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
 import { type GetPriceErrorType, getPrice } from '@ensdomains/ensjs/public/v2'
-import { fromPromise, ok } from 'neverthrow'
+import { err, fromPromise, ok } from 'neverthrow'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { fastTestETHRegistrar } from '@/lib/constants/registry'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { getLabel } from '@/utils/token/getLabel'
 import type { SupportedTokenAddresses } from '../types/tokens'
 
 export class GetRegistrationPriceError extends TaggedError(
   'GetRegistrationPriceError',
 )<{
-  readonly cause: GetPriceErrorType
+  readonly cause: GetPriceErrorType | UnsupportedNameTypeError
 }> {}
 
 export type RegistrationPriceParameters = {
@@ -36,6 +38,14 @@ export const getRegistrationPrice = ResultFn(async function* ({
 }: RegistrationPriceParameters) {
   const client = yield* safeGetClient()
   const resolvedToken = token ?? SUPPORTED_TOKENS.USDC
+
+  try {
+    getLabel(name)
+  } catch (e) {
+    return err(
+      new GetRegistrationPriceError({ cause: e as UnsupportedNameTypeError }),
+    )
+  }
 
   const { base, premium } = yield* fromPromise(
     getPrice(client, {
