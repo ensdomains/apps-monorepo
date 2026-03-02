@@ -103,7 +103,7 @@ const getVapidPublicKeyResult = ResultFn(async function* () {
   )
 
   if (!response.ok) {
-    yield* new PushChannelRequestError({
+    return yield* new PushChannelRequestError({
       cause: new Error(`Failed to fetch VAPID public key: ${response.status}`),
     })
   }
@@ -126,7 +126,7 @@ const addPushChannelResult = ResultFn(async function* (subscription: {
   )
 
   if (!response.ok) {
-    yield* new PushChannelRequestError({
+    return yield* new PushChannelRequestError({
       cause: new Error(`Failed to add push channel: ${response.status}`),
     })
   }
@@ -145,7 +145,7 @@ const deletePushChannelResult = ResultFn(async function* (channelId: string) {
   )
 
   if (!response.ok) {
-    yield* new PushChannelRequestError({
+    return yield* new PushChannelRequestError({
       cause: new Error(`Failed to delete push channel: ${response.status}`),
     })
   }
@@ -207,7 +207,7 @@ const disableBrowserPushResult = ResultFn(async function* (
   const matchedChannel = findMatchingPushChannel(channels, endpointHash)
 
   if (!matchedChannel) {
-    yield* new ChannelNotFoundForEndpointError({ endpointHash })
+    return yield* new ChannelNotFoundForEndpointError({ endpointHash })
   }
 
   yield* deletePushChannelResult(matchedChannel.id)

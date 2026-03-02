@@ -203,17 +203,17 @@ export const getSubscriptionJsonResult = ResultFn(function* (
   const p256dh = subscriptionJson.keys?.p256dh
 
   if (!endpoint || !auth || !p256dh) {
-    yield* new PushSubscriptionInvalidError({
+    return yield* new PushSubscriptionInvalidError({
       message: 'Invalid push subscription payload',
     })
   }
 
   return ok({
-    endpoint: endpoint as string,
+    endpoint: endpoint,
     expirationTime: subscriptionJson.expirationTime ?? null,
     keys: {
-      auth: auth as string,
-      p256dh: p256dh as string,
+      auth: auth,
+      p256dh: p256dh,
     },
   } satisfies PushSubscriptionJSON)
 })
