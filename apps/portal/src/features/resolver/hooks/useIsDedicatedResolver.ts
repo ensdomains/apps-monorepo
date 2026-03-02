@@ -3,8 +3,9 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
-import { type Address, getAddress, type Hex } from 'viem'
+import type { Address, Hex } from 'viem'
 import { getStorageAt } from 'viem/actions'
+import { decodeImplementationAddress } from '@/features/resolver/utils/dedicatedResolver'
 import { namechainSepolia, sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
@@ -24,23 +25,6 @@ class IsDedicatedResolverError extends TaggedError('IsDedicatedResolverError')<{
 
 interface GetIsDedicatedResolverParams {
   readonly resolverAddress: Address
-}
-
-const decodeImplementationAddress = (
-  storageValue: Hex | null | undefined,
-): Address | null => {
-  if (!storageValue || storageValue === '0x' || /^0x0+$/.test(storageValue)) {
-    return null
-  }
-
-  const normalized = storageValue.slice(2).padStart(64, '0')
-  const rawAddress = `0x${normalized.slice(24)}` as Address
-
-  try {
-    return getAddress(rawAddress)
-  } catch {
-    return null
-  }
 }
 
 export const getIsDedicatedResolver = ResultFn(async function* (

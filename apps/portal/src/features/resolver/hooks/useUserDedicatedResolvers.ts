@@ -2,6 +2,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
 import { type Address, parseAbiItem } from 'viem'
 import { usePublicClient } from 'wagmi'
+import { filterDedicatedResolverAddresses } from '@/features/resolver/utils/dedicatedResolver'
 import { namechainVerifiableFactory } from '@/lib/constants/verifiableFactory'
 import { namechainSepolia } from '@/lib/wagmi'
 
@@ -39,32 +40,10 @@ export const useUserDedicatedResolvers = ({
         toBlock: 'latest',
       })
 
-      const addresses: Address[] = []
-      const seen = new Set<string>()
-
-      for (const log of [...logs].reverse()) {
-        const implementationAddress = log.args.implementation as
-          | Address
-          | undefined
-        if (
-          !implementationAddress ||
-          implementationAddress.toLowerCase() !==
-            namechainSepolia.contracts.ensDedicatedResolver.address.toLowerCase()
-        ) {
-          continue
-        }
-
-        const proxyAddress = log.args.proxyAddress as Address | undefined
-        if (!proxyAddress) continue
-
-        const normalized = proxyAddress.toLowerCase()
-        if (seen.has(normalized)) continue
-
-        seen.add(normalized)
-        addresses.push(proxyAddress)
-      }
-
-      return addresses
+      return filterDedicatedResolverAddresses(
+        logs,
+        namechainSepolia.contracts.ensDedicatedResolver.address,
+      )
     },
   })
 }
