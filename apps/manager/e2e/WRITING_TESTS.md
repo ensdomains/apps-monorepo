@@ -54,6 +54,46 @@ Things to note during your manual walkthrough:
 
 ---
 
+## 2.5. Use Stagehand + an LLM Agent to Scaffold the Test
+
+You don't have to hand-write Stagehand instructions from scratch. The easiest path is:
+
+1. **Make sure Stagehand can run locally**
+   - Follow section 1 so `GEMINI_API_KEY`, `MANAGER_APP_URL`, and Para creds are set.
+   - Glance at `e2e/fixtures/stagehand.fixture.ts` to see how the `Stagehand` instance is created (model, cacheDir, `env: 'LOCAL'`).
+
+2. **Connect your editor's LLM to Stagehand's MCP servers**
+   - In tools like Cursor / VS Code with MCP support, enable the Stagehand integration (MCP server) so the model knows about the `Stagehand` API and this repo.
+   - Once connected, the LLM can see `stagehand.fixture.ts`, helpers under `e2e/helpers/`, and this guide.
+
+3. **Ask the LLM to generate a spec from a plain-English flow**
+   - Open `e2e/tests/` and create a new empty `*.spec.ts` file.
+   - In your LLM prompt, describe the flow in plain language (based on section 2) and give a little context, for example:
+     - "Using the `test` fixture from `e2e/fixtures/stagehand.fixture.ts`, create a Playwright + Stagehand E2E test that: logs in with Para, navigates to the profile page for primetest.eth, updates the avatar, and waits for the relevant console logs before asserting the new avatar is visible."
+   - The LLM should output a first draft that:
+     - Imports `test` from `stagehand.fixture`
+     - Uses `stagehand.act()` for fuzzy UI steps and Playwright locators where selectors are stable
+     - Uses the helpers from `e2e/helpers/` where appropriate
+
+4. **Treat the generated spec as a starting point**
+   - Paste the generated code into your spec file.
+   - Then continue with sections 3–6 of this guide to:
+     - Tighten instructions
+     - Replace Shadow DOM interactions with helpers
+     - Add robust waits and console monitoring
+
+5. **Example: extend an existing registration test**
+   - You can also have the LLM modify an existing spec instead of creating a new one. For example, open `tests/registration.spec.ts`, select the registration test body, and ask:
+     - "Extend this test so that after a successful registration of primetest.eth, it navigates back to the registration flow and asserts the name cannot be registered again (button disabled or 'already registered' message)."
+   - Then refine what it generates by:
+     - Making sure the extra steps run **after** the existing "registration completed" wait/assertions.
+     - Reusing the same `page` and `stagehand` to navigate back to the registration UI.
+     - Using Playwright locators for the final assertions, e.g. a disabled "Register" button or an "already registered" message.
+
+The key idea: **you describe the flow or change; the LLM writes the Stagehand/Playwright code.** Your job is to review and harden it.
+
+---
+
 ## 3. (Optional) Use Director.ai to Understand How Stagehand Resolves Actions
 
 [director.ai](https://www.director.ai/) is a Stagehand-backed browser recorder. You don't need it to write tests, but it's a useful way to get familiar with how Stagehand translates interactions into `act()` instructions — especially if you're new to the framework.
@@ -210,121 +250,6 @@ test.describe('ENS <feature>', () => {
 
 Copy the auth block verbatim from `registration.spec.ts` or `primaryName.spec.ts`. It's intentionally inlined (not extracted) because it's timing-sensitive and the steps are tightly coupled to each other's completion.
 
----
-
-## 7. Worked Example: Set Primary Name
-
-Here's how the `sets a primary name via Para wallet` test was built, with reasoning for each decision.
-
-### The goal
-
-After logging in, navigate to `primetest.eth`, open Edit Profile, and set it as the primary name. This triggers two on-chain transactions:
-
-1. **Tx 1** — `saveRecords`: sets the ETH address record on the resolver
-2. **Tx 2** — Primary name machine: sets the reverse record
-
-### The test, annotated
-
-```ts
-test('sets a primary name via Para wallet', async ({ stagehand }) => {
-  // Auth + navigation + two transactions = well over 120s default.
-  // 300s gives comfortable headroom.
-  test.setTimeout(300_000)
-
-  const page = stagehand.context.pages()[0]
-  if (!page) throw new Error('No page in Stagehand context')
-
-  // --- Auth flow ---
-  // Copied verbatim from registration.spec.ts. Not extracted into a helper
-  // because each step's timing is coupled to the previous step completing.
-  await page.goto(MANAGER_APP_URL)
-  await page.waitForLoadState('networkidle', 10000).catch(() => {})
-  await sleep(2000)
-
-  await stagehand.act('Click the "Connect" button in the top right.')
-  await sleep(2500)
-
-  // Para's email input lives inside a <cpsl-input> web component.
-  // Stagehand's AI can't see inside Shadow DOM, so act() would fail here.
-  // fillParaEmailInput() uses page.evaluate() to pierce the shadow root directly.
-  await fillParaEmailInput(page, PARA_EMAIL)
-  await sleep(2000)
-
-  // After the value is filled, Stagehand CAN see and click the arrow button
-  // (it's a visible DOM element, not inside Shadow DOM).
-  await new Promise((resolve) => setTimeout(resolve, 2533))
-  await stagehand.act('Click the email input field to enter credentials.')
-  await new Promise((resolve) => setTimeout(resolve, 1920))
-  await stagehand.act('Click the email submission arrow button.')
-
-  // Wait for Para to send the OTP email (~10s).
-  await new Promise((resolve) => setTimeout(resolve, 10000))
-
-  // The instruction is deliberately specific: "in the Verify Email modal dialog"
-  // prevents Stagehand from matching the main page search bar instead.
-  await stagehand.act(
-    `Click the first verification code input field in the "Verify Email" modal dialog.`,
-  )
-  await sleep(805)
-  await stagehand.act(
-    `Type "${PARA_PIN}" into the verification code input in the "Verify Email" modal, not into the search box.`,
-  )
-
-  await new Promise((resolve) => setTimeout(resolve, 10000))
-  await stagehand.act('Click the "Sign in with Wallet" button.')
-  await new Promise((resolve) => setTimeout(resolve, 10000))
-  // --- End auth flow ---
-
-  // Navigate to the target name.
-  // stagehand.act() handles search + result click reliably here —
-  // the elements are visible, not in Shadow DOM.
-  await stagehand.act('click the search bar at the top')
-  await stagehand.act('type "primetest.eth" into the search bar')
-  await stagehand.act('click on the primetest.eth search result')
-  await stagehand.act('click the Edit Profile button')
-  await stagehand.act('click the Set Primary Name button')
-
-  // Set up console watchers BEFORE clicking "Set as Primary".
-  // If tx1 completes very fast and we set up the listener after clicking,
-  // we'd miss the log and the promise would hang until timeout.
-  //
-  // Tx 1 and Tx 2 emit different signals because they're driven by different
-  // XState machines: saveRecords and the primary name machine respectively.
-  const waitForConsolePattern = (pattern: string, timeoutMs: number) =>
-    new Promise<void>((resolve, reject) => {
-      let done = false
-      const id = setTimeout(() => {
-        if (!done)
-          reject(new Error(`Timeout waiting for console: "${pattern}"`))
-      }, timeoutMs)
-      page.on('console', (msg) => {
-        if (!done && msg.text().includes(pattern)) {
-          done = true
-          clearTimeout(id)
-          resolve()
-        }
-      })
-    })
-
-  const tx1Done = waitForConsolePattern(
-    '[SAVE_RECORDS] Transaction completed:',
-    60_000,
-  )
-  const tx2Done = waitForConsolePattern(
-    '[PRIMARY NAME] Cleared snapshot',
-    90_000,
-  )
-
-  // Now trigger the flow. Both watchers are already listening.
-  await stagehand.act('click the Set as Primary button')
-
-  await tx1Done
-  console.log('[PrimaryName] ✅ Tx 1 complete: ETH address record updated')
-
-  await tx2Done
-  console.log('[PrimaryName] ✅ Tx 2 complete: Primary name set')
-})
-```
 
 ### Key decisions
 
@@ -335,6 +260,53 @@ test('sets a primary name via Para wallet', async ({ stagehand }) => {
 | Console watchers created before clicking "Set as Primary" | Race condition: tx could complete before listener attaches |
 | Two separate console patterns for tx1 and tx2 | Different machines log different signals; both must complete |
 | `test.setTimeout(300_000)` | Auth ~66s + navigation ~15s + tx1 ~60s + tx2 ~90s + buffer |
+
+---
+
+## 7. Modifying an Existing Test (Example: Registration Reuse Check)
+
+Often you don't need a brand new spec file — you just want to extend an existing test. A common example is **"after registration succeeds, the same name cannot be registered again."**
+
+You can add this kind of check directly to `tests/registration.spec.ts` by:
+
+1. **Hook into the existing success point**
+   - Find where the registration test currently waits for completion (via `createConsoleMonitor()` or a specific console pattern).
+   - Add your extra assertions **after** that wait, so you only run the follow-up once you know the first registration finished.
+
+2. **Re-use the same page + Stagehand instance**
+   - You already have `const page = stagehand.context.pages()[0]`.
+   - Use `stagehand.act()` or Playwright locators to go back to the search/registration UI for the same name.
+
+3. **Assert that the name is no longer registerable**
+   - Choose a clear, stable signal that the name is taken, for example:
+     - The "Register" button is disabled or hidden.
+     - The UI shows a "Registered" badge for that name.
+   - Prefer Playwright locators for this check:
+
+```ts
+// After existing "registration completed" wait / assertions:
+
+// Navigate back to the registration screen for the same name
+await stagehand.act('Open the registration page for primetest.eth again.')
+
+// Example assertion using a deterministic selector:
+const registerButton = page.getByRole('button', { name: /register/i })
+await expect(registerButton).toBeDisabled()
+
+// Or, if the UI shows a "Registered" badge:
+await expect(
+  page.getByText(/already registered|name is taken/i),
+).toBeVisible()
+```
+
+4. **(Optional) Ask the LLM to draft the modification**
+   - In your editor, select the body of the registration test and prompt your LLM:
+     - "Extend this test so that after a successful registration of primetest.eth, it navigates back to the registration flow and asserts the name cannot be registered again (button disabled or 'already registered' message)."
+   - Let the LLM propose the extra steps, then:
+     - Replace any fragile `act()` calls with Playwright locators where possible.
+     - Align selectors and messages with the real UI.
+
+The pattern is the same for other flows: **wait for the existing success signal, then re-drive the UI to assert the new invariant** using the same `page` and `stagehand` you already have.
 
 ---
 
