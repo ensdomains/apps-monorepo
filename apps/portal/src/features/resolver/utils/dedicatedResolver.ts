@@ -78,8 +78,8 @@ export const decodeImplementationAddress = (
 
 export interface ProxyDeployedLog {
   readonly args: {
-    readonly implementation?: Address
-    readonly proxyAddress?: Address
+    readonly implementation: Address
+    readonly proxyAddress: Address
   }
 }
 
@@ -91,23 +91,18 @@ export const filterDedicatedResolverAddresses = (
   const seen = new Set<string>()
 
   for (const log of [...logs].reverse()) {
-    const implementationAddress = log.args.implementation
     if (
-      !implementationAddress ||
-      implementationAddress.toLowerCase() !==
-        expectedImplementation.toLowerCase()
+      log.args.implementation.toLowerCase() !==
+      expectedImplementation.toLowerCase()
     ) {
       continue
     }
 
-    const proxyAddress = log.args.proxyAddress
-    if (!proxyAddress) continue
-
-    const normalized = proxyAddress.toLowerCase()
+    const normalized = log.args.proxyAddress.toLowerCase()
     if (seen.has(normalized)) continue
 
     seen.add(normalized)
-    addresses.push(proxyAddress)
+    addresses.push(log.args.proxyAddress)
   }
 
   return addresses

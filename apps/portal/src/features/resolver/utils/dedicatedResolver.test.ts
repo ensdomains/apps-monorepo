@@ -115,19 +115,4 @@ describe('filterDedicatedResolverAddresses', () => {
       '0x1111111111111111111111111111111111111111',
     )
   })
-
-  it('skips logs with missing proxyAddress or implementation', () => {
-    const logs: ProxyDeployedLog[] = [
-      { args: { implementation: expectedImpl, proxyAddress: undefined } },
-      {
-        args: {
-          implementation: undefined,
-          proxyAddress: '0x1111111111111111111111111111111111111111' as Address,
-        },
-      },
-    ]
-
-    const result = filterDedicatedResolverAddresses(logs, expectedImpl)
-    expect(result).toEqual([])
-  })
 })
