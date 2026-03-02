@@ -38,7 +38,6 @@ export const wagmiConfig = createConfig({
     baseSepolia,
     lineaSepolia,
     scrollSepolia,
-    namechainSepolia,
   ],
   connectors: connectorsForWallets(
     [
