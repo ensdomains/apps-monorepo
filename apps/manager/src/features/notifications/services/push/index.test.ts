@@ -1,42 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
-vi.mock('@/utils/backend-client', () => ({
-  backendClient: {
-    notifications: {
-      channels: {
-        push: {
-          'vapid-public-key': {
-            $get: vi.fn(),
-          },
-          $post: vi.fn(),
-        },
-        ':id': {
-          $delete: vi.fn(),
-        },
-      },
-    },
-  },
-}))
-
-import { backendClient } from '@/utils/backend-client'
 import {
-  fetchVapidPublicKey,
-  getExistingSubscription,
-  getPermissionState,
+  createPushSubscriptionResult,
+  getExistingSubscriptionResult,
+  getPermissionStateResult,
+  getSubscriptionJsonResult,
+  hashSubscriptionEndpointResult,
   isPushSupported,
-  registerServiceWorker,
-  requestNotificationPermission,
-  subscribeToPush,
-  unsubscribeFromPush,
+  registerServiceWorkerResult,
+  requestNotificationPermissionResult,
+  unsubscribeLocalPushSubscriptionResult,
 } from './index'
-
-const mockVapidGet = vi.mocked(
-  backendClient.notifications.channels.push['vapid-public-key'].$get,
-)
-const mockPushPost = vi.mocked(backendClient.notifications.channels.push.$post)
-const mockChannelDelete = vi.mocked(
-  backendClient.notifications.channels[':id'].$delete,
-)
 
 function createMockSubscription(overrides?: {
   endpoint?: string
@@ -60,7 +33,6 @@ function createMockSubscription(overrides?: {
   } as unknown as PushSubscription
 }
 
-/** Stubs browser APIs needed for push support */
 function stubPushEnvironment(options?: {
   permission?: NotificationPermission
   requestPermission?: NotificationPermission
@@ -97,7 +69,7 @@ function stubPushEnvironment(options?: {
     configurable: true,
   })
 
-  return { mockRegistration, registerFn }
+  return { registerFn }
 }
 
 describe('push notification service', () => {
@@ -116,432 +88,169 @@ describe('push notification service', () => {
     })
   })
 
-  describe('isPushSupported', () => {
-    it('should return true when all APIs are available', () => {
+  describe('support + permission', () => {
+    it('returns true when all required APIs are available', () => {
       stubPushEnvironment()
       expect(isPushSupported()).toBe(true)
     })
 
-    it('should return false when serviceWorker is not available', () => {
-      const nav = { ...navigator }
-      // biome-ignore lint/performance/noDelete: need to remove the property for the test
-      delete (nav as any).serviceWorker
-      Object.defineProperty(globalThis, 'navigator', {
-        value: nav,
+    it('returns error when Notification is unavailable', () => {
+      const originalNotification = globalThis.Notification
+      Object.defineProperty(globalThis, 'Notification', {
+        value: undefined,
         writable: true,
         configurable: true,
       })
 
-      expect(isPushSupported()).toBe(false)
+      const result = getPermissionStateResult()
+      expect(result.isErr()).toBe(true)
+
+      globalThis.Notification = originalNotification
     })
 
-    it('should return false when PushManager is not available', () => {
-      vi.stubGlobal('Notification', { permission: 'default' })
-      Object.defineProperty(navigator, 'serviceWorker', {
-        value: { ready: Promise.resolve() },
-        configurable: true,
-      })
-      // PushManager not stubbed
-
-      expect(isPushSupported()).toBe(false)
-    })
-  })
-
-  describe('getPermissionState', () => {
-    it('should return the current Notification.permission', () => {
-      vi.stubGlobal('Notification', { permission: 'granted' })
-      expect(getPermissionState()).toBe('granted')
-    })
-
-    it('should return default when permission is default', () => {
-      vi.stubGlobal('Notification', { permission: 'default' })
-      expect(getPermissionState()).toBe('default')
-    })
-
-    it('should return denied when Notification is not available', () => {
-      const origNotification = globalThis.Notification
-      // biome-ignore lint/performance/noDelete: need to remove the property for the test
-      delete (globalThis as any).Notification
-
-      expect(getPermissionState()).toBe('denied')
-
-      globalThis.Notification = origNotification
-    })
-  })
-
-  describe('requestNotificationPermission', () => {
-    it('should return granted when user accepts', async () => {
+    it('requests notification permission', async () => {
       stubPushEnvironment({ requestPermission: 'granted' })
-
-      const result = await requestNotificationPermission()
-      expect(result).toBe('granted')
+      const result = await requestNotificationPermissionResult()
+      expect(result.isOk()).toBe(true)
+      expect(result._unsafeUnwrap()).toBe('granted')
     })
 
-    it('should return denied when user rejects', async () => {
+    it('returns denied when permission request is denied', async () => {
       stubPushEnvironment({ requestPermission: 'denied' })
-
-      const result = await requestNotificationPermission()
-      expect(result).toBe('denied')
+      const result = await requestNotificationPermissionResult()
+      expect(result.isOk()).toBe(true)
+      expect(result._unsafeUnwrap()).toBe('denied')
     })
 
-    it('should return denied when push is not supported', async () => {
+    it('returns error when push is unsupported for permission request', async () => {
       const nav = { ...navigator }
-      // biome-ignore lint/performance/noDelete: need to remove the property for the test
-      delete (nav as any).serviceWorker
+      delete (nav as { serviceWorker?: unknown }).serviceWorker
       Object.defineProperty(globalThis, 'navigator', {
         value: nav,
         writable: true,
         configurable: true,
       })
 
-      const result = await requestNotificationPermission()
-      expect(result).toBe('denied')
+      const result = await requestNotificationPermissionResult()
+      expect(result.isErr()).toBe(true)
     })
   })
 
-  describe('registerServiceWorker', () => {
-    it('should register service worker and return registration', async () => {
+  describe('service worker + subscription', () => {
+    it('registers push service worker', async () => {
       const { registerFn } = stubPushEnvironment()
+      const result = await registerServiceWorkerResult()
 
-      const result = await registerServiceWorker()
-
-      expect(result).not.toBeNull()
+      expect(result.isOk()).toBe(true)
       expect(registerFn).toHaveBeenCalledWith('/push-sw.js', { scope: '/' })
     })
 
-    it('should return null when push is not supported', async () => {
+    it('returns error on failed service worker registration', async () => {
+      stubPushEnvironment({
+        registerFn: vi.fn().mockRejectedValue(new Error('registration failed')),
+      })
+      const result = await registerServiceWorkerResult()
+      expect(result.isErr()).toBe(true)
+    })
+
+    it('returns error on unsupported service worker registration', async () => {
       const nav = { ...navigator }
-      // biome-ignore lint/performance/noDelete: need to remove the property for the test
-      delete (nav as any).serviceWorker
+      delete (nav as { serviceWorker?: unknown }).serviceWorker
       Object.defineProperty(globalThis, 'navigator', {
         value: nav,
         writable: true,
         configurable: true,
       })
 
-      const result = await registerServiceWorker()
-      expect(result).toBeNull()
+      const result = await registerServiceWorkerResult()
+      expect(result.isErr()).toBe(true)
     })
 
-    it('should return null when registration fails', async () => {
-      stubPushEnvironment({
-        registerFn: vi
-          .fn()
-          .mockRejectedValue(new Error('SW registration failed')),
-      })
+    it('returns existing subscription when available', async () => {
+      const subscription = createMockSubscription()
+      stubPushEnvironment({ subscription })
 
-      const result = await registerServiceWorker()
-      expect(result).toBeNull()
-    })
-  })
-
-  describe('getExistingSubscription', () => {
-    it('should return existing subscription', async () => {
-      const mockSubscription = createMockSubscription()
-      stubPushEnvironment({ subscription: mockSubscription })
-
-      const result = await getExistingSubscription()
-      expect(result).toBe(mockSubscription)
+      const result = await getExistingSubscriptionResult()
+      expect(result.isOk()).toBe(true)
+      expect(result._unsafeUnwrap()).toBe(subscription)
     })
 
-    it('should return null when no subscription exists', async () => {
+    it('returns null subscription when none exists', async () => {
       stubPushEnvironment({ subscription: null })
-
-      const result = await getExistingSubscription()
-      expect(result).toBeNull()
+      const result = await getExistingSubscriptionResult()
+      expect(result.isOk()).toBe(true)
+      expect(result._unsafeUnwrap()).toBeNull()
     })
 
-    it('should return null when push is not supported', async () => {
-      const nav = { ...navigator }
-      // biome-ignore lint/performance/noDelete: need to remove the property for the test
-      delete (nav as any).serviceWorker
-      Object.defineProperty(globalThis, 'navigator', {
-        value: nav,
-        writable: true,
-        configurable: true,
+    it('creates a push subscription from vapid key', async () => {
+      const subscription = createMockSubscription()
+      const subscribeFn = vi.fn().mockResolvedValue(subscription)
+
+      stubPushEnvironment({
+        subscription,
+        subscribeFn,
       })
 
-      const result = await getExistingSubscription()
-      expect(result).toBeNull()
+      const result = await createPushSubscriptionResult('dGVzdA')
+      expect(result.isOk()).toBe(true)
+      expect(result._unsafeUnwrap()).toBe(subscription)
+      expect(subscribeFn).toHaveBeenCalledOnce()
+    })
+
+    it('returns error when subscribe throws', async () => {
+      stubPushEnvironment({
+        subscribeFn: vi.fn().mockRejectedValue(new Error('subscribe failed')),
+      })
+
+      const result = await createPushSubscriptionResult('dGVzdA')
+      expect(result.isErr()).toBe(true)
+    })
+
+    it('unsubscribes local browser subscription', async () => {
+      const subscription = createMockSubscription()
+      stubPushEnvironment({ subscription })
+
+      const result = await unsubscribeLocalPushSubscriptionResult()
+      expect(result.isOk()).toBe(true)
+      expect(subscription.unsubscribe).toHaveBeenCalledOnce()
+    })
+
+    it('returns ok when local subscription does not exist', async () => {
+      stubPushEnvironment({ subscription: null })
+      const result = await unsubscribeLocalPushSubscriptionResult()
+      expect(result.isOk()).toBe(true)
     })
   })
 
-  describe('fetchVapidPublicKey', () => {
-    it('should return the public key on success', async () => {
-      mockVapidGet.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ publicKey: 'test-vapid-key' }),
-      } as any)
-
-      const key = await fetchVapidPublicKey()
-      expect(key).toBe('test-vapid-key')
-    })
-
-    it('should return null on non-ok response', async () => {
-      mockVapidGet.mockResolvedValue({
-        ok: false,
-      } as any)
-
-      const key = await fetchVapidPublicKey()
-      expect(key).toBeNull()
-    })
-
-    it('should return null on network error', async () => {
-      mockVapidGet.mockRejectedValue(new Error('Network error'))
-
-      const key = await fetchVapidPublicKey()
-      expect(key).toBeNull()
-    })
-  })
-
-  describe('subscribeToPush', () => {
-    it('should return error when push is not supported', async () => {
-      const nav = { ...navigator }
-      // biome-ignore lint/performance/noDelete: need to remove the property for the test
-      delete (nav as any).serviceWorker
-      Object.defineProperty(globalThis, 'navigator', {
-        value: nav,
-        writable: true,
-        configurable: true,
-      })
-
-      const result = await subscribeToPush()
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('Push notifications not supported')
-    })
-
-    it('should return error when permission is denied', async () => {
-      stubPushEnvironment({
-        permission: 'default',
-        requestPermission: 'denied',
-      })
-
-      const result = await subscribeToPush()
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('Notification permission denied')
-    })
-
-    it('should return error when VAPID key fetch fails', async () => {
-      const mockSubscription = createMockSubscription()
-      stubPushEnvironment({
-        requestPermission: 'granted',
-        subscribeFn: vi.fn().mockResolvedValue(mockSubscription),
-      })
-
-      mockVapidGet.mockResolvedValue({ ok: false } as any)
-
-      const result = await subscribeToPush()
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('Failed to get server public key')
-    })
-
-    it('should unsubscribe locally if subscription data is invalid', async () => {
-      const badSubscription = createMockSubscription({
-        auth: null,
-        p256dh: null,
-      })
-      stubPushEnvironment({
-        requestPermission: 'granted',
-        subscribeFn: vi.fn().mockResolvedValue(badSubscription),
-      })
-
-      mockVapidGet.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ publicKey: 'test-vapid-key' }),
-      } as any)
-
-      const result = await subscribeToPush()
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('Invalid subscription data')
-      expect(badSubscription.unsubscribe).toHaveBeenCalled()
-    })
-
-    it('should unsubscribe locally if server registration fails', async () => {
-      const mockSubscription = createMockSubscription()
-      stubPushEnvironment({
-        requestPermission: 'granted',
-        subscribeFn: vi.fn().mockResolvedValue(mockSubscription),
-      })
-
-      mockVapidGet.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ publicKey: 'test-vapid-key' }),
-      } as any)
-
-      mockPushPost.mockResolvedValue({
-        ok: false,
-        json: () => Promise.resolve({ error: 'Registration failed' }),
-      } as any)
-
-      const result = await subscribeToPush()
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('Registration failed')
-      expect(mockSubscription.unsubscribe).toHaveBeenCalled()
-    })
-
-    it('should send correct payload to server on subscribe', async () => {
-      const mockSubscription = createMockSubscription({
-        endpoint: 'https://push.example.com/sub/abc',
-        auth: 'my-auth-key',
-        p256dh: 'my-p256dh-key',
-      })
-      stubPushEnvironment({
-        requestPermission: 'granted',
-        subscribeFn: vi.fn().mockResolvedValue(mockSubscription),
-      })
-
-      mockVapidGet.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ publicKey: 'test-vapid-key' }),
-      } as any)
-
-      mockPushPost.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ id: 'channel-789' }),
-      } as any)
-
-      await subscribeToPush()
-
-      expect(mockPushPost).toHaveBeenCalledWith({
-        json: {
-          endpoint: 'https://push.example.com/sub/abc',
-          expirationTime: null,
-          keys: {
-            auth: 'my-auth-key',
-            p256dh: 'my-p256dh-key',
-          },
+  describe('serialization + hashing', () => {
+    it('extracts valid PushSubscriptionJSON payload', () => {
+      const subscription = createMockSubscription()
+      const result = getSubscriptionJsonResult(subscription)
+      expect(result.isOk()).toBe(true)
+      expect(result._unsafeUnwrap()).toEqual({
+        endpoint: 'https://push.example.com/sub/123',
+        expirationTime: null,
+        keys: {
+          auth: 'auth-key-base64',
+          p256dh: 'p256dh-key-base64',
         },
       })
     })
 
-    it('should return success with subscription and channelId', async () => {
-      const mockSubscription = createMockSubscription()
-      stubPushEnvironment({
-        requestPermission: 'granted',
-        subscribeFn: vi.fn().mockResolvedValue(mockSubscription),
-      })
-
-      mockVapidGet.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ publicKey: 'test-vapid-key' }),
-      } as any)
-
-      mockPushPost.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ id: 'channel-456' }),
-      } as any)
-
-      const result = await subscribeToPush()
-
-      expect(result.success).toBe(true)
-      expect(result.subscription).toBe(mockSubscription)
-      expect(result.channelId).toBe('channel-456')
+    it('returns error for invalid PushSubscriptionJSON payload', () => {
+      const subscription = createMockSubscription({ auth: null, p256dh: null })
+      const result = getSubscriptionJsonResult(subscription)
+      expect(result.isErr()).toBe(true)
     })
 
-    it('should handle pushManager.subscribe throwing', async () => {
-      stubPushEnvironment({
-        requestPermission: 'granted',
-        subscribeFn: vi
-          .fn()
-          .mockRejectedValue(new Error('User dismissed prompt')),
-      })
-
-      mockVapidGet.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ publicKey: 'test-vapid-key' }),
-      } as any)
-
-      const result = await subscribeToPush()
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('User dismissed prompt')
-    })
-  })
-
-  describe('unsubscribeFromPush', () => {
-    it('should call server delete before local unsubscribe', async () => {
-      const callOrder: string[] = []
-
-      const mockSubscription = createMockSubscription()
-      ;(
-        mockSubscription.unsubscribe as ReturnType<typeof vi.fn>
-      ).mockImplementation(() => {
-        callOrder.push('local-unsubscribe')
-        return Promise.resolve(true)
-      })
-
-      mockChannelDelete.mockImplementation(() => {
-        callOrder.push('server-delete')
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({}),
-        } as any)
-      })
-
-      stubPushEnvironment({ subscription: mockSubscription })
-
-      const result = await unsubscribeFromPush('channel-123')
-
-      expect(result.success).toBe(true)
-      expect(callOrder).toEqual(['server-delete', 'local-unsubscribe'])
-    })
-
-    it('should not unsubscribe locally if server delete fails', async () => {
-      const mockSubscription = createMockSubscription()
-
-      mockChannelDelete.mockResolvedValue({
-        ok: false,
-        json: () => Promise.resolve({ error: 'Server error' }),
-      } as any)
-
-      stubPushEnvironment({ subscription: mockSubscription })
-
-      const result = await unsubscribeFromPush('channel-123')
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('Server error')
-      expect(mockSubscription.unsubscribe).not.toHaveBeenCalled()
-    })
-
-    it('should succeed even if no local subscription exists', async () => {
-      mockChannelDelete.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({}),
-      } as any)
-
-      stubPushEnvironment({ subscription: null })
-
-      const result = await unsubscribeFromPush('channel-123')
-      expect(result.success).toBe(true)
-    })
-
-    it('should pass correct channelId to server', async () => {
-      mockChannelDelete.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({}),
-      } as any)
-
-      stubPushEnvironment({ subscription: null })
-
-      await unsubscribeFromPush('my-channel-id')
-
-      expect(mockChannelDelete).toHaveBeenCalledWith({
-        param: { id: 'my-channel-id' },
-      })
-    })
-
-    it('should return error on network failure', async () => {
-      mockChannelDelete.mockRejectedValue(new Error('Network down'))
-
-      const result = await unsubscribeFromPush('channel-123')
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('Network down')
+    it('hashes endpoint with sha256 hex', async () => {
+      const result = await hashSubscriptionEndpointResult(
+        'https://push.example.com/sub/123',
+      )
+      expect(result.isOk()).toBe(true)
+      expect(result._unsafeUnwrap()).toBe(
+        'c1858014ce0f52b202f1c8e38d6f0220c7de57d0ee157b8da1d9c08ca4a253a6',
+      )
     })
   })
 })
