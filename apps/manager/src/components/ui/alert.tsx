@@ -6,17 +6,17 @@ import { cn } from '@/lib/utils'
 const alertVariants = cva(
   cn(
     'relative grid w-full items-start gap-y-0.5',
-    'grid-cols-[0_1fr] has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr]',
+    'grid-cols-[0_1fr] has-[>svg,>.material-symbol]:grid-cols-[calc(var(--spacing)*4)_1fr]',
     'rounded-lg border px-4 py-3 text-sm',
-    'has-[>svg]:gap-x-3',
-    '[&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current',
+    'has-[>svg,>.material-symbol]:gap-x-3',
+    '[&>svg,>.material-symbol]:size-4 [&>svg,>.material-symbol]:translate-y-0.5 [&>svg,>.material-symbol]:text-current',
   ),
   {
     variants: {
       variant: {
         default: 'bg-card text-card-foreground',
         destructive:
-          'bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 [&>svg]:text-current',
+          'bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 [&>svg,>.material-symbol]:text-current',
       },
     },
     defaultVariants: {
