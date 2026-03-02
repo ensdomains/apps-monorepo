@@ -71,9 +71,9 @@ export function createRhinestoneSession(
       return { session, sessionPrivateKey }
     })(),
     (error) =>
-      new SessionError(
-        'Failed to create Rhinestone session',
-        error instanceof Error ? error.message : String(error),
+export interface RestoreRhinestoneSessionParams {
+  readonly session: RhinestoneStoredSession
+}
       ),
   )
 }
