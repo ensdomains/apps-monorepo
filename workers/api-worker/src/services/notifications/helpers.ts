@@ -170,10 +170,8 @@ export const toPublicChannel = ResultFn(async function* (
   }
 })
 
-// Generate a random token that's somewhat user readable
 export const generateToken = () => {
-  return (
-    Math.random().toString(36).substring(2, 15) +
-    Math.random().toString(36).substring(2, 15)
-  )
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  return bytesToHex(bytes)
 }

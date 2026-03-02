@@ -1,5 +1,5 @@
 import { assert, describe, expect, it } from 'vitest'
-import { type QueryChannelRow, toPublicChannel } from './helpers'
+import { generateToken, type QueryChannelRow, toPublicChannel } from './helpers'
 
 const baseRow = {
   id: 'channel-id',
@@ -54,5 +54,19 @@ describe('toPublicChannel', () => {
     expect(result.value.endpointHash).toBe(
       'c1858014ce0f52b202f1c8e38d6f0220c7de57d0ee157b8da1d9c08ca4a253a6',
     )
+  })
+})
+
+describe('generateToken', () => {
+  it('returns a lowercase hex token with expected length', () => {
+    const token = generateToken()
+    expect(token).toMatch(/^[0-9a-f]+$/)
+    expect(token).toHaveLength(32)
+  })
+
+  it('returns different values across consecutive calls', () => {
+    const first = generateToken()
+    const second = generateToken()
+    expect(first).not.toBe(second)
   })
 })
