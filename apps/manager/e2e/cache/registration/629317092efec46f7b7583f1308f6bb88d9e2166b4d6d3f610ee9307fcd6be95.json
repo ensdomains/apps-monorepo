@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "instruction": "click the Dashboard option in the dropdown menu",
+  "url": "http://localhost:3000/p/prime-name.eth",
+  "variableKeys": [],
+  "actions": [
+    {
+      "selector": "xpath=/html[1]/body[1]/div[4]/div[1]/div[1]/a[2]",
+      "description": "Dashboard",
+      "method": "click",
+      "arguments": []
+    }
+  ],
+  "actionDescription": "Dashboard",
+  "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[4]/div[1]/div[1]/a[2]"
+}

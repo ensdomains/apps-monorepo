@@ -11,9 +11,7 @@ const PARA_PIN = process.env.PARA_E2E_PIN ?? '123456'
  * Para modal Shadow DOM steps use evaluate helpers (email fill, arrow button).
  */
 test.describe('ENS primary name', () => {
-  test('sets and clears a primary name via Para wallet', async ({
-    stagehand,
-  }) => {
+  test('sets a primary name via Para wallet', async ({ stagehand }) => {
     // Login (~66s) + navigation (~15s) + tx1 (60s) + tx2 (90s) needs > 240s
     test.setTimeout(300_000)
 
@@ -162,18 +160,11 @@ test.describe('ENS primary name', () => {
     await stagehand.act('click the Edit Profile button')
     await page.waitForLoadState('networkidle', 15_000).catch(() => {})
 
-    // Step 12: click on the Ethereum field to select it
-    console.log('Performing action: click on the Ethereum field to select it')
-    // xpath=/html[1]/body[1]/div[1]/main[1]/div[1]/form[1]/div[2]/div[2]/div[1]/div[2]/div[1]/div[1]/div[1]/input[1]
-    await stagehand.act('click on the Ethereum field to select it')
-
     // Step 13: click the Remove Ethereum button
-    console.log('Performing action: click the Remove Ethereum button')
+    console.log(
+      'Performing action: click the X button next to the Ethereum address field to remove the ETH record',
+    )
     // xpath=/html[1]/body[1]/div[1]/main[1]/div[1]/form[1]/div[2]/div[2]/div[1]/div[2]/div[1]/div[1]/button[1]
-    await stagehand.act('click the Remove Ethereum button')
-
-    await stagehand.act('click the Save Changes button')
-
     // Set up watcher before clicking Save so we don't miss fast messages
     const waitForConsolePattern = (pattern: string, timeoutMs: number) =>
       new Promise<void>((resolve, reject) => {
@@ -196,7 +187,17 @@ test.describe('ENS primary name', () => {
       90_000,
     )
 
-    await stagehand.act('click the Save Changes button in the modal')
+    await page.waitForSelector('[aria-label="Remove Ethereum"]', {
+      state: 'visible',
+    })
+    await page.locator('[aria-label="Remove Ethereum"]').click()
+    await page
+      .locator('button[data-slot="dialog-trigger"]:has(.lucide-save)')
+      .click()
+
+    // Wait for the confirmation dialog to appear, then confirm immediately
+    await page.waitForSelector('[role="dialog"]', { state: 'visible' })
+    await page.locator('button[data-slot="button"]:has(.lucide-save)').click()
 
     await txDone
     console.log('[ETHRecord] ✅ Transaction complete: ETH record removed')

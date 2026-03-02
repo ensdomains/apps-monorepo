@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "instruction": "click the X button next to the Ethereum address",
+  "url": "http://localhost:3000/p/primetest.eth/edit",
+  "variableKeys": [],
+  "actions": [
+    {
+      "selector": "xpath=/html[1]/body[1]/div[5]/button[1]",
+      "description": "Close button",
+      "method": "click",
+      "arguments": []
+    }
+  ],
+  "actionDescription": "Close button",
+  "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[5]/button[1]"
+}

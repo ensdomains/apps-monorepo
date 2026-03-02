@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "instruction": "Click the \"Sign in with Wallet\" button.",
+  "url": "http://localhost:3000/dashboard",
+  "variableKeys": [],
+  "actions": [
+    {
+      "selector": "xpath=/html[1]/body[1]/div[5]/div[2]/button[1]",
+      "description": "Sign in with Wallet button",
+      "method": "click",
+      "arguments": []
+    }
+  ],
+  "actionDescription": "Sign in with Wallet button",
+  "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[5]/div[2]/button[1]"
+}

@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "instruction": "click the Set as Primary button",
+  "url": "http://localhost:3000/p/primetest.eth/edit",
+  "variableKeys": [],
+  "actions": [
+    {
+      "selector": "xpath=/html[1]/body[1]/div[5]/div[3]/button[2]",
+      "description": "Set as Primary button",
+      "method": "click",
+      "arguments": []
+    }
+  ],
+  "actionDescription": "Set as Primary button",
+  "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[5]/div[3]/button[2]"
+}

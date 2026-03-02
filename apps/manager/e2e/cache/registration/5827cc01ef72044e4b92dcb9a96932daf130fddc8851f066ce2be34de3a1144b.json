@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "instruction": "Click the first verification code input field in the \"Verify Email\" modal dialog.",
+  "url": "http://localhost:3000/",
+  "variableKeys": [],
+  "actions": [
+    {
+      "selector": "xpath=/html[1]/body[1]/cpsl-auth-modal[1]/div[1]/div[3]/div[1]/div[2]/div[1]/iframe[1]/html[1]/body[1]/div[1]/div[1]/div[1]/cpsl-card[1]/div[1]/div[1]/div[1]/form[1]/form[1]/cpsl-code-input[1]//div[1]/input[1]",
+      "description": "textbox",
+      "method": "click",
+      "arguments": []
+    }
+  ],
+  "actionDescription": "textbox",
+  "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/cpsl-auth-modal[1]/div[1]/div[3]/div[1]/div[2]/div[1]/iframe[1]/html[1]/body[1]/div[1]/div[1]/div[1]/cpsl-card[1]/div[1]/div[1]/div[1]/form[1]/form[1]/cpsl-code-input[1]//div[1]/input[1]"
+}

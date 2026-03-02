@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "instruction": "click on the primetest.eth result with the Registered label",
+  "url": "http://localhost:3000/dashboard",
+  "variableKeys": [],
+  "actions": [
+    {
+      "selector": "xpath=/html[1]/body[1]/div[4]/div[1]/div[1]/a[1]",
+      "description": "primetest.eth avatar placeholder primetest.eth Registered",
+      "method": "click",
+      "arguments": []
+    }
+  ],
+  "actionDescription": "primetest.eth avatar placeholder primetest.eth Registered",
+  "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[4]/div[1]/div[1]/a[1]"
+}

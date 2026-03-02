@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "instruction": "click the Remove Ethereum button",
+  "url": "http://localhost:3000/p/primetest.eth/edit",
+  "variableKeys": [],
+  "actions": [
+    {
+      "selector": "xpath=/html[1]/body[1]/div[1]/main[1]/div[1]/form[1]/div[2]/div[2]/div[1]/div[2]/div[1]/div[1]/button[1]",
+      "description": "Remove Ethereum button",
+      "method": "click",
+      "arguments": []
+    }
+  ],
+  "actionDescription": "Remove Ethereum button",
+  "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[1]/main[1]/div[1]/form[1]/div[2]/div[2]/div[1]/div[2]/div[1]/div[1]/button[1]"
+}
