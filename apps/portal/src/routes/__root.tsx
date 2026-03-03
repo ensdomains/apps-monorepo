@@ -10,6 +10,7 @@ import { type ReactNode, useEffect } from 'react'
 import { sepolia } from 'viem/chains'
 import { usePublicClient, WagmiProvider } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 
 import { PHProvider } from '@/lib/posthog/provider'
 import { wagmiConfig } from '@/lib/wagmi'
@@ -31,6 +32,7 @@ function TransactionManagerSetup({ children }: { children: ReactNode }) {
   return (
     <TransactionManagerProvider publicClient={publicClient}>
       {children}
+      <TransactionModal />
     </TransactionManagerProvider>
   )
 }
