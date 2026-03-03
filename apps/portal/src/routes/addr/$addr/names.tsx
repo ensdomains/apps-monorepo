@@ -34,6 +34,7 @@ import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
+import { queryClient } from '@/utils/queryClient'
 
 const MS_PER_SECOND = 1000
 const MS_PER_DAY = 24 * 60 * 60 * MS_PER_SECOND
@@ -103,6 +104,19 @@ const getNameLength = (name: string | null): string => {
 export const Route = createFileRoute('/addr/$addr/names')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
+  loader: ({ params }) =>
+    Promise.all([
+      queryClient.prefetchQuery(
+        getV1NamesForAddressQueryOptions({
+          address: params.addr as Address,
+        }),
+      ),
+      queryClient.prefetchQuery(
+        getV2NamesWithRolesForAddressQueryOptions({
+          address: params.addr as Address,
+        }),
+      ),
+    ]),
 })
 
 function RouteComponent() {
@@ -317,7 +331,7 @@ function RouteComponent() {
     <>
       <header className="bg-quartz-50 px-8 pb-4 pt-12 flex flex-col gap-4 sticky top-0 z-10">
         <div className="flex flex-row justify-between">
-          <h1 className="text-[28px] font-medium">
+          <h1 className="text-heading font-medium">
             {hasActiveFilters ? `${nameCount} of ${totalCount}` : nameCount}{' '}
             names
           </h1>

@@ -46,4 +46,10 @@ function Badge({
   )
 }
 
-export { Badge, badgeVariants }
+const SoonBadge = () => (
+  <Badge variant="success" className="ml-auto text-[10px] px-1.5 py-0">
+    Soon
+  </Badge>
+)
+
+export { Badge, badgeVariants, SoonBadge }

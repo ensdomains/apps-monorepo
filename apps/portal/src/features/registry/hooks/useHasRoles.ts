@@ -5,7 +5,11 @@ import { hasRoles as ensjsHasRoles } from '@ensdomains/ensjs/public/v2'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
-import { safeGetClient } from '@/lib/wagmi/helpers'
+import {
+  safeGetClient,
+  safeGetNamechainSepoliaClient,
+} from '@/lib/wagmi/helpers'
+import type { EnsNetworkName } from '@/utils/types'
 
 class HasRolesError extends TaggedError('HasRolesError')<{
   cause: unknown
@@ -20,6 +24,8 @@ type GetHasRolesParameters = {
   roles: Role[]
   /** The account address to check */
   account: Address
+  /** The network to check on */
+  network: EnsNetworkName
 }
 
 const getHasRoles = ResultFn(async function* ({
@@ -27,8 +33,12 @@ const getHasRoles = ResultFn(async function* ({
   label,
   roles,
   account,
+  network,
 }: GetHasRolesParameters) {
-  const client = yield* safeGetClient()
+  const client =
+    network === 'namechainSepolia'
+      ? yield* safeGetNamechainSepoliaClient()
+      : yield* safeGetClient()
 
   const result = yield* await fromPromise(
     ensjsHasRoles(client, {

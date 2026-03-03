@@ -10,6 +10,7 @@ import { track } from '@/lib/posthog/events'
 import { PHProvider } from '@/lib/posthog/provider'
 import { backendAuthStore } from '@/utils/backend-client'
 import { tw } from '@/utils/tailwind'
+import { ParaConnectionCookieSync } from './ParaConnectionCookieSync'
 import { getParaClient, setParaConnectionCookie } from './para'
 import { customSepolia } from './wagmi'
 
@@ -121,6 +122,7 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
           className: tw`pointer-events-auto`,
         }}
       >
+        <ParaConnectionCookieSync />
         <PHProvider>
           <SmartAccountContextProvider>
             {children}

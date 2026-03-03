@@ -12,9 +12,17 @@ import { NameList } from '@/features/dashboard/components/NameList'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
+import { queryClient } from '@/utils/queryClient'
+
 export const Route = createFileRoute('/addr/$addr/')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
+  loader: ({ params }) =>
+    queryClient.prefetchQuery(
+      getV2HistoryForAddressQueryOptions({
+        address: params.addr as Address,
+      }),
+    ),
 })
 
 interface PrimaryNameProps {
@@ -77,7 +85,7 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
       <div className="flex flex-col gap-2 lg:flex-row justify-between items-baseline">
-        <h1 className="text-2xl md:text-[28px] font-medium leading-none break-all">
+        <h1 className="text-2xl md:text-heading font-medium leading-none break-all">
           {addr}
         </h1>
         {isConnected && (

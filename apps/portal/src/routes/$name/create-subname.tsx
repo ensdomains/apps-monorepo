@@ -44,7 +44,7 @@ const PageHeader = ({ name }: PageHeaderProps) => (
     <Link to="/$name/subnames" params={{ name }}>
       <Button
         variant="ghost"
-        className="flex items-center gap-1 -ml-2 text-gray-500"
+        className="flex items-center gap-1 -ml-2 text-quartz-500"
       >
         <ArrowLeftIcon className="size-6" />
         Back

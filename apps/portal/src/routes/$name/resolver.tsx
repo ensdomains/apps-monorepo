@@ -41,12 +41,15 @@ const EditButtons = ({ address, name }: EditButtonsProps) => {
   )
   const currentNameRegistry = registryQuery.data?.registries?.[1]
   const label = name.split('.')[0]
+  const network = registryQuery.data?.network ?? 'sepolia'
+
   const roleQuery = useQuery({
     ...getHasRolesQueryOptions({
       registryAddress: currentNameRegistry ?? zeroAddress,
       label,
       roles: ['ROLE_SET_RESOLVER'],
       account: address,
+      network,
     }),
     enabled: !!address && !!currentNameRegistry,
   })
@@ -180,7 +183,7 @@ const ResolverView = ({ name, resolverAddress }: ResolverViewProps) => {
   return (
     <div className="max-w-360 mx-auto w-full flex flex-col p-4 gap-4 sm:p-6 sm:gap-6">
       <div className="flex flex-row gap-4 justify-between items-center">
-        <h1 className="text-[28px] font-medium">Resolver</h1>
+        <h1 className="text-heading font-medium">Resolver</h1>
         {address && <EditButtons address={address} name={name} />}
       </div>
       {underlyingResolverData && (

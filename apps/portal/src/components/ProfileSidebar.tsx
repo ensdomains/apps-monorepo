@@ -11,7 +11,8 @@ import {
   UserLockIcon,
   UserRoundCog,
 } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { SoonBadge } from '@/components/ui/badge'
+import { createDefineLinkItem } from '@/utils/tsr'
 import {
   Sidebar,
   SidebarContent,
@@ -24,71 +25,100 @@ import {
   SidebarSeparator,
 } from './ui/sidebar'
 
-type SidebarItem = {
+type SidebarItemData = {
   title: string
-  url: string
   icon: LucideIcon
   disabled?: boolean
   upcoming?: boolean
 }
 
-const itemGroups: SidebarItem[][] = [
+const defineProfileSidebarItem = createDefineLinkItem<SidebarItemData>()
+
+const getItemGroups = (name: string) => [
   [
-    {
+    defineProfileSidebarItem({
       title: 'Overview',
-      url: '/$name',
       icon: PersonStandingIcon,
-    },
+      link: {
+        to: '/$name',
+        params: { name },
+        activeOptions: { exact: true },
+      },
+    }),
   ],
   [
-    {
+    defineProfileSidebarItem({
       title: 'Records',
-      url: '/$name/records',
       icon: FileSpreadsheetIcon,
-    },
-    {
+      link: {
+        to: '/$name/records',
+        params: { name },
+      },
+    }),
+    defineProfileSidebarItem({
       title: 'Resolver',
-      url: '/$name/resolver',
       icon: FileCodeIcon,
-    },
+      link: {
+        to: '/$name/resolver',
+        params: { name },
+      },
+    }),
   ],
   [
-    {
+    defineProfileSidebarItem({
       title: 'Ownership',
-      url: '/$name/ownership',
       icon: UserLockIcon,
-    },
-    {
+      link: {
+        to: '/$name/ownership',
+        params: { name },
+      },
+    }),
+    defineProfileSidebarItem({
       title: 'Roles',
-      url: '/$name/roles',
       icon: UserRoundCog,
-    },
+      link: {
+        to: '/$name/roles',
+        params: { name },
+      },
+    }),
   ],
   [
-    {
+    defineProfileSidebarItem({
       title: 'Subnames',
-      url: '/$name/subnames',
       icon: ListTreeIcon,
-    },
-    {
+      link: {
+        to: '/$name/subnames',
+        params: { name },
+      },
+    }),
+    defineProfileSidebarItem({
       title: 'Registry',
-      url: '/$name/registry',
       icon: Network,
-    },
+      link: {
+        to: '/$name/registry',
+        params: { name },
+      },
+    }),
   ],
   [
-    {
+    defineProfileSidebarItem({
       title: 'Token info',
-      url: '/$name/token',
       icon: CoinsIcon,
-    },
+      link: {
+        to: '/$name/token',
+        params: { name },
+      },
+    }),
   ],
   [
-    {
+    defineProfileSidebarItem({
       title: 'History',
-      url: '/$name/history',
       icon: ClockIcon,
-    },
+      link: {
+        to: '/$name/history',
+        params: { name },
+      },
+    }),
   ],
 ]
 
@@ -97,6 +127,8 @@ interface ProfileSidebarProps {
 }
 
 export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
+  const itemGroups = getItemGroups(name)
+
   return (
     <Sidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!">
       <SidebarHeader>
@@ -104,61 +136,47 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
       </SidebarHeader>
       <SidebarSeparator />
       <SidebarContent>
-        {itemGroups.map((items, i) => {
-          const groupKey = items.join(',') + i.toString()
-          return (
-            <div key={groupKey}>
-              <SidebarGroup>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {items.map((item) => (
-                      <SidebarMenuItem key={item.title}>
-                        {item.disabled || item.upcoming ? (
-                          <SidebarMenuButton
-                            disabled
-                            className="opacity-50 cursor-not-allowed"
+        {itemGroups.map((items, i) => (
+          <div key={items[0].title}>
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {items.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      {item.disabled || item.upcoming ? (
+                        <SidebarMenuButton
+                          disabled
+                          className="opacity-50 cursor-not-allowed"
+                        >
+                          <item.icon className="size-6" />
+                          <span className="text-sm font-medium">
+                            {item.title}
+                          </span>
+                          {item.upcoming && <SoonBadge />}
+                        </SidebarMenuButton>
+                      ) : (
+                        <SidebarMenuButton asChild>
+                          <Link
+                            {...item.link}
+                            activeProps={{
+                              'data-active': 'true',
+                            }}
                           >
                             <item.icon className="size-6" />
                             <span className="text-sm font-medium">
                               {item.title}
                             </span>
-                            {item.upcoming && (
-                              <Badge
-                                variant="success"
-                                className="ml-auto text-[10px] px-1.5 py-0"
-                              >
-                                Soon
-                              </Badge>
-                            )}
-                          </SidebarMenuButton>
-                        ) : (
-                          <SidebarMenuButton asChild>
-                            <Link
-                              params={{ name }}
-                              to={item.url}
-                              activeProps={{
-                                'data-active': 'true',
-                              }}
-                              activeOptions={{
-                                exact: item.url === '/$name',
-                              }}
-                            >
-                              <item.icon className="size-6" />
-                              <span className="text-sm font-medium">
-                                {item.title}
-                              </span>
-                            </Link>
-                          </SidebarMenuButton>
-                        )}
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-              {i < itemGroups.length - 1 && <SidebarSeparator />}
-            </div>
-          )
-        })}
+                          </Link>
+                        </SidebarMenuButton>
+                      )}
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            {i < itemGroups.length - 1 && <SidebarSeparator />}
+          </div>
+        ))}
       </SidebarContent>
     </Sidebar>
   )
