@@ -2,15 +2,13 @@ import { Link } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
 import {
   ClockIcon,
-  CoinsIcon,
-  FileCodeIcon,
-  FileSpreadsheetIcon,
-  ListTreeIcon,
-  Network,
-  PersonStandingIcon,
-  UserLockIcon,
+  IdCardLanyard,
+  RefreshCwIcon,
+  SplitIcon,
   UserRoundCog,
 } from 'lucide-react'
+import type { Address } from 'viem'
+import { LogoWithTextSVG } from '@/assets/logo'
 import { SoonBadge } from '@/components/ui/badge'
 import { createDefineLinkItem } from '@/utils/tsr'
 import {
@@ -32,107 +30,76 @@ type SidebarItemData = {
   upcoming?: boolean
 }
 
-const defineProfileSidebarItem = createDefineLinkItem<SidebarItemData>()
+const defineResolverSidebarItem = createDefineLinkItem<SidebarItemData>()
 
-const getItemGroups = (name: string) => [
+const getItemGroups = (address: string) => [
   [
-    defineProfileSidebarItem({
+    defineResolverSidebarItem({
       title: 'Overview',
-      icon: PersonStandingIcon,
+      icon: IdCardLanyard,
       link: {
-        to: '/$name',
-        params: { name },
+        to: '/resolver/$address',
+        params: { address },
         activeOptions: { exact: true },
       },
     }),
   ],
   [
-    defineProfileSidebarItem({
-      title: 'Records',
-      icon: FileSpreadsheetIcon,
-      link: {
-        to: '/$name/records',
-        params: { name },
-      },
-    }),
-    defineProfileSidebarItem({
-      title: 'Resolver',
-      icon: FileCodeIcon,
-      link: {
-        to: '/$name/resolver',
-        params: { name },
-      },
-    }),
-  ],
-  [
-    defineProfileSidebarItem({
-      title: 'Ownership',
-      icon: UserLockIcon,
-      link: {
-        to: '/$name/ownership',
-        params: { name },
-      },
-    }),
-    defineProfileSidebarItem({
+    defineResolverSidebarItem({
       title: 'Roles',
       icon: UserRoundCog,
+      upcoming: true,
       link: {
-        to: '/$name/roles',
-        params: { name },
+        to: '/resolver/$address',
+        params: { address },
+      },
+    }),
+    defineResolverSidebarItem({
+      title: 'Aliases',
+      icon: SplitIcon,
+      upcoming: true,
+      link: {
+        to: '/resolver/$address',
+        params: { address },
       },
     }),
   ],
   [
-    defineProfileSidebarItem({
-      title: 'Subnames',
-      icon: ListTreeIcon,
-      link: {
-        to: '/$name/subnames',
-        params: { name },
-      },
-    }),
-    defineProfileSidebarItem({
-      title: 'Registry',
-      icon: Network,
-      link: {
-        to: '/$name/registry',
-        params: { name },
-      },
-    }),
-  ],
-  [
-    defineProfileSidebarItem({
-      title: 'Token info',
-      icon: CoinsIcon,
-      link: {
-        to: '/$name/token',
-        params: { name },
-      },
-    }),
-  ],
-  [
-    defineProfileSidebarItem({
+    defineResolverSidebarItem({
       title: 'History',
       icon: ClockIcon,
+      upcoming: true,
       link: {
-        to: '/$name/history',
-        params: { name },
+        to: '/resolver/$address',
+        params: { address },
       },
     }),
   ],
 ]
 
-interface ProfileSidebarProps {
-  name: string
+interface ResolverSidebarProps {
+  address: Address
 }
 
-export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
-  const itemGroups = getItemGroups(name)
+export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
+  const itemGroups = getItemGroups(address)
 
   return (
     <Sidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!">
-      <SidebarHeader>
-        <span className="ml-3 text-lg font-bold wrap-break-word">{name}</span>
+      <SidebarHeader className="p-6">
+        <Link
+          to="/"
+          className="flex md:hidden flex-row gap-2 items-center mb-4"
+        >
+          <LogoWithTextSVG width={72} height="auto" />
+          <span className="font-bold">Explorer</span>
+        </Link>
+        <div className="flex flex-row gap-2 items-start">
+          <RefreshCwIcon className="size-6 shrink-0 mt-1" />
+          <span className="text-lg font-mono font-medium w-full max-w-md overflow-hidden wrap-break-word">
+            {address}
+          </span>
+        </div>
       </SidebarHeader>
       <SidebarSeparator />
       <SidebarContent>

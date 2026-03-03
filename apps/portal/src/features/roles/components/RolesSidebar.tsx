@@ -231,7 +231,7 @@ export const RolesSidebar = <
         <div className="p-6 flex flex-col gap-6 h-screen">
           <SheetHeader className="p-0">
             <div className="flex flex-wrap justify-between items-center gap-4">
-              <SheetTitle className="font-sans text-[28px] font-medium">
+              <SheetTitle className="font-sans text-heading font-medium">
                 Role Details
               </SheetTitle>
               {canManageRoles && selectedAccount && (

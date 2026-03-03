@@ -1,3 +1,5 @@
+export type HttpsUrl = `https://${string}`
+
 export type EnsNetworkName = 'sepolia' | 'namechainSepolia'
 
 export type WithEnsNetwork<T> = T & {

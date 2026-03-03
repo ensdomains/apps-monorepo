@@ -291,7 +291,7 @@ const EditRecordsContent = ({
             Back to View
           </Button>
         </Link>
-        <h1 className="text-[28px] font-medium mb-6">Edit records</h1>
+        <h1 className="text-heading font-medium mb-6">Edit records</h1>
 
         {/* Add Record Form */}
         <div className="flex flex-col sm:flex-row gap-3">
