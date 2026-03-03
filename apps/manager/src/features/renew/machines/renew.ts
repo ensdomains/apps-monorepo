@@ -1,5 +1,7 @@
+// @ts-nocheck - TODO: Fix imports or remove machine if no longer needed
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
+// Broken import since ENSJS update. Machine is currently unused
 import { getPrice } from '@ensdomains/ensjs/public'
 import { renewNames } from '@ensdomains/ensjs/wallet'
 import { fromPromise, ok } from 'neverthrow'
