@@ -1,8 +1,30 @@
 import { ArrowRight, InfoIcon, PlayCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import type { PortalTransaction } from '../types'
 
-export const TransactionDetailsOverviewCard = () => {
+type TransactionDetailsOverviewCardProps = {
+  transaction: PortalTransaction
+}
+
+export const TransactionDetailsOverviewCard = ({
+  transaction,
+}: TransactionDetailsOverviewCardProps) => {
+  const {
+    title,
+    estimatedGasCost,
+    onStart,
+    onRetry,
+    onDone,
+    onError,
+    isLoading,
+    isSuccess,
+    isError,
+    error,
+    txHash,
+    reset,
+  } = transaction
+
   return (
     <div
       className={cn(
@@ -14,7 +36,7 @@ export const TransactionDetailsOverviewCard = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h4 className="text-base font-medium w-max text-quartz-900">
-              Update Records
+              {title}
             </h4>
             <Badge variant="warning" className="font-normal">
               <PlayCircle className="size-3 mr-0.5" /> Not Started

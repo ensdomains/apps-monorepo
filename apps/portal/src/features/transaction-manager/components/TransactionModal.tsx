@@ -1,16 +1,22 @@
-import { ListOrdered } from 'lucide-react'
-import { Fragment, useState } from 'react'
+import { Fragment } from 'react'
 import { useConnection, useEnsName } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { cn } from '@/lib/utils'
+import { useTransactionModal } from '../hooks/useTransactionModal'
+import type { PortalTransaction } from '../types'
 import { TransactionDetailsOverviewCard } from './TransactionDetailsOverviewCard'
 
-export const TransactionModal = () => {
-  const [open, setOpen] = useState(true)
+type TransactionModalProps = {
+  transactions: PortalTransaction[]
+}
 
+export const TransactionModal = ({ transactions }: TransactionModalProps) => {
   const { address } = useConnection()
+
+  const { isOpen, closeModal } = useTransactionModal()
 
   const { data: ensName, isLoading: isEnsNameLoading } = useEnsName({
     address,
@@ -20,10 +26,19 @@ export const TransactionModal = () => {
   })
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={isOpen} onOpenChange={closeModal}>
       <DialogTrigger asChild>
-        <Button size="icon" className="fixed bottom-4 right-4 rounded-full">
-          <ListOrdered className="size-4" />
+        <Button
+          size="lg"
+          variant="secondary"
+          className={cn(
+            'fixed inset-x-0 bottom-5 mx-auto w-fit',
+            'opacity-0',
+            'transition-all duration-300',
+            'data-[state=closed]:opacity-100',
+          )}
+        >
+          View Transaction In Progress...
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[420px] space-y-3 transition-all duration-300">
@@ -42,7 +57,12 @@ export const TransactionModal = () => {
                 {ensName}
               </h2>
             </div>
-            <TransactionDetailsOverviewCard />
+            {transactions.map((transaction) => (
+              <TransactionDetailsOverviewCard
+                key={transaction.title}
+                transaction={transaction}
+              />
+            ))}
             <Button className="w-full mb-0" variant="secondary">
               Start
             </Button>
