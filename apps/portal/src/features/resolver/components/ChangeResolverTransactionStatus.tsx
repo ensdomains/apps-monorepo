@@ -53,7 +53,7 @@ export const ChangeResolverTransactionStatus = ({
     )
   }
 
-  if (!txHash) {
+  if (!txHash && !isConfirming && !isConfirmed) {
     return null
   }
 
@@ -73,17 +73,19 @@ export const ChangeResolverTransactionStatus = ({
               .with({ isConfirmed: true }, () => 'Transaction confirmed!')
               .otherwise(() => 'Transaction submitted')}
           </span>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">
-              Transaction hash:
-            </span>
-            <CopyableRecord
-              value={txHash}
-              href={`https://sepolia.etherscan.io/tx/${txHash}`}
-              className="text-xs"
-              truncate={false}
-            />
-          </div>
+          {txHash && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">
+                Transaction hash:
+              </span>
+              <CopyableRecord
+                value={txHash}
+                href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                className="text-xs"
+                truncate={false}
+              />
+            </div>
+          )}
         </div>
       </AlertDescription>
     </Alert>
