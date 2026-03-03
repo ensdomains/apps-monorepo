@@ -1,4 +1,3 @@
-import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { Link, useMatches, useRouterState } from '@tanstack/react-router'
 import { BookIcon, CircleQuestionMarkIcon, Menu } from 'lucide-react'
 import { lazy, Suspense } from 'react'
@@ -19,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
+import { WalletMenu } from './WalletMenu'
 
 // Lazy load SidebarTrigger to prevent hook errors in production when sidebar isn't available
 const SidebarTrigger = lazy(() =>
@@ -163,7 +163,7 @@ export const NavBar = () => {
           </ExternalLink>
         </div>
 
-        <ConnectButton showBalance={false} accountStatus="avatar" />
+        <WalletMenu />
       </div>
     </nav>
   )
