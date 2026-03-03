@@ -22,7 +22,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
+import { cn } from '@/lib/utils'
 import {
   type EditableRecord,
   getRecordId,
@@ -94,6 +96,7 @@ export const EditRecordsTable = ({
 }: EditRecordsTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const [tableView] = useTableViewSettings()
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
   // Store validation errors in a ref so the columns don't need to depend on it
@@ -280,10 +283,19 @@ export const EditRecordsTable = ({
               <React.Fragment key={row.id}>
                 <TableRow
                   data-state={row.getIsSelected() && 'selected'}
-                  className="hover:bg-quartz-50"
+                  className={cn(
+                    'hover:bg-quartz-50',
+                    tableView.strippedRows && 'odd:bg-quartz-50',
+                  )}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="px-4 sm:px-6 py-4">
+                    <TableCell
+                      key={cell.id}
+                      className={cn(
+                        'px-4 sm:px-6',
+                        tableView.compact ? 'py-2' : 'py-4',
+                      )}
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext(),
