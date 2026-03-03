@@ -10,23 +10,30 @@ import { IconRenderer } from '../IconRenderer'
 
 interface ContactItemProps {
   record: TextRecordValue
+  themeColor?: string
 }
 
-const ContactItem = ({ record }: ContactItemProps) => {
+const ContactItem = ({ record, themeColor }: ContactItemProps) => {
   const recordDef = getRecordDef(record.key)
   const displayValue = getRecordDisplayValue(recordDef, record.value || '')
   const href = getRecordHref(recordDef, displayValue)
 
   const inner = (
     <>
-      <span className="text-gray-900 text-sm">
+      <span
+        className={themeColor ? 'text-sm' : 'text-gray-900 text-sm'}
+        style={themeColor ? { color: themeColor } : undefined}
+      >
         {recordDef?.icon ? (
           <IconRenderer className="size-4" icon={recordDef.icon} />
         ) : (
           recordDef?.name || record.key
         )}
       </span>
-      <span className="text-gray-600 text-sm">
+      <span
+        className={themeColor ? 'text-sm' : 'text-gray-600 text-sm'}
+        style={themeColor ? { color: themeColor } : undefined}
+      >
         {recordDef?.displayPrefix}
         {displayValue || 'Not set'}
       </span>
@@ -60,9 +67,13 @@ const ContactItem = ({ record }: ContactItemProps) => {
 
 interface ViewBioSectionProps {
   records: ProfileRecords
+  themeColor?: string
 }
 
-export const ViewBioSection = ({ records }: ViewBioSectionProps) => {
+export const ViewBioSection = ({
+  records,
+  themeColor,
+}: ViewBioSectionProps) => {
   const contactsWithValues = records.contact.filter((r) => r.value)
   const hasContent =
     records.base.description ||
@@ -99,7 +110,11 @@ export const ViewBioSection = ({ records }: ViewBioSectionProps) => {
             <hr className="my-2" />
             <div className="flex flex-wrap gap-3 max-md:justify-center">
               {contactsWithValues.map((record, i) => (
-                <ContactItem key={`${record.key}-${i}`} record={record} />
+                <ContactItem
+                  key={`${record.key}-${i}`}
+                  record={record}
+                  themeColor={themeColor}
+                />
               ))}
             </div>
           </>

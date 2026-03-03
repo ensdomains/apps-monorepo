@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { CopyableButton } from '@/components/atoms/CopyableButton'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,31 +10,56 @@ import {
 } from '../../data/records'
 import type { Section } from '../../data/records/types'
 import type { ProfileRecords, TextRecordValue } from '../../types'
+import { getThemeColors } from '../../utils/themeColor'
 import { IconRenderer } from '../IconRenderer'
 
 interface DynamicRecordProps {
   record: TextRecordValue
+  themeColor?: string
 }
 
-const DynamicRecord = ({ record }: DynamicRecordProps) => {
+const DynamicRecord = ({ record, themeColor }: DynamicRecordProps) => {
   const recordDef = getRecordDef(record.key)
+  const [isHovered, setIsHovered] = useState(false)
   if (!record.value) {
     return null
   }
 
   const displayValue = getRecordDisplayValue(recordDef, record.value)
-
   const href = getRecordHref(recordDef, displayValue)
+  const colors = themeColor ? getThemeColors(themeColor) : undefined
+
+  const themeStyle: React.CSSProperties | undefined = colors
+    ? {
+        backgroundColor: isHovered ? colors.hoverBg : colors.bg,
+        color: colors.text,
+        borderColor: 'transparent',
+      }
+    : undefined
+
+  const hoverHandlers = colors
+    ? {
+        onMouseEnter: () => setIsHovered(true),
+        onMouseLeave: () => setIsHovered(false),
+      }
+    : {}
 
   if (href) {
     return (
-      <Button asChild className="justify-start" size="sm" variant="outline">
+      <Button
+        asChild
+        className="justify-start"
+        size="sm"
+        style={themeStyle}
+        variant="outline"
+        {...hoverHandlers}
+      >
         <a href={href} rel="noopener noreferrer" target="_blank">
           <IconRenderer className="size-3.5" icon={recordDef?.icon} />
-          <span className="select-none text-gray-700">
+          <span className={`select-none ${colors ? '' : 'text-gray-700'}`}>
             {recordDef?.name ?? record.key}
           </span>
-          <span className="text-gray-500">
+          <span className={colors ? 'opacity-70' : 'text-gray-500'}>
             {recordDef?.displayPrefix}
             {displayValue}
           </span>
@@ -45,14 +71,16 @@ const DynamicRecord = ({ record }: DynamicRecordProps) => {
   return (
     <CopyableButton
       className="justify-start"
+      style={themeStyle}
       title={record.value}
       value={displayValue}
+      {...hoverHandlers}
     >
       <IconRenderer className="size-3.5" icon={recordDef?.icon} />
-      <span className="select-none text-gray-700">
+      <span className={`select-none ${colors ? '' : 'text-gray-700'}`}>
         {recordDef?.name ?? record.key}
       </span>
-      <span className="text-gray-500">
+      <span className={colors ? 'opacity-70' : 'text-gray-500'}>
         {recordDef?.displayPrefix}
         {displayValue}
       </span>
@@ -63,11 +91,13 @@ const DynamicRecord = ({ record }: DynamicRecordProps) => {
 interface ViewDynamicSectionProps {
   records: ProfileRecords
   section: Section
+  themeColor?: string
 }
 
 export const ViewDynamicSection = ({
   records,
   section,
+  themeColor,
 }: ViewDynamicSectionProps) => {
   const sectionData = sections[section]
   const sectionRecords = records[section].filter((r) => r.value)
@@ -86,7 +116,11 @@ export const ViewDynamicSection = ({
       <CardContent>
         <div className="flex flex-wrap items-center gap-2">
           {sectionRecords.map((record, i) => (
-            <DynamicRecord key={`${record.key}-${i}`} record={record} />
+            <DynamicRecord
+              key={`${record.key}-${i}`}
+              record={record}
+              themeColor={themeColor}
+            />
           ))}
         </div>
       </CardContent>
