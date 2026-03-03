@@ -36,9 +36,6 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
   const isConfirming = !txState && Boolean(activeTransaction?.isLoading)
 
   const handleClose = () => {
-    if (txState) {
-      const actor = transactionManager.getTransaction(txState.txId)
-    }
     closeModal()
   }
 

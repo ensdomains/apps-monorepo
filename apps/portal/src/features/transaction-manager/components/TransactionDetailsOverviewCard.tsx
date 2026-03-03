@@ -49,7 +49,7 @@ export const TransactionDetailsOverviewCard = ({
         </div>
         <dl className="grid grid-cols-2 gap-1">
           <dt className="text-base font-medium">Est. Cost</dt>
-          <dd className="text-base">0.0001 ETH</dd>
+          <dd className="text-base">{estimatedGasCost} ETH</dd>
         </dl>
       </div>
     </div>
