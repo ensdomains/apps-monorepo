@@ -1,5 +1,5 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { Link, useRouterState } from '@tanstack/react-router'
+import { Link, useMatches, useRouterState } from '@tanstack/react-router'
 import { BookIcon, CircleQuestionMarkIcon, Menu } from 'lucide-react'
 import { lazy, Suspense } from 'react'
 import { ExternalLink } from 'react-external-link'
@@ -27,11 +27,10 @@ const SidebarTrigger = lazy(() =>
 
 export const NavBar = () => {
   const { location } = useRouterState()
-  // Only show sidebar trigger on routes that have a sidebar (/$name or /addr/$addr)
-  const hasSidebar =
-    location.pathname !== '/' &&
-    (location.pathname.match(/^\/[^/]+(\/|$)/) ||
-      location.pathname.startsWith('/addr/'))
+  const matches = useMatches()
+
+  // Show sidebar when any match in the route chain has hideSidebar !== true (default)
+  const hasSidebar = matches.some((match) => !match.staticData?.hideSidebar)
 
   return (
     <nav className="sticky top-0 left-0 flex flex-row gap-2 p-4 bg-background text-foreground w-full justify-between border-b border-b-border h-(--header-height) z-50">

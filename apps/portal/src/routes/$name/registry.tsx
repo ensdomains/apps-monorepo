@@ -120,7 +120,7 @@ const RegistryInfo = ({
   return (
     <div className="max-w-360 mx-auto w-full flex flex-col p-4 gap-4 sm:p-6 sm:gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-[28px] font-medium leading-none">Registry</h1>
+        <h1 className="text-heading font-medium leading-none">Registry</h1>
         {ethRegistryAddress &&
           account &&
           labels.length === 2 &&
@@ -169,7 +169,7 @@ const RegistryInfo = ({
                     }}
                   />
                 )}
-                <h2 className="leading-none text-[28px] font-medium">
+                <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
                 <RegistryCardsGrid label={labels[1]} network={data.network} />
@@ -193,7 +193,7 @@ const RegistryInfo = ({
                   network={data.network}
                   owner={ownerData.owner}
                 />
-                <h2 className="leading-none text-[28px] font-medium">
+                <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
                 <RegistryCardsGrid label={labels[1]} network={data.network} />
@@ -231,7 +231,7 @@ const RegistryInfo = ({
                     }}
                   />
                 )}
-                <h2 className="leading-none text-[28px] font-medium">
+                <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
 
@@ -260,7 +260,7 @@ const RegistryInfo = ({
                   network={data.network}
                   owner={ownerData.owner}
                 />
-                <h2 className="leading-none text-[28px] font-medium">
+                <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
                 <RegistryCardsGrid label={labels[1]} network={data.network} />

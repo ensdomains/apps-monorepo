@@ -7,8 +7,10 @@ import { SearchModalContent } from './SearchModalContent'
 
 const mockNavigateToName = vi.fn()
 const mockNavigateToAddress = vi.fn()
+const mockNavigateToResolver = vi.fn()
 const mockOnSelectSuggestion = vi.fn()
 const mockOnSelectOwnedName = vi.fn()
+const mockOnSelectAvailableName = vi.fn()
 
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: () => false,
@@ -69,6 +71,12 @@ vi.mock('../hooks/useV2NamesForAddress', () => ({
     queryFn: () => Promise.resolve(ownedNamesOverride ?? []),
   }),
 }))
+vi.mock('@/hooks/useSupportsInterfaces', () => ({
+  getSupportsInterfacesQueryOptions: (params: { address: string }) => ({
+    queryKey: ['supported-interfaces', params],
+    queryFn: () => Promise.resolve([]),
+  }),
+}))
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -87,8 +95,10 @@ describe('SearchModalContent', () => {
   beforeEach(() => {
     mockNavigateToName.mockClear()
     mockNavigateToAddress.mockClear()
+    mockNavigateToResolver.mockClear()
     mockOnSelectSuggestion.mockClear()
     mockOnSelectOwnedName.mockClear()
+    mockOnSelectAvailableName.mockClear()
     connectedAddressOverride = undefined
     ownedNamesOverride = null
     mockBuildSearchSuggestions.mockImplementation(
@@ -115,6 +125,7 @@ describe('SearchModalContent', () => {
         onSelectOwnedName={mockOnSelectOwnedName}
         navigateToName={mockNavigateToName}
         navigateToAddress={mockNavigateToAddress}
+        navigateToResolver={mockNavigateToResolver}
       />,
       { wrapper: createWrapper() },
     )
@@ -133,6 +144,7 @@ describe('SearchModalContent', () => {
         onSelectSuggestion={mockOnSelectSuggestion}
         navigateToName={mockNavigateToName}
         navigateToAddress={mockNavigateToAddress}
+        navigateToResolver={mockNavigateToResolver}
       />,
       { wrapper: createWrapper() },
     )
@@ -147,6 +159,7 @@ describe('SearchModalContent', () => {
         onSelectSuggestion={mockOnSelectSuggestion}
         navigateToName={mockNavigateToName}
         navigateToAddress={mockNavigateToAddress}
+        navigateToResolver={mockNavigateToResolver}
       />,
       { wrapper: createWrapper() },
     )
@@ -168,6 +181,7 @@ describe('SearchModalContent', () => {
         onSelectSuggestion={mockOnSelectSuggestion}
         navigateToName={mockNavigateToName}
         navigateToAddress={mockNavigateToAddress}
+        navigateToResolver={mockNavigateToResolver}
       />,
       { wrapper: createWrapper() },
     )
@@ -213,6 +227,7 @@ describe('SearchModalContent', () => {
             onSelectSuggestion={mockOnSelectSuggestion}
             navigateToName={mockNavigateToName}
             navigateToAddress={mockNavigateToAddress}
+            navigateToResolver={mockNavigateToResolver}
           />
         </Command>
       </QueryClientProvider>,
@@ -229,6 +244,50 @@ describe('SearchModalContent', () => {
     availabilityOverride = null
   })
 
+  it('calls onSelectAvailableName when an available name is selected and callback is provided', async () => {
+    mockBuildSearchSuggestions.mockReturnValue([
+      {
+        id: 'name:new.eth',
+        label: 'new.eth',
+        description: 'View ENS name details',
+        inputValue: 'new.eth',
+        action: () => mockNavigateToName('new.eth'),
+      },
+    ])
+    availabilityOverride = { isAvailable: true, name: 'new.eth' }
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    queryClient.setQueryData(['get-ens-owner', { name: 'new.eth' }], null)
+
+    const user = userEvent.setup()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Command>
+          <SearchModalContent
+            searchValue="new"
+            onSelectSuggestion={mockOnSelectSuggestion}
+            onSelectAvailableName={mockOnSelectAvailableName}
+            navigateToName={mockNavigateToName}
+            navigateToAddress={mockNavigateToAddress}
+            navigateToResolver={mockNavigateToResolver}
+          />
+        </Command>
+      </QueryClientProvider>,
+    )
+
+    const availableItem = await screen.findByRole('option', {
+      name: /new\.eth.*Available to register/,
+    })
+    await user.click(availableItem)
+
+    expect(mockOnSelectAvailableName).toHaveBeenCalledTimes(1)
+    expect(mockOnSelectAvailableName).toHaveBeenCalledWith('new.eth')
+    expect(mockOnSelectSuggestion).not.toHaveBeenCalled()
+    availabilityOverride = null
+  })
+
   it('passes searchValue and validTlds into buildSearchSuggestions', () => {
     render(
       <SearchModalContent
@@ -236,6 +295,7 @@ describe('SearchModalContent', () => {
         onSelectSuggestion={mockOnSelectSuggestion}
         navigateToName={mockNavigateToName}
         navigateToAddress={mockNavigateToAddress}
+        navigateToResolver={mockNavigateToResolver}
       />,
       { wrapper: createWrapper() },
     )
@@ -273,6 +333,7 @@ describe('SearchModalContent', () => {
             onSelectOwnedName={mockOnSelectOwnedName}
             navigateToName={mockNavigateToName}
             navigateToAddress={mockNavigateToAddress}
+            navigateToResolver={mockNavigateToResolver}
           />
         </Command>
       </QueryClientProvider>,

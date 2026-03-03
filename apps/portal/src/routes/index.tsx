@@ -24,6 +24,7 @@ import { DashboardProfilePreview } from '@/features/dashboard/components/Dashboa
 export const Route = createFileRoute('/')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
+  staticData: { hideSidebar: true },
 })
 
 function RouteComponent() {
@@ -58,7 +59,7 @@ function RouteComponent() {
                   Need an ENSv2 name?
                 </span>
                 <ExternalLink
-                  href="https://manager.ens.dev/"
+                  href="https://app.ens.dev/"
                   className="underline hover:no-underline"
                 >
                   Register one in the new Manager →
@@ -69,10 +70,10 @@ function RouteComponent() {
                   Deep dive into the new contracts?
                 </span>
                 <ExternalLink
-                  href="https://ens.domains/blog/post/ensv2"
+                  href="https://ens.domains/blog/post/ensv2-architecture"
                   className="underline hover:no-underline"
                 >
-                  Read the ENSv2 design doc →
+                  ENSv2 Architecture →
                 </ExternalLink>
               </div>
               <div>

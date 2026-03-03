@@ -398,7 +398,7 @@ export const RecordDetails = ({
   return (
     <div className="p-6 flex flex-col gap-6 min-h-0">
       <SheetHeader className="flex flex-row justify-between">
-        <SheetTitle className="font-sans text-[28px] font-medium capitalize">
+        <SheetTitle className="font-sans text-heading font-medium capitalize">
           {record.type} record
         </SheetTitle>
         {canEditRecords && (

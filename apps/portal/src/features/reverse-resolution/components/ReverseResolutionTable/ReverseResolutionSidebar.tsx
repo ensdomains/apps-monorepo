@@ -323,7 +323,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
         <div className="p-6 flex flex-col gap-6">
           <SheetHeader>
             <div className="flex flex-row justify-between items-center">
-              <SheetTitle className="font-sans text-[28px] font-medium">
+              <SheetTitle className="font-sans text-heading font-medium">
                 {label} resolution
               </SheetTitle>
               {canSetAsPrimary && (

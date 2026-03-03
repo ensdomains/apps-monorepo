@@ -24,6 +24,7 @@ import { Route as PNameIndexRouteImport } from './routes/p/$name/index'
 import { Route as NotificationsAuthenticatedIndexRouteImport } from './routes/notifications/_authenticated/index'
 import { Route as DebugBackendIndexRouteImport } from './routes/debug/backend/index'
 import { Route as PNameEditRouteImport } from './routes/p/$name/edit'
+import { Route as DebugBackendSettingsRouteImport } from './routes/debug/backend/settings'
 import { Route as NotificationsAuthenticatedSettingsIndexRouteImport } from './routes/notifications/_authenticated/settings/index'
 import { Route as NotificationsChannelsEmailVerifyRouteImport } from './routes/notifications/channels/email/verify'
 
@@ -105,6 +106,11 @@ const PNameEditRoute = PNameEditRouteImport.update({
   path: '/p/$name/edit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DebugBackendSettingsRoute = DebugBackendSettingsRouteImport.update({
+  id: '/debug/backend/settings',
+  path: '/debug/backend/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NotificationsAuthenticatedSettingsIndexRoute =
   NotificationsAuthenticatedSettingsIndexRouteImport.update({
     id: '/settings/',
@@ -130,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
+  '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/p/$name/edit': typeof PNameEditRoute
   '/debug/backend/': typeof DebugBackendIndexRoute
   '/notifications/': typeof NotificationsAuthenticatedIndexRoute
@@ -148,6 +155,7 @@ export interface FileRoutesByTo {
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/auto-renewal': typeof AutoRenewalIndexRoute
+  '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/p/$name/edit': typeof PNameEditRoute
   '/debug/backend': typeof DebugBackendIndexRoute
   '/notifications': typeof NotificationsAuthenticatedIndexRoute
@@ -168,6 +176,7 @@ export interface FileRoutesById {
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
+  '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/p/$name/edit': typeof PNameEditRoute
   '/debug/backend/': typeof DebugBackendIndexRoute
   '/notifications/_authenticated/': typeof NotificationsAuthenticatedIndexRoute
@@ -189,6 +198,7 @@ export interface FileRouteTypes {
     | '/payment/add'
     | '/payment/list'
     | '/auto-renewal/'
+    | '/debug/backend/settings'
     | '/p/$name/edit'
     | '/debug/backend/'
     | '/notifications/'
@@ -207,6 +217,7 @@ export interface FileRouteTypes {
     | '/payment/add'
     | '/payment/list'
     | '/auto-renewal'
+    | '/debug/backend/settings'
     | '/p/$name/edit'
     | '/debug/backend'
     | '/notifications'
@@ -226,6 +237,7 @@ export interface FileRouteTypes {
     | '/payment/add'
     | '/payment/list'
     | '/auto-renewal/'
+    | '/debug/backend/settings'
     | '/p/$name/edit'
     | '/debug/backend/'
     | '/notifications/_authenticated/'
@@ -246,6 +258,7 @@ export interface RootRouteChildren {
   PaymentAddRoute: typeof PaymentAddRoute
   PaymentListRoute: typeof PaymentListRoute
   AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
+  DebugBackendSettingsRoute: typeof DebugBackendSettingsRoute
   PNameEditRoute: typeof PNameEditRoute
   DebugBackendIndexRoute: typeof DebugBackendIndexRoute
   PNameIndexRoute: typeof PNameIndexRoute
@@ -359,6 +372,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PNameEditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/debug/backend/settings': {
+      id: '/debug/backend/settings'
+      path: '/debug/backend/settings'
+      fullPath: '/debug/backend/settings'
+      preLoaderRoute: typeof DebugBackendSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/notifications/_authenticated/settings/': {
       id: '/notifications/_authenticated/settings/'
       path: '/settings'
@@ -406,6 +426,7 @@ const rootRouteChildren: RootRouteChildren = {
   PaymentAddRoute: PaymentAddRoute,
   PaymentListRoute: PaymentListRoute,
   AutoRenewalIndexRoute: AutoRenewalIndexRoute,
+  DebugBackendSettingsRoute: DebugBackendSettingsRoute,
   PNameEditRoute: PNameEditRoute,
   DebugBackendIndexRoute: DebugBackendIndexRoute,
   PNameIndexRoute: PNameIndexRoute,

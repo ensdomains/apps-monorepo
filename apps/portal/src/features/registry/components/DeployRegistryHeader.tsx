@@ -12,7 +12,7 @@ export const DeployRegistryHeader = ({ name }: { readonly name: string }) => {
           Back
         </Button>
       </Link>
-      <h1 className="text-[28px] font-medium leading-none">Deploy registry</h1>
+      <h1 className="text-heading font-medium leading-none">Deploy registry</h1>
     </Fragment>
   )
 }

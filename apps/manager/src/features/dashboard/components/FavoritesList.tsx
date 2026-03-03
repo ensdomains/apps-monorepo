@@ -134,6 +134,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
       setSortField(field)
       setSortDirection(OrderDirection.Asc)
     }
+    setPage(1)
   }
 
   return (
@@ -156,6 +157,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
               setSortDirection(
                 direction === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
               )
+              setPage(1)
             }}
             value={
               sortDirection

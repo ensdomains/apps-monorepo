@@ -13,12 +13,16 @@ export type Suggestion = {
 
 type NavigateToAddress = (address: string) => void
 type NavigateToName = (name: string) => void
+type NavigateToResolver = (address: string) => void
 
 type BuildSuggestionsOptions = {
   value: string
   isMobile: boolean
   navigateToAddress: NavigateToAddress
   navigateToName: NavigateToName
+  navigateToResolver?: NavigateToResolver
+  /** When true, the searched address supports resolver interfaces. */
+  isResolver?: boolean
   /** When set and value is a single label (no dots), suggest label.tld for each valid TLD. */
   validTlds?: readonly string[]
 }
@@ -35,6 +39,8 @@ export const buildSearchSuggestions = ({
   isMobile,
   navigateToAddress,
   navigateToName,
+  navigateToResolver,
+  isResolver,
   validTlds,
 }: BuildSuggestionsOptions): Suggestion[] => {
   const trimmedValue = value.trim()
@@ -46,14 +52,25 @@ export const buildSearchSuggestions = ({
   if (isAddress(trimmedValue, { strict: false })) {
     try {
       const checksum = checksumAddress(trimmedValue as Address)
-      items.push({
-        id: `address:${checksum}`,
-        label: isMobile ? truncateAddress(checksum) : checksum,
-        description: 'View address details',
-        inputValue: checksum,
-        action: () => navigateToAddress(checksum),
-      })
-      // Return early - don't show ENS name suggestion for valid addresses
+
+      if (isResolver && navigateToResolver) {
+        items.push({
+          id: `resolver:${checksum}`,
+          label: isMobile ? truncateAddress(checksum) : checksum,
+          description: 'View resolver details',
+          inputValue: checksum,
+          action: () => navigateToResolver(checksum),
+        })
+      } else {
+        items.push({
+          id: `address:${checksum}`,
+          label: isMobile ? truncateAddress(checksum) : checksum,
+          description: 'View address details',
+          inputValue: checksum,
+          action: () => navigateToAddress(checksum),
+        })
+      }
+
       return items
     } catch {
       return []

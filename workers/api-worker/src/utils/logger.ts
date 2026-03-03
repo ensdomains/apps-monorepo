@@ -5,10 +5,10 @@ export interface LogMeta {
 
 export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error'
 
-const LEVELS: LogLevel[] = ['trace', 'debug', 'info', 'warn', 'error']
-const DEV_ONLY_LEVELS = new Set<LogLevel>(['trace', 'debug'])
+const _LEVELS: LogLevel[] = ['trace', 'debug', 'info', 'warn', 'error']
+const _DEV_ONLY_LEVELS = new Set<LogLevel>(['trace', 'debug'])
 
-const isDevelopment = (): boolean => {
+const _isDevelopment = (): boolean => {
   return Boolean(import.meta.env.DEV || import.meta.env.MODE === 'development')
 }
 
@@ -22,9 +22,7 @@ export function prettifyError(error: unknown): string {
 }
 
 export class Logger {
-  private readonly isDev = isDevelopment()
-
-  private shouldLog(level: LogLevel): boolean {
+  private shouldLog(_level: LogLevel): boolean {
     // Temporarily allow all levels for debugging in production.
     return true
 
