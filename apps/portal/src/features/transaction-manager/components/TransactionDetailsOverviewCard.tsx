@@ -20,7 +20,7 @@ export const TransactionDetailsOverviewCard = () => {
               <PlayCircle className="size-3 mr-0.5" /> Not Started
             </Badge>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <InfoIcon className="size-4" />
             <ArrowRight className="size-4" />
           </div>
