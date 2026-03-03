@@ -27,18 +27,20 @@ export type AccountClient =
   | KernelAccountClient
   | RhinestoneAccount
   | PimlicoAccountClient
-
 export interface AccountInitResult {
-  client: AccountClient
-  address: Address
-  ownerAddress: Address
-  config: SmartAccountConfig
+  readonly client: AccountClient
+  readonly address: Address
+  readonly ownerAddress: Address
+  readonly config: SmartAccountConfig
 }
 
 export interface InitializeAccountInput {
-  walletSource: WalletSource
-  walletClient?: WalletClient
-  paraClient?: ParaClient
+  readonly walletSource: WalletSource
+  readonly walletClient?: WalletClient
+  readonly paraClient?: ParaClient
+  readonly provider: SessionProvider
+  readonly accountType?: SmartAccountType
+}
   provider: SessionProvider
   accountType?: SmartAccountType
 }
