@@ -53,7 +53,7 @@ export const getRegistrationPrice = ResultFn(async function* ({
     getPrice(client, {
       registrarAddress: fastTestETHRegistrar,
       nameOrNames: label,
-      duration,
+      duration: BigInt(duration),
       paymentToken: resolvedToken,
     }),
     (e) => new GetRegistrationPriceError({ cause: e as GetPriceErrorType }),
