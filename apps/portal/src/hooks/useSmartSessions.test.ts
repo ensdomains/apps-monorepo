@@ -32,7 +32,7 @@ describe('useSmartSessions', () => {
 
     const stored = localStorage.getItem(STORAGE_KEY)
     expect(stored).toBeDefined()
-    expect(JSON.parse(stored!)).toEqual({ [ADDRESS_A]: false })
+    expect(JSON.parse(stored ?? '{}')).toEqual({ [ADDRESS_A]: false })
   })
 
   it('should load existing preference from localStorage', () => {
@@ -54,7 +54,7 @@ describe('useSmartSessions', () => {
     expect(hookA.current[0]).toBe(false)
     expect(hookB.current[0]).toBe(true)
 
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')
     expect(stored[ADDRESS_A]).toBe(false)
     expect(stored[ADDRESS_B]).toBeUndefined()
   })
