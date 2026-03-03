@@ -73,10 +73,12 @@
     "use-local-storage-state": "^19.5.0",
     "viem": "^2.40.3",
     "wagmi": "^3.0.2",
+    "workers-og": "^0.0.27",
     "xstate": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.15.3",
+    "@cloudflare/workers-types": "^4.20260301.1",
     "@ensdomains/vite-plugin-i18next-loader": "^4.0.3",
     "@statelyai/inspect": "^0.4.0",
     "@tailwindcss/vite": "^4.1.17",
