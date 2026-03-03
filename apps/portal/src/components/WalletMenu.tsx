@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { ChevronRight, Monitor, Power, ShieldCheck, Wallet } from 'lucide-react'
 import { useConnection, useDisconnect, useEnsName } from 'wagmi'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { useSmartSessions } from '@/hooks/useSmartSessions'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { Button } from './ui/button'
 import {
@@ -23,7 +24,8 @@ export const WalletMenu = () => {
     address,
     query: { enabled: isConnected },
   })
-  console.log('🚀 ~ WalletMenu ~ name:', name)
+  const [smartSessionsEnabled, setSmartSessionsEnabled] =
+    useSmartSessions(address)
 
   if (!isConnected || !address) {
     return <Button onClick={() => openConnectModal?.()}>Connect</Button>
@@ -73,13 +75,15 @@ export const WalletMenu = () => {
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        {/* TODO: Wire up smart sessions when backend is ready */}
         <div className="flex items-center justify-between px-2 py-1.5">
           <div className="flex items-center gap-2">
             <ShieldCheck className="size-4 text-muted-foreground" />
             <span className="text-sm">Smart sessions</span>
           </div>
-          <Switch disabled />
+          <Switch
+            checked={smartSessionsEnabled}
+            onCheckedChange={setSmartSessionsEnabled}
+          />
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => disconnect()}>
