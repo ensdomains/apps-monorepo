@@ -41,16 +41,13 @@ export interface InitializeAccountInput {
   readonly provider: SessionProvider
   readonly accountType?: SmartAccountType
 }
-  provider: SessionProvider
-  accountType?: SmartAccountType
-}
 
 export class AccountInitializationError extends TaggedError(
   'AccountInitializationError',
 )<{
   provider: 'pimlico' | 'zerodev' | 'rhinestone' | 'routing'
   cause: unknown
-}> {}
+}> { }
 
 function mapZeroDevConfig(
   result: ZeroDevInitResult,
