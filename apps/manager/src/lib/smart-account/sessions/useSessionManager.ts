@@ -7,6 +7,8 @@ import { getValidSessionByOwner, removeSession } from './session-storage'
 import type { StoredSession } from './types'
 import { createSessionLegacy, getSessionClientLegacy } from './zerodev-session'
 
+type SessionClientResult = KernelAccountClient | null
+
 export interface UseSessionManagerParams {
   /** Owner EOA address */
   ownerAddress: Address | null
@@ -35,12 +37,7 @@ export interface UseSessionManagerResult {
   /** Enable session - call this when user clicks "Enable" in modal */
   enableSession: () => Promise<void>
   /** Session client if session is active */
-  sessionClient: Awaited<ReturnType<typeof getSessionClient>> extends {
-    isOk: () => boolean
-    value: infer T
-  }
-    ? T | null
-    : null
+  sessionClient: SessionClientResult
   /** Whether session is being created */
   isCreatingSession: boolean
   /** Error message if session creation failed */
@@ -70,7 +67,7 @@ export function useSessionManager(
 
   const [showEnableModal, setShowEnableModal] = useState(false)
   const [session, setSession] = useState<StoredSession | null>(null)
-  const [sessionClient, setSessionClient] = useState<any>(null)
+  const [sessionClient, setSessionClient] = useState<SessionClientResult>(null)
   const [isCreatingSession, setIsCreatingSession] = useState(false)
   const [sessionError, setSessionError] = useState<string | null>(null)
   const [hasSkippedSession, setHasSkippedSession] = useState(false)
