@@ -1,6 +1,7 @@
 import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, Monitor, Power, ShieldCheck, Wallet } from 'lucide-react'
+import { useId } from 'react'
 import { useConnection, useDisconnect, useEnsName } from 'wagmi'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useSmartSessions } from '@/hooks/useSmartSessions'
@@ -26,6 +27,7 @@ export const WalletMenu = () => {
   })
   const [smartSessionsEnabled, setSmartSessionsEnabled] =
     useSmartSessions(address)
+  const smartSessionsId = useId()
 
   if (!isConnected || !address) {
     return <Button onClick={() => openConnectModal?.()}>Connect</Button>
@@ -59,7 +61,7 @@ export const WalletMenu = () => {
       <DropdownMenuContent align="end" className="min-w-56">
         <DropdownMenuItem asChild>
           <Link to="/addr/$addr" params={{ addr: address }}>
-            <Monitor className="size-4" />
+            <Monitor className="size-4 text-foreground" />
             <span className="font-mono text-sm">
               {truncateAddress(address)}
             </span>
@@ -69,26 +71,32 @@ export const WalletMenu = () => {
         {name && (
           <DropdownMenuItem asChild>
             <Link to="/$name" params={{ name }}>
-              <Wallet className="size-4" />
+              <Wallet className="size-4 text-foreground" />
               <span className="text-sm">{name}</span>
               <ChevronRight className="size-4 ml-auto" />
             </Link>
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <div className="flex items-center justify-between px-2 py-1.5">
+        <DropdownMenuItem
+          onSelect={(e) => e.preventDefault()}
+          className="justify-between"
+        >
           <div className="flex items-center gap-2">
-            <ShieldCheck className="size-4 text-muted-foreground" />
-            <span className="text-sm">Smart sessions</span>
+            <ShieldCheck className="size-4 text-foreground" />
+            <label htmlFor={smartSessionsId} className="text-sm cursor-pointer">
+              Smart sessions
+            </label>
           </div>
           <Switch
+            id={smartSessionsId}
             checked={smartSessionsEnabled}
             onCheckedChange={setSmartSessionsEnabled}
           />
-        </div>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => disconnect()}>
-          <Power className="size-4" />
+          <Power className="size-4 text-foreground" />
           Disconnect
         </DropdownMenuItem>
       </DropdownMenuContent>
