@@ -38,7 +38,7 @@ export const WalletMenu = () => {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-2 cursor-pointer outline-none"
+          className="flex items-center gap-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
           aria-label={`Wallet menu for ${displayName}`}
         >
           {name ? (
