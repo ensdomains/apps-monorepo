@@ -12,11 +12,11 @@ import type { RhinestoneStoredSession } from './types'
 import { SessionError } from './zerodev-session'
 
 export interface CreateRhinestoneSessionParams {
-  ownerAddress: Address
-  smartAccountAddress: Address
-  chainId: number
-  config?: {
-    validUntil?: number
+  readonly ownerAddress: Address
+  readonly smartAccountAddress: Address
+  readonly chainId: number
+  readonly config?: {
+    readonly validUntil?: number
   }
 }
 
@@ -78,7 +78,7 @@ export function createRhinestoneSession(
 }
 
 export interface RestoreRhinestoneSessionParams {
-  session: RhinestoneStoredSession
+  readonly session: RhinestoneStoredSession
 }
 
 /**
