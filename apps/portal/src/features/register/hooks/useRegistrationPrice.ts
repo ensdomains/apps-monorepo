@@ -2,11 +2,8 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
-import { l2EthRegistrarRentPriceSnippet } from '@ensdomains/ensjs/contracts'
-import type { GetPriceErrorType } from '@ensdomains/ensjs/public'
+import { type GetPriceErrorType, getPrice } from '@ensdomains/ensjs/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
-import { zeroAddress } from 'viem'
-import { readContract } from 'viem/actions'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { fastTestETHRegistrar } from '@/lib/constants/registry'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
@@ -52,14 +49,12 @@ export const getRegistrationPrice = ResultFn(async function* ({
     )
   }
 
-  const [base, premium] = yield* fromPromise(
-    // TODO : replace this with ensjs `getPrice` function
-    // temporarily using readContract to get the price since ensjs `getPrice` function throws contract mismatch errors
-    readContract(client, {
-      address: fastTestETHRegistrar,
-      abi: l2EthRegistrarRentPriceSnippet,
-      functionName: 'rentPrice',
-      args: [label, zeroAddress, BigInt(duration), resolvedToken],
+  const { base, premium } = yield* fromPromise(
+    getPrice(client, {
+      registrarAddress: fastTestETHRegistrar,
+      nameOrNames: label,
+      duration: BigInt(duration),
+      paymentToken: resolvedToken,
     }),
     (e) => new GetRegistrationPriceError({ cause: e as GetPriceErrorType }),
   )
