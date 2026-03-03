@@ -3,7 +3,9 @@ import type { Address } from 'viem'
 
 type SmartSessionsPreferences = Record<Address, boolean>
 
-export const useSmartSessions = (address: Address | undefined) => {
+export const useSmartSessions = (
+  address: Address | undefined,
+): readonly [boolean, (enabled: boolean) => void] => {
   const [preferences, setPreferences] =
     useLocalStorageState<SmartSessionsPreferences>('smart-sessions', {
       defaultValue: {},

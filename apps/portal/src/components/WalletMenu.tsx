@@ -39,6 +39,7 @@ export const WalletMenu = () => {
         <button
           type="button"
           className="flex items-center gap-2 cursor-pointer outline-none"
+          aria-label={`Wallet menu for ${displayName}`}
         >
           {name ? (
             <NameAvatar
