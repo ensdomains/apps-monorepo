@@ -5,6 +5,7 @@ import { assign, fromPromise as fromPromiseXState, setup } from 'xstate'
 import { submitEOATransaction } from '../actors/eoa-transport.actor'
 import { prepareTransaction } from '../actors/prepare-transaction.actor'
 import { submitRhinestoneTransaction } from '../actors/rhinestone-transport.actor'
+import { submitWarpTransaction } from '../actors/warp-transport.actor'
 import { submitZeroDevTransaction } from '../actors/zerodev-transport.actor'
 import {
   EthCallFallbackError,
@@ -117,29 +118,28 @@ export const transactionMachine = setup({
     /**
      * Submit Transaction Actor
      *
-     * Routes to the appropriate transport actor based on request.type:
+     * Routes to the appropriate transport actor based on signer type
+     * and resolved infrastructure:
      * - eoa → submitEOATransaction
-     * - rhinestone-intent → submitRhinestoneTransaction
-     * - erc4337 → (not yet implemented)
+     * - rhinestone + warp → submitWarpTransaction
+     * - rhinestone + pimlico → submitRhinestoneTransaction
+     * - zerodev → submitZeroDevTransaction (always Pimlico)
      */
     submitTransaction: fromResultAsync(
       ({
         request,
         signer,
+        options,
         publicClient,
       }: {
         request?: TransactionRequest
         signer?: Signer
+        options?: TransactionOptions
         publicClient: PublicClient
       }): ResultAsync<
         Hash,
         TransactionSubmissionError | TransactionUserRejectedError
       > => {
-        console.log('🔧 [TRANSACTION] submitTransaction actor invoked:', {
-          requestType: request?.type,
-          signerType: signer?.type,
-        })
-
         if (!request) {
           return errAsync(
             new TransactionSubmissionError(
@@ -158,17 +158,29 @@ export const transactionMachine = setup({
           )
         }
 
-        // Route to transport actor based on signer type
+        console.log('🔧 [TRANSACTION] submitTransaction actor invoked:', {
+          requestType: request.type,
+          signerType: signer.type,
+        })
+
+        // Route to transport actor based on signer type + infrastructure
         switch (signer.type) {
           case 'eoa':
             return submitEOATransaction({ request, signer })
 
-          case 'rhinestone':
+          case 'rhinestone': {
+            const infra =
+              options?.infrastructure ?? signer.config.defaultInfra ?? 'pimlico'
+
+            if (infra === 'warp') {
+              return submitWarpTransaction({ request, signer })
+            }
             return submitRhinestoneTransaction({
               request,
               signer,
               publicClient,
             })
+          }
 
           case 'zerodev':
             return submitZeroDevTransaction({
@@ -530,6 +542,7 @@ export const transactionMachine = setup({
         input: ({ context }) => ({
           request: context.request,
           signer: context.signer,
+          options: context.options,
           publicClient: context.publicClient,
         }),
         onDone: {
