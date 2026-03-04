@@ -8,10 +8,13 @@ import {
 } from 'lucide-react'
 import { match } from 'ts-pattern'
 import type { Hash } from 'viem'
+import { useChainId } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { cn } from '@/lib/utils'
+import { wagmiConfig } from '@/lib/wagmi'
+import { getBlockExplorerTxUrl } from '@/utils/blockExplorer/getBlockExplorerTxUrl'
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getTransactionStatus } from '../utils/getTrasactionStatus'
@@ -28,6 +31,11 @@ export const TransactionStateContent = ({
   setTransactionModalContentState,
 }: TransactionStateContentProps) => {
   const transactionStatus = getTransactionStatus(txState, transaction)
+  const chainId = useChainId()
+
+  const blockExplorerTxUrl = txState?.hash
+    ? getBlockExplorerTxUrl(wagmiConfig.chains, chainId, txState.hash)
+    : undefined
 
   return (
     <>
@@ -77,11 +85,8 @@ export const TransactionStateContent = ({
           <div className="space-y-2 flex-1">
             <div className="flex items-center gap-2">
               <h3>{transaction.transactionName}</h3>
-              {txState?.hash && (
-                <a
-                  href={`https://sepolia.etherscan.io/tx/${txState.hash}`}
-                  target="_blank"
-                >
+              {blockExplorerTxUrl && (
+                <a href={blockExplorerTxUrl} target="_blank" rel="noreferrer">
                   <SquareArrowOutUpRight className="size-3" />
                 </a>
               )}
