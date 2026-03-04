@@ -1,5 +1,10 @@
 // Types
 
+// Actors
+export {
+  type SubmitWarpTransactionInput,
+  submitWarpTransaction,
+} from './actors/warp-transport.actor'
 export {
   GlobalTransactionToasts,
   type GlobalTransactionToastsProps,
