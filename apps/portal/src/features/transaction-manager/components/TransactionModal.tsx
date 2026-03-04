@@ -1,6 +1,6 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
 import { useState } from 'react'
-import { match } from 'ts-pattern'
+import { match, P } from 'ts-pattern'
 import { useConnection } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogTrigger } from '@/components/ui/dialog'
@@ -65,11 +65,17 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
             setTransactionModalContentState={setTransactionModalContentState}
           />
         ))
-        .with({ type: 'info' }, () => (
-          <TransactionInfoContent
-            setTransactionModalContentState={setTransactionModalContentState}
-          />
-        ))
+        .with(
+          {
+            type: 'info',
+          },
+          () => (
+            <TransactionInfoContent
+              transaction={transactions[transactionModalContentState.index]}
+              setTransactionModalContentState={setTransactionModalContentState}
+            />
+          ),
+        )
         .with({ type: 'state' }, () => (
           <TransactionStateContent
             setTransactionModalContentState={setTransactionModalContentState}

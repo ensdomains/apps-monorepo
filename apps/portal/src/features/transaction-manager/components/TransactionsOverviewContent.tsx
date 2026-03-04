@@ -50,9 +50,11 @@ export const TransactionsOverviewContent = ({
             </h2>
           </div>
           {transactions.map((transaction, index) => (
-            <button
+            // biome-ignore lint/a11y/useSemanticElements: div required - contains nested Button, cannot use button
+            <div
               key={transaction.title}
-              type="button"
+              role="button"
+              tabIndex={0}
               className={cn(
                 'flex flex-col gap-4 p-4 rounded-lg border',
                 'border-border text-quartz-900 cursor-pointer',
@@ -60,6 +62,12 @@ export const TransactionsOverviewContent = ({
               onClick={() =>
                 setTransactionModalContentState({ type: 'state', index })
               }
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setTransactionModalContentState({ type: 'state', index })
+                }
+              }}
             >
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
@@ -91,7 +99,7 @@ export const TransactionsOverviewContent = ({
                   </dd>
                 </dl>
               </div>
-            </button>
+            </div>
           ))}
           <Button
             className="w-full mb-0"

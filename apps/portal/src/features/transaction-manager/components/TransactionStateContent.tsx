@@ -17,6 +17,14 @@ export const TransactionStateContent = ({
       <DialogHeader>
         <DialogTitle>Transaction State</DialogTitle>
       </DialogHeader>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <h3 className="text-lg font-medium">Transaction State</h3>
+          <p className="text-sm text-muted-foreground">
+            The current state of the transaction.
+          </p>
+        </div>
+      </div>
     </DialogContent>
   )
 }
