@@ -13,6 +13,27 @@ const client = createPublicClient({
   transport: http(SEPOLIA_RPC_URL),
 })
 
+async function resolveAvatarDataUri(
+  avatarRecord: string,
+): Promise<string | null> {
+  try {
+    const url = await parseAvatarRecord(client, {
+      record: avatarRecord,
+      gatewayUrls: { ipfs: 'https://ipfs.euc.li' },
+    })
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const contentType = res.headers.get('content-type') ?? 'image/png'
+    const buf = await res.arrayBuffer()
+    const base64 = btoa(
+      new Uint8Array(buf).reduce((s, b) => s + String.fromCharCode(b), ''),
+    )
+    return `data:${contentType};base64,${base64}`
+  } catch {
+    return null
+  }
+}
+
 async function fetchEnsData(name: string) {
   try {
     const records = await getRecords(client, {
@@ -22,15 +43,9 @@ async function fetchEnsData(name: string) {
     const avatarRecord =
       records.texts.find((r) => r.key === 'avatar')?.value ?? null
 
-    let avatar: string | null = null
-    if (avatarRecord) {
-      try {
-        avatar = await parseAvatarRecord(client, {
-          record: avatarRecord,
-          gatewayUrls: { ipfs: 'https://ipfs.euc.li' },
-        })
-      } catch {}
-    }
+    const avatar = avatarRecord
+      ? await resolveAvatarDataUri(avatarRecord)
+      : null
 
     return {
       avatar,
