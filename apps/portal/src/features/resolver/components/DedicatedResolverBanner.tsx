@@ -1,10 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
 import { ShieldCheckIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
-import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
+import { useIsDedicatedResolver } from '@/features/resolver/hooks/useIsDedicatedResolver'
 
 export const DedicatedResolverBanner = ({
   resolverAddress,
@@ -15,18 +13,16 @@ export const DedicatedResolverBanner = ({
     data: isDedicatedResolver,
     isLoading,
     error,
-  } = useQuery(
-    getSupportsInterfacesQueryOptions({
-      address: resolverAddress,
-      interfaces: [RESOLVER_INTERFACE_IDS.DedicatedResolver],
-    }),
-  )
+  } = useIsDedicatedResolver({
+    resolverAddress,
+  })
 
-  if (error) return <>{error.cause?.message}</>
+  if (error)
+    return <>{error instanceof Error ? error.message : 'Failed to load data'}</>
 
   if (isLoading) return 'Loading...'
 
-  if (isDedicatedResolver?.[0])
+  if (isDedicatedResolver)
     return (
       <Alert
         variant="success"
