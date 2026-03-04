@@ -1,5 +1,5 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import { Fragment } from 'react'
+import { Fragment, useState } from 'react'
 import { useConnection, useEnsName } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
@@ -8,17 +8,24 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
 import { useActiveTransactionState } from '../hooks/useActiveTransactionState'
 import { useTransactionModal } from '../hooks/useTransactionModal'
-import type { PortalTransaction } from '../types'
 import { TransactionDetailsOverviewCard } from './TransactionDetailsOverviewCard'
 
 type TransactionModalProps = {
-  transactions: PortalTransaction[]
+  transactions: {
+    title: string
+    estimatedGasCost: number
+    onStart: () => void
+  }[]
 }
 
 export const TransactionModal = ({ transactions }: TransactionModalProps) => {
   const { address } = useConnection()
 
   const { isOpen, closeModal } = useTransactionModal()
+
+  const [focusedTransaction, setFocusedTransaction] = useState<
+    number | undefined
+  >(undefined)
 
   const txState = useActiveTransactionState()
 
@@ -28,16 +35,6 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
       enabled: Boolean(address),
     },
   })
-
-  const isSuccess = txState?.machineState === 'success'
-  const isError =
-    typeof txState?.machineState === 'object' && 'error' in txState.machineState
-
-  const isInProgress = Boolean(txState?.machineState) && !isSuccess && !isError
-
-  // we will update handle for multiple transactions in the next iteration.
-  const activeTransaction = transactions[0]
-  const isConfirming = !txState && Boolean(activeTransaction?.isLoading)
 
   const handleClose = () => {
     closeModal()
@@ -82,19 +79,20 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
                 {ensName}
               </h2>
             </div>
-            {transactions.map((transaction) => (
+            {transactions.map((transaction, index) => (
               <TransactionDetailsOverviewCard
                 key={transaction.title}
+                index={index}
                 transaction={transaction}
+                setFocusedTransaction={setFocusedTransaction}
               />
             ))}
             <Button
               className="w-full mb-0"
               variant="secondary"
-              disabled={isConfirming}
-              onClick={() => activeTransaction?.onStart()}
+              onClick={() => transactions[0]?.onStart()}
             >
-              {isConfirming ? 'Starting...' : 'Start'}
+              {focusedTransaction ? 'Starting...' : 'Start'}
             </Button>
           </Fragment>
         )}

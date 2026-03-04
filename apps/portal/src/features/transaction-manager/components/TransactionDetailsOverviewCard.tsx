@@ -1,39 +1,32 @@
 import { ArrowRight, InfoIcon, PlayCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import type { PortalTransaction } from '../types'
 
 type TransactionDetailsOverviewCardProps = {
-  transaction: PortalTransaction
+  index: number
+  transaction: {
+    title: string
+    estimatedGasCost: number
+    onStart: () => void
+  }
+  setFocusedTransaction: (transaction: number) => void
 }
 
 export const TransactionDetailsOverviewCard = ({
+  index,
   transaction,
+  setFocusedTransaction,
 }: TransactionDetailsOverviewCardProps) => {
-  const {
-    title,
-    estimatedGasCost,
-    onStart,
-    onRetry,
-    onDone,
-    onError,
-    isLoading,
-    isSuccess,
-    isError,
-    error,
-    txHash,
-    reset,
-  } = transaction
-
-  const transactionYetToStart = !isLoading && !isSuccess && !isError
-  const transactionInProgress = !isSuccess && !isError && !transactionYetToStart
+  const { title, estimatedGasCost } = transaction
 
   return (
-    <div
+    <button
+      type="button"
       className={cn(
         'flex flex-col gap-4 p-4 rounded-lg border',
         'border-border text-quartz-900 cursor-pointer',
       )}
+      onClick={() => setFocusedTransaction(index)}
     >
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
@@ -55,6 +48,6 @@ export const TransactionDetailsOverviewCard = ({
           <dd className="text-base">{estimatedGasCost} ETH</dd>
         </dl>
       </div>
-    </div>
+    </button>
   )
 }

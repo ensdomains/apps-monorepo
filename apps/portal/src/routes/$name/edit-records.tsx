@@ -468,15 +468,6 @@ const EditRecordsContent = ({
             title: 'Save records',
             estimatedGasCost: 0.0001,
             onStart: handleSaveRecords,
-            onRetry: () => {},
-            onDone: () => {},
-            onError: () => {},
-            isLoading: isWriting || isConfirming,
-            isSuccess: false,
-            isError: false,
-            error: null,
-            txHash: null,
-            reset: () => {},
           },
         ]}
       />
