@@ -1,9 +1,10 @@
-import { transactionManager } from '@ens-apps/transaction-manager'
 import { ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { match } from 'ts-pattern'
 import { Button } from '@/components/ui/button'
 import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
+import { getTransactionStatus } from '../utils/getTrasactionStatus'
 
 type TransactionStateContentProps = {
   transaction: Transaction
@@ -16,17 +17,7 @@ export const TransactionStateContent = ({
 }: TransactionStateContentProps) => {
   const txState = useActiveTransactionState()
 
-  const handleRetry = () => {
-    if (txState) {
-      const actor = transactionManager.getTransaction(txState.txId)
-
-      if (!actor) {
-        throw new Error('Transaction actor not found')
-      }
-
-      actor.send({ type: 'RETRY' })
-    }
-  }
+  const transactionStatus = getTransactionStatus(txState, transaction)
 
   return (
     <>
@@ -51,9 +42,39 @@ export const TransactionStateContent = ({
         >
           <ArrowLeft className="size-4" />
         </Button>
-        <Button variant="secondary" className="flex-1">
-          Open Wallet
-        </Button>
+        {match(transactionStatus)
+          .with(undefined, () => (
+            <Button
+              variant="secondary"
+              className="flex-1"
+              onClick={transaction.onStart}
+            >
+              Open wallet
+            </Button>
+          ))
+          .with('success', () => (
+            <Button
+              variant="secondary"
+              className="flex-1"
+              onClick={transaction.onDone}
+            >
+              Done
+            </Button>
+          ))
+          .with('error', () => (
+            <Button
+              variant="secondary"
+              className="flex-1"
+              onClick={transaction.onRetry}
+            >
+              Try again
+            </Button>
+          ))
+          .otherwise(() => (
+            <Button variant="secondary" className="flex-1" disabled>
+              Waiting...
+            </Button>
+          ))}
       </div>
     </>
   )
