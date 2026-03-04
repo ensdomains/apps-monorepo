@@ -4,14 +4,15 @@ export type TransactionModalContentState =
     }
   | {
       type: 'info'
-      index: number
+      transactionId: string
     }
   | {
       type: 'state'
-      index: number
+      transactionId: string
     }
 
 export type Transaction = {
+  id: string
   title: string
   transactionName: string
   estimatedGasCost: number

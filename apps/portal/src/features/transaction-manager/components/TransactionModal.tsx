@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { useActiveTransactionState } from '../hooks/useActiveTransactionState'
 import { useTransactionModal } from '../hooks/useTransactionModal'
 import type { Transaction, TransactionModalContentState } from '../types'
+import { getTransactionById } from '../utils/getTransactionById'
 import { TransactionInfoContent } from './TransactionInfoContent'
 import { TransactionStateContent } from './TransactionStateContent'
 import { TransactionsOverviewContent } from './TransactionsOverviewContent'
@@ -62,13 +63,19 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
           ))
           .with({ type: 'info' }, (state) => (
             <TransactionInfoContent
-              transaction={transactions[state.index]}
+              transaction={getTransactionById(
+                transactions,
+                state.transactionId,
+              )}
               setTransactionModalContentState={setTransactionModalContentState}
             />
           ))
           .with({ type: 'state' }, (state) => (
             <TransactionStateContent
-              transaction={transactions[state.index]}
+              transaction={getTransactionById(
+                transactions,
+                state.transactionId,
+              )}
               setTransactionModalContentState={setTransactionModalContentState}
             />
           ))

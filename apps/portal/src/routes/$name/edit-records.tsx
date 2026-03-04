@@ -49,6 +49,8 @@ const RECORD_TYPES: { value: RecordType; label: string }[] = [
 /** Record types that don't require a key input (single-value records) */
 const KEYLESS_RECORD_TYPES: RecordType[] = ['contentHash', 'abi']
 
+const SAVE_RECORDS_TRANSACTION_ID = 'tx-save-resolver-records'
+
 function EditRecordsPage() {
   const { name } = Route.useParams()
   const { address: connectedAddress } = useConnection()
@@ -237,6 +239,7 @@ const EditRecordsContent = ({
       resolverAddress,
       originalRecords,
       pendingChanges,
+      id: SAVE_RECORDS_TRANSACTION_ID,
     })
   }
 
@@ -465,6 +468,7 @@ const EditRecordsContent = ({
       <TransactionModal
         transactions={[
           {
+            id: SAVE_RECORDS_TRANSACTION_ID,
             title: 'Save records',
             transactionName: 'Set resolver records',
             estimatedGasCost: 0.0001,

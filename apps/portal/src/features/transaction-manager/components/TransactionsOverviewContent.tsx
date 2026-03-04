@@ -1,5 +1,12 @@
-import { ArrowRight, InfoIcon, PlayCircle } from 'lucide-react'
+import {
+  ArrowRight,
+  CheckCircle2,
+  InfoIcon,
+  PlayCircle,
+  XCircle,
+} from 'lucide-react'
 import { Fragment } from 'react'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
 import { Badge } from '@/components/ui/badge'
@@ -7,7 +14,10 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
+import { useActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
+import { getTransactionById } from '../utils/getTransactionById'
+import { getTransactionStatus } from '../utils/getTrasactionStatus'
 
 type TransactionsOverviewContentProps = {
   address: Address | undefined
@@ -27,6 +37,11 @@ export const TransactionsOverviewContent = ({
     },
   })
 
+  const txState = useActiveTransactionState()
+
+  const activeTransaction =
+    txState && getTransactionById(transactions, txState.txId)
+
   return (
     <>
       {isEnsNameLoading || typeof ensName !== 'string' ? (
@@ -44,7 +59,7 @@ export const TransactionsOverviewContent = ({
               {ensName}
             </h2>
           </div>
-          {transactions.map((transaction, index) => (
+          {transactions.map((transaction) => (
             // biome-ignore lint/a11y/useSemanticElements: div required - contains nested Button, cannot use button
             <div
               key={transaction.title}
@@ -55,12 +70,18 @@ export const TransactionsOverviewContent = ({
                 'border-border text-quartz-900 cursor-pointer',
               )}
               onClick={() =>
-                setTransactionModalContentState({ type: 'state', index })
+                setTransactionModalContentState({
+                  type: 'state',
+                  transactionId: transaction.id,
+                })
               }
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
-                  setTransactionModalContentState({ type: 'state', index })
+                  setTransactionModalContentState({
+                    type: 'state',
+                    transactionId: transaction.id,
+                  })
                 }
               }}
             >
@@ -70,9 +91,27 @@ export const TransactionsOverviewContent = ({
                     <h4 className="text-base font-medium w-max text-quartz-900">
                       {transaction.title}
                     </h4>
-                    <Badge variant="warning" className="font-normal">
-                      <PlayCircle className="size-3 mr-0.5" /> Not Started
-                    </Badge>
+                    {match(getTransactionStatus(txState, transaction))
+                      .with(undefined, () => (
+                        <Badge variant="ghost" className="font-normal">
+                          <PlayCircle className="size-3 mr-0.5" /> Not Started
+                        </Badge>
+                      ))
+                      .with('success', () => (
+                        <Badge variant="success" className="font-normal">
+                          <CheckCircle2 className="size-3 mr-0.5" /> Done
+                        </Badge>
+                      ))
+                      .with('error', () => (
+                        <Badge variant="destructive" className="font-normal">
+                          <XCircle className="size-3 mr-0.5" /> Failed
+                        </Badge>
+                      ))
+                      .otherwise(() => (
+                        <Badge variant="warning" className="font-normal">
+                          <PlayCircle className="size-3 mr-0.5" /> In Progress
+                        </Badge>
+                      ))}
                   </div>
                   <Button
                     variant="ghost"
@@ -80,7 +119,10 @@ export const TransactionsOverviewContent = ({
                     onClick={(e) => {
                       e.stopPropagation()
                       e.preventDefault()
-                      setTransactionModalContentState({ type: 'info', index })
+                      setTransactionModalContentState({
+                        type: 'info',
+                        transactionId: transaction.id,
+                      })
                     }}
                   >
                     <InfoIcon className="size-4" />
@@ -99,9 +141,13 @@ export const TransactionsOverviewContent = ({
           <Button
             className="w-full mb-0"
             variant="secondary"
-            onClick={() => transactions[0]?.onStart()}
+            onClick={() => activeTransaction?.onStart()}
           >
-            Start
+            {match(getTransactionStatus(txState, activeTransaction))
+              .with(undefined, () => 'Start')
+              .with('success', () => 'Done')
+              .with('error', () => 'Retry')
+              .otherwise(() => 'In Progress...')}
           </Button>
         </Fragment>
       )}
