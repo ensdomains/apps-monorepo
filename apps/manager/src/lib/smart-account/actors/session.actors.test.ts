@@ -242,9 +242,10 @@ describe('session.actors', () => {
         accountAddress: ACCOUNT_ADDRESS,
         provider: 'zerodev',
         chainId: 11155111,
-        ecdsaValidator: {} as any,
         ecdsaValidator: {} as unknown as KernelValidator<'ECDSAValidator'>,
+      })
 
+      expect(result.isOk()).toBe(true)
       expect(result.isOk()).toBe(true)
       const output = result._unsafeUnwrap()
       expect(output.session).toBe(session)
