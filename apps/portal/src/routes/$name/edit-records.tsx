@@ -475,7 +475,6 @@ const EditRecordsContent = ({
             estimatedGasCost: 0.0001,
             onStart: handleSaveRecords,
             onDone: () => closeTransactionModal(),
-            onRetry: handleSaveRecords,
           },
         ]}
       />
