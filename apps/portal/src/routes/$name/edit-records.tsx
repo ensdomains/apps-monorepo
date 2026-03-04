@@ -466,6 +466,7 @@ const EditRecordsContent = ({
         transactions={[
           {
             title: 'Save records',
+            transactionName: 'Set resolver records',
             estimatedGasCost: 0.0001,
             onStart: handleSaveRecords,
           },

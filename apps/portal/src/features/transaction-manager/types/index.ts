@@ -10,3 +10,10 @@ export type TransactionModalContentState =
       type: 'state'
       index: number
     }
+
+export type Transaction = {
+  title: string
+  transactionName: string
+  estimatedGasCost: number
+  onStart: () => void
+}

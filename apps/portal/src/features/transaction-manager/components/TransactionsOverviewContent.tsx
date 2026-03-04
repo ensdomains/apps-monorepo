@@ -8,15 +8,11 @@ import { DialogContent } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
-import type { TransactionModalContentState } from '../types'
+import type { Transaction, TransactionModalContentState } from '../types'
 
 type TransactionsOverviewContentProps = {
   address: Address | undefined
-  transactions: {
-    title: string
-    estimatedGasCost: number
-    onStart: () => void
-  }[]
+  transactions: Transaction[]
   setTransactionModalContentState: (state: TransactionModalContentState) => void
 }
 

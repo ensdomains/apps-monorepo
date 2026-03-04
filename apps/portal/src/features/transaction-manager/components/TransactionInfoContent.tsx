@@ -1,32 +1,50 @@
+import { ArrowLeft, ArrowRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import {
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import type { TransactionModalContentState } from '../types'
+import type { Transaction, TransactionModalContentState } from '../types'
 
 type TransactionInfoContentProps = {
+  transaction: Transaction
   setTransactionModalContentState: (state: TransactionModalContentState) => void
 }
 
 export const TransactionInfoContent = ({
+  transaction,
   setTransactionModalContentState,
 }: TransactionInfoContentProps) => {
   return (
-    <DialogContent className="sm:max-w-[420px] space-y-3 transition-all duration-300">
-      <DialogHeader>
-        <DialogTitle>Transaction Info</DialogTitle>
+    <DialogContent
+      className="sm:max-w-[420px] space-y-3 transition-all duration-300 p-0 gap-0"
+      showCloseButton={false}
+    >
+      <DialogHeader className="py-3 border-b mb-0">
+        <DialogTitle className="flex items-center gap-1 text-base font-medium">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs gap-1"
+            onClick={() =>
+              setTransactionModalContentState({ type: 'overview' })
+            }
+          >
+            <ArrowLeft className="size-3" /> Back
+          </Button>
+          {transaction.title}
+        </DialogTitle>
       </DialogHeader>
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <h3 className="text-lg font-medium">Transaction Info</h3>
-          <p className="text-sm text-muted-foreground">
-            The current state of the transaction.
-          </p>
-          <div className="flex flex-col gap-2">
-            <h4 className="text-base font-medium">Transaction ID</h4>
-            <p className="text-sm text-muted-foreground">
-              The current state of the transaction.
+        <div className="flex p-4 border-b items-start gap-2">
+          <ArrowRight className="size-5 mt-0.5" />
+          <div className="space-y-0.5">
+            <h3 className="text-base font-medium">
+              {transaction.transactionName}
+            </h3>
+            <p className="text-xs font-mono">
+              Est. cost: {transaction.estimatedGasCost} ETH
             </p>
           </div>
         </div>
