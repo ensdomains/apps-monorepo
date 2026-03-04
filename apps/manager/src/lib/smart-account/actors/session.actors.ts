@@ -80,10 +80,10 @@ export function createSessionActor(
         session,
         sessionClient: {
           sessionPrivateKey,
-          sessionConfig: JSON.parse(session.sessionConfig) as Record<
-            string,
-            unknown
-          >,
+          sessionConfig: fromThrowable(
+            () => JSON.parse(session.sessionConfig) as Record<string, unknown>,
+            () => new SessionError('Failed to create session', 'Invalid session config format')
+          )(),
         },
       })
     })
