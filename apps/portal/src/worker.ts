@@ -2,6 +2,7 @@ import { extendChainWithL1Ens } from '@ensdomains/ensjs/chain'
 import { getRecords } from '@ensdomains/ensjs/public'
 import { createPublicClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
+import { parseAvatarRecord } from 'viem/ens'
 import { ImageResponse } from 'workers-og'
 
 const SEPOLIA_RPC_URL =
@@ -18,8 +19,21 @@ async function fetchEnsData(name: string) {
       name,
       texts: ['avatar', 'description'],
     })
+    const avatarRecord =
+      records.texts.find((r) => r.key === 'avatar')?.value ?? null
+
+    let avatar: string | null = null
+    if (avatarRecord) {
+      try {
+        avatar = await parseAvatarRecord(client, {
+          record: avatarRecord,
+          gatewayUrls: { ipfs: 'https://ipfs.euc.li' },
+        })
+      } catch {}
+    }
+
     return {
-      avatar: records.texts.find((r) => r.key === 'avatar')?.value ?? null,
+      avatar,
       description:
         records.texts.find((r) => r.key === 'description')?.value ?? null,
     }
