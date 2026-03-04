@@ -1,14 +1,16 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import { Fragment, useState } from 'react'
-import { useConnection, useEnsName } from 'wagmi'
+import { useState } from 'react'
+import { match } from 'ts-pattern'
+import { useConnection } from 'wagmi'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
-import { Skeleton } from '@/components/ui/skeleton'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { Dialog, DialogTrigger } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { useActiveTransactionState } from '../hooks/useActiveTransactionState'
 import { useTransactionModal } from '../hooks/useTransactionModal'
-import { TransactionDetailsOverviewCard } from './TransactionDetailsOverviewCard'
+import type { TransactionModalContentState } from '../types'
+import { TransactionInfoContent } from './TransactionInfoContent.1'
+import { TransactionStateContent } from './TransactionStateContent'
+import { TransactionsOverviewContent } from './TransactionsOverviewContent'
 
 type TransactionModalProps = {
   transactions: {
@@ -23,18 +25,10 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
 
   const { isOpen, closeModal } = useTransactionModal()
 
-  const [focusedTransaction, setFocusedTransaction] = useState<
-    number | undefined
-  >(undefined)
+  const [transactionModalContentState, setTransactionModalContentState] =
+    useState<TransactionModalContentState>({ type: 'overview' })
 
   const txState = useActiveTransactionState()
-
-  const { data: ensName, isLoading: isEnsNameLoading } = useEnsName({
-    address,
-    query: {
-      enabled: Boolean(address),
-    },
-  })
 
   const handleClose = () => {
     closeModal()
@@ -63,40 +57,25 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
           View Transaction In Progress...
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[420px] space-y-3 transition-all duration-300">
-        {isEnsNameLoading || typeof ensName !== 'string' ? (
-          <div className="flex flex-col items-center gap-4 pt-10">
-            <Skeleton className="h-20 w-20 rounded-lg" />
-            <Skeleton className="h-8 w-40" />
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-10 w-full mb-0" />
-          </div>
-        ) : (
-          <Fragment>
-            <div className="flex flex-col items-center gap-2 pt-10">
-              <NameAvatar name={ensName} height="80px" width="80px" />
-              <h2 className="text-3xl font-medium w-max text-quartz-900">
-                {ensName}
-              </h2>
-            </div>
-            {transactions.map((transaction, index) => (
-              <TransactionDetailsOverviewCard
-                key={transaction.title}
-                index={index}
-                transaction={transaction}
-                setFocusedTransaction={setFocusedTransaction}
-              />
-            ))}
-            <Button
-              className="w-full mb-0"
-              variant="secondary"
-              onClick={() => transactions[0]?.onStart()}
-            >
-              {focusedTransaction ? 'Starting...' : 'Start'}
-            </Button>
-          </Fragment>
-        )}
-      </DialogContent>
+      {match(transactionModalContentState)
+        .with({ type: 'overview' }, () => (
+          <TransactionsOverviewContent
+            address={address}
+            transactions={transactions}
+            setTransactionModalContentState={setTransactionModalContentState}
+          />
+        ))
+        .with({ type: 'info' }, () => (
+          <TransactionInfoContent
+            setTransactionModalContentState={setTransactionModalContentState}
+          />
+        ))
+        .with({ type: 'state' }, () => (
+          <TransactionStateContent
+            setTransactionModalContentState={setTransactionModalContentState}
+          />
+        ))
+        .exhaustive()}
     </Dialog>
   )
 }
