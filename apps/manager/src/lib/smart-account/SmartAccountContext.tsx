@@ -241,13 +241,14 @@ export const SmartAccountContextProvider = ({
     fundWallet,
   ])
 
-  const isSessionClient = !!snapshot.context.sessionClient
+  const baseClient = snapshot.context.client
+  const sessionClient = snapshot.context.sessionClient
+  const isSessionClient = !!sessionClient
 
   const provider = snapshot.context.provider
   const infrastructure = snapshot.context.infrastructure
 
   const signer: Signer | null = useMemo(() => {
-    const { client: baseClient, sessionClient } = snapshot.context
     if (!baseClient || !accountAddress) return null
 
     if (provider === 'rhinestone') {
@@ -313,8 +314,8 @@ export const SmartAccountContextProvider = ({
       },
     }
   }, [
-    snapshot.context.client,
-    snapshot.context.sessionClient,
+    baseClient,
+    sessionClient,
     accountAddress,
     accountType,
     isSessionClient,
