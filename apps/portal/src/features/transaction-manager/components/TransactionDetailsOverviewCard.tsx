@@ -25,6 +25,9 @@ export const TransactionDetailsOverviewCard = ({
     reset,
   } = transaction
 
+  const transactionYetToStart = !isLoading && !isSuccess && !isError
+  const transactionInProgress = !isSuccess && !isError && !transactionYetToStart
+
   return (
     <div
       className={cn(

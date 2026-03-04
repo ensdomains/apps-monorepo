@@ -30,8 +30,12 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
   })
 
   const isSuccess = txState?.machineState === 'success'
-  const isError = txState?.machineState?.startsWith('error')
+  const isError =
+    typeof txState?.machineState === 'object' && 'error' in txState.machineState
 
+  const isInProgress = Boolean(txState?.machineState) && !isSuccess && !isError
+
+  // we will update handle for multiple transactions in the next iteration.
   const activeTransaction = transactions[0]
   const isConfirming = !txState && Boolean(activeTransaction?.isLoading)
 
@@ -78,66 +82,20 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
                 {ensName}
               </h2>
             </div>
-
-            {txState && (
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  {txState.machineState === 'submitting' ||
-                  txState.machineState === 'pending' ||
-                  txState.machineState === 'confirming' ||
-                  txState.machineState === 'retrying'
-                    ? 'Transaction in progress...'
-                    : `Status: ${txState.machineState}`}
-                </p>
-                {txState.hash && (
-                  <p className="text-xs font-mono truncate">{txState.hash}</p>
-                )}
-                {isError && txState.error && (
-                  <p className="text-sm text-destructive">
-                    {txState.error.message}
-                  </p>
-                )}
-                {isError && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRetry}
-                    className="w-full"
-                  >
-                    Retry
-                  </Button>
-                )}
-                {isSuccess && (
-                  <Button
-                    variant="secondary"
-                    className="w-full"
-                    onClick={handleClose}
-                  >
-                    Done
-                  </Button>
-                )}
-              </div>
-            )}
-
-            {/* Confirmation phase: show transaction list and Start when no active tx */}
-            {!txState && (
-              <>
-                {transactions.map((transaction) => (
-                  <TransactionDetailsOverviewCard
-                    key={transaction.title}
-                    transaction={transaction}
-                  />
-                ))}
-                <Button
-                  className="w-full mb-0"
-                  variant="secondary"
-                  disabled={isConfirming}
-                  onClick={() => activeTransaction?.onStart()}
-                >
-                  {isConfirming ? 'Starting...' : 'Start'}
-                </Button>
-              </>
-            )}
+            {transactions.map((transaction) => (
+              <TransactionDetailsOverviewCard
+                key={transaction.title}
+                transaction={transaction}
+              />
+            ))}
+            <Button
+              className="w-full mb-0"
+              variant="secondary"
+              disabled={isConfirming}
+              onClick={() => activeTransaction?.onStart()}
+            >
+              {isConfirming ? 'Starting...' : 'Start'}
+            </Button>
           </Fragment>
         )}
       </DialogContent>
