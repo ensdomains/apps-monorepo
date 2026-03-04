@@ -9,14 +9,14 @@ const alertVariants = cva(
     'grid-cols-[0_1fr] has-[>svg,>.material-symbol]:grid-cols-[calc(var(--spacing)*4)_1fr]',
     'rounded-lg border px-4 py-3 text-sm',
     'has-[>svg,>.material-symbol]:gap-x-3',
-    '[&>svg,>.material-symbol]:size-4 [&>svg,>.material-symbol]:translate-y-0.5 [&>svg,>.material-symbol]:text-current',
+    '[&>svg,&>.material-symbol]:size-4 [&>svg,&>.material-symbol]:translate-y-0.5 [&>svg,&>.material-symbol]:text-current',
   ),
   {
     variants: {
       variant: {
         default: 'bg-card text-card-foreground',
         destructive:
-          'bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 [&>svg,>.material-symbol]:text-current',
+          'bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 [&>svg,&>.material-symbol]:text-current',
       },
     },
     defaultVariants: {
