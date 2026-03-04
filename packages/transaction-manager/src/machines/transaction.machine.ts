@@ -177,14 +177,6 @@ export const transactionMachine = setup({
               publicClient,
             })
 
-          case 'erc4337':
-            return errAsync(
-              new TransactionSubmissionError(
-                request,
-                new Error('ERC-4337 transactions not yet implemented'),
-              ),
-            )
-
           default:
             return errAsync(
               new TransactionSubmissionError(

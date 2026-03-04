@@ -6,7 +6,7 @@
 
 // biome-ignore-all lint/suspicious/noExplicitAny: Test mocks require flexible typing
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import './SmartAccountContext.mocks'
@@ -144,50 +144,6 @@ describe('SmartAccountContext', () => {
 
       expect(initializePimlicoAccount).toHaveBeenCalled()
       expect(result.current.walletSource).toBe('para-embedded')
-    })
-  })
-
-  describe('session management', () => {
-    it('setSessionData updates session state for external wallets', async () => {
-      vi.mocked(useWallet).mockReturnValue({
-        data: { isExternal: true },
-        isPending: false,
-      } as any)
-      vi.mocked(useWalletClient).mockReturnValue({
-        data: {
-          account: { address: '0xExternalWallet12345678901234567890123456' },
-        },
-      } as any)
-
-      const { result } = renderHook(() => useSmartAccountContext(), {
-        wrapper: createWrapper(),
-      })
-
-      await waitFor(() => {
-        expect(result.current.isAccountReady).toBe(true)
-      })
-
-      const mockSession = {
-        id: 'session-123',
-        sessionKeyAddress: '0xSessionKey' as const,
-        smartAccountAddress: '0xSmartAccount' as const,
-        ownerAddress: '0xOwner' as const,
-        createdAt: Date.now(),
-        chainId: 11155111,
-        serializedSessionAccount: 'data',
-        sessionPrivateKey: '0xkey' as const,
-      }
-
-      const mockSessionClient = { account: { address: '0xSession' } } as any
-
-      act(() => {
-        result.current.setSessionData(mockSession, mockSessionClient)
-      })
-
-      await waitFor(() => {
-        expect(result.current.session).toEqual(mockSession)
-        expect(result.current.isSessionClient).toBe(true)
-      })
     })
   })
 

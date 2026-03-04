@@ -1,7 +1,7 @@
 import type { SmartAccountConfig } from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
-import type { KernelAccountClient } from '@zerodev/sdk'
+import type { KernelAccountClient, KernelValidator } from '@zerodev/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { SmartAccountClient as PimlicoAccountClient } from 'permissionless'
 import type { Address, WalletClient } from 'viem'
@@ -32,6 +32,7 @@ export interface AccountInitResult {
   readonly address: Address
   readonly ownerAddress: Address
   readonly config: SmartAccountConfig
+  readonly ecdsaValidator: KernelValidator<'ECDSAValidator'> | null
 }
 
 export interface InitializeAccountInput {
@@ -47,7 +48,7 @@ export class AccountInitializationError extends TaggedError(
 )<{
   provider: 'pimlico' | 'zerodev' | 'rhinestone' | 'routing'
   cause: unknown
-}> { }
+}> {}
 
 function mapZeroDevConfig(
   result: ZeroDevInitResult,
@@ -65,6 +66,7 @@ function mapZeroDevConfig(
     address: result.address,
     ownerAddress,
     config: smartConfig,
+    ecdsaValidator: result.ecdsaValidator,
   }
 }
 
@@ -84,6 +86,7 @@ function mapPimlicoConfig(
     address: result.address,
     ownerAddress,
     config: smartConfig,
+    ecdsaValidator: null,
   }
 }
 
@@ -103,6 +106,7 @@ function mapRhinestoneConfig(
     address: result.address,
     ownerAddress,
     config: smartConfig,
+    ecdsaValidator: null,
   }
 }
 

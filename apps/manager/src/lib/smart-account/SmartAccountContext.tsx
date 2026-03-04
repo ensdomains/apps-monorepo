@@ -1,16 +1,15 @@
 'use client'
 
-import type { Signer } from '@ens-apps/transaction-manager'
+import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   useClient as useParaClient,
   useWallet as useParaWallet,
 } from '@getpara/react-sdk-lite'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import type { KernelAccountClient, KernelValidator } from '@zerodev/sdk'
-import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
-import type { SmartAccountClient } from 'permissionless'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useActor, useSelector } from '@xstate/react'
+import type { KernelAccountClient } from '@zerodev/sdk'
 import {
   createContext,
   type ReactNode,
@@ -19,176 +18,153 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from 'react'
 import { toast } from 'sonner'
-import { type Address, formatUnits, type WalletClient } from 'viem'
-import { getBalance, readContract } from 'viem/actions'
+import type { Address, WalletClient } from 'viem'
 import { useWalletClient } from 'wagmi'
-import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
-import { customSepolia, publicClient } from '@/lib/wagmi'
+import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
-import { ERC20_ABI } from '../ens.abi'
-import { initializePimlicoAccount } from './pimlico'
-import type { StoredSession } from './sessions/types'
-import type { WalletSource, ZeroDevAccountState } from './types'
-import { initializeZeroDevAccount, type ZeroDevConfig } from './zerodev/kernel'
-
-/**
- * Smart Account Context
- *
- * Provides shared ZeroDev account state across all components.
- * This ensures session data is shared between SmartSessionProvider and RegistrationPage.
- *
- * Internally handles two wallet types:
- * - External wallets (MetaMask, etc.) → ZeroDev Kernel with smart sessions
- * - Para-embedded wallets → ZeroDev Kernel without sessions (Para signature adjustment)
- *
- * Both are exposed externally as `zerodev` signer type for unified API.
- */
+import {
+  selectIsCreatingSession,
+  selectIsLoading,
+  selectIsReady,
+  selectShowSessionModal,
+  smartAccountMachine,
+} from './smart-account.machine'
+import type {
+  WalletSource as BaseWalletSource,
+  ZeroDevAccountState,
+} from './types'
+import { useSmartAccountBalances } from './useSmartAccountBalances'
 
 interface SmartAccountContextValue extends ZeroDevAccountState {
-  /** Callback to update session data when a session is created */
-  setSessionData: (
-    session: StoredSession,
-    sessionClient: ZeroDevAccountState['client'],
-  ) => void
-  /** Indicates initial smart account bootstrap has completed (success or not) */
-  hasInitialized: boolean
-  /** Open the smart session enable modal */
-  openSessionModal: () => void
-  shouldShowSessionModal: boolean
-  clearSessionModalTrigger: () => void
-  /** Raw wallet client for EOA operations (e.g., setting primary name) */
-  walletClient: WalletClient | null
+  readonly hasInitialized: boolean
+  readonly isReady: boolean
+  readonly isCreatingSession: boolean
+  readonly showSessionModal: boolean
+  readonly walletClient: WalletClient | null
+  readonly enableSession: () => Promise<void>
+  readonly dismissSession: () => void
+  readonly promptSession: () => void
+  readonly provider: 'zerodev' | 'rhinestone'
+  readonly infrastructure: 'pimlico' | 'warp'
 }
 
 const SmartAccountContext = createContext<SmartAccountContextValue | null>(null)
 
 interface SmartAccountContextProviderProps {
-  children: ReactNode
-  /** Account type - 'simple' or 'hca' (Hierarchical Control Account) */
-  accountType?: 'simple' | 'hca'
+  readonly children: ReactNode
+  readonly accountType?: 'simple' | 'hca'
 }
 
-/**
- * Smart Account Context Provider
- *
- * Wraps the application and provides shared ZeroDev account state.
- * Place this inside wallet providers (ParaProvider, wagmi).
- */
-export const SmartAccountContextProvider = ({
-  children,
-  accountType = 'hca',
-}: SmartAccountContextProviderProps) => {
-  const paraClient = useParaClient()
-  const { data: paraWallet, isPending: isParaWalletPending } = useParaWallet()
-  const { data: wagmiWalletClient } = useWalletClient()
-
+function detectWalletSource(
+  paraWallet: ReturnType<typeof useParaWallet>['data'],
+  wagmiWalletClient: WalletClient | undefined,
+  paraClient: ReturnType<typeof useParaClient>,
+): BaseWalletSource {
   const wagmiAddress = wagmiWalletClient?.account?.address
   const hasWagmi = !!wagmiAddress
   const hasPara = !paraWallet?.isExternal && !!paraWallet && !!paraClient
 
-  const walletSource: WalletSource =
-    paraWallet?.isExternal && hasWagmi
-      ? 'external-wallet'
-      : hasPara
-        ? 'para-embedded'
-        : null
+  if (paraWallet?.isExternal && hasWagmi) {
+    return 'external-wallet'
+  }
 
-  const isWalletReady = (paraWallet?.isExternal && hasWagmi) || hasPara
+  if (hasPara) {
+    return 'para-embedded'
+  }
 
-  const [client, setClient] = useState<
-    KernelAccountClient | SmartAccountClient | null
-  >(null)
-  const [accountAddress, setAccountAddress] = useState<Address | null>(null)
-  const [accountConfig, setAccountConfig] = useState<ZeroDevConfig | null>(null)
-  const [ownerAddress, setOwnerAddress] = useState<Address | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [session, setSession] = useState<StoredSession | null>(null)
-  const [isSessionClient, setIsSessionClient] = useState(false)
-  const [ecdsaValidator, setEcdsaValidator] =
-    useState<KernelValidator<'ECDSAValidator'> | null>(null)
-  const [isAccountReady, setIsAccountReady] = useState(false)
-  const [hasInitialized, setHasInitialized] = useState(false)
-  const [shouldShowSessionModal, setShouldShowSessionModal] = useState(false)
-  // Track if this is a Para-embedded account (no sessions support)
-  const [isParaEmbedded, setIsParaEmbedded] = useState(false)
+  return null
+}
 
-  const initializedRef = useRef<string | null>(null)
+export const SmartAccountContextProvider = ({
+  children,
+  accountType = 'hca',
+}: SmartAccountContextProviderProps) => {
+  const queryClient = useQueryClient()
+  const paraClient = useParaClient()
+  const { data: paraWallet, isPending: isParaWalletPending } = useParaWallet()
+  const { data: wagmiWalletClient } = useWalletClient()
 
-  // Balance queries
-  const { data: smartAccountEthBalance, isLoading: isLoadingSmartAccountEth } =
-    useQuery({
-      queryKey: $qk({
-        $scope: 'wallet',
-        $action: 'smartAccountEthBalance',
-        address: accountAddress,
-      }),
-      queryFn: async () => {
-        if (!accountAddress) return null
-        const balance = await getBalance(publicClient, {
-          address: accountAddress,
-        })
-        return {
-          balance: balance.toString(),
-          formattedBalance: `${parseFloat(formatUnits(balance, 18)).toFixed(4)} ETH`,
-        }
-      },
-      enabled: !!accountAddress,
-      refetchInterval: 30000,
-    })
+  const [snapshot, send, actorRef] = useActor(smartAccountMachine)
 
-  // For HCA accounts, check balances on the EOA address (tokens are held by EOA)
-  // For simple accounts, check balances on the smart account
-  // Note: ownerAddress is available for both external wallets and Para embedded wallets
-  const balanceAddress = accountType === 'hca' ? ownerAddress : accountAddress
+  const isLoading = useSelector(actorRef, selectIsLoading)
+  const isReady = useSelector(actorRef, selectIsReady)
+  const showSessionModal = useSelector(actorRef, selectShowSessionModal)
+  const isCreatingSession = useSelector(actorRef, selectIsCreatingSession)
 
-  const { data: stablecoinBalances = [], isLoading: isLoadingBalances } =
-    useQuery({
-      queryKey: $qk({
-        $scope: 'wallet',
-        $action: 'stablecoinBalances',
-        address: balanceAddress,
-      }),
-      queryFn: async () => {
-        logger.info('🔍 [CONTEXT] Fetching balances for:', balanceAddress)
-        if (!balanceAddress) return []
-        const balances = []
-        for (const [tokenName, tokenAddress] of Object.entries(
-          SUPPORTED_TOKENS,
-        )) {
-          try {
-            const balance = await readContract(publicClient, {
-              address: tokenAddress,
-              abi: ERC20_ABI,
-              functionName: 'balanceOf',
-              args: [balanceAddress],
-            })
-            const decimals = await readContract(publicClient, {
-              address: tokenAddress,
-              abi: ERC20_ABI,
-              functionName: 'decimals',
-            })
-            balances.push({
-              address: tokenAddress,
-              symbol: tokenName,
-              balance: balance.toString(),
-              decimals,
-              formattedBalance: `${formatUnits(balance, decimals)} ${tokenName}`,
-            })
-          } catch {
-            // Skip failed fetches
-          }
-        }
-        return balances
-      },
-      enabled: !!balanceAddress,
-      refetchInterval: 30000,
-    })
+  const connectedKeyRef = useRef<string | null>(null)
 
-  // Auto-funding mutation
+  useEffect(() => {
+    send({ type: 'SET_ACCOUNT_TYPE', accountType })
+  }, [accountType, send])
+
+  useEffect(() => {
+    const walletSource = detectWalletSource(
+      paraWallet,
+      wagmiWalletClient as WalletClient | undefined,
+      paraClient,
+    )
+
+    const nextKey =
+      walletSource === 'external-wallet'
+        ? `external-${wagmiWalletClient?.account?.address?.toLowerCase() ?? 'unknown'}`
+        : walletSource === 'para-embedded'
+          ? 'para-embedded'
+          : null
+
+    if (!walletSource || !nextKey) {
+      connectedKeyRef.current = null
+      if (snapshot.value !== 'disconnected') {
+        send({ type: 'WALLET_DISCONNECTED' })
+      }
+      return
+    }
+
+    if (connectedKeyRef.current === nextKey) {
+      return
+    }
+
+    if (snapshot.value !== 'disconnected') {
+      send({ type: 'WALLET_DISCONNECTED' })
+      return
+    }
+
+    if (walletSource === 'external-wallet') {
+      if (!wagmiWalletClient) return
+      send({
+        type: 'WALLET_CONNECTED',
+        walletSource: 'external-wallet',
+        walletClient: wagmiWalletClient as WalletClient,
+      })
+      connectedKeyRef.current = nextKey
+      return
+    }
+
+    if (walletSource === 'para-embedded' && paraClient) {
+      send({
+        type: 'WALLET_CONNECTED',
+        walletSource: 'para-embedded',
+        paraClient,
+      })
+      connectedKeyRef.current = nextKey
+      return
+    }
+
+    connectedKeyRef.current = nextKey
+  }, [paraWallet, wagmiWalletClient, paraClient, snapshot.value, send])
+
+  const accountAddress = snapshot.context.accountAddress
+  const ownerAddress = snapshot.context.ownerAddress
+
+  const balances = useSmartAccountBalances({
+    accountAddress,
+    ownerAddress,
+    accountType,
+  })
+
+  const addressToFund = accountType === 'hca' ? ownerAddress : accountAddress
+
   const autoFundingMutation = useMutation({
     mutationKey: $qk({
       $scope: 'wallet',
@@ -210,7 +186,7 @@ export const SmartAccountContextProvider = ({
       }
       return response.json()
     },
-    onSuccess: (data, address, _, context) => {
+    onSuccess: (data, address) => {
       if (!data || (!data.usdcTxHash && !data.daiTxHash)) {
         toast.dismiss(`fund-wallet-${address}`)
         return
@@ -219,7 +195,7 @@ export const SmartAccountContextProvider = ({
         description: `Wallet ${address} funded successfully`,
         id: `fund-wallet-${address}`,
       })
-      context.client.invalidateQueries({
+      queryClient.invalidateQueries({
         queryKey: $qk({
           $scope: 'wallet',
           $action: 'stablecoinBalances',
@@ -234,134 +210,19 @@ export const SmartAccountContextProvider = ({
     },
   })
 
-  const initializeAccount = useCallback(async () => {
-    if (!isWalletReady) {
-      setClient(null)
-      setAccountAddress(null)
-      setAccountConfig(null)
-      setOwnerAddress(null)
-      setSession(null)
-      setIsSessionClient(false)
-      setEcdsaValidator(null)
-      setIsAccountReady(false)
-      setError(null)
-      setIsParaEmbedded(false)
-      // Reset the initialization ref so reconnecting with the same wallet works
-      initializedRef.current = null
-      // Don't mark as initialized if Para wallet data is still loading
-      // Once Para resolves, we'll know if user is connected or not
-      if (!isParaWalletPending) {
-        setHasInitialized(true)
-      }
-      return
-    }
+  const { isIdle: isFundingIdle, mutate: fundWallet } = autoFundingMutation
 
-    const key =
-      walletSource === 'external-wallet'
-        ? `zerodev-external-${wagmiAddress}`
-        : `zerodev-para-${paraClient?.toString()}`
-
-    if (initializedRef.current === key) return
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      if (walletSource === 'external-wallet') {
-        // External wallet → ZeroDev Kernel with smart sessions
-        if (!wagmiWalletClient) {
-          throw new Error('External wallet requires wagmi wallet client')
-        }
-
-        const result = await initializeZeroDevAccount({
-          walletClient: wagmiWalletClient,
-          accountType,
-        })
-
-        setClient(result.client)
-        setSession(null)
-        setIsSessionClient(false)
-        setAccountAddress(result.address)
-        setAccountConfig(result.config)
-        // For external wallets, use the wagmi address as owner (EOA)
-        setOwnerAddress(wagmiAddress ?? null)
-        setEcdsaValidator(result.ecdsaValidator)
-        setIsAccountReady(true)
-        setIsParaEmbedded(false)
-
-        logger.info(
-          '🔐 [CONTEXT] ZeroDev account initialized (external):',
-          result.address,
-        )
-      } else if (walletSource === 'para-embedded') {
-        // Para-embedded → ZeroDev Kernel without sessions (Para signature adjustment)
-        const result = await initializePimlicoAccount({
-          walletSource,
-          paraClient,
-          accountType,
-        })
-
-        setClient(result.client)
-        setSession(null)
-        setIsSessionClient(false)
-        setAccountAddress(result.address)
-        // Map Pimlico config to ZeroDev config structure
-        setAccountConfig({
-          chain: result.config.chain,
-          accountType: result.config.accountType,
-          kernelVersion: KERNEL_V3_1, // Para uses same Kernel internally
-          pimlicoApiKey: result.config.pimlicoApiKey,
-        })
-        // For Para embedded wallets, use the EOA address from the Para account
-        setOwnerAddress(result.eoaAddress ?? null)
-        // Para-embedded doesn't support sessions
-        setEcdsaValidator(null)
-        setIsAccountReady(true)
-        setIsParaEmbedded(true)
-
-        logger.info('🔐 [CONTEXT] ZeroDev account initialized (Para):', {
-          smartAccount: result.address,
-          eoaAddress: result.eoaAddress,
-        })
-      }
-
-      initializedRef.current = key
-    } catch (err) {
-      logger.error('[CONTEXT] Failed to initialize smart account:', err)
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setIsLoading(false)
-      setHasInitialized(true)
-    }
-  }, [
-    isWalletReady,
-    walletSource,
-    wagmiAddress,
-    wagmiWalletClient,
-    paraClient,
-    accountType,
-    isParaWalletPending,
-  ])
-
-  useEffect(() => {
-    initializeAccount()
-  }, [initializeAccount])
-
-  // Auto-fund if balance is low
-  // Must match balanceAddress to fund the same address we're checking
-  const addressToFund = accountType === 'hca' ? ownerAddress : accountAddress
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Should not rerun from mutation status
   useEffect(() => {
     if (
       !addressToFund ||
       isLoading ||
-      isLoadingBalances ||
-      !autoFundingMutation.isIdle
-    )
+      balances.isLoadingBalances ||
+      !isFundingIdle
+    ) {
       return
+    }
 
-    const totalBalance = stablecoinBalances.reduce(
+    const totalBalance = balances.stablecoinBalances.reduce(
       (acc, balance) =>
         acc + BigInt(balance.balance) / BigInt(10 ** balance.decimals),
       0n,
@@ -369,12 +230,55 @@ export const SmartAccountContextProvider = ({
 
     if (totalBalance >= 500n) return
 
-    autoFundingMutation.mutate(addressToFund as Address)
-  }, [addressToFund, isLoading, isLoadingBalances, stablecoinBalances])
+    fundWallet(addressToFund)
+  }, [
+    addressToFund,
+    isLoading,
+    balances.isLoadingBalances,
+    balances.stablecoinBalances,
+    isFundingIdle,
+    fundWallet,
+  ])
 
-  // Create unified zerodev signer for both wallet types
+  const isSessionClient = !!snapshot.context.sessionClient
+
+  const provider = snapshot.context.provider
+  const infrastructure = snapshot.context.infrastructure
+
   const signer: Signer | null = useMemo(() => {
-    if (!client || !accountAddress) return null
+    const { client: baseClient, sessionClient } = snapshot.context
+    if (!baseClient || !accountAddress) return null
+
+    if (provider === 'rhinestone') {
+      const rhinestoneApiKey = import.meta.env.VITE_RHINESTONE_API_KEY
+      if (!rhinestoneApiKey) {
+        logger.error('Rhinestone API key not configured - cannot create signer')
+        return null
+      }
+
+      const rhinestoneSessionClient = sessionClient as {
+        sessionConfig: Record<string, unknown>
+        sessionPrivateKey: `0x${string}`
+      } | null
+
+      return {
+        type: 'rhinestone' as const,
+        account: baseClient as unknown as RhinestoneSigner['account'],
+        config: {
+          chain: customSepolia,
+          accountAddress,
+          accountType,
+          rhinestoneApiKey,
+          isSessionClient,
+          ...(rhinestoneSessionClient && {
+            sessionPrivateKey: rhinestoneSessionClient.sessionPrivateKey,
+            sessionConfig:
+              rhinestoneSessionClient.sessionConfig as RhinestoneSigner['config']['sessionConfig'],
+          }),
+          defaultInfra: infrastructure,
+        },
+      }
+    }
 
     const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
     if (!pimlicoApiKey) {
@@ -382,78 +286,105 @@ export const SmartAccountContextProvider = ({
       return null
     }
 
-    // Both external and Para-embedded use 'zerodev' signer type externally
-    // The transport actor handles both KernelAccountClient and SmartAccountClient
+    const client = sessionClient ?? baseClient
     return {
       type: 'zerodev' as const,
       account: client as KernelAccountClient,
       config: {
         chain: customSepolia,
         accountAddress,
-        accountType: accountConfig?.accountType,
+        accountType,
         pimlicoApiKey,
         isSessionClient,
       },
     }
-  }, [client, accountAddress, accountConfig, isSessionClient])
+  }, [
+    snapshot.context.client,
+    snapshot.context.sessionClient,
+    accountAddress,
+    accountType,
+    isSessionClient,
+    provider,
+    infrastructure,
+  ])
 
-  const setSessionData = useCallback(
-    (
-      newSession: StoredSession,
-      sessionClient: ZeroDevAccountState['client'],
-    ) => {
-      // Sessions only supported for external wallets, not Para-embedded
-      if (isParaEmbedded) {
-        logger.warn(
-          '[CONTEXT] Sessions not supported for Para-embedded wallets',
-        )
-        return
-      }
-      logger.info('📦 [CONTEXT] Setting session data:', newSession.id)
-      setSession(newSession)
-      setClient(sessionClient)
-      setIsSessionClient(true)
-    },
-    [isParaEmbedded],
-  )
+  const promptSession = useCallback(() => {
+    send({ type: 'PROMPT_SESSION' })
+  }, [send])
 
-  const openSessionModal = useCallback(() => {
-    // Only open session modal for external wallets
-    if (!isParaEmbedded) {
-      setShouldShowSessionModal(true)
+  const dismissSession = useCallback(() => {
+    send({ type: 'DISMISS_SESSION' })
+  }, [send])
+
+  const enableSession = useCallback(async () => {
+    const current = actorRef.getSnapshot()
+    if (current.value !== 'promptingSession') {
+      throw new Error('Session can only be enabled from prompting state')
     }
-  }, [isParaEmbedded])
 
-  const clearSessionModalTrigger = useCallback(() => {
-    setShouldShowSessionModal(false)
-  }, [])
+    await new Promise<void>((resolve, reject) => {
+      let sawCreating = false
+      const subscription = actorRef.subscribe((nextSnapshot) => {
+        if (nextSnapshot.value === 'creatingSession') {
+          sawCreating = true
+          return
+        }
+
+        if (!sawCreating) return
+
+        subscription.unsubscribe()
+        if (nextSnapshot.context.sessionClient) {
+          resolve()
+          return
+        }
+        reject(
+          new Error(nextSnapshot.context.error ?? 'Failed to create session'),
+        )
+      })
+
+      send({ type: 'ENABLE_SESSION' })
+    })
+  }, [actorRef, send])
+
+  const isConnected =
+    !!snapshot.context.walletSource &&
+    !!(snapshot.context.sessionClient ?? snapshot.context.client)
+  const hasInitialized =
+    !isParaWalletPending && snapshot.value !== 'initializing'
+  const isAccountReady =
+    !!snapshot.context.client && !!snapshot.context.accountAddress
 
   const contextValue: SmartAccountContextValue = {
     type: 'zerodev',
-    client: client as KernelAccountClient | null,
-    config: accountConfig,
-    accountAddress,
+    client: (snapshot.context.sessionClient ??
+      snapshot.context.client) as KernelAccountClient | null,
+    config: snapshot.context.config as ZeroDevAccountState['config'],
+    accountAddress: snapshot.context.accountAddress,
     isLoading,
-    error,
-    isConnected: isWalletReady && !!client,
-    walletSource,
-    ownerAddress,
-    stablecoinBalances,
-    isLoadingBalances,
-    smartAccountEthBalance: smartAccountEthBalance ?? null,
-    isLoadingSmartAccountEth,
+    error: snapshot.context.error,
+    isConnected,
+    walletSource: snapshot.context.walletSource as BaseWalletSource,
+    ownerAddress: snapshot.context.ownerAddress,
+    stablecoinBalances: balances.stablecoinBalances,
+    isLoadingBalances: balances.isLoadingBalances,
+    smartAccountEthBalance: balances.smartAccountEthBalance,
+    isLoadingSmartAccountEth: balances.isLoadingSmartAccountEth,
     autoFundingMutation,
     signer,
-    session,
+    session: snapshot.context.session,
     isSessionClient,
-    ecdsaValidator,
+    ecdsaValidator: snapshot.context.ecdsaValidator,
     isAccountReady,
     hasInitialized,
-    setSessionData,
-    openSessionModal,
-    shouldShowSessionModal,
-    clearSessionModalTrigger,
+    showSessionModal,
+    isReady,
+    isCreatingSession,
     walletClient: (wagmiWalletClient as WalletClient | undefined) ?? null,
+    enableSession,
+    dismissSession,
+    promptSession,
+    provider: snapshot.context.provider,
+    infrastructure: snapshot.context.infrastructure,
   }
 
   return (
@@ -463,12 +394,6 @@ export const SmartAccountContextProvider = ({
   )
 }
 
-/**
- * Hook to access shared smart account state
- *
- * Must be used within SmartAccountProvider.
- * Returns the shared ZeroDev account state including session data.
- */
 export function useSmartAccountContext(): SmartAccountContextValue {
   const context = useContext(SmartAccountContext)
   if (!context) {
@@ -479,11 +404,6 @@ export function useSmartAccountContext(): SmartAccountContextValue {
   return context
 }
 
-/**
- * Hook to check if smart account context is available
- *
- * Returns null if outside SmartAccountProvider (safe to use anywhere).
- */
 export function useSmartAccountContextSafe(): SmartAccountContextValue | null {
   return useContext(SmartAccountContext)
 }
