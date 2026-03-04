@@ -42,7 +42,7 @@ export const ThemeSection = withForm({
                     type="button"
                   >
                     {isSelected && (
-                      <Check className="h-5 w-5 text-white" strokeWidth={3} />
+                      <Check className="size-5 text-white" strokeWidth={3} />
                     )}
                   </button>
                 )
