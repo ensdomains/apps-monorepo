@@ -89,9 +89,9 @@ const DynamicRecord = ({ record, themeColor }: DynamicRecordProps) => {
 }
 
 interface ViewDynamicSectionProps {
-  records: ProfileRecords
-  section: Section
-  themeColor?: string
+  readonly records: ProfileRecords
+  readonly section: Section
+  readonly themeColor?: string
 }
 
 export const ViewDynamicSection = ({
