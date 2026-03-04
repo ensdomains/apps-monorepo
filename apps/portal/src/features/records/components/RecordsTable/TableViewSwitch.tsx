@@ -5,23 +5,24 @@ import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSetti
 
 export const TableViewSwitch = () => {
   const [tableView, setTableView] = useTableViewSettings()
-  const tableViewId = useId()
+  const compactId = useId()
   const strippedRowsId = useId()
   const wrapTextId = useId()
 
   return (
-    <div className="flex flex-col gap-2">
-      <span className="flex flex-row gap-2">
+    <div className="flex flex-col gap-3">
+      <span className="flex flex-row items-center justify-between gap-4">
+        <Label htmlFor={compactId}>Compact rows</Label>
         <Switch
-          id={tableViewId}
+          id={compactId}
           checked={tableView.compact}
           onCheckedChange={() =>
             setTableView({ ...tableView, compact: !tableView.compact })
           }
         />
-        <Label htmlFor={tableViewId}>Compact View</Label>
       </span>
-      <span className="flex flex-row gap-2">
+      <span className="flex flex-row items-center justify-between gap-4">
+        <Label htmlFor={strippedRowsId}>Striped rows</Label>
         <Switch
           id={strippedRowsId}
           checked={tableView.strippedRows}
@@ -32,9 +33,9 @@ export const TableViewSwitch = () => {
             })
           }
         />
-        <Label htmlFor={strippedRowsId}>Striped Rows</Label>
       </span>
-      <span className="flex flex-row gap-2">
+      <span className="flex flex-row items-center justify-between gap-4">
+        <Label htmlFor={wrapTextId}>Wrap text</Label>
         <Switch
           id={wrapTextId}
           checked={tableView.wrapText}
@@ -42,7 +43,6 @@ export const TableViewSwitch = () => {
             setTableView({ ...tableView, wrapText: !tableView.wrapText })
           }
         />
-        <Label htmlFor={wrapTextId}>Wrap Text</Label>
       </span>
     </div>
   )
