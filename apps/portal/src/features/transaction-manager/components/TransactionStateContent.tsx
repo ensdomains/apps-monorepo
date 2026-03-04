@@ -1,4 +1,6 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
+import { ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import {
   DialogContent,
   DialogHeader,
@@ -30,13 +32,27 @@ export const TransactionStateContent = ({
       <DialogHeader>
         <DialogTitle>{transaction.title}</DialogTitle>
       </DialogHeader>
+      <div className="flex gap-4 justify-between rounded-full w-full bg-accent h-8">
+        <ArrowRight className="size-8 p-2 bg-quartz-100 rounded-full" />
+        <CheckCircle2 className="size-8 p-2 rounded-full" />
+      </div>
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <h3 className="text-lg font-medium">Transaction State</h3>
-          <p className="text-sm text-muted-foreground">
-            The current state of the transaction.
-          </p>
+        <div className="flex items-center gap-4 border border-border rounded-lg p-3.5">
+          <ArrowRight className="size-5" />
+          {transaction.transactionName}
         </div>
+      </div>
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setTransactionModalContentState({ type: 'overview' })}
+        >
+          <ArrowLeft className="size-4" />
+        </Button>
+        <Button variant="secondary" className="flex-1">
+          Open Wallet
+        </Button>
       </div>
     </DialogContent>
   )
