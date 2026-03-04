@@ -66,8 +66,8 @@ const ContactItem = ({ record, themeColor }: ContactItemProps) => {
 }
 
 interface ViewBioSectionProps {
-  records: ProfileRecords
-  themeColor?: string
+  readonly records: ProfileRecords
+  readonly themeColor?: string
 }
 
 export const ViewBioSection = ({
