@@ -135,9 +135,7 @@ function renderOgImage(
   const html = `
     <div style="position: relative; width: 100%; height: 100%; background: #ECECEC; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
       <div style="display: flex; align-items: center; gap: 48px; width: 100%;">
-        <div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; overflow: hidden; flex-shrink: 0;">
-          ${avatarHtml}
-        </div>
+        <div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; overflow: hidden; flex-shrink: 0; display: flex;">${avatarHtml}</div>
         <div style="display: flex; flex-direction: column; gap: 20px; color: #191919; min-width: 0; flex: 1;">
           <h1 style="margin: 0; font-size: 82px; line-height: 0.95; font-weight: 600; font-family: 'ui-monospace', 'SFMono-Regular', Menlo, monospace; white-space: nowrap; overflow: hidden;">
             ${escapeHtml(displayName)}
@@ -162,7 +160,7 @@ function renderOgImage(
           <span style="font-size: 17px; font-weight: 500; color: #0082BB; font-family: 'Arial', sans-serif;">Alpha</span>
         </div>
       </div>
-      <div style="position: absolute; right: 48px; bottom: 70px; transform: translateY(50%); font-size: 49px; line-height: 1; color: #000000; font-family: 'ui-monospace', 'SFMono-Regular', Menlo, monospace; font-weight: 600; text-align: right;">
+      <div style="position: absolute; right: 48px; bottom: 70px; transform: translateY(50%); font-size: 49px; line-height: 1; color: #000000; font-family: 'ui-monospace', 'SFMono-Regular', Menlo, monospace; font-weight: 600; text-align: right; display: flex;">
         Name Overview
       </div>
     </div>
