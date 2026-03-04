@@ -9,8 +9,8 @@ import type { ProfileRecords, TextRecordValue } from '../../types'
 import { IconRenderer } from '../IconRenderer'
 
 interface ContactItemProps {
-  record: TextRecordValue
-  themeColor?: string
+  readonly record: TextRecordValue
+  readonly themeColor?: string
 }
 
 const ContactItem = ({ record, themeColor }: ContactItemProps) => {
