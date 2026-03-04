@@ -1,5 +1,6 @@
 import { extendChainWithL1Ens } from '@ensdomains/ensjs/chain'
 import { getRecords } from '@ensdomains/ensjs/public'
+import { getOwner } from '@ensdomains/ensjs/public/v1'
 import { createPublicClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { parseAvatarRecord } from 'viem/ens'
@@ -36,10 +37,22 @@ async function resolveAvatarDataUri(
 
 async function fetchEnsData(name: string) {
   try {
-    const records = await getRecords(client, {
-      name,
-      texts: ['avatar', 'description'],
-    })
+    const [records, ownerRecord] = await Promise.all([
+      getRecords(client, {
+        name,
+        texts: ['avatar', 'description'],
+      }).catch(() => null),
+      getOwner(client, { name }).catch(() => null),
+    ])
+
+    if (!records) {
+      return {
+        avatar: null,
+        description: null,
+        owner: ownerRecord?.owner ?? null,
+      }
+    }
+
     const avatarRecord =
       records.texts.find((r) => r.key === 'avatar')?.value ?? null
 
@@ -51,9 +64,10 @@ async function fetchEnsData(name: string) {
       avatar,
       description:
         records.texts.find((r) => r.key === 'description')?.value ?? null,
+      owner: ownerRecord?.owner ?? null,
     }
   } catch {
-    return { avatar: null, description: null }
+    return { avatar: null, description: null, owner: null }
   }
 }
 
@@ -89,6 +103,15 @@ function truncate(text: string, maxLength: number): string {
   return `${text.slice(0, maxLength - 1)}…`
 }
 
+function truncateAddress(
+  value: string,
+  startChars: number = 6,
+  endChars: number = 5,
+): string {
+  if (value.length <= startChars + endChars) return value
+  return `${value.slice(0, startChars)}…${value.slice(-endChars)}`
+}
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
@@ -100,35 +123,47 @@ function escapeHtml(str: string): string {
 function renderOgImage(
   name: string,
   avatar: string | null,
-  description: string | null,
+  owner: string | null,
 ): Response {
-  const avatarHtml = avatar
-    ? `<img src="${escapeHtml(avatar)}" width="140" height="140" style="border-radius: 8px; margin-right: 32px; object-fit: cover;" />`
-    : `<div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; margin-right: 32px; display: flex; align-items: center; justify-content: center; color: white; font-size: 48px; font-weight: bold;">${escapeHtml(name.charAt(0).toUpperCase())}</div>`
+  const displayName = truncate(name, 24)
+  const displayAddress = owner ? truncateAddress(owner, 6, 5) : 'No owner'
 
-  const descriptionHtml = description
-    ? `<p style="font-size: 24px; color: #191919; margin: 16px 0 0 0; max-width: 800px; line-height: 1.4;">${escapeHtml(truncate(description, 120))}</p>`
-    : ''
+  const avatarHtml = avatar
+    ? `<img src="${escapeHtml(avatar)}" width="140" height="140" style="width: 140px; height: 140px; border-radius: 8px; object-fit: cover;" />`
+    : `<div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; display: flex; align-items: center; justify-content: center; color: white; font-size: 48px; font-weight: 600; font-family: 'ui-monospace', 'SFMono-Regular', Menlo, monospace;">${escapeHtml(name.charAt(0).toUpperCase())}</div>`
 
   const html = `
-    <div style="display: flex; flex-direction: column; width: 100%; height: 100%; background: white; padding: 60px; font-family: sans-serif;">
-      <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
-        <div style="display: flex; align-items: center; margin-bottom: 24px;">
+    <div style="position: relative; width: 100%; height: 100%; background: #ECECEC; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
+      <div style="display: flex; align-items: center; gap: 48px; width: 100%;">
+        <div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; overflow: hidden; flex-shrink: 0;">
           ${avatarHtml}
-          <div style="display: flex; flex-direction: column;">
-            <h1 style="font-size: 64px; font-weight: 700; margin: 0; color: #191919;">${escapeHtml(name)}</h1>
-            ${descriptionHtml}
-          </div>
         </div>
-        <div style="display: flex; align-items: center; justify-content: flex-end; margin-top: auto;">
-          <svg width="120" height="40" viewBox="0 0 120 40" style="margin-right: 16px;">
-            <path d="M10 30C5 30 1 26 1 20C1 14 5 10 10 10C15 10 19 14 19 20C19 26 15 30 10 30Z" fill="#0082BB"/>
-            <path d="M25 35L35 10H37L47 35H49L39 15L59 35H61L51 5H49L39 25L29 5H27L37 35H25Z" fill="#0082BB"/>
-            <path d="M70 30C65 30 61 26 61 20C61 14 65 10 70 10C75 10 79 14 79 20C79 26 75 30 70 30Z" fill="#0082BB"/>
-            <path d="M85 35L95 10H97L107 35H109L99 15L119 35H121L111 5H109L99 25L89 5H87L97 35H85Z" fill="#0082BB"/>
+        <div style="display: flex; flex-direction: column; gap: 20px; color: #191919; min-width: 0; flex: 1;">
+          <h1 style="margin: 0; font-size: 82px; line-height: 0.95; font-weight: 600; font-family: 'ui-monospace', 'SFMono-Regular', Menlo, monospace; white-space: nowrap; overflow: hidden;">
+            ${escapeHtml(displayName)}
+          </h1>
+          <p style="margin: 0; font-size: 40px; line-height: 0.75; font-weight: 600; font-family: 'ui-monospace', 'SFMono-Regular', Menlo, monospace; white-space: nowrap; overflow: hidden;">
+            ${escapeHtml(displayAddress)}
+          </p>
+        </div>
+      </div>
+      <div style="position: absolute; left: 48px; top: 46px; display: flex; align-items: center; gap: 24px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <svg width="44" height="51" viewBox="0 0 25 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11.9463 0.260315L4.21335 12.9848C4.15271 13.0845 4.0118 13.0957 3.93658 13.0063C3.25581 12.198 0.719559 8.75899 3.8579 5.62454C6.72166 2.76435 10.3693 0.725098 11.7211 0.0202894C11.8745 -0.0596746 12.0361 0.112611 11.9463 0.260315Z" fill="#002335"/>
+            <path d="M11.5195 27.964C11.6738 28.072 11.864 27.8878 11.7606 27.7305C10.0333 25.1033 4.29168 16.3619 3.49855 15.0497C2.71624 13.7554 1.17757 11.6044 1.04922 9.76415C1.03641 9.58043 0.782377 9.54313 0.718475 9.71589C0.615416 9.99453 0.505695 10.3271 0.403435 10.707C-0.887502 15.5027 0.987334 20.5916 5.05909 23.4418L11.5195 27.964V27.964Z" fill="#002335"/>
+            <path d="M12.5805 27.7397L20.3134 15.0152C20.374 14.9154 20.515 14.9043 20.5902 14.9936C21.2709 15.802 23.8072 19.241 20.6689 22.3754C17.8051 25.2356 14.1575 27.2749 12.8056 27.9797C12.6523 28.0597 12.4907 27.8874 12.5805 27.7397Z" fill="#002335"/>
+            <path d="M13.0191 0.0323484C12.8647 -0.0756772 12.6746 0.108548 12.778 0.265871C14.5052 2.89309 20.2469 11.6345 21.04 12.9467C21.8223 14.241 23.361 16.3919 23.4894 18.2322C23.5022 18.4159 23.7562 18.4532 23.8201 18.2805C23.9232 18.0018 24.0329 17.6693 24.1351 17.2894C25.4261 12.4936 23.5512 7.40472 19.4795 4.55456L13.0191 0.0323484Z" fill="#002335"/>
           </svg>
-          <span style="font-size: 20px; font-weight: 600; color: #0082BB;">ENS Explorer</span>
+          <span style="font-size: 50px; line-height: 1; font-weight: 700; color: #002335; font-family: 'Arial', sans-serif;">ens</span>
+          <span style="font-size: 50px; line-height: 1; font-weight: 700; color: #0082BB; font-family: 'Arial', sans-serif;">Explorer</span>
         </div>
+        <div style="background: #DBF0F8; border-radius: 999px; padding: 2px 8px; display: flex; align-items: center; justify-content: center;">
+          <span style="font-size: 17px; font-weight: 500; color: #0082BB; font-family: 'Arial', sans-serif;">Alpha</span>
+        </div>
+      </div>
+      <div style="position: absolute; right: 48px; bottom: 70px; transform: translateY(50%); font-size: 49px; line-height: 1; color: #000000; font-family: 'ui-monospace', 'SFMono-Regular', Menlo, monospace; font-weight: 600; text-align: right;">
+        Name Overview
       </div>
     </div>
   `
@@ -178,8 +213,8 @@ export default {
     const ogMatch = pathname.match(/^\/og\/(.+)\.png$/)
     if (ogMatch) {
       const name = decodeURIComponent(ogMatch[1])
-      const { avatar, description } = await fetchEnsData(name)
-      return renderOgImage(name, avatar, description)
+      const { avatar, owner } = await fetchEnsData(name)
+      return renderOgImage(name, avatar, owner)
     }
 
     // Profile page: inject meta tags
