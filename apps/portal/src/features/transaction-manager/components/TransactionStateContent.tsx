@@ -3,6 +3,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Hourglass,
+  SquareArrowOutUpRight,
   XCircle,
 } from 'lucide-react'
 import { match } from 'ts-pattern'
@@ -11,21 +12,21 @@ import { Button } from '@/components/ui/button'
 import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { cn } from '@/lib/utils'
-import { useActiveTransactionState } from '../hooks/useActiveTransactionState'
+import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getTransactionStatus } from '../utils/getTrasactionStatus'
 
 type TransactionStateContentProps = {
   transaction: Transaction
+  txState: ActiveTransactionState | undefined
   setTransactionModalContentState: (state: TransactionModalContentState) => void
 }
 
 export const TransactionStateContent = ({
   transaction,
+  txState,
   setTransactionModalContentState,
 }: TransactionStateContentProps) => {
-  const txState = useActiveTransactionState()
-
   const transactionStatus = getTransactionStatus(txState, transaction)
 
   return (
@@ -33,7 +34,14 @@ export const TransactionStateContent = ({
       <DialogHeader>
         <DialogTitle>{transaction.title}</DialogTitle>
       </DialogHeader>
-      <div className="flex justify-between rounded-full w-full bg-accent h-8">
+      <div
+        className={cn(
+          'flex justify-between rounded-full w-full h-8',
+          match(transactionStatus)
+            .with('success', () => 'bg-peridot-100')
+            .otherwise(() => 'bg-accent'),
+        )}
+      >
         <button
           type="button"
           className={cn(
@@ -67,7 +75,17 @@ export const TransactionStateContent = ({
               ))}
           </div>
           <div className="space-y-2 flex-1">
-            <h3>{transaction.transactionName}</h3>
+            <div className="flex items-center gap-2">
+              <h3>{transaction.transactionName}</h3>
+              {txState?.hash && (
+                <a
+                  href={`https://sepolia.etherscan.io/tx/${txState.hash}`}
+                  target="_blank"
+                >
+                  <SquareArrowOutUpRight className="size-3" />
+                </a>
+              )}
+            </div>
             {txState?.error && (
               <TransactionErrorAlert
                 title="Transaction Error"

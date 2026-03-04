@@ -3,6 +3,7 @@ import { match } from 'ts-pattern'
 import { useConnection } from 'wagmi'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { useActiveTransactionState } from '../hooks/useActiveTransactionState'
 import { useTransactionModal } from '../hooks/useTransactionModal'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getTransactionById } from '../utils/getTransactionById'
@@ -16,6 +17,7 @@ type TransactionModalProps = {
 
 export const TransactionModal = ({ transactions }: TransactionModalProps) => {
   const { address } = useConnection()
+  const txState = useActiveTransactionState()
 
   const { isOpen, closeModal } = useTransactionModal()
 
@@ -40,6 +42,7 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
             <TransactionsOverviewContent
               address={address}
               transactions={transactions}
+              txState={txState}
               setTransactionModalContentState={setTransactionModalContentState}
             />
           ))
@@ -58,6 +61,7 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
                 transactions,
                 state.transactionId,
               )}
+              txState={txState}
               setTransactionModalContentState={setTransactionModalContentState}
             />
           ))

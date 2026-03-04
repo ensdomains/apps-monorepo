@@ -15,7 +15,7 @@ import { DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
-import { useActiveTransactionState } from '../hooks/useActiveTransactionState'
+import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getTransactionById } from '../utils/getTransactionById'
 import { getTransactionStatus } from '../utils/getTrasactionStatus'
@@ -23,12 +23,14 @@ import { getTransactionStatus } from '../utils/getTrasactionStatus'
 type TransactionsOverviewContentProps = {
   address: Address | undefined
   transactions: Transaction[]
+  txState: ActiveTransactionState | undefined
   setTransactionModalContentState: (state: TransactionModalContentState) => void
 }
 
 export const TransactionsOverviewContent = ({
   address,
   transactions,
+  txState,
   setTransactionModalContentState,
 }: TransactionsOverviewContentProps) => {
   const { data: ensName, isLoading: isEnsNameLoading } = useEnsName({
@@ -37,8 +39,6 @@ export const TransactionsOverviewContent = ({
       enabled: Boolean(address),
     },
   })
-
-  const txState = useActiveTransactionState()
 
   const activeTransaction =
     txState && getTransactionById(transactions, txState.txId)
@@ -155,7 +155,7 @@ export const TransactionsOverviewContent = ({
               .with(undefined, () => 'Start')
               .with('success', () => 'Done')
               .with('error', () => 'Retry')
-              .otherwise(() => 'In Progress...')}
+              .otherwise(() => 'Next')}
           </Button>
         </Fragment>
       )}
