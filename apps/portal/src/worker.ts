@@ -5,8 +5,9 @@ import { createPublicClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { parseAvatarRecord } from 'viem/ens'
 import { ImageResponse } from 'workers-og'
-import ogMonoFontUrl from './assets/fonts/og/Hack-Regular.ttf?url'
-import ogSansFontUrl from './assets/fonts/og/Inter-Medium.ttf?url'
+import ogMonoFontUrl from './assets/fonts/og/abc-monument-grotesk-mono-medium.ttf?url'
+import ogSemiMonoFontUrl from './assets/fonts/og/abc-monument-grotesk-semi-mono-medium.ttf?url'
+import ogSansFontUrl from './assets/fonts/og/abc-monument-grotesk-variable.ttf?url'
 
 const SEPOLIA_RPC_URL =
   'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aQfci4RAcMR8bLtehXRfUMv'
@@ -179,9 +180,10 @@ function renderOgImage(
   env: WorkerEnv,
 ): Promise<Response> {
   return (async () => {
-    const [ogSansFont, ogMonoFont] = await Promise.all([
+    const [ogSansFont, ogMonoFont, ogSemiMonoFont] = await Promise.all([
       loadFontData(env, requestUrl, ogSansFontUrl),
       loadFontData(env, requestUrl, ogMonoFontUrl),
+      loadFontData(env, requestUrl, ogSemiMonoFontUrl),
     ])
 
     const displayName = truncate(name, 24)
@@ -189,14 +191,14 @@ function renderOgImage(
 
     const avatarHtml = avatar
       ? `<img src="${escapeHtml(avatar)}" width="140" height="140" style="width: 140px; height: 140px; border-radius: 8px; object-fit: cover;" />`
-      : `<div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; display: flex; align-items: center; justify-content: center; color: white; font-size: 48px; font-weight: 600; font-family: 'OgMono', ui-monospace, monospace;">${escapeHtml(name.charAt(0).toUpperCase())}</div>`
+      : `<div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; display: flex; align-items: center; justify-content: center; color: white; font-size: 48px; font-weight: 500; font-family: 'OgSemiMono', ui-monospace, monospace;">${escapeHtml(name.charAt(0).toUpperCase())}</div>`
 
     const html = `
     <div style="position: relative; width: 100%; height: 100%; background: #ECECEC; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
       <div style="display: flex; align-items: center; gap: 48px; width: 100%;">
         <div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; overflow: hidden; flex-shrink: 0; display: flex;">${avatarHtml}</div>
         <div style="display: flex; flex-direction: column; gap: 20px; color: #191919; min-width: 0; flex: 1;">
-          <h1 style="margin: 0; font-size: 82px; line-height: 0.95; font-weight: 500; font-family: 'OgMono', ui-monospace, monospace; white-space: nowrap; overflow: hidden;">
+          <h1 style="margin: 0; font-size: 82px; line-height: 0.95; font-weight: 500; font-family: 'OgSemiMono', ui-monospace, monospace; white-space: nowrap; overflow: hidden;">
             ${escapeHtml(displayName)}
           </h1>
           <p style="margin: 0; font-size: 40px; line-height: 0.75; font-weight: 500; font-family: 'OgMono', ui-monospace, monospace; white-space: nowrap; overflow: hidden;">
@@ -241,6 +243,14 @@ function renderOgImage(
           ? {
               name: 'OgMono',
               data: ogMonoFont,
+              weight: 500,
+              style: 'normal',
+            }
+          : null,
+        ogSemiMonoFont
+          ? {
+              name: 'OgSemiMono',
+              data: ogSemiMonoFont,
               weight: 500,
               style: 'normal',
             }
