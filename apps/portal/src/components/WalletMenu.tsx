@@ -1,10 +1,8 @@
 import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { Link } from '@tanstack/react-router'
-import { ChevronRight, Monitor, Power, ShieldCheck, Wallet } from 'lucide-react'
-import { useId } from 'react'
+import { ChevronRight, Monitor, Power, Wallet } from 'lucide-react'
 import { useConnection, useDisconnect, useEnsName } from 'wagmi'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import { useSmartSessions } from '@/hooks/useSmartSessions'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { Button } from './ui/button'
 import {
@@ -14,7 +12,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu'
-import { Switch } from './ui/switch'
 
 export const WalletMenu = () => {
   const { address, isConnected } = useConnection()
@@ -25,9 +22,9 @@ export const WalletMenu = () => {
     address,
     query: { enabled: isConnected },
   })
-  const [smartSessionsEnabled, setSmartSessionsEnabled] =
-    useSmartSessions(address)
-  const smartSessionsId = useId()
+  // const [smartSessionsEnabled, setSmartSessionsEnabled] =
+  //   useSmartSessions(address)
+  // const smartSessionsId = useId()
 
   if (!isConnected || !address) {
     return <Button onClick={() => openConnectModal?.()}>Connect</Button>
@@ -77,12 +74,11 @@ export const WalletMenu = () => {
             </Link>
           </DropdownMenuItem>
         )}
+        {/* TODO: Enable when smart sessions are available
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onSelect={(e) => e.preventDefault()}
           className="justify-between"
-          // TODO: Enable when smart sessions are available
-          disabled={true}
         >
           <div className="flex items-center gap-2">
             <ShieldCheck className="size-4 text-foreground" />
@@ -93,11 +89,9 @@ export const WalletMenu = () => {
           <Switch
             id={smartSessionsId}
             checked={smartSessionsEnabled}
-            // TODO: Enable when smart sessions are available
-            disabled={true}
             onCheckedChange={setSmartSessionsEnabled}
           />
-        </DropdownMenuItem>
+        </DropdownMenuItem> */}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => disconnect()}>
           <Power className="size-4 text-foreground" />
