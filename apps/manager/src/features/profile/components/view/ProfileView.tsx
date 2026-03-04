@@ -82,7 +82,12 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
 
   return (
     <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]">
-      <ViewHeaderSection name={name} owner={owner} records={records} />
+      <ViewHeaderSection
+        name={name}
+        owner={owner}
+        records={records}
+        themeColor={themeColor}
+      />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         {/* Left/main column */}
         <div className="space-y-4 md:col-span-7 lg:col-span-8">
@@ -110,7 +115,6 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               <LinkButton
                 className="w-full"
                 params={{ name }}
-                style={themeColor ? { backgroundColor: themeColor } : undefined}
                 to="/p/$name/edit"
               >
                 Edit Profile
