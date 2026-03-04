@@ -1,10 +1,6 @@
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Transaction, TransactionModalContentState } from '../types'
 
 type TransactionInfoContentProps = {
@@ -17,10 +13,7 @@ export const TransactionInfoContent = ({
   setTransactionModalContentState,
 }: TransactionInfoContentProps) => {
   return (
-    <DialogContent
-      className="sm:max-w-[420px] space-y-3 transition-all duration-300 p-0 gap-0"
-      showCloseButton={false}
-    >
+    <>
       <DialogHeader className="py-3 border-b mb-0">
         <DialogTitle className="flex items-center gap-1 text-base font-medium">
           <Button
@@ -49,6 +42,6 @@ export const TransactionInfoContent = ({
           </div>
         </div>
       </div>
-    </DialogContent>
+    </>
   )
 }

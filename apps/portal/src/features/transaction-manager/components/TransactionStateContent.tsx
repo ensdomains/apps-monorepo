@@ -1,11 +1,7 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
 import { ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
 
@@ -23,12 +19,17 @@ export const TransactionStateContent = ({
   const handleRetry = () => {
     if (txState) {
       const actor = transactionManager.getTransaction(txState.txId)
-      actor?.send({ type: 'RETRY' })
+
+      if (!actor) {
+        throw new Error('Transaction actor not found')
+      }
+
+      actor.send({ type: 'RETRY' })
     }
   }
 
   return (
-    <DialogContent className="sm:max-w-[420px] space-y-3 transition-all duration-300">
+    <>
       <DialogHeader>
         <DialogTitle>{transaction.title}</DialogTitle>
       </DialogHeader>
@@ -54,6 +55,6 @@ export const TransactionStateContent = ({
           Open Wallet
         </Button>
       </div>
-    </DialogContent>
+    </>
   )
 }

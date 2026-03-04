@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { match } from 'ts-pattern'
 import { useConnection } from 'wagmi'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { useActiveTransactionState } from '../hooks/useActiveTransactionState'
 import { useTransactionModal } from '../hooks/useTransactionModal'
@@ -45,27 +45,35 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
           View Transaction In Progress...
         </Button>
       </DialogTrigger>
-      {match(transactionModalContentState)
-        .with({ type: 'overview' }, () => (
-          <TransactionsOverviewContent
-            address={address}
-            transactions={transactions}
-            setTransactionModalContentState={setTransactionModalContentState}
-          />
-        ))
-        .with({ type: 'info' }, (state) => (
-          <TransactionInfoContent
-            transaction={transactions[state.index]}
-            setTransactionModalContentState={setTransactionModalContentState}
-          />
-        ))
-        .with({ type: 'state' }, (state) => (
-          <TransactionStateContent
-            transaction={transactions[state.index]}
-            setTransactionModalContentState={setTransactionModalContentState}
-          />
-        ))
-        .exhaustive()}
+      <DialogContent
+        className={cn(
+          'sm:max-w-[420px] space-y-3 transition-all duration-100',
+          transactionModalContentState.type === 'info' && 'p-0 gap-0',
+        )}
+        showCloseButton={transactionModalContentState.type !== 'info'}
+      >
+        {match(transactionModalContentState)
+          .with({ type: 'overview' }, () => (
+            <TransactionsOverviewContent
+              address={address}
+              transactions={transactions}
+              setTransactionModalContentState={setTransactionModalContentState}
+            />
+          ))
+          .with({ type: 'info' }, (state) => (
+            <TransactionInfoContent
+              transaction={transactions[state.index]}
+              setTransactionModalContentState={setTransactionModalContentState}
+            />
+          ))
+          .with({ type: 'state' }, (state) => (
+            <TransactionStateContent
+              transaction={transactions[state.index]}
+              setTransactionModalContentState={setTransactionModalContentState}
+            />
+          ))
+          .exhaustive()}
+      </DialogContent>
     </Dialog>
   )
 }

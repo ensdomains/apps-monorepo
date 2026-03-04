@@ -4,7 +4,6 @@ import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { DialogContent } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
@@ -29,7 +28,7 @@ export const TransactionsOverviewContent = ({
   })
 
   return (
-    <DialogContent className="sm:max-w-[420px] space-y-3 transition-all duration-300">
+    <>
       {isEnsNameLoading || typeof ensName !== 'string' ? (
         <div className="flex flex-col items-center gap-4 pt-10">
           <Skeleton className="h-20 w-20 rounded-lg" />
@@ -106,6 +105,6 @@ export const TransactionsOverviewContent = ({
           </Button>
         </Fragment>
       )}
-    </DialogContent>
+    </>
   )
 }
