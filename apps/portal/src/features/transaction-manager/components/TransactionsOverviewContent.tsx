@@ -141,7 +141,8 @@ export const TransactionsOverviewContent = ({
           <Button
             className="w-full mb-0"
             variant="secondary"
-            onClick={() => activeTransaction?.onStart()}
+            // TODO: This would get replaced with smart transaction selection once we introduce multi transaction flow
+            onClick={() => transactions[0]?.onStart()}
           >
             {match(getTransactionStatus(txState, activeTransaction))
               .with(undefined, () => 'Start')

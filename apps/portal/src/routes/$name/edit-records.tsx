@@ -206,7 +206,8 @@ const EditRecordsContent = ({
     discardAll,
   } = useEditRecordsState(originalRecords)
 
-  const { openModal: openTransactionModal } = useTransactionModal()
+  const { openModal: openTransactionModal, closeModal: closeTransactionModal } =
+    useTransactionModal()
 
   // Validate records whenever they change
   const validationErrors = useMemo(() => validateRecords(records), [records])
@@ -473,6 +474,8 @@ const EditRecordsContent = ({
             transactionName: 'Set resolver records',
             estimatedGasCost: 0.0001,
             onStart: handleSaveRecords,
+            onDone: () => closeTransactionModal(),
+            onRetry: handleSaveRecords,
           },
         ]}
       />

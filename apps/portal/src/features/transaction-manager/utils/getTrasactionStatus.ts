@@ -7,6 +7,10 @@ export const getTransactionStatus = (
   transaction: Transaction | undefined,
 ): TransactionMachineState | undefined => {
   if (txState && transaction && txState.txId === transaction.id) {
+    if (txState.error) {
+      return 'error'
+    }
+
     return txState.machineState
   }
 }

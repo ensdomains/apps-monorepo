@@ -17,4 +17,6 @@ export type Transaction = {
   transactionName: string
   estimatedGasCost: number
   onStart: () => void
+  onDone: () => void
+  onRetry: () => void
 }
