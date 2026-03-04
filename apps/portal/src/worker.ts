@@ -165,17 +165,16 @@ export default {
       const { description, avatar } = ensData
       const host = url.host
       const ogImageUrl = `https://${host}/og/${encodeURIComponent(name)}.png`
-      const title = `${name} — ENS`
-      const pageTitle = `${name} — ENS Explorer`
+      const profileTitle = `${name} — ENS Explorer App`
       const desc = description ?? `ENS profile for ${name}`
 
       const metaTags = [
-        `<meta property="og:title" content="${escapeHtml(title)}" />`,
+        `<meta property="og:title" content="${escapeHtml(profileTitle)}" />`,
         `<meta property="og:description" content="${escapeHtml(desc)}" />`,
         `<meta property="og:image" content="${escapeHtml(ogImageUrl)}" />`,
         `<meta property="og:type" content="profile" />`,
         `<meta name="twitter:card" content="summary_large_image" />`,
-        `<meta name="twitter:title" content="${escapeHtml(title)}" />`,
+        `<meta name="twitter:title" content="${escapeHtml(profileTitle)}" />`,
         `<meta name="twitter:description" content="${escapeHtml(desc)}" />`,
         `<meta name="twitter:image" content="${escapeHtml(ogImageUrl)}" />`,
         avatar
@@ -187,7 +186,7 @@ export default {
 
       return new HTMLRewriter()
         .on('head', new MetaTagInjector(metaTags))
-        .on('title', new TitleRewriter(pageTitle))
+        .on('title', new TitleRewriter(profileTitle))
         .transform(response)
     }
 
