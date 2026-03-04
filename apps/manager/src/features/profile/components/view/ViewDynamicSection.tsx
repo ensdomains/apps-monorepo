@@ -14,8 +14,8 @@ import { getThemeColors } from '../../utils/themeColor'
 import { IconRenderer } from '../IconRenderer'
 
 interface DynamicRecordProps {
-  record: TextRecordValue
-  themeColor?: string
+  readonly record: TextRecordValue
+  readonly themeColor?: string
 }
 
 const DynamicRecord = ({ record, themeColor }: DynamicRecordProps) => {
