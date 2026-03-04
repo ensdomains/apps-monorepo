@@ -1,4 +1,5 @@
 import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
+import { useLingui } from '@lingui/react/macro'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
@@ -62,6 +63,7 @@ export const DashboardSidebarSearch = ({
 }: {
   onSelect?: (value: string) => void
 }) => {
+  const { t } = useLingui()
   const navigate = useNavigate({ from: '/dashboard' })
   const containerRef = useRef<HTMLDivElement>(null)
   const [searchValue, setSearchValue] = useState('')
@@ -99,7 +101,7 @@ export const DashboardSidebarSearch = ({
         addSuggestion({
           id: `address:${checksummed}`,
           label: checksummed,
-          description: 'Address profile',
+          description: t`Address profile`,
           value: checksummed,
         })
       } catch {
@@ -119,7 +121,7 @@ export const DashboardSidebarSearch = ({
       addSuggestion({
         id: `domain:${domain.id}`,
         label,
-        description: `Registered ${formatDashboardDate(
+        description: t`Registered ${formatDashboardDate(
           toDateFromSeconds(domain.createdAt),
         )}`,
         value: label.toLowerCase(),
@@ -131,13 +133,13 @@ export const DashboardSidebarSearch = ({
       addSuggestion({
         id: `name:${loweredName}`,
         label: loweredName,
-        description: 'Go to ENS name profile',
+        description: t`Go to ENS name profile`,
         value: loweredName,
       })
     }
 
     return items
-  }, [isAddressInput, normalizedInput, searchData])
+  }, [isAddressInput, normalizedInput, searchData, t])
 
   const handleSuggestionSelect = useCallback(
     (value: string) => {
@@ -197,7 +199,7 @@ export const DashboardSidebarSearch = ({
             setIsDropdownOpen(true)
           }}
           onFocus={() => setIsDropdownOpen(true)}
-          placeholder="Search name, address..."
+          placeholder={t`Search name, address...`}
           size="default"
           startIcon={<Search className="size-[18px] text-muted-foreground" />}
           value={searchValue}
@@ -226,13 +228,13 @@ export const DashboardSidebarSearch = ({
                       <div className="relative size-8 overflow-hidden rounded-full bg-slate-100">
                         <ImageFallback.Root className="contents">
                           <ImageFallback.Image
-                            alt={`${suggestion.label} avatar`}
+                            alt={t`${suggestion.label} avatar`}
                             className="size-full object-cover"
                             src={avatarUrl}
                           />
                           <ImageFallback.Fallback>
                             <img
-                              alt={`${suggestion.label} avatar placeholder`}
+                              alt={t`${suggestion.label} avatar placeholder`}
                               className="size-full object-cover"
                               src={placeholderAvatar}
                             />
