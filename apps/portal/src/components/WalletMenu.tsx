@@ -81,6 +81,8 @@ export const WalletMenu = () => {
         <DropdownMenuItem
           onSelect={(e) => e.preventDefault()}
           className="justify-between"
+          // TODO: Enable when smart sessions are available
+          disabled={true}
         >
           <div className="flex items-center gap-2">
             <ShieldCheck className="size-4 text-foreground" />
@@ -91,6 +93,8 @@ export const WalletMenu = () => {
           <Switch
             id={smartSessionsId}
             checked={smartSessionsEnabled}
+            // TODO: Enable when smart sessions are available
+            disabled={true}
             onCheckedChange={setSmartSessionsEnabled}
           />
         </DropdownMenuItem>
