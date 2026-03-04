@@ -243,7 +243,7 @@ describe('session.actors', () => {
         provider: 'zerodev',
         chainId: 11155111,
         ecdsaValidator: {} as any,
-      })
+        ecdsaValidator: {} as unknown as KernelValidator<'ECDSAValidator'>,
 
       expect(result.isOk()).toBe(true)
       const output = result._unsafeUnwrap()
