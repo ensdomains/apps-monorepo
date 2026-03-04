@@ -5,6 +5,9 @@ import { createPublicClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { parseAvatarRecord } from 'viem/ens'
 import { ImageResponse } from 'workers-og'
+import monumentMonoMediumUrl from './assets/fonts/ABCMonumentGroteskMono/abc-monument-grotesk-mono-medium.ttf?url'
+import monumentSemiMonoMediumUrl from './assets/fonts/ABCMonumentGroteskSemiMono/abc-monument-grotesk-semi-mono-medium.ttf?url'
+import monumentGroteskVariableUrl from './assets/fonts/abc-monument-grotesk-variable.ttf?url'
 
 const SEPOLIA_RPC_URL =
   'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aQfci4RAcMR8bLtehXRfUMv'
@@ -13,6 +16,42 @@ const client = createPublicClient({
   chain: extendChainWithL1Ens(sepolia),
   transport: http(SEPOLIA_RPC_URL),
 })
+
+type WorkerEnv = {
+  ASSETS: { fetch: (req: Request) => Promise<Response> }
+}
+
+const fontCache = new Map<string, Promise<ArrayBuffer | null>>()
+
+function loadFontData(
+  env: WorkerEnv,
+  requestUrl: string,
+  fontPath: string,
+): Promise<ArrayBuffer | null> {
+  const cached = fontCache.get(fontPath)
+  if (cached) return cached
+
+  const promise = (async () => {
+    const candidatePaths = fontPath.startsWith('/assets/')
+      ? [fontPath, `/client${fontPath}`]
+      : [fontPath]
+
+    for (const candidatePath of candidatePaths) {
+      try {
+        const url = new URL(candidatePath, requestUrl).toString()
+        const res = await env.ASSETS.fetch(new Request(url))
+        if (res.ok) return await res.arrayBuffer()
+      } catch {
+        // Ignore and try the next candidate.
+      }
+    }
+
+    return null
+  })()
+
+  fontCache.set(fontPath, promise)
+  return promise
+}
 
 async function resolveAvatarDataUri(
   avatarRecord: string,
@@ -124,23 +163,33 @@ function renderOgImage(
   name: string,
   avatar: string | null,
   owner: string | null,
-): Response {
-  const displayName = truncate(name, 24)
-  const displayAddress = owner ? truncateAddress(owner, 6, 5) : 'No owner'
+  requestUrl: string,
+  env: WorkerEnv,
+): Promise<Response> {
+  return (async () => {
+    const [groteskVariableFont, monoMediumFont, semiMonoMediumFont] =
+      await Promise.all([
+        loadFontData(env, requestUrl, monumentGroteskVariableUrl),
+        loadFontData(env, requestUrl, monumentMonoMediumUrl),
+        loadFontData(env, requestUrl, monumentSemiMonoMediumUrl),
+      ])
 
-  const avatarHtml = avatar
-    ? `<img src="${escapeHtml(avatar)}" width="140" height="140" style="width: 140px; height: 140px; border-radius: 8px; object-fit: cover;" />`
-    : `<div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; display: flex; align-items: center; justify-content: center; color: white; font-size: 48px; font-weight: 600; font-family: 'ui-monospace', 'SFMono-Regular', Menlo, monospace;">${escapeHtml(name.charAt(0).toUpperCase())}</div>`
+    const displayName = truncate(name, 24)
+    const displayAddress = owner ? truncateAddress(owner, 6, 5) : 'No owner'
 
-  const html = `
+    const avatarHtml = avatar
+      ? `<img src="${escapeHtml(avatar)}" width="140" height="140" style="width: 140px; height: 140px; border-radius: 8px; object-fit: cover;" />`
+      : `<div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; display: flex; align-items: center; justify-content: center; color: white; font-size: 48px; font-weight: 600; font-family: 'ABCMonumentGroteskSemiMono', ui-monospace, monospace;">${escapeHtml(name.charAt(0).toUpperCase())}</div>`
+
+    const html = `
     <div style="position: relative; width: 100%; height: 100%; background: #ECECEC; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
       <div style="display: flex; align-items: center; gap: 48px; width: 100%;">
         <div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; overflow: hidden; flex-shrink: 0; display: flex;">${avatarHtml}</div>
         <div style="display: flex; flex-direction: column; gap: 20px; color: #191919; min-width: 0; flex: 1;">
-          <h1 style="margin: 0; font-size: 82px; line-height: 0.95; font-weight: 600; font-family: 'ui-monospace', 'SFMono-Regular', Menlo, monospace; white-space: nowrap; overflow: hidden;">
+          <h1 style="margin: 0; font-size: 82px; line-height: 0.95; font-weight: 500; font-family: 'ABCMonumentGroteskSemiMono', ui-monospace, monospace; white-space: nowrap; overflow: hidden;">
             ${escapeHtml(displayName)}
           </h1>
-          <p style="margin: 0; font-size: 40px; line-height: 0.75; font-weight: 600; font-family: 'ui-monospace', 'SFMono-Regular', Menlo, monospace; white-space: nowrap; overflow: hidden;">
+          <p style="margin: 0; font-size: 40px; line-height: 0.75; font-weight: 500; font-family: 'ABCMonumentGroteskMono', ui-monospace, monospace; white-space: nowrap; overflow: hidden;">
             ${escapeHtml(displayAddress)}
           </p>
         </div>
@@ -153,26 +202,53 @@ function renderOgImage(
             <path d="M12.5805 27.7397L20.3134 15.0152C20.374 14.9154 20.515 14.9043 20.5902 14.9936C21.2709 15.802 23.8072 19.241 20.6689 22.3754C17.8051 25.2356 14.1575 27.2749 12.8056 27.9797C12.6523 28.0597 12.4907 27.8874 12.5805 27.7397Z" fill="#002335"/>
             <path d="M13.0191 0.0323484C12.8647 -0.0756772 12.6746 0.108548 12.778 0.265871C14.5052 2.89309 20.2469 11.6345 21.04 12.9467C21.8223 14.241 23.361 16.3919 23.4894 18.2322C23.5022 18.4159 23.7562 18.4532 23.8201 18.2805C23.9232 18.0018 24.0329 17.6693 24.1351 17.2894C25.4261 12.4936 23.5512 7.40472 19.4795 4.55456L13.0191 0.0323484Z" fill="#002335"/>
           </svg>
-          <span style="font-size: 50px; line-height: 1; font-weight: 700; color: #002335; font-family: 'Arial', sans-serif;">ens</span>
-          <span style="font-size: 50px; line-height: 1; font-weight: 700; color: #0082BB; font-family: 'Arial', sans-serif;">Explorer</span>
+          <span style="font-size: 50px; line-height: 1; font-weight: 500; color: #002335; font-family: 'ABCMonumentGrotesk', system-ui, sans-serif;">ens</span>
+          <span style="font-size: 50px; line-height: 1; font-weight: 500; color: #0082BB; font-family: 'ABCMonumentGrotesk', system-ui, sans-serif;">Explorer</span>
         </div>
         <div style="background: #DBF0F8; border-radius: 999px; padding: 2px 8px; display: flex; align-items: center; justify-content: center;">
-          <span style="font-size: 17px; font-weight: 500; color: #0082BB; font-family: 'Arial', sans-serif;">Alpha</span>
+          <span style="font-size: 17px; font-weight: 500; color: #0082BB; font-family: 'ABCMonumentGrotesk', system-ui, sans-serif;">Alpha</span>
         </div>
       </div>
-      <div style="position: absolute; right: 48px; bottom: 70px; transform: translateY(50%); font-size: 49px; line-height: 1; color: #000000; font-family: 'ui-monospace', 'SFMono-Regular', Menlo, monospace; font-weight: 600; text-align: right; display: flex;">
+      <div style="position: absolute; right: 48px; bottom: 70px; transform: translateY(50%); font-size: 49px; line-height: 1; color: #000000; font-family: 'ABCMonumentGrotesk', system-ui, sans-serif; font-weight: 500; text-align: right; display: flex;">
         Name Overview
       </div>
     </div>
   `
 
-  return new ImageResponse(html, {
-    width: 1200,
-    height: 630,
-    headers: {
-      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
-    },
-  })
+    return new ImageResponse(html, {
+      width: 1200,
+      height: 630,
+      fonts: [
+        groteskVariableFont
+          ? {
+              name: 'ABCMonumentGrotesk',
+              data: groteskVariableFont,
+              weight: 500,
+              style: 'normal',
+            }
+          : null,
+        monoMediumFont
+          ? {
+              name: 'ABCMonumentGroteskMono',
+              data: monoMediumFont,
+              weight: 500,
+              style: 'normal',
+            }
+          : null,
+        semiMonoMediumFont
+          ? {
+              name: 'ABCMonumentGroteskSemiMono',
+              data: semiMonoMediumFont,
+              weight: 500,
+              style: 'normal',
+            }
+          : null,
+      ].filter(Boolean),
+      headers: {
+        'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+      },
+    })
+  })()
 }
 
 class MetaTagInjector {
@@ -200,10 +276,7 @@ class TitleRewriter {
 }
 
 export default {
-  async fetch(
-    request: Request,
-    env: { ASSETS: { fetch: (req: Request) => Promise<Response> } },
-  ): Promise<Response> {
+  async fetch(request: Request, env: WorkerEnv): Promise<Response> {
     const url = new URL(request.url)
     const { pathname } = url
 
@@ -212,7 +285,7 @@ export default {
     if (ogMatch) {
       const name = decodeURIComponent(ogMatch[1])
       const { avatar, owner } = await fetchEnsData(name)
-      return renderOgImage(name, avatar, owner)
+      return renderOgImage(name, avatar, owner, request.url, env)
     }
 
     // Profile page: inject meta tags
