@@ -103,25 +103,31 @@ function renderOgImage(
   description: string | null,
 ): Response {
   const avatarHtml = avatar
-    ? `<img src="${escapeHtml(avatar)}" width="120" height="120" style="border-radius: 60px; margin-right: 32px;" />`
-    : `<div style="display: flex; align-items: center; justify-content: center; width: 120px; height: 120px; border-radius: 60px; background: rgba(255,255,255,0.15); margin-right: 32px; font-size: 48px; color: white;">${escapeHtml(name.charAt(0).toUpperCase())}</div>`
+    ? `<img src="${escapeHtml(avatar)}" width="140" height="140" style="border-radius: 8px; margin-right: 32px; object-fit: cover;" />`
+    : `<div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; margin-right: 32px; display: flex; align-items: center; justify-content: center; color: white; font-size: 48px; font-weight: bold;">${escapeHtml(name.charAt(0).toUpperCase())}</div>`
 
   const descriptionHtml = description
-    ? `<p style="font-size: 24px; color: rgba(255,255,255,0.8); margin: 0; max-width: 800px; line-height: 1.4;">${escapeHtml(truncate(description, 120))}</p>`
+    ? `<p style="font-size: 24px; color: #191919; margin: 16px 0 0 0; max-width: 800px; line-height: 1.4;">${escapeHtml(truncate(description, 120))}</p>`
     : ''
 
   const html = `
-    <div style="display: flex; flex-direction: column; width: 100%; height: 100%; background: linear-gradient(135deg, #5B41C6 0%, #3889E8 50%, #56B8EC 100%); padding: 60px; font-family: sans-serif; color: white;">
+    <div style="display: flex; flex-direction: column; width: 100%; height: 100%; background: white; padding: 60px; font-family: sans-serif;">
       <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
-        <div style="display: flex; align-items: center;">
+        <div style="display: flex; align-items: center; margin-bottom: 24px;">
           ${avatarHtml}
-          <h1 style="font-size: 56px; font-weight: 700; margin: 0;">${escapeHtml(name)}</h1>
+          <div style="display: flex; flex-direction: column;">
+            <h1 style="font-size: 64px; font-weight: 700; margin: 0; color: #191919;">${escapeHtml(name)}</h1>
+            ${descriptionHtml}
+          </div>
         </div>
-        <div style="display: flex; flex-direction: column;">
-          ${descriptionHtml}
-        </div>
-        <div style="display: flex; align-items: center; justify-content: flex-end;">
-          <span style="font-size: 20px; font-weight: 600; opacity: 0.9;">ENS</span>
+        <div style="display: flex; align-items: center; justify-content: flex-end; margin-top: auto;">
+          <svg width="120" height="40" viewBox="0 0 120 40" style="margin-right: 16px;">
+            <path d="M10 30C5 30 1 26 1 20C1 14 5 10 10 10C15 10 19 14 19 20C19 26 15 30 10 30Z" fill="#0082BB"/>
+            <path d="M25 35L35 10H37L47 35H49L39 15L59 35H61L51 5H49L39 25L29 5H27L37 35H25Z" fill="#0082BB"/>
+            <path d="M70 30C65 30 61 26 61 20C61 14 65 10 70 10C75 10 79 14 79 20C79 26 75 30 70 30Z" fill="#0082BB"/>
+            <path d="M85 35L95 10H97L107 35H109L99 15L119 35H121L111 5H109L99 25L89 5H87L97 35H85Z" fill="#0082BB"/>
+          </svg>
+          <span style="font-size: 20px; font-weight: 600; color: #0082BB;">ENS Explorer</span>
         </div>
       </div>
     </div>
