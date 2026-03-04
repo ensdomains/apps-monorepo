@@ -82,6 +82,10 @@ export function submitRhinestoneTransaction(input: {
         chain: chain,
         calls: rhinestoneRequest.rhinestoneParams.calls,
         sponsored: rhinestoneRequest.rhinestoneParams.sponsored ?? true,
+        ...(config.isSessionClient &&
+          config.sessionConfig && {
+            signers: config.sessionConfig.signers,
+          }),
       })
       const receipt = await account.waitForExecution(transaction, false)
 

@@ -23,8 +23,10 @@ export interface CreateRhinestoneSessionParams {
 /**
  * Create a new Rhinestone session.
  *
- * Uses the experimental_session signer type from the Rhinestone SDK and
- * returns both the stored session metadata and the session private key.
+ * Generates a session private key and stores serializable metadata.
+ * The full SDK-compatible SignerSet is constructed at signer creation time
+ * (in SmartAccountContext) because Account and Chain objects are not
+ * JSON-serializable.
  */
 export function createRhinestoneSession(
   params: CreateRhinestoneSessionParams,
@@ -42,15 +44,6 @@ export function createRhinestoneSession(
       const sessionPrivateKey = generatePrivateKey()
       const sessionAccount = privateKeyToAccount(sessionPrivateKey)
 
-      const sessionConfig = {
-        signers: {
-          type: 'experimental_session' as const,
-          data: {
-            privateKey: sessionPrivateKey,
-          },
-        },
-      }
-
       const session: RhinestoneStoredSession = {
         id: crypto.randomUUID(),
         provider: 'rhinestone',
@@ -61,9 +54,9 @@ export function createRhinestoneSession(
         chainId,
         validUntil: config?.validUntil,
         sessionPrivateKey,
-        sessionConfig: JSON.stringify(sessionConfig),
-        // Transitional compatibility field for existing call sites that still
-        // expect a serializedSessionAccount string.
+        // Serializable metadata only — the SDK-compatible SignerSet is built
+        // at signer construction time from the sessionPrivateKey + chain.
+        sessionConfig: JSON.stringify({ provider: 'rhinestone', chainId }),
         serializedSessionAccount: '',
       }
 
@@ -84,13 +77,13 @@ export interface RestoreRhinestoneSessionParams {
 /**
  * Restore a Rhinestone session from stored data.
  *
- * Currently returns the parsed session config object after validating that
- * the session has not expired. The Rhinestone account wiring is handled
- * by the caller using the returned config.
+ * Validates that the session has not expired. The SDK-compatible SignerSet
+ * is constructed at signer creation time (SmartAccountContext) from
+ * the stored sessionPrivateKey + chain, not here.
  */
 export function restoreRhinestoneSession(
   params: RestoreRhinestoneSessionParams,
-): ResultAsync<{ sessionConfig: Record<string, unknown> }, SessionError> {
+): ResultAsync<void, SessionError> {
   const { session } = params
 
   return fromPromise(
@@ -98,11 +91,6 @@ export function restoreRhinestoneSession(
       if (session.validUntil && Date.now() > session.validUntil) {
         throw new Error('Session has expired')
       }
-
-      const sessionConfig: Record<string, unknown> = JSON.parse(
-        session.sessionConfig,
-      )
-      return { sessionConfig }
     })(),
     (error) =>
       new SessionError(

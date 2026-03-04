@@ -20,7 +20,8 @@ import {
   useRef,
 } from 'react'
 import { toast } from 'sonner'
-import type { Address, WalletClient } from 'viem'
+import type { Address, Hex, WalletClient } from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
 import { useWalletClient } from 'wagmi'
 import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
@@ -257,8 +258,7 @@ export const SmartAccountContextProvider = ({
       }
 
       const rhinestoneSessionClient = sessionClient as {
-        sessionConfig: Record<string, unknown>
-        sessionPrivateKey: `0x${string}`
+        sessionPrivateKey: Hex
       } | null
 
       return {
@@ -272,8 +272,22 @@ export const SmartAccountContextProvider = ({
           isSessionClient,
           ...(rhinestoneSessionClient && {
             sessionPrivateKey: rhinestoneSessionClient.sessionPrivateKey,
-            sessionConfig:
-              rhinestoneSessionClient.sessionConfig as RhinestoneSigner['config']['sessionConfig'],
+            sessionConfig: {
+              signers: {
+                type: 'experimental_session' as const,
+                session: {
+                  owners: {
+                    type: 'ecdsa' as const,
+                    accounts: [
+                      privateKeyToAccount(
+                        rhinestoneSessionClient.sessionPrivateKey,
+                      ),
+                    ],
+                  },
+                  chain: customSepolia,
+                },
+              },
+            } as RhinestoneSigner['config']['sessionConfig'],
           }),
           defaultInfra: infrastructure,
         },

@@ -1,4 +1,4 @@
-import type { RhinestoneAccount } from '@rhinestone/sdk'
+import type { RhinestoneAccount, SignerSet } from '@rhinestone/sdk'
 import type { KernelAccountClient } from '@zerodev/sdk'
 import type { SmartAccountClient } from 'permissionless'
 import type { Address, Hex, WalletClient } from 'viem'
@@ -48,12 +48,7 @@ export interface RhinestoneSigner {
     sessionPrivateKey?: Hex
     /** Parsed session config consumed by Rhinestone experimental session mode */
     sessionConfig?: {
-      signers: {
-        type: 'experimental_session'
-        data: {
-          privateKey: Hex
-        }
-      }
+      signers: SignerSet
     }
     /** Default infrastructure preference for this signer */
     defaultInfra?: TransactionInfra

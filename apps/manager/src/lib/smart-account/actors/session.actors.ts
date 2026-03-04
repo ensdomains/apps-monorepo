@@ -17,10 +17,16 @@ import type { SessionConfig, StoredSession } from '../sessions/types'
 import { isRhinestoneSession, isZeroDevSession } from '../sessions/types'
 import { SessionError } from '../sessions/zerodev-session'
 
+/**
+ * Session client returned by session actors.
+ * - ZeroDev: a KernelAccountClient (session-derived)
+ * - Rhinestone: the session private key — the full SDK-compatible SignerSet
+ *   is constructed at signer creation time (SmartAccountContext) because
+ *   Account/Chain objects are not JSON-serializable.
+ */
 export type SessionClient =
   | KernelAccountClient
   | {
-      readonly sessionConfig: Record<string, unknown>
       readonly sessionPrivateKey: Hex
     }
 
@@ -78,13 +84,7 @@ export function createSessionActor(
 
       return okAsync({
         session,
-        sessionClient: {
-          sessionPrivateKey,
-          sessionConfig: fromThrowable(
-            () => JSON.parse(session.sessionConfig) as Record<string, unknown>,
-            () => new SessionError('Failed to create session', 'Invalid session config format')
-          )(),
-        },
+        sessionClient: { sessionPrivateKey },
       })
     })
   }
@@ -142,11 +142,8 @@ export function restoreSessionActor(
   }
 
   if (isRhinestoneSession(session)) {
-    return restoreRhinestoneSession({ session }).map(({ sessionConfig }) => ({
-      sessionClient: {
-        sessionConfig,
-        sessionPrivateKey: session.sessionPrivateKey,
-      },
+    return restoreRhinestoneSession({ session }).map(() => ({
+      sessionClient: { sessionPrivateKey: session.sessionPrivateKey },
     }))
   }
 
