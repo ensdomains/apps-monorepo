@@ -1,4 +1,3 @@
-import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { KernelAccountClient, KernelValidator } from '@zerodev/sdk'
 import { errAsync, okAsync, type ResultAsync } from 'neverthrow'
 import type { Address, Hex } from 'viem'
@@ -17,8 +16,6 @@ import {
 import type { SessionConfig, StoredSession } from '../sessions/types'
 import { isRhinestoneSession, isZeroDevSession } from '../sessions/types'
 import { SessionError } from '../sessions/zerodev-session'
-
-type SessionAccountClient = KernelAccountClient | RhinestoneAccount
 
 export type SessionClient =
   | KernelAccountClient
@@ -54,7 +51,6 @@ export function checkExistingSessionActor(
 }
 
 export interface CreateSessionInput {
-  readonly client: SessionAccountClient
   readonly ownerAddress: Address
   readonly accountAddress: Address
   readonly provider: SessionProvider

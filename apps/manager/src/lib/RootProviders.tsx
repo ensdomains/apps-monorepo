@@ -1,8 +1,11 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
 import { ParaProvider } from '@getpara/react-sdk-lite'
 import { useRouteContext } from '@tanstack/react-router'
-import { SmartSessionProvider } from '@/features/wallet/components/SmartSessionProvider'
-import { SmartAccountContextProvider } from '@/lib/smart-account'
+import { EnableSessionModal } from '@/features/wallet/components/EnableSessionModal'
+import {
+  SmartAccountContextProvider,
+  useSmartAccountContext,
+} from '@/lib/smart-account'
 import '@getpara/react-sdk-lite/styles.css'
 import { QueryClientProvider } from '@tanstack/react-query'
 import posthog from 'posthog-js'
@@ -126,10 +129,34 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
         <PHProvider>
           <SmartAccountContextProvider>
             {children}
-            <SmartSessionProvider />
+            <SmartAccountSessionModal />
           </SmartAccountContextProvider>
         </PHProvider>
       </ParaProvider>
     </QueryClientProvider>
+  )
+}
+
+const SmartAccountSessionModal = () => {
+  const {
+    showSessionModal,
+    enableSession,
+    dismissSession,
+    accountAddress,
+    ownerAddress,
+  } = useSmartAccountContext()
+
+  return (
+    <EnableSessionModal
+      onEnableSession={enableSession}
+      onOpenChange={(open) => {
+        if (!open) {
+          dismissSession()
+        }
+      }}
+      open={showSessionModal}
+      smartAccountAddress={accountAddress ?? undefined}
+      walletAddress={ownerAddress ?? undefined}
+    />
   )
 }

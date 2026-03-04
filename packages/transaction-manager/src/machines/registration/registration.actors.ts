@@ -290,9 +290,8 @@ function createTransactionRequest(params: {
     } as ZeroDevTransactionRequest
   }
 
-  throw new Error(
-    `Unsupported signer type for transaction request: ${signer.type}`,
-  )
+  signer satisfies never
+  throw new Error('Unsupported signer type for transaction request')
 }
 
 // ============================================================================
