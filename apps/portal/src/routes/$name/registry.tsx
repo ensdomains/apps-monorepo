@@ -18,7 +18,7 @@ import { VerifiedRegistryCard } from '@/features/registry/components/VerifiedReg
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { namechainVerifiableFactory } from '@/lib/constants/verifiableFactory'
-import type { WithEnsNetwork } from '@/utils/types'
+import type { EnsNetworkName, WithEnsNetwork } from '@/utils/types'
 
 export const Route = createFileRoute('/$name/registry')({
   component: RouteComponent,
@@ -29,11 +29,13 @@ const DeploySubregistryButton = ({
   label,
   name,
   account,
+  network,
 }: {
   registryAddress: Address
   label: string
   name: string
   account: Address
+  network: EnsNetworkName
 }) => {
   const { data: hasSetSubregistryRole } = useQuery({
     ...getHasRolesQueryOptions({
@@ -41,6 +43,7 @@ const DeploySubregistryButton = ({
       label,
       roles: ['ROLE_SET_SUBREGISTRY'],
       account,
+      network,
     }),
   })
 
@@ -130,6 +133,7 @@ const RegistryInfo = ({
               registryAddress={ethRegistryAddress}
               label={firstLabel}
               account={account}
+              network={data.network}
             />
           )}
       </div>
