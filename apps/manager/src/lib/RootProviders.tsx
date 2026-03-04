@@ -4,6 +4,8 @@ import { useRouteContext } from '@tanstack/react-router'
 import { SmartSessionProvider } from '@/features/wallet/components/SmartSessionProvider'
 import { SmartAccountContextProvider } from '@/lib/smart-account'
 import '@getpara/react-sdk-lite/styles.css'
+import { i18n } from '@lingui/core'
+import { I18nProvider } from '@lingui/react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import posthog from 'posthog-js'
 import { track } from '@/lib/posthog/events'
@@ -55,79 +57,81 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
   })
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ParaProvider
-        callbacks={{
-          onLogin: onWalletChange,
-          onLogout() {
-            setParaConnectionCookie(null)
-            // Clear all active transactions when wallet disconnects
-            transactionManager.clearAllAndPersistence()
+    <I18nProvider i18n={i18n}>
+      <QueryClientProvider client={queryClient}>
+        <ParaProvider
+          callbacks={{
+            onLogin: onWalletChange,
+            onLogout() {
+              setParaConnectionCookie(null)
+              // Clear all active transactions when wallet disconnects
+              transactionManager.clearAllAndPersistence()
 
-            // Clear the backend auth store
-            backendAuthStore.trigger.signOut()
+              // Clear the backend auth store
+              backendAuthStore.trigger.signOut()
 
-            // Clear all local storage for the app
-            localStorage.clear()
+              // Clear all local storage for the app
+              localStorage.clear()
 
-            // Clear the posthog session
-            track('wallet:disconnect')
-            posthog.reset()
-          },
-          onExternalWalletChange: onWalletChange,
-          onWalletsChange: onWalletChange,
-        }}
-        config={{
-          appName: 'ENS Manager',
-        }}
-        externalWalletConfig={{
-          wallets: ['METAMASK'],
-          // Do not create Para accounts for external wallet connections
-          createLinkedEmbeddedForExternalWallets: [],
-          evmConnector: {
-            config: {
-              chains: [customSepolia],
+              // Clear the posthog session
+              track('wallet:disconnect')
+              posthog.reset()
             },
-          },
-          walletConnect: {
-            projectId: '1cb2e088d817de31a39a54154b265f68',
-          },
-          connectionOnly: true,
-        }}
-        paraClientConfig={{
-          apiKey: VITE_PARA_API_KEY,
-        }}
-        paraModalConfig={{
-          disableEmailLogin: false,
-          disablePhoneLogin: true,
-          onRampTestMode: true,
-          oAuthMethods: ['GOOGLE', 'TWITTER', 'TELEGRAM'],
-          authLayout: ['AUTH:FULL', 'EXTERNAL:FULL'],
-          recoverySecretStepEnabled: true,
+            onExternalWalletChange: onWalletChange,
+            onWalletsChange: onWalletChange,
+          }}
+          config={{
+            appName: 'ENS Manager',
+          }}
+          externalWalletConfig={{
+            wallets: ['METAMASK'],
+            // Do not create Para accounts for external wallet connections
+            createLinkedEmbeddedForExternalWallets: [],
+            evmConnector: {
+              config: {
+                chains: [customSepolia],
+              },
+            },
+            // walletConnect: {
+            //   projectId: '1cb2e088d817de31a39a54154b265f68',
+            // },
+            connectionOnly: true,
+          }}
+          paraClientConfig={{
+            apiKey: VITE_PARA_API_KEY,
+          }}
+          paraModalConfig={{
+            disableEmailLogin: false,
+            disablePhoneLogin: true,
+            onRampTestMode: true,
+            oAuthMethods: ['GOOGLE', 'TWITTER', 'TELEGRAM'],
+            authLayout: ['AUTH:FULL', 'EXTERNAL:FULL'],
+            recoverySecretStepEnabled: true,
 
-          theme: {
-            foregroundColor: '#2D3648',
-            backgroundColor: '#FFFFFF',
-            accentColor: '#0066CC',
-            darkForegroundColor: '#E8EBF2',
-            darkBackgroundColor: '#1A1F2B',
-            darkAccentColor: '#4D9FFF',
-            mode: 'light',
-            borderRadius: 'lg',
-            font: 'Inter',
-          },
-          twoFactorAuthEnabled: false,
-          // By default, the Para modal uses a high z-index (10011) to render above other elements. However, our dialog/alertdialog components apply `pointer-events-none` to the body, which can unintentionally block interaction with the Para modal when these dialogs are open underneath. To prevent this, we explicitly set `pointer-events-auto` on the Para modal, ensuring it remains interactive even when an underlying dialog/alertdialog is present—mirroring the approach we use for other modals.
-          className: tw`pointer-events-auto`,
-        }}
-      >
-        <PHProvider>
-          <SmartAccountContextProvider>
-            {children}
-            <SmartSessionProvider />
-          </SmartAccountContextProvider>
-        </PHProvider>
-      </ParaProvider>
-    </QueryClientProvider>
+            theme: {
+              foregroundColor: '#2D3648',
+              backgroundColor: '#FFFFFF',
+              accentColor: '#0066CC',
+              darkForegroundColor: '#E8EBF2',
+              darkBackgroundColor: '#1A1F2B',
+              darkAccentColor: '#4D9FFF',
+              mode: 'light',
+              borderRadius: 'lg',
+              font: 'Inter',
+            },
+            twoFactorAuthEnabled: false,
+            // By default, the Para modal uses a high z-index (10011) to render above other elements. However, our dialog/alertdialog components apply `pointer-events-none` to the body, which can unintentionally block interaction with the Para modal when these dialogs are open underneath. To prevent this, we explicitly set `pointer-events-auto` on the Para modal, ensuring it remains interactive even when an underlying dialog/alertdialog is present—mirroring the approach we use for other modals.
+            className: tw`pointer-events-auto`,
+          }}
+        >
+          <PHProvider>
+            <SmartAccountContextProvider>
+              {children}
+              <SmartSessionProvider />
+            </SmartAccountContextProvider>
+          </PHProvider>
+        </ParaProvider>
+      </QueryClientProvider>
+    </I18nProvider>
   )
 }

@@ -6,6 +6,7 @@ import {
 import { createRouter as createTanStackRouter } from '@tanstack/react-router'
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
 import { initializeIntercom } from './lib/intercom'
+import { loadCatalog } from './lib/lingui'
 import { routeTree } from './routeTree.gen'
 
 declare module '@tanstack/react-query' {
@@ -19,7 +20,7 @@ declare module '@tanstack/react-query' {
   }
 }
 
-export function getRouter() {
+export async function getRouter() {
   // Create a new QueryClient instance for each request to prevent query data from leaking between server requests.
   // For more details, see: https://tanstack.com/router/latest/docs/integrations/query
   // The QueryClient is available via the router context and can also be accessed in query/mutation handlers using their context argument.
@@ -57,6 +58,8 @@ export function getRouter() {
   })
 
   initializeIntercom()
+
+  await loadCatalog('en')
 
   return router
 }
