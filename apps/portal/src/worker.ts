@@ -22,6 +22,14 @@ type WorkerEnv = {
 
 const fontCache = new Map<string, Promise<ArrayBuffer | null>>()
 
+function isSupportedSfnt(buffer: ArrayBuffer): boolean {
+  if (buffer.byteLength < 4) return false
+  const sig = new DataView(buffer, 0, 4).getUint32(0, false)
+
+  // TrueType: 0x00010000, OpenType(CFF): "OTTO", TrueType Collection: "ttcf"
+  return sig === 0x00010000 || sig === 0x4f54544f || sig === 0x74746366
+}
+
 function loadFontData(
   env: WorkerEnv,
   requestUrl: string,
@@ -39,7 +47,12 @@ function loadFontData(
       try {
         const url = new URL(candidatePath, requestUrl).toString()
         const res = await env.ASSETS.fetch(new Request(url))
-        if (res.ok) return await res.arrayBuffer()
+        if (!res.ok) continue
+
+        const buffer = await res.arrayBuffer()
+        if (!isSupportedSfnt(buffer)) continue
+
+        return buffer
       } catch {
         // Ignore and try the next candidate.
       }
