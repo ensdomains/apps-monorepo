@@ -265,7 +265,7 @@ describe('session.actors', () => {
         accountAddress: ACCOUNT_ADDRESS,
         provider: 'zerodev',
         chainId: 11155111,
-        ecdsaValidator: {} as any,
+        ecdsaValidator: {} as unknown as KernelValidator<'ECDSAValidator'>,
       })
 
       expect(mockedSaveSession).toHaveBeenCalledWith(session)
