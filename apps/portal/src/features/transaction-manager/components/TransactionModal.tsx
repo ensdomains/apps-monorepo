@@ -1,10 +1,8 @@
 import { useState } from 'react'
 import { match } from 'ts-pattern'
 import { useConnection } from 'wagmi'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-import { useActiveTransactionState } from '../hooks/useActiveTransactionState'
 import { useTransactionModal } from '../hooks/useTransactionModal'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getTransactionById } from '../utils/getTransactionById'
@@ -24,31 +22,15 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
   const [transactionModalContentState, setTransactionModalContentState] =
     useState<TransactionModalContentState>({ type: 'overview' })
 
-  const txState = useActiveTransactionState()
-
   const handleClose = () => {
     closeModal()
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogTrigger asChild>
-        <Button
-          size="lg"
-          variant="secondary"
-          className={cn(
-            'fixed inset-x-0 bottom-5 mx-auto w-fit',
-            'opacity-0',
-            'transition-all duration-300',
-            txState && 'data-[state=closed]:opacity-100',
-          )}
-        >
-          View Transaction In Progress...
-        </Button>
-      </DialogTrigger>
       <DialogContent
         className={cn(
-          'sm:max-w-[420px] space-y-3 transition-all duration-100',
+          'sm:max-w-[420px] space-y-3 transition-all duration-150',
           transactionModalContentState.type === 'info' && 'p-0 gap-0',
         )}
         showCloseButton={transactionModalContentState.type !== 'info'}

@@ -11,6 +11,7 @@ import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
@@ -44,6 +45,7 @@ export const TransactionsOverviewContent = ({
 
   return (
     <>
+      <DialogTitle className="sr-only">Transaction overview</DialogTitle>
       {isEnsNameLoading || typeof ensName !== 'string' ? (
         <div className="flex flex-col items-center gap-4 pt-10">
           <Skeleton className="h-20 w-20 rounded-lg" />
@@ -142,7 +144,12 @@ export const TransactionsOverviewContent = ({
             className="w-full mb-0"
             variant="secondary"
             // TODO: This would get replaced with smart transaction selection once we introduce multi transaction flow
-            onClick={() => transactions[0]?.onStart()}
+            onClick={() =>
+              setTransactionModalContentState({
+                type: 'state',
+                transactionId: transactions[0]?.id,
+              })
+            }
           >
             {match(getTransactionStatus(txState, activeTransaction))
               .with(undefined, () => 'Start')
