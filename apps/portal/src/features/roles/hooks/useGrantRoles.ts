@@ -56,6 +56,7 @@ export function useGrantRoles() {
     isPending: mutation.isPending,
     isError: mutation.isError,
     error: mutation.error,
+    isSuccess: mutation.isSuccess,
     reset: mutation.reset,
   }
 }

@@ -2,9 +2,9 @@ import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useWalletClient } from 'wagmi'
-import { ErrorMessage } from '@/components/ErrorMessage'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field } from '@/components/ui/field'
@@ -43,7 +43,7 @@ function RouteComponent() {
   })
 
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
-  const { grantRoles, isError, error } = useGrantRoles()
+  const { grantRoles, isPending, isSuccess } = useGrantRoles()
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -103,6 +103,7 @@ function RouteComponent() {
             name="user"
             placeholder="ens.eth"
             required
+            disabled={isPending || isSuccess}
             onChange={(e) => {
               const nameOrAddress = e.currentTarget.value.trim()
 
@@ -117,7 +118,12 @@ function RouteComponent() {
           />
         </Field>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form
+          onSubmit={handleSubmit}
+          className={cn('flex flex-col gap-4', {
+            'opacity-50 pointer-events-none': isPending || isSuccess,
+          })}
+        >
           <h2 className="text-lg font-medium">Roles</h2>
           <div className="border rounded-lg divide-y">
             {permissions.map((permission) => {
@@ -200,11 +206,11 @@ function RouteComponent() {
             className="w-fit"
             disabled={!address}
           >
-            Save roles
+            {match({ isPending, isSuccess })
+              .with({ isPending: true }, () => 'Saving...')
+              .with({ isSuccess: true }, () => 'Transaction Complete')
+              .otherwise(() => 'Save roles')}
           </Button>
-          {isError && error && (
-            <ErrorMessage description={error.message} title={error.name} />
-          )}
         </form>
       </div>
 
