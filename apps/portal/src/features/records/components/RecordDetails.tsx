@@ -42,9 +42,8 @@ const RecordDetailsView = ({ record }: { record: NameRecord }) => {
           <DataRow label="Value">
             <CopyableRecord
               value={record.value}
-              displayValue={
-                <span className="font-mono break-all">{record.value}</span>
-              }
+              truncate={false}
+              textClassName="break-all"
             />
           </DataRow>
         </div>
@@ -58,9 +57,8 @@ const RecordDetailsView = ({ record }: { record: NameRecord }) => {
           <DataRow label="Value">
             <CopyableRecord
               value={record.value}
-              displayValue={
-                <span className="font-mono break-all">{record.value}</span>
-              }
+              truncate={false}
+              textClassName="break-all"
             />
           </DataRow>
         </div>
@@ -72,9 +70,8 @@ const RecordDetailsView = ({ record }: { record: NameRecord }) => {
           <DataRow label="Value">
             <CopyableRecord
               value={record.value}
-              displayValue={
-                <span className="font-mono break-all">{record.value}</span>
-              }
+              truncate={false}
+              textClassName="break-all"
             />
           </DataRow>
         </div>
