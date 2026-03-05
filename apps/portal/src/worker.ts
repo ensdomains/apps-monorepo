@@ -168,16 +168,15 @@ async function fetchEnsData(name: string) {
 const STATIC_PATH_PREFIXES = [
   '/assets/',
   '/og/',
+  '/addr/',
   '/favicon',
   '/manifest',
   '/logo',
 ]
 
 function isAddressRoute(pathname: string): boolean {
-  if (!pathname.startsWith('/')) return false
-  const segments = pathname.slice(1).split('/')
-  if (segments.length !== 1 || segments[0] === '') return false
-  return /^0x[0-9a-fA-F]{40}$/.test(segments[0])
+  const match = pathname.match(/^\/addr\/(0x[0-9a-fA-F]{40})$/)
+  return !!match
 }
 
 function isProfileRoute(pathname: string): boolean {
@@ -463,9 +462,10 @@ export default {
     const ogMatch = pathname.match(/^\/og\/(.+)\.png$/)
     if (ogMatch) {
       const decoded = decodeURIComponent(ogMatch[1])
-      // Address OG image
-      if (/^0x[0-9a-fA-F]{40}$/.test(decoded)) {
-        return renderAddressOgImage(decoded, request.url, env)
+      // Address OG image: /og/addr/0x....png
+      const addrOgMatch = decoded.match(/^addr\/(0x[0-9a-fA-F]{40})$/)
+      if (addrOgMatch) {
+        return renderAddressOgImage(addrOgMatch[1], request.url, env)
       }
       // Name OG image
       const { avatar, owner } = await fetchEnsData(decoded)
@@ -474,7 +474,7 @@ export default {
 
     // Address page: inject meta tags
     if (isAddressRoute(pathname)) {
-      const address = decodeURIComponent(pathname.slice(1))
+      const address = decodeURIComponent(pathname.replace(/^\/addr\//, ''))
       const accept = request.headers.get('Accept') ?? ''
 
       if (!accept.includes('text/html')) {
@@ -484,7 +484,7 @@ export default {
       const response = await env.ASSETS.fetch(request)
       const host = url.host
       const displayAddress = truncateAddress(address, 6, 5)
-      const ogImageUrl = `https://${host}/og/${encodeURIComponent(address)}.png`
+      const ogImageUrl = `https://${host}/og/addr/${encodeURIComponent(address)}.png`
       const pageTitle = `${displayAddress} — ENS Explorer App`
       const desc = `Ethereum address ${displayAddress}`
 
