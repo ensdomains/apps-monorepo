@@ -12,7 +12,7 @@ import { TransactionStateContent } from './TransactionStateContent'
 import { TransactionsOverviewContent } from './TransactionsOverviewContent'
 
 type TransactionModalProps = {
-  transactions: Transaction[]
+  readonly transactions: readonly Transaction[]
 }
 
 export const TransactionModal = ({ transactions }: TransactionModalProps) => {

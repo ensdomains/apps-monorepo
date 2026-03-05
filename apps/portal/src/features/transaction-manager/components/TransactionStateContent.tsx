@@ -17,12 +17,12 @@ import { wagmiConfig } from '@/lib/wagmi'
 import { getBlockExplorerTxUrl } from '@/utils/blockExplorer/getBlockExplorerTxUrl'
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
-import { getTransactionStatus } from '../utils/getTrasactionStatus'
+import { getTransactionStatus } from '../utils/getTransactionStatus'
 
 type TransactionStateContentProps = {
-  transaction: Transaction
-  txState: ActiveTransactionState | undefined
-  setTransactionModalContentState: (state: TransactionModalContentState) => void
+  readonly transaction: Transaction
+  readonly txState: ActiveTransactionState | undefined
+  readonly setTransactionModalContentState: (state: TransactionModalContentState) => void
 }
 
 export const TransactionStateContent = ({

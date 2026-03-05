@@ -10,6 +10,7 @@ const createTransaction = (
   transactionName: 'Set resolver records',
   estimatedGasCost: 0.0001,
   onStart: () => {},
+  onDone: () => {},
   ...overrides,
 })
 

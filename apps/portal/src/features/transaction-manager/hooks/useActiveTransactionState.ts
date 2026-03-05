@@ -4,10 +4,10 @@ import {
 } from '@ens-apps/transaction-manager'
 
 export type ActiveTransactionState = {
-  txId: string
-  machineState: TransactionMachineState
-  hash: string | undefined
-  error: Error | undefined
+  readonly txId: string
+  readonly machineState: TransactionMachineState
+  readonly hash: string | undefined
+  readonly error: Error | undefined
 }
 
 /**

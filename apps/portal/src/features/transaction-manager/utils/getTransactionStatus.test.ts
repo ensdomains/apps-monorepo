@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction } from '../types'
-import { getTransactionStatus } from './getTrasactionStatus'
+import { getTransactionStatus } from './getTransactionStatus'
 
 const createTransaction = (
   overrides: Partial<Transaction> = {},
@@ -11,6 +11,7 @@ const createTransaction = (
   transactionName: 'Set resolver records',
   estimatedGasCost: 0.0001,
   onStart: () => {},
+  onDone: () => {},
   ...overrides,
 })
 

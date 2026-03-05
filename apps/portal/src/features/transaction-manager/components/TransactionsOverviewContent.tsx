@@ -18,13 +18,13 @@ import { cn } from '@/lib/utils'
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getTransactionById } from '../utils/getTransactionById'
-import { getTransactionStatus } from '../utils/getTrasactionStatus'
+import { getTransactionStatus } from '../utils/getTransactionStatus'
 
 type TransactionsOverviewContentProps = {
-  address: Address | undefined
-  transactions: Transaction[]
-  txState: ActiveTransactionState | undefined
-  setTransactionModalContentState: (state: TransactionModalContentState) => void
+  readonly address: Address | undefined
+  readonly transactions: readonly Transaction[]
+  readonly txState: ActiveTransactionState | undefined
+  readonly setTransactionModalContentState: (state: TransactionModalContentState) => void
 }
 
 export const TransactionsOverviewContent = ({
@@ -64,7 +64,7 @@ export const TransactionsOverviewContent = ({
           {transactions.map((transaction) => (
             // biome-ignore lint/a11y/useSemanticElements: div required - contains nested Button, cannot use button
             <div
-              key={transaction.title}
+              key={transaction.id}
               role="button"
               tabIndex={0}
               className={cn(

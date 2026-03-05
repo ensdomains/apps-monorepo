@@ -1,21 +1,21 @@
 export type TransactionModalContentState =
   | {
-      type: 'overview'
+      readonly type: 'overview'
     }
   | {
-      type: 'info'
-      transactionId: string
+      readonly type: 'info'
+      readonly transactionId: string
     }
   | {
-      type: 'state'
-      transactionId: string
+      readonly type: 'state'
+      readonly transactionId: string
     }
 
 export type Transaction = {
-  id: string
-  title: string
-  transactionName: string
-  estimatedGasCost: number
-  onStart: () => void
-  onDone: () => void
+  readonly id: string
+  readonly title: string
+  readonly transactionName: string
+  readonly estimatedGasCost: number
+  readonly onStart: () => void
+  readonly onDone: () => void
 }

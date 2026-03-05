@@ -4,8 +4,10 @@ import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Transaction, TransactionModalContentState } from '../types'
 
 type TransactionInfoContentProps = {
-  transaction: Transaction
-  setTransactionModalContentState: (state: TransactionModalContentState) => void
+  readonly transaction: Transaction
+  readonly setTransactionModalContentState: (
+    state: TransactionModalContentState,
+  ) => void
 }
 
 export const TransactionInfoContent = ({
@@ -30,7 +32,7 @@ export const TransactionInfoContent = ({
         </DialogTitle>
       </DialogHeader>
       <div className="flex flex-col gap-4">
-        <div className="flex p-4 border-b items-start gap-2">
+        <div className="flex p-4 border-b items-start gap-2 rounded-lg">
           <ArrowRight className="size-5 mt-0.5" />
           <div className="space-y-0.5">
             <h3 className="text-base font-medium">

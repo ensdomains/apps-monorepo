@@ -1,7 +1,7 @@
 import type { Transaction } from '../types'
 
 export const getTransactionById = (
-  transactions: Transaction[],
+  transactions: readonly Transaction[],
   transactionId: string,
 ): Transaction => {
   const tx = transactions.find(
