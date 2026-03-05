@@ -25,7 +25,7 @@ export const DashboardProfilePreview = () => {
   if (address) {
     return (
       <section className="flex flex-col gap-6">
-        <div className="flex flex-row justify-between items-center">
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
           <div className="flex flex-row gap-2 items-baseline">
             <span className="font-mono text-quartz-500 font-medium min-w-30">
               Connected as
