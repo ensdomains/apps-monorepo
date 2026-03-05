@@ -5,9 +5,9 @@ import { createPublicClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { parseAvatarRecord } from 'viem/ens'
 import { ImageResponse } from 'workers-og'
+import ogSansFontUrl from './assets/fonts/og/abc-monument-grotesk-medium.ttf?url'
 import ogMonoFontUrl from './assets/fonts/og/abc-monument-grotesk-mono-medium.ttf?url'
 import ogSemiMonoFontUrl from './assets/fonts/og/abc-monument-grotesk-semi-mono-medium.ttf?url'
-import ogSansFontUrl from './assets/fonts/og/abc-monument-grotesk-variable.ttf?url'
 
 const SEPOLIA_RPC_URL =
   'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aQfci4RAcMR8bLtehXRfUMv'
@@ -172,28 +172,27 @@ function escapeHtml(str: string): string {
     .replace(/"/g, '&quot;')
 }
 
-function renderOgImage(
+async function renderOgImage(
   name: string,
   avatar: string | null,
   owner: string | null,
   requestUrl: string,
   env: WorkerEnv,
 ): Promise<Response> {
-  return (async () => {
-    const [ogSansFont, ogMonoFont, ogSemiMonoFont] = await Promise.all([
-      loadFontData(env, requestUrl, ogSansFontUrl),
-      loadFontData(env, requestUrl, ogMonoFontUrl),
-      loadFontData(env, requestUrl, ogSemiMonoFontUrl),
-    ])
+  const [ogSansFont, ogMonoFont, ogSemiMonoFont] = await Promise.all([
+    loadFontData(env, requestUrl, ogSansFontUrl),
+    loadFontData(env, requestUrl, ogMonoFontUrl),
+    loadFontData(env, requestUrl, ogSemiMonoFontUrl),
+  ])
 
-    const displayName = truncate(name, 24)
-    const displayAddress = owner ? truncateAddress(owner, 6, 5) : 'No owner'
+  const displayName = truncate(name, 24)
+  const displayAddress = owner ? truncateAddress(owner, 6, 5) : 'No owner'
 
-    const avatarHtml = avatar
-      ? `<img src="${escapeHtml(avatar)}" width="140" height="140" style="width: 140px; height: 140px; border-radius: 8px; object-fit: cover;" />`
-      : `<div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; display: flex; align-items: center; justify-content: center; color: white; font-size: 48px; font-weight: 500; font-family: 'OgSemiMono', ui-monospace, monospace;">${escapeHtml(name.charAt(0).toUpperCase())}</div>`
+  const avatarHtml = avatar
+    ? `<img src="${escapeHtml(avatar)}" width="140" height="140" style="width: 140px; height: 140px; border-radius: 8px; object-fit: cover;" />`
+    : `<div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; display: flex; align-items: center; justify-content: center; color: white; font-size: 48px; font-weight: 500; font-family: 'OgSemiMono', ui-monospace, monospace;">${escapeHtml(name.charAt(0).toUpperCase())}</div>`
 
-    const html = `
+  const html = `
     <div style="position: relative; width: 100%; height: 100%; background: #ECECEC; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
       <div style="display: flex; align-items: center; gap: 48px; width: 100%;">
         <div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; overflow: hidden; flex-shrink: 0; display: flex;">${avatarHtml}</div>
@@ -227,40 +226,52 @@ function renderOgImage(
     </div>
   `
 
-    return new ImageResponse(html, {
-      width: 1200,
-      height: 630,
-      fonts: [
-        ogSansFont
-          ? {
-              name: 'OgSans',
-              data: ogSansFont,
-              weight: 500,
-              style: 'normal',
-            }
-          : null,
-        ogMonoFont
-          ? {
-              name: 'OgMono',
-              data: ogMonoFont,
-              weight: 500,
-              style: 'normal',
-            }
-          : null,
-        ogSemiMonoFont
-          ? {
-              name: 'OgSemiMono',
-              data: ogSemiMonoFont,
-              weight: 500,
-              style: 'normal',
-            }
-          : null,
-      ].filter(Boolean),
-      headers: {
-        'Cache-Control': 'public, max-age=3600, s-maxage=3600',
-      },
+  const imageResponse = new ImageResponse(html, {
+    width: 1200,
+    height: 630,
+    fonts: [
+      ogSansFont
+        ? {
+            name: 'OgSans',
+            data: ogSansFont,
+            weight: 500,
+            style: 'normal',
+          }
+        : null,
+      ogMonoFont
+        ? {
+            name: 'OgMono',
+            data: ogMonoFont,
+            weight: 500,
+            style: 'normal',
+          }
+        : null,
+      ogSemiMonoFont
+        ? {
+            name: 'OgSemiMono',
+            data: ogSemiMonoFont,
+            weight: 500,
+            style: 'normal',
+          }
+        : null,
+    ].filter(Boolean),
+  })
+
+  // Materialize the body to catch rendering errors that workers-og
+  // would otherwise swallow inside its ReadableStream, producing 0 bytes.
+  const buf = await imageResponse.arrayBuffer()
+  if (buf.byteLength === 0) {
+    return new Response('OG image rendering produced empty output', {
+      status: 500,
     })
-  })()
+  }
+
+  return new Response(buf, {
+    headers: {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+    },
+  })
 }
 
 class MetaTagInjector {
