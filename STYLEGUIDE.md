@@ -2476,6 +2476,8 @@ export const SetPrimaryNameFlow = ({ name, address }: Props) => {
 
 ### Working with wagmi
 
+**Address / connection hooks (wagmi v3):** Both `useConnection` and `useAccount` return `address`, `chain`, `connector`, `status`, etc. Either hook is valid for getting the connected address. Do not flag `useConnection()` for address—it is correct.
+
 ```typescript
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import { type Address } from 'viem'

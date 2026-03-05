@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { channelsQueryOptions } from '@/features/notifications/data/queries/channels'
 import { EmailContactMethod } from './email'
+import { PushContactMethod } from './push'
 import { TelegramContactMethod } from './telegram'
 
 export const ContactMethods = () => {
@@ -20,6 +21,7 @@ export const ContactMethods = () => {
       </h2>
       <EmailContactMethod email={channels.data?.email} />
       <TelegramContactMethod telegram={channels.data?.telegram} />
+      <PushContactMethod pushChannels={channels.data?.push ?? []} />
     </div>
   )
 }
