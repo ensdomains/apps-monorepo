@@ -18,30 +18,31 @@ import ensMarkSvg from './assets/fonts/og/ens-mark.svg?raw'
 import explorerTextSvg from './assets/fonts/og/explorer-text.svg?raw'
 import walletIconSvg from './assets/fonts/og/wallet-icon.svg?raw'
 
-const SEPOLIA_RPC_URL =
-  'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aQfci4RAcMR8bLtehXRfUMv'
-
 const sepoliaWithEns = extendChainWithL1Ens(sepolia)
 const namechainSepolia = extendChainWithL2Ens(sepolia)
-
-const client = createPublicClient({
-  chain: sepoliaWithEns,
-  transport: http(SEPOLIA_RPC_URL),
-})
-
-const namechainClient = createPublicClient({
-  chain: namechainSepolia,
-  transport: http(SEPOLIA_RPC_URL),
-})
 
 const v2EthRegistry = getChainContractAddress({
   chain: namechainSepolia,
   contract: 'ensV2EthRegistry',
 })
 
-type WorkerEnv = {
-  ASSETS: { fetch: (req: Request) => Promise<Response> }
+function createClients(env: Env) {
+  const client = createPublicClient({
+    chain: sepoliaWithEns,
+    transport: http(env.SEPOLIA_RPC_URL),
+  })
+
+  const namechainClient = createPublicClient({
+    chain: namechainSepolia,
+    transport: http(env.SEPOLIA_RPC_URL),
+  })
+
+  return { client, namechainClient }
 }
+
+type Clients = ReturnType<typeof createClients>
+type L1Client = Clients['client']
+type L2Client = Clients['namechainClient']
 
 const fontCache = new Map<string, Promise<ArrayBuffer | null>>()
 
@@ -54,7 +55,7 @@ function isSupportedSfnt(buffer: ArrayBuffer): boolean {
 }
 
 function loadFontData(
-  env: WorkerEnv,
+  env: Env,
   requestUrl: string,
   fontPath: string,
 ): Promise<ArrayBuffer | null> {
@@ -89,6 +90,7 @@ function loadFontData(
 }
 
 async function resolveAvatarDataUri(
+  client: L1Client,
   avatarRecord: string,
 ): Promise<string | null> {
   try {
@@ -109,7 +111,11 @@ async function resolveAvatarDataUri(
   }
 }
 
-async function resolveOwner(name: string): Promise<string | null> {
+async function resolveOwner(
+  client: L1Client,
+  namechainClient: L2Client,
+  name: string,
+): Promise<string | null> {
   // Check L1 v1 first
   const v1Owner = await getOwnerV1(client, { name }).catch(() => null)
   if (v1Owner?.owner) return v1Owner.owner
@@ -129,14 +135,21 @@ async function resolveOwner(name: string): Promise<string | null> {
   return null
 }
 
-async function fetchEnsData(name: string) {
+interface EnsData {
+  avatar: string | null
+  description: string | null
+  owner: string | null
+}
+
+async function fetchEnsData(env: Env, name: string): Promise<EnsData> {
+  const { client, namechainClient } = createClients(env)
   try {
     const [records, owner] = await Promise.all([
       getRecords(client, {
         name,
         texts: ['avatar', 'description'],
       }).catch(() => null),
-      resolveOwner(name),
+      resolveOwner(client, namechainClient, name),
     ])
 
     if (!records) {
@@ -151,7 +164,7 @@ async function fetchEnsData(name: string) {
       records.texts.find((r) => r.key === 'avatar')?.value ?? null
 
     const avatar = avatarRecord
-      ? await resolveAvatarDataUri(avatarRecord)
+      ? await resolveAvatarDataUri(client, avatarRecord)
       : null
 
     return {
@@ -172,7 +185,7 @@ const STATIC_PATH_PREFIXES = [
   '/favicon',
   '/manifest',
   '/logo',
-]
+] as const
 
 function isAddressRoute(pathname: string): boolean {
   const match = pathname.match(/^\/addr\/(0x[0-9a-fA-F]{40})$/)
@@ -225,7 +238,7 @@ async function renderOgImage(
   avatar: string | null,
   owner: string | null,
   requestUrl: string,
-  env: WorkerEnv,
+  env: Env,
 ): Promise<Response> {
   const [ogSansFont, ogMonoFont, ogSemiMonoFont] = await Promise.all([
     loadFontData(env, requestUrl, ogSansFontUrl),
@@ -343,7 +356,7 @@ async function renderOgImage(
 async function renderAddressOgImage(
   address: string,
   requestUrl: string,
-  env: WorkerEnv,
+  env: Env,
 ): Promise<Response> {
   const [ogSansFont, ogMonoFont, ogSemiMonoFont] = await Promise.all([
     loadFontData(env, requestUrl, ogSansFontUrl),
@@ -431,7 +444,7 @@ async function renderAddressOgImage(
 
 async function renderDefaultOgImage(
   requestUrl: string,
-  env: WorkerEnv,
+  env: Env,
 ): Promise<Response> {
   const [ogSansFont] = await Promise.all([
     loadFontData(env, requestUrl, ogSansFontUrl),
@@ -475,31 +488,31 @@ async function renderDefaultOgImage(
 }
 
 class MetaTagInjector {
-  private tags: string
+  readonly #tags: string
 
   constructor(tags: string) {
-    this.tags = tags
+    this.#tags = tags
   }
 
-  element(element: Element) {
-    element.append(this.tags, { html: true })
+  element(element: Element): void {
+    element.append(this.#tags, { html: true })
   }
 }
 
 class TitleRewriter {
-  private title: string
+  readonly #title: string
 
   constructor(title: string) {
-    this.title = title
+    this.#title = title
   }
 
-  element(element: Element) {
-    element.setInnerContent(this.title)
+  element(element: Element): void {
+    element.setInnerContent(this.#title)
   }
 }
 
 export default {
-  async fetch(request: Request, env: WorkerEnv): Promise<Response> {
+  async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
     const { pathname } = url
 
@@ -518,7 +531,7 @@ export default {
         return renderAddressOgImage(addrOgMatch[1], request.url, env)
       }
       // Name OG image
-      const { avatar, owner } = await fetchEnsData(decoded)
+      const { avatar, owner } = await fetchEnsData(env, decoded)
       return renderOgImage(decoded, avatar, owner, request.url, env)
     }
 
@@ -567,7 +580,7 @@ export default {
 
       const [response, ensData] = await Promise.all([
         env.ASSETS.fetch(request),
-        fetchEnsData(name),
+        fetchEnsData(env, name),
       ])
 
       const { description, avatar } = ensData

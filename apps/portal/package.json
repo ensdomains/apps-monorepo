@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "deploy": "wrangler deploy",
     "deploy:version": "wrangler versions upload",
-    "knip": "knip"
+    "knip": "knip",
+    "cf-typegen": "wrangler types"
   },
   "dependencies": {
     "@adraffy/ens-normalize": "^1.11.1",
@@ -78,7 +79,6 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.15.3",
-    "@cloudflare/workers-types": "^4.20260301.1",
     "@ensdomains/vite-plugin-i18next-loader": "^4.0.3",
     "@statelyai/inspect": "^0.4.0",
     "@tailwindcss/vite": "^4.1.17",
