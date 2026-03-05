@@ -55,8 +55,8 @@ const columns: ColumnDef<SubnameRow>[] = [
         <div className="flex flex-row gap-2 items-center">
           <NameAvatar
             name={name}
-            height="40px"
-            width="40px"
+            height="20px"
+            width="20px"
             rounded="rounded-sm"
           />
           <CopyableRecord href={`/${name}`} value={name} />
@@ -81,8 +81,8 @@ const columns: ColumnDef<SubnameRow>[] = [
         <div className="flex flex-row gap-2 items-center">
           <NameAvatar
             name={owner}
-            height="40px"
-            width="40px"
+            height="20px"
+            width="20px"
             rounded="rounded-sm"
           />
           <CopyableRecord href={`/addr/${owner}`} value={owner} />
@@ -164,8 +164,8 @@ export const SubnamesTable = ({
               <div className="flex flex-row gap-2 items-center">
                 <NameAvatar
                   name={row.original.name}
-                  height="40px"
-                  width="40px"
+                  height="20px"
+                  width="20px"
                   rounded="rounded-sm"
                 />
                 <div className="flex flex-col">
