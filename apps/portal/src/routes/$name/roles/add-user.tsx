@@ -1,77 +1,51 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
-import { useState } from 'react'
+import { type FormEvent, useState } from 'react'
 import type { Address } from 'viem'
-import { usePublicClient, useWalletClient } from 'wagmi'
+import { useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { grantRoles } from '@/features/roles/helpers/grantRoles'
+import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
 import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
-import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
+
+const GRANT_ROLES_TRANSACTION_ID = 'tx-grant-roles'
+const client = wagmiConfig.getClient({ chainId: namechainSepolia.id })
 
 export const Route = createFileRoute('/$name/roles/add-user')({
   component: RouteComponent,
 })
 
-const client = wagmiConfig.getClient({ chainId: namechainSepolia.id })
-
 function RouteComponent() {
   const { name } = Route.useParams()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
 
   const [nameOrAddressInput, setNameOrAddressInput] = useState('')
+  const [pendingGrant, setPendingGrant] = useState<{
+    account: Address
+    roles: Role[]
+  } | null>(null)
 
   const chainId = namechainSepolia.id
   const { data: walletClient } = useWalletClient({ chainId })
-  const publicClient = usePublicClient({ chainId })
   const { data: address } = useResolvedRoleAccountAddress({
     client,
     nameOrAddress: nameOrAddressInput,
   })
 
-  const mutation = useMutation({
-    mutationFn: (params: { account: Address; roles: Role[] }) => {
-      if (!walletClient?.account || !publicClient) {
-        throw new Error('Wallet not connected')
-      }
+  const { openModal, closeModal, clearTransaction } = useTransactionModal()
+  const { grantRoles, isError, error } = useGrantRoles()
 
-      return grantRoles({
-        name,
-        account: params.account,
-        roles: params.roles,
-        walletClient,
-        publicClient,
-        signer: createEOASigner(walletClient),
-        chainId,
-      })
-    },
-    onSuccess: async () => {
-      await pollForIndexerSync({
-        invalidateQueries: () =>
-          queryClient.invalidateQueries({
-            predicate: (query) =>
-              query.queryKey[0] === 'get-name-roles-accounts',
-            refetchType: 'all',
-          }),
-      })
-      navigate({ to: '/$name/roles', params: { name } })
-    },
-  })
-
-  if (!walletClient?.account) return <div>Not connected.</div>
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!e.currentTarget.reportValidity()) return
 
@@ -85,10 +59,30 @@ function RouteComponent() {
     }
 
     if (address && roles.length > 0) {
-      mutation.reset()
-      mutation.mutate({ account: address, roles })
+      setPendingGrant({ account: address, roles })
+      openModal()
     }
   }
+
+  const handleStartTransaction = () => {
+    if (!pendingGrant || !walletClient?.account) return
+
+    grantRoles({
+      name,
+      account: pendingGrant.account,
+      roles: pendingGrant.roles,
+      id: GRANT_ROLES_TRANSACTION_ID,
+    })
+  }
+
+  const handleDone = () => {
+    closeModal()
+    clearTransaction()
+    setPendingGrant(null)
+    navigate({ to: '/$name/roles', params: { name } })
+  }
+
+  if (!walletClient?.account) return <div>Not connected.</div>
 
   return (
     <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
@@ -204,18 +198,28 @@ function RouteComponent() {
             type="submit"
             variant="secondary"
             className="w-fit"
-            disabled={!address || mutation.isPending}
+            disabled={!address}
           >
-            {mutation.isPending ? 'Saving...' : 'Save roles'}
+            Save roles
           </Button>
-          {mutation.error && (
-            <ErrorMessage
-              description={mutation.error.message}
-              title={mutation.error.name}
-            />
+          {isError && error && (
+            <ErrorMessage description={error.message} title={error.name} />
           )}
         </form>
       </div>
+
+      <TransactionModal
+        transactions={[
+          {
+            id: GRANT_ROLES_TRANSACTION_ID,
+            title: 'Grant roles',
+            transactionName: `Grant roles for ${name}`,
+            estimatedGasCost: 0.0001,
+            onStart: handleStartTransaction,
+            onDone: handleDone,
+          },
+        ]}
+      />
     </div>
   )
 }

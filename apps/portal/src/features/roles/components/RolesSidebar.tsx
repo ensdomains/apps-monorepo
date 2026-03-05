@@ -109,6 +109,7 @@ export const RolesSidebar = <
           publicClient,
           signer,
           chainId,
+          id: `tx-grant-roles-${Date.now()}`,
         })
       }
 
