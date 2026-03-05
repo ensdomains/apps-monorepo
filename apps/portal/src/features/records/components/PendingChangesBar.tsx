@@ -86,7 +86,11 @@ export const PendingChangesBar = ({
           Discard
           <X className="size-4 ml-1" />
         </Button>
-        <Button onClick={onSave} className="rounded-lg">
+        <Button
+          disabled={hasValidationErrors}
+          onClick={onSave}
+          className="rounded-lg"
+        >
           {isSaving ? (
             <>
               Saving...
