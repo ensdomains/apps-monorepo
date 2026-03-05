@@ -24,6 +24,7 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
 import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
+import type { EnsNetworkName } from '@/utils/types'
 
 const getClient = () => wagmiConfig.getClient({ chainId: namechainSepolia.id })
 
@@ -57,11 +58,12 @@ const PageHeader = ({ name }: PageHeaderProps) => (
 
 interface CreateSubnameFormProps {
   readonly name: string
+  readonly network: EnsNetworkName
 }
 
 const CREATE_SUBNAME_TRANSACTION_ID = 'tx-create-ens-subname'
 
-const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
+const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
   const navigate = useNavigate()
   const { isConnected } = useAccount()
 
@@ -85,9 +87,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
     data: registriesData,
     isLoading: registriesLoading,
     error: registriesError,
-  } = useQuery(
-    getNameRegistriesQueryOptions({ name, network: 'namechainSepolia' }),
-  )
+  } = useQuery(getNameRegistriesQueryOptions({ name, network }))
 
   const subregistryAddress = registriesData?.registries[0]
   const hasSubregistry =
@@ -102,6 +102,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
       owner: ownerAddress,
       resolverAddress,
       parentName: name,
+      network,
       id: CREATE_SUBNAME_TRANSACTION_ID,
     })
   }
@@ -325,7 +326,7 @@ const CreateSubnameContent = ({
     )
   }
 
-  return <CreateSubnameForm name={name} />
+  return <CreateSubnameForm name={name} network={ownerData.network} />
 }
 
 // --- Route Component (fetches ownerData) ---

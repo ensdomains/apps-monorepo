@@ -2,11 +2,14 @@
  * React hook wrapper for createSubname.
  *
  * Provides a mutation with loading/error states for the UI.
+ * Invalidates subnames query on success with indexer sync polling.
  */
 
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { sepolia } from 'viem/chains'
 import { useWalletClient } from 'wagmi'
+import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import {
   type CreateSubnameParameters,
   createSubname,
@@ -20,6 +23,7 @@ type UseCreateSubnameParameters = Omit<
 
 export function useCreateSubname() {
   const chainId = sepolia.id
+  const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient({ chainId })
 
   const mutation = useMutation({
@@ -35,6 +39,25 @@ export function useCreateSubname() {
         walletClient,
         signer,
         chainId,
+      })
+    },
+    onSuccess: (_data, variables) => {
+      const subnamesQueryKey = getSubnamesQueryOptions({
+        name: variables.parentName,
+        network: variables.network,
+      }).queryKey
+
+      queryClient.invalidateQueries({
+        queryKey: subnamesQueryKey,
+        refetchType: 'all',
+      })
+
+      pollForIndexerSync({
+        invalidateQueries: () =>
+          queryClient.invalidateQueries({
+            queryKey: subnamesQueryKey,
+            refetchType: 'all',
+          }),
       })
     },
   })
