@@ -5,7 +5,6 @@ import { type PropsWithChildren, useCallback, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
