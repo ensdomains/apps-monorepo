@@ -7,7 +7,7 @@
  * - restoreSessionActor
  */
 
-import type { KernelAccountClient } from '@zerodev/sdk'
+import type { KernelAccountClient, KernelValidator } from '@zerodev/sdk'
 import type { Address, Hex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
