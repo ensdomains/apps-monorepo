@@ -1,7 +1,7 @@
 import { getResolver } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeftIcon } from 'lucide-react'
+import { ArrowLeftIcon, Loader2 } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
 import { type FormEvent, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
@@ -59,7 +59,7 @@ interface CreateSubnameFormProps {
   readonly name: string
 }
 
-const CREATE_SUBNAME_TRANSACTION_ID = 'tx-create-subname'
+const CREATE_SUBNAME_TRANSACTION_ID = 'tx-create-ens-subname'
 
 const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
   const navigate = useNavigate()
@@ -78,7 +78,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
     clearTransaction,
   } = useTransactionModal()
 
-  const { createSubname } = useCreateSubname()
+  const { createSubname, isPending: isSubmitting } = useCreateSubname()
 
   // Fetch registries (we know it's v2 at this point)
   const {
@@ -189,6 +189,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               className="flex-1"
+              disabled={isSubmitting}
               required
             />
             <span className="text-base">.{name}</span>
@@ -202,6 +203,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
             name="owner"
             placeholder="ENS name or HEX address"
             required
+            disabled={isSubmitting}
             pattern="(?:[\u002DA-Za-z0-9]+[.][A-Za-z]+|0x[a-fA-F0-9]{40})"
             onChange={(e) => {
               setResolveError(null)
@@ -270,7 +272,14 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
           disabled={!ownerAddress || !isConnected}
           className="w-full sm:w-fit"
         >
-          Create subname
+          {match(isSubmitting)
+            .with(true, () => (
+              <>
+                <Loader2 className="size-4 animate-spin mr-2" />
+                Creating...
+              </>
+            ))
+            .otherwise(() => 'Create subname')}
         </Button>
       </form>
 
@@ -280,7 +289,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
             id: CREATE_SUBNAME_TRANSACTION_ID,
             title: 'Create subname',
             transactionName: `Create ${label.trim()}.${name}`,
-            estimatedGasCost: 0.0001,
+            estimatedGasCost: 0.0002,
             onStart: handleStartTransaction,
             onDone: () => {
               closeTransactionModal()
