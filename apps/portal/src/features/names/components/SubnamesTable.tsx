@@ -28,6 +28,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
+import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export interface SubnameRow {
@@ -103,6 +105,7 @@ export const SubnamesTable = ({
 }: SubnamesTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
+  const [tableView] = useTableViewSettings()
 
   const table = useReactTable({
     data: subnames as SubnameRow[],
@@ -215,9 +218,18 @@ export const SubnamesTable = ({
         <TableBody>
           {rows.length > 0 ? (
             rows.map((row) => (
-              <TableRow key={row.id}>
+              <TableRow
+                key={row.id}
+                className={cn(
+                  'hover:bg-quartz-50',
+                  tableView.strippedRows && 'odd:bg-quartz-50',
+                )}
+              >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell className="px-6 py-4" key={cell.id}>
+                  <TableCell
+                    className={cn('px-6', tableView.compact ? 'py-2' : 'py-4')}
+                    key={cell.id}
+                  >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}

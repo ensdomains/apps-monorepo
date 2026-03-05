@@ -51,6 +51,7 @@
     "@wagmi/connectors": "^7.1.1",
     "@wagmi/core": "^3.0.0",
     "@xstate/react": "^6.0.0",
+    "@xstate/store-react": "^1.0.1",
     "class-variance-authority": "^0.7.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",

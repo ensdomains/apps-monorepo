@@ -56,6 +56,7 @@ function RouteComponent() {
         label,
         roles: ['ROLE_SET_SUBREGISTRY'],
         account: connectedAddress ?? zeroAddress,
+        network,
       }),
       enabled:
         !!connectedAddress &&
