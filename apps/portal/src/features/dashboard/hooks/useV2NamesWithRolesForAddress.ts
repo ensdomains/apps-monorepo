@@ -68,18 +68,6 @@ const getV2NamesWithRolesForAddress = ResultFn(async function* ({
       }),
   )
 
-  const domainDataMap = new Map<
-    string,
-    { expiryDate: number | null; subdomainCount: number; recordCount: number }
-  >()
-  for (const domain of domains) {
-    domainDataMap.set(domain.name, {
-      expiryDate: domain.expiryDate,
-      subdomainCount: domain.subdomainCount,
-      recordCount: domain.recordCount,
-    })
-  }
-
   // Build a map of domain name -> role bitmap (aggregate if multiple entries)
   const rolesMap = new Map<string, string>()
   for (const role of roles) {
@@ -91,69 +79,15 @@ const getV2NamesWithRolesForAddress = ResultFn(async function* ({
     }
   }
 
-  // Filter out subnames (3+ labels) whose roles are inherited from a parent
-  // domain the address owns. The roles query returns inherited roles from parent
-  // domains, which causes subnames to appear under the parent owner's address
-  // page even though a different address registered and owns them.
-  // Only filter when we can confirm the role is inherited (a parent is owned),
-  // so that subnames the address directly registered are preserved.
-  const ownedNames = new Set(domains.map((d) => d.name))
-  for (const name of rolesMap.keys()) {
-    const labels = name.split('.')
-    if (labels.length > 2 && !ownedNames.has(name)) {
-      const hasOwnedParent = labels
-        .slice(1, -1)
-        .some((_, i) => ownedNames.has(labels.slice(i + 1).join('.')))
-      if (hasOwnedParent) {
-        rolesMap.delete(name)
-      }
-    }
-  }
-
-  // Fetch domain data for names in roles but missing from domains(where: { owner }).
-  // This can happen when the user has roles on a domain without being the ERC1155 token owner.
-  const missingNames = [...rolesMap.keys()].filter(
-    (name) => !domainDataMap.has(name),
-  )
-
-  if (missingNames.length > 0) {
-    const aliasedQuery = missingNames
-      .map(
-        (name, i) =>
-          `d${i}: domain(id: ${JSON.stringify(name)}) { name expiryDate subdomainCount recordCount }`,
-      )
-      .join('\n')
-
-    const missingData = yield* fromPromise(
-      graphqlIndexerClient.request<Record<string, DomainData | null>>(
-        gql`query { ${aliasedQuery} }`,
-      ),
-      (e) =>
-        new GetV2NamesWithRolesForAddressError({
-          cause: e as GetV2NamesWithRolesForAddressErrorType,
-        }),
-    )
-
-    for (const domain of Object.values(missingData)) {
-      if (domain) {
-        domainDataMap.set(domain.name, {
-          expiryDate: domain.expiryDate,
-          subdomainCount: domain.subdomainCount,
-          recordCount: domain.recordCount,
-        })
-      }
-    }
-  }
-
+  // Only include names the address owns, attaching role info where available
   const result: V2NameWithRoles[] = []
-  for (const [name, roleBitmap] of rolesMap) {
-    const domainData = domainDataMap.get(name)
+  for (const domain of domains) {
     result.push({
-      name,
-      roleBitmap,
-      expiryDate: domainData?.expiryDate ?? null,
-      subdomainCount: domainData?.subdomainCount ?? 0,
-      recordCount: domainData?.recordCount ?? 0,
+      name: domain.name,
+      roleBitmap: rolesMap.get(domain.name) ?? '0',
+      expiryDate: domain.expiryDate,
+      subdomainCount: domain.subdomainCount,
+      recordCount: domain.recordCount,
     })
   }
 

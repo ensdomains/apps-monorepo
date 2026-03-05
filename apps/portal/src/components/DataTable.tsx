@@ -16,6 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
+import { cn } from '@/lib/utils'
 
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -27,6 +29,7 @@ export const DataTable = <TData, TValue>({
   data,
 }: DataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = useState<SortingState>([])
+  const [tableView] = useTableViewSettings()
   const table = useReactTable({
     data,
     columns,
@@ -64,9 +67,19 @@ export const DataTable = <TData, TValue>({
             <TableRow
               key={row.id}
               data-state={row.getIsSelected() && 'selected'}
+              className={cn(
+                'hover:bg-quartz-50',
+                tableView.strippedRows && 'odd:bg-quartz-50',
+              )}
             >
               {row.getVisibleCells().map((cell) => (
-                <TableCell className="px-4 sm:px-6 py-4" key={cell.id}>
+                <TableCell
+                  className={cn(
+                    'px-4 sm:px-6',
+                    tableView.compact ? 'py-2' : 'py-4',
+                  )}
+                  key={cell.id}
+                >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>
               ))}

@@ -84,6 +84,7 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
       label: '',
       roles: ['ROLE_REGISTRAR'],
       account: connectedAccount as Address,
+      network,
     }),
     enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
   })
@@ -97,6 +98,7 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
       label: firstLabel,
       roles: ['ROLE_SET_SUBREGISTRY'],
       account: connectedAccount as Address,
+      network,
     }),
     enabled:
       Boolean(parentRegistryAddress) &&

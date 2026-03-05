@@ -41,12 +41,15 @@ const EditButtons = ({ address, name }: EditButtonsProps) => {
   )
   const currentNameRegistry = registryQuery.data?.registries?.[1]
   const label = name.split('.')[0]
+  const network = registryQuery.data?.network ?? 'sepolia'
+
   const roleQuery = useQuery({
     ...getHasRolesQueryOptions({
       registryAddress: currentNameRegistry ?? zeroAddress,
       label,
       roles: ['ROLE_SET_RESOLVER'],
       account: address,
+      network,
     }),
     enabled: !!address && !!currentNameRegistry,
   })
