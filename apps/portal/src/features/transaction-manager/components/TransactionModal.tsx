@@ -34,7 +34,11 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
       onOpenChange={(open) => {
         if (!open) {
           handleClose()
-          clearTransaction()
+          // Only clear when transaction has failed - don't clear pending (tx may still be in wallet)
+          // or success (user might want to reopen and see the result)
+          if (txState?.error) {
+            clearTransaction()
+          }
         }
       }}
     >
