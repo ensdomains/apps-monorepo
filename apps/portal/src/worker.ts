@@ -1,7 +1,12 @@
-import { extendChainWithL1Ens } from '@ensdomains/ensjs/chain'
+import {
+  extendChainWithL1Ens,
+  extendChainWithL2Ens,
+  getChainContractAddress,
+} from '@ensdomains/ensjs/chain'
 import { getRecords } from '@ensdomains/ensjs/public'
-import { getOwner } from '@ensdomains/ensjs/public/v1'
-import { createPublicClient, http } from 'viem'
+import { getOwner as getOwnerV1 } from '@ensdomains/ensjs/public/v1'
+import { getOwner as getOwnerV2 } from '@ensdomains/ensjs/public/v2'
+import { createPublicClient, http, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { parseAvatarRecord } from 'viem/ens'
 import { ImageResponse } from 'workers-og'
@@ -15,9 +20,22 @@ import explorerTextSvg from './assets/fonts/og/explorer-text.svg?raw'
 const SEPOLIA_RPC_URL =
   'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aQfci4RAcMR8bLtehXRfUMv'
 
+const sepoliaWithEns = extendChainWithL1Ens(sepolia)
+const namechainSepolia = extendChainWithL2Ens(sepolia)
+
 const client = createPublicClient({
-  chain: extendChainWithL1Ens(sepolia),
+  chain: sepoliaWithEns,
   transport: http(SEPOLIA_RPC_URL),
+})
+
+const namechainClient = createPublicClient({
+  chain: namechainSepolia,
+  transport: http(SEPOLIA_RPC_URL),
+})
+
+const v2EthRegistry = getChainContractAddress({
+  chain: namechainSepolia,
+  contract: 'ensV2EthRegistry',
 })
 
 type WorkerEnv = {
@@ -90,21 +108,41 @@ async function resolveAvatarDataUri(
   }
 }
 
+async function resolveOwner(name: string): Promise<string | null> {
+  // Check L1 v1 first
+  const v1Owner = await getOwnerV1(client, { name }).catch(() => null)
+  if (v1Owner?.owner) return v1Owner.owner
+
+  // Fall back to L2 v2 (Namechain)
+  try {
+    const labels = name.split('.')
+    const v2Owner = await getOwnerV2(namechainClient, {
+      label: labels[0],
+      registryAddress: v2EthRegistry,
+    })
+    if (v2Owner && v2Owner !== zeroAddress) return v2Owner
+  } catch {
+    // v2 lookup failed
+  }
+
+  return null
+}
+
 async function fetchEnsData(name: string) {
   try {
-    const [records, ownerRecord] = await Promise.all([
+    const [records, owner] = await Promise.all([
       getRecords(client, {
         name,
         texts: ['avatar', 'description'],
       }).catch(() => null),
-      getOwner(client, { name }).catch(() => null),
+      resolveOwner(name),
     ])
 
     if (!records) {
       return {
         avatar: null,
         description: null,
-        owner: ownerRecord?.owner ?? null,
+        owner,
       }
     }
 
@@ -119,7 +157,7 @@ async function fetchEnsData(name: string) {
       avatar,
       description:
         records.texts.find((r) => r.key === 'description')?.value ?? null,
-      owner: ownerRecord?.owner ?? null,
+      owner,
     }
   } catch {
     return { avatar: null, description: null, owner: null }
