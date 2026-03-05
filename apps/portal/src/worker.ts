@@ -8,6 +8,8 @@ import { ImageResponse } from 'workers-og'
 import ogSansFontUrl from './assets/fonts/og/abc-monument-grotesk-medium.ttf?url'
 import ogMonoFontUrl from './assets/fonts/og/abc-monument-grotesk-mono-medium.ttf?url'
 import ogSemiMonoFontUrl from './assets/fonts/og/abc-monument-grotesk-semi-mono-medium.ttf?url'
+import ensLogoSvg from './assets/fonts/og/ens-logo.svg?raw'
+import explorerTextSvg from './assets/fonts/og/explorer-text.svg?raw'
 
 const SEPOLIA_RPC_URL =
   'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aQfci4RAcMR8bLtehXRfUMv'
@@ -206,18 +208,12 @@ async function renderOgImage(
         </div>
       </div>
       <div style="position: absolute; left: 48px; top: 46px; display: flex; align-items: center; gap: 24px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <svg width="44" height="51" viewBox="0 0 25 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M11.9463 0.260315L4.21335 12.9848C4.15271 13.0845 4.0118 13.0957 3.93658 13.0063C3.25581 12.198 0.719559 8.75899 3.8579 5.62454C6.72166 2.76435 10.3693 0.725098 11.7211 0.0202894C11.8745 -0.0596746 12.0361 0.112611 11.9463 0.260315Z" fill="#002335"/>
-            <path d="M11.5195 27.964C11.6738 28.072 11.864 27.8878 11.7606 27.7305C10.0333 25.1033 4.29168 16.3619 3.49855 15.0497C2.71624 13.7554 1.17757 11.6044 1.04922 9.76415C1.03641 9.58043 0.782377 9.54313 0.718475 9.71589C0.615416 9.99453 0.505695 10.3271 0.403435 10.707C-0.887502 15.5027 0.987334 20.5916 5.05909 23.4418L11.5195 27.964V27.964Z" fill="#002335"/>
-            <path d="M12.5805 27.7397L20.3134 15.0152C20.374 14.9154 20.515 14.9043 20.5902 14.9936C21.2709 15.802 23.8072 19.241 20.6689 22.3754C17.8051 25.2356 14.1575 27.2749 12.8056 27.9797C12.6523 28.0597 12.4907 27.8874 12.5805 27.7397Z" fill="#002335"/>
-            <path d="M13.0191 0.0323484C12.8647 -0.0756772 12.6746 0.108548 12.778 0.265871C14.5052 2.89309 20.2469 11.6345 21.04 12.9467C21.8223 14.241 23.361 16.3919 23.4894 18.2322C23.5022 18.4159 23.7562 18.4532 23.8201 18.2805C23.9232 18.0018 24.0329 17.6693 24.1351 17.2894C25.4261 12.4936 23.5512 7.40472 19.4795 4.55456L13.0191 0.0323484Z" fill="#002335"/>
-          </svg>
-          <span style="font-size: 50px; line-height: 1; font-weight: 500; color: #002335; font-family: 'OgSans', system-ui, sans-serif;">ens</span>
-          <span style="font-size: 50px; line-height: 1; font-weight: 500; color: #0082BB; font-family: 'OgSans', system-ui, sans-serif;">Explorer</span>
-        </div>
-        <div style="background: #DBF0F8; border-radius: 999px; padding: 2px 8px; display: flex; align-items: center; justify-content: center;">
-          <span style="font-size: 17px; font-weight: 500; color: #0082BB; font-family: 'OgSans', system-ui, sans-serif;">Alpha</span>
+        <img src="data:image/svg+xml;base64,${btoa(ensLogoSvg)}" width="164" height="51" style="width: 164px; height: 51px;" />
+        <div style="display: flex; align-items: center; gap: 8px; padding-top: 8px;">
+          <img src="data:image/svg+xml;base64,${btoa(explorerTextSvg)}" width="174" height="42" style="width: 174px; height: 42px;" />
+          <div style="background: #DBF0F8; border-radius: 999px; padding: 2px 6px; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 17px; font-weight: 500; color: #0082BB; font-family: 'OgSans', system-ui, sans-serif;">Alpha</span>
+          </div>
         </div>
       </div>
       <div style="position: absolute; right: 48px; bottom: 70px; transform: translateY(50%); font-size: 49px; line-height: 1; color: #000000; font-family: 'OgSans', system-ui, sans-serif; font-weight: 500; text-align: right; display: flex;">
