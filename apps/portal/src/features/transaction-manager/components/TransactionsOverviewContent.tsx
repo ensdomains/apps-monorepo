@@ -24,7 +24,9 @@ type TransactionsOverviewContentProps = {
   readonly address: Address | undefined
   readonly transactions: readonly Transaction[]
   readonly txState: ActiveTransactionState | undefined
-  readonly setTransactionModalContentState: (state: TransactionModalContentState) => void
+  readonly setTransactionModalContentState: (
+    state: TransactionModalContentState,
+  ) => void
 }
 
 export const TransactionsOverviewContent = ({
