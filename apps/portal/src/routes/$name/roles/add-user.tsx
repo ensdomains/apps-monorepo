@@ -42,6 +42,7 @@ function RouteComponent() {
     data: address,
     isLoading: isResolvingAddress,
     isError: isResolveError,
+    error: resolveError,
   } = useResolvedRoleAccountAddress({
     client,
     nameOrAddress: nameOrAddressInput,
@@ -86,7 +87,7 @@ function RouteComponent() {
 
     if (isResolveError || !address) {
       setSubmitFeedback(
-        `Could not resolve an address for "${nameOrAddressInput}". Check the name exists and try again.`,
+        `Could not resolve an address for "${nameOrAddressInput}". ${resolveError ? `Error: ${resolveError instanceof Error ? resolveError.message : String(resolveError)}` : 'Check the name exists and try again.'}`,
       )
       setInvalidField('address')
       return
