@@ -9,6 +9,7 @@ import ogSansFontUrl from './assets/fonts/og/abc-monument-grotesk-medium.ttf?url
 import ogMonoFontUrl from './assets/fonts/og/abc-monument-grotesk-mono-medium.ttf?url'
 import ogSemiMonoFontUrl from './assets/fonts/og/abc-monument-grotesk-semi-mono-medium.ttf?url'
 import ensLogoSvg from './assets/fonts/og/ens-logo.svg?raw'
+import ensMarkSvg from './assets/fonts/og/ens-mark.svg?raw'
 import explorerTextSvg from './assets/fonts/og/explorer-text.svg?raw'
 
 const SEPOLIA_RPC_URL =
@@ -187,14 +188,45 @@ async function renderOgImage(
     loadFontData(env, requestUrl, ogSemiMonoFontUrl),
   ])
 
+  const available = !owner
   const displayName = truncate(name, 28)
-  const displayAddress = owner ? truncateAddress(owner, 6, 5) : 'No owner'
 
-  const avatarHtml = avatar
-    ? `<img src="${escapeHtml(avatar)}" width="140" height="140" style="width: 140px; height: 140px; border-radius: 8px; object-fit: cover;" />`
-    : `<div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; display: flex; align-items: center; justify-content: center; color: white; font-size: 48px; font-weight: 500; font-family: 'OgSemiMono', ui-monospace, monospace;">${escapeHtml(name.charAt(0).toUpperCase())}</div>`
+  const headerHtml = `
+      <div style="position: absolute; left: 48px; top: 46px; display: flex; align-items: center; gap: 24px;">
+        <img src="data:image/svg+xml;base64,${btoa(ensLogoSvg)}" width="164" height="51" style="width: 164px; height: 51px;" />
+        <div style="display: flex; align-items: center; gap: 8px; padding-top: 8px;">
+          <img src="data:image/svg+xml;base64,${btoa(explorerTextSvg)}" width="174" height="42" style="width: 174px; height: 42px;" />
+          <div style="background: #DBF0F8; border-radius: 999px; padding: 2px 6px; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 17px; font-weight: 500; color: #0082BB; font-family: 'OgSans', system-ui, sans-serif;">Alpha</span>
+          </div>
+        </div>
+      </div>`
 
-  const html = `
+  let html: string
+  if (available) {
+    html = `
+    <div style="position: relative; width: 100%; height: 100%; background: white; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
+      <div style="display: flex; align-items: center; gap: 48px; width: 100%;">
+        <img src="data:image/svg+xml;base64,${btoa(ensMarkSvg)}" width="126" height="140" style="width: 126px; height: 140px; flex-shrink: 0;" />
+        <div style="display: flex; flex-direction: column; gap: 20px; color: #191919; min-width: 0; flex: 1;">
+          <h1 style="margin: 0; font-size: 82px; line-height: 0.95; font-weight: 500; font-family: 'OgSemiMono', ui-monospace, monospace; overflow: hidden; max-height: 156px; word-break: break-all;">
+            ${escapeHtml(displayName)}
+          </h1>
+          <p style="margin: 0; font-size: 40px; line-height: 0.75; font-weight: 500; font-family: 'OgMono', ui-monospace, monospace; white-space: nowrap; overflow: hidden;">
+            Available to register
+          </p>
+        </div>
+      </div>
+      ${headerHtml}
+    </div>
+  `
+  } else {
+    const displayAddress = truncateAddress(owner, 6, 5)
+    const avatarHtml = avatar
+      ? `<img src="${escapeHtml(avatar)}" width="140" height="140" style="width: 140px; height: 140px; border-radius: 8px; object-fit: cover;" />`
+      : `<div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; display: flex; align-items: center; justify-content: center; color: white; font-size: 48px; font-weight: 500; font-family: 'OgSemiMono', ui-monospace, monospace;">${escapeHtml(name.charAt(0).toUpperCase())}</div>`
+
+    html = `
     <div style="position: relative; width: 100%; height: 100%; background: #ECECEC; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
       <div style="display: flex; align-items: center; gap: 48px; width: 100%;">
         <div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; overflow: hidden; flex-shrink: 0; display: flex;">${avatarHtml}</div>
@@ -207,20 +239,13 @@ async function renderOgImage(
           </p>
         </div>
       </div>
-      <div style="position: absolute; left: 48px; top: 46px; display: flex; align-items: center; gap: 24px;">
-        <img src="data:image/svg+xml;base64,${btoa(ensLogoSvg)}" width="164" height="51" style="width: 164px; height: 51px;" />
-        <div style="display: flex; align-items: center; gap: 8px; padding-top: 8px;">
-          <img src="data:image/svg+xml;base64,${btoa(explorerTextSvg)}" width="174" height="42" style="width: 174px; height: 42px;" />
-          <div style="background: #DBF0F8; border-radius: 999px; padding: 2px 6px; display: flex; align-items: center; justify-content: center;">
-            <span style="font-size: 17px; font-weight: 500; color: #0082BB; font-family: 'OgSans', system-ui, sans-serif;">Alpha</span>
-          </div>
-        </div>
-      </div>
+      ${headerHtml}
       <div style="position: absolute; right: 48px; bottom: 70px; transform: translateY(50%); font-size: 49px; line-height: 1; color: #000000; font-family: 'OgSans', system-ui, sans-serif; font-weight: 500; text-align: right; display: flex;">
         Name Overview
       </div>
     </div>
   `
+  }
 
   const imageResponse = new ImageResponse(html, {
     width: 1200,
