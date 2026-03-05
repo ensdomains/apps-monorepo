@@ -7,7 +7,7 @@ import type { Address } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Field } from '@/components/ui/field'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
@@ -37,7 +37,12 @@ function RouteComponent() {
 
   const chainId = namechainSepolia.id
   const { data: walletClient } = useWalletClient({ chainId })
-  const { data: address } = useResolvedRoleAccountAddress({
+
+  const {
+    data: address,
+    isLoading: isResolvingAddress,
+    isError: isResolveError,
+  } = useResolvedRoleAccountAddress({
     client,
     nameOrAddress: nameOrAddressInput,
   })
@@ -45,8 +50,15 @@ function RouteComponent() {
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
   const { grantRoles, isPending, isSuccess } = useGrantRoles()
 
+  const [submitFeedback, setSubmitFeedback] = useState<string | null>(null)
+  const [invalidField, setInvalidField] = useState<'roles' | 'address' | null>(
+    null,
+  )
+
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setSubmitFeedback(null)
+    setInvalidField(null)
     if (!e.currentTarget.reportValidity()) return
 
     const fd = new FormData(e.currentTarget)
@@ -58,10 +70,30 @@ function RouteComponent() {
       }
     }
 
-    if (address && roles.length > 0) {
-      setPendingGrant({ account: address, roles })
-      openModal()
+    if (roles.length === 0) {
+      setSubmitFeedback('Please select at least one role')
+      setInvalidField('roles')
+      return
     }
+
+    if (isResolvingAddress) {
+      setSubmitFeedback(
+        'Resolving address... Please wait a moment and try again.',
+      )
+      setInvalidField('address')
+      return
+    }
+
+    if (isResolveError || !address) {
+      setSubmitFeedback(
+        `Could not resolve an address for "${nameOrAddressInput}". Check the name exists and try again.`,
+      )
+      setInvalidField('address')
+      return
+    }
+
+    setPendingGrant({ account: address, roles })
+    openModal()
   }
 
   const handleStartTransaction = () => {
@@ -95,15 +127,23 @@ function RouteComponent() {
 
       <h1 className="text-heading font-medium leading-none">Add user</h1>
 
-      <h2 className="text-lg font-medium">User</h2>
-      <div className="flex flex-col gap-6">
-        <Field data-invalid={!address}>
+      <form
+        onSubmit={handleSubmit}
+        onChange={() => {
+          setSubmitFeedback(null)
+          setInvalidField(null)
+        }}
+        className="flex flex-col gap-6"
+      >
+        <Field data-invalid={invalidField === 'address'}>
+          <FieldLabel htmlFor="user">User</FieldLabel>
           <Input
             id="user"
             name="user"
             placeholder="ens.eth"
             required
             disabled={isPending || isSuccess}
+            aria-invalid={invalidField === 'address'}
             onChange={(e) => {
               const nameOrAddress = e.currentTarget.value.trim()
 
@@ -116,16 +156,27 @@ function RouteComponent() {
             }}
             pattern="(?:[\u002DA-Za-z0-9]+[.]eth|0x[a-fA-F0-9]{40})"
           />
+          {nameOrAddressInput.length > 0 && (
+            <p className="text-sm mt-1.5 text-quartz-500">
+              {isResolvingAddress && 'Resolving address...'}
+              {!isResolvingAddress &&
+                address &&
+                `Resolved: ${address.slice(0, 6)}...${address.slice(-4)}`}
+              {!isResolvingAddress &&
+                !address &&
+                'Could not resolve address. Check the name exists.'}
+            </p>
+          )}
         </Field>
 
-        <form
-          onSubmit={handleSubmit}
-          className={cn('flex flex-col gap-4', {
-            'opacity-50 pointer-events-none': isPending || isSuccess,
-          })}
-        >
-          <h2 className="text-lg font-medium">Roles</h2>
-          <div className="border rounded-lg divide-y">
+        <Field data-invalid={invalidField === 'roles'}>
+          <FieldLabel>Roles</FieldLabel>
+          <div
+            className={cn('border rounded-lg divide-y transition-colors', {
+              'opacity-50 pointer-events-none': isPending || isSuccess,
+            })}
+            aria-invalid={invalidField === 'roles'}
+          >
             {permissions.map((permission) => {
               const isManagerRoleDisabled = !isManagerRoleSettable(
                 permission.key,
@@ -200,19 +251,17 @@ function RouteComponent() {
               </div>
             </div>
           </div>
-          <Button
-            type="submit"
-            variant="secondary"
-            className="w-fit"
-            disabled={!address}
-          >
-            {match({ isPending, isSuccess })
-              .with({ isPending: true }, () => 'Saving...')
-              .with({ isSuccess: true }, () => 'Transaction Complete')
-              .otherwise(() => 'Save roles')}
-          </Button>
-        </form>
-      </div>
+          {submitFeedback && (
+            <FieldError className="mt-1.5">{submitFeedback}</FieldError>
+          )}
+        </Field>
+        <Button type="submit" variant="secondary" className="w-fit">
+          {match({ isPending, isSuccess })
+            .with({ isSuccess: true }, () => 'Transaction Complete')
+            .with({ isPending: true }, () => 'Saving...')
+            .otherwise(() => 'Save roles')}
+        </Button>
+      </form>
 
       <TransactionModal
         transactions={[
