@@ -429,6 +429,51 @@ async function renderAddressOgImage(
   })
 }
 
+async function renderDefaultOgImage(
+  requestUrl: string,
+  env: WorkerEnv,
+): Promise<Response> {
+  const [ogSansFont] = await Promise.all([
+    loadFontData(env, requestUrl, ogSansFontUrl),
+  ])
+
+  const html = `
+    <div style="position: relative; width: 100%; height: 100%; background: white; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 43px;">
+      <img src="data:image/svg+xml;base64,${btoa(ensMarkSvg)}" width="126" height="140" style="width: 126px; height: 140px;" />
+      <span style="font-size: 85px; font-weight: 500; font-family: 'OgSans', system-ui, sans-serif; color: black; line-height: 1;">ENS Explorer</span>
+    </div>
+  `
+
+  const imageResponse = new ImageResponse(html, {
+    width: 1200,
+    height: 630,
+    fonts: [
+      ogSansFont
+        ? {
+            name: 'OgSans',
+            data: ogSansFont,
+            weight: 500,
+            style: 'normal',
+          }
+        : null,
+    ].filter(Boolean),
+  })
+
+  const buf = await imageResponse.arrayBuffer()
+  if (buf.byteLength === 0) {
+    return new Response('OG image rendering produced empty output', {
+      status: 500,
+    })
+  }
+
+  return new Response(buf, {
+    headers: {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+    },
+  })
+}
+
 class MetaTagInjector {
   private tags: string
 
@@ -457,6 +502,11 @@ export default {
   async fetch(request: Request, env: WorkerEnv): Promise<Response> {
     const url = new URL(request.url)
     const { pathname } = url
+
+    // Default OG image route: /og/default.png
+    if (pathname === '/og/default.png') {
+      return renderDefaultOgImage(request.url, env)
+    }
 
     // OG image route: /og/:name.png
     const ogMatch = pathname.match(/^\/og\/(.+)\.png$/)
@@ -548,7 +598,31 @@ export default {
         .transform(response)
     }
 
-    // All other routes: passthrough
+    // All other routes: inject default OG meta tags for HTML requests
+    const accept = request.headers.get('Accept') ?? ''
+    if (accept.includes('text/html')) {
+      const response = await env.ASSETS.fetch(request)
+      const host = url.host
+      const ogImageUrl = `https://${host}/og/default.png`
+      const title = 'ENS Explorer App'
+      const desc = 'Explore ENS names and addresses'
+
+      const metaTags = [
+        `<meta property="og:title" content="${escapeHtml(title)}" />`,
+        `<meta property="og:description" content="${escapeHtml(desc)}" />`,
+        `<meta property="og:image" content="${escapeHtml(ogImageUrl)}" />`,
+        `<meta property="og:type" content="website" />`,
+        `<meta name="twitter:card" content="summary_large_image" />`,
+        `<meta name="twitter:title" content="${escapeHtml(title)}" />`,
+        `<meta name="twitter:description" content="${escapeHtml(desc)}" />`,
+        `<meta name="twitter:image" content="${escapeHtml(ogImageUrl)}" />`,
+      ].join('\n')
+
+      return new HTMLRewriter()
+        .on('head', new MetaTagInjector(metaTags))
+        .transform(response)
+    }
+
     return env.ASSETS.fetch(request)
   },
 }
