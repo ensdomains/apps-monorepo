@@ -19,7 +19,7 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
   const { address } = useConnection()
   const txState = useActiveTransactionState()
 
-  const { isOpen, closeModal } = useTransactionModal()
+  const { isOpen, closeModal, clearTransaction } = useTransactionModal()
 
   const [transactionModalContentState, setTransactionModalContentState] =
     useState<TransactionModalContentState>({ type: 'overview' })
@@ -29,7 +29,19 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          handleClose()
+          // Only clear when transaction has failed - don't clear pending (tx may still be in wallet)
+          // or success (user might want to reopen and see the result)
+          if (txState?.error) {
+            clearTransaction()
+          }
+        }
+      }}
+    >
       <DialogContent
         className={cn(
           'sm:max-w-[420px] space-y-3 transition-all duration-150',

@@ -1,4 +1,3 @@
-import { transactionManager } from '@ens-apps/transaction-manager'
 import { getResolver } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
@@ -8,8 +7,7 @@ import { type FormEvent, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddress, zeroAddress } from 'viem'
 import { getEnsAddress } from 'viem/actions'
-import { sepolia } from 'viem/chains'
-import { useAccount, useWalletClient } from 'wagmi'
+import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -20,11 +18,13 @@ import {
   type GetEnsOwnerReturnType,
   getEnsOwnerQueryOptions,
 } from '@/features/profile/hooks/useEnsOwner'
+import { useCreateSubname } from '@/features/registry/hooks/useCreateSubname'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
-import { prepareCreateSubnameTransaction } from '@/features/registry/utils/create-subname.helpers'
-import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
 import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
+import type { EnsNetworkName } from '@/utils/types'
 
 const getClient = () => wagmiConfig.getClient({ chainId: namechainSepolia.id })
 
@@ -58,32 +58,58 @@ const PageHeader = ({ name }: PageHeaderProps) => (
 
 interface CreateSubnameFormProps {
   readonly name: string
+  readonly network: EnsNetworkName
 }
 
-const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
+const CREATE_SUBNAME_TRANSACTION_ID = 'tx-create-ens-subname'
+
+const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
   const navigate = useNavigate()
   const { isConnected } = useAccount()
-  const { data: walletClient } = useWalletClient()
 
   const [label, setLabel] = useState('')
   const [ownerAddress, setOwnerAddress] = useState<Address | null>(null)
   const [resolveError, setResolveError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [prepareError, setPrepareError] = useState<string | null>(null)
+  const [resolverAddress, setResolverAddress] = useState<Address | null>(null)
   const resolveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const {
+    openModal: openTransactionModal,
+    closeModal: closeTransactionModal,
+    clearTransaction,
+  } = useTransactionModal()
+
+  const {
+    createSubname,
+    isPending: isSubmitting,
+    isSuccess,
+  } = useCreateSubname()
 
   // Fetch registries (we know it's v2 at this point)
   const {
     data: registriesData,
     isLoading: registriesLoading,
     error: registriesError,
-  } = useQuery(
-    getNameRegistriesQueryOptions({ name, network: 'namechainSepolia' }),
-  )
+  } = useQuery(getNameRegistriesQueryOptions({ name, network }))
 
   const subregistryAddress = registriesData?.registries[0]
   const hasSubregistry =
     subregistryAddress && subregistryAddress !== zeroAddress
+
+  const handleStartTransaction = () => {
+    if (!hasSubregistry || !ownerAddress || !resolverAddress) return
+
+    createSubname({
+      registryAddress: subregistryAddress,
+      label: label.trim(),
+      owner: ownerAddress,
+      resolverAddress,
+      parentName: name,
+      network,
+      id: CREATE_SUBNAME_TRANSACTION_ID,
+    })
+  }
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -92,17 +118,15 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
       return
     }
 
-    if (!hasSubregistry || !ownerAddress || !walletClient) {
+    if (!hasSubregistry || !ownerAddress) {
       return
     }
 
-    setIsSubmitting(true)
-    setSubmitError(null)
+    setPrepareError(null)
 
     const clientResult = safeGetNamechainSepoliaClient()
     if (clientResult.isErr()) {
-      setSubmitError('Failed to get client')
-      setIsSubmitting(false)
+      setPrepareError('Failed to get client')
       return
     }
 
@@ -112,64 +136,17 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
     )
 
     if (resolverResult.isErr()) {
-      setSubmitError(resolverResult.error.message)
-      setIsSubmitting(false)
+      setPrepareError(resolverResult.error.message)
       return
     }
 
     if (!resolverResult.value) {
-      setSubmitError('No resolver found for parent name')
-      setIsSubmitting(false)
+      setPrepareError('No resolver found for parent name')
       return
     }
 
-    const resolverAddress = resolverResult.value
-
-    const intentResult = await prepareCreateSubnameTransaction({
-      registryAddress: subregistryAddress,
-      label: label.trim(),
-      owner: ownerAddress,
-      resolverAddress,
-      walletClient,
-      chainId: sepolia.id,
-    })
-
-    if (intentResult.isErr()) {
-      setSubmitError(intentResult.error.message)
-      setIsSubmitting(false)
-      return
-    }
-
-    const signer = createEOASigner(walletClient)
-    const txId = transactionManager.startTransaction(
-      intentResult.value,
-      signer,
-      {
-        chainId: sepolia.id,
-        description: `Create subname ${label.trim()}.${name}`,
-      },
-    )
-
-    const actor = transactionManager.getTransaction(txId)
-    if (!actor) {
-      setSubmitError('Failed to start transaction')
-      setIsSubmitting(false)
-      return
-    }
-
-    actor.subscribe((snapshot) => {
-      const value = snapshot.value
-      if (value === 'success') {
-        navigate({ to: '/$name/subnames', params: { name } })
-      } else if (
-        typeof value === 'object' &&
-        value !== null &&
-        'error' in value
-      ) {
-        setSubmitError(snapshot.context.error?.message ?? 'Transaction failed')
-        setIsSubmitting(false)
-      }
-    })
+    setResolverAddress(resolverResult.value)
+    openTransactionModal()
   }
 
   if (registriesLoading) {
@@ -217,7 +194,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               className="flex-1"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isSuccess}
               required
             />
             <span className="text-base">.{name}</span>
@@ -230,8 +207,8 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
             id="owner"
             name="owner"
             placeholder="ENS name or HEX address"
-            disabled={isSubmitting}
             required
+            disabled={isSubmitting || isSuccess}
             pattern="(?:[\u002DA-Za-z0-9]+[.][A-Za-z]+|0x[a-fA-F0-9]{40})"
             onChange={(e) => {
               setResolveError(null)
@@ -281,7 +258,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
           />
         </Field>
 
-        {match({ isConnected, submitError, resolveError })
+        {match({ isConnected, prepareError, resolveError })
           .with({ isConnected: false }, () => (
             <p className="text-sm text-amber-600">
               Please connect your wallet to create a subname.
@@ -290,28 +267,44 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
           .with({ resolveError: P.string.minLength(1) }, ({ resolveError }) => (
             <p className="text-sm text-red-500">Error: {resolveError}</p>
           ))
-          .with({ submitError: P.string.minLength(1) }, ({ submitError }) => (
-            <p className="text-sm text-red-500">Error: {submitError}</p>
+          .with({ prepareError: P.string.minLength(1) }, ({ prepareError }) => (
+            <p className="text-sm text-red-500">Error: {prepareError}</p>
           ))
           .otherwise(() => null)}
 
         <Button
           type="submit"
-          disabled={
-            !ownerAddress || isSubmitting || !walletClient || !isConnected
-          }
+          disabled={!ownerAddress || !isConnected}
           className="w-full sm:w-fit"
         >
-          {match(isSubmitting)
-            .with(true, () => (
+          {match({ isSubmitting, isSuccess })
+            .with({ isSubmitting: true }, () => (
               <>
                 <Loader2 className="size-4 animate-spin mr-2" />
                 Creating...
               </>
             ))
+            .with({ isSuccess: true }, () => 'Transaction Complete')
             .otherwise(() => 'Create subname')}
         </Button>
       </form>
+
+      <TransactionModal
+        transactions={[
+          {
+            id: CREATE_SUBNAME_TRANSACTION_ID,
+            title: 'Create subname',
+            transactionName: `Create ${label.trim()}.${name}`,
+            estimatedGasCost: 0.0002,
+            onStart: handleStartTransaction,
+            onDone: () => {
+              closeTransactionModal()
+              clearTransaction()
+              navigate({ to: '/$name/subnames', params: { name } })
+            },
+          },
+        ]}
+      />
     </div>
   )
 }
@@ -338,7 +331,7 @@ const CreateSubnameContent = ({
     )
   }
 
-  return <CreateSubnameForm name={name} />
+  return <CreateSubnameForm name={name} network={ownerData.network} />
 }
 
 // --- Route Component (fetches ownerData) ---
