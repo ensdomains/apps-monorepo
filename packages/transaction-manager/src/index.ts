@@ -101,6 +101,11 @@ export type {
 export { subregistryDeploymentMachine } from './machines/subregistry-deployment'
 // Machines
 export { transactionMachine } from './machines/transaction.machine'
+export type {
+  TransactionMachineActor,
+  TransactionMachineEvent,
+  TransactionMachineState,
+} from './machines/transaction.types'
 // Providers
 export {
   TransactionManagerProvider,
