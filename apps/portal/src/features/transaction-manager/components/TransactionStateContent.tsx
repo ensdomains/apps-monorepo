@@ -22,7 +22,9 @@ import { getTransactionStatus } from '../utils/getTransactionStatus'
 type TransactionStateContentProps = {
   readonly transaction: Transaction
   readonly txState: ActiveTransactionState | undefined
-  readonly setTransactionModalContentState: (state: TransactionModalContentState) => void
+  readonly setTransactionModalContentState: (
+    state: TransactionModalContentState,
+  ) => void
 }
 
 export const TransactionStateContent = ({
@@ -86,7 +88,11 @@ export const TransactionStateContent = ({
             <div className="flex items-center gap-2">
               <h3>{transaction.transactionName}</h3>
               {blockExplorerTxUrl && (
-                <a href={blockExplorerTxUrl} target="_blank" rel="noreferrer">
+                <a
+                  href={blockExplorerTxUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
                   <SquareArrowOutUpRight className="size-3" />
                 </a>
               )}
