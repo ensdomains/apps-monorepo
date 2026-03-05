@@ -66,6 +66,7 @@ export function useCreateSubname() {
     createSubname: mutation.mutate,
     isPending: mutation.isPending,
     isError: mutation.isError,
+    isSuccess: mutation.isSuccess,
     error: mutation.error,
     reset: mutation.reset,
   }

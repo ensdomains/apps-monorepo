@@ -80,7 +80,11 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
     clearTransaction,
   } = useTransactionModal()
 
-  const { createSubname, isPending: isSubmitting } = useCreateSubname()
+  const {
+    createSubname,
+    isPending: isSubmitting,
+    isSuccess,
+  } = useCreateSubname()
 
   // Fetch registries (we know it's v2 at this point)
   const {
@@ -190,7 +194,7 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               className="flex-1"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isSuccess}
               required
             />
             <span className="text-base">.{name}</span>
@@ -204,7 +208,7 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
             name="owner"
             placeholder="ENS name or HEX address"
             required
-            disabled={isSubmitting}
+            disabled={isSubmitting || isSuccess}
             pattern="(?:[\u002DA-Za-z0-9]+[.][A-Za-z]+|0x[a-fA-F0-9]{40})"
             onChange={(e) => {
               setResolveError(null)
@@ -273,13 +277,14 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
           disabled={!ownerAddress || !isConnected}
           className="w-full sm:w-fit"
         >
-          {match(isSubmitting)
-            .with(true, () => (
+          {match({ isSubmitting, isSuccess })
+            .with({ isSubmitting: true }, () => (
               <>
                 <Loader2 className="size-4 animate-spin mr-2" />
                 Creating...
               </>
             ))
+            .with({ isSuccess: true }, () => 'Transaction Complete')
             .otherwise(() => 'Create subname')}
         </Button>
       </form>
