@@ -15,10 +15,10 @@ import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { revokeRoles } from '../helpers/revokeRoles'
 
 type UseRevokeRolesParameters = {
-  name: string
-  account: Address
-  roles: Role[]
-  id: string
+  readonly name: string
+  readonly account: Address
+  readonly roles: Role[]
+  readonly id: string
 }
 
 export function useRevokeRoles() {

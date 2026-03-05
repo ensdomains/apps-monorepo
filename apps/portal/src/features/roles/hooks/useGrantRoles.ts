@@ -15,10 +15,10 @@ import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { grantRoles } from '../helpers/grantRoles'
 
 type UseGrantRolesParameters = {
-  name: string
-  account: Address
-  roles: Role[]
-  id: string
+  readonly name: string
+  readonly account: Address
+  readonly roles: Role[]
+  readonly id: string
 }
 
 export function useGrantRoles() {
