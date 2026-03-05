@@ -1,6 +1,7 @@
 import {
   ArrowRight,
   CheckCircle2,
+  ExternalLink,
   InfoIcon,
   PlayCircle,
   XCircle,
@@ -8,13 +9,15 @@ import {
 import { Fragment } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
-import { useEnsName } from 'wagmi'
+import { useChainId, useEnsName } from 'wagmi'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
+import { wagmiConfig } from '@/lib/wagmi'
+import { getBlockExplorerTxUrl } from '@/utils/blockExplorer/getBlockExplorerTxUrl'
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getTransactionById } from '../utils/getTransactionById'
@@ -41,6 +44,8 @@ export const TransactionsOverviewContent = ({
       enabled: Boolean(address),
     },
   })
+
+  const chainId = useChainId()
 
   const activeTransaction =
     txState && getTransactionById(transactions, txState.txId)
@@ -104,8 +109,28 @@ export const TransactionsOverviewContent = ({
                         </Badge>
                       ))
                       .with('success', () => (
-                        <Badge variant="success" className="font-normal">
-                          <CheckCircle2 className="size-3 mr-0.5" /> Done
+                        <Badge
+                          variant="success"
+                          className="font-normal"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                          }}
+                          asChild
+                        >
+                          {txState?.hash ? (
+                            <a
+                              href={getBlockExplorerTxUrl(
+                                wagmiConfig.chains,
+                                chainId,
+                                txState.hash,
+                              )}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <CheckCircle2 className="size-3 mr-0.5" /> Done
+                              <ExternalLink className="size-3 ml-0.5" />
+                            </a>
+                          ) : null}
                         </Badge>
                       ))
                       .with('error', () => (

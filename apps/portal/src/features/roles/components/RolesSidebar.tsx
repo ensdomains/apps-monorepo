@@ -66,11 +66,13 @@ export const RolesSidebar = <
   const isMobile = useIsMobile()
   const chainId = namechainSepolia.id
   const [confirmOpen, setConfirmOpen] = useState(false)
+
   const [pendingSave, setPendingSave] = useState<{
     account: Address
     rolesToGrant: Role[]
     rolesToRevoke: Role[]
   } | null>(null)
+
   const [pendingRemove, setPendingRemove] = useState<{
     account: Address
     roles: Role[]
@@ -78,13 +80,9 @@ export const RolesSidebar = <
 
   const { data: walletClient } = useWalletClient({ chainId })
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
+
   const { grantRoles } = useGrantRoles()
-  const {
-    revokeRoles,
-    isError: isRevokeError,
-    error: revokeError,
-  } = useRevokeRoles()
-  const { isError: isGrantError, error: grantError } = useGrantRoles()
+  const { revokeRoles } = useRevokeRoles()
 
   const selectedAccount = row?.original.account
   const originalRoles = useMemo(
@@ -245,7 +243,7 @@ export const RolesSidebar = <
           className="sm:max-w-[880px] bg-white overflow-y-auto"
         >
           <div className="p-6 flex flex-col gap-6 h-screen">
-            <SheetHeader className="p-0">
+            <SheetHeader className="p-0 mt-3">
               <div className="flex flex-wrap justify-between items-center gap-4">
                 <SheetTitle className="font-sans text-heading font-medium">
                   Role Details
@@ -310,14 +308,6 @@ export const RolesSidebar = <
                     />
                   )}
                 </div>
-                {(isGrantError || isRevokeError) && (
-                  <Alert variant="destructive">
-                    <AlertDescription>
-                      {grantError?.message || revokeError?.message}
-                    </AlertDescription>
-                  </Alert>
-                )}
-
                 <div className="flex flex-col gap-4">
                   <h3 className="text-lg font-medium">Roles</h3>
                   <div className="border rounded-lg divide-y">
