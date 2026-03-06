@@ -78,10 +78,6 @@ export const ChangeResolverForm = ({
   const [resolverAddress, setResolverAddress] = useState('')
   const [selectedExistingResolver, setSelectedExistingResolver] = useState('')
   const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
-  const [pendingResolverAddress, setPendingResolverAddress] =
-    useState<Address | null>(null)
-  const [singleTxSuccessFromModal, setSingleTxSuccessFromModal] =
-    useState(false)
 
   const {
     openModal: openTransactionModal,
@@ -129,28 +125,34 @@ export const ChangeResolverForm = ({
 
   const isConfirmedForSuccessLabel = deployNewResolver
     ? isChangeResolverSuccess
-    : singleTxSuccessFromModal
+    : false
 
   useResetSuccessLabelAfterDelay(
     isConfirmedForSuccessLabel,
     setShowSuccessButtonLabel,
     5000,
-    () => setSingleTxSuccessFromModal(false),
+    () => setShowSuccessButtonLabel(false),
   )
 
-  const isSingleTxPath = useCustomResolver || !deployNewResolver
-  const isBusy = isChangeResolverPending || isDeployConfirming
+  const isBusy =
+    (isChangeResolverPending && !useCustomResolver) || isDeployConfirming
+
+  const resolverToUse: Address | null = useCustomResolver
+    ? isAddress(resolverAddress)
+      ? (resolverAddress as Address)
+      : null
+    : isAddress(selectedExistingResolver)
+      ? (selectedExistingResolver as Address)
+      : null
 
   const handleStartTransaction = () => {
-    if (!pendingResolverAddress) return
-    changeResolver(pendingResolverAddress)
+    if (!resolverToUse) return
+    changeResolver(resolverToUse)
   }
 
   const handleTransactionDone = () => {
     closeTransactionModal()
     clearTransaction()
-    setPendingResolverAddress(null)
-    setSingleTxSuccessFromModal(true)
     setShowSuccessButtonLabel(true)
   }
 
@@ -160,7 +162,6 @@ export const ChangeResolverForm = ({
     try {
       if (useCustomResolver) {
         if (!isAddress(resolverAddress)) return
-        setPendingResolverAddress(resolverAddress as Address)
         openTransactionModal()
         return
       }
@@ -173,7 +174,6 @@ export const ChangeResolverForm = ({
       }
 
       if (!isAddress(selectedExistingResolver)) return
-      setPendingResolverAddress(selectedExistingResolver as Address)
       openTransactionModal()
     } catch (err) {
       console.error('Failed to update resolver:', err)
@@ -181,7 +181,7 @@ export const ChangeResolverForm = ({
   }
 
   const isSubmitDisabled = (() => {
-    const walletOk = isSingleTxPath ? hasWallet : hasDeployWallet
+    const walletOk = useCustomResolver ? hasWallet : hasDeployWallet
     if (isBusy || !walletOk) return true
 
     if (useCustomResolver) {
@@ -331,7 +331,7 @@ export const ChangeResolverForm = ({
         txHashLabel="Deploy tx hash:"
       />
 
-      {deployNewResolver && (
+      {deployNewResolver && !useCustomResolver && (
         <ChangeResolverTransactionStatus
           txHash={changeResolverData?.hash}
           isConfirming={isChangeResolverPending}
@@ -342,7 +342,7 @@ export const ChangeResolverForm = ({
         />
       )}
 
-      {isSingleTxPath && (
+      {useCustomResolver && (
         <TransactionModal
           transactions={[
             {
