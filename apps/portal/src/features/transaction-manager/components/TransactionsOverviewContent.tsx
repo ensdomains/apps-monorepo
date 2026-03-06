@@ -149,17 +149,19 @@ export const TransactionsOverviewContent = ({
           <Button
             className="w-full mb-0"
             variant="secondary"
-            // TODO: This would get replaced with smart transaction selection once we introduce multi transaction flow
             onClick={() => {
               if (transactionStatus === 'success') {
-                transactions[0]?.onDone()
+                ;(activeTransaction ?? transactions[0])?.onDone()
                 return
               }
 
-              setTransactionModalContentState({
-                type: 'state',
-                transactionId: transactions[0]?.id,
-              })
+              const targetTx = activeTransaction ?? transactions[0]
+              if (targetTx) {
+                setTransactionModalContentState({
+                  type: 'state',
+                  transactionId: targetTx.id,
+                })
+              }
             }}
           >
             {match(getTransactionStatus(txState, activeTransaction))

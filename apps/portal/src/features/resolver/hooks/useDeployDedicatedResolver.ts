@@ -36,12 +36,14 @@ const deployDedicatedResolver = async ({
   publicClient,
   accountAddress,
   chainId,
+  id,
 }: {
   name: string
   signer: Signer
   publicClient: NonNullable<ReturnType<typeof usePublicClient>>
   accountAddress: Address
   chainId: number
+  id: string
 }): Promise<DeployDedicatedResolverResult> => {
   const salt = generateResolverSalt(name)
   const initCalldata = getResolverInitCalldata(accountAddress)
@@ -69,6 +71,7 @@ const deployDedicatedResolver = async ({
     },
     signer,
     {
+      id,
       description: `Deploy dedicated resolver for ${name}`,
       publicClient,
       timeout: 120_000,
@@ -97,7 +100,11 @@ export const useDeployDedicatedResolver = ({
   const publicClient = usePublicClient({ chainId })
 
   const mutation = useMutation({
-    mutationFn: async (): Promise<DeployDedicatedResolverResult> => {
+    mutationFn: async ({
+      id,
+    }: {
+      id: string
+    }): Promise<DeployDedicatedResolverResult> => {
       if (!walletClient || !publicClient) {
         throw new Error('Wallet not connected')
       }
@@ -114,6 +121,7 @@ export const useDeployDedicatedResolver = ({
         publicClient,
         accountAddress: walletClient.account.address,
         chainId,
+        id,
       })
     },
   })

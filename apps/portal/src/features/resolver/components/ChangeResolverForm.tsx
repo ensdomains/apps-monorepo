@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CircleCheckIcon } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { isAddress } from 'viem'
@@ -17,6 +17,7 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { ChangeResolverTransactionStatus } from './ChangeResolverTransactionStatus'
 
+const DEPLOY_RESOLVER_TX_ID = 'tx-deploy-dedicated-resolver'
 const CHANGE_RESOLVER_TX_ID = 'tx-change-resolver'
 
 function useAutoSelectFirstResolver(
@@ -55,6 +56,7 @@ export const ChangeResolverForm = ({
   const [resolverAddress, setResolverAddress] = useState('')
   const [selectedExistingResolver, setSelectedExistingResolver] = useState('')
   const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
+  const deployedResolverAddressRef = useRef<Address | null>(null)
 
   const {
     openModal: openTransactionModal,
@@ -72,11 +74,7 @@ export const ChangeResolverForm = ({
 
   const {
     changeResolver,
-    changeResolverAsync,
     isPending: isChangeResolverPending,
-    isSuccess: isChangeResolverSuccess,
-    error: changeResolverError,
-    data: changeResolverData,
     hasWallet,
   } = useChangeResolver({
     name,
@@ -93,6 +91,8 @@ export const ChangeResolverForm = ({
     hasWallet: hasDeployWallet,
   } = useDeployDedicatedResolver({ name })
 
+  const isDeployPath = deployNewResolver && !useCustomResolver
+
   useAutoSelectFirstResolver(
     deployNewResolver,
     selectedExistingResolver,
@@ -101,7 +101,8 @@ export const ChangeResolverForm = ({
   )
 
   const isBusy =
-    (isChangeResolverPending && !useCustomResolver) || isDeployConfirming
+    (isChangeResolverPending && !useCustomResolver && !isDeployPath) ||
+    (isDeployConfirming && !isDeployPath)
 
   const handleStartTransaction = () => {
     const resolverToUse = match({ useCustomResolver })
@@ -119,16 +120,47 @@ export const ChangeResolverForm = ({
       return
     }
 
-    changeResolver(resolverToUse, {
-      onSuccess: () => setShowSuccessButtonLabel(true),
-    })
+    changeResolver(resolverToUse)
+  }
+
+  const handleDeployResolverStart = () => {
+    deployDedicatedResolverAsync(
+      { id: DEPLOY_RESOLVER_TX_ID },
+      {
+        onSuccess: (deployment) => {
+          deployedResolverAddressRef.current = deployment.resolverAddress
+        },
+      },
+    )
+  }
+
+  const handleDeployResolverDone = () => {
+    const address = deployedResolverAddressRef.current
+    if (!address) return
+    changeResolver(address)
+    deployedResolverAddressRef.current = null
   }
 
   const handleTransactionDone = () => {
     closeTransactionModal()
     clearTransaction()
     setResolverAddress('')
-    setShowSuccessButtonLabel(false)
+    setShowSuccessButtonLabel(true)
+    setTimeout(
+      () => setShowSuccessButtonLabel(false),
+      SUCCESS_LABEL_DURATION_MS,
+    )
+  }
+
+  const handleMultiStepTransactionDone = () => {
+    closeTransactionModal()
+    clearTransaction()
+    deployedResolverAddressRef.current = null
+    setShowSuccessButtonLabel(true)
+    setTimeout(
+      () => setShowSuccessButtonLabel(false),
+      SUCCESS_LABEL_DURATION_MS,
+    )
   }
 
   const handleSubmit = async () => {
@@ -141,17 +173,8 @@ export const ChangeResolverForm = ({
         return
       }
 
-      // TODO: use multi step tx modal once the pattern is implemented
       if (deployNewResolver) {
-        const deployment = await deployDedicatedResolverAsync()
-
-        await changeResolverAsync(deployment.resolverAddress, {
-          onSuccess: () => setShowSuccessButtonLabel(true),
-        })
-
-        setTimeout(() => {
-          setShowSuccessButtonLabel(false)
-        }, SUCCESS_LABEL_DURATION_MS)
+        openTransactionModal()
         return
       }
 
@@ -301,43 +324,53 @@ export const ChangeResolverForm = ({
         />
       )}
 
-      <DeployTransactionStatus
-        txHash={deployTxHash}
-        isConfirming={isDeployConfirming}
-        isConfirmed={isDeployConfirmed}
-        txError={deployError}
-        pendingTitle="Deploying Dedicated Resolver"
-        successTitle="Dedicated Resolver Deployed"
-        pendingDescription="Waiting for deployment confirmation..."
-        successDescription="Dedicated resolver deployed successfully."
-        txHashLabel="Deploy tx hash:"
+      {!isDeployPath && (
+        <DeployTransactionStatus
+          txHash={deployTxHash}
+          isConfirming={isDeployConfirming}
+          isConfirmed={isDeployConfirmed}
+          txError={deployError}
+          pendingTitle="Deploying Dedicated Resolver"
+          successTitle="Dedicated Resolver Deployed"
+          pendingDescription="Waiting for deployment confirmation..."
+          successDescription="Dedicated resolver deployed successfully."
+          txHashLabel="Deploy tx hash:"
+        />
+      )}
+
+      <TransactionModal
+        transactions={
+          isDeployPath
+            ? [
+                {
+                  id: DEPLOY_RESOLVER_TX_ID,
+                  title: 'Deploy dedicated resolver',
+                  transactionName: `Deploy resolver for ${name}`,
+                  estimatedGasCost: 0.001,
+                  onStart: handleDeployResolverStart,
+                  onDone: handleDeployResolverDone,
+                },
+                {
+                  id: CHANGE_RESOLVER_TX_ID,
+                  title: 'Change resolver',
+                  transactionName: `Set resolver for ${name}`,
+                  estimatedGasCost: 0.0001,
+                  onStart: () => {},
+                  onDone: handleMultiStepTransactionDone,
+                },
+              ]
+            : [
+                {
+                  id: CHANGE_RESOLVER_TX_ID,
+                  title: 'Change resolver',
+                  transactionName: `Set resolver for ${name}`,
+                  estimatedGasCost: 0.0001,
+                  onStart: handleStartTransaction,
+                  onDone: handleTransactionDone,
+                },
+              ]
+        }
       />
-
-      {deployNewResolver && !useCustomResolver && (
-        <ChangeResolverTransactionStatus
-          txHash={changeResolverData?.hash}
-          isConfirming={isChangeResolverPending}
-          isConfirmed={isChangeResolverSuccess}
-          isReverted={false}
-          txError={changeResolverError}
-          receiptError={null}
-        />
-      )}
-
-      {(useCustomResolver || !deployNewResolver) && (
-        <TransactionModal
-          transactions={[
-            {
-              id: CHANGE_RESOLVER_TX_ID,
-              title: 'Change resolver',
-              transactionName: `Set resolver for ${name}`,
-              estimatedGasCost: 0.0001,
-              onStart: handleStartTransaction,
-              onDone: handleTransactionDone,
-            },
-          ]}
-        />
-      )}
     </div>
   )
 }
