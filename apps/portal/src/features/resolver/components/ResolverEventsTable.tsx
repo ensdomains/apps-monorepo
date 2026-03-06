@@ -9,7 +9,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { ChevronDown, ChevronUp, PanelRightOpen } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import type { Address, Hash } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
@@ -250,7 +250,7 @@ export const ResolverEventsTable = ({
             const trailingColSpan = totalColumns - 4
 
             return (
-              <>
+              <Fragment key={row.id}>
                 <TableRow
                   key={row.id}
                   className={cn(
@@ -291,7 +291,7 @@ export const ResolverEventsTable = ({
                     )}
                   </TableRow>
                 )}
-              </>
+              </Fragment>
             )
           })
         ) : (
