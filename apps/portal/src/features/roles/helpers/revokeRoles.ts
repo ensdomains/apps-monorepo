@@ -46,12 +46,15 @@ export interface RevokeRolesResult {
 // Public API
 // ============================================================================
 
-export async function revokeRoles(
-  params: RevokeRolesParameters,
-): Promise<RevokeRolesResult> {
-  const { name, account, roles, walletClient, publicClient, signer, chainId } =
-    params
-
+export async function revokeRoles({
+  name,
+  account,
+  roles,
+  walletClient,
+  publicClient,
+  signer,
+  chainId,
+}: RevokeRolesParameters): Promise<RevokeRolesResult> {
   if (!walletClient.account || !walletClient.chain) {
     throw new Error('Wallet client must have account and chain configured')
   }
