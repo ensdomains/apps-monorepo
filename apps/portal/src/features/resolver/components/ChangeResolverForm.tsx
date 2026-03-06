@@ -38,30 +38,7 @@ function useAutoSelectFirstResolver(
   ])
 }
 
-function useResetSuccessLabelAfterDelay(
-  isConfirmed: boolean,
-  setShowSuccessButtonLabel: (value: boolean) => void,
-  delayMs = 5000,
-  onReset: () => void,
-) {
-  useEffect(() => {
-    if (!isConfirmed) {
-      setShowSuccessButtonLabel(false)
-      onReset()
-      return
-    }
-
-    setShowSuccessButtonLabel(true)
-    const timeoutId = window.setTimeout(() => {
-      setShowSuccessButtonLabel(false)
-      onReset()
-    }, delayMs)
-
-    return () => {
-      window.clearTimeout(timeoutId)
-    }
-  }, [isConfirmed, setShowSuccessButtonLabel, delayMs, onReset])
-}
+const SUCCESS_LABEL_DURATION_MS = 5000
 
 interface ChangeResolverFormProps {
   readonly name: string
@@ -123,16 +100,11 @@ export const ChangeResolverForm = ({
     setSelectedExistingResolver,
   )
 
-  const isConfirmedForSuccessLabel = deployNewResolver
-    ? isChangeResolverSuccess
-    : false
+  useEffect(() => {
+    if (!isChangeResolverSuccess) return
 
-  useResetSuccessLabelAfterDelay(
-    isConfirmedForSuccessLabel,
-    setShowSuccessButtonLabel,
-    5000,
-    () => setShowSuccessButtonLabel(false),
-  )
+    setShowSuccessButtonLabel(true)
+  }, [isChangeResolverSuccess])
 
   const isBusy =
     (isChangeResolverPending && !useCustomResolver) || isDeployConfirming
@@ -156,7 +128,7 @@ export const ChangeResolverForm = ({
   const handleTransactionDone = () => {
     closeTransactionModal()
     clearTransaction()
-    setShowSuccessButtonLabel(true)
+    setShowSuccessButtonLabel(false)
   }
 
   const handleSubmit = async () => {
@@ -173,6 +145,12 @@ export const ChangeResolverForm = ({
       if (deployNewResolver) {
         const deployment = await deployDedicatedResolverAsync()
         await changeResolverAsync(deployment.resolverAddress)
+
+        setTimeout(
+          () => setShowSuccessButtonLabel(false),
+          SUCCESS_LABEL_DURATION_MS,
+        )
+
         return
       }
 
@@ -345,7 +323,7 @@ export const ChangeResolverForm = ({
         />
       )}
 
-      {useCustomResolver && (
+      {(useCustomResolver || !deployNewResolver) && (
         <TransactionModal
           transactions={[
             {
