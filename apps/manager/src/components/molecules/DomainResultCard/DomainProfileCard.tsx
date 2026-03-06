@@ -27,6 +27,15 @@ const formatDate = (date: Date | string | null | undefined): string => {
   })
 }
 
+const getSurfaceColor = (hex: string): string => {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  const mix = (c: number) => Math.round(c + (255 - c) * 0.45)
+  const toHex = (c: number) => c.toString(16).padStart(2, '0')
+  return `#${toHex(mix(r))}${toHex(mix(g))}${toHex(mix(b))}`
+}
+
 export const DomainProfileCard = ({
   domainName,
   avatarUrl,
@@ -39,8 +48,8 @@ export const DomainProfileCard = ({
   const formattedRegisteredDate = formatDate(registeredDate) || 'N/A'
   const formattedExpiryDate = formatDate(expiryDate) || 'N/A'
   const color = themeColor || DEFAULT_THEME_COLOR
+  const surfaceColor = getSurfaceColor(color)
 
-  // const content =
   return (
     <div
       className={cn(
@@ -80,9 +89,12 @@ export const DomainProfileCard = ({
             {/* Registered Date */}
             {formattedRegisteredDate && (
               <div className="flex items-center gap-[5.417px]">
-                <Calendar className="size-5 text-ens-garnet-surface" />
+                <Calendar className="size-5" style={{ color: surfaceColor }} />
                 <div className="flex items-end gap-[3.611px]">
-                  <p className="text-ens-garnet-surface text-sm leading-none tracking-[-0.28px]">
+                  <p
+                    className="text-sm leading-none tracking-[-0.28px]"
+                    style={{ color: surfaceColor }}
+                  >
                     Registered
                   </p>
                   <p
@@ -98,9 +110,12 @@ export const DomainProfileCard = ({
             {/* Expiry Date */}
             {formattedExpiryDate && (
               <div className="flex items-center gap-2">
-                <Clock className="size-5 text-ens-garnet-surface" />
+                <Clock className="size-5" style={{ color: surfaceColor }} />
                 <div className="flex items-center gap-1">
-                  <p className="text-ens-garnet-surface text-sm leading-none tracking-[-0.28px]">
+                  <p
+                    className="text-sm leading-none tracking-[-0.28px]"
+                    style={{ color: surfaceColor }}
+                  >
                     Expires
                   </p>
                   <p
@@ -116,12 +131,18 @@ export const DomainProfileCard = ({
         </div>
       </div>
 
-      <div className="group flex h-8 min-w-[101px] shrink-0 flex-col items-end justify-end rounded-sm border border-ens-blue-midnight hover:bg-gray-600">
+      <div
+        className="group flex h-8 min-w-[101px] shrink-0 flex-col items-end justify-end rounded-sm border"
+        style={{ borderColor: color }}
+      >
         <div className="flex h-8 items-center gap-1 rounded-sm px-2 py-1">
-          <p className="text-center font-medium text-ens-blue-midnight text-xs leading-normal group-hover:text-white">
+          <p
+            className="text-center font-medium text-xs leading-normal"
+            style={{ color }}
+          >
             View profile
           </p>
-          <ArrowRight className="size-2.5 h-2.5 text-ens-blue-midnight group-hover:text-white" />
+          <ArrowRight className="size-2.5 h-2.5" style={{ color }} />
         </div>
       </div>
     </div>
