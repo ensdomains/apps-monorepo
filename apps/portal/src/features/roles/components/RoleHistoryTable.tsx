@@ -16,6 +16,7 @@ import {
   getRoleHistoryQueryOptions,
   type RoleHistoryEntry,
 } from '@/features/roles/hooks/useRoleHistory'
+import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 
 const RoleDiff = ({ entry }: { entry: RoleHistoryEntry }) => {
   const added = entry.newRoles.filter((r) => !entry.oldRoles.includes(r))
@@ -46,16 +47,6 @@ const RoleDiff = ({ entry }: { entry: RoleHistoryEntry }) => {
       )}
     </div>
   )
-}
-
-const formatDate = (timestamp: number): string => {
-  return new Date(timestamp * 1000).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 export const RoleHistoryTable = ({
@@ -100,7 +91,7 @@ export const RoleHistoryTable = ({
         {data.map((entry) => (
           <TableRow key={`${entry.transactionHash}-${entry.account}`}>
             <TableCell className="px-4 sm:px-6 py-3 text-sm text-quartz-600">
-              {formatDate(entry.timestamp)}
+              {formatTimestamp(BigInt(entry.timestamp))}
             </TableCell>
             <TableCell className="px-4 sm:px-6 py-3">
               <AddressDisplay address={entry.account} />
