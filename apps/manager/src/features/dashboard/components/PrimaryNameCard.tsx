@@ -8,6 +8,7 @@ import { formatDashboardDate } from '@/features/dashboard/utils'
 import { DEFAULT_THEME_COLOR } from '@/features/profile/constants'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
+import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { ChoosePrimaryNameDialog } from './ChoosePrimaryNameDialog'
 import { PrimaryBadge } from './PrimaryBadge'
 
@@ -54,8 +55,15 @@ export const PrimaryNameCard = ({
     : formattedExpiryDate
   const canViewProfile = Boolean(primaryName)
 
+  const themeVars = getThemeVars(
+    themeColor || DEFAULT_THEME_COLOR,
+  ) as React.CSSProperties
+
   return (
-    <Card className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6">
+    <Card
+      className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6"
+      style={themeVars}
+    >
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-8">
         <div className="flex flex-row items-start gap-4 md:gap-5">
           <motion.div
@@ -89,10 +97,7 @@ export const PrimaryNameCard = ({
                 className="mb-4 flex cursor-pointer flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-3"
                 type="button"
               >
-                <div
-                  className="inline-flex items-center rounded-sm px-2 py-1 md:px-[8.5px] md:py-[4.25px]"
-                  style={{ backgroundColor: themeColor || DEFAULT_THEME_COLOR }}
-                >
+                <div className="inline-flex items-center rounded-sm bg-(--theme-color) px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
                   <span
                     className={
                       displayName.length > 10

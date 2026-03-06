@@ -1,6 +1,7 @@
 import { ArrowRight, Calendar, Clock } from 'lucide-react'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import { DEFAULT_THEME_COLOR } from '@/features/profile/constants'
+import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { cn } from '@/lib/utils'
 
 export interface DomainProfileCardProps {
@@ -27,15 +28,6 @@ const formatDate = (date: Date | string | null | undefined): string => {
   })
 }
 
-const getSurfaceColor = (hex: string): string => {
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  const mix = (c: number) => Math.round(c + (255 - c) * 0.45)
-  const toHex = (c: number) => c.toString(16).padStart(2, '0')
-  return `#${toHex(mix(r))}${toHex(mix(g))}${toHex(mix(b))}`
-}
-
 export const DomainProfileCard = ({
   domainName,
   avatarUrl,
@@ -47,8 +39,9 @@ export const DomainProfileCard = ({
 }: DomainProfileCardProps) => {
   const formattedRegisteredDate = formatDate(registeredDate) || 'N/A'
   const formattedExpiryDate = formatDate(expiryDate) || 'N/A'
-  const color = themeColor || DEFAULT_THEME_COLOR
-  const surfaceColor = getSurfaceColor(color)
+  const themeVars = getThemeVars(
+    themeColor || DEFAULT_THEME_COLOR,
+  ) as React.CSSProperties
 
   return (
     <div
@@ -60,6 +53,7 @@ export const DomainProfileCard = ({
           'hover:-translate-y-0.5 cursor-pointer hover:shadow-[0px_4px_6px_-1px_rgba(14,61,104,0.08),0px_20px_28px_-12px_rgba(15,23,42,0.24)]',
         className,
       )}
+      style={themeVars}
     >
       {/* Left section: Avatar and Domain Info */}
       <div className="flex h-full items-center gap-4">
@@ -77,10 +71,7 @@ export const DomainProfileCard = ({
         {/* Domain Info */}
         <div className="flex h-full flex-col justify-start gap-2">
           {/* Domain Name Badge */}
-          <div
-            className="flex w-fit items-center justify-center gap-[10px] rounded-sm px-2 py-1 font-medium text-2xl text-ens-white leading-none tracking-[-0.64px]"
-            style={{ backgroundColor: color }}
-          >
+          <div className="flex w-fit items-center justify-center gap-[10px] rounded-sm bg-(--theme-color) px-2 py-1 font-medium text-2xl text-ens-white leading-none tracking-[-0.64px]">
             {domainName}
           </div>
 
@@ -89,18 +80,12 @@ export const DomainProfileCard = ({
             {/* Registered Date */}
             {formattedRegisteredDate && (
               <div className="flex items-center gap-[5.417px]">
-                <Calendar className="size-5" style={{ color: surfaceColor }} />
+                <Calendar className="size-5 text-(--theme-surface)" />
                 <div className="flex items-end gap-[3.611px]">
-                  <p
-                    className="text-sm leading-none tracking-[-0.28px]"
-                    style={{ color: surfaceColor }}
-                  >
+                  <p className="text-(--theme-surface) text-sm leading-none tracking-[-0.28px]">
                     Registered
                   </p>
-                  <p
-                    className="whitespace-nowrap font-medium text-sm leading-none tracking-[-0.28px]"
-                    style={{ color }}
-                  >
+                  <p className="whitespace-nowrap font-medium text-(--theme-color) text-sm leading-none tracking-[-0.28px]">
                     {formattedRegisteredDate}
                   </p>
                 </div>
@@ -110,18 +95,12 @@ export const DomainProfileCard = ({
             {/* Expiry Date */}
             {formattedExpiryDate && (
               <div className="flex items-center gap-2">
-                <Clock className="size-5" style={{ color: surfaceColor }} />
+                <Clock className="size-5 text-(--theme-surface)" />
                 <div className="flex items-center gap-1">
-                  <p
-                    className="text-sm leading-none tracking-[-0.28px]"
-                    style={{ color: surfaceColor }}
-                  >
+                  <p className="text-(--theme-surface) text-sm leading-none tracking-[-0.28px]">
                     Expires
                   </p>
-                  <p
-                    className="whitespace-nowrap font-medium text-sm leading-none tracking-[-0.28px]"
-                    style={{ color }}
-                  >
+                  <p className="whitespace-nowrap font-medium text-(--theme-color) text-sm leading-none tracking-[-0.28px]">
                     {formattedExpiryDate}
                   </p>
                 </div>
@@ -131,18 +110,12 @@ export const DomainProfileCard = ({
         </div>
       </div>
 
-      <div
-        className="group flex h-8 min-w-[101px] shrink-0 flex-col items-end justify-end rounded-sm border"
-        style={{ borderColor: color }}
-      >
+      <div className="group flex h-8 min-w-[101px] shrink-0 flex-col items-end justify-end rounded-sm border border-(--theme-color)">
         <div className="flex h-8 items-center gap-1 rounded-sm px-2 py-1">
-          <p
-            className="text-center font-medium text-xs leading-normal"
-            style={{ color }}
-          >
+          <p className="text-center font-medium text-(--theme-color) text-xs leading-normal">
             View profile
           </p>
-          <ArrowRight className="size-2.5 h-2.5" style={{ color }} />
+          <ArrowRight className="size-2.5 h-2.5 text-(--theme-color)" />
         </div>
       </div>
     </div>

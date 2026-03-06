@@ -9,12 +9,13 @@ export const getThemeVars = (hex: string): Record<string, string> => {
   const toHex = (channel: number): string =>
     channel.toString(16).padStart(2, '0')
 
-  const bg = `#${toHex(mix(r, 0.85))}${toHex(mix(g, 0.85))}${toHex(mix(b, 0.85))}`
-  const hoverBg = `#${toHex(mix(r, 0.75))}${toHex(mix(g, 0.75))}${toHex(mix(b, 0.75))}`
+  const colorHex = (ratio: number) =>
+    `#${toHex(mix(r, ratio))}${toHex(mix(g, ratio))}${toHex(mix(b, ratio))}`
 
   return {
     '--theme-color': hex,
-    '--theme-bg': bg,
-    '--theme-hover-bg': hoverBg,
+    '--theme-surface': colorHex(0.45),
+    '--theme-bg': colorHex(0.85),
+    '--theme-hover-bg': colorHex(0.75),
   }
 }
