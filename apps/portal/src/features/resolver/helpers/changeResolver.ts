@@ -28,15 +28,16 @@ import {
 
 export interface ChangeResolverParameters {
   /** The ENS name (e.g., 'sub.parent.eth') */
-  name: string
+  readonly name: string
   /** The registry address that manages this name (parent's registry) */
-  registryAddress: Address
+  readonly registryAddress: Address
   /** The new resolver address to set */
-  resolverAddress: Address
-  walletClient: WalletClient
-  publicClient: PublicClient
-  signer: Signer
-  chainId: number
+  readonly resolverAddress: Address
+  readonly walletClient: WalletClient
+  readonly publicClient: PublicClient
+  readonly signer: Signer
+  readonly chainId: number
+  readonly id: string
 }
 
 export interface ChangeResolverResult {
@@ -66,19 +67,16 @@ export interface ChangeResolverResult {
  * })
  * ```
  */
-export const changeResolver = async (
-  params: ChangeResolverParameters,
-): Promise<ChangeResolverResult> => {
-  const {
-    name,
-    registryAddress,
-    resolverAddress,
-    walletClient,
-    publicClient,
-    signer,
-    chainId,
-  } = params
-
+export const changeResolver = async ({
+  name,
+  registryAddress,
+  resolverAddress,
+  walletClient,
+  publicClient,
+  signer,
+  chainId,
+  id,
+}: ChangeResolverParameters): Promise<ChangeResolverResult> => {
   if (!walletClient.account || !walletClient.chain) {
     throw new Error('Wallet client must have account and chain configured')
   }
@@ -114,6 +112,7 @@ export const changeResolver = async (
     },
     signer,
     {
+      id,
       description: `Change resolver for ${name}`,
       publicClient,
       chainId,
