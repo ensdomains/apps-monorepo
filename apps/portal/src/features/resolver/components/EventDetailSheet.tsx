@@ -147,7 +147,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
                       value={txHash}
                       displayValue={
                         <span className="flex items-center gap-1">
-                          {txHash.slice(0, 10)}...{txHash.slice(-8)}
+                          {truncateAddress(txHash, 10, 8, '...')}
                         </span>
                       }
                       className="text-sm flex-1 min-w-0"
