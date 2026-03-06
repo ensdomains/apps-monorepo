@@ -42,6 +42,10 @@ export const DashboardPage = () => {
     (text) => text.key === 'avatar',
   )?.value
 
+  const themeColor = reverseRecords?.texts.find(
+    (text) => text.key === 'theme',
+  )?.value
+
   const { data: parsedAvatar } = useQuery({
     ...parseAvatarQuery(avatarRecord),
     enabled: !!avatarRecord,
@@ -87,7 +91,11 @@ export const DashboardPage = () => {
         </motion.h1>
         {hasProfile && (
           <motion.div {...stagger(2, shouldReduceMotion)}>
-            <PrimaryNameCard avatarUrl={avatarUrl} primaryName={defaultName} />
+            <PrimaryNameCard
+              avatarUrl={avatarUrl}
+              primaryName={defaultName}
+              themeColor={themeColor}
+            />
           </motion.div>
         )}
         <motion.div

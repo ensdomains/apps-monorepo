@@ -5,6 +5,7 @@ import { match } from 'ts-pattern'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { formatDashboardDate } from '@/features/dashboard/utils'
+import { DEFAULT_THEME_COLOR } from '@/features/profile/constants'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { ChoosePrimaryNameDialog } from './ChoosePrimaryNameDialog'
@@ -13,11 +14,13 @@ import { PrimaryBadge } from './PrimaryBadge'
 type PrimaryNameCardProps = {
   primaryName?: string | null
   avatarUrl?: string | null
+  themeColor?: string | null
 }
 
 export const PrimaryNameCard = ({
   primaryName,
   avatarUrl,
+  themeColor,
 }: PrimaryNameCardProps) => {
   const shouldReduceMotion = useReducedMotion()
 
@@ -86,7 +89,10 @@ export const PrimaryNameCard = ({
                 className="mb-4 flex cursor-pointer flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-3"
                 type="button"
               >
-                <div className="inline-flex items-center rounded-sm bg-ens-blue px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
+                <div
+                  className="inline-flex items-center rounded-sm px-2 py-1 md:px-[8.5px] md:py-[4.25px]"
+                  style={{ backgroundColor: themeColor || DEFAULT_THEME_COLOR }}
+                >
                   <span
                     className={
                       displayName.length > 10
