@@ -1,7 +1,7 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import type { Row } from '@tanstack/react-table'
 import { Save, Trash2 } from 'lucide-react'
-import { type PropsWithChildren, useCallback, useMemo, useState } from 'react'
+import { type PropsWithChildren, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
@@ -27,9 +27,9 @@ import {
 import { useEditedPermissions } from '@/features/roles/hooks/useEditedPermissions'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
 import { useRevokeRoles } from '@/features/roles/hooks/useRevokeRoles'
+import { buildRoleTransactions } from '@/features/roles/utils/buildRoleTransactions'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import type { Transaction } from '@/features/transaction-manager/types'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
 import {
@@ -39,9 +39,6 @@ import {
 } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
 import { namechainSepolia } from '@/lib/wagmi'
-
-const GRANT_ROLES_TX_ID = 'tx-grant-roles'
-const REVOKE_ROLES_TX_ID = 'tx-revoke-roles'
 
 type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
   PropsWithChildren<{
@@ -100,13 +97,13 @@ export const RolesSidebar = <
     editedPermissions,
   )
 
-  const handleDone = useCallback(() => {
+  const handleDone = () => {
     closeModal()
     clearTransaction()
     setPendingSave(null)
     setPendingRemove(null)
     setOpen(false)
-  }, [closeModal, clearTransaction, setOpen])
+  }
 
   const handleSaveChanges = () => {
     if (!selectedAccount || !hasChanges || !walletClient?.account) return
@@ -154,84 +151,19 @@ export const RolesSidebar = <
 
   const isWalletConnected = Boolean(walletClient?.account)
 
-  // Build transactions for the modal
-  const transactions: Transaction[] = useMemo(() => {
-    if (pendingSave) {
-      const {
-        account,
-        rolesToGrant: toGrant,
-        rolesToRevoke: toRevoke,
-      } = pendingSave
-      const txList: Transaction[] = []
-
-      if (toGrant.length > 0) {
-        const hasRevoke = toRevoke.length > 0
-        txList.push({
-          id: GRANT_ROLES_TX_ID,
-          title: 'Grant roles',
-          transactionName: `Grant roles for ${name}`,
-          estimatedGasCost: 0.0001,
-          onStart: () =>
-            grantRoles({
-              name,
-              account,
-              roles: toGrant,
-              id: GRANT_ROLES_TX_ID,
-            }),
-          onDone: hasRevoke
-            ? () =>
-                revokeRoles({
-                  name,
-                  account,
-                  roles: toRevoke,
-                  id: REVOKE_ROLES_TX_ID,
-                })
-            : handleDone,
-        })
-      }
-
-      if (toRevoke.length > 0) {
-        txList.push({
-          id: REVOKE_ROLES_TX_ID,
-          title: 'Revoke roles',
-          transactionName: `Revoke roles for ${name}`,
-          estimatedGasCost: 0.0001,
-          onStart: () =>
-            revokeRoles({
-              name,
-              account,
-              roles: toRevoke,
-              id: REVOKE_ROLES_TX_ID,
-            }),
-          onDone: handleDone,
-        })
-      }
-
-      return txList
-    }
-
-    if (pendingRemove) {
-      const { account, roles } = pendingRemove
-      return [
-        {
-          id: REVOKE_ROLES_TX_ID,
-          title: 'Remove user',
-          transactionName: `Remove user from ${name}`,
-          estimatedGasCost: 0.0001,
-          onStart: () =>
-            revokeRoles({
-              name,
-              account,
-              roles,
-              id: REVOKE_ROLES_TX_ID,
-            }),
-          onDone: handleDone,
-        },
-      ]
-    }
-
-    return []
-  }, [pendingSave, pendingRemove, name, grantRoles, revokeRoles, handleDone])
+  const transactions = buildRoleTransactions(pendingSave, pendingRemove, name, {
+    grantRoles: (params) =>
+      grantRoles({
+        ...params,
+        roles: [...params.roles],
+      }),
+    revokeRoles: (params) =>
+      revokeRoles({
+        ...params,
+        roles: [...params.roles],
+      }),
+    handleDone,
+  })
 
   return (
     <>
