@@ -17,6 +17,7 @@ import ensLogoSvg from './assets/fonts/og/ens-logo.svg?raw'
 import ensMarkSvg from './assets/fonts/og/ens-mark.svg?raw'
 import explorerTextSvg from './assets/fonts/og/explorer-text.svg?raw'
 import walletIconSvg from './assets/fonts/og/wallet-icon.svg?raw'
+import { truncateAddress } from './utils/formatting/truncateAddress'
 
 const sepoliaWithEns = extendChainWithL1Ens(sepolia)
 const namechainSepolia = extendChainWithL2Ens(sepolia)
@@ -216,13 +217,76 @@ function truncate(text: string, maxLength: number): string {
   return `${text.slice(0, maxLength - 1)}…`
 }
 
-function truncateAddress(
-  value: string,
-  startChars: number = 6,
-  endChars: number = 5,
-): string {
-  if (value.length <= startChars + endChars) return value
-  return `${value.slice(0, startChars)}…${value.slice(-endChars)}`
+interface OgFonts {
+  ogSansFont: ArrayBuffer | null
+  ogMonoFont: ArrayBuffer | null
+  ogSemiMonoFont: ArrayBuffer | null
+}
+
+async function loadOgFonts(env: Env, requestUrl: string): Promise<OgFonts> {
+  const [ogSansFont, ogMonoFont, ogSemiMonoFont] = await Promise.all([
+    loadFontData(env, requestUrl, ogSansFontUrl),
+    loadFontData(env, requestUrl, ogMonoFontUrl),
+    loadFontData(env, requestUrl, ogSemiMonoFontUrl),
+  ])
+  return { ogSansFont, ogMonoFont, ogSemiMonoFont }
+}
+
+function buildOgFontList(fonts: OgFonts) {
+  return [
+    fonts.ogSansFont
+      ? { name: 'OgSans', data: fonts.ogSansFont, weight: 500, style: 'normal' }
+      : null,
+    fonts.ogMonoFont
+      ? { name: 'OgMono', data: fonts.ogMonoFont, weight: 500, style: 'normal' }
+      : null,
+    fonts.ogSemiMonoFont
+      ? {
+          name: 'OgSemiMono',
+          data: fonts.ogSemiMonoFont,
+          weight: 500,
+          style: 'normal',
+        }
+      : null,
+  ].filter(Boolean)
+}
+
+async function renderOgResponse(
+  html: string,
+  fonts: OgFonts,
+): Promise<Response> {
+  const imageResponse = new ImageResponse(html, {
+    width: 1200,
+    height: 630,
+    fonts: buildOgFontList(fonts),
+  })
+
+  const buf = await imageResponse.arrayBuffer()
+  if (buf.byteLength === 0) {
+    return new Response('OG image rendering produced empty output', {
+      status: 500,
+    })
+  }
+
+  return new Response(buf, {
+    headers: {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+    },
+  })
+}
+
+function renderOgHeader(): string {
+  return `
+    <div style="position: absolute; left: 48px; top: 46px; display: flex; align-items: center; gap: 24px;">
+      <img src="data:image/svg+xml;base64,${btoa(ensLogoSvg)}" width="164" height="51" style="width: 164px; height: 51px;" />
+      <div style="display: flex; align-items: center; gap: 8px; padding-top: 8px;">
+        <img src="data:image/svg+xml;base64,${btoa(explorerTextSvg)}" width="174" height="42" style="width: 174px; height: 42px;" />
+        <div style="background: #DBF0F8; border-radius: 999px; padding: 2px 6px; display: flex; align-items: center; justify-content: center;">
+          <span style="font-size: 17px; font-weight: 500; color: #0082BB; font-family: 'OgSans', system-ui, sans-serif;">Alpha</span>
+        </div>
+      </div>
+    </div>`
 }
 
 function escapeHtml(str: string): string {
@@ -240,25 +304,10 @@ async function renderOgImage(
   requestUrl: string,
   env: Env,
 ): Promise<Response> {
-  const [ogSansFont, ogMonoFont, ogSemiMonoFont] = await Promise.all([
-    loadFontData(env, requestUrl, ogSansFontUrl),
-    loadFontData(env, requestUrl, ogMonoFontUrl),
-    loadFontData(env, requestUrl, ogSemiMonoFontUrl),
-  ])
-
+  const fonts = await loadOgFonts(env, requestUrl)
   const available = !owner
   const displayName = truncate(name, 28)
-
-  const headerHtml = `
-      <div style="position: absolute; left: 48px; top: 46px; display: flex; align-items: center; gap: 24px;">
-        <img src="data:image/svg+xml;base64,${btoa(ensLogoSvg)}" width="164" height="51" style="width: 164px; height: 51px;" />
-        <div style="display: flex; align-items: center; gap: 8px; padding-top: 8px;">
-          <img src="data:image/svg+xml;base64,${btoa(explorerTextSvg)}" width="174" height="42" style="width: 174px; height: 42px;" />
-          <div style="background: #DBF0F8; border-radius: 999px; padding: 2px 6px; display: flex; align-items: center; justify-content: center;">
-            <span style="font-size: 17px; font-weight: 500; color: #0082BB; font-family: 'OgSans', system-ui, sans-serif;">Alpha</span>
-          </div>
-        </div>
-      </div>`
+  const headerHtml = renderOgHeader()
 
   let html: string
   if (available) {
@@ -305,52 +354,7 @@ async function renderOgImage(
   `
   }
 
-  const imageResponse = new ImageResponse(html, {
-    width: 1200,
-    height: 630,
-    fonts: [
-      ogSansFont
-        ? {
-            name: 'OgSans',
-            data: ogSansFont,
-            weight: 500,
-            style: 'normal',
-          }
-        : null,
-      ogMonoFont
-        ? {
-            name: 'OgMono',
-            data: ogMonoFont,
-            weight: 500,
-            style: 'normal',
-          }
-        : null,
-      ogSemiMonoFont
-        ? {
-            name: 'OgSemiMono',
-            data: ogSemiMonoFont,
-            weight: 500,
-            style: 'normal',
-          }
-        : null,
-    ].filter(Boolean),
-  })
-
-  // Materialize the body to catch rendering errors that workers-og
-  // would otherwise swallow inside its ReadableStream, producing 0 bytes.
-  const buf = await imageResponse.arrayBuffer()
-  if (buf.byteLength === 0) {
-    return new Response('OG image rendering produced empty output', {
-      status: 500,
-    })
-  }
-
-  return new Response(buf, {
-    headers: {
-      'Content-Type': 'image/png',
-      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
-    },
-  })
+  return renderOgResponse(html, fonts)
 }
 
 async function renderAddressOgImage(
@@ -358,24 +362,9 @@ async function renderAddressOgImage(
   requestUrl: string,
   env: Env,
 ): Promise<Response> {
-  const [ogSansFont, ogMonoFont, ogSemiMonoFont] = await Promise.all([
-    loadFontData(env, requestUrl, ogSansFontUrl),
-    loadFontData(env, requestUrl, ogMonoFontUrl),
-    loadFontData(env, requestUrl, ogSemiMonoFontUrl),
-  ])
-
+  const fonts = await loadOgFonts(env, requestUrl)
   const displayAddress = truncateAddress(address, 6, 5)
-
-  const headerHtml = `
-      <div style="position: absolute; left: 48px; top: 46px; display: flex; align-items: center; gap: 24px;">
-        <img src="data:image/svg+xml;base64,${btoa(ensLogoSvg)}" width="164" height="51" style="width: 164px; height: 51px;" />
-        <div style="display: flex; align-items: center; gap: 8px; padding-top: 8px;">
-          <img src="data:image/svg+xml;base64,${btoa(explorerTextSvg)}" width="174" height="42" style="width: 174px; height: 42px;" />
-          <div style="background: #DBF0F8; border-radius: 999px; padding: 2px 6px; display: flex; align-items: center; justify-content: center;">
-            <span style="font-size: 17px; font-weight: 500; color: #0082BB; font-family: 'OgSans', system-ui, sans-serif;">Alpha</span>
-          </div>
-        </div>
-      </div>`
+  const headerHtml = renderOgHeader()
 
   const html = `
     <div style="position: relative; width: 100%; height: 100%; background: white; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
@@ -396,59 +385,14 @@ async function renderAddressOgImage(
     </div>
   `
 
-  const imageResponse = new ImageResponse(html, {
-    width: 1200,
-    height: 630,
-    fonts: [
-      ogSansFont
-        ? {
-            name: 'OgSans',
-            data: ogSansFont,
-            weight: 500,
-            style: 'normal',
-          }
-        : null,
-      ogMonoFont
-        ? {
-            name: 'OgMono',
-            data: ogMonoFont,
-            weight: 500,
-            style: 'normal',
-          }
-        : null,
-      ogSemiMonoFont
-        ? {
-            name: 'OgSemiMono',
-            data: ogSemiMonoFont,
-            weight: 500,
-            style: 'normal',
-          }
-        : null,
-    ].filter(Boolean),
-  })
-
-  const buf = await imageResponse.arrayBuffer()
-  if (buf.byteLength === 0) {
-    return new Response('OG image rendering produced empty output', {
-      status: 500,
-    })
-  }
-
-  return new Response(buf, {
-    headers: {
-      'Content-Type': 'image/png',
-      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
-    },
-  })
+  return renderOgResponse(html, fonts)
 }
 
 async function renderDefaultOgImage(
   requestUrl: string,
   env: Env,
 ): Promise<Response> {
-  const [ogSansFont] = await Promise.all([
-    loadFontData(env, requestUrl, ogSansFontUrl),
-  ])
+  const fonts = await loadOgFonts(env, requestUrl)
 
   const html = `
     <div style="position: relative; width: 100%; height: 100%; background: white; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 43px;">
@@ -457,34 +401,7 @@ async function renderDefaultOgImage(
     </div>
   `
 
-  const imageResponse = new ImageResponse(html, {
-    width: 1200,
-    height: 630,
-    fonts: [
-      ogSansFont
-        ? {
-            name: 'OgSans',
-            data: ogSansFont,
-            weight: 500,
-            style: 'normal',
-          }
-        : null,
-    ].filter(Boolean),
-  })
-
-  const buf = await imageResponse.arrayBuffer()
-  if (buf.byteLength === 0) {
-    return new Response('OG image rendering produced empty output', {
-      status: 500,
-    })
-  }
-
-  return new Response(buf, {
-    headers: {
-      'Content-Type': 'image/png',
-      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
-    },
-  })
+  return renderOgResponse(html, fonts)
 }
 
 class MetaTagInjector {
