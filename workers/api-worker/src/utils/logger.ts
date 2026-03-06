@@ -76,25 +76,30 @@ export function isErrorLike(value: unknown): value is ErrorLike {
  * Some libraries expose `cause()` instead of `cause`, and this helper keeps
  * serializer logic centralized and safe from thrown cause accessors.
  */
-export function getErrorCause(error: unknown): ErrorLike | undefined {
+export function getErrorCause(error: unknown): unknown {
   if (!error || typeof error !== 'object') {
     return undefined
   }
 
-  const cause = (error as { cause?: unknown }).cause
+  let cause: unknown
+  try {
+    cause = (error as { cause?: unknown }).cause
+  } catch {
+    // Defensive: if cause getter throws, omit cause from logs.
+    return undefined
+  }
 
   if (typeof cause === 'function') {
     try {
       // Some libraries expose cause as a lazy getter function.
-      const causeResult = cause.call(error)
-      return isErrorLike(causeResult) ? causeResult : undefined
+      return cause.call(error)
     } catch {
       // Never let cause access break logging.
       return undefined
     }
   }
 
-  return isErrorLike(cause) ? cause : undefined
+  return cause
 }
 
 /** Returns a stable type label for log output. */
@@ -150,9 +155,11 @@ function _serializeError(
   }
 
   const cause = getErrorCause(error)
-  if (cause) {
+  if (cause !== undefined) {
     // Keep explicit cause tree for production debugging fidelity.
-    serialized.cause = _serializeError(cause, seenErrors, seenObjects)
+    serialized.cause = isErrorLike(cause)
+      ? _serializeError(cause, seenErrors, seenObjects)
+      : serializeLogValue(cause, seenObjects)
   }
 
   for (const key of Object.keys(error)) {
@@ -220,7 +227,8 @@ export function serializeLogValue(
   }
 
   if (value instanceof Date) {
-    return value.toISOString()
+    // `toJSON()` returns null for invalid dates, unlike `toISOString()` which throws.
+    return value.toJSON()
   }
 
   if (value && typeof value === 'object') {

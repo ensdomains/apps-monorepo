@@ -28,6 +28,12 @@ describe('logger helper functions', () => {
     expect(getErrorCause(error)).toBe(cause)
   })
 
+  it('extracts non-error causes without dropping them', () => {
+    const error = new Error('outer', { cause: 'inner context' })
+
+    expect(getErrorCause(error)).toBe('inner context')
+  })
+
   it('extracts function-style causes', () => {
     const cause = new Error('inner')
     const errorWithCauseFn = {
@@ -41,7 +47,7 @@ describe('logger helper functions', () => {
     expect(getErrorCause(errorWithCauseFn)).toBe(cause)
   })
 
-  it('returns undefined when cause function throws or cause is not error-like', () => {
+  it('returns undefined when cause function throws', () => {
     const throwingCause = {
       message: 'outer',
       stack: 'stack',
@@ -49,14 +55,8 @@ describe('logger helper functions', () => {
         throw new Error('failed')
       },
     }
-    const invalidCause = {
-      message: 'outer',
-      stack: 'stack',
-      cause: 'nope',
-    }
 
     expect(getErrorCause(throwingCause)).toBeUndefined()
-    expect(getErrorCause(invalidCause)).toBeUndefined()
   })
 })
 
@@ -88,6 +88,19 @@ describe('logger serializers', () => {
     expect(serialized.message).toBe('outer error')
     expect(serialized.cause?.type).toBe('Error')
     expect(serialized.cause?.message).toBe('root cause')
+  })
+
+  it('serializes non-error causes instead of dropping them', () => {
+    const error = new Error('outer', {
+      cause: { code: 'E_CONTEXT', retry: true },
+    })
+
+    const serialized = serializeError(error) as {
+      cause?: { code?: string; retry?: boolean }
+    }
+
+    expect(serialized.cause?.code).toBe('E_CONTEXT')
+    expect(serialized.cause?.retry).toBe(true)
   })
 
   it('supports function-style causes', () => {
@@ -170,6 +183,14 @@ describe('logger serializers', () => {
     expect(serializeLogValue(Number.NaN)).toBeNull()
     expect(serializeLogValue(Number.POSITIVE_INFINITY)).toBeNull()
     expect(serializeLogValue(Number.NEGATIVE_INFINITY)).toBeNull()
+  })
+
+  it('serializes Date values and handles invalid dates safely', () => {
+    expect(serializeLogValue(new Date('2023-01-02T03:04:05.000Z'))).toBe(
+      '2023-01-02T03:04:05.000Z',
+    )
+    expect(() => serializeLogValue(new Date('not-a-date'))).not.toThrow()
+    expect(serializeLogValue(new Date('not-a-date'))).toBeNull()
   })
 
   it('drops undefined, function, and symbol object values', () => {
