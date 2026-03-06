@@ -1,5 +1,5 @@
 import { runExpiryDiscoveryCron } from '#services/expiry-discovery/index.js'
-import { logger, prettifyError } from '#utils/logger.js'
+import { logger } from '#utils/logger.js'
 
 export const handleScheduled: ExportedHandlerScheduledHandler<
   CloudflareBindings
@@ -14,7 +14,7 @@ export const handleScheduled: ExportedHandlerScheduledHandler<
   if (result.isErr()) {
     logger.error('Scheduled expiry discovery failed', {
       cron: controller.cron,
-      error: prettifyError(result.error),
+      error: result.error,
     })
     return
   }
