@@ -19,14 +19,9 @@ const formatDate = (date: Date) => {
 interface ProfileHeaderInfoProps {
   name: string
   owner?: Address
-  themeColor?: string
 }
 
-export const ProfileHeaderInfo = ({
-  name,
-  owner,
-  themeColor,
-}: ProfileHeaderInfoProps) => {
+export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
   const expiry = useSuspenseQuery({
     ...profileExpiryQuery(name),
   })
@@ -44,7 +39,7 @@ export const ProfileHeaderInfo = ({
 
   return (
     <div className="flex w-full flex-col items-start gap-3 bg-white px-4 pt-16 pb-4 md:px-6 md:pt-16 md:pb-6">
-      <Highlight className="text-lg md:text-2xl" color={themeColor}>
+      <Highlight className="text-lg md:text-2xl" color="var(--theme-color)">
         {name}
       </Highlight>
       {isPrimaryName && <PrimaryBadge />}

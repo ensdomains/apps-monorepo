@@ -4,6 +4,7 @@ import { ProfileHeaderInfo } from '@/features/profile/components/common/ProfileH
 import { ImageSelectionDialog } from '@/features/profile/components/dialogs/ImageSelectionDialog'
 import { ShareProfileDialog } from '@/features/profile/components/dialogs/ShareProfileDialog'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
+import { getThemeVars } from '@/features/profile/utils/themeColor'
 
 interface HeaderSectionProps {
   name: string
@@ -68,11 +69,15 @@ export const HeaderSection = withForm({
       </div>
       <form.Subscribe selector={(state) => state.values.base.theme}>
         {(themeColor) => (
-          <ProfileHeaderInfo
-            name={name}
-            owner={owner}
-            themeColor={themeColor}
-          />
+          <div
+            style={
+              themeColor
+                ? (getThemeVars(themeColor) as React.CSSProperties)
+                : undefined
+            }
+          >
+            <ProfileHeaderInfo name={name} owner={owner} />
+          </div>
         )}
       </form.Subscribe>
     </div>

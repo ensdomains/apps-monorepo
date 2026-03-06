@@ -10,30 +10,23 @@ import { IconRenderer } from '../IconRenderer'
 
 interface ContactItemProps {
   readonly record: TextRecordValue
-  readonly themeColor?: string
 }
 
-const ContactItem = ({ record, themeColor }: ContactItemProps) => {
+const ContactItem = ({ record }: ContactItemProps) => {
   const recordDef = getRecordDef(record.key)
   const displayValue = getRecordDisplayValue(recordDef, record.value || '')
   const href = getRecordHref(recordDef, displayValue)
 
   const inner = (
     <>
-      <span
-        className={themeColor ? 'text-sm' : 'text-gray-900 text-sm'}
-        style={themeColor ? { color: themeColor } : undefined}
-      >
+      <span className="text-sm" style={{ color: 'var(--theme-color)' }}>
         {recordDef?.icon ? (
           <IconRenderer className="size-4" icon={recordDef.icon} />
         ) : (
           recordDef?.name || record.key
         )}
       </span>
-      <span
-        className={themeColor ? 'text-sm' : 'text-gray-600 text-sm'}
-        style={themeColor ? { color: themeColor } : undefined}
-      >
+      <span className="text-sm" style={{ color: 'var(--theme-color)' }}>
         {recordDef?.displayPrefix}
         {displayValue || 'Not set'}
       </span>
@@ -67,13 +60,9 @@ const ContactItem = ({ record, themeColor }: ContactItemProps) => {
 
 interface ViewBioSectionProps {
   readonly records: ProfileRecords
-  readonly themeColor?: string
 }
 
-export const ViewBioSection = ({
-  records,
-  themeColor,
-}: ViewBioSectionProps) => {
+export const ViewBioSection = ({ records }: ViewBioSectionProps) => {
   const contactsWithValues = records.contact.filter((r) => r.value)
   const hasContent =
     records.base.description ||
@@ -110,11 +99,7 @@ export const ViewBioSection = ({
             <hr className="my-2" />
             <div className="flex flex-wrap gap-3 max-md:justify-center">
               {contactsWithValues.map((record, i) => (
-                <ContactItem
-                  key={`${record.key}-${i}`}
-                  record={record}
-                  themeColor={themeColor}
-                />
+                <ContactItem key={`${record.key}-${i}`} record={record} />
               ))}
             </div>
           </>

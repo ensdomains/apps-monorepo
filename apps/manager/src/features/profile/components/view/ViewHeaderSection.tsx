@@ -13,14 +13,12 @@ interface ViewHeaderSectionProps {
   name: string
   records: ProfileRecords
   owner?: Address
-  themeColor?: string
 }
 
 export const ViewHeaderSection = ({
   name,
   records,
   owner,
-  themeColor,
 }: ViewHeaderSectionProps) => {
   const [avatar, header] = useQueries({
     queries: [
@@ -84,7 +82,7 @@ export const ViewHeaderSection = ({
           </div>
         </div>
       </div>
-      <ProfileHeaderInfo name={name} owner={owner} themeColor={themeColor} />
+      <ProfileHeaderInfo name={name} owner={owner} />
     </div>
   )
 }

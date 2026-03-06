@@ -12,6 +12,7 @@ import {
   type ProfileRecordsResult,
   profileRecordsQuery,
 } from '../../service/profileRecords'
+import { getThemeVars } from '../../utils/themeColor'
 import { transformProfileRecords } from '../../utils/transformRecords'
 import { ViewBioSection } from './ViewBioSection'
 import { ViewCryptoSection } from './ViewCryptoSection'
@@ -72,6 +73,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   })
   const records = transformProfileRecords(profileRecords)
   const themeColor = records.base.theme || DEFAULT_THEME_COLOR
+  const themeVars = getThemeVars(themeColor) as React.CSSProperties
   const isProfileEmpty = !hasConfiguredProfileRecords(profileRecords)
 
   const { isOwner, owner, shouldHide } = useOwnerRedirect(name, isProfileEmpty)
@@ -81,23 +83,20 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   }
 
   return (
-    <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]">
-      <ViewHeaderSection
-        name={name}
-        owner={owner}
-        records={records}
-        themeColor={themeColor}
-      />
+    <div
+      className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]"
+      style={themeVars}
+    >
+      <ViewHeaderSection name={name} owner={owner} records={records} />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         {/* Left/main column */}
         <div className="space-y-4 md:col-span-7 lg:col-span-8">
-          <ViewBioSection records={records} themeColor={themeColor} />
+          <ViewBioSection records={records} />
           {sectionsList.map((section) => (
             <ViewDynamicSection
               key={section}
               records={records}
               section={section}
-              themeColor={themeColor}
             />
           ))}
         </div>
