@@ -67,85 +67,87 @@ export const TransactionsOverviewContent = ({
               </h2>
             </div>
           ) : null}
-          {transactions.map((transaction) => (
-            // biome-ignore lint/a11y/useSemanticElements: div required - contains nested Button, cannot use button
-            <div
-              key={transaction.id}
-              role="button"
-              tabIndex={0}
-              className={cn(
-                'flex flex-col gap-4 p-4 rounded-lg border',
-                'border-border text-quartz-900 cursor-pointer',
-              )}
-              onClick={() =>
-                setTransactionModalContentState({
-                  type: 'state',
-                  transactionId: transaction.id,
-                })
-              }
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
+          <div className="space-y-2">
+            {transactions.map((transaction) => (
+              // biome-ignore lint/a11y/useSemanticElements: div required - contains nested Button, cannot use button
+              <div
+                key={transaction.id}
+                role="button"
+                tabIndex={0}
+                className={cn(
+                  'flex flex-col gap-4 p-4 rounded-lg border',
+                  'border-border text-quartz-900 cursor-pointer',
+                )}
+                onClick={() =>
                   setTransactionModalContentState({
                     type: 'state',
                     transactionId: transaction.id,
                   })
                 }
-              }}
-            >
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-base font-medium w-max text-quartz-900">
-                      {transaction.title}
-                    </h4>
-                    {match(getTransactionStatus(txState, transaction))
-                      .with(undefined, () => (
-                        <Badge variant="ghost" className="font-normal">
-                          <PlayCircle className="size-3 mr-0.5" /> Not Started
-                        </Badge>
-                      ))
-                      .with('success', () => (
-                        <Badge variant="success" className="font-normal">
-                          <CheckCircle2 className="size-3 mr-0.5" /> Done
-                        </Badge>
-                      ))
-                      .with('error', () => (
-                        <Badge variant="destructive" className="font-normal">
-                          <XCircle className="size-3 mr-0.5" /> Failed
-                        </Badge>
-                      ))
-                      .otherwise(() => (
-                        <Badge variant="warning" className="font-normal">
-                          <PlayCircle className="size-3 mr-0.5" /> In Progress
-                        </Badge>
-                      ))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setTransactionModalContentState({
+                      type: 'state',
+                      transactionId: transaction.id,
+                    })
+                  }
+                }}
+              >
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-base font-medium w-max text-quartz-900">
+                        {transaction.title}
+                      </h4>
+                      {match(getTransactionStatus(txState, transaction))
+                        .with(undefined, () => (
+                          <Badge variant="ghost" className="font-normal">
+                            <PlayCircle className="size-3 mr-0.5" /> Not Started
+                          </Badge>
+                        ))
+                        .with('success', () => (
+                          <Badge variant="success" className="font-normal">
+                            <CheckCircle2 className="size-3 mr-0.5" /> Done
+                          </Badge>
+                        ))
+                        .with('error', () => (
+                          <Badge variant="destructive" className="font-normal">
+                            <XCircle className="size-3 mr-0.5" /> Failed
+                          </Badge>
+                        ))
+                        .otherwise(() => (
+                          <Badge variant="warning" className="font-normal">
+                            <PlayCircle className="size-3 mr-0.5" /> In Progress
+                          </Badge>
+                        ))}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        e.preventDefault()
+                        setTransactionModalContentState({
+                          type: 'info',
+                          transactionId: transaction.id,
+                        })
+                      }}
+                    >
+                      <InfoIcon className="size-4" />
+                      <ArrowRight className="size-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      e.preventDefault()
-                      setTransactionModalContentState({
-                        type: 'info',
-                        transactionId: transaction.id,
-                      })
-                    }}
-                  >
-                    <InfoIcon className="size-4" />
-                    <ArrowRight className="size-4" />
-                  </Button>
+                  <dl className="grid grid-cols-2 gap-1 place-items-start">
+                    <dt className="text-base font-medium">Est. Cost</dt>
+                    <dd className="text-base">
+                      {transaction.estimatedGasCost} ETH
+                    </dd>
+                  </dl>
                 </div>
-                <dl className="grid grid-cols-2 gap-1 place-items-start">
-                  <dt className="text-base font-medium">Est. Cost</dt>
-                  <dd className="text-base">
-                    {transaction.estimatedGasCost} ETH
-                  </dd>
-                </dl>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
           <Button
             className="w-full mb-0"
             variant="secondary"
