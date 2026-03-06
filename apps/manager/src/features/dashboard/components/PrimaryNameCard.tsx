@@ -13,9 +13,9 @@ import { ChoosePrimaryNameDialog } from './ChoosePrimaryNameDialog'
 import { PrimaryBadge } from './PrimaryBadge'
 
 type PrimaryNameCardProps = {
-  primaryName?: string | null
-  avatarUrl?: string | null
-  themeColor?: string | null
+  readonly primaryName?: string | null
+  readonly avatarUrl?: string | null
+  readonly themeColor?: string | null
 }
 
 export const PrimaryNameCard = ({

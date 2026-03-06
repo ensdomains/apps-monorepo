@@ -5,9 +5,9 @@ export const Highlight = ({
   className,
   color,
 }: {
-  children: React.ReactNode
-  className?: string
-  color?: string
+  readonly children: React.ReactNode
+  readonly className?: string
+  readonly color?: string
 }) => {
   return (
     <span
