@@ -130,6 +130,7 @@ export const ChangeResolverForm = ({
   const isConfirmedForSuccessLabel = deployNewResolver
     ? isChangeResolverSuccess
     : singleTxSuccessFromModal
+
   useResetSuccessLabelAfterDelay(
     isConfirmedForSuccessLabel,
     setShowSuccessButtonLabel,
@@ -164,6 +165,7 @@ export const ChangeResolverForm = ({
         return
       }
 
+      // TODO: use multi step tx modal once the pattern is implemented
       if (deployNewResolver) {
         const deployment = await deployDedicatedResolverAsync()
         await changeResolverAsync(deployment.resolverAddress)

@@ -86,6 +86,6 @@ export const useChangeResolver = ({
     error: mutation.error,
     data: mutation.data,
     reset: mutation.reset,
-    hasWallet: !!walletClient?.account,
+    hasWallet: Boolean(walletClient?.account),
   }
 }
