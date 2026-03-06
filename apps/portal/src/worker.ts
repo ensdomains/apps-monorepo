@@ -27,23 +27,22 @@ const v2EthRegistry = getChainContractAddress({
   contract: 'ensV2EthRegistry',
 })
 
-function createClients(env: Env) {
-  const client = createPublicClient({
+function createL1Client(env: Env) {
+  return createPublicClient({
     chain: sepoliaWithEns,
     transport: http(env.SEPOLIA_RPC_URL),
   })
+}
 
-  const namechainClient = createPublicClient({
+function createL2Client(env: Env) {
+  return createPublicClient({
     chain: namechainSepolia,
     transport: http(env.SEPOLIA_RPC_URL),
   })
-
-  return { client, namechainClient }
 }
 
-type Clients = ReturnType<typeof createClients>
-type L1Client = Clients['client']
-type L2Client = Clients['namechainClient']
+type L1Client = ReturnType<typeof createL1Client>
+type L2Client = ReturnType<typeof createL2Client>
 
 const fontCache = new Map<string, Promise<ArrayBuffer | null>>()
 
@@ -143,7 +142,8 @@ interface EnsData {
 }
 
 async function fetchEnsData(env: Env, name: string): Promise<EnsData> {
-  const { client, namechainClient } = createClients(env)
+  const client = createL1Client(env)
+  const namechainClient = createL2Client(env)
   try {
     const [records, owner] = await Promise.all([
       getRecords(client, {
@@ -223,6 +223,13 @@ interface OgFonts {
   ogSemiMonoFont: ArrayBuffer | null
 }
 
+interface OgFontEntry {
+  name: string
+  data: ArrayBuffer
+  weight: number
+  style: string
+}
+
 async function loadOgFonts(env: Env, requestUrl: string): Promise<OgFonts> {
   const [ogSansFont, ogMonoFont, ogSemiMonoFont] = await Promise.all([
     loadFontData(env, requestUrl, ogSansFontUrl),
@@ -232,7 +239,7 @@ async function loadOgFonts(env: Env, requestUrl: string): Promise<OgFonts> {
   return { ogSansFont, ogMonoFont, ogSemiMonoFont }
 }
 
-function buildOgFontList(fonts: OgFonts) {
+function buildOgFontList(fonts: OgFonts): OgFontEntry[] {
   return [
     fonts.ogSansFont
       ? { name: 'OgSans', data: fonts.ogSansFont, weight: 500, style: 'normal' }
@@ -248,7 +255,7 @@ function buildOgFontList(fonts: OgFonts) {
           style: 'normal',
         }
       : null,
-  ].filter(Boolean)
+  ].filter((f): f is OgFontEntry => f !== null)
 }
 
 async function renderOgResponse(
