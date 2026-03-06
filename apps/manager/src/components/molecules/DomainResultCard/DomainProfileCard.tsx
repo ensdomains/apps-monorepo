@@ -1,5 +1,6 @@
 import { ArrowRight, Calendar, Clock } from 'lucide-react'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
+import { DEFAULT_THEME_COLOR } from '@/features/profile/constants'
 import { cn } from '@/lib/utils'
 
 export interface DomainProfileCardProps {
@@ -9,6 +10,7 @@ export interface DomainProfileCardProps {
   expiryDate?: Date | string | null
   className?: string
   clickable?: boolean
+  themeColor?: string | null
 }
 
 const formatDate = (date: Date | string | null | undefined): string => {
@@ -32,9 +34,11 @@ export const DomainProfileCard = ({
   expiryDate,
   className,
   clickable = false,
+  themeColor,
 }: DomainProfileCardProps) => {
   const formattedRegisteredDate = formatDate(registeredDate) || 'N/A'
   const formattedExpiryDate = formatDate(expiryDate) || 'N/A'
+  const color = themeColor || DEFAULT_THEME_COLOR
 
   // const content =
   return (
@@ -64,7 +68,10 @@ export const DomainProfileCard = ({
         {/* Domain Info */}
         <div className="flex h-full flex-col justify-start gap-2">
           {/* Domain Name Badge */}
-          <div className="flex w-fit items-center justify-center gap-[10px] rounded-sm bg-ens-magenta px-2 py-1 font-medium text-2xl text-ens-white leading-none tracking-[-0.64px]">
+          <div
+            className="flex w-fit items-center justify-center gap-[10px] rounded-sm px-2 py-1 font-medium text-2xl text-ens-white leading-none tracking-[-0.64px]"
+            style={{ backgroundColor: color }}
+          >
             {domainName}
           </div>
 
@@ -78,7 +85,10 @@ export const DomainProfileCard = ({
                   <p className="text-ens-garnet-surface text-sm leading-none tracking-[-0.28px]">
                     Registered
                   </p>
-                  <p className="whitespace-nowrap font-medium text-ens-magenta text-sm leading-none tracking-[-0.28px]">
+                  <p
+                    className="whitespace-nowrap font-medium text-sm leading-none tracking-[-0.28px]"
+                    style={{ color }}
+                  >
                     {formattedRegisteredDate}
                   </p>
                 </div>
@@ -93,7 +103,10 @@ export const DomainProfileCard = ({
                   <p className="text-ens-garnet-surface text-sm leading-none tracking-[-0.28px]">
                     Expires
                   </p>
-                  <p className="whitespace-nowrap font-medium text-ens-magenta text-sm leading-none tracking-[-0.28px]">
+                  <p
+                    className="whitespace-nowrap font-medium text-sm leading-none tracking-[-0.28px]"
+                    style={{ color }}
+                  >
                     {formattedExpiryDate}
                   </p>
                 </div>
