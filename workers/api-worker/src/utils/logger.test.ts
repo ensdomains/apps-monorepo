@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  type ErrorLike,
   getErrorCause,
   isErrorLike,
   serializeError,
   serializeLogValue,
-  type ErrorLike,
 } from './logger.js'
 
 describe('logger helper functions', () => {
