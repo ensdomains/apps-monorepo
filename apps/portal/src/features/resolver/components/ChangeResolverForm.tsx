@@ -137,16 +137,19 @@ export const ChangeResolverForm = ({
   const isBusy =
     (isChangeResolverPending && !useCustomResolver) || isDeployConfirming
 
-  const resolverToUse: Address | null = useCustomResolver
-    ? isAddress(resolverAddress)
-      ? (resolverAddress as Address)
-      : null
-    : isAddress(selectedExistingResolver)
-      ? (selectedExistingResolver as Address)
-      : null
-
   const handleStartTransaction = () => {
-    if (!resolverToUse) return
+    const resolverToUse: Address | null = useCustomResolver
+      ? isAddress(resolverAddress)
+        ? (resolverAddress as Address)
+        : null
+      : isAddress(selectedExistingResolver)
+        ? (selectedExistingResolver as Address)
+        : null
+
+    if (!resolverToUse) {
+      return
+    }
+
     changeResolver(resolverToUse)
   }
 
