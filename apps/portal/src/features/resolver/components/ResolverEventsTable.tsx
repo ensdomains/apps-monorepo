@@ -200,7 +200,7 @@ export const ResolverEventsTable = ({
     [events, sendersMap],
   )
 
-  const columns = createColumns(enableSidebar)
+  const columns = useMemo(() => createColumns(enableSidebar), [enableSidebar])
 
   const table = useReactTable({
     data: rows,
