@@ -100,12 +100,6 @@ export const ChangeResolverForm = ({
     setSelectedExistingResolver,
   )
 
-  useEffect(() => {
-    if (!isChangeResolverSuccess) return
-
-    setShowSuccessButtonLabel(true)
-  }, [isChangeResolverSuccess])
-
   const isBusy =
     (isChangeResolverPending && !useCustomResolver) || isDeployConfirming
 
@@ -122,12 +116,15 @@ export const ChangeResolverForm = ({
       return
     }
 
-    changeResolver(resolverToUse)
+    changeResolver(resolverToUse, {
+      onSuccess: () => setShowSuccessButtonLabel(true),
+    })
   }
 
   const handleTransactionDone = () => {
     closeTransactionModal()
     clearTransaction()
+    setResolverAddress('')
     setShowSuccessButtonLabel(false)
   }
 
@@ -144,13 +141,14 @@ export const ChangeResolverForm = ({
       // TODO: use multi step tx modal once the pattern is implemented
       if (deployNewResolver) {
         const deployment = await deployDedicatedResolverAsync()
-        await changeResolverAsync(deployment.resolverAddress)
 
-        setTimeout(
-          () => setShowSuccessButtonLabel(false),
-          SUCCESS_LABEL_DURATION_MS,
-        )
+        await changeResolverAsync(deployment.resolverAddress, {
+          onSuccess: () => setShowSuccessButtonLabel(true),
+        })
 
+        setTimeout(() => {
+          setShowSuccessButtonLabel(false)
+        }, SUCCESS_LABEL_DURATION_MS)
         return
       }
 
