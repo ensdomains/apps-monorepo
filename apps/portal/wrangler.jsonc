@@ -1,9 +1,21 @@
 {
   "name": "portal-app",
   "compatibility_date": "2025-07-08",
+  "main": "src/worker.ts",
   "assets": {
     "directory": "dist",
-    "not_found_handling": "single-page-application"
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/*",
+      "!/assets/*",
+      "!/fonts/*",
+      "!/icons/*",
+      "!/client/*"
+    ]
   },
-  "preview_urls": true
+  "preview_urls": true,
+  "vars": {
+    "SEPOLIA_RPC_URL": "https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aQfci4RAcMR8bLtehXRfUMv"
+  }
 }
