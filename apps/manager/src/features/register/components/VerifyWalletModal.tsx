@@ -112,6 +112,7 @@ export const VerifyWalletModal = ({
           </DialogDescription>
           <div className="flex items-center justify-between">
             <Button
+              aria-label="Go back"
               className="h-6 w-6 p-0"
               disabled={isLoading}
               onClick={handleClose}
@@ -122,6 +123,7 @@ export const VerifyWalletModal = ({
             </Button>
             <div />
             <Button
+              aria-label="Close dialog"
               className="h-6 w-6 p-0"
               disabled={isLoading}
               onClick={handleClose}

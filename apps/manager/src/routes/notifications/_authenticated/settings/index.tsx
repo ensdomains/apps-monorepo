@@ -2,16 +2,16 @@ import { createFileRoute } from '@tanstack/react-router'
 import { ContactMethods } from '@/features/notifications/settings/contact-methods'
 import { NotificationPreferences } from '@/features/notifications/settings/preferences'
 
-export const Route = createFileRoute('/notifications/settings/')({
-  component: RouteComponent,
-})
+export const Route = createFileRoute('/notifications/_authenticated/settings/')(
+  {
+    component: RouteComponent,
+  },
+)
 
 function RouteComponent() {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-12 rounded-lg border-[#dededf] bg-white px-6 py-8 lg:my-5 lg:border">
-      {/* title row */}
       <div className="flex flex-col gap-4">
-        {/* title */}
         <h1 className="font-[350] font-serif text-[#232222] text-temp-32px leading-ens-none">
           Notification Settings
         </h1>

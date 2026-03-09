@@ -186,6 +186,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
       {/* Desktop Sort Header */}
       <div className="hidden w-full md:flex md:items-center md:justify-between">
         <button
+          aria-label={`Sort by name, currently ${sortDirection !== null && sortField === 'name' ? sortDirection : 'unsorted'}`}
           className="flex cursor-pointer items-center gap-[8px]"
           onClick={() => handleSort('name')}
           type="button"
@@ -278,6 +279,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
         <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
           <div className="flex items-center justify-center gap-[12px]">
             <button
+              aria-label="Previous page"
               className="flex size-[32px] items-center justify-center text-ens-gray-three disabled:text-border"
               disabled={isLoading || !hasPrevPage}
               onClick={handlePrev}
@@ -286,6 +288,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
               <CircleArrowLeft className="size-[32px]" strokeWidth={1} />
             </button>
             <button
+              aria-label="Next page"
               className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
               disabled={isLoading || !hasNextPage}
               onClick={handleNext}
