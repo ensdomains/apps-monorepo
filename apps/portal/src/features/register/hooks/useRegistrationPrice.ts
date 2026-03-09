@@ -2,10 +2,9 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
-import { type GetPriceErrorType, getPrice } from '@ensdomains/ensjs/public/v2'
+import { type GetPriceErrorType, getPrice } from '@ensdomains/ensjs/public'
 import { err, fromPromise, ok } from 'neverthrow'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
-import { fastTestETHRegistrar } from '@/lib/constants/registry'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLabel } from '@/utils/token/getLabel'
@@ -50,8 +49,7 @@ export const getRegistrationPrice = ResultFn(async function* ({
   }
 
   const { base, premium } = yield* fromPromise(
-    getPrice(client, {
-      registrarAddress: fastTestETHRegistrar,
+    getPrice(client as unknown as Parameters<typeof getPrice>[0], {
       nameOrNames: label,
       duration: BigInt(duration),
       paymentToken: resolvedToken,
