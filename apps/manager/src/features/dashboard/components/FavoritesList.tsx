@@ -176,6 +176,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
       {/* Desktop Sort Header */}
       <div className="hidden w-full md:flex md:items-center md:justify-between">
         <button
+          aria-label={`Sort by name, currently ${sortDirection !== null && sortField === 'name' ? sortDirection : 'unsorted'}`}
           className="flex cursor-pointer items-center gap-[8px]"
           onClick={() => handleSort('name')}
           type="button"

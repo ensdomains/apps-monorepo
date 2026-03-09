@@ -193,6 +193,7 @@ export const MyNamesList = ({
       {/* Desktop Sort Header */}
       <div className="hidden w-full md:flex md:items-center md:justify-between">
         <button
+          aria-label={`Sort by name, currently ${sortField === 'name' ? sortDir : 'unsorted'}`}
           className="flex cursor-pointer items-center gap-[8px]"
           onClick={() => toggleSort('name')}
           type="button"
@@ -205,6 +206,7 @@ export const MyNamesList = ({
           <SortIndicator direction={sortDir} isActive={sortField === 'name'} />
         </button>
         <button
+          aria-label={`Sort by expiry, currently ${sortField === 'expiry' ? sortDir : 'unsorted'}`}
           className="flex cursor-pointer items-center gap-[8px]"
           onClick={() => toggleSort('expiry')}
           type="button"
