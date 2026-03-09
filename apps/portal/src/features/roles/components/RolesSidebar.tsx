@@ -223,13 +223,71 @@ export const RolesSidebar = <
         side={isMobile ? 'bottom' : 'right'}
         className="sm:max-w-[880px] bg-white overflow-y-auto p-8"
       >
-        <div className="flex flex-col gap-6 h-full">
-          <button
-            onClick={() => setOpen(false)}
-            className="absolute left-[-40px] top-4 w-10 h-10 bg-white rounded-l rounded-r-none flex items-center justify-center cursor-pointer"
-          >
-            <ArrowRight className="size-5" />
-          </button>
+        <div className="p-6 flex flex-col gap-6 h-screen">
+          <SheetHeader className="p-0">
+            <div className="flex flex-wrap justify-between items-center gap-4">
+              <SheetTitle className="font-sans text-heading font-medium">
+                Role Details
+              </SheetTitle>
+              {canManageRoles && selectedAccount && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    className="text-lapis-500"
+                    disabled={
+                      !hasChanges ||
+                      saveMutation.isPending ||
+                      !isWalletConnected
+                    }
+                    onClick={handleSaveChanges}
+                  >
+                    <Save className="size-4" />
+                    {saveMutation.isPending ? 'Saving...' : 'Save changes'}
+                  </Button>
+                  <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        className="text-lapis-500"
+                        disabled={
+                          removeUserMutation.isPending || !isWalletConnected
+                        }
+                      >
+                        <Trash2 className="size-4" />
+                        Remove user
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Remove user</DialogTitle>
+                        <DialogDescription>
+                          Are you sure you want to remove this user from all
+                          roles? This action cannot be undone.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <DialogClose asChild>
+                          <Button variant="outline">Cancel</Button>
+                        </DialogClose>
+                        <Button
+                          variant="destructive"
+                          onClick={() => {
+                            setConfirmOpen(false)
+                            handleRemoveUser()
+                          }}
+                          disabled={removeUserMutation.isPending}
+                        >
+                          {removeUserMutation.isPending
+                            ? 'Removing...'
+                            : 'Remove'}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              )}
+            </div>
+          </SheetHeader>
 
           {row ? (
             <div className="flex flex-col gap-6">

@@ -62,6 +62,12 @@ export const HomeSearchInput = () => {
     },
     [navigate],
   )
+  const navigateToResolver = useCallback(
+    (address: string) => {
+      navigate({ to: '/resolver/$address', params: { address } })
+    },
+    [navigate],
+  )
 
   const navigateToRegister = useCallback(
     (name: string) => {
@@ -75,6 +81,7 @@ export const HomeSearchInput = () => {
     searchValue: trimmedSearch,
     navigateToName,
     navigateToAddress,
+    navigateToResolver,
   })
   const {
     allItems,
@@ -278,6 +285,7 @@ export const HomeSearchInput = () => {
           onSelectAvailableName={handleModalSelectAvailableName}
           navigateToName={navigateToName}
           navigateToAddress={navigateToAddress}
+          navigateToResolver={navigateToResolver}
         />
       </CommandDialog>
     </>

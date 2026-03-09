@@ -1,10 +1,11 @@
+import type { HttpsUrl } from '@/utils/types'
 import { CopyableRecord } from './CopyableRecord'
 
 export type DatapointProps = {
   label: string
   value: string
   info?: string
-  href?: `https://${string}`
+  href?: HttpsUrl
 }
 
 export const Datapoint = ({ label, value, href }: DatapointProps) => (

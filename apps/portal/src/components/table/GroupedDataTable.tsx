@@ -168,8 +168,8 @@ export const GroupedDataTable = <
               <Fragment key={row.id}>
                 <TableRow
                   className={cn(
-                    'hover:bg-quartz-100',
-                    tableView.strippedRows && 'even:bg-quartz-100',
+                    'hover:bg-quartz-50',
+                    tableView.strippedRows && 'odd:bg-quartz-50',
                   )}
                 >
                   {row.getVisibleCells().map((cell) => (

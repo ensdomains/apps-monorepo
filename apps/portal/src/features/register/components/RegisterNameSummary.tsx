@@ -18,9 +18,8 @@ import {
 import { getPremiumLabel } from '@/features/register/utils/premium'
 import {
   EST_GAS_USD,
-  EST_NETWORK_FEE_USD,
   formatPriceDisplay,
-  formatTotalWithGasAndFees,
+  formatTotalWithGas,
   isPriceResult,
 } from '@/features/register/utils/registrationPrice'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
@@ -210,13 +209,6 @@ const PriceBreakdownSkeleton = ({
           <span className="text-xs">USD</span>
         </dd>
       </div>
-      <div className="flex items-center justify-between">
-        <dt className="text-base font-normal">Est. network fee</dt>
-        <dd className="flex items-center gap-1 m-0 text-muted-foreground text-sm">
-          <span className="font-mono">~{formatUsd(EST_NETWORK_FEE_USD)}</span>
-          <span className="text-xs">USD</span>
-        </dd>
-      </div>
       <div className="flex items-center justify-between pt-3 border-t border-border">
         <dt className="text-xl font-bold">Est. total</dt>
         <dd className="flex items-center gap-1 m-0">
@@ -307,22 +299,14 @@ const PriceBreakdown = ({
           </dd>
         </div>
 
-        <div className="flex items-center justify-between">
-          <dt className="text-base font-normal">Est. network fee</dt>
-          <dd className="flex items-center gap-1 m-0 text-muted-foreground text-sm">
-            <span className="font-mono">~{formatUsd(EST_NETWORK_FEE_USD)}</span>
-            <span className="text-xs">USD</span>
-          </dd>
-        </div>
-
         <div className="flex items-center justify-between pt-3 border-t border-border">
           <dt className="text-xl font-bold">Est. total</dt>
           <dd className="flex items-center gap-1 m-0">
             <span className="font-mono text-xl font-bold">
-              {formatTotalWithGasAndFees(
+              {formatTotalWithGas(
                 price.base,
                 price.premium,
-                EST_GAS_USD + EST_NETWORK_FEE_USD,
+                EST_GAS_USD,
                 price.decimals,
               )}
             </span>

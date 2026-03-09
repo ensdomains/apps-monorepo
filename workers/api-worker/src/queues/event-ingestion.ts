@@ -8,7 +8,7 @@ import { getDatabase, intoDbResult, TABLE } from '#core/database/index.js'
 import type { BaseDeliveryJob } from '#types/delivery.js'
 import { type ExpiryEvent, expiryEventSchema } from '#types/events/index.js'
 import { chunk } from '#utils/chunk.js'
-import { logger, prettifyError } from '#utils/logger.js'
+import { logger } from '#utils/logger.js'
 
 const CHANNEL_TO_QUEUE: Partial<Record<string, keyof CloudflareBindings>> = {
   telegram: 'TELEGRAM_QUEUE',
@@ -453,7 +453,7 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
             chunkIndex,
             chunkSize: jobChunk.length,
             maxRetries: QUEUE_SEND_MAX_RETRIES,
-            error: prettifyError(sendResult.error),
+            error: sendResult.error,
           })
           break
         }
@@ -467,7 +467,7 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
           attempt,
           maxRetries: QUEUE_SEND_MAX_RETRIES,
           delayMs,
-          error: prettifyError(sendResult.error),
+          error: sendResult.error,
         })
 
         await wait(delayMs)
@@ -594,7 +594,7 @@ export const handleEventIngestionQueue = async (
       validMessageCount: validMessages.length,
       droppedCount,
       stageCounts,
-      error: prettifyError(result.error),
+      error: result.error,
     })
 
     for (const { message } of validMessages) {
