@@ -13,6 +13,7 @@ import { DeployTransactionStatus } from '@/features/registry/components/DeployTr
 import { useChangeResolver } from '@/features/resolver/hooks/useChangeResolver'
 import { useDeployDedicatedResolver } from '@/features/resolver/hooks/useDeployDedicatedResolver'
 import { useUserDedicatedResolvers } from '@/features/resolver/hooks/useUserDedicatedResolvers'
+import { getIsSubmitDisabled } from '@/features/resolver/utils/getIsSubmitDisabled'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { ChangeResolverTransactionStatus } from './ChangeResolverTransactionStatus'
@@ -40,6 +41,37 @@ function useAutoSelectFirstResolver(
 }
 
 const SUCCESS_LABEL_DURATION_MS = 5000
+
+function getIsSubmitDisabled(params: {
+  isBusy: boolean
+  walletOk: boolean
+  useCustomResolver: boolean
+  resolverAddress: string
+  deployNewResolver: boolean
+  selectedExistingResolver: string
+}): boolean {
+  const {
+    isBusy,
+    walletOk,
+    useCustomResolver,
+    resolverAddress,
+    deployNewResolver,
+    selectedExistingResolver,
+  } = params
+
+  if (isBusy || !walletOk) return true
+
+  if (useCustomResolver) {
+    return resolverAddress.trim() === '' || !isAddress(resolverAddress)
+  }
+
+  if (deployNewResolver) return false
+
+  return (
+    selectedExistingResolver.trim() === '' ||
+    !isAddress(selectedExistingResolver)
+  )
+}
 
 interface ChangeResolverFormProps {
   readonly name: string
@@ -72,12 +104,15 @@ export const ChangeResolverForm = ({
     senderAddress: connectedAddress,
   })
 
-  const { changeResolver, isPending: isChangeResolverPending } =
-    useChangeResolver({
-      name,
-      registryAddress,
-      id: CHANGE_RESOLVER_TX_ID,
-    })
+  const {
+    changeResolver,
+    isPending: isChangeResolverPending,
+    hasWallet: hasChangeWallet,
+  } = useChangeResolver({
+    name,
+    registryAddress,
+    id: CHANGE_RESOLVER_TX_ID,
+  })
 
   const {
     deployDedicatedResolverAsync,
@@ -85,6 +120,7 @@ export const ChangeResolverForm = ({
     isConfirming: isDeployConfirming,
     isConfirmed: isDeployConfirmed,
     error: deployError,
+    hasWallet: hasDeployWallet,
   } = useDeployDedicatedResolver({ name })
 
   const isDeployPath = deployNewResolver && !useCustomResolver
@@ -98,6 +134,11 @@ export const ChangeResolverForm = ({
 
   const isBusy =
     (isChangeResolverPending && !useCustomResolver) || isDeployConfirming
+
+  const walletOk = match({ useCustomResolver, deployNewResolver })
+    .with({ useCustomResolver: true }, () => hasChangeWallet)
+    .with({ deployNewResolver: true }, () => hasDeployWallet)
+    .otherwise(() => hasChangeWallet)
 
   const handleStartTransaction = () => {
     const resolverToUse = match({ useCustomResolver })
@@ -180,20 +221,14 @@ export const ChangeResolverForm = ({
     }
   }
 
-  const isSubmitDisabled = (() => {
-    if (isBusy || !connectedAddress) return true
-
-    if (useCustomResolver) {
-      return resolverAddress.trim() === '' || !isAddress(resolverAddress)
-    }
-
-    if (deployNewResolver) return false
-
-    return (
-      selectedExistingResolver.trim() === '' ||
-      !isAddress(selectedExistingResolver)
-    )
-  })()
+  const isSubmitDisabled = getIsSubmitDisabled({
+    isBusy,
+    walletOk,
+    useCustomResolver,
+    resolverAddress,
+    deployNewResolver,
+    selectedExistingResolver,
+  })
 
   const buttonText = match({
     isDeployConfirming,
