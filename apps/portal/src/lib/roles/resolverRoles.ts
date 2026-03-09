@@ -41,9 +41,9 @@ export const resolverRoles = {
   ROLE_UPGRADE_ADMIN: (1n << 124n) << 128n,
 } as const
 
-export type ResolverRole = keyof typeof resolverRoles
+export type ResolverRoleKey = keyof typeof resolverRoles
 
-type ResolverPermissionKey = Exclude<ResolverRole, `${string}_ADMIN`>
+type ResolverPermissionKey = Exclude<ResolverRoleKey, `${string}_ADMIN`>
 
 type ResolverPermission = {
   key: ResolverPermissionKey
@@ -109,14 +109,14 @@ export const resolverPermissions: ResolverPermission[] = [
  */
 export const decodeResolverRoleBitmap = (
   bitmap: bigint | string,
-): ResolverRole[] => {
+): ResolverRoleKey[] => {
   const bitmapValue = typeof bitmap === 'string' ? BigInt(bitmap) : bitmap
 
-  const roles: ResolverRole[] = []
+  const roles: ResolverRoleKey[] = []
 
   for (const [roleName, roleValue] of Object.entries(resolverRoles)) {
     if ((bitmapValue & roleValue) !== 0n) {
-      roles.push(roleName as ResolverRole)
+      roles.push(roleName as ResolverRoleKey)
     }
   }
 
