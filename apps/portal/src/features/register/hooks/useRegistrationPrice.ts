@@ -48,11 +48,13 @@ export const getRegistrationPrice = ResultFn(async function* ({
     )
   }
 
-  // `safeGetClient` returns the app's Wagmi client, which is structurally equivalent
-  // to `getPrice`'s expected public-client argument but not typed as exactly that
-  // type in this project. Cast here is required to pass the client through for now
-  // until shared client types are aligned across the app and ENSJS.
-  const priceClient = client as Parameters<typeof getPrice>[0]
+  // NOTE: `safeGetClient` returns a Wagmi `Client` that is structurally equivalent
+  // to the public-client argument expected by `getPrice`, but ENSJS and this app
+  // have not yet fully aligned their public client types. This cast keeps pricing
+  // operational today at the cost of skipping strict compile-time validation for this
+  // specific interoperability boundary. Remove this when type definitions are
+  // standardized across both sides.
+  const priceClient = client as unknown as Parameters<typeof getPrice>[0]
 
   const { base, premium } = yield* fromPromise(
     getPrice(priceClient, {
