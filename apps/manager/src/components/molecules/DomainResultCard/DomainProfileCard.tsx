@@ -112,7 +112,7 @@ export const DomainProfileCard = ({
           <p className="text-center font-medium text-(--theme-color) text-xs leading-normal">
             View profile
           </p>
-          <ArrowRight className="size-2.5 h-2.5 text-(--theme-color)" />
+          <ArrowRight className="size-2.5 text-(--theme-color)" />
         </div>
       </div>
     </div>
