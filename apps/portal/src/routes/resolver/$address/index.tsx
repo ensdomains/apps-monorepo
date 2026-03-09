@@ -14,10 +14,7 @@ import { Button } from '@/components/ui/button'
 import { DedicatedResolverBanner } from '@/features/resolver/components/DedicatedResolverBanner'
 import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
 import { ResolverEventsTable } from '@/features/resolver/components/ResolverEventsTable'
-import {
-  getResolverOverviewQueryOptions,
-  type ResolverEvent,
-} from '@/features/resolver/hooks/useResolverOverview'
+import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { queryClient } from '@/utils/queryClient'
 import type { HttpsUrl } from '@/utils/types'
