@@ -134,7 +134,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
       </div>
 
       <div className="flex flex-col gap-4">
-        <h3 className="text-lg font-semibold">1 events</h3>
+        <h3 className="text-lg font-semibold">1 event</h3>
 
         <Card>
           <CardContent className="p-0">
