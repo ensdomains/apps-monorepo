@@ -51,6 +51,12 @@ export const deliverEmailNotification = ResultFn(async function* (
     deliveryJob.notification.payload as AnyPersonalNotificationPayload,
   )
 
+  if (!templateData.templateId) {
+    return yield* new UnsupportedNotificationTypeError({
+      message: `Missing template ID for: ${job.kind}`,
+    })
+  }
+
   // Send via SendGrid API
   const result = yield* sendMailV3(apiKey, {
     personalizations: [
