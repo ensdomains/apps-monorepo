@@ -42,37 +42,6 @@ function useAutoSelectFirstResolver(
 
 const SUCCESS_LABEL_DURATION_MS = 5000
 
-function getIsSubmitDisabled(params: {
-  isBusy: boolean
-  walletOk: boolean
-  useCustomResolver: boolean
-  resolverAddress: string
-  deployNewResolver: boolean
-  selectedExistingResolver: string
-}): boolean {
-  const {
-    isBusy,
-    walletOk,
-    useCustomResolver,
-    resolverAddress,
-    deployNewResolver,
-    selectedExistingResolver,
-  } = params
-
-  if (isBusy || !walletOk) return true
-
-  if (useCustomResolver) {
-    return resolverAddress.trim() === '' || !isAddress(resolverAddress)
-  }
-
-  if (deployNewResolver) return false
-
-  return (
-    selectedExistingResolver.trim() === '' ||
-    !isAddress(selectedExistingResolver)
-  )
-}
-
 interface ChangeResolverFormProps {
   readonly name: string
   readonly registryAddress: Address
