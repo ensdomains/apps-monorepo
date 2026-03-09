@@ -43,11 +43,9 @@ export const TransactionStateContent = ({
 
   const activeTransaction = getActiveTransaction(transactions, txState)
 
-  const allSuccess =
-    transactions.length > 0 &&
-    transactions.every(
-      (tx) => getStatus(tx.id, activeTransactionsMap) === 'success',
-    )
+  const allSuccess = transactions.every(
+    (tx) => getStatus(tx.id, activeTransactionsMap) === 'success',
+  )
 
   const hasError = transactions.some(
     (tx) => getStatus(tx.id, activeTransactionsMap) === 'error',
