@@ -1,3 +1,4 @@
+import { useActiveTransactions } from '@ens-apps/transaction-manager'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
 import { useConnection } from 'wagmi'
@@ -18,6 +19,7 @@ type TransactionModalProps = {
 export const TransactionModal = ({ transactions }: TransactionModalProps) => {
   const { address } = useConnection()
   const txState = useActiveTransactionState()
+  const activeTransactionsMap = useActiveTransactions()
 
   const { isOpen, closeModal, clearTransaction } = useTransactionModal()
 
@@ -55,6 +57,7 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
               address={address}
               transactions={transactions}
               txState={txState}
+              activeTransactionsMap={activeTransactionsMap}
               setTransactionModalContentState={setTransactionModalContentState}
             />
           ))
@@ -72,6 +75,7 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
               transactions={transactions}
               activeTransactionId={state.transactionId}
               txState={txState}
+              activeTransactionsMap={activeTransactionsMap}
               setTransactionModalContentState={setTransactionModalContentState}
             />
           ))

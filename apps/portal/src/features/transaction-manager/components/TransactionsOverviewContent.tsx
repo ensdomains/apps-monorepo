@@ -1,3 +1,4 @@
+import type { TransactionMachineActor } from '@ens-apps/transaction-manager'
 import {
   ArrowRight,
   CheckCircle2,
@@ -19,12 +20,12 @@ import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getActiveTransaction } from '../utils/getActiveTransaction'
 import { getStatus } from '../utils/getStatus'
-import { getTransactionStatus } from '../utils/getTransactionStatus'
 
 type TransactionsOverviewContentProps = {
   readonly address: Address | undefined
   readonly transactions: readonly Transaction[]
   readonly txState: ActiveTransactionState | undefined
+  readonly activeTransactionsMap: Map<string, TransactionMachineActor>
   readonly setTransactionModalContentState: (
     state: TransactionModalContentState,
   ) => void
@@ -34,6 +35,7 @@ export const TransactionsOverviewContent = ({
   address,
   transactions,
   txState,
+  activeTransactionsMap,
   setTransactionModalContentState,
 }: TransactionsOverviewContentProps) => {
   const { data: ensName, isLoading: isEnsNameLoading } = useEnsName({
@@ -45,7 +47,10 @@ export const TransactionsOverviewContent = ({
 
   const activeTransaction = getActiveTransaction(transactions, txState)
 
-  const transactionStatus = getTransactionStatus(txState, activeTransaction)
+  const transactionStatus = getStatus(
+    activeTransaction.id,
+    activeTransactionsMap,
+  )
 
   return (
     <>
@@ -100,7 +105,7 @@ export const TransactionsOverviewContent = ({
                       <h4 className="text-base font-medium w-max text-quartz-900">
                         {transaction.title}
                       </h4>
-                      {match(getStatus(transactions, transaction, txState))
+                      {match(getStatus(transaction.id, activeTransactionsMap))
                         .with(undefined, () => (
                           <Badge variant="ghost" className="font-normal">
                             <PlayCircle className="size-3 mr-0.5" /> Not Started
@@ -163,7 +168,7 @@ export const TransactionsOverviewContent = ({
               })
             }}
           >
-            {match(getTransactionStatus(txState, activeTransaction))
+            {match(getStatus(activeTransaction.id, activeTransactionsMap))
               .with(undefined, () => 'Start')
               .with('success', () => 'Done')
               .with('error', () => 'Retry')

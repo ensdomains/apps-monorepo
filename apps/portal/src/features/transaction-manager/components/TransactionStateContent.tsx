@@ -1,4 +1,4 @@
-import { useActiveTransactions } from '@ens-apps/transaction-manager'
+import type { TransactionMachineActor } from '@ens-apps/transaction-manager'
 import {
   ArrowLeft,
   ArrowRight,
@@ -26,6 +26,7 @@ type TransactionStateContentProps = {
   readonly transactions: readonly Transaction[]
   readonly activeTransactionId: string
   readonly txState: ActiveTransactionState | undefined
+  readonly activeTransactionsMap: Map<string, TransactionMachineActor>
   readonly setTransactionModalContentState: (
     state: TransactionModalContentState,
   ) => void
@@ -35,23 +36,25 @@ export const TransactionStateContent = ({
   transactions,
   activeTransactionId,
   txState,
+  activeTransactionsMap,
   setTransactionModalContentState,
 }: TransactionStateContentProps) => {
   const chainId = useChainId()
-  const activeTransactionsMap = useActiveTransactions()
 
   const activeTransaction = getActiveTransaction(transactions, txState)
 
   const allSuccess =
     transactions.length > 0 &&
-    transactions.every((t) => getStatus(transactions, t, txState) === 'success')
+    transactions.every(
+      (tx) => getStatus(tx.id, activeTransactionsMap) === 'success',
+    )
 
   const hasError = transactions.some(
-    (t) => getStatus(transactions, t, txState) === 'error',
+    (tx) => getStatus(tx.id, activeTransactionsMap) === 'error',
   )
 
   const completedCount = transactions.filter(
-    (t) => getStatus(transactions, t, txState) === 'success',
+    (tx) => getStatus(tx.id, activeTransactionsMap) === 'success',
   ).length
 
   const activeIndex =
@@ -62,8 +65,9 @@ export const TransactionStateContent = ({
   const activeInProgress =
     activeIndex >= 0 &&
     completedCount === activeIndex &&
-    getStatus(transactions, transactions[activeIndex], txState) !== 'success' &&
-    getStatus(transactions, transactions[activeIndex], txState) !== 'error'
+    getStatus(transactions[activeIndex].id, activeTransactionsMap) !==
+      'success' &&
+    getStatus(transactions[activeIndex].id, activeTransactionsMap) !== 'error'
 
   const totalSegments = transactions.length + 1
 
@@ -79,7 +83,7 @@ export const TransactionStateContent = ({
       ? 'bg-peridot-100'
       : 'bg-quartz-100'
 
-  const activeTxStatus = getStatus(transactions, activeTransaction, txState)
+  const activeTxStatus = getStatus(activeTransaction.id, activeTransactionsMap)
 
   return (
     <>
@@ -126,7 +130,7 @@ export const TransactionStateContent = ({
 
       <div className="flex flex-col gap-2">
         {transactions.map((transaction) => {
-          const status = getStatus(transactions, transaction, txState)
+          const status = getStatus(transaction.id, activeTransactionsMap)
           const isActive = txState?.txId === transaction.id
           const showError = isActive && txState?.error
           const hash = activeTransactionsMap.get(transaction.id)?.getSnapshot()

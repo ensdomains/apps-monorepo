@@ -1,34 +1,30 @@
-import type { TransactionMachineState } from '@ens-apps/transaction-manager'
-import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
-import type { Transaction } from '../types'
-import { getTransactionStatus } from './getTransactionStatus'
+import type {
+  TransactionMachineActor,
+  TransactionMachineState,
+} from '@ens-apps/transaction-manager'
+
+function getStatusFromActor(
+  actor: TransactionMachineActor,
+): TransactionMachineState | undefined {
+  const snapshot = actor.getSnapshot()
+
+  if (snapshot.context.error) return 'error'
+
+  return snapshot.value as TransactionMachineState
+}
 
 /**
- * Gets status for a transaction. For single-transaction flows, uses txState directly.
- * For multi-step flows, transactions before the active one are treated as success.
+ * Gets status for a transaction from the active transactions map.
+ * Returns undefined (not started) when the transaction is not in the map.
  */
 export const getStatus = (
-  transactions: readonly Transaction[],
-  transaction: Transaction,
-  txState: ActiveTransactionState | undefined,
+  transactionId: string,
+  activeTransactionsMap: Map<string, TransactionMachineActor>,
 ): TransactionMachineState | undefined => {
-  if (transactions.length === 1) {
-    return getTransactionStatus(txState, transaction)
-  }
+  const actor = activeTransactionsMap.get(transactionId)
 
-  const activeIndex = txState
-    ? transactions.findIndex((t) => t.id === txState.txId)
-    : -1
-
-  const transactionIndex = transactions.findIndex(
-    (t) => t.id === transaction.id,
-  )
-  if (transactionIndex === -1) return undefined
-  if (activeIndex === -1) return undefined
-
-  if (transactionIndex < activeIndex) return 'success'
-  if (transactionIndex === activeIndex) {
-    return getTransactionStatus(txState, transaction)
+  if (actor) {
+    return getStatusFromActor(actor)
   }
 
   return undefined
