@@ -203,24 +203,6 @@ function extractAddrFromPath(pathname: string): string | null {
   return match ? match[1] : null
 }
 
-function _isProfileRoute(pathname: string): boolean {
-  if (!pathname.startsWith('/')) return false
-  const segments = pathname.slice(1).split('/')
-  if (segments.length < 1 || segments[0] === '') return false
-
-  const name = segments[0]
-
-  // Skip known static paths
-  for (const prefix of STATIC_PATH_PREFIXES) {
-    if (pathname.startsWith(prefix)) return false
-  }
-
-  // Skip file extensions other than .eth-like names
-  if (name.includes('.') && !name.endsWith('.eth')) return false
-
-  return true
-}
-
 function extractNameFromPath(pathname: string): string | null {
   if (!pathname.startsWith('/')) return null
   const segments = pathname.slice(1).split('/')
