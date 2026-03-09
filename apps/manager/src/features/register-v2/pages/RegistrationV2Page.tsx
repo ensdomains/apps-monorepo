@@ -1,12 +1,16 @@
-import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useBlocker } from '@tanstack/react-router'
+import { useSelector } from '@xstate/react'
+import { useEffect } from 'react'
 import { RegistrationV2ErrorState } from '@/features/register-v2/components/states/RegistrationV2ErrorState'
+import { RegistrationV2FailureState } from '@/features/register-v2/components/states/RegistrationV2FailureState'
 import { RegistrationV2LoadingState } from '@/features/register-v2/components/states/RegistrationV2LoadingState'
 import { RegistrationV2ReadyState } from '@/features/register-v2/components/states/RegistrationV2ReadyState'
 import { RegistrationV2SuccessState } from '@/features/register-v2/components/states/RegistrationV2SuccessState'
 import { RegistrationV2TransactionState } from '@/features/register-v2/components/states/RegistrationV2TransactionState'
 import { RegistrationV2UnavailableState } from '@/features/register-v2/components/states/RegistrationV2UnavailableState'
 import { RegistrationV2UiContext } from '@/features/register-v2/machines/RegistrationV2UiContext'
+import { getRegistrationV2ChildActor } from '@/features/register-v2/machines/registrationV2UiMachine'
 import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v2/queries/registrationV2AvailabilityQueryOptions'
 import { normalizeDomainNameFromUrl } from '@/utils/domain'
 
@@ -14,13 +18,11 @@ interface RegistrationV2PageProps {
   routeName: string
 }
 
-export const RegistrationV2Page = ({
-  routeName,
-}: RegistrationV2PageProps) => {
+export const RegistrationV2Page = ({ routeName }: RegistrationV2PageProps) => {
   const targetName = normalizeDomainNameFromUrl(routeName)
 
   return (
-    <RegistrationV2UiContext.Provider>
+    <RegistrationV2UiContext.Provider key={targetName}>
       <RegistrationV2PageContent targetName={targetName} />
     </RegistrationV2UiContext.Provider>
   )
@@ -34,14 +36,67 @@ function RegistrationV2PageContent({
   targetName,
 }: RegistrationV2PageContentProps) {
   const uiActor = RegistrationV2UiContext.useActorRef()
+
   useEffect(() => {
     uiActor.send({ type: 'TARGET_CHANGED', targetName })
   }, [targetName, uiActor])
 
   const uiState = RegistrationV2UiContext.useSelector((state) => state.value)
-  const lastErrorMessage = RegistrationV2UiContext.useSelector(
-    (state) => state.context.lastErrorMessage,
+  const isRegistering = uiState === 'registering'
+
+  const registrationActor = getRegistrationV2ChildActor(uiActor.getSnapshot())
+
+  if (!registrationActor) {
+    throw new Error('Registration v2 child actor is not available')
+  }
+
+  const registrationStateValue = useSelector(registrationActor, (state) =>
+    String(state.value),
   )
+  const registrationErrorMessage = useSelector(
+    registrationActor,
+    (state) => state.context.error?.message,
+  )
+
+  useEffect(() => {
+    if (!isRegistering) return
+
+    if (registrationStateValue === 'success') {
+      uiActor.send({ type: 'TX_SUCCEEDED' })
+      return
+    }
+
+    if (registrationStateValue === 'error') {
+      uiActor.send({
+        type: 'TX_FAILED',
+        message: registrationErrorMessage,
+      })
+    }
+  }, [isRegistering, registrationStateValue, registrationErrorMessage, uiActor])
+
+  useEffect(() => {
+    if (!isRegistering) return
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isRegistering])
+
+  useBlocker({
+    shouldBlockFn: () => {
+      if (!isRegistering) return false
+
+      const shouldLeave = confirm(
+        'Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?',
+      )
+
+      return !shouldLeave
+    },
+  })
+
   const availabilityQuery = useQuery(
     getRegistrationV2AvailabilityQueryOptions(targetName),
   )
@@ -57,12 +112,13 @@ function RegistrationV2PageContent({
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-6 py-8">
       <div className="space-y-1">
-        <p className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
+        <p className="font-mono text-muted-foreground text-xs uppercase tracking-wide">
           registration-v2 route scaffold
         </p>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Target name comes from the route. Query state stays in React Query.
-          Transaction execution is scaffolded through a child registration actor.
+          Transaction execution is scaffolded through a child registration
+          actor.
         </p>
       </div>
 
@@ -101,10 +157,7 @@ function RegistrationV2PageContent({
       )}
 
       {availabilityState === 'available' && uiState === 'failure' && (
-        <RegistrationV2ErrorState
-          message={lastErrorMessage ?? 'Registration failed.'}
-          targetName={targetName}
-        />
+        <RegistrationV2FailureState targetName={targetName} />
       )}
     </main>
   )

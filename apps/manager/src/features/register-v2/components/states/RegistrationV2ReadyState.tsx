@@ -1,8 +1,11 @@
-import type { Address } from 'viem'
 import { useQuery } from '@tanstack/react-query'
+import type { Address } from 'viem'
+import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
 import { RegistrationV2UiContext } from '@/features/register-v2/machines/RegistrationV2UiContext'
 import { getRegistrationV2PricingQuoteQueryOptions } from '@/features/register-v2/queries/registrationV2PricingQuoteQueryOptions'
-import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
+import { startRegistrationV2 } from '@/features/register-v2/transactions/startRegistrationV2'
+import { useSmartAccountContext } from '@/lib/smart-account'
+import { publicClient } from '@/lib/wagmi'
 
 interface RegistrationV2ReadyStateProps {
   targetName: string
@@ -12,6 +15,7 @@ export const RegistrationV2ReadyState = ({
   targetName,
 }: RegistrationV2ReadyStateProps) => {
   const actorRef = RegistrationV2UiContext.useActorRef()
+  const account = useSmartAccountContext()
   const durationYears = RegistrationV2UiContext.useSelector(
     (state) => state.context.durationYears,
   )
@@ -32,13 +36,38 @@ export const RegistrationV2ReadyState = ({
       ? `Current quote scaffold: ${pricingQuery.data.value.usdc.formatted} USDC for ${durationYears} year${durationYears > 1 ? 's' : ''}.`
       : 'Pricing scaffold available but not yet rendered in detail.'
 
+  const tokenQuote = pricingQuery.data?.isOk()
+    ? selectedToken === SUPPORTED_TOKENS.DAI
+      ? pricingQuery.data.value.dai
+      : pricingQuery.data.value.usdc
+    : undefined
+
+  const isAccountReady = Boolean(
+    account.signer &&
+      account.accountAddress &&
+      account.client &&
+      account.config,
+  )
+
+  const canSubmit = Boolean(
+    tokenQuote && isAccountReady && !pricingQuery.isPending,
+  )
+
+  const submitLabel = account.isConnected
+    ? isAccountReady
+      ? pricingQuery.isPending
+        ? 'Loading quote...'
+        : 'Start registration'
+      : 'Preparing wallet...'
+    : 'Connect wallet to continue'
+
   return (
     <section className="space-y-4 rounded border p-4">
-      <p className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
+      <p className="font-mono text-muted-foreground text-xs uppercase tracking-wide">
         ready
       </p>
       <h1 className="font-semibold text-2xl">{targetName}</h1>
-      <p className="text-sm text-muted-foreground">{pricingText}</p>
+      <p className="text-muted-foreground text-sm">{pricingText}</p>
 
       <div className="space-y-2">
         <p className="font-medium text-sm">Duration</p>
@@ -84,9 +113,43 @@ export const RegistrationV2ReadyState = ({
         </div>
       </div>
 
-      <div className="rounded border border-dashed p-3 text-sm text-muted-foreground">
-        Submit wiring is scaffolded but intentionally not connected in Phase 2.
+      <div className="rounded border border-dashed p-3 text-muted-foreground text-sm">
+        The route target and quote are live now. Submission uses the shared
+        registration transaction machine.
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          className="rounded border px-3 py-2 text-sm"
+          disabled={!canSubmit}
+          onClick={() => {
+            if (!tokenQuote) return
+
+            startRegistrationV2(
+              {
+                name: targetName,
+                durationYears,
+                selectedToken,
+                tokenPrice: tokenQuote.raw,
+              },
+              account,
+              actorRef,
+              {
+                publicClient,
+                fast: true,
+              },
+            )
+          }}
+          type="button"
+        >
+          {submitLabel}
+        </button>
+      </div>
+
+      <p className="text-muted-foreground text-sm">
+        Selected payment token:{' '}
+        {selectedToken === SUPPORTED_TOKENS.DAI ? 'DAI' : 'USDC'}
+      </p>
     </section>
   )
 }
