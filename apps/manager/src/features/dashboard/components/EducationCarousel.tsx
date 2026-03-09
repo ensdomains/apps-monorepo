@@ -23,6 +23,7 @@ export const EducationCarousel = () => {
         </h2>
         <div className="flex items-center gap-2">
           <button
+            aria-label="Previous card"
             className={cn(
               'transition-colors',
               currentPage === 0 ? 'text-border' : 'text-ens-blue',
@@ -37,6 +38,7 @@ export const EducationCarousel = () => {
             {currentPage + 1} of {totalPages}
           </span>
           <button
+            aria-label="Next card"
             className={cn(
               'transition-colors',
               currentPage === totalPages - 1 ? 'text-border' : 'text-ens-blue',
