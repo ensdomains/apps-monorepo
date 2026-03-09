@@ -281,13 +281,18 @@ export const FeaturesCarousel = () => {
         </div>
         {/* Prev button, dots for each slide, next button */}
         <div className="my-9 flex items-center justify-center gap-4 pb-4">
-          <button onClick={decrementOffset} type="button">
+          <button
+            aria-label="Previous slide"
+            onClick={decrementOffset}
+            type="button"
+          >
             <ChevronLeftIcon className="size-6" />
           </button>
           <div className="flex items-center justify-center gap-2">
             {FEATURE_CARDS.map(({ indicatorClass }, index) => {
               return (
                 <button
+                  aria-label={`Go to slide ${index + 1}`}
                   className={clsx(
                     'size-4 rounded-xs border-2 bg-transparent transition-colors',
                     indicatorClass,
@@ -301,7 +306,11 @@ export const FeaturesCarousel = () => {
               )
             })}
           </div>
-          <button onClick={incrementOffset} type="button">
+          <button
+            aria-label="Next slide"
+            onClick={incrementOffset}
+            type="button"
+          >
             <ChevronRightIcon className="size-6" />
           </button>
         </div>

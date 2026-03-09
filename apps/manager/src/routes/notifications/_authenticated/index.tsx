@@ -110,7 +110,10 @@ function RouteComponent() {
           </button>
         </div>
         <InputGroup className="h-10 border-0 bg-[#FCFBFB]">
-          <InputGroupInput placeholder="Search notifications" />
+          <InputGroupInput
+            aria-label="Search notifications"
+            placeholder="Search notifications"
+          />
           <InputGroupAddon>
             <MSymbol className="ms-opsz-24 ms-wght-200" symbol="search" />
           </InputGroupAddon>
