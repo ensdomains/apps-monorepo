@@ -402,9 +402,11 @@ async function renderDefaultOgImage(
   const fonts = await loadOgFonts(env, requestUrl)
 
   const html = `
-    <div style="position: relative; width: 100%; height: 100%; background: white; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 43px;">
-      <img src="data:image/svg+xml;base64,${btoa(ensMarkSvg)}" width="126" height="140" style="width: 126px; height: 140px;" />
-      <span style="font-size: 85px; font-weight: 500; font-family: 'OgSans', system-ui, sans-serif; color: black; line-height: 1;">ENS Explorer</span>
+    <div style="position: relative; width: 100%; height: 100%; background: white; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 43px;">
+        <img src="data:image/svg+xml;base64,${btoa(ensMarkSvg)}" width="126" height="140" style="width: 126px; height: 140px; border-radius: 8px;" />
+        <span style="font-size: 85px; font-weight: 500; font-family: 'OgSans', system-ui, sans-serif; color: black; line-height: 1;">ENS Explorer</span>
+      </div>
     </div>
   `
 
@@ -442,6 +444,17 @@ export default {
 
     // Default OG image route: /og/default.png
     if (pathname === '/og/default.png') {
+      const response = await env.ASSETS.fetch(
+        new Request(`${url.origin}/assets/og/default.png`),
+      )
+      if (response.ok) {
+        return new Response(response.body, {
+          headers: {
+            'Content-Type': 'image/png',
+            'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+          },
+        })
+      }
       return renderDefaultOgImage(request.url, env)
     }
 
