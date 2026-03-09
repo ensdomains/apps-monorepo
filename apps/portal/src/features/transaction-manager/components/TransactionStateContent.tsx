@@ -21,6 +21,7 @@ import type { Transaction, TransactionModalContentState } from '../types'
 import { getActiveTransaction } from '../utils/getActiveTransaction'
 import { getStatus } from '../utils/getStatus'
 import { getTransactionById } from '../utils/getTransactionById'
+import { TransactionFlowProgressBar } from './TransactionFlowProgressBar'
 
 type TransactionStateContentProps = {
   readonly transactions: readonly Transaction[]
@@ -42,45 +43,6 @@ export const TransactionStateContent = ({
   const chainId = useChainId()
 
   const activeTransaction = getActiveTransaction(transactions, txState)
-
-  const allSuccess = transactions.every(
-    (tx) => getStatus(tx.id, activeTransactionsMap) === 'success',
-  )
-
-  const hasError = transactions.some(
-    (tx) => getStatus(tx.id, activeTransactionsMap) === 'error',
-  )
-
-  const completedCount = transactions.filter(
-    (tx) => getStatus(tx.id, activeTransactionsMap) === 'success',
-  ).length
-
-  const activeIndex =
-    txState !== undefined
-      ? transactions.findIndex((t) => t.id === txState.txId)
-      : -1
-
-  const activeInProgress =
-    activeIndex >= 0 &&
-    completedCount === activeIndex &&
-    getStatus(transactions[activeIndex].id, activeTransactionsMap) !==
-      'success' &&
-    getStatus(transactions[activeIndex].id, activeTransactionsMap) !== 'error'
-
-  const totalSegments = transactions.length + 1
-
-  const filledSegments =
-    completedCount + (activeInProgress ? 0.5 : 0) + (allSuccess ? 1 : 0)
-
-  const progressPercent =
-    totalSegments > 0 ? (filledSegments / totalSegments) * 100 : 0
-
-  const fillColor = hasError
-    ? 'bg-garnet-100'
-    : allSuccess
-      ? 'bg-peridot-100'
-      : 'bg-quartz-100'
-
   const activeTxStatus = getStatus(activeTransaction.id, activeTransactionsMap)
 
   return (
@@ -93,44 +55,16 @@ export const TransactionStateContent = ({
         </DialogTitle>
       </DialogHeader>
 
-      <div
-        className={cn(
-          'relative flex justify-between gap-1 rounded-full w-full h-8 p-1 items-center overflow-hidden',
-          'bg-accent',
-        )}
-      >
-        <div
-          className={cn(
-            'absolute inset-y-0 left-0 rounded-l-full transition-all duration-300 h-full',
-            fillColor,
-          )}
-          style={{ width: `${progressPercent}%` }}
-        />
-        {transactions.map((transaction, index) => (
-          <div
-            key={transaction.id}
-            className={cn(
-              'relative z-10 flex flex-1 min-w-0 items-center rounded-full p-2',
-              index === 0 ? 'justify-start' : 'justify-center',
-            )}
-          >
-            <ArrowRight className="size-4 shrink-0" />
-          </div>
-        ))}
-        <div className="relative z-10 flex flex-1 min-w-0 items-center justify-end rounded-full p-2">
-          {hasError ? (
-            <XCircle className="size-4 shrink-0" />
-          ) : (
-            <CheckCircle2 className="size-4 shrink-0" />
-          )}
-        </div>
-      </div>
+      <TransactionFlowProgressBar
+        transactions={transactions}
+        activeTransaction={activeTransaction}
+        activeTransactionsMap={activeTransactionsMap}
+      />
 
       <div className="flex flex-col gap-2">
         {transactions.map((transaction) => {
           const status = getStatus(transaction.id, activeTransactionsMap)
-          const isActive = txState?.txId === transaction.id
-          const showError = isActive && txState?.error
+
           const hash = activeTransactionsMap.get(transaction.id)?.getSnapshot()
             ?.context?.hash
 
@@ -176,7 +110,7 @@ export const TransactionStateContent = ({
                     </a>
                   )}
                 </div>
-                {showError && txState?.error && (
+                {txState?.error && (
                   <TransactionErrorAlert
                     title="Transaction Error"
                     summary={
