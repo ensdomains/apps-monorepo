@@ -4,13 +4,13 @@ import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { cn } from '@/lib/utils'
 
 export interface DomainProfileCardProps {
-  domainName: string
-  avatarUrl?: string | null
-  registeredDate?: Date | string | null
-  expiryDate?: Date | string | null
-  className?: string
-  clickable?: boolean
-  themeColor?: string | null
+  readonly domainName: string
+  readonly avatarUrl?: string | null
+  readonly registeredDate?: Date | string | null
+  readonly expiryDate?: Date | string | null
+  readonly className?: string
+  readonly clickable?: boolean
+  readonly themeColor?: string | null
 }
 
 const formatDate = (date: Date | string | null | undefined): string => {
