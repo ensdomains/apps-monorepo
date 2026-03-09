@@ -333,7 +333,7 @@ export const ChangeResolverForm = ({
                   title: 'Change resolver',
                   transactionName: `Set resolver for ${name}`,
                   estimatedGasCost: 0.0001,
-                  onStart: () => {}, // Started by handleDeployResolverDone when user clicks Done on deploy step
+                  // Started by handleDeployResolverDone when user clicks Done on deploy step
                   onDone: handleTransactionDone,
                 },
               ]
