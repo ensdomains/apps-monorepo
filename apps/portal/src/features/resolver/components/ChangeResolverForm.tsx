@@ -72,15 +72,12 @@ export const ChangeResolverForm = ({
     senderAddress: connectedAddress,
   })
 
-  const {
-    changeResolver,
-    isPending: isChangeResolverPending,
-    hasWallet,
-  } = useChangeResolver({
-    name,
-    registryAddress,
-    id: CHANGE_RESOLVER_TX_ID,
-  })
+  const { changeResolver, isPending: isChangeResolverPending } =
+    useChangeResolver({
+      name,
+      registryAddress,
+      id: CHANGE_RESOLVER_TX_ID,
+    })
 
   const {
     deployDedicatedResolverAsync,
@@ -88,7 +85,6 @@ export const ChangeResolverForm = ({
     isConfirming: isDeployConfirming,
     isConfirmed: isDeployConfirmed,
     error: deployError,
-    hasWallet: hasDeployWallet,
   } = useDeployDedicatedResolver({ name })
 
   const isDeployPath = deployNewResolver && !useCustomResolver
@@ -101,8 +97,7 @@ export const ChangeResolverForm = ({
   )
 
   const isBusy =
-    (isChangeResolverPending && !useCustomResolver && !isDeployPath) ||
-    (isDeployConfirming && !isDeployPath)
+    (isChangeResolverPending && !useCustomResolver) || isDeployConfirming
 
   const handleStartTransaction = () => {
     const resolverToUse = match({ useCustomResolver })
@@ -186,8 +181,7 @@ export const ChangeResolverForm = ({
   }
 
   const isSubmitDisabled = (() => {
-    const walletOk = useCustomResolver ? hasWallet : hasDeployWallet
-    if (isBusy || !walletOk) return true
+    if (isBusy || !connectedAddress) return true
 
     if (useCustomResolver) {
       return resolverAddress.trim() === '' || !isAddress(resolverAddress)

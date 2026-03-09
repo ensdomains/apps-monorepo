@@ -136,6 +136,5 @@ export const useDeployDedicatedResolver = ({
     isConfirmed: mutation.isSuccess,
     error: mutation.error,
     reset: mutation.reset,
-    hasWallet: !!walletClient,
   }
 }
