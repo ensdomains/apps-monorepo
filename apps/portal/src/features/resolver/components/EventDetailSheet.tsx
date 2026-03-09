@@ -16,6 +16,10 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ResolverEvent } from '@/features/resolver/hooks/useResolverOverview'
 import { useIsMobile } from '@/hooks/use-mobile'
+import {
+  getEventFieldType,
+  getEventSignature,
+} from '@/utils/ens/eventSignatures'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
@@ -163,6 +167,21 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
                     />
                   </div>
                 )}
+
+                <div className="flex flex-row gap-6 items-center">
+                  <span className="text-base font-semibold text-black sm:min-w-[160px]">
+                    Event
+                  </span>
+                  <CopyableRecord
+                    value={getEventSignature(event.type)}
+                    displayValue={
+                      <div className="w-full max-w-110">
+                        {getEventSignature(event.type)}
+                      </div>
+                    }
+                    truncate={false}
+                  />
+                </div>
               </div>
 
               {parsedResult.match(
@@ -192,7 +211,9 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
                             <tr key={key} className="border-t">
                               <td className="px-4 py-3 text-sm">{index}</td>
                               <td className="px-4 py-3 text-sm">{key}</td>
-                              <td className="px-4 py-3 text-sm">unknown</td>
+                              <td className="px-4 py-3 text-sm">
+                                {getEventFieldType(event.type, key)}
+                              </td>
                               <td className="px-4 py-3 text-sm">
                                 <CopyableRecord
                                   value={String(value)}
