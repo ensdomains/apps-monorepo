@@ -1,7 +1,7 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
-import { ArrowRight, CheckCircle, Clock, Copy, Trash2 } from 'lucide-react'
+import { CheckCircle, Clock, Copy, Trash2 } from 'lucide-react'
 import { type PropsWithChildren, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
@@ -298,6 +298,7 @@ export const RolesSidebar = <
                     {name}
                   </h2>
                   <button
+                    type="button"
                     onClick={() => navigator.clipboard.writeText(name)}
                     className="p-1 cursor-pointer"
                   >
