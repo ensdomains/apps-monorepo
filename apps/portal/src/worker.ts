@@ -193,6 +193,16 @@ function isAddressRoute(pathname: string): boolean {
   return !!match
 }
 
+function isAddrSubpage(pathname: string): boolean {
+  const match = pathname.match(/^\/addr\/(0x[0-9a-fA-F]{40})\/[^/]+$/)
+  return !!match
+}
+
+function extractAddrFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/addr\/(0x[0-9a-fA-F]{40})/)
+  return match ? match[1] : null
+}
+
 function isProfileRoute(pathname: string): boolean {
   if (!pathname.startsWith('/')) return false
   const segments = pathname.slice(1).split('/')
@@ -404,10 +414,22 @@ async function renderAddressOgImage(
   address: string,
   requestUrl: string,
   env: Env,
+  subpage: string | null = null,
 ): Promise<Response> {
   const fonts = await loadOgFonts(env, requestUrl)
   const displayAddress = truncateAddress(address, 6, 5)
   const headerHtml = renderOgHeader()
+
+  const addrSubpageLabels: Record<string, string> = {
+    names: 'Names',
+    history: 'History',
+    resolution: 'Address Resolution',
+    'reverse-resolution': 'Reverse Resolution',
+  }
+  const pageLabel = subpage
+    ? (addrSubpageLabels[subpage] ??
+      `${subpage.charAt(0).toUpperCase()}${subpage.slice(1)}`)
+    : 'Address Overview'
 
   const html = `
     <div style="position: relative; width: 100%; height: 100%; background: white; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
@@ -423,7 +445,7 @@ async function renderAddressOgImage(
       </div>
       ${headerHtml}
       <div style="position: absolute; right: 48px; bottom: 70px; transform: translateY(50%); font-size: 49px; line-height: 1; color: #000000; font-family: 'OgSans', system-ui, sans-serif; font-weight: 500; text-align: right; display: flex;">
-        Address Overview
+        ${escapeHtml(pageLabel)}
       </div>
     </div>
   `
@@ -498,10 +520,14 @@ export default {
     const ogMatch = pathname.match(/^\/og\/(.+)\.png$/)
     if (ogMatch) {
       const decoded = decodeURIComponent(ogMatch[1])
-      // Address OG image: /og/addr/0x....png
-      const addrOgMatch = decoded.match(/^addr\/(0x[0-9a-fA-F]{40})$/)
+      // Address OG image: /og/addr/0x....png or /og/addr/0x.../subpage.png
+      const addrOgMatch = decoded.match(
+        /^addr\/(0x[0-9a-fA-F]{40})(?:\/(.+))?$/,
+      )
       if (addrOgMatch) {
-        return renderAddressOgImage(addrOgMatch[1], request.url, env)
+        const address = addrOgMatch[1]
+        const subpage = addrOgMatch[2] ?? null
+        return renderAddressOgImage(address, request.url, env, subpage)
       }
       // Name OG image with optional subpage: /og/name/subpage.png
       const nameParts = decoded.split('/')
@@ -512,8 +538,8 @@ export default {
     }
 
     // Address page: inject meta tags
-    if (isAddressRoute(pathname)) {
-      const address = decodeURIComponent(pathname.replace(/^\/addr\//, ''))
+    if (isAddressRoute(pathname) || isAddrSubpage(pathname)) {
+      const address = decodeURIComponent(extractAddrFromPath(pathname)!)
       const accept = request.headers.get('Accept') ?? ''
 
       if (!accept.includes('text/html')) {
@@ -523,8 +549,13 @@ export default {
       const response = await env.ASSETS.fetch(request)
       const host = url.host
       const displayAddress = truncateAddress(address, 6, 5)
-      const ogImageUrl = `https://${host}/og/addr/${encodeURIComponent(address)}.png`
-      const pageTitle = `${displayAddress} — ENS Explorer App`
+      const subpage = pathname.split('/').slice(2).join('/')
+      const ogImageUrl = subpage
+        ? `https://${host}/og/addr/${encodeURIComponent(address)}/${encodeURIComponent(subpage)}.png`
+        : `https://${host}/og/addr/${encodeURIComponent(address)}.png`
+      const pageTitle = subpage
+        ? `${displayAddress} > ${subpage} — ENS Explorer App`
+        : `${displayAddress} — ENS Explorer App`
       const desc = `Ethereum address ${displayAddress}`
 
       const metaTags = [
