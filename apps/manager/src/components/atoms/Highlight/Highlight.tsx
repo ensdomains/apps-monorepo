@@ -4,8 +4,8 @@ export const Highlight = ({
   children,
   className,
 }: {
-  children: React.ReactNode
-  className?: string
+  readonly children: React.ReactNode
+  readonly className?: string
 }) => {
   return (
     <span
