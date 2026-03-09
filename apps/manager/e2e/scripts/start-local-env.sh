@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# Start the local E2E environment (Anvil fork + Alto bundler + mock paymaster).
+#
+# Usage:
+#   ./start-local-env.sh              # start stack only
+#   ./start-local-env.sh <ADDRESS>    # start stack + fund the given address
+#   ./start-local-env.sh --down       # tear down the stack
+#
+# After the stack is healthy the script prints the env vars you need.
+# You can copy them into apps/manager/.env or source .env.e2e.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+COMPOSE_FILE="$SCRIPT_DIR/../docker-compose.yml"
+E2E_DIR="$SCRIPT_DIR/.."
+
+# ---------- tear-down shortcut ----------
+if [[ "${1:-}" == "--down" ]]; then
+  echo "=== Stopping E2E stack ==="
+  docker compose -f "$COMPOSE_FILE" down
+  echo "Done."
+  exit 0
+fi
+
+# ---------- start ----------
+echo "=== Starting E2E stack (Anvil + Alto + Paymaster) ==="
+docker compose -f "$COMPOSE_FILE" up -d
+
+# ---------- wait for health ----------
+echo ""
+echo "Waiting for services to become healthy..."
+
+wait_for_service() {
+  local service="$1"
+  local max_wait="${2:-120}"
+  local elapsed=0
+  while [ $elapsed -lt "$max_wait" ]; do
+    local health
+    health=$(docker compose -f "$COMPOSE_FILE" ps --format json "$service" 2>/dev/null \
+      | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('Health',''))" 2>/dev/null || echo "")
+    if [[ "$health" == "healthy" ]]; then
+      echo "  ✅ $service is healthy"
+      return 0
+    fi
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+  echo "  ❌ $service did not become healthy within ${max_wait}s"
+  return 1
+}
+
+wait_for_service "anvil" 60
+wait_for_service "alto"  90
+wait_for_service "paymaster" 90
+
+echo ""
+echo "=== All services healthy ==="
+
+# ---------- optional: fund account ----------
+FUND_ADDRESS="${1:-}"
+if [[ -n "$FUND_ADDRESS" ]]; then
+  echo ""
+  echo "=== Funding account: $FUND_ADDRESS ==="
+  bash "$SCRIPT_DIR/fund-account.sh" "$FUND_ADDRESS"
+fi
+
+# ---------- print env ----------
+echo ""
+echo "=== Environment variables for the manager app ==="
+echo ""
+echo "  VITE_SEPOLIA_RPC_URL=http://127.0.0.1:8545"
+echo "  VITE_PIMLICO_BUNDLER_URL=/bundler   (Vite proxy → 127.0.0.1:4337)"
+echo "  VITE_PAYMASTER_URL=/paymaster       (Vite proxy → 127.0.0.1:3002)"
+echo ""
+echo "Copy these into apps/manager/.env (or use apps/manager/.env.e2e) and"
+echo "(re)start the dev server so Vite picks them up:"
+echo ""
+echo "  cp apps/manager/.env.e2e apps/manager/.env"
+echo "  pnpm --filter manager dev"
+echo ""
+echo "To stop the stack later:"
+echo "  $0 --down"

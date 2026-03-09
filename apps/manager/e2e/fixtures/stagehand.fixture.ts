@@ -2,6 +2,9 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Stagehand } from '@browserbasehq/stagehand'
 import { test as base } from '@playwright/test'
+import { config as loadEnv } from 'dotenv'
+
+loadEnv({ path: path.resolve(process.cwd(), '.env') })
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -19,11 +22,11 @@ export const test = base.extend<StagehandFixture>({
     console.log('cacheDir', cacheDir)
     const stagehand = new Stagehand({
       env: 'LOCAL',
-      cacheDir,
+      // cacheDir,
       model: process.env.GEMINI_API_KEY
         ? {
             modelName: 'google/gemini-2.5-flash',
-            apiKey: process.env.GEMINI_API_KEY,
+            // apiKey: process.env.GEMINI_API_KEY,
           }
         : 'google/gemini-2.5-flash',
       verbose: process.env.CI ? 0 : 1,

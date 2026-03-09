@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Fund a test account on the local Anvil Sepolia fork.
+#
+# Usage:
+#   ./fund-account.sh <ADDRESS>
+#   ./fund-account.sh 0x89b22e5D4f18186F459dF61cea9A489Cedb1028d
+#
+# What it does:
+#   1. Sends 1 ETH to the address (for gas)
+#   2. Mints 10 000 MockUSDC (6 decimals)
+#   3. Mints 10 000 MockDAI  (18 decimals)
+#
+# Prerequisites:
+#   - Foundry (`cast`) installed
+#   - Anvil fork running on RPC_URL (default http://127.0.0.1:8545)
+
+set -euo pipefail
+
+ADDRESS="${1:?Usage: fund-account.sh <ADDRESS>}"
+RPC_URL="${RPC_URL:-http://127.0.0.1:8545}"
+
+# Anvil's first default account private key (has 10 000 ETH on any fork)
+ANVIL_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+
+# Contract addresses (MockUSDC & MockDAI deployed on Sepolia — present on fork)
+MOCK_USDC="0x2c3d8dfac22def2947e94432bcd6bb51e1ac55e6"
+MOCK_DAI="0xd030a2465ee661338de1f02d05042bbf20d5d127"
+
+echo "=== Funding $ADDRESS on fork at $RPC_URL ==="
+
+# 1. Send ETH
+echo "→ Sending 1 ETH..."
+cast send "$ADDRESS" --value 1ether \
+  --private-key "$ANVIL_KEY" \
+  --rpc-url "$RPC_URL" \
+  --quiet
+echo "  ✅ 1 ETH sent"
+
+# 2. Mint MockUSDC (6 decimals → 10_000 * 1e6 = 10000000000)
+echo "→ Minting 10 000 MockUSDC..."
+cast send "$MOCK_USDC" "mint(address,uint256)" "$ADDRESS" 10000000000 \
+  --private-key "$ANVIL_KEY" \
+  --rpc-url "$RPC_URL" \
+  --quiet
+echo "  ✅ 10 000 USDC minted"
+
+# 3. Mint MockDAI (18 decimals → 10_000 * 1e18 = 10000000000000000000000)
+echo "→ Minting 10 000 MockDAI..."
+cast send "$MOCK_DAI" "mint(address,uint256)" "$ADDRESS" 10000000000000000000000 \
+  --private-key "$ANVIL_KEY" \
+  --rpc-url "$RPC_URL" \
+  --quiet
+echo "  ✅ 10 000 DAI minted"
+
+# Print balances
+echo ""
+echo "=== Balances ==="
+ETH_BAL=$(cast balance "$ADDRESS" --rpc-url "$RPC_URL" --ether)
+USDC_BAL=$(cast call "$MOCK_USDC" "balanceOf(address)(uint256)" "$ADDRESS" --rpc-url "$RPC_URL")
+DAI_BAL=$(cast call "$MOCK_DAI" "balanceOf(address)(uint256)" "$ADDRESS" --rpc-url "$RPC_URL")
+echo "  ETH:  $ETH_BAL"
+echo "  USDC: $USDC_BAL (raw, 6 decimals)"
+echo "  DAI:  $DAI_BAL (raw, 18 decimals)"
+echo ""
+echo "Done ✅"

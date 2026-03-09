@@ -15,6 +15,18 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
+      // Local E2E: proxy bundler + paymaster to avoid CORS.
+      // Set VITE_PIMLICO_BUNDLER_URL=/bundler and VITE_PAYMASTER_URL=/paymaster
+      '/bundler': {
+        target: 'http://127.0.0.1:4337',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/bundler/, ''),
+      },
+      '/paymaster': {
+        target: 'http://127.0.0.1:3002',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/paymaster/, ''),
+      },
     },
   },
   plugins: [

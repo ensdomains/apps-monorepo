@@ -8,9 +8,15 @@ import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
 import { walletConnect } from 'wagmi/connectors'
 
-// Single source of truth for Sepolia RPC URL
-export const SEPOLIA_RPC_URL =
+// Single source of truth for Sepolia RPC URL.
+// Set VITE_SEPOLIA_RPC_URL to point the app at a local Anvil fork (e.g. http://127.0.0.1:8545).
+const DEFAULT_SEPOLIA_RPC_URL =
   'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j'
+
+export const SEPOLIA_RPC_URL: string =
+  (typeof import.meta !== 'undefined' &&
+    import.meta.env?.VITE_SEPOLIA_RPC_URL) ||
+  DEFAULT_SEPOLIA_RPC_URL
 
 // Create a custom Sepolia chain with working RPC
 export const customSepolia = {

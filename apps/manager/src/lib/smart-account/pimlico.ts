@@ -3,6 +3,8 @@
  *
  * Pure async function that creates a SmartAccountClient using permissionless SDK
  * with Pimlico bundler/paymaster. Supports both Para-embedded and external wallets.
+ * When VITE_PIMLICO_BUNDLER_URL is set, uses a local Alto bundler instead of
+ * Pimlico cloud, enabling fully-local E2E testing on an Anvil fork.
  */
 
 import { createParaAccount } from '@getpara/viem-v2-integration'
@@ -17,6 +19,13 @@ import type { Address, WalletClient } from 'viem'
 import { http } from 'viem'
 import { entryPoint07Address } from 'viem/account-abstraction'
 import { customSepolia, publicClient } from '@/lib/wagmi'
+import {
+  getChainFeesForUserOp,
+  getLocalBundlerTransport,
+  getLocalPaymasterClient,
+  getPimlicoBundlerUrl,
+  isLocalBundler,
+} from './bundler-url'
 import { registerHCAOwnership } from './hca-registry'
 import type { ParaClient, SmartAccountType, WalletSource } from './types'
 import { wrapParaAccount } from './utils'
@@ -61,12 +70,13 @@ export async function initializePimlicoAccount(
     registerHCA = accountType === 'hca', // Auto-register if accountType is 'hca'
   } = params
 
-  const PIMLICO_API_KEY = import.meta.env.VITE_PIMLICO_API_KEY
-  if (!PIMLICO_API_KEY) {
+  const useLocal = isLocalBundler()
+
+  // When using a local bundler (Alto), no Pimlico API key is needed.
+  const PIMLICO_API_KEY = import.meta.env.VITE_PIMLICO_API_KEY ?? ''
+  if (!useLocal && !PIMLICO_API_KEY) {
     throw new Error('Pimlico API key not configured in environment variables')
   }
-
-  const PIMLICO_URL = `https://api.pimlico.io/v2/${customSepolia.id}/rpc?apikey=${PIMLICO_API_KEY}`
 
   let ownerAccount: Parameters<typeof toSimpleSmartAccount>[0]['owner']
   let eoaAddress: Address | null = null
@@ -90,52 +100,71 @@ export async function initializePimlicoAccount(
     entryPoint: { address: entryPoint07Address, version: '0.7' },
   })
 
-  const pimlicoClient = createPimlicoClient({
-    transport: http(PIMLICO_URL),
-    entryPoint: { address: entryPoint07Address, version: '0.7' },
-  })
+  let client: SmartAccountClient
 
-  const client = createSmartAccountClient({
-    account: smartAccount,
-    chain: customSepolia,
-    bundlerTransport: http(PIMLICO_URL),
-    paymaster: pimlicoClient,
-    userOperation: {
-      estimateFeesPerGas: async () =>
-        (await pimlicoClient.getUserOperationGasPrice()).fast,
-    },
-  })
+  if (useLocal) {
+    // Local Alto bundler + optional mock paymaster
+    const bundlerUrl = getPimlicoBundlerUrl()
+    const localPaymaster = getLocalPaymasterClient()
+
+    client = createSmartAccountClient({
+      account: smartAccount,
+      chain: customSepolia,
+      bundlerTransport: getLocalBundlerTransport(bundlerUrl),
+      userOperation: {
+        estimateFeesPerGas: async () => getChainFeesForUserOp(),
+      },
+      ...(localPaymaster ? { paymaster: localPaymaster } : {}),
+    })
+  } else {
+    // Production: Pimlico cloud bundler + paymaster
+    const PIMLICO_URL = getPimlicoBundlerUrl()
+    const pimlicoClient = createPimlicoClient({
+      transport: http(PIMLICO_URL),
+      entryPoint: { address: entryPoint07Address, version: '0.7' },
+    })
+
+    client = createSmartAccountClient({
+      account: smartAccount,
+      chain: customSepolia,
+      bundlerTransport: http(PIMLICO_URL),
+      paymaster: pimlicoClient,
+      userOperation: {
+        estimateFeesPerGas: async () =>
+          (await pimlicoClient.getUserOperationGasPrice()).fast,
+      },
+    })
+  }
 
   // Register HCA ownership via smart account (sponsored) if requested
-  if (registerHCA && eoaAddress) {
-    const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
-    if (pimlicoApiKey) {
-      const signer = {
-        type: 'zerodev' as const,
-        account: client,
-        config: {
-          chain: customSepolia,
-          accountAddress: smartAccount.address,
-          accountType,
-          pimlicoApiKey,
-        },
-      }
-
-      const result = await registerHCAOwnership({
-        smartAccountAddress: smartAccount.address,
-        eoaAddress,
-        signer,
-        publicClient,
-      })
-
-      if (result.isErr()) {
-        throw new Error(
-          `HCA registration failed: ${result.error.reason} - ${result.error.details}`,
-        )
-      }
-
-      console.log('✅ HCA registration result:', result.value)
+  // Skip HCA registration when using local bundler — the HCA Factory may not
+  // be fully compatible with the local Alto/paymaster setup.
+  if (registerHCA && eoaAddress && (PIMLICO_API_KEY || useLocal)) {
+    const signer = {
+      type: 'zerodev' as const,
+      account: client,
+      config: {
+        chain: customSepolia,
+        accountAddress: smartAccount.address,
+        accountType,
+        pimlicoApiKey: PIMLICO_API_KEY,
+      },
     }
+
+    const result = await registerHCAOwnership({
+      smartAccountAddress: smartAccount.address,
+      eoaAddress,
+      signer,
+      publicClient,
+    })
+
+    if (result.isErr()) {
+      throw new Error(
+        `HCA registration failed: ${result.error.reason} - ${result.error.details}`,
+      )
+    }
+
+    console.log('✅ HCA registration result:', result.value)
   }
 
   const config: PimlicoConfig = {

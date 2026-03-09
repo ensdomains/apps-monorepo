@@ -29,6 +29,7 @@ import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContract
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
 import { ERC20_ABI } from '../ens.abi'
+import { isLocalBundler } from './bundler-url'
 import { initializePimlicoAccount } from './pimlico'
 import type { StoredSession } from './sessions/types'
 import type { WalletSource, ZeroDevAccountState } from './types'
@@ -349,10 +350,13 @@ export const SmartAccountContextProvider = ({
 
   // Auto-fund if balance is low
   // Must match balanceAddress to fund the same address we're checking
+  // Skip auto-funding when using a local bundler — the remote API worker is
+  // unreachable and accounts should be funded via the fund-account.sh script.
   const addressToFund = accountType === 'hca' ? ownerAddress : accountAddress
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Should not rerun from mutation status
   useEffect(() => {
+    if (isLocalBundler()) return // local E2E — fund via script instead
     if (
       !addressToFund ||
       isLoading ||
@@ -376,8 +380,8 @@ export const SmartAccountContextProvider = ({
   const signer: Signer | null = useMemo(() => {
     if (!client || !accountAddress) return null
 
-    const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
-    if (!pimlicoApiKey) {
+    const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY ?? ''
+    if (!isLocalBundler() && !pimlicoApiKey) {
       logger.error('Pimlico API key not configured - cannot create signer')
       return null
     }

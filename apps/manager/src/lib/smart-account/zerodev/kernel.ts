@@ -2,6 +2,8 @@
  * ZeroDev Account Initialization
  *
  * Creates a Kernel smart account using ZeroDev SDK with Pimlico bundler.
+ * When VITE_PIMLICO_BUNDLER_URL is set, uses a local Alto bundler instead of
+ * Pimlico cloud, enabling fully-local E2E testing on an Anvil fork.
  * This is the base account setup - sessions are handled separately by session-manager.ts
  */
 
@@ -21,6 +23,13 @@ import type { Address, WalletClient } from 'viem'
 import { http } from 'viem'
 import { entryPoint07Address } from 'viem/account-abstraction'
 import { customSepolia, publicClient } from '@/lib/wagmi'
+import {
+  getChainFeesForUserOp,
+  getLocalBundlerTransport,
+  getLocalPaymasterClient,
+  getPimlicoBundlerUrl,
+  isLocalBundler,
+} from '../bundler-url'
 import { registerHCAOwnership } from '../hca-registry'
 import type { SmartAccountType } from '../types'
 
@@ -58,13 +67,13 @@ export async function initializeZeroDevAccount(
   params: InitializeZeroDevParams,
 ): Promise<ZeroDevInitResult> {
   const { walletClient, accountType = 'simple' } = params
+  const useLocal = isLocalBundler()
 
-  const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
-  if (!pimlicoApiKey) {
+  // When using a local bundler (Alto), no Pimlico API key is needed.
+  const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY ?? ''
+  if (!useLocal && !pimlicoApiKey) {
     throw new Error('Pimlico API key not configured in environment variables')
   }
-
-  const PIMLICO_URL = `https://api.pimlico.io/v2/${customSepolia.id}/rpc?apikey=${pimlicoApiKey}`
 
   const entryPoint = {
     address: entryPoint07Address,
@@ -77,6 +86,11 @@ export async function initializeZeroDevAccount(
   }
 
   logger.info('🔧 [ZERODEV] Creating ECDSA validator for:', account.address)
+  if (useLocal) {
+    logger.info(
+      '🔧 [ZERODEV] Using local bundler (Alto) — Pimlico cloud bypassed',
+    )
+  }
 
   // Convert wallet client to ZeroDev Signer type
   // Type assertion is safe because we've validated account exists above
@@ -103,25 +117,42 @@ export async function initializeZeroDevAccount(
 
   logger.info('✅ [ZERODEV] Kernel account created:', kernelAccount.address)
 
-  // Create Pimlico client for gas estimation and paymaster
-  const pimlicoClient = createPimlicoClient({
-    transport: http(PIMLICO_URL),
-    entryPoint,
-  })
+  // ---------- bundler / paymaster / gas configuration ----------
+  let client: KernelAccountClient
 
-  // Create account client with Pimlico bundler
-  const client = createKernelAccountClient({
-    account: kernelAccount,
-    chain: customSepolia,
-    bundlerTransport: http(PIMLICO_URL),
-    // Use Pimlico client for gas estimation (avoids zd_getUserOperationGasPrice error)
-    userOperation: {
-      estimateFeesPerGas: async () => {
-        return (await pimlicoClient.getUserOperationGasPrice()).fast
+  if (useLocal) {
+    // Local Alto bundler + optional mock paymaster
+    const bundlerUrl = getPimlicoBundlerUrl()
+    const localPaymaster = getLocalPaymasterClient()
+
+    client = createKernelAccountClient({
+      account: kernelAccount,
+      chain: customSepolia,
+      bundlerTransport: getLocalBundlerTransport(bundlerUrl),
+      userOperation: {
+        estimateFeesPerGas: async () => getChainFeesForUserOp(),
       },
-    },
-    paymaster: pimlicoClient,
-  })
+      ...(localPaymaster ? { paymaster: localPaymaster } : {}),
+    }) as KernelAccountClient
+  } else {
+    // Production: Pimlico cloud bundler + paymaster
+    const PIMLICO_URL = getPimlicoBundlerUrl()
+    const pimlicoClient = createPimlicoClient({
+      transport: http(PIMLICO_URL),
+      entryPoint,
+    })
+
+    client = createKernelAccountClient({
+      account: kernelAccount,
+      chain: customSepolia,
+      bundlerTransport: http(PIMLICO_URL),
+      userOperation: {
+        estimateFeesPerGas: async () =>
+          (await pimlicoClient.getUserOperationGasPrice()).fast,
+      },
+      paymaster: pimlicoClient,
+    }) as KernelAccountClient
+  }
 
   const accountAddress = kernelAccount.address
   const eoaAddress = account.address
