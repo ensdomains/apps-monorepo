@@ -15,6 +15,10 @@ export type ResolverRole = {
   readonly account: string
   readonly resource: string
   readonly roleBitmap: string
+  readonly blockNumber: number
+  readonly transactionHash: string | null
+  readonly timestamp: number | null
+  readonly name: string | null
 }
 
 export type ResolverEvent = {
@@ -87,6 +91,10 @@ const getResolverOverview = ResultFn(async function* ({
               account
               resource
               roleBitmap
+              blockNumber
+              transactionHash
+              timestamp
+              name
             }
             events(first: 50) {
               id
