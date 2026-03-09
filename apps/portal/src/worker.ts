@@ -194,10 +194,9 @@ function isAddressRoute(pathname: string): boolean {
 }
 
 function isProfileRoute(pathname: string): boolean {
-  // Must be a single path segment like /nick.eth
   if (!pathname.startsWith('/')) return false
   const segments = pathname.slice(1).split('/')
-  if (segments.length !== 1 || segments[0] === '') return false
+  if (segments.length < 1 || segments[0] === '') return false
 
   const name = segments[0]
 
@@ -210,6 +209,29 @@ function isProfileRoute(pathname: string): boolean {
   if (name.includes('.') && !name.endsWith('.eth')) return false
 
   return true
+}
+
+function extractNameFromPath(pathname: string): string | null {
+  if (!pathname.startsWith('/')) return null
+  const segments = pathname.slice(1).split('/')
+  if (segments.length < 1 || segments[0] === '') return null
+
+  const name = segments[0]
+
+  // Skip known static paths
+  for (const prefix of STATIC_PATH_PREFIXES) {
+    if (pathname.startsWith(prefix)) return null
+  }
+
+  // Skip file extensions other than .eth-like names
+  if (name.includes('.') && !name.endsWith('.eth')) return null
+
+  return name
+}
+
+function isNameSubpage(pathname: string): boolean {
+  const name = extractNameFromPath(pathname)
+  return name !== null
 }
 
 function truncate(text: string, maxLength: number): string {
@@ -505,9 +527,9 @@ export default {
         .transform(response)
     }
 
-    // Profile page: inject meta tags
-    if (isProfileRoute(pathname)) {
-      const name = decodeURIComponent(pathname.slice(1))
+    // Name page (including subpages like /name/ownership): inject meta tags
+    if (isNameSubpage(pathname)) {
+      const name = decodeURIComponent(extractNameFromPath(pathname)!)
       const accept = request.headers.get('Accept') ?? ''
 
       // Only inject for HTML requests (not JS, CSS, etc.)
@@ -523,7 +545,10 @@ export default {
       const { description, avatar } = ensData
       const host = url.host
       const ogImageUrl = `https://${host}/og/${encodeURIComponent(name)}.png`
-      const profileTitle = `${name} — ENS Explorer App`
+      const pageTitle = pathname.split('/').slice(2).join(' > ')
+      const profileTitle = pageTitle
+        ? `${name} > ${pageTitle} — ENS Explorer App`
+        : `${name} — ENS Explorer App`
       const desc = description ?? `ENS profile for ${name}`
 
       const metaTags = [
