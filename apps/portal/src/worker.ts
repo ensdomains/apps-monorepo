@@ -332,11 +332,25 @@ async function renderOgImage(
   owner: string | null,
   requestUrl: string,
   env: Env,
+  subpage: string | null = null,
 ): Promise<Response> {
   const fonts = await loadOgFonts(env, requestUrl)
   const available = !owner
   const displayName = truncate(name, 28)
   const headerHtml = renderOgHeader()
+
+  const subpageLabels: Record<string, string> = {
+    ownership: 'Ownership',
+    records: 'Records',
+    registry: 'Registry',
+    resolver: 'Resolver',
+    subnames: 'Subnames',
+    permissions: 'Permissions',
+  }
+  const pageLabel = subpage
+    ? (subpageLabels[subpage] ??
+      `${subpage.charAt(0).toUpperCase()}${subpage.slice(1)}`)
+    : 'Name Overview'
 
   let html: string
   if (available) {
@@ -377,7 +391,7 @@ async function renderOgImage(
       </div>
       ${headerHtml}
       <div style="position: absolute; right: 48px; bottom: 70px; transform: translateY(50%); font-size: 49px; line-height: 1; color: #000000; font-family: 'OgSans', system-ui, sans-serif; font-weight: 500; text-align: right; display: flex;">
-        Name Overview
+        ${escapeHtml(pageLabel)}
       </div>
     </div>
   `
@@ -480,7 +494,7 @@ export default {
       return renderDefaultOgImage(request.url, env)
     }
 
-    // OG image route: /og/:name.png
+    // OG image route: /og/:name.png or /og/:name/:subpage.png
     const ogMatch = pathname.match(/^\/og\/(.+)\.png$/)
     if (ogMatch) {
       const decoded = decodeURIComponent(ogMatch[1])
@@ -489,9 +503,12 @@ export default {
       if (addrOgMatch) {
         return renderAddressOgImage(addrOgMatch[1], request.url, env)
       }
-      // Name OG image
-      const { avatar, owner } = await fetchEnsData(env, decoded)
-      return renderOgImage(decoded, avatar, owner, request.url, env)
+      // Name OG image with optional subpage: /og/name/subpage.png
+      const nameParts = decoded.split('/')
+      const name = nameParts[0]
+      const subpage = nameParts[1] ?? null
+      const { avatar, owner } = await fetchEnsData(env, name)
+      return renderOgImage(name, avatar, owner, request.url, env, subpage)
     }
 
     // Address page: inject meta tags
@@ -544,7 +561,10 @@ export default {
 
       const { description, avatar } = ensData
       const host = url.host
-      const ogImageUrl = `https://${host}/og/${encodeURIComponent(name)}.png`
+      const subpage = pathname.split('/').slice(2).join('/')
+      const ogImageUrl = subpage
+        ? `https://${host}/og/${encodeURIComponent(name)}/${encodeURIComponent(subpage)}.png`
+        : `https://${host}/og/${encodeURIComponent(name)}.png`
       const pageTitle = pathname.split('/').slice(2).join(' > ')
       const profileTitle = pageTitle
         ? `${name} > ${pageTitle} — ENS Explorer App`
