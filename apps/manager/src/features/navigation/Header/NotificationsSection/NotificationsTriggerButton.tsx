@@ -17,6 +17,7 @@ export const NotificationsTriggerButton = (
 
   return (
     <button
+      aria-label="Notifications"
       {...props}
       className="relative flex items-center justify-center rounded p-2 text-[#4B4B4B] transition-colors hover:bg-ens-white disabled:cursor-not-allowed"
       disabled={!isAuthed}

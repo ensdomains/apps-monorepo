@@ -27,15 +27,15 @@ const PaymentMethodAddScreenCardDetails = () => {
   return (
     <div className="flex flex-col gap-2 space-y-4">
       <h2 className="font-medium text-lg">Add a credit card</h2>
-      <Input placeholder="Card number" />
+      <Input aria-label="Card number" placeholder="Card number" />
       <div className="flex gap-2">
-        <Input placeholder="MM/YY" />
-        <Input placeholder="CVV" />
+        <Input aria-label="Card expiry date" placeholder="MM/YY" />
+        <Input aria-label="Card security code" placeholder="CVV" />
       </div>
-      <Input placeholder="Name on card" />
+      <Input aria-label="Name on card" placeholder="Name on card" />
       <div className="flex gap-2">
-        <Input placeholder="Zip code" />
-        <Input placeholder="Country" />
+        <Input aria-label="Billing zip code" placeholder="Zip code" />
+        <Input aria-label="Billing country" placeholder="Country" />
       </div>
     </div>
   )

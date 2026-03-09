@@ -90,6 +90,7 @@ export const EnableSessionModal = ({
               </h2>
             </DialogTitle>
             <Button
+              aria-label="Close dialog"
               className="h-6 w-6 p-0"
               disabled={status === 'signing'}
               onClick={handleClose}
