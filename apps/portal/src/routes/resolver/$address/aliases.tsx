@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import type { Address } from 'viem'
+import { ErrorMessage } from '@/components/ErrorMessage'
+import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
 import { queryClient } from '@/utils/queryClient'
@@ -20,9 +22,20 @@ export const Route = createFileRoute('/resolver/$address/aliases')({
 function RouteComponent() {
   const { address } = Route.useParams()
 
-  const { data: resolver } = useQuery(
-    getResolverOverviewQueryOptions({ address: address as Address }),
-  )
+  const {
+    data: resolver,
+    isLoading,
+    error,
+  } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
+
+  if (isLoading) return <LoadingMessage />
+  if (error)
+    return (
+      <ErrorMessage
+        title="Aliases unavailable"
+        description={error.cause?.message}
+      />
+    )
 
   const aliases = resolver?.aliases ?? []
 

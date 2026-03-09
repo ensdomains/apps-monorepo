@@ -14,6 +14,8 @@ import { PanelRightOpen, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { CopyButton } from '@/components/CopyButton'
+import { ErrorMessage } from '@/components/ErrorMessage'
+import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -123,9 +125,11 @@ function RouteComponent() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [tableView] = useTableViewSettings()
 
-  const { data: resolver } = useQuery(
-    getResolverOverviewQueryOptions({ address: address as Address }),
-  )
+  const {
+    data: resolver,
+    isLoading,
+    error,
+  } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
 
   const nodes = resolver?.nodes ?? []
   const roles = resolver?.roles ?? []
@@ -154,6 +158,15 @@ function RouteComponent() {
       },
     },
   })
+
+  if (isLoading) return <LoadingMessage />
+  if (error)
+    return (
+      <ErrorMessage
+        title="Nodes unavailable"
+        description={error.cause?.message}
+      />
+    )
 
   return (
     <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">

@@ -9,6 +9,8 @@ import {
   CounterCardLink,
   CounterCardRow,
 } from '@/components/CounterCard'
+import { ErrorMessage } from '@/components/ErrorMessage'
+import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { DedicatedResolverBanner } from '@/features/resolver/components/DedicatedResolverBanner'
@@ -37,9 +39,11 @@ const RECENT_EVENT_LIMIT = 5
 function RouteComponent() {
   const { address } = Route.useParams()
 
-  const { data: resolver } = useQuery(
-    getResolverOverviewQueryOptions({ address: address as Address }),
-  )
+  const {
+    data: resolver,
+    isLoading,
+    error,
+  } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
 
   const recentEvents = useMemo(() => {
     const events = resolver?.events ?? []
@@ -50,6 +54,15 @@ function RouteComponent() {
       )
       .slice(0, RECENT_EVENT_LIMIT)
   }, [resolver?.events])
+
+  if (isLoading) return <LoadingMessage />
+  if (error)
+    return (
+      <ErrorMessage
+        title="Resolver unavailable"
+        description={error.cause?.message}
+      />
+    )
 
   return (
     <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">

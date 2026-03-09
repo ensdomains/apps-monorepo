@@ -167,13 +167,9 @@ export const ResolverEventsTable = ({
   )
   const [tableView] = useTableViewSettings()
 
-  const txHashes = useMemo(
-    () =>
-      events
-        .map((e) => e.transactionHash)
-        .filter((h): h is string => h !== null) as Hash[],
-    [events],
-  )
+  const txHashes = events
+    .map((e) => e.transactionHash)
+    .filter((h): h is string => h !== null) as Hash[]
 
   const { data: sendersMap } = useTransactionSenders({
     transactionHashes: txHashes,
@@ -190,10 +186,7 @@ export const ResolverEventsTable = ({
     [events, sendersMap],
   )
 
-  const columns = useMemo(
-    () => (enableSidebar ? [...baseColumns, moreColumn] : baseColumns),
-    [enableSidebar],
-  )
+  const columns = enableSidebar ? [...baseColumns, moreColumn] : baseColumns
 
   const table = useReactTable({
     data: rows,

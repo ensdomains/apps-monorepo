@@ -54,7 +54,11 @@ export const NodeDetailSheet = ({
   const isMobile = useIsMobile()
   const [tableView] = useTableViewSettings()
 
-  const { data: profile, isLoading: isLoadingRecords } = useQuery({
+  const {
+    data: profile,
+    isLoading: isLoadingRecords,
+    error: recordsError,
+  } = useQuery({
     ...getProfileQueryOptions(node?.name ?? ''),
     enabled: !!node,
   })
@@ -107,6 +111,11 @@ export const NodeDetailSheet = ({
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-10 w-full" />
                   </div>
+                ) : recordsError ? (
+                  <p className="text-sm text-red-500">
+                    Failed to load records:{' '}
+                    {recordsError.cause?.message ?? 'Unknown error'}
+                  </p>
                 ) : records.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     No records set for this node.
