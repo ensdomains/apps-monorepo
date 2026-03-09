@@ -26,53 +26,72 @@ const createTxState = (
 })
 
 describe('getStatus', () => {
-  it('delegates to getTransactionStatus for single transaction', () => {
-    const txState = createTxState({
-      txId: 'save-records',
-      machineState: 'success',
+  describe('single transaction', () => {
+    it('returns machineState when txState and transaction ids match', () => {
+      const txState = createTxState({
+        txId: 'save-records',
+        machineState: 'success',
+      })
+      const transaction = createTransaction({ id: 'save-records' })
+      const transactions = [transaction]
+      expect(getStatus(transactions, transaction, txState)).toBe('success')
     })
-    const transaction = createTransaction({ id: 'save-records' })
-    const transactions = [transaction]
-    expect(getStatus(transactions, transaction, txState)).toBe('success')
+
+    it('returns undefined when ids do not match', () => {
+      const txState = createTxState({ txId: 'other-tx' })
+      const transaction = createTransaction({ id: 'save-records' })
+      const transactions = [transaction]
+      expect(getStatus(transactions, transaction, txState)).toBeUndefined()
+    })
   })
 
-  it('returns undefined for single transaction when ids do not match', () => {
-    const txState = createTxState({ txId: 'other-tx' })
-    const transaction = createTransaction({ id: 'save-records' })
-    const transactions = [transaction]
-    expect(getStatus(transactions, transaction, txState)).toBeUndefined()
-  })
-
-  it('delegates to getTransactionStatusInFlow for multiple transactions', () => {
+  describe('multi-step flow', () => {
     const deployTx = createTransaction({ id: 'deploy' })
     const changeTx = createTransaction({ id: 'change' })
     const transactions = [deployTx, changeTx]
-    const txState = createTxState({
-      txId: 'change',
-      machineState: 'success',
-    })
-    expect(getStatus(transactions, changeTx, txState)).toBe('success')
-  })
 
-  it('returns success for completed transaction in multi-step flow', () => {
-    const deployTx = createTransaction({ id: 'deploy' })
-    const changeTx = createTransaction({ id: 'change' })
-    const transactions = [deployTx, changeTx]
-    const txState = createTxState({
-      txId: 'change',
-      machineState: 'submitting',
+    it('returns undefined when txState is undefined', () => {
+      expect(getStatus(transactions, deployTx, undefined)).toBeUndefined()
+      expect(getStatus(transactions, changeTx, undefined)).toBeUndefined()
     })
-    expect(getStatus(transactions, deployTx, txState)).toBe('success')
-  })
 
-  it('returns undefined for transaction after active in multi-step flow', () => {
-    const deployTx = createTransaction({ id: 'deploy' })
-    const changeTx = createTransaction({ id: 'change' })
-    const transactions = [deployTx, changeTx]
-    const txState = createTxState({
-      txId: 'deploy',
-      machineState: 'submitting',
+    it('returns success for transactions before the active one', () => {
+      const txState = createTxState({
+        txId: 'change',
+        machineState: 'submitting',
+      })
+      expect(getStatus(transactions, deployTx, txState)).toBe('success')
     })
-    expect(getStatus(transactions, changeTx, txState)).toBeUndefined()
+
+    it('returns getTransactionStatus for the active transaction', () => {
+      const txState = createTxState({
+        txId: 'change',
+        machineState: 'success',
+      })
+      expect(getStatus(transactions, changeTx, txState)).toBe('success')
+    })
+
+    it('returns undefined for transactions after the active one', () => {
+      const txState = createTxState({
+        txId: 'deploy',
+        machineState: 'submitting',
+      })
+      expect(getStatus(transactions, changeTx, txState)).toBeUndefined()
+    })
+
+    it('returns undefined when transaction is not in the list', () => {
+      const txState = createTxState({ txId: 'deploy' })
+      const unknownTx = createTransaction({ id: 'unknown' })
+      expect(getStatus(transactions, unknownTx, txState)).toBeUndefined()
+    })
+
+    it('returns error when active transaction has error', () => {
+      const txState = createTxState({
+        txId: 'change',
+        machineState: 'submitting',
+        error: new Error('Failed'),
+      })
+      expect(getStatus(transactions, changeTx, txState)).toBe('error')
+    })
   })
 })

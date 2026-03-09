@@ -2,17 +2,34 @@ import type { TransactionMachineState } from '@ens-apps/transaction-manager'
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction } from '../types'
 import { getTransactionStatus } from './getTransactionStatus'
-import { getTransactionStatusInFlow } from './getTransactionStatusInFlow'
 
 /**
- * Gets status for a transaction, using flow-aware logic when multiple transactions exist.
+ * Gets status for a transaction. For single-transaction flows, uses txState directly.
+ * For multi-step flows, transactions before the active one are treated as success.
  */
 export const getStatus = (
   transactions: readonly Transaction[],
   transaction: Transaction,
   txState: ActiveTransactionState | undefined,
 ): TransactionMachineState | undefined => {
-  return transactions.length > 1
-    ? getTransactionStatusInFlow(transactions, transaction, txState)
-    : getTransactionStatus(txState, transaction)
+  if (transactions.length === 1) {
+    return getTransactionStatus(txState, transaction)
+  }
+
+  const activeIndex = txState
+    ? transactions.findIndex((t) => t.id === txState.txId)
+    : -1
+
+  const transactionIndex = transactions.findIndex(
+    (t) => t.id === transaction.id,
+  )
+  if (transactionIndex === -1) return undefined
+  if (activeIndex === -1) return undefined
+
+  if (transactionIndex < activeIndex) return 'success'
+  if (transactionIndex === activeIndex) {
+    return getTransactionStatus(txState, transaction)
+  }
+
+  return undefined
 }
