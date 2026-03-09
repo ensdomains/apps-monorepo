@@ -1,6 +1,5 @@
 import { ArrowRight, Calendar, Clock } from 'lucide-react'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
-import { DEFAULT_THEME_COLOR } from '@/features/profile/constants'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { cn } from '@/lib/utils'
 
@@ -39,9 +38,7 @@ export const DomainProfileCard = ({
 }: DomainProfileCardProps) => {
   const formattedRegisteredDate = formatDate(registeredDate) || 'N/A'
   const formattedExpiryDate = formatDate(expiryDate) || 'N/A'
-  const themeVars = getThemeVars(
-    themeColor || DEFAULT_THEME_COLOR,
-  ) as React.CSSProperties
+  const themeVars = getThemeVars(themeColor) as React.CSSProperties
 
   return (
     <div

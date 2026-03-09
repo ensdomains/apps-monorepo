@@ -7,8 +7,8 @@ const mix = (channel: number, whiteRatio: number): number =>
 
 const toHex = (channel: number): string => channel.toString(16).padStart(2, '0')
 
-export const getThemeVars = (hex: string): Record<string, string> => {
-  const safeHex = HEX_COLOR_REGEX.test(hex) ? hex : DEFAULT_THEME_COLOR
+export const getThemeVars = (hex?: string | null): Record<string, string> => {
+  const safeHex = hex && HEX_COLOR_REGEX.test(hex) ? hex : DEFAULT_THEME_COLOR
   const r = parseInt(safeHex.slice(1, 3), 16)
   const g = parseInt(safeHex.slice(3, 5), 16)
   const b = parseInt(safeHex.slice(5, 7), 16)

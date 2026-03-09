@@ -5,7 +5,6 @@ import { match } from 'ts-pattern'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { formatDashboardDate } from '@/features/dashboard/utils'
-import { DEFAULT_THEME_COLOR } from '@/features/profile/constants'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
@@ -55,9 +54,7 @@ export const PrimaryNameCard = ({
     : formattedExpiryDate
   const canViewProfile = Boolean(primaryName)
 
-  const themeVars = getThemeVars(
-    themeColor || DEFAULT_THEME_COLOR,
-  ) as React.CSSProperties
+  const themeVars = getThemeVars(themeColor) as React.CSSProperties
 
   return (
     <Card

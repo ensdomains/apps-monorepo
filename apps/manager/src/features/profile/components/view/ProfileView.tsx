@@ -5,7 +5,6 @@ import { useEffect } from 'react'
 import type { Address } from 'viem'
 import { LinkButton } from '@/components/ui/button'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { DEFAULT_THEME_COLOR } from '../../constants'
 import { sectionsList } from '../../data/records'
 import { profileOwnerQuery } from '../../service/profileOwner'
 import {
@@ -72,8 +71,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     ...profileRecordsQuery(name),
   })
   const records = transformProfileRecords(profileRecords)
-  const themeColor = records.base.theme || DEFAULT_THEME_COLOR
-  const themeVars = getThemeVars(themeColor) as React.CSSProperties
+  const themeVars = getThemeVars(records.base.theme) as React.CSSProperties
   const isProfileEmpty = !hasConfiguredProfileRecords(profileRecords)
 
   const { isOwner, owner, shouldHide } = useOwnerRedirect(name, isProfileEmpty)
