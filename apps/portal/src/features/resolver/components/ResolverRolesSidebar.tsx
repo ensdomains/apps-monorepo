@@ -15,9 +15,9 @@ import { cn } from '@/lib/utils'
 import type { AccountRoleGroup } from './ResolverRolesTable'
 
 type ResolverRolesSidebarProps = PropsWithChildren<{
-  row: Row<AccountRoleGroup> | null
-  open: boolean
-  setOpen: React.Dispatch<React.SetStateAction<boolean>>
+  readonly row: Row<AccountRoleGroup> | null
+  readonly open: boolean
+  readonly setOpen: React.Dispatch<React.SetStateAction<boolean>>
 }>
 
 export const ResolverRolesSidebar = ({

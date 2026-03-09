@@ -40,13 +40,13 @@ import { roleToPermissions } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
 
 export type AccountRoleGroup = {
-  account: Address
-  roles: ResolverRole[]
-  decodedRoles: string[]
+  readonly account: Address
+  readonly roles: readonly ResolverRole[]
+  readonly decodedRoles: readonly string[]
 }
 
 type ResolverRolesTableProps = {
-  roles: readonly ResolverRole[]
+  readonly roles: readonly ResolverRole[]
 }
 
 const columns: ColumnDef<AccountRoleGroup>[] = [
