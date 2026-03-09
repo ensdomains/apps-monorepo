@@ -34,6 +34,8 @@ export const SearchSuggestions = ({
         match(suggestion)
           .with({ type: 'name' }, (name) => (
             <NameSuggestionItem
+              avatarRecord={name.avatarRecord}
+              isRegistered={name.isRegistered}
               key={name.value}
               name={name.value}
               onNavigate={onNavigate}

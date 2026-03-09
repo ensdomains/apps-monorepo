@@ -63,7 +63,7 @@ export const HeaderSearchSection = ({
   const [isOpen, setIsOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
   const { debouncedValue: debouncedSearchValue } = useDebounce(searchValue, {
-    delay: 300,
+    delay: 500,
   })
 
   if (isDesktop) {

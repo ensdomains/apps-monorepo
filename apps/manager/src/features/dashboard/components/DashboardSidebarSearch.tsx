@@ -14,6 +14,7 @@ import {
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { useDebounce } from '@/hooks/useDebounce'
 import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 
 type Suggestion = {
@@ -66,8 +67,11 @@ export const DashboardSidebarSearch = ({
   const containerRef = useRef<HTMLDivElement>(null)
   const [searchValue, setSearchValue] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const { debouncedValue: debouncedSearchValue } = useDebounce(searchValue, {
+    delay: 500,
+  })
 
-  const normalizedInput = searchValue.trim()
+  const normalizedInput = debouncedSearchValue.trim()
   const isAddressInput = isAddress(normalizedInput, { strict: false })
 
   const { data: searchData } = useQuery(

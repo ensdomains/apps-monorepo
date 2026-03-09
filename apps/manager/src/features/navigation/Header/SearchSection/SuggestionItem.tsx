@@ -1,12 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, linkOptions } from '@tanstack/react-router'
-import { Loader2Icon, XIcon } from 'lucide-react'
-import { match, P } from 'ts-pattern'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback/ImageFallback'
 import { AddressSuggestionCard } from '@/components/molecules/DomainResultCard'
-import { useAvatarFromName } from '@/features/profile/service/profileAvatar'
-import { getSearchNameQueryOptions } from '@/features/register/services/checkNameAvailabilityService'
+import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { tw } from '@/utils/tailwind'
 import { searchHistoryStore } from './useSearchHistory'
 
@@ -31,23 +28,25 @@ const LINK_OPTIONS = {
 type NameSuggestionItemProps = {
   name: string
   onNavigate?: () => void
+  /** Whether the name is registered (from indexer). undefined = still loading or unknown */
+  isRegistered?: boolean
+  /** Avatar record from indexer resolver data */
+  avatarRecord?: string | null
 }
 
 export const NameSuggestionItem = ({
   name,
   onNavigate,
+  isRegistered,
+  avatarRecord,
 }: NameSuggestionItemProps) => {
-  const { data: avatarUrl } = useAvatarFromName({
-    name,
+  // Parse avatar from the indexer resolver record (no RPC needed)
+  const { data: avatarUrl } = useQuery({
+    ...parseAvatarQuery(avatarRecord ?? undefined),
+    enabled: !!avatarRecord,
   })
 
-  // Query for name availability (only for name inputs, not addresses)
-  const nameAvailabilityQuery = useQuery({
-    ...getSearchNameQueryOptions(name),
-    enabled: name.length >= 3,
-  })
-
-  const isAvailable = nameAvailabilityQuery.data?.isAvailable ?? false
+  const isAvailable = isRegistered === false
 
   return (
     <Link
@@ -82,46 +81,18 @@ export const NameSuggestionItem = ({
             </span>
           </div>
         </div>
-        {match({
-          isLoading: nameAvailabilityQuery.isLoading,
-          isError: nameAvailabilityQuery.isError,
-          data: nameAvailabilityQuery.data,
-        })
-          .with(
-            {
-              isLoading: true,
-            },
-            () => (
-              <Loader2Icon className="size-4 animate-spin text-slate-500" />
-            ),
-          )
-          .with(
-            {
-              isLoading: false,
-              isError: true,
-            },
-            () => <XIcon className="size-4 text-slate-500" />,
-          )
-          .with(
-            {
-              data: {
-                isAvailable: P.boolean,
-              },
-            },
-            ({ data }) => (
-              <div
-                className={tw(
-                  'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
-                  data.isAvailable
-                    ? 'bg-[#DEF3E4] text-ens-peridot-core'
-                    : 'bg-ens-white text-ens-lapis-core',
-                )}
-              >
-                {data.isAvailable ? 'Available' : 'Registered'}
-              </div>
-            ),
-          )
-          .otherwise(() => null)}
+        {isRegistered !== undefined && (
+          <div
+            className={tw(
+              'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
+              isRegistered
+                ? 'bg-ens-white text-ens-lapis-core'
+                : 'bg-[#DEF3E4] text-ens-peridot-core',
+            )}
+          >
+            {isRegistered ? 'Registered' : 'Available'}
+          </div>
+        )}
       </div>
     </Link>
   )
