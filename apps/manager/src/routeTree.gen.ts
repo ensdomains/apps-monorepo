@@ -14,6 +14,7 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AutoRenewalIndexRouteImport } from './routes/auto-renewal/index'
+import { Route as RegisterV2NameRouteImport } from './routes/register-v2/$name'
 import { Route as PaymentListRouteImport } from './routes/payment/list'
 import { Route as PaymentAddRouteImport } from './routes/payment/add'
 import { Route as LegalTrademarkGuidelinesRouteImport } from './routes/legal/trademark-guidelines'
@@ -51,6 +52,11 @@ const IndexRoute = IndexRouteImport.update({
 const AutoRenewalIndexRoute = AutoRenewalIndexRouteImport.update({
   id: '/auto-renewal/',
   path: '/auto-renewal/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterV2NameRoute = RegisterV2NameRouteImport.update({
+  id: '/register-v2/$name',
+  path: '/register-v2/$name',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PaymentListRoute = PaymentListRouteImport.update({
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
+  '/register-v2/$name': typeof RegisterV2NameRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/p/$name/edit': typeof PNameEditRoute
@@ -154,6 +161,7 @@ export interface FileRoutesByTo {
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
+  '/register-v2/$name': typeof RegisterV2NameRoute
   '/auto-renewal': typeof AutoRenewalIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/p/$name/edit': typeof PNameEditRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
+  '/register-v2/$name': typeof RegisterV2NameRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/p/$name/edit': typeof PNameEditRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
     | '/legal/trademark-guidelines'
     | '/payment/add'
     | '/payment/list'
+    | '/register-v2/$name'
     | '/auto-renewal/'
     | '/debug/backend/settings'
     | '/p/$name/edit'
@@ -216,6 +226,7 @@ export interface FileRouteTypes {
     | '/legal/trademark-guidelines'
     | '/payment/add'
     | '/payment/list'
+    | '/register-v2/$name'
     | '/auto-renewal'
     | '/debug/backend/settings'
     | '/p/$name/edit'
@@ -236,6 +247,7 @@ export interface FileRouteTypes {
     | '/legal/trademark-guidelines'
     | '/payment/add'
     | '/payment/list'
+    | '/register-v2/$name'
     | '/auto-renewal/'
     | '/debug/backend/settings'
     | '/p/$name/edit'
@@ -257,6 +269,7 @@ export interface RootRouteChildren {
   LegalTrademarkGuidelinesRoute: typeof LegalTrademarkGuidelinesRoute
   PaymentAddRoute: typeof PaymentAddRoute
   PaymentListRoute: typeof PaymentListRoute
+  RegisterV2NameRoute: typeof RegisterV2NameRoute
   AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
   DebugBackendSettingsRoute: typeof DebugBackendSettingsRoute
   PNameEditRoute: typeof PNameEditRoute
@@ -300,6 +313,13 @@ declare module '@tanstack/react-router' {
       path: '/auto-renewal'
       fullPath: '/auto-renewal/'
       preLoaderRoute: typeof AutoRenewalIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register-v2/$name': {
+      id: '/register-v2/$name'
+      path: '/register-v2/$name'
+      fullPath: '/register-v2/$name'
+      preLoaderRoute: typeof RegisterV2NameRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/payment/list': {
@@ -425,6 +445,7 @@ const rootRouteChildren: RootRouteChildren = {
   LegalTrademarkGuidelinesRoute: LegalTrademarkGuidelinesRoute,
   PaymentAddRoute: PaymentAddRoute,
   PaymentListRoute: PaymentListRoute,
+  RegisterV2NameRoute: RegisterV2NameRoute,
   AutoRenewalIndexRoute: AutoRenewalIndexRoute,
   DebugBackendSettingsRoute: DebugBackendSettingsRoute,
   PNameEditRoute: PNameEditRoute,

@@ -1,19 +1,18 @@
-import { useQuery } from '@tanstack/react-query'
 import { getTokenPrices } from '@/features/register/services/nameChainContractService'
 import { normalizeDomainNameFromUrl } from '@/utils/domain'
 
-interface UseRegistrationPricingQuoteQueryParams {
+interface RegistrationV2PricingQuoteQueryOptionsParams {
   routeName: string
   durationYears: number
 }
 
-export const useRegistrationPricingQuoteQuery = ({
+export const getRegistrationV2PricingQuoteQueryOptions = ({
   routeName,
   durationYears,
-}: UseRegistrationPricingQuoteQueryParams) => {
+}: RegistrationV2PricingQuoteQueryOptionsParams) => {
   const normalizedName = normalizeDomainNameFromUrl(routeName)
 
-  return useQuery({
+  return {
     queryKey: [
       'registration-v2',
       'pricing-quote',
@@ -22,5 +21,5 @@ export const useRegistrationPricingQuoteQuery = ({
     ],
     queryFn: () => getTokenPrices(normalizedName, durationYears),
     enabled: Boolean(normalizedName) && durationYears > 0,
-  })
+  }
 }

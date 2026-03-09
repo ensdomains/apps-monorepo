@@ -1,12 +1,26 @@
+import { useSelector } from '@xstate/react'
+import { RegistrationV2UiContext } from '@/features/register-v2/machines/RegistrationV2UiContext'
+import { getRegistrationV2ChildActor } from '@/features/register-v2/machines/registrationV2UiMachine'
+
 interface RegistrationV2TransactionStateProps {
   targetName: string
-  actorState: string
 }
 
 export const RegistrationV2TransactionState = ({
   targetName,
-  actorState,
 }: RegistrationV2TransactionStateProps) => {
+  const uiActorRef = RegistrationV2UiContext.useActorRef()
+  const registrationActor = getRegistrationV2ChildActor(uiActorRef.getSnapshot())
+
+  if (!registrationActor) {
+    throw new Error('Registration v2 child actor is not available')
+  }
+
+  const actorState = useSelector(
+    registrationActor,
+    (state) => String(state.value),
+  )
+
   return (
     <section className="space-y-4 rounded border p-4">
       <p className="font-mono text-xs uppercase tracking-wide text-muted-foreground">

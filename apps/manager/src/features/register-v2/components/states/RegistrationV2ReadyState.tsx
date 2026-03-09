@@ -1,23 +1,37 @@
 import type { Address } from 'viem'
+import { useQuery } from '@tanstack/react-query'
+import { RegistrationV2UiContext } from '@/features/register-v2/machines/RegistrationV2UiContext'
+import { getRegistrationV2PricingQuoteQueryOptions } from '@/features/register-v2/queries/registrationV2PricingQuoteQueryOptions'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
 
 interface RegistrationV2ReadyStateProps {
   targetName: string
-  durationYears: number
-  selectedToken: Address
-  pricingText: string
-  onSetDuration: (durationYears: number) => void
-  onSetToken: (token: Address) => void
 }
 
 export const RegistrationV2ReadyState = ({
   targetName,
-  durationYears,
-  selectedToken,
-  pricingText,
-  onSetDuration,
-  onSetToken,
 }: RegistrationV2ReadyStateProps) => {
+  const actorRef = RegistrationV2UiContext.useActorRef()
+  const durationYears = RegistrationV2UiContext.useSelector(
+    (state) => state.context.durationYears,
+  )
+  const selectedToken = RegistrationV2UiContext.useSelector(
+    (state) => state.context.selectedToken,
+  )
+
+  const pricingQuery = useQuery(
+    getRegistrationV2PricingQuoteQueryOptions({
+      routeName: targetName,
+      durationYears,
+    }),
+  )
+
+  const pricingText = pricingQuery.isPending
+    ? 'Pricing scaffold loading...'
+    : pricingQuery.data?.isOk() && pricingQuery.data.value.usdc
+      ? `Current quote scaffold: ${pricingQuery.data.value.usdc.formatted} USDC for ${durationYears} year${durationYears > 1 ? 's' : ''}.`
+      : 'Pricing scaffold available but not yet rendered in detail.'
+
   return (
     <section className="space-y-4 rounded border p-4">
       <p className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
@@ -33,7 +47,12 @@ export const RegistrationV2ReadyState = ({
             <button
               className="rounded border px-3 py-2 text-sm"
               key={durationOption}
-              onClick={() => onSetDuration(durationOption)}
+              onClick={() =>
+                actorRef.send({
+                  type: 'DURATION_SET',
+                  durationYears: durationOption,
+                })
+              }
               type="button"
             >
               {durationOption} year{durationOption > 1 ? 's' : ''}
@@ -50,7 +69,12 @@ export const RegistrationV2ReadyState = ({
             <button
               className="rounded border px-3 py-2 text-sm"
               key={symbol}
-              onClick={() => onSetToken(tokenAddress)}
+              onClick={() =>
+                actorRef.send({
+                  type: 'TOKEN_SET',
+                  token: tokenAddress as Address,
+                })
+              }
               type="button"
             >
               {symbol}

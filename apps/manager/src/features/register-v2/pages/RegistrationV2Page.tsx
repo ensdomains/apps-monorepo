@@ -1,13 +1,13 @@
 import { useEffect } from 'react'
-import { useActorRef, useSelector } from '@xstate/react'
-import { sepolia } from 'viem/chains'
-import { RegistrationV2View } from '@/features/register-v2/components/RegistrationV2View'
-import {
-  getRegistrationV2ChildActor,
-  registrationV2UiMachine,
-} from '@/features/register-v2/machines/registrationV2UiMachine'
-import { useRegistrationAvailabilityQuery } from '@/features/register-v2/queries/useRegistrationAvailabilityQuery'
-import { useRegistrationPricingQuoteQuery } from '@/features/register-v2/queries/useRegistrationPricingQuoteQuery'
+import { useQuery } from '@tanstack/react-query'
+import { RegistrationV2ErrorState } from '@/features/register-v2/components/states/RegistrationV2ErrorState'
+import { RegistrationV2LoadingState } from '@/features/register-v2/components/states/RegistrationV2LoadingState'
+import { RegistrationV2ReadyState } from '@/features/register-v2/components/states/RegistrationV2ReadyState'
+import { RegistrationV2SuccessState } from '@/features/register-v2/components/states/RegistrationV2SuccessState'
+import { RegistrationV2TransactionState } from '@/features/register-v2/components/states/RegistrationV2TransactionState'
+import { RegistrationV2UnavailableState } from '@/features/register-v2/components/states/RegistrationV2UnavailableState'
+import { RegistrationV2UiContext } from '@/features/register-v2/machines/RegistrationV2UiContext'
+import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v2/queries/registrationV2AvailabilityQueryOptions'
 import { normalizeDomainNameFromUrl } from '@/utils/domain'
 
 interface RegistrationV2PageProps {
@@ -19,38 +19,32 @@ export const RegistrationV2Page = ({
 }: RegistrationV2PageProps) => {
   const targetName = normalizeDomainNameFromUrl(routeName)
 
-  const uiActor = useActorRef(registrationV2UiMachine, {
-    input: {
-      chainId: sepolia.id,
-    },
-  })
+  return (
+    <RegistrationV2UiContext.Provider>
+      <RegistrationV2PageContent targetName={targetName} />
+    </RegistrationV2UiContext.Provider>
+  )
+}
 
+interface RegistrationV2PageContentProps {
+  targetName: string
+}
+
+function RegistrationV2PageContent({
+  targetName,
+}: RegistrationV2PageContentProps) {
+  const uiActor = RegistrationV2UiContext.useActorRef()
   useEffect(() => {
     uiActor.send({ type: 'TARGET_CHANGED', targetName })
   }, [targetName, uiActor])
 
-  const uiState = useSelector(uiActor, (state) => state.value)
-  const durationYears = useSelector(
-    uiActor,
-    (state) => state.context.durationYears,
+  const uiState = RegistrationV2UiContext.useSelector((state) => state.value)
+  const lastErrorMessage = RegistrationV2UiContext.useSelector(
+    (state) => state.context.lastErrorMessage,
   )
-  const selectedToken = useSelector(
-    uiActor,
-    (state) => state.context.selectedToken,
+  const availabilityQuery = useQuery(
+    getRegistrationV2AvailabilityQueryOptions(targetName),
   )
-
-  const availabilityQuery = useRegistrationAvailabilityQuery(targetName)
-  const pricingQuery = useRegistrationPricingQuoteQuery({
-    routeName: targetName,
-    durationYears,
-  })
-
-  const registrationActorState = useSelector(uiActor, (state) => {
-    const registrationActor = getRegistrationV2ChildActor(state)
-    const actorSnapshot = registrationActor?.getSnapshot()
-
-    return actorSnapshot?.value != null ? String(actorSnapshot.value) : 'idle'
-  })
 
   const availabilityState = availabilityQuery.isPending
     ? 'loading'
@@ -59,12 +53,6 @@ export const RegistrationV2Page = ({
       : availabilityQuery.data?.isAvailable === false
         ? 'unavailable'
         : 'available'
-
-  const pricingText = pricingQuery.isPending
-    ? 'Pricing scaffold loading...'
-    : pricingQuery.data?.isOk() && pricingQuery.data.value.usdc
-      ? `Current quote scaffold: ${pricingQuery.data.value.usdc.formatted} USDC for ${durationYears} year${durationYears > 1 ? 's' : ''}.`
-      : 'Pricing scaffold available but not yet rendered in detail.'
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-6 py-8">
@@ -78,29 +66,46 @@ export const RegistrationV2Page = ({
         </p>
       </div>
 
-      <RegistrationV2View
-        availabilityMessage={
-          availabilityQuery.error instanceof Error
-            ? availabilityQuery.error.message
-            : availabilityQuery.data?.isAvailable === false
-              ? `${targetName} is not available to register.`
-              : undefined
-        }
-        availabilityState={availabilityState}
-        durationYears={durationYears}
-        onSetDuration={(nextDurationYears) =>
-          uiActor.send({
-            type: 'DURATION_SET',
-            durationYears: nextDurationYears,
-          })
-        }
-        onSetToken={(token) => uiActor.send({ type: 'TOKEN_SET', token })}
-        pricingText={pricingText}
-        registrationActorState={registrationActorState}
-        selectedToken={selectedToken}
-        targetName={targetName}
-        uiState={uiState}
-      />
+      {availabilityState === 'loading' && (
+        <RegistrationV2LoadingState targetName={targetName} />
+      )}
+
+      {availabilityState === 'error' && (
+        <RegistrationV2ErrorState
+          message={
+            availabilityQuery.error instanceof Error
+              ? availabilityQuery.error.message
+              : 'Failed to load registration data.'
+          }
+          targetName={targetName}
+        />
+      )}
+
+      {availabilityState === 'unavailable' && (
+        <RegistrationV2UnavailableState
+          message={`${targetName} is not available to register.`}
+          targetName={targetName}
+        />
+      )}
+
+      {availabilityState === 'available' && uiState === 'editing' && (
+        <RegistrationV2ReadyState targetName={targetName} />
+      )}
+
+      {availabilityState === 'available' && uiState === 'registering' && (
+        <RegistrationV2TransactionState targetName={targetName} />
+      )}
+
+      {availabilityState === 'available' && uiState === 'success' && (
+        <RegistrationV2SuccessState targetName={targetName} />
+      )}
+
+      {availabilityState === 'available' && uiState === 'failure' && (
+        <RegistrationV2ErrorState
+          message={lastErrorMessage ?? 'Registration failed.'}
+          targetName={targetName}
+        />
+      )}
     </main>
   )
 }

@@ -1,5 +1,6 @@
 import { registrationMachine } from '@ens-apps/transaction-manager'
 import type { Address, PublicClient } from 'viem'
+import { sepolia } from 'viem/chains'
 import { assign, sendTo, setup, type ActorRefFrom, type SnapshotFrom } from 'xstate'
 import type { SmartAccountState } from '@/lib/smart-account'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
@@ -29,9 +30,6 @@ export const registrationV2UiMachine = setup({
       durationYears: number
       selectedToken: Address
       lastErrorMessage?: string
-    },
-    input: {} as {
-      chainId: number
     },
     events: {} as
       | { type: 'TARGET_CHANGED'; targetName: string }
@@ -85,8 +83,8 @@ export const registrationV2UiMachine = setup({
     }),
   },
   initial: 'editing',
-  context: ({ input }) => ({
-    chainId: input.chainId,
+  context: () => ({
+    chainId: sepolia.id,
     durationYears: 1,
     selectedToken: SUPPORTED_TOKENS.USDC,
     lastErrorMessage: undefined,
