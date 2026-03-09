@@ -1,3 +1,4 @@
+import clsx from 'clsx'
 import { Check } from 'lucide-react'
 import {
   Card,
@@ -28,9 +29,10 @@ export const ThemeSection = withForm({
                 return (
                   <button
                     aria-label={`${label} theme${isSelected ? ' (selected)' : ''}`}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-transform hover:scale-105 ${
-                      isSelected ? 'ring-2 ring-offset-2' : ''
-                    }`}
+                    className={clsx(
+                      'flex h-10 w-10 items-center justify-center rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+                      isSelected && 'ring-2 ring-offset-2',
+                    )}
                     key={value}
                     onClick={() => field.handleChange(isSelected ? '' : value)}
                     style={{
