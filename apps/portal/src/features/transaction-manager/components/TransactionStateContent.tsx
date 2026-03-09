@@ -19,10 +19,7 @@ import { getBlockExplorerTxUrl } from '@/utils/blockExplorer/getBlockExplorerTxU
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getTransactionById } from '../utils/getTransactionById'
-import {
-  getTransactionStatus,
-  getTransactionStatusInFlow,
-} from '../utils/getTransactionStatus'
+import { getStatus } from '../utils/getTransactionStatus'
 
 type TransactionStateContentProps = {
   readonly transactions: readonly Transaction[]
@@ -31,16 +28,6 @@ type TransactionStateContentProps = {
   readonly setTransactionModalContentState: (
     state: TransactionModalContentState,
   ) => void
-}
-
-function getStatus(
-  transactions: readonly Transaction[],
-  transaction: Transaction,
-  txState: ActiveTransactionState | undefined,
-) {
-  return transactions.length > 1
-    ? getTransactionStatusInFlow(transactions, transaction, txState)
-    : getTransactionStatus(txState, transaction)
 }
 
 export const TransactionStateContent = ({
