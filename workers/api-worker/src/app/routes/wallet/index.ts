@@ -134,7 +134,7 @@ export default createApp()
           daiBalance,
           address,
         })
-        return c.json({ usdcTxHash: null, daiTxHash: null })
+        return c.json({ txHash: null })
       }
 
       const multicallTxHash = await walletClient.writeContract({
