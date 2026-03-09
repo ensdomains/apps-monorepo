@@ -2,7 +2,7 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok } from 'neverthrow'
 import type { ExpiryEvent } from '#types/events/index.js'
 import { chunk } from '#utils/chunk.js'
-import { logger, prettifyError } from '#utils/logger.js'
+import { logger } from '#utils/logger.js'
 import {
   loadNotificationCursors,
   type NotificationCursors,
@@ -196,7 +196,7 @@ export const runExpiryDiscoveryCron = ResultFn(async function* (
         stageId: stage.id,
         cursorStart: cursors[stage.id].expiry_timestamp,
         upperBound: getUpperBoundForStage(stage, nowSec),
-        error: prettifyError(result.error),
+        error: result.error,
       })
       continue
     }

@@ -170,7 +170,12 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
       <div className="text-[#515151] text-base">{email.label}</div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button className="ml-auto" size="icon" variant="ghost">
+          <Button
+            aria-label="Email options"
+            className="ml-auto"
+            size="icon"
+            variant="ghost"
+          >
             <MSymbol
               className="ms-wght-300 text-[#1C1B1F]"
               symbol="more_horiz"

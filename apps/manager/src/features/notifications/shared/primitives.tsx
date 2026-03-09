@@ -63,7 +63,12 @@ export const NotificationHeader = ({
       <TooltipContent>{formatAbsoluteTime(timestamp)}</TooltipContent>
     </Tooltip>
     {onRemove ? (
-      <button className="cursor-pointer" onClick={onRemove} type="button">
+      <button
+        aria-label="Remove notification"
+        className="cursor-pointer"
+        onClick={onRemove}
+        type="button"
+      >
         <X className="size-4 text-[#9b9cac]" />
       </button>
     ) : null}

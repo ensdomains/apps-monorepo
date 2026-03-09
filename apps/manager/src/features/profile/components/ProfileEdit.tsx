@@ -33,6 +33,7 @@ import { HeaderSection } from './sections/HeaderSection'
 import { LinksSection } from './sections/LinksSection'
 import { OtherSection } from './sections/OtherSection'
 import { SocialLinksSection } from './sections/SocialLinksSection'
+import { ThemeSection } from './sections/ThemeSection'
 import { WalletAddressesSection } from './sections/WalletAddressesSection'
 
 interface ProfileEditProps {
@@ -143,6 +144,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
           <OtherSection form={form} />
         </div>
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
+          <ThemeSection form={form} />
           <WalletAddressesSection form={form} />
           {/* Hidden for alpha - users don't need to change the resolver
           <UpdateResolverDialog

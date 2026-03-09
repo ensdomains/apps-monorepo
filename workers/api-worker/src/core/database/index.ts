@@ -26,7 +26,11 @@ export type Database = ReturnType<typeof getDatabase>
 
 export class DatabaseError extends TaggedError('DATABASE_ERROR')<{
   cause: DrizzleQueryError | DrizzleError
-}> {}
+}> {
+  override get message() {
+    return `Database error: ${this.cause.message ?? 'Unknown error'}`
+  }
+}
 
 export const intoDbError = (err: unknown) => {
   const error =
