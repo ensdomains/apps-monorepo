@@ -19,14 +19,14 @@ const ContactItem = ({ record }: ContactItemProps) => {
 
   const inner = (
     <>
-      <span className="text-[var(--theme-color)] text-sm">
+      <span className="text-(--theme-color) text-sm">
         {recordDef?.icon ? (
           <IconRenderer className="size-4" icon={recordDef.icon} />
         ) : (
           recordDef?.name || record.key
         )}
       </span>
-      <span className="text-[var(--theme-color)] text-sm">
+      <span className="text-(--theme-color) text-sm">
         {recordDef?.displayPrefix}
         {displayValue || 'Not set'}
       </span>
