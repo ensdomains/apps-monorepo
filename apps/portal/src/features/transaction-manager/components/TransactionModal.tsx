@@ -70,7 +70,7 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
           .with({ type: 'state' }, (state) => (
             <TransactionStateContent
               transactions={transactions}
-              focusedTransactionId={state.transactionId}
+              activeTransactionId={state.transactionId}
               txState={txState}
               setTransactionModalContentState={setTransactionModalContentState}
             />

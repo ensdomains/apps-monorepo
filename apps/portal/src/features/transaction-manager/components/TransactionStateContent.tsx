@@ -26,7 +26,7 @@ import {
 
 type TransactionStateContentProps = {
   readonly transactions: readonly Transaction[]
-  readonly focusedTransactionId: string
+  readonly activeTransactionId: string
   readonly txState: ActiveTransactionState | undefined
   readonly setTransactionModalContentState: (
     state: TransactionModalContentState,
@@ -45,7 +45,7 @@ function getStatus(
 
 export const TransactionStateContent = ({
   transactions,
-  focusedTransactionId,
+  activeTransactionId,
   txState,
   setTransactionModalContentState,
 }: TransactionStateContentProps) => {
@@ -100,7 +100,7 @@ export const TransactionStateContent = ({
       <DialogHeader>
         <DialogTitle>
           {transactions.length === 1
-            ? getTransactionById(transactions, focusedTransactionId)?.title
+            ? getTransactionById(transactions, activeTransactionId)?.title
             : 'Transaction flow'}
         </DialogTitle>
       </DialogHeader>
