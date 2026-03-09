@@ -18,7 +18,10 @@ import { wagmiConfig } from '@/lib/wagmi'
 import { getBlockExplorerTxUrl } from '@/utils/blockExplorer/getBlockExplorerTxUrl'
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
-import { getTransactionById } from '../utils/getTransactionById'
+import {
+  getActiveTransaction,
+  getTransactionById,
+} from '../utils/getTransactionById'
 import { getStatus } from '../utils/getTransactionStatus'
 
 type TransactionStateContentProps = {
@@ -39,9 +42,7 @@ export const TransactionStateContent = ({
   const chainId = useChainId()
   const activeTransactionsMap = useActiveTransactions()
 
-  const activeTransaction = txState
-    ? getTransactionById(transactions, txState.txId)
-    : transactions[0]
+  const activeTransaction = getActiveTransaction(transactions, txState)
 
   const allSuccess =
     transactions.length > 0 &&

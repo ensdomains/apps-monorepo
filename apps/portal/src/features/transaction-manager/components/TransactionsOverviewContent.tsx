@@ -17,7 +17,7 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
-import { getTransactionById } from '../utils/getTransactionById'
+import { getActiveTransaction } from '../utils/getTransactionById'
 import { getStatus, getTransactionStatus } from '../utils/getTransactionStatus'
 
 type TransactionsOverviewContentProps = {
@@ -42,8 +42,7 @@ export const TransactionsOverviewContent = ({
     },
   })
 
-  const activeTransaction =
-    txState && getTransactionById(transactions, txState.txId)
+  const activeTransaction = getActiveTransaction(transactions, txState)
 
   const transactionStatus = getTransactionStatus(txState, activeTransaction)
 
@@ -153,17 +152,14 @@ export const TransactionsOverviewContent = ({
             variant="secondary"
             onClick={() => {
               if (transactionStatus === 'success') {
-                ;(activeTransaction ?? transactions[0])?.onDone()
+                activeTransaction.onDone()
                 return
               }
 
-              const targetTx = activeTransaction ?? transactions[0]
-              if (targetTx) {
-                setTransactionModalContentState({
-                  type: 'state',
-                  transactionId: targetTx.id,
-                })
-              }
+              setTransactionModalContentState({
+                type: 'state',
+                transactionId: activeTransaction.id,
+              })
             }}
           >
             {match(getTransactionStatus(txState, activeTransaction))
