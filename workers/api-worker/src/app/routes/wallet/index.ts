@@ -5,12 +5,13 @@ import {
   createClient,
   type Hex,
   http,
+  multicall3Abi,
   publicActions,
   walletActions,
 } from 'viem'
 import { type Address, privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
-import { parseUnits } from 'viem/utils'
+import { encodeFunctionData, parseUnits } from 'viem/utils'
 import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
 import { logger } from '#utils/logger.js'
@@ -136,31 +137,48 @@ export default createApp()
         return c.json({ usdcTxHash: null, daiTxHash: null })
       }
 
-      const usdcTx = await walletClient.writeContract({
-        address: TOKENS.USDC.address,
-        abi: ERC20_ABI,
-        functionName: 'mint',
-        args: [address, TOKENS.USDC.mintAmount],
+      const multicallTxHash = await walletClient.writeContract({
+        address: sepolia.contracts.multicall3.address,
+        abi: multicall3Abi,
+        functionName: 'aggregate3',
+        args: [
+          [
+            {
+              target: TOKENS.USDC.address,
+              allowFailure: false,
+              callData: encodeFunctionData({
+                abi: ERC20_ABI,
+                functionName: 'mint',
+                args: [address, TOKENS.USDC.mintAmount],
+              }),
+            },
+            {
+              target: TOKENS.DAI.address,
+              allowFailure: false,
+              callData: encodeFunctionData({
+                abi: ERC20_ABI,
+                functionName: 'mint',
+                args: [address, TOKENS.DAI.mintAmount],
+              }),
+            },
+          ],
+        ],
       })
-      const daiTx = await walletClient.writeContract({
-        address: TOKENS.DAI.address,
-        abi: ERC20_ABI,
-        functionName: 'mint',
-        args: [address, TOKENS.DAI.mintAmount],
-      })
-      logger.debug('Token mint transactions sent', { usdcTx, daiTx, address })
 
-      const [usdcReceipt, daiReceipt] = await Promise.all([
-        walletClient.waitForTransactionReceipt({ hash: usdcTx }),
-        walletClient.waitForTransactionReceipt({ hash: daiTx }),
-      ])
-
-      logger.debug('Minted tokens', {
-        usdcReceipt,
-        daiReceipt,
+      logger.debug('Multicall transaction sent', {
+        multicall: multicallTxHash,
         address,
       })
 
-      return c.json({ usdcTxHash: usdcTx, daiTxHash: daiTx })
+      const receipt = await walletClient.waitForTransactionReceipt({
+        hash: multicallTxHash,
+      })
+
+      logger.debug('Multicall transaction confirmed', {
+        receipt,
+        address,
+      })
+
+      return c.json({ txHash: receipt.transactionHash })
     },
   )
