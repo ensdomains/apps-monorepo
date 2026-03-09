@@ -1,7 +1,9 @@
 import { Trans, useLingui } from '@lingui/react/macro'
+import { useMutation } from '@tanstack/react-query'
 import { LanguagesIcon } from 'lucide-react'
 import { useMemo } from 'react'
-import { loadCatalog } from '@/lib/lingui'
+import { toast } from 'sonner'
+import { isSupportedLocale, loadCatalog, setLocale } from '@/lib/locale'
 import { LOCALES, type SupportedLocale } from '@/lib/locales.config'
 
 interface LanguageSectionProps {
@@ -21,6 +23,25 @@ const toComparableLanguage = (language: string | null | undefined) =>
 
 export const LanguageSection = ({ onAction }: LanguageSectionProps) => {
   const { t, i18n } = useLingui()
+
+  const loadLocaleMutation = useMutation({
+    mutationFn: async (locale: SupportedLocale) => {
+      if (!locale || !isSupportedLocale(locale)) {
+        throw new Error(`Unsupported locale: ${locale}`)
+      }
+
+      await Promise.all([loadCatalog(locale), setLocale(locale)])
+    },
+    onSuccess: () => {
+      onAction()
+    },
+    onError: (error) => {
+      toast.error('Failed to switch language', {
+        description: error.message,
+        id: 'switch-language-error',
+      })
+    },
+  })
 
   const availableLanguages = useMemo(() => {
     return [...Object.keys(LOCALES)]
@@ -59,12 +80,12 @@ export const LanguageSection = ({ onAction }: LanguageSectionProps) => {
         <LanguagesIcon className="size-4 text-muted-foreground" />
         <select
           aria-label={t`Language`}
-          className="w-full bg-transparent text-foreground text-sm outline-none"
+          className="w-full bg-transparent text-foreground text-sm outline-none disabled:opacity-50"
+          disabled={loadLocaleMutation.isPending}
           id="language-selector"
-          onChange={async (event) => {
-            await loadCatalog(event.target.value as SupportedLocale)
-            onAction()
-          }}
+          onChange={(event) =>
+            loadLocaleMutation.mutate(event.target.value as SupportedLocale)
+          }
           value={selectedLanguage}
         >
           {availableLanguages.map((language) => (

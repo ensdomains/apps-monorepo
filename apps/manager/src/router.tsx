@@ -6,7 +6,7 @@ import {
 import { createRouter as createTanStackRouter } from '@tanstack/react-router'
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
 import { initializeIntercom } from './lib/intercom'
-import { loadCatalog } from './lib/lingui'
+import { getLocale, loadCatalog } from './lib/locale'
 import { routeTree } from './routeTree.gen'
 
 declare module '@tanstack/react-query' {
@@ -43,6 +43,8 @@ export async function getRouter() {
     }),
   })
 
+  await loadCatalog(getLocale())
+
   const router = createTanStackRouter({
     routeTree,
     scrollRestoration: true,
@@ -58,8 +60,6 @@ export async function getRouter() {
   })
 
   initializeIntercom()
-
-  await loadCatalog('en')
 
   return router
 }
