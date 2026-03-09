@@ -1,3 +1,4 @@
+import { useActiveTransactions } from '@ens-apps/transaction-manager'
 import {
   ArrowLeft,
   ArrowRight,
@@ -49,15 +50,11 @@ export const TransactionStateContent = ({
   setTransactionModalContentState,
 }: TransactionStateContentProps) => {
   const chainId = useChainId()
+  const activeTransactionsMap = useActiveTransactions()
 
   const activeTransaction = txState
     ? getTransactionById(transactions, txState.txId)
     : transactions[0]
-
-  const blockExplorerTxUrl =
-    txState?.hash && activeTransaction?.id === txState.txId
-      ? getBlockExplorerTxUrl(wagmiConfig.chains, chainId, txState.hash)
-      : undefined
 
   const allSuccess =
     transactions.length > 0 &&
@@ -146,6 +143,12 @@ export const TransactionStateContent = ({
           const status = getStatus(transactions, transaction, txState)
           const isActive = txState?.txId === transaction.id
           const showError = isActive && txState?.error
+          const hash = activeTransactionsMap.get(transaction.id)?.getSnapshot()
+            ?.context?.hash
+
+          const blockExplorerTxUrl = hash
+            ? getBlockExplorerTxUrl(wagmiConfig.chains, chainId, hash)
+            : undefined
 
           return (
             <div
@@ -175,7 +178,7 @@ export const TransactionStateContent = ({
                   <h3 className="text-base font-medium truncate">
                     {transaction.transactionName}
                   </h3>
-                  {isActive && blockExplorerTxUrl && (
+                  {blockExplorerTxUrl && (
                     <a
                       href={blockExplorerTxUrl}
                       target="_blank"
